@@ -1,0 +1,112 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Rysunek poniżej przedstawia wykres funkcji \\(f\\).\n        </p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/zbior_wartosci_1.png",
+      "alt": "odczytywanie wartości z wykresu",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Z wykresu możemy odczytać dziedzinę funkcji \\(f\\), szukając wszystkich \\(x\\)-ów, dla których istnieją punkty na wykresie.\n            </p>"
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                Dziedzina funkcji \\(f\\) to zbiór\n                \n\n￿0￿\n                .\n                ￿1￿\n                .\n                \n",
+      "options": [
+        "\\(\\langle-6,2\\rangle\\)",
+        "\\((-6,2)\\)"
+      ],
+      "answer": 2
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Dziedzina jest zaznaczona na rysunku poniżej.\n            </p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/zbior_wartosci_2.png",
+      "alt": "odczytywanie wartości z wykresu",
+      "figcaption": ""
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                Teraz spójrzmy na najniższy punkt wykresu. Z niego odczytujemy, że\n                \n                    najmniejsza wartość\n                \n                funkcji \\(f\\) to\n                \n\n\n\n\n￿0￿",
+      "options": [
+        "\\(y=-6\\)",
+        "\\(y=-2\\)",
+        "\\(x=-6\\)"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Tę najmniejszą wartość widzisz zaznaczoną na rysunku poniżej.\n            </p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/zbior_wartosci_3.png",
+      "alt": "odczytywanie wartości z wykresu",
+      "figcaption": ""
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                Zauważ, że funkcja\n                \n                    nie ma największej wartości\n                \n                . Jest tak dlatego, że najwyższy punkt, \\((2,5)\\), nie należy do wykresu (jest niezamalowany). Gdyby ten punkt należał do wykresu, wówczas największą wartością byłaby\n                \n\n\n\n\n\n￿0￿",
+      "options": [
+        "\\(y=5\\)",
+        "\\(y=2\\)",
+        "\\(x=2\\)",
+        "\\(y=4\\)"
+      ],
+      "answer": 0
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Tę prawie osiągniętą największą wartość widzisz zaznaczoną na rysunku poniżej.\n            </p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/zbior_wartosci_4.png",
+      "alt": "odczytywanie wartości z wykresu",
+      "figcaption": ""
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                Skoro najmniejszą wartością jest \\(y=-2\\), a największej nie ma, lecz wartości prawie osiągają \\(y=5\\), to znaczy, że zbiorem wartości funkcji \\(f\\) jest zbiór\n                \n\n\n\n\n￿0￿",
+      "options": [
+        "\\((-2,5)\\)",
+        "\\(\\langle -2, 5)\\)",
+        "\\(\\langle -2, 5\\rangle\\)"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Zbiór wartości widzisz zaznaczony na rysunku poniżej.\n            </p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/zbior_wartosci_5.png",
+      "alt": "odczytywanie wartości z wykresu",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Możemy teraz bardziej precyzyjnie zapisać funkcję \\(f\\):\n            </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n                                                                                                f:\\langle-6,2)\\longrightarrow\\langle-2,5)\n                                                                                                "
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "1f164ea2d99eea26326011642e30b5cfd6665415333292c34998766a5908a6cf"
+}

@@ -1,0 +1,226 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Znane nam i stosunkowo często używane jednostki miary długości to:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>milimetr,</li>\n<li>centymetr,</li>\n<li>decymetr,</li>\n<li>metr,</li>\n<li>kilometr.</li>\n</ul>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/jednostki_dlugosci.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Powyższy schemat rozumiemy tak, że:\n    </p>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "\\(1\\,\\text{cm}=10\\,\\text{mm}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(1\\,\\text{dm}=10\\,\\text{cm}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(1\\,\\text{m}=10\\,\\text{dm}\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(1\\,\\text{km}=1000\\,\\text{m}\\)",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 3
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "i odwrotnie:",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 4
+            }
+          ],
+          [
+            {
+              "html": "\\(1\\,\\text{mm}=0,1\\,\\text{cm}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(1\\,\\text{cm}=0,1\\,\\text{dm}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(1\\,\\text{dm}=0,1\\,\\text{m}\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(1\\,\\text{m}=0,001\\,\\text{km}\\)",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 3
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    Uzupełnij.\n                </p>"
+    },
+    {
+      "type": "fillblank",
+      "stem": "\n<li>\n                        \\(2\\,\\text{m}=\\)￿0￿\\(\\,\\text{dm}\\)\n                    </li>\n<li>\n                        \\(1\\,\\text{m}=\\)￿1￿\\(\\,\\text{mm}\\)\n                    </li>\n<li>\n                        \\(3\\,\\text{dm}=\\)￿2￿\\(\\,\\text{mm}\\)\n                    </li>\n<li>\n                        \\(15\\,\\text{m}=\\)￿3￿\\(\\,\\text{mm}\\)\n                    </li>\n<li>\n                        \\(2\\,\\text{km}=\\)￿4￿\\(\\,\\text{cm}\\)\n                    </li>\n",
+      "blanks": [
+        [
+          "20"
+        ],
+        [
+          "1000"
+        ],
+        [
+          "300"
+        ],
+        [
+          "15000"
+        ],
+        [
+          "200000"
+        ]
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    Uzupełnij.\n                </p>"
+    },
+    {
+      "type": "fillblank",
+      "stem": "\n<li>\n                        \\(1\\,\\text{cm}=\\)￿0￿\\(\\,\\text{m}\\)\n                    </li>\n<li>\n                        \\(5\\,\\text{dm}=\\)￿1￿\\(\\,\\text{m}\\)\n                    </li>\n<li>\n                        \\(13\\,\\text{m}=\\)￿2￿\\(\\,\\text{km}\\)\n                    </li>\n<li>\n                        \\(20\\,\\text{cm}=\\)￿3￿\\(\\,\\text{km}\\)\n                    </li>\n<li>\n                        \\(25\\,\\text{mm}=\\)￿4￿\\(\\,\\text{dm}\\)\n                    </li>\n",
+      "blanks": [
+        [
+          "0.01",
+          "0,01"
+        ],
+        [
+          "0.5",
+          "0,5"
+        ],
+        [
+          "0.013",
+          "0,013"
+        ],
+        [
+          "0.0002",
+          "0,0002"
+        ],
+        [
+          "0.25",
+          "0,25"
+        ]
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Z jednostkami kwadratowymi jest trochę inaczej.\n</p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/jednostka_kwadratowa_wstep.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Służą do mierzenia pola, więc muszą uwzględniać dwa wymiary: zarówno długość, jak szerokość. \n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Takie jednostki to:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>milimetr <i>kwadratowy</i>,</li>\n<li>centymetr <i>kwadratowy</i>,</li>\n<li>decymetr <i>kwadratowy</i>,</li>\n<li>metr <i>kwadratowy</i>,</li>\n<li>kilometr <i>kwadratowy</i>.</li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Przyjrzyjmy im się bliżej. \n</p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "9d51dbcd7bd9dced1f0d85cc11395ff04f4efd26e79680f1bc1056330a818fb0"
+}

@@ -1,0 +1,76 @@
+{
+  "elements": [
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "Funkcję kwadratową zapisujemy w jednej z trzech postaci:",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            }
+          ],
+          [
+            {
+              "html": "ogólna",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(y=ax^2+bx+c\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "kanoniczna",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(y=a(x-p)^2+q\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "iloczynowa",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(y=a(x-x_1)(x-x_2)\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Miejsca zerowe \\(x_1\\), \\(x_2\\) obliczne są według wzorów:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n    wyróżnik: \\(\\Delta=b^2-4ac\\)\n    <br/>\n<br/>\n    \\(x_1=\\frac{-b-\\sqrt{\\Delta}}{2a}\\quad\\) oraz \\(\\quad x_2=\\frac{-b+\\sqrt{\\Delta}}{2a}\\)\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Wierzchołek paraboli ma współrzędne \\((p, q)\\), gdzie:\n</p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n\\begin{align*}\np&=-\\frac{b}{2a}\\\\\nq&=-\\frac{\\Delta}{4a}\n\\end{align*}\n"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "8b65389b26d05e156a6167d780ab6de51f7243fff7dfd851e52222ecf85c2456"
+}

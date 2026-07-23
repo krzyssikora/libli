@@ -1,0 +1,326 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Ustalając wartości funkcji trygonometrycznych różnych kątów, będziemy odwoływać się do wartości dla odpowiednich kątów ostrych.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Wartości dla kątów ostrych albo znamy dokładnie (w przypadku kątów \\(30^{\\circ}\\), \\(45^{\\circ}\\) i \\(60^{\\circ}\\)) albo możemy sprawdzić w tablicach trygonometrycznych (co wkrótce ponownie przećwiczymy). Dla kątów poza pierwszą ćwiartką będziemy musieli dodatkowo:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ol>\n<li>\n        ustalić, w której ćwiartce leży kąt (a właściwie wyznaczający go punkt),\n    </li>\n<li>\n        ustalić, które funkcje trygonometryczne są w tej ćwiartce dodatnie, a które ujemne.\n    </li>\n</ol>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Tym drugim problemem zajmiemy się teraz.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n    Pamiętajmy, że współrzęne punkt \\((x,y)\\) na okręgu jednostkowym to \\((\\cos\\alpha, \\sin\\alpha)\\), gdzie \\(\\alpha\\) to kąt wyznaczony przez ten punkt.\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Dlatego zauważmy, że:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n        współrzędna \\(x\\) jest dodatnia (\\(x\\gt 0\\)) w prawo od osi \\(OY\\), a ujemna w lewo,\n    </li>\n<li>\n        współrzędna \\(y\\) jest dodatnia (\\(y\\gt 0\\)) powyżej osi \\(OX\\), a ujemna poniżej.\n    </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<small>\n    (Dla czytelności na poniższych rysunkach dodatnie wartości są oznaczone zielonymi plusami.)\n</small>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/znaki_wspolrzednych.png",
+      "alt": "znaki współrzędnych",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    A to oznacza, żę\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n        \\(\\cos\\alpha\\gt 0\\) dla kąta \\(\\alpha\\) wyznaczonego przez punkt w prawo od osi \\(OY\\),\n    </li>\n<li>\n        \\(\\sin\\alpha\\gt 0\\) dla kąta \\(\\alpha\\) wyznaczonego przez punkt powyżej osi \\(OX\\).\n    </li>\n</ul>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/znaki_sin_cos.png",
+      "alt": "znaki sinusa i cosinusa",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Teraz zauważmy, że:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n        \\(\\text{tg}\\alpha=\\frac{\\sin\\alpha}{\\cos\\alpha}=\\frac{y}{x}\\quad\\) oraz \\(\\quad\\text{ctg}\\alpha=\\frac{\\cos\\alpha}{\\sin\\alpha}=\\frac{x}{y}\\)\n    </li>\n<li>\n        \\((\\color{green}{\\text{dodatnia}})\\cdot(\\color{green}{\\text{dodatnia}})=(\\color{green}{\\text{dodatnia}})\\)\n    </li>\n<li>\n        \\((\\color{green}{\\text{dodatnia}})\\cdot(\\text{ujemna})=(\\text{ujemna})\\)\n    </li>\n<li>\n        \\((\\text{ujemna})\\cdot(\\color{green}{\\text{dodatnia}})=(\\text{ujemna})\\)\n    </li>\n<li>\n        \\((\\text{ujemna})\\cdot(\\text{ujemna})=(\\color{green}{\\text{dodatnia}})\\)\n    </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    I dzięki temu poznamy znaki tangensów i cotangensów.\n</p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/znaki_wszystkie.png",
+      "alt": "znaki sinusa i cosinusa",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Przeprowadzone powyżej rozumowanie możesz przeprowadzać za każdym razem, gdy potrzebujesz ustalić znaki poszukiwanych funkcji trygonometrycznych. Jeśli nie chcesz tego robić, jeśli wydaje Ci się to na przykład zbyt czasochłonne, możesz spróbować te ustalenia zapamiętać. A w tym może pomóc przedstawiony niżej sposób.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Zróbmy jeszcze jedną obserwację: znak cotangensa jest zawsze taki sam jak tangensa, więc zapomnijmy na chwilę o cotangensie i zwróćmy uwagę na to, które z poostałych trzech funkcji trygonometrycznych (sinus, cosinus, tangens) są dodatnie w kolejnych ćwiartkach układu współrzędnych.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Na rysunku poniżej zaznaczone są one na szarym tle.\n</p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/znaki_dodatnie.png",
+      "alt": "znaki sinusa i cosinusa",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    I teraz krótko podsumujmy, odpowiadając na pytanie:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<blockquote>\n    które funkcje trygonometryczne są dodatnie?\n</blockquote>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "I ćwiartka",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "II ćwiartka",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "III ćwiartka",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "IV ćwiartka",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "wszystkie",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "sinus",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "tangens",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "cosinus",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Tak naprawdę wystarczy, jeśli zapamiętasz słowa:\n</p>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "wszystkie",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "sinus",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "tangens",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "cosinus",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Zapamiętanie czterech dość przypadkowych słów w odpowiedniej kolejności może być, długoterminowo, nie takie proste. Zwróćmy jednak uwagę, że każde z tych słów zaczyna się inną literą:\n</p>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "<strong style=\"font-size:xx-large;\">\n                        W\n                    </strong>\n                    szystkie",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<strong style=\"font-size:xx-large;\">\n                        S\n                    </strong>\n                    inus",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<strong style=\"font-size:xx-large;\">\n                        T\n                    </strong>\n                    angens",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<strong style=\"font-size:xx-large;\">\n                        C\n                    </strong>\n                    osinus",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Żeby je zapamiętać, możesz ułożyć sobie zdanie składające się z czterech słów zaczynających się tymi właśnie literami. Na przykład:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n<strong style=\"font-size:x-large;\">\n            W\n        </strong>\n        afle\n        <strong style=\"font-size:x-large;\">\n            S\n        </strong>\n        ą\n        <strong style=\"font-size:x-large;\">\n            T\n        </strong>\n        ylko\n        <strong style=\"font-size:x-large;\">\n            C\n        </strong>\n        zekoladowe\n    </li>\n<li>\n<strong style=\"font-size:x-large;\">\n            W\n        </strong>\n        rony\n        <strong style=\"font-size:x-large;\">\n            S\n        </strong>\n        ą\n        <strong style=\"font-size:x-large;\">\n            T\n        </strong>\n        otalnie\n        <strong style=\"font-size:x-large;\">\n            C\n        </strong>\n        zarne\n    </li>\n<li>\n<strong style=\"font-size:x-large;\">\n            W\n        </strong>\n        iększość\n        <strong style=\"font-size:x-large;\">\n            S\n        </strong>\n        łoni\n        <strong style=\"font-size:x-large;\">\n            T\n        </strong>\n        rąbi\n        <strong style=\"font-size:x-large;\">\n            C\n        </strong>\n        icho\n    </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>albo, jeśli wolisz, zapamiętaj słowo</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n        \"\n        <strong style=\"font-size:x-large;\">\n            WST\n        </strong>\n        e\n        <strong style=\"font-size:x-large;\">\n            C\n        </strong>\n        z\", z którego pierwsze cztery spółgłoski to nasze cztery litery.\n    </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    I jeśli już zapamiętesz te cztery litery, to wówczas możesz łatwo odszyforwać, że:\n</p>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "<strong style=\"font-size:x-large;\">\n                        W\n                    </strong>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "w pierwszej ćwiartce",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<strong style=\"font-size:x-large;\">\n                        W\n                    </strong>\n                    szystkie funkcje są dodatnie",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "<strong style=\"font-size:x-large;\">\n                        S\n                    </strong>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "w drugiej ćwiartce",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<strong style=\"font-size:x-large;\">\n                        S\n                    </strong>\n                    inus jest dodatni",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "<strong style=\"font-size:x-large;\">\n                        T\n                    </strong>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "w trzeciej ćwiartce",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<strong style=\"font-size:x-large;\">\n                        T\n                    </strong>\n                    angens jest dodatni",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "<strong style=\"font-size:x-large;\">\n                        C\n                    </strong>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "w czwartej ćwiartce",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<strong style=\"font-size:x-large;\">\n                        C\n                    </strong>\n                    osinus jest dodatni",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "5c2be9d605f6aad484ed8f44af019c610162045832281ad21d910c51ece0ad05"
+}

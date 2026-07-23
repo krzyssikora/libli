@@ -1,0 +1,90 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><li>\n<strong>Trapezem</strong> nazwiemy czworokąt, który ma (co najmniej) jedną parę boków równoległych.\n    </li></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Równoległe boki trapezu nazywamy <strong>podstawami</strong>.\n        Dwa pozostałe boki trapezu nazywamy <strong>ramionami</strong>.</p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/trapez_podstawy_ramiona_1.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p><li>\n<strong>Wysokość</strong> trapezu to najkrótszy odcinek łączący podstawy, czyli odcinek prostopadły do podstaw, którego końce leżą na podstawach lub na prostych zawierających podstawy.\n    </li>\n<li>\n<strong>Trapez prostokątny</strong> to taki trapez, w którym (przynajmniej) jeden z kątów wewnętrznych jest prosty.\n        <ul>\n<li>\n                Jeśli w trapezie jeden z kątów jest prosty, to drugi kąt przy tym samym ramieniu też jest prosty.\n            </li>\n<li>\n                Ramię trapezu prostokątnego sąsiadujące z kątem prostym jest też wysokością trapezu.\n            </li>\n</ul>\n</li></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><p>\n<strong>Trapez równoramienny</strong> to taki trapez, którego kąty wewnętrzne między jedną podstawą a ramionami są równe.\n        </p></p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/trapez_rownoramienny_definicja.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p><li>\n<u>twierdzenie o kątach przy ramieniu trapezu</u>\n<br/>\n        Suma kątów wewnętrznych przy jednym ramieniu trapezu jest równa \\(180^{\\circ}\\).\n    </li></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><p>\n<strong>Linią środkową</strong> w trapezie nazwiemy linię / odcinek łączący środki ramion trapezu.\n        </p></p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/trapez_linia_srodkowa.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p><p>\n            Linia środkowa w trapezie przedstawionym na rysunku jest oznaczona na zielono.\n        </p>\n<p>\n<u>Twierdzenie o linii środkowej trapezu</u>\n</p></p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/trapez_linia_srodkowa_twierdzenie.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p><ul>\n<li>\n                Odcinek łączący środki ramion trapezu jest równoległy do obu podstaw.\n            </li>\n</ul>\n<p>\n            Jeśli długości podstaw to \\(a\\) i \\(b\\), a długość odcinka łączącego środki ramion to \\(s\\), to\n        </p>\n<ul>\n<li>\n                jego długość jest średnią długości podstaw, czyli \\(s=\\frac{a+b}{2}\\).\n            </li>\n</ul></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><li>\n<p>\n<u>Twierdzenie o przekątnych trapezu równoramiennego</u>\n</p>\n<p>\n            Przekątne w trapezie równoramiennym są równej długości.\n        </p>\n<p>\n<u>co więcej:</u>\n</p>\n<ul>\n<li>\n                odcinki <strong style=\"color: orange;\">nad</strong> punktem przecięcia przekątnych na obu przekątnych są równej długości,\n            </li>\n<li>\n                odcinki <strong style=\"color: red;\">pod</strong> punktem przecięcia przekątnych na obu przekątnych są równej długości,\n            </li>\n</ul>\n</li></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><p>\n<u>Twierdzenie o wysokości trapezu równoramiennego</u>\n</p></p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/trapez_wysokosc_w_rownoramiennym_3.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p><p>\n            Wysokość trapezu równoramiennego opuszczona z wierzchołka krótszej podstawy dzieli dłuższą podstawę na odcinki o długościach \\(\\frac{a+b}{2}\\) i \\(\\frac{a-b}{2}\\).\n        </p></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><p>\n            Pole trapezu, \\(P\\), o podstawach \\(\\color{blue}{a}\\) i \\(\\color{blue}{b}\\) oraz wysokości \\(\\color{red}{h}\\) jest równe\n        </p>\n        \\[\n        P=\\frac{1}{2}(\\color{blue}{a+b})\\cdot\\color{red}{h}\n        \\]</p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/geometria_3_zadanie_320_1.png",
+      "alt": "",
+      "figcaption": ""
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "24e42ccff99685212e6fb8fa8e16a0501f4564df2fa737c7c58de45b8fd5c7e1"
+}

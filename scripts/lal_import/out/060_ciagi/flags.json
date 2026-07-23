@@ -1,0 +1,16 @@
+[
+  {
+    "kind": "duplicate_ordering_token",
+    "reason": "2 files share ordering token 620",
+    "names": [
+      "620_ciag_zastosowania_quiz.html",
+      "620_ciagi.html"
+    ]
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: /jump_to_id/6a14217a2a954f108a0cceb1c1436295",
+    "raw_excerpt": "<a href=\"/jump_to_id/6a14217a2a954f108a0cceb1c1436295\">lekcji na temat użyteczności wzorów rekurencyjnych</a>",
+    "unit_json": "700_ciagi.json"
+  }
+]

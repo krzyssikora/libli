@@ -3,12 +3,16 @@ import json
 import re
 
 import pytest
+from bs4 import BeautifulSoup
 from django.contrib.auth import get_user_model
 from django.urls import reverse
 
 from courses.models import Element
 from courses.models import Enrollment
+from courses.models import FillGateElement
 from courses.models import RevealGateElement
+from courses.models import SpoilerElement
+from courses.models import SwitchGateElement
 from courses.models import TextElement
 from courses.models import UnitProgress
 
@@ -168,3 +172,68 @@ def test_eid_provenance(client):
     body = client.get(lesson_url(unit)).content.decode()
 
     assert f'data-element-pk="{row.pk}"' in body
+
+
+def _build_gate_spoiler(unit):
+    """A top-level spoiler containing a reveal_gate, a switch_gate, and a
+    fill_gate child, in that order (Task 3 DOM-verification spike + pre-hide
+    CSS coverage). Built directly via ORM (Task 1's allowlist already permits
+    these as spoiler children; no need to go through resolve_scope)."""
+    sp = SpoilerElement.objects.create(label="Hint")
+    join = Element.objects.create(unit=unit, content_object=sp)
+    reveal = RevealGateElement.objects.create(label="Show more")
+    switch = SwitchGateElement.objects.create(stem="s", options=["a", "b"], answer=0)
+    fill = FillGateElement.objects.create(stem="s", answers=[["1"]])
+    for order, child in enumerate((reveal, switch, fill)):
+        Element.objects.create(
+            unit=unit,
+            content_object=child,
+            parent=join,
+            tab_id=SpoilerElement.SLOT_ID,
+            order=order,
+        )
+    return sp, join
+
+
+def test_spoiler_gate_child_is_direct_child_of_spoiler_child(client):
+    """DOM-verification spike (Task 3 Step 1): each of the 3 gate families renders
+    its `[data-reveal-gate]` element as a DIRECT child of `.spoiler__child` -- the
+    same direct-child shape the tab-panel case uses (`.tabs__child > [data-reveal-
+    gate]`). This GATES the reveal.js `isGateWrapper` selector + the pre-hide CSS
+    below: if a wrapper intervened for any family, those selectors would need to
+    change to match the actual DOM."""
+    from tests.factories import make_course_with_unit
+    from tests.factories import make_student
+
+    student = make_student(client, "spoiler_dom")
+    course, unit = make_course_with_unit()
+    Enrollment.objects.create(student=student, course=course)
+    _build_gate_spoiler(unit)
+
+    html_body = client.get(lesson_url(unit)).content.decode()
+    soup = BeautifulSoup(html_body, "html.parser")
+
+    wraps_with_gate = 0
+    for wrap in soup.select(".spoiler .spoiler__child"):
+        gate = wrap.find(attrs={"data-reveal-gate": True})
+        if gate is not None:
+            assert gate.parent is wrap, "gate must be a DIRECT child of .spoiler__child"
+            wraps_with_gate += 1
+    assert wraps_with_gate == 3  # reveal_gate + switch_gate + fill_gate all found
+
+
+def test_lesson_prehide_css_covers_spoiler(client):
+    """Pre-hide CSS presence: the lesson `<style>` block emits the spoiler
+    pre-hide selector (mirroring the slide/tab-panel rules) whenever the unit has
+    a reveal-family gate anywhere, including a spoiler-nested one."""
+    from tests.factories import make_course_with_unit
+    from tests.factories import make_student
+
+    student = make_student(client, "spoiler_prehide")
+    course, unit = make_course_with_unit()
+    Enrollment.objects.create(student=student, course=course)
+    _build_gate_spoiler(unit)
+
+    html_body = client.get(lesson_url(unit)).content.decode()
+
+    assert ".spoiler > .spoiler__child:has(> [data-reveal-gate])" in html_body

@@ -1,0 +1,158 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question_text\">\n        Dla każdej z poniższych funkcji oblicz brakujące wartości y dla podanych argumentów x i uzupelnij obie tabele.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Pierwsza funkcja: \\( y=-\\frac{1}{2}x \\)\n    </p>"
+    },
+    {
+      "type": "fill_table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "kind": "static",
+              "html": "\\(x\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(-2\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(-1\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(0\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(1\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(2\\)"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(y\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "1"
+            },
+            {
+              "kind": "answer",
+              "answer": "0.5|0,5"
+            },
+            {
+              "kind": "answer",
+              "answer": "0"
+            },
+            {
+              "kind": "answer",
+              "answer": "-0.5|-0,5"
+            },
+            {
+              "kind": "answer",
+              "answer": "-1"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Druga funkcja: \\( y=2x \\)\n    </p>"
+    },
+    {
+      "type": "fill_table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "kind": "static",
+              "html": "\\(x\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(-2\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(-1\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(0\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(1\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(2\\)"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(y\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "-4"
+            },
+            {
+              "kind": "answer",
+              "answer": "-2"
+            },
+            {
+              "kind": "answer",
+              "answer": "0"
+            },
+            {
+              "kind": "answer",
+              "answer": "2"
+            },
+            {
+              "kind": "answer",
+              "answer": "4"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<div class=\"success hidden\" id=\"success_question10\">\n        Doskonale! Teraz narysuj na kartce wykresy obu funkcji i obejrzyj kolejne nagranie.\n    </div>\n</p>"
+    },
+    {
+      "type": "video",
+      "media_src": "static/LAL_f_lin_2_mid(3).mp4"
+    },
+    {
+      "type": "text",
+      "body": "<p>Z kolejnego nagrania dowiesz się, jak bez tabelki rysować linie proste o danym nachyleniu.</p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "df44ae69e22d15afc16c5e62a8379c22ae31668d1eca6743e3418c8503382ee9"
+}

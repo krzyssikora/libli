@@ -1,0 +1,365 @@
+{
+  "part": {
+    "source_folder": "010_funkcja_liniowa",
+    "order": 4,
+    "title": "funkcja liniowa"
+  },
+  "chapters": [
+    {
+      "order": 0,
+      "title": "__PLACEHOLDER chapter 1__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "f_lin_000.json",
+          "source_html": "f_lin_000.html",
+          "source_dir": "010_funkcja_liniowa",
+          "unit_type": "lesson",
+          "title": "f lin 000"
+        },
+        {
+          "order": 1,
+          "unit_json": "f_lin_010_proporcjonalnosc_prosta.json",
+          "source_html": "f_lin_010_proporcjonalnosc_prosta.html",
+          "source_dir": "010_funkcja_liniowa",
+          "unit_type": "lesson",
+          "title": "f lin 010 proporcjonalnosc prosta"
+        },
+        {
+          "order": 2,
+          "unit_json": "f_lin_011.json",
+          "source_html": "f_lin_011.html",
+          "source_dir": "010_funkcja_liniowa",
+          "unit_type": "lesson",
+          "title": "Czym jest proporcjonalność prosta?"
+        },
+        {
+          "order": 3,
+          "unit_json": "f_lin_012.json",
+          "source_html": "f_lin_012.html",
+          "source_dir": "010_funkcja_liniowa",
+          "unit_type": "lesson",
+          "title": "Definicja proporcjonalności prostej"
+        },
+        {
+          "order": 4,
+          "unit_json": "f_lin_013.json",
+          "source_html": "f_lin_013.html",
+          "source_dir": "010_funkcja_liniowa",
+          "unit_type": "lesson",
+          "title": "Przykłady proporcjonalności prostej"
+        },
+        {
+          "order": 5,
+          "unit_json": "f_lin_020_wspolczynnik_kierunkowy_linii_prostej.json",
+          "source_html": "f_lin_020_wspolczynnik_kierunkowy_linii_prostej.html",
+          "source_dir": "010_funkcja_liniowa",
+          "unit_type": "lesson",
+          "title": "f lin 020 wspolczynnik kierunkowy linii prostej"
+        },
+        {
+          "order": 6,
+          "unit_json": "f_lin_021.json",
+          "source_html": "f_lin_021.html",
+          "source_dir": "010_funkcja_liniowa",
+          "unit_type": "lesson",
+          "title": "Wprowadzenie"
+        },
+        {
+          "order": 7,
+          "unit_json": "f_lin_022.json",
+          "source_html": "f_lin_022.html",
+          "source_dir": "010_funkcja_liniowa",
+          "unit_type": "lesson",
+          "title": "Linia prosta"
+        },
+        {
+          "order": 8,
+          "unit_json": "f_lin_023.json",
+          "source_html": "f_lin_023.html",
+          "source_dir": "010_funkcja_liniowa",
+          "unit_type": "lesson",
+          "title": "Nachylenie linii prostej"
+        },
+        {
+          "order": 9,
+          "unit_json": "f_lin_024.json",
+          "source_html": "f_lin_024.html",
+          "source_dir": "010_funkcja_liniowa",
+          "unit_type": "lesson",
+          "title": "Nachylenie linii prostej przechodzącej przez dwa punkty"
+        },
+        {
+          "order": 10,
+          "unit_json": "f_lin_029_quiz.json",
+          "source_html": "f_lin_029_quiz.html",
+          "source_dir": "010_funkcja_liniowa",
+          "unit_type": "quiz",
+          "title": "f lin 029 quiz"
+        }
+      ]
+    },
+    {
+      "order": 1,
+      "title": "__PLACEHOLDER chapter 2__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "f_lin_030_kierunkowe_rownanie_prostej.json",
+          "source_html": "f_lin_030_kierunkowe_rownanie_prostej.html",
+          "source_dir": "010_funkcja_liniowa",
+          "unit_type": "lesson",
+          "title": "f lin 030 kierunkowe rownanie prostej"
+        },
+        {
+          "order": 1,
+          "unit_json": "f_lin_031.json",
+          "source_html": "f_lin_031.html",
+          "source_dir": "010_funkcja_liniowa",
+          "unit_type": "lesson",
+          "title": "Jak wygląda kierunkowe równanie prostej?"
+        },
+        {
+          "order": 2,
+          "unit_json": "f_lin_032.json",
+          "source_html": "f_lin_032.html",
+          "source_dir": "010_funkcja_liniowa",
+          "unit_type": "lesson",
+          "title": "Krótkie podsumowanie"
+        },
+        {
+          "order": 3,
+          "unit_json": "f_lin_033.json",
+          "source_html": "f_lin_033.html",
+          "source_dir": "010_funkcja_liniowa",
+          "unit_type": "lesson",
+          "title": "Rysowanie linii prostych"
+        },
+        {
+          "order": 4,
+          "unit_json": "f_lin_039_quiz.json",
+          "source_html": "f_lin_039_quiz.html",
+          "source_dir": "010_funkcja_liniowa",
+          "unit_type": "quiz",
+          "title": "f lin 039 quiz"
+        }
+      ]
+    },
+    {
+      "order": 2,
+      "title": "__PLACEHOLDER chapter 3__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "f_lin_040_wspolrzedne_punktow_ na_prostej.json",
+          "source_html": "f_lin_040_wspolrzedne_punktow_ na_prostej.html",
+          "source_dir": "010_funkcja_liniowa",
+          "unit_type": "lesson",
+          "title": "f lin 040 wspolrzedne punktow  na prostej"
+        },
+        {
+          "order": 1,
+          "unit_json": "f_lin_041.json",
+          "source_html": "f_lin_041.html",
+          "source_dir": "010_funkcja_liniowa",
+          "unit_type": "lesson",
+          "title": "Jak znaleźć brakującą współrzędną?"
+        },
+        {
+          "order": 2,
+          "unit_json": "f_lin_042.json",
+          "source_html": "f_lin_042.html",
+          "source_dir": "010_funkcja_liniowa",
+          "unit_type": "lesson",
+          "title": "Czy punkt leży na prostej?"
+        },
+        {
+          "order": 3,
+          "unit_json": "f_lin_050_rownanie_prostej_przechodzacej_przez_dwa_punkty.json",
+          "source_html": "f_lin_050_rownanie_prostej_przechodzacej_przez_dwa_punkty.html",
+          "source_dir": "010_funkcja_liniowa",
+          "unit_type": "lesson",
+          "title": "f lin 050 rownanie prostej przechodzacej przez dwa punkty"
+        },
+        {
+          "order": 4,
+          "unit_json": "f_lin_059_quiz.json",
+          "source_html": "f_lin_059_quiz.html",
+          "source_dir": "010_funkcja_liniowa",
+          "unit_type": "quiz",
+          "title": "f lin 059 quiz"
+        }
+      ]
+    },
+    {
+      "order": 3,
+      "title": "__PLACEHOLDER chapter 4__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "f_lin_060.json",
+          "source_html": "f_lin_060.html",
+          "source_dir": "010_funkcja_liniowa",
+          "unit_type": "lesson",
+          "title": "f lin 060"
+        },
+        {
+          "order": 1,
+          "unit_json": "f_lin_061.json",
+          "source_html": "f_lin_061.html",
+          "source_dir": "010_funkcja_liniowa",
+          "unit_type": "lesson",
+          "title": "f lin 061"
+        },
+        {
+          "order": 2,
+          "unit_json": "f_lin_062.json",
+          "source_html": "f_lin_062.html",
+          "source_dir": "010_funkcja_liniowa",
+          "unit_type": "lesson",
+          "title": "Punkt przecięcia prostej z osią \\(y\\)"
+        },
+        {
+          "order": 3,
+          "unit_json": "f_lin_063.json",
+          "source_html": "f_lin_063.html",
+          "source_dir": "010_funkcja_liniowa",
+          "unit_type": "lesson",
+          "title": "Punkty przecięcia prostej z osią \\(x\\)"
+        },
+        {
+          "order": 4,
+          "unit_json": "f_lin_064.json",
+          "source_html": "f_lin_064.html",
+          "source_dir": "010_funkcja_liniowa",
+          "unit_type": "lesson",
+          "title": "f lin 064"
+        },
+        {
+          "order": 5,
+          "unit_json": "f_lin_065.json",
+          "source_html": "f_lin_065.html",
+          "source_dir": "010_funkcja_liniowa",
+          "unit_type": "lesson",
+          "title": "Miejsca zerowe"
+        },
+        {
+          "order": 6,
+          "unit_json": "f_lin_069_quiz.json",
+          "source_html": "f_lin_069_quiz.html",
+          "source_dir": "010_funkcja_liniowa",
+          "unit_type": "quiz",
+          "title": "f lin 069 quiz"
+        }
+      ]
+    },
+    {
+      "order": 4,
+      "title": "__PLACEHOLDER chapter 5__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "f_lin_070.json",
+          "source_html": "f_lin_070.html",
+          "source_dir": "010_funkcja_liniowa",
+          "unit_type": "lesson",
+          "title": "f lin 070"
+        },
+        {
+          "order": 1,
+          "unit_json": "f_lin_071.json",
+          "source_html": "f_lin_071.html",
+          "source_dir": "010_funkcja_liniowa",
+          "unit_type": "lesson",
+          "title": "Współczynnik kierunkowy prostej równoległej"
+        },
+        {
+          "order": 2,
+          "unit_json": "f_lin_072.json",
+          "source_html": "f_lin_072.html",
+          "source_dir": "010_funkcja_liniowa",
+          "unit_type": "lesson",
+          "title": "Równanie prostej równoległej"
+        },
+        {
+          "order": 3,
+          "unit_json": "f_lin_073.json",
+          "source_html": "f_lin_073.html",
+          "source_dir": "010_funkcja_liniowa",
+          "unit_type": "lesson",
+          "title": "Równanie prostej prostopadłej"
+        },
+        {
+          "order": 4,
+          "unit_json": "f_lin_079_quiz.json",
+          "source_html": "f_lin_079_quiz.html",
+          "source_dir": "010_funkcja_liniowa",
+          "unit_type": "quiz",
+          "title": "f lin 079 quiz"
+        }
+      ]
+    },
+    {
+      "order": 5,
+      "title": "__PLACEHOLDER chapter 6__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "f_lin_080.json",
+          "source_html": "f_lin_080.html",
+          "source_dir": "010_funkcja_liniowa",
+          "unit_type": "lesson",
+          "title": "f lin 080"
+        },
+        {
+          "order": 1,
+          "unit_json": "f_lin_090.json",
+          "source_html": "f_lin_090.html",
+          "source_dir": "010_funkcja_liniowa",
+          "unit_type": "lesson",
+          "title": "f lin 090"
+        },
+        {
+          "order": 2,
+          "unit_json": "f_lin_091.json",
+          "source_html": "f_lin_091.html",
+          "source_dir": "010_funkcja_liniowa",
+          "unit_type": "lesson",
+          "title": "Funkcja liniowa - zastosowania - zadanie 1"
+        },
+        {
+          "order": 3,
+          "unit_json": "f_lin_092.json",
+          "source_html": "f_lin_092.html",
+          "source_dir": "010_funkcja_liniowa",
+          "unit_type": "lesson",
+          "title": "f lin 092"
+        },
+        {
+          "order": 4,
+          "unit_json": "f_lin_093.json",
+          "source_html": "f_lin_093.html",
+          "source_dir": "010_funkcja_liniowa",
+          "unit_type": "lesson",
+          "title": "f lin 093"
+        },
+        {
+          "order": 5,
+          "unit_json": "f_lin_094.json",
+          "source_html": "f_lin_094.html",
+          "source_dir": "010_funkcja_liniowa",
+          "unit_type": "lesson",
+          "title": "f lin 094"
+        },
+        {
+          "order": 6,
+          "unit_json": "f_lin_100.json",
+          "source_html": "f_lin_100.html",
+          "source_dir": "010_funkcja_liniowa",
+          "unit_type": "lesson",
+          "title": "Modelowanie z użyciem funkcji liniowej"
+        }
+      ]
+    }
+  ]
+}

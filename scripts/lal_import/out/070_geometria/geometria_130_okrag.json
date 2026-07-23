@@ -1,0 +1,110 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/okrag_styczne_zad_2.png",
+      "alt": "okrąg i styczne - zadanie 2",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Rysunek przedstawia okrąg o środku w punkcie \\(O\\) oraz czworokąt \\(OABC\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n                Wierczhołek \\(O\\) czworokąta to środek okręgu.\n            </li>\n<li>\n                Wierzchołek \\(A\\) czworokąta to punkt styczności boku \\(AB\\) i okręgu.\n            </li>\n<li>\n                Wierzchołek \\(C\\) czworokąta to punkt styczności boku \\(BC\\) i okręgu.\n            </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Kąt \\(\\angle ABC\\) ma miarę \\(100^{\\circ}\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź miarę kąta \\(\\angle AOC\\).\n        </p>"
+    },
+    {
+      "type": "reveal_gate",
+      "label": "zacznij rozwiązanie"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        Z twierdzenia \"o promieniu i stycznej\"\n                    </p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/tw_promien_styczna.png",
+      "alt": "promień i styczna",
+      "figcaption": ""
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                        wynika, że kąty \\(\\angle BCO\\) oraz \\(\\angle BAO\\) mają miarę\n                        \n\n\n\n￿0￿\n                        .\n                        \n",
+      "options": [
+        "\\(60^{\\circ}\\)",
+        "\\(90^{\\circ}\\)",
+        "\\(120^{\\circ}\\)",
+        "\\(180^{\\circ}\\)"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "image",
+      "media_src": "static/okrag_styczne_zad_2_1.png",
+      "alt": "okrąg i styczne - zadanie 2",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        Wzór na sumę kątów w \\(n\\)-kącie (wielokącie o \\(n\\) wierzchołkach) to\n                    </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n                                                        (n-2)\\cdot 180^{\\circ}\n                                                        "
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                        więc suma kątów w czworokącie \\(OABC\\) jest równa\n                        \n\n\n\n\n￿0￿",
+      "options": [
+        "\\(270^{\\circ}\\)",
+        "\\(360^{\\circ}\\)",
+        "\\(540^{\\circ}\\)"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        Aby znaleźć miarę szukanego kąta \\(\\angle AOC\\), wystarczy od \\(360^{\\circ}\\) odjąć miary kątów:\n                    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n                            danego w zadaniu \\(\\angle ABC=100^{\\circ}\\),\n                        </li>\n<li>\n                            ustalonych przed chwilą \\(\\angle OCB=\\angle OAB=90^{\\circ}\\).\n                        </li>\n</ul>"
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                        I dlatego miara szukanego kąta \\(\\angle AOC\\) to\n                        \n\n\n\n￿0￿\n                        .\n                        \n",
+      "options": [
+        "\\(80^{\\circ}\\)",
+        "\\(90^{\\circ}\\)",
+        "\\(120^{\\circ}\\)",
+        "\\(180^{\\circ}\\)"
+      ],
+      "answer": 0
+    },
+    {
+      "type": "image",
+      "media_src": "static/okrag_styczne_zad_2_2.png",
+      "alt": "okrąg i styczne - zadanie 2",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>I to kończy zadanie.</p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "35e1e297098fe1ef24422f8622d6fab975b6950845eae2b1a578727b25ab4769"
+}

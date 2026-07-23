@@ -1,0 +1,161 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Podsumujmy:\n</p>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": true,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "Romb",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "to czworokąt, w którym wszystkie boki są równej długości.",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "Trapez",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "to czworokąt, który ma (co najmniej) jedną parę boków równoległych.",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "Deltoid",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "to czworokąt, w którym dwie pary sąsiednich boków są równej długości.",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "Równoległobok",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "to czworokąt, który ma dwie pary boków równoległych.",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Zauważmy, że\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n    Każdy <strong>romb</strong> jest zarówno <strong>trapezem</strong>, jak i <strong>deltoidem</strong> oraz <strong>równoległobokiem</strong>.\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Co to oznacza? \n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Oznacza to, że każdy <strong>romb</strong> ma wszystkie własności, jakie ma trapez, deltoid i równoległobok. Z trapezu możemy w naszych rozważaniach zrezygnować - wystarczy ograniczyć się do równoległoboku, bo równoległobok jest też trapezem.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Dodatkowo trapez sam w sobie nie ma szczególnych własności. Ma takie trapez równoramienny, ale romb nie jest trapezem równoramiennym. \n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Przypomnij sobie własności deltoidu i równoległoboku. Zapisz je, a następnie sprawdź poniżej.\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "deltoid",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<ol class=\"bold\">\n<li>\n                            Prosta przechodząca przez końce boków o równej długości jest osią symetrii deltoidu.\n                        </li>\n<li>\n                            Przekątne deltoidu przecinają się pod kątem prostym.\n                            <details>\n<summary>co więcej...</summary>\n                                A co więcej, na mocy pierwszej własności, jedna z przekątnych dzieli drugą na połowy.\n                            </details>\n</li>\n<li>\n                            Kąty między bokami o różnej długości są równe.\n                            <details>\n<summary>chyba, że...</summary>\n                                No, chyba, że wszystkie boki są tej samej długości - wówczas mamy dwie pary równych kątów.\n                            </details>\n</li>\n<li>\n                            Jeśli deltoid jest wypukły, można w niego wpisać okrąg.\n                        </li>\n</ol>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "równoległobok",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<ol class=\"bold\">\n<li>\n                            Długości przeciwległych boków równoległoboku są sobie równe,\n                            <br/>\n<i>inaczej</i>: długości boków równoległych są sobie równe.\n                        </li>\n<li>\n                            Miary przeciwległych kątów równoległoboku są sobie równe.\n                        </li>\n<li>\n                            Sumy miar sąsiednich kątów (tj. kątów przy tym samym boku) równoległoboku są równe \\(180^{\\circ}\\).\n                        </li>\n<li>\n                            Przekątne równoległoboku przecinają się w połowie.\n                        </li>\n</ol>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Romb ma wszystkie własności deltoidu i równoległoboku, ale nie wszystkie własności możemy zastosować w takim brzmieniu, jak powyżej. Na przykład, w przypadku rombu nie bardzo ma sens mówić, że \"kąty między bokami o różnej długości są równe\", bo w rombie wszystkie boki są równe. Jednak w tej własności deltoidu znajdujemy dopisek \"chyba, że\" - i ten ma zastosowanie do rombu.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Które z poniższych własności są własnościami rombu?\n        </p>"
+    },
+    {
+      "type": "choice_grid",
+      "columns": [
+        "tak",
+        "nie"
+      ],
+      "rows": [
+        {
+          "statement": "Przekątne przecinają się w połowie.",
+          "correct": 0
+        },
+        {
+          "statement": "Przekątne przecinają się pod kątem prostym.",
+          "correct": 0
+        },
+        {
+          "statement": "Przekątne są osiami symetrii.",
+          "correct": 0
+        },
+        {
+          "statement": "Przeciwległe kąty są równe.",
+          "correct": 0
+        },
+        {
+          "statement": "W romb można wpisać okrąg.",
+          "correct": 0
+        },
+        {
+          "statement": "Sumy miar sąsiednich kątów są równe \\(180^{\\circ}\\).",
+          "correct": 0
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "371877bee8e6d42b83688e4c114b5c020612c243af766aa940f5f61b164c53ef"
+}

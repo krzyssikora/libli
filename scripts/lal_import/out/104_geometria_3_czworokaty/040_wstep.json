@@ -1,0 +1,90 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Podaj definicje następujących czworokątów. Sprawdź swoje odpowiedzi.\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "trapez",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Czworokąt, który ma (co najmniej) jedną parę boków równoległych.</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "trapezoid",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Czworokąt, w którym żadne dwa boki nie są równoległe.</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "równoległobok",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Czworokąt, który ma dwie pary boków równoległych.</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "romb",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Czworokąt, w którym wszystkie boki są równej długości.</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "prostokąt",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Czworokąt, w którym wszystkie kąty są proste.</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "kwadrat",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Czworokąt, w którym wszystkie kąty są proste i którego wszystkie boki są równej długości.</p>"
+        }
+      ]
+    },
+    {
+      "type": "image",
+      "media_src": "static/klasyfikacja_czworokatow.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "spoiler",
+      "label": "deltoid",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Czworokąt, w którym dwie pary sąsiednich boków są równej długości.</p>"
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "e088959594fc59d156e09041aa0393e508120e239f5520dd5c3fc7c0e799bf8b"
+}

@@ -1,0 +1,165 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n<strong>Linią środkową</strong> w trapezie nazwiemy linię / odcinek łączący środki ramion trapezu.\n    </p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/trapez_linia_srodkowa.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Linia środkowa w trapezie przedstawionym na rysunku jest oznaczona na zielono.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W poniższym aplecie widzisz trapez z zaznaczoną linią środkową.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Naciśnij \"start\" i przyjrzyj się uważnie animacji.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Czy rozumiesz, co pokazuje animacja?\n        </p>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/ukt7afyv/width/660/height/419/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    },
+    {
+      "type": "spoiler",
+      "label": "Co pokazuje animacja?",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Zaczynamy od trapezu z linią środkową.</p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/trapez_linia_srodkowa_tw_01.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "reveal_gate",
+          "label": "pokaż dalej"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Jeden z wierzchołków łączymy z końcem linii środkowej, odcinając w ten sposób trójkąt.\n                </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/trapez_linia_srodkowa_tw_02.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "reveal_gate",
+          "label": "pokaż dalej"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Trójkąt obracamy wokół końca linii środkowej i z trapeazu tworzymy trójkąt, którego podstawa jest sumą podstaw trapezu. \n                </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/trapez_linia_srodkowa_tw_03.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "reveal_gate",
+          "label": "pokaż dalej"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Koniec linii środkowej dzieli nowopowstały bok trójkąta na połowy.\n                </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/trapez_linia_srodkowa_tw_04.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "reveal_gate",
+          "label": "pokaż dalej"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Drugi koniec też - ten drugi bok jest też bokiem trapezu.\n                </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/trapez_linia_srodkowa_tw_05.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Z twierdzenia odwrotnego do twierdzenia Talesa widzimy, że linia środkowa jest równoległa do podstawy trójkąta, czyli <strong>równoległa do obu podstaw trapezu</strong>.\n                </p>"
+        },
+        {
+          "type": "reveal_gate",
+          "label": "pokaż dalej"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Dodatkowo, duży trójkąt jest podobny do tego nad linią środkową w skali \\(2:1\\). I dlatego linia środkowa jest połową podstawy dużego trójkąta.\n                </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/trapez_linia_srodkowa_tw_06.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Innymi słowy, <strong>linia środkowa jest połową sumy podstaw trapezu</strong>.\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Albo jeszcze inaczej: linia środkowa jest średnią długości podstaw trapezu.\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Obejrzyj animację jeszcze raz.\n                </p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>Twierdzenie o linii środkowej trapezu</strong>\n</p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/trapez_linia_srodkowa_twierdzenie.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n            Odcinek łączący środki ramion trapezu jest równoległy do obu podstaw.\n        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Jeśli długości podstaw to \\(a\\) i \\(b\\), a długość odcinka łączącego środki ramion to \\(s\\), to\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n            jego długość jest średnią długości podstaw, czyli \\(s=\\frac{a+b}{2}\\).\n        </li>\n</ul>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "d6f03c6c0dcceabde72958f8b110a86519acebfcb3577b1988dcf66cf3c222df"
+}

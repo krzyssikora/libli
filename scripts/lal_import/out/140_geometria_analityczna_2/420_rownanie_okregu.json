@@ -1,0 +1,428 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n        Równanie okręgu o środku w punkcie \\((a,b)\\) i promieniu \\(r\\) jest postaci\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        \\[\n        (x-a)^2+(y-b)^2=r^2\n        \\]\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Przykład</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Jakie są środek i promień okręgu o podanym równaniu?\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ol class=\"bold\">\n<li>\n                \\((x+3)^2+(y+7)^2=49\\)\n            </li>\n<li>\n                \\((x+4)^2+(y-3)^2=48\\)\n            </li>\n<li>\n                \\((x-5)^2+y^2=45\\)\n            </li>\n<li>\n                \\(x^2+(y+6)^2=44\\)\n            </li>\n</ol>"
+    },
+    {
+      "type": "spoiler",
+      "label": "jak znaleźć środek?",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n            W równaniu okręgu część ze zmienną \\(x\\) ma postać\n        </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n        (x-a)^2+\\dots\n        "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            czyli od zmiennej \\(x\\) <strong>odejmujemy</strong> współrzędną \\(x\\)-ową środka okręgu.\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Jeśli więc fragment równania ze zmienną \\(x\\) jest postaci\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul>\n<li>\n<p>\n<strong>\\((x-\\color{red}{5})^2\\)</strong>\n</p>\n<p>\n                    wspórzędna \\(x\\)-owa środka jest równa \\(\\color{red}{5}\\).\n                </p>\n</li>\n<li>\n<p>\n<strong>\\((x+4)^2\\)</strong>\n</p>\n<p>\n                    Jest to wyrażenie równoważne\n                </p>\n<div class=\"table_wrapper\">\n                    \\[\n                    (x+4)^2=(x-\\color{red}{(-4)})^2\n                    \\]\n                </div>\n<p>\n                    więc wspórzędna \\(x\\)-owa środka jest równa \\(\\color{red}{-4}\\).\n                </p>\n</li>\n<li>\n<p>\n<strong>\\(x^2\\)</strong>\n</p>\n<p>\n                    Jest to wyrażenie równoważne\n                </p>\n<div class=\"table_wrapper\">\n                    \\[\n                    x^2=(x-\\color{red}{0})^2\n                    \\]\n                </div>\n<p>\n                    więc wspórzędna \\(x\\)-owa środka jest równa \\(\\color{red}{0}\\).\n                </p>\n</li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Identycznie jest ze współrzędną \\(y\\)-ową środka.\n        </p>"
+        },
+        {
+          "type": "table",
+          "data": {
+            "header_row": true,
+            "header_col": false,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "wyrażenie",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "współrzędna \\(y\\)-owa środka",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(\\dots (y-3)^2\\dots\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(b=3\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(\\dots (y+7)^2\\dots\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(b=-7\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(\\dots y^2\\dots\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(b=0\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "jak znaleźć promień",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n            Stała po prawej stronie równania okręgu to <strong>kwadrat promienia</strong>.\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Tak więc na przykład dla równania \\((\\dots)^2+(\\dots)^2=50\\) kwadrat promienia jest równy\n        </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n        r^2=50\n        "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            czyli\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n            \\[\n            \\begin{align}\n            r&amp;=\\sqrt{50}=\\\\\n            &amp;=\\sqrt{25\\cdot 2}=\\\\\n            &amp;=5\\sqrt{2}\n            \\end{align}\n            \\]\n        "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<small>\n                Pamiętaj, że promień okręgu musi być liczbą większą od zera, więc nie rozpatrujemy rozwiązania \\(r=-5\\sqrt{2}\\).\n            </small>\n</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "odpowiedź1.",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n            środek: \\((-3,-7)\\), promień: \\(7\\)\n        </p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "odpowiedź2.",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n            środek: \\((-4,3)\\), promień: \\(4\\sqrt{3}\\)\n        </p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "odpowiedź3.",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n            środek: \\((5,0)\\), promień: \\(3\\sqrt{5}\\)\n        </p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "odpowiedź4.",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n            środek: \\((0,-6)\\), promień: \\(2\\sqrt{11}\\)\n        </p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Wpisz współrzędne środka i długość promienia każdego z podanych okręgów, według wzoru.\n        </p>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": true,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "równanie",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "środek",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "promień",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\((x-4)^2+(y+5)^2=36\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<span class=\"myequation\">\\((4, -5)\\)</span>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<span class=\"myequation\">\\(6\\)</span>",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\((x-11)^2+y^2=72\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<span class=\"myequation\">\\((11, 0)\\)</span>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<span class=\"myequation\">\\(6\\sqrt{2}\\)</span>",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\((x+7)^2+(y-7)^2=196\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<span class=\"myequation\">\\((-7, 7)\\)</span>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<span class=\"myequation\">\\(14\\)</span>",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\((x+1)^2+(y-9)^2=121\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<span class=\"myequation\">\n                            \\((\\)\n                            <input class=\"table_input_30\" placeholder=\"?\" type=\"text\"/>,\n                            <input class=\"table_input_30\" placeholder=\"?\" type=\"text\"/>\n                            \\()\\)\n                        </span>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<span class=\"myequation\"><input class=\"table_input_30\" placeholder=\"?\" type=\"text\"/></span>",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(x^2+(y+3)^2=64\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<span class=\"myequation\">\n                            \\((\\)\n                            <input class=\"table_input_30\" placeholder=\"?\" type=\"text\"/>,\n                            <input class=\"table_input_30\" placeholder=\"?\" type=\"text\"/>\n                            \\()\\)\n                        </span>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<span class=\"myequation\"><input class=\"table_input_30\" placeholder=\"?\" type=\"text\"/></span>",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\((x-7)^2+y^2=81\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<span class=\"myequation\">\n                            \\((\\)\n                            <input class=\"table_input_30\" placeholder=\"?\" type=\"text\"/>,\n                            <input class=\"table_input_30\" placeholder=\"?\" type=\"text\"/>\n                            \\()\\)\n                        </span>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<span class=\"myequation\"><input class=\"table_input_30\" placeholder=\"?\" type=\"text\"/></span>",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Jaki jest promień okręgu o podanym równaniu?</p>"
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n1. \\(x^2+(y-2)^2=32\\), promień \\(=\\)\n                    \n\n\n\n￿0￿.\n                ",
+      "options": [
+        "\\(32\\)",
+        "\\(4\\sqrt{2}\\)",
+        "\\(16\\sqrt{2}\\)"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n2. \\((x-5)^2+(y+1)^2=27\\), promień \\(=\\)\n                    \n\n\n\n￿0￿.\n                ",
+      "options": [
+        "\\(5\\sqrt{2}\\)",
+        "\\(27\\)",
+        "\\(3\\sqrt{3}\\)"
+      ],
+      "answer": 2
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n3. \\((x+3)^2+y^2=98\\), promień \\(=\\)\n                    \n\n\n\n￿0￿.\n                ",
+      "options": [
+        "\\(7\\sqrt{2}\\)",
+        "\\(9\\)",
+        "\\(2\\sqrt{7}\\)"
+      ],
+      "answer": 0
+    },
+    {
+      "type": "text",
+      "body": "<p>Świetnie!</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Znajdź równanie okręgu o środku w punkcie \\((3,-5)\\) przechodzącego przez punkt \\((-2,-8)\\).\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Znamy środek okręgu, skąd wiemy, że lewa strona równania okręgu ma postać\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\((x-3)^2+(y+5)^2\\)",
+            "\\((x+3)^2+(y-5)^2\\)",
+            "\\((x+3)^2-(y+5)^2\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Pozostaje nam znaleźć promień tego okręgu.</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Promień jest równy\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "dwukrotnej odległości między danymi punktami",
+            "odległości między danymi punktami",
+            "kwadratowi odległości między danymi punktami"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Promień to odległość między punktami \\((3,-5)\\) i \\((-2,-8)\\).</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Oznacza to, że \\(r=\\sqrt{(3+2)^2+(-5+8)^2}\\), czyli \\(r=\\)\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(\\sqrt{36}\\)",
+            "\\(\\sqrt{34}\\)",
+            "\\(34\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Ostatecznie równanie okręgu ma postać \n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\((x-3)^2+(y+5)^2=34\\)",
+            "\\((x-3)^2+(y+5)^2=\\sqrt{34}\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Zwroć uwagę, że liczba po prawej stronie równania to \\(r^2\\), więc nie potrzebujemy obliczać \\(r=\\sqrt{(3+2)^2+(-5+8)^2}\\) - wystarczy obliczyć \\(r^2=(3+2)^2+(-5+8)^2\\).</p>"
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "32a3ef041f0fc5fb5aa40659d9079e85f9474094246d9d5e1ec1be3550edff99"
+}

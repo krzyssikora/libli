@@ -1,0 +1,102 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Przypomnijmy:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<strong>Deltoid</strong> to czworokąt, w którym dwie pary sąsiednich boków są równej długości.\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    A oto podstawowe własności deltoidu.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>Własności deltoidu</strong>:\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ol class=\"bold\">\n<li>\n            Prosta przechodząca przez końce boków o równej długości jest osią symetrii deltoidu.\n        </li>\n<li>\n            Przekątne deltoidu przecinają się pod kątem prostym.\n            <details>\n<summary>co więcej...</summary>\n                A co więcej, na mocy pierwszej własności, jedna z przekątnych dzieli drugą na połowy.\n            </details>\n</li>\n<li>\n            Kąty między bokami o różnej długości są równe.\n            <details>\n<summary>chyba, że...</summary>\n                No, chyba, że wszystkie boki są tej samej długości - wówczas mamy dwie pary równych kątów.\n            </details>\n</li>\n</ol>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Warto wspomnieć też jedną ciekawą własność deltoidów <strong>wypukłych</strong>.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ol class=\"bold\" start=\"4\">\n<li>\n            Jeśli deltoid jest wypukły, można w niego wpisać okrąg.\n        </li>\n</ol>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W poniższym aplecie możesz przesuwać zaznaczone na <span style=\"color: red\">czerwono</span> punkty, żeby zmienić kształt czworokąta.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Czwarty wierzchołek zmieni się sam - tak, by czworokąt był deltoidem. Zwróć uwagę, że boki równej długości są zaznaczone tym samym kolorem.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Zaznaczaj pola wyboru i zmieniaj kształt deltoidu, by obserwować opisane wyżej własności.\n        </p>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/dcbgm36n/width/675/height/728/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Czworokąt \\(PQRS\\) jest deltoidem, w którym \\(PQ=PS\\) oraz \\(RQ=RS\\).\n        </p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/geometria_3_zadanie_90.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "choice_grid",
+      "columns": [
+        "prawda",
+        "fałsz"
+      ],
+      "rows": [
+        {
+          "statement": "Linia \\(PR\\) jest osią symetrii deltoidu.",
+          "correct": 0
+        },
+        {
+          "statement": "Linia \\(QS\\) jest osią symetrii deltoidu.",
+          "correct": 1
+        },
+        {
+          "statement": "Kąty \\(PSR\\) oraz \\(SPQ\\) są równe.",
+          "correct": 1
+        },
+        {
+          "statement": "Kąty \\(PSR\\) oraz \\(PQR\\) są równe.",
+          "correct": 0
+        },
+        {
+          "statement": "Odcinki \\(PR\\) i \\(QS\\) są prostopadłe.",
+          "correct": 0
+        },
+        {
+          "statement": "Odcinki \\(PQ\\) i \\(QR\\) są prostopadłe.",
+          "correct": 1
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "cfa94a2a334204c536529439c537c95e8a87d108e65dafd2a3145cb92fa1dd56"
+}

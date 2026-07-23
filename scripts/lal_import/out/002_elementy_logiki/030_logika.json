@@ -1,0 +1,75 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Niech zdanie \\(p\\) oznacza \"\n            <em>\n                Coś płonie\n            </em>\n            \".\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Niech zdanie \\(q\\) oznacza \"\n            <em>\n                Widać dym\n            </em>\n            \".\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Wskaż prawidłowy zapis symboliczny następujących zdań:\n        </p>"
+    },
+    {
+      "type": "choice_grid",
+      "columns": [
+        "\\(p\\vee q\\)",
+        "\\(p \\wedge q\\)",
+        "\\(p\\Rightarrow q\\)",
+        "\\(p\\Leftrightarrow q\\)"
+      ],
+      "rows": [
+        {
+          "statement": "Jeśli coś płonie to widać dym.",
+          "correct": 2
+        },
+        {
+          "statement": "Coś płonie i widać dym.",
+          "correct": 1
+        },
+        {
+          "statement": "Coś płonie lub widać dym.",
+          "correct": 0
+        },
+        {
+          "statement": "Coś płonie wtedy i tylko wtedy, gdy widać dym.",
+          "correct": 3
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Wskaż prawidłowy zapis symboliczny następujących zdań:\n        </p>"
+    },
+    {
+      "type": "choice_grid",
+      "columns": [
+        "\\(\\land_{x\\in\\mathbb{Z}}\\quad x\\lt -200\\)",
+        "\\(\\lor_{x\\in\\mathbb{Z}}\\quad x\\lt -200\\)",
+        "\\( z\\lt -200\\)"
+      ],
+      "rows": [
+        {
+          "statement": "Istnieje liczba całkowita mniejsza od \\(-200\\).",
+          "correct": 1
+        },
+        {
+          "statement": "Każda liczba całkowita jest mniejsza od \\(-200\\).",
+          "correct": 0
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "f868c5bc1d29b052841d38d9fa9e2386b3dc9d9d941c17909e79ac1593f6c031"
+}

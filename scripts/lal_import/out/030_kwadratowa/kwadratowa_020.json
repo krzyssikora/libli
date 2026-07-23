@@ -1,0 +1,54 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<h1>\n    Postać kanoniczna funkcji kwadratowej\n</h1>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Rozgrzewka: wymnóż podane wyrażenia i zapisz każde z nich w postaci \\(ax^2+bx+c\\). Wpisz brakujące wartości \\(a\\), \\(b\\) oraz \\(c\\).\n    "
+    },
+    {
+      "type": "fillblank",
+      "stem": "\n        \\((2x-1)^2+7x-2=\\)\n        <span class=\"myequation\">\n￿0￿\n            \\(x^2+\\)\n            ￿1￿\n            \\(x+\\)\n            ￿2￿\n            .\n        </span>\n<span class=\"success hidden\" id=\"success_question10\">\n            Świetnie!\n        </span>\n",
+      "blanks": [
+        [
+          "4.0",
+          "4,0"
+        ],
+        [
+          "3.0",
+          "3,0"
+        ],
+        [
+          "-1.0",
+          "-1,0"
+        ]
+      ]
+    },
+    {
+      "type": "fillblank",
+      "stem": "\n        \\((x-2)(x+2)-3x^2+2x=\\)\n        <span class=\"myequation\">\n￿0￿\n            \\(x^2+\\)\n            ￿1￿\n            \\(x+\\)\n            ￿2￿\n            .\n        </span>\n<span class=\"success hidden\" id=\"success_question20\">\n            Świetnie!\n        </span>\n",
+      "blanks": [
+        [
+          "-2.0",
+          "-2,0"
+        ],
+        [
+          "2.0",
+          "2,0"
+        ],
+        [
+          "-4.0",
+          "-4,0"
+        ]
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "a85dcdd85a65cf46fdee505b36d364c8ed5be54f2efa3156f73028ce8b65751d"
+}

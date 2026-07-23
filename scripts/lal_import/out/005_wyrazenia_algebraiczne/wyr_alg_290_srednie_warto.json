@@ -1,0 +1,52 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Średnią geometryczną dwóch liczb oraz średnią arytmetyczną można przedstawić w sposób geometryczny.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<h3>\n    Średnia geometryczna dwóch liczb\n</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    W poniższym aplecie możesz poruszać\n    <span style=\"color: blue;\">\n        niebieskim\n    </span>\n    i\n    <span style=\"color: red;\">\n        czerwonym\n    </span>\n    punktem, by zmienić wartości liczb \\(\\color{blue}{a}\\) i \\(\\color{red}{b}\\).\n</p>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/yjshkgq2/width/800/height/400/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Liczby te są długościami odcinków w odpowiednich kolorach. Oba odcinki razem tworzą średnicę półokręgu.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Jeśli z punktu styczności tych dwóch odcinków (czyli z niebieskiego punktu) narysujemy odcinek do nich prostopadły sięgający okręgu, to jego długość będzie równa średniej geometrycznej liczb \\(a\\) i \\(b\\).\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<h3>\n    Średnia arytmetyczna\n</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    W poniższym aplecie możesz poruszać\n    <span style=\"color: blue;\">\n        niebieskimi\n    </span>\n    punktami na osi liczbowej.\n    <span style=\"color: red;\">\n        Czerwony\n    </span>\n    punkt wskazuje na średnią arytmetyczną liczb wskazanych przez niebieskie punkty.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Gdyby niebieski odcinek był sztywnym, jednorodnym, cienkim prętem, i gdybyśmy w każdym z niebieskich punktów zawiesili identyczny ciężarek, wówczas zawieszenie pręta w czerwonym punkcie pozwoliłoby utrzymać pręt w równowadze (w idealnych warunkach).\n</p>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/xpzgupqa/width/800/height/400/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Możesz przesuwać niebieskie punkty na osi, by obserwować, jak zmienia się średnia.\n</p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "53822e4954e9279e452c7a619787d17c8b741103553295466b2826cfb4987547"
+}

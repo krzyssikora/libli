@@ -1,0 +1,79 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<h1>\n    Postać kanoniczna a miejsca zerowe i wykres funkcji kwadratowej\n</h1>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Zmienić równanie w postaci kanonicznej na równanie w postaci ogólnej:\n</p>"
+    },
+    {
+      "type": "math",
+      "latex": "\ny=a(x-p)^2+q\\quad\\quad\\longrightarrow\\quad\\quad y=ax^2+bx+c\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    jest łatwo. Wystarczy wymnożyć i uprościć wyrazy podobne.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Zamiana w drugą stronę, z postaci ogólnej na postać kanoniczną:\n</p>"
+    },
+    {
+      "type": "math",
+      "latex": "\ny=ax^2+bx+c \\quad\\quad\\longrightarrow\\quad\\quad y=a(x-p)^2+q\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    jest trochę bardziej wymagająca i tym się teraz zajmiemy.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Najpierw obejrzyj nagranie, a potem uzupełnij brakujące fragmenty rozwiązania. Chyba, że lubisz wyzwania - wtedy przejdź od razu do drugiej zakładki.\n</p>"
+    },
+    {
+      "type": "tabs",
+      "tabs": [
+        {
+          "id": "t000000",
+          "label": "nagranie",
+          "elements": [
+            {
+              "type": "video",
+              "media_src": "static/kwadratowa_podstawy_03.mp4"
+            }
+          ]
+        },
+        {
+          "id": "t000001",
+          "label": "uzupełnij rozwiązanie",
+          "elements": [
+            {
+              "type": "text",
+              "body": "<p>\n                    Funkcja kwadratowa jest dana równaniem w postaci ogólnej:\n                </p>"
+            },
+            {
+              "type": "text",
+              "body": "<p style=\"color: blue\">\n                    \\(y=-2x^2+12x-17\\)\n                </p>"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                    Zamień to równanie w postać kanoniczną, czyli:\n                </p>"
+            },
+            {
+              "type": "text",
+              "body": "<p style=\"color: magenta\">\n                    \\(y=a(x-p)^2+q\\)\n                </p>"
+            },
+            {
+              "type": "text",
+              "body": "<p class=\"fill_steps\">\n<div class=\"fill_show_next\">\n                    pokaż dalej\n                </div>\n<div class=\"fill_step\">\n<p>\n                        Kluczem do rozwiązania jest zrozumienie, gdzie w danym równaniu funkcji odnaleźć kwadrat\n                        <span style=\"color: magenta\">\n                            \\((x-p)^2\\)\n                        </span>\n                        .\n                    </p>\n<p>\n                        Przypomnijmy sobie wzór skróconego mnożenia:\n                    </p>\n<p>\n<span class=\"myequation\">\n                            \\((x-p)^2=x^2-\\)\n                            <span>\n<input class=\"fill_answer\" placeholder=\"...\" type=\"text\"/>\n</span>\n                            \\(xp+p^2\\)\n                        </span>\n</p>\n<p>\n                        W tym wzorze \\(x^2\\) ma współczynnik \\(1\\), a w równaniu funkcji \\(x^2\\) ma współczynnik \\(-2\\).\n                    </p>\n</div>\n<div class=\"fill_show_next\">\n                    pokaż dalej\n                </div>\n<div class=\"fill_step\">\n<p>\n                        Dlatego wyłączymy \\(-2\\) przed nawias w równaniu funkcji:\n                    </p>\n<p>\n<span class=\"myequation\">\n                            \\(y=-2x^2+12x-17=-2(x^2-6x+\\)\n                            <span>\n<input class=\"fill_answer\" placeholder=\"...\" type=\"text\"/>\n</span>\n                            \\()\\)\n                        </span>\n</p>\n</div>\n<div class=\"fill_show_next\">\n                    pokaż dalej\n                </div>\n<div class=\"fill_step\">\n<p>\n                        W nawiasie widzimy\n                        <span style=\"color: magenta;\">\n                            \\(x^2-6x+\\)\n                        </span>\n                        \\(...\\) i chcemy, by to pasowało do wzoru \\((x-p)^2=\\)\n                        <span style=\"color: magenta;\">\n                            \\(x^2-2px+\\)\n                        </span>\n                        \\(p^2\\), co oznacza, że:\n                    </p>\n<p>\n<span class=\"myequation\">\n                            \\(p=\\)\n                            <span>\n<input class=\"fill_answer\" placeholder=\"...\" type=\"text\"/>\n</span>\n</span>\n</p>\n</div>\n<div class=\"fill_show_next\">\n                    pokaż dalej\n                </div>\n<div class=\"fill_step\">\n<p>\n                        Skoro tak, to\n                        <span style=\"color: magenta;\">\n                            \\((x-p)^2=(x-3)^2=x^2-6x+9\\)\n                        </span>\n                        , więc:\n                    </p>\n<p>\n<span class=\"myequation\">\n                            \\(y=-2x^2+12x-17=-2(x^2-6x+9-\\)\n                            <span>\n<input class=\"fill_answer\" placeholder=\"...\" type=\"text\"/>\n</span>\n                            \\()\\)\n                        </span>\n</p>\n</div>\n<div class=\"fill_show_next\">\n                    pokaż dalej\n                </div>\n<div class=\"fill_step\">\n<p>\n                        Możemy teraz zmienić \\(x^2-6x+9\\) w \\((x-3)^2\\):\n                    </p>\n<p>\n<span class=\"myequation\">\n                            \\(y=-2x^2+12x-17=-2(x^2-6x+9-0,5)=-2((x-3)^2-0,5)\\)\n                        </span>\n</p>\n<p>\n                        I teraz wystarczy wymnożyć zewnętrzny nawias przez \\(-2\\):\n                    </p>\n<p>\n<span class=\"myequation\">\n                            \\(y=-2x^2+12x-17=-2(x^2-6x+9-0,5)=-2((x-3)^2-0,5)=2(x-3)^2+\\)\n                            <span>\n<input class=\"fill_answer\" placeholder=\"...\" type=\"text\"/>\n</span>\n</span>\n</p>\n</div>\n</p>"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "d9240ff80b7409dcc0a695c13b7191cef07ce7569796781243ca9d0f827a1bb6"
+}

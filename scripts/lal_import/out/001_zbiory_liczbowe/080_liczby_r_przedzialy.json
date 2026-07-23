@@ -1,0 +1,64 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Wskaż poprawne określenia poniższych przedziałów.\n    "
+    },
+    {
+      "type": "multi_grid",
+      "columns": [
+        "otwarty",
+        "domknięty",
+        "ograniczony",
+        "lewostronnie otwarty"
+      ],
+      "rows": [
+        {
+          "statement": "\\((2,3)\\)",
+          "correct": [
+            0,
+            2
+          ]
+        },
+        {
+          "statement": "\\(\\langle 4, 7\\rangle\\)",
+          "correct": [
+            1,
+            2
+          ]
+        },
+        {
+          "statement": "\\((4, +\\infty)\\)",
+          "correct": [
+            0
+          ]
+        },
+        {
+          "statement": "\\(\\langle -\\infty, 7)\\)",
+          "correct": [
+            1
+          ]
+        },
+        {
+          "statement": "\\(\\langle 7, 11)\\)",
+          "correct": [
+            2
+          ]
+        },
+        {
+          "statement": "\\((-10, -2\\rangle\\)",
+          "correct": [
+            2,
+            3
+          ]
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "ede523b1a2976464ef7b6e6191e2b849e153579f8a80067f6c49acd79faf6d8f"
+}

@@ -1,0 +1,78 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Przypomnijmy:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<strong>\n            Funkcja\n        </strong>\n        \\(f\\) ze zbioru \\(A\\) w zbiór \\(B\\) to takie przyporządkowanie\n        <br/>\n<small>\n            (elementów zbioru \\(B\\), tj. przeciwdziedziny elementom zbioru \\(A\\), tj. dziedziny)\n        </small>\n        ,\n        <br/>\n        że\n        <u>\n<strong>\n                każdemu elementowi\n            </strong>\n            dziedziny\n        </u>\n<br/>\n        przyporządkowany jest\n        <br/>\n<u>\n<strong>\n                dokładnie jeden element\n            </strong>\n            przeciwdziedziny\n        </u>\n        .\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Zapisujemy to\n    </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n    f:A\\longrightarrow B\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Oznacza to, że każdy \\(x\\) ma mieć przyporządkowanego dokładnie jednego \\(y\\)-a.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Jeśli na wykresie mamy dla jednego \\(x\\)-a\n    <strong>\n        dwa różne\n    </strong>\n    \\(y\\)-i, to nie jest to wykres funkcji.\n</p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/wykres_1.png",
+      "alt": "wykres - nie funkcja",
+      "figcaption": ""
+    },
+    {
+      "type": "image",
+      "media_src": "static/wykres_2.png",
+      "alt": "wykres - funkcja",
+      "figcaption": ""
+    },
+    {
+      "type": "image",
+      "media_src": "static/wykres_3.png",
+      "alt": "wykres - nie funkcja",
+      "figcaption": ""
+    },
+    {
+      "type": "image",
+      "media_src": "static/wykres_4.png",
+      "alt": "wykres - funkcja",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>Te wykresy nie przedstawiają funkcji.</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Te wykresy przedstawiają funkcje.</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Czerwona pionowa linia wskazuje \\(x\\)-a, któremu przyporządkowano kilka \\(y\\)-ów.</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Żadna pionowa linia nie przecina wykresu więcej niż raz.</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Z definicji funkcji wynika, że wykres funkcji może mieć</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n            co najwyżej jeden punkt wspólny z osią \\(OY\\),\n        </li>\n<li>\n            dowolną liczbę punktów wspólnych z osią \\(OX\\).\n        </li>\n</ul>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "85a13cba953ca5a56d431710de406eefeedecb8b5501b7ee7acf5e0fa3b03cde"
+}

@@ -1,0 +1,58 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Gdy Jacek odkręcił kran, w wannie było już trochę wody. Od tego momentu woda wlewała się do wanny ze stałą prędkością.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Po 7 minutach w wannie Było 200 litrów wody, a po 15 minutach w wannie było już 320 litrów wody.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Ile litrów wody było w wannie w momencie gdy Jacek odkręcił kran?\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "zobacz",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>95 litrów</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Rowerzysta wyjechał  z punktu A i jechał prostą drogą z niezmienną prędkością.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            O godzinie 12:20 był 18 kilometrów od punktu A, a o godzinie 12:40 był 24 kilometry od punktu A.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ol>\n<li>\n                Znajdź prędkość rowerzysty w kilometrach na godzinę.\n            </li>\n<li>\n                Przyjmując,  że \\(x\\) to czas w godzinach liczony od 12:00,  a \\(y\\) to pokonany dystans w kilometrach, wyznacz zależność między tymi wielkościami.\n            </li>\n<li>\n                O której godzinie rowerzysta wyjechał z punktu A?\n            </li>\n</ol>"
+    },
+    {
+      "type": "spoiler",
+      "label": "zobacz",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<ol>\n<li>\n                18 kilometrów na godzinę\n            </li>\n<li>\n                \\(y=18x+12\\)\n            </li>\n<li>\n                O 11:20.\n            </li>\n</ol>"
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "1f046ee26f29bea3a95159d9198e7ec7773adbdde2bc30a61dca6fd7d50a1287"
+}

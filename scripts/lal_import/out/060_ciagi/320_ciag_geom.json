@@ -1,0 +1,227 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<strong>Ciąg geometryczny</strong>"
+    },
+    {
+      "type": "text",
+      "body": "<p>to taki ciąg \\((a_n)\\), w którym:</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n            każdy kolejny wyraz jest otrzymany z poprzedniego przez pomnożenie przez pewną stałą liczbę:\n            \\[\n            a_n = a_{n-1}\\cdot q\n            \\]\n        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<i>lub równoważnie</i>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n<u>iloraz</u> dwóch kolejnych wyrazów jest stały:\n            \\[\n            \\frac{a_n}{a_{n-1}}=q\n            \\]\n        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Taka stała liczba \\(q\\) nazywana jest</p>"
+    },
+    {
+      "type": "text",
+      "body": "<strong>ilorazem ciągu geometrycznego</strong>"
+    },
+    {
+      "type": "text",
+      "body": "<p>.</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ol class=\"bold\">\n<li>\n<small><strong>Uwaga</strong>! Obie powyższe równości obowiązują dla \\(n=2, 3, 4, \\dots\\)</small>\n</li>\n<li>\n            Druga równość, \\(\\frac{a_n}{a_{n-1}}=q\\), ma sens tylko, gdy wyrazy ciągu są różne od zera. Tym samym równość ta nie uwzględnia przypadku, gdy \\(q=0\\), czyli takiego, gdy wszystkie wyrazy (ewentualnie poza pierwszym) są równe \\(0\\). Taki ciąg jest mało ciekawy, jednak spełnia pierwszy warunek.\n        </li>\n</ol>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Przykład</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Ciąg \\((a_n)\\) o wyrazach:\n        \\[\n        54,\\, 36,\\, 24,\\, 16,\\, 10\\tfrac{2}{3}\n        \\]\n        jest geometryczny.</p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "dlaczego?",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Sprawdźmy, jaki jest iloraz kolejnych wyrazów.</p>"
+        },
+        {
+          "type": "table",
+          "data": {
+            "header_row": false,
+            "header_col": false,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "\\(\\frac{a_2}{a_1}=\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(=\\frac{36}{54}=\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(=\\frac{2}{3}\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(\\frac{a_3}{a_2}=\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(=\\frac{24}{36}=\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(=\\frac{2}{3}\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(\\frac{a_4}{a_3}=\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(=\\frac{16}{24}=\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(=\\frac{2}{3}\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(\\frac{a_5}{a_4}=\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(=\\frac{10\\tfrac{2}{3}}{16}=\\frac{\\left(\\tfrac{32}{3}\\right)}{16}=\\frac{32}{3\\cdot 16}=\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(=\\frac{2}{3}\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "type": "text",
+          "body": "<p>Iloraz wszystkich par kolejnych wyrazów jest stały, więc ciąg \\((a_n)\\) jest geometryczny, o ilorazie \\(q=\\frac{2}{3}\\).</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Wskaż iloraz każdego z ciągów geometrycznych o podanych niżej wyrazach.\n    "
+    },
+    {
+      "type": "fill_table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "kind": "static",
+              "html": "(1)",
+              "header": true
+            },
+            {
+              "kind": "static",
+              "html": "\\(1,\\,2,\\,4,\\,8,\\,16,\\,32,\\,64,\\dots\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "2"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "<details>\n<summary><small>wskazówka</small></summary>\n                        Weź dowolny wyraz, poza pierwszym, i podziel przez poprzedni:\n                        <div>\n                            \\(2\\div 1\\) albo \\(4\\div 2\\) albo \\(8\\div 4\\) albo \\(16\\div 8\\) albo \\(32\\div 16\\) albo \\(64\\div 32\\)\n                        </div>\n</details>",
+              "colspan": 3
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "(2)",
+              "header": true
+            },
+            {
+              "kind": "static",
+              "html": "\\(320,\\, 160,\\, 80,\\, 40,\\,20,\\,10,\\, 5,\\dots\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": ".5|,5"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "(3)",
+              "header": true
+            },
+            {
+              "kind": "static",
+              "html": "\\(1,\\, -3,\\, 9,\\, -27,\\, 81,\\, -243,\\, 729,\\dots\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "-3"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "(4)",
+              "header": true
+            },
+            {
+              "kind": "static",
+              "html": "\\(64,\\, 96,\\, 144,\\, 216,\\, 324,\\dots\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "1.5|1,5"
+            }
+          ]
+        ]
+      }
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "93622d42d8d4916d9a7a600115d5f5ee5953fe773df0d15d782b7be9528e7f9d"
+}

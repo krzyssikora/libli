@@ -1,0 +1,62 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Na rysunku poniżej widzimy odcinki o długościach \\(AB=8\\), \\(AC=10\\), \\(BD=6\\) i \\(CE=7,5\\).\n        </p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/twierdzenie_Talesa_zadanie_4.png",
+      "alt": "twierdzenie odwrotne do twierdzenia Talesa, zadanie",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Czy odcinki \\(BC\\) i \\(DE\\) są równoległe?\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Spróbuj odpowiedzieć na pytanie samodzielnie, a następnie obejrzyj moje rozwiązanie.\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "Rozwiązanie zadania - zobacz",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n            Z twierdzenia odwrotnego do twierdzenia Talesa wynika, że odcinki \\(BC\\) i \\(DE\\) są równoległe, jeśli:\n        </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n        \\frac{AB}{AC}=\\frac{BD}{CE}\n        "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Sprawdźmy, jaka jest wartość wyrażenia po lewej stronie:\n        </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n        \\frac{AB}{AC}=\\frac{8}{10}=\\frac{4}{5}\n        "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            A teraz wartość wyrażenia po prawej stronie:\n        </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n        \\frac{BD}{CE}=\\frac{6}{7,5}=\\frac{12}{15}=\\frac{4}{5}\n        "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Oba wyrażenia mają tę samą wartość, więc odcinki \\(BC\\) i \\(DE\\) są równoległe.\n        </p>"
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "fedf306a0fa779415fe2c36422bedfed1c7a8353c3012165c7dc39b585783dca"
+}

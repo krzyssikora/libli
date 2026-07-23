@@ -1,0 +1,105 @@
+{
+  "elements": [
+    {
+      "type": "numeric",
+      "stem": "<p>\n    Pole trójkąta \\(ABC\\) jest równe \\(12\\) cm\\(^2\\), a bok \\(BC\\) ma długość \\(4\\) cm.\n</p><p>\n    Ile centymetrów długości ma wysokość \\(AD\\)?\n</p>",
+      "value": "6",
+      "tolerance": "0"
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>\n    W trójkącie \\(ABC\\) boki \\(AB\\) i \\(BC\\) są długości \\(4\\) cm i \\(6\\) cm odpowiednio.\n</p><p>\n    Wysokość opadająca z wierzchołka \\(A\\) ma długość \\(10\\) cm.\n</p><p>\n    Ile centymetrów długości ma wysokość opadająca z wierzchołka \\(C\\)?\n</p>",
+      "value": "15",
+      "tolerance": "0"
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\n    W trójkącie \\(ABC\\) boki \\(AB\\) i \\(BC\\) są długości \\(4\\) cm i \\(6\\) cm odpowiednio.\n</p><p>\n    Kąt \\(B\\) ma miarę \\(30^{\\circ}\\).\n</p><p>\n    Pole trójkąta jest równe:\n</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(6\\) cm\\(^2\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(6\\sqrt{3}\\) cm\\(^2\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(12\\) cm\\(^2\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(12\\sqrt{3}\\) cm\\(^2\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\n    Jeśli dane są długości wszystkich boków trójkąta, jego pole możemy obliczyć ze wzoru (wskaż wszystkie poprawne odpowiedzi):\n</p>",
+      "multiple": true,
+      "choices": [
+        {
+          "text": "\\(P=\\frac{abc}{4R}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "Herona",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "Pitagorasa",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "Archimedesa",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\n    Jeśli dane są długości wszystkich boków trójkąta oraz długość promienia okręgu opisanego na tym trójkącie, jego pole możemy obliczyć ze wzoru (wskaż wszystkie poprawne odpowiedzi):\n</p>",
+      "multiple": true,
+      "choices": [
+        {
+          "text": "\\(P=\\frac{abc}{4R}\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "Herona",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "Pitagorasa",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "Archimedesa",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>\n    Okrąg wpisany w trójkąt \\(ABC\\) ma długość \\(5\\).\n</p><p>\n    Pole trójkąta jest równe \\(35\\).\n</p><p>\n    Jaka jest długość obwodu trójkąta?\n</p>",
+      "value": "14",
+      "tolerance": "0"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "f309270e2aba31611b1f8d497f9ffcd6332554c58dde118ba99cf52d96020e3d"
+}

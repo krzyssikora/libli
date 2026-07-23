@@ -1,0 +1,185 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Prosta \\(y=3x+2\\) jest symetralną odcinka \\(AB\\), przy czym \\(A=(-5,7)\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź współrzędne punktu \\(B\\).\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "metoda rozwiązania",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n            Poniższa animacja przedstawia w skrócie, co należy zrobić, by znaleźć współrzędne punktu \\(B\\).\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Przyjrzyj się animacji uważnie. Zrób to ponownie w razie potrzeby.\n        </p>"
+        },
+        {
+          "type": "iframe",
+          "url": "https://www.geogebra.org/material/iframe/id/yt7xtqwg/width/675/height/465/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+          "title": ""
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Prosta prostopadła do prostej \\(y=3x+2\\) ma współczynnik kierunkowy \n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(-3\\)",
+            "\\(-\\frac{1}{3}\\)",
+            "\\(\\frac{1}{3}\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Prosta prostopadła ma więc równanie \\(y=-\\frac{1}{3}x+b\\).\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Prosta przechodzi przez punkt \\(A=(-5,7)\\), więc aby znaleźć wartość współczynnika \\(b\\), do równania podstawiamy współrzędne punktu \\(A\\):\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    \\begin{align}\n                    y&amp;=-\\frac{1}{3}x+b\\\\\n                    7&amp;=-\\frac{1}{3}\\cdot(-5)+b\\\\\n                    7&amp;=\\frac{5}{3}+b\\\\\n                    7&amp;=1\\tfrac{2}{3}+b\n                    \\end{align}\n                    \\]\n                "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Współczynnik \\(b\\) ma wartość \n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(5\\tfrac{1}{3}\\)",
+            "\\(6\\tfrac{1}{3}\\)",
+            "\\(6\\tfrac{2}{3}\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Prosta ma równanie\n                </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                y=-\\tfrac{1}{3}x+5\\tfrac{1}{3}\n                "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Teraz chcemy znaleźć \\(S\\) - punkt przecięcia tej prostej z daną prostą \\(y=3x+2\\). W tym celu rozwiążemy układ równań:\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    \\begin{cases}\n                    y=-\\tfrac{1}{3}x+5\\tfrac{1}{3}\\\\\n                    y=3x+2\n                    \\end{cases}\n                    \\]\n                "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Przyrównując wyrażenia opisujące \\(y\\) otrzymujemy:\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    3x+2=-\\tfrac{1}{3}x+5\\tfrac{1}{3}\n                    \\]\n                "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    I dalej rozwiązując to równanie:\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    \\begin{align}\n                    3x+2&amp;=-\\tfrac{1}{3}x+5\\tfrac{1}{3}\\\\\n                    3x+\\tfrac{1}{3}x&amp;=5\\tfrac{1}{3}-2\\\\\n                    3\\tfrac{1}{3}x&amp;=3\\tfrac{1}{3}\\\\\n                    x&amp;=1\n                    \\end{align}\n                    \\]\n                "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Aby znaleźć współrzędną \\(y\\)-ową punktu \\(S\\) podstawiamy \\(x=1\\) do dowolnego z dwóch równań prostych. Otrzymujemy\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(y=-5\\)",
+            "\\(y=5\\)",
+            "\\(y=-\\frac{1}{3}\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Wiemy więc, że:\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ol>\n<li>punkt \\(A\\) ma współrzędne \\((-5,7)\\),</li>\n<li>punkt \\(S\\) ma współrzędne \\((1,5)\\),</li>\n<li>punkt \\(S\\) jest środkiem odcinka \\(AB\\).</li>\n</ol>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Współrzędne punktu \\(B\\) możemy znaleźć z pomocą wzoru na środek odcinka.\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>pamiętasz ten wzór?</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                            Jeśli \\(A=\\left(x_A, y_A\\right)\\) i \\(B=\\left(x_B, y_B\\right)\\) to środek odcinka \\(AB\\) jest dany wzorem:\n                        </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/srodek_odcinka.png",
+          "alt": "środek odcinka",
+          "figcaption": ""
+        },
+        {
+          "type": "math",
+          "latex": "\n                        S=\\left(\\frac{x_A+x_B}{2}, \\frac{y_A+y_B}{2}\\right)\n                        "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Jeśli \\((x_B, y_B)\\) to współrzędne punktu \\(B\\), to\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\((x_B,y_B)=\\left(\\frac{-5+1}{2},\\frac{7+5}{2}\\right)\\)",
+            "\\((1,5)=\\left(\\frac{-5+x_B}{2},\\frac{7+y_B}{2}\\right)\\)",
+            "\\((x_B,y_B)=\\left(\\frac{-5+7}{2},\\frac{1+5}{2}\\right)\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Z równania \\(1=\\frac{-5+x_B}{2}\\) wyliczamy, że\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(x_B=12\\)",
+            "\\(x_B=7\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Z równania \\(5=\\frac{7+y_B}{2}\\) wyliczamy, że\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(y_B=3\\)",
+            "\\(y_B=-4\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_analityczna_2_zadanie_1510.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Punkt \\(B\\) ma współrzędne \\((7, 3)\\).\n                </p>"
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "c1c22ff2149ed42b6849bc14fc5150590307a5e09513d6de72b97c6af00b2b4d"
+}

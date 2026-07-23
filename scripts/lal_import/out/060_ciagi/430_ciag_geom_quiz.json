@@ -1,0 +1,58 @@
+{
+  "elements": [
+    {
+      "type": "numeric",
+      "stem": "<p>Pierwszy wyraz ciągu geometrycznego jest równy \\(\\frac{1}{4}\\), a iloraz tego ciągu to \\(-2\\).</p><p>Dziesiąty wyraz tego ciągu to:</p>",
+      "value": "-128",
+      "tolerance": "0"
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Ósmy wyraz ciągu geometrycznego ma wartość \\(128\\), a iloraz tego ciągu jest równa \\(\\frac{2}{3}\\).</p><p>Pierwszy wyraz tego ciągu to:</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(\\frac{6561}{2}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(2187\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\tfrac{16384}{2187}\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>Jedenasty wyraz ciągu geometrycznego ma wartość \\(4\\), a czternasty wyraz to \\(108\\).</p><p>Podaj iloraz tego ciągu.</p>",
+      "value": "3",
+      "tolerance": "0"
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>Wszystkie wyrazy ciągu geometrycznego są dodatnie.</p><p>Jedenasty wyraz tego ciągu jest równy \\(\\frac{3}{5}\\), a trzynasty wyraz to \\(60\\).</p><p>Podaj wartość dwunastego wyrazu.</p>",
+      "value": "6",
+      "tolerance": "0"
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>Pierwszy wyraz ciągu geometrycznego to \\(-5\\) a iloraz tego ciągu to \\(-2\\).</p><p>Podaj sumę pierwszych dziesięciu wyrazów tego ciągu.</p>",
+      "value": "1705",
+      "tolerance": "0"
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>Pierwszy wyraz ciągu geometrycznego jest równy \\(4\\), a suma pierwszych pięciu wyrazów tego ciągu to \\(1936\\).</p><p>Iloraz tego ciągu to</p>",
+      "value": "3",
+      "tolerance": "0"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "edbee44d52a2726cdea4895b974ee39635d0a59e3fe993b8d48b2a9a5b65e1f0"
+}

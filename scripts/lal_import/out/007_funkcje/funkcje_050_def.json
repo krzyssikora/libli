@@ -1,0 +1,84 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Rysunek poniżej przedstawia wykres funkcji \\(f:\\mathbb{R}\\longrightarrow\\mathbb{R}\\).\n        </p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/wykres_wlasnosci.png",
+      "alt": "wykres funkcji",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Odpowiedz na pytania, po czym sprawdź swoje odpowiedzi.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>\n                1.\n            </strong>\n            Jaką wartość przyjmuje funkcja \\(f\\) dla argumentu \\(x=8\\)?\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "zobacz",
+      "elements": [
+        {
+          "type": "image",
+          "media_src": "static/wykres_wlasnosci_2.png",
+          "alt": "wykres z odpowiedzią",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<strong>\n                2.\n            </strong>\n            Funkcja \\(f\\) przyjmuje wartość \\(y=3\\) dla argumentów \\(x=0\\) i \\(x=4\\).\n        </p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>\n                2.\n            </strong>\n            Dla jakich argumentów funkcja \\(f\\) przyjmuje wartość \\(y=3\\)?\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "zobacz",
+      "elements": [
+        {
+          "type": "image",
+          "media_src": "static/wykres_wlasnosci_3.png",
+          "alt": "wykres z odpowiedzią",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<strong>\n                3.\n            </strong>\n            Funkcja \\(f\\) przyjmuje wartości większe od \\(3\\) dla argumentów \\(x\\in (0,4)\\).\n        </p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>\n                3.\n            </strong>\n            Dla jakich argumentów funkcja \\(f\\) przyjmuje wartości większe od \\(3\\)?\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "zobacz",
+      "elements": [
+        {
+          "type": "image",
+          "media_src": "static/wykres_wlasnosci_1.png",
+          "alt": "wykres z odpowiedzią",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<strong>\n                1.\n            </strong>\n            Dla argumentu \\(x=8\\) funkcja \\(f\\) przyjmuje wartość \\(-5\\).\n        </p>"
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "5cec51507e102e2d91b7c55c734bafaf838e389f7a2b31d573472543bcdbc14a"
+}

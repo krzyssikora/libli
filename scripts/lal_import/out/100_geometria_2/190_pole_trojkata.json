@@ -1,0 +1,175 @@
+{
+  "elements": [
+    {
+      "type": "spoiler",
+      "label": "dotychczas poznane wzory na pole trójkąta",
+      "elements": [
+        {
+          "type": "table",
+          "data": {
+            "header_row": true,
+            "header_col": false,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "wzór",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "dane",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "<strong>\n                            1.\n                        </strong>",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(P=\\frac{1}{2}ah\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(a\\) - podstawa, \\(h\\) - wysokość",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "<strong>\n                            2.\n                        </strong>",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(P=\\frac{1}{2}ab\\sin\\gamma\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(a\\), \\(b\\) - boki, \\(\\gamma\\) - kąt między nimi",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "<strong>\n                            3.\n                        </strong>",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(P=\\frac{abc}{4R}\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(a\\), \\(b\\), \\(c\\) - boki, \\(R\\) - promień okręgu opisanego",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "<strong>\n                            4.\n                        </strong>",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(P=\\sqrt{p(p-a)(p-b)(p-c)}\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(a\\), \\(b\\), \\(c\\) - boki, \\(p\\) - połowa obwodu trójkąta",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "<strong>\n                            5.\n                        </strong>",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(P=\\frac{1}{2}a^2\\cdot\\frac{\\sin\\beta\\cdot\\sin\\gamma}{\\sin\\alpha}\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(a\\) - bok, \\(\\beta\\), \\(\\gamma\\) - kąty przyległe, \\(\\alpha\\) - kąt naprzeciwległy",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Poznaliśmy wcześniej wzór na pole trójkąta w zależności od boków i promienia okręgu opisanego (\\(P=\\tfrac{abc}{4R}\\)).\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Czy istnieje wzór na pole trójkąta w zależności od boków i promienia okręgu wpisanego?\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Istnieje, i to (moim subiektywnym zdaniem) znacznie ładniejszy.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n        Po pierwsze dlatego, że nie musimy znać każdego boku z osobna - wystarczy, że znamy obwód.\n    </li>\n<li>\n        Po drugie dlatego, że można łatwo wyjaśnić sens tego wzoru geometrycznie.\n    </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Dany jest trójkąt o bokach \\(a\\), \\(b\\), \\(c\\). Niech \\(p\\) oznacza połowę obwódu trójkąta, tzn.\n    \\[\n    p=\\frac{a+b+c}{2}\n    \\]\n    a \\(r\\) niech oznacza długość promienia okręgu wpisanego.</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Wówczas pole trójkąta \\(P\\) dane jest wzorem\n    </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n    P=pr\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Przyjrzyj się poniższej animacji i zastanów się, dlaczego wzór\n        \\[\n        P=pr\n        \\]\n        opisuje pole trójkąta.</p>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/zv5uac45/width/416/height/710/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    },
+    {
+      "type": "spoiler",
+      "label": "komentarz",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<ol class=\"bold\">\n<li>\n                    Trójkąt dzielimy na trzy mniejsze odcinkami łączącymi środek okręgu wpisanego z wierzchołkami trójkąta.\n                </li>\n<li>\n                    Każdy z nich ma wysokość równą \\(r\\), a ich podstawy to \\(a\\), \\(b\\) i \\(c\\).\n                </li>\n<li>\n                    Pole całego trójkąta to suma pól tych trzech trójkątów, czyli\n                    \\[\n                    \\begin{align*}\n                    P&amp;=\\frac{1}{2}ar+\\frac{1}{2}br+\\frac{1}{2}cr=\\\\\n                    &amp;=\\frac{1}{2}(a+b+c)r=\\\\\n                    &amp;=\\frac{a+b+c}{2}\\cdot r=\\\\\n                    &amp;=p\\cdot r\n                    \\end{align*}\n                    \\]\n                </li>\n</ol>"
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "85db11300813ba0fc82041cf5c46dca884c49f7a869a7e7be62b3d9828e50d6b"
+}

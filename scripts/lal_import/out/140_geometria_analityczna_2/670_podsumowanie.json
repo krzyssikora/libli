@@ -1,0 +1,239 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Okrąg jest styczny do osi \\(OY\\) w punkcie \\((0,8)\\). Punkt \\((-2, 4)\\) leży na tym okręgu.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź równanie okręgu.\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "metoda rozwiązania",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n            Poniższa animacja przedstawia w skrócie, co należy zrobić, by znaleźć położenie szukanego okręgu.\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Przyjrzyj się animacji uważnie. Zrób to ponownie w razie potrzeby.\n        </p>"
+        },
+        {
+          "type": "iframe",
+          "url": "https://www.geogebra.org/material/iframe/id/wwgcyavg/width/695/height/465/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+          "title": ""
+        },
+        {
+          "type": "text",
+          "body": "<h4>dlaczego ta metoda jest poprawna?</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<ol class=\"bold\">\n<li>\n                    Oś \\(OY\\) jest styczna do okręgu, a styczna jest prostopadła do promienia łączącego środek z punktem styczności, więc środek musi być na prostej prostopadłej do osi \\(OY\\).\n                </li>\n</ol>"
+        },
+        {
+          "type": "text",
+          "body": "<ol class=\"bold\" start=\"3\">\n<li>\n                    Środek jest w równej odległości od punktów \\(A\\) i \\(B\\), a symetralna odcinka \\(AB\\) to zbiór wszystkich punktów równoodległych od \\(A\\) i od \\(B\\). Stąd środek musi być na symetralnej odcinka \\(AB\\).\n                </li>\n</ol>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                    Promień łączący środek okręgu z punktem styczności jest prostopadły do stycznej. W naszej sytuacji styczna to oś \\(OY\\), a punkt styczności to \\((0,8)\\). Oznacza to, że promień leży na prostej \\(y=8\\), i na tej prostej jest też środek okręgu.\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    To pierwsze ważne spostrzeżenie. A drugie jest takie, że środek okręgu leży w równej odległości od punktów \\(A=(0,8)\\) i \\(B=(-2,4)\\). To oznacza, że środek leży na symetralnej odcinka \\(AB\\).\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Znajdziemy więc równanie symetralnej \\(AB\\). Zaczniemy od obliczenia nachylenia odcinka \\(AB\\).\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>pamiętasz, jak?</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                        Współczynnik kierunkowy (nachylenie) prostej przechodzącej przez punkty \\(A=(x_A, y_A)\\) i \\(B=(x_B, y_B)\\) dany jest wyrażeniem\n                    </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                    \\frac{y_A-y_B}{x_A-x_B}\n                    "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                        A więcej szczegółów znajdziesz <a href=\"/jump_to_id/1a55970974e24c60a34789b4b51c70bb\">tutaj</a>.\n                    </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Nachylenie odcinka \\(AB\\) jest równe\n                    \n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(2\\)",
+            "\\(\\frac{1}{2}\\)",
+            "\\(-2\\)",
+            "\\(-\\frac{1}{2}\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Symetralna odcinka \\(AB\\) jest do niego prostopadła, więc jej nachylenie (współczynnik kierunkowy) to \n                    \n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(-2\\)",
+            "\\(-\\frac{1}{2}\\)",
+            "\\(2\\)",
+            "\\(\\frac{1}{2}\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Równanie symetralnej jest postaci\n                </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                y=-\\frac{1}{2}x+b\n                "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Aby znaleźć wartość współczynnika \\(b\\), musimy podstawić współrzędne dowolnego punktu, przez który symetralna przechodzi.\n                </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Symetralna przechodzi przez\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "punkt \\(A\\)",
+            "punkt \\(B\\)",
+            "środek odcinka \\(AB\\)"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Musimy więc znaleźć środek odcinka \\(AB\\).\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>pamiętasz, jak?</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                            Jeśli \\(A=\\left(x_A, y_A\\right)\\) i \\(B=\\left(x_B, y_B\\right)\\) to środek odcinka \\(AB\\) jest dany wzorem:\n                        </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/srodek_odcinka.png",
+          "alt": "środek odcinka",
+          "figcaption": ""
+        },
+        {
+          "type": "math",
+          "latex": "\n                        S=\\left(\\frac{x_A+x_B}{2}, \\frac{y_A+y_B}{2}\\right)\n                        "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Środek odcinka \\(AB\\) ma współrzędne\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\((-1,6)\\)",
+            "\\((-1,-2)\\)",
+            "\\((1,2)\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Teraz możemy podstawić współrzędne punktu \\((-1,6)\\) do równania \\(y=-\\tfrac{1}{2}x+b\\).\n                </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Stąd wyliczamy, że \n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(b=2\\)",
+            "\\(b=5\\tfrac{1}{2}\\)",
+            "\\(b=-4\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Podsumujmy dwa ważne ustalenia:\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul>\n<li>\n                        środek okręgu leży na prostej \\(y=8\\),\n                    </li>\n<li>\n                        środek okręgu leży na prostej \\(y=-\\tfrac{1}{2}x+5\\tfrac{1}{2}\\), czyli symetralnej odcinka \\(AB\\).\n                    </li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Aby poznać współrzędne środka okręgu, musimy rozwiązać układ równań\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    \\begin{cases}\n                    y=8\\\\\n                    y=-\\tfrac{1}{2}x+5\\tfrac{1}{2}\n                    \\end{cases}\n                    \\]\n                "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    czyli podstawić \\(y=8\\) do drugiego równania:\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    8=-\\tfrac{1}{2}x+5\\tfrac{1}{2}\n                    \\]\n                "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Rozwiązując to równanie dostajemy\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(x=5\\)",
+            "\\(x=-5\\)",
+            "\\(x=-1\\tfrac{1}{4}\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Współrzędne środka okręgu to \\((-5,8)\\).\n                </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Promień okręgu to odległość od środka do stycznej, czyli do osi \\(OY\\), więc jest równy\n                    \n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(5\\)",
+            "\\(-5\\)",
+            "\\(8\\)",
+            "\\(-8\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Stąd równanie okręgu to\n                    \n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\((x+5)^2+(y-8)^2=25\\)",
+            "\\((x+5)^2+(y-8)^2=5\\)",
+            "\\((x-5)^2+(y+8)^2=5\\)",
+            "\\((x-5)^2+(y+8)^2=25\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_analityczna_2_zadanie_1520.png",
+          "alt": "",
+          "figcaption": ""
+        }
+      ]
+    }
+  ],
+  "fully_mapped": false,
+  "seed_hash": "4e945a4d41e9ea826d645b2634b6b0348a3300941c829fb3d9bf12722ef606e1"
+}

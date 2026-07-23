@@ -1,0 +1,160 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<h3>\n    Przypomnienie\n</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Przypomnijmy sobie wzory skróconego mnożenia.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Następujące wzory są prawdziwe dla dowolnych liczb / wyrażeń \\(a\\) i \\(b\\).</p>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": true,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "wzór",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "nazwa",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\((a+b)^2=a^2+2ab+b^2\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "kwadrat sumy",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\((a-b)^2=a^2-2ab+b^2\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "kwadrat różnicy",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\((a+b)(a-b)=a^2-b^2\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "różnica kwadratów",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Przykład</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Wymnożymy sumę algebraiczną i doprowadzimy ją do najprostszej postaci.\n    </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n    (2x^2y-y^3)^2\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "zobacz",
+      "elements": [
+        {
+          "type": "math",
+          "latex": "\n        \\begin{align*}\n        (2x^2y-y^3)^2&=(\\color{red}{2x^2y}-\\color{darkcyan}{y^3})^2=&\\text{na podstawie wzoru:}\\\\\n        &&(\\color{red}{a}-\\color{darkcyan}{b})^2=\\color{red}{a}^2-2\\color{red}{a}\\color{darkcyan}{b}+\\color{darkcyan}{b}^2\\\\\n        &=(\\color{red}{2x^2y})^2-2\\cdot\\color{red}{2x^2y}\\cdot\\color{darkcyan}{y^3}+(\\color{darkcyan}{y^3})^2=&\\\\\n        &=4x^4y^2-4x^2y^4+y^6&\n        \\end{align*}\n        "
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Przykład</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Usuniemy niewymierność z mianownika\n    </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n    \\frac{15}{\\sqrt{10}-2}\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "zobacz",
+      "elements": [
+        {
+          "type": "math",
+          "latex": "\n        \\begin{align*}\n        \\frac{15}{\\sqrt{10}-2}&=\\frac{15}{\\color{red}{\\sqrt{10}}-\\color{darkcyan}{2}}=&\\text{na podstawie wzoru:}\\\\\n        &&(\\color{red}{a}-\\color{darkcyan}{b})(\\color{red}{a}+\\color{darkcyan}{b})=\\color{red}{a}^2-\\color{darkcyan}{b}^2\\\\\n        &=\\frac{15}{\\color{red}{\\sqrt{10}}-\\color{darkcyan}{2}}\\cdot\\frac{\\color{red}{\\sqrt{10}}+\\color{darkcyan}{2}}{\\color{red}{\\sqrt{10}}+\\color{darkcyan}{2}}=&\\\\\n        &=\\frac{15\\cdot(\\color{red}{\\sqrt{10}}+\\color{darkcyan}{2})}{(\\color{red}{\\sqrt{10}})^2-(\\color{darkcyan}{2})^2}=&\\\\\n        &=\\frac{15\\cdot(\\sqrt{10}+2)}{10-4}=\\frac{15\\cdot(\\sqrt{10}+2)}{6}=&\\\\\n        &=\\frac{5(\\sqrt{10}+2)}{2}=\\frac{5}{2}\\sqrt{10}+5&\\\\\n        \\end{align*}\n        "
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<h3>\n    Wzory skróconego mnożenia w równaniach wielomianowych\n</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    A teraz użyjmy tych wzorów do rozwiązania kilku równań wielomianowych.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Rozwiąż równania wielomianowe rozkładając wielomiany na czynniki z użyciem odpowiednich wzorów skróconego mnożenia.\n    "
+    },
+    {
+      "type": "text",
+      "body": "<ol class=\"bold\">\n<li>\n            \\(x^6+6x^3+9=0\\)\n            <details>\n<summary>\n                    rozwiązanie\n                </summary>\n<div id=\"question322\">\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n<strong>\n                                1.\n                            </strong>\n<span style=\"display: inline-block; width: 50px;\">\n</span>\n                            \\(x^6+6x^3+9=0\\)\n                            <div class=\"switch_line\">\n                                W tym przypadku użyjemy wzoru na\n                                <div class=\"switch_value\">\n                                    &gt;&gt; wybierz &gt;&gt;\n                                </div>\n<div class=\"switch_value\">\n                                    kwadrat sumy\n                                </div>\n<div class=\"switch_value\">\n                                    kwadrat różnicy\n                                </div>\n<div class=\"switch_value\">\n                                    różnicę kwadratów\n                                </div>\n                                .\n                                <div class=\"switch_show_next ks_button\">\n                                    zatwierdź\n                                </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                                Korzystając ze wzoru\n                            </p>\n                            \\[\n                            \\begin{align*}\n                            \\color{red}{a}^2+2\\color{red}{a}\\color{darkcyan}{b}+\\color{darkcyan}{b}^2=&amp;(\\color{red}{a}+\\color{darkcyan}{b})^2\\\\\n                            (\\color{red}{x^3})^2+2\\cdot\\color{red}{x^3}\\cdot\\color{darkcyan}{3}+\\color{darkcyan}{3}^2=&amp;\\dots\n                            \\end{align*}\n                            \\]\n                            <div class=\"switch_line\">\n                                zamieniamy równanie w\n                                <div class=\"switch_value\">\n                                    &gt;&gt; wybierz &gt;&gt;\n                                </div>\n<div class=\"switch_value\">\n                                    \\((x^3-3)^2=0\\)\n                                </div>\n<div class=\"switch_value\">\n                                    \\((x^3+3)^2=0\\)\n                                </div>\n<div class=\"switch_value\">\n                                    \\((x^3)^2-3^2=0\\)\n                                </div>\n                                .\n                                <div class=\"switch_show_next ks_button\">\n                                    zatwierdź\n                                </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n                            Tylko kwadrat zera jest równy \\(0\\), więc równanie\n                            \\[\n                            (x^3+3)^2=0\n                            \\]\n                            możemy zmienić w \n                            \\[\n                            x^3+3=0\n                            \\]\n                            a dalej w\n                            \\[\n                            x^3=-3\n                            \\]\n                            <div class=\"switch_line\">\n                                co oznacza, że\n                                <div class=\"switch_value\">\n                                    &gt;&gt; wybierz &gt;&gt;\n                                </div>\n<div class=\"switch_value\">\n                                    \\(x=\\sqrt[3]{3}\\)\n                                </div>\n<div class=\"switch_value\">\n                                    \\(x=-\\sqrt[3]{3}\\)\n                                </div>\n<div class=\"switch_value\">\n                                    \\(x=-3^3\\)\n                                </div>\n                                .\n                                <div class=\"switch_show_next ks_button\">\n                                    zatwierdź\n                                </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n<hr/>\n                            \\(x^6+6x^3+9=0\\)\n                            <br/>\n<span style=\"display: inline-block; width: 50px;\">\n</span>\n                            \\(\\Leftrightarrow\\quad\\) \\(x=-\\sqrt[3]{3}\\)\n                        </div>\n</div>\n</div>\n</details>\n</li>\n<li>\n            \\(x^{12}-8x^6+16=0\\)\n            <details>\n<summary>\n                    rozwiązanie\n                </summary>\n<div id=\"question324\">\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n<hr/>\n<strong>\n                                2.\n                            </strong>\n<span style=\"display: inline-block; width: 50px;\">\n</span>\n                            \\(x^{12}-8x^6+16=0\\)\n                            <div class=\"switch_line\">\n                                W tym przypadku użyjemy wzoru na\n                                <div class=\"switch_value\">\n                                    &gt;&gt; wybierz &gt;&gt;\n                                </div>\n<div class=\"switch_value\">\n                                    kwadrat sumy\n                                </div>\n<div class=\"switch_value\">\n                                    kwadrat różnicy\n                                </div>\n<div class=\"switch_value\">\n                                    różnicę kwadratów\n                                </div>\n                                .\n                                <div class=\"switch_show_next ks_button\">\n                                    zatwierdź\n                                </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                                Korzystając ze wzoru\n                            </p>\n                            \\[\n                            \\begin{align*}\n                            \\color{red}{a}^2-2\\color{red}{a}\\color{darkcyan}{b}+\\color{darkcyan}{b}^2=&amp;(\\color{red}{a}-\\color{darkcyan}{b})^2\\\\\n                            (\\color{red}{x^6})^2-2\\cdot\\color{red}{x^6}\\cdot\\color{darkcyan}{4}+\\color{darkcyan}{4}^2=&amp;\\dots\n                            \\end{align*}\n                            \\]\n                            <div class=\"switch_line\">\n                                zamieniamy równanie w\n                                <div class=\"switch_value\">\n                                    &gt;&gt; wybierz &gt;&gt;\n                                </div>\n<div class=\"switch_value\">\n                                    \\((x^6-4)^2=0\\)\n                                </div>\n<div class=\"switch_value\">\n                                    \\((x^6+4)^2=0\\)\n                                </div>\n<div class=\"switch_value\">\n                                    \\((x^6)^2-4^2=0\\)\n                                </div>\n                                .\n                                <div class=\"switch_show_next ks_button\">\n                                    zatwierdź\n                                </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n                            Tylko kwadrat zera jest równy \\(0\\), więc równanie\n                            \\[\n                            (x^6-4)^2=0\n                            \\]\n                            możemy zmienić w \n                            \\[\n                            x^6-4=0\n                            \\]\n                            I teraz wydaje się, że najlepiej byłoby wyliczyć \n                            \\[\n                            x^6=4\n                            \\]\n                            ale my skorzystamy z wzoru na różnicę kwadratów:\n                            \\[\n                            \\begin{align*}\n                            \\color{red}{a}^2-\\color{darkcyan}{b}^2=&amp;(\\color{red}{a}-\\color{darkcyan}{b})(\\color{red}{a}+\\color{darkcyan}{b})\\\\\n                            (\\color{red}{x^3})^2-\\color{darkcyan}{2}^2=&amp;\\dots\n                            \\end{align*}\n                            \\]\n                            <div class=\"switch_line\">\n                                i zmienimy równanie w\n                                <div class=\"switch_value\">\n                                    &gt;&gt; wybierz &gt;&gt;\n                                </div>\n<div class=\"switch_value\">\n                                    \\((x^3-4)(x^3+4)=0\\)\n                                </div>\n<div class=\"switch_value\">\n                                    \\((x^3-2)(x^3+2)=0\\)\n                                </div>\n<div class=\"switch_value\">\n                                    \\((x^3-2)^2=0\\)\n                                </div>\n<div class=\"switch_value\">\n                                    \\((x^3+2)^2=0\\)\n                                </div>\n                                .\n                                <div class=\"switch_show_next ks_button\">\n                                    zatwierdź\n                                </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n                            Otrzymane równanie\n                            \\[\n                            (x^3-2)(x^3+2)=0\n                            \\]\n                            możemy rozbić na dwa:\n                            <div class=\"centered\">\n                                \\(x^3-2=0\\quad\\) lub \\(\\quad x^3+2=0\\)\n                            </div>\n<div class=\"centered\">\n                                \\(x^3=2\\quad\\) lub \\(\\quad x^3=-2\\)\n                            </div>\n<div class=\"switch_line\">\n                                I stąd\n                                <div class=\"switch_value\">\n                                    &gt;&gt; wybierz &gt;&gt;\n                                </div>\n<div class=\"switch_value\">\n                                    \\(x=\\sqrt[3]{2}\\) lub \\(x=-\\sqrt[3]{2}\\)\n                                </div>\n<div class=\"switch_value\">\n                                    \\(x=\\sqrt[3]{2}\\)\n                                </div>\n<div class=\"switch_value\">\n                                    \\(x=8\\)\n                                </div>\n                                .\n                                <div class=\"switch_show_next ks_button\">\n                                    zatwierdź\n                                </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n<hr/>\n                            \\(x^{12}-8x^6+16=0\\)\n                            <br/>\n<span style=\"display: inline-block; width: 50px;\">\n</span>\n                            \\(\\Leftrightarrow\\quad\\) \\(x=\\sqrt[3]{2}\\) lub \\(x=-\\sqrt[3]{2}\\)\n                        </div>\n</div>\n</div>\n</details>\n</li>\n<li>\n            \\(81x^4-4=0\\)\n            <details>\n<summary>\n                    rozwiązanie\n                </summary>\n<div id=\"question326\">\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n<hr/>\n<strong>\n                                3.\n                            </strong>\n<span style=\"display: inline-block; width: 50px;\">\n</span>\n                            \\(81x^4-4=0\\)\n                            <div class=\"switch_line\">\n                                W tym przypadku użyjemy wzoru na\n                                <div class=\"switch_value\">\n                                    &gt;&gt; wybierz &gt;&gt;\n                                </div>\n<div class=\"switch_value\">\n                                    kwadrat sumy\n                                </div>\n<div class=\"switch_value\">\n                                    kwadrat różnicy\n                                </div>\n<div class=\"switch_value\">\n                                    różnicę kwadratów\n                                </div>\n                                .\n                                <div class=\"switch_show_next ks_button\">\n                                    zatwierdź\n                                </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                                Korzystając ze wzoru\n                            </p>\n                            \\[\n                            \\begin{align*}\n                            \\color{red}{a}^2-\\color{darkcyan}{b}^2=&amp;(\\color{red}{a}-\\color{darkcyan}{b})(\\color{red}{a}+\\color{darkcyan}{b})\\\\\n                            (\\color{red}{9x^2})^2-\\color{darkcyan}{2}^2=&amp;\\dots\n                            \\end{align*}\n                            \\]\n                            <div class=\"switch_line\">\n                                zamieniamy równanie w\n                                <div class=\"switch_value\">\n                                    &gt;&gt; wybierz &gt;&gt;\n                                </div>\n<div class=\"switch_value\">\n                                    \\((9x^2+2)(9x^2-2)=0\\)\n                                </div>\n<div class=\"switch_value\">\n                                    \\((9x^2-2)^2=0\\)\n                                </div>\n<div class=\"switch_value\">\n                                    \\((9x^2+2)^2=0\\)\n                                </div>\n                                .\n                                <div class=\"switch_show_next ks_button\">\n                                    zatwierdź\n                                </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n                            Otrzymane równanie\n                            \\[\n                            (9x^2+2)(9x^2-2)=0\n                            \\]\n                            możemy rozbić na dwa:\n                            <div class=\"centered\">\n                                \\(9x^2+2=0\\quad\\) lub \\(\\quad 9x^2-2=0\\)\n                            </div>\n                            Zauważmy, że równanie z lewej nie ma rozwiązań, bo wyrażenie \\(9x^2+2\\) jest\n                            <strong>\n                                zawsze dodatnie\n                            </strong>\n                            (dodajemy \\(2\\) do nieujemnego kwadratu). Zostaje nam więc tylko równanie\n                            \\[\n                            9x^2-2=0\n                            \\]\n                            <div class=\"switch_line\">\n                                Ponownie ze wzoru na kwadrat różnicy otrzymamy\n                                <div class=\"switch_value\">\n                                    &gt;&gt; wybierz &gt;&gt;\n                                </div>\n<div class=\"switch_value\">\n                                    \\((3x-2)(3x+2)=0\\)\n                                </div>\n<div class=\"switch_value\">\n                                    \\((3x-\\sqrt{2})(3x+\\sqrt{2})=0\\)\n                                </div>\n                                .\n                                <div class=\"switch_show_next ks_button\">\n                                    zatwierdź\n                                </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n                            Równanie\n                            \\[\n                            (3x-\\sqrt{2})(3x+\\sqrt{2})=0\n                            \\]\n                            rozbijamy na dwa:\n                            <div class=\"centered\">\n                                \\(3x-\\sqrt{2}=0\\quad\\) lub \\(\\quad 3x+\\sqrt{2}=0\\)\n                            </div>\n<div class=\"switch_line\">\n                                I stąd mamy wynik\n                                <div class=\"switch_value\">\n                                    &gt;&gt; wybierz &gt;&gt;\n                                </div>\n<div class=\"switch_value\">\n                                    \\(x=\\tfrac{\\sqrt{2}}{3}\\) i \\(x=-\\tfrac{\\sqrt{2}}{3}\\)\n                                </div>\n<div class=\"switch_value\">\n                                    \\(x=3\\sqrt{2}\\) i \\(x=-3\\sqrt{2}\\)\n                                </div>\n                                .\n                                <div class=\"switch_show_next ks_button\">\n                                    zatwierdź\n                                </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n<hr/>\n                            \\(81x^4-4=0\\)\n                            <br/>\n<span style=\"display: inline-block; width: 50px;\">\n</span>\n                            \\(\\Leftrightarrow\\quad\\) \\(x=3\\sqrt{2}\\) i \\(x=-3\\sqrt{2}\\)\n                        </div>\n</div>\n</div>\n</details>\n</li>\n</ol>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "11a3950984f3e982c23994d6424fedea49749e9ed2b52182b51a46e52ec3b874"
+}

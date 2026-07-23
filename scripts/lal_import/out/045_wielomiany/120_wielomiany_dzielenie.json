@@ -1,0 +1,30 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<h3>\n    Co już wiemy?\n</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<ol class=\"bold\">\n<li>\n        co to jest dzielnik wielomianu\n    </li>\n<li>\n        jak, mając dane dzielniki liniowe (stopnia \\(1\\)) znaleźć dzielniki kwadratowe (stopnia \\(2\\))\n    </li>\n</ol>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    A jeśli czegoś z powyższych nie wiesz, najlepiej ponownie przejdź przez poprzednie lekcje.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<h3>\n    Czego jeszcze nie wiemy?\n</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<ol class=\"bold\" start=\"3\">\n<li>\n        jak dzielić wielomiany?\n    </li>\n<li>\n        czy dane wyrażenie jest dzielnikiem danego wielomianu?\n    </li>\n<li>\n        jak znaleźć (jakikolwiek) dzielnik liniowy danego wielomianu?\n    </li>\n<li>\n        czy każdy wielomian można przedstawić jako iloczyn dzielników liniowych?\n    </li>\n</ol>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    No, to bierzmy się do pracy.\n</p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "6ed689d596a1295951e81e090680b2f55815c67acf9672dfc454b342744f07e0"
+}

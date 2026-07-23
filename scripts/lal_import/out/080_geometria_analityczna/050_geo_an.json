@@ -1,0 +1,72 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Dany jest odcinek \\(AB\\), gdzie\n        </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n        A=\\left(x_A, y_A\\right),\\quad\\quad B=\\left(x_B, y_B\\right)\n        "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź współrzędne punktu \\(S\\), środka odcinka \\(AB\\).\n        </p>"
+    },
+    {
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Aby znaleźć współrzędne punktu \\(S\\), musimy najpierw znaleźć współrzędną \\(x\\)-ową.\n            </p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/srodek_odcinka_x.png",
+      "alt": "środek odcinka, współrzędna x",
+      "figcaption": ""
+    },
+    {
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                W podobny sposób znajdziemy współrzędną \\(y\\)-ową.\n            </p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/srodek_odcinka_y.png",
+      "alt": "środek odcinka, współrzędna y",
+      "figcaption": ""
+    },
+    {
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                I tak uzyskujemy wzór na współrzędne punktu \\(S\\), środka odcinka \\(AB\\).\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    Jeśli \\(A=\\left(x_A, y_A\\right)\\) i \\(B=\\left(x_B, y_B\\right)\\) to środek odcinka \\(AB\\) jest dany wzorem:\n                </p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/srodek_odcinka.png",
+      "alt": "środek odcinka",
+      "figcaption": ""
+    },
+    {
+      "type": "math",
+      "latex": "\n                S=\\left(\\frac{x_A+x_B}{2}, \\frac{y_A+y_B}{2}\\right)\n                "
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "1abc306c10917137e804821a27d75961f502473eead54e6d03f29fe621c5bfdc"
+}

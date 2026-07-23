@@ -1,0 +1,135 @@
+{
+  "elements": [
+    {
+      "type": "choice",
+      "stem": "<p>Wyrażenie</p><p>\\(x^6-64\\)</p><p>można zapisać w postaci</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\((x^2+4)(x^4-4x^2+16)\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\((x+8)(x^2-8x+16)\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\((x^2-4)(x^4+4x^2+16)\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\((x^2-4)^3\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\((x^3-8)^2\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Wyrażenie</p><p>\\(8x^3+27\\)</p><p>można zapisać w postaci</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\((2x^3+3)^3\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\((2x+3)(4x^2-6x+9)\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\((2x-3)(4x^2+6x+9)\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\((2x+3)(4x^2+6x+9)\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Wyrażenie</p><p>\\(x^3+6x^2+12x+8\\)</p><p>można zapisać w postaci</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\((x+2)^3\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\((x+8)^3\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\((x+4)^3\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\((x-2)(x^2+2x+4)\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\((x^3-8)^2\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Wyrażenie</p><p>\\(x^6-12x^4+48x^2-64\\)</p><p>można zapisać w postaci</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\((x^2+4)(x^4-4x^2+16)\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\((x+8)(x^2-8x+16)\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\((x^2-4)(x^4+4x^2+16)\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\((x^2-4)^3\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\((x^3-8)^2\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>Z użyciem wzoru skróconego mnożenia stopnia n można udowodnić, że liczba</p><p>\\(13^{41}-7^{41}\\)</p><p>jest podzielna przez (wpisz największą liczbę naturalną, dla której zdanie jest prawdziwe)</p>",
+      "value": "6",
+      "tolerance": "0"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "66a9ef75ecd97234130d1dba2763429af68d27216cdc26401e6aab2d65dbdd23"
+}

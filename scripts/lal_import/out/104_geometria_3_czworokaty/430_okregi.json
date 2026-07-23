@@ -1,0 +1,63 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Poniższy aplet pokazuje koło i (prawie) losowe czworokąty.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Wszystkie <span style=\"color: blue;\">niebieskie</span> czworokąty nazywamy <strong>opisanymi</strong> na kole.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Wszystkie <span style=\"color: red;\">czerwone</span> czworokąty nazywamy <strong>wpisanymi</strong> w koło.\n        </p>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/jwdrhkdu/width/575/height/434/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Przyjrzyj się czworokątom <span style=\"color: blue;\">opisanym</span> na kole i czworokątom <span style=\"color: red;\">wpisanym</span> w koło.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Jak je zdefiniować?\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "czworokątopisanyna kole",
+      "elements": [
+        {
+          "type": "text",
+          "body": "\n                Czworokąt nazywamy <strong>opisanym</strong> na kole, jeśli wszystkie boki czworokąta są <strong>styczne</strong> do okręgu ograniczającego koło.\n            "
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "czworokątwpisanyw koło",
+      "elements": [
+        {
+          "type": "text",
+          "body": "\n                Czworokąt nazywamy <strong>wpisanym</strong> w koło, jeśli wszystkie wierzchołki czworokąta leżą na okręgu ograniczającym koło.\n            "
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<strong>Uwaga</strong>"
+    },
+    {
+      "type": "text",
+      "body": "<p>! Analogiczne definicje możemy sformułować dla wielokątów o dowolnej liczbie wierzchołków.</p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "daf554ce521e2761b89d5e3d1ea81fd8b9e0bf8b000b309ce14231e12fd988b6"
+}

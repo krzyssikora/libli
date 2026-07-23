@@ -1,0 +1,239 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Często spotykamy się z sytuacją, w której kolejne wyrazy ciągu liczbowego są zależne od poprzednich.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Przykład</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Menadżer firmy mówi\n    </p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/office.gif",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Jeśli chcemy obliczyć, jakie będą zarobki pracownika w piątym roku pracy w tej firmie to (przyjmując, że menadżer mówi prawdę) musimy wiedzieć jeszcze, <u>jakie były zarobki pracownika na początku</u>. \n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Przyjmijmy więc, że zarobki pracownika w pierwszym roku pracy to \\(10\\,000\\) złotych. Teraz możemy sformułować i rozwiązać następujące zadanie.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W pierwszym roku pracy pensja pracownika była równa \\(10\\,000\\) złotych.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W każdym kolejnym roku jego pensja rosła o \\(20\\%\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Jaka była wysokość pensji tego pracownika w piątym roku pracy?\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                    Zacznijmy od zdefiniowania ciągu \\((a_n)\\), z pomocą którego zapiszemy dane z zdania. \n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Niech dla \\(n\\in\\mathbb{N}^{+}\\) \n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>\\(a_n\\) oznacza <strong>pensję pracownika w roku \\(n\\) w złotych</strong>.</li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Skoro\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<blockquote>\n                    \"w pierwszym roku pracy pensja pracownika była równa \\(10\\,000\\) złotych\"\n                </blockquote>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    to znaczy, że\n                    \n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(a_0=10000\\)",
+            "\\(a_1=10\\)",
+            "\\(a_1=10000\\)",
+            "\\(a_n=10000\\)"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "text",
+          "body": "<blockquote>\n                    \"w każdym kolejnym roku jego pensja rosła o \\(20\\%\\)\"\n                </blockquote>"
+        },
+        {
+          "type": "text",
+          "body": "<p>czyli pensja w każdym kolejnym roku (każdy kolejny wyraz ciągu) jest obliczana z pensji w poprzednim roku (z poprzedniego wyrazu ciągu) przez zwiększenie o \\(20\\%\\).</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Zwiększyć liczbę o \\(20\\%\\) to inaczej\n                    \n\n\n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "pomnożyć ją przez \\(20\\)",
+            "dodać do niej \\(20\\)",
+            "pomnożyć ją przez \\(120\\)",
+            "pomnożyć ją przez \\(1,2\\)",
+            "podzielić ją przez \\(20\\)",
+            "podzielić ją przez \\(1,2\\)"
+          ],
+          "answer": 3
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Tak więc \\(a_2=1,2\\cdot a_1=\\) \n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(10\\,020\\)",
+            "\\(12\\,000\\)",
+            "\\(10\\,200\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    I dalej: \\(a_3=1,2\\cdot a_2=\\)\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(14\\,400\\)",
+            "\\(14\\,000\\)",
+            "\\(14\\,200\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    I jeszcze \\(a_4=1,2\\cdot a_3=\\)\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(17\\,200\\)",
+            "\\(17\\,280\\)",
+            "\\(17\\,300\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    I na zakończenie \\(a_5=1,2\\cdot a_4=\\)\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(20\\,736\\)",
+            "\\(20\\,700\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "table",
+          "data": {
+            "header_row": true,
+            "header_col": false,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "rok pracy",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "pensja",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(10\\,000\\) złotych",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(12\\,000\\) złotych",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(3\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(14\\,400\\) złotych",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(4\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(17\\,280\\) złotych",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(5\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(20\\,736\\) złotych",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "type": "text",
+          "body": "<p>W piątym roku pensja pracownika to \\(20\\,736\\) złotych.</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Czy Ty też masz wrażenie, że to rozwiązanie było nużące, bo musieliśmy kilka razy przeprowadzić bardzo podobne operacje i identyczne rozumowanie?\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Warto więc nasze rozumowanie podsumować i wyciągnąć wnioski.\n</p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "d2e65467cf1ba6bca02eaf25bfeb791c24f2faedd61648c9e193b03aa3c5cb1d"
+}

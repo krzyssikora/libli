@@ -1,0 +1,160 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Izometria to przekształcenie płaszczyzny, czyli pewnego rodzaju <strong>funkcja</strong>, jednak nie zwykła <u>funkcja liczbowa</u>, do jakich jesteśmy przyzwyczajeni. \n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Argumentem przekształcenia płaszczyzny nie jest liczba, lecz punkt.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Wartością przekształcenia płaszczyzny nie jest liczba, lecz punkt.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        W przypadku funkcji liczbowej \\(f\\), której argumentem jest \\(x\\), a wartością \\(y\\) piszemy:\n    </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n    f(x)=y\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        W przypadku przekształcenia płaszczyzny \\(P\\), którego argumentem jest punkt \\(A=(x,y)\\), a wartością punkt \\(A_1=(x_1,y_1)\\) piszemy:\n    </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n    P(A)=A_1\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        lub\n    </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n    P(x,y)=(x_1, y_1)\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Przykład</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Przekształcenie jest zdefiniowane równaniem\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n            \\[\n            P(x,y) = (x+5, y-2) \n            \\]\n        "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Jak rozumieć takie równanie? Rozpatrzmy kilka przykładowych punktów.\n        </p>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": true,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "punkt",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "obliczenie obrazu",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "wynik",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(\\color{blue}{(2,6)}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\((2+5, 6-2)\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\color{red}{(7, 4)}\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(\\color{blue}{(-3, 1)}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\((-3+5, 1-2)\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\color{red}{(2, -1)}\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(\\color{blue}{(-1, 2)}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\((-1+5, 2-2)\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\color{red}{(4, 0)}\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "image",
+      "media_src": "static/izometria_jak_rozumiec_rownanie_przyklad.png",
+      "alt": "",
+      "figcaption": "Na rysunku naniebieskozaznaczone są argumenty, a naczerwonowartości."
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    A jak udowodnić, że przekształcenie \\(P\\) jest izometrią?\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>Schemat dowodu, że przekształcenie \\(P\\) jest izometrią</strong>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ol class=\"bold\">\n<li>\n            Rozpatrzmy dwa zupełnie dowolne punkty.\n            <div style=\"min-height: 2em;\">\n<span style=\"float: right;\">\n                    \\(A=(x_A,y_A)\\), \\(B=(x_B, y_B)\\)\n                </span>\n</div>\n</li>\n<li>\n            Znajdźmy współrzęne obrazów tych punktów.\n            <div style=\"min-height: 2em;\">\n<span style=\"float: right;\">\n                    \\(P(A)=(\\dots,\\dots)\\), \\(P(B)=(\\dots, \\dots)\\)\n                </span>\n</div>\n</li>\n<li>\n            Znajdźmy odległość od \\(P(A)\\) do \\(P(B)\\).\n            <div style=\"min-height: 2em;\">\n<span style=\"float: right;\">\n                    \\(|P(A)P(B)|\\)\n                </span>\n</div>\n</li>\n<li>\n            Sprawdź, czy zawsze jest równa odległości od \\(A\\) do \\(B\\).\n            <div style=\"min-height: 2em;\">\n<span style=\"float: right;\">\n                    \\(|P(A)P(B)|\\stackrel{?}{=}|AB|\\)\n                </span>\n</div>\n</li>\n</ol>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/izometria_schemat_dowodu.png",
+      "alt": "",
+      "figcaption": ""
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "91e860a1d89353e0552f92336b1575932939b34fc613309084523640410241b7"
+}

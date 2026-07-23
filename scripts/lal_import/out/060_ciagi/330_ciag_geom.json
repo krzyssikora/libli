@@ -1,0 +1,506 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Przypomnijmy:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<strong>Ciąg geometryczny</strong>"
+    },
+    {
+      "type": "text",
+      "body": "<p>to taki ciąg \\((a_n)\\), w którym iloraz:\n    \\[\n    \\frac{a_n}{a_{n-1}}=q\n    \\]\n    jest stały dla \\(n=2, 3, 4, \\dots\\)</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Innymi słowy:\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>każdy wyraz ciągu geometrycznego tworzymy przez pomnożenie poprzedniego wyrazu przez iloraz \\(q\\).</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Wyznacz wzór ogólny na \\(a_n\\) - wyraz ciągu geometrycznego przyjmując, że</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n                pierwszy wyraz ciągu to \\(a_1\\)\n            </li>\n<li>\n                a iloraz ciągu to \\(q\\).\n            </li>\n</ul>"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<blockquote>\n                    \"Każdy wyraz ciągu geometrycznego tworzymy przez pomnożenie poprzedniego wyrazu przez iloraz \\(q\\)...\"\n                </blockquote>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    więc skoro pierwszy wyraz to \\(a_1\\), to drugi wyraz\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(a_2=a_1: q\\)",
+            "\\(a_2=a_1\\cdot q\\)",
+            "\\(a_2=a_1+ q\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Dalej trzeci wyraz: \\(a_3=a_2\\cdot q\\), a podstawiając do tego otrzymane poprzednio \\(a_2=a_1\\cdot q\\) otrzymujemy\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(a_3=a_1\\cdot q^2\\)",
+            "\\(a_3=a_1\\cdot 2q\\)",
+            "\\(a_3=a_2+q^2\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Teraz czwarty wyraz: \\(a_4=a_3\\cdot q\\), a podstawiając do tego otrzymane poprzednio \\(a_3=a_1\\cdot q^2\\) otrzymujemy\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(a_4=a_1\\cdot q^4\\)",
+            "\\(a_4=a_1\\cdot q^3\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>W ten sposób otrzymujemy:</p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    \\begin{align}\n                    a_{\\color{red}{2}}&amp;=a_1\\cdot q^\\color{red}{1}\\\\\n                    a_{\\color{red}{3}}&amp;=a_1\\cdot q^\\color{red}{2}\\\\\n                    a_{\\color{red}{4}}&amp;=a_1\\cdot q^\\color{red}{3}\\\\\n                    a_{\\color{red}{5}}&amp;=a_1\\cdot q^\\color{red}{4}\\\\\n                    a_{\\color{red}{6}}&amp;=a_1\\cdot q^\\color{red}{5}\\\\\n                    \\end{align}\n                    \\]\n                    itd.\n                "
+        },
+        {
+          "type": "text",
+          "body": "<p>Czyli:</p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    licząc wyraz o pewnym numerze \\({\\color{red}{n}}\\), pierwszy wyraz mnożymy przez <u style=\"color: red\">o jeden mniej</u> iloraz \\(q\\).\n                "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    I dlatego wzór na \\(n\\)-ty wyraz to\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(a_n=a_1\\cdot q^n\\)",
+            "\\(a_n=a_1\\cdot q^{n-1}\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Wzór ogólny na \\(n\\)-ty wyraz ciągu arytmetycznego to\n                \\[\n                a_n=a_1\\cdot q^{n-1}\n                \\]</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "\n    Jeśli \\((a_n)\\) to ciąg geometryczny o pierwszym wyrazie \\(a_1\\) i ilorazie \\(q\\), to\n    \\[\n    a_n=a_1 \\cdot q^{n-1}\n    \\]\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Rozwiążemy teraz cztery różne zadania z wykorzystaniem tego wzoru.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Do rozwiązania niektórych z nich warto znać początkowe potęgi dwójki:\n</p>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "\\(n\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(2\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(3\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(4\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(5\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(6\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(7\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(8\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(2^n\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(2\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(4\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(3\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(16\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(32\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(64\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(128\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(256\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Pierwszy wyraz ciągu geometrycznego to \\(3\\), a iloraz tego ciągu jest równy \\(2\\).</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź <u>dziesiąty</u> wyraz tego ciągu.\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Dany jest pierwszy wyraz, \\(a_1=3\\), oraz iloraz \\(q=2\\).</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Chcemy obliczyć\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(a_{10}\\)",
+            "\\(a_1\\cdot 10\\)",
+            "\\(a_1+10\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Skorzystamy, oczywiście, ze wzoru\n                \\[\n                a_n=a_1\\cdot q^{n-1}\n                \\]</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Do wzoru podstawimy \\(a_1=3\\), \\(q=2\\) oraz \\(n=10\\). Otrzymamy\n                    \n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(a_{10}=3\\cdot 2^{10}\\)",
+            "\\(a_{10}=3\\cdot 2^9\\)",
+            "\\(a_{10}=2\\cdot 3^{10}\\)",
+            "\\(a_{10}=2\\cdot 3^9\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    I dlatego\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(a_{10}=768\\)",
+            "\\(a_{10}=1536\\)",
+            "\\(a_{10}=3072\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Dziesiąty wyraz ciągu ma wartość\n                \\[\n                a_{10}=1536\n                \\]</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Szósty wyraz ciągu geometrycznego to \\(-486\\), a iloraz tego ciągu jest równy \\(-3\\).</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź <u>pierwszy</u> wyraz tego ciągu.\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Dany jest szósty wyraz, \\(a_6=-486\\), oraz iloraz \\(q=-3\\).</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Chcemy znaleźć pierwszy wyraz, czyli \\(a_1\\).\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Skorzystamy ze wzoru\n                \\[\n                a_n=a_1\\cdot q^{n-1}\n                \\]</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    dla\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(q=-3\\) i \\(n=6\\)",
+            "\\(q=-3\\) i \\(n=-486\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Podstawiając do wzoru\n                \\[\n                a_n=a_1\\cdot q^{n-1}\n                \\]</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    \\(n=6\\), \\(q=-3\\) oraz \\(a_n=a_6=-486\\) dostajemy\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(-486=a_1\\cdot (-3)^6\\)",
+            "\\(-486=a_1\\cdot (-3)^5\\)",
+            "\\(6=a_1\\cdot (-3)^5\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Rozwiązując równanie\n                \\[\n                \\begin{align}\n                -486&=a_1\\cdot (-3)^5\\\\\n                -486&=a_1\\cdot (-243)\n                \\end{align}\n                \\]</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    otrzymujemy\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(a_1=2\\)",
+            "\\(a_1=-2\\)",
+            "\\(a_1=-243\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Pierwszy wyraz ciągu to\n                \\[\n                a_1=2\n                \\]</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Pierwszy wyraz ciągu geometrycznego to \\(3200\\), a ósmy wyraz tego ciągu jest równy \\(25\\).</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź <u>iloraz</u> tego ciągu.\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Dany jest pierwszy wyraz, \\(a_1=3200\\), oraz ósmy \\(a_8=25\\).</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Chcemy znaleźć iloraz, czyli \\(q\\).\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Ponownie skorzystamy ze wzoru\n                \\[\n                a_n=a_1\\cdot q^{n-1}\n                \\]</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    tym razem dla\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(a_1=3200\\), \\(n=25\\) i \\(a_n=a_{25}=8\\)",
+            "\\(a_1=3200\\), \\(n=8\\) i \\(a_n=a_8=25\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Podstawiając do wzoru\n                \\[\n                a_n=a_1\\cdot q^{n-1}\n                \\]</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    \\(a_1=3200\\), \\(n=8\\) i \\(a_n=a_8=25\\) dostajemy\n                    \n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(25=3200\\cdot q^{24}\\)",
+            "\\(25=3200\\cdot q^7\\)",
+            "\\(3200=25\\cdot q^7\\)",
+            "\\(8=3200\\cdot q^{24}\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Rozwiązując równanie\n                \\[\n                \\begin{align}\n                25&=3200\\cdot q^7\\\\\n                \\frac{25}{3200}&=q^7\\\\\n                \\frac{1}{128}&=q^7\n                \\end{align}\n                \\]</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    otrzymujemy\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(q=2\\)",
+            "\\(q=\\tfrac{1}{4}\\)",
+            "\\(q=\\tfrac{1}{2}\\)"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "text",
+          "body": "<p>Iloraz ciągu to\n                \\[\n                q=\\tfrac{1}{2}\n                \\]</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Pierwszy wyraz ciągu geometrycznego to \\(3\\), a różnica tego ciągu jest równa \\(-2\\).</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Który wyraz ma wartość \\(192\\)?\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Dany jest pierwszy wyraz, \\(a_1=3\\), oraz iloraz \\(q=-2\\).</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Znamy też wartość pewnego wyrazu, powiedzmy, że \n                    \\(n\\)-tego:\n                </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                a_n=192\n                "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Nie znamy indeksu tego wyrazu, \\(n\\).\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Ponownie skorzystamy ze wzoru\n                \\[\n                a_n=a_1\\cdot q^{n-1}\n                \\]</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    tym razem dla\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(a_1=3\\), \\(q=-2\\) i \\(a_{192}=n\\)",
+            "\\(a_1=3\\), \\(q=-2\\) i \\(a_n=192\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Podstawiając do wzoru\n                \\[\n                a_n=a_1\\cdot q^{n-1}\n                \\]</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    \\(a_1=3\\), \\(q=-2\\) i \\(a_n=192\\) dostajemy\n                    \n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(192=3\\cdot (-2)^{n-1}\\)",
+            "\\(192=3\\cdot 2^{n-1}\\)",
+            "\\(192=3\\cdot 2^n\\)",
+            "\\(192=3\\cdot (-2)^n\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Rozwiązując równanie\n                \\[\n                \\begin{align}\n                192&=3\\cdot(-2)^{n-1}\\\\\n                64&=(-2)^{n-1}\\\\\n                \\end{align}\n                \\]</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    otrzymujemy\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(n=6\\)",
+            "\\(n=7\\)",
+            "\\(n=8\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Wyraz siódmy ma wartość \\(192\\).</p>"
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "e410a643600338a65d4c3a6ad1bc8a48ff8a4eb26854f582bb6e80b5a23006a6"
+}

@@ -1,0 +1,224 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Rozwiąż równania. Sprawdź swoje wyniki.\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "(1)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(-3\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "(2)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(-4\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "(3)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(4\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "(4)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(9\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "(5)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(-10; 6\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "(6)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(-10,5; 3\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "(7)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{5}{2}\\), \\(8\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "(8)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(-9\\), \\(-1\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "(9)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(-3\\), \\(21\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "(10)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{13}{3}\\), \\(-3\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "(11)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(-13\\), \\(-4\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "(12)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(-3\\), \\(13\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "(13)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(-8\\), \\(3\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "(14)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{3}{2}\\), \\(8\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "(15)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(-12\\), \\(-2\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "(16)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{1}{2}\\), \\(6\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "(17)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(-4\\), \\(\\frac{8}{3}\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "(18)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(0\\), \\(1\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "(19)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(3\\), \\(7\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "(20)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(-1\\), \\(5\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "(21)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{8}{3}\\), \\(6\\)</p>"
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "148d4abeeb8a1478eaadb82b938d7906905afe7093b7af5070aef5452e8d9353"
+}

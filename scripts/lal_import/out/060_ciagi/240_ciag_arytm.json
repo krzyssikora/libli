@@ -1,0 +1,80 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Przykład</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W Pewnym Mieście, w Parku Miejskim, zbudowano amfiteatr - scenę z półkolistą widownią. W pierwszym, najniższym rzędzie było 60 miejsc, a w każdym kolejnym o 2 miejsca więcej, niż w poprzednim. W ostatnim, najwyższym rzędzie było 120 miejsc.\n        </p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/amfiteatr_w_opolu.png",
+      "alt": "",
+      "figcaption": "Amfiteatr w Opolu (trochę inny od tego w zadaniu)(źródło:Wikipedia, fotograf: Piotr Bieniecki /www.fototeo.pllicencja: CC BY-SA 3.0)"
+    },
+    {
+      "type": "text",
+      "body": "<ol class=\"bold\">\n<li>\n                Ile było rzędów?\n            </li>\n<li>\n                Ile było miejsc na widowni amfiteatru?\n            </li>\n</ol>"
+    },
+    {
+      "type": "spoiler",
+      "label": "Pytanie 1.Ile było rzędów?",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n            To jest proste pytanie.\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Liczba miejsc w kolejnych rzędach tworzy ciąg arytmetyczny \\((a_n)\\).\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>\n                W pierwszym rzędzie było \\(a_1=60\\) miejsc.\n            </li>\n<li>\n                W każdym kolejnym, było o 2 miejsca więcej, więc różnica ciągu \\(r=2\\).\n            </li>\n<li>\n                W ostatnim rzędzie, o numerze \\(n\\), było \\(a_n=120\\) miejsc.\n            </li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Chcemy znaleźć \\(n\\), więc możemy użyć równania: \n        </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n        \\begin{align}\n        a_n&=a_1+(n-1)r\\\\\n        120&=60+(n-1)\\cdot 2\\\\\n        2(n-1)&=60\\\\\n        n-1&=30\\\\\n        n&=31\n        \\end{align}\n        "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Było więc 31 rzędów.\n        </p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "Pytanie 2.Ile było miejsc na widowni amfiteatru?",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n            To pytanie jest trochę bardziej skomplikowane.\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Możemy oczywiście dodać do siebie 31 kolejnych wyrazów ciągu:\n        </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n        60+62+64+66+68+70+72+\\dots+118+120\n        "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            To jednak nużąca i czasochłonna metoda. A przy dużej liczbie rachunków łatwo o błąd.\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Dlatego poznamy inną metodą liczenia sumy kolejnych wyrazów ciągu arytmetycznego.\n        </p>"
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "aabb250871f7b1a18be690af97eff24399eb8b490f4a0b9526e2b0466d5fc638"
+}

@@ -1,0 +1,374 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Znajdź środek i promień okręgu o podanym równaniu.\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "przykłady 1 - 10",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<h4>(1)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>środek: \\((2,-2)\\), promień: \\(4\\sqrt{2}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(2)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>środek: \\((-6,1)\\), promień: \\(6\\sqrt{3}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(3)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>środek: \\((-3,0)\\), promień: \\(3\\sqrt{2}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(4)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>środek: \\((6,1)\\), promień: \\(11\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(5)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>środek: \\((6,0)\\), promień: \\(11\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(6)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>środek: \\((-6,-2)\\), promień: \\(4\\sqrt{3}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(7)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>środek: \\((6,2)\\), promień: \\(4\\sqrt{3}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(8)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>środek: \\((-1,4)\\), promień: \\(9\\sqrt{3}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(9)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>środek: \\((-6,-3)\\), promień: \\(10\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(10)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>środek: \\((-5,5)\\), promień: \\(3\\sqrt{3}\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Znajdź równanie okręgu o podanym środku i promieniu.\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "przykłady 1 - 10",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<h4>(1)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(x^2+(y+1)^2=81\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(2)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\((x-4)^2+(y-5)^2=49\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(3)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\((x+5)^2+(y+5)^2=16\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(4)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\((x+4)^2+(y-3)^2=4\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(5)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\((x-1)^2+(y+3)^2=81\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(6)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\((x+5)^2+y^2=1\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(7)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\((x-4)^2+(y+2)^2=121\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(8)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\((x+4)^2+(y-5)^2=121\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(9)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\((x-4)^2+(y+2)^2=192\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(10)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\((x-2)^2+(y+2)^2=147\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Znajdź równanie okręgu o środku w punkcie \\(S\\) i przechodzącego przez punkt \\(A\\).\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "przykłady 1 - 10",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<h4>(1)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\((x+1)^2+(y+1)^2=4\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(2)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\((x+5)^2+(y-3)^2=72\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(3)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\((x+3)^2+(y+2)^2=13\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(4)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\((x-5)^2+(y-5)^2=100\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(5)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\((x+4)^2+(y+4)^2=2\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(6)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\((x-5)^2+(y+4)^2=89\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(7)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\((x-4)^2+(y-2)^2=53\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(8)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\((x+4)^2+(y+1)^2=109\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(9)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\((x+5)^2+(y+5)^2=90\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(10)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\((x+4)^2+(y+3)^2=49\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "przykłady 11 - 20",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<h4>(11)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\((x-6)^2+(y-4)^2=1\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(12)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\((x-4)^2+(y+4)^2=25\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(13)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(x^2+(y+6)^2=144\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(14)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\((x+4)^2+(y-2)^2=45\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(15)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\((x-4)^2+(y+4)^2=81\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(16)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\((x-1)^2+(y-3)^2=32\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(17)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\((x-4)^2+(y+3)^2=10\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(18)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\((x-3)^2+(y+2)^2=5\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(19)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\((x+5)^2+(y-2)^2=125\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(20)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\((x-1)^2+(y+5)^2=80\\)</p>"
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "92d7fc9859f97efbd1394d4e095828a1f3e6048afc9c5d88f434f5ccbfe8cafb"
+}

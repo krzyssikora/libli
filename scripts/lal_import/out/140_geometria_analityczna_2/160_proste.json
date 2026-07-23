@@ -1,0 +1,178 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "\n<strong>Równania równoważne</strong> to takie, które mają <u>ten sam zbiór rozwiązań.</u>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Przykład</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Równania\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n            \\(|x|=2\\quad\\) oraz \\(x^2=4\\quad\\)\n        "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>są</strong> równoważne.\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "dlaczego?",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n            Równanie \\(|x|=2\\) ma dwa rozwiązania:\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n            \\(x=2\\quad\\) oraz \\(x=-2\\quad\\)\n        "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            czyli zbiorem rozwiązań tego równania jest zbiór\n        </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n        \\{-2,2\\}\n        "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Równanie \\(x^2=4\\) ma dwa rozwiązania:\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n            \\(x=2\\quad\\) oraz \\(x=-2\\quad\\)\n        "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            czyli zbiorem rozwiązań tego równania jest zbiór\n        </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n        \\{-2,2\\}\n        "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Jak widać, oba równania mają ten sam zbiór rozwiązań: \\(\\{-2,2\\}\\), są to więc równania równoważne.\n        </p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Przykład</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Równania\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n            \\(|x|=2\\quad\\) oraz \\(x=2\\quad\\)\n        "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>nie są</strong> równoważne.\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "dlaczego?",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n            Równanie \\(|x|=2\\) ma dwa rozwiązania:\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n            \\(x=2\\quad\\) oraz \\(x=-2\\quad\\)\n        "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            czyli zbiorem rozwiązań tego równania jest zbiór\n        </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n        \\{-2,2\\}\n        "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Równanie \\(x=2\\) ma jedno, oczywiste rozwiązania:\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n            \\(x=2\\)\n        "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            czyli zbiorem rozwiązań tego równania jest zbiór\n        </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n        \\{2\\}\n        "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Zbiory \\(\\{-2,2\\}\\) i \\(\\{2\\}\\) nie są równe, więc równania nie są równoważne.\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Zauważ, że nie wystarczy, by równania miały <strong>jakieś</strong> wspólne rozwiązania, by były równoważne. Muszą mieć <strong>wszystkie</strong> rozwiązania wspólne, czyli\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>wszystkie rozwiązania pierwszego równania muszą być rozwiązaniami drugiego i</li>\n<li>wszystkie rozwiązania drugiego równania muszą być rozwiązaniami pierwszego.</li>\n</ul>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Przykład</strong></p>"
+    },
+    {
+      "type": "video",
+      "media_src": "static/rownania_rownowazne_przyklad.mp4"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Jeśli jedno równanie możemy przekształcić w drugie:\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>dodając tę samą liczbę lub wyrażenie do obu stron,</li>\n<li>mnożąc obie strony przez tę samą liczbę lub wyrażenie (różne od \\(0\\)),</li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        to te dwa równania są równoważne.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Przykład</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Równania\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n            \\[\n            \\begin{align}\n            5x-1&amp;=3x+10\\\\\n            2x-1&amp;=10\\\\\n            2x&amp;=11\\\\\n            x&amp;=5,5\n            \\end{align}\n            \\]\n        "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            są równoważne.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Każde z równań powstało z poprzedniego przez wykonanie identycznych operacji po obu stronach równania.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Mówimy czasem, że równania rozwiązujemy metodą równań równoważnych. Oznacza to, że przekształcamy dane równanie w inne, równoważne, ale prostsze.\n    </p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "6318954fb1ddbfb8814187bdfa3d9a0500d615eb7324d152dba6ed58f7109322"
+}

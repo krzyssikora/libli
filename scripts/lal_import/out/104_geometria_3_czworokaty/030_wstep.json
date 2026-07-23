@@ -1,0 +1,70 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Wkrótce poznamy i powtórzymy cechy i własności różnych rodzajów czworokątów. Najpierw jednak musimy umieć je <strong>klasyfikować</strong>, czyli umieć je nazywać na podstawie pewnych ich cech.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Sformułujemy też <strong>definicje</strong> podstawowych rodzajów czworokątów.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    A pomogą nam w tym poniższe zadania.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Poniższy rysunek przedstawia schemat klasyfikacji czworokątów z użyciem uproszczonych diagramów Venna.\n        </p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/klasyfikacja_czworokatow.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Przeczytaj nazwy wszystkich rodzajów czworokątów. Które z nich znasz?\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Dla każdego znanego Ci rodzaju czworokąta: czy wiesz jak go zdefiniować? Zapisz swoje definicje. \n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Poniżej znajdziesz inne podejście do klasyfikowania czworokątów.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Mając dany czworokąt, możesz odpowiedzieć na kilka (od dwóch do czterech) prostych pytań na jego temat, by określić jego rodzaj. \n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Rozpatrz kilka wybranych przez siebie przykładowych czworokątów. Dla każdego z nich\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ol>\n<li>\n                najpierw zdecyduj się na jego nazwę, jedną z powyższego rysunku,\n            </li>\n<li>\n                potem odpowiedz na wskazane pytania\n            </li>\n<li>\n                i sprawdź, czy wynik jest zgodny z Twoimi przewidywaniami. Jeśli nie - zastanów się, dlaczego.\n            </li>\n</ol>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<small>Aby móc odpowiedzieć na pytania od początku, odśwież stronę.</small>\n</p>"
+    },
+    {
+      "type": "html",
+      "flagged": true,
+      "raw": "<div class=\"centered\">\n<ol class=\"bold\">\n<li>\n<div class=\"ks_binary_choices\" data-binary-choices-id=\"1\">\n<p><strong>Czy czworokąt ma parę boków równoległych?</strong></p>\n<div class=\"white_grey_button ks_button\" data-binary-choose=\"1.1\">TAK</div>\n<div class=\"white_grey_button ks_button\" data-binary-choose=\"1.2\">NIE</div>\n</div>\n</li>\n<li class=\"hidden\">\n<div class=\"ks_binary_choices hidden\" data-binary-choices-id=\"1.1\">\n<p><strong>Czy czworokąt ma dwie pary boków równoległych?</strong></p>\n<div class=\"white_grey_button ks_button\" data-binary-choose=\"1.1.1\">TAK</div>\n<div class=\"white_grey_button ks_button\" data-binary-choose=\"1.1.2\">NIE</div>\n</div>\n<div class=\"ks_binary_choices hidden\" data-binary-choices-id=\"1.2\">\n<p><strong>Czy czworokąt ma dwie pary sąsiednich boków równej długości?</strong></p>\n<div class=\"white_grey_button ks_button\" data-binary-choose=\"1.2.1\">TAK</div>\n<div class=\"white_grey_button ks_button\" data-binary-choose=\"1.2.2\">NIE</div>\n</div>\n</li>\n<li class=\"hidden\">\n<div class=\"ks_binary_choices hidden\" data-binary-choices-id=\"1.1.1\">\n<p><strong>Czy kąty czworokąta są proste?</strong></p>\n<div class=\"white_grey_button ks_button\" data-binary-choose=\"1.1.1.1\">TAK</div>\n<div class=\"white_grey_button ks_button\" data-binary-choose=\"1.1.1.2\">NIE</div>\n</div>\n</li>\n<li class=\"hidden\">\n<div class=\"ks_binary_choices hidden\" data-binary-choices-id=\"1.1.1.1\">\n<p><strong>Czy wszystkie boki czworokąta są równej długości?</strong></p>\n<div class=\"white_grey_button ks_button\" data-binary-choose=\"1.1.1.1.1\">TAK</div>\n<div class=\"white_grey_button ks_button\" data-binary-choose=\"1.1.1.1.2\">NIE</div>\n</div>\n<div class=\"ks_binary_choices hidden\" data-binary-choices-id=\"1.1.1.2\">\n<p><strong>Czy wszystkie boki czworokąta są równej długości?</strong></p>\n<div class=\"white_grey_button ks_button\" data-binary-choose=\"1.1.1.2.1\">TAK</div>\n<div class=\"white_grey_button ks_button\" data-binary-choose=\"1.1.1.2.2\">NIE</div>\n</div>\n</li>\n</ol>\n<div class=\"ks_binary_choices hidden\" data-binary-choices-id=\"1.1.2\">\n<p>\n                    Ten czworokąt jest <strong style=\"color: #5c00d8; background-color: lightgray;\">trapezem</strong> (ale nie równoległobokiem, rombem, prostokątem, kwadratem, ani deltoidem).\n                </p>\n</div>\n<div class=\"ks_binary_choices hidden\" data-binary-choices-id=\"1.2.1\">\n<p>\n                    Ten czworokąt jest <strong style=\"color: #0081ff; background-color: lightgray;\">deltoidem</strong> (ale nie jest rombem, ani kwadratem).\n                </p>\n</div>\n<div class=\"ks_binary_choices hidden\" data-binary-choices-id=\"1.2.2\">\n<p>\n                    Ten czworokąt jest <strong style=\"color: #0000ff; background-color: lightgray;\">trapezoidem</strong> (ale nie jest deltoidem).\n                </p>\n</div>\n<div class=\"ks_binary_choices hidden\" data-binary-choices-id=\"1.1.1.1.1\">\n<p>\n                    Ten czworokąt jest <strong style=\"color: #ff8300; background-color: lightgray;\">kwadratem</strong> (więc też prostokątem, rombem, równoległobokiem, trapezem i deltoidem).\n                </p>\n</div>\n<div class=\"ks_binary_choices hidden\" data-binary-choices-id=\"1.1.1.1.2\">\n<p>\n                    Ten czworokąt jest <strong style=\"color: #e40000; background-color: lightgray;\">prostokątem</strong> (więc też równoległobokiem i trapezem, ale nie kwadratem, ani rombem, ani deltoidem).\n                </p>\n</div>\n<div class=\"ks_binary_choices hidden\" data-binary-choices-id=\"1.1.1.2.1\">\n<p>\n                    Ten czworokąt jest <strong style=\"color: #ffdb00; background-color: gray;\">rombem</strong> (więc też równoległobokiem, trapezem i deltoidem, ale nie kwadratem ani prostokątem).\n                </p>\n</div>\n<div class=\"ks_binary_choices hidden\" data-binary-choices-id=\"1.1.1.2.2\">\n<p>\n                    Ten czworokąt jest <strong style=\"color: #ff00d8; background-color: lightgray;\">równoległobokiem</strong> (więc też trapezem, ale nie kwadratem, ani rombem, ani prostokątem, ani deltoidem).\n                </p>\n</div>\n</div>",
+      "reason": "interactive_widget (Group B): binary_choice"
+    }
+  ],
+  "fully_mapped": false,
+  "seed_hash": "369e15d4320463a6b37aaa25c4a78cb181a0fc0b67ab7d41f88e8af9737a558c"
+}

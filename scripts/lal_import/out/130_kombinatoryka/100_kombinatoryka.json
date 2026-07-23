@@ -1,0 +1,317 @@
+{
+  "elements": [
+    {
+      "type": "spoiler",
+      "label": "jeśli nie pamiętasz, co to jest silnia...",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<strong>Silnia</strong>"
+        },
+        {
+          "type": "text",
+          "body": "<p>liczby naturalnej \\(n\\), zapisywana jako \\(n!\\), to iloczyn liczb naturalnych od \\(1\\) do \\(n\\):</p>"
+        },
+        {
+          "type": "text",
+          "body": "\n            \\[\n            n!=1\\cdot 2\\cdot\\dots(n-1)\\cdot n\n            \\]\n        "
+        },
+        {
+          "type": "text",
+          "body": "<p>albo rekurencyjnie:</p>"
+        },
+        {
+          "type": "text",
+          "body": "\n            \\[\n            n!=\\begin{cases}\n            1&amp;\\text{jeśli }n=0\\\\\n            n\\cdot(n-1)!&amp;\\text{jeśli }n\\gt 0\n            \\end{cases}\n            \\]\n        "
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Oblicz\n        </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n        \\frac{13!}{11!}\n        "
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                Normalnie nie będziemy tego robić, ale ten pierwszy, jeden raz rozpiszmy obie silnie, by dostrzec zależności:\n            </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                \\[\n                \\frac{13!}{11!}=\\frac{1\\cdot 2\\cdot 3\\cdot 4\\cdot 5\\cdot 6\\cdot 7\\cdot 8\\cdot 9\\cdot 10\\cdot 11\\cdot 12\\cdot 13}{1\\cdot 2\\cdot 3\\cdot 4\\cdot 5\\cdot 6\\cdot 7\\cdot 8\\cdot 9\\cdot 10\\cdot 11}\n                \\]\n            "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                Widzisz?\n            </p>"
+        },
+        {
+          "type": "reveal_gate",
+          "label": "pokaż dalej"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    \\frac{13!}{11!}=\\frac{\\color{red}{1\\cdot 2\\cdot 3\\cdot 4\\cdot 5\\cdot 6\\cdot 7\\cdot 8\\cdot 9\\cdot 10\\cdot 11}\\cdot 12\\cdot 13}{\\color{red}{1\\cdot 2\\cdot 3\\cdot 4\\cdot 5\\cdot 6\\cdot 7\\cdot 8\\cdot 9\\cdot 10\\cdot 11}}\n                    \\]\n                "
+        },
+        {
+          "type": "reveal_gate",
+          "label": "pokaż dalej"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Liczba \\(11!\\) jest czynnikiem liczby \\(13!\\), co możemy lepiej i krócej zapisać tak:\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    \\frac{13!}{11!}=\\frac{\\color{red}{11!}\\cdot 12\\cdot 13}{\\color{red}{11!}}\n                    \\]\n                "
+        },
+        {
+          "type": "reveal_gate",
+          "label": "pokaż dalej"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    I teraz możemy skrócić wspólny czynnik w liczniku i mianowniku:\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    \\frac{13!}{11!}=\\frac{\\require{cancel}\\cancel{\\color{red}{11!}}\\cdot 12\\cdot 13}{\\require{cancel}\\cancel{\\color{red}{11!}}}=12\\cdot 13=156\n                    \\]\n                "
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p>Jeśli \\(n\\gt k\\) to \\(n!\\) jest podzielne przez \\(k!\\):</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        \\[\n        n!=k!\\cdot (k+1)\\cdot(k+1)\\cdot \\dots\\,\\cdot (n-1)\\cdot n\n        \\]\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Przykład</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n            \\[\n            \\begin{align}\n            \\frac{128!}{125!}&amp;=126\\cdot 127\\cdot 128\\\\\n            \\frac{41!}{39!}&amp;=40\\cdot 41\n            \\end{align}\n            \\]\n        "
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Wybierz właściwą odpowiedź.\n    "
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                \\(\\frac{16!}{14!}=\\)\n                \n\n\n￿0￿.\n            ",
+      "options": [
+        "\\(15\\cdot 16\\)",
+        "\\(14\\cdot 15\\cdot 16\\)"
+      ],
+      "answer": 0
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                \\(\\frac{20!}{16!}=\\)\n                \n\n\n\n￿0￿.\n            ",
+      "options": [
+        "\\(16\\cdot 17\\cdot 18\\cdot 19\\cdot 20\\)",
+        "\\(17\\cdot 20\\)",
+        "\\(17\\cdot 18\\cdot 19\\cdot 20\\)"
+      ],
+      "answer": 2
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                \\(\\frac{24!}{21!}=\\)\n                \n\n\n\n￿0￿.\n            ",
+      "options": [
+        "\\(22\\cdot 24\\)",
+        "\\(23\\cdot 24\\)",
+        "\\(22\\cdot 23\\cdot 24\\)"
+      ],
+      "answer": 2
+    },
+    {
+      "type": "text",
+      "body": "<p>Brawo!</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Doprowadź wyrażenie do najprostszej postaci:</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n            \\[\n            14!\\cdot 30-15!\n            \\]\n        "
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Na początek zauważmy, że \\(30=15\\cdot 2\\), więc \\(14!\\cdot 30=14!\\cdot 15\\cdot 2=\\)\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(28!\\cdot 30\\)",
+            "\\(15!\\cdot 2\\)",
+            "\\(420\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Aby uprościć to wyrażenie, wyłączymy największy wspólny czynnik przed nawias.\n                </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Największym wspólnym czynnikiem liczb \\(15!\\cdot 2\\) oraz \\(15!\\) jest \n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(15!\\)",
+            "\\(14!\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    I dlatego \\(15!\\cdot 2-15!=\\)\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(15!(2-0)\\)",
+            "\\(15!(2-1)\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Tak więc</p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    \\begin{align}\n                    14!\\cdot 30-15!&amp;=15!\\cdot 2-15!=\\\\\n                    &amp;=15!(2-1)=\\\\\n                    &amp;=15!\n                    \\end{align}\n                    \\]\n                "
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Doprowadź wyrażenie do najprostszej postaci:</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n            \\[\n            16!\\cdot 170+17!\\cdot 8\n            \\]\n        "
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Najpierw zauważmy, że \\(16!\\cdot 170=16!\\cdot 17\\cdot 10=\\)\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(170!\\)",
+            "\\(17!\\cdot 10\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Teraz możemy wyłączyć czynnik \\(17!\\) przed nawias.\n                </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    \\(17!\\cdot 10+17!\\cdot 8=\\)\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(17!(10+8)\\)",
+            "\\(17!(10-8)\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    A liczba \\(17!(10+8)\\) może być dalej przekształcona: \\(17!(10+8)=17!\\cdot 18=\\)\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(18!\\)",
+            "\\(17!\\cdot 18!\\)",
+            "\\(17\\cdot 18\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Czyli:</p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    \\begin{align}\n                    16!\\cdot 170+17!\\cdot 8&amp;=17!\\cdot 10+17!\\cdot 8=\\\\\n                    &amp;=17!(10+8)=\\\\\n                    &amp;=17!\\cdot 18=\\\\\n                    &amp;=18!\n                    \\end{align}\n                    \\]\n                "
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Oblicz:</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n            \\[\n            \\frac{9!}{6!\\cdot 3!}\n            \\]\n        "
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Najpierw skrócmy \\(9!\\) z \\(6!\\), korzystając z tego, że \\(\\frac{9!}{6!}=\\)\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(6\\cdot 7\\cdot 8\\cdot 9\\)",
+            "\\(7\\cdot 8\\cdot 9\\)",
+            "\\(7\\cdot 9\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Czyli</p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    \\begin{align}\n                    \\frac{9!}{6!\\cdot 3!}&amp;=\\frac{7\\cdot 8\\cdot 9}{3!}=\\\\\n                    &amp;=\\frac{7\\cdot 8\\cdot 9}{1\\cdot 2\\cdot 3}\n                    \\end{align}\n                    \\]\n                "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    I teraz wystarczy skrócić licznik z mianownikiem, a dokładniej \\(8\\) z \\(2\\) oraz \\(9\\) z \\(3\\), by dostać:\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(7\\cdot 4\\cdot 3\\)",
+            "\\(7\\cdot 4\\cdot 6\\)",
+            "\\(7\\cdot 6\\cdot 3\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    \\begin{align}\n                    \\frac{9!}{6!\\cdot 3!}&amp;=\\frac{7\\cdot 8\\cdot 9}{3!}=\\\\\n                    &amp;=\\frac{7\\cdot 8\\cdot 9}{1\\cdot 2\\cdot 3}=\\\\\n                    &amp;=\\frac{7\\cdot 4\\cdot 3}{1\\cdot 1\\cdot 1}=\\\\\n                    &amp;=7\\cdot 4\\cdot 3=\\\\\n                    &amp;=84\n                    \\end{align}\n                    \\]\n                "
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "e3133482615a109d2738f682dd8f20d1f1cb8ff7dc165445d09daf4418285f99"
+}

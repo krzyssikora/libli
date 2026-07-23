@@ -1,0 +1,49 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n<strong>\n            Nierówność trójkąta\n        </strong>\n        mówi, że w każdym trójkącie każdy jego bok jest krótszy od sumy dwóch pozostałych.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Jeśli boki trójkąta mają dlugości \\(a\\), \\(b\\) i \\(c\\), to\n    </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n                                                                                        \\begin{align*}\n                                                                                        a&\\lt b+c\\\\\n                                                                                        b&\\lt a+c\\\\\n                                                                                        c&\\lt a+b\n                                                                                        \\end{align*}\n                                                                                        "
+    },
+    {
+      "type": "text",
+      "body": "\n    Zauważ, że by przekonać się, czy trzy odcinki mogą stworzyć trójkąt, wystarczy sprawdzić, czy najdłuższy z nich jest krótszy od sumy pozostałych. Czy widzisz dlaczego?\n"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Wskaż, które liczby mogą być długościami boków trójkąta.\n        </p>"
+    },
+    {
+      "type": "multi_grid",
+      "columns": [
+        "14, 11, 13",
+        "15, 14, 2",
+        "23, 12, 9",
+        "23, 23, 45"
+      ],
+      "rows": [
+        {
+          "statement": "",
+          "correct": [
+            0,
+            1,
+            3
+          ]
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "a5eaabfeaf9724c3faa85069c9576875bb6e2b6b414ff1f825aa95c535afc9b3"
+}

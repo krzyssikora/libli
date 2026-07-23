@@ -1,0 +1,135 @@
+{
+  "elements": [
+    {
+      "type": "image",
+      "media_src": "static/trojkat_ABC.png",
+      "alt": "trojkat ABC",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>Jak wcześniej, tak i dalej, jeśli będzie mowa o trójkącie \\(ABC\\), przyjmiemy dla uproszczenia następujące oznaczenia:</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n            \\(a\\) - długość boku na przeciwko wierzchołka \\(A\\), czyli \\(BC\\),\n        </li>\n<li>\n            \\(b\\) - długość boku na przeciwko wierzchołka \\(B\\), czyli \\(AC\\),\n        </li>\n<li>\n            \\(c\\) - długość boku na przeciwko wierzchołka \\(C\\), czyli \\(AB\\),\n        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>oraz</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n            \\(A\\) - kąt wewnętrzny o wierzchołku w punkcie \\(A\\),\n        </li>\n<li>\n            \\(B\\) - kąt wewnętrzny o wierzchołku w punkcie \\(B\\),\n        </li>\n<li>\n            \\(C\\) - kąt wewnętrzny o wierzchołku w punkcie \\(C\\).\n        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Zastanów się, jak można rozwiązać następujące zadanie.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/tw_cosinusow_zad_1.png",
+      "alt": "trojkat ABC",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W trójkącie \\(ABC\\) kąt \\(A\\) ma miarę \\(30^{\\circ}\\), a boki \\(b\\) i \\(c\\) są odpowiednio długości \\(4\\) i \\(6\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź \\(a\\), długość boku \\(BC\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<small style=\"position: absolute; right: 2px; bottom: 2px;\">\n<i>\n                (Rysunek nie zachowuje skali.)\n            </i>\n</small>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Jeśli masz pomysł, jak je rozwiązać, zapewne potrzebujesz do tego co najmniej dwóch kroków, dwóch oddzielnych obliczeń. Gdy zaczniesz rozwiązywać, zorientujesz się, że istnieją dwa możliwe przypadki, co istotnie wydłuży rozwiązanie.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    No i widzisz na pewno, że tym razem nie użyjemy\n    <strong>\n        twierdzenia sinusów\n    </strong>\n    , bo nie mamy danej ani jednej pary (bok - przeciwległy kąt).\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Aby móc takie zadanie rozwiązać naprawdę szybko, warto poznać tzw.\n    <strong>\n        twierdzenie cosinusów\n    </strong>\n    .\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W poniższym aplecie widzisz geometryczną interpretację twierdzenia Pitagorasa:\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<blockquote>\n            kwadrat zbudowany na boku \\(c\\) ma pole równe sumie pól kwadratów zbudowanych na bokach \\(a\\) i \\(b\\).\n        </blockquote>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W aplecie możesz przesuwać wierzchołki trójkąta \\(ABC\\). Wówczas kąt \\(C\\) nie będzie już prosty.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Przy boku \\(c\\) kwadrat o\n            <span style=\"color: green\">\n                zielonych\n            </span>\n            bokach ma pole równe sumie pól kwadratów zbudowanych na bokach \\(a\\) i \\(b\\). Czyli to, co ograniczone na zielono przy boku \\(c\\) jest równe temu, co ograniczone na zielono przy bokach \\(a\\) i \\(b\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n                jeśli kąt \\(C\\) jest\n                <strong>\n                    ostry\n                </strong>\n                , \\(c^2\\) jest trochę\n                <span style=\"color: red;\">\n                    mniejsze\n                </span>\n                od sumy \\(a^2+b^2\\),\n            </li>\n<li>\n                jeśli kąt \\(C\\) jest\n                <strong>\n                    rozwarty\n                </strong>\n                , \\(c^2\\) jest trochę\n                <span style=\"color: blue;\">\n                    większe\n                </span>\n                od sumy \\(a^2+b^2\\).\n            </li>\n</ul>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/es6ndhvt/width/700/height/900/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>A najciekawsze jest to, że ta zaznaczona na czerwono lub niebiesko różnica jest dana takim samym wyrażeniem:\n        \\[\n        -2ab\\cos C\n        \\]</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n                gdy kąt \\(C\\) jest ostry, \\(\\color{red}{-2ab\\cos C\\lt 0}\\) (bo cosinus kątów ostrych jest dodatni), a \\(c^2\\lt a^2+b^2\\),\n            </li>\n<li>\n                gdy kąt \\(C\\) jest rozwarty, \\(\\color{blue}{-2ab\\cos C\\gt 0}\\) (bo cosinus kątów rozwartych jest ujemny), a \\(c^2\\gt a^2+b^2\\),\n            </li>\n</ul>"
+    },
+    {
+      "type": "spoiler",
+      "label": "Twierdzenie cosinusów",
+      "elements": [
+        {
+          "type": "image",
+          "media_src": "static/trojkat_ABC.png",
+          "alt": "trojkat ABC",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<strong>\n                    Twierdzenie cosinusów\n                </strong>\n</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                Jeśli \\(a\\), \\(b\\), \\(c\\) to długości boków trójkąta, a \\(A\\), \\(B\\) i \\(C\\) to miary kątów przeciwległych do tych boków, to prawdziwe są następujące równania:\n            </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>\n                    \\(a^2=b^2+c^2-2bc\\cos A\\)\n                </li>\n<li>\n                    \\(b^2=a^2+c^2-2ac\\cos B\\)\n                </li>\n<li>\n                    \\(c^2=a^2+b^2-2ab\\cos C\\)\n                </li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Przyjrzyj się, jaka jest struktura tych równań.</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Bok, którego kwadrat jest po lewej stronie równania, po prawej już się nie pojawia, za to po prawej jest cosinus kąta przeciwległego temu bokowi.\n        </p>"
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "f3397a4645945233dbae442339d2127edaa764f21444594bcc0c6ca4183c69eb"
+}

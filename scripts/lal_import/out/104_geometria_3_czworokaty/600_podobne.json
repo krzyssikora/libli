@@ -1,0 +1,232 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W poniższym aplecie widzisz dwa czworokąty podobne i trzy suwaki.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<u>czworokąty</u>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W jednym z czworokątów zaznaczone są wszystkie wierzchołki (trzy na niebiesko, jeden na czerwono). Możesz zmieniać położenie wszystkich wierzchołków.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W drugim czworokącie zaznaczony jest tylko jeden wierzchołek - na czerwono. Wierzchołków tego czworokąta przesuwać nie możesz, a czerwony wierzchołek jest zaznaczony po to, by wskazać, które wierzchołki sobie odpowiadają.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Liczby na czworokątach to ich pola, podane z dokładnością do \\(0,01\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<u>suwaki</u>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n<strong>najważniejszy suwak</strong> szary, szeroki, na górze - to skala podobieństwa czworokąta z jednym zaznaczonym wierzchołkiem do tego z czterema,<br/>\n                tylko ten suwak <u>zmienia pole</u>,\n            </li>\n<li>\n                wąski suwak po środku to kąt \\(\\alpha\\) - z jego pomocą możesz obrócić czworokąt,\n            </li>\n<li>\n                niebieski, szeroki suwak na dole ma tylko dwie pozycje - gdy go przesuniesz, odbijesz czworokąt w symetrii względem pewnej pionowej osi.\n            </li>\n</ul>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/vvk6skfx/width/600/height/575/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Przesuwaj pierwszy suwak (a jeśli chcesz, też dwa pozostałe) i przyjrzyj się, jaki wpływ ma skala podobieństwa na pole czworokąta.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li><small>Jeśli skala podobieństwa to \\(2\\), ilokrotnie większe jest pole?</small></li>\n<li><small>Jeśli skala podobieństwa to \\(3\\), ilokrotnie większe jest pole?</small></li>\n<li><small>Jeśli skala podobieństwa to \\(4\\), ilokrotnie większe jest pole?</small></li>\n<li><small>...</small></li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Jeśli relacja między skalą podobieństwa nie jest dla Ciebie jasna, użyj tego apletu.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Suwak \\(k\\) to skala podobiństwa niebieskiego kwadratu do czerwonego. Gdy \\(k=1\\), czerwony kwadrat w całości zakrywa niebieski.\n        </p>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/bdrqybwd/width/384/height/399/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Zmień skalę podobieństwa i sprawdź, jaki jest stosunek pól niebieskiego do czerwonego kwadratu.\n        </p>"
+    },
+    {
+      "type": "fill_table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "kind": "static",
+              "html": "skala"
+            },
+            {
+              "kind": "static",
+              "html": "\\(1\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(2\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(3\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(4\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(5\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(6\\)"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "stosunek pól"
+            },
+            {
+              "kind": "static",
+              "html": "\\(1\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(4\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "9"
+            },
+            {
+              "kind": "answer",
+              "answer": "16"
+            },
+            {
+              "kind": "answer",
+              "answer": "25"
+            },
+            {
+              "kind": "answer",
+              "answer": "36"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "spoiler",
+      "label": "odpowiedzi",
+      "elements": [
+        {
+          "type": "table",
+          "data": {
+            "header_row": false,
+            "header_col": false,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "skala",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(3\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(4\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(5\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(6\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "stosunek pól",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(4\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(9\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(16\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(25\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(36\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "7487ff275767ebe6c622fd73ad5ece3fabaa22175f32d8327b8a4c1134dd8302"
+}

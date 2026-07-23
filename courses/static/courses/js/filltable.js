@@ -75,6 +75,13 @@
     }
     var btn = root.querySelector(".filltable__confirm");
     if (btn) btn.addEventListener("click", function () { submit(root); });
+    // Enter in any cell submits, matching the inline fill-blank (whose <form>
+    // gives Enter-submit for free); the table has no <form>, so bind it here.
+    inputs(root).forEach(function (inp) {
+      inp.addEventListener("keydown", function (e) {
+        if (e.key === "Enter") { e.preventDefault(); submit(root); }
+      });
+    });
     // KaTeX auto-render (mirror switchgrid.js's typeset call exactly)
     if (window.renderMathInElement) { try { window.renderMathInElement(root); } catch (e) {} }
   }

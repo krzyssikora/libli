@@ -1,0 +1,254 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "\\(x\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\frac{1}{4}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\frac{1}{2}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(2\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(4\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(x\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\frac{1}{4}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\frac{1}{2}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(2\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(4\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(y=\\log_{2}x\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-2\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(0\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(2\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(y=\\log_{\\frac{1}{2}}x\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(2\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(0\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-2\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Spójrz na dwa wykresy poniżej.\n            <br/>\n<span style=\"color: green\">\n                Zielony\n            </span>\n            to wykres \\(y=\\log_{2}x\\).\n            <br/>\n<span style=\"color: red\">\n                Czerwony\n            </span>\n            to wykres \\(y=\\log_{\\frac{1}{2}}x\\).\n            <br/>\n            Na wykresach widzisz punkty z powyższych tabel.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Przesuwaj niebieski suwak, by zobaczyć wykresy funkcji\n        </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n        y=\\log_{a}x\n        "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            dla różnych wartości \\(a\\), ale takich, że \\(a&gt;0\\) oraz \\(a\\ne 1\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Taka funkcja nazywa się\n            <strong>\n                funkcją logarytmiczną\n            </strong>\n            .\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Spróbuj odpowiedzieć na spisane niżej pytania, a potem porównaj swoje odpowiedzi z moimi.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<figure>\n<div class=\"iframe_small hidden\">\n<small>\n                        Jeśli poniższy aplet nie wygląda lub nie działa w pełni poprawnie, użyj urządzenia o większym ekranie.\n                    </small>\n<br/>\n<small>\n                        Minimalna zalecana rozdzielczość ekranu to 800px (szerokość) na 600px (wysokość).\n                    </small>\n</div>\n<iframe height=\"859px\" scrolling=\"no\" src=\"https://www.geogebra.org/material/iframe/id/c6qhwm8n/width/843/height/859/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false\" style=\"border:0px;\" title=\"funkcja logarytmiczna\" width=\"843px\">\n</iframe>\n<details class=\"info_iframe\">\n<summary>\n<small>\n                            aplet nie działa poprawnie?\n                        </small>\n</summary>\n<div class=\"iframe_zonk\">\n<p>\n                            Jeśli ten aplet nie działa poprawnie nawet na większym ekranie, wyślij wiadomość o treści jak niżej na\n                            <a class=\"mailto_tag\" href=\"mailto:krzysztof.sikora@lal.edu.pl?subject=[lms]iframe&amp;body=IFRAME_EMAIL_BODY\">\n                                ten email\n                            </a>\n                            .\n                        </p>\n<div class=\"iframe_telemetry\">\n</div>\n</div>\n</details>\n</figure>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Dana jest funkcja logarytmiczna \\(y=\\log_{a}x\\), gdzie \\(a&gt;0\\) oraz \\(a\\ne 1\\).\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "Jaka jest dziedzina funkcji logarytmicznej?",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(x\\in\\mathbb{R}^{+}\\) albo \\(x\\in (0,+\\infty)\\) albo \\(x&gt;0\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "Jaki jest zbiór wartości funkcji logarytmicznej?",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(y\\in\\mathbb{R}\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "Kiedy funkcja logarytmiczna rośnie, a kiedy maleje?",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Rośnie dla \\(a\\gt 1\\), a maleje dla \\(0\\lt a\\lt 1\\).</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "Kiedy wykresy funkcji logarytmicznych są do siebie symetryczne względem osi \\(x\\)?",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                                    Wykresy są symetryczne względem osi \\(x\\), jeśli podstawy potęg są liczbami odwrotnymi.\n                                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                                    Dla przykładu, symetryczne są wykresy funkcji:\n                                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul>\n<li>\n                                        \\(y=\\log_{2}x\\) oraz \\(y=\\log_{\\frac{1}{2}}x\\)\n                                    </li>\n<li>\n                                        \\(y=\\log_{\\frac{3}{4}} x\\) oraz \\(y=\\log_{\\frac{4}{3}}x\\)\n                                    </li>\n</ul>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "Jakie są równania asymptot funkcji logarytmicznej?",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Funkcja logarytmiczna \\(y=\\log_a x\\), niezależnie od wartości \\(a\\) ma jedną asymptotę - pionową, o równaniu \\(x=0\\).</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "W jakich punktach funkcja logarytmiczna przecina osie układu współrzędnych?",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Funkcja logarytmiczna \\(y=\\log_a x\\), niezależnie od wartości \\(a\\) przecina oś \\(x\\) w punkcie \\((1, 0)\\) i nie dotyka osi \\(y\\).</p>"
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "d86913317f01e8242db5a633dc4a5a3c3bb25a98f30f64fc10e2b5ad33bd0c9c"
+}

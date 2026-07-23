@@ -1,0 +1,114 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Znajdź odległość punktu \\((-5,-3)\\) od prostej \\(x+5y-32=0\\).\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "odpowiedź",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(2\\sqrt{26}\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Znajdź odległość punktu \\((-10,1)\\) od prostej \\(5x+3y-4=0\\).\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "odpowiedź",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{3}{2}\\sqrt{34}\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Znajdź odległość punktu \\((1,5)\\) od prostej \\(y=-\\frac{3}{2}x-6\\tfrac{1}{2}\\).\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "odpowiedź",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(2\\sqrt{13}\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Znajdź odległość punktu \\((-10,2)\\) od prostej \\(y=3x+7\\).\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "odpowiedź",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{5}{2}\\sqrt{10}\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Znajdź punkty leżące na prostej \\(7x+23y+125=0\\) leżące w odległości \\(17\\) od prostej \\(8x-15y+19=0\\).\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "odpowiedź",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\((-31,4)\\) i \\((15,-10)\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Znajdź punkty leżące na prostej \\(x+7y+4=0\\) leżące w odległości \\(10\\) od prostej \\(3x-4y-13=0\\).\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "odpowiedź",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\((-11,1)\\) i \\((17,-3)\\)</p>"
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "d3b494cc8e807347c14d05a0e76b6b6e393a83b868ff55a76e4d66059a7c9369"
+}

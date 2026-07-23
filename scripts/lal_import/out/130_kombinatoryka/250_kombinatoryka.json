@@ -1,0 +1,82 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Związek trójkąta Pascala z symbolem Newtona jest przeogromny - bo wszystkie liczby w trójkącie Pascala to symbole Newtona. \n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Ale po kolei.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n        Niech <span style=\"color: red;\">\\(n\\) oznacza numer rzędu</span> w trójkącie Pascala - przy czym <u>numerowanie zaczynamy od \\(0\\)</u>.\n    </li>\n<li>\n        Niech <span style=\"color: blue;\">\\(k\\) oznacza numer liczby w rzędzie</span> w trójkącie Pascala - przy czym <u>numerowanie zaczynamy od \\(0\\)</u>.\n    </li>\n</ul>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/trojkat_pascala_4.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>Liczba</p>"
+    },
+    {
+      "type": "text",
+      "body": "<span style=\"color: blue;\">numer \\(k\\)</span>"
+    },
+    {
+      "type": "text",
+      "body": "<p>w</p>"
+    },
+    {
+      "type": "text",
+      "body": "<span style=\"color: red;\">rzędzie numer \\(n\\)</span>"
+    },
+    {
+      "type": "text",
+      "body": "<p>to \\(\\binom{n}{k}\\)</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n            czyli \\(k\\)-wyrazowa kombinacja ze zbioru \\(n\\)-elementowego,\n        </li>\n<li>\n            czyli liczba możliwych wyborów \\(k\\) elementów ze zbioru \\(n\\)-elementowego.\n        </li>\n</ul>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/trojkat_pascala_5.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Przykład</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź w trójkącie Pascala wartość \\(\\binom{6}{2}\\).\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "sprawdź",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Wystarczy, że:</p>"
+        },
+        {
+          "type": "text",
+          "body": "<ol>\n<li>\n                    narysujemy trójkąt Pascala do szóstego rzędu (zaczynając liczenie od \\(0\\)),\n                </li>\n<li>\n                    w szóstym rzędzie znajdziemy drugą liczbę od lewej (ponownie zaczynając liczenie od \\(0\\)).\n                </li>\n<li>\n                    I tam odnajudujemy, że \\(\\binom{6}{2}=15\\).\n                </li>\n</ol>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/trojkat_pascala_6.png",
+          "alt": "",
+          "figcaption": ""
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "094850c558caeb464356bc16160a30fc391a69daa70783bdbba26d2d260a1e2c"
+}

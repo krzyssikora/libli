@@ -1,0 +1,10 @@
+{
+  "elements": [
+    {
+      "type": "video",
+      "media_src": "static/izometrie_wprowadzenie.mp4"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "75eebb0b8cbea381ea39c7914542a79dea4bafc1157ee7bccd893b328f0675f1"
+}

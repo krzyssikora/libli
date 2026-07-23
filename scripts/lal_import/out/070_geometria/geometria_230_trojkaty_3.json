@@ -1,0 +1,103 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Wskaż, które z poniższych zdań są prawdziwe, a które fałszywe\n        </p>"
+    },
+    {
+      "type": "choice_grid",
+      "columns": [
+        "prawda",
+        "fałsz"
+      ],
+      "rows": [
+        {
+          "statement": "Symetralne przecinają się w środku okręgu opisanego na trójkącie.",
+          "correct": 0
+        },
+        {
+          "statement": "Symetralne przecinają się w środku okręgu wpisanego w trójkąt.",
+          "correct": 1
+        },
+        {
+          "statement": "Dwusieczne przecinają się w środku okręgu opisanego w trójkąt.",
+          "correct": 1
+        },
+        {
+          "statement": "Dwusieczne przecinają się w środku okręgu wpisanego w trójkąt.",
+          "correct": 0
+        },
+        {
+          "statement": "Środkowe dzielą trójkąt na dwa o takim samym polu.",
+          "correct": 0
+        },
+        {
+          "statement": "Dwusieczne dzielą trójkąt na dwa o takim samym polu.",
+          "correct": 1
+        },
+        {
+          "statement": "Środkowe dzielą kąty na połowy.",
+          "correct": 1
+        },
+        {
+          "statement": "Środkowe dzielą się w stosunku 1:2.",
+          "correct": 0
+        },
+        {
+          "statement": "Dwusieczne dzielą się w stosunku 1:2.",
+          "correct": 1
+        },
+        {
+          "statement": "Symetralne mogą przeciąć się poza trójkątem.",
+          "correct": 0
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Wskaż, które spośród czterech omówionych odcinków / prostych mają wymienione własności.\n        </p>"
+    },
+    {
+      "type": "multi_grid",
+      "columns": [
+        "symetralne",
+        "dwusieczne",
+        "środkowe",
+        "wysokości"
+      ],
+      "rows": [
+        {
+          "statement": "Są prostopadłe do boku.",
+          "correct": [
+            0,
+            3
+          ]
+        },
+        {
+          "statement": "Dzielą boki na połowy.",
+          "correct": [
+            0,
+            2
+          ]
+        },
+        {
+          "statement": "Przecinają się zawsze wewnątrz trójkąta.",
+          "correct": [
+            1,
+            2
+          ]
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "85598934bb98342aba29e05dc026b3c55311599ab737228e20efc3b0be5cdaba"
+}

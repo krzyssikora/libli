@@ -1,0 +1,29 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question_text\">\n        Poćwicz, by uzyskać proste o następujących równaniach. Gdy już uzyskasz prostą o którymś równaniu, możesz je dla swojej wygody oznaczyć.\n    </p>"
+    },
+    {
+      "type": "mark_done",
+      "items": [
+        "\\(y=3x-1\\)",
+        "\\(y=-2x+2\\)",
+        "\\(y=\\frac{2}{5}x+1\\)",
+        "\\(y=-x-3\\)",
+        "\\(y=-\\frac{1}{3}x+2\\)"
+      ]
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/zyu3fn4x/width/1000/height/600/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "bf20e10f6d35c7bb6faa7f51f42fe80a6bd05906637c36b88f6339e362bc4eb2"
+}

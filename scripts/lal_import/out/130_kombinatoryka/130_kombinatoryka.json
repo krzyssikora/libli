@@ -1,0 +1,701 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Przypomnijmy:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>Permutacja</strong> to ustawienie \\(n\\) obiektów w rzędzie.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Liczba permutacji zbioru \\(n\\)-elementowego jest równa \\(n!\\).\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Zadawanie pytań w rodzaju\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<blockquote>\n    \"na ile sposobów możemy ustawić \\(n\\) obiektów w rzędzie\"\n</blockquote>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    mija się z celem, bo odpowiedź będzie brzmiała po prostu \"\\(n!\\)\".\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Rozwiążmy kilka trochę bardziej wymagających zadań. \n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W grupie jest pięć dziewcząt i czterech chłopców.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Na ile sposobów możemy ustawić wszystkich dziewięcioro w szeregu, ale tak, aby zarówno wszyscy chłopcy stali razem, jak i wszystkie dziewczęta stały razem.\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Skoro zarówno chłopcy i dziewczęta mają stać razem, to znaczy, że musimy ustawić albo najpierw dziewczęta, a potem chłopców:</p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/dziewczeta_chlopcy.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>albo najpierw chłopców, a potem dziewczęta:</p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/chlopcy_dziewczeta.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    W każdej z tych dwóch sytuacji dziewczęta możemy ustawić na\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(4!\\) sposobów",
+            "\\(5!\\) sposobów",
+            "\\(9!\\) sposobów"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Podobnie w każdej z tych dwóch sytuacji chłopców możemy ustawić na\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(4!\\) sposobów",
+            "\\(5!\\) sposobów",
+            "\\(9!\\) sposobów"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    I dlatego wszystkich ustawień dziewcząt i chłopców jest\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(2\\cdot 5!\\cdot 4!\\)",
+            "\\(5!\\cdot 4!\\)",
+            "\\(9!\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "table",
+          "data": {
+            "header_row": false,
+            "header_col": false,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "sytuacji",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "ustawień<br/>dziewcząt",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "ustawień<br/>chłopców",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(\\downarrow\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\downarrow\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\downarrow\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\cdot\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(5!\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\cdot\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(4!\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(=5\\,760\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W grupie jest pięć dziewcząt i czterech chłopców.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Na ile sposobów możemy ustawić wszystkich dziewięcioro w szeregu, ale tak, aby żadna dziewczynka nie stała obok innej dziewczynki.\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Skoro żadna dziewczynka nie może stać obok innej dziewczynki, to oznacza, że dziewczynki i chłopcy muszą stać na przemian:</p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/dz_ch_dz_ch_dz_ch_dz_ch_dz.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>Miejsca, w których mają \"stać\" dziewczęta i chłopcy są więc ustalone.</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Dziewczęta możemy ustawić na przeznaczonych dla nich miejscach na\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(4!\\) sposobów",
+            "\\(5!\\) sposobów",
+            "\\(9!\\) sposobów"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Podobnie chłopców możemy ustawić na przeznaczonych dla nich miejscach na\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(4!\\) sposobów",
+            "\\(5!\\) sposobów",
+            "\\(9!\\) sposobów"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    I dlatego wszystkich ustawień dziewcząt i chłopców jest\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(2\\cdot 5!\\cdot 4!\\)",
+            "\\(5!\\cdot 4!\\)",
+            "\\(9!\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(5!\\cdot 4!=2\\,880\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Na stole leżą dwie książki do matematyki i cztery inne. Na ile sposobów możemy ustawić wszystkie sześć książek w rzędzie na półce tak, aby książki do matematyki sąsiadowały ze sobą?\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                    Wyobraźmy sobie przez chwilę, że obie książki do matematyki \"sklejamy\" razem, tworząc jedną, grubszą książkę.\n                </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Wówczas mielibyśmy \n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "6 książek",
+            "5 książek",
+            "4 książki"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Moglibyśmy ustawić je w rzędzie na półce na\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(6!\\) sposobów",
+            "\\(5!\\) sposobów",
+            "\\(4!\\) sposobów"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Książki zostały ustawione, to teraz rozklejmy obie książki do matematyki. I dzięki temu stoją obok siebie.\n                </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Jednak wyliczoną liczbę ustawień (\\(5!\\)) musimy jeszcze pomnożyć przez\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(0,5\\)",
+            "\\(2\\)",
+            "\\(3\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Mnożymy przez \\(2\\), bo książki do matematyki mogły być \"sklejone\" na dwa sposoby.\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    I dlatego wszystkich sposobów ustawienia książek jest\n                </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                2\\cdot 5!=240\n                "
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Na stole leżą dwie książki do matematyki i cztery inne. Na ile sposobów możemy ustawić wszystkie sześć książek w rzędzie na półce tak, aby książki do matematyki <strong>nie</strong> sąsiadowały ze sobą?\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                Musimy policzyć, w ilu możliwych położeniach możemy umieścić książki do matematyki.\n            </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                W poniższej tabeli w kolumnie \"<strong>ustawienia</strong>\" widzisz symbolicznie narysowane 6 książek. W miejscu oznaczonym \"<span style=\"display: inline-block; height: 1.5rem; width: 1rem; background-color: lightblue; text-align: center;\">x</span>\" umieszczamy jedną książkę do matematyki. Wszystkie inne miejsca, w których może być druga książka do matematyki, oznaczamy kolejnymi liczbami - by policzyć, ile ich jest.\n            </p>"
+        },
+        {
+          "type": "table",
+          "data": {
+            "header_row": true,
+            "header_col": false,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "ustawienia",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "liczba ustawień",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "<span style=\"display: inline-block; height: 1.5rem; width: 1rem; background-color: lightblue; text-align: center;\">x</span>\n<span style=\"display: inline-block; height: 1.5rem; width: 1rem; background-color:lightblue; text-align: center;\">_</span>\n<span style=\"display: inline-block; height: 1.5rem; width: 1rem; background-color:lightblue; text-align: center;\">1</span>\n<span style=\"display: inline-block; height: 1.5rem; width: 1rem; background-color:lightblue; text-align: center;\">2</span>\n<span style=\"display: inline-block; height: 1.5rem; width: 1rem; background-color:lightblue; text-align: center;\">3</span>\n<span style=\"display: inline-block; height: 1.5rem; width: 1rem; background-color:lightblue; text-align: center;\">4</span>",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(4\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "<span style=\"display: inline-block; height: 1.5rem; width: 1rem; background-color:lightblue; text-align: center;\">_</span>\n<span style=\"display: inline-block; height: 1.5rem; width: 1rem; background-color: lightblue; text-align: center;\">x</span>\n<span style=\"display: inline-block; height: 1.5rem; width: 1rem; background-color:lightblue; text-align: center;\">_</span>\n<span style=\"display: inline-block; height: 1.5rem; width: 1rem; background-color:lightblue; text-align: center;\">1</span>\n<span style=\"display: inline-block; height: 1.5rem; width: 1rem; background-color:lightblue; text-align: center;\">2</span>\n<span style=\"display: inline-block; height: 1.5rem; width: 1rem; background-color:lightblue; text-align: center;\">3</span>",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(3\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "<span style=\"display: inline-block; height: 1.5rem; width: 1rem; background-color:lightblue; text-align: center;\">_</span>\n<span style=\"display: inline-block; height: 1.5rem; width: 1rem; background-color:lightblue; text-align: center;\">_</span>\n<span style=\"display: inline-block; height: 1.5rem; width: 1rem; background-color: lightblue; text-align: center;\">x</span>\n<span style=\"display: inline-block; height: 1.5rem; width: 1rem; background-color:lightblue; text-align: center;\">_</span>\n<span style=\"display: inline-block; height: 1.5rem; width: 1rem; background-color:lightblue; text-align: center;\">1</span>\n<span style=\"display: inline-block; height: 1.5rem; width: 1rem; background-color:lightblue; text-align: center;\">2</span>",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "<span style=\"display: inline-block; height: 1.5rem; width: 1rem; background-color:lightblue; text-align: center;\">_</span>\n<span style=\"display: inline-block; height: 1.5rem; width: 1rem; background-color:lightblue; text-align: center;\">_</span>\n<span style=\"display: inline-block; height: 1.5rem; width: 1rem; background-color:lightblue; text-align: center;\">_</span>\n<span style=\"display: inline-block; height: 1.5rem; width: 1rem; background-color: lightblue; text-align: center;\">x</span>\n<span style=\"display: inline-block; height: 1.5rem; width: 1rem; background-color:lightblue; text-align: center;\">_</span>\n<span style=\"display: inline-block; height: 1.5rem; width: 1rem; background-color:lightblue; text-align: center;\">1</span>",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Z tabeli wynika, że wszystkich par miejsc, w których możemy umieścić książki do matematyki jest\n                    \n\n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(10\\)",
+            "\\(4\\)",
+            "\\(3\\)",
+            "\\(2\\)",
+            "\\(1\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Zwróćmy uwagę, że gdy mamy wybraną parę miejsc, w których możemy umieścić książki do matematyki, to dwie książki możemy umieścić w takich dwóch miejscach na dwa sposoby. (Np. \n                    _\n<strong>A</strong>\n_\n_\n<strong>B</strong>\n_\n                    oraz\n                    _\n<strong>B</strong>\n_\n_\n<strong>A</strong>\n_\n                    ). Dlatego dwie książki od matematyki możemy umieścić na wszystkich wybranych wcześniej miejscach na półce na\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(2\\) sposoby",
+            "\\(20\\) sposobów",
+            "\\(10\\) sposobów"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Mamy więc dwie książki do matematyki umieszczone na dwóch miejscach. Zostały cztery miejsca, na których musimy umieścić pozostałe cztery książki.\n                </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Możemy to zrobić na\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(4!\\) sposobów",
+            "\\(4\\) sposoby",
+            "\\(4\\cdot 4\\) sposoby"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Książki do matematyki umieszczamy na \\(20\\) sposobów, a pozostałe na \\(4!=24\\) sposoby. Dlatego wszystkich sposobów ułożenia książek na półce jest\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(20\\cdot 24\\)",
+            "\\(20+24\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Czyli \\(480\\).</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Na ile sposobów możemy ustawić w rzędzie na półce: \n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>2 książki z poezją,</li>\n<li>4 kryminały,</li>\n<li>3 książki science-fiction,</li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>jeśli:</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ol class=\"bold\" type=\"A\">\n<li>\n                mogą być ustawione jakkolwiek,\n            </li>\n<li>\n                książki z poezją muszą stać obok siebie,\n            </li>\n<li>\n                książki z poezją nie mogą stać obok siebie,\n            </li>\n<li>\n                książki tego samego rodzaju muszą stać obok siebie?\n            </li>\n</ol>"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                    Część <strong>A</strong>.\n                </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Jeśli nie ma żadnych ograniczeń co do tego, jak mamy ustawiać książki, możemy to zrobić na\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(9!\\) sposobów",
+            "\\(2!\\cdot 4!\\cdot 3!\\) sposobów",
+            "\\(2!+4!+3!\\) sposobów"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Część <strong>B</strong>.\n                </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Najpierw \"sklejamy\" dwie książki z poezją na \n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(2\\) sposoby",
+            "\\(3\\) sposoby",
+            "\\(4\\) sposoby"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Potem ustawiamy 7 pozostałych książek wraz z ósmą \"sklejoną\" poezją na\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(7!\\) sposobów",
+            "\\(8!\\) sposobów",
+            "\\(7+8\\) sposobów"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Czyli wszystkich ustawień jest\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(2\\cdot 8!\\)",
+            "\\(2+8!\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Część <strong>C</strong>.\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Zauważmy, że książki z poezją mogą\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul>\n<li>albo stać razem</li>\n<li>albo stać oddzielnie.</li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Innych możliwości nie ma.</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Tak więc jeśli:\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul>\n<li>\n                        wszystkich możliwośći jest \\(9!\\),\n                    </li>\n<li>\n                        możliwości, gdy stoją razem jest \\(2\\cdot 8!\\)\n                    </li>\n</ul>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    to możliwości, gdy stoją oddzielnie jest\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(9!-2\\cdot 8!\\)",
+            "\\(9!+2\\cdot 8!\\)",
+            "\\(9!\\cdot 2\\cdot 8!\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Co możemy uprościć:</p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    9!-2\\cdot 8!=9\\cdot 8!-2\\cdot 8!=8!\\cdot(9-2)=7\\cdot 8!\n                    \\]\n                "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Część <strong>D</strong>.\n                </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Dwie książki z poezją możemy \"skleić\" na \n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(2\\) sposoby",
+            "\\(3\\) sposoby",
+            "\\(4\\) sposoby"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Cztery kryminały możemy \"skleić\" na \n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(4\\) sposoby",
+            "\\(4!\\) sposobów"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Trzy książki science-fiction możemy \"skleić\" na \n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(3\\) sposoby",
+            "\\(3!\\) sposobów"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    I teraz, gdy mamy \"sklejone\" trzy grupy książek tego samego rodzaju, możemy te trzy grupy ustawić na\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(3\\) sposoby",
+            "\\(3!\\) sposobów"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "table",
+          "data": {
+            "header_row": false,
+            "header_col": false,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "ustawień książek z poezją",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "ustawień kryminałów",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(4!\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "ustawień książek science-fiction",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(3!\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "ustawień trzech grup książek",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(3!\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Więc razem:\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    2\\cdot 4!\\cdot 3!\\cdot 3!=2\\cdot 24\\cdot 6\\cdot 6=1\\,728\n                    \\]\n                "
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "b1eda7aaf596000745726197bf5f3264f9d86fcb0465673fe1f88b7abfac600b"
+}

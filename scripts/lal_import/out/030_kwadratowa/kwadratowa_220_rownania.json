@@ -1,0 +1,489 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Rozwiążemy trzy zadania prowadzące do równań (lub nierówności) kwadratowych. Dalej znajdziesz więcej zadań do samodzielnego rozwiązania.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Znajdź trzy kolejne dodatnie liczby nieparzyste, których suma kwadratów jest równa \\(1\\,595\\).\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "Rozwiąż zadanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                    Zacznijmy od tego, jak zapisać trzy kolejne liczby nieparzyste. Przyjrzyjmy się kilku przykładom:\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul>\n<li>\n<span style=\"display: inline-block; width: 100px;\">\n                            \\(5\\),\n                        </span>\n<span style=\"display: inline-block; width: 100px;\">\n                            \\(7\\),\n                        </span>\n<span style=\"display: inline-block; width: 100px;\">\n                            \\(9\\)\n                        </span>\n</li>\n<li>\n<span style=\"display: inline-block; width: 100px;\">\n                            \\(11\\),\n                        </span>\n<span style=\"display: inline-block; width: 100px;\">\n                            \\(13\\),\n                        </span>\n<span style=\"display: inline-block; width: 100px;\">\n                            \\(15\\)\n                        </span>\n</li>\n<li>\n<span style=\"display: inline-block; width: 100px;\">\n                            \\(37\\),\n                        </span>\n<span style=\"display: inline-block; width: 100px;\">\n                            \\(39\\),\n                        </span>\n<span style=\"display: inline-block; width: 100px;\">\n                            \\(41\\)\n                        </span>\n</li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Zauważmy, że każda z tych liczb jest o \\(1\\) większa od pewnej liczby parzystej:\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul>\n<li>\n<span style=\"display: inline-block; width: 100px;\">\n                            \\(4+1\\),\n                        </span>\n<span style=\"display: inline-block; width: 100px;\">\n                            \\(6+1\\),\n                        </span>\n<span style=\"display: inline-block; width: 100px;\">\n                            \\(8+1\\)\n                        </span>\n</li>\n<li>\n<span style=\"display: inline-block; width: 100px;\">\n                            \\(10+1\\),\n                        </span>\n<span style=\"display: inline-block; width: 100px;\">\n                            \\(12+1\\),\n                        </span>\n<span style=\"display: inline-block; width: 100px;\">\n                            \\(14+1\\)\n                        </span>\n</li>\n<li>\n<span style=\"display: inline-block; width: 100px;\">\n                            \\(36+1\\),\n                        </span>\n<span style=\"display: inline-block; width: 100px;\">\n                            \\(38+1\\),\n                        </span>\n<span style=\"display: inline-block; width: 100px;\">\n                            \\(40+1\\)\n                        </span>\n</li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Natomiast każda z tych liczb parzystych jest podzialna przez \\(2\\), co oznacza, że jest iloczynem \\(2\\) i pewnej liczby całkowitej:\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul>\n<li>\n<span style=\"display: inline-block; width: 100px;\">\n                            \\(2\\cdot 2+1\\),\n                        </span>\n<span style=\"display: inline-block; width: 100px;\">\n                            \\(2\\cdot 3+1\\),\n                        </span>\n<span style=\"display: inline-block; width: 100px;\">\n                            \\(2\\cdot 4+1\\)\n                        </span>\n</li>\n<li>\n<span style=\"display: inline-block; width: 100px;\">\n                            \\(2\\cdot 5+1\\),\n                        </span>\n<span style=\"display: inline-block; width: 100px;\">\n                            \\(2\\cdot 6+1\\),\n                        </span>\n<span style=\"display: inline-block; width: 100px;\">\n                            \\(2\\cdot 7+1\\)\n                        </span>\n</li>\n<li>\n<span style=\"display: inline-block; width: 100px;\">\n                            \\(2\\cdot 18+1\\),\n                        </span>\n<span style=\"display: inline-block; width: 100px;\">\n                            \\(2\\cdot 19+1\\),\n                        </span>\n<span style=\"display: inline-block; width: 100px;\">\n                            \\(2\\cdot 20+1\\)\n                        </span>\n</li>\n</ul>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Innymi słowy, każda liczba nieparzysta jest postaci:\n                    \n\n\n￿0￿\n                    ,\n                    \n                    gdzie \\(n\\) jest pewną liczbą całkowitą.\n                ",
+          "options": [
+            "\\(2n\\)",
+            "\\(2n+1\\)",
+            "\\(2(n+1)\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Trzy kolejne liczby nieparzyste to albo:\n                </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                2n+1,\\quad 2(n+1)+1,\\quad 2(n+2)+1\n                "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    albo:\n                </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                2n+1,\\quad 2n+3,\\quad 2n+5\n                "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Suma kwadratów takich trzech liczb nieparzystych to:\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\((2n+1)^2+(2n+3)^2+(2n+5)^2\\)",
+            "\\((2n+1+2n+3+2n+5)^2\\)",
+            "\\((2n)^2+1^2+(2n)^2+3^2+(2n)^2+5^2\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Musimy więc rozwiązać równanie:\n                </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                (2n+1)^2+(2n+3)^2+(2n+5)^2=1\\,595\n                "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Oblicz kwadraty ze wzorów skróconego mnożenia, przenieś wszystkie wyrazy na lewą stronę równania, uprość wyrazy podobne, a na zakończenie podziel obie strony równania przez wspólny dzielnik wszystkich współczynników (powinno nim być \\(12\\)).\n                </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Otrzymaliśmy równanie\n                    \n\n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(n^2-3n-130=0\\)",
+            "\\(n^2+3n+13=0\\)",
+            "\\(n^2+3n-10=0\\)",
+            "\\(n^2+3n-130=0\\)"
+          ],
+          "answer": 3
+        },
+        {
+          "type": "text",
+          "body": "<p>Czas rozwiązać równanie. Rozwiązania to:</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n\n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(n=-13\\) oraz \\(n=10\\)",
+            "\\(n=-10\\) oraz \\(n=13\\)",
+            "\\(n=10\\) oraz \\(n=13\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Przypomnijmy sobie polecenie z zadania:\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<blockquote>\n                    \"Znajdź trzy kolejne dodatnie liczby nieparzyste...\"\n                </blockquote>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Dodatnie, więc odrzucamy \\(n=-13\\) i obliczamy wartość trzech kolejnych liczb nieparzystych z użyciem wcześniej określonych wzorów:\n                </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                2n+1,\\quad 2n+3,\\quad 2n+5\n                "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Trzy szukane liczby nieparzyste to\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(27, 29, 31\\)",
+            "\\(21, 22, 23\\)",
+            "\\(21, 23, 25\\)"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Na zakończenie warto sprawdzić:\n                </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                21^2+23^2+25^2=441+529+625=1595\n                "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    I wszystko się zgadza.\n                </p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Pod dębem leży pewna liczba żołędzi. Gdyby każda wiewiórka wzięła tyle samo żołędzi, każda z nich miałaby o 2 żołędzie mniej, niż jest wiewiórek.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Gdyby wiewiórek było dwukrotnie mniej, każda dostałaby o 12 żołędzi więcej.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Ile jest wiewiórek?\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "Rozwiąż zadanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                    Niech \\(x\\) oznacza liczbę wiewiórek. Przeczytajmy:\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<blockquote>\n                    \"Gdyby każda wiewiórka wzięła tyle samo żołędzi, każda z nich miałaby o 2 żołędzie mniej, niż jest wiewiórek.\"\n                </blockquote>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Oznacza to, że każda wiewiórka wzięłaby\n                    \n\n\n\n￿0￿\n                    żołędzi.\n                ",
+          "options": [
+            "\\(x+2\\)",
+            "\\(x\\)",
+            "\\(x-2\\)"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Czytajmy dalej:\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<blockquote>\n                    \"Gdyby wiewiórek było dwukrotnie mniej, każda dostałaby o 12 żołędzi więcej.\"\n                </blockquote>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Oznacza to, że gdyby wiewiórek było\n                    \n\n\n\n\n\n￿0￿",
+          "options": [
+            "\\(2x\\)",
+            "\\(x+2\\)",
+            "\\(x-2\\)",
+            "\\(\\frac{1}{2}x\\)"
+          ],
+          "answer": 3
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    to każda miałaby:\n                    \n\n\n\n￿0￿\n                    żołędzi.\n                ",
+          "options": [
+            "\\(x+10\\)",
+            "\\(x+12\\)",
+            "\\(x+14\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Zgadza się, w poprzedniej sytuacji byłoby \\(x-2\\) żołędzi na wiewiórkę, a teraz o \\(12\\) więcej, czyli \\(x-2+12=x+10\\). Podsumujmy:\n                </p>"
+        },
+        {
+          "type": "table",
+          "data": {
+            "header_row": true,
+            "header_col": false,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "wiewiórek",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "żołędzi",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(x\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(x-2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(\\tfrac{1}{2}x\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(x+10\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Jeśli pomnożymy liczbę wiewiórek przez liczbę żołędzi przypadających na każdą wiewiórkę, otrzymamy całkowitą liczbę żołędzi. I możemy ją policzyć na dwa sposoby, korzystając z danych w dwóch wierszach powyższej tabeli.\n                </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    I stąd otrzymujemy równanie:\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(x\\cdot \\tfrac{1}{2}x=(x-2)(x+10)\\)",
+            "\\(x\\cdot (x-2)=\\tfrac{1}{2}x(x+10)\\)",
+            "\\((x-2)\\cdot \\tfrac{1}{2}x=x(x+10)\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Wymnażamy nawiasy, przenosimy wszystkie wyrazy na lewo, upraszczamy wyrazy podobne, mnożymy obie strony równania przez \\(2\\) i otrzymujemy\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(x^2-14x=0\\)",
+            "\\(x^2-7x=0\\)",
+            "\\(x^2-24x=0\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Aby rozwiązać, wystarczy wyłączyć \\(x\\) przed nawias:\n                </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                x(x-14)=0\n                "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    I wówczas otrzymujemy rozwiązania:\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\(x=0\\quad\\) lub \\(\\quad x=14\\)\n                "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Jedno z rozwiązań nie ma sensu w naszej sytuacji, i tym samym możemy udzielić odpowiedzi, że wiewiórek jest\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(0\\)",
+            "\\(14\\)",
+            "\\(7\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>To koniec zadania. Możesz jeszcze sprawdzić, czy nasza odpowiedź jest zgodna z treścią zadania.</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Jedna z podstaw trapezu jest tej samej długości, co wysokość.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Druga podstawa jest o \\(2\\) cm dłuższa od wysokości.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź zbiór możliwych długości wysokości, dla których pole tego trapezu jest między \\(110\\) cm\\(^2\\) a \\(210\\) cm\\(^2\\).\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "Rozwiąż zadanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                    Niech \\(x\\) oznacza długość wysokości trapezu. Przeczytajmy:\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<blockquote>\n                    \"Jedna z podstaw trapezu jest tej samej długości, co wysokość.\"\n                </blockquote>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Oznacza to, że ta podstawa ma także długość \\(x\\).\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Czytajmy dalej:\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<blockquote>\n                    \"Druga podstawa jest o \\(2\\) cm dłuższa od wysokości.\"\n                </blockquote>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Oznacza to, że druga podstawa ma długość\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(x\\)",
+            "\\(x+2\\)",
+            "\\(x-2\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Wzór na pole trapezu to:\n                </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                \\frac{1}{2}(\\text{suma podstaw})\\cdot (\\text{wysokość})\n                "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    W naszej sytuacji pole trapezu to\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(\\tfrac{1}{2}(x+x+2)\\cdot x\\)",
+            "\\(\\tfrac{1}{2}(x+x)\\cdot (x+2)\\)",
+            "\\(\\tfrac{1}{2}(x)\\cdot (x+2)\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Uprośćmy to równanie:\n                </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                \\begin{align*}\n                \\tfrac{1}{2}(x+x+2)\\cdot x&=\\tfrac{1}{2}(2x+2)\\cdot x=\\\\\n                &=\\left(\\tfrac{1}{2}2x+\\tfrac{1}{2}\\cdot 2\\right)\\cdot x=\\\\\n                &=(x+1)\\cdot x=\\\\\n                &=x^2+x\n                \\end{align*}\n                "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    I teraz doczytajmy, że chcemy, by pole trapezu było:\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<blockquote>\n                    \"między \\(110\\) cm\\(^2\\) a \\(210\\) cm\\(^2\\)\"\n                </blockquote>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    co oznacza, że spełnione muszą być\n                    <strong>\n                        jednocześnie\n                    </strong>\n                    dwie nierówności:\n                </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                \\begin{align*}\n                x^2+x&\\gt 110\\\\\n                x^2+x&\\lt 210\n                \\end{align*}\n                "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    czyli:\n                </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                \\begin{align*}\n                x^2+x-110&\\gt 0\\\\\n                x^2+x-210&\\lt 0\n                \\end{align*}\n                "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Rozwiązanie nierówności \\(x^2+x-110\\gt 0\\) to\n                    \n\n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(x\\in(-\\infty, -10)\\cup(11,+\\infty)\\)",
+            "\\(x\\in(-10,11)\\)",
+            "\\(x\\in(-\\infty, -11)\\cup(10,+\\infty)\\)",
+            "\\(x\\in(-11,10)\\)"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Rozwiązanie nierówności \\(x^2+x-210\\lt 0\\) to\n                    \n\n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(x\\in(-\\infty, -14)\\cup(15,+\\infty)\\)",
+            "\\(x\\in(-14,15)\\)",
+            "\\(x\\in(-\\infty, -15)\\cup(14,+\\infty)\\)",
+            "\\(x\\in(-15,14)\\)"
+          ],
+          "answer": 3
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Poniżej widzisz rozwiązania obu nierówności zaznaczone na osi liczbowej.\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\\begin{align*}\n                    \\color{blue}{x^2+x\\,}&amp;\\color{blue}{\\gt 110}\\\\\n                    \\color{red}{x^2+x\\,}&amp;\\color{red}{\\lt 210}\n                    \\end{align*}\\] \\(\\Leftrightarrow\\)\n                    \\[\\begin{align*}\n                    \\color{blue}{x\\,}&amp;\\color{blue}{\\in(-\\infty, -11)\\cup(10,+\\infty)}\\\\\n                    \\color{red}{x\\,}&amp;\\color{red}{\\in(-15,14)}\n                    \\end{align*}\\]\n                "
+        },
+        {
+          "type": "image",
+          "media_src": "static/kwadratowe_zastosowania_1.png",
+          "alt": "rozwiązania nierówności",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Pamiętajmy, że \\(x\\) oznacza długość, więc nie może być mniejsza od \\(0\\). Ten warunek jest zaznaczony na żółto.\n                </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Wszystkie te warunki są spełnione jednocześnie dla:\n                    \n\n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(x\\in (10, 14)\\)",
+            "\\(x\\in (-15,-11)\\cup(10,14)\\)",
+            "\\(x\\in (0,14)\\)",
+            "\\(x\\in (0,10)\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Zbiór możliwych długości wysukości to \\((10, 14)\\), czyli od 10 do 14 centymetrów.</p>"
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "d61363b450538c470d21a50edcf30f0fd3297fc40faa5ef4cd6ff68c54b555e7"
+}

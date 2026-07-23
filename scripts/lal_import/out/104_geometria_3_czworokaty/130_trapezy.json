@@ -1,0 +1,74 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Wydaje się, że trapez <u>równoramienny</u> to taki, który ma równe ramiona. Czy jest tak rzeczywiście?\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Które z poniższych trapezów, powinny, Twoim zdaniem, nazywać się równoramiennymi?</p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/trapez_rownoramienny_ktory_pasuje.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            A które rzeczywiście nazywają się równoramiennymi?\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "zobacz",
+      "elements": [
+        {
+          "type": "image",
+          "media_src": "static/trapez_rownoramienny_te_pasuja.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Trapez <strong>C</strong> <u>nie jest równoramienny</u>, co oczywiste, bo ma ramiona różnej długości.\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Pozostałe trzy trapezy mają ramiona równej długości, jednak <strong>A</strong> i <strong>D</strong> <u>są równoramienne</u>, natomiast <strong>C</strong> <u>nie jest równoramienny</u>.\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Jak zatem zdefiniować <strong>trapez równoramienny</strong>?\n        </p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Chcemy, by trapez równoramienny miał oś symetrii, podobnie jak trójkąt równoramienny. I dlatego zdefiniujemy go następująco.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>Trapez równoramienny</strong> to taki trapez, którego kąty wewnętrzne między jedną podstawą a ramionami są równe.\n    </p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/trapez_rownoramienny_definicja.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Bazując na tej definicji możemy dostrzec, że:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n        trapez równoramienny ma ramiona równej długości,\n    </li>\n<li>\n        równoległobok nie jest trapezem równoramiennym, bo kąty przy podstawie mają inną miarę,\n    </li>\n<li>\n        no, chyba, że równoległobok jest prostokątem.\n    </li>\n</ul>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "c804b7a5e9f3a0cc21f260d1632934fbd51aca12c28216f0b2cfd5e017b3f165"
+}

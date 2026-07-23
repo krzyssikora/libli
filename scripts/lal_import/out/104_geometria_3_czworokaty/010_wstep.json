@@ -1,0 +1,31 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Czy wiesz, dlaczego suma kątów wewnętrznych w każdym czworokącie jest równa \\(360^{\\circ}\\)?\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        W poniższym aplecie możesz przesuwać wierzchołki niebieskiego czworokąta, aby uzyskać dowolny kształt.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Jak widzisz, każdy czworokąt możemy jedną z dwóch <span style=\"color: red\">przekątnych</span> podzielić na dwa trójkąty.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        W każdym z nich suma kątów wewnętrznych to \\(180^{\\circ}\\). Wszystkie te kąty (zarówno <span style=\"color: orange\">pomarańczowe</span> jak i <span style=\"color: green;\">zielone</span>) tworzą kąty wewnętrzne czworokąta, więc te sumują się do \\(2\\cdot 180^{\\circ}=360^{\\circ}\\).\n    </p>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/hks2hkvy/width/684/height/675/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "f5a666e04271aded085f1233d4f4ae1783a3044b42e77f046b98d888a7c9a60f"
+}

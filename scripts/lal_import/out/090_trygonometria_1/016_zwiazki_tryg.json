@@ -1,0 +1,96 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Dla trójkąta prostokątnego przedstawionego na rysunku poniżej, uzupełnij tabelę wartościami funkcji trygonometrycznych kątów \\(\\alpha\\) i \\(\\beta\\).\n        </p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/tryg_wartosci.png",
+      "alt": "wartości funkcji trygonometrycznych",
+      "figcaption": ""
+    },
+    {
+      "type": "fill_table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "kind": "static",
+              "html": ""
+            },
+            {
+              "kind": "static",
+              "html": "\\(\\sin\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(\\cos\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(\\text{tg}\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(\\text{ctg}\\)"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(\\quad\\alpha\\quad\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "8/17"
+            },
+            {
+              "kind": "answer",
+              "answer": "15/17"
+            },
+            {
+              "kind": "answer",
+              "answer": "8/15"
+            },
+            {
+              "kind": "answer",
+              "answer": "15/8"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(\\quad\\beta\\quad\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "15/17"
+            },
+            {
+              "kind": "answer",
+              "answer": "8/17"
+            },
+            {
+              "kind": "answer",
+              "answer": "15/8"
+            },
+            {
+              "kind": "answer",
+              "answer": "8/15"
+            }
+          ]
+        ]
+      }
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "4929cc428ee5129a9e26c0c52d203187456442e6392dfd698acb0d0508dead50"
+}

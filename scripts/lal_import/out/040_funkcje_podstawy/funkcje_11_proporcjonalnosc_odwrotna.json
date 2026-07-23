@@ -1,0 +1,116 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p class=\"justified\">\n        Mówimy, że\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"centered\">\n        \"zmienna \\(y\\) jest\n        <strong>\n            odwrotnie proporcjonalna\n        </strong>\n        do zmiennej \\(x\\) ze stałą proporcjonalności \\(a\\) (\\(a\\ne 0\\))\"\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"justified\">\n        jeśli:\n    </p>"
+    },
+    {
+      "type": "math",
+      "latex": "xy=a"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Wpisz wartości \\(y\\) tak, by były odwrotnie proporcjonalne do \\(x\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Wpisane wartości pozwolą Ci ustalić, jaka jest stała proporcjonalności.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Gdy wpiszesz poprawnie wszystkie wartości, zobaczysz ciąg dalszy tej lekcji.\n        </p>"
+    },
+    {
+      "type": "fill_table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "kind": "static",
+              "html": "\\(x\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(\\frac{1}{5}\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(\\frac{1}{2}\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(\\frac{2}{3}\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(1\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(2\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(4\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(5\\)"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(y\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "5.0|5,0"
+            },
+            {
+              "kind": "answer",
+              "answer": "2.0|2,0"
+            },
+            {
+              "kind": "answer",
+              "answer": "1.5|1,5"
+            },
+            {
+              "kind": "static",
+              "html": "\\(1\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(\\frac{1}{2}\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "0.25|0,25"
+            },
+            {
+              "kind": "answer",
+              "answer": "0.2|0,2"
+            }
+          ]
+        ]
+      }
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "83571e31d86c463d6502f1f6aa7dc047a3cf8c61e1d0084f39ee51025d22c0a4"
+}

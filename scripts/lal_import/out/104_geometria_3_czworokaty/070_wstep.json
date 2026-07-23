@@ -1,0 +1,148 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Jak pamiętasz, przekątne deltoidu przecinają się pod kątem prostym. I dlatego:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Jeśli przekątne deltoidu mają długości \\(d_1\\) i \\(d_2\\), to jego pole, \\(P\\), dane jest wzorem\n    \\[\n    P=\\frac{d_1\\cdot d_2}{2}\n    \\]</p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/deltoid_pole_d1_d2_1.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "spoiler",
+      "label": "uzasadnienie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n        Wzór uzasadnimy oddzielnie w dwóch przypadkach.\n    </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<strong>Deltoid wypukły</strong>\n</p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/deltoid_pole_d1_d2_2.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n        W tej sytuacji pole deltoidu jest <strong>sumą</strong> pól dwóch trójkątów: \n    </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul>\n<li>\n            pierwszego - o podstawie \\(d_2\\) i wysokości \\(h\\)\n        </li>\n<li>\n            drugiego - o podstawie \\(d_2\\) i wysokości \\(d_1-h\\)\n        </li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n        Pole deltoidu jest równe\n    </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n        \\[\n        \\begin{align}\n        P&amp;=\\frac{1}{2}\\cdot d_2\\cdot h+\\frac{1}{2}\\cdot d_2\\cdot (d_1-h)=\\\\\n        &amp;=\\frac{1}{2}\\cdot d_2\\cdot h+\\frac{1}{2}\\cdot d_2\\cdot d_1-\\frac{1}{2}\\cdot d_2\\cdot h=\\\\\n        &amp;=\\frac{1}{2}\\cdot d_2\\cdot d_1=\\\\\n        &amp;=\\frac{d_1\\cdot d_2}{2}\n        \\end{align}\n        \\]\n    "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<strong>Deltoid wklęsły</strong>\n</p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/deltoid_pole_d1_d2_3.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n        W tej sytuacji pole deltoidu jest <strong>różnicą</strong> pól dwóch trójkątów: \n    </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul>\n<li>\n            pierwszego - o podstawie \\(d_2\\) i wysokości \\(d_1+h\\)\n        </li>\n<li>\n            drugiego - o podstawie \\(d_2\\) i wysokości \\(h\\)\n        </li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n        Pole deltoidu jest równe\n    </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n        \\[\n        \\begin{align}\n        P&amp;=\\frac{1}{2}\\cdot d_2\\cdot (d_1+h)-\\frac{1}{2}\\cdot d_2\\cdot h=\\\\\n        &amp;=\\frac{1}{2}\\cdot d_2\\cdot d_1+\\frac{1}{2}\\cdot d_2\\cdot h-\\frac{1}{2}\\cdot d_2\\cdot h=\\\\\n        &amp;=\\frac{1}{2}\\cdot d_2\\cdot d_1=\\\\\n        &amp;=\\frac{d_1\\cdot d_2}{2}\n        \\end{align}\n        \\]\n    "
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Oblicz pola narysowanych deltoidów i wpisz wyniki.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Rysunki nie zachowują skali.\n        </p>"
+    },
+    {
+      "type": "fill_table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "kind": "image",
+              "media_src": "static/deltoid_pole_d1_d2_z1.png",
+              "alt": ""
+            },
+            {
+              "kind": "answer",
+              "answer": "36"
+            }
+          ],
+          [
+            {
+              "kind": "image",
+              "media_src": "static/deltoid_pole_d1_d2_z2.png",
+              "alt": ""
+            },
+            {
+              "kind": "answer",
+              "answer": "24"
+            }
+          ],
+          [
+            {
+              "kind": "image",
+              "media_src": "static/deltoid_pole_d1_d2_z3.png",
+              "alt": ""
+            },
+            {
+              "kind": "answer",
+              "answer": "64"
+            }
+          ],
+          [
+            {
+              "kind": "image",
+              "media_src": "static/deltoid_pole_d1_d2_z4.png",
+              "alt": ""
+            },
+            {
+              "kind": "answer",
+              "answer": "144"
+            }
+          ]
+        ]
+      }
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "a60c4befdd5dac34be9fd14a7e8263ad672152deb83262760c2f8d914b6a81de"
+}

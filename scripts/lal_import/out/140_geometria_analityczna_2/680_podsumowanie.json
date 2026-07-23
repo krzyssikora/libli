@@ -1,0 +1,235 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź równanie okręgu stycznego do obu osi układu współrzędnych i przechodzącego przez punkt \\((1, 2)\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Uwzględnij wszystkie możliwości.\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "metoda rozwiązania",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n            Poniższa animacja przedstawia w skrócie, co należy zrobić, by znaleźć położenie szukanego okręgu.\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Przyjrzyj się animacji uważnie. Zrób to ponownie w razie potrzeby.\n        </p>"
+        },
+        {
+          "type": "iframe",
+          "url": "https://www.geogebra.org/material/iframe/id/czkfcww4/width/690/height/465/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+          "title": ""
+        },
+        {
+          "type": "text",
+          "body": "<h4>dlaczego ta metoda jest poprawna?</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                Na początku zauważmy, że szukny okrąg musi leżej w pierwszej ćwiartce układu współrzędnych - bo jest styczny do obu osi i przechodzi przez punkt \\((1,2)\\).\n            </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_analityczna_2_zadanie_1530_1.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p><p>\n                        Jeśli mamy dane dwie styczne do okręgu, to środek okręgu jest w jednakowej odległości od obu stycznych. Ta odległość jest równa promieniowi.\n                    </p></p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_analityczna_2_zadanie_1530_2.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p><p>\n                        Na rysunku powyżej widzisz dwie styczne i zaznaczone na czerwono promienie, wskazujące na odległość od środka okręgu do obu stycznych.\n                    </p>\n<p>\n                        W tym zadaniu stycznymi są osi układu współrzędnych. Dlatego środek musi leżeć w jednakowej odległości od obu osi.\n                    </p></p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_analityczna_2_zadanie_1530_3.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p><p>\n                        Na rysunku powyżej zaznaczono różne punkty w jednakowej odległości od obu osi. Te równe odległości zaznaczone są takim samym kolorem.\n                    </p>\n<p>\n                        Jak widzisz, punkty o jednakowej odległości od obu osi leżą na prostej \\(y=x\\).\n                    </p></p>"
+        },
+        {
+          "type": "text",
+          "body": "<p><p>\n                        Środek okręgu jest w odległości równej promieniowi od obu osi, ale także od punktu \\((1,2)\\) - bo ten punkt leży na okręgu.\n                    </p></p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_analityczna_2_zadanie_1530_4.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p><p>\n                        Środek okręgu znajdziemy przyrównując \n                    </p>\n<ul class=\"nolist\">\n<li>\n<span style=\"color: orange;\">odległość punktu z prostej \\(y=x\\) od punktu \\((2,1)\\)</span>\n</li>\n</ul>\n<p>\n                        do\n                    </p>\n<ul class=\"nolist\">\n<li>\n<span style=\"color: red;\">odleglości punktu z prostej \\(y=x\\) od dowolnej z osi układu współrzędnych</span>.\n                        </li>\n</ul></p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                    Środek okręgu, \\(S\\), leży w pierwszej ćwiartce układu współrzędnych, w jednakowej odległości od obu osi, czyli na prostej \\(y=x\\).\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Oznacza to, że obie współrzędne punktu \\(S\\) są sobie równe (\\(y=x\\)). Przyjmijmy, że \\(S=(s,s)\\).\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Odległość środka \\(S\\) od punktu \\((1,2)\\) jest równa odległości środka od dowolnej z osi układu współrzędnych.\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Zacznijmy od ustalenia odległości między \\(S\\) a \\((1,2)\\).\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>pamiętasz, jak?</h4>"
+        },
+        {
+          "type": "text",
+          "body": "\n                        Długość odcinka \\(AB\\), gdzie\n                        \\[\n                        A=(x_A, y_A),\\quad\\quad B=(x_B,y_B)\n                        \\]\n                        jest dana wzorem\n                        \\[\n                        AB=\\sqrt{(x_B-x_A)^2+(y_B-y_A)^2}\n                        \\]\n                    "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Odległość punktu \\(S\\) od punktu \\((1,2)\\) dana jest wyrażeniem\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\((s-1)^2+(s-2)^2\\)",
+            "\\(\\sqrt{(1+2)^2+(s+s)^2}\\)",
+            "\\(\\sqrt{(s-1)^2+(s-2)^2}\\)"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Odległość punktu \\(S=(s,s)\\) od punktu \\((1,2)\\) jest równa\n                    \n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(s\\)",
+            "\\(s\\sqrt{2}\\)",
+            "\\(\\sqrt{s}\\)",
+            "\\(2\\sqrt{s}\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_analityczna_2_zadanie_1530_5.png",
+          "alt": "",
+          "figcaption": "Obie współrzędne punktu \\(S\\) są równe \\(s\\), więc odległość punktu od obu osi układu współrzędnych jest równa \\(s\\)."
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    A skoro odległość punktu \\(S\\) od punktu \\((1,2)\\) jest równa odległości punktu \\(S\\) od dowolnej, więc\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    s=\\sqrt{(s-1)^2+(s-2)^2}\n                    \\]\n                "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Przeszkodą w rozwiązaniu tego równania jest bez wątpienia pierwiastek. Aby się go pozbyć \n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "pomnożymy obie strony równania przez \\(2\\)",
+            "pomnożymy obie strony równania przez prawą stronę",
+            "podniesiemy obie strony równania do kwadratu"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Orzymamy:\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    \\begin{align}\n                    s&amp;=\\sqrt{(s-1)^2+(s-2)^2}\\\\\n                    s^2&amp;=(s-1)^2+(s-2)^2\\\\\n                    s^2&amp;=s^2-2s+1+s^2-4s+4\\\\\n                    s^2&amp;=2s^2-6s+5\\\\\n                    0&amp;=s^2-6s+5\\\\\n                    s^2-6s+5&amp;=0\n                    \\end{align}\n                    \\]\n                "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Teraz wystarczy rozwiązać otrzymane równanie kwadratowe.\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>pamiętasz, jak?</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                            Miejsca zerowe \\(x_1\\) i \\(x_2\\) równania\n                        </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                        ax^2+bx+c=0\n                        "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                            możemy obliczyć według wzorów:\n                        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                                wyróżnik:\\(\\quad \\Delta=b^2-4ac\\)\n                            </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(x_1=\\frac{-b-\\sqrt{\\Delta}}{2a}\\quad\\) oraz \\(\\quad x_2=\\frac{-b+\\sqrt{\\Delta}}{2a}\\)</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Otrzymujemy\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(s=-1\\) lub \\(s=-5\\)",
+            "\\(s=1\\) lub \\(s=5\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Środek okręgu jest w odległości równej promieniowi od obu osi, ale także od punktu \\((1,2)\\) - i ta odległość jest równa współrzędnym środka.\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Otrzymaliśmy więc dwa okręgi:\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul>\n<li>\n                        pierwszy, o środku w punkcie \\(S=(1,1)\\) i promieniu \\(r=1\\),\n                    </li>\n<li>\n                        drugi, o środku w punkcie \\(S=(5,5)\\) i promieniu \\(r=5\\).\n                    </li>\n</ul>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_analityczna_2_zadanie_1530_6.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Równania tych okręgów to:\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul>\n<li>\\((x-1)^2+(y-1)^2=1\\)</li>\n<li>\\((x-5)^2+(y-5)^2=25\\)</li>\n</ul>"
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "9985354ab61554c5a9d1c345aff7d26eb3b2ba046c065794a1138bad3e48c19d"
+}

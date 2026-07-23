@@ -1,0 +1,326 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<h1>\n    Warto wiedzieć\n</h1>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Wśród przykładów wzorów rekurencyjnych był taki wzór:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n    \\[\n    \\begin{cases}\n    \\begin{align}\n    h_1&amp;=1\\\\\n    h_n&amp;=2h_{n-1}+1&amp;\\text{ dla }n\\ge 2\n    \\end{align}\n    \\end{cases}\n    \\]\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Ten wzór dotyczy tak zwanego <strong>problemu wież Hanoi</strong>.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<h3>\n    Problem\n</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Mamy dane trzy słupki, nazwijmy je <strong>A</strong>, <strong>B</strong> i <strong>C</strong>.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Na słupku <strong>A</strong> zbudowana jest wieża z pewnej liczby krążków. Krążki mają różne średnice, przy czym żaden krążek nie może leżeć na innym o mniejszej średnicy. \n</p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/hanoi_01.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Chcemy przenieść wieżę ze słupka <strong>A</strong> na słupek <strong>C</strong> przestrzegając dwóch reguł:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ol class=\"bold\">\n<li>\n        w jednym ruchu możemy przełożyć tylko jeden krążek \n    </li>\n<li>\n        żadnego krążka nie możemy położyć na mniejszym.\n    </li>\n</ol>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong><u>Pytanie</u></strong>: jeśli mamy \\(n\\) krążków, ile ruchów musimy wykonać?\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Poniższa animacja pokazuje, jak przełożyć wieżę złożoną z czterech krążków. Możesz policzyć, że potrzebne jest \\(15\\) ruchów.\n</p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/Tower_of_Hanoi_4.gif",
+      "alt": "",
+      "figcaption": "(źródło:Wikimedia Commonslicencja: CC BY-SA 2.5)"
+    },
+    {
+      "type": "text",
+      "body": "<h3>\n    Wzór rekurencyjny\n</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Dlaczego powyższy wzór rekurencyjny opisuje liczbę ruchów potrzebnych do rozwiązania problemu wież Hanoi? \n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Niech \\(h_n\\) dla \\(n=1, 2, 3, \\dots\\) oznacza liczbę ruchów potrzebnych dla przeniesienia wieży złożonej z \\(n\\) krążków.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Równanie początkowe, \\(h_1=1\\), jest oczywiste - dla przeniesienia jednego krążka potrzebujemy jednego ruchu.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Załóżmy teraz, że wiemy, jak przenieść wieżę złożoną z \\(n-1\\) krążków, na co potrzebujemy \\(h_{n-1}\\) ruchów. \n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Przenosząc \\(n\\) krążków, musimy w którymś momencie przenieść największy krążek. A żeby to zrobić, musimy najpierw przenieść wszystkie \\(n-1\\) krążków leżących na nim. Na rysunku poniżej największy krążek jest zaznaczony na niebiesko, a pozostałe \\(n-1\\) na czerwono.\n</p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/hanoi_02.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Przenieśmy je na słupek <strong>B</strong>. <span style=\"border: 1px solid gray; border-radius: 0.5rem; padding: .2rem;\">Potrzebujemy na to \\(h_{n-1}\\) ruchów.</span>\n</p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/hanoi_03.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Teraz możemy przenieść największy krążek na słupek <strong>C</strong>. <span style=\"border: 1px solid gray; border-radius: 0.5rem; padding: .2rem;\">Potrzebujemy na to \\(1\\) ruchu.</span>\n</p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/hanoi_04.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Na zakończenie musimy przenieść \\(n-1\\) czerwonych krążków ze słupka <strong>B</strong> na słupek <strong>C</strong>. <span style=\"border: 1px solid gray; border-radius: 0.5rem; padding: .2rem;\">Potrzebujemy na to ponownie \\(h_{n-1}\\) ruchów.</span>\n</p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/hanoi_05.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Ile ruchów potrzebowaliśmy na przeniesienie \\(n\\) krążków?\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<span style=\"border: 1px solid gray; border-radius: 0.5rem; padding: .2rem;\">Najpierw \\(h_{n-1}\\), potem \\(1\\), i wreszcie znów \\(h_{n-1}\\).</span> Czyli razem:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n    \\[\n    \\begin{align}\n    h_n&amp;=h_{n-1}+1+h_{n-1}&amp;\\text{ czyli}\\\\\n    h_n&amp;=2h_{n-1}+1\n    \\end{align}\n    \\]\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Zapisując razem warunek początkowy dla \\(h_1\\) i powyższy warunek przejścia, uzyskujemy wzór rekurencyjny:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n    \\[\n    \\begin{cases}\n    \\begin{align}\n    h_1&amp;=1\\\\\n    h_n&amp;=2h_{n-1}+1&amp;\\text{ dla }n\\ge 2\n    \\end{align}\n    \\end{cases}\n    \\]\n"
+    },
+    {
+      "type": "text",
+      "body": "<h3>\n    Rozwiązanie\n</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Aby rozwiązać problem i móc efektywnie obliczyć wartość \\(h_n\\) dla dowolnej wartości \\(n\\), potrzebujemy zmienić wzór rekurencyjny we wzór ogólny. W tym celu zdefiniujemy nowy ciąg, \\((u_n)\\). Niech dla każdego \\(n=1, 2, 3, \\dots\\):\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n    \\[\n    u_n=h_n+1\n    \\]\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Oznacza to, że:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n    \\[\n    u_1=h_1+1=1+1=2\n    \\]\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    a dla \\(n\\ge 2\\):\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n    \\[\n    \\begin{align}\n    u_n&amp;=h_n+1=\\\\\n    &amp;=2h_{n-1}+1+1=\\\\\n    &amp;=2\\left(h_{n-1}+1\\right)=\\\\\n    &amp;=2u_{n-1}\\\\\n    \\end{align}\n    \\]\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    czyli\n</p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n    \\begin{cases}\n    \\begin{align}\n    u_1&=2\\\\\n    u_n&=2u_{n-1}&\\text{ dla }n\\ge 2\\\\\n    \\end{align}\n    \\end{cases}\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Wzór ciągu \\((u_n)\\) jest znacznie prostszy od wzoru ciągu \\((h_n)\\). Możemy zgadnąć jego wzór ogólny. Przyjrzyjmy się wartościom kolejnych wyrazów:\n</p>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "\\(n\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(2\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(3\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(4\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(5\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(6\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(7\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(8\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(9\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(10\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(u_n\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(2\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(4\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(8\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(16\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(32\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(64\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(128\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(256\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(512\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(1024\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Poznajesz te liczby? Tak, to potęgi dwójki. Zatem\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n    \\[\n    u_n=2^n\\quad\\quad\\text{dla }n=1, 2, 3, \\dots\n    \\]\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    A ponieważ zdefiniowaliśmy \\(u_n\\) jako \\(u_n=h_n+1\\), to \\(h_n=u_n-1\\), a stąd:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n    \\[\n    h_n=2^n-1\\quad\\quad\\text{dla }n=1, 2, 3, \\dots\n    \\]\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Zauważ, że dla \\(n=4\\) rzeczywiście dostajemy \\(h_4=2^4-1=16-1=15\\).\n</p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "262bd77ec01789785cd07fb8d1fb6920ee05a6a3e4db15e0c3fee185506b76fc"
+}

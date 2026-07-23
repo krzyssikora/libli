@@ -1,0 +1,105 @@
+{
+  "elements": [
+    {
+      "type": "numeric",
+      "stem": "<p>Oblicz \\(\\binom{11}{2}\\)</p>",
+      "value": "55",
+      "tolerance": "0"
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>Oblicz \\(\\binom{9}{3}\\)</p>",
+      "value": "84",
+      "tolerance": "0"
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>Oblicz \\(\\binom{23}{1}\\)</p>",
+      "value": "23",
+      "tolerance": "0"
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Na ile sposobów można wybrać dwie różne książki z jedenastu różnych książek?</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(11\\cdot 10\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\binom{11}{2}\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(11\\cdot 11\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\frac{11\\cdot 11}{2}\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Na półce stoją 4 książki Dostojewskiego i 5 książek Prousta. Na ile sposobów można z nich wybrać po dwie książki każdego z autorów?</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(\\binom{4}{2}\\cdot \\binom{5}{2}\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(2\\cdot 2\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(4\\cdot 5\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(4\\cdot 3\\cdot 5\\cdot 4\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Spośród dni roboczych (poniedziałek - piątek) na przestrzeni 3 tygodni Staś ma wybrać 5 dni, w które będzie miał ćwiczenia rehabilitacyjne. Na ile sposobów może dokonać wyboru?</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(3^5\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(5^5\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\binom{5}{3}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\binom{15}{5}\\)",
+          "is_correct": true,
+          "feedback": ""
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "a5b62901fa30e9a630d03e06c2e476af814d5240cd05cad44af8b110d5bdf9a7"
+}

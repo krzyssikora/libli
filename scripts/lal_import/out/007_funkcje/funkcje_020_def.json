@@ -1,0 +1,338 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "\n    Będziemy zajmować się prawie wyłącznie\n    <strong>\n        funkcjami liczbowymi\n    </strong>\n    , czyli takimi, dla których dziedzina oraz zbiór wartości są zbiorami liczbowymi. A dokładniej, na nasze potrzeby, pewnymi podzbiorami zbioru liczb rzeczywistych.\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Czyli od teraz, zgodnie z wprowadzonym wcześniej zapisem:\n</p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n    f:A\\longrightarrow B\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        gdzie:\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n            zbiór \\(A\\subset \\mathbb{R}\\) to dziedzina\n            <br/>\n            (elementy tego zbioru nazywamy argumentami)\n        </li>\n<li>\n            zbiór \\(B\\subset \\mathbb{R}\\) to przeciwdziedzina\n            <br/>\n            (elementy tego zbioru nazywamy wartościami)\n        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<h2>\n    Sposoby zapisywania funkcji\n</h2>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Sposoby zapisywania funkcji zilustrujemy na następującym przykładzie:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<blockquote>\n    Cena przejazdu taksówką jest sumą stałej kwoty \\(8\\) złotych, niezależnej od przejechanej odległości, oraz \\(3\\) złotych za każdy przejechany kilometr.\n</blockquote>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    W tym przykładzie cena będzie wartością funkcji, a odległość argumentem.\n</p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "Sposób pierwszy: opis słowny",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n        Powyższe zdanie definiujące cenę przejazdu w zależności od przejechanej odległości może być traktowane jako\n        <strong>\n            słowny opis\n        </strong>\n        funkcji. Nie jest to opis w pełni precyzyjny. Przede wszystkim, brakuje w nim informacji o dziedzinie. Przyjmijmy, dla uproszczenia, że dziedziną jest zbiór liczb naturalnych \\(\\mathbb{N}\\), to znaczy, że możemy przejechać taksówką \\(0\\), \\(1\\), \\(2\\), \\(3\\), \\(4\\), \\(5\\), ... kilometrów.\n    </p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "Sposób drugi: graf",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n        Na samym początku ilustorwaliśmy funkcje schematycznie za pomocą\n        <strong>\n            grafów\n        </strong>\n        , i tak możemy też zrobić w tej sytuacji.\n    </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/funkcja_graf.png",
+          "alt": "graf",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n        Zbiór po lewej to dziedzina, jego elementy mówią o przejechanej odległości w kilometrach.\n    </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n        Zbiór po prawej to przeciwdziedzina, jego elementy mówią o cenie poróży w złotych.\n    </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n        Taki sposób zapisu funkcji ma jedną istotną wadę: nie bardzo jest jak go używać, gdy argumentów (elementów dziedziny) jest więcej, dużo więcej.\n    </p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "Sposób trzeci: tabela",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n        Podobna wada obciąża kolejny sposób zapisu funkcji, czyli\n        <strong>\n            tabelę\n        </strong>\n        . Tabela ma też jednak zalety, pozwala się zorientować, jak funkcja zmienia się przynajmniej \"lokalnie\", dla wybranych argumentów.\n    </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n        Niech zmienna \\(x\\) oznacza liczbę przejechanych kilometrów.\n    </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n        Niech zmienna \\(y\\) oznacza cenę kursu w złotych.\n    </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n        Wartości przedstawione w grafie możemy zapisać w tabeli:\n    </p>"
+        },
+        {
+          "type": "table",
+          "data": {
+            "header_row": false,
+            "header_col": false,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "\\(x\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(0\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(3\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(4\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(y\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(8\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(11\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(14\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(17\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(20\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "Sposób czwarty: wykres",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n        Skoro argumenty oznaczyliśmy przez \\(x\\), a wartości przez \\(y\\), to argumenty z przypisanymi im wartościami tworzą punkty \\((x, y)\\):\n    </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n    (0,8),\\quad(1,11),\\quad(2,14)\\quad(3,17),\\quad(4,20),\\dots\n    "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n        Takie punkty zaznaczone w układzie współrzędnych tworzą\n        <strong>\n            wykres funkcji\n        </strong>\n        .\n    </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/funkcja_wykres_1.png",
+          "alt": "wykres - punkty",
+          "figcaption": ""
+        },
+        {
+          "type": "image",
+          "media_src": "static/funkcja_wykres_2.png",
+          "alt": "wykres - linia",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n        Wykres funkcji, o jakiej piszemy, to ten z lewej. Argumenty to liczby naturalne, więc punkty wykresu mają tylko naturalne współrzęne \\(x\\)-owe.\n    </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n        Wykres po prawej, czyli niebieska półprosta, wskazuje, jaka byłaby sytuacja, gdyby cena za kurs była naliczana z dowolną dokładnością: choćby co metr, czy nawet co centymetr (choć wiemy, że nie jest to założenie realistyczne). W takiej sytuacji dziedziną funkcji byłby zbiór \\(\\langle 0, +\\infty)\\).\n    </p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "Sposób piąty: równanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n        Przeanalizujmy, jak otrzymujemy wartości tej funkcji.\n    </p>"
+        },
+        {
+          "type": "table",
+          "data": {
+            "header_row": false,
+            "header_col": false,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "\\(x\\) kilometrów",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(y\\) złotych",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(0\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(8+3\\cdot 0=8\\;\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(8+3\\cdot 1=11\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(8+3\\cdot 2=14\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(3\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(8+3\\cdot 3=17\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(4\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(8+3\\cdot 4=20\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "type": "text",
+          "body": "<p>\n        Z powyższego wynika, że \\(y\\) możemy uzyskać z \\(x\\)-a za pomocą równania:\n    </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n    y=8+3x\n    "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n        Żeby zdefiniować tę funkcję w pełni formalnie, nazwijmy ją \\(f\\) i zapiszmy:\n    </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n    f:\\mathbb{N}\\longrightarrow\\mathbb{N}\n    \\]\n    \\[\n    f(x)=3x+8\n    "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n        Zauważ, że o ile dziedzina jest określona bardzo precyzyjnie (bo określamy wartości dla wszystkich liczb naturalnych, i dla żadnej innej), o tyle przeciwdziedzina już nie. Wartości funkcji \\(f\\) (\\(8\\), \\(11\\), \\(14\\), ...) nie wyczerpują zbioru liczb naturalnych.\n    </p>"
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "c7dd24e1f730790066664f461f671720262b12c5b4f15f94fd27b7a15b78e416"
+}

@@ -1,0 +1,87 @@
+{
+  "elements": [
+    {
+      "type": "choice",
+      "stem": "<p>Które z wykresów przedstawiają funkcje?</p><div class=\"centered\" style=\"display: flex; justify-content: center;\">\n<div class=\"table_wrapper\">\n<table class=\"my_table_noborder\">\n<tr>\n<td>\n<stron>\n                        1\n                    </stron>\n</td>\n<td>\n<stron>\n                        2\n                    </stron>\n</td>\n<td>\n<stron>\n                        3\n                    </stron>\n</td>\n</tr>\n<tr>\n<td>\n<img alt=\"wykres - nie funkcja\" src=\"static/wykres_cw_1.png\" width=\"250\"/>\n</td>\n<td>\n<img alt=\"wykres - nie funkcja\" src=\"static/wykres_cw_2.png\" width=\"250\"/>\n</td>\n<td>\n<img alt=\"wykres - nie funkcja\" src=\"static/wykres_cw_3.png\" width=\"250\"/>\n</td>\n</tr>\n<tr>\n<td>\n<stron>\n                        4\n                    </stron>\n</td>\n<td>\n<stron>\n                        5\n                    </stron>\n</td>\n<td>\n<stron>\n                        6\n                    </stron>\n</td>\n</tr>\n<tr>\n<td>\n<img alt=\"wykres - nie funkcja\" src=\"static/wykres_cw_4.png\" width=\"250\"/>\n</td>\n<td>\n<img alt=\"wykres - nie funkcja\" src=\"static/wykres_cw_5.png\" width=\"250\"/>\n</td>\n<td>\n<img alt=\"wykres - nie funkcja\" src=\"static/wykres_cw_6.png\" width=\"250\"/>\n</td>\n</tr>\n</table>\n</div>\n</div>",
+      "multiple": true,
+      "choices": [
+        {
+          "text": "1",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "2",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "3",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "4",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "5",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "6",
+          "is_correct": true,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Wskaż prawdziwe zdania.</p>",
+      "multiple": true,
+      "choices": [
+        {
+          "text": "Wykres funkcji może przecinać wiele razy oś \\(OX\\).",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "Wykres funkcji może przecinać wiele razy oś \\(OY\\).",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "Wykres funkcji może być pionowy.",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "Wykres funkcji może być poziomy.",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "Wykres funkcji musi albo ciągle się wznosić, albo opadać.",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>\n    Rysunek przedstawia wykres funkcji \\(f\\).\n</p><div class=\"centered\">\n<img alt=\"wykres - nie funkcja\" src=\"static/wykres_cw_7.png\" width=\"600\"/>\n</div><p>Wpisz, jaką wartość przyjmuje funkcja \\(f\\) dla argumentu \\(-1\\).</p>",
+      "value": "2",
+      "tolerance": "0"
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>Wpisz, dla jakiego argumentu funkcja przyjmuje wartość \\(4\\).</p>",
+      "value": "5",
+      "tolerance": "0"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "a4347ea166edde5a2767c8c8461eb95118fa7382e690f836ced42f281ffd0649"
+}

@@ -1,0 +1,205 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Przyjrzyj się poniższej animacji. Co pokazuje?\n        </p>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/tnrdrfwq/width/575/height/448/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    },
+    {
+      "type": "spoiler",
+      "label": "Co pokazuje animacja",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n            Animacja pokazuje, że\n        </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/rownoleglobok_pole_1.png",
+          "alt": "",
+          "figcaption": "pole równoległoboku o podstawie \\(\\color{blue}{a}\\) i wysokości \\(\\color{red}{h}\\)"
+        },
+        {
+          "type": "image",
+          "media_src": "static/right_arrow.png",
+          "alt": "",
+          "figcaption": "jest równe"
+        },
+        {
+          "type": "image",
+          "media_src": "static/rownoleglobok_pole_2.png",
+          "alt": "",
+          "figcaption": "polu prostokąta o podstawie \\((\\color{blue}{a})\\) i wysokości \\(\\color{red}{h}\\)"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Czyli wzór na pole równoległoboku, \\(P\\), to\n        </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n        P=\\color{blue}{a}\\cdot\\color{red}{h}\n        "
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Pole równoległoboku jest równe iloczynowi <span style=\"color: blue\">podstawy</span> i <span style=\"color:red\">wysokości</span> równoległoboku.\n    </p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/rownoleglobok_pole_3.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "math",
+      "latex": "\n    \\text{Pole }=(\\color{blue}{\\text{podstawa}})\\cdot(\\color{red}{\\text{wysokość}})\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Zwróć uwagę, że każdy bok równoległoboku może być podstawą. Wysokość opadająca na dłuższą podstawę jest krótsza, a wysokość opadająca na krótszą podstawę jest dłuższa.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Przyjmując oznaczenia z powyższego rysunku, pole równoległoboku, \\(P\\), dane jest wzorami:\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        \\[\n        \\begin{align}\n        P&amp;=\\color{blue}{a}\\cdot\\color{red}{h_a}\\\\\n        P&amp;=\\color{blue}{b}\\cdot\\color{orange}{h_b}\n        \\end{align}\n        \\]\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Oprócz powyższego, będziemy używać jeszcze dwóch innych wzorów na pole równoległoboku.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Pole równoległoboku jest równe iloczynowi długości obu <span style=\"color: blue\">boków</span> równoległoboku i sinusa <span style=\"color:red\">kąta</span> między bokami.\n    </p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/rownoleglobok_pole_4.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "math",
+      "latex": "\n    P=\\color{blue}{a}\\cdot\\color{blue}{b}\\cdot\\sin\\color{red}{\\alpha}\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Zwróć uwagę, że między bokami o długościach \\(a\\) i \\(b\\) leży także drugi kąt równoległoboku, o mierze \\(180^{\\circ}-\\alpha\\).\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Jak wiemy,\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        \\[\n        \\sin(180^{\\circ}-\\alpha)=\\sin\\alpha\n        \\]\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        więc niezależnie od tego, który kąt weźmiemy pod uwagę, otrzymamy takie samo pole.\n    </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "uzasadnienie wzoru",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n        Przekątna dzieli równoległobok na dwa przystające trójkąty o bokach \\(a\\) i \\(b\\) oraz kącie między tymi bokami o mierze \\(\\alpha\\).\n    </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/rownoleglobok_pole_6.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n        Pole każdego z nich jest równe \\(\\frac{1}{2}ab\\sin\\alpha\\), więc pole równoległoboku to dwukrotność pola trójkąta:\n    </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n    P=2\\cdot \\frac{1}{2}ab\\sin\\alpha=ab\\sin\\alpha\n    "
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Pole równoległoboku jest równe iloczynowi długości <span style=\"color: blue\">przekątnych</span> równoległoboku i sinusa <span style=\"color:red\">kąta</span> między przekątnymi.\n    </p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/rownoleglobok_pole_5.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "math",
+      "latex": "\n    P=\\frac{1}{2}\\cdot d_1\\cdot d_2\\cdot \\sin\\beta\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Zwróć uwagę, że drugi kąt między przekątnymima miarę \\(180^{\\circ}-\\beta\\).\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Jak wiemy,\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        \\[\n        \\sin(180^{\\circ}-\\beta)=\\sin\\beta\n        \\]\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        więc niezależnie od tego, który kąt weźmiemy pod uwagę, otrzymamy takie samo pole.\n    </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "uzasadnienie wzoru",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n        Przekątne dzielą równoległobok na cztery trójkąty:\n    </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/rownoleglobok_pole_7.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<ul>\n<li>\n            2 trójkąty o bokach \\(\\color{red}{\\frac{1}{2}d_1}\\) i \\(\\color{red}{\\frac{1}{2}d_2}\\) oraz kącie między nimi o mierze \\(\\color{orange}{\\beta}\\)\n        </li>\n<li>\n            2 trójkąty o bokach \\(\\color{red}{\\frac{1}{2}d_1}\\) i \\(\\color{red}{\\frac{1}{2}d_2}\\) oraz kącie między nimi o mierze \\(\\color{#00A000}{180^{\\circ}-\\beta}\\)\n        </li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n        Mamy więc:\n    </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul>\n<li>\n            2 trójkąty o polach \\(\\frac{1}{2}\\cdot\\frac{1}{2}d_1\\cdot\\frac{1}{2}d_2\\cdot\\sin\\beta\\)\n        </li>\n<li>\n            2 trójkąty o polach \\(\\frac{1}{2}\\cdot\\frac{1}{2}d_1\\cdot\\frac{1}{2}d_2\\cdot\\sin(180^{\\circ}-\\beta)\\)\n        </li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n        Pole równoległoboku to suma pól tych czterech trójkątów, czyli\n    </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n        \\[\n        \\begin{align}\n        P&amp;=2\\cdot\\left(\\frac{1}{2}\\cdot\\frac{1}{2}d_1\\cdot\\frac{1}{2}d_2\\cdot\\sin\\beta\\right)+2\\cdot\\left(\\frac{1}{2}\\cdot\\frac{1}{2}d_1\\cdot\\frac{1}{2}d_2\\cdot\\sin(180^{\\circ}-\\beta)\\right)=\\\\\n        &amp;=\\frac{1}{2}d_1\\cdot\\frac{1}{2}d_2\\cdot\\sin\\beta+\\frac{1}{2}d_1\\cdot\\frac{1}{2}d_2\\cdot\\sin(180^{\\circ}-\\beta)=\\\\\n        &amp;=\\frac{1}{4}d_1\\cdot d_2\\cdot\\sin\\beta+\\frac{1}{4}d_1\\cdot d_2\\cdot\\sin(180^{\\circ}-\\beta)=\\\\\n        &amp;=\\frac{1}{4}d_1\\cdot d_2\\cdot\\sin\\beta+\\frac{1}{4}d_1\\cdot d_2\\cdot\\sin\\beta=\\\\\n        &amp;=\\frac{1}{2}d_1\\cdot d_2\\cdot\\sin\\beta\n        \\end{align}\n        \\]\n    "
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "03c8fcc03fd7b8abbb5835f0d6f0fbd2fdaa8af3b0ba088b79656db9cf8570f2"
+}

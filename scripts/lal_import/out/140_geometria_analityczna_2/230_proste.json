@@ -1,0 +1,194 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Czy proste \\(7x-2y+3=0\\) i \\(14x-4y-17=0\\) są równoległe?\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Uzasadnij odpowiedź.\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "odpowiedź",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Tak, bo \\(\\frac{7}{-2}=\\frac{14}{-4}\\).</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Czy proste \\(6x+10y+3=0\\) i \\(9x-15y-4=0\\) są równoległe?\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Uzasadnij odpowiedź.\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "odpowiedź",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n            Nie. \n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Stosunek współczynników \\(x\\)-a i \\(y\\)-a z pierwszego równania to \\(\\frac{6}{10}=\\frac{3}{5}\\).\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Stosunek współczynników \\(x\\)-a i \\(y\\)-a z drugiego równania to \\(\\frac{9}{-15}=-\\frac{3}{5}\\).\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            \\(\\frac{3}{5}=-\\frac{3}{5}\\), więc proste nie są równoległe.\n        </p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Czy proste \\(5x-4y+2=0\\) i \\(8x-10y-3=0\\) są prostopadłe?\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Uzasadnij odpowiedź.\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "odpowiedź",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n            Nie, bo \\(5\\cdot 8+(-4)\\cdot(-10)=40+40\\ne 0\\).\n        </p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Czy proste \\(6x+14y+15=0\\) i \\(21x-9y-10=0\\) są prostopadłe?\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Uzasadnij odpowiedź.\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "odpowiedź",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n            Tak, bo \\(6\\cdot 21+14\\cdot (-9)=126-126=0\\).\n        </p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź równanie prostej równoległej do prostej \\(7x-3y+3=0\\) przechodzącej przez punkt \\(\\left(1\\tfrac{1}{2},1\\right)\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Zapisz wynik w postaci \\(Ax+By+C=0\\), gdzie współczynniki \\(A\\), \\(B\\) i \\(C\\) są całkowite, i nie mają wspólnego dzielnika większego od \\(1\\).\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "odpowiedź",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(14x-6y-15=0\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź równanie prostej równoległej do prostej \\(5x+2y-1=0\\) przechodzącej przez punkt \\(\\left(\\tfrac{1}{2},3\\right)\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Zapisz wynik w postaci \\(Ax+By+C=0\\), gdzie współczynniki \\(A\\), \\(B\\) i \\(C\\) są całkowite, i nie mają wspólnego dzielnika większego od \\(1\\).\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "odpowiedź",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(10x+4y-17=0\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź równanie prostej prostopadłej do prostej \\(5x+3y-1=0\\) przechodzącej przez punkt \\(\\left(-2,\\tfrac{1}{2}\\right)\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Zapisz wynik w postaci \\(Ax+By+C=0\\), gdzie współczynniki \\(A\\), \\(B\\) i \\(C\\) są całkowite, i nie mają wspólnego dzielnika większego od \\(1\\).\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "odpowiedź",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(6x-10y+17=0\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź równanie prostej prostopadłej do prostej \\(5x-6y+1=0\\) przechodzącej przez punkt \\(\\left(1,-1\\tfrac{1}{2}\\right)\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Zapisz wynik w postaci \\(Ax+By+C=0\\), gdzie współczynniki \\(A\\), \\(B\\) i \\(C\\) są całkowite, i nie mają wspólnego dzielnika większego od \\(1\\).\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "odpowiedź",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(12x+10y+3=0\\)</p>"
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "0fb48c7d6c3f9cbdb2496c81c319dbf13d4a70743326865573e117000610df08"
+}

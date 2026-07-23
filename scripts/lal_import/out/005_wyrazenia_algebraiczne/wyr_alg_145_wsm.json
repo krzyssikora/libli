@@ -1,0 +1,105 @@
+{
+  "elements": [
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "kwadrat sumy",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\quad\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\((a+b)^2=a^2+2ab+b^2\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "kwadrat różnicy",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\quad\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\((a-b)^2=a^2-2ab+b^2\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "różnica kwadratów",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\quad\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\((a+b)(a-b)=a^2-b^2\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Pomijając oczywiste zastosowania w wyrażeniach algebraicznych, wzorów skróconego mnożenia możemy użyć na przykład do następujących obliczeń.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Spróbuj samodzielnie, a następnie kliknij, by sprawdzić rozwiązania.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n<details>\n<summary>\n                \\(10\\; 004^2\\)\n            </summary>\n            \\[\n            \\begin{align*}\n            10\\; 004^2 &amp;=\\\\\n            =(10\\;000+4)^2&amp;=10\\; 000^2+2\\cdot 10\\; 000\\cdot 4 +4^2=\\\\\n            &amp;=100\\; 000\\; 000+80\\; 000+16=\\\\\n            &amp;=100\\; 080\\; 016\n            \\end{align*}\n            \\]\n        </details>\n</li>\n<li>\n<details>\n<summary>\n                \\(1\\; 997^2\\)\n            </summary>\n            \\[\n            \\begin{align*}\n            1\\; 997^2 &amp;=\\\\\n            =(2\\;000-3)^2&amp;=2\\; 000^2-2\\cdot 2\\; 000\\cdot 3 +3^2=\\\\\n            &amp;=4\\; 000\\; 000-12\\; 000+9=\\\\\n            &amp;=3\\; 988\\; 009\n            \\end{align*}\n            \\]\n        </details>\n</li>\n<li>\n<details>\n<summary>\n                \\(3\\; 004\\cdot 2\\; 996\\)\n            </summary>\n            \\[\n            \\begin{align*}\n            3\\; 004\\cdot 2\\; 996 &amp;=\\\\\n            =(3\\;000+4)(3\\; 000-4)&amp;=3\\; 000^2-4^2=\\\\\n            &amp;=9\\; 000\\; 000-16=\\\\\n            &amp;=8\\; 999\\; 984\n            \\end{align*}\n            \\]\n        </details>\n</li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>W sposób analogiczny do powyższego wykonaj działania i wpisz swoje wyniki, żeby je sprawdzić.</p>"
+    },
+    {
+      "type": "guess_number",
+      "stem": "\n                    \\(201^2=\\)\n                    ￿0￿\n",
+      "target": "40401",
+      "success_message": "Świetnie!"
+    },
+    {
+      "type": "guess_number",
+      "stem": "\n                    \\(999^2=\\)\n                    ￿0￿\n",
+      "target": "998001",
+      "success_message": "Znakomicie!"
+    },
+    {
+      "type": "guess_number",
+      "stem": "\n                    \\(201\\cdot 199=\\)\n                    ￿0￿\n",
+      "target": "39999",
+      "success_message": "Doskonale!"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "592b1055cadb46fe2ae1b213b6cc77841d08a986506b2868c05d11093ddf7a45"
+}

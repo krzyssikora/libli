@@ -1,0 +1,128 @@
+[
+  {
+    "kind": "skipped_unnumbered_file",
+    "reason": "neolms.html has no ordering token; not a numbered lesson — skipped",
+    "unit_json": null,
+    "raw_excerpt": "neolms.html"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: f_lin_1.html",
+    "raw_excerpt": "<a href=\"f_lin_1.html\">\n                            proporcjonalność prosta\n                        </a>",
+    "unit_json": "f_lin_000.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: f_lin_1.html#definicja",
+    "raw_excerpt": "<a href=\"f_lin_1.html#definicja\">\n                                definicja\n                            </a>",
+    "unit_json": "f_lin_000.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: f_lin_1.html#przyklady",
+    "raw_excerpt": "<a href=\"f_lin_1.html#przyklady\">\n                                przykłady\n                            </a>",
+    "unit_json": "f_lin_000.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: f_lin_2.html",
+    "raw_excerpt": "<a href=\"f_lin_2.html\">\n                    współczynnik kierunkowy linii prostej\n                </a>",
+    "unit_json": "f_lin_000.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: f_lin_3.html",
+    "raw_excerpt": "<a href=\"f_lin_3.html\">\n                    równanie kierunkowe linii prostej\n                </a>",
+    "unit_json": "f_lin_000.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: f_lin_4.html",
+    "raw_excerpt": "<a href=\"f_lin_4.html\">\n                    współrzędne punktów na prostej\n                </a>",
+    "unit_json": "f_lin_000.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: f_lin_5.html",
+    "raw_excerpt": "<a href=\"f_lin_5.html\">\n                    równanie prostej przechodzącej przez dwa punkty\n                </a>",
+    "unit_json": "f_lin_000.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: f_lin_6.html",
+    "raw_excerpt": "<a href=\"f_lin_6.html\">\n                            punkty na osiach układu współrzędnych\n                        </a>",
+    "unit_json": "f_lin_000.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: f_lin_6.html#y_intercept",
+    "raw_excerpt": "<a href=\"f_lin_6.html#y_intercept\">\n                                punkt przecięcia prostej z osią \\(y\\)\n                            </a>",
+    "unit_json": "f_lin_000.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: f_lin_6.html#x_intercept",
+    "raw_excerpt": "<a href=\"f_lin_6.html#x_intercept\">\n                                punkt przecięcia prostej z osią \\(x\\)\n                            </a>",
+    "unit_json": "f_lin_000.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: f_lin_6.html#zeroes",
+    "raw_excerpt": "<a href=\"f_lin_6.html#zeroes\">\n                                miesjca zerowe\n                            </a>",
+    "unit_json": "f_lin_000.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: f_lin_7.html",
+    "raw_excerpt": "<a href=\"f_lin_7.html\">\n                            proste równoległe i proste prostopadłe\n                        </a>",
+    "unit_json": "f_lin_000.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: f_lin_7.html#nachylenie_rownoleglej",
+    "raw_excerpt": "<a href=\"f_lin_7.html#nachylenie_rownoleglej\">\n                                współczynnik kierunkowy prostej równoległej\n                            </a>",
+    "unit_json": "f_lin_000.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: f_lin_7.html#nachylenie_prostopadlej",
+    "raw_excerpt": "<a href=\"f_lin_7.html#nachylenie_prostopadlej\">\n                                współczynnik kierunkowy prostej prostopadłej\n                            </a>",
+    "unit_json": "f_lin_000.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: f_lin_7.html#rownolegla",
+    "raw_excerpt": "<a href=\"f_lin_7.html#rownolegla\">\n                                równanie prostej równoległej\n                            </a>",
+    "unit_json": "f_lin_000.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: f_lin_7.html#prostopadla",
+    "raw_excerpt": "<a href=\"f_lin_7.html#prostopadla\">\n                                równanie prostej prostopadłej\n                            </a>",
+    "unit_json": "f_lin_000.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: f_lin_8.html",
+    "raw_excerpt": "<a href=\"f_lin_8.html\">\n                    podsumowanie\n                </a>",
+    "unit_json": "f_lin_000.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: f_lin_9.html",
+    "raw_excerpt": "<a href=\"f_lin_9.html\">\n                    zastosowania\n                </a>",
+    "unit_json": "f_lin_000.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: f_lin_10.html",
+    "raw_excerpt": "<a href=\"f_lin_10.html\">\n                    warto wiedzieć\n                </a>",
+    "unit_json": "f_lin_000.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: f_lin_0.html",
+    "raw_excerpt": "<a href=\"f_lin_0.html\">\n        wróć do spisu zagadnień\n    </a>",
+    "unit_json": "f_lin_013.json"
+  }
+]

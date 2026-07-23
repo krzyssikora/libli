@@ -1,0 +1,61 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Przypomnijmy:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<strong>Romb</strong> to czworokąt, w którym wszystkie boki są równej długości.\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Przyjrzyj się ilustracji klasyfikacji czworokątów, którą wcześniej wprowadziliśmy.\n        </p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/klasyfikacja_czworokatow.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "choice",
+      "stem": "",
+      "multiple": true,
+      "choices": [
+        {
+          "text": "trapezoidem",
+          "is_correct": false,
+          "feedback": "W trapezoidzie żadne boki nie są równoległe. A w rombie?"
+        },
+        {
+          "text": "deltoidem",
+          "is_correct": true,
+          "feedback": "W deltoidzie mamy dwie pary sąsiednich boków równej długości. A co jeśli boki z obu par są równej długości?"
+        },
+        {
+          "text": "trapezem",
+          "is_correct": true,
+          "feedback": "W trapezie mamy przynajmniej jedną parę boków równoległych. A w rombie?"
+        },
+        {
+          "text": "równoległobokiem",
+          "is_correct": true,
+          "feedback": "W równoległoboku mamy dwie pary boków równoległych. A w rombie?"
+        },
+        {
+          "text": "prostokątem",
+          "is_correct": false,
+          "feedback": "Zastanów się jeszcze..."
+        },
+        {
+          "text": "kwadratem",
+          "is_correct": false,
+          "feedback": "Przemyśl to jeszcze raz..."
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "51b83ad4afa65565652742744cd9e53c5bd22d3221064aad0feb04109bbb4f9a"
+}

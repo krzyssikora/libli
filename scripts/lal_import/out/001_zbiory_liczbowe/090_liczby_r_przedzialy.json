@@ -1,0 +1,30 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<h3>\n    Dopełnienie przedziału\n</h3>"
+    },
+    {
+      "type": "video",
+      "media_src": "static/przedzialy_dopelnienie.mp4"
+    },
+    {
+      "type": "text",
+      "body": "<h3>\n    Suma i iloczyn przedziałów\n</h3>"
+    },
+    {
+      "type": "video",
+      "media_src": "static/przedzialy_suma_iloczyn.mp4"
+    },
+    {
+      "type": "text",
+      "body": "<h3>\n    Różnica przedziałów\n</h3>"
+    },
+    {
+      "type": "video",
+      "media_src": "static/przedzialy_roznica.mp4"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "cc8c85792da21c606b380e45d9fc5fc02803f3e707fd8c4ca2e0d36181762b3d"
+}

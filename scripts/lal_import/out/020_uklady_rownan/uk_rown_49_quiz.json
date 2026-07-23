@@ -1,0 +1,150 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Pytania 1 i 2 odnoszą się do następującego zadania:\n</p><p>\n    Dziecko uzbierało 52 monety – dwuzłotówki i pięciozłotówki.\n</p><p>\n    Ich łączna wartość to 173 złote.\n</p><p>\n    Ile dwuzłotówek i ile pięciozłotówek uzbierało dziecko?\n</p>"
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\n    Przyjmijmy, że \\(d\\) oznacza liczbę dwuzłotówek, a \\(p\\) oznacza liczbę pięciozłotówek.\n</p><p>Wówczas prawdziwe są następujące równania:</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(\\begin{cases}5d+2p=173\\\\d+p=52\\end{cases}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\begin{cases}2d+5p=173\\\\d+p=52\\end{cases}\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\begin{cases}5d+2p=173\\\\2d+5p=52\\end{cases}\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\n    Rozwiąż zadanie i wybierz poprawną odpowiedź.\n</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "Dziecko uzbierało 29 dwuzłotówek i 23 pięciozłotówki.",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "Dziecko uzbierało 23 dwuzłotówki i 29 pięciozłotówek.",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "Zadanie jest niemożliwe do rozwiązania - liczby monet wychodzą niecałkowite.",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Pytania 3 i 4 odnoszą się do następującego zadania:\n</p><p>\n    Suma czterokrotności większej liczby całkowitej i pięciokrotności mniejszej liczby całkowitej jest równa 1.\n</p><p>\n    Kiedy trzykrotność mniejszej liczby odejmiemy od pięciokrotności większej, otrzymamy 29.\n</p><p>\n    Znajdź obie liczby.\n</p>"
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\n    Przyjmijmy, że \\(x\\) to większa liczba całkowita, a \\(y\\) to mniejsza liczba.\n</p><p>Wówczas prawdziwe są następujące równania:</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(\\begin{cases}5x+3y=29\\\\4x-5y=1\\end{cases}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\begin{cases}5x-3y=29\\\\4x+5y=1\\end{cases}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\begin{cases}5x-3y=29\\\\4x+5y=1\\end{cases}\\)",
+          "is_correct": true,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\n    Rozwiąż zadanie i wybierz poprawną odpowiedź.\n</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "Zadanie nie ma rozwiązania - wychodzą liczby niecałkowite.",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "Zadanie nie ma rozwiązania - liczba, która miała być większa, wychodzi mniejsza.",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "Większa liczba to \\(4\\), a mniejsza to \\(-3\\).",
+          "is_correct": true,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Pytania 5 i 6 odnoszą się do następującego zadania:\n</p><p>\n    Podróżny przejechał 250 kilometrów w łącznym czasie 3 i pół godziny.\n</p><p>\n    Cześć trasy pokonał samochodem, a część pociągiem.\n</p><p>\n    Samochodem jechał ze średnią prędkością 40 kilometrów na godzinę, a pociągiem – 80 kilometrów na godzinę.\n</p><p>\n    Ile czasu jechał samochodem, a ile pociągiem?\n</p>"
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\n    Przyjmijmy, że \\(s\\) oznacza czas jazdy samochodem (w godzinach), a \\(p\\) oznacza czas jazdy pociągiem.\n</p><p>Wówczas prawdziwe są następujące równania:</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(\\begin{cases}s+p=3,5\\\\\\frac{40}{s}+\\frac{80}{p}=250\\end{cases}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\begin{cases}s+p=3,5\\\\40s+80p=250\\end{cases}\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\begin{cases}s+p=3,5\\\\40s+80p=250\\cdot 3,5\\end{cases}\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\n    Rozwiąż zadanie i wybierz poprawną odpowiedź.\n</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "Podróżny jechał 2,75 godziny samochodem oraz 0,75 godziny pociągiem.",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "Podróżny jechał 45 minut samochodem oraz 2 godziny i 45 minut pociągiem.",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "Podróżny jechał \\(\\frac{1}{3}\\) czasu samochodem oraz \\(\\frac{2}{3}\\) czasu pociągiem.",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "139364a6204889bd0b4b30177cfff94c40dbde6add86e5982dbf5ea37a5a8ba6"
+}

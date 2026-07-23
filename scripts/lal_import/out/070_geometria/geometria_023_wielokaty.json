@@ -1,0 +1,19 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<h3>\n    Suma kątów w trójkącie\n</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Jak wiesz, suma kątów w trójkącie to 180°. Poniższa animacja przedstawia, dlaczego tak jest.\n</p>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/f9c98c57/width/800/height/530/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "27f37337810e3e8acf842e21f00e0831adcfa0ddc59b0d79dd9fb02ce5f10a64"
+}

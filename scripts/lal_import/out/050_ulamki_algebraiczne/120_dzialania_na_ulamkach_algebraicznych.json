@@ -1,0 +1,94 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Oblicz. Przedstaw wyniki w najprostszej postaci. Sprawdź swoje wyniki.\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "(1)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(-\\frac{4x+8}{3x+2}\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "(2)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(-\\frac{2}{3}\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "(3)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{2}{3}\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "(4)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{24x^2-22x+4}{5}\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "(5)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{6}{6x^2+x-1}\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "(6)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{-4x+6}{6x+3}\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "(7)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{2x^2+7x+6}{2x^2-7x+6}\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "(8)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{6x^2-x-1}{6x^2+x-1}\\)</p>"
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "714ad70b4ac7d9ec9c291f4cc25a696a5a98d672c717e0845a35a85fb557eeaa"
+}

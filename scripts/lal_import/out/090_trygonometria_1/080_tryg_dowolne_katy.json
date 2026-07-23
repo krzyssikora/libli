@@ -1,0 +1,226 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Pamiętaj:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        \\(\\sin\\alpha= \\frac{y}{r}\\)\n        <span style=\"display: inline-block; width: 100px;\">\n</span>\n        \\(\\cos\\alpha= \\frac{x}{r}\\)\n        <span style=\"display: inline-block; width: 100px;\">\n</span>\n        \\(\\text{tg}\\alpha= \\frac{y}{x}\\)\n        <span style=\"display: inline-block; width: 100px;\">\n</span>\n        \\(\\text{ctg}\\alpha= \\frac{x}{y}\\)\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Oblicz wartości czterech podstawowych funkcji trygonometrycznych kąta wyznaczonego przez punkt \\((-8, 15)\\).\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "Rozwiązanie",
+      "elements": [
+        {
+          "type": "image",
+          "media_src": "static/tryg_dowolne_zad_1.png",
+          "alt": "funkcje trygonometryczne dowolnych kątów - zadanie 1",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>Zacznijmy od obliczenia \\(r\\) - odległości punktu \\((-8, 15)\\) od początku układu współrzędnych.</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    \\(r=\\sqrt{x^2+y^2}=\\sqrt{8^2+15^2}=\\)\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(23\\)",
+            "\\(17\\)",
+            "\\(20\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    \\(\\sin\\alpha=\\)\n                    \n\n\n\n\n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(\\frac{15}{17}\\)",
+            "\\(\\frac{8}{17}\\)",
+            "\\(-\\frac{8}{17}\\)",
+            "\\(\\frac{15}{8}\\)",
+            "\\(-\\frac{15}{8}\\)",
+            "\\(\\frac{8}{15}\\)",
+            "\\(-\\frac{8}{15}\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    \\(\\cos\\alpha=\\)\n                    \n\n\n\n\n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(\\frac{15}{17}\\)",
+            "\\(\\frac{8}{17}\\)",
+            "\\(-\\frac{8}{17}\\)",
+            "\\(\\frac{15}{8}\\)",
+            "\\(-\\frac{15}{8}\\)",
+            "\\(\\frac{8}{15}\\)",
+            "\\(-\\frac{8}{15}\\)"
+          ],
+          "answer": 3
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    \\(\\text{tg}\\alpha=\\)\n                    \n\n\n\n\n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(\\frac{15}{17}\\)",
+            "\\(\\frac{8}{17}\\)",
+            "\\(-\\frac{8}{17}\\)",
+            "\\(\\frac{15}{8}\\)",
+            "\\(-\\frac{15}{8}\\)",
+            "\\(\\frac{8}{15}\\)",
+            "\\(-\\frac{8}{15}\\)"
+          ],
+          "answer": 6
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    \\(\\text{ctg}\\alpha=\\)\n                    \n\n\n\n\n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(\\frac{15}{17}\\)",
+            "\\(\\frac{8}{17}\\)",
+            "\\(-\\frac{8}{17}\\)",
+            "\\(\\frac{15}{8}\\)",
+            "\\(-\\frac{15}{8}\\)",
+            "\\(\\frac{8}{15}\\)",
+            "\\(-\\frac{8}{15}\\)"
+          ],
+          "answer": 4
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Kąt jest w wyznaczony przez punkt w drugiej ćwiartce układu współrzędnych i z względu na to, że współrzędna \\(x\\)-owa punktu jest ujemna, wszystkie funkcje trygonometryczne kąta poza sinusem są ujemne.\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Gdyby punkt wyznaczający ten kąt leżał na okręgu jednostkowym, miałby współrzędne \\(\\left(-\\tfrac{8}{17},\\tfrac{15}{17}\\right)\\).\n                </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/tryg_dowolne_zad_1_2.png",
+          "alt": "funkcje trygonometryczne dowolnych kątów - zadanie 1",
+          "figcaption": ""
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Oblicz wartości czterech podstawowych funkcji trygonometrycznych kąta wyznaczonego przez punkt \\((-3, -6)\\).\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "Rozwiązanie",
+      "elements": [
+        {
+          "type": "image",
+          "media_src": "static/tryg_dowolne_zad_2.png",
+          "alt": "funkcje trygonometryczne dowolnych kątów - zadanie 2",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>Zacznijmy od obliczenia \\(r\\) - odległości punktu \\((-3, -6)\\) od początku układu współrzędnych.</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    \\(r=\\sqrt{x^2+y^2}=\\sqrt{3^2+6^2}=\\)\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(9\\)",
+            "\\(3\\sqrt{5}\\)",
+            "\\(\\sqrt{47}\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    \\(\\sin\\alpha=\\)\n                    \n\n\n\n\n\n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(\\frac{2}{\\sqrt{5}}\\)",
+            "\\(-\\frac{2}{\\sqrt{5}}\\)",
+            "\\(\\frac{1}{\\sqrt{5}}\\)",
+            "\\(-\\frac{1}{\\sqrt{5}}\\)",
+            "\\(\\frac{1}{2}\\)",
+            "\\(-\\frac{1}{2}\\)",
+            "\\(2\\)",
+            "\\(-2\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    \\(\\cos\\alpha=\\)\n                    \n\n\n\n\n\n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(\\frac{2}{\\sqrt{5}}\\)",
+            "\\(-\\frac{2}{\\sqrt{5}}\\)",
+            "\\(\\frac{1}{\\sqrt{5}}\\)",
+            "\\(-\\frac{1}{\\sqrt{5}}\\)",
+            "\\(\\frac{1}{2}\\)",
+            "\\(-\\frac{1}{2}\\)",
+            "\\(2\\)",
+            "\\(-2\\)"
+          ],
+          "answer": 3
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    \\(\\text{tg}\\alpha=\\)\n                    \n\n\n\n\n\n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(\\frac{2}{\\sqrt{5}}\\)",
+            "\\(-\\frac{2}{\\sqrt{5}}\\)",
+            "\\(\\frac{1}{\\sqrt{5}}\\)",
+            "\\(-\\frac{1}{\\sqrt{5}}\\)",
+            "\\(\\frac{1}{2}\\)",
+            "\\(-\\frac{1}{2}\\)",
+            "\\(2\\)",
+            "\\(-2\\)"
+          ],
+          "answer": 6
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    \\(\\text{ctg}\\alpha=\\)\n                    \n\n\n\n\n\n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(\\frac{2}{\\sqrt{5}}\\)",
+            "\\(-\\frac{2}{\\sqrt{5}}\\)",
+            "\\(\\frac{1}{\\sqrt{5}}\\)",
+            "\\(-\\frac{1}{\\sqrt{5}}\\)",
+            "\\(\\frac{1}{2}\\)",
+            "\\(-\\frac{1}{2}\\)",
+            "\\(2\\)",
+            "\\(-2\\)"
+          ],
+          "answer": 4
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Kąt jest w wyznaczony przez punkt w trzeciej ćwiartce układu współrzędnych i z względu na to, że obie współrzędna punktu są ujemne, tangens in coangens są dodatnie, a sinus i cosinus są ujemne.\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Gdyby punkt wyznaczający ten kąt leżał na okręgu jednostkowym, miałby współrzędne \\(\\left(-\\tfrac{1}{\\sqrt{5}},-\\tfrac{2}{\\sqrt{5}}\\right)\\).\n                </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/tryg_dowolne_zad_2_2.png",
+          "alt": "funkcje trygonometryczne dowolnych kątów - zadanie 2",
+          "figcaption": ""
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "7b97f3c59c66b3bb05aab4eda1d95c2de9faf648b21e866a75dfefaffe98df5e"
+}

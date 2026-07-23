@@ -1,0 +1,179 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<h3>Trapez</h3>"
+    },
+    {
+      "type": "text",
+      "body": "\n<strong>Trapezem</strong> nazwiemy czworokąt, który ma (co najmniej) jedną parę boków równoległych.\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "Dlaczego \"co najmniej\" jest w nawiasie?",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Powyższa definicja mogłaby brzmieć:</p>"
+        },
+        {
+          "type": "text",
+          "body": "<blockquote>\n<strong>Trapezem</strong> nazwiemy czworokąt, który ma parę boków równoległych.\n    </blockquote>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n        Mówiąc, że czworokąt ma parę boków równoległych niw wykluczamy, że ma więcej (czyli dwie).\n    </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<i>Można to rozumieć w taki sposób:</i>\n</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Jeśli masz dwa jabłka i ktoś Cię pyta:</p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>- Czy masz jabłko?</li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<p>To odpowiadasz:</p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>- Mam.</li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Bo rzeczywiście masz jabłko, a nawet dwa. Fałszem byłoby powiedzieć, że nie masz jabłka.\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Tak więc w powyższej definicji \"co najmniej\" zostało umieszczone w nawiasie, bo nie jest w niej konieczne.</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<h3>Podstawy i ramiona</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Równoległe boki trapezu nazywamy <strong>podstawami</strong>.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Dwa pozostałe boki trapezu nazywamy <strong>ramionami</strong>.\n    </p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/trapez_podstawy_ramiona_1.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "spoiler",
+      "label": "a jeśli trapez ma dwie pary boków równoległych...",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>wtedy, zależnie od sytuacji, jedna para boków równoległych to podstawy, a druga to ramiona.</p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/trapez_podstawy_ramiona_2.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "image",
+          "media_src": "static/trapez_podstawy_ramiona_3.png",
+          "alt": "",
+          "figcaption": ""
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<h3>Wysokości</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>Wysokość</strong> trapezu to najkrótszy odcinek łączący podstawy.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<small><i>Innymi słowy:</i></small>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>Wysokość</strong> trapezu to odcinek prostopadły do podstaw, którego końce leżą na podstawach lub na prostych zawierających podstawy.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>Wysokością</strong> nazywamy też liczbę - długość odcinka - wysokości.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Przykład</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W poniższym aplecie możesz:\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n                przesuwać punkt oznaczony niebieskim krzyżykiem, żeby obracać trapez,\n            </li>\n<li>\n                przemieszczać wszystkie wierzchołki trapezu wzdłuż prostych zawierających podstawy.\n            </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Żadna z tych czynności nie zmieni wysokości.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Przemieszczaj wierzchołki tak, aby\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n                oba końce wysokości były na podstawach,\n            </li>\n<li>\n                oba końce wysokości były poza podstawami,\n            </li>\n<li>\n                jeden z nich był na podstawie, a drugi poza.\n            </li>\n</ul>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/pzasvhpr/width/625/height/692/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    },
+    {
+      "type": "text",
+      "body": "<h3>\n    Szczególne rodzaje trapezów\n</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Będziemy mówić o dwóch szczególnych rodzajach trapezów. Pierwszym z nich jest trapez prostokątny.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>Trapez prostokątny</strong> to taki trapez, w którym (przynajmniej) jeden z kątów wewnętrznych jest prosty.\n    </p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/trapez_prostokatny.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Zauważ, że\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n            Jeśli w trapezie jeden z kątów jest prosty, to drugi kąt przy tym samym ramieniu też jest prosty.\n        </li>\n<li>\n            Ramię trapezu prostokątnego sąsiadujące z kątem prostym jest też wysokością trapezu.\n        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Drugim szczególnym rodzajem trapezu jest trapez równoramienny. Zdefiniowanie tego wymaga odrobiny ostrożności.\n</p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "411ccc6a84c714d7032949f0ae0823eb6dbf92984a552d5a330cc5dc0c9a3840"
+}

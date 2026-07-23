@@ -1,0 +1,36 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Z animacji widzimy, że\n    <strong>\n        najmniejsza wspólna wielokrotność\n    </strong>\n    powsatje przez wymnożenie prawie wszystkich dzielników pierwszych obu liczb, z tym, że te dzielniki, które tworzą\n    <strong>\n        największy wspólny dzielnik\n    </strong>\n    są użyte tylko raz.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Zapisując\n    <strong>\n        największy wspólny dzielnik\n    </strong>\n    jako\n    <strong>\n        NWD\n    </strong>\n    , a\n    <strong>\n        najmniejszą wspólną wielokrotność\n    </strong>\n    jako\n    <strong>\n        NWW\n    </strong>\n    , możemy tę obserwację zapisać jako:\n</p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n                \\text{NWW}(a,b)=\\frac{a\\cdot b}{\\text{NWD}(a,b)}\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Użyj tego wzoru, by znaleźć najmniejszą wspólną wielokrotność liczb 72 i 60.\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "zobacz",
+      "elements": [
+        {
+          "type": "math",
+          "latex": "\n                                \\text{NWW}(72, 60)=\\frac{72\\cdot 60}{12}=\\frac{\\color{red}{72}\\cdot 60}{\\color{red}{12}}=\\left[\\color{red}{\\text{skróćmy czerwone liczby przez 12}}\\right]=\\frac{\\color{red}{6}\\cdot 60}{\\color{red}{1}}=360\n                                "
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "6f759b691e8adfc3e6c148c0e4069c572bc98a1898a17a1a5c2dc012df59cc47"
+}

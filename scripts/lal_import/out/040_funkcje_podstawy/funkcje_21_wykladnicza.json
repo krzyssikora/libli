@@ -1,0 +1,154 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Dla każdej liczby \\(x\\) w tabeli oblicz i wpisz wartość \\(y=2^x\\)\n    "
+    },
+    {
+      "type": "fill_table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "kind": "static",
+              "html": "\\(x\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(-2\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(-1\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(0\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(1\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(2\\)"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(y\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "1/4"
+            },
+            {
+              "kind": "answer",
+              "answer": "1/2"
+            },
+            {
+              "kind": "answer",
+              "answer": "1"
+            },
+            {
+              "kind": "answer",
+              "answer": "2"
+            },
+            {
+              "kind": "answer",
+              "answer": "4"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<div class=\"success hidden\" id=\"success_question10\">\n        Świetnie!\n    </div>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Dla każdej liczby \\(x\\) w tabeli oblicz i wpisz wartość \\(y=\\left(\\frac{1}{2}\\right)^x\\)\n    "
+    },
+    {
+      "type": "fill_table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "kind": "static",
+              "html": "\\(x\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(-2\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(-1\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(0\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(1\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(2\\)"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(y\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "4"
+            },
+            {
+              "kind": "answer",
+              "answer": "2"
+            },
+            {
+              "kind": "answer",
+              "answer": "1"
+            },
+            {
+              "kind": "answer",
+              "answer": "1/2"
+            },
+            {
+              "kind": "answer",
+              "answer": "1/4"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<div class=\"success hidden\" id=\"success_question20\">\n        Znakomicie!\n    </div>\n</p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "46a51c79247475a7b18a0e440a021e0cd473ae4ca6ef4593423e54599c8da963"
+}

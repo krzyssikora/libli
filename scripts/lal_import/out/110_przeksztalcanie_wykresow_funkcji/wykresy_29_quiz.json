@@ -1,0 +1,69 @@
+{
+  "elements": [
+    {
+      "type": "choice",
+      "stem": "<p>Wskaż długość wektora \\([12, -5]\\).</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(\\sqrt{13}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(13\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\sqrt{17}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\sqrt{7}\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>\n    Wektor \\([a,b]\\) jest\n    <strong>\n        przeciwny\n    </strong>\n    do wektora \\([5, -3]\\).\n</p><p>Wpisz wartość \\(a\\):</p>",
+      "value": "-5",
+      "tolerance": "0"
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>Wpisz wartość \\(b\\):</p>",
+      "value": "3",
+      "tolerance": "0"
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>\n    Punkt \\(B=(x_B, y_B)\\) jest obrazem punktu \\(A=(4,7)\\) w przesunięciu o wektor \\(\\vec{w}=[-8,-6]\\).\n</p><p>\n    Podaj współrzędne punktu \\(B\\).\n</p><p>\\(x_B=\\)</p>",
+      "value": "-4",
+      "tolerance": "0"
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>\\(y_B=\\)</p>",
+      "value": "1",
+      "tolerance": "0"
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>\n    Podaj współrzędne wektora \\(\\vec{AB}\\), wiedząc, że \\(A=(2,5)\\) i \\(B=(-3, 9)\\).\n</p><p>Współrzędna \\(x\\)-owa:</p>",
+      "value": "-5",
+      "tolerance": "0"
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>Współrzędna \\(y\\)-owa:</p>",
+      "value": "4",
+      "tolerance": "0"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "fbcc57f2e608b2bfb4a49fdcc671030081d816cd0d46d55f4a7c2c1149c2373a"
+}

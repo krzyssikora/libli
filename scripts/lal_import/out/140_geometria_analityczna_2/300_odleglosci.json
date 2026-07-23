@@ -1,0 +1,279 @@
+{
+  "elements": [
+    {
+      "type": "video",
+      "media_src": "static/odleglosc_miedzy_prostymi_def.mp4"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    W poniższym zadaniu skorzystajmy z obserwacji z nagrania:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n        odległość między prostymi równoległymi to długość odcinka łączącego te proste prostopadłego do obu...\n    </li>\n<li>\n        ... jest to więc odległość dowolnego punktu z jednej prostej do drugiej prostej.\n    </li>\n</ul>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/odleglosc_miedzy_prostymi_def.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>Uwaga</strong>!\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Współczynniki \\(x\\)-a i \\(y\\)-a w równaniach obu prostych są takie same, (\\(A\\) i \\(B\\) odpowiednio), bo proste są równoległe. Mogą być też proporcjonalne.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Znajdź odległość między prostymi \\(x-2y-9=0\\) a \\(x-2y+11=0\\).\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "image",
+          "media_src": "static/geometria_analityczna_2_zadanie_810_1.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                Zacznijmy od wybrania dowolnego punktu na prostej \\(x-2y-9=0\\). Zupełnie dowolnego.\n            </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Na przykład, podstawiając \\(x=0\\) do równania prostej otrzymamy punkt\n                    \n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\((9,0)\\)",
+            "\\((0,-4\\tfrac{1}{2})\\)",
+            "\\((0,4\\tfrac{1}{2})\\)",
+            "\\((0,9)\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_analityczna_2_zadanie_810_2.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    I teraz możemy już obliczyć odległość między prostymi, korzystając ze wzoru na odległość od punktu do prostej.\n                </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_analityczna_2_zadanie_810_3.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<h4>Przypomnij sobie wzór</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                        Odległość \\(d\\) punktu o współrzędnych \\((x_0, y_0)\\) od prostej o równaniu \\(Ax+By+C=0\\) jest dana wzorem\n                    </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_analityczna_2_odleglosc_punktu_od_prostej_wzor.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "\n                        \\[\n                        \\color{orange}{d}=\\frac{|\\color{blue}{A\\cdot\\color{red}{x_0}+B\\cdot\\color{red}{y_0}+C}|}{\\sqrt{A^2+B^2}}\n                        \\]\n                    "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    W naszym zadaniu \\(d\\), odległość punktu \\((0, -4\\tfrac{1}{2})\\) od prostej \\(x-2y+11=0\\) dana jest wzorem\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(d=\\frac{|0-2\\cdot(-4\\tfrac{1}{2})+11|}{\\sqrt{1^2+(-2)^2}}\\)",
+            "\\(d=\\frac{0+2\\cdot(-4\\tfrac{1}{2})+11}{\\sqrt{1^2+(-2)^2}}\\)",
+            "\\(d=\\frac{0-2\\cdot 4\\tfrac{1}{2}+11}{\\sqrt{1^2+(-2)^2}}\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Obliczmy:\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    \\begin{align}\n                    d&amp;=\\frac{|0-2\\cdot(-4\\tfrac{1}{2})+11|}{\\sqrt{1^2+(-2)^2}}=\\\\\n                    &amp;=\\frac{|0+9+11|}{\\sqrt{1+4}}=\\\\\n                    &amp;=\\frac{20}{\\sqrt{5}}=\\\\\n                    &amp;=\\frac{20}{\\sqrt{5}}\\cdot\\frac{\\sqrt{5}}{\\sqrt{5}}\\\\\n                    \\end{align}\n                    \\]\n                "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Po oproszczeniu dostajemy\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(d=15\\sqrt{5}\\)",
+            "\\(d=5\\sqrt{5}\\)",
+            "\\(d=4\\sqrt{5}\\)"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_analityczna_2_zadanie_810_4.png",
+          "alt": "",
+          "figcaption": ""
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Jak widzisz, ten sposób znalezienia odległości między prostymi równoległymi jest stosunkowo prosty:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ol class=\"bold\">\n<li>\n        najpierw wybieramy dowolny punkt na jednej z prostych\n        <ul class=\"nolist\">\n<li>(na przykład podstawiając do jej równania \\(x=0\\) lub \\(y=0\\) lub inną wygodną wartość)</li>\n</ul>\n</li>\n<li>\n        a potem liczymy odległość tego punktu od drugiej prostej\n        <ul class=\"nolist\">\n<li>(korzystając z poznanego wcześniej wzoru)</li>\n</ul>\n</li>\n</ol>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>Ale uwaga!</strong> Można to zrobić jeszcze szybciej.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Odległość \\(d\\) między prostymi równoległymi o równaniach \\(\\color{blue}{Ax+By+C_1=0}\\) i \\(\\color{blue}{Ax+By+C_2=0}\\) jest dana wzorem\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        \\[\n        d=\\frac{|C_1-C_2|}{\\sqrt{A^2+B^2}}\n        \\]\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>Uwaga</strong>!\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Współczynniki \\(x\\)-a i \\(y\\)-a w równaniach obu prostych są takie same, (\\(A\\) i \\(B\\) odpowiednio), bo proste są równoległe. \n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Oczywiście, te współczynniki nie muszą być równe, aby proste były równoległe. Wystarczy, że są proporcjonalne. Ale w takiej sytuacji możemy lekko przekształcić równania prostych, aby współczynniki stały się równe - i wówczas możemy skorzystać z powyższego wzoru.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Przykład</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Proste\n        \\[\n        9x-6y+7=0\n        \\]\n        oraz\n        \\[\n        6x-4y-5=0\n        \\]\n        są równoległe, bo współczynniki \\(x\\)-a i \\(y\\)-a są proporcjonalne:\n        \\[\n        \\frac{9}{6}=\\frac{-6}{-4}\\quad = \\frac{3}{2}\n        \\]</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Możemy przekształcić równania tak, by współczynniki \\(x\\)-a i \\(y\\)-a były sobie równe.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Wystarczy pomnożyć pierwsze równanie przez \\(2\\):\n        </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n        18x-12y+14=0\n        "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            a drugie przez \\(3\\):\n        </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n        18x-12y-15=0\n        "
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Znajdź odległość między prostymi \\(x-2y-9=0\\) a \\(x-2y+11=0\\).\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Tym razem skorzystamy z powyższego wzoru.</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>tego wzoru</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                        Odległość \\(d\\) między prostymi równoległymi o równaniach \\(\\color{blue}{Ax+By+C_1=0}\\) i \\(\\color{blue}{Ax+By+C_2=0}\\) jest dana wzorem\n                    </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                        \\[\n                        d=\\frac{|C_1-C_2|}{\\sqrt{A^2+B^2}}\n                        \\]\n                    "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Mianownik ułamka, \\(|C_1-C_2|\\) ma wartość \n                    \n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(2\\)",
+            "\\(20\\)",
+            "\\(-2\\)",
+            "\\(-20\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    |C_1-C_2|=|-9-11|=|-20|=20\n                    \\]\n                "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Licznik ułamka, \\(\\sqrt{A^2+B^2}\\) ma wartość\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(\\sqrt{5}\\)",
+            "\\(\\sqrt{3}\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    \\sqrt{A^2+B^2}=\\sqrt{1^2+(-2)^2}=\\sqrt{1+4}=\\sqrt{5}\n                    \\]\n                "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    I dlatego\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    \\begin{align}\n                    d&amp;=\\frac{|C_1-C_2|}{\\sqrt{A^2+B^2}}=\\\\\n                    &amp;=\\frac{20}{\\sqrt{5}}=\\\\\n                    &amp;=\\frac{20}{\\sqrt{5}}\\cdot\\frac{\\sqrt{5}}{\\sqrt{5}}\\\\\n                    \\end{align}\n                    \\]\n                "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Tak więc po uproszczeniu\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(d=4\\sqrt{5}\\)",
+            "\\(d=5\\sqrt{5}\\)",
+            "\\(d=15\\sqrt{5}\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    \\begin{align}\n                    d&amp;=\\frac{|C_1-C_2|}{\\sqrt{A^2+B^2}}=\\\\\n                    &amp;=\\frac{20}{\\sqrt{5}}=\\\\\n                    &amp;=\\frac{20}{\\sqrt{5}}\\cdot\\frac{\\sqrt{5}}{\\sqrt{5}}=\\\\\n                    &amp;=\\frac{20\\sqrt{5}}{5}=\\\\\n                    &amp;=4\\sqrt{5}\n                    \\end{align}\n                    \\]\n                "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Odległość między prostymi \\(x-2y-9=0\\) a \\(x-2y+11=0\\) jest równa \\(4\\sqrt{5}\\).\n                </p>"
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "ca12f74f945968039d63850b01f5019e178e134709eb581658aefe926ab7b4d2"
+}

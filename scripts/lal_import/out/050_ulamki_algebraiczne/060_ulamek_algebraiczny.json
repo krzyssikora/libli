@@ -1,0 +1,51 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Skróć ułamek</p>"
+    },
+    {
+      "type": "text",
+      "body": "\\[\n        \\frac{6x^3-19x^2-7x}{3x^2-5x-2}\n        \\]"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Obejrzyj nagranie ze szkicem rozwiązania, lub spróbuj całość rozwiązać samodzielnie i sprawdź wynik.\n        </p>"
+    },
+    {
+      "type": "tabs",
+      "tabs": [
+        {
+          "id": "t000000",
+          "label": "nagranie",
+          "elements": [
+            {
+              "type": "video",
+              "media_src": "static/ulamek_alg_skracanie.mp4"
+            }
+          ]
+        },
+        {
+          "id": "t000001",
+          "label": "wynik",
+          "elements": [
+            {
+              "type": "text",
+              "body": "<p>Skrócony ułamek ma postać</p>"
+            },
+            {
+              "type": "text",
+              "body": "\\[\n            \\frac{x(2x-7)}{x-2}\n            \\]"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "2f8f1b5ddfd2cb071aca70092e9b6c564b6a909383ac5586bc06c13880fe5e8f"
+}

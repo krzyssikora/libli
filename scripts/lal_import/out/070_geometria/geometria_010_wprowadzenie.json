@@ -1,0 +1,22 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<h1>\n    Geometria - wstęp\n</h1>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Zaczynamy wstęp do wstępu do geometrii. Najpierw przypomnimy i utrwalimy sobie pojęcia, które znasz, potem będziemy dodawać do nich kolejne, nowe.\n    "
+    },
+    {
+      "type": "text",
+      "body": "<ol class=\"lesson_info_list\">\n<li>\n<span class=\"fa-li\">\n<i class=\"fa-regular fa-check-square\">\n</i>\n</span>\n            Na początku, poniżej, będziemy zajmować się\n            <strong>\n                prostymi i kątami\n            </strong>\n            .\n        </li>\n<li>\n<span class=\"fa-li\">\n<i class=\"fa-regular fa-check-square\">\n</i>\n</span>\n            Później omówimy podstawowe własności\n            <strong>\n                wielokątów\n            </strong>\n            .\n        </li>\n<li>\n<span class=\"fa-li\">\n<i class=\"fa-regular fa-check-square\">\n</i>\n</span>\n            W kolejnym kroku skupimy się na\n            <strong>\n                trójkątach\n            </strong>\n            .\n        </li>\n<li>\n<span class=\"fa-li\">\n<i class=\"fa-regular fa-check-square\">\n</i>\n</span>\n            Omówimy też\n            <strong>\n                przystawanie\n            </strong>\n            i\n            <strong>\n                podobieństwo\n            </strong>\n            trójkątów.\n        </li>\n<li>\n<span class=\"fa-li\">\n<i class=\"fa-regular fa-check-square\">\n</i>\n</span>\n            A na końcu tego wstępu do geometrii poznamy tzw.\n            <strong>\n                twierdzenie Talesa\n            </strong>\n            .\n        </li>\n</ol>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"fa-ul\">\n<li>\n<span class=\"fa-li\">\n<i class=\"fa-regular fa-check-square\">\n</i>\n</span>\n        Na początku, poniżej, będziemy zajmować się\n        <strong>\n            prostymi i kątami\n        </strong>\n        .\n    </li>\n<li>\n<span class=\"fa-li\">\n<i class=\"fa-regular fa-check-square\">\n</i>\n</span>\n        Później omówimy podstawowe własności\n        <strong>\n            wielokątów\n        </strong>\n        .\n    </li>\n<li>\n<span class=\"fa-li\">\n<i class=\"fa-regular fa-check-square\">\n</i>\n</span>\n        W kolejnym kroku skupimy się na\n        <strong>\n            trójkątach\n        </strong>\n        .\n    </li>\n<li>\n<span class=\"fa-li\">\n<i class=\"fa-regular fa-check-square\">\n</i>\n</span>\n        Omówimy też\n        <strong>\n            przystawanie\n        </strong>\n        i\n        <strong>\n            podobieństwo\n        </strong>\n        trójkątów.\n    </li>\n<li>\n<span class=\"fa-li\">\n<i class=\"fa-regular fa-check-square\">\n</i>\n</span>\n        A na końcu tego wstępu do geometrii poznamy tzw.\n        <strong>\n            twierdzenie Talesa\n        </strong>\n        .\n    </li>\n</ul>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "134e937b5269fa8a3d93102c9e0e8c81080187b1ca87bb564e6241821746cde7"
+}

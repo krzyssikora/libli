@@ -1,0 +1,59 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Ułamek</p>"
+    },
+    {
+      "type": "text",
+      "body": "\\[\n        \\frac{x-2}{2x+3}\n        \\]"
+    },
+    {
+      "type": "text",
+      "body": "<p>rozszerzono w taki sposób, że jego mianownik to \\(2x^2-7x-15\\).</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Jaki jest licznik rozszerzonego ułamka?\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Obejrzyj nagranie z rozwiązaniem, lub spróbuj całość rozwiązać samodzielnie i sprawdź wynik.\n        </p>"
+    },
+    {
+      "type": "tabs",
+      "tabs": [
+        {
+          "id": "t000000",
+          "label": "nagranie",
+          "elements": [
+            {
+              "type": "video",
+              "media_src": "static/ulamek_alg_rozszerzanie.mp4"
+            }
+          ]
+        },
+        {
+          "id": "t000001",
+          "label": "wynik",
+          "elements": [
+            {
+              "type": "text",
+              "body": "<p>Licznik rozszerzonego ułamka to</p>"
+            },
+            {
+              "type": "text",
+              "body": "\\[\n            x^2-7x+10\n            \\]"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "7e57bbd51659794d91a5ac20915ba38c61d426f7a44267fe597670eb060f671c"
+}

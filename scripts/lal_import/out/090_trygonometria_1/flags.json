@@ -1,0 +1,20 @@
+[
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: funkcje_trygonometryczne_kata_ostrego",
+    "raw_excerpt": "<a href=\"funkcje_trygonometryczne_kata_ostrego\">\n                        Funkcje trygonometryczne kąta ostrego\n                    </a>",
+    "unit_json": "010_zwiazki_tryg.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: /static/wybrane_wzory_matematyczne_EM2023.pdf",
+    "raw_excerpt": "<a href=\"/static/wybrane_wzory_matematyczne_EM2023.pdf\" target=\"_blank\">\n        tablic trygonometrycznych\n    </a>",
+    "unit_json": "021_trygonometria_zastosowania.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: /static/wybrane_wzory_matematyczne_EM2023.pdf",
+    "raw_excerpt": "<a href=\"/static/wybrane_wzory_matematyczne_EM2023.pdf\" target=\"_blank\">\n            tablicach trygonometrycznych\n        </a>",
+    "unit_json": "050_tryg_podsumowanie.json"
+  }
+]

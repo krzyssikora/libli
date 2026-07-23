@@ -1,0 +1,23 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    W ostatnim zadaniu mając dane\n    <u>\n        dwa wierzchołki trójkąta oraz środek ciężkości\n    </u>\n    mieliśmy znaleźć\n    <u>\n        trzeci wierzchołek\n    </u>\n    .\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Takie samo zadanie mogłoby być zadaniem konstrukcyjnym.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Gdy klikniesz przycisk w poniższym aplecie, zobaczysz, jak mając dane dwa wierzchołki trójkąta (niebieskie) i środek ciężkości (czerwony) skonstruować trzeci wierzchołek.\n</p>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/zcfzajq6/width/587/height/628/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "bf5396e516020f97c86a05b3e35768fbe8a130f80f8d4512cac375b1f9628ce5"
+}

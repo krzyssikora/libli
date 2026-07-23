@@ -1,0 +1,156 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<h3>\n    Klasyfikacja kątów ze względu na miarę\n</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Gdy klikniesz \"start\" w poniższym aplecie, zobaczysz niebieski kąt rosnący od zerowego (0°) do pełnego (360°) wraz z nazwami odpowiednimi dla takiego kąta.\n        </p>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/fdhaunyz/width/800/height/691/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Przyjrzyj się dokładnie wszystkim nazwom rodzajów kątów, zastanów się, jak je zdefiniować i sprawdź swoje odpowiedzi poniżej.\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "kąt zerowy",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>kąt o mierze 0°</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "kąt ostry",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>kąt o mierze między 0° a 90°</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "kąt wypukły",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>kąt o mierze między 0° a 180°</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "kąt prosty",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>kąt o mierze 90°</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "kąt rozwarty",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>kąt o mierze między 90° a 180°</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "kąt półpełny",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>kąt o mierze 180°</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "kąt wklęsły",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>kąt o mierze między 180° a 360°</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "kąt pełny",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>kąt o mierze między 360°</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Dla podanych kątów wskaż wszystkie pasujące do nich nazwy.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Uwaga! Do niektórych kątów pasuje więcej niż jedna nazwa.\n        </p>"
+    },
+    {
+      "type": "multi_grid",
+      "columns": [
+        "ostry",
+        "rozwarty",
+        "wklęsły",
+        "wypukły"
+      ],
+      "rows": [
+        {
+          "statement": "20°",
+          "correct": [
+            0,
+            3
+          ]
+        },
+        {
+          "statement": "100°",
+          "correct": [
+            1,
+            3
+          ]
+        },
+        {
+          "statement": "220°",
+          "correct": [
+            2
+          ]
+        },
+        {
+          "statement": "310°",
+          "correct": [
+            2
+          ]
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "8f51a6b1d5ae592b3374255b57112bd26bd7e76c0bc7bf22a76cce8dd61f663c"
+}

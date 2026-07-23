@@ -1,0 +1,14 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Skrótowe podsumowanie tego rozdziału znajdziesz trochę dalej, na końcu tej sekcji. Najpierw, dla przekrojowego powtórzenia nowych treści, rozwiążemy dziewięć zadań.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    W każdym zadaniu możesz najpierw poznać skrót metody rozwiązania, a potem przejść przez rozwiązanie krok po kroku.\n</p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "cf2dcfe028425f020c82826de88b82b84407c356155baba72fa78ce426043cfc"
+}

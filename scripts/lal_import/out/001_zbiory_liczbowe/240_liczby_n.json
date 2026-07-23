@@ -1,0 +1,35 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Obejrzyj albo nagranie, w którym tłumaczę, jak wyliczamy największy wspólny dzielnik i najmniejszą wspólną wielokrotność, albo krótką animację.\n</p>"
+    },
+    {
+      "type": "tabs",
+      "tabs": [
+        {
+          "id": "t000000",
+          "label": "nagranie",
+          "elements": [
+            {
+              "type": "video",
+              "media_src": "static/nwd_nww.mp4"
+            }
+          ]
+        },
+        {
+          "id": "t000001",
+          "label": "animacja",
+          "elements": [
+            {
+              "type": "video",
+              "media_src": "static/nwd_nww_animacja.mp4"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "3b385eda59a6eeaea33d8465f7f172401f26c09bb7c3bfcc98f2db8fec47e1e1"
+}

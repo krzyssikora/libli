@@ -1,0 +1,162 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<h1>\n    Funkcja kwadratowa\n</h1>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Funkcja kwadratowa to funkcja o równaniu\n    \\[\n    y=ax^2+bx+c\n    \\]\n    przy czym \\(a\\) nie jest równe 0.</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Na początku zajmiemy się funkcją kwadratową w bardzo prostej postaci:\n    </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n    y=ax^2\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question_text\">\n        Dla każdej z poniższych funkcji oblicz brakujące wartości y dla podanych argumentów x i uzupelnij obie tabele.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Pierwsza funkcja: \\( y=-\\frac{1}{2}x^2 \\)\n    </p>"
+    },
+    {
+      "type": "fill_table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "kind": "static",
+              "html": "\\(x\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(-2\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(-1\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(0\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(1\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(2\\)"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(y\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "-2.0|-2,0"
+            },
+            {
+              "kind": "answer",
+              "answer": "-0.5|-0,5"
+            },
+            {
+              "kind": "answer",
+              "answer": "0.0|0,0"
+            },
+            {
+              "kind": "answer",
+              "answer": "-0.5|-0,5"
+            },
+            {
+              "kind": "answer",
+              "answer": "-2.0|-2,0"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Druga funkcja: \\( y=2x^2 \\)\n    </p>"
+    },
+    {
+      "type": "fill_table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "kind": "static",
+              "html": "\\(x\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(-2\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(-1\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(0\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(1\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(2\\)"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(y\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "8.0|8,0"
+            },
+            {
+              "kind": "answer",
+              "answer": "2.0|2,0"
+            },
+            {
+              "kind": "answer",
+              "answer": "0.0|0,0"
+            },
+            {
+              "kind": "answer",
+              "answer": "2.0|2,0"
+            },
+            {
+              "kind": "answer",
+              "answer": "8.0|8,0"
+            }
+          ]
+        ]
+      }
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "350caf222069f0e7774bfbb109e990d603807910a2a4e8bd64c881b2f7bc2250"
+}

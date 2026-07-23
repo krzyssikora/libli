@@ -1,0 +1,53 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Przesuwaj punkty zaznaczone kropką, by zmienić położenie prostych oraz te zaznaczone krzyżykiem, by zmienić ich nachylenie.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Ustaw w ten sposób proste o podanych równaniach, odczytaj z wykresu współrzędne punktów przecięcia i wpisz je poniżej.\n        </p>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/f5zqtzgr/width/800/height/600/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    },
+    {
+      "type": "fillblank",
+      "stem": "\n<li>\n<div class=\"statement\">\n                \\(\\begin{cases}\n                \\color{blue}{y=-\\frac{1}{2}x+3}\\\\\n                \\color{red}{y=\\frac{3}{2}x-5}\n                \\end{cases}\\)\n            </div>\n<div class=\"coordinate\">\n                \\(x=\\)\n                ￿0￿\n                ,\n            </div>\n<div class=\"coordinate\">\n                \\(y=\\)\n                ￿1￿\n</div>\n</li>\n<li>\n<div class=\"statement\">\n                \\(\\begin{cases}\n                \\color{blue}{y=-\\frac{1}{3}x-1}\\\\\n                \\color{red}{y=-x+3}\n                \\end{cases}\\)\n            </div>\n<div class=\"coordinate\">\n                \\(x=\\)\n                ￿2￿\n                ,\n            </div>\n<div class=\"coordinate\">\n                \\(y=\\)\n                ￿3￿\n</div>\n</li>\n<li>\n<div class=\"statement\">\n                \\(\\begin{cases}\n                \\color{blue}{y=x+1}\\\\\n                \\color{red}{y=-\\frac{1}{3}x+3}\n                \\end{cases}\\)\n            </div>\n<div class=\"coordinate\">\n                \\(x=\\)\n                ￿4￿\n                ,\n            </div>\n<div class=\"coordinate\">\n                \\(y=\\)\n                ￿5￿\n</div>\n</li>\n",
+      "blanks": [
+        [
+          "4.0",
+          "4,0"
+        ],
+        [
+          "1.0",
+          "1,0"
+        ],
+        [
+          "6.0",
+          "6,0"
+        ],
+        [
+          "-3.0",
+          "-3,0"
+        ],
+        [
+          "1.5",
+          "1,5"
+        ],
+        [
+          "2.5",
+          "2,5"
+        ]
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "19dc5739552a5988107d97c80d09098eb9461dd60989ad62db3173104406f865"
+}

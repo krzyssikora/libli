@@ -1,0 +1,104 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li style=\"margin-bottom: 20px;\">\n            \\(\\sin^2\\alpha+\\cos^2\\alpha=1\\) (tzw.\n            <strong>\n                jedynka trygonometryczna\n            </strong>\n            )\n        </li>\n<li style=\"margin-bottom: 20px;\">\n            \\(\\text{tg }\\alpha = \\frac{\\sin\\alpha}{\\cos\\alpha}\\) oraz \\(\\text{ctg }\\alpha = \\frac{\\cos\\alpha}{\\sin\\alpha}\\)\n        </li>\n<li>\n            \\(\\text{tg }\\alpha\\cdot\\text{ctg }\\alpha = 1\\)\n        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Jedynka trygonometryczna jest prawdziwa\n        <strong>\n            dla każdego kąta\n        </strong>\n        , nie tylko dla kątów ostrych.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Tożsamości, w których występuje \\(\\text{tg }\\alpha\\) są prawdziwe dla wszystkich kątów \\(\\alpha\\), dla których \\(\\text{tg }\\alpha\\) istnieje.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Tożsamości, w których występuje \\(\\text{ctg }\\alpha\\) są prawdziwe dla wszystkich kątów \\(\\alpha\\), dla których \\(\\text{ctg }\\alpha\\) istnieje.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Dla jakich kątów \\(\\alpha\\), gdzie \\(0^{\\circ}\\le\\alpha\\lt 360^{\\circ}\\) nie istnieje \\(\\text{tg }\\alpha\\)?\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            A dla jakich \\(\\text{ctg }\\alpha\\)?\n        </p>"
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                Jeśli kąt \\(\\alpha\\) jest wyznaczony przez punkt \\((x,y)\\), to\n                \n\n\n\n￿0￿\n                .\n                \n",
+      "options": [
+        "\\(\\text{tg }\\alpha=\\frac{y}{x}\\)",
+        "\\(\\text{tg }\\alpha=\\frac{x}{y}\\)",
+        "\\(\\text{tg }\\alpha=y\\)",
+        "\\(\\text{tg }\\alpha=x\\)"
+      ],
+      "answer": 0
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                Oznacza to, że \\(\\text{tg }\\alpha\\) nie istnieje dla kątów wyznaczonych przez punkty \\((x,y)\\) takie, że\n                \n\n\n￿0￿\n                .\n                \n",
+      "options": [
+        "\\(x=0\\)",
+        "\\(y=0\\)",
+        "\\(x=0\\) lub \\(y=0\\)"
+      ],
+      "answer": 0
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                Tak więc \\(\\text{tg }\\alpha\\) nie istnieje dla kątów \\(\\alpha\\) równych\n                \n\n\n￿0￿\n                .\n                \n",
+      "options": [
+        "\\(0^{\\circ}\\) i \\(180^{\\circ}\\)",
+        "\\(90^{\\circ}\\) i \\(270^{\\circ}\\)",
+        "\\(0^{\\circ}\\), \\(90^{\\circ}\\), \\(180^{\\circ}\\) i \\(270^{\\circ}\\)"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                Cotangens jest odwrotnością tangensa, więc\n                \n\n\n\n￿0￿\n                .\n                \n",
+      "options": [
+        "\\(\\text{ctg }\\alpha=\\frac{y}{x}\\)",
+        "\\(\\text{ctg }\\alpha=\\frac{x}{y}\\)",
+        "\\(\\text{ctg }\\alpha=y\\)",
+        "\\(\\text{ctg }\\alpha=x\\)"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                Oznacza to, że \\(\\text{ctg }\\alpha\\) nie istnieje dla kątów wyznaczonych przez punkty \\((x,y)\\) takie, że\n                \n\n\n￿0￿\n                .\n                \n",
+      "options": [
+        "\\(x=0\\)",
+        "\\(y=0\\)",
+        "\\(x=0\\) lub \\(y=0\\)"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                Tak więc \\(\\text{ctg }\\alpha\\) nie istnieje dla kątów \\(\\alpha\\) równych\n                \n\n\n￿0￿\n                .\n                \n",
+      "options": [
+        "\\(0^{\\circ}\\) i \\(180^{\\circ}\\)",
+        "\\(90^{\\circ}\\) i \\(270^{\\circ}\\)",
+        "\\(0^{\\circ}\\), \\(90^{\\circ}\\), \\(180^{\\circ}\\) i \\(270^{\\circ}\\)"
+      ],
+      "answer": 0
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Podsumowując, dla kąta \\(\\alpha\\) wyznaczonego przez punkt \\((x,y)\\):\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n                    \\(\\text{tg }\\alpha\\) nie istnieje, gdy punkt leży na osi \\(OY\\), czyli gdy \\(x=0\\), więc dla kątów \\(90^{\\circ}\\) i \\(270^{\\circ}\\),\n                </li>\n<li>\n                    \\(\\text{ctg }\\alpha\\) nie istnieje, gdy punkt leży na osi \\(OX\\), czyli gdy \\(y=0\\), więc dla kątów \\(0^{\\circ}\\) i \\(180^{\\circ}\\).\n                </li>\n</ul>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "e2d44aa211fceecdead20f4abddca054637218fe14ea3a842ea9bd0c264215b9"
+}

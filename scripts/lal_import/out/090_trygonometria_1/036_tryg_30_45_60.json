@@ -1,0 +1,14 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<h3 id=\"wartosci_30_60\">\n    Wartości funkcji trygonometrycznych kątów 30° i 60°\n</h3>"
+    },
+    {
+      "type": "video",
+      "media_src": "static/tryg_30_60.mp4"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "e6c11bd37743425688190fa505ac60f0add472d023344cf66768e1bee504b1db"
+}

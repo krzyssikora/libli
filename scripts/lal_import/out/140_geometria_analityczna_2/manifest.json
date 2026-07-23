@@ -1,0 +1,657 @@
+{
+  "part": {
+    "source_folder": "140_geometria_analityczna_2",
+    "order": 19,
+    "title": "geometria analityczna 2"
+  },
+  "chapters": [
+    {
+      "order": 0,
+      "title": "__PLACEHOLDER chapter 1__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "010_wektory.json",
+          "source_html": "010_wektory.html",
+          "source_dir": "140_geometria_analityczna_2",
+          "unit_type": "lesson",
+          "title": "Wektor"
+        },
+        {
+          "order": 1,
+          "unit_json": "020_wektory.json",
+          "source_html": "020_wektory.html",
+          "source_dir": "140_geometria_analityczna_2",
+          "unit_type": "lesson",
+          "title": "Współrzędne wektora"
+        },
+        {
+          "order": 2,
+          "unit_json": "030_wektory.json",
+          "source_html": "030_wektory.html",
+          "source_dir": "140_geometria_analityczna_2",
+          "unit_type": "lesson",
+          "title": "Wektory równe, przeciwne i równoległe"
+        },
+        {
+          "order": 3,
+          "unit_json": "040_wektory.json",
+          "source_html": "040_wektory.html",
+          "source_dir": "140_geometria_analityczna_2",
+          "unit_type": "lesson",
+          "title": "Zadania"
+        },
+        {
+          "order": 4,
+          "unit_json": "050_wektory.json",
+          "source_html": "050_wektory.html",
+          "source_dir": "140_geometria_analityczna_2",
+          "unit_type": "lesson",
+          "title": "Ćwiczenia"
+        },
+        {
+          "order": 5,
+          "unit_json": "060_wektory.json",
+          "source_html": "060_wektory.html",
+          "source_dir": "140_geometria_analityczna_2",
+          "unit_type": "lesson",
+          "title": "Środek odcinka"
+        },
+        {
+          "order": 6,
+          "unit_json": "070_wektory.json",
+          "source_html": "070_wektory.html",
+          "source_dir": "140_geometria_analityczna_2",
+          "unit_type": "lesson",
+          "title": "Dłuższe zadanie"
+        },
+        {
+          "order": 7,
+          "unit_json": "080_wektory.json",
+          "source_html": "080_wektory.html",
+          "source_dir": "140_geometria_analityczna_2",
+          "unit_type": "lesson",
+          "title": "Podział odcinka"
+        },
+        {
+          "order": 8,
+          "unit_json": "090_wektory.json",
+          "source_html": "090_wektory.html",
+          "source_dir": "140_geometria_analityczna_2",
+          "unit_type": "lesson",
+          "title": "Ćwiczenia"
+        },
+        {
+          "order": 9,
+          "unit_json": "100_wektory_quiz.json",
+          "source_html": "100_wektory_quiz.html",
+          "source_dir": "140_geometria_analityczna_2",
+          "unit_type": "quiz",
+          "title": "wektory quiz"
+        }
+      ]
+    },
+    {
+      "order": 1,
+      "title": "__PLACEHOLDER chapter 2__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "110_proste.json",
+          "source_html": "110_proste.html",
+          "source_dir": "140_geometria_analityczna_2",
+          "unit_type": "lesson",
+          "title": "Proste w układzie współrzędnych"
+        },
+        {
+          "order": 1,
+          "unit_json": "120_proste.json",
+          "source_html": "120_proste.html",
+          "source_dir": "140_geometria_analityczna_2",
+          "unit_type": "lesson",
+          "title": "Równanie kierunkowe prostej"
+        },
+        {
+          "order": 2,
+          "unit_json": "130_proste.json",
+          "source_html": "130_proste.html",
+          "source_dir": "140_geometria_analityczna_2",
+          "unit_type": "lesson",
+          "title": "Proste równoległe i prostopadłe"
+        },
+        {
+          "order": 3,
+          "unit_json": "140_proste.json",
+          "source_html": "140_proste.html",
+          "source_dir": "140_geometria_analityczna_2",
+          "unit_type": "lesson",
+          "title": "Zadania"
+        },
+        {
+          "order": 4,
+          "unit_json": "150_proste.json",
+          "source_html": "150_proste.html",
+          "source_dir": "140_geometria_analityczna_2",
+          "unit_type": "lesson",
+          "title": "Ćwiczenia"
+        },
+        {
+          "order": 5,
+          "unit_json": "160_proste.json",
+          "source_html": "160_proste.html",
+          "source_dir": "140_geometria_analityczna_2",
+          "unit_type": "lesson",
+          "title": "Równania równoważne"
+        },
+        {
+          "order": 6,
+          "unit_json": "170_proste.json",
+          "source_html": "170_proste.html",
+          "source_dir": "140_geometria_analityczna_2",
+          "unit_type": "lesson",
+          "title": "Równania równoważne prostych"
+        },
+        {
+          "order": 7,
+          "unit_json": "180_proste.json",
+          "source_html": "180_proste.html",
+          "source_dir": "140_geometria_analityczna_2",
+          "unit_type": "lesson",
+          "title": "Równanie ogólne prostej 1"
+        },
+        {
+          "order": 8,
+          "unit_json": "185_proste.json",
+          "source_html": "185_proste.html",
+          "source_dir": "140_geometria_analityczna_2",
+          "unit_type": "lesson",
+          "title": "Równanie ogólne prostej 2"
+        },
+        {
+          "order": 9,
+          "unit_json": "190_proste.json",
+          "source_html": "190_proste.html",
+          "source_dir": "140_geometria_analityczna_2",
+          "unit_type": "lesson",
+          "title": "Proste równoległe"
+        },
+        {
+          "order": 10,
+          "unit_json": "200_proste.json",
+          "source_html": "200_proste.html",
+          "source_dir": "140_geometria_analityczna_2",
+          "unit_type": "lesson",
+          "title": "Zadania"
+        },
+        {
+          "order": 11,
+          "unit_json": "210_proste.json",
+          "source_html": "210_proste.html",
+          "source_dir": "140_geometria_analityczna_2",
+          "unit_type": "lesson",
+          "title": "Proste prostopadłe"
+        },
+        {
+          "order": 12,
+          "unit_json": "220_proste.json",
+          "source_html": "220_proste.html",
+          "source_dir": "140_geometria_analityczna_2",
+          "unit_type": "lesson",
+          "title": "Zadania"
+        },
+        {
+          "order": 13,
+          "unit_json": "230_proste.json",
+          "source_html": "230_proste.html",
+          "source_dir": "140_geometria_analityczna_2",
+          "unit_type": "lesson",
+          "title": "Ćwiczenia"
+        },
+        {
+          "order": 14,
+          "unit_json": "240_proste_quiz.json",
+          "source_html": "240_proste_quiz.html",
+          "source_dir": "140_geometria_analityczna_2",
+          "unit_type": "quiz",
+          "title": "proste quiz"
+        }
+      ]
+    },
+    {
+      "order": 2,
+      "title": "__PLACEHOLDER chapter 3__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "250_odleglosci.json",
+          "source_html": "250_odleglosci.html",
+          "source_dir": "140_geometria_analityczna_2",
+          "unit_type": "lesson",
+          "title": "Dwa rodzaje równania prostej"
+        },
+        {
+          "order": 1,
+          "unit_json": "260_odleglosci.json",
+          "source_html": "260_odleglosci.html",
+          "source_dir": "140_geometria_analityczna_2",
+          "unit_type": "lesson",
+          "title": "Odległość punktu od prostej 1"
+        },
+        {
+          "order": 2,
+          "unit_json": "270_odleglosci.json",
+          "source_html": "270_odleglosci.html",
+          "source_dir": "140_geometria_analityczna_2",
+          "unit_type": "lesson",
+          "title": "Odległość punktu od prostej 2"
+        },
+        {
+          "order": 3,
+          "unit_json": "280_odleglosci.json",
+          "source_html": "280_odleglosci.html",
+          "source_dir": "140_geometria_analityczna_2",
+          "unit_type": "lesson",
+          "title": "Zadania"
+        },
+        {
+          "order": 4,
+          "unit_json": "290_odleglosci.json",
+          "source_html": "290_odleglosci.html",
+          "source_dir": "140_geometria_analityczna_2",
+          "unit_type": "lesson",
+          "title": "Ćwiczenia"
+        },
+        {
+          "order": 5,
+          "unit_json": "300_odleglosci.json",
+          "source_html": "300_odleglosci.html",
+          "source_dir": "140_geometria_analityczna_2",
+          "unit_type": "lesson",
+          "title": "Odległość między dwiema prostymi"
+        },
+        {
+          "order": 6,
+          "unit_json": "310_odleglosci.json",
+          "source_html": "310_odleglosci.html",
+          "source_dir": "140_geometria_analityczna_2",
+          "unit_type": "lesson",
+          "title": "Zadania"
+        },
+        {
+          "order": 7,
+          "unit_json": "320_odleglosci.json",
+          "source_html": "320_odleglosci.html",
+          "source_dir": "140_geometria_analityczna_2",
+          "unit_type": "lesson",
+          "title": "Ćwiczenia"
+        },
+        {
+          "order": 8,
+          "unit_json": "330_odleglosci_quiz.json",
+          "source_html": "330_odleglosci_quiz.html",
+          "source_dir": "140_geometria_analityczna_2",
+          "unit_type": "quiz",
+          "title": "odleglosci quiz"
+        }
+      ]
+    },
+    {
+      "order": 3,
+      "title": "__PLACEHOLDER chapter 4__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "340_pole_wielokatow.json",
+          "source_html": "340_pole_wielokatow.html",
+          "source_dir": "140_geometria_analityczna_2",
+          "unit_type": "lesson",
+          "title": "Pole trójkąta"
+        },
+        {
+          "order": 1,
+          "unit_json": "350_pole_wielokatow.json",
+          "source_html": "350_pole_wielokatow.html",
+          "source_dir": "140_geometria_analityczna_2",
+          "unit_type": "lesson",
+          "title": "Pole wielokątów"
+        },
+        {
+          "order": 2,
+          "unit_json": "360_pole_wielokatow.json",
+          "source_html": "360_pole_wielokatow.html",
+          "source_dir": "140_geometria_analityczna_2",
+          "unit_type": "lesson",
+          "title": "Zadania"
+        },
+        {
+          "order": 3,
+          "unit_json": "370_pole_wielokatow.json",
+          "source_html": "370_pole_wielokatow.html",
+          "source_dir": "140_geometria_analityczna_2",
+          "unit_type": "lesson",
+          "title": "Ćwiczenia"
+        },
+        {
+          "order": 4,
+          "unit_json": "380_pole_wielokatow_quiz.json",
+          "source_html": "380_pole_wielokatow_quiz.html",
+          "source_dir": "140_geometria_analityczna_2",
+          "unit_type": "quiz",
+          "title": "pole wielokatow quiz"
+        }
+      ]
+    },
+    {
+      "order": 4,
+      "title": "__PLACEHOLDER chapter 5__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "390_rownanie_okregu.json",
+          "source_html": "390_rownanie_okregu.html",
+          "source_dir": "140_geometria_analityczna_2",
+          "unit_type": "lesson",
+          "title": "Długość odcinka"
+        },
+        {
+          "order": 1,
+          "unit_json": "400_rownanie_okregu.json",
+          "source_html": "400_rownanie_okregu.html",
+          "source_dir": "140_geometria_analityczna_2",
+          "unit_type": "lesson",
+          "title": "Punkty równoodległe od jednego punktu"
+        },
+        {
+          "order": 2,
+          "unit_json": "410_rownanie_okregu.json",
+          "source_html": "410_rownanie_okregu.html",
+          "source_dir": "140_geometria_analityczna_2",
+          "unit_type": "lesson",
+          "title": "Równanie okręgu"
+        },
+        {
+          "order": 3,
+          "unit_json": "420_rownanie_okregu.json",
+          "source_html": "420_rownanie_okregu.html",
+          "source_dir": "140_geometria_analityczna_2",
+          "unit_type": "lesson",
+          "title": "Środek i promień okręgu"
+        },
+        {
+          "order": 4,
+          "unit_json": "430_rownanie_okregu.json",
+          "source_html": "430_rownanie_okregu.html",
+          "source_dir": "140_geometria_analityczna_2",
+          "unit_type": "lesson",
+          "title": "Ćwiczenia"
+        },
+        {
+          "order": 5,
+          "unit_json": "435_rownanie_okregu_quiz.json",
+          "source_html": "435_rownanie_okregu_quiz.html",
+          "source_dir": "140_geometria_analityczna_2",
+          "unit_type": "quiz",
+          "title": "rownanie okregu quiz"
+        }
+      ]
+    },
+    {
+      "order": 5,
+      "title": "__PLACEHOLDER chapter 6__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "440_okregi_i_proste.json",
+          "source_html": "440_okregi_i_proste.html",
+          "source_dir": "140_geometria_analityczna_2",
+          "unit_type": "lesson",
+          "title": "Prosta a okrąg 1"
+        },
+        {
+          "order": 1,
+          "unit_json": "450_okregi_i_proste.json",
+          "source_html": "450_okregi_i_proste.html",
+          "source_dir": "140_geometria_analityczna_2",
+          "unit_type": "lesson",
+          "title": "Prosta a okrąg 2"
+        },
+        {
+          "order": 2,
+          "unit_json": "460_okregi_i_proste.json",
+          "source_html": "460_okregi_i_proste.html",
+          "source_dir": "140_geometria_analityczna_2",
+          "unit_type": "lesson",
+          "title": "Prosta a okrąg 3"
+        },
+        {
+          "order": 3,
+          "unit_json": "470_okregi_i_proste.json",
+          "source_html": "470_okregi_i_proste.html",
+          "source_dir": "140_geometria_analityczna_2",
+          "unit_type": "lesson",
+          "title": "Styczne do okręgu"
+        },
+        {
+          "order": 4,
+          "unit_json": "480_okregi_i_proste.json",
+          "source_html": "480_okregi_i_proste.html",
+          "source_dir": "140_geometria_analityczna_2",
+          "unit_type": "lesson",
+          "title": "Zadanie 1"
+        },
+        {
+          "order": 5,
+          "unit_json": "490_okregi_i_proste.json",
+          "source_html": "490_okregi_i_proste.html",
+          "source_dir": "140_geometria_analityczna_2",
+          "unit_type": "lesson",
+          "title": "Zadanie 2"
+        },
+        {
+          "order": 6,
+          "unit_json": "500_okregi_i_proste.json",
+          "source_html": "500_okregi_i_proste.html",
+          "source_dir": "140_geometria_analityczna_2",
+          "unit_type": "lesson",
+          "title": "Ćwiczenia"
+        },
+        {
+          "order": 7,
+          "unit_json": "510_okregi_i_proste_quiz.json",
+          "source_html": "510_okregi_i_proste_quiz.html",
+          "source_dir": "140_geometria_analityczna_2",
+          "unit_type": "quiz",
+          "title": "okregi i proste quiz"
+        }
+      ]
+    },
+    {
+      "order": 6,
+      "title": "__PLACEHOLDER chapter 7__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "520_izometrie.json",
+          "source_html": "520_izometrie.html",
+          "source_dir": "140_geometria_analityczna_2",
+          "unit_type": "lesson",
+          "title": "Wprowadzenie"
+        },
+        {
+          "order": 1,
+          "unit_json": "530_izometrie.json",
+          "source_html": "530_izometrie.html",
+          "source_dir": "140_geometria_analityczna_2",
+          "unit_type": "lesson",
+          "title": "Izometria"
+        },
+        {
+          "order": 2,
+          "unit_json": "535_izometrie.json",
+          "source_html": "535_izometrie.html",
+          "source_dir": "140_geometria_analityczna_2",
+          "unit_type": "lesson",
+          "title": "Czy przekształcenie jest izometrią?"
+        },
+        {
+          "order": 3,
+          "unit_json": "540_izometrie.json",
+          "source_html": "540_izometrie.html",
+          "source_dir": "140_geometria_analityczna_2",
+          "unit_type": "lesson",
+          "title": "Przesunięcie"
+        },
+        {
+          "order": 4,
+          "unit_json": "550_izometrie.json",
+          "source_html": "550_izometrie.html",
+          "source_dir": "140_geometria_analityczna_2",
+          "unit_type": "lesson",
+          "title": "Symetrie względem osi układu współrzędnych"
+        },
+        {
+          "order": 5,
+          "unit_json": "560_izometrie.json",
+          "source_html": "560_izometrie.html",
+          "source_dir": "140_geometria_analityczna_2",
+          "unit_type": "lesson",
+          "title": "Symetria względem początku układu współrzędych"
+        },
+        {
+          "order": 6,
+          "unit_json": "570_izometrie.json",
+          "source_html": "570_izometrie.html",
+          "source_dir": "140_geometria_analityczna_2",
+          "unit_type": "lesson",
+          "title": "Obrazy izometryczne figur"
+        },
+        {
+          "order": 7,
+          "unit_json": "580_izometrie.json",
+          "source_html": "580_izometrie.html",
+          "source_dir": "140_geometria_analityczna_2",
+          "unit_type": "lesson",
+          "title": "Obrazy izometryczne prostych"
+        },
+        {
+          "order": 8,
+          "unit_json": "590_izometrie.json",
+          "source_html": "590_izometrie.html",
+          "source_dir": "140_geometria_analityczna_2",
+          "unit_type": "lesson",
+          "title": "Zadania"
+        },
+        {
+          "order": 9,
+          "unit_json": "600_izometrie.json",
+          "source_html": "600_izometrie.html",
+          "source_dir": "140_geometria_analityczna_2",
+          "unit_type": "lesson",
+          "title": "Ćwiczenia"
+        },
+        {
+          "order": 10,
+          "unit_json": "610_izometrie_quiz.json",
+          "source_html": "610_izometrie_quiz.html",
+          "source_dir": "140_geometria_analityczna_2",
+          "unit_type": "quiz",
+          "title": "izometrie quiz"
+        }
+      ]
+    },
+    {
+      "order": 7,
+      "title": "__PLACEHOLDER chapter 8__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "620_podsumowanie.json",
+          "source_html": "620_podsumowanie.html",
+          "source_dir": "140_geometria_analityczna_2",
+          "unit_type": "lesson",
+          "title": "Wprowadzenie"
+        },
+        {
+          "order": 1,
+          "unit_json": "630_podsumowanie.json",
+          "source_html": "630_podsumowanie.html",
+          "source_dir": "140_geometria_analityczna_2",
+          "unit_type": "lesson",
+          "title": "Zadanie 1"
+        },
+        {
+          "order": 2,
+          "unit_json": "640_podsumowanie.json",
+          "source_html": "640_podsumowanie.html",
+          "source_dir": "140_geometria_analityczna_2",
+          "unit_type": "lesson",
+          "title": "Zadanie 2"
+        },
+        {
+          "order": 3,
+          "unit_json": "650_podsumowanie.json",
+          "source_html": "650_podsumowanie.html",
+          "source_dir": "140_geometria_analityczna_2",
+          "unit_type": "lesson",
+          "title": "Zadanie 3"
+        },
+        {
+          "order": 4,
+          "unit_json": "660_podsumowanie.json",
+          "source_html": "660_podsumowanie.html",
+          "source_dir": "140_geometria_analityczna_2",
+          "unit_type": "lesson",
+          "title": "Zadanie 4"
+        },
+        {
+          "order": 5,
+          "unit_json": "670_podsumowanie.json",
+          "source_html": "670_podsumowanie.html",
+          "source_dir": "140_geometria_analityczna_2",
+          "unit_type": "lesson",
+          "title": "Zadanie 5"
+        },
+        {
+          "order": 6,
+          "unit_json": "680_podsumowanie.json",
+          "source_html": "680_podsumowanie.html",
+          "source_dir": "140_geometria_analityczna_2",
+          "unit_type": "lesson",
+          "title": "Zadanie 6"
+        },
+        {
+          "order": 7,
+          "unit_json": "690_podsumowanie.json",
+          "source_html": "690_podsumowanie.html",
+          "source_dir": "140_geometria_analityczna_2",
+          "unit_type": "lesson",
+          "title": "Zadanie 7"
+        },
+        {
+          "order": 8,
+          "unit_json": "700_podsumowanie.json",
+          "source_html": "700_podsumowanie.html",
+          "source_dir": "140_geometria_analityczna_2",
+          "unit_type": "lesson",
+          "title": "Zadanie 8"
+        },
+        {
+          "order": 9,
+          "unit_json": "710_podsumowanie.json",
+          "source_html": "710_podsumowanie.html",
+          "source_dir": "140_geometria_analityczna_2",
+          "unit_type": "lesson",
+          "title": "Zadanie 9"
+        },
+        {
+          "order": 10,
+          "unit_json": "720_podsumowanie.json",
+          "source_html": "720_podsumowanie.html",
+          "source_dir": "140_geometria_analityczna_2",
+          "unit_type": "lesson",
+          "title": "Podsumowanie"
+        }
+      ]
+    }
+  ]
+}

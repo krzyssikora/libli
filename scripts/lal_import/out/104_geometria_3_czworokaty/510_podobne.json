@@ -1,0 +1,272 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "\n    Mówimy, że dwie figury są <strong>podobne</strong>, jeśli mają <strong>taki sam kształt</strong>, lecz niekoniecznie taką samą <strong>wielkość</strong>.\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Ale co to znaczy: \"taki sam kształt\"? \n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Czasem mówimy, że coś \"<em>ma kształt prostokąta</em>\". Czy to znaczy, że wszystkie prostokąty są do siebie podobne? Bo mają taki sam kształt - kształt prostokąta?\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Przykład</strong></p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/prostokaty_inny_ksztalt_przyklad.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Oba prostokąty przedstawione na rysunku mają <em>wyraźnie inny kształt</em>.\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Te dwa prostokąty nie są podobne.\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Jak widać, pojęcie takiego samego kształtu jest użyteczne, bo intuicyjne, ale nie jest łatwe do zdefiniowania. Przyjrzyjmy się kolejnym przykładom.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Przykład</strong></p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/Piero_della_Francesca_Ideal_City.jpg",
+      "alt": "Idealne miasto (1475), Piero della Francesca, przykład perspektywy linearnej z jednym punktem zbiegu",
+      "figcaption": "\"Idealne miasto\" (1475), Piero della Francesca, przykład perspektywy linearnej z jednym punktem zbiegu,(źródło: Wikipedia)"
+    },
+    {
+      "type": "image",
+      "media_src": "static/podobienstwo_persektywa.gif",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Perspektywa (linearna) w malarstwie, w architekturze buduje w nas pewną intuicję na temat podobieństwa figur.\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Schematyczny rysunek domu przedstawionego w takiej perspektywie od frontu, w różnych odległościach od obserwatora, składa się z figur podobnych. Co więcej, każdy taki narysowany dom jest podobny do każdego innego.\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Przykład</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Czego na temat podobieństwa możemy dowiedzieć się ze zwykłej kartki papieru, kartki formatu A4, czyli takiego jak duży zeszyt?\n        </p>"
+    },
+    {
+      "type": "video",
+      "media_src": "static/podobienstwo_papier.mp4"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Poniższa animacja pokazuje schematycznie to, o czym mówię w nagraniu. Gdy złożymy kartkę na dwie połowy, obrócimy i powiększymy (proporcjonalnie, jakbyśmy przybliżali ją do obiektywu kamery) do poprzedniego położenia, zobaczymy, że ma kształt podobny do całej kartki.\n        </p>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/nf7cnnye/width/350/height/391/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Kartka papieru <a href=\"https://pl.wikipedia.org/wiki/Format_arkusza\">formatu A4 lub podobnych</a> ma tę własność, że jeśli złożymy ją na pół (dzieląc na pół dłuższy bok), to otrzymamy prostokąt podobny (w bardzo dobrym przybliżeniu) do całej kartki.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Dokładniej: stosunek dlugości boków większego prostokąta (całej kartki) jest równy stosunkowi dlugości boków mniejszego prostokąta (połowy kartki).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Jaki jest stosunek dlugości boków (dłuższego do krótszego) kartki papieru?\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                    Oznaczmy dłuższy bok kartki przez \\(a\\), a krótszy przez \\(b\\).\n                </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_1110.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Chcemy znaleźć stosunek \\(a:b\\).\n                </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Pomyślmy o prostokącie kartki złożonej na pół. Jego dłuższy bok to\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(a\\)",
+            "\\(b\\)",
+            "\\(\\tfrac{1}{2}a\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Jego krótszy bok to\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(a\\)",
+            "\\(b\\)",
+            "\\(\\tfrac{1}{2}a\\)"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Podsumowując:\n                </p>"
+        },
+        {
+          "type": "table",
+          "data": {
+            "header_row": false,
+            "header_col": false,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "dłuższy bok",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "krótszy bok",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "stosunek",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "cała kartka",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(a\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(b\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\frac{a}{b}\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "pół kartki",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(b\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\tfrac{1}{2}a\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\frac{b}{\\tfrac{1}{2}a}\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Stosunki długości boków obu prostokątów muszą być równe, czyli:\n                </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                \\frac{a}{b}=\\frac{b}{\\tfrac{1}{2}a}\n                "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Mnożąc równanie na skos, a następnie obie strony przez \\(2\\) otrzymujemy\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(a^2=2b^2\\)",
+            "\\(2a^2=b^2\\)",
+            "\\(a^2=b^4\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Z równania \\(a^2=2b^2\\) wynika, że\n                \\[\n                \\frac{a^2}{b^2}=2\n                \\]</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    a stąd (pierwiastkując) otrzymujemy\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(\\frac{a}{b}=\\sqrt{2}\\)",
+            "\\(\\frac{a}{b}=2\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Stosunek długości dłuższego do krótszego boku kartki papieru jest równy \\(\\sqrt{2}\\).\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p><strong>Przykład</strong></p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                            \\(\\sqrt{2}\\) to w przybliżeniu \\(1,414213562\\).\n                        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                            Wymiary kartki A4 to \\(297\\) na \\(210\\) milimetrów. Stosunek tych długości to w przybliżeniu \\(1,414285714\\).\n                        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                            Błąd względny to zaledwie \\(0,0051\\%\\)!\n                        </p>"
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "82b0c779afe45970d6167a8d72b5e79f1189ee8008a03c2dc30026c2b9f2c5a2"
+}

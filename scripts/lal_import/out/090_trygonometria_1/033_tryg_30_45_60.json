@@ -1,0 +1,16 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n<strong>\n            Zapamiętaj!\n        </strong>\n</p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/tryg_30_45_60._2png.png",
+      "alt": "trójkąty o kątach 30, 60 i 45",
+      "figcaption": ""
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "493d7dcaad84d89cc3315a50781bee14eebb9da3ce0ba396708cd3134cfb874f"
+}

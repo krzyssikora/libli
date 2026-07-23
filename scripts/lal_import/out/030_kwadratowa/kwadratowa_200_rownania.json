@@ -1,0 +1,118 @@
+{
+  "elements": [
+    {
+      "type": "video",
+      "media_src": "static/ukryte_kwadratowe.mp4"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Rozwiąż równania. Sprawdź swoje odpowiedzi.\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "(1)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(\\pm\\sqrt{2}\\), \\(\\pm 2\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "(2)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(\\pm 2\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "(3)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(-1\\), \\(\\frac{1}{2}\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "(4)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(\\pm\\frac{1}{2}\\), \\(0\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "(5)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(\\pm\\frac{\\sqrt{2}}{2}\\), \\(\\pm 2\\sqrt{2}\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "(6)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(\\pm\\frac{\\sqrt{2}}{2}\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "(7)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(`-\\frac{41}{51}\\), \\(`-\\frac{23}{34}\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "(8)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(99\\), \\(105\\tfrac{1}{2}\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "(9)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(`-\\frac{1}{2}\\), \\(\\pm 1\\), \\(\\frac{3}{2}\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "(10)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(0\\), \\(-1\\), \\(\\frac{1}{2}\\), \\(`-\\frac{3}{2}\\)</p>"
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "717c538ef164cc7216586f5f0455aa82327f5a3c6282d850bebc3687884e942e"
+}

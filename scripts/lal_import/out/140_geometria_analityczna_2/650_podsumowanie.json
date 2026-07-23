@@ -1,0 +1,353 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Punkty \\(A=(-1,9)\\) i \\(B=(-8, -5)\\) są wierzchołkami trójkąta prostokątnego \\(ABC\\), w którym kąt \\(BAC\\) jest prosty. \n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Pole trójkąta \\(ABC\\) jest równe \\(70\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź współrzędne punktu \\(C\\). Uwzględnij wszystkie możliwości.\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "metoda rozwiązania",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n            Poniższa animacja przedstawia w skrócie, co należy zrobić, by znaleźć możliwe współrzędne punktu \\(C\\).\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Przyjrzyj się animacji uważnie. Zrób to ponownie w razie potrzeby.\n        </p>"
+        },
+        {
+          "type": "iframe",
+          "url": "https://www.geogebra.org/material/iframe/id/bvna3akx/width/540/height/550/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+          "title": ""
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                    Na początku obliczymy nachylenie odcinka \\(AB\\), czyli, ściślej mówiąc, współczynnik kierunkowy prostej przechodzącej przez punkty \\(A\\) i \\(B\\).\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>pamiętasz, jak?</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                            Nachylenie prostej przechodzącej przez punkty\n                        </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                            \\[\n                            A=(x_A, y_A)\\quad\\text{oraz}\\quad B=(x_B, y_B)\n                            \\]    \n                        "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                            dane jest wyrażeniem\n                        </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                            \\[\n                            \\left(\\frac{\\text{skok}}{\\text{krok}}\\right)\\quad =\\frac{y_B-y_A}{x_B-x_A}\n                            \\]\n                        "
+        },
+        {
+          "type": "image",
+          "media_src": "static/funkcja_liniowa_nachylenie_prostej_przez_2_punkty.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Nachylenie odcinka \\(AB\\) jest równe \n                    \n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(\\frac{1}{2}\\)",
+            "\\(2\\)",
+            "\\(-\\frac{1}{2}\\)",
+            "\\(-2\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>W drugim kroku znajdziemy równanie prostej prostopadłej do odcinka \\(AB\\) przechodzącej przez punkt \\(A\\).</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Odcinek \\(AB\\) ma nachylenie \\(2\\), więc prosta do niego prostopadła ma nachylenie\n                    \n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(\\frac{1}{2}\\)",
+            "\\(2\\)",
+            "\\(-\\frac{1}{2}\\)",
+            "\\(-2\\)"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Prosta prostopadła ma współczynnik kierunkowy równy \\(-\\frac{1}{2}\\), więc jej równanie jest postaci:\n                </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                y=-\\frac{1}{2}x+b\n                "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Prosta przechodzi przez punkt \\(A\\), więc by znaleźć wartość współczynnika \\(b\\), do powyższego równania podstawiamy współrzędne tego punktu.\n                </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Otrzymujemy równanie\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(9=-\\frac{1}{2}\\cdot(-1)+b\\)",
+            "\\(-1=-\\frac{1}{2}\\cdot 9+b\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Z równania\n                </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                9=-\\frac{1}{2}\\cdot(-1)+b\n                "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    wyliczamy, że\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(b=8\\tfrac{1}{2}\\)",
+            "\\(b=9\\tfrac{1}{2}\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Prosta prostopadła do odcinka \\(AB\\) przechodząca przez punkt \\(A\\) ma równanie\n                </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                y=-\\tfrac{1}{2}x+8\\tfrac{1}{2}\n                "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    W kolejnym kroku znajdziemy długość odcinka \\(AB\\).\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>pamiętasz, jak?</h4>"
+        },
+        {
+          "type": "text",
+          "body": "\n                        Długość odcinka \\(AB\\), gdzie\n                        \\[\n                        A=(x_A, y_A),\\quad\\quad B=(x_B,y_B)\n                        \\]\n                        jest dana wzorem\n                        \\[\n                        AB=\\sqrt{(x_B-x_A)^2+(y_B-y_A)^2}\n                        \\]\n                    "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Długość odcinka \\(AB\\) dana jest (po wstępnym uproszczeniu) wyrażeniem\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(\\sqrt{9^2+4^2}\\)",
+            "\\(\\sqrt{7^2+14^2}\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Uprośćmy to wyrażenie:\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    \\begin{align}\n                    |AB|&amp;=\\sqrt{7^2+14^2}=\\\\\n                    &amp;=\\sqrt{49+(2\\cdot 7)^2}=\\\\\n                    &amp;=\\sqrt{49+2^2\\cdot 7^2}=\\\\\n                    &amp;=\\sqrt{49+4\\cdot 49}=\\\\\n                    &amp;=\\sqrt{5\\cdot 49}\n                    \\end{align}\n                    \\]\n                "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Po dalszym uproszczeniu \\(|AB|=\\)\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(5\\sqrt{7}\\)",
+            "\\(7\\sqrt{5}\\)",
+            "\\(49\\sqrt{5}\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    W kolejnym kroku obliczymy długość boku \\(AC\\). Nie znamy jeszcze współrzędnych punktu \\(C\\), ale wiemy, że:\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ol>\n<li>\n                        długość boku \\(AB\\) to \\(7\\sqrt{5}\\),\n                    </li>\n<li>\n                        pole trójkąta \\(ABC\\) jest równe \\(70\\),\n                    </li>\n<li>\n                        kąt \\(BAC\\) jest prosty, więc bok \\(AC\\) <u>jest wysokością dla podstawy</u> \\(AB\\).\n                    </li>\n</ol>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Używając wzoru na pole trójkąta:\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    \\text{Pole}=\\frac{1}{2}\\cdot\\text{podstawa}\\cdot\\text{wysokość}\n                    \\]\n                "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    otrzymujemy równanie\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(70=\\tfrac{1}{2}\\cdot 7\\sqrt{5}\\cdot |AC|\\)",
+            "\\(70=7\\sqrt{5}\\cdot |AC|\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Rozwiązujemy równanie:\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    \\begin{align}\n                    70&amp;=\\tfrac{1}{2}\\cdot 7\\sqrt{5}\\cdot |AC|\\\\\n                    140&amp;=7\\sqrt{5}\\cdot |AC|\\\\\n                    20&amp;=\\sqrt{5}\\cdot |AC|\\\\\n                    |AC|&amp;=\\frac{20}{\\sqrt{5}}\n                    \\end{align}\n                    \\]\n                "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Po usunięciu niewymierności z mianownika dostajemy długość \\(AC\\) równą \n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(16\\)",
+            "\\(4\\sqrt{5}\\)",
+            "\\(2\\sqrt{5}\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Szukaliśmy długości \\(AC\\), żeby zakreślić okrąg o środku w punkcie \\(A\\) i promieniu długości \\(AC\\).\n                </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    A skoro \\(A=(-1,9)\\) i \\(|AC|=4\\sqrt{5}\\), to równanie tego okręu to \n                    \n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\((x+1)^2+(y-9)^2=80\\)",
+            "\\((x-1)^2+(y+9)^2=80\\)",
+            "\\((x+1)^2+(y-9)^2=4\\sqrt{5}\\)",
+            "\\((x-1)^2+(y+9)^2=4\\sqrt{5}\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Możliwe położenia punktu \\(C\\) to punkty wspólne prostej \\(y=-\\tfrac{1}{2}x+8\\tfrac{1}{2}\\) i okręgu \\((x+1)^2+(y-9)^2=80\\). Aby je znaleźć, rozwiążemy układ równań:\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    \\begin{cases}\n                    y=-\\tfrac{1}{2}x+8\\tfrac{1}{2}\\\\\n                    (x+1)^2+(y-9)^2=80\n                    \\end{cases}\n                    \\]\n                "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Aby go rozwiązać, wystarczy podstawić \\(y\\) z równania prostej do równania okręgu albo, by uniknąć działań z ułamkami, wyliczyć z równania prostej \\(x\\) i dopiero potem podstawić do równania okręgu.\n                </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Z równania \\(y=-\\tfrac{1}{2}x+8\\tfrac{1}{2}\\) dostajemy\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(x=2y+17\\)",
+            "\\(x=-2y+17\\)",
+            "\\(x=-2y-17\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Po podstawieniu \\(x=-2y+17\\) do równania okręgu \\((x+1)^2+(y-9)^2=80\\) otrzymujemy</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\((-2y+18)^2+(y-9)^2=80\\)",
+            "\\((x+1)^2+(-2x-8)^2=80\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Uprośćmy to równanie:\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    \\begin{align}\n                    (-2y+18)^2+(y-9)^2&amp;=80\\\\\n                    4y^2-72y+324+y^2-18y+81-80&amp;=0\\\\\n                    5y^2-90y+325&amp;=0\\\\\n                    y^2-18y+65&amp;=0\n                    \\end{align}\n                    \\]\n                "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Aby otrzymać dwie możliwe współrzędne \\(y\\)-owe punktu \\(C\\), musimy rozwiązać to równanie kwadratowe.\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>pamiętasz, jak?</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                            Miejsca zerowe \\(x_1\\) i \\(x_2\\) równania kwadratowego\n                        </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                        ax^2+bx+c=0\n                        "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                            obliczne są według wzorów:\n                        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                                wyróżnik:\\(\\quad \\Delta=b^2-4ac\\)\n                            </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(x_1=\\frac{-b-\\sqrt{\\Delta}}{2a}\\quad\\) oraz \\(\\quad x_2=\\frac{-b+\\sqrt{\\Delta}}{2a}\\)</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Rozwiązaniami są liczby\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(-5\\) i \\(-13\\)",
+            "\\(5\\) i \\(13\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Wiemy już, że współrzędna \\(y\\)-owa punktu \\(C\\) to albo \\(5\\) albo \\(13\\). Aby znaleźć współrzędne \\(x\\)-owe, podstawimy te wartości do przekształconego wcześniej równania prostej: \\(x=-2y+17\\).\n                </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Otrzymane współrzędne \\(x\\)-owe to\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(x=7\\) dla \\(y=5\\) i \\(x=-9\\) dla \\(y=13\\)",
+            "\\(x=27\\) dla \\(y=5\\) i \\(x=43\\) dla \\(y=13\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Dla \\(y=5\\) otrzymaliśmy \\(x=7\\), co daje punkt \\(C=(7,5)\\). i \\(x=-9\\) dla \\(y=13\\)\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Dla \\(y=13\\) otrzymaliśmy \\(x=-9\\), co daje punkt \\(C=(9,13)\\).\n                </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_analityczna_2_zadanie_1500.png",
+          "alt": "",
+          "figcaption": ""
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "cf04b9b1d69d88917d7050acc1b92ebe99c85a5c3b212d72f427d8acd1622c9d"
+}

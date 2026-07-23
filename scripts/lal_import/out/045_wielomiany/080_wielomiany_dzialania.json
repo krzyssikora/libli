@@ -1,0 +1,214 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W poniższym aplecie dany jest wielomian o\n            <span style=\"color: red;\">\n                czerwonym wykresie\n            </span>\n            , którego równanie zapisane jest na czerwono.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Na dole widzisz suwaki, którymi możesz zmienić współczynniki drugiego wielomianu, o\n            <span style=\"color: blue;\">\n                niebieskim\n            </span>\n            wykresie.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Zmień je w taki sposób, by wielomiany były takie same, tj. by oba wykresy pokrywały się.\n        </p>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/yxn9crys/width/600/height/800/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Jakie muszą być współczynniki obu wielomianów?\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n    Dwa wielomiany są sobie równe, jeśli mają takie same współczynniki.\n"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Uzupełnij brakujące współczynniki tak, by wielomiany po lewej stronie były równe tym po prawej.\n    "
+    },
+    {
+      "type": "fill_table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "rows",
+        "cells": [
+          [
+            {
+              "kind": "static",
+              "html": "\\(y=5x^3-2x^2+4\\)"
+            },
+            {
+              "kind": "static",
+              "html": ""
+            },
+            {
+              "kind": "static",
+              "html": ""
+            },
+            {
+              "kind": "static",
+              "html": ""
+            },
+            {
+              "kind": "static",
+              "html": "\\(y=\\)",
+              "halign": "right"
+            },
+            {
+              "kind": "answer",
+              "answer": "5"
+            },
+            {
+              "kind": "static",
+              "html": "\\(x^3-2x^2+\\)",
+              "halign": "center"
+            },
+            {
+              "kind": "answer",
+              "answer": "0"
+            },
+            {
+              "kind": "static",
+              "html": "\\(x+4\\)",
+              "halign": "left"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(y=3x^4-5x^3+\\)",
+              "halign": "right"
+            },
+            {
+              "kind": "answer",
+              "answer": "7"
+            },
+            {
+              "kind": "static",
+              "html": "\\(x^2-2x+\\)",
+              "halign": "center"
+            },
+            {
+              "kind": "answer",
+              "answer": "4"
+            },
+            {
+              "kind": "answer",
+              "answer": "3"
+            },
+            {
+              "kind": "static",
+              "html": ""
+            },
+            {
+              "kind": "static",
+              "html": ""
+            },
+            {
+              "kind": "static",
+              "html": ""
+            },
+            {
+              "kind": "static",
+              "html": ""
+            }
+          ],
+          [
+            {
+              "kind": "answer",
+              "answer": "-6"
+            },
+            {
+              "kind": "static",
+              "html": ""
+            },
+            {
+              "kind": "static",
+              "html": ""
+            },
+            {
+              "kind": "static",
+              "html": ""
+            },
+            {
+              "kind": "static",
+              "html": "\\(y=-6x^2+\\)",
+              "halign": "right"
+            },
+            {
+              "kind": "answer",
+              "answer": "5"
+            },
+            {
+              "kind": "static",
+              "html": "\\(x+\\)",
+              "halign": "center"
+            },
+            {
+              "kind": "answer",
+              "answer": "-7"
+            },
+            {
+              "kind": "static",
+              "html": ""
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(y=11x^9+2x^7+\\)",
+              "halign": "right"
+            },
+            {
+              "kind": "answer",
+              "answer": "1"
+            },
+            {
+              "kind": "static",
+              "html": "\\(x+\\)",
+              "halign": "center"
+            },
+            {
+              "kind": "answer",
+              "answer": "0"
+            },
+            {
+              "kind": "static",
+              "html": "\\(y=-11x^9+2x^7+x\\)"
+            },
+            {
+              "kind": "static",
+              "html": ""
+            },
+            {
+              "kind": "static",
+              "html": ""
+            },
+            {
+              "kind": "static",
+              "html": ""
+            },
+            {
+              "kind": "static",
+              "html": ""
+            }
+          ]
+        ]
+      }
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "f34d4f8477c0c56c6067cc33d13693db4f1674aa37dc32125a4211e77fc92a9d"
+}

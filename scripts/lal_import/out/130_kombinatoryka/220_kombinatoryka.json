@@ -1,0 +1,154 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "\n<strong>Kombinacją</strong> nazywamy dowolny podzbiór zbiór skończonego. \n"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Przykład</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Jeśli elementy zbioru to A, B, C, D oraz E, to elementy B i E stanowią dwuelementową kombinację.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Kolejność, w jakiej zapisujemy elementy kombinacji nie ma znaczenia. \n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<small>Uwaga, kolejność nie ma znaczenia w sensie formalnym, jednak czasem wygodnie jest przyjąć konwencję, w jakiej kolejności zapisujemy elementy, żeby było łatwiej uniknąć błędów.</small>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<small>Naturalnymi konwencjami kolejności zapisu są, na przykład kolejność alfabetyczna dla liter / wyrazów lub według wielkości dla liczb.</small>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Przykład wybierania trzech obiektów z pięciu pokazał nam, ile jest takich wyborów, czyli kombinacji \\(3\\)-elementowych ze zbioru \\(5\\)-elementowego.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n    Liczba kombinacji \\(k\\)-elementowych ze zbioru \\(n\\)-elementowego jest równa \n    \\[\n    C_n^k=\\frac{n!}{k!\\cdot(n-k)!}\n    \\]\n    przy czym \\(n, k\\in\\mathbb{N}\\) oraz \\(n\\ge k\\).\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Wyrażenie opisujące liczbę kombinacji ma też inne zastosowania i znane jest też pod inną nazwą. \n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n    Symbol Newtona (albo współczynnik dwumianowy Newtona) zapisywany jest jako \\(\\binom{n}{k}\\) (co czytamy “\\(n\\) po \\(k\\)”) i zdefiniowany jest wyrażeniem:\n    \\[\n    \\binom{n}{k}=\\frac{n!}{k!\\cdot(n-k)}\n    \\]\n"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Na ile sposobów można wybrać <strong>dwie</strong> osoby z <strong>sześciu</strong>?\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Chcemy wybrać 2 osoby z 6, więc chodzi o kombinacje 2-elementowe ze zbioru 6-elementowego.</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Takich kombinacji jest\n                    \n\n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(\\frac{6!}{2!}\\)",
+            "\\(\\frac{6!}{(6-2)!}\\)",
+            "\\(\\frac{6!}{2!\\cdot(6-2)!}\\)",
+            "\\(6^2\\)",
+            "\\(2^6\\)"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "text",
+          "body": "<p>Upraszczamy wyrażenie:</p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    \\begin{align}\n                    \\binom{6}{2}&amp;=\\frac{6!}{2!\\cdot(6-2)!}=\\\\\n                    &amp;=\\frac{6!}{2!\\cdot 4!}=\\\\\n                    &amp;=\\frac{\\color{red}{4!}\\cdot 5\\cdot 6}{2!\\cdot \\color{red}{4!}}=\\\\\n                    &amp;=\\frac{\\require{cancel}\\cancel{\\color{red}{4!}}\\cdot 5\\cdot 6}{2!\\cdot \\require{cancel}\\cancel{\\color{red}{4!}}}=\\\\\n                    &amp;=\\frac{5\\cdot 6}{1\\cdot 2}\n                    \\end{align}\n                    \\]\n                "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Dwie osoby z sześciu można wybrać na\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(15\\) sposobów",
+            "\\(30\\) sposobów",
+            "\\(10\\) sposobów"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Możliwych wyborów dwóch osób z sześciu jest\n                \\[\n                \\binom{6}{2}=15\n                \\]</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Na ile sposobów można wybrać <strong>cztery</strong> osoby z <strong>sześciu</strong>?\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Chcemy wybrać 4 osoby z 6, więc chodzi o kombinacje 4-elementowe ze zbioru 6-elementowego.</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Takich kombinacji jest\n                    \n\n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(\\frac{6!}{4!}\\)",
+            "\\(\\frac{6!}{(6-4)!}\\)",
+            "\\(\\frac{6!}{4!\\cdot(6-4)!}\\)",
+            "\\(6^4\\)",
+            "\\(4^6\\)"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "text",
+          "body": "<p>Upraszczamy wyrażenie:</p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    \\begin{align}\n                    \\binom{6}{4}&amp;=\\frac{6!}{4!\\cdot(6-4)!}=\\\\\n                    &amp;=\\frac{6!}{4!\\cdot 2!}=\\\\\n                    &amp;=\\frac{\\color{red}{4!}\\cdot 5\\cdot 6}{\\color{red}{4!}\\cdot 2!}=\\\\\n                    &amp;=\\frac{\\require{cancel}\\cancel{\\color{red}{4!}}\\cdot 5\\cdot 6}{\\require{cancel}\\cancel{\\color{red}{4!}}\\cdot 2!}=\\\\\n                    &amp;=\\frac{5\\cdot 6}{1\\cdot 2}\n                    \\end{align}\n                    \\]\n                "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Cztery osoby z sześciu można wybrać na\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(15\\) sposobów",
+            "\\(30\\) sposobów",
+            "\\(10\\) sposobów"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Możliwych wyborów czterech osób z sześciu jest\n                \\[\n                \\binom{6}{4}=15\n                \\]</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Przejdź dalej, żeby wyciągnąć wnioski z rozwiązań tych dwóch zadań.\n</p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "e8671c4c1fdf6a0362a23ea105bb0020fa2255bf21ff3d7595e29c6dec60ec98"
+}

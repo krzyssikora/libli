@@ -6,9 +6,12 @@ from courses.builder import _NESTABLE_FORM_KEY_ALIASES
 from courses.builder import NESTABLE_TYPE_KEYS
 from courses.models import FillTableElement
 from courses.transfer.export import SERIALIZERS
+from courses.transfer.export import MediaIdMap
 from courses.transfer.importer import BUILDERS
 from courses.transfer.payloads import VALIDATORS
 from courses.transfer.schema import TransferError
+from tests.factories import make_course
+from tests.factories import make_image_asset
 
 pytestmark = pytest.mark.django_db
 
@@ -109,3 +112,65 @@ def test_validator_rejects_gross_corruption(bad):
 )
 def test_validator_accepts_tolerable_drift(ok):
     VALIDATORS["fill_table"](ok, "e1", set())  # must not raise
+
+
+def test_image_cell_round_trip_preserves_asset_and_alt():
+    course = make_course()
+    asset = make_image_asset(course, "g.png")
+    src = FillTableElement(
+        data={
+            "cells": [
+                [
+                    {"kind": "image", "media": asset.pk, "alt": "graph"},
+                    {"kind": "answer", "answer": "1"},
+                ]
+            ]
+        }
+    )
+    src.save()
+
+    ids = MediaIdMap()
+    payload = SERIALIZERS["fill_table"][1](src, ids)
+    # export must register the asset and emit a STRING local id, not the int pk
+    local_id = payload["cells"][0][0]["media"]
+    assert isinstance(local_id, str)
+    assert payload["cells"][0][0]["alt"] == "graph"
+    assert ids.items() == [(local_id, asset)]
+
+    # validate: media_kinds maps local id -> kind; validator must not raise and must
+    # return a ref set containing the local id
+    media_kinds = {local_id: "image"}
+    refs = VALIDATORS["fill_table"](payload, "e1", media_kinds)
+    assert local_id in refs
+
+    # import: assets maps local id -> a (possibly new) MediaAsset
+    new_course = make_course()
+    dest_asset = make_image_asset(new_course, "g2.png")
+    obj, _children = BUILDERS["fill_table"](payload, {local_id: dest_asset})
+    cell = obj.data["cells"][0][0]
+    assert cell["kind"] == "image" and cell["media"] == dest_asset.pk
+    assert cell["alt"] == "graph"
+
+
+def test_export_does_not_mutate_source_data():
+    course = make_course()
+    asset = make_image_asset(course, "g.png")
+    src = FillTableElement(
+        data={"cells": [[{"kind": "image", "media": asset.pk, "alt": "g"}]]}
+    )
+    src.save()
+    SERIALIZERS["fill_table"][1](src, MediaIdMap())
+    # still the int pk, un-clobbered
+    assert src.data["cells"][0][0]["media"] == asset.pk
+
+
+def test_validator_image_cell_missing_media_key_raises_clean():
+    payload = {"cells": [[{"kind": "image", "alt": "x"}]]}  # no media key
+    with pytest.raises(TransferError):
+        VALIDATORS["fill_table"](payload, "e1", {})
+
+
+def test_validator_image_cell_unregistered_media_raises():
+    payload = {"cells": [[{"kind": "image", "media": "m9", "alt": "x"}]]}
+    with pytest.raises(TransferError):
+        VALIDATORS["fill_table"](payload, "e1", {})  # m9 not in media_kinds

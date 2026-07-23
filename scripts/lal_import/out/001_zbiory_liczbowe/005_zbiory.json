@@ -1,0 +1,34 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Obejrzyj nagrania dotyczące zbiorów.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<h3>\n    Pojęcia podstawowe: zbiór, zbiór pusty, skończony i nieskończony, równość zbiorów\n</h3>"
+    },
+    {
+      "type": "video",
+      "media_src": "static/zbiory_poczatek.mp4"
+    },
+    {
+      "type": "text",
+      "body": "<h3>\n    Pojęcia podstawowe: zbiory rozłączne, dopełnienie zbioru\n</h3>"
+    },
+    {
+      "type": "video",
+      "media_src": "static/zbiory_rozlaczne_dopelnienie.mp4"
+    },
+    {
+      "type": "text",
+      "body": "<h3>\n    Pojęcia podstawowe: element zbioru, podzbiór\n</h3>"
+    },
+    {
+      "type": "video",
+      "media_src": "static/zbiory_podzbiory.mp4"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "5ce6874a7fb7b67ae7c2946ea2da04876c1d9f3651459902eb90056375819ecc"
+}

@@ -1,0 +1,178 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Dane są wektory:\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n            \\(\\vec{u}=[3, -4]\\) oraz \\(\\vec{w}=[-7,2]\\)\n        "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Dany jest też punkt \\(A=(4,-2)\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Oblicz i wpisz odpowiedzi.\n        </p>"
+    },
+    {
+      "type": "fill_table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "rows",
+        "cells": [
+          [
+            {
+              "kind": "static",
+              "html": "długość wektora \\(u\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "5"
+            },
+            {
+              "kind": "static",
+              "html": ""
+            },
+            {
+              "kind": "static",
+              "html": ""
+            },
+            {
+              "kind": "static",
+              "html": ""
+            },
+            {
+              "kind": "static",
+              "html": ""
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "sumę wektorów \\(\\vec{u}\\) i \\(\\vec{w}\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(\\vec{u}+\\vec{w}=[\\)",
+              "halign": "right"
+            },
+            {
+              "kind": "answer",
+              "answer": "-4"
+            },
+            {
+              "kind": "static",
+              "html": "\\(,\\)",
+              "halign": "center"
+            },
+            {
+              "kind": "answer",
+              "answer": "-2"
+            },
+            {
+              "kind": "static",
+              "html": "\\(]\\)",
+              "halign": "left"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "wektor przeciwny do \\(\\vec{w}\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(-\\vec{w}=[\\)",
+              "halign": "right"
+            },
+            {
+              "kind": "answer",
+              "answer": "7"
+            },
+            {
+              "kind": "static",
+              "html": "\\(,\\)",
+              "halign": "center"
+            },
+            {
+              "kind": "answer",
+              "answer": "-2"
+            },
+            {
+              "kind": "static",
+              "html": "\\(]\\)",
+              "halign": "left"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "różnicę wektorów \\(\\vec{u}\\) i \\(\\vec{w}\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(\\vec{u}-\\vec{w}=[\\)",
+              "halign": "right"
+            },
+            {
+              "kind": "answer",
+              "answer": "10"
+            },
+            {
+              "kind": "static",
+              "html": "\\(,\\)",
+              "halign": "center"
+            },
+            {
+              "kind": "answer",
+              "answer": "-6"
+            },
+            {
+              "kind": "static",
+              "html": "\\(]\\)",
+              "halign": "left"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "punkt \\(B\\) będący obrazem punktu \\(A\\)\n                        <br/>\n                        w przesunięciu o wektor \\(\\vec{w}\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(B=(\\)",
+              "halign": "right"
+            },
+            {
+              "kind": "answer",
+              "answer": "-3"
+            },
+            {
+              "kind": "static",
+              "html": "\\(,\\)",
+              "halign": "center"
+            },
+            {
+              "kind": "answer",
+              "answer": "0"
+            },
+            {
+              "kind": "static",
+              "html": "\\()\\)",
+              "halign": "left"
+            }
+          ]
+        ]
+      }
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "44a37224f0488d801370c0f9357b6e885f586253aeac4afd0ef0cbee501014d2"
+}

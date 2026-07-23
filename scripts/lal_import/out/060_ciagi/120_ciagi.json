@@ -1,0 +1,802 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Przypomnijmy i nieznacznie przekształćmy definicje:\n</p>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "Ciąg \\((a_n)\\) jest...",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "... jeśli dla każdego \\(n\\in\\mathbb{N}^{+}\\)",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 3
+            }
+          ],
+          [
+            {
+              "html": "rosnący",
+              "halign": "left",
+              "valign": "top",
+              "header": true
+            },
+            {
+              "html": "\\(a_{n+1}\\gt a_n\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "lub",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(a_{n+1} - a_n\\gt 0\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "malejący",
+              "halign": "left",
+              "valign": "top",
+              "header": true
+            },
+            {
+              "html": "\\(a_{n+1}\\lt a_n\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "lub",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(a_{n+1} - a_n\\lt 0\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "niemalejący",
+              "halign": "left",
+              "valign": "top",
+              "header": true
+            },
+            {
+              "html": "\\(a_{n+1}\\ge a_n\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "lub",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(a_{n+1} - a_n\\ge 0\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "nierosnący",
+              "halign": "left",
+              "valign": "top",
+              "header": true
+            },
+            {
+              "html": "\\(a_{n+1}\\le a_n\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "lub",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(a_{n+1} - a_n\\le 0\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "stały",
+              "halign": "left",
+              "valign": "top",
+              "header": true
+            },
+            {
+              "html": "\\(a_{n+1}= a_n\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "lub",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(a_{n+1} - a_n = 0\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p>Aby określić monotoniczność ciągu, można wyliczyć wartość wyrażenia \\(a_{n+1}-a_n\\) i stwierdzić, czy jest:</p>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "\\(\\gt 0\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "rosnący",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(\\ge 0\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "niemalejący",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(=0\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "stały",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(\\le 0\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "nierosnący",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(\\lt 0\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "malejący",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Zbadamy teraz monotoniczność siedmiu ciągów tą metodą. Wszystkie będą zdefiniowane wzorami ogólnymi. Potem poznamy drugą metodę badania monotoniczności ciągów. A na koniec przyjrzymy się monotoniczności ciągów rekurencyjnych.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Dla wszystkich poniższych ciągów przyjmujemy, że \\(n=1, 2, 3, \\dots\\)\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Zbadaj monotoniczność ciągu \\(a_n=4n+3\\). \n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Najpierw ustalimy wyrażenie opisujące \\(a_{n+1}\\), czyli we wzorze na \\(a_n\\) zastąpimy \\(n\\) przez \\(n+1\\).</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Potem upraszczamy i dostajemy \n                    \n\n\n\n￿0￿,\n                    .\n                ",
+          "options": [
+            "\\(4n-1\\)",
+            "\\(4n+7\\)",
+            "\\(4n+4\\)",
+            "czerwieńsze"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Teraz wyliczymy różnicę \\(a_{n+1}-a_n=(4n+7)-(4n+3)\\).</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Po uproszczeniu \\(a_{n+1}-a_n=\\)\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(4\\)",
+            "\\(11\\)",
+            "\\(-4\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Wyliczyliśmy, że \\(a_{n+1}-a_n=4\\gt 0\\), co oznacza, że ciąg \\((a_n)\\) jest \n                    \n\n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "rosnący",
+            "niemalejący",
+            "stały",
+            "malejący",
+            "nierosnący"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Dla ciągu \\(a_n=4n+3\\) różnica \\(a_{n+1}-a_n=4\\gt 0\\), więc ciąg jest</p>"
+        },
+        {
+          "type": "text",
+          "body": "<strong>rosnący</strong>"
+        },
+        {
+          "type": "text",
+          "body": "<p>.</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Zbadaj monotoniczność ciągu \\(b_n=n^2-10n+16\\). \n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Najpierw ustalimy wyrażenie opisujące \\(b_{n+1}\\), czyli we wzorze na \\(b_n\\) zastąpimy \\(n\\) przez \\(n+1\\).</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(b_{n+1}=n^2-10n+16+1\\)",
+            "\\(b_{n+1}=(n+1)^2-10n+16\\)",
+            "\\(b_{n+1}=(n+1)^2-10(n+1)+16\\)"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "text",
+          "body": "<p>Uprośćmy wyrażenie \\(b_{n+1}=(n+1)^2-10(n+1)+16=\\)</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    \\(=n^2+2n+1-10n-10+16=\\)\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(n^2+12n+6\\)",
+            "\\(n^2-8n+7\\)",
+            "\\(n^2-8n+6\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Teraz wyliczymy różnicę \\(b_{n+1}-b_n=(n^2-8n+7)-(n^2-10n+16)\\).</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Po uproszczeniu \\(b_{n+1}-b_n=\\)\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(2n-9\\)",
+            "\\(-18n+23\\)",
+            "\\(2n+23\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Różnica \\(b_{n+1}-b_n=2n-9\\). Nie możemy powiedzieć, że jest zawsze dodatnia lub zawsze ujemna (lub nieujemna / niedodatnia), bo na przykład</p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>dla \\(n=3\\) różnica \\(b_{n+1}-b_n=2n-9=b_4-b_3=-3\\lt 0\\)</li>\n<li>dla \\(n=7\\) różnica \\(b_{n+1}-b_n=2n-9=b_8-b_7=5\\gt 0\\)</li>\n</ul>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Stąd ciąg \\((b_n)\\) \n                    \n\n\n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "jest rosnący",
+            "jest niemalejący",
+            "jest stały",
+            "jest malejący",
+            "jest nierosnący",
+            "nie jest monotoniczny"
+          ],
+          "answer": 5
+        },
+        {
+          "type": "text",
+          "body": "<p>Dla ciągu \\(b_n=n^2-10n+16\\) różnica \\(b_{n+1}-b_n\\) nie ma stałego znaku, więc ciąg</p>"
+        },
+        {
+          "type": "text",
+          "body": "<strong>nie jest monotoniczny</strong>"
+        },
+        {
+          "type": "text",
+          "body": "<p>.</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Zbadaj monotoniczność ciągu \\(c_n=-n^2+3n-2\\). \n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Ponownie zaczniemy od wyrażenia opisującego \\(c_{n+1}=-(n+1)^2+3(n+1)-2\\).</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Po uproszczeniu:\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(c_{n+1}=-n^2+n\\)",
+            "\\(c_{n+1}=-n^2+4n+2\\)",
+            "\\(c_{n+1}=-n^2-4n-6\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Teraz wyliczymy różnicę \\(c_{n+1}-c_n=(-n^2+n)-(-n^2+3n-2)\\).</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Po uproszczeniu \\(c_{n+1}-c_n=\\)\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(4n+6\\)",
+            "\\(-2n+2\\)",
+            "\\(-2n+6\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Różnica \\(c_{n+1}-c_n=-2n+2\\). Pamiętajmy, że \\(n\\in\\mathbb{N}^{+}\\), czyli \\(n\\ge 1\\).</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    To oznacza, że \\(-2n\\le -2\\). (Zwróć uwagę na zmianę znaku!)\n                </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    A ponieważ \\(c_{n+1}-c_n=-2n+2\\), więc\n                    \n\n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(c_{n+1}-c_n\\gt 0\\)",
+            "\\(c_{n+1}-c_n\\ge 0\\)",
+            "\\(c_{n+1}-c_n=0\\)",
+            "\\(c_{n+1}-c_n\\le 0\\)",
+            "\\(c_{n+1}-c_n\\lt 0\\)"
+          ],
+          "answer": 3
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Ustaliliśmy, że \\(c_{n+1}-c_n\\le 0\\), co oznacza, że ciąg \\((c_n)\\) jest \n                    \n\n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "rosnący",
+            "niemalejący",
+            "stały",
+            "malejący",
+            "nierosnący"
+          ],
+          "answer": 4
+        },
+        {
+          "type": "text",
+          "body": "<p>Dla ciągu \\(c_n=-n^2+3n-2\\) różnica \\(c_{n+1}-c_n\\le 0\\), więc ciąg jest nierosnący.</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Zwróć uwagę, że\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>\\(c_1=0\\)</li>\n<li>\\(c_2=0\\)</li>\n<li>\\(c_3=-2\\)</li>\n<li>\\(c_4=-6\\)</li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<p>więc jak widać, poza samym początkiem ciąg byłby malejący. Jednak ze względu na to, że pierwsze dwa wyrazy są równe, jest on</p>"
+        },
+        {
+          "type": "text",
+          "body": "<strong>nierosnący</strong>"
+        },
+        {
+          "type": "text",
+          "body": "<p>.</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Zbadaj monotoniczność ciągu \\(d_n=n^2+4n+3\\). \n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Ponownie zaczniemy od wyrażenia opisującego \\(d_{n+1}=(n+1)^2+4(n+1)+3\\).</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Po uproszczeniu:\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(d_{n+1}=n^2+6n+8\\)",
+            "\\(d_{n+1}=n^2+4n+8\\)",
+            "\\(d_{n+1}=n^2+4n+5\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Teraz wyliczymy różnicę \\(d_{n+1}-d_n=(n^2+6n+8)-(n^2+4n+3)\\).</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Po uproszczeniu \\(d_{n+1}-d_n=\\)\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(2n+5\\)",
+            "\\(-2n-2\\)",
+            "\\(-2n+11\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Różnica \\(d_{n+1}-d_n=2n+5\\). Pamiętajmy, że \\(n\\in\\mathbb{N}^{+}\\), czyli \\(n\\ge 1\\).</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Stąd\n                    \n\n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(d_{n+1}-d_n\\gt 0\\)",
+            "\\(d_{n+1}-d_n\\ge 0\\)",
+            "\\(d_{n+1}-d_n=0\\)",
+            "\\(d_{n+1}-d_n\\le 0\\)",
+            "\\(d_{n+1}-d_n\\lt 0\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Ustaliliśmy, że \\(d_{n+1}-d_n\\gt 0\\), co oznacza, że ciąg \\((d_n)\\) jest \n                    \n\n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "rosnący",
+            "niemalejący",
+            "stały",
+            "malejący",
+            "nierosnący"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Dla ciągu \\(d_n=n^2+4n+3\\) różnica \\(d_{n+1}-d_n\\gt 0\\), więc ciąg jest</p>"
+        },
+        {
+          "type": "text",
+          "body": "<strong>rosnący</strong>"
+        },
+        {
+          "type": "text",
+          "body": "<p>.</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Zbadaj monotoniczność ciągu \\(e_n=\\frac{1}{n}\\). \n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Wyrażenie opisujące \\(e_{n+1}\\) to oczywiście \\(\\frac{1}{n+1}\\).</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Możemy przejść do różnicy \\(e_{n+1}-e_n=\\frac{1}{n+1}-\\frac{1}{n}\\). Aby wykonać działanie, potrzebujemy wspólnego mianownika.\n                </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Wspólnym mianownikiem dla \\((n+1)\\) i \\(n\\) jest\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(n(n+1)\\)",
+            "\\(2n+1\\)",
+            "\\(n^2\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Po sprowadzeniu do wspólnego mianownika różnica przyjmuje postać \\(e_{n+1}-e_n=\\frac{n}{n(n+1)}-\\frac{n+1}{n(n+1)}\\).</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Po uproszczeniu \\(e_{n+1}-e_n=\\)\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(\\frac{1}{n(n+1)}\\)",
+            "\\(-\\frac{1}{n(n+1)}\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Różnica \\(e_{n+1}-e_n=-\\frac{1}{n(n+1)}\\). Pamiętajmy, że \\(n\\in\\mathbb{N}^{+}\\), czyli \\(n\\ge 1\\).</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Stąd\n                    \n\n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(e_{n+1}-e_n\\gt 0\\)",
+            "\\(e_{n+1}-e_n\\ge 0\\)",
+            "\\(e_{n+1}-e_n=0\\)",
+            "\\(e_{n+1}-e_n\\le 0\\)",
+            "\\(e_{n+1}-e_n\\lt 0\\)"
+          ],
+          "answer": 4
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Ustaliliśmy, że \\(e_{n+1}-e_n\\lt 0\\), co oznacza, że ciąg \\((e_n)\\) jest \n                    \n\n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "rosnący",
+            "niemalejący",
+            "stały",
+            "malejący",
+            "nierosnący"
+          ],
+          "answer": 3
+        },
+        {
+          "type": "text",
+          "body": "<p>Dla ciągu \\(e_n=\\frac{1}{n}\\) różnica \\(e_{n+1}-e_n\\lt 0\\), więc ciąg jest</p>"
+        },
+        {
+          "type": "text",
+          "body": "<strong>malejący</strong>"
+        },
+        {
+          "type": "text",
+          "body": "<p>.</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Zbadaj monotoniczność ciągu \\(f_n=3\\cdot 4^n\\). \n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Wyrażenie opisujące \\(f_{n+1}\\) to oczywiście \\(3\\cdot 4^{n+1}\\).</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Możemy przejść do różnicy \\(f_{n+1}-f_n=3\\cdot 4^{n+1}-3\\cdot 4^n\\).\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Zauważmy, że\n                \\[\n                4^{n+1}=4^n\\cdot 4^1=4\\cdot 4^n\n                \\]\n                więc\n                \\[\n                f_{n+1}-f_n=3\\cdot 4\\cdot 4^n-3\\cdot 4^n\n                \\]</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Wyłączmy \\(3\\cdot 4^n\\) przed nawias:\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(f_{n+1}-f_n=3\\cdot 4^n(4-1)\\)",
+            "\\(f_{n+1}-f_n=3\\cdot 4^n(1-4)\\)",
+            "\\(f_{n+1}-f_n=3\\cdot 4^n(4-0)\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>To oznacza, że\n                \\[\n                \\begin{align}\n                f_{n+1}-f_n&=3\\cdot 4^n(4-1)=\\\\\n                &=3\\cdot 3\\cdot 4^n=9\\cdot 4^n\n                \\end{align}\n                \\]</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Skoro \\(f_{n+1}-f_n=9\\cdot 4^n\\) to\n                    \n\n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(f_{n+1}-f_n\\gt 0\\)",
+            "\\(f_{n+1}-f_n\\ge 0\\)",
+            "\\(f_{n+1}-f_n=0\\)",
+            "\\(f_{n+1}-f_n\\le 0\\)",
+            "\\(f_{n+1}-f_n\\lt 0\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Ustaliliśmy, że \\(f_{n+1}-f_n\\gt 0\\), co oznacza, że ciąg \\((f_n)\\) jest \n                    \n\n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "rosnący",
+            "niemalejący",
+            "stały",
+            "malejący",
+            "nierosnący"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Dla ciągu \\(f_n=3\\cdot 4^n\\) różnica \\(f_{n+1}-f_n\\gt 0\\), więc ciąg jest</p>"
+        },
+        {
+          "type": "text",
+          "body": "<strong>rosnący</strong>"
+        },
+        {
+          "type": "text",
+          "body": "<p>.</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Zbadaj monotoniczność ciągu \\(g_n=\\frac{5}{3^n}\\). \n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Wyrażenie opisujące \\(g_{n+1}\\) to oczywiście \\(\\frac{5}{3^{n+1}}\\).</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Różnica \\(g_{n+1}-g_n=\\frac{5}{3^{n+1}}-\\frac{5}{3^n}\\).\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Aby odjąć ułamki, musimy sprawadzić je do wspólnego mianownika równego \\(3^{n+1}\\)</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    W tym celu rozszerzymy \n                    \n\n￿0￿ ułamek przez \\(3\\)\n                    .\n                ",
+          "options": [
+            "pierwszy",
+            "drugi"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Otrzymamy\n                \\[\n                \\begin{align}\n                g_{n+1}-g_n&=\\frac{5}{3^{n+1}}-\\frac{5}{3^n}=\\\\\n                &=\\frac{5}{3^{n+1}}-\\frac{15}{3^{n+1}}=\\\\\n                &=-\\frac{10}{3^{n+1}}\n                \\end{align}\n                \\]</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Skoro \\(g_{n+1}-g_n=-\\frac{10}{3^{n+1}}\\) to\n                    \n\n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(g_{n+1}-g_n\\gt 0\\)",
+            "\\(g_{n+1}-g_n\\ge 0\\)",
+            "\\(g_{n+1}-g_n=0\\)",
+            "\\(g_{n+1}-g_n\\le 0\\)",
+            "\\(g_{n+1}-g_n\\lt 0\\)"
+          ],
+          "answer": 4
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Ustaliliśmy, że \\(g_{n+1}-g_n\\lt 0\\), co oznacza, że ciąg \\((g_n)\\) jest \n                    \n\n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "rosnący",
+            "niemalejący",
+            "stały",
+            "malejący",
+            "nierosnący"
+          ],
+          "answer": 3
+        },
+        {
+          "type": "text",
+          "body": "<p>Dla ciągu \\(g_n=\\frac{5}{3^n}\\) różnica \\(g_{n+1}-g_n\\lt 0\\), więc ciąg jest</p>"
+        },
+        {
+          "type": "text",
+          "body": "<strong>malejący</strong>"
+        },
+        {
+          "type": "text",
+          "body": "<p>.</p>"
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "2cfd4d1880572dfd8adedfe837cf26a7b902753fe3ceba9af3b01faaf9115959"
+}

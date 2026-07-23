@@ -1,0 +1,1303 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Umiejętność rozwiązywania równań wielomianowych przydaje się w niektórych zadaniach tekstowych. Przyjrzyjmy się dwóm przykładom.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Iloczyn trzech kolejnych liczb całkowitych jest równy \\(2\\,730\\).</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź te liczby.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<h4>rozwiązanie</h4>"
+    },
+    {
+      "type": "tabs",
+      "tabs": [
+        {
+          "id": "t000000",
+          "label": "nagranie",
+          "elements": [
+            {
+              "type": "text",
+              "body": "<h3>\n                    Równanie wielomianowe\n                </h3>"
+            },
+            {
+              "type": "video",
+              "media_src": "static/rownanie_wielomianowe_zad_1_rownanie.mp4"
+            },
+            {
+              "type": "text",
+              "body": "<h3>\n                    Pierwszy pierwiastek\n                </h3>"
+            },
+            {
+              "type": "video",
+              "media_src": "static/rownanie_wielomianowe_zad_1_pierwiastek.mp4"
+            },
+            {
+              "type": "text",
+              "body": "<h3>\n                    Rozwiązanie\n                </h3>"
+            },
+            {
+              "type": "video",
+              "media_src": "static/rownanie_wielomianowe_zad_1_rozwiazanie.mp4"
+            }
+          ]
+        },
+        {
+          "id": "t000001",
+          "label": "krok po kroku",
+          "elements": [
+            {
+              "type": "text",
+              "body": "<p>Niech \\(x\\) oznacza pierwszą z trzech liczb całkowitych.</p>"
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                            Wówczas kolejne dwie liczby to\n                            \n\n\n￿0￿\n                            .\n                            \n",
+              "options": [
+                "\\(x+1\\) i \\(x+2\\)",
+                "\\(2x\\) i \\(3x\\)",
+                "\\(2x+1\\) i \\(3x+2\\)"
+              ],
+              "answer": 0
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                            Ich iloczyn jest równy \\(2\\,730\\), więc \\(x(x+1)(x+2)=2\\,730\\).\n                        </p>"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                            Teraz wymnóż nawiasy i przenieś wszystkie wyrazy na lewą stronę.\n                        </p>"
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                            Otrzymujemy równanie\n                            \n\n\n\n￿0￿\n                            .\n                            \n",
+              "options": [
+                "\\(x^3+3x^2+2x+2\\,730=0\\)",
+                "\\(x^3+3x^2+2x-2\\,730=0\\)",
+                "\\(x^3+2x^2+3x+2\\,730=0\\)",
+                "\\(x^3+2x^2+3x-2\\,730=0\\)"
+              ],
+              "answer": 1
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                            Wypiszmy dzielniki wyrazu wolnego parami - aby iloczyn dzielników w każdej parze był równy \\(2\\,730\\). (Uzupełnij brakujące dzielniki.)\n                        </p>"
+            },
+            {
+              "type": "fill_table",
+              "data": {
+                "header_row": false,
+                "header_col": false,
+                "border": "grid",
+                "cells": [
+                  [
+                    {
+                      "kind": "static",
+                      "html": "\\(1\\)"
+                    },
+                    {
+                      "kind": "static",
+                      "html": "\\(2\\)"
+                    },
+                    {
+                      "kind": "answer",
+                      "answer": "3"
+                    },
+                    {
+                      "kind": "static",
+                      "html": "\\(5\\)"
+                    },
+                    {
+                      "kind": "static",
+                      "html": "\\(6\\)"
+                    },
+                    {
+                      "kind": "static",
+                      "html": "\\(7\\)"
+                    },
+                    {
+                      "kind": "static",
+                      "html": "\\(10\\)"
+                    },
+                    {
+                      "kind": "static",
+                      "html": "\\(13\\)"
+                    },
+                    {
+                      "kind": "static",
+                      "html": "\\(15\\)"
+                    },
+                    {
+                      "kind": "answer",
+                      "answer": "21"
+                    },
+                    {
+                      "kind": "static",
+                      "html": "\\(26\\)"
+                    },
+                    {
+                      "kind": "static",
+                      "html": "\\(30\\)"
+                    },
+                    {
+                      "kind": "static",
+                      "html": "\\(35\\)"
+                    },
+                    {
+                      "kind": "static",
+                      "html": "\\(39\\)"
+                    },
+                    {
+                      "kind": "static",
+                      "html": "\\(42\\)"
+                    }
+                  ],
+                  [
+                    {
+                      "kind": "static",
+                      "html": "\\(2\\,730\\)"
+                    },
+                    {
+                      "kind": "static",
+                      "html": "\\(1\\,365\\)"
+                    },
+                    {
+                      "kind": "static",
+                      "html": "\\(910\\)"
+                    },
+                    {
+                      "kind": "static",
+                      "html": "\\(546\\)"
+                    },
+                    {
+                      "kind": "static",
+                      "html": "\\(455\\)"
+                    },
+                    {
+                      "kind": "static",
+                      "html": "\\(390\\)"
+                    },
+                    {
+                      "kind": "answer",
+                      "answer": "273"
+                    },
+                    {
+                      "kind": "static",
+                      "html": "\\(210\\)"
+                    },
+                    {
+                      "kind": "static",
+                      "html": "\\(182\\)"
+                    },
+                    {
+                      "kind": "static",
+                      "html": "\\(130\\)"
+                    },
+                    {
+                      "kind": "static",
+                      "html": "\\(105\\)"
+                    },
+                    {
+                      "kind": "static",
+                      "html": "\\(91\\)"
+                    },
+                    {
+                      "kind": "static",
+                      "html": "\\(78\\)"
+                    },
+                    {
+                      "kind": "static",
+                      "html": "\\(70\\)"
+                    },
+                    {
+                      "kind": "static",
+                      "html": "\\(65\\)"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                                Sporo podejrzanych! Ułatwię Ci trochę zadanie.\n                            </p>"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                                Przyjmijmy:\n                            </p>"
+            },
+            {
+              "type": "math",
+              "latex": "\n                            W(x)=x^3+3x^2+2x-2\\,730\n                            "
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                                i sprawdźmy:\n                            </p>"
+            },
+            {
+              "type": "table",
+              "data": {
+                "header_row": false,
+                "header_col": false,
+                "border": "grid",
+                "cells": [
+                  [
+                    {
+                      "html": "\\[\n                                            \\begin{align*}\n                                            W(1)&amp;=1^3+3\\cdot 1^2+2\\cdot 1-2\\,730=-2\\,724\\ne 0\\\\\n                                            W(-1)&amp;=(-1)^3+3\\cdot (-1)^2+2\\cdot (-1)-2\\,730=-2\\,730\\ne 0\n                                            \\end{align*}\n                                            \\]\n                                            i dalej:",
+                      "halign": "left",
+                      "valign": "top",
+                      "colspan": 2
+                    }
+                  ],
+                  [
+                    {
+                      "html": "\\[\n                                            W(2)\\ne 0\\\\\n                                            W(3)\\ne 0\\\\\n                                            W(5)\\ne 0\\\\\n                                            W(6)\\ne 0\\\\\n                                            W(7)\\ne 0\n                                            \\]",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\[\n                                            W(-2)\\ne 0\\\\\n                                            W(-3)\\ne 0\\\\\n                                            W(-5)\\ne 0\\\\\n                                            W(-6)\\ne 0\\\\\n                                            W(-7)\\ne 0\n                                            \\]",
+                      "halign": "left",
+                      "valign": "top"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                                Teraz pora na Ciebie.\n                            </p>"
+            },
+            {
+              "type": "text",
+              "body": "<p>\\(W(10)=10^3+3\\cdot 10^2+2\\cdot 10-2\\,730=\\)</p>"
+            },
+            {
+              "type": "text",
+              "body": "<p>\\(=1\\,000+300+20-2\\,730\\)</p>"
+            },
+            {
+              "type": "text",
+              "body": "\n                                    &gt;&gt; wybierz &gt;&gt;\n                                "
+            },
+            {
+              "type": "text",
+              "body": "\n                                    \\(=0\\)\n                                "
+            },
+            {
+              "type": "text",
+              "body": "\n                                    \\(\\ne 0\\)\n                                "
+            },
+            {
+              "type": "text",
+              "body": "\n                                    zatwierdź\n                                "
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                            \\(W(-10)=(-10)^3+3\\cdot (-10)^2+2\\cdot (-10)-2\\,730=\\)\n                            \n                            \\(=-1\\,000+300-20-2\\,730\\)\n                            \n\n\n\n￿0￿",
+              "options": [
+                "\\(=0\\)",
+                "\\(\\ne 0\\)"
+              ],
+              "answer": 1
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                            \\(W(13)=13^3+3\\cdot 13^2+2\\cdot 13-2\\,730=\\)\n                            \n                            \\(=2\\,197+507+26-2\\,730\\)\n                            \n\n\n\n￿0￿",
+              "options": [
+                "\\(=0\\)",
+                "\\(\\ne 0\\)"
+              ],
+              "answer": 1
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                            Skoro \\(x=13\\) jest pierwiastkiem wielomianu \\(W(x)\\), to możemy podzielić ten wielomian przez \\((x-13)\\).\n                        </p>"
+            },
+            {
+              "type": "text",
+              "body": "<p>Wykonaj dzielenie i jeśli chcesz</p>"
+            },
+            {
+              "type": "spoiler",
+              "label": "sprawdź wynik.",
+              "elements": [
+                {
+                  "type": "table",
+                  "data": {
+                    "header_row": false,
+                    "header_col": false,
+                    "border": "grid",
+                    "cells": [
+                      [
+                        {
+                          "html": "\\(x^{2}\\)",
+                          "halign": "left",
+                          "valign": "top"
+                        },
+                        {
+                          "html": "\\(+16x\\)",
+                          "halign": "left",
+                          "valign": "top"
+                        },
+                        {
+                          "html": "\\(+210\\)",
+                          "halign": "left",
+                          "valign": "top"
+                        },
+                        {
+                          "html": "\\(\\)",
+                          "halign": "left",
+                          "valign": "top"
+                        },
+                        {
+                          "html": "\\(\\)",
+                          "halign": "left",
+                          "valign": "top"
+                        }
+                      ],
+                      [
+                        {
+                          "html": "\\((x^{3}\\)",
+                          "halign": "left",
+                          "valign": "top"
+                        },
+                        {
+                          "html": "\\(+3x^{2}\\)",
+                          "halign": "left",
+                          "valign": "top"
+                        },
+                        {
+                          "html": "\\(+2x\\)",
+                          "halign": "left",
+                          "valign": "top"
+                        },
+                        {
+                          "html": "\\(-2730)\\)",
+                          "halign": "left",
+                          "valign": "top"
+                        },
+                        {
+                          "html": "\\(:(x-13)\\)",
+                          "halign": "left",
+                          "valign": "top"
+                        }
+                      ],
+                      [
+                        {
+                          "html": "\\(x^{3}\\)",
+                          "halign": "left",
+                          "valign": "top"
+                        },
+                        {
+                          "html": "\\(-13x^{2}\\)",
+                          "halign": "left",
+                          "valign": "top"
+                        },
+                        {
+                          "html": "\\(\\)",
+                          "halign": "left",
+                          "valign": "top"
+                        },
+                        {
+                          "html": "\\(\\)",
+                          "halign": "left",
+                          "valign": "top"
+                        },
+                        {
+                          "html": "\\(\\)",
+                          "halign": "left",
+                          "valign": "top"
+                        }
+                      ],
+                      [
+                        {
+                          "html": "\\(=\\)",
+                          "halign": "left",
+                          "valign": "top"
+                        },
+                        {
+                          "html": "\\(16x^{2}\\)",
+                          "halign": "left",
+                          "valign": "top"
+                        },
+                        {
+                          "html": "\\(+2x\\)",
+                          "halign": "left",
+                          "valign": "top"
+                        },
+                        {
+                          "html": "\\(-2730\\)",
+                          "halign": "left",
+                          "valign": "top"
+                        },
+                        {
+                          "html": "\\(\\)",
+                          "halign": "left",
+                          "valign": "top"
+                        }
+                      ],
+                      [
+                        {
+                          "html": "\\(\\)",
+                          "halign": "left",
+                          "valign": "top"
+                        },
+                        {
+                          "html": "\\(16x^{2}\\)",
+                          "halign": "left",
+                          "valign": "top"
+                        },
+                        {
+                          "html": "\\(-208x\\)",
+                          "halign": "left",
+                          "valign": "top"
+                        },
+                        {
+                          "html": "\\(\\)",
+                          "halign": "left",
+                          "valign": "top"
+                        },
+                        {
+                          "html": "\\(\\)",
+                          "halign": "left",
+                          "valign": "top"
+                        }
+                      ],
+                      [
+                        {
+                          "html": "\\(\\)",
+                          "halign": "left",
+                          "valign": "top"
+                        },
+                        {
+                          "html": "\\(=\\)",
+                          "halign": "left",
+                          "valign": "top"
+                        },
+                        {
+                          "html": "\\(210x\\)",
+                          "halign": "left",
+                          "valign": "top"
+                        },
+                        {
+                          "html": "\\(-2730\\)",
+                          "halign": "left",
+                          "valign": "top"
+                        },
+                        {
+                          "html": "\\(\\)",
+                          "halign": "left",
+                          "valign": "top"
+                        }
+                      ],
+                      [
+                        {
+                          "html": "\\(\\)",
+                          "halign": "left",
+                          "valign": "top"
+                        },
+                        {
+                          "html": "\\(\\)",
+                          "halign": "left",
+                          "valign": "top"
+                        },
+                        {
+                          "html": "\\(210x\\)",
+                          "halign": "left",
+                          "valign": "top"
+                        },
+                        {
+                          "html": "\\(-2730\\)",
+                          "halign": "left",
+                          "valign": "top"
+                        },
+                        {
+                          "html": "\\(\\)",
+                          "halign": "left",
+                          "valign": "top"
+                        }
+                      ],
+                      [
+                        {
+                          "html": "\\(\\)",
+                          "halign": "left",
+                          "valign": "top"
+                        },
+                        {
+                          "html": "\\(\\)",
+                          "halign": "left",
+                          "valign": "top"
+                        },
+                        {
+                          "html": "\\(\\)",
+                          "halign": "left",
+                          "valign": "top"
+                        },
+                        {
+                          "html": "\\(=\\)",
+                          "halign": "left",
+                          "valign": "top"
+                        },
+                        {
+                          "html": "\\(\\)",
+                          "halign": "left",
+                          "valign": "top"
+                        }
+                      ]
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                            Wynikiem dzielenia jest\n                            \n\n\n￿0￿\n                            .\n                            \n",
+              "options": [
+                "\\((x^2+16x+210)\\)",
+                "\\((x^2-16x+210)\\)",
+                "\\((x^2+16x-210)\\)"
+              ],
+              "answer": 0
+            },
+            {
+              "type": "text",
+              "body": "<p>Mamy jedno rozwiązanie równania, a skoro rozłożyliśmy je do postaci\n                        \\[\n                        (x-13)(x^2+16x+210)=0\n                        \\]\n                        powinniśmy jeszcze sprawdzić, czy są jakieś rozwiązania wynikające z czynnika kwadratowego.</p>"
+            },
+            {
+              "type": "text",
+              "body": "<p>W tym celu obliczymy</p>"
+            },
+            {
+              "type": "text",
+              "body": "<strong>\n                            deltę\n                        </strong>"
+            },
+            {
+              "type": "text",
+              "body": "<p>- wyróżnik równania kwadratowego.</p>"
+            },
+            {
+              "type": "spoiler",
+              "label": "delta - przypomnienie",
+              "elements": [
+                {
+                  "type": "text",
+                  "body": "\n                                Dla równania kwadratowego\n                                \\[\n                                Ax^2+Bx+C=0\n                                \\]\n                                <small>\n                                    (w którym zmienną jest \\(x\\))\n                                </small>\n                                wyróżnik tego równania (zwany\n                                <strong>\n                                    deltą\n                                </strong>\n                                ) obliczamy według wzoru:\n                                \\[\n                                \\Delta=B^2-4AC\n                                \\]\n                            "
+                }
+              ]
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                            Dla równania \\(x^2+16x+210=0\\) otrzymujemy \\(\\Delta=\\)\n                            \n\n\n￿0￿\n                            .\n                            \n",
+              "options": [
+                "\\(584\\)",
+                "\\(-584\\)",
+                "\\(46\\)"
+              ],
+              "answer": 0
+            },
+            {
+              "type": "text",
+              "body": "<p>Ujemna delta oznacza, że jedynym rozwiązaniem równania wielomianowego jest \\(x=13\\), a to z kolei oznacza, że szukane liczby to \\(13\\), \\(14\\) i \\(15\\).</p>"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Objętość graniastosłupa prawidłowego trójkątnego jest równa \\(24\\sqrt{3}\\,\\text{cm}^3\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Suma długości wszystkich krawędzi graniastosłupa jest równa \\(42\\,\\text{cm}\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź długość krawędzi podstawy.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<h4>rozwiązanie</h4>"
+    },
+    {
+      "type": "tabs",
+      "tabs": [
+        {
+          "id": "t000000",
+          "label": "nagranie",
+          "elements": [
+            {
+              "type": "text",
+              "body": "<h3>\n                    Analiza zadania, zmienne, równania\n                </h3>"
+            },
+            {
+              "type": "video",
+              "media_src": "static/rownanie_wielomianowe_zad_2_analiza.mp4"
+            },
+            {
+              "type": "text",
+              "body": "<h3>\n                    Równanie wielomianowe\n                </h3>"
+            },
+            {
+              "type": "video",
+              "media_src": "static/rownanie_wielomianowe_zad_2_rownanie.mp4"
+            },
+            {
+              "type": "text",
+              "body": "<h3>\n                    Pierwszy pierwiastek i rozkład\n                </h3>"
+            },
+            {
+              "type": "video",
+              "media_src": "static/rownanie_wielomianowe_zad_2_pierwiastek.mp4"
+            },
+            {
+              "type": "text",
+              "body": "<h3>\n                    Rozwiązanie\n                </h3>"
+            },
+            {
+              "type": "video",
+              "media_src": "static/rownanie_wielomianowe_zad_2_rozwiązanie.mp4"
+            }
+          ]
+        },
+        {
+          "id": "t000001",
+          "label": "krok po kroku",
+          "elements": [
+            {
+              "type": "image",
+              "media_src": "static/rownanie_wielomianowe_graniastoslup_trojkatny.png",
+              "alt": "graniastosłup",
+              "figcaption": ""
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                            Rysunek obok przedstawia szkic graniastosłupa prawidłowego trójkątnego. Jego\n                            <span style=\"color: red;\">\n                                podstawą\n                            </span>\n                            jest trójkąt równoboczny, a\n                            <span style=\"color: blue;\">\n                                krawędzie boczne\n                            </span>\n                            są prostopadłe do podstawy, czyli ich długości to wysokości.\n                        </p>"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                            Przyjmijmy, że\n                        </p>"
+            },
+            {
+              "type": "text",
+              "body": "<ul class=\"nolist\">\n<li>\n                                \\(a\\) to długość krawędzi podstawy zaś\n                            </li>\n<li>\n                                \\(h\\) to długość wysokości.\n                            </li>\n</ul>"
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                            Objętość każdego graniastosłupa jest równa\n                            \n\n\n￿0￿\n                            .\n                            \n",
+              "options": [
+                "\\((\\text{pole podstawy})\\cdot\\text{wysokość}\\)",
+                "\\(\\tfrac{1}{3}(\\text{pole podstawy})\\cdot\\text{wysokość}\\)",
+                "\\(3\\cdot(\\text{pole ściany bocznej})\\)"
+              ],
+              "answer": 0
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                            Podstawa to trójkąt równoboczny o boku \\(a\\).\n                        </p>"
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                            Dlatego pole podstawy to\n                            \n\n\n￿0￿\n                            .\n                            \n",
+              "options": [
+                "\\(\\tfrac{1}{2}a^2\\sqrt{2}\\)",
+                "\\(\\tfrac{a^2\\sqrt{3}}{4}\\)",
+                "\\(\\tfrac{a\\sqrt{3}}{2}\\)"
+              ],
+              "answer": 1
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                            Znając wzór na pole podstawy i wiedząc, że\n                        </p>"
+            },
+            {
+              "type": "text",
+              "body": "<blockquote>\n                            \"objętość graniastosłupa (...) jest równa \\(24\\sqrt{3}\\,\\text{cm}^3\\).\"\n                        </blockquote>"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                            możemy ułożyć równanie na objętość\n                        </p>"
+            },
+            {
+              "type": "table",
+              "data": {
+                "header_row": false,
+                "header_col": false,
+                "border": "grid",
+                "cells": [
+                  [
+                    {
+                      "html": "\\((\\text{pole podstawy})\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\cdot\\text{wysokość}\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(=\\text{objętość}\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    }
+                  ],
+                  [
+                    {
+                      "html": "\\(\\tfrac{a^2\\sqrt{3}}{4}\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\cdot h\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(=24\\sqrt{3}\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                            Mnożąc obie strony równania \\(\\tfrac{a^2\\sqrt{3}}{4}\\cdot h=24\\sqrt{3}\\) przez \\(4\\) i dzieląc przez \\(\\sqrt{3}\\) uzyskujemy\n                            \n\n\n￿0￿\n                            .\n                            \n",
+              "options": [
+                "\\(a^2\\cdot 2\\sqrt{3}\\cdot h=96\\)",
+                "\\(a^2h=48\\)",
+                "\\(a^2h=96\\)"
+              ],
+              "answer": 2
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                            Zapamiętajmy to równanie:\n                        </p>"
+            },
+            {
+              "type": "math",
+              "latex": "\n                        \\fbox{\\(a^2h=96\\)}\n                        "
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                            Zwróćmy teraz uwagę, że\n                        </p>"
+            },
+            {
+              "type": "text",
+              "body": "<blockquote>\n                            \"Suma długości wszystkich krawędzi graniastosłupa jest równa \\(42\\,\\text{cm}\\)\"\n                        </blockquote>"
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                            Oznacza to, że\n                            \n\n\n￿0￿\n                            .\n                            \n",
+              "options": [
+                "\\(3a+3h=42\\)",
+                "\\(a+h=42\\)",
+                "\\(6a+3h=42\\)"
+              ],
+              "answer": 2
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                            Stąd wyliczamy:\n                        </p>"
+            },
+            {
+              "type": "math",
+              "latex": "\n                        \\begin{align*}\n                        2a+h&=14\\\\\n                        h&=14-2a\n                        \\end{align*}\n                        \\]\n                        Podstawiając to do zaznaczonego wyżej równania \\(\\fbox{\\(a^2h=96\\)}\\) otrzymujemy\n                        \\[\n                        a^2(14-2a)=96\n                        "
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                            Wymnażając, skracając i przenosząc wszystkie wyrazy na lewą stronę otrzymujemy\n                            \n\n\n\n\n￿0￿",
+              "options": [
+                "\\(a^3+7a^2-48=0\\)",
+                "\\(a^3-7a^2+48=0\\)",
+                "\\(a^3-7a^2+96=0\\)"
+              ],
+              "answer": 1
+            },
+            {
+              "type": "text",
+              "body": "<p>Wypiszmy dzielniki wyrazu wolnego parami - aby iloczyn dzielników w każdej parze był równy \\(48\\). (Uzupełnij brakujące dzielniki.)</p>"
+            },
+            {
+              "type": "fill_table",
+              "data": {
+                "header_row": false,
+                "header_col": false,
+                "border": "grid",
+                "cells": [
+                  [
+                    {
+                      "kind": "static",
+                      "html": "\\(1\\)"
+                    },
+                    {
+                      "kind": "static",
+                      "html": "\\(2\\)"
+                    },
+                    {
+                      "kind": "static",
+                      "html": "\\(3\\)"
+                    },
+                    {
+                      "kind": "answer",
+                      "answer": "4"
+                    },
+                    {
+                      "kind": "static",
+                      "html": "\\(6\\)"
+                    }
+                  ],
+                  [
+                    {
+                      "kind": "static",
+                      "html": "\\(48\\)"
+                    },
+                    {
+                      "kind": "static",
+                      "html": "\\(24\\)"
+                    },
+                    {
+                      "kind": "answer",
+                      "answer": "16"
+                    },
+                    {
+                      "kind": "static",
+                      "html": "\\(12\\)"
+                    },
+                    {
+                      "kind": "static",
+                      "html": "\\(8\\)"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                                I teraz przyjmując\n                            </p>"
+            },
+            {
+              "type": "math",
+              "latex": "\n                            W(a)=a^3-7a^2+48\n                            "
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                                powinniśmy sprawdzić wartość tego wielomianu dla kolejnych wartości spośród\n                            </p>"
+            },
+            {
+              "type": "math",
+              "latex": "\n                            \\pm 1, \\pm 2, \\pm 3, \\pm 4, \\pm 6, \\pm 8, \\pm 12, \\pm 16, \\pm 24, \\pm 48\n                            "
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                                Ułatwię Ci życie zdradzając, że\n                            </p>"
+            },
+            {
+              "type": "text",
+              "body": "\n                                \\(\\quad W(1)\\ne 0\\), \\(\\quad W(-1)\\ne 0\\), \\(\\quad W(2)\\ne 0\\), \\(\\quad W(-2)\\ne 0\\), \\(\\quad W(3)\\ne 0\\)\n                            "
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                                Ale dalej już Ty:\n                            </p>"
+            },
+            {
+              "type": "text",
+              "body": "<p>\\(W(-3)=(-3)^3-7\\cdot(-3)^2+48=-27+21+48\\)</p>"
+            },
+            {
+              "type": "text",
+              "body": "\n                                    &gt;&gt; wybierz &gt;&gt;\n                                "
+            },
+            {
+              "type": "text",
+              "body": "\n                                    \\(= 0\\)\n                                "
+            },
+            {
+              "type": "text",
+              "body": "\n                                    \\(\\ne 0\\)\n                                "
+            },
+            {
+              "type": "text",
+              "body": "\n                                    zatwierdź\n                                "
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                            \\(W(4)=4^3-7\\cdot 4^2+48=64-7\\cdot 16+48\\)\n                            \n\n\n\n￿0￿",
+              "options": [
+                "\\(= 0\\)",
+                "\\(\\ne 0\\)"
+              ],
+              "answer": 1
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                            Skoro \\(a=13\\) jest pierwiastkiem wielomianu \\(W(a)\\), to możemy podzielić ten wielomian przez \\((a-4)\\).\n                        </p>"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                            Wykonaj dzielenie i jeśli chcesz\n                        </p>"
+            },
+            {
+              "type": "spoiler",
+              "label": "sprawdź wynik.",
+              "elements": [
+                {
+                  "type": "table",
+                  "data": {
+                    "header_row": false,
+                    "header_col": false,
+                    "border": "grid",
+                    "cells": [
+                      [
+                        {
+                          "html": "\\(a^{2}\\)",
+                          "halign": "left",
+                          "valign": "top"
+                        },
+                        {
+                          "html": "\\(-3a\\)",
+                          "halign": "left",
+                          "valign": "top"
+                        },
+                        {
+                          "html": "\\(-12\\)",
+                          "halign": "left",
+                          "valign": "top"
+                        },
+                        {
+                          "html": "\\(\\)",
+                          "halign": "left",
+                          "valign": "top"
+                        },
+                        {
+                          "html": "\\(\\)",
+                          "halign": "left",
+                          "valign": "top"
+                        }
+                      ],
+                      [
+                        {
+                          "html": "\\((a^{3}\\)",
+                          "halign": "left",
+                          "valign": "top"
+                        },
+                        {
+                          "html": "\\(-7a^{2}\\)",
+                          "halign": "left",
+                          "valign": "top"
+                        },
+                        {
+                          "html": "\\(\\)",
+                          "halign": "left",
+                          "valign": "top"
+                        },
+                        {
+                          "html": "\\(+48)\\)",
+                          "halign": "left",
+                          "valign": "top"
+                        },
+                        {
+                          "html": "\\(:(a-4)\\)",
+                          "halign": "left",
+                          "valign": "top"
+                        }
+                      ],
+                      [
+                        {
+                          "html": "\\(a^{3}\\)",
+                          "halign": "left",
+                          "valign": "top"
+                        },
+                        {
+                          "html": "\\(-4a^{2}\\)",
+                          "halign": "left",
+                          "valign": "top"
+                        },
+                        {
+                          "html": "\\(\\)",
+                          "halign": "left",
+                          "valign": "top"
+                        },
+                        {
+                          "html": "\\(\\)",
+                          "halign": "left",
+                          "valign": "top"
+                        },
+                        {
+                          "html": "\\(\\)",
+                          "halign": "left",
+                          "valign": "top"
+                        }
+                      ],
+                      [
+                        {
+                          "html": "\\(=\\)",
+                          "halign": "left",
+                          "valign": "top"
+                        },
+                        {
+                          "html": "\\(-3a^{2}\\)",
+                          "halign": "left",
+                          "valign": "top"
+                        },
+                        {
+                          "html": "\\(\\)",
+                          "halign": "left",
+                          "valign": "top"
+                        },
+                        {
+                          "html": "\\(+48\\)",
+                          "halign": "left",
+                          "valign": "top"
+                        },
+                        {
+                          "html": "\\(\\)",
+                          "halign": "left",
+                          "valign": "top"
+                        }
+                      ],
+                      [
+                        {
+                          "html": "\\(\\)",
+                          "halign": "left",
+                          "valign": "top"
+                        },
+                        {
+                          "html": "\\(-3a^{2}\\)",
+                          "halign": "left",
+                          "valign": "top"
+                        },
+                        {
+                          "html": "\\(+12a\\)",
+                          "halign": "left",
+                          "valign": "top"
+                        },
+                        {
+                          "html": "\\(\\)",
+                          "halign": "left",
+                          "valign": "top"
+                        },
+                        {
+                          "html": "\\(\\)",
+                          "halign": "left",
+                          "valign": "top"
+                        }
+                      ],
+                      [
+                        {
+                          "html": "\\(\\)",
+                          "halign": "left",
+                          "valign": "top"
+                        },
+                        {
+                          "html": "\\(=\\)",
+                          "halign": "left",
+                          "valign": "top"
+                        },
+                        {
+                          "html": "\\(-12a\\)",
+                          "halign": "left",
+                          "valign": "top"
+                        },
+                        {
+                          "html": "\\(+48\\)",
+                          "halign": "left",
+                          "valign": "top"
+                        },
+                        {
+                          "html": "\\(\\)",
+                          "halign": "left",
+                          "valign": "top"
+                        }
+                      ],
+                      [
+                        {
+                          "html": "\\(\\)",
+                          "halign": "left",
+                          "valign": "top"
+                        },
+                        {
+                          "html": "\\(\\)",
+                          "halign": "left",
+                          "valign": "top"
+                        },
+                        {
+                          "html": "\\(-12a\\)",
+                          "halign": "left",
+                          "valign": "top"
+                        },
+                        {
+                          "html": "\\(+48\\)",
+                          "halign": "left",
+                          "valign": "top"
+                        },
+                        {
+                          "html": "\\(\\)",
+                          "halign": "left",
+                          "valign": "top"
+                        }
+                      ],
+                      [
+                        {
+                          "html": "\\(\\)",
+                          "halign": "left",
+                          "valign": "top"
+                        },
+                        {
+                          "html": "\\(\\)",
+                          "halign": "left",
+                          "valign": "top"
+                        },
+                        {
+                          "html": "\\(\\)",
+                          "halign": "left",
+                          "valign": "top"
+                        },
+                        {
+                          "html": "\\(=\\)",
+                          "halign": "left",
+                          "valign": "top"
+                        },
+                        {
+                          "html": "\\(\\)",
+                          "halign": "left",
+                          "valign": "top"
+                        }
+                      ]
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                            Wynikiem dzielenia jest\n                            \n\n\n￿0￿\n                            .\n                            \n",
+              "options": [
+                "\\((a^2-3a-12)\\)",
+                "\\((a^2+3a-12)\\)",
+                "\\((a^2-3a+12)\\)"
+              ],
+              "answer": 0
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                            Mamy jedno rozwiązanie równania, a skoro rozłożyliśmy je do postaci\n                        </p>"
+            },
+            {
+              "type": "math",
+              "latex": "\n                        (a-4)(a^2-3a-12)=0\n                        "
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                            powinniśmy jeszcze sprawdzić, czy są jakieś rozwiązania wynikające z czynnika kwadratowego.\n                        </p>"
+            },
+            {
+              "type": "text",
+              "body": "<p>W tym celu obliczymy</p>"
+            },
+            {
+              "type": "text",
+              "body": "<strong>\n                            deltę\n                        </strong>"
+            },
+            {
+              "type": "text",
+              "body": "<p>- wyróżnik równania kwadratowego.</p>"
+            },
+            {
+              "type": "spoiler",
+              "label": "delta - przypomnienie",
+              "elements": [
+                {
+                  "type": "text",
+                  "body": "\n                                Dla równania kwadratowego\n                                \\[\n                                Ax^2+Bx+C=0\n                                \\]\n                                <small>\n                                    (w którym zmienną jest \\(x\\))\n                                </small>\n                                wyróżnik tego równania (zwany\n                                <strong>\n                                    deltą\n                                </strong>\n                                ) obliczamy według wzoru:\n                                \\[\n                                \\Delta=B^2-4AC\n                                \\]\n                            "
+                }
+              ]
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                            Dla równania \\(a^2-3a-12=0\\) otrzymujemy \\(\\Delta =\\)\n                            \n\n\n￿0￿\n                            .\n                            \n",
+              "options": [
+                "\\(-37\\)",
+                "\\(57\\)",
+                "\\(21\\)"
+              ],
+              "answer": 0
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                            i teraz możemy obliczyć pierwiastki równania \\(a^2-3a-12=0\\).\n                        </p>"
+            },
+            {
+              "type": "spoiler",
+              "label": "rozwiązania równania kwadratowego - przypomnienie",
+              "elements": [
+                {
+                  "type": "text",
+                  "body": "\n                                Rozwiązania równania kwadratowego\n                                \\[\n                                Ax^2+Bx+C=0\n                                \\]\n                                <small>\n                                    (w którym zmienną jest \\(x\\))\n                                </small>\n                                obliczamy według wzorów:\n                                \\[\n                                x=\\frac{-B\\pm\\sqrt{\\Delta}}{2A}\n                                \\]\n                            "
+                }
+              ]
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                            Dla równania \\(a^2-3a-12=0\\) otrzymujemy\n                            \n\n\n\n\n￿0￿",
+              "options": [
+                "\\(a=3-\\sqrt{57}\\) i \\(a=3+\\sqrt{57}\\)",
+                "\\(a=\\tfrac{3-\\sqrt{57}}{2}\\) i \\(a=\\tfrac{3+\\sqrt{57}}{2}\\)",
+                "\\(a=\\tfrac{3-\\sqrt{57}}{24}\\) i \\(a=\\tfrac{3+\\sqrt{57}}{24}\\)"
+              ],
+              "answer": 1
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                            Zwróćmy uwagę, że\n                        </p>"
+            },
+            {
+              "type": "text",
+              "body": "<ul>\n<li>\n                                wartość \\(a\\) musi być dodatnia (bo oznacza długość krawędzi),\n                            </li>\n<li>\n                                wartość \\(a\\) musi być mniejsza od \\(7\\) (bo \\(2a+h=14\\), a \\(h\\) też musi być dodatnie).\n                            </li>\n</ul>"
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                            Dlatego jedynym rozwiązaniem tego równania kwadratowego jest\n                            \n\n￿0￿\n                            .\n                            \n",
+              "options": [
+                "\\(a=\\tfrac{3-\\sqrt{57}}{2}\\)",
+                "\\(a=\\tfrac{3+\\sqrt{57}}{2}\\)"
+              ],
+              "answer": 1
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                            Natomiast początkowe równanie wielomianowe ma dwa rozwiązania:\n                        </p>"
+            },
+            {
+              "type": "text",
+              "body": "\n                            \\(a=4\\) lub \\(a=\\tfrac{3+\\sqrt{57}}{2}\\)\n                        "
+            },
+            {
+              "type": "text",
+              "body": "<p>Istnieją dwa różne graniastosłupy spełniające warunki zadania. Jeden z nich ma podstawę o krawędzi długości \\(4\\,\\text{cm}\\), a drugi \\(\\left(\\tfrac{3+\\sqrt{57}}{2}\\right)\\,\\text{cm}\\).</p>"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "fe885f9b0ff73e1151170854fa510ac6435ef321b66608544a46b17d7671812a"
+}

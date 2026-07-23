@@ -1,0 +1,91 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Formalnie matematykę poznajemy na dwa sposoby: poprzez definicje i twierdzenia.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n    Definicja służy wprowadzeniu nowego pojęcia za pomocą pojęć już znanych.\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Prosty przykład:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<blockquote class=\"centered\">\n    Trójkąt to fragment płaszczyzny ograniczony trzema odcinkami.\n</blockquote>"
+    },
+    {
+      "type": "text",
+      "body": "\n    Twierdzenie opisuje własności różnych obiektów, które wywnioskowujemy oraz dowodzimy.\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Aby poprawnie sformułować twierdznie należy zacząć od założenia, z którego wywnioskujemy i dowiedziemy spodziewane własności, nazywane tezą.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Innymi słowy: twierdzenie ma postać implikacji:\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        jeśli (\n        <span style=\"color: red;\">\n            założenie\n        </span>\n        ) to (\n        <span style=\"color: blue;\">\n            teza\n        </span>\n        )\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Wydaje się, że twierdzenie nie zawsze tak wygląda. Najprostszym przykładem jest znane nam twierdzenie Pitagorasa w brzmieniu:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<blockquote class=\"centered\">\n    Suma kwadratów dwóch krótszych boków trójkąta prostokątnego jest równa kwadratowi najdłuższego boku.\n</blockquote>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Jednak i tak zapisane twierdzenie możemy zapisać w postaci implikacji:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<blockquote class=\"centered\">\n    Jeśli\n    <span style=\"color: red;\">\n        trójkąt jest prostokątny\n    </span>\n    to\n    <span style=\"color: blue;\">\n        suma kwadratów dwóch krótszych boków jest równa kwadratowi najdłuższego boku\n    </span>\n    .\n</blockquote>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Założeniem jest fakt, że trójkąt jest prostokątny, a tezą równość między kwadratami jego boków.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Wskaż, czy dana wypowiedź to definicja, czy twierdznie.\n    "
+    },
+    {
+      "type": "choice_grid",
+      "columns": [
+        "definicja",
+        "twierdzenie"
+      ],
+      "rows": [
+        {
+          "statement": "Liczba całkowita nazywana jest parzystą jeśli dzieli się przez 2.",
+          "correct": 0
+        },
+        {
+          "statement": "Przekątne rombu przecinają się pod kątem prostym.",
+          "correct": 1
+        },
+        {
+          "statement": "Kwadrat liczby parzystej jest podzielny przez 4.",
+          "correct": 1
+        },
+        {
+          "statement": "Liczba pierwsza to taka liczba naturalna, która ma dokładnie 2 dzielniki.",
+          "correct": 0
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "324ddaa7140f35861291ba621026e289d375ec9eebdbbf63fb92e0e741479226"
+}

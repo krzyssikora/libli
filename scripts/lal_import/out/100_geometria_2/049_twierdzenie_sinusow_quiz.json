@@ -1,0 +1,107 @@
+{
+  "elements": [
+    {
+      "type": "choice",
+      "stem": "<p>\n    W trójkącie dane są miary wszystkich kątów: \\(A\\), \\(B\\) i \\(C\\) oraz długość boku \\(a\\), przeciwległego do kąta \\(A\\).\n</p><p>\n    Aby obliczyć długość boku \\(c\\), przeciwległego do kąta \\(C\\), możemy użyć równania:\n</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(\\frac{a}{\\sin A}=\\frac{c}{\\sin A}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\frac{a}{\\sin C}=\\frac{c}{\\sin A}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\frac{a}{\\sin A}=\\frac{c}{\\sin C}\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\frac{a}{\\sin B}=\\frac{c}{\\sin A}\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\n    W trójkącie dane są długości boków \\(b\\) i \\(c\\) oraz miara kąta \\(C\\) przeciwległego do boku \\(c\\).\n</p><p>\n    Aby obliczyć miarę kąta \\(B\\), przeciwległego do boku \\(b\\), możemy użyć równania:\n</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(\\frac{b}{\\sin B}=\\frac{c}{\\sin C}\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\frac{b}{\\sin C}=\\frac{c}{\\sin B}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\frac{c}{\\sin C}=\\frac{a}{\\sin (180^{\\circ}-C-A)}\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\n    Obliczając kąt z twierdzenia sinusa uzyskaliśmy \\(\\sin A = \\frac{1}{2}\\).\n</p><p>\n    Wskaż wszystkie możliwe miary kąta \\(A\\) wynikające z tego równania.\n</p>",
+      "multiple": true,
+      "choices": [
+        {
+          "text": "\\(15^{\\circ}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(30^{\\circ}\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(45^{\\circ}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(60^{\\circ}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(90^{\\circ}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(120^{\\circ}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(135^{\\circ}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(150^{\\circ}\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(175^{\\circ}\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "7d4b8fbada2faaed7e940ace6ed7a1f95dc2b76db6e668f6599092c6a624d02b"
+}

@@ -1,0 +1,239 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Przypomnijmy:\n</p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "poleprostokąta",
+      "elements": [
+        {
+          "type": "image",
+          "media_src": "static/prostokat_pole_ab.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    \\(P\\), pole prostokąta o bokach \\(a\\) i \\(b\\) jest dane wzorem\n                </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                P=ab\n                "
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "polekwadratu",
+      "elements": [
+        {
+          "type": "image",
+          "media_src": "static/kwadrat_pole_aa.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    \\(P\\), pole kwadratu o boku \\(a\\) jest dane wzorem\n                </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                P=a^2\n                "
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Poznaliśmy też wzór na pole równoległoboku w zależności od obu przekątnych i kąta między nimi.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Pole równoległoboku jest równe iloczynowi długości <span style=\"color: blue\">przekątnych</span> równoległoboku i sinusa <span style=\"color:red\">kąta</span> między przekątnymi.\n    </p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/rownoleglobok_pole_5.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "math",
+      "latex": "\n    P=\\frac{1}{2}\\cdot d_1\\cdot d_2\\cdot \\sin\\beta\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Zarówno prostokąt jak i kwadrat są równoległobokami. \n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Jak wyglądają wzory na pola prostokąta i kwadratu w zależności od długości przekątnych?\n        </p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/prostokat_pole_przekatne.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "spoiler",
+      "label": "poleprostokąta",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                            \\(P\\), pole prostokąta o przekątnych długości \\(d\\) i kącie między nimi o mierze \\(\\beta\\) jest dane wzorem\n                        </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                        P=\\frac{1}{2}d^2\\sin\\beta\n                        "
+        }
+      ]
+    },
+    {
+      "type": "image",
+      "media_src": "static/kwadrat_pole_przekatne.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "spoiler",
+      "label": "polekwadratu",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                            \\(P\\), pole kwadratu o przekątnych długości \\(d\\) jest dane wzorem\n                        </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                        P=\\frac{1}{2}d^2\n                        "
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Pole kwadratu o przekątnej długości \\(d\\) jest równe \\(P\\).\n        </p>"
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n1. Jeśli \\(d=6\\), to \\(P=\\)\n                    \n\n\n\n￿0￿.\n                ",
+      "options": [
+        "\\(36\\)",
+        "\\(18\\)",
+        "\\(9\\)"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n2. Jeśli \\(d=7\\), to \\(P=\\)\n                    \n\n\n\n￿0￿.\n                ",
+      "options": [
+        "\\(49\\)",
+        "\\(\\tfrac{49}{2}\\)",
+        "\\(\\tfrac{49}{4}\\)"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n3. Jeśli \\(P=8\\), to \\(d=\\)\n                    \n\n\n\n\n￿0￿.\n                ",
+      "options": [
+        "\\(2\\sqrt{2}\\)",
+        "\\(4\\)",
+        "\\(4\\sqrt{2}\\)",
+        "\\(8\\)"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n4. Jeśli \\(P=25\\), to \\(d=\\)\n                    \n\n\n\n\n￿0￿.\n                ",
+      "options": [
+        "\\(5\\)",
+        "\\(5\\sqrt{2}\\)",
+        "\\(10\\)",
+        "\\(10\\sqrt{2}\\)"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "text",
+      "body": "<p>Świetnie!</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Pole prostokąta o przekątnej długości \\(d\\) i kącie między przekątnymi o mierze \\(\\alpha\\) jest równe \\(P\\).\n        </p>"
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n1. Jeśli \\(d=6\\) i \\(\\alpha=30^{\\circ}\\), to \\(P=\\)\n                    \n\n\n\n\n￿0￿.\n                ",
+      "options": [
+        "\\(36\\)",
+        "\\(18\\)",
+        "\\(9\\)",
+        "\\(9\\sqrt{3}\\)"
+      ],
+      "answer": 2
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n2. Jeśli \\(d=7\\) i \\(\\alpha=45^{\\circ}\\), to \\(P=\\)\n                    \n\n\n\n\n\n￿0￿.\n                ",
+      "options": [
+        "\\(49\\)",
+        "\\(49\\sqrt{2}\\)",
+        "\\(\\tfrac{49}{2}\\)",
+        "\\(\\tfrac{49\\sqrt{2}}{4}\\)",
+        "\\(\\tfrac{49}{4}\\)"
+      ],
+      "answer": 3
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n3. Jeśli \\(d=8\\) i \\(P=16\\), to \\(\\alpha=\\)\n                    \n\n\n\n￿0￿.\n                ",
+      "options": [
+        "\\(30^{\\circ}\\)",
+        "\\(45^{\\circ}\\)",
+        "\\(60^{\\circ}\\)"
+      ],
+      "answer": 0
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n4. Jeśli \\(d=6\\) i \\(P=9\\sqrt{3}\\), to \\(\\alpha=\\)\n                    \n\n\n\n￿0￿.\n                ",
+      "options": [
+        "\\(30^{\\circ}\\)",
+        "\\(45^{\\circ}\\)",
+        "\\(60^{\\circ}\\)"
+      ],
+      "answer": 2
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n5. Jeśli \\(P=6\\sqrt{2}\\) i \\(\\alpha=45^{\\circ}\\), to \\(d=\\)\n                    \n\n\n\n￿0￿.\n                ",
+      "options": [
+        "\\(2\\sqrt{6}\\)",
+        "\\(2\\sqrt{3}\\)",
+        "\\(3\\sqrt{2}\\)"
+      ],
+      "answer": 0
+    },
+    {
+      "type": "text",
+      "body": "<p>Świetnie!</p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "a52a2a95a04fd5753fb16b8429b27bfba11d877e0e192aea4fe46418ddd77438"
+}

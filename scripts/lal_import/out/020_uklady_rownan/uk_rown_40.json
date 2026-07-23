@@ -1,0 +1,18 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<h1>\n    Jak rozwiązywać zadania \"z treścią\"?\n</h1>"
+    },
+    {
+      "type": "video",
+      "media_src": "static/uklad_rownan_4.mp4"
+    },
+    {
+      "type": "text",
+      "body": "<ol>\n<li>\n            Przeczytaj uważnie treść zadania.\n        </li>\n<li>\n            Przeczytaj uważnie treść zadania.\n            <br/>\n            Tyle razy, ile potrzebujesz.\n        </li>\n<li>\n            Wybierz, co będzie niewiadomą / niewiadomymi.\n            <br/>\n            \\(\\quad\\quad \\rightarrow\\) Nie wprowadzaj zbędnych niewiadomych.\n        </li>\n<li>\n            Jeśli potrzebujesz, narysuj szkic.\n        </li>\n<li>\n            Ułóż równanie / równania, które połączą dane z niewiadomymi.\n        </li>\n<li>\n            Rozwiąż równanie / układ równań.\n        </li>\n</ol>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "3dbceb3d1313b9a103ce9bf8202a971fc0ff750e23c576bcac63cb562ea6cb2b"
+}

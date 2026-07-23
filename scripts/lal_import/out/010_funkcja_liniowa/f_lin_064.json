@@ -1,0 +1,89 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<h3>\n    Punkty przecięcia prostej z osią \\(x\\) - przypadki szczególne\n</h3>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/vsnvfdvc/width/900/height/600/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Z punktami przecięcia prostej z osią \\(x\\) bywa inaczej. Poprzesuwaj pomarańczowe punkty powyżej i spróbuj otrzymać proste, które będą miały więcej niż jeden punkt przecięcia z osią \\(x\\) lub nie będą miały ich wcale.\n        <br/>\n        Jakie są Twoje obserwacje? Porównaj je z odpowiedziami ukrytymi niżej.\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "dużopunktów wspólnych z osią \\(x\\)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Prosta ma</p>"
+        },
+        {
+          "type": "text",
+          "body": "<strong>\n                            nieskończenie wiele\n                        </strong>"
+        },
+        {
+          "type": "text",
+          "body": "<p>punktów wspólnych z osią \\(x\\), jeśli się z nią</p>"
+        },
+        {
+          "type": "text",
+          "body": "<u>\n                            pokrywa\n                        </u>"
+        },
+        {
+          "type": "text",
+          "body": "<p>, tzn. jest to prosta o równaniu:\\[\\color{orange}{y=0}\\]</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "brakpunktów wspólnych z osią \\(x\\)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Prosta</p>"
+        },
+        {
+          "type": "text",
+          "body": "<strong>\n                            nie ma wcale\n                        </strong>"
+        },
+        {
+          "type": "text",
+          "body": "<p>punktów wspólnych z osią \\(x\\), jeśli jest to do osi \\(x\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<u>\n                            równoległa\n                        </u>"
+        },
+        {
+          "type": "text",
+          "body": "<p>, tzn. jest to prosta o równaniu:\n                        \\[\\color{green}{y=c}\\]\n                        gdzie \\(c\\) jest dowolną liczbą</p>"
+        },
+        {
+          "type": "text",
+          "body": "<strong>\n                            różną od \\(0\\)\n                        </strong>"
+        },
+        {
+          "type": "text",
+          "body": "<p>.</p>"
+        }
+      ]
+    },
+    {
+      "type": "image",
+      "media_src": "static/punkty_os_x.png",
+      "alt": "",
+      "figcaption": ""
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "f232da7159e5bebba1258ab376adfd39ade600fb0b13ce49a047f11a69419370"
+}

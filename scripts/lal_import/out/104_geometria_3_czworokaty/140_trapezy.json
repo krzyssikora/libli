@@ -1,0 +1,216 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Przesuń powoli pomarańczowy suwak w poniższym aplecie. Zobaczysz drugi, przystający trapez w innym położeniu.\n        </p>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/y4fkdntp/width/656/height/433/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Jaką własność kątów przy tym samym ramieniu trapezu pokazuje animacja?\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "twierdzenie o kątach przy ramieniu trapezu",
+      "elements": [
+        {
+          "type": "text",
+          "body": "\n            Suma kątów wewnętrznych przy jednym ramieniu trapezu jest równa \\(180^{\\circ}\\).\n        "
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W trapezie równoramiennym \\(ABCD\\), w którym \\(AB\\parallel CD\\), kąt wewnętrzny przy wierzchołku \\(C\\) ma miarę \\(134^{\\circ}\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź miary pozostałych kątów wewnętrznych trapezu.\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                    Zacznijmy od rysunku pomocniczego. Rysunek jest odręczny, więc, oczywiście, nie zachowuje skali.\n                </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/trapez_katy_przy_ramieniu_1_1.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Zacznijmy od kąta w wierzchołku \\(B\\). Z twierdzenia o kątach przy ramieniu trapezu kąt \\(B\\) jest równy\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(134^{\\circ}\\)",
+            "\\(134^{\\circ}-90^{\\circ}\\)",
+            "\\(180^{\\circ}-134^{\\circ}\\)"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Czyli kąt w wirzchołku \\(B\\) ma miarę \\(180^{\\circ}-134^{\\circ}=46^{\\circ}\\)\n                </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/trapez_katy_przy_ramieniu_1_2.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Trapez jest równoramienny, więc kąt w wierzchołku \\(A\\) ma miarę \n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(90^{\\circ}-46^{\\circ}\\)",
+            "\\(46^{\\circ}\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "image",
+          "media_src": "static/trapez_katy_przy_ramieniu_1_3.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Z identycznego powodu kąt w wierzchołku \\(D\\) ma miarę\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(46^{\\circ}\\)",
+            "\\(134^{\\circ}\\)",
+            "\\(46^{\\circ}+90^{\\circ}\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "image",
+          "media_src": "static/trapez_katy_przy_ramieniu_1_4.png",
+          "alt": "",
+          "figcaption": ""
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/trapez.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W trapezie \\(ABCD\\) boki \\(AB\\) i \\(CD\\) są równoległe, jak na rysunku pomocniczym.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Wpisz miary brakujących kątów.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Nie wpisuj znaku stopnia.\n        </p>"
+    },
+    {
+      "type": "fill_table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "kind": "static",
+              "html": "\\(A\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(B\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(C\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(D\\)"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(30^{\\circ}\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "72"
+            },
+            {
+              "kind": "static",
+              "html": "\\(108^{\\circ}\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "150"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(63^{\\circ}\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(63^{\\circ}\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "117"
+            },
+            {
+              "kind": "answer",
+              "answer": "117"
+            }
+          ],
+          [
+            {
+              "kind": "answer",
+              "answer": "90"
+            },
+            {
+              "kind": "static",
+              "html": "\\(40^{\\circ}\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "140"
+            },
+            {
+              "kind": "static",
+              "html": "\\(90^{\\circ}\\)"
+            }
+          ]
+        ]
+      }
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "bd89b43aa3e084654b69a3a1a49603a964f9e2dd933f1a10daf4fb1b0704a040"
+}

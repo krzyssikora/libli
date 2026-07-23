@@ -1,0 +1,200 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Wpisz współrzędne narysowanych wektorów przyjmując, że bok kratki ma długość \\(1\\).\n    "
+    },
+    {
+      "type": "fill_table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "rows",
+        "cells": [
+          [
+            {
+              "kind": "static",
+              "html": "wektor"
+            },
+            {
+              "kind": "static",
+              "html": "współrzędne"
+            },
+            {
+              "kind": "static",
+              "html": ""
+            },
+            {
+              "kind": "static",
+              "html": ""
+            },
+            {
+              "kind": "static",
+              "html": ""
+            },
+            {
+              "kind": "static",
+              "html": ""
+            }
+          ],
+          [
+            {
+              "kind": "image",
+              "media_src": "static/wektor_1.png",
+              "alt": "wektor"
+            },
+            {
+              "kind": "static",
+              "html": "\\([\\)",
+              "halign": "right"
+            },
+            {
+              "kind": "answer",
+              "answer": "4"
+            },
+            {
+              "kind": "static",
+              "html": "\\(,\\)",
+              "halign": "center"
+            },
+            {
+              "kind": "answer",
+              "answer": "2"
+            },
+            {
+              "kind": "static",
+              "html": "\\(]\\)",
+              "halign": "left"
+            }
+          ],
+          [
+            {
+              "kind": "image",
+              "media_src": "static/wektor_2.png",
+              "alt": "wektor"
+            },
+            {
+              "kind": "static",
+              "html": "\\([\\)",
+              "halign": "right"
+            },
+            {
+              "kind": "answer",
+              "answer": "0"
+            },
+            {
+              "kind": "static",
+              "html": "\\(,\\)",
+              "halign": "center"
+            },
+            {
+              "kind": "answer",
+              "answer": "3"
+            },
+            {
+              "kind": "static",
+              "html": "\\(]\\)",
+              "halign": "left"
+            }
+          ],
+          [
+            {
+              "kind": "image",
+              "media_src": "static/wektor_3.png",
+              "alt": "wektor"
+            },
+            {
+              "kind": "static",
+              "html": "\\([\\)",
+              "halign": "right"
+            },
+            {
+              "kind": "answer",
+              "answer": "-3"
+            },
+            {
+              "kind": "static",
+              "html": "\\(,\\)",
+              "halign": "center"
+            },
+            {
+              "kind": "answer",
+              "answer": "0"
+            },
+            {
+              "kind": "static",
+              "html": "\\(]\\)",
+              "halign": "left"
+            }
+          ],
+          [
+            {
+              "kind": "image",
+              "media_src": "static/wektor_4.png",
+              "alt": "wektor"
+            },
+            {
+              "kind": "static",
+              "html": "\\([\\)",
+              "halign": "right"
+            },
+            {
+              "kind": "answer",
+              "answer": "2"
+            },
+            {
+              "kind": "static",
+              "html": "\\(,\\)",
+              "halign": "center"
+            },
+            {
+              "kind": "answer",
+              "answer": "-3"
+            },
+            {
+              "kind": "static",
+              "html": "\\(]\\)",
+              "halign": "left"
+            }
+          ],
+          [
+            {
+              "kind": "image",
+              "media_src": "static/wektor_5.png",
+              "alt": "wektor"
+            },
+            {
+              "kind": "static",
+              "html": "\\([\\)",
+              "halign": "right"
+            },
+            {
+              "kind": "answer",
+              "answer": "-4"
+            },
+            {
+              "kind": "static",
+              "html": "\\(,\\)",
+              "halign": "center"
+            },
+            {
+              "kind": "answer",
+              "answer": "-1"
+            },
+            {
+              "kind": "static",
+              "html": "\\(]\\)",
+              "halign": "left"
+            }
+          ]
+        ]
+      }
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "171e7bb6958dcd619661d389efb338174d6d1745aeaa3d670054a382f997eea1"
+}

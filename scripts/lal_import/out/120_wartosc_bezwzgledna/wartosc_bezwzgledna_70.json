@@ -1,0 +1,41 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Rozwiązując nierówności z wartością bezwzględną należy pamiętać, że:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n        wartość bezwzględna liczby to jej\n        <u>\n            odległość od zera\n        </u>\n        ,\n    </li>\n<li>\n        odległość nigdy\n        <u>\n            nie jest ujemna\n        </u>\n        (jest większa lub równa \\(0\\)).\n    </li>\n</ul>"
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Wybierz wszystkie zdania prawdziwe .</p>",
+      "multiple": true,
+      "choices": [
+        {
+          "text": "Odległość może być większa od \\(2\\).",
+          "is_correct": true,
+          "feedback": "Odległość może być równa 3, 4, 5..."
+        },
+        {
+          "text": "Odległość może być mniejsza od \\(5\\).",
+          "is_correct": true,
+          "feedback": "Odległość może być równa 0, 1, 2, 3, 4, \\(4\\tfrac{1}{2}\\)..."
+        },
+        {
+          "text": "Odległość może być większa od \\(-3\\).",
+          "is_correct": true,
+          "feedback": "Odległość jest większa (lub równa) \\(0\\), więc tym bardziej większa od dowolnej wartości ujemnej."
+        },
+        {
+          "text": "Odległość może być mniejsza od \\(-4\\).",
+          "is_correct": false,
+          "feedback": "Odległość jest większa (lub równa) \\(0\\), więc nie może być ujmna."
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "bb2fe61a1241a4aa1a3a1daf76c372edacd581c1642f081085795421ceabe70c"
+}

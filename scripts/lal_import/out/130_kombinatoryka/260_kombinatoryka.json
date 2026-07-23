@@ -1,0 +1,53 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<h3>\n    Trójkąt Pascala\n</h3>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/trojkat_pascala_4.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "image",
+      "media_src": "static/trojkat_pascala_5.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<h3>\n    Własności symbolu Newtona\n</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<ol class=\"bold\">\n<li>\n            Dla \\(0\\le k\\le n\\):\n            \\[\n            \\binom{n}{k}=\\binom{n}{n-k}\n            \\]\n            <details>\n<summary>komentarz</summary>\n<div style=\"background-color: white; opacity: .8; padding: .5rem;\">\n<p>\n                        Tę własność poznaliśmy już wcześniej, a teraz możemy ją zaobserwować w trójkącie Pascala. Wyraz numer \\(k\\) licząc od lewej strony jest równy wyrazowi numer \\(k\\) licząc od prawej strony.\n                    </p>\n<p>\n                        Innymi słowy: trójkąt Pascala jest symetryczny.\n                    </p>\n</div>\n</details>\n</li>\n<li>\n            \\[\\binom{n}{0}=1,\\quad\\quad \\binom{n}{n}=1\\]\n            <details>\n<summary>komentarz</summary>\n<div style=\"background-color: white; opacity: .8; padding: .5rem;\">\n                    Skrajne liczby w każdym rzędzie trójkąta Pascala są równe \\(1\\).\n                </div>\n</details>\n</li>\n<li>\n            \\[\\binom{n}{1}=n,\\quad\\quad \\binom{n}{n-1}=n\\]\n            <details>\n<summary>komentarz</summary>\n<div style=\"background-color: white; opacity: .8; padding: .5rem;\">\n                    Zarówno liczba druga od lewej jak i druga od prawej w każdym rzędzie trójkąta Pascala (czyli, licząc od zera, liczby o numerach \\(1\\) i \\(n-1\\)) są równe numerowi rzędu (też licząc od zera).\n                </div>\n</details>\n</li>\n<li>\n            \\[\n            \\binom{n}{2}=\\frac{n(n-1)}{2}\n            \\]\n            <details>\n<summary>komentarz</summary>\n<div style=\"background-color: white; opacity: .8; padding: .5rem;\">\n<p>\n                        Tej własności w trójkącie nie widać. Wynika ona po prostu z uproszczenia wyrażenia \\(\\frac{n!}{2!(n-2)!}\\).\n                    </p>\n<p>\n                        Myślę, że warto tę uproszczoną postać zapamiętać.\n                    </p>\n</div>\n</details>\n</li>\n<li>\n            Dla \\(0\\le k\\le n-1\\):\n            \\[\n            \\binom{n}{k}+\\binom{n}{k+1}=\\binom{n+1}{k+1}\n            \\]\n            <details>\n<summary>komentarz</summary>\n<div style=\"background-color: white; opacity: .8; padding: .5rem;\">\n                    Ta własność to po prostu obserwacja, że każda liczba w trójkącie Pascala (poza jedynkami) to suma dwóch liczb znajdujących się nad nią.\n                </div>\n</details>\n</li>\n</ol>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Uzupełnij:\n        </p>"
+    },
+    {
+      "type": "fillblank",
+      "stem": "\n<li>\n                \\(\\binom{14}{0}=\\) ￿0￿\n</li>\n<li>\n                \\(\\binom{27}{1}=\\) ￿1￿\n</li>\n<li>\n                jeśli \\(\\binom{16}{4}=1820\\), to \\(\\binom{16}{12}=\\) ￿2￿\n</li>\n",
+      "blanks": [
+        [
+          "1"
+        ],
+        [
+          "27"
+        ],
+        [
+          "1820"
+        ]
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "93cb57f4f73a9952a9e7fc9021dc648709ce7f1cbc405e4ef09845f54eeb9997"
+}

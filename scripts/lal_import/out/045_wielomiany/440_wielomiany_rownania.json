@@ -1,0 +1,38 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Rozwiąż równania.\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Rozwiąż równania.\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Rozwiąż równania.\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Rozwiąż równania.\n    "
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "bc86e38ebf83c7dc2a15e1180ed8b1b68a5dd1d3fae4aafbcc8ba4f6931c3cc0"
+}

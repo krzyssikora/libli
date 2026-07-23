@@ -1,0 +1,67 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Wiemy już, że prosta o równaniu\n    \\[\n    y=ax+b\n    \\]\n    przecina oś \\(y\\) w punkcie o współrzędnych \\((0, b)\\).\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Możemy do tego dojść także korzystając z powyższej cechy punktów na osi \\(y\\):\n</p>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "wszystkie punkty na osi \\(y\\) mają współrzędną \\(x=0\\).",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź współrzędne punktu przecięcia prostej\n            \\[y=-\\frac{3}{2}x+\\frac{5}{2}\\]\n            z osią \\(y\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Spróbuj rozwiązać to zadanie samodzielnie, używając w razie potrzeby poniższych wskazówek.\n        </p>"
+    },
+    {
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
+    },
+    {
+      "type": "text",
+      "body": "<p>Skoro wszystkie punkty na osi \\(y\\) mają współrzędną \\(x=0\\), podstawmy \\(x=0\\) do równania prostej.</p>"
+    },
+    {
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
+    },
+    {
+      "type": "text",
+      "body": "<p>\\[y=-\\frac{3}{2}\\cdot 0+\\frac{5}{2}\\]\n            i obliczmy wartość \\(y\\).</p>"
+    },
+    {
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
+    },
+    {
+      "type": "text",
+      "body": "<p>\\[y=0+\\frac{5}{2}=\\frac{5}{2}\\]\n            co oznacza, że punkt przecięcia prostej z osią \\(y\\) ma współrzędne \\(\\color{red}{(0, \\frac{5}{2})}\\).</p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "3c8730a7a8d3f5020ffb91c16c8a91412f7944c1e0af4be9905f4137e8c6d25a"
+}

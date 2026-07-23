@@ -1,0 +1,203 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Maciek wszedł na wieżę i rzucił piłkę do góry.\n</p><p>\n    Wysokość piłki jest dana równaniem\n</p><p>\\[y=-5x^2+15x+20\\]</p><p>\n    gdzie \\(y\\) to wysokość w metrach liczona od poziomu ziemi, a \\(x\\) to czas w sekundach liczony od momentu rzutu \\((x\\ge 0)\\).\n</p>"
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\n    Z jakiej wysokości Maciek rzucił piłkę?\n</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "20 metrów",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "15 metrów",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "5 metrów",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "30 metrów",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Po jakim czasie piłka osiągnęła największą wysokość nad ziemią?</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "po 3 sekundach",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "po 7,5 sekundy",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "po 1,5 sekundy",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "po 15 sekundach",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\n    Powyższe równanie w postaci kanonicznej to\n</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(y=-5(x-1,5)^2+42,5\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(y=-5(x-3)^2+65\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(y=-5(x+1,5)^2+31,25\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(y=-5(x-1,5)^2+31,25\\)",
+          "is_correct": true,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\n    Po jakim czasie piłka uderzy w ziemię?\n</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "po 1,5 sekundy",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "po 3 sekundach",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "po 4 sekundach",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "po 4,5 sekundy",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Producent pewnego samochodu przeprowadził badania na temat zużycia paliwa. Okazało się, że jeśli samochód ten jedzie z prędkością między 15 a 75 kilometrów na godzinę, to zużycie paliwa może być wyliczane ze wzoru:\n</p><p>\\[y=\\frac{1}{500}x^2-\\frac{8}{50}x+\\frac{41}{5}\\]</p><p>\n    gdzie \\(x\\) to prędkość samochodu w kilometrach na godzinę \\((15\\le x\\le 75)\\), a \\(y\\) to zużycie paliwa w litrach na 100 kilometrów.\n</p><p>\n    Zacznij od przedstawienia równania w postaci kanonicznej, a następnie użyj tego równania, by odpowiedzieć na pytania.\n</p>"
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\n    Przy jakiej prędkości samochód zużywa najmniej paliwa?\n</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "40 kilometrów na godzinę",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "41 kilometrów na godzinę",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "50 kilometrów na godzinę",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "80 kilometrów na godzinę",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\n    Jakie jest minimalne zużycie paliwa tego samochodu?\n</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "4 litry na 100 kilometrów",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "5 litrów na 100 kilometrów",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "8 litrów na 100 kilometrów",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "8,2 litra na 100 kilometrów",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\n    Jakie jest największe zużycie paliwa, jeśli samochód jedzie między 15 a 75 kilometrów na godzinę?\n</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "6,25 litra na 100 kilometrów",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "7,45 litra na 100 kilometrów",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "8 litrów na 100 kilometrów",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "8,2 litra na 100 kilometrów",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "01e5236fccaa816f3383dbe07d7eef5bd972b10c77816de66036fb9b1c85b8f8"
+}

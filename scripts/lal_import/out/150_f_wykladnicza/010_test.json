@@ -1,0 +1,22 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<h1>template</h1>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n            Postępuj zgodnie z kolejnymi wskazówkami.\n            "
+    },
+    {
+      "type": "text",
+      "body": "\n<span class=\"show_next ks_button\">pokaż dalej</span>\n<span class=\"show_step\">\n                        \\(2^4\\cdot 2^6=\\)\n                </span>\n<span class=\"show_next ks_button\">pokaż dalej</span>\n<span class=\"show_step\">\n                        \\(2^{4+6}=\\)\n                </span>\n<span class=\"show_next ks_button\">pokaż dalej</span>\n<span class=\"show_step\">\n                        \\(2^{10}\\)\n                </span>\n"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "eaf64a4610d79596a9bb0fecedfff580efda4dcb6ebbdde0da6bb0882df3c8c2"
+}

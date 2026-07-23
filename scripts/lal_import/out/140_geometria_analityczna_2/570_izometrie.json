@@ -1,0 +1,132 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Równanie przekształcenia izometrycznego (takie jak np. \\(P(x,y)=(x+5, y-2)\\)) mówi nam, co jest obrazem punktu \\((x,y)\\). Znacznie ciekawsze jest, co jest obrazem całej figury geometrycznej.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Skupmy się na przykładach prostych figur i bardzo prostych izometriach: przesunięciu i symetriach.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Aby poznać obraz wielokąta w izometrii, musimy przekształcić jego wierzchołki.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Obrazem wielokątu \\(W_1\\) w izometrii jest wielokąt przystający \\(W_2\\), którego wierzchołki są obrazami odpowiednich wierzchołków wielokąta \\(W_1\\).\n    </p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/izometria_obraz_wielokata.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    W przypadku okręgu jest trochę łatwiej.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Obrazem okręu \\(O_1\\) w izometrii jest okrąg \\(O_2\\) o równym promieniu.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Obrazem środka okręgu \\(O_1\\) jest środek okręgu \\(O_2\\).\n    </p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/izometria_obraz_okregu.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Dany jest okrąg o równaniu \\((x-3)^2+(y+1)^2=15\\). Jakie jest równanie obrazu tego okręgu w \n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ol class=\"bold\">\n<li>\n                przesunięciu o wektor \\([-4,-2]\\),\n            </li>\n<li>\n                symetrii względem osi \\(OY\\)?\n            </li>\n</ol>"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                    Przesunięcie i odbicie symetryczne są izometriami, więc obrazami będą okręgi o takim samym promieniu. Musimy tylko znaleźć współrzędne środka w tych izometriach.\n                </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Środek okręgu \\((x-3)^2+(y+1)^2=15\\) to punkt\n                    \n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\((3, -1)\\)",
+            "\\((-3, 1)\\)",
+            "\\((3, 1)\\)",
+            "\\((-3, -1)\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<strong>1.</strong> przesunięcie o wektor \\([-4,-2]\\).\n                </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Punkt \\((3,-1)\\) po przesunięciu o wektor \\([-4,-2]\\) ma współrzędne\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\((7, 1)\\)",
+            "\\((-1, -3)\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Przesunięty okrąg ma równanie\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\((x+1)^2+(x+3)^2=15\\)",
+            "\\((x-1)^2+(x-3)^2=15\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<strong>2.</strong> symetria względem osi \\(OY\\).\n                </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Punkt \\((3,-1)\\) w symetrii względem osi \\(OY\\) ma współrzędne\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\((3,1)\\)",
+            "\\((-3,-1)\\)",
+            "\\((-3,1)\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Okrąg po symetrii ma równanie\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\((x+3)^2+(x+1)^2=15\\)",
+            "\\((x-3)^2+(x-1)^2=15\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Równanie obrazu okręgu \\((x-3)^2+(y+1)^2=15\\) w\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ol class=\"bold\">\n<li>\n                        przesunięciu o wektor \\([-4,-2]\\) to\n                        \\[\n                        (x+1)^2+(x+3)^2=15\n                        \\]\n                    </li>\n<li>\n                        symetrii względem osi \\(OY\\) to\n                        \\[\n                        (x+3)^2+(x+1)^2=15\n                        \\]\n                    </li>\n</ol>"
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "cc8fd688fe42d8d63144becc7f6a94289b63282fb793f328a00303b8fe909cf9"
+}

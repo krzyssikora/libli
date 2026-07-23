@@ -1,0 +1,20 @@
+[
+  {
+    "kind": "skipped_unnumbered_file",
+    "reason": "_start.html has no ordering token; not a numbered lesson — skipped",
+    "unit_json": null,
+    "raw_excerpt": "_start.html"
+  },
+  {
+    "kind": "unmapped_pattern",
+    "reason": "interactive_widget (Group B): binary_choice",
+    "raw_excerpt": "<div class=\"centered\">\n<ol class=\"bold\">\n<li>\n<div class=\"ks_binary_choices\" data-binary-choices-id=\"1\">\n<p><strong>Czy czworokąt ma parę boków równoległych?</strong></p>\n<div class=\"white_grey_button ks_button\" data-binary-choose=\"1.1\">TAK</div>\n<div class=\"white_grey_button ks_button\" data-binary-",
+    "unit_json": "030_wstep.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: /jump_to_id/b96e07ed702f4bd589f2e37fe20b4934",
+    "raw_excerpt": "<a href=\"/jump_to_id/b96e07ed702f4bd589f2e37fe20b4934\">tutaj</a>",
+    "unit_json": "420_okregi.json"
+  }
+]

@@ -1,0 +1,261 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/potega_pkt_okrag_zad_3.png",
+      "alt": "zadanie 1",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Rysunek przedstawia fragment okręgu \\(o\\) i punkt \\(P\\) na zewnątrz okręgu.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Styczna do okręgu przechodząca przez punkt \\(P\\) styka się z okręgiem w punkcie \\(T\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Sieczna okręgu przechodząca przez punkt \\(P\\) przecina okrąg w punktach \\(A\\) i \\(B\\) w taki sposób, że\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n                \\(PB=3\\),\n            </li>\n<li>\n                \\(AB=9\\).\n            </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź odległość od punktu \\(P\\) do punktu styczności \\(T\\).\n        </p>"
+    },
+    {
+      "type": "reveal_gate",
+      "label": "zacznij rozwiązanie"
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                        Z twierdzenia o potędze punktu \\(P\\) względem okręgu \\(o\\)\n                        \n\n\n\n\n￿0￿\n                        .\n                        \n",
+      "options": [
+        "\\(PT^2=PB\\cdot AB\\)",
+        "\\(PT^2=PB\\cdot PA\\)",
+        "\\(PT\\cdot PB=PT\\cdot PA\\)",
+        "\\(PT=PB\\cdot PA\\)",
+        "\\(PT=PB\\cdot AB\\)"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                        Wiemy, że \\(PB=3\\), natomiast \\(PA=\\)\n                        \n\n\n￿0￿\n                        .\n                        \n",
+      "options": [
+        "\\(12\\)",
+        "\\(9\\)",
+        "\\(6\\)"
+      ],
+      "answer": 0
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                        I dlatego odległość \\(PT=\\)\n                        \n\n\n￿0￿\n                        .\n                        \n",
+      "options": [
+        "\\(36\\)",
+        "\\(6\\)",
+        "\\(18\\)"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        \\(PT^2=3\\cdot 12\\), więc odległość od punktu \\(P\\) do punktu styczności \\(T\\) to \\(6\\).\n                    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/potega_pkt_okrag_zad_2.png",
+      "alt": "zadanie 2",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Punkt \\(P\\) leży na cięciwie okręgu \\(o\\) i dzieli tę cięciwę na odcinki o długościach \\(3\\) i \\(4\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Odległość punktu \\(P\\) od środka okręgu to \\(2\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź długość promienia okręgu.\n        </p>"
+    },
+    {
+      "type": "reveal_gate",
+      "label": "zacznij rozwiązanie"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        Mamy znaleźć długość promienia, warto więc dorysować promień na rysunku. Zróbmy to przedłużając odcinek łączący środek okręgu z punktem \\(P\\), w obie strony.\n                    </p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/potega_pkt_okrag_zad_2_1.png",
+      "alt": "zadanie 2",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        Oznaczmy promień okręgu literą \\(r\\).\n                    </p>"
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                        Odcinek narysowany linią przerywaną powyżej punktu \\(P\\) ma długość\n                        \n\n\n\n￿0￿\n                        .\n                        \n",
+      "options": [
+        "\\(r\\)",
+        "\\(r+2\\)",
+        "\\(r-2\\)",
+        "\\(2-r\\)"
+      ],
+      "answer": 2
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                        Odcinek narysowany linią żółtą, a potem przerywaną poniżej punktu \\(P\\) ma długość\n                        \n\n\n\n￿0￿\n                        .\n                        \n",
+      "options": [
+        "\\(r\\)",
+        "\\(r+2\\)",
+        "\\(r-2\\)",
+        "\\(2-r\\)"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "image",
+      "media_src": "static/potega_pkt_okrag_zad_2_2.png",
+      "alt": "zadanie 2",
+      "figcaption": ""
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                        Z twierdzenia o potędze punktu \\(P\\) względem okręgu \\(o\\)\n                        \n\n\n￿0￿\n                        .\n                        \n",
+      "options": [
+        "\\((r+2)(r-2)=3\\cdot 4\\)",
+        "\\(3(r+2)=4(r-2)\\)",
+        "\\(4(r+2)=3(r-2)\\)"
+      ],
+      "answer": 0
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        Rozwiązując równanie\n                    </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n                                                                                                        \\begin{align*}\n                                                                                                        (r+2)(r-2)&=3\\cdot 4\\\\\n                                                                                                        r^2-4&=12\\\\\n                                                                                                        r^2&=16\n                                                                                                        \\end{align*}\n                                                                                                        "
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                        Rozwiązaniami równania \\(r^2=16\\) są\n                        \n\n\n￿0￿\n                        .\n                        \n",
+      "options": [
+        "\\(r=4\\)",
+        "\\(r=-4\\)",
+        "\\(r=-4\\) oraz \\(r=4\\)"
+      ],
+      "answer": 2
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        Jednak promień nie może być ujemny, więc promień jest długości \\(4\\).\n                    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/potega_pkt_okrag_zad_1.png",
+      "alt": "zadanie 3",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Punkt \\(P\\) leży na zewnątrz okręgu \\(o\\), w odległości \\(4\\) centrymetrów od jego środka, \\(S\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Sieczna okręgu \\(o\\) przechodząca przez punkt \\(P\\) przecina okrąg w punktach \\(A\\) i \\(B\\) w taki sposób, że \\(AB=1\\), a \\(BP=3\\), jak na rysunku.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź długość promienia okręgu \\(o\\).\n        </p>"
+    },
+    {
+      "type": "reveal_gate",
+      "label": "zacznij rozwiązanie"
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                        Jeśli oznaczymy promień okręgu przez \\(r\\), to odległość od punktu \\(P\\) do punktu przecięcia okręgu i odcinka \\(PS\\) jest równa\n                        \n\n\n￿0￿\n                        .\n                        \n",
+      "options": [
+        "\\(4\\)",
+        "\\(4-r\\)",
+        "\\(4+r\\)"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                        Jeśli przedłużymy odcinek \\(PS\\) poza punkt \\(S\\) aż do przecięcia z okręgiem, to odległość od tego przecięcia do punktu \\(P\\) jest równa\n                        \n\n\n￿0￿\n                        .\n                        \n",
+      "options": [
+        "\\(4+r\\)",
+        "\\(4\\)",
+        "\\(4-r\\)"
+      ],
+      "answer": 0
+    },
+    {
+      "type": "image",
+      "media_src": "static/potega_pkt_okrag_zad_1_2.png",
+      "alt": "zadanie 3",
+      "figcaption": ""
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                        Z twierdzenia o potędze punktu \\(P\\) względem okręgu \\(o\\)\n                        \n\n\n\n￿0￿\n                        .\n                        \n",
+      "options": [
+        "\\((4-r)(4+r)=3\\cdot 1\\)",
+        "\\(3(4-r)=4(4+r)\\)",
+        "\\((4-r)(4+r)=3\\cdot 4\\)",
+        "\\(4(4-r)=3(4+r)\\)"
+      ],
+      "answer": 2
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        Rozwiązując równanie\n                    </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n                                                                                                        \\begin{align*}\n                                                                                                        (4-r)(4+r)&=3\\cdot 4\\\\\n                                                                                                        16-r^2&=12\\\\\n                                                                                                        r^2&=4\n                                                                                                        \\end{align*}\n                                                                                                        "
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                        Rozwiązaniami równania \\(r^2=4\\) są\n                        \n\n\n￿0￿\n                        .\n                        \n",
+      "options": [
+        "\\(r=2\\)",
+        "\\(r=-2\\) oraz \\(r=2\\)",
+        "\\(r=-2\\)"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        Jednak promień nie może być ujemny, więc promień jest długości \\(2\\).\n                    </p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "2ec40776ca9e23530cae885332e6f381886ba0a8be3a53caeb7c522bcdccef23"
+}

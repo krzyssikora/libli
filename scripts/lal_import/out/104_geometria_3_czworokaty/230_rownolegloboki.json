@@ -1,0 +1,119 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n<strong>Równoległobok</strong> to czworokąt, który ma dwie pary boków równoległych.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Wiemy już, że:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Jeśli czworokąt jest równoległobokiem, to\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n            długości jego przeciwległych boków są sobie równe,\n            <br/>\n<i>inaczej</i>: długości boków równoległych są sobie równe,\n        </li>\n<li>\n            miary przeciwległych kątów są sobie równe,\n        </li>\n<li>\n            sumy miar sąsiednich kątów (tj. kątów przy tym samym boku) są równe \\(180^{\\circ}\\),\n        </li>\n<li>\n            przekątne przecinają się w połowie.\n        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Wiemy więc, że jeśli czworokąt jest równoległobokiem, to ma każdą z tych własności.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Czy jest też odwrotnie?\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Jeśli czworokąt ma którąkolwiek z tych własności, to czy jest równoległobokiem? \n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Okazuje się, że tak! Z użyciem każdej z tych własności możemy sformułować alternatywną definicję równoległoboku - równoważną tej, którą wcześniej wprowadziliśmy.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<h3>\n    Równoważne definicje równoległoboku\n</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Moglibyśmy sformułować cztery równoważne definicje równoległoboku.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Jednak my będziemy używać tylko jednej definicji równoległoboku - tej, którą już wprowadziliśmy (równoległobok to czworokąt, który ma dwie pary boków równoległych).\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Dlatego zamiast zapisywać definicję postaci: \n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<strong>Równoległobok</strong> to czworokąt, który ma [ <i style=\"color: blue;\">pewną własność</i> ].\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    sformułujemy twierdzenia postaci:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n    Jeśli czworokąt ma [ <i style=\"color: blue;\">pewną własność</i> ], to jest <strong>równoległobokiem</strong>.\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Oto cztery twierdzenia, których moglibyśmy użyć do stworzenia równoważnych definicji równoległoboku. \n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Jeśli czworokąt ma dwie pary przeciwległych boków równej długości, to jest <strong>równoległobokiem</strong>.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Jeśli  miary obu par przeciwległych kątów czworokąta są równe, to czworokąt jest <strong>równoległobokiem</strong>.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Jeśli sumy miary wszystkich par sąsiednich kątów czworokąta są równe \\(180^{\\circ}\\), to czworokąt jest <strong>równoległobokiem</strong>.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Jeśli przekątne czworokąta dzielą się na połowy, to czworokąt jest <strong>równoległobokiem</strong>.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Dodatkowo, możemy sformułować jeszcze takie twierdzenie. Oczywiście także prawdziwe.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Jeśli dwa przeciwległe boki czworokąta są równoległe i równej długości, to czworokąt jest <strong>równoległobokiem</strong>.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Przeczytaj jeszcze raz powyższe twierdzenia. Zastanów się, czy dobrze je rozumiesz.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Następnie użyj poniższego apletu, żeby upewnić się, że dobrze je rozumiesz.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W aplecie możesz przesuwać trzy zaznaczone na żółto wierzchołki, żeby zmienić położenie, kształt i wielkość równoległoboku.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Gdy zaznaczysz jedno z czterech pól wyboru, zobaczysz ilustrację odpowiedniego twierdzenia. \n        </p>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/ww29wfsd/width/675/height/578/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "ed3a2c09afad4198ddc0a88a026a6d70d2fd6073109bd69838d311a360d2e743"
+}

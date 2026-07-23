@@ -1,0 +1,610 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Kombinatoryka to taki dział matematyki, w którym uczymy się odpowiadać na pytania w rodzaju:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n<i>na ile sposobów?</i>\n</li>\n<li>\n<i>ile możliwości?</i>\n</li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Zacznijmy od dwóch przykładów.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Przykład</strong></p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/stopwatch.gif",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Jarek chadza regularnie na basen.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Przepłynięcie jednej długości basenu zajmuje mu około jednej minuty: czasami trochę mniej, czasami trochę więcej. \n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Pewnego dnia podczas treningu zrobil następujące ćwiczenie: przepłynął cztery baseny i po każdym z nich sprawdzał, czy jego czas był poniżej 1 minuty. Następnie zapisał wynik:\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<strong style=\"color: green\">TAK </strong>\n<strong style=\"color: green\">TAK </strong>\n<strong style=\"color: red\">NIE</strong>\n<strong style=\"color: green\">TAK </strong>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Oznaczało to że za <u style=\"color: green\">pierwszym</u>, <u style=\"color: green\">drugim</u> i <u style=\"color: green\">czwartym</u> razem jego czas był poniżej 1 minuty, a za <u style=\"color: red\">trzecim</u> - powyżej.  Innymi słowy, Jarek zapisał cztery odpowiedzi na pytanie: \n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<blockquote>\n            \"czy mój czas był poniżej jednej minuty?\"\n        </blockquote>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Ile różnych wyników takiego ćwiczenia Jarek mógł uzyskać?\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "wstępne wskazówki",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n<small>\n                    Uwaga. Wynik “TAK TAK NIE TAK” jest inny niż wynik “TAK NIE TAK TAK”. Chodzi nie tylko o to, ile razy czas Jarka był poniżej,  a ile powyżej minuty, lecz o to, jaki (krótszy od minuty czy nie) był za każdym z czterech powtórzeń.\n                </small>\n</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                Zastanów się nad sposobem rozwiązania i odpowiedzią.  Jeśli nie jesteś jej pewna/-y, pomyśl, jak byłoby w prostszej sytuacji, np.\n            </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>\n                    gdyby w ramach ćwiczenia Jarek przeplywal dwa baseny\n                </li>\n<li>\n                    gdyby w ramach ćwiczenia Jarek przeplywal trzy baseny\n                </li>\n</ul>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "Następnie sprawdz moją odpowiedź i rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Jeśli z Twoich obliczeń wynikają takie odpowiedzi:</p>"
+        },
+        {
+          "type": "table",
+          "data": {
+            "header_row": false,
+            "header_col": false,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "liczba basenów",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "liczba różnych wyników",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(4\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(3\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(8\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(4\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(16\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                to znakomicie. Jeśli nie, koniecznie przeczytaj dalej.\n            </p>"
+        },
+        {
+          "type": "reveal_gate",
+          "label": "pokaż dalej"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<strong>Przy dwóch basenach</strong> zadanie jest o tyle proste, że możemy szybko wypisać wypisać wszystkie możliwości:\n                    </p>"
+        },
+        {
+          "type": "table",
+          "data": {
+            "header_row": false,
+            "header_col": false,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "<strong style=\"color: green\">TAK </strong>",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "<strong style=\"color: green\">TAK </strong>",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "<strong style=\"color: green\">TAK </strong>",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "<strong style=\"color: red\">NIE </strong>",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "<strong style=\"color: red\">NIE </strong>",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "<strong style=\"color: green\">TAK </strong>",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "<strong style=\"color: red\">NIE </strong>",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "<strong style=\"color: red\">NIE </strong>",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "type": "reveal_gate",
+          "label": "pokaż dalej"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                        Możemy też przedstawić wyniki za pomocą <em>diagramu drzewkowego</em>:\n                    </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/drzewo_basen.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<h4>O co chodzi w tym diagramie drzewkowym?</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                            Drzewo \"wyrasta\" w jasnoszarej części (\"pierwszy basen\") z punktu skrajnie po lewej stronie (nazwijmy go \"korzeniem\"). Tam drzewo rozgałęzia się po raz pierwszy. Gałąź górna oznacza, że Jarek przepłynął basen w czasie poniżej minuty (<span style=\"color: green;\">TAK</span>). Gałąź dolna - wręcz przeciwnie (<span style=\"color: red;\">NIE</span>).\n                        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                            W ciemnoszarej części (\"drugi basen\") drzewo rozgałęzia się ponownie, zarówno od górnej gałęzi, jak i od dolnej. Tu obie gałęzie górne oznaczają, że Jarek przepłynął basen w czasie poniżej minuty (<span style=\"color: green;\">TAK</span>). Obie dolne - wręcz przeciwnie (<span style=\"color: red;\">NIE</span>).\n                        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                            Wychodząc z \"korzenia\" i idąc wzdłuż gałęzi w prawo odkrywamy wszystkie możliwości. Poniżej te \"przejścia\" i odkryte możliwości są zaznaczone na niebiesko. \n                        </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/drzewo_basen_paths.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "reveal_gate",
+          "label": "pokaż dalej"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<strong>Przy trzech basenach</strong> możemy możemy postąpić bardzo podobnie. Diagram drzewkowy staje się dwukrotnie \"wyższy\".\n                    </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/drzewo_basen_3.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                        I to jest <strong>niezwykle ważna obserwacja</strong>!\n                    </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                        Górna połowa drzewa jest identyczna jak dolna (poniżej obie zaznaczone na niebiesko) i obie są takie same, jak diagram dla dwóch basenów.\n                    </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/drzewo_basen_3_copy.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "\n                        Możliwości dla 3 basenów jest dwukrotnie więcej, niż dla dwóch basenów.\n                    "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                        Albo inaczej mówiąc:\n                    </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>dla jednego basenu mamy \\(2\\) możliwości,</li>\n<li>dla dwóch basenów mamy \\(2\\cdot 2=4\\) możliwości,</li>\n<li>dla trzech basenów mamy \\(2\\cdot 2\\cdot 2=8\\) możliwości,</li>\n<li>dla czterech basenów mamy \\(2\\cdot 2\\cdot 2\\cdot 2=16\\) możliwości.</li>\n</ul>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Przykład</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Mała Jagoda dostała do zabawy zeszyt z rysunkami zwierząt i naklejkami w kształcie ubrań. Jagoda postanowiła “ubrać“ krokodyla. Wybrała dla niego 3 koszulki, 3 pary spodni i 2 pary butów. \n        </p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/krokodyl_set.gif",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Przyjmując, że ubranie to komplet koszulka-spodnie-buty, w ile różnych kompletów Jagoda może ubrać krokodyla?\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                To zadanie wcale nie jest bardzo odmienne od poprzedniego. \n            </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                Przed Jagodą stoją kolejno trzy wybory (niekoniecznie w wybranej przeze mnie kolejności):\n            </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>\n                    najpierw musi wybrać jedną z \\(3\\) koszulek.\n                </li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                Niezależnie od tego, jaką koszulkę wybierze\n            </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>\n                    potem musi wybrać jedne z \\(3\\) par spodni.\n                </li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                Niezależnie od tego, jakie spodnie wybierze\n            </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>\n                    potem musi wybrać jedne z \\(2\\) par butów.\n                </li>\n</ul>"
+        },
+        {
+          "type": "reveal_gate",
+          "label": "pokaż dalej"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    I dlatego całościowo może wybrać jeden z \n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\[\n                3\\cdot 3\\cdot 2=18\n                \\]\n                kompletów ubrań.</p>"
+        },
+        {
+          "type": "reveal_gate",
+          "label": "pokaż dalej"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Tym razem też moglibyśmy narysować diagram drzewkowy. Zamiast tego przedstawimy wszystkie możliwości w tabeli.\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>możliwość</p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/krokodyl_000.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "image",
+          "media_src": "static/krokodyl_100.png",
+          "alt": "",
+          "figcaption": "koszulka"
+        },
+        {
+          "type": "image",
+          "media_src": "static/krokodyl_110.png",
+          "alt": "",
+          "figcaption": "spodnie"
+        },
+        {
+          "type": "image",
+          "media_src": "static/krokodyl_111.png",
+          "alt": "",
+          "figcaption": "buty"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(1\\)</p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/krokodyl_112.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "image",
+          "media_src": "static/krokodyl_120.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "image",
+          "media_src": "static/krokodyl_121.png",
+          "alt": "",
+          "figcaption": "\\(2\\)"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(3\\)</p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/krokodyl_122.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "image",
+          "media_src": "static/krokodyl_130.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "image",
+          "media_src": "static/krokodyl_131.png",
+          "alt": "",
+          "figcaption": "\\(4\\)"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(5\\)</p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/krokodyl_132.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "image",
+          "media_src": "static/krokodyl_200.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "image",
+          "media_src": "static/krokodyl_210.png",
+          "alt": "",
+          "figcaption": "\\(6\\)"
+        },
+        {
+          "type": "image",
+          "media_src": "static/krokodyl_211.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(7\\)</p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/krokodyl_212.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "image",
+          "media_src": "static/krokodyl_220.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "image",
+          "media_src": "static/krokodyl_221.png",
+          "alt": "",
+          "figcaption": "\\(8\\)"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(9\\)</p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/krokodyl_222.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "image",
+          "media_src": "static/krokodyl_230.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "image",
+          "media_src": "static/krokodyl_231.png",
+          "alt": "",
+          "figcaption": "\\(10\\)"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(11\\)</p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/krokodyl_232.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "image",
+          "media_src": "static/krokodyl_300.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "image",
+          "media_src": "static/krokodyl_310.png",
+          "alt": "",
+          "figcaption": "\\(12\\)"
+        },
+        {
+          "type": "image",
+          "media_src": "static/krokodyl_311.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(13\\)</p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/krokodyl_312.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "image",
+          "media_src": "static/krokodyl_320.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "image",
+          "media_src": "static/krokodyl_321.png",
+          "alt": "",
+          "figcaption": "\\(14\\)"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(15\\)</p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/krokodyl_322.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "image",
+          "media_src": "static/krokodyl_330.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "image",
+          "media_src": "static/krokodyl_331.png",
+          "alt": "",
+          "figcaption": "\\(16\\)"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(17\\)</p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/krokodyl_332.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(18\\)</p>"
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "664be66eba416d7c466afba62b556ddb59815d0efd87b46ca98138bd0da89342"
+}

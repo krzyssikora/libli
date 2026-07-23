@@ -1,0 +1,177 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Przypomnijmy:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n    Czworokąt nazywamy <strong>opisanym</strong> na kole, jeśli wszystkie boki czworokąta są <strong>styczne</strong> do okręgu ograniczającego koło.\n"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W poniższym aplecie możesz przesuwać czerwone punkty, by zmienić kształt i położenie czworokąta opisanego na kole.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Gdy zaznaczysz \"pokoloruj odcinki na bokach\", zobaczysz odcinki o tej samej długości zaznaczone identycznymi kolorami.\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "dlaczego pokolorowane odcinki są równej długości?",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                Wynika to z następującego twierdzenia:\n            </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/okrag_dwie_styczne_2.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Odcinki między punktem przecięcia stycznych i punktami styczności są równej długości.\n                </p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            🡆 Jakie warunki muszą spełniać długości boków czworokąta, by można było w niego wpisać okrąg?\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            🡆 <small>(inaczej: by istniał okrąg, na którym czworokąt jest opisany)</small>\n</p>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/taj28cjn/width/604/height/617/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    },
+    {
+      "type": "spoiler",
+      "label": "wskazówka",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Pomyśl o sumach długości</p>"
+        },
+        {
+          "type": "text",
+          "body": "<u>przeciwległych</u>"
+        },
+        {
+          "type": "text",
+          "body": "<p>boków.</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "odpowiedź",
+      "elements": [
+        {
+          "type": "image",
+          "media_src": "static/czworokat_opisany_na_kole_boki.png",
+          "alt": "",
+          "figcaption": "\\(a+c=b+d\\)"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                W czworokąt można wpisać okrąg, gdy sumy przeciwległych boków czworokąta są sobie równe.\n            </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                Taki czworokąt nazywamy opisanym na kole.\n            </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                Oznacza to też, że każda suma przeciwległych boków, \\(a+c\\) oraz \\(b+d\\), jest równa <strong>połowie obwodu</strong>.\n            </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Zwróć uwagę, że na każdej parze przeciwległych boków widzimy odcinki we wszystkich czterech kolorach. Na cały obwód składają się po dwa odcinki w każdym z czterech kolorów. \n        </p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Kolejne boki czworokąta opisanego na kole mają długości \\(a\\), \\(b\\), \\(c\\) oraz \\(d\\). Uzupełnij brakujące długości.\n        </p>"
+    },
+    {
+      "type": "fill_table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "kind": "static",
+              "html": "\\(a\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(b\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(c\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(d\\)"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(3\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(8\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(9\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "4"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(11\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "14"
+            },
+            {
+              "kind": "static",
+              "html": "\\(12\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(9\\)"
+            }
+          ]
+        ]
+      }
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "27bcf023b311fa83409bd942cc235698bef7d561cd0084054037e8d7c5a12094"
+}

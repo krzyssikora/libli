@@ -1,0 +1,104 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n<strong>Styczna</strong> do okręgu to prosta, która ma z okręgiem dokładnie jeden punkt wspólny.<br/>\n        Ten punkt nazywamy <strong>punktem styczności</strong>.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Prosta przecinająca okrąg w dwóch różnych punktach nazywana jest <strong>sieczną</strong>.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W poniższym aplecie możesz przesuwać niebieskie punkty, żeby zmienić położenie prostej.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n                Ustaw ją tak, by była styczna. Czy widzisz punkt styczności?\n            </li>\n<li>\n                Ustaw ją tak, by była sieczna.\n            </li>\n</ul>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/cxqk2ds2/width/482/height/490/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/okrag_styczna_promien_1.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Co możesz powiedzieć o stycznej do okręu i promieniu łączącym środek okręgu z punktem styczności?\n            </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "sprawdź",
+      "elements": [
+        {
+          "type": "image",
+          "media_src": "static/okrag_styczna_promien_2.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                Styczna do okręgu jest prostopadła do promienia łączącego środek okręgu z punktem styczności.\n            </p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/okrag_dwie_styczne_1.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Dane są dwie nierównoległe (czyli przecinające się) styczne do tego samego okręgu.\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Co możesz powiedzieć o odcinkach między punktem przecięcia stycznych i punktami styczności?\n            </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "sprawdź",
+      "elements": [
+        {
+          "type": "image",
+          "media_src": "static/okrag_dwie_styczne_2.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                Odcinki między punktem przecięcia stycznych i punktami styczności są równej długości.\n            </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                W poniższym aplecie możesz zmienić położenie stycznych przesuwając ich punkt przecięcia. Gdy naciśniejsz \"start\", zobaczysz, że odpowiednie odcinki są równej długości.\n            </p>"
+        },
+        {
+          "type": "iframe",
+          "url": "https://www.geogebra.org/material/iframe/id/gmfzwmac/width/526/height/671/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+          "title": ""
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "e19e7d39de1bc8d8b2f043eea8cc1ff1fbeb135b0af37722e825fa9c2147854e"
+}

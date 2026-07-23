@@ -1,0 +1,295 @@
+{
+  "elements": [
+    {
+      "type": "image",
+      "media_src": "static/trojkat_pole_12ah.png",
+      "alt": "pole trójkąta",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\\(P\\), pole trójkąta o podstawie \\(a\\) i prostopadłej do niej wysokości \\(h\\) dane jest wzorem\n    \\[\n    P=\\frac{1}{2}ah\n    \\]</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Przyjrzyj się poniższej animacji, która ilustruje dowód powyższego wzoru na pole trójkąta.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Jeśli nie jesteś pewna / pewien, na czym polega dowód, przeczytaj komentarz do animacji\n        </p>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/zenr8xum/width/800/height/600/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    },
+    {
+      "type": "spoiler",
+      "label": "komentarz do animacji",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                Animacja pokazuje, że dwa przystające trójkąty możemy przeciąć i z dwóch powstałych w ten sposób figur złożyć prostokąt o podstawie \\(a\\) i wysokości \\(h\\).\n            </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Pole takiego prostokąta to\n            \\[\n            a\\cdot h\n            \\]\n            więc pole trójkąta to połowa tej wielkości, czyli\n            \\[\n            P=\\frac{1}{2}ah\n            \\]</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Wpisz pola trójkątów o podanych podstawach i wysokościach.\n        <br/>\n<small>\n            Rysunki nie zachowują skali.\n        </small>\n"
+    },
+    {
+      "type": "fill_table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "kind": "image",
+              "media_src": "static/pole_trojkata_12ah_zad_1.png",
+              "alt": "pole trójkąta"
+            },
+            {
+              "kind": "answer",
+              "answer": "9"
+            },
+            {
+              "kind": "image",
+              "media_src": "static/pole_trojkata_12ah_zad_2.png",
+              "alt": "pole trójkąta"
+            },
+            {
+              "kind": "answer",
+              "answer": "6"
+            }
+          ],
+          [
+            {
+              "kind": "image",
+              "media_src": "static/pole_trojkata_12ah_zad_3.png",
+              "alt": "pole trójkąta"
+            },
+            {
+              "kind": "answer",
+              "answer": "12"
+            },
+            {
+              "kind": "image",
+              "media_src": "static/pole_trojkata_12ah_zad_4.png",
+              "alt": "pole trójkąta"
+            },
+            {
+              "kind": "answer",
+              "answer": "16"
+            }
+          ],
+          [
+            {
+              "kind": "image",
+              "media_src": "static/pole_trojkata_12ah_zad_5.png",
+              "alt": "pole trójkąta"
+            },
+            {
+              "kind": "answer",
+              "answer": "18"
+            },
+            {
+              "kind": "image",
+              "media_src": "static/pole_trojkata_12ah_zad_6.png",
+              "alt": "pole trójkąta"
+            },
+            {
+              "kind": "answer",
+              "answer": "8"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Uzupełnij brakującą długość - podstawę lub wysokość trójkąta.\n    "
+    },
+    {
+      "type": "fill_table",
+      "data": {
+        "header_row": true,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "kind": "static",
+              "html": "pole trójkąta"
+            },
+            {
+              "kind": "static",
+              "html": "podstawa"
+            },
+            {
+              "kind": "static",
+              "html": "wysokość"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(4\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "4"
+            },
+            {
+              "kind": "static",
+              "html": "\\(2\\)"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(6\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(4\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "3"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(7,5\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "5"
+            },
+            {
+              "kind": "static",
+              "html": "\\(3\\)"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(24,5\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(7\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "7"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Dany jest trójkąt o bokach długości \\(5\\), \\(12\\) i \\(13\\).\n        <br/>\n        Znajdź długość wysokości opadającej na najdłuższy bok.\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>To zadanie można rozwiązać na kilka sposobów, np. używając</p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>\n                        twierdzenia Pitagorasa,\n                    </li>\n<li>\n                        albo podobieństwa trójkątów\n                    </li>\n<li>\n                        albo wzoru na pole trójkąta.\n                    </li>\n</ul>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Jeśli chcemy je rozwiązać szybko i z użyciem tylko tego, czego już się uczyliśmy, warto zacząć od obserwacji, że trójkąt o bokach \\(5\\), \\(12\\) i \\(13\\) jest\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "ostrokątny",
+            "prostokątny",
+            "rozwartokątny"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Zgadza się. Ponieważ\n                \\[\n                \\begin{align*}\n                13^2&=169\\\\\n                5^2+12^2&=169\n                \\end{align*}\n                \\]\n                więc na mocy twierdzenia</p>"
+        },
+        {
+          "type": "text",
+          "body": "<strong>\n                    odwrotnego do twierdzenia Pitagorasa\n                </strong>"
+        },
+        {
+          "type": "text",
+          "body": "<p>trójkąt jest prostokątny.</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    A skoro jest prostokątny, to jego pole jest równe połowie iloczynu boków:\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(5\\cdot 12\\)",
+            "\\(5\\cdot 13\\)",
+            "\\(12\\cdot 13\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Pole trójkąta jest więc równe\n                \\[\n                P=\\frac{1}{2}\\cdot 5\\cdot 12=30\n                \\]\n                Szukamy wysokości opadającej na najdłuższy bok, czyli na bok o długości \\(13\\). Czyli</p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>\n                        podstawa to \\(13\\),\n                    </li>\n<li>\n                        wysokość to \\(h\\),\n                    </li>\n<li>\n                        czyli pole to \\(\\frac{1}{2}\\cdot 13\\cdot h\\).\n                    </li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Porównując to wyrażenie z uzyskanym wcześniej wynikiem otrzymujemy równanie\n                \\[\n                \\frac{1}{2}\\cdot 13\\cdot h=30\n                \\]</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    z którego wyliczamy\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(h=2\\tfrac{4}{13}\\)",
+            "\\(h=4\\tfrac{8}{13}\\)",
+            "\\(h=47\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "image",
+          "media_src": "static/pole_trojkat_prostokatny_zad.png",
+          "alt": "pole trójkąta prostokątnego",
+          "figcaption": ""
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "ec4f658f5c1f402d6ed7f159423cf95eb07706fec5957cb9b7034cbd1b367974"
+}

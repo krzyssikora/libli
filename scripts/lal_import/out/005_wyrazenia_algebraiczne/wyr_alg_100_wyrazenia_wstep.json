@@ -1,0 +1,174 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>Wyrazy podobne to takie, które (po uproszczeniu) mają</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n            dokładnie takie same zmienne\n        </li>\n<li>\n            w dokładnie takich samych potęgach\n        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Czy następujące wyrazy są podobne?\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Odpowiedz, a następnie sprawdź swoją odpowiedź.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Dla Twojej wygody wyrazy są już uproszczone.\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "\\(-3x^2y^3\\) oraz \\(2x^2y^3\\)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>tak, \\(x^2=x^2\\), \\(y^3=y^3\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "\\(-5a^4b\\) oraz \\(-5a^4\\)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>nie, \\(b^1\\ne b^0\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "\\(3c^2d^3\\) oraz \\(3c^3d^2\\)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>nie, \\(c^2\\ne c^3\\), \\(d^3\\ne d^2\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "\\(-4st^2\\) oraz \\(4t^2s\\)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>tak, \\(s=s\\), \\(t^2=t^2\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Wskaż wyrazy podobne do tego po lewej.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Uwaga! Nie wszystkie wyrazy są uproszczone\n        </p>"
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\\(-3x^3y\\)</p>",
+      "multiple": true,
+      "choices": [
+        {
+          "text": "\\(6xyx^2\\)",
+          "is_correct": true
+        },
+        {
+          "text": "\\(-5xy^3\\)",
+          "is_correct": false
+        },
+        {
+          "text": "\\(5x^2y\\)",
+          "is_correct": false
+        },
+        {
+          "text": "\\(-7yx^3\\)",
+          "is_correct": true
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\\(ab\\)</p>",
+      "multiple": true,
+      "choices": [
+        {
+          "text": "\\(a^2b^2\\)",
+          "is_correct": false
+        },
+        {
+          "text": "\\(1000ab\\)",
+          "is_correct": true
+        },
+        {
+          "text": "\\(7a^7b\\)",
+          "is_correct": false
+        },
+        {
+          "text": "\\(-ba\\)",
+          "is_correct": true
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\\(4c^2d^4\\)</p>",
+      "multiple": true,
+      "choices": [
+        {
+          "text": "\\((2c^2d^2)^2\\)",
+          "is_correct": false
+        },
+        {
+          "text": "\\(-d^2c^2d^2\\)",
+          "is_correct": true
+        },
+        {
+          "text": "\\((2cd^2)^2\\)",
+          "is_correct": true
+        },
+        {
+          "text": "\\(-3d^2c^4d^2\\)",
+          "is_correct": false
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\\(2ps^2t^3\\)</p>",
+      "multiple": true,
+      "choices": [
+        {
+          "text": "\\(7tps^2t^2\\)",
+          "is_correct": true
+        },
+        {
+          "text": "\\(2p(st)^3\\)",
+          "is_correct": false
+        },
+        {
+          "text": "\\((3t)^3ps^2\\)",
+          "is_correct": true
+        },
+        {
+          "text": "\\(4s^2t^3\\)",
+          "is_correct": false
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "d5c3241389c7aaf191291713d3882334f3a4d073fa61423825a4063cc0051bb4"
+}

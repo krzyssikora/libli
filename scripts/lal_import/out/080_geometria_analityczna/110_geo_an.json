@@ -1,0 +1,137 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>Równanie kierunkowe prostej to równanie postaci \n                                                    \\[\n                                                    y = ax + b\n                                                    \\] \n                                                    gdzie</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n            \\(a\\) nazywamy współczynnikiem kierunkowym,\n        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>natomiast</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n            \\(b\\) - wyrazem wolnym lub współczynnikiem przesunięcia.\n        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Aby móc przejść dalej i uczyć się bez problemu, warto powtórzyć sobie rozdział\n    <a href=\"/jump_to_id/fbc819931db64e0e90d3ba05d25782d2\">\n<strong>\n            Funkcja liniowa\n        </strong>\n</a>\n    , a przynajmniej przypomnieć sobie jego\n    <a href=\"/jump_to_id/4bf9e10fdd7444c1a5c84d17512f1955\">\n<strong>\n            Podsumowanie\n        </strong>\n</a>\n    . Koniecznie przypomnij sobie, czym jest\n    <strong>\n        współczynnik kierunkowy\n    </strong>\n    , oraz kiedy proste są\n    <em>\n        równoległe\n    </em>\n    , a kiedy\n    <em>\n        prostopadłe\n    </em>\n    .\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Jeśli czujesz się gotowa/-y, poniżej znajdziesz kilka ćwiczeń powtarzających podstawowe wiadomości i umiejętności.\n</p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/geom_analit_prosta_rownanie_liniowe.png",
+      "alt": "symetria miejsc zerowych",
+      "figcaption": ""
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Wskaż równanie linii przedstawionej na rysunku.</p>",
+      "multiple": true,
+      "choices": [
+        {
+          "text": "\\(y=\\frac{2}{3}x+1\\)",
+          "is_correct": false,
+          "feedback": "Współczynnik \\(b\\) wskazuje na punkt na osi \\(OY\\)."
+        },
+        {
+          "text": "\\(y=\\frac{2}{3}x-1\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(y=\\frac{3}{2}x-1\\)",
+          "is_correct": false,
+          "feedback": "Współczynnik kierunkowy to \"SKOK przez KROK\", czyli ruch w pionie przez ruch w poziomie."
+        },
+        {
+          "text": "\\(y=-\\frac{2}{3}x-1\\)",
+          "is_correct": false,
+          "feedback": "Współczynnik kierunkowy jest ujemny, gdy prosta maleje."
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question_text\">\n        Które z poniższych zdań są prawdziwe?\n    </p>"
+    },
+    {
+      "type": "choice_grid",
+      "columns": [
+        "tak",
+        "nie"
+      ],
+      "rows": [
+        {
+          "statement": "Punkt \\((2,13)\\) leży na prostej \\(y=2x+13\\).",
+          "correct": 0
+        },
+        {
+          "statement": "Punkt \\((0,13)\\) leży na prostej \\(y=2x+13\\).",
+          "correct": 1
+        },
+        {
+          "statement": "Punkt \\((13, 0)\\) leży na prostej \\(y=2x+13\\).",
+          "correct": 1
+        },
+        {
+          "statement": "Punkt \\((4, 0)\\) leży na prostej \\(y=\\frac{3}{2}x-6\\).",
+          "correct": 1
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question_text\">\n        Które z poniższych zdań są prawdziwe?\n    </p>"
+    },
+    {
+      "type": "choice_grid",
+      "columns": [
+        "tak",
+        "nie"
+      ],
+      "rows": [
+        {
+          "statement": "Proste \\(y=2x-11\\) i \\(y=2x+13\\) są równoległe.",
+          "correct": 0
+        },
+        {
+          "statement": "Proste \\(y=2x-1\\) i \\(y=\\frac{1}{2}x+7\\) są równoległe.",
+          "correct": 1
+        },
+        {
+          "statement": "Proste \\(y=\\frac{3}{2}x+2\\) i \\(y=-\\frac{3}{2}x-4\\) są równoległe.",
+          "correct": 1
+        },
+        {
+          "statement": "Proste \\(y=\\frac{3}{2}x\\) i \\(y=-\\frac{3}{2}x+3\\) są prostopadłe.",
+          "correct": 1
+        },
+        {
+          "statement": "Proste \\(y=\\frac{3}{2}x+3\\) i \\(y=-\\frac{2}{3}x+3\\) są prostopadłe.",
+          "correct": 0
+        },
+        {
+          "statement": "Proste \\(y=-\\frac{4}{5}x-6\\) i \\(y=1\\tfrac{1}{4}x+6\\) są prostopadłe.",
+          "correct": 0
+        }
+      ]
+    }
+  ],
+  "fully_mapped": false,
+  "seed_hash": "405d9ccd05bb11d84e428ee781f7cd80311b6f57f4f517c4725697bcfa4be7d8"
+}

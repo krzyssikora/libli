@@ -1,0 +1,340 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Uzupełnij tabelę wg wzoru. W każdym wierszu mamy do czynienia z inną funkcją kwadratową.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Dla każdej z nich numerujemy miejsca zerowe od lewej do prawej, tj. \\(x_1\\le x_2\\).\n        </p>"
+    },
+    {
+      "type": "fill_table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "kind": "static",
+              "html": "postać iloczynowa\n                    <br/>\n                    \\(y=a(x-x_1)(x-x_2)\\)",
+              "rowspan": 2
+            },
+            {
+              "kind": "static",
+              "html": "miejsca zerowe",
+              "colspan": 2
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(x_1\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(x_2\\)"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(y=2(x-4)(x-1)\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(1\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(4\\)"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(y=2(x-4)(x+1)\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "-1"
+            },
+            {
+              "kind": "answer",
+              "answer": "4"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(y=-\\frac{1}{3}(x+2)^2\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "-2"
+            },
+            {
+              "kind": "answer",
+              "answer": "-2"
+            }
+          ],
+          [
+            {
+              "kind": "answer",
+              "answer": "-2"
+            },
+            {
+              "kind": "static",
+              "html": "\\(-3\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(2\\)"
+            }
+          ],
+          [
+            {
+              "kind": "answer",
+              "answer": "+5"
+            },
+            {
+              "kind": "static",
+              "html": "\\(-5\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(-3\\)"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Przyjrzyj się poniższym parabolom. Wszystkie mają całkowite miejsca zerowe.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Dla każdej z nich wybierz pasujące do niej równanie ooraz wskaż, czy współczynnik \\(a\\) jest ujemny, czy dodatni.\n        </p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/iloczynowa_1.png",
+      "alt": "",
+      "figcaption": "1"
+    },
+    {
+      "type": "image",
+      "media_src": "static/iloczynowa_2.png",
+      "alt": "",
+      "figcaption": "2"
+    },
+    {
+      "type": "image",
+      "media_src": "static/iloczynowa_3.png",
+      "alt": "",
+      "figcaption": "3"
+    },
+    {
+      "type": "image",
+      "media_src": "static/iloczynowa_4.png",
+      "alt": "",
+      "figcaption": "4"
+    },
+    {
+      "type": "choice",
+      "stem": "<p>parabola 1</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "y=a(x-1)(x-4)",
+          "is_correct": false
+        },
+        {
+          "text": "y=a(x+2)(x-3)",
+          "is_correct": true
+        },
+        {
+          "text": "y=a(x+4)(x-3)",
+          "is_correct": false
+        },
+        {
+          "text": "y=a(x+3)(x-4)",
+          "is_correct": false
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>parabola 2</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "y=a(x-1)(x-4)",
+          "is_correct": true
+        },
+        {
+          "text": "y=a(x+2)(x-3)",
+          "is_correct": false
+        },
+        {
+          "text": "y=a(x+4)(x-3)",
+          "is_correct": false
+        },
+        {
+          "text": "y=a(x+3)(x-4)",
+          "is_correct": false
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>parabola 3</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "y=a(x-1)(x-4)",
+          "is_correct": false
+        },
+        {
+          "text": "y=a(x+2)(x-3)",
+          "is_correct": false
+        },
+        {
+          "text": "y=a(x+4)(x-3)",
+          "is_correct": true
+        },
+        {
+          "text": "y=a(x+3)(x-4)",
+          "is_correct": false
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>parabola 4</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "y=a(x-1)(x-4)",
+          "is_correct": false
+        },
+        {
+          "text": "y=a(x+2)(x-3)",
+          "is_correct": false
+        },
+        {
+          "text": "y=a(x+4)(x-3)",
+          "is_correct": false
+        },
+        {
+          "text": "y=a(x+3)(x-4)",
+          "is_correct": true
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>parabola 1</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "a > 0",
+          "is_correct": true
+        },
+        {
+          "text": "a < 0",
+          "is_correct": false
+        },
+        {
+          "text": "",
+          "is_correct": false
+        },
+        {
+          "text": "",
+          "is_correct": false
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>parabola 2</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "a > 0",
+          "is_correct": false
+        },
+        {
+          "text": "a < 0",
+          "is_correct": true
+        },
+        {
+          "text": "",
+          "is_correct": false
+        },
+        {
+          "text": "",
+          "is_correct": false
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>parabola 3</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "a > 0",
+          "is_correct": false
+        },
+        {
+          "text": "a < 0",
+          "is_correct": true
+        },
+        {
+          "text": "",
+          "is_correct": false
+        },
+        {
+          "text": "",
+          "is_correct": false
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>parabola 4</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "a > 0",
+          "is_correct": true
+        },
+        {
+          "text": "a < 0",
+          "is_correct": false
+        },
+        {
+          "text": "",
+          "is_correct": false
+        },
+        {
+          "text": "",
+          "is_correct": false
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "a9d0ef7077b41ae92f9362622e12cd103a6c7c4282f481323151eb4cfefc2af8"
+}

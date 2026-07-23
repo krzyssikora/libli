@@ -1,0 +1,89 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Wskaż większą liczbę w każdej parze.\n    "
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Zaznacz większą.</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(2^{-132}\\)",
+          "is_correct": true
+        },
+        {
+          "text": "\\(2^{-134}\\)",
+          "is_correct": false
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Zaznacz większą.</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(\\left(\\frac{2}{3}\\right)^{-90}\\)",
+          "is_correct": false
+        },
+        {
+          "text": "\\(\\left(\\frac{2}{3}\\right)^{-100}\\)",
+          "is_correct": true
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Zaznacz większą.</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(\\left(\\sqrt{\\frac{1}{2}}\\right)^{200}\\)",
+          "is_correct": true
+        },
+        {
+          "text": "\\(\\left(\\sqrt{\\frac{1}{2}}\\right)^{300}\\)",
+          "is_correct": false
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Zaznacz większą.</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(\\left(\\sqrt{\\frac{4}{3}}\\right)^{56}\\)",
+          "is_correct": false
+        },
+        {
+          "text": "\\(\\left(\\sqrt{\\frac{4}{3}}\\right)^{65}\\)",
+          "is_correct": true
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Zaznacz większą.</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(\\left(\\sqrt{\\frac{4}{3}}\\right)^{-56}\\)",
+          "is_correct": true
+        },
+        {
+          "text": "\\(\\left(\\sqrt{\\frac{4}{3}}\\right)^{-65}\\)",
+          "is_correct": false
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "548fc11601ca8b9e1d40177336205bc0c992d48aea185d3fed4db8ac03393eef"
+}

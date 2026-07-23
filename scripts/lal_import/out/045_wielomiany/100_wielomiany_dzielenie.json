@@ -1,0 +1,136 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<h3>\n    Podzielność liczb naturalnych\n</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Co to znaczy, że</p>"
+    },
+    {
+      "type": "text",
+      "body": "<blockquote>\n            liczba naturalna \\(n\\) jest podzielna przez liczbę naturalną \\(d\\)?\n        </blockquote>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Zastanów się, zapisz swoją odpowiedź, a następnie zobacz poniższą.</p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "Podzielność liczb naturalnych - zobacz",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Mówimy, że</p>"
+        },
+        {
+          "type": "text",
+          "body": "<blockquote>\n<u>\n                    liczba naturalna\n                </u>\n                \\(n\\) jest podzielna przez\n                <u>\n                    liczbę naturalną\n                </u>\n                \\(d\\)\n            </blockquote>"
+        },
+        {
+          "type": "text",
+          "body": "<p>jeśli istnieje taka</p>"
+        },
+        {
+          "type": "text",
+          "body": "<u>\n                liczba naturalna\n            </u>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(k\\), że\n                    \\[\n                    n=d\\cdot k\n                    \\]</p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>\n                    liczbę \\(d\\) nazywamy\n                    <strong>\n                        dzielnikiem\n                    </strong>\n                    liczby \\(n\\),\n                </li>\n<li>\n                    liczbę \\(k\\), czyli wynik działania \\(n:d\\) nazywamy\n                    <strong>\n                        ilorazem\n                    </strong>\n                    .\n                </li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<p><strong>Przykład</strong></p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Liczba \\(n=20\\) jest podzielna przez dzielnik \\(d=4\\), bo \\(20=4\\cdot 5\\).</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p style=\"float: right;\">\n                    Możemy zapisać: \\(20:4=5\\) lub \\(\\frac{20}{4}=5\\).\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Liczba \\(n=102\\) jest podzielna przez dzielnik \\(d=3\\), bo \\(102=3\\cdot 34\\).</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p style=\"float: right;\">\n                    Możemy zapisać: \\(102:3=34\\) lub \\(\\frac{102}{3}=34\\).\n                </p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<h3>\n    Podzielność wielomianów\n</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Przez analogię do podzielności liczb naturalnych definiujemy podzielność wielomianów.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Mówimy, że</p>"
+    },
+    {
+      "type": "text",
+      "body": "<blockquote>\n<u>\n            wielomian\n        </u>\n        \\(W(x)\\) jest podzielny przez\n        <u>\n            wielomian\n        </u>\n        \\(D(x)\\)\n    </blockquote>"
+    },
+    {
+      "type": "text",
+      "body": "<p>jeśli istnieje taki</p>"
+    },
+    {
+      "type": "text",
+      "body": "<u>\n        wielomian\n    </u>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\\(P(x)\\), że\n                                                    \\[\n                                                    W(x)=D(x)\\cdot P(x)\n                                                    \\]</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n            wielomian \\(D(x)\\) nazywamy\n            <strong>\n                dzielnikiem\n            </strong>\n            wielomianu \\(W(x)\\),\n        </li>\n<li>\n            wielomian \\(P(x)\\), czyli wynik działania \\(W(x):D(x)\\) nazywamy\n            <strong>\n                ilorazem\n            </strong>\n            .\n        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Przykład</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Rozpatrzmy wielomian\n                                    \\[\n                                    W(x)=3x^3-2x^2-19x-6\n                                    \\]</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n                Wielomian \\(W(x)\\) jest podzielny przez \\((x+2)\\), bo \\(W(x)=(x+2)(3x^2-8x-3)\\).\n            </li>\n<li>\n                Wielomian \\(W(x)\\) jest podzielny przez \\((x-3)\\), bo \\(W(x)=(x-3)(3x^2+7x+2)\\).\n            </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Możesz sprawdzić oba powyższe mnożenia.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Możesz też sprawdzić, że:\n                                    \\[\n                                    W(x)=(x+2)(x-3)(3x+1)\n                                    \\]</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            co oznacza, że \\(W(x)\\) ma jeszcze jeden dzielnik\n            <strong>\n                liniowy\n            </strong>\n            , \\((3x+1)\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p style=\"float: right;\">\n                (\n                <small>\n                    liniowy, czyli stopnia \\(1\\), czyli postaci \\(ax+b\\)\n                </small>\n                )\n            </p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "812e11135d55c7fbe29c82a3b8c7f7526b0eaeef98c5210cdc171b80731d1395"
+}

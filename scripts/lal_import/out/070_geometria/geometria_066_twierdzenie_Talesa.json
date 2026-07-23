@@ -1,0 +1,18 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    W twierdzeniu Talesa z\n    <u>\n        równoległości prostych\n    </u>\n    wynikają\n    <u>\n        proporcje między odcinkami\n    </u>\n    .\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    W twierdzeniu odwrotnym do twierdzenia Talesa z\n    <u>\n        proporcji między odcinkami\n    </u>\n    wynika\n    <u>\n        równoległość prostych\n    </u>\n    .\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<strong>\n        Twierdzenie odrotne do twierdzenia Talesa\n    </strong>\n    mówi, że jeżeli pewna liczba prostych przecina dwie nierównoległe do siebie proste \\(k\\), \\(m\\) i odpowiednie odcinki wyznaczone przez te proste na prostej \\(k\\) są proporcjonalne do odpowiednich odcinków wyznaczonych przez te same proste na prostej \\(m\\), to proste przecinające \\(k\\) i \\(m\\) są równoległe.\n"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "4bdfab05013498cb8a5d57bf0898df44b7b785fac0d1ebdff9631a4eb6ee8fc8"
+}

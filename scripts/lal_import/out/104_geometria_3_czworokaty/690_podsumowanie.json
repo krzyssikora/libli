@@ -1,0 +1,368 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<h3>\n    Deltoid\n</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<p><li>\n<strong>Deltoid</strong> to czworokąt, w którym dwie pary sąsiednich boków są równej długości.\n    </li>\n<li>\n        Każdy czworokąt, którego przekątne przecinają się pod kątem prostym w taki sposób, że jedna z nich dzieli drugą na połowy, jest <strong>deltoidem</strong>.\n    </li>\n<li>\n        Własności deltoidów:\n        <ul>\n<li>\n                Prosta przechodząca przez końce boków o równej długości jest osią symetrii deltoidu.\n            </li>\n<li>\n                Przekątne deltoidu przecinają się pod kątem prostym.\n                <details>\n<summary>co więcej...</summary>\n                    A co więcej, na mocy pierwszej własności, jedna z przekątnych dzieli drugą na połowy.\n                </details>\n</li>\n<li>\n                Kąty między bokami o różnej długości są równe.\n                <details>\n<summary>chyba, że...</summary>\n                    No, chyba, że wszystkie boki są tej samej długości - wówczas mamy dwie pary równych kątów.\n                </details>\n</li>\n<li>\n                Jeśli deltoid jest wypukły, można w niego wpisać okrąg.\n            </li>\n</ul>\n</li></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Jeśli przekątne deltoidu mają długości \\(d_1\\) i \\(d_2\\), to jego pole, \\(P\\), dane jest wzorem\n        \\[\n        P=\\frac{d_1\\cdot d_2}{2}\n        \\]</p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/deltoid_pole_d1_d2_1.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>Jeśli deltoid \n        <ul class=\"nolist\">\n<li>\n                ma dwa boki o długościach \\(a\\) i dwa boki o długościach \\(b\\), \n            </li>\n<li>\n                a kąt między bokami o długościach \\(a\\) i \\(b\\) ma miarę \\(\\alpha\\), \n            </li>\n</ul>\n        to pole deltoidu, \\(P\\), dane jest wzorem\n        \\[\n        P=a\\cdot b\\cdot \\sin\\alpha\n        \\]</p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/deltoid_pole_alpha_1.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<h3>\n    Trapez\n</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<p><li>\n<strong>Trapezem</strong> nazwiemy czworokąt, który ma (co najmniej) jedną parę boków równoległych.\n    </li></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Równoległe boki trapezu nazywamy <strong>podstawami</strong>.\n        Dwa pozostałe boki trapezu nazywamy <strong>ramionami</strong>.</p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/trapez_podstawy_ramiona_1.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p><li>\n<strong>Wysokość</strong> trapezu to najkrótszy odcinek łączący podstawy, czyli odcinek prostopadły do podstaw, którego końce leżą na podstawach lub na prostych zawierających podstawy.\n    </li>\n<li>\n<strong>Trapez prostokątny</strong> to taki trapez, w którym (przynajmniej) jeden z kątów wewnętrznych jest prosty.\n        <ul>\n<li>\n                Jeśli w trapezie jeden z kątów jest prosty, to drugi kąt przy tym samym ramieniu też jest prosty.\n            </li>\n<li>\n                Ramię trapezu prostokątnego sąsiadujące z kątem prostym jest też wysokością trapezu.\n            </li>\n</ul>\n</li></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><p>\n<strong>Trapez równoramienny</strong> to taki trapez, którego kąty wewnętrzne między jedną podstawą a ramionami są równe.\n        </p></p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/trapez_rownoramienny_definicja.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p><li>\n<u>twierdzenie o kątach przy ramieniu trapezu</u>\n<br/>\n        Suma kątów wewnętrznych przy jednym ramieniu trapezu jest równa \\(180^{\\circ}\\).\n    </li></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><p>\n<strong>Linią środkową</strong> w trapezie nazwiemy linię / odcinek łączący środki ramion trapezu.\n        </p></p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/trapez_linia_srodkowa.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p><p>\n            Linia środkowa w trapezie przedstawionym na rysunku jest oznaczona na zielono.\n        </p>\n<p>\n<u>Twierdzenie o linii środkowej trapezu</u>\n</p></p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/trapez_linia_srodkowa_twierdzenie.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p><ul>\n<li>\n                Odcinek łączący środki ramion trapezu jest równoległy do obu podstaw.\n            </li>\n</ul>\n<p>\n            Jeśli długości podstaw to \\(a\\) i \\(b\\), a długość odcinka łączącego środki ramion to \\(s\\), to\n        </p>\n<ul>\n<li>\n                jego długość jest średnią długości podstaw, czyli \\(s=\\frac{a+b}{2}\\).\n            </li>\n</ul></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><li>\n<p>\n<u>Twierdzenie o przekątnych trapezu równoramiennego</u>\n</p>\n<p>\n            Przekątne w trapezie równoramiennym są równej długości.\n        </p>\n<p>\n<u>co więcej:</u>\n</p>\n<ul>\n<li>\n                odcinki <strong style=\"color: orange;\">nad</strong> punktem przecięcia przekątnych na obu przekątnych są równej długości,\n            </li>\n<li>\n                odcinki <strong style=\"color: red;\">pod</strong> punktem przecięcia przekątnych na obu przekątnych są równej długości,\n            </li>\n</ul>\n</li></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><p>\n<u>Twierdzenie o wysokości trapezu równoramiennego</u>\n</p></p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/trapez_wysokosc_w_rownoramiennym_3.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p><p>\n            Wysokość trapezu równoramiennego opuszczona z wierzchołka krótszej podstawy dzieli dłuższą podstawę na odcinki o długościach \\(\\frac{a+b}{2}\\) i \\(\\frac{a-b}{2}\\).\n        </p></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><p>\n            Pole trapezu, \\(P\\), o podstawach \\(\\color{blue}{a}\\) i \\(\\color{blue}{b}\\) oraz wysokości \\(\\color{red}{h}\\) jest równe\n        </p>\n        \\[\n        P=\\frac{1}{2}(\\color{blue}{a+b})\\cdot\\color{red}{h}\n        \\]</p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/geometria_3_zadanie_320_1.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<h3>Równoległobok</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<p><li>\n<strong>Równoległobok</strong> to czworokąt, który ma dwie pary boków równoległych.\n    </li>\n<li>\n<strong>Wysokość</strong> równoległoboku to najkrótszy odcinek łączący boki równoległe, czyli odcinek prostopadły do boków równoległych, którego końce leżą na tych bokach lub na prostych zawierających te boki.\n        <br/>\n        Jeśli boki równoległoboku są różnej długości, to wtedy wysokości równoległoboku także są różnej długości.\n    </li>\n<li>\n        Jeśli czworokąt jest równoległobokiem, to\n        <ul>\n<li>\n                długości jego przeciwległych boków są sobie równe,\n                <br/>\n<i>inaczej</i>: długości boków równoległych są sobie równe,\n            </li>\n<li>\n                miary przeciwległych kątów są sobie równe,\n            </li>\n<li>\n                sumy miar sąsiednich kątów (tj. kątów przy tym samym boku) są równe \\(180^{\\circ}\\),\n            </li>\n<li>\n                przekątne przecinają się w połowie.\n            </li>\n</ul>\n</li>\n<li>\n        Prawdziwe są następujące twierdzenia:\n        <ul>\n<li>\n                Jeśli czworokąt ma dwie pary przeciwległych boków równej długości, to jest <strong>równoległobokiem</strong>.\n            </li>\n<li>\n                Jeśli  miary obu par przeciwległych kątów czworokąta są równe, to czworokąt jest <strong>równoległobokiem</strong>.\n            </li>\n<li>\n                Jeśli sumy miary wszystkich par sąsiednich kątów czworokąta są równe \\(180^{\\circ}\\), to czworokąt jest <strong>równoległobokiem</strong>.\n            </li>\n<li>\n                Jeśli przekątne czworokąta dzielą się na połowy, to czworokąt jest <strong>równoległobokiem</strong>.\n            </li>\n<li>\n                Jeśli dwa przeciwległe boki czworokąta są równoległe i równej długości, to czworokąt jest <strong>równoległobokiem</strong>.\n            </li>\n</ul>\n</li></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><p>\n            Pole równoległoboku jest równe iloczynowi <span style=\"color: blue\">podstawy</span> i <span style=\"color:red\">wysokości</span> równoległoboku.\n        </p></p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/rownoleglobok_pole_3.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\\[\n        \\text{Pole }=(\\color{blue}{\\text{podstawa}})\\cdot(\\color{red}{\\text{wysokość}})\n        \\]\n        <p>\n            Zwróć uwagę, że każdy bok równoległoboku może być podstawą. Wysokość opadająca na dłuższą podstawę jest krótsza, a wysokość opadająca na krótszą podstawę jest dłuższa.\n        </p>\n<p>\n            Przyjmując oznaczenia z powyższego rysunku, pole równoległoboku, \\(P\\), dane jest wzorami:\n        </p>\n<div class=\"table_wrapper\">\n            \\[\n            \\begin{align}\n            P&amp;=\\color{blue}{a}\\cdot\\color{red}{h_a}\\\\\n            P&amp;=\\color{blue}{b}\\cdot\\color{orange}{h_b}\n            \\end{align}\n            \\]\n        </div></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><p>\n            Pole równoległoboku jest równe iloczynowi długości obu <span style=\"color: blue\">boków</span> równoległoboku i sinusa <span style=\"color:red\">kąta</span> między bokami.\n        </p></p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/rownoleglobok_pole_4.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\\[\n        P=\\color{blue}{a}\\cdot\\color{blue}{b}\\cdot\\sin\\color{red}{\\alpha}\n        \\]\n        <p>\n            Zwróć uwagę, że między bokami o długościach \\(a\\) i \\(b\\) leży także drugi kąt równoległoboku, o mierze \\(180^{\\circ}-\\alpha\\).\n        </p>\n<p>\n            Jak wiemy,\n        </p>\n<div class=\"table_wrapper\">\n            \\[\n            \\sin(180^{\\circ}-\\alpha)=\\sin\\alpha\n            \\]\n        </div>\n<p>\n            więc niezależnie od tego, który kąt weźmiemy pod uwagę, otrzymamy takie samo pole.\n        </p></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><p>\n            Pole równoległoboku jest równe iloczynowi długości <span style=\"color: blue\">przekątnych</span> równoległoboku i sinusa <span style=\"color:red\">kąta</span> między przekątnymi.\n        </p></p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/rownoleglobok_pole_5.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\\[\n        P=\\frac{1}{2}\\cdot d_1\\cdot d_2\\cdot \\sin\\beta\n        \\]\n        <p>\n            Zwróć uwagę, że drugi kąt między przekątnymima miarę \\(180^{\\circ}-\\beta\\).\n        </p>\n<p>\n            Jak wiemy,\n        </p>\n<div class=\"table_wrapper\">\n            \\[\n            \\sin(180^{\\circ}-\\beta)=\\sin\\beta\n            \\]\n        </div>\n<p>\n            więc niezależnie od tego, który kąt weźmiemy pod uwagę, otrzymamy takie samo pole.\n        </p></p>"
+    },
+    {
+      "type": "text",
+      "body": "<h3>\n    Romb\n</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<p><li>\n<strong>Romb</strong> to czworokąt, w którym wszystkie boki są równej długości.\n    </li>\n<li>\n        Każdy <strong>romb</strong> jest zarówno <strong>trapezem</strong>, jak i <strong>deltoidem</strong> oraz <strong>równoległobokiem</strong>.\n    </li>\n<li>\n        W rombie\n        <table class=\"my_table_TL\">\n<tr>\n<th>przekątne</th>\n<td>przecinają się w połowie</td>\n</tr>\n<tr>\n<th></th>\n<td>przecinają się pod kątem prostym</td>\n</tr>\n<tr>\n<th></th>\n<td>są osiami symetrii</td>\n</tr>\n<tr>\n<th></th>\n<td>są dwusiecznymi kątów wewnętrznych</td>\n</tr>\n<tr>\n<th>kąty</th>\n<td>przeciwległe są równe</td>\n</tr>\n<tr>\n<th></th>\n<td>sąsiednie sumują się do \\(180^{\\circ}\\)</td>\n</tr>\n<tr>\n<th>okrąg</th>\n<td>można wpisać w każdy romb</td>\n</tr>\n</table>\n</li>\n<li>\n        Średnica okręgu wpisanego w romb jest równa wysokości rombu.\n    </li>\n<li>\n        Romb ma tylko jedną wysokość.\n    </li></p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/romb_pole_a_h.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>Jeśli bok rombu ma długość \\(a\\), a jego wysokość \\(h\\), to pole rombu, \\(P\\), dane jest wzorem\n            \\[\n            P=ah\n            \\]</p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/romb_pole_d1_d2.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>Jeśli przekątne rombu mają długości \\(d_1\\) i \\(d_2\\), to pole rombu, \\(P\\), dane jest wzorem\n            \\[\n            P=\\frac{d_1d_2}{2}\n            \\]</p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/romb_pole_a_alpha.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>Jeśli bok rombu ma długość \\(a\\), a kąt wewnętrzny rombu ma miarę \\(\\alpha\\), to pole rombu, \\(P\\), dane jest wzorem\n            \\[\n            P=a^2\\sin\\alpha\n            \\]</p>"
+    },
+    {
+      "type": "text",
+      "body": "<h3>Prostokąt</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<p><li>\n<strong>Prostokąt</strong> to czworokąt, w którym wszystkie kąty są proste.\n    </li>\n<li><u>podstawowe własności</u>\n<ul>\n<li>\n                Prostokąt jest równoległobokiem.\n            </li>\n<li>\n                Długości przeciwległych, równoległych boków prostokąta są sobie równe.\n            </li>\n<li>\n                Przekątne prostokąta przecinają się w połowie.\n            </li>\n</ul>\n</li></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><p>\n            \\(P\\), pole prostokąta o bokach \\(a\\) i \\(b\\) jest dane wzorem\n        </p>\n        \\[\n        P=ab\n        \\]</p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/prostokat_pole_ab.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p><p>\n            \\(P\\), pole prostokąta o przekątnych długości \\(d\\) i kącie między nimi o mierze \\(\\beta\\) jest dane wzorem\n        </p>\n        \\[\n        P=\\frac{1}{2}d^2\\sin\\beta\n        \\]</p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/prostokat_pole_przekatne.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<h3>Kwadrat</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<p><li>\n<strong>Kwadrat</strong> to czworokąt, w którym wszystkie kąty są proste i którego wszystkie boki są równej długości.\n    </li>\n<li>\n<strong>Przekątne kwadratu</strong> są równej długości i przecinają się w połowie pod kątem prostym\n    </li>\n<li>\n        Przekątna kwadratu o boku długości \\(a\\) ma długość \\(a\\sqrt{2}\\).\n    </li></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><p>\n            \\(P\\), pole kwadratu o boku \\(a\\) jest dane wzorem\n        </p>\n        \\[\n        P=a^2\n        \\]</p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/kwadrat_pole_aa.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p><p>\n            \\(P\\), pole kwadratu o przekątnych długości \\(d\\) jest dane wzorem\n        </p>\n        \\[\n        P=\\frac{1}{2}d^2\n        \\]</p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/kwadrat_pole_przekatne.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<h3>\n    Czworokąty wpisane w koło i opisane na kole\n</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<p><li>\n        Czworokąt nazywamy <strong>opisanym</strong> na kole, jeśli wszystkie boki czworokąta są <strong>styczne</strong> do okręgu ograniczającego koło.\n    </li>\n<li>\n        Czworokąt nazywamy <strong>wpisanym</strong> w koło, jeśli wszystkie wierzchołki czworokąta leżą na okręgu ograniczającym koło.\n    </li></p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/czworokat_opisany_na_kole_boki.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p><figcaption style=\"color: blue;\">\n                    \\(a+c=b+d\\)\n                </figcaption></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><p>\n                W czworokąt można wpisać okrąg, gdy sumy przeciwległych boków czworokąta są sobie równe.\n            </p>\n<p>\n                Taki czworokąt nazywamy opisanym na kole.\n            </p>\n<hr/>\n<p>\n                Oznacza to też, że każda suma przeciwległych boków, \\(a+c\\) oraz \\(b+d\\), jest równa <strong>połowie obwodu</strong>.\n            </p></p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/czworokat_wpisany_w_kolo_katy.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p><figcaption style=\"color: blue;\">\n                    \\(\\color{green}{\\alpha}+\\color{green}{\\gamma}=180^{\\circ}=\\color{red}{\\beta}+\\color{red}{\\delta}\\)\n                </figcaption></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><p>\n                Na czworokącie można opisać okrąg, gdy sumy przeciwległych kątów czworokąta są sobie równe.\n            </p>\n<p>\n                Taki czworokąt nazywamy wpisanym w koło.\n            </p>\n<hr/>\n<p>\n                Oznacza to też, że każda suma przeciwległych kątów, \\(\\color{green}{\\alpha}+\\color{green}{\\gamma}\\) oraz \\(\\color{red}{\\beta}+\\color{red}{\\delta}\\), jest równa \\(180^{\\circ}\\).\n            </p></p>"
+    },
+    {
+      "type": "text",
+      "body": "<h3>\n    Podobieństwo czworokątów\n</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<p><li>\n        Mówimy, że dwie figury są <strong>podobne</strong>, jeśli mają <strong>taki sam kształt</strong>, lecz niekoniecznie taką samą <strong>wielkość</strong>.\n    </li>\n<li>\n        Bardziej formalnie, <strong>podobieństwo</strong> to takie przekształcenie płaszczyzny, dla którego istnieje stała \\(k\\gt 0\\), zwana <strong>skalą podobieństwa</strong>, takie, że jeśli\n        <ul class=\"nolist\">\n<li>\n                \\(A\\) i \\(B\\) to dowolne dwa punkty płaszyczyzn przed przekształceniem,\n            </li>\n<li>\n                \\(A\\) jest przekształcany w \\(A'\\),\n            </li>\n<li>\n                \\(B\\) jest przekształcany w \\(B'\\),\n            </li>\n</ul>\n<p>\n            to między odległościami \\(AB\\) i \\(A'B'\\) zachodzi równość\n        </p>\n        \\[\n        AB\\cdot k = A'B'\n        \\]\n    </li>\n<li>\n        Jeśli figury \\(F_1\\) i \\(F_2\\) są do siebie podobne, zapisujemy to\n        \\[\n        F_1\\sim F_2\n        \\]\n    </li>\n<li>\n        Dwa wielokąty są podobne, jeśli ich kolejne kąty są takie same i odpowiednie boki są w tej samej proporcji.\n    </li></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><p>\n            Czworokąty \\(A_1B_1C_1D_1\\) i \\(A_2B_2C_2D_2\\) są <strong>podobne</strong> (\\(A_1B_1C_1D_1\\sim A_2B_2C_2D_2\\)) jeśli\n        </p>\n<ul class=\"nolist\">\n<li>\n                równe są kolejne kąty wewnętrzne:\n                <div class=\"table_wrapper\">\n                    \\[\n                    \\color{red}{A_1}=\\color{red}{A_2},\\quad \\color{green}{B_1}=\\color{green}{B_2},\\quad \\color{orange}{C_1}=\\color{orange}{C_2},\\quad \\color{blue}{D_1}=\\color{blue}{D_2}\n                    \\]\n                </div>\n</li>\n<li>\n                odpowiednie boki są proporcjonalne:\n                <div class=\"table_wrapper\">\n                    \\[\n                    \\color{red}{\\frac{A_2B_2}{A_1B_1}}=\\color{green}{\\frac{B_2C_2}{B_1C_1}}=\\color{orange}{\\frac{C_2D_2}{C_1D_1}}=\\color{blue}{\\frac{D_2A_2}{D_1A_1}}\n                    \\]\n                </div>\n</li>\n</ul></p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/czworokaty_podobne_def_1.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p><p>\n            Wartość każdego ułamka z powyższych to <strong>skala podobieństwa</strong> czworokąta \\(A_2B_2C_2D_2\\) do \\(A_1B_1C_1D_1\\).\n        </p>\n<hr/>\n<p>\n            Jeśli liczba \\(k\\gt 0\\) jest skalą podobieństwa figury \\(F_2\\) to \\(F_1\\) to:\n        </p>\n<div class=\"table_wrapper\">\n<table class=\"my_table_TL\">\n<tr>\n<td>\\(k\\gt 1\\)</td>\n<td>figura \\(F_2\\) jest większa od \\(F_1\\)</td>\n</tr>\n<tr>\n<td>\\(k= 1\\)</td>\n<td>figury \\(F_2\\) i \\(F_1\\) są przystające</td>\n</tr>\n<tr>\n<td>\\(k\\lt 1\\)</td>\n<td>figura \\(F_2\\) jest mniejsza od \\(F_1\\)</td>\n</tr>\n</table>\n</div></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><p>\n            Jeśli \n        </p>\n<ul class=\"nolist\">\n<li>\n                wielokąt \\(W_2\\) jest podobny do wielokąta \\(W_1\\) w skali \\(k\\)\n            </li>\n</ul>\n<p>\n            to\n        </p>\n<ul class=\"nolist\">\n<li>\n                nie tylko boki odpowiednie wielokątów są proporcjonalne, lecz też inne <strong>odpowiednie</strong> długości, np. wysokości, przekątne i obwód.\n            </li>\n</ul>\n<hr/>\n<p>\n            Dokładniej, jeśli \\(d_1\\) to długość w wielokącie \\(W_1\\), a \\(d_2\\) to odpowiadająca jej długość w wielokącie \\(W_2\\), to\n        </p>\n<div class=\"centered\">\n            \\(d_2=d_1\\cdot k\\quad\\) albo równoważnie \\(\\quad k=\\frac{d_2}{d_1}\\)\n        </div></p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/podobienstwo_skala_dlugosci.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p><div>\n<small>\n                Zwróć uwagę:\n            </small>\n<div class=\"table_wrapper\">\n<table class=\"my_table_TL\" style=\"font-size: small;\">\n<tr>\n<td>wielokąt</td>\n<td>\\(W_2\\)</td>\n<td>podobny do</td>\n<td>\\(W_1\\)</td>\n<td>w skali \\(k\\)</td>\n</tr>\n<tr>\n<td>stosunek</td>\n<td>\\(d_2\\)</td>\n<td>do</td>\n<td>\\(d_1\\)</td>\n<td>\\(=k\\)</td>\n</tr>\n</table>\n</div>\n</div></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><li>\n<p>\n            Jeśli \n        </p>\n<ul class=\"nolist\">\n<li>\n                figura \\(F_1\\) jest podobna do figury \\(F_2\\) w skali \\(k\\) \n            </li>\n</ul>\n<p>\n            to\n        </p>\n<ul class=\"nolist\">\n<li>\n                figura \\(F_2\\) jest podobna do figury \\(F_1\\) w skali \\(\\frac{1}{k}\\).\n            </li>\n</ul>\n<hr/>\n<div class=\"table_wrapper\">\n<table class=\"narrow_table cells_centered table_centered\">\n<tr>\n<td>\\(F_1\\)</td>\n<td>\\(\\sim\\)</td>\n<td>\\(F_2\\)</td>\n<td>\\(\\phantom{aaaa}\\)</td>\n<td>\\(\\Rightarrow\\)</td>\n<td>\\(\\phantom{aaaa}\\)</td>\n<td>\\(F_2\\)</td>\n<td>\\(\\sim\\)</td>\n<td>\\(F_1\\)</td>\n</tr>\n<tr>\n<td></td>\n<td>\\(\\quad k\\quad\\)</td>\n<td></td>\n<td></td>\n<td></td>\n<td></td>\n<td></td>\n<td>\\(\\quad \\frac{1}{k}\\quad\\)</td>\n<td></td>\n</tr>\n</table>\n</div>\n</li>\n<li>\n<p>\n            Jeśli\n        </p>\n<ul class=\"nolist\">\n<li>\n                figura \\(F_1\\) jest podobna do figury \\(F_2\\) w skali \\(k\\), a figura \\(F_2\\) jest podobna do figury \\(F_3\\) w skali \\(m\\)\n            </li>\n</ul>\n<p>\n            to\n        </p>\n<ul class=\"nolist\">\n<li>\n                figura \\(F_1\\) jest podobna do figury \\(F_3\\) w skali \\(k\\cdot m\\).\n            </li>\n</ul>\n<hr/>\n<div class=\"table_wrapper\" style=\"min-height: 50px;\">\n<table class=\"narrow_table cells_centered table_centered\">\n<tr>\n<td>\\(F_1\\)</td>\n<td>\\(\\sim\\)</td>\n<td>\\(F_2\\)</td>\n<td>\\(\\sim\\)</td>\n<td>\\(F_3\\)</td>\n<td>\\(\\phantom{aaaa}\\)</td>\n<td>\\(\\Rightarrow\\)</td>\n<td>\\(\\phantom{aaaa}\\)</td>\n<td>\\(F_1\\)</td>\n<td>\\(\\sim\\)</td>\n<td>\\(F_3\\)</td>\n</tr>\n<tr>\n<td></td>\n<td>\\(\\quad k\\quad\\)</td>\n<td></td>\n<td>\\(\\quad m\\quad\\)</td>\n<td></td>\n<td></td>\n<td></td>\n<td></td>\n<td></td>\n<td>\\(\\quad k\\cdot m\\quad\\)</td>\n<td></td>\n</tr>\n</table>\n</div>\n</li>\n<li>\n        Dwa <strong>równoległoboki</strong>, \n        <ul class=\"nolist\">\n<li>\n                jeden o bokach \\(a_1\\ge b_1\\),\n            </li>\n<li>\n                drugi o bokach \\(a_2\\ge b_2\\),\n            </li>\n</ul>\n        są podobne wtedy i tylko wtedy, gdy\n        <ol class=\"bold\">\n<li>\n                mają jeden równy kąt i\n            </li>\n<li>\n                ich boki są proporcjonalne, tj. \\(\\frac{a_1}{a_2}=\\frac{b_1}{b_2}\\).\n            </li>\n</ol>\n<p>\n            Zwróć uwagę, że warunek <strong>2</strong>, czyli \\(\\frac{a_1}{a_2}=\\frac{b_1}{b_2}\\), może być zapisany jako \\(\\frac{a_1}{b_1}=\\frac{a_2}{b_2}\\).\n        </p>\n</li>\n<li>\n        Dwa <strong>romby</strong> są podobne wtedy i tylko wtedy, gdy mają jeden równy kąt.\n    </li>\n<li>\n        Dwa <strong>romby</strong>, \n        <ul class=\"nolist\">\n<li>\n                jeden o przekątnych \\(d_1\\ge e_1\\),\n            </li>\n<li>\n                drugi o przekątnych \\(d_2\\ge e_2\\),\n            </li>\n</ul>\n        są podobne wtedy i tylko wtedy, gdy\n        <p>\n            te przekątne są proporcjonalne, tj. \\(\\frac{d_1}{d_2}=\\frac{e_1}{e_2}\\) lub, równoważnie, \\(\\frac{d_1}{e_1}=\\frac{d_2}{e_2}\\).\n        </p>\n</li>\n<li>\n        Dwa <strong>prostokąty</strong>, \n        <ul class=\"nolist\">\n<li>\n                jeden o bokach \\(a_1\\ge b_1\\),\n            </li>\n<li>\n                drugi o bokach \\(a_2\\ge b_2\\),\n            </li>\n</ul>\n        są podobne wtedy i tylko wtedy, gdy\n        <p>\n            ich boki są proporcjonalne, tj. \\(\\frac{a_1}{a_2}=\\frac{b_1}{b_2}\\) lub, równoważnie, \\(\\frac{a_1}{b_1}=\\frac{a_2}{b_2}\\).\n        </p>\n</li>\n<li>\n        Wszystkie <strong>kwadraty</strong> są podobne.\n    </li></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><p>\n            Jeśli czworokąt \\(W_2\\) jest podobny do czworokąta \\(W_1\\) w skali \\(k\\),\n        </p>\n<p>\n            to stosunek pól czworokątów \\(W_2\\) do \\(W_1\\) jest równy \\(k^2\\).\n        </p></p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/podobienstwo_pole_skala.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "image",
+      "media_src": "static/jednostki_dlugosci.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "image",
+      "media_src": "static/jednostki_pola.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p><li>\n<p>\n            Skala mapy zapisana w postaci\n        </p>\n        \\[\n        1:250\\,000\n        \\]\n        <p>\n            oznacza, że jedna (dowolna) jednostka odległości na mapie odpowiada \\(250\\,000\\) takich samych jednostek w rzeczywistości.\n        </p>\n<hr/>\n<p>\n<strong>innymi słowy</strong>:\n        </p>\n<p>\n            Każda rzeczywista odległość jest \\(250\\,000\\) razy większa od odpowiadającej jej odległości na tej mapie.\n        </p>\n<hr/>\n<p>\n<strong>jeszcze inaczej</strong>:\n        </p>\n<p>\n            Jest to skala podobieństwa kształtów na mapie do odpowiadających im kształtów w rzeczywistości.\n        </p>\n</li></p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "d08e57aee6b0d519c754064c7d53af7ca372637e485a2986b34b2cb97639ffb0"
+}

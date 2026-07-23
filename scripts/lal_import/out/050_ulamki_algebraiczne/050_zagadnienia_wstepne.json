@@ -1,0 +1,134 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Rozłóż wyrażenia kwadratowe na czynniki. Sprawdź swoje odpowiedzi.\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "(1)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\((2x-1)(3x+1)\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "(2)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\((3x)(3x-1)\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "(3)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\((3x+2)(5x+2)\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "(4)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(-(3x-1)(1x+3)\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "(5)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\((2x-5)(2x-3)\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "(6)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(-(2x+1)(3x-5)\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "(7)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\((2x)(2x-7)\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "(8)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\((2x-3)(2x-3)\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "(9)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\((3x+5)(3x-5)\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "(10)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\((1x-4)(3x+4)\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "(11)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\((4x-3)(3x+1)\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "(12)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(-(2x+7)(2x-7)\\)</p>"
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "608707e62ae51e027c3901a3a1e585eeb5687bcdfdc173eacdaa1634b5860c3c"
+}

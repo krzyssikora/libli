@@ -1,0 +1,252 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n        Jeśli \\(A=\\left(x_A, y_A\\right)\\) i \\(B=\\left(x_B, y_B\\right)\\) to środek odcinka \\(AB\\) jest dany wzorem:\n    </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n    S=\\left(\\frac{x_A+x_B}{2}, \\frac{y_A+y_B}{2}\\right)\n    "
+    },
+    {
+      "type": "image",
+      "media_src": "static/srodek_odcinka.png",
+      "alt": "środek odcinka",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Dany jest odcinek \\(AB\\), gdzie \\(A=\\left(3, -4\\right)\\), a \\(B=\\left(-7, 9\\right)\\)\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź współrzędne punktu \\(S\\), środka odcinka \\(AB\\).\n        </p>"
+    },
+    {
+      "type": "fillblank",
+      "stem": "\n<span class=\"myequation\">\n                \\(S=(\\)\n                ￿0￿\n                ,\n                ￿1￿\n                \\()\\)\n            </span>\n",
+      "blanks": [
+        [
+          "-2"
+        ],
+        [
+          "2.5",
+          "2,5"
+        ]
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Punkt \\(S\\) jest środkiem odcinka \\(AB\\), przy czym\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n                \\(A=\\left(-2, -5\\right)\\),\n            </li>\n<li>\n                \\(S=\\left(1, -2\\right)\\)\n            </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź współrzędne punktu \\(B\\).\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "Zobacz rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                    Jeśli \\(A=(x_A, y_A)\\), \\(B=(x_B, y_B)\\) i \\(S=(x_S, y_S)\\) to\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>\n                        \\(x_S=\\frac{x_A+x_B}{2}\\)\n                    </li>\n<li>\n                        \\(y_S=\\frac{y_A+y_B}{2}\\)\n                    </li>\n</ul>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Mnożąc równanie dla współrzędnych \\(x\\)-owych przez \\(2\\) i podstawiając dane wartości otrzymamy\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(2\\cdot (-2)=1+x_B\\)",
+            "\\(2\\cdot 1=-2+x_B\\)",
+            "\\(2\\cdot x_B = -2+1\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Podobnie z równania dla współrzędnych \\(y\\)-owych otrzymamy\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(2\\cdot (-2)=-5+y_B\\)",
+            "\\(2\\cdot (-5)=-2+y_B\\)",
+            "\\(2\\cdot y_B = -2-5\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Z równania \\(2\\cdot 1=-2+x_B\\) otrzymujemy\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(x_B=4\\)",
+            "\\(x_B=-4\\)",
+            "\\(x_B=0\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Z równania \\(2\\cdot (-2)=-5+y_B\\) otrzymujemy\n                    \n\n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(y_B=-4\\)",
+            "\\(y_B=1\\)",
+            "\\(y_B=3\\)",
+            "\\(y_B=-9\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Czyli \\(S=(4, 1)\\).\n                </p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Dany jest odcinek \\(AB\\), gdzie\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n                \\(A=\\left(-9, -5\\right)\\),\n            </li>\n<li>\n                \\(B=\\left(-1, 1\\right)\\)\n            </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Punkt \\(C\\) leży na odcinku \\(AB\\) w taki sposób, że \\(AC:CB=1:3\\). Znajdź współrzędne punktu \\(C\\).\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "Zobacz rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                    Na rysunkach poniżej odcinek \\(AB\\) podzielono na \\(3\\) lub \\(4\\) części równej długości.\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>1</p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/podzial_odcinka_1.png",
+          "alt": "podzial odcinka",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>2</p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/podzial_odcinka_4.png",
+          "alt": "podzial odcinka",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>3</p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/podzial_odcinka_2.png",
+          "alt": "podzial odcinka",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>4</p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/podzial_odcinka_5.png",
+          "alt": "podzial odcinka",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>5</p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/podzial_odcinka_3.png",
+          "alt": "podzial odcinka",
+          "figcaption": ""
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Sytuacja opisana w zadaniu jest zilustrowana na rysunku numer\n                    \n\n\n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(1\\)",
+            "\\(2\\)",
+            "\\(3\\)",
+            "\\(4\\)",
+            "\\(5\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Chcemy podzielić odcinek \\(AB\\) na cztery równe części. Najpierw podzielimy go na dwie połowy, a następnie jedną z nich (tę bliżej punktu \\(A\\)) ponownie podzielmy na pół.</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Środek odcinka \\(AB\\) (gdzie \\(A=\\left(-9, -5\\right)\\), \\(B=\\left(-1, 1\\right)\\)) to punkt \\(S\\) o współrzędnych\n                    \n\n\n\n\n￿0￿",
+          "options": [
+            "\\(\\left(-7, 0\\right)\\)",
+            "\\(\\left(-5, -2\\right)\\)",
+            "\\(\\left(-4, -3\\right)\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>A teraz musimy znaleźć środek odcinka \\(AS\\), gdzie \\(A=\\left(-9, -5\\right)\\), zaś \\(S=\\left(-5, -2\\right)\\).</p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/podzial_odcinka_zadanie.png",
+          "alt": "podzial odcinka",
+          "figcaption": ""
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Stąd punkt \\(C\\) ma współrzędne\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(\\left(-7,\\, -3,5\\right)\\)",
+            "\\(\\left(-2,\\, -1,5\\right)\\)",
+            "\\(\\left(-3,5,\\, -7\\right)\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Czyli \\(C=(-7,\\, -3,5)\\).</p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/podzial_odcinka_zadanie_2.png",
+          "alt": "podzial odcinka",
+          "figcaption": ""
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "09b8ea1f3dd4b4ab2e15d6606240b3edfdf47fb857f0c4817602c826ac5ade9d"
+}

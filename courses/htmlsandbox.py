@@ -20,7 +20,16 @@ MAX_IFRAME_HEIGHT = 20000
 # Baseline surface for the sandbox: an explicit light background + dark text so
 # light-designed author content is never rendered dark-on-dark when the app is in
 # dark mode (the iframe is otherwise transparent). Author CSS can override it.
-_BASE_STYLE = "html,body{background:#fff;color:#111}"
+# The body geometry keeps the auto-height iframe (sized from body.scrollHeight)
+# free of an internal scrollbar:
+#   - display:flow-root -> a block-formatting context, so a child's top/bottom
+#     margin can't collapse THROUGH the body (which would drop it from scrollHeight);
+#   - margin:0;padding:8px -> the 8px gutter lives INSIDE the body box (counted in
+#     scrollHeight) instead of as the body's own margin (which sits outside body but
+#     inside the document, making documentElement taller than body -> a scrollbar).
+_BASE_STYLE = (
+    "html,body{background:#fff;color:#111}body{display:flow-root;margin:0;padding:8px}"
+)
 
 # Colour tokens only: everything in tokens.css that is NOT one of these is a colour.
 _NON_COLOUR_TOKEN_PREFIXES = ("--radius-", "--shadow-", "--font-", "--space-")

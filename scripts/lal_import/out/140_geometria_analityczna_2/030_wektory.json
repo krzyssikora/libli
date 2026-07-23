@@ -1,0 +1,290 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Powtórzmy i uzupełnijmy to, o czym była mowa w nagraniu.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Zadanie dla Ciebie jest następujące.</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul style=\"list-style-type: square;\">\n<li>\n                Przeczytaj wskazane niżej pojęcia. \n            </li>\n<li>\n                Przypomnij sobie, co o nich wiesz - z nagrań, lub skąd inąd.\n            </li>\n<li>\n                Zapisz, co pamiętasz.\n            </li>\n<li>\n                Sprawdź poniżej, czy coś jeszcze warto wiedzieć i pamiętać.\n            </li>\n</ul>"
+    },
+    {
+      "type": "spoiler",
+      "label": "wektor",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<strong>Wektor</strong>"
+        },
+        {
+          "type": "text",
+          "body": "<p>to uporządkowana para punktów.</p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>\n                Pierwszy z nich to <strong>początek wektora</strong>.\n            </li>\n<li>\n                Drugi z nich to <strong>koniec wektora</strong>.\n            </li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Wektor o początku w punkcie \\(A\\) i końcu w punkcie \\(B\\) zapisujemy jako \\(\\vec{AB}\\).\n        </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/wektor_AB_definicja.png",
+          "alt": "",
+          "figcaption": ""
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "wartość, kierunek i zwrot wektora",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n<strong>Wartość</strong> wektora to inaczej jego długość. W matematyce najczęściej mówimy właśnie o długości wektora.  \n    </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n        Jeśli wektor oznacza jakąś wielkość fizyczną - na przykład siłę lub prędkość - wówczas mówimy o wartości.\n    </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<strong>Kierunek</strong> wektora to, mówiąc w uproszczeniu, prosta do której wektor jest równoległy.\n    </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<strong>Zwrot</strong> wektora, to pojęcie, które potocznie nazywamy <i>kierunkiem</i>, czyli strona, w którą wektor jest skierowany.\n    </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/wektory_wspolny_kierunek.png",
+          "alt": "",
+          "figcaption": "Niebieskiiczerwonywektor mająten sam kierunek,przeciwny zwrot,inną wartość."
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "współrzędne wektora",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n<strong>Współrzędne wektora</strong> są różnicami między współrzędnymi końca a współrzędnymi początku wektora.\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Jeśli \\(A=\\left(x_A, y_A\\right)\\) jest początkiem wektora, zaś \\(B=\\left(x_B, y_B\\right)\\) jego końcem, to współrzędne wektora \\(\\vec{AB}\\) obliczamy w ten sposób:\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>współrzędna \\(x\\)-owa: \\(x_B-x_A\\)</li>\n<li>współrzędna \\(y\\)-owa: \\(y_B-y_A\\)</li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Współrzędne wektora zapisujemy w nawiasach kwadratowych, czyli\n        </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n        \\vec{AB}=[x_B-x_A, y_B-y_A]\n        "
+        },
+        {
+          "type": "text",
+          "body": "<p><strong>Przykład</strong></p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/wektor_wspolrzedne_przyklad.png",
+          "alt": "",
+          "figcaption": ""
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "długość wektora",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n<strong>Długość wektora</strong> to długość odcinka łączącego początek i koniec wektora.\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Obliczamy ją z twierdzenia Pitagorasa i oznaczamy \\(|\\vec{AB}|\\). Jeśli \\(A=\\left(x_A, y_A\\right)\\) i \\(B=\\left(x_B, y_B\\right)\\) to:\n        </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n        |\\vec{AB}|=\\sqrt{\\left(x_B-x_A\\right)^2+\\left(y_B-y_A\\right)^2}\n        "
+        },
+        {
+          "type": "text",
+          "body": "<p><strong>Przykład</strong></p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/wektor_wspolrzedne_przyklad.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "\n                \\[\n                \\begin{align}\n                |\\vec{AB}|&amp;=\\sqrt{\\left(5-(-1)\\right)^2+\\left(4-1\\right)^2}=\\\\\n                &amp;=\\sqrt{6^2+3^2}=\\\\\n                &amp;=\\sqrt{36+6}=\\sqrt{45}=\\\\\n                &amp;=3\\sqrt{5}\n                \\end{align}\n                \\]\n            "
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "wektory równe",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n            Wektory \\(\\vec{u}\\) i \\(\\vec{w}\\) są <strong>równe</strong>, gdy mają:\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>taką samą długość i</li>\n<li>taki sam kierunek i</li>\n<li>taki sam zwrot.</li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n        Jeśli dane są współrzędne wektorów, możemy być bardziej precyzyjni.\n    </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Wektory \\(\\vec{u}=[x_u, y_u]\\) i \\(\\vec{w}=[x_w, y_w]\\) są <strong>równe</strong>, jeśli mają równe <strong>obie współrzędne</strong>, czyli:\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n            \\(x_u=x_w\\quad\\) oraz \\(\\quad y_u=y_w\\)\n        "
+        },
+        {
+          "type": "text",
+          "body": "<p><strong>Przykład</strong></p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/wektory_rowne_przyklad.png",
+          "alt": "",
+          "figcaption": "Wektory \\(\\vec{AB}\\) i \\(\\vec{CD}\\) mają inne początki i końce, ale są równe."
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "wektory przeciwne",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n            Wektory \\(\\vec{u}\\) i \\(\\vec{w}\\) są <strong>przeciwne</strong>, gdy mają:\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>taką samą długość i</li>\n<li>taki sam kierunek, ale</li>\n<li><strong>przeciwny</strong> zwrot.</li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n        Jeśli dane są współrzędne wektorów, możemy być bardziej precyzyjni.\n    </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Wektory \\(\\vec{u}=[x_u, y_u]\\) i \\(\\vec{w}=[x_w, y_w]\\) są <strong>przeciwne</strong>, jeśli ich <strong>obie współrzędne są przeciwne</strong>, czyli:\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n            \\(x_u=-x_w\\quad\\) oraz \\(\\quad y_u=-y_w\\)\n        "
+        },
+        {
+          "type": "text",
+          "body": "<p><strong>Przykład</strong></p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/wektory_przeciwne_przyklad.png",
+          "alt": "",
+          "figcaption": "Wektory \\(\\vec{AB}\\) i \\(\\vec{CD}\\) są przeciwne."
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "wektory równoległe",
+      "elements": [
+        {
+          "type": "text",
+          "body": "\n        Wektory są <strong>równoległe</strong>, gdy mają ten sam <strong>kierunek</strong> (ale niekoniecznie zwrot i długość).\n    "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n        Jeśli dane są współrzędne wektorów, możemy być bardziej precyzyjni.\n    </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Wektory \\(\\vec{u}=[x_u, y_u]\\) i \\(\\vec{w}=[x_w, y_w]\\) są <strong>równoległe</strong>, jeśli ich <strong>współrzędne są proporcjonalne</strong>, czyli:\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n            \\(\\frac{y_u}{x_u}=\\frac{y_w}{x_w}\\quad\\) lub inaczej: \\(\\quad y_u\\cdot x_w=x_u\\cdot y_w\\)\n        "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<small>Proporcjonalność lepiej widać w równaniu \\(\\frac{y_u}{x_u}=\\frac{y_w}{x_w}\\), lecz w nim współrzędne \\(x\\)-owe nie mogą być równe \\(0\\).</small>\n</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n        Warunek równoległości można zapisać jeszcze inaczej.\n    </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Wektory \\(\\vec{u}=[x_u, y_u]\\) i \\(\\vec{w}=[x_w, y_w]\\) są <strong>równoległe</strong>, jeśli istnieje stała \\(k\\ne 0\\) taka, że:\n        </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n        \\vec{u}=k\\cdot\\vec{w}\n        "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Mnożenie wektora przez stałą polega na mnożeniu obu współrzędnych przez tę stałą:\n        </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n        \\begin{align}\n        \\vec{u}&=\\color{red}{k}\\cdot\\vec{w}\\\\\n        [x_u, y_u]&=\\color{red}{k}\\cdot [x_w, y_w]\\\\\n        [x_u, y_u]&= [\\color{red}{k}\\cdot x_w, \\color{red}{k}\\cdot y_w]\\\\\n        \\end{align}\n        "
+        },
+        {
+          "type": "text",
+          "body": "<p><strong>Przykład</strong></p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/wektory_rownolegle_przyklad.png",
+          "alt": "",
+          "figcaption": "Wszystkie kolorowe wektory przedstawione na rysunku są równoległe. Zwróć uwagę, że ich współrzędne są proporcjonalne.\\([4, 2]\\),\\([-8, -4]\\),\\([2, 1]\\),\\([-6, -3]\\),\\([12, 6]\\),\\([8, 4]\\),\\([-4, -2]\\)"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                Na przykład:\n            </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n<span style=\"color: red\">\\([12, 6]\\)</span>\\(=-\\frac{3}{2}\\cdot\\)<span style=\"color: orange\">\\([-8, -4]\\)</span>\n"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                bo\n            </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n            \\begin{align}\n            12&=-\\frac{3}{2}\\cdot(-8)\\\\\n            6&=-\\frac{3}{2}\\cdot(-4)\n            \\end{align}\n            "
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "f29c5a8f20cadc4dbf3c370d32c8eeebbc755276ed7b58cf701b2ab7069588dc"
+}

@@ -1,0 +1,84 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Reguła mnożenia</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Jeśli mamy wybrać po jednym elemencie z dwóch zbiorów, z których\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n            jeden ma \\(n\\) elementów\n        </li>\n<li>\n            drugi ma \\(k\\) elementów\n        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        to wszystkich możliwych wyborów jest \\(n\\cdot k\\).\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Regułę mnożenia możemy uogólnić na dowolną liczbę zbiorów.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Reguła mnożenia</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Jeśli mamy wybrać po jednym elemencie z \\(s\\) zbiorów, z których\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n            zbiór numer \\(1\\) ma \\(n_1\\) elementów\n        </li>\n<li>\n            zbiór numer \\(2\\) ma \\(n_2\\) elementów\n        </li>\n<li>\n            zbiór numer \\(3\\) ma \\(n_3\\) elementów\n        </li>\n<li>\n            \\(\\dots\\)\n        </li>\n<li>\n            zbiór numer \\(s\\) ma \\(n_s\\) elementów\n        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        to wszystkich możliwych wyborów jest \\(n_1\\cdot n_2\\cdot n_3\\cdot \\dots\\cdot n_s\\).\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Przykład</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Mała Jagoda dostała do zabawy zeszyt z rysunkami zwierząt i naklejkami w kształcie ubrań. Jagoda postanowiła “ubrać“ krokodyla. Wybrała dla niego 3 koszulki, 3 pary spodni i 2 pary butów. \n        </p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/krokodyl_set.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Przyjmując, że ubranie to komplet koszulka-spodnie-buty, w ile różnych kompletów Jagoda może ubrać krokodyla?\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>Rozwiązanie</strong>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Dokonujemy wyboru z trzech zbiorów:\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n            \\(3\\)-elementowego zbioru koszulek,\n        </li>\n<li>\n            \\(3\\)-elementowego zbioru spodni,\n        </li>\n<li>\n            \\(2\\)-elementowego zbioru butów.\n        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Na mocy reguły mnożenia wszystkich kompletów jest \\(3\\cdot 3\\cdot 2=18\\).\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Choć w opisie metody mowa jest wybieraniu ze zbiorów, nie zawsze zbiory są dane wprost. W przykładzie z pływającym Jarkiem, aby ustalić pojedynczy wynik treningu, wybieramy z cztereach (bo Jarek płynie 4 baseny) identycznych zbiorów o elementach \"TAK\" i \"NIE\". \n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n    Regułę mnożenia stosujemy, gdy interesuje nas wynik, gdy każdy z wyborów jest dokonany, np. gdy wybieramy <strong>i</strong> koszulkę, <strong>i</strong> spodnie, <strong>i</strong> buty, a nie tylko niektóre z nich.\n"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "3308c48bc343857a9c2a571d60713cf812f0c8527251c12f4c229d35b09cbd93"
+}

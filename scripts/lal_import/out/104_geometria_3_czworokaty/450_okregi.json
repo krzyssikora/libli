@@ -1,0 +1,973 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Przypomnijmy:\n</p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/czworokat_opisany_na_kole_boki.png",
+      "alt": "",
+      "figcaption": "\\(a+c=b+d\\)"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        W czworokąt można wpisać okrąg, gdy sumy przeciwległych boków czworokąta są sobie równe.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Taki czworokąt nazywamy opisanym na kole.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Oznacza to też, że każda suma przeciwległych boków, \\(a+c\\) oraz \\(b+d\\), jest równa <strong>połowie obwodu</strong>.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Trapez prostokątny o obwodzie \\(48\\) cm jest opisany na kole o promieniu \\(4,5\\) cm.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź długości boków trapezu.\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                Zacznijmy od rysunku. Najłatwiej będzie najpierw narysować okrąg. A ponieważ na okręgu będzie opisany trapez, dorysujmy też dwie proste równoległe, późniejsze podstawy trapezu:\n            </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_890_1.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                Trapez jest prostokątny, więc po lewej dorysujmy prostą prostopadłą do dwóch poprzednich. A po prawej - prostą pod innym kątem. Jakimkolwiek - nie prostym. Tego kąta nie znamy, ale rysunek jest pomocniczy.\n            </p>"
+        },
+        {
+          "type": "reveal_gate",
+          "label": "pokaż dalej"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_890_2.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Na rysunku pojawił się trapez. Dorysujmy jeszcze promień koła, a właściwie dwa promienie - tworzące średnicę prostopadłą do podstaw.\n                </p>"
+        },
+        {
+          "type": "reveal_gate",
+          "label": "pokaż dalej"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_890_3.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Widzimy stąd, że wysokość trapezu, \\(h\\), ma długość \\(2\\cdot 4,5=9\\). Oznaczmy podstawy przez \\(a\\) i \\(b\\), a prawe ramię - przez \\(c\\).\n                </p>"
+        },
+        {
+          "type": "reveal_gate",
+          "label": "pokaż dalej"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_890_4.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                                Obwód trapezu jest równy \\(48\\), a wiemy też, że trapez jest opisany na kole, więc \n                            </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>\n                                    sumy przeciwległych boków są sobie równe, czyli\n                                </li>\n<li>\n                                    każda suma przeciwległych boków to połowa obwodu.\n                                </li>\n</ul>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                                A to oznacza, że\n                                \n\n\n\n￿0￿.\n                            ",
+          "options": [
+            "\\(a+c=24\\) oraz \\(b+9=24\\)",
+            "\\(a+b=24\\) oraz \\(c+9=24\\)",
+            "\\(a+b=48\\) oraz \\(c+9=48\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                                Z równania \\(c+9=24\\) wyliczamy \\(c=15\\).\n                            </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_890_5.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                                Opuśćmy wysokość z końca ramienia \\(c\\) tworząc trójkąt prostokątny.\n                            </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_890_6.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                                Długość dolnego boku, która swoją drogą jest różnicą długości podstaw, możemy wyliczyć z twierdzenia Pitagorasa. \n                            </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                                Stąd\n                                \n\n\n\n￿0￿.\n                            ",
+          "options": [
+            "\\(a-b=15^2-9^2\\)",
+            "\\(a-b=\\sqrt{15^2-9^2}\\)",
+            "\\(a-b=\\sqrt{15^2+9^2}\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                                Stąd wyliczamy, że\n                                \n\n\n￿0￿.\n                            ",
+          "options": [
+            "\\(a-b=12\\)",
+            "\\(a-b=12^2\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                                Wiemy więc, że\n                            </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                            \\begin{cases}\n                            a+b=24\\\\\n                            a-b=12\n                            \\end{cases}\n                            "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                                Rozwiązując układ równań (na przykład dodając równania stronami) otrzymujemy\n                                \n\n\n\n￿0￿.\n                            ",
+          "options": [
+            "\\(a=18\\)",
+            "\\(a=27\\)",
+            "\\(a=36\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                                A skoro \\(a+b=24\\) i \\(a=18\\), to\n                                \n\n\n\n￿0￿.\n                            ",
+          "options": [
+            "\\(b=6\\)",
+            "\\(b=9\\)",
+            "\\(b=42\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                                Podstawy trapezu mają długości \\(18\\) i \\(6\\), a ramiona \\(9\\) i \\(15\\).\n                            </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_890_7.png",
+          "alt": "",
+          "figcaption": ""
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Udowodnij, że równoległobok może być opisany na kole wtedy i tylko wtedy, gdy jest rombem.\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                    Jak pamiętamy,\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n<strong>równoległobok</strong> to czworokąt, który ma dwie pary boków równoległych.\n                "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Dla nas istotne jest, co z tego wynika na temat ich długości. Przyjrzyj się następującym stwierdzeniom.\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ol class=\"bold\">\n<li>\n                        wszystkie boki równoległoboku są równej długości,\n                    </li>\n<li>\n                        przeciwległe boki równoległoboku są równej długości,\n                    </li>\n<li>\n                        boki w jednej parze przeciwległych są równe, a w drugiej - tylko, jeśli rónoległobok jest prostokątem, \n                    </li>\n<li>\n                        sąsiednie boki równoległoboku są równej długości.\n                    </li>\n</ol>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Prawdziwe jest stwierdznie\n                    \n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "<strong>1</strong>",
+            "<strong>2</strong>",
+            "<strong>3</strong>",
+            "<strong>4</strong>"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Jeśli kolejne wierzchołki równoległoboku oznaczymy przez \\(A\\), \\(B\\), \\(C\\) i \\(D\\), jak na poniższym rysunku, to \n                </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_900_1.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\(AB=CD\\quad\\) oraz \\(\\quad BC=AD\\)\n                "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<strong>uwaga!</strong>\n</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                        Mamy udowodnić, że\n                    </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p class=\"fbox\">\n<i>\n                                równoległobok może być opisany na kole <u>wtedy i tylko wtedy</u>, gdy jest rombem.\n                            </i>\n</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                        Oznacza to, że musimy udowodnić, że\n                    </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p class=\"fbox\">\n<i><u>jeśli</u> równoległobok można odpisać na kole <u>to</u> jest rombem</i>\n</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                        oraz\n                    </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p class=\"fbox\">\n<i><u>jeśli</u> równoległobok jest rombem <u>to</u> można go odpisać na kole</i>.\n                        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Przypuścmy teraz, że równoległobok jest opisany na kole (czyli koło jest w niego wpisane).\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Na górze strony widzimy przypomnienie zasady, że sumy przeciwległych boków takiego równoległoboku są sobie równe.\n                </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Oznacza to, że \n                    \n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(AB=CD\\) i \\(BC=AD\\)",
+            "\\(AB+CD=BC+AD\\)",
+            "\\(AB+BC=CD+AD\\)",
+            "\\(AC=BD\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Mamy więc równości:</p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\(AB=CD\\quad\\) oraz \\(\\quad BC=AD\\quad\\) oraz \\(\\quad AB+CD=BC+AD\\)\n                "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Na rysunku powyżej przyjęliśmy oznaczenia:\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>\\(AB=CD=a\\),</li>\n<li>\\(BC=AD=b\\).</li>\n</ul>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Używając ich w równości \\(AB+CD=BC+AD\\) otrzymujemy\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(a+a=b+b\\)",
+            "\\(a+b=a+b\\)",
+            "\\(a+b=b+b\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Czyli:</p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    \\begin{align}\n                    a+a&amp;=b+b\\\\\n                    2a&amp;=2b\\\\\n                    a&amp;=b\n                    \\end{align}\n                    \\]\n                "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    więc ostatecznie \\(a=b\\), co oznacza, że wszystkie boki równoległoboku opisanego na kole są równe, więc jest on rombem.\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Udowodniliśmy, że\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p class=\"fbox\">\n<i><u>jeśli</u> równoległobok można odpisać na kole <u>to</u> jest rombem</i>\n</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Teraz przypuśćmy, że równoległobok jest rombem.\n                </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Oznacza to, że wszystkie jego\n                    \n\n\n￿0￿ są równe\n                    .\n                ",
+          "options": [
+            "boki",
+            "kąty",
+            "przekątne"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Skoro wszystkie boki są równe, to obie sumy przyeciwległych boków są, oczywiście, też równe.</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    A to oznacza, że\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "na rombie można opisać koło",
+            "w romb można wpisać koło",
+            "kąty też są równe"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<strong>W romb można wpisać koło</strong>, \n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    albo, inaczej mówiąc, \n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<strong>romb można opisać na kole</strong>.\n                </p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Znajdź promień koła wpisanego w romb o boku dłuości \\(8\\) i kącie ostrym \\(45^{\\circ}\\).\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                    Rysuenk przedstawia romb i wpisane w niego koło z zaznaczonym środkiem.\n                </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_910_1.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Chcemy znaleźć długość promienia, więc warto zaznaczyć promień na rysunku.\n                </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    W przypadku koła wpisanego w romb warto połączyć promieniem środek koła z \n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "punktami styczności",
+            "wierzchołkami rombu"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Dorysujmy dwa takie: do punktów styczności na dolnym i na górnym boku.\n                </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_910_2.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Takie promienie są\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "prostopadłe do boków",
+            "długości boków"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_910_3.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Złożona z tych dwóch promieni średnica koła jest w rombie\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "przekątną",
+            "wysokością",
+            "środkową"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Aby znaleźć promień koła, musimy znaleźć wysokość rombu. Narysujmy ją od górnego wierzchołka, tworząc trójkąt prostokątny o przeciwprostokątnej równej bokowi rombu.\n                </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_910_4.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Stosunek \\(\\frac{h}{8}\\) w oznaczonym na czerwono trójkącie to \n                    \n\n\n\n￿0￿ zaznaczonego kąta \\(45^{\\circ}\\).\n                ",
+          "options": [
+            "sinus",
+            "cosinus",
+            "tangens"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Wiemy, że \\(\\sin 45^{\\circ}=\\)\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(\\frac{1}{2}\\)",
+            "\\(\\frac{\\sqrt{2}}{2}\\)",
+            "\\(\\frac{\\sqrt{3}}{2}\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Otrzymujemy więc równanie:\n                </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                \\frac{h}{8}=\\frac{\\sqrt{2}}{2}\n                "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Rozwiązując je dostajemy \\(h=\\)\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(4\\sqrt{2}\\)",
+            "\\(8\\sqrt{2}\\)",
+            "\\(8\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Jak pamiętamy, wysokość rombu to średnica koła, więc promień koła jest równy\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(2\\sqrt{2}\\)",
+            "\\(2\\)",
+            "\\(\\sqrt{2}\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Promień koła wpisanego w romb ma długość \\(2\\sqrt{2}\\).</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Trapez o kolejnych bokach długości \\(13\\), \\(18\\), \\(13\\), \\(8\\) jest opisany na kole. \n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź długość promienia koła. \n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<h4>czy zadanie ma sens?</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                        Należy oczekiwać, że zadania są formułowane w taki sposób, że mają sens i są rozwiązywalne. Czy tak jest w tym przypadku?\n                    </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>Czy w taki czworokąt można wpisać koło?</li>\n<li>Czy taki czworokąt jest trapezem?</li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                        To zadanie ma sens. Możemy łatwo sprawdzić, że w czworokąt o podanych bokach można rzeczywiście wpisać koło, bo sumy przeciwległych boków są sobie równe:\n                    </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                        \\[\n                        \\begin{align}\n                        13+13&amp;=26\\\\\n                        18+8&amp;=26\n                        \\end{align}\n                        \\]\n                    "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                        Czy czworokąt o takich bokach jest / może być trapezem? Do tego odniesiemy się już we właściwym rozwiązaniu.\n                    </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Skoro</p>"
+        },
+        {
+          "type": "text",
+          "body": "<strong>kolejne</strong>"
+        },
+        {
+          "type": "text",
+          "body": "<p>boki są długości \\(13\\), \\(18\\), \\(13\\), \\(8\\), to znaczy, że</p>"
+        },
+        {
+          "type": "text",
+          "body": "<ol class=\"bold\" type=\"A\">\n<li>boki o długościach \\(13\\) to podstawy, a boki o długościach \\(18\\) i \\(8\\) to ramiona,</li>\n</ol>"
+        },
+        {
+          "type": "text",
+          "body": "<p>lub</p>"
+        },
+        {
+          "type": "text",
+          "body": "<ol class=\"bold\" start=\"2\" type=\"A\">\n<li>boki o długościach \\(13\\) to ramiona, a boki o długościach \\(18\\) i \\(8\\) to podstawy.</li>\n</ol>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Możliwa jest \n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "tylko opcja <strong>A</strong>",
+            "tylko opcja <strong>B</strong>",
+            "zarówno opcja <strong>A</strong>, jak i opcja <stron>B</stron>"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Gdyby podstawy, czyli boki równoległe, były długości \\(13\\), to czworokąt byłby równoległobokiem, więc pozostałe dwa boki także byłyby równej długości.\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Mamy więc do czynienia z sytuacją jak na rysunku.\n                </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_920_1.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Naszym celem jest znalezienie długości promienia koła, warto więc nanieść odpowiednie promienie na rysunek.\n                </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Promienie to odcinki łączące środek koła z \n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "punktami styczności koła i trapezu",
+            "wierzchołkami trapezu"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Możemy narysować takie cztery promienie:\n                </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_920_2.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Jednak nie warto skupiać się na wszystkich czterech. Spójrz na te dwa:\n                </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_920_3.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Z nich widać, że średnica koła jest równa\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "dwusiecznej kąta trapezu",
+            "wysokości trapezu",
+            "symetralnej podstawy trapezu"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Skoro tak, to jeśli obliczymy wysokość trapezu, będziemy mieli średnicę koła i stąd już tylko mały krok do promienia.\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Aby obliczyć długość wysokości (\\(h\\)), warto ją narysować w innym miejscu: opuścić z wierzchołków krótszej podstawy:\n                </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_920_4.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Zwróć uwagę, że odległość od dolnych końców wysokości do końców dłuższej podstawy oznaczyłem jako \\(x\\).\n                </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    \\(x=\\)\n                    \n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(18-8=10\\)",
+            "\\(\\frac{18-8}{2}=5\\)",
+            "\\(4\\)",
+            "\\(6\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    I teraz wysokość możemy obliczyć z twierdzenia Pitagorasa w zaznaczonym na czerwono trójkącie prostokątnym.\n                </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_920_5.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    \\(h\\) obliczymy z równania\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(h^2=13^2+5^2\\)",
+            "\\(h^2=13^2-5^2\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Otrzymujemy:\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    \\begin{align}\n                    h^2&amp;=13^2-5^2\\\\\n                    h^2&amp;=169-25\\\\\n                    h^2&amp;=144\\\\\n                    h&amp;=12\n                    \\end{align}\n                    \\]\n                "
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_920_6.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Skoro tak, to promień koła ma długość\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(6\\)",
+            "\\(9\\)",
+            "\\(12\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_920_7.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Promień koła ma długość \\(6\\).\n                </p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Trapez o dłuższej podstawie długości \\(12\\) i kątach ostrych przy tej podstawie \\(45^{\\circ}\\) i \\(60^{\\circ}\\) jest opisany na kole.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Ramię przy kącie \\(60^{\\circ}\\) ma długość \\(6\\). \n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Jaka jest długość krótszej podstawy?\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                Zacznijmy od rysunku pomocniczego. A dokładniej, od okręgu i dwóch prostych równoległych, stycznych do okręgu. Na nich będą leżały podstawy trapezu.\n            </p>"
+        },
+        {
+          "type": "reveal_gate",
+          "label": "pokaż dalej"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_930_1.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Znamy kąty przy jednej z podstaw (\\(45^{\\circ}\\) i \\(60^{\\circ}\\)). Narysujmy proste pod tymi kątami do dolnej prostej, obie styczne do okręgu.\n                </p>"
+        },
+        {
+          "type": "reveal_gate",
+          "label": "pokaż dalej"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_930_2.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    I tak oto widzimy kształt trapezu. Znamy jeszcze długość dolnej podstawy (\\(12\\)) oraz ramienia kąta \\(60^{\\circ}\\), czyli prawego ramienia trapezu (\\(6\\)).\n                </p>"
+        },
+        {
+          "type": "reveal_gate",
+          "label": "pokaż dalej"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_930_3.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Naszym celem jest znalezienie długości górnej podstawy. Na razie wiemy za mało. Zastanówmy się, co możemy najpierw policzyć. Najwięcej \"danych\" jest po prawej stronie.\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Dlatego narysujmy wysokość opuszczoną z prawego wierzchołka górnej podstawy, która odetnie od trapezu trójkąt prostokątny.\n                </p>"
+        },
+        {
+          "type": "reveal_gate",
+          "label": "pokaż dalej"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_930_4.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                                Z tego trójkąta możemy wyliczyć wysokość trapezu, oznaczoną przez \\(h\\).\n                            </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                                Stosunek \\(\\frac{h}{6}\\) to\n                                \n\n\n\n￿0￿ kąta \\(60^{\\circ}\\)\n                                .\n                            ",
+          "options": [
+            "sinus",
+            "cosinus",
+            "tangens",
+            "kotangens"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                                Aby obliczyć \\(h\\), musimy wiedzieć, że \\(\\sin 60^{\\circ}=\\)\n                                \n\n\n\n￿0￿.\n                            ",
+          "options": [
+            "\\(\\frac{1}{2}\\)",
+            "\\(\\frac{\\sqrt{2}}{2}\\)",
+            "\\(\\frac{\\sqrt{3}}{2}\\)"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                                Teraz możemy rozwiązać równanie:\n                            </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                                \\[\n                                \\begin{align}\n                                \\frac{h}{6}&amp;=\\sin 60^{\\circ}\\\\\n                                \\frac{h}{6}&amp;=\\frac{\\sqrt{3}}{2}\\\\\n                                h&amp;=6\\cdot \\frac{\\sqrt{3}}{2}\\\\\n                                h&amp;=3\\sqrt{3}\n                                \\end{align}\n                                \\]\n                            "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                                Znając wysokość, możemy pomyśleć o trójkącie prostokątnym odciętym wysokością opuszczoną z lewego wierzchołka.\n                            </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_930_5.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                                Z tego trójkąta możemy wyliczyć długość lewego ramienia, \\(c\\).\n                            </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                                W tym trójkącie stosunek \\(\\frac{3\\sqrt{3}}{c}\\) to \n                                \n\n\n\n￿0￿ kąta \\(45^{\\circ}\\)\n                                .\n                            ",
+          "options": [
+            "sinus",
+            "cosinus",
+            "tangens",
+            "kotangens"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                                Aby obliczyć \\(c\\), musimy wiedzieć, że \\(\\sin 45^{\\circ}=\\)\n                                \n\n\n\n￿0￿.\n                            ",
+          "options": [
+            "\\(\\frac{1}{2}\\)",
+            "\\(\\frac{\\sqrt{2}}{2}\\)",
+            "\\(\\frac{\\sqrt{3}}{2}\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                                Otrzymujemy równanie:\n                            </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                                \\[\n                                \\begin{align}\n                                \\frac{3\\sqrt{3}}{c}&amp;=\\sin 45^{\\circ}\\\\\n                                \\frac{3\\sqrt{3}}{c}&amp;=\\frac{\\sqrt{2}}{2}\n                                \\end{align}\n                                \\]\n                            "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                                Wymnóżmy je na skos:\n                            </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                                \\[\n                                \\begin{align}\n                                3\\sqrt{3}\\cdot 2&amp;=h\\cdot \\sqrt{2}\\\\\n                                6\\sqrt{3}&amp;=h\\sqrt{2}\\\\\n                                h\\sqrt{2}&amp;=6\\sqrt{3}\\\\\n                                h&amp;=\\frac{6\\sqrt{3}}{\\sqrt{2}}\n                                \\end{align}\n                                \\]\n                            "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                                Pozostaje jeszcze usunąć niewymierność z mianownika, czyli\n                                \n\n\n\n￿0￿.\n                            ",
+          "options": [
+            "podnieść ułamek do kwadratu",
+            "pomnożyć licznik i mianownik przez \\(\\sqrt{2}\\)",
+            "pomnożyć mianownik przez \\(\\sqrt{2}\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                                Obliczając i skracając \\(h=\\frac{6\\sqrt{3}}{\\sqrt{2}}\\cdot\\frac{\\sqrt{2}}{\\sqrt{2}}\\) otrzymamy\n                                \n\n\n\n￿0￿.\n                            ",
+          "options": [
+            "\\(h=3\\sqrt{6}\\)",
+            "\\(h=6\\sqrt{6}\\)",
+            "\\(h=3\\sqrt{3}\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                                Poznaliśmy długość trzeciego boku trapezu:\n                            </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_930_6.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                                Szukamy długości czwartego boku, górnej podstawy, oznaczonego na rysunku jako \\(b\\).\n                            </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                                W całym rozwiązaniu nie skorzystaliśmy jeszcze z jednego faktu: <strong>trapez jest opisany na kole</strong>.\n                            </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                                Oznacza to, że\n                                \n\n\n\n￿0￿.\n                            ",
+          "options": [
+            "\\(b+12=3\\sqrt{6}+6\\)",
+            "\\(b+3\\sqrt{6}=12+6\\)",
+            "\\(b+6=12+3\\sqrt{6}\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Sumy przeciwległych boków są równe, więc \\(b+12=3\\sqrt{6}+6\\).</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                                Z tego równania wyliczamy długośc górnej podstawy, \\(b=\\)\n                                \n\n\n\n\n￿0￿.\n                            ",
+          "options": [
+            "\\(6-3\\sqrt{6}\\)",
+            "\\(6+3\\sqrt{6}\\)",
+            "\\(3\\sqrt{6}-6\\)",
+            "\\(3\\sqrt{6}+18\\)"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_930_7.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                                Długość górnej, krótszej podstawy to \\(3\\sqrt{6}-6\\).\n                            </p>"
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "8f3f7dde660d500f18b38e709b33f7a2cfcee80e98f0b5ed8e12a01e26530056"
+}

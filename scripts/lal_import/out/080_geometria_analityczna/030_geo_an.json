@@ -1,0 +1,78 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "\n    Długość odcinka \\(AB\\), gdzie\n                                                    \\[\n                                                    A=(x_A, y_A),\\quad\\quad B=(x_B,y_B)\n                                                    \\]\n                                                    jest dana wzorem\n                                                    \\[\n                                                    AB=\\sqrt{(x_B-x_A)^2+(y_B-y_A)^2}\n                                                    \\]\n"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Oblicz długość odcinka \\(AB\\) jeśli \\(A=(-1,5)\\) i \\(B=(4,-7)\\).\n        </p>"
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                \\(AB=\\)\n                \n\n\n\n￿0￿\n                .\n                \n",
+      "options": [
+        "\\(\\sqrt{3^2+2^2}\\)",
+        "\\(\\sqrt{5^2+12^2}\\)",
+        "\\(\\sqrt{3^2+12^2}\\)",
+        "\\(\\sqrt{5^2+2^2}\\)"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                Czyli \\(AB=\\)\n                \n\n\n\n￿0￿\n                .\n                \n",
+      "options": [
+        "\\(169\\)",
+        "\\(13\\)",
+        "\\(17\\)",
+        "\\(12\\)"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "text",
+      "body": "<p>Długość odcnika \\(AB\\) to \\(13\\).</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Oblicz długość odcinka \\(AB\\) jeśli \\(A=(2,5)\\) i \\(B=(-3,15)\\).\n        </p>"
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                \\(AB=\\)\n                \n\n\n\n￿0￿\n                .\n                \n",
+      "options": [
+        "\\(\\sqrt{5^2+10^2}\\)",
+        "\\(\\sqrt{1^2+10^2}\\)",
+        "\\(\\sqrt{1^2+20^2}\\)",
+        "\\(\\sqrt{5^2+20^2}\\)"
+      ],
+      "answer": 0
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                Czyli \\(AB=\\)\n                \n\n\n\n￿0￿\n                .\n                \n",
+      "options": [
+        "\\(125\\)",
+        "\\(5\\sqrt{5}\\)",
+        "\\(25\\sqrt{5}\\)",
+        "\\(25\\)"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "text",
+      "body": "<p>Długość odcnika \\(AB\\) to \\(5\\sqrt{5}\\).</p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "5d1863551c4cf58fb5c153057c54f11bf88b22aedcd0ec548624a1cd2099b8d7"
+}

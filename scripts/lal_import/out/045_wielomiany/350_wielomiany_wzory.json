@@ -1,0 +1,168 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n<strong>\n            Przypomnijmy\n        </strong>\n        : następujące wzory są prawdziwe dla dowolnych liczb / wyrażeń \\(a\\) i \\(b\\).\n    </p>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": true,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "wzór",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "nazwa",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\((a+b)^2=a^2+2ab+b^2\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "kwadrat sumy",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\((a-b)^2=a^2-2ab+b^2\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "kwadrat różnicy",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\((a+b)(a-b)=a^2-b^2\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "różnica kwadratów",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\((a+b)^3=a^3+3a^2b+3ab^2+b^3\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "sześcian sumy",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\((a-b)^3=a^3-3a^2b+3ab^2-b^3\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "sześcian różnicy",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(a^3+b^3=(a+b)(a^2-ab+b^2)\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "suma sześcianów",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(a^3-b^3=(a-b)(a^2+ab+b^2)\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "różnica sześcianów",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Rozłóż wielomiany na czynniki o jak najniższych stopniach.\n    "
+    },
+    {
+      "type": "text",
+      "body": "<ol class=\"bold\">\n<li>\n            \\(x^3-6x^2+12x-8\\)\n            <details>\n<summary>\n                    rozwiązanie\n                </summary>\n<div id=\"question342\">\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n<strong>\n                                1.\n                            </strong>\n<span style=\"display: inline-block; width: 50px;\">\n</span>\n                            \\(x^3-6x^2+12x+8\\)\n                            <div class=\"switch_line\">\n                                Ten wielomian przypomina prawą stronę wzoru na\n                                <div class=\"switch_value\">\n                                    &gt;&gt; wybierz &gt;&gt;\n                                </div>\n<div class=\"switch_value\">\n                                    sześcian sumy\n                                </div>\n<div class=\"switch_value\">\n                                    sześcian różnicy\n                                </div>\n<div class=\"switch_value\">\n                                    sumę sześcianów\n                                </div>\n<div class=\"switch_value\">\n                                    różnicę sześcianów\n                                </div>\n                                .\n                                <div class=\"switch_show_next ks_button\">\n                                    zatwierdź\n                                </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                                Porównajmy wyrazy wzoru i danego wielomianu\n                            </p>\n<div class=\"centered\">\n<div class=\"table_wrapper\">\n<table class=\"my_table_noborder\">\n<tr>\n<td>\n                                                \\(a^3\\)\n                                            </td>\n<td>\n                                                \\(-3a^2b\\)\n                                            </td>\n<td>\n                                                \\(+3ab^2\\)\n                                            </td>\n<td>\n                                                \\(-b^3\\)\n                                            </td>\n<td>\n                                                \\(=(a-b)^3\\)\n                                            </td>\n</tr>\n<tr>\n<td>\n                                                \\(x^3\\)\n                                            </td>\n<td>\n                                                \\(-6x^2\\)\n                                            </td>\n<td>\n                                                \\(+12x\\)\n                                            </td>\n<td>\n                                                \\(-8\\)\n                                            </td>\n<td>\n</td>\n</tr>\n</table>\n</div>\n</div>\n                            \\(a\\) ze wzoru odpowiada \\(x\\)-owi z wielomianu.\n                            <div class=\"switch_line\">\n                                \\(b\\) ze wzoru ma w wielomianie wartość\n                                <div class=\"switch_value\">\n                                    &gt;&gt; wybierz &gt;&gt;\n                                </div>\n<div class=\"switch_value\">\n                                    \\(-2\\)\n                                </div>\n<div class=\"switch_value\">\n                                    \\(2\\)\n                                </div>\n<div class=\"switch_value\">\n                                    \\(-8\\)\n                                </div>\n<div class=\"switch_value\">\n                                    \\(8\\)\n                                </div>\n                                .\n                                <div class=\"switch_show_next ks_button\">\n                                    zatwierdź\n                                </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n<hr/>\n                            I rzeczywiście:\n                            <br/>\n<span style=\"display: inline-block; width: 50px;\">\n</span>\n                            \\(x^3-6x^2+12x-8=(x-2)^3\\), więc wielomian został rozłożony na trzy (identyczne) czynniki liniowe: \\((x-2)(x-2)(x-2)\\).\n                        </div>\n</div>\n</div>\n</details>\n</li>\n<li>\n            \\(8x^6+36x^4+54x^2+27\\)\n            <details>\n<summary>\n                    rozwiązanie\n                </summary>\n<div id=\"question344\">\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n<strong>\n                                2.\n                            </strong>\n<span style=\"display: inline-block; width: 50px;\">\n</span>\n                            \\(8x^6+36x^4+54x^2+27\\)\n                            <div class=\"switch_line\">\n                                Ten wielomian przypomina prawą stronę wzoru na\n                                <div class=\"switch_value\">\n                                    &gt;&gt; wybierz &gt;&gt;\n                                </div>\n<div class=\"switch_value\">\n                                    sześcian sumy\n                                </div>\n<div class=\"switch_value\">\n                                    sześcian różnicy\n                                </div>\n<div class=\"switch_value\">\n                                    sumę sześcianów\n                                </div>\n<div class=\"switch_value\">\n                                    różnicę sześcianów\n                                </div>\n                                .\n                                <div class=\"switch_show_next ks_button\">\n                                    zatwierdź\n                                </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                                Porównajmy wyrazy wzoru i danego wielomianu\n                            </p>\n<div class=\"centered\">\n<div class=\"table_wrapper\">\n<table class=\"my_table_noborder\">\n<tr>\n<td>\n                                                \\(\\color{darkcyan}{a^3}\\)\n                                            </td>\n<td>\n                                                \\(+3a^2b\\)\n                                            </td>\n<td>\n                                                \\(+3ab^2\\)\n                                            </td>\n<td>\n                                                \\(\\color{red}{+b^3}\\)\n                                            </td>\n<td>\n                                                \\(=(a-b)^3\\)\n                                            </td>\n</tr>\n<tr>\n<td>\n                                                \\(\\color{darkcyan}{8x^6}\\)\n                                            </td>\n<td>\n                                                \\(+36x^4\\)\n                                            </td>\n<td>\n                                                \\(+54x^2\\)\n                                            </td>\n<td>\n                                                \\(\\color{red}{+27}\\)\n                                            </td>\n<td>\n</td>\n</tr>\n</table>\n</div>\n</div>\n<div class=\"switch_line\">\n                                Porównując\n                                <span style=\"color: red;\">\n                                    czerwone\n                                </span>\n                                wyrazy uzyskujemy \\(b=\\)\n                                <div class=\"switch_value\">\n                                    &gt;&gt; wybierz &gt;&gt;\n                                </div>\n<div class=\"switch_value\">\n                                    \\(3\\)\n                                </div>\n<div class=\"switch_value\">\n                                    \\(27\\)\n                                </div>\n<div class=\"switch_value\">\n                                    \\(9\\)\n                                </div>\n                                .\n                                <div class=\"switch_show_next ks_button\">\n                                    zatwierdź\n                                </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                                Porównując\n                                <span style=\"color: darkcyan;\">\n                                    początkowe\n                                </span>\n                                wyrazy uzyskujemy \\(a=\\)\n                                <div class=\"switch_value\">\n                                    &gt;&gt; wybierz &gt;&gt;\n                                </div>\n<div class=\"switch_value\">\n                                    \\(8x^2\\)\n                                </div>\n<div class=\"switch_value\">\n                                    \\(2x^6\\)\n                                </div>\n<div class=\"switch_value\">\n                                    \\(2x^2\\)\n                                </div>\n                                .\n                                <div class=\"switch_show_next ks_button\">\n                                    zatwierdź\n                                </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                                Pozostaje sprawdzić dwa wyrazy środkowe:\n                            </p>\n<span style=\"display: inline-block; width: 50px;\">\n</span>\n                            \\(3a^2b=3\\cdot(2x^2)^2\\cdot 3=3\\cdot 4x^4\\cdot 3=36x^4\\)\n                            <span style=\"display: inline-block; width: 50px;\">\n</span>\n                            ☑\n                            <br/>\n<span style=\"display: inline-block; width: 50px;\">\n</span>\n                            \\(3ab^2=3\\cdot 2x^2\\cdot 3^2=3\\cdot 2x^2\\cdot 9=54x^2\\)\n                            <span style=\"display: inline-block; width: 50px;\">\n</span>\n                            ☑\n                            <br/>\n<!-- TICK CHECK -->\n<p>\n                                Uzyskaliśmy:\n                            </p>\n<span style=\"display: inline-block; width: 50px;\">\n</span>\n                            \\(8x^6+36x^4+54x^2+27=(2x^2+3)^3\\), więc wielomian został rozłożony na trzy (identyczne) czynniki kwadratowe: \\((2x^2+3)(2x^2+3)(2x^2+3)\\).\n                            <div class=\"switch_line\">\n                                Rozłożenie każdego z czyników kwadratowych\n                                <div class=\"switch_value\">\n                                    &gt;&gt; wybierz &gt;&gt;\n                                </div>\n<div class=\"switch_value\">\n                                    wymaga wzoru z deltą\n                                </div>\n<div class=\"switch_value\">\n                                    jest niemożliwe\n                                </div>\n<div class=\"switch_value\">\n                                    wymaga wzoru skróconego mnożenia stopnia \\(2\\)\n                                </div>\n                                .\n                                <div class=\"switch_show_next ks_button\">\n                                    zatwierdź\n                                </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                                Zgadza się. \\(2x^2\\ge 0\\), więc \\(2x^2+3\\gt 0\\), czyli \\(2x^2+3\\ne 0\\), co oznacza, że takiego czynnika nie da się rozłożyć.\n                            </p>\n<hr/>\n                            Czyli ostatecznie:\n                            <br/>\n<span style=\"display: inline-block; width: 50px;\">\n</span>\n                            \\(8x^6+36x^4+54x^2+27=(2x^2+3)^3\\), więc wielomian został rozłożony na trzy identyczne, nierozkładalne czynniki kwadratowe: \\((2x^2+3)(2x^2+3)(2x^2+3)\\).\n                        </div>\n</div>\n</div>\n</details>\n</li>\n<li>\n            \\(27x^3-8\\)\n            <details>\n<summary>\n                    rozwiązanie\n                </summary>\n<div id=\"question346\">\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n<strong>\n                                3.\n                            </strong>\n<span style=\"display: inline-block; width: 50px;\">\n</span>\n                            \\(27x^3-8\\)\n                            <p>\n                                Zwróćmy uwagę, że gdyby chodziło o rozwiązanie równania\n                            </p>\n                            \\[\n                            27x^3-8=0\n                            \\]\n                            <p>\n                                moglibyśmy zrobić to szybko i łatwo bez rozkładania wielomianu na czynniki. Wystarczyłoby\n                            </p>\n<ul class=\"nolist\">\n<li>\n                                    przenieść \\(8\\) na prawo (dodać \\(8\\)),\n                                </li>\n<li>\n                                    podzielić na \\(27\\)\n                                </li>\n<li>\n                                    i pierwiastkując wyliczyć \\(x\\).\n                                </li>\n</ul>\n<div class=\"switch_line\">\n                                Otrzymalibyśmy\n                                <div class=\"switch_value\">\n                                    &gt;&gt; wybierz &gt;&gt;\n                                </div>\n<div class=\"switch_value\">\n                                    \\(x=\\tfrac{3}{2}\\)\n                                </div>\n<div class=\"switch_value\">\n                                    \\(x=\\tfrac{2}{3}\\)\n                                </div>\n<div class=\"switch_value\">\n                                    \\(x=\\sqrt{\\tfrac{8}{27}}\\)\n                                </div>\n<div class=\"switch_value\">\n                                    \\(x=\\sqrt{\\tfrac{27}{8}}\\)\n                                </div>\n                                .\n                                <div class=\"switch_show_next ks_button\">\n                                    zatwierdź\n                                </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n                            Zapamiętajmy ten wynik, \\(x=\\tfrac{2}{3}\\), i zajmijmy się rozkładem danego wielomianu \\(27x^3-8\\).\n                            <div class=\"switch_line\">\n                                Ten wielomian przypomina\n                                <u>\n                                    lewą\n                                </u>\n                                stronę wzoru na\n                                <div class=\"switch_value\">\n                                    &gt;&gt; wybierz &gt;&gt;\n                                </div>\n<div class=\"switch_value\">\n                                    sześcian sumy\n                                </div>\n<div class=\"switch_value\">\n                                    sześcian różnicy\n                                </div>\n<div class=\"switch_value\">\n                                    sumę sześcianów\n                                </div>\n<div class=\"switch_value\">\n                                    różnicę sześcianów\n                                </div>\n                                .\n                                <div class=\"switch_show_next ks_button\">\n                                    zatwierdź\n                                </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                                Porównajmy wyrazy wzoru i danego wielomianu\n                            </p>\n<div class=\"centered\">\n<div class=\"table_wrapper\">\n<table class=\"my_table_noborder\">\n<tr>\n<td>\n                                                \\(\\color{darkcyan}{a^3}\\)\n                                            </td>\n<td>\n                                                \\(\\color{red}{-b^3}\\)\n                                            </td>\n<td>\n                                                \\(=(a-b)(a^2+ab+b^2)\\)\n                                            </td>\n</tr>\n<tr>\n<td>\n                                                \\(\\color{darkcyan}{27x^3}\\)\n                                            </td>\n<td>\n                                                \\(\\color{red}{-8}\\)\n                                            </td>\n<td>\n</td>\n</tr>\n</table>\n</div>\n</div>\n<div class=\"switch_line\">\n                                Porównując\n                                <span style=\"color: darkcyan;\">\n                                    początkowe\n                                </span>\n                                wyrazy uzyskujemy \\(a=\\)\n                                <div class=\"switch_value\">\n                                    &gt;&gt; wybierz &gt;&gt;\n                                </div>\n<div class=\"switch_value\">\n                                    \\(3x^3\\)\n                                </div>\n<div class=\"switch_value\">\n                                    \\(3x\\)\n                                </div>\n<div class=\"switch_value\">\n                                    \\(27x^3\\)\n                                </div>\n                                .\n                                <div class=\"switch_show_next ks_button\">\n                                    zatwierdź\n                                </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                                Porównując\n                                <span style=\"color: red;\">\n                                    czerwone\n                                </span>\n                                wyrazy uzyskujemy \\(b=\\)\n                                <div class=\"switch_value\">\n                                    &gt;&gt; wybierz &gt;&gt;\n                                </div>\n<div class=\"switch_value\">\n                                    \\(2\\)\n                                </div>\n<div class=\"switch_value\">\n                                    \\(-2\\)\n                                </div>\n<div class=\"switch_value\">\n                                    \\(-8\\)\n                                </div>\n<div class=\"switch_value\">\n                                    \\(8\\)\n                                </div>\n                                .\n                                <div class=\"switch_show_next ks_button\">\n                                    zatwierdź\n                                </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                                I teraz mając\n                            </p>\n<span style=\"display: inline-block; width: 50px;\">\n</span>\n                            \\(\\color{darkcyan}{a=3x}\\)\n                            <br/>\n<span style=\"display: inline-block; width: 50px;\">\n</span>\n                            \\(\\color{red}{b=2}\\)\n                            <p>\n                                użyjemy wzoru:\n                            </p>\n                            \\[\n                            a^3-b^3=(a-b)(a^2+ab+b^2)\n                            \\]\n                            <div class=\"switch_line\">\n                                przy czym czynnik \\((a^2+ab+b^2)\\) będzie miał postać\n                                <div class=\"switch_value\">\n                                    &gt;&gt; wybierz &gt;&gt;\n                                </div>\n<div class=\"switch_value\">\n                                    \\(3x^2+6x+2\\)\n                                </div>\n<div class=\"switch_value\">\n                                    \\(3x^2+6x+4\\)\n                                </div>\n<div class=\"switch_value\">\n                                    \\(9x^2+6x+4\\)\n                                </div>\n                                .\n                                <div class=\"switch_show_next ks_button\">\n                                    zatwierdź\n                                </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                                Mamy więc\n                            </p>\n                            \\[\n                            27x^3-8=(3x-2)(9x^2+6x+4)\n                            \\]\n                            <p>\n                                Pytanie tylko, czy czynnik \\((9x^2+6x+4)\\) można jeszcze rozłożyć na czynniki liniowe?\n                            </p>\n<p>\n                                Aby sprawdzić, policzmy deltę.\n                            </p>\n<details>\n<summary>\n                                    delta - przypomnienie\n                                </summary>\n<div class=\"important\">\n                                    Dla wyrażenia kwadratowego:\n                                    \\[\n                                    ax^2+bx+c\n                                    \\]\n                                    wyróżnik, zwany deltą obliczamy według wzoru\n                                    \\[\n                                    \\Delta=b^2-4ac\n                                    \\]\n                                    <p>\n                                        Wyróżnik informuje nas o liczbie pierwiastków (więc też o rokładzie) wyrażenia kwadratowego.\n                                    </p>\n<div class=\"centered\">\n<div class=\"table_wrapper\">\n<table class=\"my_table_TL\">\n<tr>\n<th>\n                                                        wartość\n                                                    </th>\n<th>\n                                                        liczba pierwiastków\n                                                    </th>\n<th>\n                                                        rozkład\n                                                    </th>\n</tr>\n<tr>\n<td>\n                                                        \\(\\Delta\\lt 0\\)\n                                                    </td>\n<td>\n                                                        \\(0\\)\n                                                    </td>\n<td>\n                                                        \\(-\\)\n                                                    </td>\n</tr>\n<tr>\n<td>\n                                                        \\(\\Delta = 0\\)\n                                                    </td>\n<td>\n                                                        \\(1\\)\n                                                    </td>\n<td>\n                                                        \\(a(x-x_1)^2\\)\n                                                    </td>\n</tr>\n<tr>\n<td>\n                                                        \\(\\Delta \\gt 0\\)\n                                                    </td>\n<td>\n                                                        \\(2\\)\n                                                    </td>\n<td>\n                                                        \\(a(x-x_1)(x-x_2)\\)\n                                                    </td>\n</tr>\n</table>\n</div>\n</div>\n</div>\n</details>\n<div class=\"switch_line\">\n                                Dla wyrażenia \\((9x^2+6x+4)\\) delta ma wartość\n                                <div class=\"switch_value\">\n                                    &gt;&gt; wybierz &gt;&gt;\n                                </div>\n<div class=\"switch_value\">\n                                    \\(20\\)\n                                </div>\n<div class=\"switch_value\">\n                                    \\(-108\\)\n                                </div>\n<div class=\"switch_value\">\n                                    \\(0\\)\n                                </div>\n                                .\n                                <div class=\"switch_show_next ks_button\">\n                                    zatwierdź\n                                </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                                \\(\\Delta\\lt 0\\), więc wyrażenie \\((9x^2+6x+4)\\) jest nierozkładalne.\n                            </p>\n<hr/>\n                            Czyli ostatecznie:\n                            <br/>\n<span style=\"display: inline-block; width: 50px;\">\n</span>\n                            \\(27x^3-8=(3x-2)(9x^2+6x+4)\\).\n                            <p>\n                                Zwróć uwagę, że pierwiastkiem czynnika liniowego \\((3x-2)\\) jest \\(x=\\tfrac{2}{3}\\), czyli ten sam pierwiastek, jaki wyliczyliśmy na początku.\n                            </p>\n</div>\n</div>\n</div>\n</details>\n</li>\n</ol>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "36b6829a57c583c44d5201ade14d1704bccd039217bfb54144ce72e423453fb8"
+}

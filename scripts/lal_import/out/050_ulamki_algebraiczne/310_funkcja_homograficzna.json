@@ -1,0 +1,177 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>Jak zapewne się domyślasz, wyrażenie postaci</p>"
+    },
+    {
+      "type": "text",
+      "body": "\\[\n    \\frac{A}{x-p}+q\n    \\]"
+    },
+    {
+      "type": "text",
+      "body": "<p>można zapisać w postaci ułamka algebraicznego</p>"
+    },
+    {
+      "type": "text",
+      "body": "\\[\n    \\frac{ax+b}{cx+d}\n    \\]"
+    },
+    {
+      "type": "text",
+      "body": "<p>(Zwróć uwagę, że użyłem dużęgo \\(A\\) w pierwszym wyrażeniu, oraz małego \\(a\\) w drugim - to są inne współczynniki.)</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Przyjrzyjmy się temu na przykładzie.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Przedstaw równanie funkcji</p>"
+    },
+    {
+      "type": "text",
+      "body": "\\[\n        y=\\frac{(\\tfrac{2}{3})}{x-1}+2\n        \\]"
+    },
+    {
+      "type": "text",
+      "body": "<p>w postaci</p>"
+    },
+    {
+      "type": "text",
+      "body": "\\[\n        y=\\frac{ax+b}{cx+d}\n        \\]"
+    },
+    {
+      "type": "text",
+      "body": "<p>gdzie wszystkie współczynniki \\(a\\), \\(b\\), \\(c\\) i \\(d\\) są całkowite.</p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Aby dodać \\(2\\) do \\(\\frac{(\\tfrac{2}{3})}{x-1}\\), zamienimy \\(2\\) na ułamek o mianowniku \\(x-1\\).</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    \\(2=\\) \n                    \n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(\\frac{2}{x-1}\\)",
+            "\\(\\frac{2x-2}{x-1}\\)",
+            "\\(\\frac{2x-1}{x-1}\\)",
+            "\\(\\frac{x-1}{x-1}\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Otrzymamy:</p>"
+        },
+        {
+          "type": "text",
+          "body": "\\[\n                y=\\frac{(\\tfrac{2}{3})}{x-1}+2=\\frac{(\\tfrac{2}{3})}{x-1}+\\frac{2x-2}{x-1}=\\frac{\\tfrac{2}{3}+2x-2}{x-1}\n                \\]"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Po uproszczeniu, licznik ułamka to\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(2x-\\tfrac{4}{3}\\)",
+            "\\(2x-\\tfrac{7}{3}\\)",
+            "\\(x+\\tfrac{2}{3}\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Otrzymany ułamek:</p>"
+        },
+        {
+          "type": "text",
+          "body": "\\[\n                \\frac{2x-\\tfrac{4}{3}}{x-1}\n                \\]"
+        },
+        {
+          "type": "text",
+          "body": "<p>uprościmy dalej rozszerzając trzykrotnie (tj. pomnożymy licznik i mianownik przez \\(3\\)):</p>"
+        },
+        {
+          "type": "text",
+          "body": "\\[\n                \\frac{2x-\\tfrac{4}{3}}{x-1}\\cdot\\frac{3}{3}\n                \\]"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    W liczniku otrzymamy:\n                    \n\n\n\n￿0￿,\n                ",
+          "options": [
+            "\\(2x-4\\)",
+            "\\(6x-4\\)",
+            "\\(6x+4\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    a w mianowniku:\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(3x-3\\)",
+            "\\(3x-1\\)",
+            "\\(3x+3\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Ostatecznie przekształciliśmy</p>"
+        },
+        {
+          "type": "text",
+          "body": "\\[\n                y=\\frac{(\\tfrac{2}{3})}{x-1}+2\n                \\]"
+        },
+        {
+          "type": "text",
+          "body": "<p>w</p>"
+        },
+        {
+          "type": "text",
+          "body": "\\[\n                \\frac{6x-4}{3x-3}\n                \\]"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Funkcje tej postaci to szczególny rodzaj funkcji wymiernych, a których szerzej powiemy później. Nazywamy je funkcjami <strong>homograficznymi</strong>.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Funkcja</p>"
+    },
+    {
+      "type": "text",
+      "body": "<strong>homograficzna</strong>"
+    },
+    {
+      "type": "text",
+      "body": "<p>to funkcja zdefiniowana równaniem:</p>"
+    },
+    {
+      "type": "text",
+      "body": "\\[\n    y=\\frac{ax+b}{cx+d}, \\quad\\quad x\\ne -\\tfrac{d}{c}\n    \\]"
+    },
+    {
+      "type": "text",
+      "body": "<p>przy czym:</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n            \\(c\\ne 0\\),\n        </li>\n<li>\n            \\(ad-bc\\ne 0\\).\n        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    No dobrze, a skąd wzięły się założenia \\(c\\ne 0\\) i \\(ad-bc\\ne 0\\)?\n</p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "d95c2ca2dfd22331c548aa99f1a390af2c4a0d032937e53dd8e2fa299232c92a"
+}

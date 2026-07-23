@@ -1,0 +1,419 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Wykresem funkcji homograficznej jest hiperbola. To już wiemy. Ale jak, mając równanie funkcji w postaci\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\\[\ny=\\frac{ax+b}{cx+d}\n\\]"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    możemy ją naszkicować?\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Poznamy dwa sposoby:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ol class=\"bold\">\n<li>\n        przez zamianę postaci równania na \\(y=\\frac{A}{x-p}+q\\)\n    </li>\n<li>\n        przez analizę współczynników równania\n    </li>\n</ol>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    W obu przypadkach użyjemy tej samej funkcji.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<h3>\n    Zamiana postaci równania\n</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Funkcja \\(y=f(x)\\) jest dana równaniem</p>"
+    },
+    {
+      "type": "text",
+      "body": "\\[\n        f(x)=\\frac{4x-2}{2x+3}\n        \\]"
+    },
+    {
+      "type": "text",
+      "body": "<p>Przedstaw równanie w postaci</p>"
+    },
+    {
+      "type": "text",
+      "body": "\\[\n        f(x)=\\frac{A}{x-p}+q\n        \\]"
+    },
+    {
+      "type": "text",
+      "body": "<p>a następnie naszkicuj wykres funkcji.</p>"
+    },
+    {
+      "type": "text",
+      "body": "<h4>rozwiązanie</h4>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Postać równania zmienimy dzieląc \\(4x-3\\) przez \\(2x+3\\). Możemy to zrobić</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ol class=\"bold\" type=\"A\">\n<li>\n                dzieląc pisemnie albo\n            </li>\n<li>\n                dopasowując współczynniki.\n            </li>\n</ol>"
+    },
+    {
+      "type": "tabs",
+      "tabs": [
+        {
+          "id": "t000000",
+          "label": "A",
+          "elements": [
+            {
+              "type": "text",
+              "body": "<p>\n                    Jeśli chcesz przypomnieć sobie dzielenie pisemne, zajrzyj <a href=\"/jump_to_id/23e2ad54dcb2442d949b536ff4ade63b\">tutaj</a>.\n                </p>"
+            },
+            {
+              "type": "table",
+              "data": {
+                "header_row": false,
+                "header_col": false,
+                "border": "grid",
+                "cells": [
+                  [
+                    {
+                      "html": "\\(2\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    }
+                  ],
+                  [
+                    {
+                      "html": "\\((4x\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(-2)\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(:(2x+3)\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    }
+                  ],
+                  [
+                    {
+                      "html": "\\(-(4x\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(+6)\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    }
+                  ],
+                  [
+                    {
+                      "html": "\\(=\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(-8\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "type": "text",
+              "body": "<p>Dzieląc \\(4x-2\\) przez \\(2x+3\\) otrzymaliśmy \\(2\\) oraz resztę \\(-8\\), więc:</p>"
+            },
+            {
+              "type": "text",
+              "body": "\\[\n                \\frac{4x-2}{2x+3}=2-\\frac{8}{2x+3}\n                \\]"
+            },
+            {
+              "type": "text",
+              "body": "<p>Na końcu, aby współczynnik przy \\(x\\) w mianowniku był równy \\(1\\), podzielmy licznik i mianownik ułamka przez \\(2\\):</p>"
+            },
+            {
+              "type": "text",
+              "body": "\\[\n                \\frac{4x-2}{2x+3}=2-\\frac{4}{x+1,5}\n                \\]"
+            }
+          ]
+        },
+        {
+          "id": "t000001",
+          "label": "B",
+          "elements": [
+            {
+              "type": "text",
+              "body": "<p>\n                    Jeśli chcesz przypomnieć sobie dzielenie przez dopasowanie współczynników, zajrzyj <a href=\"/jump_to_id/1338ba773b124de5abe5b6289a868ee2\">tutaj</a>.\n                </p>"
+            },
+            {
+              "type": "text",
+              "body": "<p>Dzielimy przez \\(2x+3\\), więc chcemy, by kolejne współczynniki były w stosunku \\(2:3\\). A skoro pierwszy z współczynnik dzielonego wyrażenia to \\(4\\), to drugim powinna być liczba \\(6\\) (bo \\(4:6=2:3\\)).</p>"
+            },
+            {
+              "type": "text",
+              "body": "\\[\n                \\begin{align*}\n                \\frac{4x-2}{2x+3}&amp;=\\frac{4x+6-8}{2x+3}=&amp;\\text{odejmujemy \\(8\\), bo \\(-2=6-8\\)}\\\\\n                &amp;=\\frac{2(2x+3)-8}{2x+3}=&amp;\\text{wyłączamy \\(2\\) przed nawias}\\\\\n                &amp;=\\frac{2(2x+3)}{2x+3}-\\frac{8}{2x+3}=&amp;\\text{rozbijamy ułamek na dwa}\\\\\n                &amp;=\\frac{2\\require{cancel}\\cancel{(2x+3)}}{\\require{cancel}\\cancel{2x+3}}-\\frac{8}{2x+3}=&amp;\\text{skracamy}\\\\\n                &amp;=2-\\frac{2\\cdot 4}{2(x-1,5)}=&amp;\\text{skracamy przez 2}\\\\\n                &amp;=2-\\frac{4}{x-1,5}&amp;\n                \\end{align*}\n                \\]"
+            },
+            {
+              "type": "text",
+              "body": "<p>Ostatni krok, skracanie przez \\(2\\) jest po to, by współczynnik przy \\(x\\) w mianowniku był równy \\(1\\).</p>"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p>Ostatecznie</p>"
+    },
+    {
+      "type": "text",
+      "body": "\\[\n        y=\\frac{-4}{x+1,5}+2\n        \\]"
+    },
+    {
+      "type": "text",
+      "body": "<p>Wykres funkcji jest więc wykresem \\(y=-\\frac{4}{x}\\) przesuniętym o wektor \\(\\vec{[-1\\tfrac{1}{2}, 2]}\\). Zacznijmy więc od wykresu \\(y=-\\frac{4}{x}\\).</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Przyjrzyj się poniższym wykresom</p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/homograficzna_ksztalt_1.png",
+      "alt": "",
+      "figcaption": "1"
+    },
+    {
+      "type": "image",
+      "media_src": "static/homograficzna_ksztalt_2.png",
+      "alt": "",
+      "figcaption": "2"
+    },
+    {
+      "type": "image",
+      "media_src": "static/homograficzna_ksztalt_3.png",
+      "alt": "",
+      "figcaption": "3"
+    },
+    {
+      "type": "image",
+      "media_src": "static/homograficzna_ksztalt_4.png",
+      "alt": "",
+      "figcaption": "4"
+    },
+    {
+      "type": "image",
+      "media_src": "static/homograficzna_ksztalt_5.png",
+      "alt": "",
+      "figcaption": "5"
+    },
+    {
+      "type": "image",
+      "media_src": "static/homograficzna_ksztalt_6.png",
+      "alt": "",
+      "figcaption": "6"
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                    Funkcja \\(y=-\\frac{4}{x}\\) jest przedstawiona na wykresie numer\n                    \n\n\n\n\n\n\n￿0￿.\n                ",
+      "options": [
+        "\\(1\\)",
+        "\\(2\\)",
+        "\\(3\\)",
+        "\\(4\\)",
+        "\\(5\\)",
+        "\\(6\\)"
+      ],
+      "answer": 5
+    },
+    {
+      "type": "text",
+      "body": "<p>Na zakończenie wykres taki, jak wyżej (nr 6) musimy przesunąć o wektor \\(\\vec{[-1\\tfrac{1}{2}, 2]}\\).</p>"
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                    Po taki przesunięciu punkt przecięcia asymptot to \n                    \n\n\n\n\n\n￿0￿",
+      "options": [
+        "\\((1\\tfrac{1}{2}, 2)\\)",
+        "\\((-1\\tfrac{1}{2}, 2)\\)",
+        "\\((1\\tfrac{1}{2}, -2)\\)",
+        "\\((-1\\tfrac{1}{2}, -2)\\)"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "text",
+      "body": "<p>Otrzymujemy wykres jak niżej:</p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/homograficzna_zadanie_1.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Gdy mówimy o funkcjach i ich wykresach, często potrzebujemy znać współrzędne punktów, w których wykres przecina osie układu współrzędnych. \n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Punkty te widzisz zaznaczone na pomarańczowo na wykresie wyżej, ale nie znamy ich dokładnych współrzędnych.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Zanim przejdziemy do drugiej metody szkicowania wykresu funkcji homograficznej, obliczmy współrzędne obu punktów przecięcia wykresu funkcji z osiami układu współrzędnych.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Znajdź punkt przecięcia wykresu funkcji</p>"
+    },
+    {
+      "type": "text",
+      "body": "\\[\n        y=\\frac{-4}{x+1,5}+2\n        \\]"
+    },
+    {
+      "type": "text",
+      "body": "<p>z osią OX.</p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Punkt przecięcia wykresu z osią OX to taki punkt wykresu, którego współrzędna \n                    \n\n\n￿0￿\n                     jest równa \\(0\\).\n                ",
+          "options": [
+            "\\(x\\)-owa",
+            "\\(y\\)-owa"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Zgadza się, punkt na osi OX jest wsdkazany przez miejsce zerowe. Obliczmy więc\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "\\[\n                y=0\\quad\\Rightarrow\\quad \\frac{-4}{x+1,5}+2=0\\quad\\Rightarrow\\quad 2=\\frac{4}{x+1,5}\n                \\]"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Teraz pomnóżmy obie strony równania przez \\(x+1,5\\). Otrzymamy\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(2x+1,5=4\\)",
+            "\\(2=4x+6\\)",
+            "\\(2x+3=4\\)"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Rozwiązując to równanie dostajemy \n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(x=\\tfrac{1}{2}\\)",
+            "\\(x=\\tfrac{5}{2}\\)",
+            "\\(x=2\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Punkt przecięcia wykresu funkcji z osią OX ma współrzędne \\(\\left(\\tfrac{1}{2},0\\right)\\).</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Znajdź punkt przecięcia wykresu funkcji</p>"
+    },
+    {
+      "type": "text",
+      "body": "\\[\n        y=\\frac{-4}{x+1,5}+2\n        \\]"
+    },
+    {
+      "type": "text",
+      "body": "<p>z osią OY.</p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Punkt przecięcia wykresu z osią OY to taki punkt wykresu, którego współrzędna \n                    \n\n\n￿0￿\n                     jest równa \\(0\\).\n                ",
+          "options": [
+            "\\(x\\)-owa",
+            "\\(y\\)-owa"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Zgadza się, podstawmy \\(x=0\\) do równania funkcji:\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "\\[\n                y=\\frac{-4}{0+1,5}+2\n                \\]"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Otrzymamy\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(y=-4\\)",
+            "\\(y=-\\tfrac{2}{3}\\)",
+            "\\(y=-2\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Punkt przecięcia wykresu funkcji z osią OX ma współrzędne \\(\\left(0,-\\tfrac{2}{3}\\right)\\).</p>"
+        }
+      ]
+    }
+  ],
+  "fully_mapped": false,
+  "seed_hash": "948a9cefa72b495a1c9fbbc17a0c50ffc03ba1c5d7ac94a552b041fef408e3b0"
+}

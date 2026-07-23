@@ -1,0 +1,172 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n<strong>Ciągiem</strong> nazywamy funkcję, której dziedziną jest zbiór liczb naturalnych dodatnich (\\(\\mathbb{N}^{+}\\)), a wartości są w zbiorze liczb rzeczywistych (\\(\\mathbb{R}\\)).\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<u>zapis i nazewnictwo</u>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n            Wartości funkcji - ciągu nazywamy <strong>wyrazami</strong>.\n        </li>\n<li>\n            Do nazywania ciągów używamy najczęściej małych, kolejnych liter alfabetu: \\(a\\), \\(b\\), \\(c\\)...\n        </li>\n<li>\n<p>\n                Dla ułatwienia rezygnujemy ze standardowego zapisu funkcji, co oznacza, że \n            </p>\n            jeśli chcemy zapisać, że\n            <div class=\"centered\">\n<em>drugi wyraz ciągu \\(a\\) ma wartość \\(17\\)</em>\n</div>\n            to zamiast pisać\n            <div class=\"centered\">\n                \\(a(2)=17\\quad\\) piszemy \\(\\quad a_2=17\\)\n            </div>\n</li>\n<li>\n            Kolejne wyrazy ciągu \\(a\\) oznaczamy przez \\(a_1, a_2, a_3,\\dots\\) (i mówimy o nich: <em>wyraz pierwszy, drugi, trzeci...</em>)\n        </li>\n<li>\n            Aby było jasne, że litera \\(a\\) (albo jakaś inna) ma oznaczać ciąg, a nie liczbę, ciąg będziemy zapisywać\n            <div class=\"centered\">\n                \\(\\left(a_n\\right)\\quad\\) albo \\(\\quad\\left\\{a_n\\right\\}\\)\n            </div>\n</li>\n<li>\n            Jeśli \\(a_k\\) jest wyrazem ciągu, to liczbę \\(k\\) nazywamy numerem lub <strong>indeksem</strong> wyrazu.\n        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Przykład</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Do gabinetu pielęgniarki wchodzą pojedynczo pacjenci. Pielęgniarka mierzy i notuje ich wzrost w centymetrach.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Zanotowane liczby tworzą ciąg \\((a_n)\\).\n    </p>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "\\(n\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(2\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(3\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(4\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(5\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(6\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "...",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(a_n\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(170\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(182\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(164\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(158\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(188\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(177\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "...",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        co możemy zapisać też jako:\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        \\(a_1=170,\\quad a_2=182,\\quad a_3=164,\\quad a_4=158,\\quad a_5=188,\\quad a_6=177,\\dots \\)\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Pacjentów jest zawsze <em>skończenie wielu</em>, więc w powyższym przykładzie nie ma sensu zakładać <em>nieskończonej</em> dziedziny liczb naturalnych.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Czasem, gdy chcemy zająć się tylko kilkoma (kilkunastoma, kilkudziesięcioma...) wyrazami ciągu, ograniczamy dziedzinę do zbioru</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        \\[\n        \\{1, 2, 3, 4, \\dots, n\\}\n        \\]\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>Taki ciąg nazywamy</p>"
+    },
+    {
+      "type": "text",
+      "body": "<strong>ciągiem skończonym</strong>"
+    },
+    {
+      "type": "text",
+      "body": "<p>.</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Ciąg, którego dziedzina to zbiór \\(\\mathbb{N}^{+}\\) nazywamy, oczywiście, <strong>ciągiem nieskończonym</strong>.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<u>Uwaga!</u>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Nie zdziw się, jeśli spotkasz się z ciągami ponumerowanymi od zera (\\(a_0, a_1, a_2, \\dots\\)) - czyli o dziedzinie \\(\\mathbb{N}\\), a nie \\(\\mathbb{N}^{+}\\).\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Taka definicja też jest poprawna i ma swoje zalety. My decydujemy się na liczby naturalne dodatnie, dzięki czemu pierwszy wyraz ciągu będzie wyrazem... pierwszym, a nie zerowym.\n    </p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "4163284139e543e9b9dd41022f6b5ff7b9e233702a34d898e44501b60a5481c3"
+}

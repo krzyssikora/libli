@@ -1,0 +1,23 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W poniższym aplecie możesz przesuwać wierzchołki trójkąta prostokątnego, by sprawdzić jego różne ułożenia. Klikając przyciski po prawej stronie zobaczysz odpowiednie stosunki boków.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Pozmieniaj położenia wierzchołków i sprawdź stosunki w różnych położeniach. Spróbuj nauczyć się, który jest który. Im szybciej to zrobisz, tym lepiej!\n        </p>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/qksppbva/width/800/height/600/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "76736a3710d9f516216ac6fa41743b49d6eb108ffbe5c54dc9a1ba2e94e2fe84"
+}

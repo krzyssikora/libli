@@ -1,0 +1,69 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>W poniższym aplecie możesz:</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n                użyć\n                <span style=\"color: orange; background-color: gray;\">\n                    pomarańczowego\n                </span>\n                suwaka, żeby wybrać jedną z trzech funkcji,\n            </li>\n<li>\n                wybrać albo symetrię względem osi OX albo względem osi OY (odznaczając odpowiedni \"checkbox\")\n            </li>\n<li>\n                przesuwać\n                <span style=\"color: orange; background-color: gray;\">\n                    pomarańczowy\n                </span>\n                punkt na wykresie (\n                <span style=\"color: green\">\n                    zielonym\n                </span>\n                ) podstawowej funkcji, by widzieć, jak odbija się na\n                <span style=\"color: red\">\n                    czerwony\n                </span>\n                wykres.\n            </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Użyj apletu, by zobaczyć, jak zmienia się równanie funkcji, gdy jej wykres odbijemy względem osi OX lub osi OY.</p>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/xvhdmkkx/width/750/height/850/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Klikaj obramowane granatowo sformułowania, aż uzyskasz prawdziwe zdania - wtedy zatwierdź.\n    "
+    },
+    {
+      "type": "switch_grid",
+      "prompt": "",
+      "lines": [
+        {
+          "stem": "\n\n                Jeśli wykres funkcji o równaniu \\(y=f(x)\\) odbijemy w symetrii względem osi OX równanie odbitego wykresu będzie miało postać\n            \n\n\n\n\n￿0￿\n                .\n            \n",
+          "cyclers": [
+            {
+              "options": [
+                "\\(y=f(x)\\)",
+                "\\(y=-f(x)\\)",
+                "\\(y=f(-x)\\)",
+                "\\(y=-f(-x)\\)"
+              ],
+              "answer": 1
+            }
+          ]
+        },
+        {
+          "stem": "\n\n                Jeśli wykres funkcji o równaniu \\(y=f(x)\\) odbijemy w symetrii względem osi OY równanie odbitego wykresu będzie miało postać\n            \n\n\n\n\n￿0￿\n                .\n            \n",
+          "cyclers": [
+            {
+              "options": [
+                "\\(y=f(x)\\)",
+                "\\(y=-f(x)\\)",
+                "\\(y=f(-x)\\)",
+                "\\(y=-f(-x)\\)"
+              ],
+              "answer": 2
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "eaefe0ce7eab7f3e04802459cf9212120f2e61dbb2cf88551c89bda080dead6b"
+}

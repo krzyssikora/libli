@@ -1,0 +1,104 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Liczby wymierne to po prostu ułamki zwykłe.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Przypomnijmy sobie krótko, jak wykonujemy podstawowe działania na ułamkach.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Uzupełnij tabelę. Wpisz tylko końcowe wyniki.</p>"
+    },
+    {
+      "type": "fill_table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "kind": "static",
+              "html": "działanie"
+            },
+            {
+              "kind": "static",
+              "html": "dodawanie i odejmowanie"
+            },
+            {
+              "kind": "static",
+              "html": "mnożenie"
+            },
+            {
+              "kind": "static",
+              "html": "dzielenie"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "metoda"
+            },
+            {
+              "kind": "static",
+              "html": "wspólny mianownik czyli\n                            <br/>\n                            najmniejsza wspólna wielokrotność (\\(NWW\\))"
+            },
+            {
+              "kind": "static",
+              "html": "skracamy liczniki z mianownikami\n                            <br/>\n                            potem mnożymy oddzielnie liczniki,\n                            <br/>\n                            oddzielnie mianowniki"
+            },
+            {
+              "kind": "static",
+              "html": "zamieniamy na mnożenie\n                            <br/>\n                            pierwszego ułamka przez odwrotność drugiego"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "przykład"
+            },
+            {
+              "kind": "static",
+              "html": "\\[\\frac{5}{6}+\\frac{3}{4}=\\]\n                                                                               \\[[NWW(6,4)=12]\\]\n                                                                               \\[=\\frac{10}{12}+\\frac{9}{12}=\\frac{19}{12}\\]"
+            },
+            {
+              "kind": "static",
+              "html": "\\[\\frac{4}{9}\\cdot\\frac{15}{14}=\\]\n                                                                               skracamy przez \\(2\\) i przez \\(3\\)\n                                                                               \\[=\\frac{2}{3}\\cdot\\frac{5}{7}=\\]\n                                                                               mnożymy\n                                                                               \\[=\\frac{10}{21}\\]"
+            },
+            {
+              "kind": "static",
+              "html": "\\[\\frac{4}{9}:\\frac{14}{15}=\\]\n                                                                               zamieniamy na mnożenie\n                                                                               \\[\\frac{4}{9}\\cdot\\frac{15}{14}=\\]\n                                                                               i dalej tak samo, jak poprzednio\n                                                                               \\[=\\frac{10}{21}\\]"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "ćwiczenie"
+            },
+            {
+              "kind": "answer",
+              "answer": "11/30"
+            },
+            {
+              "kind": "answer",
+              "answer": "25/6"
+            },
+            {
+              "kind": "answer",
+              "answer": "2"
+            }
+          ]
+        ]
+      }
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "dfd77c135db404bb61671c808f98a931c0ca0fad0622a7424546730330ff61d5"
+}

@@ -1,0 +1,24 @@
+{
+  "elements": [
+    {
+      "type": "video",
+      "media_src": "static/symetria_srodkowa.mp4"
+    },
+    {
+      "type": "text",
+      "body": "<p>Wykres funkcji \\(y=f(x)\\) po symetrii</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n            osiowej względem osi OX ma równanie \\(y=-f(x)\\)\n        </li>\n<li>\n            osiowej względem osi OY ma równanie \\(y=f(-x)\\)\n        </li>\n<li>\n            środkowej względem punktu \\((0,0)\\) ma równanie \\(y=-f(-x)\\)\n        </li>\n</ul>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/wykresy_symetrie_rownania.png",
+      "alt": "wykresy-symetrie-równania",
+      "figcaption": ""
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "99fc67cf3cb03c4a461931b4b1a7eed7775eaecb386c8e263d9dcfb4115d76ec"
+}

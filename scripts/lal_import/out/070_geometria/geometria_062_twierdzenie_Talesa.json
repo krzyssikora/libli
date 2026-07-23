@@ -1,0 +1,36 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Dla przykładu, na rysunku poniżej proste \\(a\\), \\(b\\) i \\(c\\) są równoległe.\n</p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/twierdzenie_Talesa.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Wówczas:\n</p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n\\frac{AC}{AB}=\\frac{CE}{BD}=\\frac{AG}{AF}\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<u>\n        Uwaga\n    </u>\n    ! Takich zależności możemy znaleźć więcej.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Prześledź uważnie te zależności na powyższym rysunku.\n</p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n\\frac{AC}{AB}=\\frac{AE}{AD}=\\frac{CG}{BF}=\\frac{EG}{DF}\n"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "a3f1cf97aa6efff8923a4e26693c479506ce2dfb98fb6c902016d6a67c25b1fd"
+}

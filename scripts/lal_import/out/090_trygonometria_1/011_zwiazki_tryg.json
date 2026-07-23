@@ -1,0 +1,60 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Dany jest trójkąt, jak na rysunku poniżej.\n        </p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/tryg_rozgrzewka_1.png",
+      "alt": "trygonometria rozgrzewka 1",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Kolejne dwa trójkąty są podobne do danego - kąty zaznaczone tymi samymi kolorami są tej samej miary.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Jakie są długości boków oznaczonych znakami zapytania? Oblicz i sprawdź swoje odpowiedzi.\n            <br/>\n            (Rysunki nie zachowują skali.)\n        </p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/tryg_rozgrzewka_2.png",
+      "alt": "trygonometria rozgrzewka 2",
+      "figcaption": ""
+    },
+    {
+      "type": "spoiler",
+      "label": "",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(7,5\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "image",
+      "media_src": "static/tryg_rozgrzewka_3.png",
+      "alt": "trygonometria rozgrzewka 3",
+      "figcaption": ""
+    },
+    {
+      "type": "spoiler",
+      "label": "",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(32,5\\)</p>"
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "e254367f6fe281c29176a4950ef9f7971719401f6a0ec605ec5ab1f9cb62018d"
+}

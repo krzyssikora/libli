@@ -1,0 +1,55 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Jeśli znasz odpowiedzi na wszystkie pytania w poniższym zadaniu, możesz pominąć dwa nagrania poniżej. W przeciwnym razie warto je obejrzeć.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W obu trójkątach na rysunku poniżej jeden z boków ma długość 1.\n        </p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/tryg_30_45_60.png",
+      "alt": "kąty 30, 45, 60 - pytanie",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Jakie są długości boków oznaczonych literami \\(a\\), \\(b\\), \\(c\\) i \\(d\\)?\n        </p>"
+    },
+    {
+      "type": "choice_grid",
+      "columns": [
+        "\\(1\\)",
+        "\\(\\sqrt{2}\\)",
+        "\\(\\sqrt{3}\\)",
+        "\\(2\\)"
+      ],
+      "rows": [
+        {
+          "statement": "Długość \\(a\\) to:",
+          "correct": 1
+        },
+        {
+          "statement": "Długość \\(b\\) to:",
+          "correct": 0
+        },
+        {
+          "statement": "Długość \\(c\\) to:",
+          "correct": 3
+        },
+        {
+          "statement": "Długość \\(d\\) to:",
+          "correct": 2
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "b609c5176c9027d12e6ac9882f297358df6f79b65bf7eec9e24a5c8baa32a9d0"
+}

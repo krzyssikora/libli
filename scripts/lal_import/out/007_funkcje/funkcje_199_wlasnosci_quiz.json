@@ -1,0 +1,213 @@
+{
+  "elements": [
+    {
+      "type": "choice",
+      "stem": "<p>Miejsca zerowe funkcji</p><p>\\[\nf(x)=x^2-16, \\text{ gdzie }x\\in\\mathbb{R}\n\\]</p><p>to</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(4\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(4\\) i \\(-4\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\((4,0)\\) i \\((-4,0)\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>Wpisz miejsce zerowe funkcji</p><p>\\[\ng(x)=\\sqrt{7-x}\n\\]</p>",
+      "value": "7",
+      "tolerance": "0"
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Rysunek przedstawia wykres funkcji \\(h\\).</p><div class=\"centered\">\n<img alt=\"quiz - własności funkcji\" src=\"static/quiz_funkcja_wlasnosci_2.png\" width=\"600\"/>\n</div><p>Wskaż dziedzinę funkcji \\(h\\)</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(\\langle 0, 2)\\cup(2,4)\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\((2, 4\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\langle -2,3)\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\langle 0,4)\\)",
+          "is_correct": true,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Wskaż zbiór wartości funkcji \\(h\\)</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(\\langle -1, 3)\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\langle -2, 3)\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(( -1, 3)\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\langle -2, 3\\rangle\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Wskaż miejsce zerowe funkcji \\(h\\)</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(-1\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\((0, -1)\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(3\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\((3, 0)\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Jaka jest najmniejsza wartość funkcji \\(h\\)?</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(-1\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(-2\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(0\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "funkcja \\(h\\) nie ma najmniejszej wartości",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Jaka jest największa wartość funkcji \\(h\\)?</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(3\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(4\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(-1\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "funkcja \\(h\\) nie ma największej wartości",
+          "is_correct": true,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Dla jakich argumentów funkcja \\(h\\) jest rosnąca?</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\((2,4)\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\((-1,3)\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\langle 0, 2 \\rangle\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\langle 2, 4 \\rangle\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Czy funkcja \\(h\\) jest różnowartowościowa?</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "tak",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "nie",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "2da77c9ee2f34beeda7eea07d7f06123c212f3e57f1631490345a5dfe2b68955"
+}

@@ -1,0 +1,148 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Zastanówmy się nad następującym zadaniem.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Znajdź współrzędne środka oraz promień okręgu\n        \\[\n        x^2-2x+y^2+10y+17=0\n        \\]\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Trudnością w tym zadaniu jest fakt, że dane równanie nie przypomina równania\n</p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n(x-a)^2+(y-b)^2=r^2\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Musimy sprowadzić dane równanie do takiej, bardziej użytecznej postaci. To dobry moment, by nadać jej nazwę.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Równanie</p>"
+    },
+    {
+      "type": "text",
+      "body": "<strong>\n        kanoniczne\n    </strong>"
+    },
+    {
+      "type": "text",
+      "body": "<p>okręgu to równanie w postaci\n    \\[\n    (x-a)^2+(y-b)^2=r^2\n    \\]\n    gdzie</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n            \\((a,b)\\) to środek okręgu,\n        </li>\n<li>\n            \\(r\\) to długość promienia okręgu.\n        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Aby sprowadzić równanie okręgu do postaci kanonicznej, warto przypomnieć sobie, czego uczyliśmy się w częsci \"\n    <a href=\"/jump_to_id/6e7e46b8f0be4ac885af94cfb366287e\">\n        Zamiana postaci ogólnej funkcji kwadratowej na postać kanoniczną\n    </a>\n    \". Jeśli pamiętasz - możesz przejść na kolejną stronę. Jeśli nie - zerknij do zalinkowanej lekcji. Jeśli nie jesteś pewna / pewien - przeczytaj poniższe przypomnienie i rozwiąż ćwiczenia.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    W powyższym równaniu okręgu zajmiemy się oddzielnie wyrazami z \\(x\\)-em, czyli \\(x^2-2x\\), i oddzielnie wyrazami z \\(y\\)-em, czyli \\(y^2+10y\\).\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Przedstaw</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n                wyrażenie  \\(x^2-2x\\) w postaci \\((x-a)^2+c_1\\)\n            </li>\n<li>\n                wyrażenie  \\(y^2+10y\\) w postaci \\((y+b)^2+c_2\\)\n            </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Pamiętajmy o wzorach skróconego mnożenia:</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n            \\[\n            \\begin{align*}\n            (x-a)^2&amp;=x^2-2ax+a^2\\\\\n            (y+b)^2&amp;=y^2+2by+b^2\n            \\end{align*}\n            \\]\n        "
+    },
+    {
+      "type": "fill_gate",
+      "stem": "\n<p>\n                Wygodniej nam będzie zapisać je w drugą stronę:\n            </p>\n<div class=\"important\">\n                \\[\n                \\begin{align*}\n                x^2-2ax+a^2&amp;=(x-a)^2\\\\\n                y^2+2by+b^2&amp;=(y+b)^2\n                \\end{align*}\n                \\]\n            </div>\n<p>\n                To teraz porównajmy wzór z \\(x\\)-ami i wyrażenie z \\(x\\)-ami.\n            </p>\n<div class=\"table_wrapper\">\n<table class=\"my_table_noborder\">\n<tr>\n<td>\n                            \\(\\color{blue}{x^2}\\)\n                        </td>\n<td>\n                            \\(\\color{red}{-2a}\\color{blue}{x}\\)\n                        </td>\n<td>\n                            \\(+a^2\\)\n                        </td>\n</tr>\n<tr>\n<td>\n                            \\(\\color{blue}{x^2}\\)\n                        </td>\n<td>\n                            \\(\\color{red}{-2}\\color{blue}{x}\\)\n                        </td>\n<td>\n                            \\(+\\dots\\)\n                        </td>\n</tr>\n</table>\n</div>\n            Porównując współczynniki \\(x\\)-a, widzimy, że \\(\\color{red}{-2a=-2}\\), więc \\(a=\\)\n            <span>\n￿0￿\n</span>\n            .\n        ",
+      "answers": [
+        [
+          "1"
+        ]
+      ]
+    },
+    {
+      "type": "fill_gate",
+      "stem": "\n            Mamy więc\n            \\[\n            \\begin{align*}\n            &amp;\\color{blue}{x^2}\\color{red}{-2a}\\color{blue}{x}+a^2=\\\\\n            =&amp;\\color{blue}{x^2}\\color{red}{-2\\cdot 1}\\color{blue}{x}+1^2=\\\\\n            =&amp;x^2-2x+1&amp;=(x-1)^2\n            \\end{align*}\n            \\]\n            A skoro \\(x^2-2x+1=(x-1)^2\\), to \\(x^2-2x=(x-1)^2-\\)\n            <span>\n￿0￿\n</span>\n            .\n        ",
+      "answers": [
+        [
+          "1"
+        ]
+      ]
+    },
+    {
+      "type": "fill_gate",
+      "stem": "\n<p>\n                Teraz porównajmy wzór z \\(y\\)-ami i wyrażenie z \\(y\\)-ami.\n            </p>\n<div class=\"table_wrapper\">\n<table class=\"my_table_noborder\">\n<tr>\n<td>\n                            \\(\\color{blue}{y^2}\\)\n                        </td>\n<td>\n                            \\(\\color{red}{+2b}\\color{blue}{x}\\)\n                        </td>\n<td>\n                            \\(+b^2\\)\n                        </td>\n</tr>\n<tr>\n<td>\n                            \\(\\color{blue}{y^2}\\)\n                        </td>\n<td>\n                            \\(\\color{red}{+10}\\color{blue}{y}\\)\n                        </td>\n<td>\n                            \\(+\\dots\\)\n                        </td>\n</tr>\n</table>\n</div>\n            Porównując współczynniki \\(y\\)-a, widzimy, że \\(\\color{red}{+2b=+10}\\), więc \\(b=\\)\n            <span>\n￿0￿\n</span>\n            .\n        ",
+      "answers": [
+        [
+          "5"
+        ]
+      ]
+    },
+    {
+      "type": "fill_gate",
+      "stem": "\n            Mamy więc\n            \\[\n            \\begin{align*}\n            &amp;\\color{blue}{y^2}\\color{red}{+2b}\\color{blue}{y}+b^2=\\\\\n            =&amp;\\color{blue}{y^2}\\color{red}{+2\\cdot 5}\\color{blue}{y}+5^2=\\\\\n            =&amp;y^2+10y+25&amp;=(y+5)^2\n            \\end{align*}\n            \\]\n            A skoro \\(y^2+10x+25=(y+5)^2\\), to \\(y^2+10y=(y+5)^2-\\)\n            <span>\n￿0￿\n</span>\n            .\n        ",
+      "answers": [
+        [
+          "25"
+        ]
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Uzupełnij.\n    "
+    },
+    {
+      "type": "fillblank",
+      "stem": "\n<li>\n            \\(x^2+6x=(x+\\)\n            ￿0￿\n            \\()^2-\\)\n            ￿1￿\n</li>\n<li>\n            \\(y^2+8y=(y+\\)\n            ￿2￿\n            \\()^2-\\)\n            ￿3￿\n</li>\n<li>\n            \\(x^2-4x=(x-\\)\n            ￿4￿\n            \\()^2-\\)\n            ￿5￿\n</li>\n<li>\n            \\(y^2-12y=(y-\\)\n            ￿6￿\n            \\()^2-\\)\n            ￿7￿\n</li>\n",
+      "blanks": [
+        [
+          "3"
+        ],
+        [
+          "9"
+        ],
+        [
+          "4"
+        ],
+        [
+          "16"
+        ],
+        [
+          "2"
+        ],
+        [
+          "4"
+        ],
+        [
+          "6"
+        ],
+        [
+          "36"
+        ]
+      ]
+    }
+  ],
+  "fully_mapped": false,
+  "seed_hash": "275d1aa149abf9e5173f950bdbf6fe6ca1ccffa898bcbac8cc47d8c57c1b2583"
+}

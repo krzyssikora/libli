@@ -1,0 +1,280 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Poniżej masz kilka dodatkowych zadań optymalizacyjnych. Tym razem nie będę rozwiązywać ich w całości. Masz jednak możliwość skorzystania ze wskazówek i sprawdzenia odpowiedzi. Dokładniej, dla każdego zadania możesz sprawdzić przykładowe postępowanie według następujących kroków:</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n                Wybór zmiennej / zmiennych\n            </li>\n<li>\n                Równania\n            </li>\n<li>\n                Metoda\n            </li>\n<li>\n                Wyliczone wartości\n            </li>\n<li>\n                Odpowiedź\n            </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Oczywiście nie są to jedyne możliwe sposoby na rozwiązywanie takich zadań.</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ol class=\"bold\">\n<li>\n                Prostokątny kawałek ziemi jest z jednej strony przyległy do rzeki. Brzeg rzeki to linia prosta. Płot o długości 200 metrów zostanie zbudowany wzdłuż trzech boków prostokąta, które nie przylegają do rzeki.\n                Jakie są wymiary prostokąta, jeśli jego pole jest największe możliwe?\n            </li>\n<li>\n                Suma dwóch liczb to 22. Jakie to liczby, jeśli ich iloczyn jest największy możliwy?\n            </li>\n<li>\n                Suma jednej liczby i dwukrotności drugiej to 22. Jakie to liczby, jeśli ich iloczyn jest największy możliwy?\n            </li>\n<li>\n                Suma trzykrotności jednej liczby i dwukrotności drugiej to 24. Jakie to liczby, jeśli ich iloczyn jest największy możliwy?\n            </li>\n<li>\n                Suma dwóch przyprostokątnych w trójkącie prostokątnym jest równa 2. Znajdź największe możliwe pole takiego trójkąta.\n            </li>\n</ol>"
+    },
+    {
+      "type": "spoiler",
+      "label": "Zadanie1- zobacz",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n            Prostokątny kawałek ziemi jest z jednej strony przyległy do rzeki. Brzeg rzeki to linia prosta. Płot o długości 200 metrów zostanie zbudowany wzdłuż trzech boków prostokąta, które nie przylegają do rzeki.\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Jakie są wymiary prostokąta, jeśli jego pole jest największe możliwe?\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>Wybór zmiennej / zmiennych</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>\n                    \\(y\\) - długość boku przyległego do rzeki,\n                </li>\n<li>\n                    \\(x\\) - długość boku prostopadłego do rzeki.\n                </li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>Równania</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>\n                    długość płotu: \\(2x+y=200\\)\n                </li>\n<li>\n                    pole \\(=x\\cdot y\\)\n                </li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>Metoda</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<ol>\n<li>\n                    Wyliczamy \\(y\\) z pierwszego równania.\n                </li>\n<li>\n                    Tak wyliczony \\(y\\) podstawiamy do równania na pole, otrzymując funkcję zmiennej \\(x\\).\n                                                                                                        \\[\n                                                                                                        f(x)=x(200-2x)\n                                                                                                        \\]\n                </li>\n<li>\n                    Obliczamy współrzędną \\(x\\) wierzchołka, wskazującego na maksymalne pole.\n                </li>\n<li>\n                    Dla tej wartości \\(x\\) wyliczamy \\(y\\).\n                </li>\n</ol>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>Wyliczone wartości</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Współrzędna \\(x\\)-owa wierzchołka to \\(50\\), odpowiadająca jej wartość \\(y\\) to \\(100\\).</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>Odpowiedź</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Prostokąt ma wymiary \\(100\\) metrów na \\(50\\) metrów, przy czym dłuższy bok jest przyległy do rzeki.</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "Zadanie2- zobacz",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Suma dwóch liczb to 22. Jakie to liczby, jeśli ich iloczyn jest największy możliwy?</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>Wybór zmiennej / zmiennych</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(x\\), \\(y\\) - dwie liczby</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>Równania</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(x+y=22\\), szukamy największej wartości wyrażenia \\(x\\cdot y\\).</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>Metoda</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<ol>\n<li>\n                    Wyliczamy \\(y\\) z pierwszego równania.\n                </li>\n<li>\n                    Tak wyliczony \\(y\\) podstawiamy do równania na iloczyn, otrzymując funkcję zmiennej \\(x\\).\n                                                                                                        \\[\n                                                                                                        f(x)=x(22-x)\n                                                                                                        \\]\n                </li>\n<li>\n                    Obliczamy współrzędną \\(x\\) wierzchołka, wskazującego na maksymalny iloczyn.\n                </li>\n<li>\n                    Dla tej wartości \\(x\\) wyliczamy \\(y\\).\n                </li>\n</ol>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>Wyliczone wartości</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(x=y=11\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>Odpowiedź</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Obie liczby są równe \\(11\\).</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "Zadanie3- zobacz",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Suma jednej liczby i dwukrotności drugiej to 22. Jakie to liczby, jeśli ich iloczyn jest największy możliwy?</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>Wybór zmiennej / zmiennych</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(x\\) - pierwsza liczba, \\(y\\) - druga liczba.</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>Równania</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(x+2y=22\\), szukamhy największej wartości iloczynu \\(x\\cdot y\\).</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>Metoda</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<ol>\n<li>\n                    Wyliczamy \\(x\\) z pierwszego równania.\n                </li>\n<li>\n                    Tak wyliczony \\(x\\) podstawiamy do równania na iloczyn, otrzymując funkcję zmiennej \\(y\\).\n                                                                                                        \\[\n                                                                                                        f(y)=y(22-2y)\n                                                                                                        \\]\n                    <p>\n<strong>\n                            Uwaga, to może być mylące!\n                        </strong>\n                        Argumentem tej funkcji jest \\(y\\), a nie \\(x\\), jak zazwyczaj.\n                    </p>\n<p>\n                        Oznacza to, że na wykresie \\(y\\) przedstawiamy na osi poziomej, a oś pionowa ma wskazywać na iloczyn obu liczb. Możemy ją oznaczyć literą \\(f\\), bo tak nazwaliśmy funkcję, której wartości są przedstawiane na tej osi.\n                    </p>\n</li>\n<li>\n                    Obliczamy współrzędną poziomą (czyli \\(y\\)!) wierzchołka, wskazującego na maksymalny iloczyn.\n                </li>\n<li>\n                    Dla tej wartości \\(y\\) wyliczamy \\(x\\).\n                </li>\n</ol>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>Wyliczone wartości</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(y=5,5\\), \\(x=11\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>Odpowiedź</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Pierwsza liczba to \\(11\\), a druga \\(5,5\\).</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "Zadanie4- zobacz",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Suma trzykrotności jednej liczby i dwukrotności drugiej to 24. Jakie to liczby, jeśli ich iloczyn jest największy możliwy?</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>Wybór zmiennej / zmiennych</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(x\\) - pierwsza liczba, \\(y\\) - druga liczba.</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>Równania</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(3x+2y=24\\), szukamhy największej wartości iloczynu \\(x\\cdot y\\).</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>Metoda</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<ol>\n<li>\n                    Wyliczamy \\(y\\) z pierwszego równania.\n                </li>\n<li>\n                    Tak wyliczony \\(y\\) podstawiamy do równania na iloczyn, otrzymując funkcję zmiennej \\(x\\).\n                                                                                                        \\[\n                                                                                                        f(x)=x\\left(12-\\frac{3}{2}x\\right)\n                                                                                                        \\]\n                </li>\n<li>\n                    Obliczamy współrzędną \\(x\\) wierzchołka, wskazującego na maksymalny iloczyn.\n                </li>\n<li>\n                    Dla tej wartości \\(x\\) wyliczamy \\(y\\).\n                </li>\n</ol>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>Wyliczone wartości</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(x=4\\), \\(y=6\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>Odpowiedź</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Pierwsza liczba to \\(4\\), a druga \\(6\\).</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "Zadanie5- zobacz",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Suma dwóch przyprostokątnych w trójkącie prostokątnym jest równa 2. Znajdź największe możliwe pole takiego trójkąta.</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>Wybór zmiennej / zmiennych</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(x\\), \\(y\\) - długości przyprostokątnych</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>Równania</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(x+y=2\\), szukamy największej możliwej wartości pola, czyli \\(\\frac{1}{2}x\\cdot y\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>Metoda</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<ol>\n<li>\n                    Wyliczamy \\(y\\) z pierwszego równania.\n                </li>\n<li>\n                    Tak wyliczony \\(y\\) podstawiamy do równania na pole, otrzymując funkcję zmiennej \\(x\\).\n                                                                                                        \\[\n                                                                                                        f(x)=\\frac{1}{2}x\\left(2-x\\right)\n                                                                                                        \\]\n                </li>\n<li>\n                    Obliczamy współrzędną \\(x\\) wierzchołka, wskazującego na maksymalne pole oraz współrzędną \\(y\\) wierzchołka.\n                    <p>\n<strong>\n                            Uwaga!\n                        </strong>\n                        Ta współrzędna \\(y\\) to nie jest długość drugiej przyprostokątnej, lecz pole trójkąta!\n                    </p>\n</li>\n</ol>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>Wyliczone wartości</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Współrzędne wierzchołka to \\(\\left(1, \\tfrac{1}{2}\\right)\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>Odpowiedź</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Maksymalne możliwe pole takiego trójkąta to \\(\\frac{1}{2}\\).</p>"
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "ead75c80270c9c7c4628686e85d8dd947a16d8419d060fd80c8be1a47e80c10e"
+}

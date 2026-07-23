@@ -1,0 +1,30 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><li>\n<strong>Deltoid</strong> to czworokąt, w którym dwie pary sąsiednich boków są równej długości.\n    </li>\n<li>\n        Każdy czworokąt, którego przekątne przecinają się pod kątem prostym w taki sposób, że jedna z nich dzieli drugą na połowy, jest <strong>deltoidem</strong>.\n    </li>\n<li>\n        Własności deltoidów:\n        <ul>\n<li>\n                Prosta przechodząca przez końce boków o równej długości jest osią symetrii deltoidu.\n            </li>\n<li>\n                Przekątne deltoidu przecinają się pod kątem prostym.\n                <details>\n<summary>co więcej...</summary>\n                    A co więcej, na mocy pierwszej własności, jedna z przekątnych dzieli drugą na połowy.\n                </details>\n</li>\n<li>\n                Kąty między bokami o różnej długości są równe.\n                <details>\n<summary>chyba, że...</summary>\n                    No, chyba, że wszystkie boki są tej samej długości - wówczas mamy dwie pary równych kątów.\n                </details>\n</li>\n<li>\n                Jeśli deltoid jest wypukły, można w niego wpisać okrąg.\n            </li>\n</ul>\n</li></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Jeśli przekątne deltoidu mają długości \\(d_1\\) i \\(d_2\\), to jego pole, \\(P\\), dane jest wzorem\n        \\[\n        P=\\frac{d_1\\cdot d_2}{2}\n        \\]</p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/deltoid_pole_d1_d2_1.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>Jeśli deltoid \n        <ul class=\"nolist\">\n<li>\n                ma dwa boki o długościach \\(a\\) i dwa boki o długościach \\(b\\), \n            </li>\n<li>\n                a kąt między bokami o długościach \\(a\\) i \\(b\\) ma miarę \\(\\alpha\\), \n            </li>\n</ul>\n        to pole deltoidu, \\(P\\), dane jest wzorem\n        \\[\n        P=a\\cdot b\\cdot \\sin\\alpha\n        \\]</p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/deltoid_pole_alpha_1.png",
+      "alt": "",
+      "figcaption": ""
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "3e6e82eb3c9b97494c61251b800d796bfd0de0b8f37f137d7926eafd337f6b63"
+}

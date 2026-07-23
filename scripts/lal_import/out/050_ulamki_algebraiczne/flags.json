@@ -1,0 +1,44 @@
+[
+  {
+    "kind": "skipped_unnumbered_file",
+    "reason": "text.html has no ordering token; not a numbered lesson — skipped",
+    "unit_json": null,
+    "raw_excerpt": "text.html"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: /jump_to_id/86ef6fc5f8ba461a84fb22a3aaf5e55c",
+    "raw_excerpt": "<a href=\"/jump_to_id/86ef6fc5f8ba461a84fb22a3aaf5e55c\">rozwiązywania równań kwadratowych</a>",
+    "unit_json": "040_zagadnienia_wstepne.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: /jump_to_id/3072f628746c4dcf9613abeb56b8de3b",
+    "raw_excerpt": "<a href=\"/jump_to_id/3072f628746c4dcf9613abeb56b8de3b\">do tego rozdziału</a>",
+    "unit_json": "280_funkcja_homograficzna.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: /jump_to_id/14ebbce139bc447eaf7213da54a53092",
+    "raw_excerpt": "<a href=\"/jump_to_id/14ebbce139bc447eaf7213da54a53092\">lekcji o przesuwaniu wykresów wzdłuż osi OX,</a>",
+    "unit_json": "300_funkcja_homograficzna.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: /jump_to_id/4e7686963d554e21863177d258a75585",
+    "raw_excerpt": "<a href=\"/jump_to_id/4e7686963d554e21863177d258a75585\">lekcji o przesuwaniu wykresów wzdłuż osi OY.</a>",
+    "unit_json": "300_funkcja_homograficzna.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: /jump_to_id/23e2ad54dcb2442d949b536ff4ade63b",
+    "raw_excerpt": "<a href=\"/jump_to_id/23e2ad54dcb2442d949b536ff4ade63b\">tutaj</a>",
+    "unit_json": "330_funkcja_homograficzna.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: /jump_to_id/1338ba773b124de5abe5b6289a868ee2",
+    "raw_excerpt": "<a href=\"/jump_to_id/1338ba773b124de5abe5b6289a868ee2\">tutaj</a>",
+    "unit_json": "330_funkcja_homograficzna.json"
+  }
+]

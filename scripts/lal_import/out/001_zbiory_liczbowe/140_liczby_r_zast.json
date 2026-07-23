@@ -1,0 +1,135 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Firmy OpenArch oraz TeraSoft produkują i sprzedają między innymi tablety.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    W pewnym roku OpenArch sprzedała ich 20 tysięcy, a TeraSoft sprzedała ich 40 tysięcy.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            O ile procent więcej tabletów sprzedała firma TeraSoft niż firma OpenArch?\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Wpisz samą liczbę, bez znaku procentu.\n        </p>"
+    },
+    {
+      "type": "guess_number",
+      "stem": "\n￿0￿\n",
+      "target": "100",
+      "success_message": "Tak, TeraSoft sprzedała o \\(100\\%\\) niż OpenArch."
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    OpenArch i TeraSoft to nie jedyne firmy sprzedające tablety. Sprzedaż OpenArchu to \\(4\\%\\) całego rynku tabletów w tym roku.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Jakim procentem rynku tabletów była sprzedaż firmy TeraSoft?\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Wpisz samą liczbę, bez znaku procentu.\n        </p>"
+    },
+    {
+      "type": "guess_number",
+      "stem": "\n￿0￿\n",
+      "target": "8",
+      "success_message": "Tak, sprzedaż TeraSoft to \\(8\\%\\) rynku tabletów."
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Kliknij \"start\" i obejrzyj krótkie podsumowanie.\n    </p>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/yjbdyknk/width/800/height/700/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Gdy porówujemy ze sobą dwie wielkości, jedna z nich jest całością, do której się odnosimy (w powyższym przykładzie - 20 tysięcy tabletów sprzedanych przez OpenArch), i różnicę porównujemy z tą całością używając\n        <strong>\n            procentów\n        </strong>\n        .\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Gdy porównywane wielkości przedstawiamy jako procenty większej całości (w powyższym przykładzie - rynku tabletów) i porównujemy te procenty odejmując je od siebie, wówczas mówimy o\n        <strong>\n            punktach procentowych\n        </strong>\n        .\n    </p>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "OpenArch",
+              "halign": "left",
+              "valign": "top",
+              "header": true
+            },
+            {
+              "html": "TeraSoft",
+              "halign": "left",
+              "valign": "top",
+              "header": true
+            }
+          ],
+          [
+            {
+              "html": "20 tysięcy tabletów",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "40 tysięcy tabletów",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(\\longrightarrow\\)\n                    <br/>\n                    o \\(100\\%\\) więcej",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            }
+          ],
+          [
+            {
+              "html": "\\(4\\%\\) rynku",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(8\\%\\) rynku",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(\\longrightarrow\\)\n                    <br/>\n                    o \\(4\\) punkty procentowe więcej",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            }
+          ]
+        ]
+      }
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "2d50ba262ea62a5e780093eff87a634ebd910d737c15b6d159f8c5c0319f5dbf"
+}

@@ -1,0 +1,35 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>W poniższym aplecie widzisz wykres funkcji homograficznej zdefiniowanej równaniem</p>"
+    },
+    {
+      "type": "text",
+      "body": "\\[\n        y=\\frac{ax+b}{cx+d}\n        \\]"
+    },
+    {
+      "type": "text",
+      "body": "<p>W aplecie możesz:</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n                zmieniać suwakami wartości współczynników \\(a\\), \\(b\\), \\(c\\) i \\(d\\)\n            </li>\n<li>\n                wybrać, czy chcesz widzieć wyliczenie jednego z punktó na osi lub asymptoty\n            </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Użyj apletu, żeby powtórzyć nasze ustalenia z poprzedniej lekcji.</p>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/n9r46yym/width/800/height/700/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "e775a2786cac2b12a6508b4a5cc4dcda64832b5a57b94dbe493443ba60f4e238"
+}

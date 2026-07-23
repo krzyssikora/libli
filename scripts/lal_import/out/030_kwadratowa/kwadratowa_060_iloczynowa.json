@@ -1,0 +1,67 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "\n    Jeśli funkcja kwadratowa:\n    \\[\n    y=ax^2+bx+c\n    \\]\n    ma miejsca zerowe \\(x_1\\) oraz \\(x_2\\), to możemy ją zapisać w\n    <strong>\n        postaci iloczynowej\n    </strong>\n    :\n    \\[\n    y=a(x-x_1)(x-x_2)\n    \\]\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Zwróć uwagę, że w postaci iloczynowej\n    <strong>\n        odejmujemy\n    </strong>\n    miejsca zerowe od \\(x\\)-ów w nawiasach, więc znaki są przeciwne:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Dla miejsc zerowych \\(x_1=\\color{red}{-}1\\) oraz \\(x_2=\\color{red}{+}3\\) postać iloczynowa wygląda tak:\n</p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n\\begin{align*}\ny&=a(x-(-1))(x-(+3))=\\\\\ny&=a(x\\color{red}{+}1)(x\\color{red}{-}3)\n\\end{align*}\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Parametr \\(a\\) nie ma wpływu na miejsca zerowe, a jedynie na kształt paraboli, czyli wykresu funkcji kwadratowej.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W aplecie poniżej możesz:\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n                przesuwać suwak, by zmieniać wartość parametru \\(\\color{blue}{a}\\), i widzieć, że nie zmienia się położenie mniejśc zerowych,\n            </li>\n<li>\n                zmieniać wartości miejsc zerowych \\(\\color{red}{x_1}\\) oraz \\(\\color{red}{x_2}\\), by zmieniać położenie wykresu bez zmiany jego kształtu.\n            </li>\n</ul>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/cnzeatug/width/800/height/800/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Co się stanie, jeśli wpiszesz tę samą liczbę dla obu miejsc zerowych?\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Jeśli \\(x_1=x_2\\) mówimy, że</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n            funkcja kwadratowa ma\n            <stron>\n                jedno miejsce zerowe\n            </stron>\n</li>\n<li>\n            lub że ma\n            <strong>\n                dwa równe miesjca zerowe\n            </strong>\n            .\n        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>W takiej sytuacji równanie iloczynowe przyjmuje postać:\n    \\[\n    y=a(x-x_1)(x-x_1)\n    \\]\n    czyli po prostu:\n    \\[\n    y=a(x-x_1)^2\n    \\]</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Zauważ, że powyższa postać iloczynowa jest też postacią kanoniczną funkcji kwadratowej (tj. \\(y=a(x-p)^2+q\\)), gdzie \\((p, q)\\) to współrzęne wierzchołka paraboli.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    W powyższej sytuacji wierzchołek ma współrzędne \\((x_1, 0)\\), czyli leży na osi \\(OX\\).\n</p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "fc59b097d73251f7d080a79a5e53759befedfa92806b1232610b9b1dc19efce1"
+}

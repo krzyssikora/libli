@@ -1,0 +1,78 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Przyjrzyj się poniższym figurom i pomyśl, jakie jest ich pole.</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Jednoską jest pole jednego małego kwadratu o szarych bokach.\n        </p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/pole_zad.png",
+      "alt": "pola fiur",
+      "figcaption": ""
+    },
+    {
+      "type": "fill_table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "kind": "static",
+              "html": "<strong>\n                                A\n                            </strong>"
+            },
+            {
+              "kind": "static",
+              "html": "<strong>\n                                B\n                            </strong>"
+            },
+            {
+              "kind": "static",
+              "html": "<strong>\n                                C\n                            </strong>"
+            },
+            {
+              "kind": "static",
+              "html": "<strong>\n                                D\n                            </strong>"
+            },
+            {
+              "kind": "static",
+              "html": "<strong>\n                                E\n                            </strong>"
+            }
+          ],
+          [
+            {
+              "kind": "answer",
+              "answer": "5"
+            },
+            {
+              "kind": "answer",
+              "answer": "4"
+            },
+            {
+              "kind": "answer",
+              "answer": "3.5|3,5"
+            },
+            {
+              "kind": "answer",
+              "answer": "4"
+            },
+            {
+              "kind": "answer",
+              "answer": "4"
+            }
+          ]
+        ]
+      }
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "dca79f9a9b7855b19b853f01188521a6db6a7e7087be31fd458ec8062a799560"
+}

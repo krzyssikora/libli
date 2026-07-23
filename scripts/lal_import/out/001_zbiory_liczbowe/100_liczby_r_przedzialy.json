@@ -1,0 +1,41 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Poniższym aplecie możesz:</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n                przesuwać punkty kończące niebieski i czerwony przedział,\n            </li>\n<li>\n                klikać na nie, by zmieniać ich należenie do przedziałów\n            </li>\n<li>\n                wybrać, jakiego działania wynik chcesz zobaczyć (sumę, iloczyn, czy różnicę).\n            </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "\n            Możesz użyć apletu, by poćwiczyć działania na przedziałach, na przykład w ten sposób, żeby z użyciem różnych działań uzyskać następujące wyniki:\n        "
+    },
+    {
+      "type": "text",
+      "body": "<p>(Dla swojej wygody możesz zazanczyć to, co już zrobisz.)</p>"
+    },
+    {
+      "type": "mark_done",
+      "items": [
+        "\\(\\langle 3, 5)\\)",
+        "\\((-2, 4\\rangle\\)",
+        "\\(\\{2\\}\\)",
+        "\\(\\{2\\}\\cup\\{5\\}\\)",
+        "\\((-5,-1)\\cup\\langle 2,4\\rangle\\)"
+      ]
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/rwkezkm2/width/800/height/320/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "498f991be52fa4b3c6b16dfb390f29cbbb27bef75fb9ae975ea4e3c952c09ae3"
+}

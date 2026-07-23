@@ -1,0 +1,14 @@
+{
+  "elements": [
+    {
+      "type": "video",
+      "media_src": "static/wektor.mp4"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Geometria analityczna, to geometria w układzie współrzędnych. Będziemy mówić teraz o przesuwaniu właśnie w układzie współrzędnych. A skoro tak, to musimy i wektory umieścić w układzie współrzędnych.\n</p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "b7a312fe2c16110ea8318a626d8ceda8c247fdc4e3118b4259313608d1f82ccf"
+}

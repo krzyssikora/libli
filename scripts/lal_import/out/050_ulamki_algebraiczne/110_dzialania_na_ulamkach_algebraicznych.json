@@ -1,0 +1,129 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n<strong>Mnożąc</strong> ułamki algebraiczne:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ol>\n<li>\n        najpierw rokładamy liczniki i mianowniki na czynniki\n    </li>\n<li>\n        potem skracamy ułamki\n    </li>\n<li>\n        a na końcu mnożymy: licznik przez licznik i mianownik przez mianownik.\n    </li>\n</ol>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>Dzieląc</strong> ułamki algebraiczne musimy zrobić jeszcze jeden krok, <strong><u>przed</u></strong> wszystkimi powyższymi:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ol start=\"0\">\n<li>\n        zamieniamy dzielenie na <u>mnożenie przez odwrotoność drugiego ułamka</u>.\n        <div class=\"table_wrapper\">\\[\n        \\text{(wyrażenie)}\\color{red}{:\\frac{a}{b}}=\\text{(wyrażenie)}\\color{red}{\\cdot\\frac{b}{a}}\n        \\]</div>\n</li>\n</ol>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Oblicz</p>"
+    },
+    {
+      "type": "text",
+      "body": "\\[\n        \\frac{2x^2-7x+3}{x^2-9}:\\frac{2x^2+3x-2}{2x+6}\n        \\]"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                W pierwszym kroku zamieniamy dzielenie przez ułamek na mnożenie przez jego odwrotoność.\n            </p>"
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                Otrzymujemy\n                \n\n\n\n\n\n￿0￿",
+      "options": [
+        "\\(\\frac{2x^2+3x-2}{2x+6}\\cdot\\frac{2x^2-7x+3}{x^2-9}\\)",
+        "\\(\\frac{x^2-9}{2x^2-7x+3}\\cdot\\frac{2x^2+3x-2}{2x+6}\\)",
+        "\\(\\frac{2x^2-7x+3}{x^2-9}\\cdot\\frac{2x+6}{2x^2+3x-2}\\)",
+        "\\(\\frac{2x^2-7x+3}{x^2-9}:\\frac{2x+6}{2x^2+3x-2}\\)"
+      ],
+      "answer": 2
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Teraz rozłożymy wszystkie cztery wyrażeni (dwa liczniki i dwa mianowniki) na czynniki.\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Najprostsze jest: \\(2x+6 = 2(x+3)\\).\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Ale teraz musimy rozłożyć na czynniki trzy wyrażenia kwadratowe.\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Jeśli potrzebujesz, oblicz deltę i miejsca zerowe, a potem wybierz odpowiednią odpowiedź.\n            </p>"
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                \\(2x^2-7x+3=\\)\n                \n\n\n\n\n￿0￿",
+      "options": [
+        "\\((2x-1)(x-3)\\)",
+        "\\((2x+1)(x+3)\\)",
+        "\\((2x-3)(x-1)\\)"
+      ],
+      "answer": 0
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                Teraz \\(2x^2+3x-2=\\)\n                \n\n\n\n\n￿0￿",
+      "options": [
+        "\\((2x+1)(x-2)\\)",
+        "\\((2x-1)(x+2)\\)",
+        "\\((2x-2)(x+1)\\)"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                I wreszcie \\(x^2-9=\\) \n                \n\n\n\n\n￿0￿",
+      "options": [
+        "\\((x-3)(x-3)\\)",
+        "\\((x-3)(x+3)\\)",
+        "\\((x+3)(x+3)\\)"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Tak więc:\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "\\[\n            \\begin{align*}\n            \\frac{2x^2-7x+3}{x^2-9}:\\frac{2x^2+3x-2}{2x+6}&amp;=\\frac{2x^2-7x+3}{x^2-9}\\cdot\\frac{2x+6}{2x^2+3x-2}=\\\\\n            &amp;=\\frac{(2x-1)(x-3)}{(x-3)(x+3)}\\cdot\\frac{2(x+3)}{(2x-1)(x+2)}=\n            \\end{align*}\n            \\]"
+    },
+    {
+      "type": "text",
+      "body": "<p>Zauważmy, że w licznikach i w mianownikach powtarzają się identyczne czynniki:</p>"
+    },
+    {
+      "type": "text",
+      "body": "\\[\n            =\\frac{\\color{red}{(2x-1)}\\color{blue}{(x-3)}}{\\color{blue}{(x-3)}\\color{green}{(x+3)}}\\cdot\\frac{2\\color{green}{(x+3)}}{\\color{red}{(2x-1)}(x+2)}\n            \\]"
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                Skracając je uzyskujemy: \n                \n\n\n\n\n￿0￿",
+      "options": [
+        "\\(x+2\\)",
+        "\\(\\frac{x+2}{2}\\)",
+        "\\(\\frac{2}{x+2}\\)"
+      ],
+      "answer": 2
+    },
+    {
+      "type": "text",
+      "body": "<p>Ostatecznie</p>"
+    },
+    {
+      "type": "text",
+      "body": "\\[\n            \\frac{2x^2-7x+3}{x^2-9}:\\frac{2x^2+3x-2}{2x+6}=\\frac{2}{x+2}\n            \\]"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "51e0888c8aa6e74fbbdacee5ad0fc11ff531c07d2952e5d417ab629f216073a4"
+}

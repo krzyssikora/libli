@@ -1,0 +1,156 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Określ monotoniczność poniższych ciągów geometrycznych.\n    "
+    },
+    {
+      "type": "choice_grid",
+      "columns": [
+        "rosnący",
+        "stały",
+        "malejący",
+        "żaden"
+      ],
+      "rows": [
+        {
+          "statement": "\\(3,\\, 6,\\, 12,\\, 24,\\, 48,\\, 96\\)",
+          "correct": 0
+        },
+        {
+          "statement": "\\(12,\\, 18,\\, 27,\\, 40\\tfrac{1}{2},\\, 60\\tfrac{3}{4}\\)",
+          "correct": 0
+        },
+        {
+          "statement": "\\(11,\\, 11,\\, 11,\\, 11,\\, 11,\\, 11\\)",
+          "correct": 1
+        },
+        {
+          "statement": "\\(96,\\, 48,\\, 24,\\, 12,\\, 6,\\, 3\\)",
+          "correct": 2
+        },
+        {
+          "statement": "\\(243,\\, 162,\\, 108,\\, 72,\\, 48\\)",
+          "correct": 2
+        },
+        {
+          "statement": "\\(1,\\, -2,\\, 4,\\, -8,\\, 16,\\, -32\\)",
+          "correct": 3
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Jaki jest związek ilorazu ciągu geometrycznego, \\(q\\), z jego monotonicznością?\n    "
+    },
+    {
+      "type": "choice_grid",
+      "columns": [
+        "rosnący",
+        "stały",
+        "malejący",
+        "żaden"
+      ],
+      "rows": [
+        {
+          "statement": "jeśli \\(q\\gt 1\\) ciąg jest",
+          "correct": 0
+        },
+        {
+          "statement": "jeśli \\(q= 1\\) ciąg jest",
+          "correct": 1
+        },
+        {
+          "statement": "jeśli \\(0\\lt q\\lt 1\\) ciąg jest",
+          "correct": 2
+        },
+        {
+          "statement": "jeśli \\(q\\lt 0\\) ciąg jest",
+          "correct": 3
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "a jeśli nie masz pewności, zerknij tu",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Ciąg geometryczny \\((a_n)\\) o ilorazie \\(q\\) jest:</p>"
+        },
+        {
+          "type": "table",
+          "data": {
+            "header_row": false,
+            "header_col": false,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "rosnący",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "jeśli \\(q\\gt 1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "stały",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "jeśli \\(q= 1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "malejący",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "jeśli \\(0\\lt q\\lt 1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "nie jest monotoniczny",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "jeśli \\(q\\lt 0\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "type": "text",
+          "body": "<p>W powyższych rozważaniach nie uwzględniliśmy \\(q=0\\). Co w takiej sytuacji?</p>"
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "e6a843b15cde502f4da9bdfa6a1fb1e5a47739408827e75372a583ccbd9d8421"
+}

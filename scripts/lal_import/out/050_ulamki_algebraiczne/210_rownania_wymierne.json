@@ -1,0 +1,124 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<h3>\n    Metoda\n</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Równania mające postać proporcji rozwiązujemy mnożąc</p>"
+    },
+    {
+      "type": "text",
+      "body": "<strong>na skos</strong>"
+    },
+    {
+      "type": "text",
+      "body": "<p>.</p>"
+    },
+    {
+      "type": "video",
+      "media_src": "static/proportion.mp4"
+    },
+    {
+      "type": "text",
+      "body": "<h3>\n    Rozwiązanie\n</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Rozwiąż równanie.</p>"
+    },
+    {
+      "type": "text",
+      "body": "\\[\n        \\frac{3x+10}{x+4}=\\frac{x+7}{x}\n        \\]"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Zacznijmy od dziedziny.\n            </p>"
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                Ułamki w równaniu są określone (mają wartość liczbową) jeśli\n                \n\n\n\n￿0￿.\n            ",
+      "options": [
+        "\\(x= -4\\) lub \\(x= 0\\)",
+        "\\(x= 4\\) lub \\(x= 0\\)",
+        "\\(x\\ne -4\\) i \\(x\\ne 0\\)"
+      ],
+      "answer": 2
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                Teraz wymnażamy proporcję na skos otrzymując\n                \n\n\n\n￿0￿.\n            ",
+      "options": [
+        "\\((3x+10)(x+7)=(x+4)\\cdot x\\)",
+        "\\((3x+10)\\cdot x=(x+4)(x+7)\\)",
+        "\\((3x+10)(x+4)=(x+7)\\cdot x\\)"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                Wymnażamy wyrażenia po obu stronach równania i redukujemy wyrazy podobne otrzymując \n                \n\n\n\n￿0￿.\n            ",
+      "options": [
+        "\\(3x^2+10x=x^2+11x+28\\)",
+        "\\(3x^2+10x=x^2+28\\)",
+        "\\(14x=13x+28\\)"
+      ],
+      "answer": 0
+    },
+    {
+      "type": "text",
+      "body": "<p>Przenosząc wszystkie wyrazy na lewą stronę i redukując wyrazy podobne otrzymujemy:</p>"
+    },
+    {
+      "type": "text",
+      "body": "\\[\n            2x^2-x-28=0\n            \\]"
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                Delta tego wyrażenia to \n                \n\n\n\n￿0￿.\n            ",
+      "options": [
+        "\\(\\Delta=15\\)",
+        "\\(\\Delta=225\\)",
+        "\\(\\Delta=57\\)"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "text",
+      "body": "<p>Obliczamy rozwiązania:</p>"
+    },
+    {
+      "type": "text",
+      "body": "\\[\n            x=\\frac{-b\\pm\\sqrt{\\Delta}}{2a}=\\frac{1\\pm\\sqrt{225}}{2\\cdot 2}\n            \\]"
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                i otrzymujemy \n                \n\n\n\n￿0￿.\n            ",
+      "options": [
+        "\\(\\tfrac{7}{2}\\) oraz \\(-4\\)",
+        "\\(-\\tfrac{7}{2}\\) oraz \\(4\\)",
+        "\\(-7\\) oraz \\(8\\)"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Oba rozwiązania, \\(x=-\\frac{7}{2}\\) oraz \\(x=4\\), są zgodne z założeniem (\\(x\\ne -4\\) i \\(x\\ne 0\\)), więc ostatecznym rozwiązaniem równania\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "\\[\n            \\frac{3x+10}{x+4}=\\frac{x+7}{x}\n            \\]"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                są liczby \\(x=-\\frac{7}{2}\\) i \\(x=4\\).\n            </p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "b445a187d6d585d170db5d9ebd79c23a5647632fdc1a18c48b7dade4b993041f"
+}

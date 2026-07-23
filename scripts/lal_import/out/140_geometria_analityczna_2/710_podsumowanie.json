@@ -1,0 +1,169 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Trójkąt \\(ABC\\) jest prostokątny, przy czym \\(A=(0,0)\\), punkt \\(B\\) leży na osi \\(OY\\), a punkt \\(C\\) na osi \\(OX\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Punkt \\(D=(-6,9)\\) jest spodkiem wysokości \\(AD\\) trójkąta \\(ABC\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź współrzędne wierzchołków \\(B\\)i \\(C\\) trójkąta \\(ABC\\).\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "metoda rozwiązania",
+      "elements": [
+        {
+          "type": "iframe",
+          "url": "https://www.geogebra.org/material/iframe/id/dranecwm/width/552/height/396/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+          "title": ""
+        },
+        {
+          "type": "text",
+          "body": "<h4>dlaczego ta metoda jest poprawna?</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Bok \\(BC\\) jest prostopadły do wysokości \\(AD\\).</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                    Zacznijmy od znalezienia nachylenia odcinka \\(AD\\).\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>pamiętasz, jak?</h4>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_analityczna_2_zadanie_330_nachylenie_odcinka.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                            Nachylenie odcinka \\(AB\\) dane jest wzorem:\n                        </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                            \\[\n                            \\left(\\small\\frac{\\text{skok}}{\\text{krok}}\\right)=\\frac{y_B-y_A}{x_B-x_A}\n                            \\]\n                        "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Nachylenie odcinka \\(AD\\) jest równe\n                    \n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(-\\frac{3}{2}\\)",
+            "\\(-\\frac{2}{3}\\)",
+            "\\(\\frac{3}{2}\\)",
+            "\\(\\frac{2}{3}\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Bok \\(BC\\) jest prostopadły do wysokości \\(AD\\), więc jego nachylenie jest równe\n                    \n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(\\frac{3}{2}\\)",
+            "\\(\\frac{2}{3}\\)",
+            "\\(-\\frac{3}{2}\\)",
+            "\\(-\\frac{2}{3}\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Prosta zawierajca bok \\(BC\\) ma więc równanie postaci\n                </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                y=\\frac{2}{3}x+b\n                "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Aby ustalić wartość współczynnika \\(b\\), skorzystamy z faktu, że ta prosta przechodzi przez punkt \\(D\\)\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    \\begin{align}\n                    y&amp;=\\frac{2}{3}x+b\\\\\n                    9&amp;=\\frac{2}{3}\\cdot(-6)+b\\\\\n                    9&amp;=-4+b\\\\\n                    b&amp;=13\n                    \\end{align}\n                    \\]\n                "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Równanie prostej zawierającej bok \\(BC\\) to\n                </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                y=\\frac{2}{3}x+13\n                "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Punkt \\(B\\) leży na tej prostej i na osi \\(OY\\). Dlatego, by znaleźć jego współrzędne, do równania prostej podstawiamy\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(x=0\\)",
+            "\\(y=0\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Dostajemy\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    y=\\frac{2}{3}\\cdot 0+13=13\n                    \\]\n                "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    więc \\(B=(0,13)\\).\n                </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Punkt \\(C\\) leży na tej prostej i na osi \\(OX\\). Dlatego, by znaleźć jego współrzędne, do równania prostej podstawiamy\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(x=0\\)",
+            "\\(y=0\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Otrzymujemy\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    \\begin{align}\n                    0&amp;=\\frac{2}{3}\\cdot x+13\\\\\n                    -13&amp;=\\frac{2}{3}\\cdot x\\\\\n                    \\frac{2}{3}\\cdot x&amp;=-13\\\\\n                    x&amp;=-13\\cdot\\frac{3}{2}\n                    \\end{align}\n                    \\]\n                "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Dlatego współrzędne punktu \\(C\\) to\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\((0,-19\\tfrac{1}{2})\\)",
+            "\\((-19\\tfrac{1}{2},0)\\)",
+            "\\((19\\tfrac{1}{2},0)\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_analityczna_2_zadanie_1560.png",
+          "alt": "",
+          "figcaption": ""
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "20f6db4015303f5cc546df1d8096167ee1945a16f41bc23b07e35095613c6e88"
+}

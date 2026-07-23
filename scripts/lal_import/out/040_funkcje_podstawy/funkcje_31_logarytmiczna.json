@@ -1,0 +1,146 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Dla każdej liczby \\(x\\) w tabeli oblicz i wpisz wartość \\(y=\\log_{2}x\\)\n    "
+    },
+    {
+      "type": "fill_table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "kind": "static",
+              "html": "\\(x\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(\\frac{1}{4}\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(\\frac{1}{2}\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(1\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(2\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(4\\)"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(y\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "-2"
+            },
+            {
+              "kind": "answer",
+              "answer": "-1"
+            },
+            {
+              "kind": "answer",
+              "answer": "0"
+            },
+            {
+              "kind": "answer",
+              "answer": "1"
+            },
+            {
+              "kind": "answer",
+              "answer": "2"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Dla każdej liczby \\(x\\) w tabeli oblicz i wpisz wartość \\(y=\\log_{\\frac{1}{2}}x\\)\n    "
+    },
+    {
+      "type": "fill_table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "kind": "static",
+              "html": "\\(x\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(\\frac{1}{4}\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(\\frac{1}{2}\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(1\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(2\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(4\\)"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(y\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "2"
+            },
+            {
+              "kind": "answer",
+              "answer": "1"
+            },
+            {
+              "kind": "answer",
+              "answer": "0"
+            },
+            {
+              "kind": "answer",
+              "answer": "-1"
+            },
+            {
+              "kind": "answer",
+              "answer": "-2"
+            }
+          ]
+        ]
+      }
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "638fd1c55830d7bf39062177f42650a07a54c7cbdf28e07d2845ba039a3f5ee4"
+}

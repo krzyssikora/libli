@@ -1,0 +1,74 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Wskaż większą liczbę w każdej parze.\n    "
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Zaznacz większą.</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(\\log_3 12\\)",
+          "is_correct": false
+        },
+        {
+          "text": "\\(\\log_3 15\\)",
+          "is_correct": true
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Zaznacz większą.</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(\\log_{\\frac{2}{3}} 14\\)",
+          "is_correct": true
+        },
+        {
+          "text": "\\(\\log_{\\frac{2}{3}} 24\\)",
+          "is_correct": false
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Zaznacz większą.</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(\\log_{\\sqrt{\\frac{1}{2}}} 3\\)",
+          "is_correct": false
+        },
+        {
+          "text": "\\(0\\)",
+          "is_correct": true
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Zaznacz większą.</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(\\log_{\\sqrt{\\frac{4}{3}}} 5\\)",
+          "is_correct": true
+        },
+        {
+          "text": "\\(1\\)",
+          "is_correct": false
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "e66dc16710767495479b09e619933539815ac24d3ee3394fa9cef43bb842b7cd"
+}

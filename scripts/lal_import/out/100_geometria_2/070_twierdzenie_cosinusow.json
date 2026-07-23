@@ -1,0 +1,312 @@
+{
+  "elements": [
+    {
+      "type": "image",
+      "media_src": "static/trojkat_ABC.png",
+      "alt": "trojkat ABC",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>\n            Twierdzenie cosinusów\n        </strong>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Jeśli \\(a\\), \\(b\\), \\(c\\) to długości boków trójkąta, a \\(A\\), \\(B\\) i \\(C\\) to miary kątów przeciwległych do tych boków, to prawdziwe są następujące równania:\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n            \\(a^2=b^2+c^2-2bc\\cos A\\)\n        </li>\n<li>\n            \\(b^2=a^2+c^2-2ac\\cos B\\)\n        </li>\n<li>\n            \\(c^2=a^2+b^2-2ab\\cos C\\)\n        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Przypomnijmy, że\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>twierdzenia cosinusów możemy użyć gdy:</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n            mamy dane dwa boki i jeden kąt - by znaleźć trzeci bok\n        </li>\n<li>\n            mamy dane trzy boki - by znaleźć kąt\n        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    W poniższym zadaniu poszukamy długości boku, mając dane dwa inne boki i kąt, ale tym razem kąt nie będzie między danymi bokami.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W trójkącie \\(ABC\\) długości boków \\(BC\\) i \\(AC\\) to odpowiednio \\(2\\) i \\(7\\), a miara kąta \\(ABC\\) to \\(30^{\\circ}\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź długość boku \\(AB\\).\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Dla ułatwienia, użyjmy standardowych oznaczeń.</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Bok \\(BC\\) ma długość \\(2\\), co oznacza, że\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(a=2\\)",
+            "\\(b=2\\)",
+            "\\(c=2\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Bok \\(AC\\) ma długość \\(7\\), co oznacza, że\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(a=7\\)",
+            "\\(b=7\\)",
+            "\\(c=7\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Kąt \\(ABC\\) ma miarę \\(30^{\\circ}\\), co oznacza, że\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(A=30^{\\circ}\\)",
+            "\\(B=30^{\\circ}\\)",
+            "\\(C=30^{\\circ}\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Użyjemy równania\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(a^2=b^2+c^2-2bc\\cos A\\)",
+            "\\(b^2=a^2+c^2-2ac\\cos B\\)",
+            "\\(c^2=a^2+b^2-2ab\\cos C\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Po podstawieniu danych długości do równania:\n    \\[\n    b^2=a^2+c^2-2ac\\cos B\n    \\]\n    otrzymamy:\n    \\[\n    7^2=2^2+c^2-2\\cdot 2\\cdot c\\cos 30^{\\circ}\n    \\]\n    Obliczamy, podstawiając \\(\\cos 30^{\\circ}=\\frac{\\sqrt{3}}{2}\\):\n    \\[\n    49=4+c^2-2\\sqrt{3}\\cdot c\n    \\]\n    i upraszczamy, przenosząc wszystkie wyrazy na jedną stronę:\n    \\[\n    c^2-2\\sqrt{3}\\cdot c-45=0\n    \\]\n    Otrzymaliśmy równanie kwadratowe, w którym niewiadomoą jest \\(c\\). Aby je rozwiązać, policzymy</p>"
+        },
+        {
+          "type": "text",
+          "body": "<strong>\n                    deltę\n                </strong>"
+        },
+        {
+          "type": "text",
+          "body": "<p>.</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>delta - przypomnienie</h4>"
+        },
+        {
+          "type": "text",
+          "body": "\n                        Dla równania kwadratowego\n                                        \\[\n                                        Ax^2+Bx+C=0\n                                        \\]\n                        <small>\n                            (w którym zmienną jest \\(x\\))\n                        </small>\n                        wyróżnik tego równania (zwany\n                        <strong>\n                            deltą\n                        </strong>\n                        ) obliczamy według wzoru:\n                                        \\[\n                                        \\Delta=B^2-4AC\n                                        \\]\n                    "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    \\(\\Delta=\\)\n                    \n\n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(192\\)",
+            "\\(-168\\)",
+            "\\(168\\)",
+            "\\(169\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Zauważmy, że \\(\\sqrt{\\Delta}=\\sqrt{192}=\\sqrt{64\\cdot 3}=8\\sqrt{3}\\). Teraz możemy obliczyć rozwiązania równania kwadratowego\n    \\[\n    c^2-2\\sqrt{3}\\cdot c-45=0\n    \\]</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>rozwiązania równania kwadratowego - przypomnienie</h4>"
+        },
+        {
+          "type": "text",
+          "body": "\n                        Rozwiązania równania kwadratowego\n                                        \\[\n                                        Ax^2+Bx+C=0\n                                        \\]\n                        <small>\n                            (w którym zmienną jest \\(x\\))\n                        </small>\n                        obliczamy według wzorów:\n                                        \\[\n                                        x=\\frac{-B\\pm\\sqrt{\\Delta}}{2A}\n                                        \\]\n                    "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    W naszej sytuacji \\(c=\\frac{2\\sqrt{3}\\pm 8\\sqrt{3}}{2}\\), więc otrzymujemy\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(c=-3\\sqrt{3}\\) i \\(c=5\\sqrt{3}\\)",
+            "\\(c=-3\\) i \\(c=15\\)",
+            "\\(c=-6\\sqrt{3}\\) i \\(c=10\\sqrt{3}\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    \\(c\\) jest długością boku trójkąta, więc jedno rozwiązanie odrzucamy i ostatecznie\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(c=-3\\sqrt{3}\\)",
+            "\\(c=2\\sqrt{3}\\)",
+            "\\(c=5\\sqrt{3}\\)"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "text",
+          "body": "<p>Bok \\(AB\\) ma długość \\(5\\sqrt{3}\\).</p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/tw_cosinusow_zad_2.png",
+          "alt": "trojkat ABC",
+          "figcaption": ""
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Ponownie muslieliśmy odrzucić jedno z rozwiązań równania kwadratowego. Czy tak będzie zawsze? Przyjrzyjmy się kolejnemu zadaniu.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W trójkącie \\(ABC\\) długości boków \\(BC\\) i \\(AC\\) to odpowiednio \\(2\\sqrt{6}\\) i \\(4\\sqrt{3}\\), a miara kąta \\(BAC\\) to \\(30^{\\circ}\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź długość boku \\(AB\\).\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Dla ułatwienia, użyjmy standardowych oznaczeń.</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Bok \\(BC\\) ma długość \\(2\\sqrt{6}\\), co oznacza, że\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(a=2\\sqrt{6}\\)",
+            "\\(b=2\\sqrt{6}\\)",
+            "\\(c=2\\sqrt{6}\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Bok \\(AC\\) ma długość \\(4\\sqrt{3}\\), co oznacza, że\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(a=4\\sqrt{3}\\)",
+            "\\(b=4\\sqrt{3}\\)",
+            "\\(c=4\\sqrt{3}\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Kąt \\(BAC\\) ma miarę \\(30^{\\circ}\\), co oznacza, że\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(A=30^{\\circ}\\)",
+            "\\(B=30^{\\circ}\\)",
+            "\\(C=30^{\\circ}\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Użyjemy równania\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(a^2=b^2+c^2-2bc\\cos A\\)",
+            "\\(b^2=a^2+c^2-2ac\\cos B\\)",
+            "\\(c^2=a^2+b^2-2ab\\cos C\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Po podstawieniu danych długości do równania:\n    \\[\n    a^2=b^2+c^2-2bc\\cos A\n    \\]\n    otrzymamy:\n    \\[\n    (2\\sqrt{6})^2=(4\\sqrt{3})^2+c^2-2\\cdot 4\\sqrt{3}\\cdot c\\cos 30^{\\circ}\n    \\]\n    Obliczamy, podstawiając \\(\\cos 30^{\\circ}=\\frac{\\sqrt{3}}{2}\\):\n    \\[\n    24=48+c^2-12c\n    \\]\n    i upraszczamy, przenosząc wszystkie wyrazy na jedną stronę:\n    \\[\n    c^2-12c+24=0\n    \\]\n    Otrzymaliśmy równanie kwadratowe, w którym niewiadomoą jest \\(c\\). Aby je rozwiązać, policzymy</p>"
+        },
+        {
+          "type": "text",
+          "body": "<strong>\n                    deltę\n                </strong>"
+        },
+        {
+          "type": "text",
+          "body": "<p>.</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>delta - przypomnienie</h4>"
+        },
+        {
+          "type": "text",
+          "body": "\n                        Dla równania kwadratowego\n                                        \\[\n                                        Ax^2+Bx+C=0\n                                        \\]\n                        <small>\n                            (w którym zmienną jest \\(x\\))\n                        </small>\n                        wyróżnik tego równania (zwany\n                        <strong>\n                            deltą\n                        </strong>\n                        ) obliczamy według wzoru:\n                                        \\[\n                                        \\Delta=B^2-4AC\n                                        \\]\n                    "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    \\(\\Delta=\\)\n                    \n\n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(240\\)",
+            "\\(48\\)",
+            "\\(-48\\)",
+            "\\(-240\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Zauważmy, że \\(\\sqrt{\\Delta}=\\sqrt{48}=\\sqrt{16\\cdot 3}=4\\sqrt{3}\\). Teraz możemy obliczyć rozwiązania równania kwadratowego\n    \\[\n    c^2-12c+24=0\n    \\]</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>rozwiązania równania kwadratowego - przypomnienie</h4>"
+        },
+        {
+          "type": "text",
+          "body": "\n                        Rozwiązania równania kwadratowego\n                                        \\[\n                                        Ax^2+Bx+C=0\n                                        \\]\n                        <small>\n                            (w którym zmienną jest \\(x\\))\n                        </small>\n                        obliczamy według wzorów:\n                                        \\[\n                                        x=\\frac{-B\\pm\\sqrt{\\Delta}}{2A}\n                                        \\]\n                    "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    W naszej sytuacji \\(c=\\frac{12\\pm 4\\sqrt{3}}{2}\\), więc otrzymujemy\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(c=6-2\\sqrt{3}\\) i \\(c=6+2\\sqrt{3}\\)",
+            "\\(c=4-\\sqrt{3}\\) i \\(c=4+\\sqrt{3}\\)",
+            "\\(c=4\\sqrt{3}\\) i \\(c=8\\sqrt{3}\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Tym razem oba rozwiązania są dodatnie.</p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>\n                        \\(c=6+2\\sqrt{3}\\gt 0\\) jest jasne,\n                    </li>\n<li>\n                        \\(2\\sqrt{3}=\\sqrt{12}\\), zaś \\(6=\\sqrt{36}\\), więc \\(c=6-2\\sqrt{3}\\gt 0\\).\n                    </li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Mamy więc dwa rozwiązania przedstawione na rysunkach poniżej.</p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/tw_cosinusow_zad_3.png",
+          "alt": "trojkat ABC",
+          "figcaption": ""
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "7bc239c2fcb951b4c993b16aec536d7291139379e84ac6915c1314be0aee2807"
+}

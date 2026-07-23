@@ -1,0 +1,479 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Udowodnij, że przekształcenie płaszczyzny \\(P\\), zdefiniowane wzorem \n        </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n        P(x,y)=(2-y,x+1)\n        "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            jest izometrią.\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "metoda",
+      "elements": [
+        {
+          "type": "image",
+          "media_src": "static/izometria_schemat_dowodu.png",
+          "alt": "",
+          "figcaption": ""
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                Rozważmy punkty \\(A=(x_A, y_A)\\) oraz \\(B=(x_B,x_A)\\), między którymi odległość jest równa\n            </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                \\[\n                |AB|=\\sqrt{(x_A-x_B)^2+(y_A-y_B)^2}\n                \\]\n            "
+        },
+        {
+          "type": "reveal_gate",
+          "label": "pokaż dalej"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Kolejny krok to znalezienie obrazów punktów \\(A\\) i \\(B\\):\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    \\begin{align}\n                    P(A)&amp;=(2-y_A, x_A+1)\\\\\n                    P(B)&amp;=(2-y_B, x_B+1)\n                    \\end{align}\n                    \\]\n                "
+        },
+        {
+          "type": "reveal_gate",
+          "label": "pokaż dalej"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    A teraz czas obliczyć odległość między \\(P(A)\\) i \\(P(B)\\):\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    \\begin{align}\n                    |P(A)P(B)|&amp;=\\sqrt{((2-y_A)-(2-y_B))^2+((x_A+1)-(x_B+1))^2}=\\\\\n                    &amp;=\\sqrt{(2-y_A-2+y_B)^2+(x_A+1-x_B-1)^2}=\\\\\n                    &amp;=\\sqrt{(-y_A+y_B)^2+(x_A-x_B)^2}=\\\\\n                    &amp;=\\sqrt{(-1\\cdot(y_A-y_B))^2+(x_A-x_B)^2}=\\\\\n                    &amp;=\\sqrt{(-1)^2\\cdot(y_A-y_B)^2+(x_A-x_B)^2}=\\\\\n                    &amp;=\\sqrt{(y_A-y_B)^2+(x_A-x_B)^2}=\\\\\n                    &amp;=\\sqrt{(x_A-x_B)^2+(y_A-y_B)^2}=\\\\\n                    &amp;=|AB|\n                    \\end{align}\n                    \\]\n                "
+        },
+        {
+          "type": "reveal_gate",
+          "label": "pokaż dalej"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Odległość między \\(P(A)\\) i \\(P(B)\\) jest równa odległości między \\(A\\) i \\(B\\), więc przekształcenie \\(P\\) jest izometrią.\n                </p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Pokaż, że przekształcenie płaszczyzny \\(P\\), zdefiniowane wzorem \n        </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n        P(x,y)=(2y,x)\n        "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>nie</strong> jest izometrią.\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "metoda",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n            Mamy pokazać, że stwierdzenie <strong>nie jest prawdziwe</strong>, więc wystarczy, że znajdziemy <strong>kontrprzykład</strong>.\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            W tej sytuacji kontrprzykładem będą dwa punkty, \\(A\\) i \\(B\\) takie, że odległość między \\(A\\) i \\(B\\) jest inna niż między ich obrazami, \\(P(A)\\) i \\(P(B)\\).\n        </p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "przykładowe rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                Nie zawsze łatwo zgadnąć, jakie punkty należy wybrać, by stworzyć dobry kontrprzykład. Weźmiemy więc dwa punkty o różnych współrzędnych, na przykład:\n            </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n            A=(0,1), B=(2,3)\n            "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                Dodatkowo chcemy, żeby współrzędna \\(y\\) była różna od \\(0\\), żeby mnożenie \"\\(2y\\)\" we wzorze przekształcenia zmieniało tę współrzędną.\n            </p>"
+        },
+        {
+          "type": "reveal_gate",
+          "label": "pokaż dalej"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Obliczmy odległość \\(|AB|\\):\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    \\begin{align}\n                    |AB|&amp;=\\sqrt{(2-0)^2+(3-1)^2}=\\\\\n                    &amp;=\\sqrt{2^2+2^2}=\\\\\n                    &amp;=\\sqrt{4+4}=\\\\\n                    &amp;=\\sqrt{8}=\\\\\n                    &amp;=2\\sqrt{2}\n                    \\end{align}\n                    \\]\n                "
+        },
+        {
+          "type": "reveal_gate",
+          "label": "pokaż dalej"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Teraz znajdźmy obrazy punktów \\(A\\) i \\(B\\):\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    \\begin{align}\n                    P(A)&amp;=(2\\cdot 1, 0+1)=\\\\\n                    &amp;=(2, 1)\\\\\n                    P(B)&amp;=(2\\cdot 3, 2+1)=\\\\\n                    &amp;=(6, 3)\n                    \\end{align}\n                    \\]\n                "
+        },
+        {
+          "type": "reveal_gate",
+          "label": "pokaż dalej"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Teraz obliczmy odległość między obrazami, \\(P(A)\\) i \\(P(B)\\):\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    \\begin{align}\n                    |P(A)P(B)|&amp;=\\sqrt{(6-2)^2+(3-1)^2}=\\\\\n                    &amp;=\\sqrt{4^2+2^2}=\\\\\n                    &amp;=\\sqrt{16+4}=\\\\\n                    &amp;=\\sqrt{20}=\\\\\n                    &amp;=2\\sqrt{5}\n                    \\end{align}\n                    \\]\n                "
+        },
+        {
+          "type": "reveal_gate",
+          "label": "pokaż dalej"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Przekształcenie \\(P\\) zmieniło odległości (\\(2\\sqrt{2}\\ne 2\\sqrt{5}\\)), więc nie jest izometrią.\n                </p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź równanie obrazu okrągu o równaniu \\((x-5)^2+(y+1)^2=49\\) w przekształceniu \\(P\\) zdefiniowanym wzorem\n        </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n        P(x,y)=(x-7, y+3)\n        "
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Wzór przekształcenia \\(P\\) wskazuje, że \\(P\\) jest \n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "obrotem",
+            "przesunięciem",
+            "symetrią"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Dokładniej: jest to przesunięcie o wektor\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\([-7,3]\\)",
+            "\\([7,-3]\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Obrazem okręgu w przesunięciu jest okrąg o \n                    \n\n\n￿0￿\n                    promieniu\n                    .\n                ",
+          "options": [
+            "identycznym",
+            "większym",
+            "mniejszym"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Środkiem danego okręgu jest punkt\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\((-5,1)\\)",
+            "\\((5,-1)\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Po przesunięciu o wektor \\([-7,3]\\) środek będzie w punkcie\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\((12, 4)\\)",
+            "\\((-2, 2)\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Dlatego równanie przesuniętego okręgu to\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\((x-2)^2+(y+2)^2=49\\)",
+            "\\((x+2)^2+(y-2)^2=49\\)",
+            "\\((x-2)^2+(y-2)^2=49\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Obraz okrągu o równaniu \\((x-5)^2+(y+1)^2=49\\) w przekształceniu \\(P\\) to okrąg o równaniu \\((x+2)^2+(y-2)^2=49\\).\n                </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_analityczna_2_zadanie_1350.png",
+          "alt": "",
+          "figcaption": ""
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź równanie obrazu okrągu o równaniu \\((x+1)^2+(y+5)^2=10\\) w przekształceniu \\(P\\) zdefiniowanym wzorem\n        </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n        P(x,y)=(x, -y)\n        "
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Przekształcenie \\(P\\) to symetria\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "względem punktu \\((0,0)\\)",
+            "w osi \\(OX\\)",
+            "w osi \\(OY\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Środek danego okręgu to punkt\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\((-1,-5)\\)",
+            "\\((1,5)\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Środek okręgu po odbiciu symetrycznym w osi \\(OX\\) znajdzie się w punkcie\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\((-1,5)\\)",
+            "\\((1,-5)\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Dlatego równanie okręgu w tej symetrii to\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\((x+1)^2+(y-5)^2=10\\)",
+            "\\((x-1)^2+(y+5)^2=10\\)",
+            "\\((x-1)^2+(y-5)^2=10\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Obrazem okrągu o równaniu \\((x+1)^2+(y+5)^2=10\\) w przekształceniu \\(P\\), czyli symetrii w osi \\(OX\\) jest okrąg \\((x+1)^2+(y-5)^2=10\\).\n                </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_analityczna_2_zadanie_1360.png",
+          "alt": "",
+          "figcaption": ""
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź równanie obrazu prostej o równaniu \\(y=3x-2\\) w przekształceniu \\(P\\) zdefiniowanym wzorem\n        </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n        P(x,y)=(x-1, y+4)\n        "
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Przekształcenie \\(P\\) to przesunięcie o wektor\n                    \n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\([1,-4]\\)",
+            "\\([-1,4]\\)",
+            "\\([-4,1]\\)",
+            "\\([4, -1]\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Równanie prostej \\(y=3x-2\\) po przesunięciu o wektor \\([-1,4]\\) ma postać\n                    \n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(y=3(x-1)+4\\)",
+            "\\(y=3(x-1)-2+4\\)",
+            "\\(y=3(x+1)-2+4\\)",
+            "\\(y=3(x+1)-2-4\\)"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Równanie \\(y=3(x+1)-2+4\\) po uproszczeniu przyjmuje postać\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(y=3x+5\\)",
+            "\\(y=3x+3\\)",
+            "\\(y=4x+2\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Obrazem prostej \\(y=3x-2\\) w przekształceniu \\(P\\), czyli przesunięciu o wektor \\([-1, 4]\\), jest prosta \\(y=3x+5\\).\n                </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_analityczna_2_zadanie_1370.png",
+          "alt": "",
+          "figcaption": ""
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź równanie obrazu prostej o równaniu \\(y=-\\frac{1}{3}x+2\\) w przekształceniu \\(P\\) zdefiniowanym wzorem\n        </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n        P(x,y)=(x, -y)\n        "
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Przekształcenie \\(P\\) to symetria względem\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "osi \\(OX\\)",
+            "osi \\(OY\\)",
+            "punktu \\((0,0)\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Równanie prostej \\(y=-\\frac{1}{3}x+2\\) odbitej w symetrii względem osi \\(OX\\) ma postać\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(y=\\frac{1}{3}x+2\\)",
+            "\\(y=\\frac{1}{3}x-2\\)",
+            "\\(y=-\\frac{1}{3}x-2\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Wykres funkcji \\(y=f(x)\\) po odbiciu w osi \\(OX\\) przyjmuje równanie \\(y=-f(x)\\), więc prosta \\(y=-\\frac{1}{3}x+2\\) zmienia się w \\(y=-(-\\frac{1}{3}x+2)\\), czyli w \\(y=\\frac{1}{3}x-2\\).\n                </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_analityczna_2_zadanie_1380.png",
+          "alt": "",
+          "figcaption": ""
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź równanie obrazu prostej o równaniu \\(y=\\frac{2}{3}x+3\\) w przekształceniu \\(P\\) zdefiniowanym wzorem\n        </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n        P(x,y)=(-x, y)\n        "
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Przekształcenie \\(P\\) to symetria względem\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "osi \\(OX\\)",
+            "osi \\(OY\\)",
+            "punktu \\((0,0)\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Równanie prostej \\(y=\\frac{2}{3}x+3\\) odbitej w symetrii względem osi \\(OY\\) ma postać\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(y=-\\frac{2}{3}x+3\\)",
+            "\\(y=-\\frac{2}{3}x-3\\)",
+            "\\(y=\\frac{2}{3}x-3\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Wykres funkcji \\(y=f(x)\\) po odbiciu w osi \\(OY\\) przyjmuje równanie \\(y=f(-x)\\), więc prosta \\(y=\\frac{2}{3}x+3\\) zmienia się w \\(y=\\frac{2}{3}(-x)+3\\), czyli w \\(y=-\\frac{2}{3}x+3\\).\n                </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_analityczna_2_zadanie_1390.png",
+          "alt": "",
+          "figcaption": ""
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "78a1d9723a91312191e6f52b6bea4288ad6e84da4d68af00322ddd73b781b907"
+}

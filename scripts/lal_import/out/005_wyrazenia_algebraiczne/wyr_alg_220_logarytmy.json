@@ -1,0 +1,198 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n<strong>\n            Logarytm o podstawie \\(a\\) z liczby \\(b\\)\n        </strong>\n        to odpowiedź na pytanie:\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<blockquote class=\"centered\">\n        \"do jakiej potęgi podnieść podstawę \\(a\\), by uzyskać \\(b\\)\"\n    </blockquote>"
+    },
+    {
+      "type": "text",
+      "body": "\n        \\[\\log_a b=c\\quad\\quad\\Leftrightarrow\\quad\\quad a^c=b\\]\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        przy czym \\(a\\gt 0\\), \\(a\\ne 1\\) i \\(b\\gt 0\\).\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        W poniższych zadaniach warto też pamiętać, że\n        <span class=\"myequation\">\n            \\(a^1=a\\)\n        </span>\n        oraz\n        <span class=\"myequation\">\n            \\(a^0=1\\)\n        </span>\n        dla każdego \\(a\\).\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Przyjrzyj się przykładowi i wpisz liczby w puste pola.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<span class=\"myequation\">\n                    \\(\\log_5 125 = 3\\)\n                </span>\n                , bo\n                <span class=\"myequation\">\n                    \\(5^3=125\\)\n                </span>\n</p>"
+    },
+    {
+      "type": "fillblank",
+      "stem": "\n<li>\n<span class=\"myequation\">\n                    \\(\\log_4 4 = \\)\n                    ￿0￿\n</span>\n                , bo\n                <span class=\"myequation\">\n                    \\(4\\)\n                    <sup>\n￿1￿\n</sup>\n                    \\(=4\\)\n                </span>\n</li>\n<li>\n<span class=\"myequation\">\n                    \\(\\log_7 1 = \\)\n                    ￿2￿\n</span>\n                , bo\n                <span class=\"myequation\">\n                    \\(7\\)\n                    <sup>\n￿3￿\n</sup>\n                    \\(=1\\)\n                </span>\n</li>\n<li>\n<span class=\"myequation\">\n                    \\(\\log_2 8 = \\)\n                    ￿4￿\n</span>\n                , bo\n                <span class=\"myequation\">\n                    \\(2\\)\n                    <sup>\n￿5￿\n</sup>\n                    \\(=8\\)\n                </span>\n</li>\n<li>\n<span class=\"myequation\">\n                    \\(\\log_3 9 = \\)\n                    ￿6￿\n</span>\n                , bo\n                <span class=\"myequation\">\n                    \\(3^2=\\)\n                    ￿7￿\n</span>\n</li>\n<li>\n<span class=\"myequation\">\n                    \\(\\log_9 3 = \\)\n                    ￿8￿\n</span>\n                , bo\n                <span class=\"myequation\">\n                    \\(9^{\\tfrac{1}{2}}=\\)\n                    ￿9￿\n</span>\n</li>\n",
+      "blanks": [
+        [
+          "1"
+        ],
+        [
+          "1"
+        ],
+        [
+          "0"
+        ],
+        [
+          "0"
+        ],
+        [
+          "3"
+        ],
+        [
+          "3"
+        ],
+        [
+          "2"
+        ],
+        [
+          "9"
+        ],
+        [
+          "1/2"
+        ],
+        [
+          "3"
+        ]
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Zauważ, że oba poniższe logarytmy mają stałą wartość, niezależnie od wartości \\(a\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\\(\\log_a a=\\)</p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "\\(\\log_a a=1\\)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(\\log_a a=1\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p>\\(\\log_a 1=\\)</p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "\\(\\log_a 1=0\\)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(\\log_a 1=0\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "Kliknij, by zobaczyć kilka ważnych wzorów.",
+      "elements": [
+        {
+          "type": "table",
+          "data": {
+            "header_row": false,
+            "header_col": false,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "1.",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\log_a a = 1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "2.",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\log_a 1 = 0\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "3.",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\log_a a^x = x\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "4.",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(a^{\\log_a x}=x\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Zwróć uwagę, że wzory 3. i 4. wskazują na to, że\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul>\n<li>\n                potęga o podstawie \\(a\\) oraz\n            </li>\n<li>\n                logarytm o podstawie \\(a\\)\n            </li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            to operacje odwrotne, tzn. że dla dowolnej liczby \\(x\\), jeśli\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul>\n<li>\n                obliczymy z niej najpierw potęgę o podstawie \\(a\\)\n            </li>\n<li>\n                a potem z wyniku logarytm o podstawie \\(a\\)\n            </li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            (lub odwrotnie) to otrzymamy spowrotem liczbę \\(x\\).\n        </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n        x\\quad\\xrightarrow{\\text{potęga o podstawie }a}\\quad a^x\\quad\\xrightarrow{\\text{logarytm po podstawie }a}\\quad \\log_a a^x=x\n        \\]\n        \\[\n        x\\quad\\xrightarrow{\\text{logarytm o podstawie }a}\\quad\\log_a x\\quad\\xrightarrow{\\text{potęga po podstawie }a}\\quad a^{\\log_a x}=x\n        "
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "41261e4f672abf2079d50b4385cb334c7a8b42abfdf4c133db112176e6ceb6f3"
+}

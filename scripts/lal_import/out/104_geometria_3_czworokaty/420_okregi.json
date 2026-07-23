@@ -1,0 +1,91 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Pamiętasz, co to są kąt wpisany i kąt środkowy w kole?\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "kątwpisany",
+      "elements": [
+        {
+          "type": "image",
+          "media_src": "static/kat_wpisany.png",
+          "alt": "Kąt wpisany",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<strong>\n                        Kąt wpisany\n                    </strong>\n                    w koło to kąt, którego wierzchołek leży na okręgu, a ramiona \"wycinają\" z okręgu łuk.\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Mówimy, że kąt wpisany jest\n                    <u>\n                        oparty na tym łuku\n                    </u>\n                    . Na rysunku ten łuk jest pogrubiony.\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Jest nieskończenie wiele kątów wpisanych opartych na jednym łuku.\n                </p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "kątśrodkowy",
+      "elements": [
+        {
+          "type": "image",
+          "media_src": "static/kat_srodkowy.png",
+          "alt": "Kąt środkowy",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<strong>\n                        Kąt środkowy\n                    </strong>\n                    w kole to kąt, którego wierzchołkiem jest środek okręgu, a ramiona \"wycinają\" z okręgu łuk.\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Mówimy, że kąt środkowy jest\n                    <u>\n                        oparty na tym łuku\n                    </u>\n                    . Na rysunku ten łuk jest pogrubiony.\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Istnieje dokładnie jeden kąt środkowy oparty na jednym łuku.\n                </p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<!-- INTERNAL LINK  -->\n    Więcej o kątach wpisanych i środkowych znajdziesz <a href=\"/jump_to_id/b96e07ed702f4bd589f2e37fe20b4934\">tutaj</a> i w kolejnych lekcjach. Teraz przypomnijmy sobie tylko jedno, podstawowe twierdzenie.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>Twierdzenie o kątach wpisanych i kącie środkowym</strong>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n            Każdy kąt wpisany oparty na tym samym łuku ma tę samą miarę.\n        </li>\n<li>\n            Jeśli kąt wpisany jest oparty na tym samym łuku, co kąt środkowy, to kąt środkowy ma miarę dwukrotnie większą niż kąt wpisany.\n        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Przykład</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W poniższym aplecie możesz przesuwać niebieskie punkty na okręgu, żeby zmienić łuk, na którym oparte są kąty. Możesz też przesuwać czerwony punkt - wierzchołek kąta wpisanego.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Gdy naciśniesz \"start\", zobaczysz, że kąt wpisany mieści się dokładnie dwukrotnie wewnątrz środkowego.\n        </p>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/c9qmthbd/width/516/height/520/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    }
+  ],
+  "fully_mapped": false,
+  "seed_hash": "6c8215486d0bd7dae48a9ede416d675ea025694331eb77380189156244dbe7ab"
+}

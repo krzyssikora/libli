@@ -1,0 +1,250 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Przypomnijmy, że ciąg jest rosnący, gdy dla każdego \\(n\\in\\mathbb{N}^{+}\\):\n</p>"
+    },
+    {
+      "type": "math",
+      "latex": "\na_{n+1} \\gt a_n\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Poprzednio taki warunek przekształciliśmy <u>odejmując</u> \\(a_n\\) od obu stron nierówności:\n</p>"
+    },
+    {
+      "type": "math",
+      "latex": "\na_{n+1} - a_n \\gt 0\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Tym razem przekształcimy go <u>dzieląc</u> obie strony nierówności przez \\(a_n\\):\n</p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n\\frac{a_{n+1}}{a_n} \\gt 1\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Pamiętajmy jednak, że takie dzielenie możemy wykonać <strong>tylko wtedy, gdy wyrazy ciągu \\(a_n\\) są dodatnie</strong>.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Aby określić monotoniczność ciągu, którego</p>"
+    },
+    {
+      "type": "text",
+      "body": "<u>wszystkie wyrazy są dodatnie</u>"
+    },
+    {
+      "type": "text",
+      "body": "<p>, można wyliczyć wartość wyrażenia \\(\\frac{a_{n+1}}{a_n}\\) i stwierdzić, czy jest:</p>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "\\(\\frac{a_{n+1}}{a_n}\\gt 1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "rosnący",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(\\frac{a_{n+1}}{a_n}\\ge 1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "niemalejący",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(\\frac{a_{n+1}}{a_n}=1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "stały",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(\\frac{a_{n+1}}{a_n}\\le 1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "nierosnący",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(\\frac{a_{n+1}}{a_n}\\lt 1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "malejący",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Zbadamy teraz monotoniczność tych samych siedmiu ciągów, co poprzednio, tą drugą metodą. Zauważ, że nie zawsze możemy jej użyć. I przyjrzyj się, kiedy (Twoim zdaniem) lepiej i łatwiej użyć różnicy, a kiedy ilorazu.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Dla wszystkich poniższych ciągów przyjmujemy, że \\(n=1, 2, 3, \\dots\\)\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Zbadaj monotoniczność ciągu \\(a_n=4n+3\\). \n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "video",
+          "media_src": "static/monotonicznosc_ilorazem_a.mp4"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Zbadaj monotoniczność ciągu \\(b_n=n^2-10n+16\\). \n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "video",
+          "media_src": "static/monotonicznosc_ilorazem_b.mp4"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Zbadaj monotoniczność ciągu \\(c_n=-n^2+3n-2\\). \n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "video",
+          "media_src": "static/monotonicznosc_ilorazem_c.mp4"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Zbadaj monotoniczność ciągu \\(d_n=n^2+4n+3\\). \n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "video",
+          "media_src": "static/monotonicznosc_ilorazem_d.mp4"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Zbadaj monotoniczność ciągu \\(e_n=\\frac{1}{n}\\). \n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "video",
+          "media_src": "static/monotonicznosc_ilorazem_e.mp4"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Zbadaj monotoniczność ciągu \\(f_n=3\\cdot 4^n\\). \n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "video",
+          "media_src": "static/monotonicznosc_ilorazem_f.mp4"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Zbadaj monotoniczność ciągu \\(g_n=\\frac{5}{3^n}\\). \n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "video",
+          "media_src": "static/monotonicznosc_ilorazem_g.mp4"
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "fd29febe56e05f59dcfb5d51c39c49681bccff3bbc4ae8f531f37f26de465161"
+}

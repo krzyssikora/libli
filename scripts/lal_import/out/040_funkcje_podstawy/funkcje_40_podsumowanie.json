@@ -1,0 +1,269 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<h1>\n    Podstawowe własności wybranych funkcji - podsumowanie\n</h1>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "równanie",
+              "halign": "left",
+              "valign": "top",
+              "rowspan": 2
+            },
+            {
+              "html": "\\(y=\\frac{c}{x}\\)",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "\\(y=a^x\\)",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "\\(y=\\log_a x\\)",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            }
+          ],
+          [
+            {
+              "html": "\\(c\\gt 0\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(c\\lt 0\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(a\\gt 1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(0\\lt a\\lt 1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(a\\gt 1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(0\\lt a\\lt 1\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "dziedzina",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(x\\in\\mathbb{R}\\setminus\\{0\\}\\)",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "\\(x\\in\\mathbb{R}\\)",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "\\(x\\ge 0\\)",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            }
+          ],
+          [
+            {
+              "html": "zbiór wartości",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(y\\in\\mathbb{R}\\setminus\\{0\\}\\)",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "\\(y\\ge 0\\)",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "\\(y\\in\\mathbb{R}\\)",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            }
+          ],
+          [
+            {
+              "html": "monotoniczność",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "maleje dla \\(x\\lt 0\\)\n                    <br/>\n                    i potem dla \\(x\\gt 0\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "rośnie dla \\(x\\lt 0\\)\n                    <br/>\n                    i potem dla \\(x\\gt 0\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "rośnie",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "maleje",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "rośnie",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "maleje",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "punkty na osiach",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "brak",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "\\((0,1)\\)",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "\\((1,0)\\)",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            }
+          ],
+          [
+            {
+              "html": "asymptoty",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "pozioma \\(y=0\\), pionowa \\(x=0\\)",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "pozioma \\(y=0\\)",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "pionowa \\(x=0\\)",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            }
+          ],
+          [
+            {
+              "html": "symetrie",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "wykres ma środek symetrii \\((0,0)\\)",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "wykresy funkcji\n                    <br/>\n                    o\n                    <strong>\n                        odwrotnych\n                    </strong>\n                    podstawach\n                    <br/>\n                    są symetryczne w osi \\(y\\)",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "wykresy funkcji\n                    <br/>\n                    o\n                    <strong>\n                        odwrotnych\n                    </strong>\n                    podstawach\n                    <br/>\n                    są symetryczne w osi \\(x\\)",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            }
+          ],
+          [
+            {
+              "html": "położenie wykresu",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "I i III ćwiartka",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "II i IV ćwiartka",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "nad osią \\(x\\) (I i II ćwiartka)",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "w prawo od osi \\(y\\) (I i IV ćwiartka)",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            }
+          ]
+        ]
+      }
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "7a93f0c88a1450d3f798f26ca20c4ec79ec074c7bb8407fbd6021acb1d4b7f4b"
+}

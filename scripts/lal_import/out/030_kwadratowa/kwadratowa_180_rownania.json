@@ -1,0 +1,94 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Rozwiąż równania. Każde z nich można rozwiązać korzystając z jednego z opisanych przed chwilą schematów. Sprawdź swoje odpowiedzi.\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "(1)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(0\\), \\(3\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "(2)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(0\\), \\(-\\tfrac{5}{4}\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "(3)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(0\\), \\(\\tfrac{3}{2}\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "(4)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(-\\sqrt{3}\\), \\(\\sqrt{3}\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "(5)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(-\\frac{\\sqrt{10}}{2}\\), \\(\\frac{\\sqrt{10}}{2}\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "(6)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>brak rozwiązań</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "(7)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(\\tfrac{2}{3}\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "(8)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(-\\tfrac{4}{5}\\)</p>"
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "a6f64300c003a2fc30617b702aa6859548524c07d1101ac9e6dc9a7077f19520"
+}

@@ -1,0 +1,128 @@
+{
+  "elements": [
+    {
+      "type": "video",
+      "media_src": "static/uklad_rownan_1.mp4"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Metodą podstawienia możemy rozwiązywać różne układy równań. Nie muszą to być koniecznie równania prostej w postaci kierunkowej, tj. \\(y=ax+b\\).\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Rozwiążmy dla przykładu kolejny układ równań. Tu także mamy do czynienia z równaniami prostych, ale tym razem zapisanych inczej.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Rozwiąż układ równań metodą podstawienia.\n        \\[\n        \\begin{cases}\n        2x+3y=4\\\\\n        3x-2y=8\n        \\end{cases}\n        \\]\n    "
+    },
+    {
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Jak widzimy, nie sa to równania w postaci kierunkowej (\\(y=ax+b\\)), jednak w niczym to nam nie przeszkodzi. Ponumerujmy równania dla naszej wygody:\n            </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n            \\begin{matrix}\n            (1)&2x+3y=4\\\\\n            (2)&3x-2y=8\n            \\end{matrix}\n            "
+    },
+    {
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Teraz z\n                <strong>\n                    któregokolwiek\n                </strong>\n                równania, na przykład z pierwszego, wyznaczmy\n                <strong>\n                    którąkolwiek\n                </strong>\n                zmienną, na przykład \\(x\\):\n            </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n            \\begin{matrix}\n            (1):&2x=4-3y\\\\\n            &x=\\color{red}{2-\\frac{3}{2}y}\n            \\end{matrix}\n            "
+    },
+    {
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Tak otrzymane wyrażenie na zmienną \\(x\\) z pierwszego równania wstawmy do drugiego równania:\n            </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n            \\begin{matrix}\n            (2):&3x-2y=8&\\leftarrow x=\\color{red}{2-\\frac{3}{2}y}\\\\\n            &3(\\color{red}{2-\\frac{3}{2}y})-2y=8&\\\\\n            \\end{matrix}\n            "
+    },
+    {
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Uprośćmy tak otrzymane równanie i wyliczmy z niego \\(y\\):\n            </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n            3(2-\\frac{3}{2}y)-2y=8\\\\\n            6-\\frac{9}{2}y-2y=8\\\\\n            -\\frac{13}{2}y=8-6\\\\\n            -\\frac{13}{2}y=2\\\\\n            y=2\\cdot (-\\frac{2}{13})\\\\\n            y=\\color{blue}{-\\frac{4}{13}}\n            "
+    },
+    {
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Wyliczyliśmy wartość zmiennej \\(y\\). Aby rozwiązać układ równań w pełni, musimy znaleźć jeszcze wartość zmiennej \\(x\\).\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                W tym celu musimy podstawić wyliczoną przed chwilą wartość \\(y=\\color{blue}{-\\frac{4}{13}}\\) do\n                <strong>\n                    któregokolwiek\n                </strong>\n                z początkowych równań.\n            </p>"
+    },
+    {
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Użyjmy dla przykładu równania (1):\n            </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n            \\begin{matrix}\n            (1):&2x+3y=4&\\leftarrow y=\\color{blue}{-\\frac{4}{13}}\\\\\n            &2x+3(\\color{blue}{-\\frac{4}{13}})=4&\\\\\n            &2x-\\frac{12}{13}=4&\\\\\n            &2x=4+\\frac{12}{13}&\\\\\n            &x=2\\frac{6}{13}&\n            \\end{matrix}\n            "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                I tak otrzymaliśmy rozwiązanie układu równań. Jest nim para liczb:\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\\[\n            x=2\\frac{6}{13}, y=-\\frac{4}{13}\n            \\]\n            I to właściwie kończy rozwiązanie zadania, jednak tu dodajmy jeszcze jedną uwagę.</p>"
+    },
+    {
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Gdy przekształcimy oba równania na kierunkowe równania prostej:\n            </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n            \\begin{matrix}\n            (1)&y=-\\frac{2}{3}x+\\frac{4}{3}\\\\\n            (2)&y=\\frac{3}{2}x-4\n            \\end{matrix}\n            "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                możemy narysować proste, by zobaczyć przybliżone położenie punktu przecięcia, i sprawdzić, czy jest ono zgodne z naszymi wyliczeniami:\n            </p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/uklad_rownan_1.png",
+      "alt": "",
+      "figcaption": ""
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "9be562f931ef9b3f5a19b0463bf1a6e11836a5bde2aeb51c783a6dbf04f21d08"
+}

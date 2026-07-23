@@ -1,0 +1,272 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<h4>\n    Skala podobieństwa a pola figur podobnych\n</h4>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Poniższy rysunek pokazuje, że niebieski trójkąt podobny do czerwonego w skali 2 ma pole 4 razy większe.\n</p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/skala_2.png",
+      "alt": "skala 2",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Z kolejnego rysunku możemy policzyć, ile razy większe jest pole niebieskiego trójkąta, podobnego do czerwonego w skali 1,5.\n</p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/skala_1_5.png",
+      "alt": "skala 1,5",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Niebieski trójkąt jest podzielony na 9 mniejszych trójkątów, a czerwony - na 4 takie same trójkąty.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Pole niebieskiego trójkąta jest więc większe od pola czerwonego trójkąta \\(\\frac{9}{4}\\) razy, czyli \\(2,25\\) razy.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Suwak oznaczony zmienną \\(k\\) w aplecie poniżej oznacza skalę podobieństwa niebieskiego trójkąta do czerwonego trójkąta.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Przesuwaj suwak, policz trójkąty i uzupełnij tabelę pod apletem.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<figure>\n<div class=\"iframe_small hidden\">\n<small>\n                        Jeśli poniższy aplet nie wygląda lub nie działa w pełni poprawnie, użyj urządzenia o większym ekranie.\n                    </small>\n<br/>\n<small>\n                        Minimalna zalecana rozdzielczość ekranu to 800px (szerokość) na 600px (wysokość).\n                    </small>\n</div>\n<iframe height=\"500px\" scrolling=\"no\" src=\"https://www.geogebra.org/material/iframe/id/rrbkf85e/width/800/height/500/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false\" style=\"border:0px;\" title=\"skala podobieństwa a pole\" width=\"800px\">\n</iframe>\n<details class=\"info_iframe\">\n<summary>\n<small>\n                            aplet nie działa poprawnie?\n                        </small>\n</summary>\n<div class=\"iframe_zonk\">\n<p>\n                            Jeśli ten aplet nie działa poprawnie nawet na większym ekranie, wyślij wiadomość o treści jak niżej na\n                            <a class=\"mailto_tag\" href=\"mailto:krzysztof.sikora@lal.edu.pl?subject=[lms]iframe&amp;body=IFRAME_EMAIL_BODY\">\n                                ten email\n                            </a>\n                            .\n                        </p>\n<div class=\"iframe_telemetry\">\n</div>\n</div>\n</details>\n</figure>\n</p>"
+    },
+    {
+      "type": "fill_table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "kind": "static",
+              "html": "skala\n                        <br/>\n                        podobieństwa\n                        <br/>\n                        \\(k\\)"
+            },
+            {
+              "kind": "static",
+              "html": "trójkątów\n                        <br/>\n                        w czerwonym\n                        <br/>\n                        trójkącie"
+            },
+            {
+              "kind": "static",
+              "html": "trójkątów\n                        <br/>\n                        w niebieskim\n                        <br/>\n                        trójkącie"
+            },
+            {
+              "kind": "static",
+              "html": "ile razy\n                        <br/>\n                        pole niebieskie\n                        <br/>\n                        jest większe od czerwonego"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(1,5\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(4\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(9\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(9:4=2,25\\)"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(2\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(1\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(4\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(4\\)"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(2,5\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "4"
+            },
+            {
+              "kind": "answer",
+              "answer": "25"
+            },
+            {
+              "kind": "answer",
+              "answer": "6.25|6,25"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(3\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "1"
+            },
+            {
+              "kind": "answer",
+              "answer": "9"
+            },
+            {
+              "kind": "answer",
+              "answer": "9"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(3,5\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "4"
+            },
+            {
+              "kind": "answer",
+              "answer": "49"
+            },
+            {
+              "kind": "answer",
+              "answer": "12.25|12,25"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<div class=\"success hidden\" id=\"success_question60\">\n            Świetnie!\n        </div>\n</p>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "skala\n                            <br/>\n                            podobieństwa",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "stosunek\n                            <br/>\n                            pól",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(1,5\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(2,25=1,5^2\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(2\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(4=2^2\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(2,5\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(6,25=2,5^2\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(3\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(9=3^2\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(3,5\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(12,25=3,5^2\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Gdy już uzupełnisz tabelę, zobacz podsumowanie.\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "zobacz",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Jeśli dwie figury są podobne w skali \\(k\\), to stosunek ich pól jest równy \\(k^2\\).</p>"
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "1d7666e2c03da2509b435dafc35056296c2e482c34c90f31fff9a0004d212347"
+}

@@ -1,0 +1,104 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>Funkcja</p>"
+    },
+    {
+      "type": "text",
+      "body": "<strong>homograficzna</strong>"
+    },
+    {
+      "type": "text",
+      "body": "<p>to funkcja zdefiniowana równaniem:</p>"
+    },
+    {
+      "type": "text",
+      "body": "\\[\n    y=\\frac{ax+b}{cx+d}, \\quad\\quad x\\ne -\\tfrac{d}{c}\n    \\]"
+    },
+    {
+      "type": "text",
+      "body": "<p>przy czym:</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n            \\(c\\ne 0\\),\n        </li>\n<li>\n            \\(ad-bc\\ne 0\\).\n        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Nie będziemy formalnie dowodzić, dlaczego założenia poczynione w definicji funkcji homograficznej są sensowne lub nawet konieczne. Przyjrzymy się tylko przykładom ilustrującym te założenia.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<h3>\n    Założenie pierwsze: \\(c\\ne 0\\)\n</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Przykład</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Rozpatrzmy funkcję</p>"
+    },
+    {
+      "type": "text",
+      "body": "\\[\n        y=\\frac{4x-3}{0x+5}\n        \\]"
+    },
+    {
+      "type": "text",
+      "body": "<p>Współczynnik \\(c\\) ma wartość \\(0|).\n        &lt;details&gt;\n            &lt;summary&gt;dlaczego taka funkcja nie jest nazywana homograficzną?&lt;/summary&gt;\n            Przekształćmy równanie:\n            &lt;div class=\"table_wrapper\"&gt;\\[\n            y=\\frac{4x-3}{0x+5}= \\frac{4x-3}{5}=\\frac{4x}{5}- \\frac{3}{5}= \\frac{4}{5}x- \\frac{3}{5}\n            \\]&lt;/div&gt;\n            i otrzymaliśmy znaną nam świetnie funkcję &lt;strong&gt;liniową&lt;/strong&gt;, której wykresem jest linia prosta, a nie hiperbola.\n        &lt;/details&gt;\n    &lt;/div&gt;\n&lt;/div&gt;\n\n&lt;h3&gt;\n    Założenie drugie: \\(ad-bc\\ne 0\\)</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Przykład</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Rozpatrzmy funkcję</p>"
+    },
+    {
+      "type": "text",
+      "body": "\\[\n        y=\\frac{6x+9}{4x+6}\n        \\]"
+    },
+    {
+      "type": "text",
+      "body": "<p>Najpierw sprawdźmy, czy warunek \\(ad-bc\\ne 0\\) rzeczywiście nie jest spełniony.</p>"
+    },
+    {
+      "type": "text",
+      "body": "\\[\n        a=6, \\quad\\quad b=9, \\quad\\quad c=4, \\quad\\quad d=6\n        \\]"
+    },
+    {
+      "type": "text",
+      "body": "<p>więc rzeczywiście \\(a\\cdot d-b\\cdot c=6\\cdot 6-9\\cdot 4=36-36=0\\)</p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "dlaczego taka funkcja nie jest nazywana homograficzną?",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Przekształćmy równanie:</p>"
+        },
+        {
+          "type": "text",
+          "body": "\\[\n            \\begin{align*}\n            y&amp;=\\frac{6x+9}{4x+6}=&amp;\\left[\\text{wyłączmy czynnik przed nawias}\\right]\\\\\n            &amp;=\\frac{3(2x+3)}{2(2x+3)}=&amp;\\left[\\text{skróćmy ułamki}\\right]\\\\\n            &amp;=\\frac{3\\require{cancel}\\cancel{(2x+3)}}{2\\require{cancel}\\cancel{(2x+3)}}=&amp;\\\\\n            &amp;=\\frac{3}{2}&amp;\n            \\end{align*}\n            \\]"
+        },
+        {
+          "type": "text",
+          "body": "<p>Otrzymaliśmy znaną nam świetnie funkcję</p>"
+        },
+        {
+          "type": "text",
+          "body": "<strong>stałą</strong>"
+        },
+        {
+          "type": "text",
+          "body": "<p>, której wykresem jest pozioma linia prosta, a nie hiperbola.</p>"
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "cd943f67eec37d694a0bf1f1f26457b2430db1af7bbfd865004701ef3c7ce26c"
+}

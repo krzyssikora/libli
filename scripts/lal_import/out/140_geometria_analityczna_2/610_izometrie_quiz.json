@@ -1,0 +1,74 @@
+{
+  "elements": [
+    {
+      "type": "choice",
+      "stem": "<p>Izometria to przekształcenie, które</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "zamienia trójkąty na trójkąty",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "nie zmienia odległości",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "przesuwa okręgi",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Które z poniższych przekształceń są izometriami?</p>",
+      "multiple": true,
+      "choices": [
+        {
+          "text": "przesunięcie w pionie",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "dwukrotne powiększenie",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "obrót przeciwnie do ruchu wskazówek zegara o kąt \\(60^{\\circ}\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "symetria względem prostej \\(y=x\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "dwukrotne spłaszczenie w poziomie",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p>Środkiem obrazu okręgu \\((x+2)^2+(y-4)^2=50\\) w symetrii względem osi \\(OX\\) jest okrąg o środku w punkcie \\((a, b)\\), gdzie:</p><p>\\(a=\\)=-2</p><p>\\(b=\\)=-4</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Obrazem prostej \\(y=3x-1\\) w symetrii w osi \\(OY\\) jest prosta o równaniu \\(y=ax+b\\), gdzie:</p><p>\\(a=\\)=-3</p><p>\\(b=\\)=-1</p>"
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>Promień obrazu okręgu \\((x-5)^2+(y+1)^2=81\\) w przesunięciu o wektor \\([7,-2]]\\) jest równy</p>",
+      "value": "9",
+      "tolerance": "0"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "3774fe59a855bc75aabf08926b77b258e6706e441f4bd5b0f90f113954a79e99"
+}

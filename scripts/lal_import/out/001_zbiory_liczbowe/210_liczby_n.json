@@ -1,0 +1,89 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Odpowiedz na każde z pytań, a potem sprawdź swoje odpowiedzi.\n    "
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Czy \\(1\\) jest liczbą pierwszą?</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "tak",
+          "is_correct": false
+        },
+        {
+          "text": "nie",
+          "is_correct": true
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Czy \\(1\\) jest liczbą złożoną?</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "tak",
+          "is_correct": false
+        },
+        {
+          "text": "nie",
+          "is_correct": true
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Ile dzielników ma liczba \\(16\\)?</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(4\\)",
+          "is_correct": false
+        },
+        {
+          "text": "\\(5\\)",
+          "is_correct": true
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Czy \\(17\\) jest liczbą pierwszą?</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "tak",
+          "is_correct": true
+        },
+        {
+          "text": "nie",
+          "is_correct": false
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Czy \\(39\\) jest liczbą pierwszą?</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "tak",
+          "is_correct": false
+        },
+        {
+          "text": "nie",
+          "is_correct": true
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "3a0e54dcb302d39aaa57d799c140c0bc9436dbb1e672cf36ede8b241bace21be"
+}

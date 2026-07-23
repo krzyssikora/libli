@@ -1,0 +1,206 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Rozwiąż zadania, a jeśli potrzebujesz - skorzystaj ze wskazówek i sprawdź odpowiedzi.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Liczby \\(8\\), \\(x\\) i \\(y\\) są kolejnymi wyrazami ciągu arytmetycznego.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Liczby \\(x\\), \\(y\\), \\(2\\tfrac{2}{3}\\) są kolejnymi wyrazami ciągu geometrycznego.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź wartości \\(x\\) i \\(y\\).\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "zobacz",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<h4>równania</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(x=\\frac{8+y}{2}\\), \\(y^2=\\frac{8}{3}x\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>metoda</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Podstawiamy \\(x\\) z pierwszego równania do drugiego:\n            \\[\n            y^2=\\frac{8}{3}\\cdot \\frac{8+y}{2}\n            \\]</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>odpowiedź</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Albo \\(x=6\\) i \\(y=4\\), albo \\(x=\\frac{8}{3}\\) i \\(x=-\\frac{8}{3}\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Ciąg arytmetyczny ma różnicę \\(r=4\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Pierwszy, dziesiąty i pięćdziesiąty piąty wyraz tego ciągu są kolejnymi wyrazami ciągu geometrycznego.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź pierwszy wyraz ciągu arytmetycznego.\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "zobacz",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<h4>wyrazy ciągu</h4>"
+        },
+        {
+          "type": "math",
+          "latex": "\n            \\begin{align}\n            a_{10}&=a_1+36\\\\\n            a_{55}&=a_1+216\n            \\end{align}\n            "
+        },
+        {
+          "type": "text",
+          "body": "<h4>równanie</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\((a_1+36)^2=a_1(a_1+216)\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>odpowiedź</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(a_1=9\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Ciąg arytmetyczny ma różnicę \\(r=7\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Trzeci, dziewiąty i dwudziesty dziewiąty wyraz tego ciągu są kolejnymi wyrazami ciągu geometrycznego.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź pierwszy wyraz ciągu arytmetycznego.\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "zobacz",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<h4>wyrazy ciągu</h4>"
+        },
+        {
+          "type": "math",
+          "latex": "\n            \\begin{align}\n            a_3&=a_1+14\\\\\n            a_{9}&=a_1+56\\\\\n            a_{29}&=a_1+196\n            \\end{align}\n            "
+        },
+        {
+          "type": "text",
+          "body": "<h4>równanie</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\((a_1+56)^2=(a_1+14)(a_1+196)\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>odpowiedź</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(a_1=4\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Ciąg \\((a_n)\\) jest ciągiem arytmetycznym o pierwszym wyrazie równym \\(5\\) i różnicy \\(2\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Ciąg \\((b_n)\\) zdefiniowany jest równaniem ogólnym:\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n            \\[\n            b_n=3^{a_n},\\quad\\text{ dla }n\\in\\mathbb{N}^{+}\n            \\]\n        "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Udowodnij, że ciąg \\((b_n)\\) jest geometryczny i znajdź sumę pierwszych trzech jego wyrazów.\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "zobacz",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<h4>ciąg arytmetyczny - wzór ogólny</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(a_n=2n+3\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>ciąg geometryczny - wzór ogólny</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(b_n=2^{2n+3}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>dowód</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>pokaż, że iloraz \\(\\frac{b_n}{b_{n-1}}\\) lub \\(\\frac{b_{n+1}}{b_n}\\) jest stały</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>odpowiedź</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(S_3=22113\\)</p>"
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "6a850cb719b6c2726cad4900baec5afcba4c977a8a0ae9270bb263073e50d7ec"
+}

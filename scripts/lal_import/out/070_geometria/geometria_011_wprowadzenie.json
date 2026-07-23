@@ -1,0 +1,23 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W poniższym aplecie możesz kliknąć obok każdego z podstawowych pojęć, by zobaczyć jego wizualizację.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Czy znasz wszystkie te pojącia? Czy umiesz je zdefiniować - wyjaśnić, co oznaczają?\n        </p>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/mvzvpdx7/width/800/height/500/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "2355491f6f61a969c0b922a0c98c1bb52a7492d12b9672159a6daf36a530e23d"
+}

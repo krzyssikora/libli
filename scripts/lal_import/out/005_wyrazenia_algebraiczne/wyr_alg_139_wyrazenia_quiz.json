@@ -1,0 +1,87 @@
+{
+  "elements": [
+    {
+      "type": "choice",
+      "stem": "<p>Wskaż wynik mnożenia \\((-3ab)(4b-3a)\\):</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(-12ab^2-9a^2b\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(12ab^2-9a^2b\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(9a^2b-12ab^2\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(ab^2-6a^2b\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Wskaż wynik mnożenia \\((2x-5y)(3xy+7x)\\):</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(5x^2y+9x-8xy^2+2xy\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(6x^2y+14x^2+15xy^2+35xy\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(2x-15xy^2+7x\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(6x^2y+14x^2-15xy^2-35xy\\)",
+          "is_correct": true,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Wskaż jak wygląda uproszczona postać sumy algebraicznej</p><p>\\(2xy^2-3yxy+7x^3y-4y^2x-xyx^2\\).</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(-5xy^2+6x^3y\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(-xy^2+7x^3y-4y^2x-xyx^2\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(-5xy^2+7\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "żadna z powyższych",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "d48cb93efac39213c62040bfe6aab5029fc56a1c44e7923ed98757738745e1c2"
+}

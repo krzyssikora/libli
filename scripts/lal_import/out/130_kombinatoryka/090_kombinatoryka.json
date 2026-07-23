@@ -1,0 +1,130 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    W wielu zadaniach z kombinatoryki przydatna będzie tak zwana <strong>silnia</strong>.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<strong>Silnia</strong>"
+    },
+    {
+      "type": "text",
+      "body": "<p>liczby naturalnej \\(n\\), zapisywana jako \\(n!\\), to iloczyn liczb naturalnych od \\(1\\) do \\(n\\):</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        \\[\n        n!=1\\cdot 2\\cdot\\dots(n-1)\\cdot n\n        \\]\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>Dodatkowo przyjmujemy, że\n    \\[\n    0!=1\n    \\]</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Oblicz silnie kolejnych liczb naturalnych.\n        </p>"
+    },
+    {
+      "type": "fill_table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "kind": "static",
+              "html": "\\(0!\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(=1\\)"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(1!\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(=1\\)"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(2!=1\\cdot 2\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(=2\\)"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(3!=1\\cdot 2\\cdot 3\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(=6\\)"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(4!=1\\cdot 2\\cdot 3\\cdot 4\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "24"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(5!=1\\cdot 2\\cdot 3\\cdot 4\\cdot 5\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "120"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(6!=1\\cdot 2\\cdot 3\\cdot 4\\cdot 5\\cdot 6\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "720"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Silnia może być zdefiniowana rekurencyjnie:\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        \\[\n        n!=\\begin{cases}\n        1&amp;\\text{jeśli }n=0\\\\\n        n\\cdot(n-1)!&amp;\\text{jeśli }n\\gt 0\n        \\end{cases}\n        \\]\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Z definicji rekurencyjnej widzimy, że:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n    \\[\n    \\begin{align}\n    0!&amp;=1&amp;\\text{warunek początkowy, dla }n=0\\\\\n    1!&amp;=1\\cdot 0!=1\\cdot 1=\\color{orange}{1}\\\\\n    2!&amp;=2\\cdot 1!=2\\cdot \\color{orange}{1}=\\color{red}{2}\\\\\n    3!&amp;=3\\cdot 2!=3\\cdot \\color{red}{2}=\\color{violet}{6}\\\\\n    4!&amp;=4\\cdot 3!=4\\cdot \\color{violet}{6}=\\color{blue}{24}\\\\\n    5!&amp;=5\\cdot 4!=5\\cdot \\color{blue}{24}=120&amp;\\text{itd.}\n    \\end{align}\n    \\]\n"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "d1f9c9625dad51c75095219d9cf00522f9851816cf87aa0dacd592fd4a43163a"
+}

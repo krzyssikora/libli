@@ -1,0 +1,310 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Przyjrzyj się zapisanym niżej liczbom.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Na górze widzisz liczby ustawione od najmniejszej do największej. Na dole - te same liczby zapisane jako potęgi dziesiątki.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Zauważ, że nie tylko liczby w górnym rzędzie rosną, lecz także wykładniki potęg o podstawie \\(10\\).\n</p>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "\\(0,001\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(0,01\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(0,04\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(0,1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(6\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(10\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(50\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(100\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(1000\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(\\downarrow\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\downarrow\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\downarrow\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\downarrow\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\downarrow\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\downarrow\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\downarrow\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\downarrow\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\downarrow\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\downarrow\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(10^{-3}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(10^{-2}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(10^{???}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(10^{-1}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(10^{0}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(10^{???}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(10^{1}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(10^{???}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(10^{2}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(10^{3}\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Powyższe liczby bardzo łatwo zapisać jako potęgi dziesiątki. A co, gdybyśmy między nie wstawili inne, zachowując kolejność od najmniejszej do największej. Inne, ale już nie będące wynikiem podnoszenia \\(10\\) do potęgi całkowitej. Na przykład takie:\n    <button class=\"inline_button logs1\" onclick=\"document.querySelectorAll('.logs1').forEach(e=&gt;{e.classList.toggle('hidden')})\">\n        pokaż\n    </button>\n<button class=\"inline_button logs1 hidden\" onclick=\"document.querySelectorAll('.logs1').forEach(e=&gt;{e.classList.toggle('hidden')})\">\n        ukryj\n    </button>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Do jakiej potęgi należy podnieść \\(10\\), aby otrzymać \\(0,004\\), \\(6\\) oraz \\(50\\)?\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Analizując sąsiednie liczby, możemy dojść do wniosku, że:\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n            skoro \\(10^{-2}=0,01 \\lt 0,04\\lt 0,01=10^{-1}\\), to dla liczby \\(0,04\\) szukany wykładnik jest między \\(-2\\) a \\(-1\\),\n        </li>\n<li>\n            skoro \\(10^{0}=1 \\lt 6\\lt 10=10^{1}\\), to dla liczby \\(6\\) szukany wykładnik jest między \\(0\\) a \\(1\\),\n        </li>\n<li>\n            skoro \\(10^{1}=10 \\lt 50\\lt 100=10^{2}\\), to dla liczby \\(50\\) szukany wykładnik jest między \\(1\\) a \\(2\\).\n        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Taki wykładnik potęgi nazywany jest\n            <strong>\n                logarytmem\n            </strong>\n            .\n        </p>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": true,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "szukamy wykładnika \\(x\\) takiego, że:",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "zapisujemy to:",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "i czytamy:",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(10^{x}=0,04\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(x=\\log_{10}0,04\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(x\\) to logarytm o podstawie \\(10\\) z liczby \\(0,04\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(10^{x}=6\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(x=\\log_{10}6\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(x\\) to logarytm o podstawie \\(10\\) z liczby \\(6\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(10^{x}=50\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(x=\\log_{10}50\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(x\\) to logarytm o podstawie \\(10\\) z liczby \\(50\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Tak więc\n            <strong>\n                logarytm o podstawie \\(a\\) z liczby \\(b\\)\n            </strong>\n            to odpowiedź na pytanie:\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<blockquote class=\"centered\">\n            \"do jakiej potęgi podnieść podstawę \\(a\\), by uzyskać \\(b\\)\"\n        </blockquote>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Zapisujemy to:\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n            \\[\\log_a b=c\\quad\\quad\\Leftrightarrow\\quad\\quad a^c=b\\]\n        "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Należy przy tym dodać, że logarytmy definiujemy dla:\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n                \\(a\\gt 0\\)\n            </li>\n<li>\n                \\(a\\ne 1\\)\n            </li>\n<li>\n                \\(b\\gt 0\\)\n            </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Czy masz pomysł, dlaczego?\n        </p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "b4a12a286ea1d0d886d70b87621babb734c05bab3c6374d7cc49590c00ed397d"
+}

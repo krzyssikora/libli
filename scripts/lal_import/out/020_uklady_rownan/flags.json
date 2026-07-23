@@ -1,0 +1,98 @@
+[
+  {
+    "kind": "duplicate_ordering_token",
+    "reason": "2 files share ordering token 10",
+    "names": [
+      "uk_rown_10_metoda_podstawienia.html",
+      "uk_rown_ex_10.html"
+    ]
+  },
+  {
+    "kind": "duplicate_ordering_token",
+    "reason": "2 files share ordering token 11",
+    "names": [
+      "uk_rown_11.html",
+      "uk_rown_ex_11.html"
+    ]
+  },
+  {
+    "kind": "duplicate_ordering_token",
+    "reason": "2 files share ordering token 12",
+    "names": [
+      "uk_rown_12.html",
+      "uk_rown_ex_12.html"
+    ]
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: uk_rown_1.html",
+    "raw_excerpt": "<a href=\"uk_rown_1.html\">\n                        układ równań\n                    </a>",
+    "unit_json": "uk_rown_00.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: uk_rown_1.html#podstawienie",
+    "raw_excerpt": "<a href=\"uk_rown_1.html#podstawienie\">\n                            rozwiązywanie układu równań metodą podstawienia\n                        </a>",
+    "unit_json": "uk_rown_00.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: uk_rown_1.html#prosta_przez_2pkt",
+    "raw_excerpt": "<a href=\"uk_rown_1.html#prosta_przez_2pkt\">\n                            równanie prostej przechodzącej przez dwa punkty\n                        </a>",
+    "unit_json": "uk_rown_00.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: uk_rown_2.html",
+    "raw_excerpt": "<a href=\"uk_rown_2.html\">\n                        jak rozwiązujemy układy równań?\n                    </a>",
+    "unit_json": "uk_rown_00.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: uk_rown_2.html#przeciwne",
+    "raw_excerpt": "<a href=\"uk_rown_2.html#przeciwne\">\n                            rozwiązywanie układów równań metodą przeciwnych współczynników\n                        </a>",
+    "unit_json": "uk_rown_00.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: uk_rown_3.html",
+    "raw_excerpt": "<a href=\"uk_rown_3.html\">\n                rozwiązywanie układów równań metodą graficzną\n            </a>",
+    "unit_json": "uk_rown_00.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: uk_rown_4.html",
+    "raw_excerpt": "<a href=\"uk_rown_4.html\">\n                jak rozwiązywać zadania \"z treścią\"?\n            </a>",
+    "unit_json": "uk_rown_00.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: uk_rown_ex_1.html",
+    "raw_excerpt": "<a href=\"uk_rown_ex_1.html\">\n                        warto wiedzieć\n                    </a>",
+    "unit_json": "uk_rown_00.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: uk_rown_ex_1.html#nwd_nww",
+    "raw_excerpt": "<a href=\"uk_rown_ex_1.html#nwd_nww\">\n                            największy wspólny dzielnik i najmniejsza wspólna wielokrotność\n                        </a>",
+    "unit_json": "uk_rown_00.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: uk_rown_ex_1.html#nwd_nww_combined",
+    "raw_excerpt": "<a href=\"uk_rown_ex_1.html#nwd_nww_combined\">\n                            związek między największym wspólnym dzielnikiem a najmniejszą wspólną wielokrotnością\n                        </a>",
+    "unit_json": "uk_rown_00.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: uk_rown_ex_1.html#euklides",
+    "raw_excerpt": "<a href=\"uk_rown_ex_1.html#euklides\">\n                            wyliczanie największego wspólnego dzielnika za pomocą algorytmu Euklidesa\n                        </a>",
+    "unit_json": "uk_rown_00.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: uk_rown_ex_1.html#gauss",
+    "raw_excerpt": "<a href=\"uk_rown_ex_1.html#gauss\">\n                            rozwiązywanie układów równań metodą eliminacji Gaussa\n                        </a>",
+    "unit_json": "uk_rown_00.json"
+  }
+]

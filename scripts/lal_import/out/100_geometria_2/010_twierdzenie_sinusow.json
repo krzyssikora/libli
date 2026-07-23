@@ -1,0 +1,105 @@
+{
+  "elements": [
+    {
+      "type": "image",
+      "media_src": "static/trojkat_ABC.png",
+      "alt": "trojkat ABC",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>W zadaniach w dalszej części, jeśli będzie mowa o trójkącie \\(ABC\\), przyjmiemy dla uproszczenia następujące oznaczenia:</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n            \\(a\\) - długość boku na przeciwko wierzchołka \\(A\\), czyli \\(BC\\),\n        </li>\n<li>\n            \\(b\\) - długość boku na przeciwko wierzchołka \\(B\\), czyli \\(AC\\),\n        </li>\n<li>\n            \\(c\\) - długość boku na przeciwko wierzchołka \\(C\\), czyli \\(AB\\),\n        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>oraz</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n            \\(A\\) - kąt wewnętrzny o wierzchołku w punkcie \\(A\\),\n        </li>\n<li>\n            \\(B\\) - kąt wewnętrzny o wierzchołku w punkcie \\(B\\),\n        </li>\n<li>\n            \\(C\\) - kąt wewnętrzny o wierzchołku w punkcie \\(C\\).\n        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Zastanów się, jak można rozwiązać następujące zadanie.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/tw_sinusow_zad_1.png",
+      "alt": "trojkat ABC",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W trójkącie \\(ABC\\) kąt \\(A\\) ma miarę \\(30^{\\circ}\\), a boki \\(a\\) i \\(b\\) są odpowiednio długości \\(3\\sqrt{2}\\) i \\(6\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź miary pozostałych kątów wewnętrznych w trójkącie \\(ABC\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<small style=\"position: absolute; right: 2px; bottom: 2px;\">\n<i>\n                (Rysunek nie zachowuje skali.)\n            </i>\n</small>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Jeśli masz pomysł, jak je rozwiązać, zapewne potrzebujesz do tego co najmniej dwóch kroków, dwóch oddzielnych obliczeń. Gdy zaczniesz rozwiązywać, zorientujesz się, że istnieją dwa możliwe przypadki, co istotnie wydłuży rozwiązanie.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Aby móc takie zadanie rozwiązać naprawdę szybko, warto poznać tzw.\n    <strong>\n        twierdzenie sinusów\n    </strong>\n    .\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>W poniższym aplecie możesz przesuwać wierzchołki trójkąta \\(ABC\\).</p>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/tucxbyx5/width/700/height/869/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>Przesuwając je, obserwuj, jak zmieniają się długości boków i wartości sinusa kątów, a dokładniej - stosunek długości każdego boku do sinusa przeciwległego kąta.</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Przyjrzyj się także, jak ten stosunek ma się do długości\n            <span style=\"color: red;\">\n                promienia okręgu opisanego\n            </span>\n            na tym trójkącie.\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "Twierdzenie sinusów",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n<strong>\n                    Twierdzenie sinusów\n                </strong>\n</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                W każdym trójkącie stosunek długości dowolnego boku do sinusa kąta leżącego naprzeciwko jest stały, a dokładniej: równy dwukrotności promienia, czyli średnicy okręgu opisanego.\n            </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Zapisujemy to:\n            \\[\n            \\frac{a}{\\sin A}=\\frac{b}{\\sin B}=\\frac{c}{\\sin C}= 2R\n            \\]</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Poźniej będziesz mieć możliwość zapoznania się z dowodem twierdzenia sinusów, ale zacznijmy od rozwiązania powyższego zadania.</p>"
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "74057acc0f3063a08bb251be3876d2fd3a43d70b0f75256496159e08edb39072"
+}

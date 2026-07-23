@@ -1,0 +1,41 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Ile możliwych punktów wspólnych może mieć prosta z okręgiem?\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Po czym możemy rozpoznać, ile punktów wspólnych mają prosta i okrąg?\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Zastanów się nad tymi pytaniami, zanim przejdziesz dalej.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Przyjrzyj się animacji w aplecie, w którym widzisz <span style=\"color: blue;\">niebieski okrąg</span>, <span style=\"color: green;\">zieloną prostą</span> i zaznaczoną na <span style=\"color: orange\">pomarańczowo</span> <u>odległość od środka okręgu do prostej</u>.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Widzisz też liczbę punktów wspólnych prostej i okręgu.\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "zobacz animację",
+      "elements": [
+        {
+          "type": "iframe",
+          "url": "https://www.geogebra.org/material/iframe/id/htymcyhz/width/467/height/434/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+          "title": ""
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "3670925049bcc69e03206263dd9a72a14fbe58c33e44f3e91b294ec0bb3e96af"
+}

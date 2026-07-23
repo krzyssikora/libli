@@ -1,0 +1,150 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>Równanie</p>"
+    },
+    {
+      "type": "text",
+      "body": "<strong>\n        ogólne\n    </strong>"
+    },
+    {
+      "type": "text",
+      "body": "<p>prostej to równanie postaci\n                                                    \\[\n                                                    Ax+By+C=0\n                                                    \\]\n                                                    przy czym współczynniki \\(A\\) i \\(B\\) nie mogą być równocześnie równe \\(0\\).</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<small>\n            Warunek \"współczynniki \\(A\\) i \\(B\\) nie mogą być równocześnie równe \\(0\\)\" można też zapisać jako\n                    \\[\n                    A^2+B^2\\ne 0\n                    \\]\n        </small>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>\n        Uwaga!\n    </strong>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n        Najczęściej \\(A\\), \\(B\\) i \\(C\\) to liczby całkowite. To znaczy, że jeśli któreś z nich są ułamkami, to możemy pomnożyć równanie obustronnie przez najmniejszą wspólną wielokrotność ich mianowników.\n    </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Dana jest prosta o równaniu\n                                    \\[\n                                    \\frac{3}{4}x-\\frac{5}{6}y+1=0\n                                    \\]\n                                    Przedstaw to równanie w postaci ogólnej, w której wszystkie współczynniki są całkowite.\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Najmądrzej będzie pomnożyć obie strony równania przez najmniejszą wspólną wielokrotność obu mianowników, czyli liczb \\(4\\) i \\(6\\).</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Najmniejszą wspólną wielokrotnością liczb \\(4\\) i \\(6\\) jest\n                    \n\n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(48\\)",
+            "\\(24\\)",
+            "\\(12\\)",
+            "\\(2\\)"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Mnożąc obie strony równania \\(\\frac{3}{4}x-\\frac{5}{6}y+1=0\\) przez \\(12\\) otrzymamy\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(9x-10y+1=0\\)",
+            "\\(9x-10y+12=0\\)",
+            "\\(36x-60x+12=0\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Równanie\n    \\[\n    \\frac{3}{4}x-\\frac{5}{6}y+1=0\n    \\]\n    jest równoważne równaniu\n    \\[\n    9x-10y+12=0\n    \\]</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Dana jest prosta o równaniu w postaci kierunkowej\n                                    \\[\n                                    y=-\\frac{3}{4}x+2\n                                    \\]\n                                    Przedstaw to równanie w postaci ogólnej, w której wszystkie współczynniki są całkowite.\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Najpierw przenieśmy wszystkie wyrazy na lewą stronę równania:\n                    \n\n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(y-\\tfrac{3}{4}x+2=0\\)",
+            "\\(\\tfrac{3}{4}x+y-2=0\\)",
+            "\\(\\tfrac{3}{4}x-y+2=0\\)",
+            "\\(2\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    W tak uzyskanym równaniu mamy jeden współczynnik (\\(\\frac{3}{4}\\)), który nie jest całkowity. Dlatego pomnożymy obie strony równania przez jego mianownik, czyli przez \\(4\\) i otrzymamy:\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(3x+y-8=0\\)",
+            "\\(3x+4y-2=0\\)",
+            "\\(3x+4y-8=0\\)"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "text",
+          "body": "<p>Równanie\n    \\[\n    y=-\\frac{3}{4}x+2\n    \\]\n    jest równoważne równaniu\n    \\[\n    3x+4y-8=0\n    \\]</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Dana jest prosta o równaniu w postaci ogólnej\n                                    \\[\n                                    4x-6y-8=0\n                                    \\]\n                                    Przedstaw to równanie w postaci kierunkowej.\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Najpierw przenieśmy wszystkie wyrazy poza \\(-6y\\) na prawą stronę równania:\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(-6y=-4x+8\\)",
+            "\\(-6y=4x-8\\)",
+            "\\(6y=-4x+8\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Aby takie równanie przedstawić w postaci \\(y=ax+b\\) wystarczy podzielić obie strony przez współczynnik \\(y\\)-a, czyli przez \\(-6\\):\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(y=-\\tfrac{2}{3}x+\\tfrac{4}{3}\\)",
+            "\\(y=\\tfrac{2}{3}x-\\tfrac{4}{3}\\)",
+            "\\(y=-\\tfrac{3}{2}x+\\tfrac{4}{3}\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Równanie\n    \\[\n    4x-6y-8=0\n    \\]\n    jest równoważne równaniu\n    \\[\n    y=\\tfrac{2}{3}x-\\tfrac{4}{3}\n    \\]</p>"
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "5e4e593f21df07cab43a0db87bbb9316ea21b2198c3a697f789199acb6db20b6"
+}

@@ -1,0 +1,114 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Określ monotoniczność ciągów. Sprawdź swoje odpowiedzi.\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "\\(\n                    a_n=3-5n\\quad\\text{dla }n\\in\\mathbb{N}^{+}\n                    \\)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>malejący (sprawdź różnicę kolejnych wyrazów)</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "\\(\n                    b_n=3+\\tfrac{5}{7}n\\quad\\text{dla }n\\in\\mathbb{N}^{+}\n                    \\)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>rosnący (sprawdź różnicę kolejnych wyrazów)</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "\\(\n                    c_n=3\\cdot\\left(\\tfrac{5}{7}\\right)^n\\quad\\text{dla }n\\in\\mathbb{N}^{+}\n                    \\)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>malejący (sprawdź iloraz kolejnych wyrazów)</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "\\(\n                    d_n=2\\cdot 6^n\\quad\\text{dla }n\\in\\mathbb{N}^{+}\n                    \\)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>rosnący (sprawdź iloraz kolejnych wyrazów)</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "\\(\n                    e_n=7\\cdot (-2)^n\\quad\\text{dla }n\\in\\mathbb{N}^{+}\n                    \\)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>nie monotoniczny (wyrazy są na przemian dodanie i ujemne)</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "\\(\n                    \\begin{cases}\n                    \\begin{align}\n                    f_1&=5\\\\\n                    f_{n+1}&=f_n \\cdot 11&\\text{ dla }n\\ge 1\n                    \\end{align}\n                    \\end{cases}\n                    \\)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>rosnący (sprawdź iloraz kolejnych wyrazów)</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "\\(\n                    \\begin{cases}\n                    \\begin{align}\n                    g_1&=25\\\\\n                    g_{n+1}&=g_n \\cdot 0,8&\\text{ dla }n\\ge 1\n                    \\end{align}\n                    \\end{cases}\n                    \\)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>malejący (sprawdź iloraz kolejnych wyrazów)</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "\\(\n                    \\begin{cases}\n                    \\begin{align}\n                    h_1&=25\\\\\n                    h_{n+1}&=h_n - 2&\\text{ dla }n\\ge 1\n                    \\end{align}\n                    \\end{cases}\n                    \\)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>malejący (sprawdź różnicę kolejnych wyrazów)</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "\\(\n                    \\begin{cases}\n                    \\begin{align}\n                    i_1&=3,1\\\\\n                    i_{n+1}&=i_n + 0,2&\\text{ dla }n\\ge 1\n                    \\end{align}\n                    \\end{cases}\n                    \\)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>rosnący (sprawdź różnicę kolejnych wyrazów)</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "\\(\n                    j_n=\\frac{3}{2n}\\quad\\text{dla }n\\in\\mathbb{N}^{+}\n                    \\)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>malejący (sprawdź iloraz kolejnych wyrazów)</p>"
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "0735fb37e0f4cf09020d17bc2efd5137f91798ea3474bce249fc288eecb2d521"
+}

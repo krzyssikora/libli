@@ -1,0 +1,199 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<h3>\n    Definicje\n</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Poniżej widzisz rysunki dwóch kątów w kołach. Jeden z kątów nazywa się\n            <strong>wpisanym</strong>, a drugi <strong>środkowym</strong>. Jak myślisz, który jest który? Jak można je zdefiniować?\n        </p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/kat_wpisany.png",
+      "alt": "Kąty wpisane i środkowe",
+      "figcaption": ""
+    },
+    {
+      "type": "image",
+      "media_src": "static/kat_srodkowy.png",
+      "alt": "Kąty wpisane i środkowe",
+      "figcaption": ""
+    },
+    {
+      "type": "reveal_gate",
+      "label": "pokaż"
+    },
+    {
+      "type": "image",
+      "media_src": "static/kat_wpisany.png",
+      "alt": "Kąt wpisany",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>\n                        Kąt wpisany\n                    </strong>\n                    w koło to kąt, którego wierzchołek leży na okręgu, a ramiona \"wycinają\" z okręgu łuk.\n                </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    Mówimy, że kąt wpisany jest\n                    <u>\n                        oparty na tym łuku\n                    </u>\n                    . Na rysunku ten łuk jest pogrubiony.\n                </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    Jest nieskończenie wiele kątów wpisanych opartych na jednym łuku.\n                </p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/kat_srodkowy.png",
+      "alt": "Kąt środkowy",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>\n                        Kąt środkowy\n                    </strong>\n                    w kole to kąt, którego wierzchołkiem jest środek okręgu, a ramiona \"wycinają\" z okręgu łuk.\n                </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    Mówimy, że kąt środkowy jest\n                    <u>\n                        oparty na tym łuku\n                    </u>\n                    . Na rysunku ten łuk jest pogrubiony.\n                </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    Istnieje dokładnie jeden kąt środkowy oparty na jednym łuku.\n                </p>"
+    },
+    {
+      "type": "text",
+      "body": "<h3>\n    Twierdzenia\n</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W poniższym aplecie możesz obejrzeć geometryczną ilustrację czterech twierdzeń.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Obejrzyj każdą dokładnie i zastanów się, jak może brzmieć ilustrowane twierdzenie, a następnie sprawdź moje odpowiedzi.\n        </p>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/hvugpjbv/width/583/height/794/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Kąty wpisane i środkowe\n            </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "zobacz",
+      "elements": [
+        {
+          "type": "image",
+          "media_src": "static/tw_katy_2_polkole.png",
+          "alt": "Kąt wpisany oparty na średnicy",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<u>\n                        Kąt wpisany oparty na średnicy\n                    </u>\n</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Kąt wpisany oparty na połowie okręgu jest prosty.\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Gdy kąt wpisany jest oparty na połowie okręgu, czasem mówimy, że jest oparty na średnicy.\n                </p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Kąt wpisany oparty na średnicy\n            </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "zobacz",
+      "elements": [
+        {
+          "type": "image",
+          "media_src": "static/tw_katy_3_alternate.png",
+          "alt": "Kąt między styczną a cięciwą",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<u>\n                        Kąt między styczną a cięciwą\n                    </u>\n</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Dany jest okrąg i styczna do tego okręgu. Jeśli cięciwa zaczyna się w punkcie styczności, to kąt między styczną a cięciwą jest równy kątowi wpisanemu opartemu na tej cięciwie.\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<small>\n                        (Wierzchołek kąta wpisanego musi znajdować się na zewnątrz kąta między styczną a cięciwą, jak na rysunku.)\n                    </small>\n</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Kąt między styczną a cięciwą\n            </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "zobacz",
+      "elements": [
+        {
+          "type": "image",
+          "media_src": "static/tw_katy_4_czworokat.png",
+          "alt": "Czworokąt wpisany w koło",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<u>\n                        Czworokąt wpisany w koło\n                    </u>\n</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Jeśli czworokąt jest wpisany w koło, to przeciwległe kąty wewnętrzne tego czworokąta sumują się do \\(180^{\\circ}\\).\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Jeśli przeciwległe kąty w czworokącie sumują się do \\(180^{\\circ}\\), na czworokącie można opisać koło.\n                </p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Czworokąt wpisany w koło\n            </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "zobacz",
+      "elements": [
+        {
+          "type": "image",
+          "media_src": "static/tw_katy_1_wpisane.png",
+          "alt": "Kąty wpisane i środkowe",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<u>\n                            Kąty wpisane i środkowe\n                        </u>\n</p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul>\n<li>\n                            każdy kąt wpisany oparty na tym samym łuku ma tę samą miarę,\n                        </li>\n<li>\n                            jeśli kąt wpisany jest oparty na tym samym łuku, co kąt środkowy, to kąt środkowy ma miarę dwukrotnie większą niż kąt wpisany.\n                        </li>\n</ul>"
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "e4827c9efbbf4f500b59fe6361eb3e5e0f0c1a9d1ebd706e2281b28ab5be2047"
+}

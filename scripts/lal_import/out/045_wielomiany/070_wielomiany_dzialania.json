@@ -1,0 +1,613 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Przypomnijmy:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<strong>\n        Stopień wielomianu\n    </strong>\n    to najwyższa potęga \\(x\\)-a o niezerowym współczynniku.\n"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Jeśli znamy stopnie wielomianów \\(W_1(x)\\) i \\(W_2(x)\\):\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n            \\(\\deg W_1 = n\\quad\\) oraz  \\(\\quad\\deg W_2 = k\\)\n        "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            to jaki jest stopień wielomianów będących wynikami działań:\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n                \\(W_1(x)+W_2(x)\\),\n            </li>\n<li>\n                \\(W_1(x)-W_2(x)\\),\n            </li>\n<li>\n                \\(W_1(x)\\cdot W_2(x)\\)?\n            </li>\n</ul>"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozpatrzmy kilka przykładów",
+      "elements": [
+        {
+          "type": "table",
+          "data": {
+            "header_row": false,
+            "header_col": false,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "\\(W_1(x)=2x^{\\color{red}{4}}-5x^3+3x-2\\)\n                                <br/>\n                                \\(\\deg W_1=\\color{red}{4}\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(W_2(x)=4x^{\\color{red}{3}}+7x^2-4x+11\\)\n                                <br/>\n                                \\(\\deg W_2=\\color{red}{3}\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    W tej sytuacji \\(\\deg(W_1+W_2)=\\)\n                    \n\n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(3\\)",
+            "\\(4\\)",
+            "\\(7\\)",
+            "\\(12\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Zgadza się\n                \\[\n                \\begin{align*}\n                W_1(x)+W_2(x)&=2x^4-5x^3+3x-2+4x^3+7x^2-4x+11=\\\\\n                &=2x^{\\color{red}{4}}-x^3+7x^2-x+9\\\\\n                \\text{więc}\\quad& \\deg(W_1+W_2)=\\color{red}{4}\n                \\end{align*}\n                \\]</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Stopień różnicy tych samych wielomianów \\(\\deg(W_1-W_2)=\\)\n                    \n\n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(3\\)",
+            "\\(4\\)",
+            "\\(7\\)",
+            "\\(12\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\\[\n                \\begin{align*}\n                W_1(x)-W_2(x)&=2x^4-5x^3+3x-2-(4x^3+7x^2-4x+11)=\\\\\n                &=2x^4-5x^3+3x-2-4x^3-7x^2+4x-11=\\\\\n                &=2x^{\\color{red}{4}}-9x^3-7x^2+7x-13\\\\\n                \\text{więc}\\quad& \\deg(W_1-W_2)=\\color{red}{4}\n                \\end{align*}\n                \\]\n                Myśląc o stopniu iloczynu szukamy najwyższej potęgi, a ta powstaje z pomnożenia wyrazów z najwyższymi potęgami.</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Dlatego stopień iloczynu tych wielomianów \\(\\deg(W_1\\cdot W_2)=\\)\n                    \n\n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(3\\)",
+            "\\(4\\)",
+            "\\(7\\)",
+            "\\(12\\)"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "text",
+          "body": "<p>Zgadza się\n                \\[\n                \\begin{align*}\n                W_1(x)\\cdot W_2(x)&=(2x^4-5x^3+3x-2)\\cdot(4x^3+7x^2-4x+11)=\\\\\n                &=2x^{\\color{red}{4}}\\cdot 4x^{\\color{red}{3}}+\\dots\\\\\n                &=8x^{\\color{red}{4+3}}+\\dots\\\\\n                &=8x^{\\color{red}{7}}+\\dots\\\\\n                \\text{więc}\\quad& \\deg(W_1\\cdot W_2)=\\color{red}{7}\n                \\end{align*}\n                \\]\n                Może się wydawać, że:</p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul>\n<li>\n                        stopień sumy wielomianów jest równy większemu ze stopni tych wielomianów,\n                    </li>\n<li>\n                        stopień różnicy wielomianów jest równy większemu ze stopni tych wielomianów,\n                    </li>\n<li>\n                        stopień iloczynu wielomianów jest równy sumie stopni tych wielomianów.\n                    </li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Możemy to zapisać:</p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul>\n<li>\n                        \\(\\deg(W_1+W_2)=\\max(\\deg W_1, \\deg W_2)\\),\n                    </li>\n<li>\n                        \\(\\deg(W_1-W_2)=\\max(\\deg W_1, \\deg W_2)\\),\n                    </li>\n<li>\n                        \\(\\deg(W_1\\cdot W_2)=\\deg W_1 + \\deg W_2\\).\n                    </li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<p>gdzie\n                \\[\n                \\max(a, b)\n                \\]\n                oznacza większą z liczb \\(a\\), \\(b\\) (chyba, że są równe - wtedy którąkolwiek.)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Ale czy zawsze tak jest? Spójrzmy na drugi przykład.\n                </p>"
+        },
+        {
+          "type": "table",
+          "data": {
+            "header_row": false,
+            "header_col": false,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "\\(W_1(x)=3x^{\\color{red}{2}}-5x-3\\)\n                                <br/>\n                                \\(\\deg W_1=\\color{red}{2}\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(W_2(x)=3x^{\\color{red}{2}}+2x+4\\)\n                                <br/>\n                                \\(\\deg W_2=\\color{red}{2}\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    W tej sytuacji \\(\\deg(W_1+W_2)=\\)\n                    \n\n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(1\\)",
+            "\\(2\\)",
+            "\\(3\\)",
+            "\\(4\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Tu nic się nie zmieniło.</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Jeśli chodzi o różnicę: \\(\\deg(W_1-W_2)=\\)\n                    \n\n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(1\\)",
+            "\\(2\\)",
+            "\\(3\\)",
+            "\\(4\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>No właśnie\n                \\[\n                \\begin{align*}\n                W_1(x)-W_2(x)&=3x^2-5x-3-(3x^2+2x+4)=\\\\\n                &=3x^2-5x-3-3x^2-2x-4=\\\\\n                &=\\underline{3x^2}-5x-3\\underline{-3x^2}-2x-4=\\\\\n                &=-7x^{\\color{red}{1}}-7\n                \\end{align*}\n                \\]\n                Najwyższe potęgi skracają się, więc \\(\\deg(W_1-W_2)=\\color{red}{1}\\).</p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    Zauważ, że najwyższe potęgi mogłby też skrócić się przy dodawaniu - gdyby ich współczynniki były przeciwne.\n                "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    No i zauważ też, że dla iloczynu nic się nie zmienia - tu też dodajemy największe wykładniki.\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Czas na podsumowanie.</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "!! podsumowanie !!",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<ul>\n<li>\n                    stopień sumy wielomianów jest nie większy niż większy ze stopni tych wielomianów,\n                </li>\n<li>\n                    stopień różnicy wielomianów jest nie większy niż większy ze stopni tych wielomianów,\n                </li>\n<li>\n                    stopień iloczynu wielomianów jest równy sumie stopni tych wielomianów.\n                </li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Przyjmując</p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                \\(\\deg W_1 = n\\quad\\) oraz  \\(\\quad\\deg W_2 = k\\)\n            "
+        },
+        {
+          "type": "text",
+          "body": "<p>możemy to zapisać:</p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul>\n<li>\n                    \\(\\deg(W_1+W_2)\\le\\max(n, k)\\),\n                </li>\n<li>\n                    \\(\\deg(W_1-W_2)\\le\\max(n, k)\\),\n                </li>\n<li>\n                    \\(\\deg(W_1\\cdot W_2)=n + k\\).\n                </li>\n</ul>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Jaki jest stopień sumy, różnicy i iloczynu podanych wielomianów \\(W_1\\) i \\(W_2\\)?\n    "
+    },
+    {
+      "type": "fill_table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "kind": "static",
+              "html": "\\(W_1\\), \\(W_2\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(\\deg(W_1+W_2)\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(\\deg(W_1-W_2)\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(\\deg(W_1\\cdot W_2)\\)"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(W_1(x)=-2x^{4}+5x^{3}+x+5\\)\n                    <br/>\n                    \\(W_2(x)=2x^{4}+7x^{3}-x^{2}+7x-3\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "3"
+            },
+            {
+              "kind": "answer",
+              "answer": "4"
+            },
+            {
+              "kind": "answer",
+              "answer": "16"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(W_1(x)=2x^{2}+5x-6\\)\n                    <br/>\n                    \\(W_2(x)=-3x^{2}+6x+3\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "2"
+            },
+            {
+              "kind": "answer",
+              "answer": "2"
+            },
+            {
+              "kind": "answer",
+              "answer": "4"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(W_1(x)=6x^{4}+x^{3}-9x^{2}-9x+7\\)\n                    <br/>\n                    \\(W_2(x)=-6x^{4}-3x^{2}-7x-5\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "3"
+            },
+            {
+              "kind": "answer",
+              "answer": "4"
+            },
+            {
+              "kind": "answer",
+              "answer": "16"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(W_1(x)=2x^{5}-4x^{4}-8x^{3}-7x^{2}-5x-6\\)\n                    <br/>\n                    \\(W_2(x)=3x^{5}-4x^{4}-6x^{3}-8x^{2}+2x+6\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "5"
+            },
+            {
+              "kind": "answer",
+              "answer": "5"
+            },
+            {
+              "kind": "answer",
+              "answer": "25"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(W_1(x)=7x^{4}-4x^{3}-x^{2}+2x+7\\)\n                    <br/>\n                    \\(W_2(x)=2x^{4}-5x^{3}-8x^{2}+2x+3\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "4"
+            },
+            {
+              "kind": "answer",
+              "answer": "4"
+            },
+            {
+              "kind": "answer",
+              "answer": "16"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(W_1(x)=6x^{2}+4x-7\\)\n                    <br/>\n                    \\(W_2(x)=-6x^{2}+x+4\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "1"
+            },
+            {
+              "kind": "answer",
+              "answer": "2"
+            },
+            {
+              "kind": "answer",
+              "answer": "4"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(W_1(x)=3x^{5}+4x^{4}+6x^{3}-9x^{2}+2x+6\\)\n                    <br/>\n                    \\(W_2(x)=3x^{5}+x^{4}+8x^{3}-6x^{2}+2x-2\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "5"
+            },
+            {
+              "kind": "answer",
+              "answer": "4"
+            },
+            {
+              "kind": "answer",
+              "answer": "25"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(W_1(x)=-7x^{4}+6x^{3}+3x^{2}-x+3\\)\n                    <br/>\n                    \\(W_2(x)=3x^{4}-x^{3}-5x^{2}-9x-1\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "4"
+            },
+            {
+              "kind": "answer",
+              "answer": "4"
+            },
+            {
+              "kind": "answer",
+              "answer": "16"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(W_1(x)=-6x^{2}+x-6\\)\n                    <br/>\n                    \\(W_2(x)=-5x^{2}+x-2\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "2"
+            },
+            {
+              "kind": "answer",
+              "answer": "2"
+            },
+            {
+              "kind": "answer",
+              "answer": "4"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(W_1(x)=-9x^{2}-7x+6\\)\n                    <br/>\n                    \\(W_2(x)=4x^{2}+5x-5\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "2"
+            },
+            {
+              "kind": "answer",
+              "answer": "2"
+            },
+            {
+              "kind": "answer",
+              "answer": "4"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(W_1(x)=-2x^{2}-4x-6\\)\n                    <br/>\n                    \\(W_2(x)=2x^{2}-2x-9\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "1"
+            },
+            {
+              "kind": "answer",
+              "answer": "2"
+            },
+            {
+              "kind": "answer",
+              "answer": "4"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(W_1(x)=-x^{3}-x^{2}-2x+1\\)\n                    <br/>\n                    \\(W_2(x)=-x^{3}+5x^{2}+8x-9\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "3"
+            },
+            {
+              "kind": "answer",
+              "answer": "2"
+            },
+            {
+              "kind": "answer",
+              "answer": "9"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(W_1(x)=6x^{3}-9x^{2}-x+1\\)\n                    <br/>\n                    \\(W_2(x)=-9x^{5}+x^{4}-x^{3}-9x^{2}-5x+3\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "5"
+            },
+            {
+              "kind": "answer",
+              "answer": "5"
+            },
+            {
+              "kind": "answer",
+              "answer": "15"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(W_1(x)=-9x^{3}-3x-4\\)\n                    <br/>\n                    \\(W_2(x)=-2x^{4}+6x^{3}-5x^{2}+8x+3\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "4"
+            },
+            {
+              "kind": "answer",
+              "answer": "4"
+            },
+            {
+              "kind": "answer",
+              "answer": "12"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(W_1(x)=7x^{5}+4x^{4}+4x^{3}-4x^{2}+3\\)\n                    <br/>\n                    \\(W_2(x)=-7x^{5}-6x^{4}+5x^{3}-9x^{2}-4x+1\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "4"
+            },
+            {
+              "kind": "answer",
+              "answer": "5"
+            },
+            {
+              "kind": "answer",
+              "answer": "25"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(W_1(x)=-8x^{5}+6x^{4}-5x^{3}-9x-9\\)\n                    <br/>\n                    \\(W_2(x)=8x^{5}+6x^{4}-4x^{3}-3x^{2}+7x-7\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "4"
+            },
+            {
+              "kind": "answer",
+              "answer": "5"
+            },
+            {
+              "kind": "answer",
+              "answer": "25"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(W_1(x)=8x^{4}-3x^{3}-7x^{2}-5x+1\\)\n                    <br/>\n                    \\(W_2(x)=-8x^{4}+7x^{3}+5x^{2}+1\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "3"
+            },
+            {
+              "kind": "answer",
+              "answer": "4"
+            },
+            {
+              "kind": "answer",
+              "answer": "16"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(W_1(x)=-6x^{3}-x^{2}+8x+1\\)\n                    <br/>\n                    \\(W_2(x)=6x^{3}-x-5\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "2"
+            },
+            {
+              "kind": "answer",
+              "answer": "3"
+            },
+            {
+              "kind": "answer",
+              "answer": "9"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(W_1(x)=-3x^{2}+3x+8\\)\n                    <br/>\n                    \\(W_2(x)=-3x^{3}-6x^{2}+7x-9\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "3"
+            },
+            {
+              "kind": "answer",
+              "answer": "3"
+            },
+            {
+              "kind": "answer",
+              "answer": "6"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(W_1(x)=-7x^{2}-2x+8\\)\n                    <br/>\n                    \\(W_2(x)=-7x^{2}-2x+2\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "2"
+            },
+            {
+              "kind": "answer",
+              "answer": "0"
+            },
+            {
+              "kind": "answer",
+              "answer": "4"
+            }
+          ]
+        ]
+      }
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "ffb4f77f11308b5ba7f9f027b569a6e257098fd45090dbef23931db138174f9f"
+}

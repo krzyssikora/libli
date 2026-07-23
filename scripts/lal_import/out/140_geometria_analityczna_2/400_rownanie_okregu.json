@@ -1,0 +1,526 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n            Co możemy powiedzieć o punktach \\(A\\), \\(B\\) i \\(C\\), które leżą w jednakowej odległości od punktu \\(S\\)?\n        </p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/geometria_analityczna_2_rownanie_okregu_intro_1.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                A gdyby narysować takich punktów więcej? Na przykład \\(15\\)?\n            </p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/geometria_analityczna_2_rownanie_okregu_intro_2.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Albo \\(25\\)?\n            </p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/geometria_analityczna_2_rownanie_okregu_intro_3.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Albo \\(50\\)?\n            </p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/geometria_analityczna_2_rownanie_okregu_intro_4.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Punkty leżące w jednakowej odległości od punktu \\(S\\) leżą na okręu o środku w punkcie \\(S\\).\n            </p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/geometria_analityczna_2_rownanie_okregu_intro_5.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Poszukajmy równania tego okręgu, czyli równania opisującego wszystkie punkty leżące <strong>w odległości \\(5\\) od punktu \\(S\\)</strong>.\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                W tym celu przeanalizujmy równania, z których obliczyliśmy odległość punktów \\(\\color{blue}{A}\\), \\(\\color{blue}{B}\\) i \\(\\color{blue}{C}\\) od punktu \\(\\color{red}{S=(-3,2)}\\).\n            </p>"
+    },
+    {
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": true,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "punkt",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "równanie",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(\\color{blue}{A=(1, 5)}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\sqrt{(\\color{blue}{1}-\\color{red}{(-3)})^2+(\\color{blue}{5}-\\color{red}{2})^2}=5\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(\\color{blue}{B=(-6, 6)}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\sqrt{(\\color{blue}{-6}-\\color{red}{(-3)})^2+(\\color{blue}{6}-\\color{red}{2})^2}=5\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(\\color{blue}{C=(-7, -1)}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\sqrt{(\\color{blue}{-7}-\\color{red}{(-3)})^2+(\\color{blue}{-1}-\\color{red}{2})^2}=5\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Podnieśmy obie strony równań do kwadratu.\n            </p>"
+    },
+    {
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": true,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "punkt",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "równanie",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(\\color{blue}{A=(1, 5)}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\((\\color{blue}{1}-\\color{red}{(-3)})^2+(\\color{blue}{5}-\\color{red}{2})^2=5^2\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(\\color{blue}{B=(-6, 6)}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\((\\color{blue}{-6}-\\color{red}{(-3)})^2+(\\color{blue}{6}-\\color{red}{2})^2=5^2\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(\\color{blue}{C=(-7, -1)}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\((\\color{blue}{-7}-\\color{red}{(-3)})^2+(\\color{blue}{-1}-\\color{red}{2})^2=5^2\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                A jak jest z innymi punktami leżącymi na tym okręgu?\n            </p>"
+    },
+    {
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Odległość każdego takiego punktu o współrzędnych \\(\\color{blue}{(x, y)}\\) od środka okręgu, \\(\\color{red}{S=(-3,2)}\\) także byłaby równa \\(5\\).\n            </p>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "\\(\\color{blue}{A=(1,5)}\\):",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\((\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\color{blue}{1}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\color{red}{(-3)}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\()^2+(\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\color{blue}{5}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\color{red}{2}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\()^2\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(=5^2\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(\\color{blue}{B=(-6,6)}\\):",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\((\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\color{blue}{-6}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\color{red}{(-3)}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\()^2+(\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\color{blue}{6}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\color{red}{2}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\()^2\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(=5^2\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(\\color{blue}{C=(-7,-1)}\\):",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\((\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\color{blue}{-7}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\color{red}{(-3)}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\()^2+(\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\color{blue}{-1}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\color{red}{2}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\()^2\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(=5^2\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "czyli:",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 12
+            }
+          ],
+          [
+            {
+              "html": "\\(\\color{blue}{(x,y)}\\):",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\((\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\color{blue}{x}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\color{red}{(-3)}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\()^2+(\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\color{blue}{y}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\color{red}{2}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\()^2\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(=5^2\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                I tak oto otrzymaliśmy <strong>równanie okręgu</strong> o środku w punkcie \\((-3,2)\\) i promieniu \\(5\\), \n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                czyli takie równanie, które spełniają punkty \\((x,y)\\) leżące na okręgu:\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                \\[\n                (x-(-3))^2+(y-2)^2=5^2\n                \\]\n            "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                albo:\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                \\[\n                (x+3)^2+(y-2)^2=25\n                \\]\n            "
+    },
+    {
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Bardziej ogólnie, <strong>równanie okręgu</strong> o środku w punkcie \\((a,b)\\) i promieniu \\(r\\) ma postać: \n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                \\[\n                (x-a)^2+(y-b)^2=r^2\n                \\]\n            "
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "a294cced71df0d3c49dceefc9c8451267085fb226867e4fad1ddf31a362f07af"
+}

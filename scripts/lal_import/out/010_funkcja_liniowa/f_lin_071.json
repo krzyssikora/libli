@@ -1,0 +1,145 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<h1>\n    Współczynniki kierunkowe\n</h1>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Proste równoległe mają taki sam kierunek, więc też\n    <strong>\n        identyczny współczynnik kierunkowy\n    </strong>\n    .\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<h2 id=\"nachylenie_prostopadlej\">\n    Współczynnik kierunkowy prostej prostopadłej\n</h2>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Poniżej widzisz kwadrat. Przy dwóch jego prostopadłych bokach dopisane są nachylenia (współczynniki kierunkowe) tych boków.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Przesuwaj zaznaczone punkty aby zmienić te nachylenia. Przyjrzyj się jaka jest zależność pomiędzy nachyleniem jednego boku i boku do niego prostopadłego.\n</p>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/hytj9wm8/width/900/height/750/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Dane są proste\n        <strong>\n            prostopadłe\n        </strong>\n        :\n        \\[y=a_1x+b_1\\quad\\quad\\text{oraz}\\quad\\quad y=a_2x+b_2\\]\n        Jaka jest zależność między współczynnikami \\(a_1\\) i \\(a_2\\)?\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "zobacz",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n            Tę zależność można zapisać na dwa równoważne sposoby:\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ol>\n<li>\n                Iloczyn obu współczynników kierunkowych jest równy \\(-1\\):\n                \\[a_1a_2=-1\\]\n            </li>\n<li>\n                Współczynnik \\(a_2\\) jest liczbą jednocześnie\n                <strong>\n                    przeciwną\n                </strong>\n                i\n                <strong>\n                    odwrotną\n                </strong>\n                do współczynnika \\(a_1\\):\n                \\[a_2=-\\frac{1}{a_1}\\]\n            </li>\n</ol>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question_text\">\n        Przyjrzyj się przykładom i wpisz współczynniki kierunkowe prostych prostopadłych do podanych.\n    </p>"
+    },
+    {
+      "type": "fill_table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "kind": "static",
+              "html": "\\(a_1\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(a_2\\)"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(2\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(-\\frac{1}{2}\\)"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(-\\frac{2}{3}\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(\\frac{3}{2}\\)"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(-3\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "1/3"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(\\frac{5}{2}\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "-2/5"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(\\frac{1}{4}\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "-4"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(-\\frac{2}{7}\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "7/2"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<div class=\"success hidden\" id=\"success_question20\">\n        Świetnie!\n    </div>\n</p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "8d12c21486ad218932360fbaaacfbecdf03c4a8edd5d9172fddecffe226a0954"
+}

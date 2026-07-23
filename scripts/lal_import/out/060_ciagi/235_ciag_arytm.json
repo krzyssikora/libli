@@ -1,0 +1,130 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Określ monotoniczność poniższych ciągów arytmetycznych.\n    "
+    },
+    {
+      "type": "choice_grid",
+      "columns": [
+        "rosnący",
+        "stały",
+        "malejący"
+      ],
+      "rows": [
+        {
+          "statement": "\\(2,\\, 5,\\, 8,\\, 11,\\, 14,\\, 17\\)",
+          "correct": 0
+        },
+        {
+          "statement": "\\(12,\\, 17,\\, 22,\\, 27,\\, 32,\\, 37\\)",
+          "correct": 0
+        },
+        {
+          "statement": "\\(11,\\, 11,\\, 11,\\, 11,\\, 11,\\, 11\\)",
+          "correct": 1
+        },
+        {
+          "statement": "\\(92,\\, 88,\\, 84,\\, 80,\\, 76,\\, 72\\)",
+          "correct": 2
+        },
+        {
+          "statement": "\\(19,\\, 17,\\, 15,\\, 13,\\, 11,\\, 9\\)",
+          "correct": 2
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Jaki jest związek różnicy ciągu arytmetycznego, \\(r\\), z jego monotonicznością?\n    "
+    },
+    {
+      "type": "choice_grid",
+      "columns": [
+        "rosnący",
+        "stały",
+        "malejący"
+      ],
+      "rows": [
+        {
+          "statement": "jeśli \\(r\\gt 0\\) ciąg jest",
+          "correct": 0
+        },
+        {
+          "statement": "jeśli \\(r= 0\\) ciąg jest",
+          "correct": 1
+        },
+        {
+          "statement": "jeśli \\(r\\lt 0\\) ciąg jest",
+          "correct": 2
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "a jeśli nie masz pewności, zerknij tu",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Ciąg arytmetyczny \\((a_n)\\) o różnicy \\(r\\) jest:</p>"
+        },
+        {
+          "type": "table",
+          "data": {
+            "header_row": false,
+            "header_col": false,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "rosnący",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "jeśli \\(r\\gt 0\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "stały",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "jeśli \\(r= 0\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "malejący",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "jeśli \\(r\\lt 0\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "18f7df82e3bd04eace30b8460e3da0b2dae54bc7bee7df44085609ba9cab89ee"
+}

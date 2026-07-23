@@ -1,0 +1,94 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Suma pierwszych \\(n\\) wyrazów ciągu \\((a_n)\\) jest dana wzorem:\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\\[\n        S_n=3^{n+1}-3\n        \\]\n        Znajdź wzór ogólny na \\(n\\)-ty wyraz ciągu \\((a_n)\\) i udowodnij, że jest geometryczny.</p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "odpowiedź",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(a_n=2\\cdot 3^n\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Suma pierwszych \\(n\\) wyrazów ciągu \\((a_n)\\) jest dana wzorem:\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\\[\n        S_n=4n^2+n\n        \\]\n        Znajdź wzór ogólny na \\(n\\)-ty wyraz ciągu \\((a_n)\\) i udowodnij, że jest arytmetyczny.</p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "odpowiedź",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(a_n=8n-3\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Suma pierwszych \\(n\\) wyrazów ciągu \\((a_n)\\) jest dana wzorem:\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\\[\n        S_n=2n^2-5n\n        \\]\n        Znajdź wzór ogólny na \\(n\\)-ty wyraz ciągu \\((a_n)\\) i udowodnij, że jest arytmetyczny.</p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "odpowiedź",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(a_n=4n-7\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Suma pierwszych \\(n\\) wyrazów ciągu \\((a_n)\\) jest dana wzorem:\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\\[\n        S_n=\\frac{5n^2-n}{2}\n        \\]\n        Znajdź wzór ogólny na \\(n\\)-ty wyraz ciągu \\((a_n)\\) i udowodnij, że jest arytmetyczny.</p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "odpowiedź",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(a_n=5n-3\\)</p>"
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "8c8adb2539ab970757a76c31a159e28c5c1283730c098857074cf943442dc6f7"
+}

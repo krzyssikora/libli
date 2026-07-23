@@ -1,0 +1,120 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W poniższym diagramie Venn'a widzisz zbiory \\(A\\) i \\(B\\), oba będące podzbiorami zbioru uniwersalnego (przestrzeni) \\(U\\).\n            <br/>\n            Poza zbiorem \\(U\\) nic nas nie interesuje.\n        </p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/Venn_pusty.png",
+      "alt": "suma zbiorów",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Przerysuj ten diagram i zaznacz następujące zbiory.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Jak nazywają się działania wykonane na zbiorach \\(A\\) i / lub \\(B\\)?\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Spróbuj zdefiniować je słownie.\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "\\(A\\cup B\\)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n<strong>\n                                suma zbiorów\n                            </strong>\n</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                            zbiór złożony ze wszystkich elementów zbioru \\(A\\), jak i tych ze zbioru \\(B\\), połączonych w jednym zbiorze\n                        </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/Venn_suma.png",
+          "alt": "suma zbiorów",
+          "figcaption": ""
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "\\(A\\cap B\\)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n<strong>\n                                iloczyn (część wspólna) zbiorów\n                            </strong>\n</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                            zbiór złożony z elementów, które są jednocześnie w \\(A\\) jak i w \\(B\\)\n                        </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/Venn_iloczyn.png",
+          "alt": "iloczyn zbiorów",
+          "figcaption": ""
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "\\(A\\setminus B\\) lub \\(A-B\\)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n<strong>\n                                różnica zbiorów\n                            </strong>\n</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                            zbiór złożony z tych elementów zbioru \\(A\\), które\n                            <strong>\n                                nie należą\n                            </strong>\n                            do zbioru \\(B\\)\n                        </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/Venn_roznica.png",
+          "alt": "różnica zbiorów",
+          "figcaption": ""
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "\\(A'\\)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n<strong>\n                                dopełnienie zbioru\n                            </strong>\n</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                            wszystkie elementy z całej przestrzeni \\(U\\), które nie należą do zbioru \\(A\\)\n                        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                            innymi słowy:\n                        </p>"
+        },
+        {
+          "type": "math",
+          "latex": "A'=U\\setminus A"
+        },
+        {
+          "type": "image",
+          "media_src": "static/Venn_dopelnienie.png",
+          "alt": "dopełnienie zbioru",
+          "figcaption": ""
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "47d426c0335a236091327fa6269e1c52efd84f4d26084b39031a7ab2567d2963"
+}

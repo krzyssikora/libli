@@ -1,0 +1,81 @@
+{
+  "elements": [
+    {
+      "type": "numeric",
+      "stem": "<p>\n    Na poniższym rysunku odcinki BC i DE są równoległe.\n</p><div>\n<img alt=\"quiz - tw.Talesa 1\" src=\"static/quiz_twierdzenie_Talesa_1.png\" style=\"width: 500px;\" width=\"500\"/>\n</div><p>\n    Jaka jest długość odcinka BD?\n</p>",
+      "value": "9",
+      "tolerance": "0"
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>\n    Na poniższym rysunku odcinki BC i DE są równoległe.\n</p><div>\n<img alt=\"quiz - tw.Talesa 2\" src=\"static/quiz_twierdzenie_Talesa_2.png\" style=\"width: 500px;\" width=\"500\"/>\n</div><p>\n    Jaka jest długość odcinka CE?\n</p>",
+      "value": "4",
+      "tolerance": "0"
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>\n    Na poniższym rysunku odcinki AB i DE są równoległe.\n</p><div>\n<img alt=\"quiz - tw.Talesa 3\" src=\"static/quiz_twierdzenie_Talesa_3.png\" style=\"width: 500px;\" width=\"500\"/>\n</div><p>\n    Jaka jest długość odcinka CE?\n</p>",
+      "value": "10",
+      "tolerance": "0"
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>\n    Na poniższym rysunku odcinki AB i DE są równoległe.\n</p><div>\n<img alt=\"quiz - tw.Talesa 4\" src=\"static/quiz_twierdzenie_Talesa_4.png\" style=\"width: 500px;\" width=\"500\"/>\n</div><p>\n    Jaka jest długość odcinka BC?\n</p>",
+      "value": "12",
+      "tolerance": "0"
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\n    Czy odcinki BC i DE na rysunku poniżej są równoległe?\n</p><div>\n<img alt=\"quiz - tw.Talesa 5\" src=\"static/quiz_twierdzenie_Talesa_5.png\" style=\"width: 500px;\" width=\"500\"/>\n</div>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "TAK",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "NIE",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\n    Czy odcinki AB i DE na rysunku poniżej są równoległe?\n</p><div>\n<img alt=\"quiz - tw.Talesa 6\" src=\"static/quiz_twierdzenie_Talesa_6.png\" style=\"width: 500px;\" width=\"500\"/>\n</div>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "TAK",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "NIE",
+          "is_correct": true,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\n    Czy odcinki AB i DE na rysunku poniżej są równoległe?\n</p><div>\n<img alt=\"quiz - tw.Talesa 7\" src=\"static/quiz_twierdzenie_Talesa_7.png\" style=\"width: 500px;\" width=\"500\"/>\n</div>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "TAK",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "NIE",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "42c9faff2cce745f1cfcad37f44695ad0124201ffc861b4e62675086535e6022"
+}

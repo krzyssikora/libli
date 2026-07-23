@@ -1,0 +1,225 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n<strong>Równaniem ogólnym prostej</strong> nazywamy równanie postaci\n    </p>"
+    },
+    {
+      "type": "math",
+      "latex": "Ax+By+C=0"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        gdzie współczynniki \\(A\\), \\(B\\) i \\(C\\) są rzeczywiste, przy czym \\(A\\) i \\(B\\) nie mogą być jednocześnie równe \\(0\\).\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Przykład</strong></p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/geometria_analityczna_2_prosta_rownanie_ogolne_A0.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>Jeśli w równaniu ogólnym prostej, \\(Ax+By+C=0\\), współczynnik \\(A=0\\), równanie przyjmuje postać\n        \\[\n        By+C=0\n        \\]\n        lub równoważnie\n        \\[\n        y=-\\frac{C}{B}\n        \\]\n        Jest to równanie <strong>prostej poziomej</strong>.</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Przykład</strong></p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/geometria_analityczna_2_prosta_rownanie_ogolne_B0.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>Jeśli w równaniu ogólnym prostej, \\(Ax+By+C=0\\), współczynnik \\(B=0\\), równanie przyjmuje postać\n        \\[\n        Ax+C=0\n        \\]\n        lub równoważnie\n        \\[\n        x=-\\frac{C}{A}\n        \\]\n        Jest to równanie <strong>prostej pionowej</strong>.</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Pod każdym z podanych niżej równań prostych w postaci kierunkowej (\\(y=ax+b\\)) jest kilka równań w postaci ogólnej. \n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Wskaż właściwe równanie, równoważne równaniu z góry.\n        </p>"
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\\(y=-4x+1\\)</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(4x-y+1=0\\)",
+          "is_correct": false
+        },
+        {
+          "text": "\\(4x+y-1=0\\)",
+          "is_correct": true
+        },
+        {
+          "text": "\\(4x-y-1=0\\)",
+          "is_correct": false
+        },
+        {
+          "text": "\\(4x+y+1=0\\)",
+          "is_correct": false
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\\(y=3x-2\\)</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(3x-y+2=0\\)",
+          "is_correct": false
+        },
+        {
+          "text": "\\(3x+y-2=0\\)",
+          "is_correct": false
+        },
+        {
+          "text": "\\(3x-y-2=0\\)",
+          "is_correct": true
+        },
+        {
+          "text": "\\(3x+y+2=0\\)",
+          "is_correct": false
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\\(y=\\tfrac{3}{2}x+4\\)</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(3x-2y+8=0\\)",
+          "is_correct": true
+        },
+        {
+          "text": "\\(3x+2y-8=0\\)",
+          "is_correct": false
+        },
+        {
+          "text": "\\(6x-2y+8=0\\)",
+          "is_correct": false
+        },
+        {
+          "text": "\\(3x+2y+4=0\\)",
+          "is_correct": false
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\\(y=-\\frac{1}{3}x+\\frac{3}{4}\\)</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(x+3y+3=0\\)",
+          "is_correct": false
+        },
+        {
+          "text": "\\(4x+12y-9=0\\)",
+          "is_correct": true
+        },
+        {
+          "text": "\\(x+3y-9=0\\)",
+          "is_correct": false
+        },
+        {
+          "text": "\\(4x-12y+9=0\\)",
+          "is_correct": false
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Dane jest równanie ogólne prostej:\n        </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n        9x+15y-10=0\n        "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź równanie kierunkowe tej prostej.\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Zacznijmy od przeniesienia wszystkich wyrazów, poza tym ze zmienną \\(y\\), na prawą stronę.</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Otrzymamy:\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(15y=9x+10\\)",
+            "\\(15y=-9x+10\\)",
+            "\\(15y=-9x-10\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    I teraz wystarczy podzielić obie strony równania przez\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(9\\)",
+            "\\(10\\)",
+            "\\(15\\)"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "text",
+          "body": "<p>i skrócić ułamki.</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Dostajemy\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(y=-\\frac{3}{5}x+\\frac{2}{3}\\)",
+            "\\(y=-\\frac{2}{3}x+\\frac{3}{5}\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Równanie kierunkowe prostej o równaniu ogólnym\n                </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                9x+15y-10=0\n                "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    to\n                </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                y=-\\frac{3}{5}x+\\frac{2}{3}\n                "
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "750562d9ad17bb1d2e1ad6ccad06f77636ae36931f20fcce31059447cde9d0af"
+}

@@ -1,0 +1,1233 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<h1>\n    Warto wiedzieć\n</h1>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Wśród przykładów wzorów rekurencyjnych był taki wzór:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n    \\[\n    \\begin{cases}\n    \\begin{align}\n    f_1&amp;=1\\\\\n    f_2&amp;=1\\\\\n    f_n&amp;=f_{n-1}+f_{n-2}&amp;\\text{ dla }n\\ge 3\n    \\end{align}\n    \\end{cases}\n    \\]\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    To wzór definiujący tak zwany <strong>ciąg Fibonacciego</strong>.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<h3>\n    Problem królików\n</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    O ciągu tym po raz pierwszy napisał włoski matematyk <a href=\"https://pl.wikipedia.org/wiki/Fibonacci\">Leonardo Fibonacci</a>. W dziele \"Liber Abaci\" (1202) rozważa wzrost idealizowanej i biologicznie nierealistycznej populacji królików, zakładając, że: \n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n        nowo narodzona para królików hodowlanych zostaje umieszczona na polu,\n    </li>\n<li>\n        każda para hodowlana łączy się w pary w wieku jednego miesiąca, a pod koniec drugiego miesiąca zawsze rodzi kolejną parę królików,\n    </li>\n<li>\n        króliki nigdy nie umierają, lecz rozmnażają się w nieskończoność. \n    </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Fibonacci zadał pytanie: ile par królików będzie po roku?\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    W poniższej tabeli wyliczamy liczby królików w kolejnych pokoleniach, w kolejnyh miesiącach.\n</p>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "miesiąc<br/>\\(\\downarrow\\)",
+              "halign": "left",
+              "valign": "top",
+              "rowspan": 2
+            },
+            {
+              "html": "pokolenie królików",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 6
+            },
+            {
+              "html": "razem",
+              "halign": "left",
+              "valign": "top",
+              "header": true,
+              "rowspan": 2
+            }
+          ],
+          [
+            {
+              "html": "I",
+              "halign": "left",
+              "valign": "top",
+              "header": true
+            },
+            {
+              "html": "II",
+              "halign": "left",
+              "valign": "top",
+              "header": true
+            },
+            {
+              "html": "III",
+              "halign": "left",
+              "valign": "top",
+              "header": true
+            },
+            {
+              "html": "IV",
+              "halign": "left",
+              "valign": "top",
+              "header": true
+            },
+            {
+              "html": "V",
+              "halign": "left",
+              "valign": "top",
+              "header": true
+            },
+            {
+              "html": "VI",
+              "halign": "left",
+              "valign": "top",
+              "header": true
+            }
+          ],
+          [
+            {
+              "html": "1",
+              "halign": "left",
+              "valign": "top",
+              "header": true
+            },
+            {
+              "html": "\\(1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(1\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "2",
+              "halign": "left",
+              "valign": "top",
+              "header": true
+            },
+            {
+              "html": "\\(1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(1\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "3",
+              "halign": "left",
+              "valign": "top",
+              "header": true
+            },
+            {
+              "html": "\\(1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(2\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "4",
+              "halign": "left",
+              "valign": "top",
+              "header": true
+            },
+            {
+              "html": "\\(1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(2\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(3\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "5",
+              "halign": "left",
+              "valign": "top",
+              "header": true
+            },
+            {
+              "html": "\\(1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(3\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(5\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "6",
+              "halign": "left",
+              "valign": "top",
+              "header": true
+            },
+            {
+              "html": "\\(1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(4\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(3\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(8\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "7",
+              "halign": "left",
+              "valign": "top",
+              "header": true
+            },
+            {
+              "html": "\\(1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(5\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(6\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(13\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "8",
+              "halign": "left",
+              "valign": "top",
+              "header": true
+            },
+            {
+              "html": "\\(1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(6\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(10\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(4\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(21\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "9",
+              "halign": "left",
+              "valign": "top",
+              "header": true
+            },
+            {
+              "html": "\\(1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(7\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(15\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(10\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(34\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "10",
+              "halign": "left",
+              "valign": "top",
+              "header": true
+            },
+            {
+              "html": "\\(1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(8\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(21\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(20\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(5\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(55\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "11",
+              "halign": "left",
+              "valign": "top",
+              "header": true
+            },
+            {
+              "html": "\\(1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(9\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(28\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(35\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(15\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(89\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "12",
+              "halign": "left",
+              "valign": "top",
+              "header": true
+            },
+            {
+              "html": "\\(1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(10\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(36\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(56\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(35\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(6\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(144\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Zwróćmy uwagę na liczby w ostatniej kolumnie. Tam znajdziemy odpowiedż na pytanie Fibonacciego, ale możemy też zaobserwować, że każda kolejna liczba powstaje jako suma dwóch poprzednich. I tak dochodziimy do definicji rekurencyjnej ciągu Fibonacciego.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n    \\[\n    \\begin{cases}\n    \\begin{align}\n    f_1&amp;=1\\\\\n    f_2&amp;=1\\\\\n    f_n&amp;=f_{n-1}+f_{n-2}&amp;\\text{ dla }n\\ge 3\n    \\end{align}\n    \\end{cases}\n    \\]\n"
+    },
+    {
+      "type": "text",
+      "body": "<h3>\n    Złoty podział\n</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Mówiąc o ciągu Fibonacciego trudno uniknąć tematu <strong>złotego podziału</strong>. Najpierw krótko powiemy sobie, czym jest złoty podział, a potem wskażemy jego związek z ciągiem Fibonacciego\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Złoty podział, zwany też <i>złotym stosunkiem</i>, <i>złotą proporcją</i> czy nawet <i>boską proporcją</i> to stosunek dwóch długości, który w większości ludzi budzi przyjemniejsze wrażenia estetyczne niż inne proporcje. Znajdujemy go (w pewnym przybliżeniu) w setkach, tysiącach obiektów w przyrodzie lub architekturze.\n</p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/prostokaty_zloty_podzial.png",
+      "alt": "",
+      "figcaption": "Czy Tobie też się wydaje, że środkowy prostokąt jest najładniejszy? ;) Jego boki są w złotej proporcji."
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Co to jest złota proporcja, złoty stosunek, czy też złoty podział?\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>Złoty podział</strong> to taki podział odcinka na dwie części, by stosunek długości dłuższej z nich do krótszej był taki sam, jak całego odcinka do części dłuższej.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Jeśli stosunek podzielimy na dwa o długościach \\(a\\) i \\(b\\), przy czym \\(a\\gt b\\), to cały odcinek ma długość \\(a+b\\). Wówczas\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n<u></u> to \\(\\frac{a}{b}\\), zaś\n        </li>\n<li>\n<u>stosunek długośc całego odcinka do części dłuższej</u> to \\(\\frac{a+b}{a}\\)\n        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Złoty podział następuje, gdy\n    </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n    \\frac{a+b}{a}=\\frac{a}{b}\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Taki stosunek nazywamy <strong>złotym stosunkiem</strong> lub <strong>złotą proporcją</strong>.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Najczęściej oznaczany jest grecką literą \\(\\phi\\) (czyt. \"fi\").\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Jaka jest wartość złotej proporcji?\n</p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "Możemy łatwo wyliczyć, że \\(\\phi=\\frac{\\sqrt{5}+1}{2}\\)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Złota proporcja to zdefiniowany wyżej stosunek długości:\n    \\[\n    \\phi=\\frac{a+b}{a}=\\frac{a}{b}\n    \\]\n    Rozbijmy ułamek z lewej strony równania\n    \\[\n    \\frac{a+b}{a}=\\frac{a}{b}\n    \\]\n    na dwa ułamki:\n    \\[\n    \\frac{a}{a}+\\frac{b}{a}=\\frac{a}{b}\n    \\]</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n        Zauważmy, że skoro \\(\\phi=\\frac{a}{b}\\) to ułamek \\(\\frac{b}{a}\\) jest tej wartości odwrotnością, czyli \\(\\frac{b}{a}=\\frac{1}{\\phi}\\).\n    </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n        Postawiając do równania:\n    </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n    \\begin{align}\n    \\frac{a}{a}+\\frac{b}{a}&=\\frac{a}{b}\\\\\n    1+\\frac{1}{\\phi}&=\\phi\n    \\end{align}\n    "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n        Pomnóżmy równanie obustronnie przez \\(\\phi\\):\n    </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\[\n    \\begin{align}\n    1+\\frac{1}{\\phi}&=\\phi\\\\\n    \\phi+1&=\\phi^2\\\\\n    \\phi^2-\\phi-1&=0\n    \\end{align}\n    \\]\n    I teraz wystarczy rozwiązać równanie kwadratowe, by otrzymać</p>"
+        },
+        {
+          "type": "text",
+          "body": "\n        \\(\\phi=\\frac{1-\\sqrt{5}}{2}\\) albo \\(\\phi=\\frac{1+\\sqrt{5}}{2}\\)\n    "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n        Pierwsze rozwiązanie jest ujemne, a stosunek długości musi być dodatni, więc ostatecznie\n    </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n    \\phi=\\frac{\\sqrt{5}+1}{2}\n    "
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<h3>\n    Związek ciągu Fibonacciego ze złotą proporcją\n</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Skupię się na dwóch podstawowych faktach.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<h4>Po pierwsze.</h4>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Przyjrzyjmy się kolejnym wyrazom ciągu Fibonacciego.\n</p>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "\\(1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(2\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(3\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(5\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(8\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(13\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(21\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(34\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(55\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(89\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(144\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(233\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(377\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(610\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(987\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(1597\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(2584\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(4181\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(6765\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    A teraz rozpatrzmy stosunki kolejnych wyrazów do wyrazów poprzednich. W poniższej tabeli zapiszemy je z dokładnością do dwóch miejsc dziesiętnych.\n</p>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "\\(1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(2\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(3\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(5\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(8\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(13\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(21\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(34\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(55\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(89\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(144\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(233\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(377\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(610\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(987\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(1597\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(2584\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(4181\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(6765\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\frac{1}{1}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\frac{2}{1}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\frac{3}{2}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\frac{5}{3}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\frac{8}{5}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\frac{13}{8}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\frac{21}{13}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\frac{34}{21}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\frac{55}{34}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\frac{89}{55}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\frac{144}{89}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\frac{233}{144}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\frac{377}{233}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\frac{610}{377}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\frac{987}{610}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\frac{1597}{987}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\frac{2584}{1597}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\frac{4181}{2584}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\frac{6765}{4181}\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(2\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(1,5\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(1,67\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(1,6\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(1,63\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(1,62\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(1,62\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(1,62\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(1,62\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(1,62\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(1,62\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(1,62\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(1,62\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(1,62\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(1,62\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(1,62\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(1,62\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(1,62\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Jak widzisz, stosunek dwóch kolejnych wyrazów ciągu Fibonacciego dosyć szybko stabilizuje się w okolicach liczby \\(1,62\\). A jaki to ma związek ze złotą proporcją? Dowiesz się, gdy obliczysz przybliżoną wartość \\(\\phi=\\frac{\\sqrt{5}+1}{2}\\). Tak, dobrze zgadujesz. Mówimy, że stosunek dwóch kolejnych wyrazów ciągu Fibonacciego \"zbiega\" do \\(\\phi\\).\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Dowód tej obserwacji nie jest wcale trudny, ale wymagałby niepotrzebnego na ten moment rozszerzania naszej wiedzy. Zatrzymajmy się więc na obserwacji.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<h4>Po drugie: wzór ogólny na wyraz ciągu Fibonacciego</h4>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Wydawać by się mogło, że wzór ogólny na wyraz ciągu, któego wszystkie wyrazy są całkowite powinien być zbudowany z liczb całkowitych. Nic bardziej mylnego.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Jeśli \\(f_n\\) to \\(n\\)-ty wyraz ciągu Fibonacciego, to\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        \\[\n        f_n=\\frac{1}{\\sqrt{5}}\\left(\\phi^n-\\frac{1}{\\phi^n}\\right)\n        \\]\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        przy czym \\(phi\\) to oczywiście złota proporcja.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Zdumiewające, prawda? Wygląda to jeszcze bardziej zaskakująco, gdy zamiast litery \\(\\phi\\) podstawimy odpowiednie wyrażenie\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n    \\[\n    f_n=\\frac{1}{\\sqrt{5}}\\left(\\left(\\frac{1+\\sqrt{5}}{2}\\right)^n-\\left(\\frac{1-\\sqrt{5}}{2}\\right)^n\\right)\n    \\]\n"
+    },
+    {
+      "type": "text",
+      "body": "<h3>Spirala Fibonacciego</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Na zakończenie jeszcze jedna ciekawostka. Poniższa animacja przedstawia nayrysowane obok siebie kwadraty, których boki mają długości równe wyrazom ciągu Fibonacciego. W każdy z nich wpisujemy łuk w taki sposób, że połączone łuki tworzą spiralę. Zwaną, rzecz jasna, spiralą Fibonacciego.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Mówi się, że taka spirala także może być zaobserwowana w licznych przykładach w naturze. Poszukaj.\n</p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/fibonacci_spiral.gif",
+      "alt": "",
+      "figcaption": ""
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "a5d0331f6070c36c83e2655cabfe833a24f8714e61c436d8ff51869b1bc7efde"
+}

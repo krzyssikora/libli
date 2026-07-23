@@ -1,0 +1,216 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Pomyśl i wpisz dwa kolejne wyrazy każdego z podanych ciągów.\n    "
+    },
+    {
+      "type": "fill_table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "kind": "static",
+              "html": "\\(1,\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(3,\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(5,\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(7,\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(9,\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": ""
+            },
+            {
+              "kind": "answer",
+              "answer": ""
+            },
+            {
+              "kind": "static",
+              "html": "<div class=\"success hidden\" id=\"success_question20\">Świetnie!</div>"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(2,\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(7,\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(12,\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(17,\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(22,\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": ""
+            },
+            {
+              "kind": "answer",
+              "answer": ""
+            },
+            {
+              "kind": "static",
+              "html": "<div class=\"success hidden\" id=\"success_question25\">Świetnie!</div>"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(22,\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(19,\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(16,\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(13,\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(10,\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": ""
+            },
+            {
+              "kind": "answer",
+              "answer": ""
+            },
+            {
+              "kind": "static",
+              "html": "<div class=\"success hidden\" id=\"success_question30\">Świetnie!</div>"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(7;\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(5,5;\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(4;\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(2,5;\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(1;\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": ""
+            },
+            {
+              "kind": "answer",
+              "answer": ""
+            },
+            {
+              "kind": "static",
+              "html": "<div class=\"success hidden\" id=\"success_question35\">Świetnie!</div>"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(\\tfrac{1}{2},\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(\\tfrac{5}{6},\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(\\tfrac{7}{6},\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(\\tfrac{3}{2},\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(\\tfrac{11}{6},\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": ""
+            },
+            {
+              "kind": "answer",
+              "answer": ""
+            },
+            {
+              "kind": "static",
+              "html": "<div class=\"success hidden\" id=\"success_question40\">Świetnie!</div>"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Opisz w najprostszy możliwy sposób regułę, zgodnie z którą powstają kolejne wyrazy każdego z powyższych ciągów. Porównaj swoją odpowiedź z moją.\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "sprawdź",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>W każdym z powyższych ciągów każdy wyraz (poza pierwszym) powstaje przez dodanie do poprzedniego wyrazu pewnej stałej liczby.</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"important\">\n    Ciągi takie, jak powyższe, nazywamy <strong>arytmetycznymi</strong>.\n</p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "7b14f6bfc13d1b8568c9dc6cf2bdf859179a49f2657f635b084ab38dee3e3290"
+}

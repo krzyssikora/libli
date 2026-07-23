@@ -1,0 +1,104 @@
+{
+  "elements": [
+    {
+      "type": "choice",
+      "stem": "<p>\n    Dana jest prosta o równaniu ogólnym \\(x-4y+1=0\\).\n</p><p>\n    Wskaż wszystkie równania opisujące\n    <strong>\n        tę samą\n    </strong>\n    prostą.\n</p>",
+      "multiple": true,
+      "choices": [
+        {
+          "text": "\\(-x+4y-1=0\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(-x+4y+1=0\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(4x-y-1=0\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(2x-8y+2=0\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(2x+8y+2=0\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\n    Dana jest prosta o równaniu kierunkowym \\(y=-\\frac{2}{3}x-1\\).\n</p><p>\n    Wskaż równanie ogólne tej prostej.\n</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(3x+2y-1=0\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(2x-3y+3=0\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(2x+3y+3=0\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(2x+3y-1=0\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(2x+3y-3=0\\)",
+          "is_correct": true,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Dane są proste</p><p>\\(6x-8y+7=0\\)</p><p>oraz</p><p>\\(12x-9y+2=0\\)</p><p>Proste te</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "są prostopadłe",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "są równoległe",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "nie są ani prostopadłe ani równoległe",
+          "is_correct": true,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>Prosta</p><p>\\(4x+10y+7=0\\)</p><p>jest równoległa do prostej</p><p>\\(6x+By-2=0\\)</p><p>Podaj wartość współczynnika \\(B).</p>",
+      "value": "15",
+      "tolerance": "0"
+    },
+    {
+      "type": "numeric",
+      "stem": "<p><!-- Zadanie 5 --></p><p>Prosta</p><p>\\(4x+10y+7=0\\)</p><p>jest prostopadła do prostej</p><p>\\(20x+By-2=0\\)</p><p>Podaj wartość współczynnika \\(B\\).</p>",
+      "value": "-8",
+      "tolerance": "0"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "1d5b797afe999c3bbb258857bc1bdbae4b62da6fd60e6e47ce87eed298e5a082"
+}

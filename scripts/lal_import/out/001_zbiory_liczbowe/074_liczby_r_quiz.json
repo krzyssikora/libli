@@ -1,0 +1,194 @@
+{
+  "elements": [
+    {
+      "type": "choice",
+      "stem": "<p>\n    Wśród poniższych liczb wskaż\n    <u>\n        wszystkie\n    </u>\n    te, które są\n    <strong>\n        naturalne\n    </strong>\n    .\n</p>",
+      "multiple": true,
+      "choices": [
+        {
+          "text": "\\(-2\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(-2,3\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\frac{9}{2}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\frac{9}{3}\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(0\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(-1234\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\sqrt[5]{2}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\pi-3\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\n    Wśród poniższych liczb wskaż\n    <u>\n        wszystkie\n    </u>\n    te, które są\n    <strong>\n        całkowite, ale nie naturalne\n    </strong>\n    .\n</p>",
+      "multiple": true,
+      "choices": [
+        {
+          "text": "\\(-2\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(-2,3\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\frac{9}{2}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\frac{9}{3}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(0\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(-1234\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\sqrt[5]{2}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\pi-3\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\n    Wśród poniższych liczb wskaż\n    <u>\n        wszystkie\n    </u>\n    te, które są\n    <strong>\n        wymierne, ale nie całkowite\n    </strong>\n    .\n</p>",
+      "multiple": true,
+      "choices": [
+        {
+          "text": "\\(-2\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(-2,3\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\frac{9}{2}\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\frac{9}{3}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(0\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(-1234\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\sqrt[5]{2}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\pi-3\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\n    Wśród poniższych liczb wskaż\n    <u>\n        wszystkie\n    </u>\n    te, które są\n    <strong>\n        rzeczywiste, ale nie wymierne\n    </strong>\n    .\n</p>",
+      "multiple": true,
+      "choices": [
+        {
+          "text": "\\(-2\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(-2,3\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\frac{9}{2}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\frac{9}{3}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(0\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(-1234\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\sqrt[5]{2}\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\pi-3\\)",
+          "is_correct": true,
+          "feedback": ""
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "3ee9a6c39f0295c80172ec7dea11bb6e818c72ead6c8c4e1165395a5bd771119"
+}

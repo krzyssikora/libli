@@ -1,0 +1,36 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "\n    Długość odcinka \\(AB\\), gdzie\n    \\[\n    A=(x_A, y_A),\\quad\\quad B=(x_B,y_B)\n    \\]\n    jest dana wzorem\n    \\[\n    AB=\\sqrt{(x_B-x_A)^2+(y_B-y_A)^2}\n    \\]\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>Aby obliczyć długość odcinka \\(AB\\), gdzie\n    \\[\n    A=(x_A, y_A),\\quad\\quad B=(x_B,y_B)\n    \\]\n    potrzebujemy:</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n            odległości w\n            <strong>\n                poziomie\n            </strong>\n            między \\(A\\) i \\(B\\), czyli \\(x_B-x_A\\) (oznaczmy ją \\(\\Delta x\\))\n        </li>\n<li>\n            odległości w\n            <strong>\n                pionie\n            </strong>\n            między \\(A\\) i \\(B\\), czyli \\(y_B-y_A\\) (oznaczmy ją \\(\\Delta y\\))\n        </li>\n</ul>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/dlugosc_odcinka.png",
+      "alt": "długość odcinka",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>I potem możemy obliczyć długość \\(AB\\) z twierdzenia Pitagorasa:\n    \\[\n    AB=\\sqrt{(x_B-x_A)^2+(y_B-y_A)^2}\n    \\]</p>"
+    },
+    {
+      "type": "text",
+      "body": "<strong>\n        Uwaga!\n    </strong>"
+    },
+    {
+      "type": "text",
+      "body": "<ol class=\"bold\">\n<li>\n            Nie ma znaczenia, czy liczymy\n            <ul class=\"nolist\">\n<li>\n                    \\(\\Delta x=x_B-x_A\\) czy\n                </li>\n<li>\n                    \\(\\Delta x=x_A-x_B\\).\n                </li>\n</ul>\n            Te dwa wyniki są przeciwne, tzn. wskazują na tę samą odległość, tylko jeden z nich jest ujemny.\n        </li>\n<li>\n            \\(\\Delta x\\) lub \\(\\Delta y\\) może być ujemna. To nic nie szkodzi, bo w twierdzeniu Pitagorasa i tak podnosimy taką wartość do kwadratu:\n                    \\[\n                    \\begin{align*}\n                    (x_B-x_A)&amp;=-(x_A-x_B)\\\\\n                    (x_B-x_A)^2&amp;=(x_A-x_B)^2\n                    \\end{align*}\n                    \\]\n        </li>\n</ol>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "3766de2883052c39b53b0ad1445421a57d1dc8c3f6cbe82f8ae13774653f4b64"
+}

@@ -1,0 +1,103 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Przyjrzyjmy się szczególnemu przypadkowi mnożenia wyrazu przez sumę algebraiczną:\n</p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n-(2ax-3x^2+a^3)\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Hm, ale gdzie tu wyraz, skoro przed sumą, przed nawiasem, widzimy tylko minus?\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Rzeczywiście, jest to wyjątkowo prosty wyraz - liczba \\(\\color{red}{-1}\\):\n</p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n\\color{red}{-1}(2ax-3x^2+a^3)\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Musimy więc wymnożyć każdy wyraz sumy przez \\(\\color{red}{-1}\\), czyli zmienić jego znak:\n</p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n\\begin{align*}\n\\color{red}{-1}(2ax-3x^2+a^3)&=\\color{red}{(-1)}\\cdot 2ax+\\color{red}{(-1)}\\cdot(-3x^2)+\\color{red}{(-1)}\\cdot a^3\\\\\n&=-2ax+3x^2-a^3\n\\end{align*}\n"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Wpisz odpowiednie znaki (\"+\" lub \"-\").\n        </p>"
+    },
+    {
+      "type": "fillblank",
+      "stem": "\n            \\(-(-5bc-3b^3+4c^2)=\\)\n            ￿0￿\n            \\(5bc\\)\n            ￿1￿\n            \\(3b^3\\)\n            ￿2￿\n            \\(4c^2\\)\n        ",
+      "blanks": [
+        [
+          "+"
+        ],
+        [
+          "+"
+        ],
+        [
+          "-"
+        ]
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Wpisz brakujące znaki, zmienne, wyrazy lub liczby.\n        </p>"
+    },
+    {
+      "type": "fillblank",
+      "stem": "\n            \\(2xy(3y+4xy-2y^2)=\\)\n            ￿0￿\n            \\(y^2+8x^2y^2\\)\n            ￿1￿\n            \\(y^3\\)\n        ",
+      "blanks": [
+        [
+          "6x"
+        ],
+        [
+          "-4x"
+        ]
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Wpisz brakujące znaki, zmienne, wyrazy lub liczby.\n        </p>"
+    },
+    {
+      "type": "fillblank",
+      "stem": "\n            \\((2a-3b)(5d-4a)=\\)\n            ￿0￿\n            \\(ad\\)\n            ￿1￿\n            \\(a^2-15\\)\n            ￿2￿\n            \\(+\\)\n            ￿3￿\n            \\(ab\\)\n        ",
+      "blanks": [
+        [
+          "10"
+        ],
+        [
+          "-8"
+        ],
+        [
+          "bd"
+        ],
+        [
+          "12"
+        ]
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "ca2dc5b45ed34132984ff5e89974a72bb1a5ab415338f3e6ac144484d1f324e1"
+}

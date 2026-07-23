@@ -1,0 +1,704 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Wzory rekurencyjne mają wielką zaletę - stosunkowo łatwo je stworzyć na podstawie opisu sytuacji. \n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Mają też jednak wielką wadę, którą dostrzegliśmy rozwiązując zadanie o pensjach: wyliczanie kolejnych wyrazów jest żmudne i wymaga czasu.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Dlatego rzadko używamy ich do obliczeń - a na pewno nie, jeśli możemy łatwo znaleźć wzór ogólny.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<h3>\n    Jak znaleźć wzór ogólny z wzoru rekurencyjnego?\n</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Na to pytanie nie ma jednej, prostej odpowiedzi. Jednak w prostych sytuacjach warto zacząć od rozpisania kolejnych wyrazów <u>bez wykonywania obliczeń</u>. Przyjrzymy się temu na kilku przykładach.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Zastanów się nad nimi samodzielnie, zanim spojrzysz na moje odpowiedzi.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Przykład</strong></p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n    \\begin{cases}\n    \\begin{align}\n    a_1&=1\\\\\n    a_n&=2\\cdot a_{n-1}&\\text{ dla }n\\ge 2\n    \\end{align}\n    \\end{cases}\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "wzór ogólny",
+      "elements": [
+        {
+          "type": "table",
+          "data": {
+            "header_row": true,
+            "header_col": false,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "\\(n\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(a_n\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(3\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(2\\cdot 2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(4\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(2\\cdot 2\\cdot 2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(5\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(2\\cdot 2\\cdot 2\\cdot 2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(6\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(2\\cdot 2\\cdot 2\\cdot 2\\cdot 2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "type": "text",
+          "body": "<p>Zauważ, że w każdym wyrazie mnożymy przez siebie dwójki - i jest ich mnożonych o \\(1\\) mniej, niż indeks wyrazu, \\(n\\).</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Mnożenie przez siebie tej samej liczby to potęgowanie i dlatego\n        </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n        a_n=2^{n-1}\\quad\\text{dla }n=1, 2, 3,\\dots\n        "
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Przykład</strong></p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n    \\begin{cases}\n    \\begin{align}\n    b_1&=0\\\\\n    b_{n+1}&=b_{n}+2&\\text{ dla }n\\ge 1\n    \\end{align}\n    \\end{cases}\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "wzór ogólny",
+      "elements": [
+        {
+          "type": "table",
+          "data": {
+            "header_row": true,
+            "header_col": false,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "\\(n\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(b_n\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(0\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(3\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(2+2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(4\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(2+2+2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(5\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(2+2+2+2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(6\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(2+2+2+2+2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "type": "text",
+          "body": "<p>Zauważ, że w każdym wyrazie dodajemy do siebie dwójki - i jest ich dodawanych o \\(1\\) mniej, niż indeks wyrazu, \\(n\\).</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Dlatego\n        </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n        b_n=2\\cdot(n-1)\\quad\\text{dla }n=1, 2, 3,\\dots\n        "
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Przykład</strong></p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n    \\begin{cases}\n    \\begin{align}\n    c_1&=1\\\\\n    c_n&=c_{n-1}+2n-1&\\text{ dla }n\\ge 2\n    \\end{align}\n    \\end{cases}\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "wzór ogólny",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Tym razem warto obliczyć kolejne wyrazy i zastanowić się, co dostajemy.</p>"
+        },
+        {
+          "type": "table",
+          "data": {
+            "header_row": false,
+            "header_col": true,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "\\(n\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(3\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(4\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(5\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(6\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(7\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(8\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(9\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(10\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(11\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(12\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(c_n\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(4\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(9\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(16\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(25\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(36\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(49\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(64\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(81\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(100\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(121\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(144\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "type": "text",
+          "body": "<p>Czy dostrzegasz zależność między numerem wyrazu \\(n\\) a wartością wyrazu \\(c_n\\)?</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Wartości wyrazów to kwadraty kolejnych liczb naturalnych. A dokładnie:\n        </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n        c_n=n^2\\quad\\text{dla }n=1, 2, 3,\\dots\n        "
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Przykład</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<em>Kolejny wyraz powstaje z pomnożenia poprzedniego przez numer wyrazu.</em>"
+    },
+    {
+      "type": "math",
+      "latex": "\n    \\begin{cases}\n    \\begin{align}\n    d_1&=1\\\\\n    d_n&=n\\cdot d_{n-1}&\\text{ dla }n\\ge 2\n    \\end{align}\n    \\end{cases}\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "wzór ogólny",
+      "elements": [
+        {
+          "type": "table",
+          "data": {
+            "header_row": true,
+            "header_col": false,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "\\(n\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(d_n\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(1\\cdot 2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(3\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(1\\cdot 2\\cdot 3\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(4\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(1\\cdot 2\\cdot 3\\cdot 4\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(5\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(1\\cdot 2\\cdot 3\\cdot 4\\cdot 5\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(6\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(1\\cdot 2\\cdot 3\\cdot 4\\cdot 5\\cdot 6\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "type": "text",
+          "body": "<p>Jak widzimy, wyraz o indeksie \\(n\\) to iloczyn kolejnych liczb naturalnych od \\(1\\) do \\(n\\). Czy wiesz, jak nazywamy taki iloczyn?</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Jeśli nie wiesz, nie martw się, to jeszcze przed Tobą.\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Taki iloczyn nazywamy <strong><a href=\"https://pl.wikipedia.org/wiki/Silnia\">silnią</a></strong> i zapisujemy:\n        </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n        d_n=n!\\quad\\text{dla }n=1, 2, 3,\\dots\n        "
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<h3>\n    Uwaga!\n</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Matematycy muszą być bardzo ostrożni w wyciąganiu wniosków z obserwacji. To, że wzór \"najwyraźniej\" działa dla trzech, czterech czy pięciu liczb, wcale nie oznacza, że będzie działał też dla szóstej.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<u>Uspokajam</u>: wszystkie wzory, jakie ustaliliśmy powyżej są poprawne. Wszystkie można udowodnić. Nie będziemy zajmować się tu dowodami, przestrzegam jedynie przed wyciąganiem wniosków z niewystarczających podstaw.\n</p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "Jeśli masz ochotę, zerknij na przykład, który pokazuje, jak łatwo można się pomylić.",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Problem okręgu Mosera (ang.</p>"
+        },
+        {
+          "type": "text",
+          "body": "<em>Moser's circle problem</em>"
+        },
+        {
+          "type": "text",
+          "body": "<p>) to następujące pytanie:</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n        Jeśli na okręgu zaznaczymy \\(n=1, 2, 3,\\dots\\) punktów i połączymy każdą parę punktó cięciwą, to na ile obszarów cięciwy podzielą koło?\n    </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/mosers_circle_problem.png",
+          "alt": "",
+          "figcaption": "źródło:Quentin Romero Lauro, Moser’s Circle Problem: False Induction and A Beautiful Solution. medium.com"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n        Okazuje się, że dla jednego, dwóch, trzech, czterech i pięciu punktów liczby obszarów tworzą bardzo ładny ciąg liczbowy - spójrz na rysunek wyżej.\n    </p>"
+        },
+        {
+          "type": "table",
+          "data": {
+            "header_row": false,
+            "header_col": true,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "punktów",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(3\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(4\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(5\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "obszarów",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(4\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(8\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(16\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "type": "text",
+          "body": "<p>\n        Jeśli \\(n\\) to liczba punktów na okręgu, to czy liczba obszarów jest po prostu potęgą dwójki, \\(2^{n-1}\\)?\n    </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n        Tak może się wydawać, ale tak nie jest. Po zaznaczeniu szóstego punktu i dorysowaniu wszystkich cięciw, okazuje się, że obszarów jest nie \\(32\\) (czyli \\(2^5\\)), lecz... \\(31\\).\n    </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/patterns_fool_ya.png",
+          "alt": "",
+          "figcaption": "źródło:3Blue1Brown, This pattern breaks, but for a good reason."
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "37ea7ac859e984e2d05637124d60b3f4f98a6a406112fbf1bfce70c09d7b3709"
+}

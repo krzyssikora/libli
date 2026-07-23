@@ -1,0 +1,281 @@
+{
+  "elements": [
+    {
+      "type": "spoiler",
+      "label": "dotychczas poznane wzory na pole trójkąta",
+      "elements": [
+        {
+          "type": "table",
+          "data": {
+            "header_row": true,
+            "header_col": false,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "wzór",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "dane",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "<strong>\n                            1.\n                        </strong>",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(P=\\frac{1}{2}ah\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(a\\) - podstawa, \\(h\\) - wysokość",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "<strong>\n                            2.\n                        </strong>",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(P=\\frac{1}{2}ab\\sin\\gamma\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(a\\), \\(b\\) - boki, \\(\\gamma\\) - kąt między nimi",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "<strong>\n                            3.\n                        </strong>",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(P=\\frac{abc}{4R}\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(a\\), \\(b\\), \\(c\\) - boki, \\(R\\) - promień okręgu opisanego",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "<strong>\n                            4.\n                        </strong>",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(P=\\sqrt{p(p-a)(p-b)(p-c)}\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(a\\), \\(b\\), \\(c\\) - boki, \\(p\\) - połowa obwodu trójkąta",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "<strong>\n                            5.\n                        </strong>",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(P=\\frac{1}{2}a^2\\cdot\\frac{\\sin\\beta\\cdot\\sin\\gamma}{\\sin\\alpha}\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(a\\) - bok, \\(\\beta\\), \\(\\gamma\\) - kąty przyległe, \\(\\alpha\\) - kąt naprzeciwległy",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "<strong>\n                            6.\n                        </strong>",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(P=pr\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(p\\) - połowa obwodu trójkąta, \\(r\\) - promień okręgu wpisanego",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Trójkąt o kątach wewnętrznych \\(\\alpha\\), \\(\\beta\\) i \\(\\gamma\\) wpisany jest w koło o promieniu \\(R\\).</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź wyrażenie opisujące pole trójkąta, \\(P\\).\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "image",
+          "media_src": "static/pole_trojkata_katy_R.png",
+          "alt": "pole trójkąta",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>Niech \\(a\\), \\(b\\) i \\(c\\) oznaczają długości boków przeciwległych do kątów \\(\\alpha\\), \\(\\beta\\) i \\(\\gamma\\) odpowiednio - jak na rysunku.</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Zacznijmy od wzoru\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\[\n                P=\\frac{1}{2}ab\\sin\\gamma\n                \\]\n                Z tego wzoru chcemy wyeliminować długości boków \\(a\\) i \\(b\\), a możemy wprowadzić długość promienia \\(R\\) i inne kąty.</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Dlatego skorzystamy z twierdzenia\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "Pitagorasa",
+            "sinusów",
+            "cosinusów"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Z twierdzenia sinusów:\n                \\[\n                \\frac{a}{\\sin\\alpha}=\\frac{b}{\\sin\\beta}=\\frac{c}{\\sin\\gamma}=2R\n                \\]\n                wnioskujemy, że\n                \\[\n                \\frac{a}{\\sin\\alpha}=2R\n                \\]\n                czyli\n                \\[\n                a=2R\\sin\\alpha\n                \\]</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Podobnie\n                    \n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(b=2R\\sin\\beta\\)",
+            "\\(b=2R\\sin\\gamma\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Podstawmy teraz</p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\(a=2R\\sin\\alpha\\quad\\) i \\(\\quad b=2R\\sin\\beta\\)\n                "
+        },
+        {
+          "type": "text",
+          "body": "<p>do wzoru\n                \\[\n                P=\\frac{1}{2}ab\\sin \\gamma\n                \\]</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Po uproszczeniu otrzymamy\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(P=R^2\\sin\\alpha\\cdot\\sin\\beta\\cdot\\sin\\gamma\\)",
+            "\\(P=2R\\sin\\alpha\\cdot\\sin\\beta\\cdot\\sin\\gamma\\)",
+            "\\(P=2R^2\\sin\\alpha\\cdot\\sin\\beta\\cdot\\sin\\gamma\\)"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "text",
+          "body": "<p>Otrzymaliśmy wzór na pole trójkąta w zależności od miar kątów wewnętrznych i promienia okręgu opisanego:\n                \\[\n                P=2R^2\\sin\\alpha\\cdot\\sin\\beta\\cdot\\sin\\gamma\n                \\]</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p>Trójkąt o kątach wewnętrznych \\(\\alpha\\), \\(\\beta\\) i \\(\\gamma\\) wpisany jest w koło o promieniu \\(R\\).</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Wówczas pole trójkąta \\(P\\) dane jest wzorem\n    </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n    P=2R^2\\sin\\alpha\\cdot\\sin\\beta\\cdot\\sin\\gamma\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Trójkąt równoramienny, którego jeden z kątów wewnętrznych ma miarę \\(120^{\\circ}\\), jest wpisany w koło o promieniu \\(4\\).</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Oblicz pole trójkąta.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Niby mamy dany tylko jeden kąt, ale dzięki temu, że trójkąt jest równoramienny, znamy wszyskie kąty.</p>"
+    },
+    {
+      "type": "fill_gate",
+      "stem": "\n            Poza danym kątem w trójkącie są jeszcze dwa kąty o mierze\n            <span>\n￿0￿\n</span>\n            stopni.\n        ",
+      "answers": [
+        [
+          "30"
+        ]
+      ]
+    },
+    {
+      "type": "fill_gate",
+      "stem": "\n            Ponieważ \\(\\sin 120^{\\circ}=\\sin 60^{\\circ}=\\frac{\\sqrt{3}}{2}\\), a\n            <span class=\"myequation\">\n                \\(\\sin 30^{\\circ}=\\)\n                <span>\n￿0￿\n</span>\n</span>\n            , mamy już wszystkie niezbędne dane i możemy je podstawić do wzoru:\n            \\[\n            P=2R^2\\sin\\alpha\\cdot\\sin\\beta\\cdot\\sin\\gamma\n            \\]\n        ",
+      "answers": [
+        [
+          "1/2"
+        ]
+      ]
+    },
+    {
+      "type": "fill_gate",
+      "stem": "\n            \\[\n            P=2\\cdot 4^2\\sin 30^{\\circ}\\cdot\\sin 30^{\\circ}\\cdot\\sin 120^{\\circ}\n            \\]\n            czyli\n            \\[\n            P=2\\cdot 4^2\\cdot \\frac{1}{2}\\cdot\\frac{1}{2}\\cdot\\frac{\\sqrt{3}}{2}\n            \\]\n            i dlatego\n            <span class=\"myequation\">\n                \\(P=\\)\n                <span>\n￿0￿\n</span>\n                \\(\\sqrt{3}\\)\n            </span>\n            .\n        ",
+      "answers": [
+        [
+          "4"
+        ]
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "e4b0df212cb6e94ac68d1aba36903687fc7ed6e7257adb5370097f11f68120c5"
+}

@@ -1,0 +1,18 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<h1>\n    Twierdzenie Talesa\n</h1>"
+    },
+    {
+      "type": "text",
+      "body": "\n        w tej lekcji\n    "
+    },
+    {
+      "type": "text",
+      "body": "<ol>\n<li>\n<a href=\"#twierdzenie_Talesa\">\n                Sformułowanie twierdzenia Talesa\n            </a>\n</li>\n<li>\n<a href=\"#zastosowanie_twierdzenie_Talesa\">\n                Zastosowanie twierdzenia Talesa\n            </a>\n</li>\n<li>\n<a href=\"#twierdzenie_odwrotne_do_Talesa\">\n                Twierdzenie odwrotne do twierdzenia Talesa\n            </a>\n</li>\n</ol>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "9058a18fb763140516c52101b42dab9f94ca7d01bd13539357b77a6d123926b8"
+}

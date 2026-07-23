@@ -1,0 +1,238 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Przedstaw wielomiany jako iloczyny dwóch czynników wyjmując wspólny czynnik przed nawias.\n    "
+    },
+    {
+      "type": "text",
+      "body": "\n<hr/>\n            \\((-3x^{3}-3)(4x)+(5x^{3}+5x^{2}+3x-1)(4x)\\)\n        "
+    },
+    {
+      "type": "spoiler",
+      "label": "zobacz",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\((4x)(2x^{3}+5x^{2}+3x-4)\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "\n<hr/>\n            \\((-x^{3}-x)(3x-2)+(-3x^{3}+2x^{2}+6)(2-3x)\\)\n        "
+    },
+    {
+      "type": "spoiler",
+      "label": "zobacz",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\((3x-2)(2x^{3}-2x^{2}-x-6)\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "\n<hr/>\n            \\((2-5x)(-4)-(-3x^{3}-3x^{2}+6x-1)(2-5x)\\)\n        "
+    },
+    {
+      "type": "spoiler",
+      "label": "zobacz",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\((5x-2)(-3x^{3}-3x^{2}+6x+3)\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "\n<hr/>\n            \\((8x+5)(-2x^{3}-x^{2}+2x-3)+(8x+5)(6x^{3}-3x)\\)\n        "
+    },
+    {
+      "type": "spoiler",
+      "label": "zobacz",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\((8x+5)(4x^{3}-x^{2}-x-3)\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "\n<hr/>\n            \\((4-5x)(-2x^{3}-3x^{2}+6x)+(-4x^{2})(4-5x)-(4-5x)(-x^{3}-x^{2}-4)\\)\n        "
+    },
+    {
+      "type": "spoiler",
+      "label": "zobacz",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\((5x-4)(x^{3}+6x^{2}-6x-4)\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "\n<hr/>\n            \\((8x+4)(-x^{3}-4x^{2}-2x)-(-8x-4)(5x^{3}+2x^{2}-2x+6)-(8x+4)(5x^{2})\\)\n        "
+    },
+    {
+      "type": "spoiler",
+      "label": "zobacz",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\((8x+4)(4x^{3}-7x^{2}-4x+6)\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "\n<hr/>\n            \\((3x^{2}-3x)(5x-2)-(2-5x)(-2x^{3}+6x)+(2-5x)(-x^{2})\\)\n        "
+    },
+    {
+      "type": "spoiler",
+      "label": "zobacz",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\((5x-2)(-2x^{3}+4x^{2}+3x)\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "\n<hr/>\n            \\((6x+2)(5-8x)-(6x^{3}+2x-3)(5-8x)+(-x^{2}+5x+3)(8x-5)\\)\n        "
+    },
+    {
+      "type": "spoiler",
+      "label": "zobacz",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\((8x-5)(6x^{3}-x^{2}+x-2)\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "\n<hr/>\n            \\((2x+1-3x^{2})()-(-x^{3}+5x+3)(2x+1-3x^{2})\\)\n        "
+    },
+    {
+      "type": "spoiler",
+      "label": "zobacz",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\((3x^{2}-2x-1)(-x^{3}+5x+3)\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "\n<hr/>\n            \\((2x+6-6x^{2})(-2x^{3}-x^{2}+3)-(2x^{3}+2x^{2}+2)(6x^{2}-2x-6)\\)\n        "
+    },
+    {
+      "type": "spoiler",
+      "label": "zobacz",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\((6x^{2}-2x-6)(-x^{2}-5)\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "\n<hr/>\n            \\((2x^{2}-6x-3)(2x^{3}+3x^{2}-3)+(-x^{3}+6x^{2})(2x^{2}-6x-3)\\)\n        "
+    },
+    {
+      "type": "spoiler",
+      "label": "zobacz",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\((2x^{2}-6x-3)(x^{3}+9x^{2}-3)\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "\n<hr/>\n            \\((-4x^{3}-4x)(x+4-4x^{2})+(4x^{2}-x-4)(5x^{3}-3x)\\)\n        "
+    },
+    {
+      "type": "spoiler",
+      "label": "zobacz",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\((4x^{2}-x-4)(9x^{3}+x)\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "\n<hr/>\n            \\((7x^{2}-4x-6)(-x^{2}-4x+6)-(7x^{2}-4x-6)(2x^{3}-x^{2}+6x)+(4x+6-7x^{2})(2x^{3}-4x^{2}-x-3)\\)\n        "
+    },
+    {
+      "type": "spoiler",
+      "label": "zobacz",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\((7x^{2}-4x-6)(-4x^{3}+4x^{2}-9x+9)\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "\n<hr/>\n            \\((7x^{2}-6x)(6x^{2}-4x-4)+()(6x-7x^{2})-(7x^{2}-6x)(6x^{3}+3x-3)\\)\n        "
+    },
+    {
+      "type": "spoiler",
+      "label": "zobacz",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\((7x^{2}-6x)(-6x^{3}+6x^{2}-7x-1)\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "\n<hr/>\n            \\((5x+3)(7x^{2}-1)+(-2x^{3}+2x-1)(1-7x^{2})+(7x^{2}-1)(-2x^{3}-x+6)\\)\n        "
+    },
+    {
+      "type": "spoiler",
+      "label": "zobacz",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\((7x^{2}-1)(2x+10)\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "\n<hr/>\n            \\((2x^{2}-2x-2)(3x^{3}+5)+(2x+2-2x^{2})(-3x^{3})+(2x^{2}-2x-2)(-4x^{3}-2x^{2}-3x+2)\\)\n        "
+    },
+    {
+      "type": "spoiler",
+      "label": "zobacz",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\((2x^{2}-2x-2)(2x^{3}-2x^{2}-3x+7)\\)</p>"
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "ec816111f7a84f5b998310fce6f951a71a69b9d41c93064c255a6401b54f35f6"
+}

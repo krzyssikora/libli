@@ -1,0 +1,46 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "\n    Suma algebraiczna to suma pewnej liczby wyrazów algebraicznych, np.\n                                                                                        \\[\n                                                                                        3x^2y+2xy^3-6xy\n                                                                                        \\]\n"
+    },
+    {
+      "type": "text",
+      "body": "<strong style=\"color: red\">\n    Uwaga!\n</strong>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Różnica, to... także suma.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Na przykład: różnica wyrazu \\(a\\) i wyrazu \\(b\\):\n    </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n                                                                                        a-b\n                                                                                        "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        to nic innego jak suma wyrazu \\(a\\) i wyrazu przeciwnego do \\(b\\):\n    </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n                                                                                        a+(-b)\n                                                                                        "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Suma na górze strony jest przedstawiona w najprostszej postaci. Oznacza to, że\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n        wszystkie wyrazy są\n        <strong>\n            uproszczone\n        </strong>\n</li>\n<li>\n        wyrazy podobne są\n        <strong>\n            zredukowane\n        </strong>\n</li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    O upraszczaniu wyrazów już się uczyliśmy. Czas na kilka słów o\n    <strong>\n        redukcji wyrazów podobnych\n    </strong>\n    .\n</p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "6f99a42b493e735a9e91bc97eb49d97bc04fa4d5ff858a4a75fb0c981ea30957"
+}

@@ -1,0 +1,112 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Następujące zdania logiczne:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n        Dziś jest środa.\n    </li>\n<li>\n        Pójdę do kina.\n    </li>\n<li>\n        Pada deszcz.\n    </li>\n<li>\n        \\(x\\lt 10\\)\n    </li>\n<li>\n        Pójdę do teatru.\n    </li>\n<li>\n        \\(x\\gt 2\\)\n    </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    są zdaniami bardzo prostymi. Możemy zbudować z nich zdania bardziej złożone, np.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<em>\n            Pójdę do kina\n        </em>\n<span style=\"color: red;\">\n            lub\n        </span>\n<em>\n            pójdę do teatru.\n        </em>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        \\(x\\lt 10\\quad\\)\n        <span style=\"color: red;\">\n            i\n        </span>\n        \\(\\quad x\\gt 2\\)\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<span style=\"color: red;\">\n            Jeśli\n        </span>\n        dziś środa\n        <span style=\"color: red;\">\n            to\n        </span>\n        pójdę do kina.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Pójdę do kina\n        <span style=\"color: red;\">\n            wtedy i tylko wtedy jeśli\n        </span>\n        pójdę do teatru.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Powyższe przykłady zdań złożonych ilustrują następujące rodzaje takich zdań.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Zdanie złożone z połączenia innych zdań spójnikiem \"\n        <strong>\n            lub\n        </strong>\n        \" nazywamy\n        <strong>\n            alternatywą\n        </strong>\n        .\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Jeśli \\(p\\) i \\(q\\) to zdania logiczne, to zamiast pisać \"\\(p\\) lub \\(q\\)\" zapisujemy to symbolicznie \"\n        <span class=\"fbox\">\n            \\(p\\vee q\\)\n        </span>\n        \".\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Zdanie złożone z połączenia innych zdań spójnikiem \"\n        <strong>\n            i\n        </strong>\n        \" nazywamy\n        <strong>\n            koniunkcją\n        </strong>\n        .\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Jeśli \\(p\\) i \\(q\\) to zdania logiczne, to zamiast pisać \"\\(p\\) i \\(q\\)\" zapisujemy to symbolicznie \"\n        <span class=\"fbox\">\n            \\(p\\wedge q\\)\n        </span>\n        \".\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Jeśli \\(p\\) i \\(q\\) to zdania logiczne, to zdanie ułożone według schematu \"\n        <strong>\n            jeśli\n        </strong>\n        \\(p\\)\n        <strong>\n            to\n        </strong>\n        \\(q\\)\" nazywamy\n        <strong>\n            implikacją\n        </strong>\n        .\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Wówczas zamiast pisać \"jeśli \\(p\\) to \\(q\\)\" zapisujemy to symbolicznie \"\n        <span class=\"fbox\">\n            \\(p\\Rightarrow q\\)\n        </span>\n        \"\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Zdanie \\(p\\) nazywamy\n        <u>\n            poprzednikiem implikacji\n        </u>\n        , a zdanie \\(q\\)\n        <u>\n            następnikiem implikacji\n        </u>\n        .\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Jeśli \\(p\\) i \\(q\\) to zdania logiczne, to zdanie ułożone według schematu \"\\(p\\)\n        <strong>\n            wtedy i tylko wtedy, gdy\n        </strong>\n        \\(q\\)\" nazywamy\n        <strong>\n            równoważnością\n        </strong>\n        .\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Wówczas zamiast pisać \"\\(p\\) wtedy i tylko wtedy, gdy \\(q\\)\" zapisujemy to symbolicznie \"\n        <span class=\"fbox\">\n            \\(p\\Leftrightarrow q\\)\n        </span>\n        \"\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>\n        Przykład\n    </strong>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Przeczytaj następujące zdanie i powiedz, czy jest prawdziwe.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Następnie sprawdź swoją odpowiedź.\n        </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n        ((x\\gt 5)\\wedge(x = 5))\\Leftrightarrow (x\\ge 5)\n        "
+    },
+    {
+      "type": "spoiler",
+      "label": "Rozwiązanie - zobacz",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n            Przeczytane zdanie powinno brzmieć mniej-więcej tak:\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<blockquote class=\"centered\">\n            Liczba jest większa od 5 lub równa 5 wtedy i tylko wtedy, gdy jest większa lub równa 5.\n        </blockquote>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Gdy je przeczytać, łatwo stwierdzić, że jest prawdziwe, bo relacja \"bycia większą lub równą\" (liczbą) jest równoważna byciu większą lub byciu równą.\n        </p>"
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "40851e38ad64e3e80e5cbac665a1197874f02434a3dd0a6e56fb4f8eaa4de0a2"
+}

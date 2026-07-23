@@ -1,0 +1,263 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Sposoby szkicowania wykresu funkcji homograficznej:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ol class=\"bold\">\n<li>\n        przez zamianę postaci równania na \\(y=\\frac{A}{x-p}+q\\)\n    </li>\n<li>\n        przez analizę współczynników równania\n    </li>\n</ol>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Czas na drugi sposób.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<h3>\n    Analiza współczynników równania\n</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Funkcja \\(y=f(x)\\) jest dana równaniem</p>"
+    },
+    {
+      "type": "text",
+      "body": "\\[\n        f(x)=\\frac{4x-2}{2x+3}, quad x\\ne -\\tfrac{3}{2}\n        \\]"
+    },
+    {
+      "type": "text",
+      "body": "<p>Naszkicuj wykres tej funkcji.</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Zrobimy to w pięciu krokach:</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ol class=\"bold\">\n<li>\n            znajdziemy współrzędne punktu, w którym wykres przecina oś OX,\n        </li>\n<li>\n            znajdziemy współrzędne punktu, w którym wykres przecina oś OY,\n        </li>\n<li>\n            znajdziemy położenie asymptoty pionowej,\n        </li>\n<li>\n            znajdziemy położenie asymptoty poziomej,\n        </li>\n<li>\n            zaznaczymy wszystko powyższe w układzie współrzędnych i naszkicujemy wykres. \n        </li>\n</ol>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Jeśli wiesz, jak wykonać samodzielnie którykolwiek krok - pomiń go i przejdź do następnego.\n    </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "1punkt przecięcia wykresu z osią OX",
+      "elements": [
+        {
+          "type": "switch_gate",
+          "stem": "\n                        Punkt przecięcia wykresu z osią OX to taki punkt wykresu, którego współrzędna \n                        \n\n\n￿0￿\n                         jest równa \\(0\\).\n                    ",
+          "options": [
+            "\\(x\\)-owa",
+            "\\(y\\)-owa"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                        Zgadza się, punkt na osi OX jest wsdkazany przez miejsce zerowe. Obliczmy więc\n                    </p>"
+        },
+        {
+          "type": "text",
+          "body": "\\[\n                    \\frac{4x-2}{2x+3}=0\n                    \\]"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                        skąd wynika\n                        \n\n\n\n￿0￿.\n                    ",
+          "options": [
+            "\\(4x-2=0\\)",
+            "\\(2x+3=0\\)",
+            "\\(4x-2=2x-3\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                        A to oznacza, że\n                        \n\n\n\n￿0￿.\n                    ",
+          "options": [
+            "\\(x=2\\)",
+            "\\(x=-\\tfrac{1}{2}\\)",
+            "\\(x=\\tfrac{1}{2}\\)"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "text",
+          "body": "<p>Punkt przecięcia wykresu z osią OK ma współrzędne \\(\\left(\\tfrac{1}{2},0\\right)\\).</p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/homograficzna_zadanie_2_1.png",
+          "alt": "",
+          "figcaption": ""
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "2punkt przecięcia wykresu z osią OY",
+      "elements": [
+        {
+          "type": "switch_gate",
+          "stem": "\n                        Punkt przecięcia wykresu z osią OY to taki punkt wykresu, którego współrzędna \n                        \n\n\n￿0￿\n                         jest równa \\(0\\).\n                    ",
+          "options": [
+            "\\(x\\)-owa",
+            "\\(y\\)-owa"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                        POdstawmy więc \\(x=0\\) do równania funkcji:\n                    </p>"
+        },
+        {
+          "type": "text",
+          "body": "\\[\n                    y=\\frac{4\\cdot 0-2}{2\\cdot 0+3}\n                    \\]"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                        A to oznacza, że\n                        \n\n\n\n￿0￿.\n                    ",
+          "options": [
+            "\\(y=\\tfrac{2}{5}\\)",
+            "\\(y=-\\tfrac{2}{3}\\)",
+            "\\(y=\\tfrac{2}{3}\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Punkt przecięcia wykresu z osią OY ma współrzędne \\(\\left(0, -\\tfrac{2}{3}\\right)\\).</p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/homograficzna_zadanie_2_2.png",
+          "alt": "",
+          "figcaption": ""
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "3asymptota pionowa",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                        Zauważmy, że asymptota pionowa hiperboli jest prostą pionową poprowadzoną przez \\(x\\), dla którego funkcja nie ma wartości.\n                    </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                        Jest to ta wartość \\(x\\), dla której ułamek w równaniu funkcji, \\(\\frac{4x-2}{2x+3}\\), nie jest określony.\n                    </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                        Dlatego równanie asymptoty pionowej to\n                        \n\n\n\n\n￿0￿.\n                    ",
+          "options": [
+            "\\(x=-\\tfrac{3}{2}\\)",
+            "\\(x=\\tfrac{1}{2}\\)",
+            "\\(x=\\tfrac{3}{2}\\)",
+            "\\(y=-\\tfrac{3}{2}\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Asymptota pionowa to prosta o równaniu \\(x=-\\tfrac{3}{2}\\).</p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/homograficzna_zadanie_2_3.png",
+          "alt": "",
+          "figcaption": ""
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "4asymptota pozioma",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                        Asymptota pozioma to prosta na takiej wysokości, do jakiej coraz bliższe są wartości funkcji \\(y\\), gdy \\(x\\)-y stają się bardzo duże. (Albo bardzo małe - ale w znaczeniu: ujemne o dużej wartości bezwzględnej.)\n                    </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                        W poniższym aplecie możesz wpisywać różne wartości \\(x\\), by zobaczyć, jaka będzie wartość funkcji, \\(y\\). Wpisuj coraz większe wartości (albo \"coraz bardziej ujemne\"). Co dzieje się z \\(y\\)-ami? Co obserwujesz?\n                    </p>"
+        },
+        {
+          "type": "iframe",
+          "url": "https://www.geogebra.org/material/iframe/id/fw8yxg5e/width/534/height/247/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+          "title": ""
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                        Im większa wartość \\(x\\), tym wartość \\(y\\) jest\n                        \n\n\n\n\n￿0￿.\n                    ",
+          "options": [
+            "większa",
+            "mniejsza",
+            "bliższa \\(2\\)",
+            "bliższa \\(0\\)"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                        Rzeczywiście, przeanalizujmy to razem. Gdy podstawiamy dużą wartość \\(x\\), na przykład <strong>miliard</strong>, do równania funkcji, otrzymujemy:\n                    </p>"
+        },
+        {
+          "type": "text",
+          "body": "\\[\n                    \\frac{\\color{red}{4}\\color{orange}{\\cdot(\\,\\text{miliard})}\\color{blue}{-2}}{\\color{red}{2}\\color{orange}{\\cdot(\\,\\text{miliard})}\\color{blue}{+3}}\n                    \\]"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                        Zauważ, że niebieskie \\(\\color{blue}{-2}\\) oraz \\color{blue}{+3} są bardzo niewielkie w porównaniu z czerwonymi liczbami. Im większa wartość \\(x\\), tym bardziej są <strong>nieznaczące</strong>. Stąd przybliżona wartość \\(y\\) to\n                    </p>"
+        },
+        {
+          "type": "text",
+          "body": "\\[\n                    \\approx\\frac{\\color{red}{4}\\color{orange}{\\cdot(\\,\\text{miliard})}}{\\color{red}{2}\\color{orange}{\\cdot(\\,\\text{miliard})}}=\n                    \\frac{\\color{red}{4}}{\\color{red}{2}}=2\n                    \\]"
+        },
+        {
+          "type": "text",
+          "body": "<p>Dlatego asymptota pozioma to prosta o równaniu \\(y=2\\).</p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/homograficzna_zadanie_2_4.png",
+          "alt": "",
+          "figcaption": ""
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "5wykres",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                Najpierw narysujmy krzywą pod asymptotą poziomą i w prawo od pionowej tak, by przechodziła przez dwa zaznaczone punkty i zbliżała się do asymptot.\n             </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/homograficzna_zadanie_2_5.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                 Na zakończeniem rysujemy krzywą nad asymptotą poziomą i w lewo od pionowej - symetryczną do tej pierwszej w punkcie przecięcia asymptot.\n             </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/homograficzna_zadanie_2_6.png",
+          "alt": "",
+          "figcaption": ""
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "3d6a8f775c2d55c7f05cb284838f0c514d466be8e15ca833b50f351b17bd200f"
+}

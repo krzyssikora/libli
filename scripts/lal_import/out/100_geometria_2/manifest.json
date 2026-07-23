@@ -1,0 +1,333 @@
+{
+  "part": {
+    "source_folder": "100_geometria_2",
+    "order": 14,
+    "title": "geometria 2"
+  },
+  "chapters": [
+    {
+      "order": 0,
+      "title": "__PLACEHOLDER chapter 1__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "010_twierdzenie_sinusow.json",
+          "source_html": "010_twierdzenie_sinusow.html",
+          "source_dir": "100_geometria_2",
+          "unit_type": "lesson",
+          "title": "Twierdzenie sinusów"
+        },
+        {
+          "order": 1,
+          "unit_json": "020_twierdzenie_sinusow.json",
+          "source_html": "020_twierdzenie_sinusow.html",
+          "source_dir": "100_geometria_2",
+          "unit_type": "lesson",
+          "title": "Ćwiczenia 1"
+        },
+        {
+          "order": 2,
+          "unit_json": "030_twierdzenie_sinusow.json",
+          "source_html": "030_twierdzenie_sinusow.html",
+          "source_dir": "100_geometria_2",
+          "unit_type": "lesson",
+          "title": "Ćwiczenia 2"
+        },
+        {
+          "order": 3,
+          "unit_json": "040_twierdzenie_sinusow.json",
+          "source_html": "040_twierdzenie_sinusow.html",
+          "source_dir": "100_geometria_2",
+          "unit_type": "lesson",
+          "title": "Dowód twierdzenia sinusów"
+        },
+        {
+          "order": 4,
+          "unit_json": "049_twierdzenie_sinusow_quiz.json",
+          "source_html": "049_twierdzenie_sinusow_quiz.html",
+          "source_dir": "100_geometria_2",
+          "unit_type": "quiz",
+          "title": "twierdzenie sinusow quiz"
+        }
+      ]
+    },
+    {
+      "order": 1,
+      "title": "__PLACEHOLDER chapter 2__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "050_twierdzenie_cosinusow.json",
+          "source_html": "050_twierdzenie_cosinusow.html",
+          "source_dir": "100_geometria_2",
+          "unit_type": "lesson",
+          "title": "Twierdzenie cosinusów"
+        },
+        {
+          "order": 1,
+          "unit_json": "060_twierdzenie_cosinusow.json",
+          "source_html": "060_twierdzenie_cosinusow.html",
+          "source_dir": "100_geometria_2",
+          "unit_type": "lesson",
+          "title": "Ćwiczenia 1"
+        },
+        {
+          "order": 2,
+          "unit_json": "070_twierdzenie_cosinusow.json",
+          "source_html": "070_twierdzenie_cosinusow.html",
+          "source_dir": "100_geometria_2",
+          "unit_type": "lesson",
+          "title": "Ćwiczenia 2"
+        },
+        {
+          "order": 3,
+          "unit_json": "080_twierdzenie_cosinusow.json",
+          "source_html": "080_twierdzenie_cosinusow.html",
+          "source_dir": "100_geometria_2",
+          "unit_type": "lesson",
+          "title": "Twierdzenie sinusów czy cosinusów?"
+        },
+        {
+          "order": 4,
+          "unit_json": "090_twierdzenie_cosinusow.json",
+          "source_html": "090_twierdzenie_cosinusow.html",
+          "source_dir": "100_geometria_2",
+          "unit_type": "lesson",
+          "title": "Zadania"
+        },
+        {
+          "order": 5,
+          "unit_json": "095_twierdzenie_cosinusow.json",
+          "source_html": "095_twierdzenie_cosinusow.html",
+          "source_dir": "100_geometria_2",
+          "unit_type": "lesson",
+          "title": "Dowód twierdzenia cosinusów"
+        },
+        {
+          "order": 6,
+          "unit_json": "099_twierdzenie_cosinusow_quiz.json",
+          "source_html": "099_twierdzenie_cosinusow_quiz.html",
+          "source_dir": "100_geometria_2",
+          "unit_type": "quiz",
+          "title": "twierdzenie cosinusow quiz"
+        }
+      ]
+    },
+    {
+      "order": 2,
+      "title": "__PLACEHOLDER chapter 3__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "100_pole.json",
+          "source_html": "100_pole.html",
+          "source_dir": "100_geometria_2",
+          "unit_type": "lesson",
+          "title": "Pole figury"
+        },
+        {
+          "order": 1,
+          "unit_json": "110_pole.json",
+          "source_html": "110_pole.html",
+          "source_dir": "100_geometria_2",
+          "unit_type": "lesson",
+          "title": "Pole figury"
+        },
+        {
+          "order": 2,
+          "unit_json": "120_pole_trojkata.json",
+          "source_html": "120_pole_trojkata.html",
+          "source_dir": "100_geometria_2",
+          "unit_type": "lesson",
+          "title": "Pole trójkąta"
+        },
+        {
+          "order": 3,
+          "unit_json": "130_pole_trojkata.json",
+          "source_html": "130_pole_trojkata.html",
+          "source_dir": "100_geometria_2",
+          "unit_type": "lesson",
+          "title": "Pole trójkąta (kąt-bok-kąt)"
+        },
+        {
+          "order": 4,
+          "unit_json": "140_pole_trojkata.json",
+          "source_html": "140_pole_trojkata.html",
+          "source_dir": "100_geometria_2",
+          "unit_type": "lesson",
+          "title": "Pole trójkąta (boki i promień okręgu opisanego)"
+        },
+        {
+          "order": 5,
+          "unit_json": "150_pole_trojkata.json",
+          "source_html": "150_pole_trojkata.html",
+          "source_dir": "100_geometria_2",
+          "unit_type": "lesson",
+          "title": "Pole trójkąta (bok-bok-bok)"
+        },
+        {
+          "order": 6,
+          "unit_json": "160_pole_trojkata.json",
+          "source_html": "160_pole_trojkata.html",
+          "source_dir": "100_geometria_2",
+          "unit_type": "lesson",
+          "title": "Ćwiczenia"
+        },
+        {
+          "order": 7,
+          "unit_json": "170_pole_trojkata.json",
+          "source_html": "170_pole_trojkata.html",
+          "source_dir": "100_geometria_2",
+          "unit_type": "lesson",
+          "title": "Pole trójkąta (kąt-bok-kąt)"
+        },
+        {
+          "order": 8,
+          "unit_json": "180_pole_trojkata.json",
+          "source_html": "180_pole_trojkata.html",
+          "source_dir": "100_geometria_2",
+          "unit_type": "lesson",
+          "title": "Ćwiczenia"
+        },
+        {
+          "order": 9,
+          "unit_json": "190_pole_trojkata.json",
+          "source_html": "190_pole_trojkata.html",
+          "source_dir": "100_geometria_2",
+          "unit_type": "lesson",
+          "title": "Pole trójkąta (boki i promień okręgu wpisanego)"
+        },
+        {
+          "order": 10,
+          "unit_json": "200_pole_trojkata.json",
+          "source_html": "200_pole_trojkata.html",
+          "source_dir": "100_geometria_2",
+          "unit_type": "lesson",
+          "title": "Ćwiczenia"
+        },
+        {
+          "order": 11,
+          "unit_json": "210_pole_trojkata.json",
+          "source_html": "210_pole_trojkata.html",
+          "source_dir": "100_geometria_2",
+          "unit_type": "lesson",
+          "title": "Pole trójkąta (kąty i promień okręgu opisanego)"
+        },
+        {
+          "order": 12,
+          "unit_json": "220_pole_trojkata.json",
+          "source_html": "220_pole_trojkata.html",
+          "source_dir": "100_geometria_2",
+          "unit_type": "lesson",
+          "title": "Inne wzory na pole trójkąta"
+        },
+        {
+          "order": 13,
+          "unit_json": "229_pole_trojkata_quiz.json",
+          "source_html": "229_pole_trojkata_quiz.html",
+          "source_dir": "100_geometria_2",
+          "unit_type": "quiz",
+          "title": "pole trojkata quiz"
+        }
+      ]
+    },
+    {
+      "order": 3,
+      "title": "__PLACEHOLDER chapter 4__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "230_pole_trojkata.json",
+          "source_html": "230_pole_trojkata.html",
+          "source_dir": "100_geometria_2",
+          "unit_type": "lesson",
+          "title": "Skala podobieństwa a pola figur podobnych"
+        },
+        {
+          "order": 1,
+          "unit_json": "240_pole_trojkata.json",
+          "source_html": "240_pole_trojkata.html",
+          "source_dir": "100_geometria_2",
+          "unit_type": "lesson",
+          "title": "Pola trójkątów podobnych: skala podobieństwa"
+        },
+        {
+          "order": 2,
+          "unit_json": "250_pole_trojkata.json",
+          "source_html": "250_pole_trojkata.html",
+          "source_dir": "100_geometria_2",
+          "unit_type": "lesson",
+          "title": "Pola trójkątów podobnych"
+        },
+        {
+          "order": 3,
+          "unit_json": "259_pole_trojkata_quiz.json",
+          "source_html": "259_pole_trojkata_quiz.html",
+          "source_dir": "100_geometria_2",
+          "unit_type": "quiz",
+          "title": "pole trojkata quiz"
+        }
+      ]
+    },
+    {
+      "order": 4,
+      "title": "__PLACEHOLDER chapter 5__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "260_kolo_okrag.json",
+          "source_html": "260_kolo_okrag.html",
+          "source_dir": "100_geometria_2",
+          "unit_type": "lesson",
+          "title": "Koło i okrąg"
+        },
+        {
+          "order": 1,
+          "unit_json": "270_kolo_okrag.json",
+          "source_html": "270_kolo_okrag.html",
+          "source_dir": "100_geometria_2",
+          "unit_type": "lesson",
+          "title": "Ćwiczenie"
+        },
+        {
+          "order": 2,
+          "unit_json": "280_kolo_okrag.json",
+          "source_html": "280_kolo_okrag.html",
+          "source_dir": "100_geometria_2",
+          "unit_type": "lesson",
+          "title": "Wycinek koła"
+        },
+        {
+          "order": 3,
+          "unit_json": "290_kolo_okrag.json",
+          "source_html": "290_kolo_okrag.html",
+          "source_dir": "100_geometria_2",
+          "unit_type": "lesson",
+          "title": "Ćwiczenia"
+        },
+        {
+          "order": 4,
+          "unit_json": "299_kolo_okrag_quiz.json",
+          "source_html": "299_kolo_okrag_quiz.html",
+          "source_dir": "100_geometria_2",
+          "unit_type": "quiz",
+          "title": "kolo okrag quiz"
+        }
+      ]
+    },
+    {
+      "order": 5,
+      "title": "__PLACEHOLDER chapter 6__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "300_pole_trojkata_kolo.json",
+          "source_html": "300_pole_trojkata_kolo.html",
+          "source_dir": "100_geometria_2",
+          "unit_type": "lesson",
+          "title": "Pole trójkąta, koło, wycinek - podsumowanie"
+        }
+      ]
+    }
+  ]
+}

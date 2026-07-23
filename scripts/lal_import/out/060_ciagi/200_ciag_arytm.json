@@ -1,0 +1,194 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Przypomnijmy:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<strong>Ciąg arytmetyczny</strong>"
+    },
+    {
+      "type": "text",
+      "body": "<p>to taki ciąg \\((a_n)\\), w którym różnica:\n    \\[\n    a_n-a_{n-1}=r\n    \\]\n    jest stała dla \\(n=2, 3, 4, \\dots\\)</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Wzór ogólny na \\(n\\)-ty wyraz ciągu to\n    </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n    a_n=a_1+(n-1)r\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Rozwiążmy teraz zadanie, z którego potem wyciągniemy kolejne wnioski. \n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Dwunasty wyraz ciągu arytmetycznego to \\(15\\), a dwudziesty wyraz tego ciągu jest równy \\(-1\\).</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź <u>różnicę</u> i <u>pierwszy wyraz</u> tego ciągu.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<h4>rozwiązanie</h4>"
+    },
+    {
+      "type": "tabs",
+      "tabs": [
+        {
+          "id": "t000000",
+          "label": "nagranie",
+          "elements": [
+            {
+              "type": "text",
+              "body": "<p>\n<u>równania</u>\n</p>"
+            },
+            {
+              "type": "video",
+              "media_src": "static/arytmetyczny_an_ak_1.mp4"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n<u>nowy wzór</u>\n</p>"
+            },
+            {
+              "type": "video",
+              "media_src": "static/arytmetyczny_an_ak_2.mp4"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n<u>rozwiązanie</u>\n</p>"
+            },
+            {
+              "type": "video",
+              "media_src": "static/arytmetyczny_an_ak_3.mp4"
+            }
+          ]
+        },
+        {
+          "id": "t000001",
+          "label": "krok po kroku",
+          "elements": [
+            {
+              "type": "text",
+              "body": "<p>Skorzystamy teraz dwukrotnie ze wzoru:\n                    \\[\n                    a_n=a_1+(n-1)r\n                    \\]</p>"
+            },
+            {
+              "type": "text",
+              "body": "<p>Dla \\(a_{20}=-1\\) mamy: \\(-1=a_1+19r\\).</p>"
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                            Dla \\(a_{12}=15\\) mamy: \n                            \n\n\n￿0￿.\n                        ",
+              "options": [
+                "\\(15=a_1+12r\\)",
+                "\\(15=a_1+11r\\)"
+              ],
+              "answer": 1
+            },
+            {
+              "type": "text",
+              "body": "<p>Otrzymaliśmy dwa równania\n                        \\[\n                        \\begin{cases}\n                        \\begin{align}\n                        a_1+19r&=-1\\\\\n                        a_1+11r&=15\n                        \\end{align}\n                        \\end{cases}\n                        \\]\n                        Aby rozwiązać taki układ równań, najpierw pomnożymy drugie równanie przez \\((-1)\\):\n                        \\[\n                        \\begin{cases}\n                        \\begin{align}\n                        a_1+19r&=-1\\\\\n                        -a_1-11r&=-15\n                        \\end{align}\n                        \\end{cases}\n                        \\]</p>"
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                            i teraz dodając równania stronami dostajemy\n                            \n\n\n\n￿0￿.\n                        ",
+              "options": [
+                "\\(30r=-16\\)",
+                "\\(8r=-16\\)",
+                "\\(8r=14\\)"
+              ],
+              "answer": 1
+            },
+            {
+              "type": "text",
+              "body": "<p>Wyliczenie \\(r\\) jest teraz bardzo proste (\\(8r=-16\\), więc \\(r=-2\\)), ale ciekawsze jest samo równanie \\(8r=-16\\). Przeanalizujmy, skąd je wzieliśmy.</p>"
+            },
+            {
+              "type": "text",
+              "body": "<ul class=\"nolist\">\n<li>\n                                Lewa strona: \\(8r=(20-1)r-(12-1)r\\) albo inaczej \\(8r=20r-12r\\)\n                            </li>\n<li>\n                                Prawa strone: \\(-16=-1-15\\), czyli \\(-16=a_{20}-a_{12}\\)\n                            </li>\n</ul>"
+            },
+            {
+              "type": "text",
+              "body": "<p>Podsumowując:\n                        \\[\n                        a_{20}-a_{12}=20r-12r\n                        \\]\n                        albo\n                        \\[\n                        a_{20}-a_{12}=(20-12)r\n                        \\]</p>"
+            },
+            {
+              "type": "image",
+              "media_src": "static/arytmetyczny_an_ak.png",
+              "alt": "",
+              "figcaption": ""
+            },
+            {
+              "type": "text",
+              "body": "<p>Czyli</p>"
+            },
+            {
+              "type": "text",
+              "body": "<strong>różnica między indeksami wyrazów</strong>"
+            },
+            {
+              "type": "text",
+              "body": "<p>wskazuje na to, ile jest różnic ciągu między wyrazami.</p>"
+            },
+            {
+              "type": "text",
+              "body": "\n                            \\[\n                            a_n-a_k=(n-k)r\n                            \\]\n                        "
+            },
+            {
+              "type": "text",
+              "body": "<p>Do tego równania wrócimy, a teraz, wiedząc, że \\(r=-2\\) i korzystając z któregokolwiek z równań:\n                        \\[\n                        \\begin{cases}\n                        \\begin{align}\n                        a_1+19r&=-1\\\\\n                        a_1+11r&=15\n                        \\end{align}\n                        \\end{cases}\n                        \\]</p>"
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                            możemy znaleźć pierwszy wyraz ciągu\n                            \n\n\n\n￿0￿.\n                        ",
+              "options": [
+                "\\(a_1=-7\\)",
+                "\\(a_1=7\\)",
+                "\\(a_1=37\\)"
+              ],
+              "answer": 2
+            },
+            {
+              "type": "text",
+              "body": "<p>Różnica ciągu to \\(r=-2\\), a pierwszy wyraz \\(a_1=37\\).</p>"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "\n    Związek między dowolnymi wyrazami ciągu arytmetycznego:\n    \\[\n    a_n-a_k=(n-k)r\n    \\] \n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>Uwaga</strong>!\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ol class=\"bold\">\n<li>\n            Dla \\(k=1\\) powyższy wzór zmienia się we wzór ogólny na \\(n\\)-ty wyraz ciągu arytmetycznego.\n        </li>\n<li>\n            Wzór działa dla całkiem dowolnych \\(n\\) i \\(k\\) - niezależnie od tego, który indeks jest większy.\n        </li>\n</ol>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Przykład</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Piąty wyraz ciągu arytmetycznego to \\(11\\), a jedenasty wyraz tego ciągu to \\(20\\). Znajdziemy różnicę \\(r\\) i pierwszy wyraz \\(a_1\\).\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Mając dane \\(a_5=11\\) i \\(a_{11}=20\\), użyjemy wzoru\n        \\[\n        a_n-a_k=(n-k)r\n        \\]\n        dla \\(n=11\\) i \\(k=5\\):\n        \\[\n        \\begin{align}\n        a_{11}-a_5&amp;=(11-5)r\\\\\n        20-11&amp;=6r\\\\\n        6r&amp;=9\\\\\n        r&amp;=1,5\n        \\end{align}\n        \\]\n        A skoro \\(r=1,5\\), to wiedząc, że \\(a_5=11\\) możemy użyć wzoru:\n        \\[\n        \\begin{align}\n        a_5&amp;=a_1+4r\\\\\n        11&amp;=a_1+4\\cdot 1,5\\\\\n        a_1&amp;=11-6\\\\\n        a_1&amp;=5\n        \\end{align}\n        \\]\n        Ostatecznie \\(a_1=5\\) i \\(r=1,5\\).\n    "
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "35021589dca557a93f710b4921bf68928c44293b8e416bd122c2bb469ad95ae5"
+}

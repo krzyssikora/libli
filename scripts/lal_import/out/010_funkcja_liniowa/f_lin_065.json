@@ -1,0 +1,52 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Kiedy mówimy o punktach wspólnych prostej z osią \\(x\\), należy wspomnieć także o\n    <strong>\n        miejscach zerowych\n    </strong>\n    .\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Zapewne pamiętasz, że\n    <strong>\n        miejsce zerowe\n    </strong>\n    funkcji to taki argument \\(x\\), dla którego wartość \\(y\\) jest równa \\(0\\).\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    W przypadku funkcji liniowej mamy do czynienia z trzema przypadkami:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ol>\n<li>\n        funkcja \\(y=0\\), której wykres leży na osi \\(x\\), ma\n        <strong>\n            nieskończenie wiele\n        </strong>\n        miejsc zerowych,\n    </li>\n<li>\n        funkcja \\(y=c\\), gdzie \\(c\\ne 0\\), której wykres jest rówoległy do osi \\(x\\),\n        <strong>\n            nie ma wcale\n        </strong>\n        miejsc zerowych,\n    </li>\n<li>\n        funkcja \\(y=ax+b\\), gdzie \\(a\\ne 0\\) (aby prosta nie była pozioma), ma\n        <strong>\n            dokładnie jedno miejsce zerowe\n        </strong>\n        .\n    </li>\n</ol>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Odpowiedz na każde z pytań, a potem sprawdź swoje odpowiedzi.\n    "
+    },
+    {
+      "type": "choice_grid",
+      "columns": [
+        "wcale",
+        "jedno",
+        "nieskończenie wiele"
+      ],
+      "rows": [
+        {
+          "statement": "Ile miejsc zerowych ma prosta o równaniu \\(y=-\\frac{2}{3}x+6\\)?",
+          "correct": 1
+        },
+        {
+          "statement": "Ile miejsc zerowych ma prosta o równaniu \\(y=-3\\)?",
+          "correct": 0
+        },
+        {
+          "statement": "Ile miejsc zerowych ma prosta o równaniu \\(y=0\\)?",
+          "correct": 2
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "ce28d2f7af8eb5fd253c5d383b840328d27b35dd0fbad6d88475d71788d7e3ef"
+}

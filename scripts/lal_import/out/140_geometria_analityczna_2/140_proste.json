@@ -1,0 +1,1112 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Znajdź równanie prostej nachylonej pod kątem \\(60^{\\circ}\\) do osi \\(OX\\) i przechodzącej przez punkt \\((3, 2)\\).\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Przyjmijmy, że równanie szukanej prostej to \\(y=ax+b\\).</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Skoro kąt nachylenia prostej do osi \\(OX\\) jest równy \\(60^{\\circ}\\), to \n                    \n\n\n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(a=\\text{tg}\\,60^{\\circ}\\)",
+            "\\(b=\\text{tg}\\,60^{\\circ}\\)",
+            "\\(a=\\sin 60^{\\circ}\\)",
+            "\\(b=\\sin 60^{\\circ}\\)",
+            "\\(a=\\cos 60^{\\circ}\\)",
+            "\\(b=\\cos 60^{\\circ}\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    \\(a=\\text{tg}\\,60^{\\circ}\\), czyli \n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(a=\\frac{1}{\\sqrt{3}}\\)",
+            "\\(a=1\\)",
+            "\\(a=\\sqrt{3}\\)"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Równanie szukanej prostej ma postać\n                </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                y=\\sqrt{3}\\cdot x+b\n                "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Aby znaleźć współczynnik \\(b\\), musimy do tego równania podstawić współrzędne punktu \\((3, 2)\\).\n                </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Otrzymujemy\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(3=\\sqrt{3}\\cdot 2+b\\)",
+            "\\(2=\\sqrt{3}\\cdot 3+b\\)",
+            "\\(2=\\sqrt{3}\\cdot b+3\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    I dlatego\n                </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                b=2-3\\sqrt{3}\n                "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    więc szukane równanie prostej ma postać\n                </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                y=\\sqrt{3}\\cdot x+2-3\\sqrt{3}\n                "
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Znajdź równanie prostej nachylonej pod kątem \\(135^{\\circ}\\) do osi \\(OX\\) i przechodzącej przez punkt \\((-4,7)\\).\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Przyjmijmy, że równanie szukanej prostej to \\(y=ax+b\\).</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Kąt nachylenia prostej do osi \\(OX\\) jest równy \\(135^{\\circ}\\), więc\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(b=\\text{tg}\\,135^{\\circ}\\)",
+            "\\(a=\\text{tg}\\,135^{\\circ}\\)",
+            "\\(a=\\sin 135^{\\circ}\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    \\(a=\\text{tg}\\,135^{\\circ}\\), czyli\n                    \n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(a=1\\)",
+            "\\(a=-1\\)",
+            "\\(a=-\\sqrt{2}\\)",
+            "\\(a=\\sqrt{2}\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Skoro \\(a-=1\\), to równanie prostej jest postaci\n                </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                y=-x+b\n                "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Aby znaleźć wartość współczynnika \\(b\\) podstawimy do tego równania współrzędne punktu \\((-4,7)\\).\n                </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Otrzymamy\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(7=-1\\cdot(-4)+b\\)",
+            "\\(-4=-1\\cdot 7+b\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    I dlatego\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(b=11\\)",
+            "\\(b=3\\)",
+            "\\(b=-3\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Szukane równanie prostej to\n                </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                y=-x+3\n                "
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Jaki jest kąt między osią \\(OX\\) a prostą \\(y=\\frac{13}{20}x+1\\)(mierzony od części osi dla większych wartości \\(x\\) przeciwnie do ruchu wskazówek zegara do prostej)?\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                    Zacznijmy od rysunku pomocniczego. Który z poniższych rysunków najlepiej do prostej o równaniu \\(y=\\frac{13}{20}x+1\\)? Podaj wynik z dokładnością do \\(1^{\\circ}\\).\n                </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/prosta_a_plus_b_plus.png",
+          "alt": "",
+          "figcaption": "1"
+        },
+        {
+          "type": "image",
+          "media_src": "static/prosta_a_plus_b_minus.png",
+          "alt": "",
+          "figcaption": "2"
+        },
+        {
+          "type": "image",
+          "media_src": "static/prosta_a_minus_b_plus.png",
+          "alt": "",
+          "figcaption": "3"
+        },
+        {
+          "type": "image",
+          "media_src": "static/prosta_a_minus_b_minus.png",
+          "alt": "",
+          "figcaption": "4"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Najlepiej pasuje rysunek numer\n                    \n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "<strong>1</strong>",
+            "<strong>2</strong>",
+            "<strong>3</strong>",
+            "<strong>4</strong>"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Zgadza się:\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>\n                        współczynnik kierunkowy jest dodatni (\\(a=\\tfrac{13}{20}\\gt 0\\)), więc prosta jest rosnąca,\n                    </li>\n<li>\n                        wyraz wolny jest dodatni (\\(b=1\\gt 0\\)), więc punkt na osi \\(OY\\) jest powyżej osi \\(OX\\).\n                    </li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Oznaczmy szukany kąt przez \\(\\alpha\\).\n                </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_analityczna_2_zadanie_290_1.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Wówczas\n                    \n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(\\sin\\alpha=\\frac{13}{20}\\)",
+            "\\(\\text{tg}\\,\\alpha=\\frac{13}{20}\\)",
+            "\\(\\text{tg}\\,\\alpha=1\\)",
+            "\\(\\cos\\alpha=\\frac{13}{20}\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Aby znaleźć kąt \\(\\alpha\\) taki, że \\(\\text{tg}\\,\\alpha=\\frac{13}{20}=0,65\\), skorzystamy z tablicy wartości funkcji trygonometrycznych.\n                </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_analityczna_2_zadanie_290_2.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Miara kąta o wartości tangensa najbliższej \\(0,65\\) to\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(32^{\\circ}\\)",
+            "\\(33^{\\circ}\\)",
+            "\\(34^{\\circ}\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Kąt nachylenia prostej do osi \\(OX\\) to w przybliżeniu \\(33^{\\circ}\\).\n                </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_analityczna_2_zadanie_290_3.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "math",
+          "latex": "\n                \\text{tg}\\,33^{\\circ}\\approx 0,6494\\approx 0,65\n                "
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Jaki jest kąt między osią \\(OX\\) a prostą \\(y=-1\\tfrac{4}{5}x+7\\) (mierzony od części osi dla większych wartości \\(x\\) przeciwnie do ruchu wskazówek zegara do prostej)? Podaj wynik z dokładnością do \\(1^{\\circ}\\).\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                    Zacznijmy od rysunku pomocniczego. Który z poniższych rysunków najlepiej do prostej o równaniu \\(y=\\frac{13}{20}x+1\\)? Podaj wynik z dokładnością do \\(1^{\\circ}\\).\n                </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/prosta_a_plus_b_plus.png",
+          "alt": "",
+          "figcaption": "1"
+        },
+        {
+          "type": "image",
+          "media_src": "static/prosta_a_plus_b_minus.png",
+          "alt": "",
+          "figcaption": "2"
+        },
+        {
+          "type": "image",
+          "media_src": "static/prosta_a_minus_b_plus.png",
+          "alt": "",
+          "figcaption": "3"
+        },
+        {
+          "type": "image",
+          "media_src": "static/prosta_a_minus_b_minus.png",
+          "alt": "",
+          "figcaption": "4"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Najlepiej pasuje rysunek numer\n                    \n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "<strong>1</strong>",
+            "<strong>2</strong>",
+            "<strong>3</strong>",
+            "<strong>4</strong>"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Zgadza się:\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>\n                        współczynnik kierunkowy jest ujemny (\\(a=-1\\tfrac{4}{5}=-\\frac{9}{5}\\lt 0\\)), więc prosta jest malejąca,\n                    </li>\n<li>\n                        wyraz wolny jest dodatni (\\(b=7\\gt 0\\)), więc punkt na osi \\(OY\\) jest powyżej osi \\(OX\\).\n                    </li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Oznaczmy szukany kąt przez \\(\\alpha\\).\n                </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_analityczna_2_zadanie_300_1.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Wówczas\n                    \n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(\\sin\\alpha=-\\frac{9}{5}\\)",
+            "\\(\\text{tg}\\,\\alpha=-\\frac{9}{5}\\)",
+            "\\(\\text{tg}\\,\\alpha=7\\)",
+            "\\(\\cos\\alpha=-\\frac{9}{5}\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Aby znaleźć kąt \\(\\alpha\\) taki, że \\(\\text{tg}\\,\\alpha=-\\frac{9}{5}=-1,8\\), skorzystamy z tablicy wartości funkcji trygonometrycznych.\n                </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Jedynym problemem jest to, że w tablicy są jedynie wartości tangensa\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "większe niż lub równe \\(0\\)",
+            "między \\(-1\\) a \\(1\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Jeśli znajdziemy kąt \\(\\alpha\\) taki, że \\(\\text{tg}\\,\\alpha=1,8\\), będziemy mogli znaleźć kąt, którego tangens ma wartość \\(-1,8\\).\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>Wiesz jak?</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                        Możemy do tego podejść na (co najmniej) trzy sposoby.\n                    </p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>sposób 1. z wykresu tangensa</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                            Na rysunku widzisz fragment wykresu \\(y=\\text{tg}\\,x\\).\n                        </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_analityczna_2_zadanie_300_2.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                            Jeśli od punktu \\((0,0)\\) przesuniemy się w prawo do \\(x=\\alpha\\), osiągniemy wartość tangensa równą \\(1,8\\).\n                        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                            Podobnie, jeśli od punktu \\((180^{\\circ}, 0)\\) przesuniemy się w lewo o \\(\\alpha\\), osiągniemy wartość \\(-1,8\\).\n                        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>sposób 2. z koła jednostkowego</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                            Na rysunku widzisz koło o promieniu \\(1\\) i zaznaczony w nim kąt \\(\\alpha\\). \n                        </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_analityczna_2_zadanie_300_3.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>\n                                Współrzędne punktu na okręgu wyznaczonego przez kąt \\(\\alpha\\) to \\(\\color{blue}{(\\cos\\alpha,\\sin\\alpha)}\\).\n                            </li>\n<li>\n                                \\(\\text{tg}\\,\\alpha=\\frac{\\sin\\alpha}{\\cos\\alpha}=1,8\\)\n                            </li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                            Jeśli chcemy znaleźć kąt, dla którego tangens ma wartość \\(-1,8\\),\n                        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>\n                                albo sinus musi być identyczny, a cosinus przeciwny,\n                            </li>\n<li>\n                                albo sinus musi być przeciwny, a cosinus identyczny.\n                            </li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>sposób 3. ze wzorów redukcyjnych</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                            W \"Wybranych wzorach matematycznych\", wśród wzorów redukcyjnych, znajdziemy wzór\n                        </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                        \\text{tg}\\,(180^{\\circ}-\\alpha)=-\\text{tg}\\,\\alpha\n                        "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Jeśli \\(\\text{tg}\\,\\alpha=1,8\\) to\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(\\text{tg}\\,(180^{\\circ}-\\alpha)=-1,8\\)",
+            "\\(\\text{tg}\\,(180^{\\circ}+\\alpha)=-1,8\\)",
+            "\\(\\text{tg}\\,(2\\alpha)=-1,8\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Teraz użyjmy tablicy wartości funkcji trygonometrycznych, by znaleźć kąt, którego tangens jest równy \\(+1,8\\) zamiast \\(-1,8\\).\n                </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_analityczna_2_zadanie_300_4.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Miara kąta o wartości tangensa najbliższej \\(1,8\\) to\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(60^{\\circ}\\)",
+            "\\(61^{\\circ}\\)",
+            "\\(62^{\\circ}\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    I stąd wiemy, że tangens ma wartość (około) \\(-1,8\\) dla kąta \n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(119^{\\circ}\\)",
+            "\\(129^{\\circ}\\)",
+            "\\(122^{\\circ}\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    \\(\\text{tg}\\,61^{\\circ}\\approx 1,8\\), więc \\(\\text{tg}\\,(180^{\\circ}-61^{\\circ})\\approx -1,8\\), czyli \\(\\text{tg}\\,(119^{\\circ})\\approx -1,8\\).\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Kąt nachylenia prostej \\(y=-1\\tfrac{4}{5}x+7\\) do osi \\(OX\\) to w przyliżeniu \\(119^{\\circ}\\).\n                </p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Dana jest prosta \\(k\\) o równaniu \\(y=\\frac{3}{2}x+5\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź równanie prostej \\(m\\) równoległej do \\(k\\) i przechodzącej przez punkt \\((6,2)\\).\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Jeśli prosta \\(m\\) jest równoległa do prostej \\(k\\), to jej współczynnik kierunkowy jest równy\n                    \n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(\\frac{3}{2}\\)",
+            "\\(-\\frac{3}{2}\\)",
+            "\\(-\\frac{2}{3}\\)",
+            "\\(\\frac{2}{3}\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Oznacza to, że prosta \\(m\\) ma równanie postaci\n                </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                y=\\frac{3}{2}x+b\n                "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Aby znaleźć wartość współczynnika \\(b\\), podstawiamy współrzędne punktu \\((6,2)\\) otrzymując równanie\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(6=\\frac{3}{2}\\cdot 2+b\\)",
+            "\\(2=\\frac{3}{2}\\cdot 6+b\\)",
+            "\\(2=\\frac{3}{2}\\cdot b+6\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Z tego równania wyliczamy, że \n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(b=-7\\)",
+            "\\(b=-4\\)",
+            "\\(b=9\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Równanie prostej równoległej do \\(y=\\frac{3}{2}x+5\\) i przechodzącej przez punkt \\((6,2)\\) to \\(y=\\frac{3}{2}x-7\\).</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Dana jest prosta \\(k\\) o równaniu \\(y=\\frac{3}{4}x-1\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź równanie prostej \\(m\\) prostopadłej do \\(k\\) i przechodzącej przez punkt \\((6,-2)\\).\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Jeśli prosta \\(m\\) jest prostopadła do prostej \\(k\\), to jej współczynnik kierunkowy jest równy\n                    \n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(\\frac{3}{4}\\)",
+            "\\(-\\frac{3}{4}\\)",
+            "\\(-\\frac{4}{3}\\)",
+            "\\(\\frac{4}{3}\\)"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Oznacza to, że prosta \\(m\\) ma równanie postaci\n                </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                y=-\\frac{4}{3}x+b\n                "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Aby znaleźć wartość współczynnika \\(b\\), podstawiamy współrzędne punktu \\((6,-2)\\) otrzymując równanie\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(-2=-\\frac{4}{3}\\cdot 6+b\\)",
+            "\\(6=-\\frac{4}{3}\\cdot (-2)+b\\)",
+            "\\(-2=-\\frac{4}{3}\\cdot b+6\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Z tego równania wyliczamy, że \n                    \n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(b=6\\)",
+            "\\(b=-10\\)",
+            "\\(b=-6,5\\)",
+            "\\(b=2,5\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Równanie prostej prostopadłej do \\(y=\\frac{3}{4}x-1\\) i przechodzącej przez punkt \\((6,-2)\\) to \\(y=-\\frac{4}{3}x+6\\).</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W równoległoboku \\(ABCD\\) dane są wierzchołki \\(A=(-4,-2)\\), \\(B=(2,0)\\)  i \\(C=(4,3)\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź współrzędne wierzchołka \\(D\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<h4>rozwiązanie (nagranie i krok po kroku)</h4>"
+    },
+    {
+      "type": "tabs",
+      "tabs": [
+        {
+          "id": "t000000",
+          "label": "nagranie",
+          "elements": [
+            {
+              "type": "text",
+              "body": "<p><strong>analiza zadania</strong></p>"
+            },
+            {
+              "type": "video",
+              "media_src": "static/geometria_analityczna_2_zadanie_330_1.mp4"
+            },
+            {
+              "type": "text",
+              "body": "<p><strong>prosta zawierająca bok \\(CD\\)</strong></p>"
+            },
+            {
+              "type": "video",
+              "media_src": "static/geometria_analityczna_2_zadanie_330_2.mp4"
+            },
+            {
+              "type": "text",
+              "body": "<p><strong>prosta zawierająca bok \\(AD\\)</strong></p>"
+            },
+            {
+              "type": "video",
+              "media_src": "static/geometria_analityczna_2_zadanie_330_3.mp4"
+            },
+            {
+              "type": "text",
+              "body": "<p><strong>punkt \\(D\\)</strong></p>"
+            },
+            {
+              "type": "video",
+              "media_src": "static/geometria_analityczna_2_zadanie_330_4.mp4"
+            }
+          ]
+        },
+        {
+          "id": "t000001",
+          "label": "krok po kroku",
+          "elements": [
+            {
+              "type": "text",
+              "body": "<p>\n                            Szukany wierzchołek \\(D\\) jest punktem wspólnym boków \\(CD\\) i \\(AD\\), równoległych do \\(AB\\) i \\(BC\\) odpowiednio.\n                        </p>"
+            },
+            {
+              "type": "image",
+              "media_src": "static/geometria_analityczna_2_zadanie_330_1.png",
+              "alt": "",
+              "figcaption": ""
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                            Możemy znaleźć punkt \\(D\\) jako przecięcie dwóch prostych:\n                        </p>"
+            },
+            {
+              "type": "text",
+              "body": "<ul>\n<li>przechodzącej przez punkty \\(C\\) i \\(D\\) oraz</li>\n<li>przechodzącej przez punkty \\(A\\) i \\(D\\).</li>\n</ul>"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                            Zacznijmy od prostej przechodzącej przez \\(C\\) i \\(D\\).\n                        </p>"
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                            Jest ona równoległa do boku \\(AB\\), więc musimy znaleźć\n                            \n\n\n￿0￿.\n                        ",
+              "options": [
+                "długość odcinka \\(AB\\)",
+                "nachylenie odcinka \\(AB\\)"
+              ],
+              "answer": 1
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                            Zacznijmy więc od nachylenia odcinka \\(AB\\), czyli od współczynnika kierunkowego prostej przechodzącej przez punkty \\(A\\) i \\(B\\).\n                        </p>"
+            },
+            {
+              "type": "spoiler",
+              "label": "Pamiętasz, jak je obliczyć?",
+              "elements": [
+                {
+                  "type": "image",
+                  "media_src": "static/geometria_analityczna_2_zadanie_330_nachylenie_odcinka.png",
+                  "alt": "",
+                  "figcaption": ""
+                },
+                {
+                  "type": "text",
+                  "body": "<p>\n                                Nachylenie odcinka \\(AB\\) dane jest wzorem:\n                            </p>"
+                },
+                {
+                  "type": "text",
+                  "body": "\n                                \\[\n                                \\left(\\small\\frac{\\text{skok}}{\\text{krok}}\\right)=\\frac{y_B-y_A}{x_B-x_A}\n                                \\]\n                            "
+                }
+              ]
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                            Z użyciem współrzędnych punktów \\(A=(-4,-2)\\) i \\(B=(2,0)\\) otrzymujemy \\(\\frac{0-(-2)}{2-(-4)}=\\)\n                            \n\n\n\n\n￿0￿.\n                        ",
+              "options": [
+                "\\(-1\\)",
+                "\\(\\frac{1}{3}\\)",
+                "\\(1\\)",
+                "\\(-\\frac{1}{3}\\)"
+              ],
+              "answer": 1
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                            Prosta zawierająca bok \\(CD\\) jest rónoległa do boku \\(AB\\), więc jej równanie ma taki sam współczynnik kierunkowy, czyli jest postaci\n                        </p>"
+            },
+            {
+              "type": "math",
+              "latex": "\n                        y=\\frac{1}{3}x+b\n                        "
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                            Aby obliczyć wartość współczynnika \\(b\\), do tego równania podstawimy współrzędne punktu\n                            \n\n\n\n￿0￿.\n                        ",
+              "options": [
+                "\\(A\\)",
+                "\\(B\\)",
+                "\\(C\\)"
+              ],
+              "answer": 2
+            },
+            {
+              "type": "math",
+              "latex": "\n                        \\begin{align}\n                        y&=\\frac{1}{3}x+b\\\\\n                        3&=\\frac{1}{3}\\cdot 4+b\n                        \\end{align}\n                        "
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                            Z równania wyliczamy\n                            \n\n\n\n￿0￿.\n                        ",
+              "options": [
+                "\\(b=1\\tfrac{2}{3}\\)",
+                "\\(b=-1\\tfrac{1}{3}\\)",
+                "\\(b=5\\)"
+              ],
+              "answer": 0
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                            Prosta zawierająca bok \\(CD\\) ma równanie\n                        </p>"
+            },
+            {
+              "type": "math",
+              "latex": "\n                        y=\\frac{1}{3}x+1\\tfrac{2}{3}\n                        "
+            },
+            {
+              "type": "image",
+              "media_src": "static/geometria_analityczna_2_zadanie_330_2.png",
+              "alt": "",
+              "figcaption": ""
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                            Teraz znajdziemy równanie prostej zawierającej bok \\(AD\\), równoległej do odcinka \\(BC\\). Zaczniemy więc od nachylenia odcinka \\(BC\\).\n                        </p>"
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                            Pamiętając współrzęne \\(B=(2,0)\\)  i \\(C=(4,3)\\), wyliczamy, że nachylenie odcinka \\(BC\\) jest równe \n                            \n\n\n\n\n￿0￿.\n                        ",
+              "options": [
+                "\\(\\frac{3}{2}\\)",
+                "\\(\\frac{2}{3}\\)",
+                "\\(-\\frac{3}{2}\\)",
+                "\\(-\\frac{2}{3}\\)"
+              ],
+              "answer": 0
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                            Prosta zawierająca bok \\(AD\\) ma równanie\n                        </p>"
+            },
+            {
+              "type": "math",
+              "latex": "\n                        y=\\frac{3}{2}x+b\n                        "
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                            Aby znaleźć wartość współczynnika \\(b\\), podstawiamy współrzędne punktu\n                            \n\n\n\n￿0￿.\n                        ",
+              "options": [
+                "\\(A\\)",
+                "\\(B\\)",
+                "\\(C\\)"
+              ],
+              "answer": 0
+            },
+            {
+              "type": "text",
+              "body": "\n                            \\[\n                            \\begin{align}\n                            y&amp;=\\frac{3}{2}x+b\\\\\n                            -2&amp;=\\frac{3}{2}\\cdot(-4)+b\n                            \\end{align}\n                            \\]\n                        "
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                            Stąd wyliczamy, że \n                            \n\n\n\n￿0￿.\n                        ",
+              "options": [
+                "\\(b=-8\\)",
+                "\\(b=4\\)",
+                "\\(b=-4\\)"
+              ],
+              "answer": 1
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                            Prosta zawierająca bok \\(AD\\) ma równanie\n                        </p>"
+            },
+            {
+              "type": "math",
+              "latex": "\n                        y=\\frac{3}{2}x+4\n                        "
+            },
+            {
+              "type": "image",
+              "media_src": "static/geometria_analityczna_2_zadanie_330_3.png",
+              "alt": "",
+              "figcaption": ""
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                            Punkt \\(D\\) to punkt wspólny dwóch znalezionych prostych:\n                        </p>"
+            },
+            {
+              "type": "text",
+              "body": "<ul class=\"nolist\">\n<li>\n                                przechodzącej przez \\(C\\) i \\(D\\): \\(\\quad y=\\frac{1}{3}x+1\\tfrac{2}{3}\\quad \\) i \n                            </li>\n<li>\n                                przechodzącej przez \\(A\\) i \\(D\\): \\(\\quad y=\\frac{3}{2}x+4\\). \n                            </li>\n</ul>"
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                            Musimy więc \n                            \n\n\n￿0￿.\n                        ",
+              "options": [
+                "znaleźć miejsca zerowe tych prostych",
+                "rozwiązać układ równań"
+              ],
+              "answer": 1
+            },
+            {
+              "type": "text",
+              "body": "\n                            \\[\n                            \\begin{cases}\n                            y=\\frac{1}{3}x+1\\tfrac{2}{3}\\\\\n                            y=\\frac{3}{2}x+4\n                            \\end{cases}\n                            \\]\n                        "
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                            Podstawiając \\(y\\) z jednego równania do drugiego dostajemy\n                        </p>"
+            },
+            {
+              "type": "text",
+              "body": "\n                            \\[\n                            \\begin{align}\n                            \\frac{3}{2}x+4&amp;=\\frac{1}{3}x+1\\tfrac{2}{3}\\\\\n                            \\frac{3}{2}x-\\frac{1}{3}x&amp;=1\\tfrac{2}{3}-4\n                            \\end{align}\n                            \\]\n                        "
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                            Sprowadzając ułamki do wspólnego mianownika obliczamy, że \\(\\frac{3}{2}x-\\frac{1}{3}x=\\)\n                            \n\n\n\n￿0￿.\n                        ",
+              "options": [
+                "\\(\\frac{7}{6}x\\)",
+                "\\(\\frac{1}{2}x\\)",
+                "\\(\\frac{11}{6}x\\)"
+              ],
+              "answer": 0
+            },
+            {
+              "type": "math",
+              "latex": "\n                        \\begin{align}\n                        \\frac{3}{2}x+4&=\\frac{1}{3}x+1\\tfrac{2}{3}\\\\\n                        \\frac{3}{2}x-\\frac{1}{3}x&=1\\tfrac{2}{3}-4\\\\\n                        \\frac{9}{6}x-\\frac{2}{6}x&=\\frac{5}{3}-\\frac{12}{3}\\\\\n                        \\frac{7}{6}x&=-\\frac{7}{3}\n                        \\end{align}\n                        "
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                            Współrzędną \\(x\\) punktu \\(D\\) obliczamy dzieląc \\(-\\frac{7}{3}\\) przez \\(\\frac{7}{6}\\) i otrzymujemy\n                            \n\n\n￿0￿.\n                        ",
+              "options": [
+                "\\(-2\\)",
+                "\\(-\\frac{1}{2}\\)"
+              ],
+              "answer": 0
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                            Na zakończenie, podstawiając \\(x=-2\\) do jednego z równań \\(y=\\frac{1}{3}x+1\\tfrac{2}{3}\\) lub \\(y=\\frac{3}{2}x+4\\) otrzymujemy \n                            \n\n\n\n￿0￿.\n                        ",
+              "options": [
+                "\\(y=1\\)",
+                "\\(y=7\\)",
+                "\\(y=-2\\)"
+              ],
+              "answer": 0
+            },
+            {
+              "type": "image",
+              "media_src": "static/geometria_analityczna_2_zadanie_330_4.png",
+              "alt": "",
+              "figcaption": ""
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                            Współrzędne wierzchołka \\(D\\) to \\((-2,1)\\).\n                        </p>"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W trapezie prostokątnym \\(ABCD\\) dane są wierzchołki \\(A=(-3,2)\\), \\(B=(3,-1)\\)  i \\(C=(3,4)\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Ramię \\(AD\\) jest prostopadłe do podstaw \\(AB\\) i \\(CD\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź współrzędne wierzchołka \\(D\\).\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                    Zacznijmy od rysunku pomocniczego.\n                </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_analityczna_2_zadanie_340_1.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Jak widzimy, szukany punkt \\(D\\) jest punktem wspólnym\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul>\n<li>\n                        podstawy \\(CD\\), <u>równoległej do \\(AB\\)</u> i \n                    </li>\n<li>\n                        ramienia \\(AD\\), <u>prostopadłego do \\(AB\\)</u>.\n                    </li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Zacznijmy więc od nachylenia (współczynnika kierunkowego) odcinka \\(AB\\).\n                </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Wiedząc, że \\(A=(-3,2)\\) i \\(B=(3,-1)\\), obliczamy, że nachylenie jest równe \n                    \n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(\\frac{1}{2}\\)",
+            "\\(-\\frac{1}{2}\\)",
+            "\\(2\\)",
+            "\\(-2\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Podstawa \\(CD\\) jest równoległa do \\(AB\\), więc równanie prostej, która ją zawiera jest postaci \n                </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                y=-\\frac{1}{2}x+b\n                "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Aby znaleźć wartość współczynnika \\(b\\), podstawimy współrzędne punktu \n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(A\\)",
+            "\\(B\\)",
+            "\\(C\\)"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Z równania\n                </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                4=-\\frac{1}{2}\\cdot 3+b\n                "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    wyliczamy, że \n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(b=5\\tfrac{1}{2}\\)",
+            "\\(b=2\\tfrac{1}{2}\\)",
+            "\\(b=7\\tfrac{1}{2}\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Prosta zawierająca podstawę \\(CD\\) ma równanie\n                </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                y=-\\frac{1}{2}x+5\\tfrac{1}{2}\n                "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Teraz znajdziemy równanie prostej zawierającej ramię \\(AD\\).\n                </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Jest ona prostopadła do podstawy \\(AB\\), więc jej współczynnik kierunkowy jest równy\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(2\\)",
+            "\\(-2\\)",
+            "\\(\\frac{1}{2}\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Równanie prostej jest więc postaci\n                \\[\n                y=2x+b\n                \\]</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Aby znaleźć wartość współczynnika \\(b\\), podstawimy współrzędne punktu \n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(A\\)",
+            "\\(B\\)",
+            "\\(C\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Z równania\n                \\[\n                2=2\\cdot (-3)+b\n                \\]</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    wyliczamy, że \n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(b=-4\\)",
+            "\\(b=8\\)",
+            "\\(b=3\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Punkt \\(D\\) jest punktem wspólnym\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>prostej zawierającej podstawę \\(CD\\), o równaniu \\(\\quad y=-\\frac{1}{2}x+5\\tfrac{1}{2}\\quad\\) oraz</li>\n<li>prostej zawierającej ramię \\(AD\\), o równaniu \\(\\quad y=2x+8\\).</li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Musimy więc rozwiązać układ równań:\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    \\begin{cases}\n                    y=-\\frac{1}{2}x+5\\tfrac{1}{2}\\\\\n                    y=2x+8\n                    \\end{cases}\n                    \\]\n                "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Podstawiając \\(y\\) z jednego równania do drugiego dostajemy\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    \\begin{align}\n                    2x+8&amp;=-\\frac{1}{2}x+5\\tfrac{1}{2}\\\\\n                    2x+\\frac{1}{2}x&amp;=5\\tfrac{1}{2}-8\\\\\n                    2\\tfrac{1}{2}x&amp;=-2\\tfrac{1}{2}\\\\\n                    x&amp;=-1\n                    \\end{align}\n                    \\]\n                "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Podstawiając wyliczoną współrzędną \\(x\\)-ową punktu \\(D\\) do któregokolwiek równania prostej otrzymujemy\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(y=6\\)",
+            "\\(y=-10\\)",
+            "\\(y=-6\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_analityczna_2_zadanie_340_2.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Współrzędne wierzchołka \\(D\\) to \\((-1,6)\\).\n                </p>"
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "6ab0970096626ef90248bc9ea84d050c217260c93e4a4a544c32f22ac8a1aec9"
+}

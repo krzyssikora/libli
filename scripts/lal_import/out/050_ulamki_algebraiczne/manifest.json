@@ -1,0 +1,343 @@
+{
+  "part": {
+    "source_folder": "050_ulamki_algebraiczne",
+    "order": 9,
+    "title": "ulamki algebraiczne"
+  },
+  "chapters": [
+    {
+      "order": 0,
+      "title": "__PLACEHOLDER chapter 1__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "010_zagadnienia_wstepne.json",
+          "source_html": "010_zagadnienia_wstepne.html",
+          "source_dir": "050_ulamki_algebraiczne",
+          "unit_type": "lesson",
+          "title": "Działania na ułamkach zwykłych - powórzenie"
+        },
+        {
+          "order": 1,
+          "unit_json": "020_zagadnienia_wstepne.json",
+          "source_html": "020_zagadnienia_wstepne.html",
+          "source_dir": "050_ulamki_algebraiczne",
+          "unit_type": "lesson",
+          "title": "Ułamek algebraiczny"
+        },
+        {
+          "order": 2,
+          "unit_json": "030_zagadnienia_wstepne.json",
+          "source_html": "030_zagadnienia_wstepne.html",
+          "source_dir": "050_ulamki_algebraiczne",
+          "unit_type": "lesson",
+          "title": "Rozkład wyrażeń kwadratowych na czynniki - powtórzenie 1"
+        },
+        {
+          "order": 3,
+          "unit_json": "040_zagadnienia_wstepne.json",
+          "source_html": "040_zagadnienia_wstepne.html",
+          "source_dir": "050_ulamki_algebraiczne",
+          "unit_type": "lesson",
+          "title": "Rozkład wyrażeń kwadratowych na czynniki - powtórzenie 2"
+        },
+        {
+          "order": 4,
+          "unit_json": "050_zagadnienia_wstepne.json",
+          "source_html": "050_zagadnienia_wstepne.html",
+          "source_dir": "050_ulamki_algebraiczne",
+          "unit_type": "lesson",
+          "title": "Rozkład wyrażeń kwadratowych na czynniki - ćwiczenia"
+        },
+        {
+          "order": 5,
+          "unit_json": "060_ulamek_algebraiczny.json",
+          "source_html": "060_ulamek_algebraiczny.html",
+          "source_dir": "050_ulamki_algebraiczne",
+          "unit_type": "lesson",
+          "title": "Skracanie ułamków algebraicznych"
+        },
+        {
+          "order": 6,
+          "unit_json": "070_ulamek_algebraiczny.json",
+          "source_html": "070_ulamek_algebraiczny.html",
+          "source_dir": "050_ulamki_algebraiczne",
+          "unit_type": "lesson",
+          "title": "Rozszerzanie ułamków algebraicznych"
+        },
+        {
+          "order": 7,
+          "unit_json": "080_ulamek_algebraiczny.json",
+          "source_html": "080_ulamek_algebraiczny.html",
+          "source_dir": "050_ulamki_algebraiczne",
+          "unit_type": "lesson",
+          "title": "Ćwiczenia"
+        },
+        {
+          "order": 8,
+          "unit_json": "090_ulamek_algebraiczny_quiz.json",
+          "source_html": "090_ulamek_algebraiczny_quiz.html",
+          "source_dir": "050_ulamki_algebraiczne",
+          "unit_type": "quiz",
+          "title": "ulamek algebraiczny quiz"
+        }
+      ]
+    },
+    {
+      "order": 1,
+      "title": "__PLACEHOLDER chapter 2__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "100_dzialania_na_ulamkach_algebraicznych.json",
+          "source_html": "100_dzialania_na_ulamkach_algebraicznych.html",
+          "source_dir": "050_ulamki_algebraiczne",
+          "unit_type": "lesson",
+          "title": "Mnożenie ułamków algebraicznych"
+        },
+        {
+          "order": 1,
+          "unit_json": "110_dzialania_na_ulamkach_algebraicznych.json",
+          "source_html": "110_dzialania_na_ulamkach_algebraicznych.html",
+          "source_dir": "050_ulamki_algebraiczne",
+          "unit_type": "lesson",
+          "title": "Dzielenie ułamków algebraicznych"
+        },
+        {
+          "order": 2,
+          "unit_json": "120_dzialania_na_ulamkach_algebraicznych.json",
+          "source_html": "120_dzialania_na_ulamkach_algebraicznych.html",
+          "source_dir": "050_ulamki_algebraiczne",
+          "unit_type": "lesson",
+          "title": "Ćwiczenie"
+        },
+        {
+          "order": 3,
+          "unit_json": "130_dzialania_na_ulamkach_algebraicznych.json",
+          "source_html": "130_dzialania_na_ulamkach_algebraicznych.html",
+          "source_dir": "050_ulamki_algebraiczne",
+          "unit_type": "lesson",
+          "title": "Dodawanie i odejmowanie ułamków algebraicznych"
+        },
+        {
+          "order": 4,
+          "unit_json": "140_dzialania_na_ulamkach_algebraicznych.json",
+          "source_html": "140_dzialania_na_ulamkach_algebraicznych.html",
+          "source_dir": "050_ulamki_algebraiczne",
+          "unit_type": "lesson",
+          "title": "Działania na ułamkach algebraicznych"
+        },
+        {
+          "order": 5,
+          "unit_json": "150_dzialania_na_ulamkach_algebraicznych.json",
+          "source_html": "150_dzialania_na_ulamkach_algebraicznych.html",
+          "source_dir": "050_ulamki_algebraiczne",
+          "unit_type": "lesson",
+          "title": "Ćwiczenia"
+        },
+        {
+          "order": 6,
+          "unit_json": "160_dzialania_na_ulamkach_algebraicznych_quiz.json",
+          "source_html": "160_dzialania_na_ulamkach_algebraicznych_quiz.html",
+          "source_dir": "050_ulamki_algebraiczne",
+          "unit_type": "quiz",
+          "title": "dzialania na ulamkach algebraicznych quiz"
+        }
+      ]
+    },
+    {
+      "order": 2,
+      "title": "__PLACEHOLDER chapter 3__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "170_rownania_wymierne.json",
+          "source_html": "170_rownania_wymierne.html",
+          "source_dir": "050_ulamki_algebraiczne",
+          "unit_type": "lesson",
+          "title": "Równania wymierne"
+        },
+        {
+          "order": 1,
+          "unit_json": "180_rownania_wymierne.json",
+          "source_html": "180_rownania_wymierne.html",
+          "source_dir": "050_ulamki_algebraiczne",
+          "unit_type": "lesson",
+          "title": "Rozwiązywanie równań wymiernych 1"
+        },
+        {
+          "order": 2,
+          "unit_json": "190_rownania_wymierne.json",
+          "source_html": "190_rownania_wymierne.html",
+          "source_dir": "050_ulamki_algebraiczne",
+          "unit_type": "lesson",
+          "title": "Ćwiczenia"
+        },
+        {
+          "order": 3,
+          "unit_json": "200_rownania_wymierne.json",
+          "source_html": "200_rownania_wymierne.html",
+          "source_dir": "050_ulamki_algebraiczne",
+          "unit_type": "lesson",
+          "title": "Rozwiązywanie równań wymiernych 2"
+        },
+        {
+          "order": 4,
+          "unit_json": "210_rownania_wymierne.json",
+          "source_html": "210_rownania_wymierne.html",
+          "source_dir": "050_ulamki_algebraiczne",
+          "unit_type": "lesson",
+          "title": "Rozwiązywanie równań wymiernych - proporcje"
+        },
+        {
+          "order": 5,
+          "unit_json": "220_rownania_wymierne.json",
+          "source_html": "220_rownania_wymierne.html",
+          "source_dir": "050_ulamki_algebraiczne",
+          "unit_type": "lesson",
+          "title": "Kłopotliwe minusy"
+        },
+        {
+          "order": 6,
+          "unit_json": "230_rownania_wymierne.json",
+          "source_html": "230_rownania_wymierne.html",
+          "source_dir": "050_ulamki_algebraiczne",
+          "unit_type": "lesson",
+          "title": "Ćwiczenia"
+        },
+        {
+          "order": 7,
+          "unit_json": "240_rownania_wymierne.json",
+          "source_html": "240_rownania_wymierne.html",
+          "source_dir": "050_ulamki_algebraiczne",
+          "unit_type": "lesson",
+          "title": "Zadanie tekstowe 1"
+        },
+        {
+          "order": 8,
+          "unit_json": "250_rownania_wymierne.json",
+          "source_html": "250_rownania_wymierne.html",
+          "source_dir": "050_ulamki_algebraiczne",
+          "unit_type": "lesson",
+          "title": "Zadanie tekstowe 2"
+        },
+        {
+          "order": 9,
+          "unit_json": "260_rownania_wymierne.json",
+          "source_html": "260_rownania_wymierne.html",
+          "source_dir": "050_ulamki_algebraiczne",
+          "unit_type": "lesson",
+          "title": "Ćwiczenia"
+        },
+        {
+          "order": 10,
+          "unit_json": "270_rownania_wymierne_quiz.json",
+          "source_html": "270_rownania_wymierne_quiz.html",
+          "source_dir": "050_ulamki_algebraiczne",
+          "unit_type": "quiz",
+          "title": "rownania wymierne quiz"
+        }
+      ]
+    },
+    {
+      "order": 3,
+      "title": "__PLACEHOLDER chapter 4__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "280_funkcja_homograficzna.json",
+          "source_html": "280_funkcja_homograficzna.html",
+          "source_dir": "050_ulamki_algebraiczne",
+          "unit_type": "lesson",
+          "title": "Wprowadzenie"
+        },
+        {
+          "order": 1,
+          "unit_json": "290_funkcja_homograficzna.json",
+          "source_html": "290_funkcja_homograficzna.html",
+          "source_dir": "050_ulamki_algebraiczne",
+          "unit_type": "lesson",
+          "title": "Funkcja proporcjonalności odwrotnej - powtórzenie 1"
+        },
+        {
+          "order": 2,
+          "unit_json": "300_funkcja_homograficzna.json",
+          "source_html": "300_funkcja_homograficzna.html",
+          "source_dir": "050_ulamki_algebraiczne",
+          "unit_type": "lesson",
+          "title": "Funkcja proporcjonalności odwrotnej - powtórzenie 2"
+        },
+        {
+          "order": 3,
+          "unit_json": "310_funkcja_homograficzna.json",
+          "source_html": "310_funkcja_homograficzna.html",
+          "source_dir": "050_ulamki_algebraiczne",
+          "unit_type": "lesson",
+          "title": "Funkcja homograficzna - definicja"
+        },
+        {
+          "order": 4,
+          "unit_json": "320_funkcja_homograficzna.json",
+          "source_html": "320_funkcja_homograficzna.html",
+          "source_dir": "050_ulamki_algebraiczne",
+          "unit_type": "lesson",
+          "title": "Funkcja homograficzna - założenia"
+        },
+        {
+          "order": 5,
+          "unit_json": "330_funkcja_homograficzna.json",
+          "source_html": "330_funkcja_homograficzna.html",
+          "source_dir": "050_ulamki_algebraiczne",
+          "unit_type": "lesson",
+          "title": "Wykres i własności 1"
+        },
+        {
+          "order": 6,
+          "unit_json": "340_funkcja_homograficzna.json",
+          "source_html": "340_funkcja_homograficzna.html",
+          "source_dir": "050_ulamki_algebraiczne",
+          "unit_type": "lesson",
+          "title": "Wykres i własności 2"
+        },
+        {
+          "order": 7,
+          "unit_json": "350_funkcja_homograficzna.json",
+          "source_html": "350_funkcja_homograficzna.html",
+          "source_dir": "050_ulamki_algebraiczne",
+          "unit_type": "lesson",
+          "title": "Wykres i własności 3"
+        },
+        {
+          "order": 8,
+          "unit_json": "360_funkcja_homograficzna.json",
+          "source_html": "360_funkcja_homograficzna.html",
+          "source_dir": "050_ulamki_algebraiczne",
+          "unit_type": "lesson",
+          "title": "Ćwiczenia"
+        },
+        {
+          "order": 9,
+          "unit_json": "370_funkcja_homograficzna_quiz.json",
+          "source_html": "370_funkcja_homograficzna_quiz.html",
+          "source_dir": "050_ulamki_algebraiczne",
+          "unit_type": "quiz",
+          "title": "funkcja homograficzna quiz"
+        }
+      ]
+    },
+    {
+      "order": 4,
+      "title": "__PLACEHOLDER chapter 5__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "380_funkcja_homograficzna.json",
+          "source_html": "380_funkcja_homograficzna.html",
+          "source_dir": "050_ulamki_algebraiczne",
+          "unit_type": "lesson",
+          "title": "Podsumowanie"
+        }
+      ]
+    }
+  ]
+}

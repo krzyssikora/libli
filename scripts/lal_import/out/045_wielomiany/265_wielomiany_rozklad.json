@@ -1,0 +1,140 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Pamiętasz, co napisałem w ostatnim zadaniu, po sprawdzeniu, że \\(x=2\\) jest pierwiastkiem wielomianu \\(W(x)\\)?\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Napisałem, że szukając kolejnych pierwiastków \"\n    <em>\n<strong>\n            możemy ponownie spróbować \\(x=2\\)\n        </strong>\n</em>\n    \".\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Gdyby \\(x=2\\) ponownie było pierwiastkiem, to wówczas wielomian \\(W(x)\\) moglibyśmy\n    <strong>\n        dwukrotnie\n    </strong>\n    podzielić przez \\((x-2)\\).\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    A to oznacza, że w rozkładzie wielomianu \\(W(x)\\) na czynniki mielibyśmy\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n    \\((x-2)(x-2)\\quad\\) albo inaczej \\(\\quad (x-2)^2\\)\n"
+    },
+    {
+      "type": "text",
+      "body": "\n    Jeśli w rozkładzie na czynniki wielomianu czynnik postaci \\((x-a)\\) pojawia się w potędze wyższej niż \\(1\\), to pierwiastek wielomianu \\(x=a\\) nazywamy\n    <strong>\n        pierwiastkiem wielokrotnym\n    </strong>\n    .\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Przyjrzyj się kilku wielomianom rozłożonym na czynniki.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Przykład</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<ol class=\"bold\">\n<li>\n            Wielomian\n            <span style=\"color: purple; border: 1px solid; padding: 0 2px;\">\n                stopnia \\(2\\)\n            </span>\n            , \\(x=2\\) jest\n            <span style=\"color: red\">\n                pierwiastkiem dwukrotnym\n            </span>\n            .\n            \\[\n            W_1(x)=x^{\\color{purple}{\\fbox{2}}}-4x+4=(x-2)^{\\color{red}{2}}\n            \\]\n        </li>\n<li>\n            Wielomian\n            <span style=\"color: purple; border: 1px solid; padding: 0 2px;\">\n                stopnia \\(3\\)\n            </span>\n            , \\(x=2\\) jest\n            <span style=\"color: red\">\n                pierwiastkiem dwukrotnym\n            </span>\n            .\n            \\[\n            W_2(x)=x^{\\color{purple}{\\fbox{3}}}-x^2-8x+12=(x-2)^{\\color{red}{2}}(x+3)\n            \\]\n        </li>\n<li>\n            Wielomian\n            <span style=\"color: purple; border: 1px solid; padding: 0 2px;\">\n                stopnia \\(3\\)\n            </span>\n            , \\(x=2\\) jest\n            <span style=\"color: red\">\n                pierwiastkiem trzykrotnym\n            </span>\n            .\n            \\[\n            W_3(x)=x^{\\color{purple}{\\fbox{3}}}-6x^2+12x-8=(x-2)^{\\color{red}{3}}\n            \\]\n        </li>\n<li>\n            Wielomian\n            <span style=\"color: purple; border: 1px solid; padding: 0 2px;\">\n                stopnia \\(5\\)\n            </span>\n            , \\(x=2\\) jest\n            <span style=\"color: red\">\n                pierwiastkiem trzykrotnym\n            </span>\n            .\n            \\[\n            W_4(x)=x^{\\color{purple}{\\fbox{5}}}-5x^4+6x^3+4x^2-8x=x(x+1)(x-2)^{\\color{red}{3}}\n            \\]\n            <strong>\n                Zwróć uwagę\n            </strong>\n            , że nie musimy wymnażać wielomianu rozłożonego na czynniki, żeby znaleźć jego stopień. Wystarczy, że dodamy stopnie czynników:\n            \\[\n            \\underbrace{(x)}_{\\text{stopień }1,}\\underbrace{(x+1)}_{\\text{ stopień }1,}\\underbrace{(x-2)^3}_{\\text{ stopień }3}\n            \\]\n            \\[\n            1+1+3=5\n            \\]\n        </li>\n</ol>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Mówimy, że</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n            pierwiastek jednokrotny ma krotność \\(1\\),\n        </li>\n<li>\n            pierwiastek dwukrotny ma krotność \\(2\\),\n        </li>\n<li>\n            pierwiastek trzykrotny ma krotność \\(3\\)...\n        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Podaj stopień wielomianu i krotność wskazanego pierwiastka.\n    "
+    },
+    {
+      "type": "fill_table",
+      "data": {
+        "header_row": true,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "kind": "static",
+              "html": "wielomian"
+            },
+            {
+              "kind": "static",
+              "html": "stopień"
+            },
+            {
+              "kind": "static",
+              "html": "pierwiastek \\(a\\)"
+            },
+            {
+              "kind": "static",
+              "html": "krotność \\(a\\)"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(y=x^2(x-3)^2\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "4"
+            },
+            {
+              "kind": "static",
+              "html": "\\(3\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "2"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(y=(x-3)(x+2)^3\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "4"
+            },
+            {
+              "kind": "static",
+              "html": "\\(-2\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "3"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(y=(x-4)^3(x+4)^5\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "8"
+            },
+            {
+              "kind": "static",
+              "html": "\\(-4\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "5"
+            }
+          ]
+        ]
+      }
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "23d0b79b43f94ccc98e3a2f765fee1b7689a1054395b64a403507f62ac1972f5"
+}

@@ -5,7 +5,7 @@ contract, controls strip, B/I/U/math toolbar, contenteditable grid) with an
 table) or an answer cell (a shaded <input> holding the accepted-answer string,
 never any richer content). filltable_editor.js mirrors BOTH kinds into the
 hidden field.{% endcomment %}
-{% with d=form.instance.normalized_data %}
+{% with d=form.grid_data %}
 {% comment %}data-msg-* carry strings filltable_editor.js cannot {% templatetag openblock %}
 trans {% templatetag closeblock %} itself: the grid-handle labels it injects client-side,
 the answer-input placeholder, and the two submit-guard messages.{% endcomment %}
@@ -14,7 +14,14 @@ the answer-input placeholder, and the two submit-guard messages.{% endcomment %}
      data-msg-col-insert="{% trans 'Insert column right' %}" data-msg-col-delete="{% trans 'Delete column' %}"
      data-msg-answer-placeholder="{% trans 'Accepted answer' %}"
      data-msg-answer-blank="{% trans 'An answer cell is blank — type its accepted answer, or make it a normal cell.' %}"
-     data-msg-no-answer="{% trans 'Mark at least one answer cell (use the “Answer cell” button).' %}">
+     data-msg-no-answer="{% trans 'Mark at least one answer cell (use the “Answer cell” button).' %}"
+     data-msg-merge="{% trans 'Merge cells' %}"
+     data-msg-header="{% trans 'Header cell' %}"
+     data-msg-merge-confirm="{% trans 'Merging will discard the content of the other selected cells.' %}"
+     data-msg-merge-too-big="{% trans 'The selection is larger than a table may be.' %}"
+     data-msg-header-locked="{% trans 'Unavailable while the row or column header option covers this cell.' %}"
+     data-msg-range-selected="{% trans 'Range selected' %}"
+     data-msg-range-cleared="{% trans 'Range cleared' %}">
   <input type="hidden" name="data" value="{{ form.data.data|default:'' }}">
 
   <div class="table-editor__controls filltable-editor__controls">
@@ -51,27 +58,77 @@ the answer-input placeholder, and the two submit-guard messages.{% endcomment %}
     </span>
     <span class="rte-sep"></span>
     <button type="button" class="rte-btn" data-answer-toggle title="{% trans 'Answer cell' %}" aria-label="{% trans 'Answer cell' %}"><svg class="ic" aria-hidden="true" focusable="false"><use href="#ed-answer"/></svg></button>
+    <button type="button" class="rte-btn" data-image-toggle
+            title="{% trans 'Image cell' %}" aria-label="{% trans 'Image cell' %}"
+            data-pick-media="image" data-pick-mode="cell"><svg class="ic" aria-hidden="true" focusable="false"><use href="#ed-image"/></svg></button>
+    <input type="text" class="filltable-editor__alt input" data-image-alt hidden
+           placeholder="{% trans 'Image description (alt)' %}">
+    <span class="rte-sep"></span>
+    <button type="button" class="rte-btn" data-merge disabled
+            title="{% trans 'Merge cells' %}" aria-label="{% trans 'Merge cells' %}"><svg class="ic" aria-hidden="true" focusable="false"><use href="#ed-merge"/></svg></button>
+    <button type="button" class="rte-btn" data-split disabled
+            title="{% trans 'Split cell' %}" aria-label="{% trans 'Split cell' %}"><svg class="ic" aria-hidden="true" focusable="false"><use href="#ed-split"/></svg></button>
+    <button type="button" class="rte-btn" data-header-toggle disabled aria-pressed="false"
+            title="{% trans 'Header cell' %}" aria-label="{% trans 'Header cell' %}"><svg class="ic" aria-hidden="true" focusable="false"><use href="#ed-header"/></svg></button>
   </div>
 
   <div class="table-editor__grid filltable-editor__grid" data-table-grid>
     <table>
-      {% for row in d.cells %}
+      {% for row in form.resolved_grid_cells %}
       <tr>
         {% for cell in row %}
+        {% comment %}Each kind gets a <th> twin differing ONLY in tag name. Note
+        which branches carry contenteditable: static cells do, answer and image
+        cells do NOT (an answer cell is an <input>, and making its container
+        editable would let the static-content keydown/input handlers -- now
+        widened to accept th -- fire on it).{% endcomment %}
         {% if cell.kind == "answer" %}
-        <td data-answer class="ta-{{ cell.halign }} va-{{ cell.valign }}"
-            data-halign="{{ cell.halign }}" data-valign="{{ cell.valign }}">
-          <input type="text" class="filltable-editor__answer" value="{{ cell.answer }}"
-                 placeholder="{% trans 'Accepted answer' %}">
-        </td>
+          {% if cell.header %}
+          <th data-answer class="ta-{{ cell.halign }} va-{{ cell.valign }}"
+              data-halign="{{ cell.halign }}" data-valign="{{ cell.valign }}"{% if cell.colspan %} colspan="{{ cell.colspan }}"{% endif %}{% if cell.rowspan %} rowspan="{{ cell.rowspan }}"{% endif %}>
+            <input type="text" class="filltable-editor__answer" value="{{ cell.answer }}"
+                   placeholder="{% trans 'Accepted answer' %}">
+          </th>
+          {% else %}
+          <td data-answer class="ta-{{ cell.halign }} va-{{ cell.valign }}"
+              data-halign="{{ cell.halign }}" data-valign="{{ cell.valign }}"{% if cell.colspan %} colspan="{{ cell.colspan }}"{% endif %}{% if cell.rowspan %} rowspan="{{ cell.rowspan }}"{% endif %}>
+            <input type="text" class="filltable-editor__answer" value="{{ cell.answer }}"
+                   placeholder="{% trans 'Accepted answer' %}">
+          </td>
+          {% endif %}
+        {% elif cell.kind == "image" %}
+          {% if cell.header %}
+          <th data-image data-media="{{ cell.media.pk }}" data-alt="{{ cell.alt }}" tabindex="0"
+              class="ta-{{ cell.halign }} va-{{ cell.valign }}"
+              data-halign="{{ cell.halign }}" data-valign="{{ cell.valign }}"{% if cell.colspan %} colspan="{{ cell.colspan }}"{% endif %}{% if cell.rowspan %} rowspan="{{ cell.rowspan }}"{% endif %}>
+            <img class="filltable-editor__img" src="{{ cell.media.file.url }}" alt="{{ cell.alt }}">
+          </th>
+          {% else %}
+          <td data-image data-media="{{ cell.media.pk }}" data-alt="{{ cell.alt }}" tabindex="0"
+              class="ta-{{ cell.halign }} va-{{ cell.valign }}"
+              data-halign="{{ cell.halign }}" data-valign="{{ cell.valign }}"{% if cell.colspan %} colspan="{{ cell.colspan }}"{% endif %}{% if cell.rowspan %} rowspan="{{ cell.rowspan }}"{% endif %}>
+            <img class="filltable-editor__img" src="{{ cell.media.file.url }}" alt="{{ cell.alt }}">
+          </td>
+          {% endif %}
         {% else %}
-        <td contenteditable="true" class="ta-{{ cell.halign }} va-{{ cell.valign }}"
-            data-halign="{{ cell.halign }}" data-valign="{{ cell.valign }}">{{ cell.html|safe }}</td>
+          {% if cell.header %}
+          <th contenteditable="true" class="ta-{{ cell.halign }} va-{{ cell.valign }}"
+              data-halign="{{ cell.halign }}" data-valign="{{ cell.valign }}"{% if cell.colspan %} colspan="{{ cell.colspan }}"{% endif %}{% if cell.rowspan %} rowspan="{{ cell.rowspan }}"{% endif %}>{{ cell.html|safe }}</th>
+          {% else %}
+          <td contenteditable="true" class="ta-{{ cell.halign }} va-{{ cell.valign }}"
+              data-halign="{{ cell.halign }}" data-valign="{{ cell.valign }}"{% if cell.colspan %} colspan="{{ cell.colspan }}"{% endif %}{% if cell.rowspan %} rowspan="{{ cell.rowspan }}"{% endif %}>{{ cell.html|safe }}</td>
+          {% endif %}
         {% endif %}
         {% endfor %}
       </tr>
       {% endfor %}
     </table>
   </div>
+
+  {% comment %}Range membership is announced here rather than with aria-selected,
+  which is only meaningful on gridcell/option/row roles and is ignored (and
+  axe-flagged) on a bare <td>. Giving the editing table role="grid" would mean
+  owning full grid keyboard semantics -- out of scope.{% endcomment %}
+  <p class="visually-hidden" data-range-status aria-live="polite"></p>
 </div>
 {% endwith %}

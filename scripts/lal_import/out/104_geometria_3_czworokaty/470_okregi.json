@@ -1,0 +1,158 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Przypomnijmy:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n    Czworokąt nazywamy <strong>wpisanym</strong> w koło, jeśli wszystkie wierzchołki czworokąta leżą na okręgu ograniczającym koło.\n"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W poniższym aplecie możesz przesuwać czerwone punkty, by zmienić kształt i położenie czworokąta wpisanego w koło.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Gdy klikniesz \"start\", zobaczysz animację pokazującą własność kątów czworokąta wpisanego w koło.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            🡆 Jakie warunki muszą spełniać miary kątów czworokąta, by można było na nim opisać okrąg?\n        </p>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/bq7pyvax/width/575/height/578/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    },
+    {
+      "type": "spoiler",
+      "label": "wskazówka",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Pomyśl o sumach miar</p>"
+        },
+        {
+          "type": "text",
+          "body": "<u>przeciwległych</u>"
+        },
+        {
+          "type": "text",
+          "body": "<p>kątów.</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "odpowiedź",
+      "elements": [
+        {
+          "type": "image",
+          "media_src": "static/czworokat_wpisany_w_kolo_katy.png",
+          "alt": "",
+          "figcaption": "\\(\\color{green}{\\alpha}+\\color{green}{\\gamma}=180^{\\circ}=\\color{red}{\\beta}+\\color{red}{\\delta}\\)"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                Na czworokącie można opisać okrąg, gdy sumy przeciwległych kątów czworokąta są sobie równe.\n            </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                Taki czworokąt nazywamy wpisanym w koło.\n            </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                Oznacza to też, że każda suma przeciwległych kątów, \\(\\color{green}{\\alpha}+\\color{green}{\\gamma}\\) oraz \\(\\color{red}{\\beta}+\\color{red}{\\delta}\\), jest równa \\(180^{\\circ}\\).\n            </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Przyjrzyj się poniższej animacji, która pokazuje, że przeciwległe kąty wewnętrzne w czworokącie wpisanym w koło są dwukrotnie mniejsze od odpowiednich kątów środkowych, a suma tych kątów środkowych to \\(360^{\\circ}\\). \n        </p>"
+        },
+        {
+          "type": "iframe",
+          "url": "https://www.geogebra.org/material/iframe/id/nkxhq2ze/width/516/height/520/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+          "title": ""
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Kolejne kąty wewnętrzne czworokąta wpisanego w koło mają miary \\(\\alpha\\), \\(\\beta\\), \\(\\gamma\\) oraz \\(\\delta\\). Uzupełnij brakujące miary (nie wpisuj znaku stopnia).\n        </p>"
+    },
+    {
+      "type": "fill_table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "kind": "static",
+              "html": "\\(\\alpha\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(\\beta\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(\\gamma\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(\\delta\\)"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(30^{\\circ}\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(105^{\\circ}\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "150"
+            },
+            {
+              "kind": "answer",
+              "answer": "75"
+            }
+          ],
+          [
+            {
+              "kind": "answer",
+              "answer": "114"
+            },
+            {
+              "kind": "static",
+              "html": "\\(123^{\\circ}\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(66^{\\circ}\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "57"
+            }
+          ]
+        ]
+      }
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "227ff12b73e5687595c92a88ebe49b204f573b211bd30ba861d98e9e39d9936a"
+}

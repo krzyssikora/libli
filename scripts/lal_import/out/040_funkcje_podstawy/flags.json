@@ -1,0 +1,32 @@
+[
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: funkcje_0.html",
+    "raw_excerpt": "<a href=\"funkcje_0.html\">\n        wróć do spisu zagadnień\n    </a>",
+    "unit_json": "funkcje_1_proporcjonalnosc_odwrotna.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: funkcje_0.html",
+    "raw_excerpt": "<a href=\"funkcje_0.html\">\n        wróć do spisu zagadnień\n    </a>",
+    "unit_json": "funkcje_2_wykladnicza.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: funkcje_0.html",
+    "raw_excerpt": "<a href=\"funkcje_0.html\">\n        wróć do spisu zagadnień\n    </a>",
+    "unit_json": "funkcje_3_logarytmiczna.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: funkcje_0.html",
+    "raw_excerpt": "<a href=\"funkcje_0.html\">\n        wróć do spisu zagadnień\n    </a>",
+    "unit_json": "funkcje_4_podsumowanie.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: funkcje_0.html",
+    "raw_excerpt": "<a href=\"funkcje_0.html\">\n        wróć do spisu zagadnień\n    </a>",
+    "unit_json": "funkcje_5_warto_wiedziec.json"
+  }
+]

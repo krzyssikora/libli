@@ -1,0 +1,285 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n        Nierówność kwadratowa to taka, którą można sprowadzić do postaci\n    </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n    ax^2+bx+c \\bigcirc 0\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        gdzie w miejscu koła \\(\\bigcirc\\) powinien być jeden z czterech znaków nierówności: \\(\\gt\\), \\(\\ge\\), \\(\\lt\\) albo \\(\\le\\).\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Aby rozwiązać nierówność kwadratową, najpierw szkicujemy wykres funkcji\n    </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n    y=ax^2+bx+c\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Taki szkic nie musi być dokładny. Pownien uwzględniać zaledwie dwa czynniki:\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n            miejsca zerowe funkcji (musimy je więc najpierw obliczyć),\n        </li>\n<li>\n            kierunek, w którym idą ramiona paraboli (dla \\(a\\gt 0\\) do góry, dla \\(a\\lt 0\\) do dołu).\n        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Na wykresie nie musisz zaznaczać osi \\(OY\\), oś \\(OX\\) będzie w pełni wystarczająca. Poniżej widzisz cztery przykładowe wykresy.\n    </p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/nierownosci.png",
+      "alt": "nierowności",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Szkicujemy więc wykres, a następnie z wykresu odczytujemy wartości \\(x\\), dla których:\n    </p>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": true,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "nierówność",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "czego szukamy",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(ax^2+bx+c\\gt 0\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "wykres znajduje się\n                        <strong>\n                            powyżej\n                        </strong>\n                        osi \\(OX\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(ax^2+bx+c\\ge 0\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "wykres znajduje się\n                        <strong>\n                            powyżej lub na\n                        </strong>\n                        osi \\(OX\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(ax^2+bx+c\\lt 0\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "wykres znajduje się\n                        <strong>\n                            poniżej\n                        </strong>\n                        osi \\(OX\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(ax^2+bx+c\\le 0\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "wykres znajduje się\n                        <strong>\n                            poniżej lub na\n                        </strong>\n                        osi \\(OX\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    W nagraniu poniżej rozwiązuję 4 przykładowe nierówności. A pod nagraniem czekają nierówności do samodzielnego rozwiązania.\n</p>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://edpuzzle.com/embed/media/651833460d5c763fcc95cf7d",
+      "title": ""
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Rozwiąż nierówności. Sprawdź swoje odpowiedzi.\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "(1)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(x\\in\\left(-\\infty,2\\right)\\cup\\left(3, +\\infty\\right)\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "(2)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(x=\\frac{1}{2}\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "(3)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(x\\in \\emptyset\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "(4)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(x\\in \\mathbb{R}\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "(5)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(x\\in \\langle-\\frac{3}{2},\\frac{1}{2}\\rangle\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "(6)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(x\\in\\left(-\\infty,-4\\rangle\\cup\\langle\\frac{2}{3}, +\\infty\\right)\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "(7)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(x\\in \\left(0,\\frac{3}{2}\\right)\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "(8)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(x\\in\\mathbb{R}\\setminus\\left\\{\\frac{2}{5}\\right\\}\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "(9)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(x\\in\\mathbb{R}\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "(10)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(x\\in \\langle-\\frac{4}{3},\\frac{4}{3}\\rangle\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "(11)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(x\\in\\mathbb{R}\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "(12)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(x\\in\\mathbb{R}\\setminus\\left\\{-\\frac{5}{2}\\right\\}\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "(13)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(x\\in \\left(-\\frac{3}{2},4\\right)\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "(14)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(x\\in\\left(-\\infty,-\\frac{5}{2}\\rangle\\cup\\langle\\frac{1}{3}, +\\infty\\right)\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "(15)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(x\\in \\mathbb{R}\\)</p>"
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "fe0a7d1d5a427316b8bde29252ce8ca1ee209147cb199aa13589f6a797f52ef9"
+}

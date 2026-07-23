@@ -1,0 +1,131 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Przyjrzyj się poniższej animacji.</p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/slope.gif",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Które z wejść jest bardziej strome? Dlaczego?\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Uwaga!\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n                Nie chodzi o to, które wzniesienie jest wyższe.\n            </li>\n<li>\n                Nie chodzi o to, która droga na szczyt jest dłuższa.\n            </li>\n<li>\n                Chodzi o to, które wejście jest bardziej strome.\n            </li>\n</ul>"
+    },
+    {
+      "type": "video",
+      "media_src": "static/LAL_f_lin_3_cut.mp4"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Czy teraz znasz odpowiedź na pytanie, które wejście jest bardziej strome?\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Poćwicz samodzielnie: przeciągaj\n        <strong>\n<span style=\"color: #ff6600;\">\n                pomarańczowy punkt\n            </span>\n</strong>\n        , aby uzyskać odcinki o wszystkich nachyleniach z poniższej listy.\n        <br/>\n        Dla swojej wygody możesz kliknąć już uzyskane nachylenie, by je oznaczyć.\n    "
+    },
+    {
+      "type": "mark_done",
+      "items": [
+        "\\(\\frac{1}{2}\\)",
+        "\\(\\frac{5}{3}\\)",
+        "\\(-1\\)",
+        "\\(-\\frac{3}{2}\\)",
+        "\\(\\frac{7}{2}\\)",
+        "\\(2\\)"
+      ]
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/vxhwg9fc/width/800/height/600/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question_text\">\n        W tabeli wpisz nachylenie każdego z odcinków przedstwionych na rysunkach. Ułamki zapisuj za pomocą znaku \"/\", czyli na przykład ułamek \"\\(-\\frac{7}{3}\\)\" zapisz jako \"-7/3\".\n    </p>"
+    },
+    {
+      "type": "fill_table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "kind": "image",
+              "media_src": "static/slope_1.png",
+              "alt": ""
+            },
+            {
+              "kind": "image",
+              "media_src": "static/slope_2.png",
+              "alt": ""
+            },
+            {
+              "kind": "image",
+              "media_src": "static/slope_3.png",
+              "alt": ""
+            },
+            {
+              "kind": "image",
+              "media_src": "static/slope_4.png",
+              "alt": ""
+            },
+            {
+              "kind": "image",
+              "media_src": "static/slope_5.png",
+              "alt": ""
+            }
+          ],
+          [
+            {
+              "kind": "answer",
+              "answer": "1"
+            },
+            {
+              "kind": "answer",
+              "answer": "-2/3"
+            },
+            {
+              "kind": "answer",
+              "answer": "1/2"
+            },
+            {
+              "kind": "answer",
+              "answer": "0"
+            },
+            {
+              "kind": "answer",
+              "answer": "-4/3"
+            }
+          ]
+        ]
+      }
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "f282903b690cd2e439f0afb58359d0ffc6dac4cc99208bba55b2de339d012486"
+}

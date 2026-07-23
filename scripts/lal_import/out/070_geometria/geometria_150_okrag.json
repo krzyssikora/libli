@@ -1,0 +1,50 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Okręgi o promieniach \\(r_1\\) i \\(r_2\\) mają środki w odległości \\(d\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Jakie jest wzajemne położenie tych okręgów przy wskazanych wartościach \\(r_1\\), \\(r_2\\) i \\(d\\)?\n        </p>"
+    },
+    {
+      "type": "choice_grid",
+      "columns": [
+        "rozłączne zewnętrznie",
+        "styczne zewnętrznie",
+        "przecinające się",
+        "styczne wewnętrznie",
+        "rozłączne wewnętrznie"
+      ],
+      "rows": [
+        {
+          "statement": "\\(r_1=2\\), \\(r_2=4\\), \\(d=6\\)",
+          "correct": 1
+        },
+        {
+          "statement": "\\(r_1=8\\), \\(r_2=11\\), \\(d=3\\)",
+          "correct": 3
+        },
+        {
+          "statement": "\\(r_1=8\\), \\(r_2=4\\), \\(d=13\\)",
+          "correct": 0
+        },
+        {
+          "statement": "\\(r_1=5\\), \\(r_2=6\\), \\(d=4\\)",
+          "correct": 2
+        },
+        {
+          "statement": "\\(r_1=3\\), \\(r_2=8\\), \\(d=4\\)",
+          "correct": 4
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "d71e446fa9291c90d731c45366af4857880a177c781ec4e67d706af53b5f1f13"
+}

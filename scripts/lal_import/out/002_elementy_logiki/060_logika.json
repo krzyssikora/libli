@@ -1,0 +1,142 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n        Dla dwóch zdań logicznych, \\(p\\) i \\(q\\), rozpatrzmy następujące cztery implikacje:\n    </p>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(p\\Rightarrow q\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "implikacja\n                        <strong>\n                            prosta\n                        </strong>",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(q\\Rightarrow p\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "implikacja\n                        <strong>\n                            odwrotna\n                        </strong>",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\neg q\\Rightarrow \\neg p\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "implikacja\n                        <strong>\n                            przeciwna\n                        </strong>",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\neg q\\Rightarrow \\neg p\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "implikacja\n                        <strong>\n                            przeciwstawna\n                        </strong>",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Wymyśl dwa proste zdania logiczne \\(p\\) i \\(q\\) i przeanalizuj cztery implikacje:</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n                prosta, \\(p\\Rightarrow q\\)\n            </li>\n<li>\n                odwrotna, \\(q\\Rightarrow p\\)\n            </li>\n<li>\n                przeciwna, \\(\\neg q\\Rightarrow \\neg p\\)\n            </li>\n<li>\n                przeciwstawna, \\(\\neg q\\Rightarrow \\neg p\\)\n            </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Które z tych implikacji są równoważne?</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n    Implikacja przeciwstawna jest równoważna implikacji prostej, tzn.\n    \\[\n    \\left(p\\Rightarrow q\\right)\\Leftrightarrow\\left(\\neg q\\Rightarrow \\neg p\\right)\n    \\]\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "wyjaśnienie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Niech:</p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>\n            \\(p\\) oznacza \"\n            <em>\n                złapię autobus\n            </em>\n            \",\n        </li>\n<li>\n            \\(q\\) oznacza \"\n            <em>\n                zdążę do szkoły\n            </em>\n            \".\n        </li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Wówczas:</p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>\n            \\(p\\Rightarrow q\\) oznacza \"\n            <em>\n                Jeśli złapię autobus, to zdążę do szkoły\n            </em>\n            \",\n        </li>\n<li>\n            \\(\\neg q\\Rightarrow \\neg p\\) oznacza \"\n            <em>\n                Jeśli nie zdążę do szkoły to nie złapię autobusu\n            </em>\n            \".\n        </li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Ta druga implikacja brzmi trochę dziwnie, jakby zdążenie do szkoły miało nastąpić przed złapaniem autobusu. A łapiemy autobus zanim zdążymuy do szkoły. Ta implikacja powinna więc brzmieć:</p>"
+        },
+        {
+          "type": "text",
+          "body": "<blockquote class=\"centered\">\n        \"Jeśli nie zdążyłem do szkoły to znaczy, że nie złapałem autobusu.\"\n    </blockquote>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Zauważmy, że implikacja przeciwstawna w tej postaci oddaje sens implikacji prostej. Skoro złapanie autobusu gwarantuje zdążenie do szkoły (co wiemy z implikacji prostej), to jeśli do szkoły nie zdążyłem, pewnie jest, że autobusu nie złapałem (implikacja przeciwstawna).</p>"
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "64acafa0a1902a4254da4e7fed9b5d06df6f1125599ecdcacbc76f141a6c4994"
+}

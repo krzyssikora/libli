@@ -1,0 +1,242 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n        Równanie okręgu o środku w punkcie \\((a,b)\\) i promieniu \\(r\\) jest postaci\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        \\[\n        (x-a)^2+(y-b)^2=r^2\n        \\]\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W poniższym aplecie możesz przesuwać:\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n<strong style=\"color: #ffdb00; background-color: gray;\">żółty punkt</strong> - czyli środek okręgu,\n            </li>\n<li>\n<strong style=\"color: #e40000; background-color: lightgray;\">czerwony punkt</strong> - aby zmieniać promień okręgu.\n            </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Na górze widzisz równanie okręgu. Przyjrzyj się temu równaniu w różnych sytuacjach:\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>gdy współrzędne środka są dodatnie,</li>\n<li>gdy współrzędne środka są ujemne,</li>\n<li>gdy współrzędne środka są różnych znaków,</li>\n<li>gdy środek leży na osiach układu współrzędnych,</li>\n<li>gdy zmienia się promień okręgu.</li>\n</ul>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/kv6qfdx9/width/700/height/600/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Zauważ, że \n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        W równaniu okręgu \n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n            od \\(x\\)-a odejmujemy współrzędną \\(x\\)-ową środka (\\(a\\)),\n        </li>\n<li>\n            od \\(y\\)-a odejmujemy współrzędną \\(y\\)-ową środka (\\(b\\)).\n        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    To nie powinno dziwić, gdy weźmiemy pod uwagę \n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n        albo sposób liczenia odległości między dwoma punktami,\n    </li>\n<li>\n        albo równanie krzywej przesuniętej o wektor.\n    </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Dodatkowe wyjaśnienia:\n</p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "odległość między punktami",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                Jeśli \\((x,y)\\) to współrzędne punktu na okręgu o środku \\((a,b)\\) i promieniu \\(r\\)\n            </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_analityczna_2_rownanie_okregu_wyjasnienie_1_1.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "reveal_gate",
+          "label": "pokaż dalej"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    to odległość w poziomie między tymi punktami jest równa \\(|x-a|\\)\n                </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_analityczna_2_rownanie_okregu_wyjasnienie_1_2.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "reveal_gate",
+          "label": "pokaż dalej"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    a odległość w pionie między tymi punktami jest równa \\(|y-b|\\)\n                </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_analityczna_2_rownanie_okregu_wyjasnienie_1_3.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "reveal_gate",
+          "label": "pokaż dalej"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    i te dwie odległości to przyprostokątne trójkąta prostokątnego o przeciwprostokątnej \\(r\\)\n                </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_analityczna_2_rownanie_okregu_wyjasnienie_1_4.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "reveal_gate",
+          "label": "pokaż dalej"
+        },
+        {
+          "type": "text",
+          "body": "<p>A stąd z twierdzenia Pitagorasa\n                \\[\n                |x-a|^2+|y-b|^2=r^2\n                \\]</p>"
+        },
+        {
+          "type": "reveal_gate",
+          "label": "pokaż dalej"
+        },
+        {
+          "type": "text",
+          "body": "<p>czyli\n                \\[\n                (x-a)^2+(y-b)^2=r^2\n                \\]</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "równanie przesuniętej krzywej",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                Pamiętasz, jak zmieniają się równania przesuwanych wykresów funkcji? Możesz przeczytać o tym <a href=\"/jump_to_id/14ebbce139bc447eaf7213da54a53092\">tutaj</a>.\n                <!-- INTERNAL LINK -->\n</p>"
+        },
+        {
+          "type": "reveal_gate",
+          "label": "pokaż dalej"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Jeśli wykres funkcji \\(y=f(x)\\) przesuniemy o wektor \\(\\color{red}{[a,b]}\\), to równanie przesuniętej funkcji ma postać \n                </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                y=f(x\\color{red}{-a})\\color{red}{+b}\n                \\]\n                czyli inaczej\n                \\[\n                y\\color{red}{-b}=f(x\\color{red}{-a})\n                "
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_analityczna_2_rownanie_okregu_wyjasnienie_2_1.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "reveal_gate",
+          "label": "pokaż dalej"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Czyli\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                        W równaniu funkcji\n                    </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>\n                            od \\(x\\)-a odejmujemy współrzędną \\(x\\)-ową wektora  (\\(a\\)),\n                        </li>\n<li>\n                            od \\(y\\)-a odejmujemy współrzędną \\(y\\)-ową wektora  (\\(b\\)).\n                        </li>\n</ul>"
+        },
+        {
+          "type": "reveal_gate",
+          "label": "pokaż dalej"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Równanie okręgu nie jest równaniem funkcji, ale przesuwanie okręgu, jak i każdej innej krzywej, zachowuje się bardzo podobnie.\n                </p>"
+        },
+        {
+          "type": "reveal_gate",
+          "label": "pokaż dalej"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Równanie okręgu o promieniu \\(r\\) o środku w początku układu współrzędnych, czyli w punkcie \\((0,0)\\) to\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\[\n                x^2+y^2=r^2\n                \\]\n                co wnioskujemy z twierdzenia Pitagorasa.</p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_analityczna_2_rownanie_okregu_wyjasnienie_2_2.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "reveal_gate",
+          "label": "pokaż dalej"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Aby środek okręgu był w punkcie \\((a,b)\\), przesuwamy okrąg o wektor \\(\\color{red}{[a,b]}\\) uzyskując równanie \n                </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                (x\\color{red}{-a})^2+(y\\color{red}{-b})^2=r^2\n                "
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_analityczna_2_rownanie_okregu_wyjasnienie_2_3.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p><strong>Zadanie</strong></p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                            W poniższym aplecie także możesz przesuwać środek okręgu i punkt wokół okręgu. Aby zmienić promień możesz użyć suwaka. \n                        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                            Dodatkowo możesz też zobaczyć długości boków narysowanego trójkąta prostokątnego, z którego (z użyciem twierdzenia Pitagorasa) możemy wywnioskować równanie okręgu.\n                        </p>"
+        },
+        {
+          "type": "iframe",
+          "url": "https://www.geogebra.org/material/iframe/id/szhw8fhm/width/800/height/800/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+          "title": ""
+        }
+      ]
+    }
+  ],
+  "fully_mapped": false,
+  "seed_hash": "edeb0ca982c8fccba9903ae3d7e406eab7da1455a75db03cb514e733cbf17f91"
+}

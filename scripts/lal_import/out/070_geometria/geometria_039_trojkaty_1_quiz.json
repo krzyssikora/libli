@@ -1,0 +1,106 @@
+{
+  "elements": [
+    {
+      "type": "choice",
+      "stem": "<p>\n    Czy z odcinków o długościach 22, 13, 14 można stworzyć trójkąt?\n</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "TAK",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "NIE",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\n    Czy z odcinków o długościach 24, 13, 11 można stworzyć trójkąt?\n</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "TAK",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "NIE",
+          "is_correct": true,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\n    Odcinki łączące środki boków w trójkącie są długości 10, 10 i 12.\n</p><p>\n    Ten trójkąt jest:\n</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "różnoboczny",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "równoramienny",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "równooczny",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\n    Czy trójkąt o bokach 8, 15, 17 jest prostokątny?\n</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "TAK",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "NIE",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>W trójkącie prostokątnym długość przeciwprostokątnej to \\(7\\), a jednej z przyprostokątnych \\(1\\). Długość drugiej przyprostokątnej to</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(6\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(4\\sqrt{3}\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(5\\sqrt{2}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\sqrt{15}\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "602fcbd51aba4652dd150b42b6a848d0edaaee91e3aba972ddde1076eae36771"
+}

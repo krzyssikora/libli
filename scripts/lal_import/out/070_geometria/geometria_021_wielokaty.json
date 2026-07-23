@@ -1,0 +1,43 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n<strong>\n            Wielokąt wypukły\n        </strong>\n        to taki, który ma następującą właśność:\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        jeśli weżmiemy dowolne dwa punkty z tego wielokąta, to odcinek łączący te dwa punkty (czyli każdy punkt z tego odcinka) też w całości jest w tym wielokącie.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Jeśli ta własność nie jest spełniona, tzn. gdy istnieją takie punkty, dla których\n        <em>\n            nie cały\n        </em>\n        odcinek je łączący jest w tym wielokącie, to wielokąt nie jest wypukły, i wówczas nazywamy go\n        <strong>\n            wklęsłym\n        </strong>\n        .\n    </p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/wypukly.gif",
+      "alt": "",
+      "figcaption": "Wielokąt poniżej jest wypukły , bo wszystkie odcinki o końcach z wielokąta są w całości w wielokącie."
+    },
+    {
+      "type": "image",
+      "media_src": "static/wklesly.png",
+      "alt": "",
+      "figcaption": "Wielokąt poniżej jest wklęsły , bo zaznaczony odcinek ma końce w wielokącie, ale jego żółty fragment nie leży w wielokącie."
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W poniższym wielokącie przesuń odcinek (możesz przesuwać jego końce) w taki sposób, by wskazywał on, że wielokąt nie jest wypukły.\n        </p>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/geeqmabe/width/800/height/400/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "a2681aa05e00daac383017c51c14931b14e666552656e5167e389143540c8565"
+}

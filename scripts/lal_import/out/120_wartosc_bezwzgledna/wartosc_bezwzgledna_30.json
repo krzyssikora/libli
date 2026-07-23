@@ -1,0 +1,110 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n<strong>\n            definicja wartości bezwzględnej\n        </strong>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Wartość bezwzględną z liczby rzeczywistej \\(a\\) definiujemy następująco:\n                                    \\[\n                                    |a|=\\begin{cases}\n                                    a& \\text{gdy } a\\ge 0\\\\\n                                    -a& \\text{gdy } a\\lt 0\n                                    \\end{cases}\n                                    \\]</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Oblicz i przedstaw wynik w najprostszej postaci.</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ol type=\"a\">\n<li>\n                \\(|3-\\sqrt{7}|\\)\n            </li>\n<li>\n                \\(|7-5\\sqrt{2}|\\)\n            </li>\n</ol>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Zanim przeczytasz moje rozwiązania, spróbuj odpowiedzieć na oba pytania samodzielnie.\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "Rozwiązanie części (a) - zobacz",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n            Podobnie jak w części (a), musimy sprawdzić, czy liczba \\(a=7-5\\sqrt{2}\\) jest dodatnia czy ujemna.\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Zauważmy, że\n        </p>"
+        },
+        {
+          "type": "math",
+          "latex": "7=\\sqrt{49}"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            natomiast\n        </p>"
+        },
+        {
+          "type": "math",
+          "latex": "5\\sqrt{2}=\\sqrt{25}\\cdot\\sqrt{2}=\\sqrt{50}"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Stąd:\n        </p>"
+        },
+        {
+          "type": "math",
+          "latex": "a=7-5\\sqrt{2}=\\sqrt{49}-\\sqrt{50}\\lt 0"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            bo \\(\\sqrt{49}\\lt \\sqrt{50}\\)\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            I teraz skoro liczba \\(a=7-5\\sqrt{2}\\) jest ujemna, to \\(|a|=-a\\), czyli:\n        </p>"
+        },
+        {
+          "type": "math",
+          "latex": "|7-5\\sqrt{2}|=-(7-5\\sqrt{2})=-7+5\\sqrt{2}=5\\sqrt{2}-7"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "Rozwiązanie części (b) - zobacz",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n            Jeśli \\(a=3-\\sqrt{7}\\), to żeby obliczyć \\(|a|\\), musimy wiedzieć, czy \\(a\\ge 0\\) czy też \\(a\\lt 0\\).\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Zauważmy, że \\(3=\\sqrt{9}\\), więc\n        </p>"
+        },
+        {
+          "type": "math",
+          "latex": "a=3-\\sqrt{7}=\\sqrt{9}-\\sqrt{7}"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Oczywiście \\(\\sqrt{9}&gt;\\sqrt{7}\\), więc\n        </p>"
+        },
+        {
+          "type": "math",
+          "latex": "a=\\sqrt{9}-\\sqrt{7}\\gt 0"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            A skoro \\(a\\gt 0\\), to \\(|a|=a\\), więc:\n        </p>"
+        },
+        {
+          "type": "math",
+          "latex": "|3-\\sqrt{7}|=3-\\sqrt{7}"
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "7ce91a6970279922573d5d555db5426afa5ba1b1d10530741e2998cb492ce6b6"
+}

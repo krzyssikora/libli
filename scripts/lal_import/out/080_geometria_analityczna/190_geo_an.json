@@ -1,0 +1,279 @@
+{
+  "elements": [
+    {
+      "type": "spoiler",
+      "label": "Przypomnienie: odległość między liczbami na osi liczbowej",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Rysunek pokazuje, że odległość między liczbami \\(9\\) a \\(2\\) jest równa \\(7\\).</p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/odleglosc_na_osi.png",
+          "alt": "odległość",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n        Jak obliczyć taką odległość? To proste - wystarczy znaleźć różnicę między liczbami, czyli od \\(9\\) odjąć \\(2\\).\n    </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n        Czy możemy powiedzieć, że odległość między liczbami \\(a\\) i \\(b\\) to po prostu różnica \\(a-b\\)?\n    </p>"
+        },
+        {
+          "type": "table",
+          "data": {
+            "header_row": false,
+            "header_col": false,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "\\(a=9\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(b=2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(a-b=9-2=7\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(a=2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(b=9\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(a-b=2-9=-7\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "type": "text",
+          "body": "<p>\n        Jak widać, prosty wzór \\(a-b\\) ma tę wadę, że czasami daje wynik ujemny. Wystarczy jednak użyć wartości bezwzględnej, by mieć pewność, że wynik nie będzie ujemny.\n    </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n        Odległość między liczbami \\(a\\) i \\(b\\) to \\(|a-b|\\).\n    "
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<h3>\n    Równanie okręgu\n</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Równanie okręgu o środku w punkcie \\((a,b)\\) i promieniu długości \\(r\\) (gdzie \\(a\\), \\(b\\) oraz \\(r\\) są dane) to równanie opisujące współrzędne \\(x\\) i \\(y\\) wszystkich punktów, które są w odległości \\(r\\) od punktu \\((a,b)\\).</p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/rownanie_okregu_0.png",
+      "alt": "okrąg",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W poniższym aplecie możesz przesuwać środek okręgu i zmieniać długość promienia za pomocą suwaka w lewym górnym rogu.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Na okręgu widzisz punkt o współrzędnych \\((x,y)\\). Jest on połączony ze środkiem promieniem, i ten promień jest też przeciwprostokątną trójkąta prostokątnego.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Przyprostokątne tego trójkąta wskazują na odległości w poziomie i w pionie od środka okręgu do punktu \\((x,y)\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Kliknij \"\n            <strong>\n                pokaż odległości\n            </strong>\n            \", by zobaczyć, jakie są te dwie odległości. Zobaczysz wówczas\n            <u>\n                długości wszystkich boków trójkąta prostokątnego\n            </u>\n            .\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Równanie, które je łączy to teza twierdzenia Pitagorasa - kliknij \"\n            <strong>\n                pokaż równanie\n            </strong>\n            \", by je zobaczyć.\n        </p>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/szhw8fhm/width/800/height/800/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Zmieniaj położenie środka i długość promienia - i obserwuj, jak zmienia się równanie okręgu.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<small>\n<u>\n                Zwróć uwagę\n            </u>\n            , że w równaniu okręgu nie ma już wartości bezwzględnych - a to dlatego, że kwadrat liczby jest nieujemny, niezależnie od tego, jaka była ta liczba.\n        </small>"
+    },
+    {
+      "type": "text",
+      "body": "\n    Równanie okręgu o środku w punkcie \\((a,b)\\) i promieniu długości \\(r\\) ma postać:\n    \\[\n    (x-a)^2+(y-b)^2=r^2\n    \\]\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>\n        Zwróć uwagę\n    </strong>\n    , że w takim równaniu współrzędne środka okręgu są odejmowane od \\(x\\)-a i od \\(y\\)-a.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Uzupełnij tabelę według wzoru.</p>"
+    },
+    {
+      "type": "fill_table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "kind": "static",
+              "html": "środek okręgu",
+              "header": true,
+              "colspan": 2
+            },
+            {
+              "kind": "static",
+              "html": "promień",
+              "header": true,
+              "rowspan": 2
+            },
+            {
+              "kind": "static",
+              "html": "równanie okręgu",
+              "header": true,
+              "rowspan": 2
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(x\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(y\\)"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(-1\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(2\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(5\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\((x+1)^2+(y-2)^2=25\\)"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(5\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(0\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(2\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\((x-5)^2+y^2=4\\)"
+            }
+          ],
+          [
+            {
+              "kind": "answer",
+              "answer": "3"
+            },
+            {
+              "kind": "answer",
+              "answer": "-5"
+            },
+            {
+              "kind": "answer",
+              "answer": "3"
+            },
+            {
+              "kind": "static",
+              "html": "\\((x-3)^2+(y+5)^2=9\\)"
+            }
+          ],
+          [
+            {
+              "kind": "answer",
+              "answer": "0"
+            },
+            {
+              "kind": "answer",
+              "answer": "1"
+            },
+            {
+              "kind": "static",
+              "html": "\\(7\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "49"
+            }
+          ],
+          [
+            {
+              "kind": "answer",
+              "answer": "-2"
+            },
+            {
+              "kind": "static",
+              "html": "\\(3\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "4"
+            },
+            {
+              "kind": "answer",
+              "answer": "-3"
+            }
+          ]
+        ]
+      }
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "5ca1d70eeafcccb1afbd2c3de7947143b50eedfeac05f4deab261dd0fc664d1d"
+}

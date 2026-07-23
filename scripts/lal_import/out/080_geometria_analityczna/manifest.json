@@ -1,0 +1,281 @@
+{
+  "part": {
+    "source_folder": "080_geometria_analityczna",
+    "order": 12,
+    "title": "geometria analityczna"
+  },
+  "chapters": [
+    {
+      "order": 0,
+      "title": "__PLACEHOLDER chapter 1__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "010_geo_an.json",
+          "source_html": "010_geo_an.html",
+          "source_dir": "080_geometria_analityczna",
+          "unit_type": "lesson",
+          "title": "Długość odcinka 1"
+        },
+        {
+          "order": 1,
+          "unit_json": "020_geo_an.json",
+          "source_html": "020_geo_an.html",
+          "source_dir": "080_geometria_analityczna",
+          "unit_type": "lesson",
+          "title": "Długość odcinka 2"
+        },
+        {
+          "order": 2,
+          "unit_json": "030_geo_an.json",
+          "source_html": "030_geo_an.html",
+          "source_dir": "080_geometria_analityczna",
+          "unit_type": "lesson",
+          "title": "Ćwiczenie"
+        },
+        {
+          "order": 3,
+          "unit_json": "040_geo_an.json",
+          "source_html": "040_geo_an.html",
+          "source_dir": "080_geometria_analityczna",
+          "unit_type": "lesson",
+          "title": "Średnia a środek"
+        },
+        {
+          "order": 4,
+          "unit_json": "050_geo_an.json",
+          "source_html": "050_geo_an.html",
+          "source_dir": "080_geometria_analityczna",
+          "unit_type": "lesson",
+          "title": "Środek odcinka"
+        },
+        {
+          "order": 5,
+          "unit_json": "060_geo_an.json",
+          "source_html": "060_geo_an.html",
+          "source_dir": "080_geometria_analityczna",
+          "unit_type": "lesson",
+          "title": "Ćwiczenia"
+        },
+        {
+          "order": 6,
+          "unit_json": "070_geo_an.json",
+          "source_html": "070_geo_an.html",
+          "source_dir": "080_geometria_analityczna",
+          "unit_type": "lesson",
+          "title": "Środek trójkąta"
+        },
+        {
+          "order": 7,
+          "unit_json": "080_geo_an.json",
+          "source_html": "080_geo_an.html",
+          "source_dir": "080_geometria_analityczna",
+          "unit_type": "lesson",
+          "title": "Ćwiczenia"
+        },
+        {
+          "order": 8,
+          "unit_json": "090_geo_an.json",
+          "source_html": "090_geo_an.html",
+          "source_dir": "080_geometria_analityczna",
+          "unit_type": "lesson",
+          "title": "Komentarz do zadania"
+        },
+        {
+          "order": 9,
+          "unit_json": "100_geo_an_quiz.json",
+          "source_html": "100_geo_an_quiz.html",
+          "source_dir": "080_geometria_analityczna",
+          "unit_type": "quiz",
+          "title": "geo an quiz"
+        }
+      ]
+    },
+    {
+      "order": 1,
+      "title": "__PLACEHOLDER chapter 2__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "110_geo_an.json",
+          "source_html": "110_geo_an.html",
+          "source_dir": "080_geometria_analityczna",
+          "unit_type": "lesson",
+          "title": "Równanie kierunkowe prostej"
+        },
+        {
+          "order": 1,
+          "unit_json": "120_geo_an.json",
+          "source_html": "120_geo_an.html",
+          "source_dir": "080_geometria_analityczna",
+          "unit_type": "lesson",
+          "title": "Równanie ogólne prostej"
+        },
+        {
+          "order": 2,
+          "unit_json": "130_geo_an.json",
+          "source_html": "130_geo_an.html",
+          "source_dir": "080_geometria_analityczna",
+          "unit_type": "lesson",
+          "title": "Równanie ogólne i kierunkowe prostej"
+        },
+        {
+          "order": 3,
+          "unit_json": "140_geo_an.json",
+          "source_html": "140_geo_an.html",
+          "source_dir": "080_geometria_analityczna",
+          "unit_type": "lesson",
+          "title": "Proste równoległe"
+        },
+        {
+          "order": 4,
+          "unit_json": "150_geo_an.json",
+          "source_html": "150_geo_an.html",
+          "source_dir": "080_geometria_analityczna",
+          "unit_type": "lesson",
+          "title": "Ćwiczenie"
+        },
+        {
+          "order": 5,
+          "unit_json": "160_geo_an.json",
+          "source_html": "160_geo_an.html",
+          "source_dir": "080_geometria_analityczna",
+          "unit_type": "lesson",
+          "title": "Proste prostopadłe"
+        },
+        {
+          "order": 6,
+          "unit_json": "170_geo_an.json",
+          "source_html": "170_geo_an.html",
+          "source_dir": "080_geometria_analityczna",
+          "unit_type": "lesson",
+          "title": "Ćwiczenie"
+        },
+        {
+          "order": 7,
+          "unit_json": "180_geo_an_quiz.json",
+          "source_html": "180_geo_an_quiz.html",
+          "source_dir": "080_geometria_analityczna",
+          "unit_type": "quiz",
+          "title": "geo an quiz"
+        }
+      ]
+    },
+    {
+      "order": 2,
+      "title": "__PLACEHOLDER chapter 3__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "190_geo_an.json",
+          "source_html": "190_geo_an.html",
+          "source_dir": "080_geometria_analityczna",
+          "unit_type": "lesson",
+          "title": "Równanie okręgu"
+        },
+        {
+          "order": 1,
+          "unit_json": "200_geo_an.json",
+          "source_html": "200_geo_an.html",
+          "source_dir": "080_geometria_analityczna",
+          "unit_type": "lesson",
+          "title": "Punkty na okręgu"
+        },
+        {
+          "order": 2,
+          "unit_json": "210_geo_an.json",
+          "source_html": "210_geo_an.html",
+          "source_dir": "080_geometria_analityczna",
+          "unit_type": "lesson",
+          "title": "Równanie okręgu w postaci kanonicznej 1"
+        },
+        {
+          "order": 3,
+          "unit_json": "220_geo_an.json",
+          "source_html": "220_geo_an.html",
+          "source_dir": "080_geometria_analityczna",
+          "unit_type": "lesson",
+          "title": "Równanie okręgu w postaci kanonicznej 2"
+        },
+        {
+          "order": 4,
+          "unit_json": "230_geo_an.json",
+          "source_html": "230_geo_an.html",
+          "source_dir": "080_geometria_analityczna",
+          "unit_type": "lesson",
+          "title": "Okrąg opisany na trójkącie prostokątnym"
+        },
+        {
+          "order": 5,
+          "unit_json": "240_geo_an.json",
+          "source_html": "240_geo_an.html",
+          "source_dir": "080_geometria_analityczna",
+          "unit_type": "lesson",
+          "title": "Okrąg opisany na trójkącie"
+        },
+        {
+          "order": 6,
+          "unit_json": "250_geo_an.json",
+          "source_html": "250_geo_an.html",
+          "source_dir": "080_geometria_analityczna",
+          "unit_type": "lesson",
+          "title": "Styczna do okręgu"
+        },
+        {
+          "order": 7,
+          "unit_json": "260_geo_an_quiz.json",
+          "source_html": "260_geo_an_quiz.html",
+          "source_dir": "080_geometria_analityczna",
+          "unit_type": "quiz",
+          "title": "geo an quiz"
+        }
+      ]
+    },
+    {
+      "order": 3,
+      "title": "__PLACEHOLDER chapter 4__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "270_geo_an.json",
+          "source_html": "270_geo_an.html",
+          "source_dir": "080_geometria_analityczna",
+          "unit_type": "lesson",
+          "title": "Okrąg przecięty prostą 1"
+        },
+        {
+          "order": 1,
+          "unit_json": "280_geo_an.json",
+          "source_html": "280_geo_an.html",
+          "source_dir": "080_geometria_analityczna",
+          "unit_type": "lesson",
+          "title": "Okrąg przecięty prostą 2"
+        },
+        {
+          "order": 2,
+          "unit_json": "290_geo_an.json",
+          "source_html": "290_geo_an.html",
+          "source_dir": "080_geometria_analityczna",
+          "unit_type": "lesson",
+          "title": "Zadanie"
+        },
+        {
+          "order": 3,
+          "unit_json": "300_geo_an.json",
+          "source_html": "300_geo_an.html",
+          "source_dir": "080_geometria_analityczna",
+          "unit_type": "lesson",
+          "title": "Zadanie"
+        },
+        {
+          "order": 4,
+          "unit_json": "310_geo_an.json",
+          "source_html": "310_geo_an.html",
+          "source_dir": "080_geometria_analityczna",
+          "unit_type": "lesson",
+          "title": "Geometria analityczna - podsumowanie"
+        }
+      ]
+    }
+  ]
+}

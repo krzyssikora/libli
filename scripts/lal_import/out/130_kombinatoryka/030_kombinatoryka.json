@@ -1,0 +1,1918 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Jeśli mamy do dyspozycji materiał w ośmiu kolorach, ile różnych dwukolorowych flag możemy uszyć?\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Uwaga, Polska to nie Indonezja, a flaga biało-czerwona to nie to samo, co czerwono-biała.\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                    Zacznijmy od górnego paska materiału.\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<blockquote>\n                    \"mamy do dyspozycji materiał w ośmiu kolorach\"\n                </blockquote>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    więc na górny pasek możemy wybrać jeden z \n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "ośmiu kolorów",
+            "siedmiu kolorów"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Flaga ma być dwukolorowa, więc na dolny pasek musimy wybrać inny kolor, czyli możemy wybrać jeden z \n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "ośmiu kolorów",
+            "siedmiu kolorów"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Skoro mamy \\(8\\) możliwości wyboru na jeden kolor i \\(7\\) możliwości na drugi, to możliwych jest \n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(8+7=15\\) różnych flag",
+            "\\(8\\cdot 7=56\\) różnych flag"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Każdemu z ośmiu wyborów koloru górnego paska odpowiadać może jeden z siedmiu wyborów dolnego paska, więc na mocy reguły mnożenia możemy stworzyć \\(8\\cdot 7=56\\) różnych dwukolorowych flag.</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/flaga3.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Flaga jest uszyta z czterech trójkątów w dwóch różnych kolorach oraz naszytego na nie koła w trzecim kolorze, jak na rysunku obok.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Jeśli mamy do dyspozycji materiał w ośmiu kolorach, ile różnych takich flag możemy uszyć?\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                    Zacznijmy od trójkątów na górnego i dolnego, które są w jednym kolorze.\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<blockquote>\n                    \"mamy do dyspozycji materiał w ośmiu kolorach\"\n                </blockquote>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    więc na oba trójkąty możemy wybrać jeden z \n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "ośmiu kolorów",
+            "siedmiu kolorów",
+            "sześciu kolorów"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Na pozostałe dwa trójkąty możemy wybrać jeden z \n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "ośmiu kolorów",
+            "siedmiu kolorów",
+            "sześciu kolorów"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    I wreszcie na koło w środku możemy wybrać jeden z \n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "ośmiu kolorów",
+            "siedmiu kolorów",
+            "sześciu kolorów"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Skoro mamy \\(8\\) możliwości wyboru na jedną parę trójkątów, \\(7\\) możliwości na drugą parę i \\(6\\) na koło, to możliwych jest \n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(8+7+6=21\\) różnych flag",
+            "\\(8\\cdot 7\\cdot 6=336\\) różnych flag"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Na mocy reguły mnożenia możemy stworzyć \\(8\\cdot 7\\cdot 6=336\\) różnych flag.</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W menu restauracyjnym jest do wyboru:\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>4 zupy,</li>\n<li>5 dań głównych</li>\n<li>i 3 desery.</li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Ile różnych trzydaniowych posiłków (składających się z zupy, dania głównego i deseru) można zamówić?\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Wszystkich posiłków jest\n                    \n\n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(12\\)",
+            "\\(17\\)",
+            "\\(19\\)",
+            "\\(23\\)",
+            "\\(60\\)"
+          ],
+          "answer": 4
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(4\\) zupy, \\(5\\) dań głównych i \\(3\\) desery, więc wszystkich posiłków jest\n                \\[4\\cdot 5\\cdot 3=60\n                \\]</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Rzucamy dwukrotnie sześcienną kostką do gry. Ile jest różnych wyników takich rzutów?\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Uwaga, wynik \"najpierw</p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/dice1.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>potem</p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/dice4.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\" jest inny, niż \"najpierw</p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/dice4.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>potem</p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/dice1.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\".</p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Wyników jest\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(6+6\\) czyli \\(12\\)",
+            "\\(6\\cdot 6\\) czyli \\(36\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>W każdym rzucie jest \\(6\\) możliwych wyników, więc dwa rzuty dają \\(6\\cdot 6=36\\) możliwości.</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Rzucamy pięciokrotnie monetą. Ile jest różnych wyników takich rzutów?\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>W każdym rzucie są dwa możliwe wyniki:</p>"
+        },
+        {
+          "type": "text",
+          "body": "<strong>O</strong>"
+        },
+        {
+          "type": "text",
+          "body": "<p>rzeł lub</p>"
+        },
+        {
+          "type": "text",
+          "body": "<strong>R</strong>"
+        },
+        {
+          "type": "text",
+          "body": "<p>eszka.</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    W pięciu rzutach możliwych wyników jest\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(5\\cdot 2\\)",
+            "\\(2^5\\)",
+            "\\(5^2\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>W pięciu rzutach wyników jest\n                \\[\n                2\\cdot 2\\cdot 2\\cdot 2\\cdot 2=2^5=32\n                \\]</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Numer PIN (ang. <em>Personal Identification Number</em>) to najczęściej cztery liczby naturalne.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Nie musi to być liczba czterocyfrowa, bo może zaczynać się od zera. Przykładowe numery PIN to:\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<pre style=\"display: inline-block;\">0374</pre>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\\(\\quad\\quad\\)</p>"
+    },
+    {
+      "type": "text",
+      "body": "<pre style=\"display: inline-block;\">9001</pre>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\\(\\quad\\quad\\)</p>"
+    },
+    {
+      "type": "text",
+      "body": "<pre style=\"display: inline-block;\">0002</pre>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\\(\\quad\\quad\\)</p>"
+    },
+    {
+      "type": "text",
+      "body": "<pre style=\"display: inline-block;\">4000</pre>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\\(\\quad\\quad\\)</p>"
+    },
+    {
+      "type": "text",
+      "body": "<pre style=\"display: inline-block;\">2582</pre>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\\(\\quad\\quad\\)</p>"
+    },
+    {
+      "type": "text",
+      "body": "<pre style=\"display: inline-block;\">3491</pre>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\\(\\quad\\quad\\)</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Ile istnieje numerów PIN o <u>różnych</u> cyfrach?\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Rozpatrzmy możliwe cyfry od lewej do prawej.</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Pierwsza cyfra może być zupełnie dowolna, mamy więc\n                    \n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(10\\) możliwości",
+            "\\(9\\) możliwości",
+            "\\(8\\) możliwości",
+            "\\(7\\) możliwości"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Na drugim miejscu nie możemy użyć cyfry użytej poprzednio, więc mamy\n                    \n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(10\\) możliwości",
+            "\\(9\\) możliwości",
+            "\\(8\\) możliwości",
+            "\\(7\\) możliwości"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Na trzecim miejscu nie możemy użyć żadnej z dwóch cyfr użytych poprzednio, więc zostało nam\n                    \n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(10\\) możliwości",
+            "\\(9\\) możliwości",
+            "\\(8\\) możliwości",
+            "\\(7\\) możliwości"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Na ostatnim miejscu nie możemy użyć żadnej z trzech cyfr użytych poprzednio, więc na tym miejscu mamy\n                    \n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(10\\) możliwości",
+            "\\(9\\) możliwości",
+            "\\(8\\) możliwości",
+            "\\(7\\) możliwości"
+          ],
+          "answer": 3
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Aby uzyskać liczbę różnych numerów PIN o różnych cyfrach, musimy te wyniki\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "pomnożyć",
+            "dodać"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Liczbę różnych numerów PIN o wszystkich cyfrach różnych uzyskujemy mnożąc:\n                \\[\n                10\\cdot 9\\cdot 8\\cdot 7=5\\,040\n                \\]</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Ile jest czterocyfrowych liczb parzystych o cyfrach ze zbioru \\(\\{2, 3, 4, 6, 7, 9\\}\\)?\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Szukana liczba składa się z czterech cyfr:</p>"
+        },
+        {
+          "type": "table",
+          "data": {
+            "header_row": false,
+            "header_col": false,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "type": "text",
+          "body": "<p>Liczba ma być parzysta, więc skupmy się na ostatniej cyfrze:</p>"
+        },
+        {
+          "type": "table",
+          "data": {
+            "header_row": false,
+            "header_col": false,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Aby ta liczba była parzysta, jej ostatnią cyfrą musi być \n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(0\\)",
+            "\\(2, 4\\) albo \\(6\\)",
+            "\\(0, 2, 4, 6\\) albo \\(8\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Spośród dostępnych cyfr: \\(\\{2, 3, 4, 6, 7, 9\\}\\), aby liczba była parzysta, na jej końcu musimy umieścić \\(2\\), \\(4\\) albo \\(6\\). Mamy więc \\(3\\) cyfry do wyboru.</p>"
+        },
+        {
+          "type": "table",
+          "data": {
+            "header_row": false,
+            "header_col": false,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "wybór z 3",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Na każdym z pozostałych miejsc możemy wpisać zupełnie dowolną cyfrę, więc za każdym razem mamy do wyboru\n                    \n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(5\\) cyfr",
+            "\\(6\\) cyfr",
+            "\\(9\\) cyfr",
+            "\\(10\\) cyfr"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "table",
+          "data": {
+            "header_row": false,
+            "header_col": false,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "wybór z 6",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "wybór z 6",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "wybór z 6",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "wybór z 3",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    A to oznacza, że jest\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(6+6+6+3\\) szukanych liczb",
+            "\\(6\\cdot 6\\cdot 6\\cdot 3\\) szukanych liczb"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Szukanych liczb parzystych jest\n                \\[\n                6\\cdot 6\\cdot 6\\cdot 3=648\n                \\]</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Ile jest czterocyfrowych liczb parzystych o cyfrach ze zbioru \\(\\{0, 2, 3, 4, 6, 7, 9\\}\\)?\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                    To zadanie jest prawie identyczne, jak poprzednie. Jest jednak jedna bardzo istotna różnica.\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>Dostrzegasz, jaka?</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Do zbioru cyfr dołączyło \\(0\\). Zero jest cyfrą wyjątkową, bo nie może być umiejscowione na początku liczby. Gdyby wpisać \\(0\\) jako pierwszą cyfrę, otrzymalibyśmy liczbę nie cztero- ale trzycufrową. Albo nawet krótszą, gdyby zer na początku było więcej.</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Szukana liczba składa się z czterech cyfr:</p>"
+        },
+        {
+          "type": "table",
+          "data": {
+            "header_row": false,
+            "header_col": false,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "type": "text",
+          "body": "<p>Liczba ma być parzysta, więc ponownie zacznijmy od ostatniej cyfry:</p>"
+        },
+        {
+          "type": "table",
+          "data": {
+            "header_row": false,
+            "header_col": false,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Aby ta liczba była parzysta, jej ostatnią cyfrą musi być \n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(0\\)",
+            "\\(0, 2, 4\\) albo \\(6\\)",
+            "\\(0, 2, 4, 6\\) albo \\(8\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    \\(0, 2, 4\\) albo \\(6\\) - bo to wszystkie dostępne nam cyfry parzyste.\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Teraz pomyślmy o pierwszej cyfrze.</p>"
+        },
+        {
+          "type": "table",
+          "data": {
+            "header_row": false,
+            "header_col": false,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "wybór z 4",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Tu musimy pamiętać, że liczba ma być cztero- a nie trzycyfrowa, więc spośród \\(\\{0, 2, 3, 4, 6, 7, 9\\}\\) mamy do wyboru\n                    \n\n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(5\\) cyfr",
+            "\\(6\\) cyfr",
+            "\\(7\\) cyfr",
+            "\\(9\\) cyfr",
+            "\\(10\\) cyfr"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Wszystkich cyfr jest \\(7\\), ale na pierwszym miejscu nie możemy użyć zera, więc zostaje \\(6\\).\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Pomyślmy o dwóch środkowych cyfrach.\n                </p>"
+        },
+        {
+          "type": "table",
+          "data": {
+            "header_row": false,
+            "header_col": false,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "wybór z 6",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "wybór z 4",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Na każdym z pozostałych dwóch miejsc możemy wpisać zupełnie dowolną cyfrę, więc za każdym razem mamy do wyboru\n                    \n\n\n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(5\\) cyfr",
+            "\\(6\\) cyfr",
+            "\\(7\\) cyfr",
+            "\\(8\\) cyfr",
+            "\\(9\\) cyfr",
+            "\\(10\\) cyfr"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "table",
+          "data": {
+            "header_row": false,
+            "header_col": false,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "wybór z 6",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "wybór z 7",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "wybór z 7",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "wybór z 4",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    A to oznacza, że jest\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(6+7+7+4\\) szukanych liczb",
+            "\\(6\\cdot 7\\cdot 7\\cdot 4\\) szukanych liczb"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Szukanych liczb parzystych jest\n                \\[\n                6\\cdot 7\\cdot 7\\cdot 4=1\\,176\n                \\]</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Ile jest liczb naturalnych czterocyfrowych, w których cyfra setek jest o 4 większa od cyfry jedności.\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<blockquote>\n                    \"cyfra setek jest o 4 większa od cyfry jedności\"\n                </blockquote>"
+        },
+        {
+          "type": "text",
+          "body": "<p>co możemy schematycznie zapisać jako:</p>"
+        },
+        {
+          "type": "table",
+          "data": {
+            "header_row": false,
+            "header_col": false,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(x+4\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(x\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Tym razem do wyboru mamy wszystkie 10 cyfr: \\(0, 1, 2, 3, 4, 5, 6, 7, 8\\) i \\(9\\).\n                </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Największa cyfra setek (\\(x+4\\)) to \\(9\\), więc największa cyfra jedności (\\(x\\)) to\n                    \n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(9\\)",
+            "\\(6\\)",
+            "\\(5\\)",
+            "\\(6\\)"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    W miejsce jedności mamy do wyboru\n                    \n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(5\\) cyfr",
+            "\\(6\\) cyfr",
+            "\\(9\\) cyfr",
+            "\\(10\\) cyfr"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Największa możliwa cyfra jedności to \\(5\\), więc \\(x\\in\\{0, 1, 2, 3, 4, 5\\}\\), czyli może przyjąć jedną z 6 wartości. Zauważmy, że wybierając cyfrę jedności wybieramy jednocześnie cyfrę setek - ta musi być o 4 większa, nie możemy wybrać innej.\n                </p>"
+        },
+        {
+          "type": "table",
+          "data": {
+            "header_row": false,
+            "header_col": false,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(-\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "wybór z 6",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(x+4\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(x\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Zastanówmy się teraz nad cyfrą tysięcy:\n                </p>"
+        },
+        {
+          "type": "table",
+          "data": {
+            "header_row": false,
+            "header_col": false,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(-\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "wybór z 6",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(x+4\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(x\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Nie może być równa \\(0\\), więc mamy\n                    \n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(10\\) możliwości",
+            "\\(9\\) możliwości",
+            "\\(8\\) możliwości",
+            "\\(7\\) możliwości"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Czas na cyfrę dziesiątek:\n                </p>"
+        },
+        {
+          "type": "table",
+          "data": {
+            "header_row": false,
+            "header_col": false,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "wybór z 9",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(-\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "wybór z 6",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(x+4\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(x\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Na tę cyfrę mamy \n                    \n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(10\\) możliwości",
+            "\\(9\\) możliwości",
+            "\\(8\\) możliwości",
+            "\\(7\\) możliwości"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Zgadza się, w dziesiątkach nie ma żadnych ograniczeń. Tak więc:\n                </p>"
+        },
+        {
+          "type": "table",
+          "data": {
+            "header_row": false,
+            "header_col": false,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "wybór z 9",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(-\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "<small>wybór z 10</small>",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "wybór z 6",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(x+4\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(x\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "type": "text",
+          "body": "<p>Więc ostatecznie mamy \n                \\[\n                9\\cdot 1\\cdot 10\\cdot 6 = 540\n                \\]\n                takich liczb.</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Olga gra w grę. Aby tę grę skończyć, należy przejść 4 poziomy.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Każdy poziom można skończyć na jeden z trzech sposobów:\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>z pomocą siły,</li>\n<li>z pomocą magii,</li>\n<li>z pomocą szczęścia.</li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Na ile sposobów można ukończyć grę?\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Cztery poziomy, trzy sposoby ukończenia każdego poziomu, czyli grę można ukończyć na</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(4\\cdot 4\\cdot 4 = 64\\) sposoby",
+            "\\(3\\cdot 3\\cdot 3\\cdot 3 = 81\\) sposobów",
+            "\\(3\\cdot 4 = 12\\) sposobów"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Zgadza się, przy okazji każdego z 4 poziomów mamy wybór jednej z trzech możliwości, więc wszystkich sposobów jest\n                \\[\n                3^4=81\n                \\]</p>"
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "396caed8ab49df0eacfec2e413752ee349c94690b867c31719770cb5b73de68b"
+}

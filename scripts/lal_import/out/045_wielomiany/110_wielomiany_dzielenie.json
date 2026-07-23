@@ -1,0 +1,182 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Jeszcze raz, dla przykładu, pomyślmy o dzielnikach liczb naturalnych.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Przykład</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Ile dzielników ma liczba \\(30\\)?\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Jakie są wszystkie dzielniki liczby \\(30\\)?\n    </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "zobacz",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Jeśli liczbę \\(30\\) rozłożymy na czynniki</p>"
+        },
+        {
+          "type": "text",
+          "body": "<strong>\n            pierwsze\n        </strong>"
+        },
+        {
+          "type": "text",
+          "body": "<p>, dostaniemy:\n        \\[\n        30=2\\cdot 3\\cdot 5\n        \\]</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Mamy więc trzy dzielniki pierwsze liczby \\(30\\).</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p style=\"float: right; width: 100px;\">\n                \\(\\rightarrow\\) \\(2\\), \\(3\\), \\(5\\)\n            </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Ale liczba \\(30\\) ma też inne dzielniki.\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Przede wszystkim, jeste jeden dzielnik wspólny dla każdej liczby naturalnej.</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p style=\"float: right; width: 100px;\">\n                \\(\\rightarrow\\) \\(1\\)\n            </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Poza tym, możemy uzyskać dzielniki\n            <strong>\n                złożone\n            </strong>\n            , mnożąc przez siebie dzielniki pierwsze.\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p style=\"float: right; width: 100px;\">\n                \\(\\rightarrow\\) \\(6\\)\n            </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                \\(30=\\color{red}{2\\cdot 3}\\cdot 5\\)\n            </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p style=\"float: right; width: 100px;\">\n                \\(\\rightarrow\\) \\(15\\)\n            </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                \\(30=2\\cdot\\color{red}{3\\cdot 5}\\)\n            </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p style=\"float: right; width: 100px;\">\n                \\(\\rightarrow\\) \\(10\\)\n            </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                \\(30=\\color{red}{2}\\cdot 3\\cdot \\color{red}{5}\\)\n            </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            No i wreszcie:\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p style=\"float: right; width: 100px;\">\n                \\(\\rightarrow\\) \\(30\\)\n            </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                \\(30=\\color{red}{2\\cdot 3\\cdot 5}\\)\n            </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Liczba \\(30\\) ma \\(8\\) dzielników:\n        </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n        1, 2, 3, 5, 6, 10, 15, 30\n        "
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Teraz wiedząc, że wielomian\n</p>"
+    },
+    {
+      "type": "math",
+      "latex": "\nW(x)=3x^3-2x^2-19x-6\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    może być zapisany w postaci\n</p>"
+    },
+    {
+      "type": "math",
+      "latex": "\nW(x)=(x+2)(x-3)(3x+1)\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    w bardzo podobny sposób wyznaczymy wszystkie jego dzielniki.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Wyznacz wszystkie dzielniki wielomianu\n        \\[\n        W(x)=3x^3-2x^2-19x-6\n        \\]\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                Wielomian \\(W(x)\\) ma, jak każdy inny niezerowy wielomian, dwa trywialne dzielniki: \\(1\\) i \\(W(x)\\). Podobnie, jak każda liczba naturalna (różna od zera) dzieli się przez \\(1\\) i przez samą siebie.\n            </p>"
+        },
+        {
+          "type": "fill_gate",
+          "stem": "\n<p>\n                    \\(W(x)\\) ma też trzy dzielniki liniowe:\n                </p>\n                \\((x+2)\\), \\((x-3)\\) i\n                <span class=\"myequation\">\n                    \\((\\)\n                    <span>\n￿0￿\n</span>\n                    \\(+1)\\)\n                </span>\n",
+          "answers": [
+            [
+              "3x"
+            ]
+          ]
+        },
+        {
+          "type": "fill_gate",
+          "stem": "\n<p>\n                    Ma także trzy dzielniki kwadratowe.\n                </p>\n<p>\n                    Otrzymamy je, mnożąc przez siebie dzielniki liniowe. Zacznijmy od dwóch pierwszych:\n                </p>\n                \\[\n                W(x)=\\color{red}{(x+2)(x-3)}(3x+1)\n                \\]\n                Pierwszy dzielnik kwadratowy to\n                <span class=\"myequation\">\n                    \\(x^2-x\\)\n                    <span>\n￿0￿\n</span>\n</span>\n                .\n            ",
+          "answers": [
+            [
+              "-6"
+            ]
+          ]
+        },
+        {
+          "type": "fill_gate",
+          "stem": "\n                \\[\n                W(x)=(x+2)\\color{red}{(x-3)(3x+1)}\n                \\]\n                Drugi dzielnik kwadratowy to\n                <span class=\"myequation\">\n                    \\(3x^2-8x\\)\n                    <span>\n￿0￿\n</span>\n</span>\n                .\n            ",
+          "answers": [
+            [
+              "-3"
+            ]
+          ]
+        },
+        {
+          "type": "fill_gate",
+          "stem": "\n                \\[\n                W(x)=\\color{red}{(x+2)}(x-3)\\color{red}{(3x+1)}\n                \\]\n                Trzeci dzielnik kwadratowy to\n                <span class=\"myequation\">\n                    \\(3x^2+7x+\\)\n                    <span>\n￿0￿\n</span>\n</span>\n                .\n            ",
+          "answers": [
+            [
+              "2"
+            ]
+          ]
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "ff53b32a7ba5d03b6f59b19ae309c540f6f49a6202955c88556e38762ad35b2b"
+}

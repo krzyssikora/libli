@@ -1,0 +1,114 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Ciąg \\((a_n)\\) zdefiniowany jest wzorem:\n        \\[\n        a_n=3-\\frac{1}{2}n\n        \\]\n        Znajdź wszystkie dodatnie wyrazy ciągu \\((a_n)\\).</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<small>\n                (Znajdź wyrazy, nie tylko ich indeksy.)\n            </small>\n</p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "szkic rozwiązania",
+      "elements": [
+        {
+          "type": "text",
+          "body": "\n            \\[\n            a_n\\gt 0 \\quad\\Rightarrow\\quad 3-\\frac{1}{2}n\\gt 0 \\quad\\Rightarrow\\quad n\\lt 6 \\quad\\Rightarrow\\quad n\\in \\{1, 2, 3, 4, 5\\} \\quad\\Rightarrow\\quad a_n\\in \\{2\\tfrac{1}{2}, 2, 1\\tfrac{1}{2}, 1, \\tfrac{1}{2}\\}\n            \\]\n        "
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Ciąg \\((b_n)\\) zdefiniowany jest wzorem:\n        \\[\n        b_n=2^n-3\n        \\]\n        Znajdź wszystkie wyrazy ciągu \\((b_n)\\) mniejsze od \\(20\\).\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "szkic rozwiązania",
+      "elements": [
+        {
+          "type": "text",
+          "body": "\n            \\[\n            b_n\\lt 20 \\quad\\Rightarrow\\quad 2^n-3\\lt 20  \\quad\\Rightarrow\\quad 2^n\\lt 23\n            \\]\n        "
+        },
+        {
+          "type": "text",
+          "body": "<p>Pamiętając, że \\(n\\) jest liczbą naturalną oraz że \\(2^4=16\\) i \\(2^5=32\\), możemy wywnioskować:</p>"
+        },
+        {
+          "type": "text",
+          "body": "\n            \\[\n            2^n\\lt 23 \\quad\\Rightarrow\\quad n\\le 4 \\quad\\Rightarrow\\quad n\\in\\{1, 2, 3, 4\\} \\quad\\Rightarrow\\quad b_n\\in\\{2, 4, 8, 16\\}\n            \\]\n        "
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Ciąg \\((c_n)\\) zdefiniowany jest wzorem:\n        \\[\n        c_n=2\\cdot 3^n - 5\n        \\]\n        Jaki jest <strong>najmniejszy</strong> wyraz ciągu \\((c_n)\\) <u>większy od \\(100\\)</u>?\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "szkic rozwiązania",
+      "elements": [
+        {
+          "type": "text",
+          "body": "\n            \\[\n            c_n\\gt 100 \\quad\\Rightarrow\\quad 2\\cdot 3^n-5\\gt 100  \\quad\\Rightarrow\\quad 3^n\\gt 52,5\n            \\]\n        "
+        },
+        {
+          "type": "text",
+          "body": "<p>Pamiętając, że \\(n\\) jest liczbą naturalną oraz że \\(3^3=27\\) i \\(3^4=81\\), możemy wywnioskować:</p>"
+        },
+        {
+          "type": "text",
+          "body": "\n            \\[\n            3^n\\gt 52,5 \\quad\\Rightarrow\\quad n\\ge 3\n            \\]\n        "
+        },
+        {
+          "type": "text",
+          "body": "<p>Szukamy</p>"
+        },
+        {
+          "type": "text",
+          "body": "<strong>najmniejszego</strong>"
+        },
+        {
+          "type": "text",
+          "body": "<p>takiego wyrazu, a skoro potęga \\(3^n\\) przyjmuje coraz większe wartości dla kolejnych \\(n\\), rozwiązaniem jest \\(n=3\\), czyli szukany wyraz to \\(c_3=2\\cdot3^3-5=49\\).</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Ciągi \\((d_n)\\) i \\((e_n)\\) są zdefiniowane wzorami:\n        \\[\n        \\begin{align}\n        d_n&amp;=2n - 5\\\\\n        e_n&amp;=3n^2-2\n        \\end{align}\n        \\]\n        Zapisz w najprostszej postaci wyrażenia opisujące \\(d_{n+1}\\) i \\(e_{n+1}\\).\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "szkic rozwiązania",
+      "elements": [
+        {
+          "type": "text",
+          "body": "\n            \\[\n            d_{n+1}=2(n+1)-5=2n+2-5=2n-3\n            \\]\n        "
+        },
+        {
+          "type": "text",
+          "body": "\n            \\[\n            e_{n+1}=3(n+1)^2-2=3(n^2+2n+1)-2=3n^2+6n+3-2=3n^2+6n+1\n            \\]\n        "
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "d02f459df5c3707233cd47c86b3c625644012b2fa2a093f35586c263a64ea3bc"
+}

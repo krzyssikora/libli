@@ -1,0 +1,168 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Rozłóżmy na czynniki wyrażenie</p>"
+    },
+    {
+      "type": "text",
+      "body": "\\[\n    -6x^2+x+15\n    \\]"
+    },
+    {
+      "type": "spoiler",
+      "label": "kliknij, jeśli nie pamiętasz wzorów",
+      "elements": [
+        {
+          "type": "text",
+          "body": "\n                wyróżnik (\"delta\"): \\(\\Delta=b^2-4ac\\)\n                <br/>\n<br/>\n                \\(x_1=\\frac{-b-\\sqrt{\\Delta}}{2a}\\quad\\) oraz \\(\\quad x_2=\\frac{-b+\\sqrt{\\Delta}}{2a}\\)\n            "
+        }
+      ]
+    },
+    {
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Zacznijmy od obliczenia delty (wyróżnika wyrażenia kwadratowego)\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "\\[\n            \\Delta=b^2-4ac=1^2-4(-6)\\cdot 15=\n            \\]"
+    },
+    {
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
+    },
+    {
+      "type": "text",
+      "body": "\\[\n            =361\n            \\]"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                a \\(\\sqrt{\\Delta}=\\sqrt{361}=19\\).\n            </p>"
+    },
+    {
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Miejsca zerowe:\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "\\[\n            x=\\frac{-b-\\sqrt{\\Delta}}{2a},\\quad\\quad x=\\frac{-b+\\sqrt{\\Delta}}{2a}\n            \\]"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                czyli\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "\\[\n            x=\\frac{-1-19}{2(-6)},\\quad\\quad x=\\frac{-1+19}{2(-6)}\n            \\]"
+    },
+    {
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
+    },
+    {
+      "type": "text",
+      "body": "\\[\n            x=\\frac{5}{3},\\quad\\quad x=-\\frac{3}{2}\n            \\]"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Postać iloczynowa to\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "\\[\n            a(x-x_1)(x-x_2)\n            \\]"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                a skoro \\(a=-6\\), \\(x_1=\\frac{5}{3}\\) i \\(x_2=-\\frac{3}{2}\\), to\n            </p>"
+    },
+    {
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
+    },
+    {
+      "type": "text",
+      "body": "\\[\n            -6x^2+x+15=-6\\left(x-\\frac{5}{3}\\right)\\left(x+\\frac{3}{2}\\right)\n            \\]"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                I na tym moglibyśmy już skończyć, ale skoro wyrażenie w postaci ogólnej (\\(-6x^2+x+15\\)) było zapisane za pomocą liczb całkowitych (tj. współczynniki \\(-6\\), \\(1\\) i \\(15\\) są całkowite), to możemy tak przekształcić wyrażenie w postaci iloczynowej, by nie było w nim ułamków.\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Zauważmy, że mianowniki miejsc zerowych to \\(2\\) i \\(3\\), a współczynnik \\(a=-3\\cdot 2\\):\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "\\[\n            -6x^2+x+15=-6\\left(x-\\frac{5}{3}\\right)\\left(x+\\frac{3}{2}\\right)=-3\\cdot 2\\left(x-\\frac{5}{3}\\right)\\left(x+\\frac{3}{2}\\right)\n            \\]"
+    },
+    {
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Możemy teraz \"wmnożyć\" liczby \\(3\\) i \\(2\\) do odpowiednich nawiasów:\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "\\[\n            \\begin{align*}\n            -3\\cdot 2\\left(x-\\frac{5}{3}\\right)\\left(x+\\frac{3}{2}\\right)\n            &amp;=-\\color{red}{3}\\cdot \\color{blue}{2}\\color{red}{\\left(x-\\frac{5}{3}\\right)}\\color{blue}{\\left(x+\\frac{3}{2}\\right)}=\\\\\n            &amp;=-\\color{red}{3}\\cdot \\color{red}{\\left(x-\\frac{5}{3}\\right)}\\cdot \\color{blue}{2}\\cdot \\color{blue}{\\left(x+\\frac{3}{2}\\right)}=\\\\\n            &amp;=-\\color{red}{(3-5)}\\cdot \\color{blue}{(2x+3)}\\\\\n            \\end{align*}\n            \\]"
+    },
+    {
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Więc ostatecznie:\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "\\[\n            -6x^2+x+15=-(3x-5)(2x+3)\n            \\]"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong><u>Uwaga!</u></strong>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Równoważnie można by \"wmnożyć\" minus w jeden z nawiasów otrzymując\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "\\[\n            \\begin{align*}\n            -6x^2+x+15&amp;=-(3x-5)(2x+3)\\\\\n            &amp;=(5-3x)(2x+3)\\\\\n            &amp;=(3x-5)(-2x-3)\n            \\end{align*}\n            \\]"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                jednak (moim zdaniem) na razie lepiej zostawić minus przed całym wyrażeniem.\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Uwaga!</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>To jest tylko jedna metoda rozkładu wyrażeń kwadratowych na czynniki. Jeśli chcesz przypomnieć sobie inne, wróć do lekcji na temat</p>"
+    },
+    {
+      "type": "text",
+      "body": "<a href=\"/jump_to_id/86ef6fc5f8ba461a84fb22a3aaf5e55c\">rozwiązywania równań kwadratowych</a>"
+    },
+    {
+      "type": "text",
+      "body": "<p>i przeczytaj sekcję \"Użyteczne schematy w rozwiązywaniu równań kwadratowych\".</p>"
+    }
+  ],
+  "fully_mapped": false,
+  "seed_hash": "416d46ad015eac7c324d70a8d543ca3a50d1b3b4d40e6cc5ae1bbeaaa4800564"
+}

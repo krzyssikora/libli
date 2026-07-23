@@ -1,0 +1,164 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Jedną z własności deltoidu jest, że kąty między bokami różnej długości są równej miary. Wynika to oczywiście z faktu, że przekątna łącząca wierzchołki wspólne dla boków tej samej długości jest osią symetrii deltoidu. I dlatego:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Jeśli deltoid</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n            ma dwa boki o długościach \\(a\\)\n        </li>\n<li>\n            i dwa boki o długościach \\(b\\), \n        </li>\n<li>\n            a kąt między bokami o długościach \\(a\\) i \\(b\\) ma miarę \\(\\alpha\\), \n        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>to pole deltoidu, \\(P\\), dane jest wzorem\n    \\[\n    P=a\\cdot b\\cdot \\sin\\alpha\n    \\]</p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/deltoid_pole_alpha_1.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "spoiler",
+      "label": "uzasadnienie",
+      "elements": [
+        {
+          "type": "image",
+          "media_src": "static/deltoid_pole_alpha_2.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n        Zaznaczona na rysunku przekątna dzieli deltoid na dwa trójkąty przystające o dwóch bokach długości \\(a\\) i \\(b\\), oraz kącie między nimi o mierze \\(\\alpha\\).\n    </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n        Pole każdego z tych trójkątów dane jest wzorem\n    </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n    \\frac{1}{2}\\cdot a\\cdot b\\cdot \\sin \\alpha\n    "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n        Pole deltoidu, \\(P\\), to suma pól dwóch trójkątów: \n    </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n        \\[\n        \\begin{align}\n        P&amp;=2\\cdot\\frac{1}{2}\\cdot a\\cdot b\\cdot \\sin\\alpha\\\\\n        P&amp;=a\\cdot b\\cdot \\sin\\alpha\n        \\end{align}\n        \\]\n    "
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Oblicz pola deltoidów, w których boki są długości \\(a\\) i \\(b\\), a kąt między nimi ma miarę \\(\\alpha\\). Wybierz wynik spośród podanych poniżej.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Rysunki nie zachowują skali.\n        </p>"
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\\(a=4,\\;b=7,\\; \\alpha=30^{\\circ}\\)</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(7\\sqrt{3}\\)",
+          "is_correct": false
+        },
+        {
+          "text": "\\(14\\phantom{\\sqrt{2}}\\)",
+          "is_correct": false
+        },
+        {
+          "text": "\\(7\\phantom{\\sqrt{2}}\\)",
+          "is_correct": true
+        },
+        {
+          "text": "\\(14\\sqrt{2}\\)",
+          "is_correct": false
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\\(a=6,\\;b=6,\\; \\alpha=45^{\\circ}\\)</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(9\\phantom{\\sqrt{2}}\\)",
+          "is_correct": false
+        },
+        {
+          "text": "\\(9\\sqrt{2}\\)",
+          "is_correct": true
+        },
+        {
+          "text": "\\(9\\sqrt{3}\\)",
+          "is_correct": false
+        },
+        {
+          "text": "\\(12\\phantom{\\sqrt{2}}\\)",
+          "is_correct": false
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\\(a=6\\sqrt{2},\\;b=\\sqrt{6},\\; \\alpha=60^{\\circ}\\)</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(9\\sqrt{3}\\)",
+          "is_correct": false
+        },
+        {
+          "text": "\\(9\\phantom{\\sqrt{2}}\\)",
+          "is_correct": true
+        },
+        {
+          "text": "\\(18\\phantom{\\sqrt{2}}\\)",
+          "is_correct": false
+        },
+        {
+          "text": "\\(9\\sqrt{6}\\)",
+          "is_correct": false
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\\(a=10,\\;b=7,\\; \\alpha=150^{\\circ}\\)</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(17,5\\phantom{\\sqrt{2}}\\)",
+          "is_correct": true
+        },
+        {
+          "text": "\\(35\\phantom{\\sqrt{2}}\\)",
+          "is_correct": false
+        },
+        {
+          "text": "\\(35\\sqrt{3}\\)",
+          "is_correct": false
+        },
+        {
+          "text": "\\(17,5\\sqrt{3}\\)",
+          "is_correct": false
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "1db9fafac6eb47b007f115b1bc04e9abb2ac0edd5c777a3167f0981030dcc807"
+}

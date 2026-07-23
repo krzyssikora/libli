@@ -1,0 +1,48 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Zapewne znasz z geografii pojęcie\n    <a href=\"https://pl.wikipedia.org/wiki/Wysoko%C5%9B%C4%87_bezwzgl%C4%99dna\">\n        wysokości bezwzględnej\n    </a>\n    . Jest to wysokość (czyli odległość) od wysokości ustalonej jako \"poziom morza\".\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Ten \"poziom morza\" jest umowny, bo Ziemia nie jest idealną kulą, więc jest to pewna uśredniona wartość, czasem różna w rróżnych krajach.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Z odległością na osi liczbowej jest łatwiej. Naturalnym punktem odniesienia na osi liczbowej jest liczba \\(0\\).\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Na poniższym rysunku zaznaczono odległości kilku liczb od zera.\n</p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/wartosc_bezwzgledna.png",
+      "alt": "odległość od zera",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n        odległość liczby \\(-7\\) od zera jest równa \\(7\\)\n    </li>\n<li>\n        odległość liczby \\(3\\) od zera jest równa \\(3\\)\n    </li>\n<li>\n        odległość liczby \\(-4\\) od zera jest równa \\(4\\)\n    </li>\n<li>\n        odległość liczby \\(8\\) od zera jest równa \\(8\\)\n    </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Odległość liczby od zera nazywamy\n        <strong>\n            wartością bezwzględną\n        </strong>\n        tej liczby.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Wartość bezwzględną liczby \\(a\\) zapisujemy jako \\(|a|\\).\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Powyższe odległości możemy zapisać więc jako:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n        \\(|-7|=7\\)\n    </li>\n<li>\n        \\(|3|=3\\)\n    </li>\n<li>\n        \\(|-4|=4\\)\n    </li>\n<li>\n        \\(|8|=8\\)\n    </li>\n</ul>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "7bfab90ed6403d74c2c2bf986cacbf43bbb24c9f5f3a6cc3251dd20e745bf539"
+}

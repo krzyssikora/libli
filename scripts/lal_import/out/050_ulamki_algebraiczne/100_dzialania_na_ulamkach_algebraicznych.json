@@ -1,0 +1,108 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Ułamki algebraiczne mnożymy bardzo podobnie, jak ułamki zwykłe, czyli\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n        mnożymy licznik przez licznik\n    </li>\n<li>\n        i mianownik przez mianownik.\n    </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Warto jedynie pamiętać, że jeśli chcemy uzyskać wynik <i>w najprostszej postaci</i> (a najczęściej chcemy), warto skrócić ułamki <u>przed</u> mnożeniem.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Oblicz</p>"
+    },
+    {
+      "type": "text",
+      "body": "\\[\n        \\frac{2x-10}{x^2+x-6}\\cdot\\frac{x^2+2x-3}{x^2-25}\n        \\]"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Zacznijmy od rozłożenia wszystkich czterech wyrażeń (dwóch liczników i dwóch mianowników) na czynniki.\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Najprostsze jest: \\(2x-10 = 2(x-5)\\).\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Ale teraz musimy rozłożyć na czynniki trzy wyrażenia kwadratowe.\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Jeśli potrzebujesz, oblicz deltę i miejsca zerowe, a potem wybierz odpowiednią odpowiedź.\n            </p>"
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                \\(x^2+x-6=\\)\n                \n\n\n\n\n￿0￿",
+      "options": [
+        "\\((x-2)(x+3)\\)",
+        "\\((x+2)(x-3)\\)",
+        "\\((x+6)(x-1)\\)"
+      ],
+      "answer": 0
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                Teraz \\(x^2+2x-3=\\)\n                \n\n\n\n\n￿0￿",
+      "options": [
+        "\\((x-1)(x-3)\\)",
+        "\\((x-1)(x+3)\\)",
+        "\\((x-1)(x+2)\\)"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                I wreszcie \\(x^2-25=\\) \n                \n\n\n\n\n￿0￿",
+      "options": [
+        "\\((x-5)(x-5)\\)",
+        "\\((x+5)(x+5)\\)",
+        "\\((x-5)(x+5)\\)"
+      ],
+      "answer": 2
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Tak więc:\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "\\[\n            \\frac{2x-10}{x^2+x-6}\\cdot\\frac{x^2+2x-3}{x^2-25}=\\frac{2(x-5)}{(x-2)(x+3)}\\cdot\\frac{(x-1)(x+3)}{(x-5)(x+5)}=\n            \\]"
+    },
+    {
+      "type": "text",
+      "body": "<p>Zauważmy, że w licznikach i w mianownikach powtarzają się identyczne czynniki:</p>"
+    },
+    {
+      "type": "text",
+      "body": "\\[\n            =\\frac{2\\color{red}{(x-5)}}{(x-2)\\color{blue}{(x+3)}}\\cdot\\frac{(x-1)\\color{blue}{(x+3)}}{\\color{red}{(x-5)}(x+5)}=\n            \\]"
+    },
+    {
+      "type": "text",
+      "body": "<p>Skróćmy je:</p>"
+    },
+    {
+      "type": "text",
+      "body": "\\[\n            =\\frac{2\\require{cancel}\\cancel{\\color{red}{(x-5)}}}{(x-2)\\require{cancel}\\cancel{\\color{blue}{(x+3)}}}\\cdot\\frac{(x-1)\\require{cancel}\\cancel{\\color{blue}{(x+3)}}}{\\require{cancel}\\cancel{\\color{red}{(x-5)}}(x+5)}=\n            \\]"
+    },
+    {
+      "type": "text",
+      "body": "<p>I uzyskamy:</p>"
+    },
+    {
+      "type": "text",
+      "body": "\\[\n            =\\frac{2}{x-2}\\cdot\\frac{x-1}{x+5}=\\frac{2(x-1)}{(x-2)(x+5)}\n            \\]"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "da6af7335a79d5d0cf5b7855d633b5781cc81d2ac585fa70337dac3b4ae6e3b0"
+}

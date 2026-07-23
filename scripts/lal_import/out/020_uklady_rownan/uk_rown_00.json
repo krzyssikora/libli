@@ -1,0 +1,18 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<h1>\n    Układy równań liniowych\n</h1>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Spis zagadnień:\n    "
+    },
+    {
+      "type": "text",
+      "body": "<ol>\n<li>\n<details>\n<summary>\n<a href=\"uk_rown_1.html\">\n                        układ równań\n                    </a>\n</summary>\n<ul>\n<li>\n<a href=\"uk_rown_1.html#podstawienie\">\n                            rozwiązywanie układu równań metodą podstawienia\n                        </a>\n</li>\n<li>\n<a href=\"uk_rown_1.html#prosta_przez_2pkt\">\n                            równanie prostej przechodzącej przez dwa punkty\n                        </a>\n</li>\n</ul>\n</details>\n</li>\n<li>\n<details>\n<summary>\n<a href=\"uk_rown_2.html\">\n                        jak rozwiązujemy układy równań?\n                    </a>\n</summary>\n<ul>\n<li>\n<a href=\"uk_rown_2.html#przeciwne\">\n                            rozwiązywanie układów równań metodą przeciwnych współczynników\n                        </a>\n</li>\n</ul>\n</details>\n</li>\n<li>\n            ▻\n            <a href=\"uk_rown_3.html\">\n                rozwiązywanie układów równań metodą graficzną\n            </a>\n</li>\n<li>\n            ▻\n            <a href=\"uk_rown_4.html\">\n                jak rozwiązywać zadania \"z treścią\"?\n            </a>\n</li>\n<li>\n<details>\n<summary>\n<a href=\"uk_rown_ex_1.html\">\n                        warto wiedzieć\n                    </a>\n</summary>\n<ul>\n<li>\n<a href=\"uk_rown_ex_1.html#nwd_nww\">\n                            największy wspólny dzielnik i najmniejsza wspólna wielokrotność\n                        </a>\n</li>\n<li>\n<a href=\"uk_rown_ex_1.html#nwd_nww_combined\">\n                            związek między największym wspólnym dzielnikiem a najmniejszą wspólną wielokrotnością\n                        </a>\n</li>\n<li>\n<a href=\"uk_rown_ex_1.html#euklides\">\n                            wyliczanie największego wspólnego dzielnika za pomocą algorytmu Euklidesa\n                        </a>\n</li>\n<li>\n<a href=\"uk_rown_ex_1.html#gauss\">\n                            rozwiązywanie układów równań metodą eliminacji Gaussa\n                        </a>\n</li>\n</ul>\n</details>\n</li>\n</ol>"
+    }
+  ],
+  "fully_mapped": false,
+  "seed_hash": "e0300bf9797e3fd791481d2f6289b51c7cdbd88bf9fbc190f7105453fd84c646"
+}

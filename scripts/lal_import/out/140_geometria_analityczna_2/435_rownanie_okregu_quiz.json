@@ -1,0 +1,68 @@
+{
+  "elements": [
+    {
+      "type": "choice",
+      "stem": "<p>Równanie okręgu o środku w punkcie \\((4,-1)\\) i promieniu długości \\(3\\sqrt{2}\\) to</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\((x+4)^2+(y-1)^2=3\\sqrt{2}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\((x+4)^2+(y-1)^2=18\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\((x-4)^2+(y+1)^2=3\\sqrt{2}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\((x-4)^2+(y+1)^2=18\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p>Środek okręgu o równaniu \\((x+2)^2+(y-5)^2=12\\) to punkt \\((x,y)\\), taki, że</p><p>\\(x=\\)=-2</p><p>\\(y=\\)=5</p>"
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Promień okręgu o równaniu \\((x-11)^2+(y-3)^2=12\\) ma długość</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(12\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(6\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(2\\sqrt{3}\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(3\\sqrt{2}\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p>Środek okręgu o równaniu \\(x^2-2x+y^2+6y-12=0\\) to punkt \\((x,y)\\), taki, że</p><p>\\(x=\\)=1</p><p>\\(y=\\)=-3</p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "02fac8f21f207b3a4e1e569aac690064c38f81ebeb9d67f0625956ba11ceb483"
+}

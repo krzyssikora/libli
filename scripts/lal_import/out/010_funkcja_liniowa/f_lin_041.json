@@ -1,0 +1,198 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question_text\">\n        Rozpatrzmy prostą o równaniu\n        \\[y=\\frac{3}{7}x+1.\\]\n        Na tej prostej znajduje się punkt \\(A\\) o współrzędnej \\(y=3\\).\n        <br/>\n        Jaka jest współrzędna \\(x\\) punktu \\(A\\)?\n        <br/>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Zachęcam, żebyś spróbował/-a odpowiedzieć na to pytanie samodzielnie, używając wyliczeń ukrytych poniżej jako wskazówek i możliwości sprawdzenia.</p>"
+    },
+    {
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Spójrzmy na wykres:\n            </p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/przyklad_01.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Z wykresu widzimy,  że szukana współrzędna \\(x\\) jest miedzy \\(4\\) a \\(5\\).\n                <br/>\n                Współrzędne punktu \\(A\\) muszą spełniać równanie prostej  (czyli po podstawieniu dać prawdziwą równość).\n                <br/>\n                Żeby znaleźć dokładną wartość brakującej współrzędnej \\(x\\), podstawmy znaną nam współrzędną \\(y=3\\) do równania prostej.\n            </p>"
+    },
+    {
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
+    },
+    {
+      "type": "text",
+      "body": "<p>\\(y=\\frac{3}{7}x+1\\quad \\leftarrow\\quad y=3\\)</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\\(3=\\frac{3}{7}x+1\\)</p>"
+    },
+    {
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
+    },
+    {
+      "type": "text",
+      "body": "<p>Przenieśmy liczby na jedną stronę, a zmienne na drugą:</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\\(3-1=\\frac{3}{7}x\\)</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>czyli:</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\\(2=\\frac{3}{7}x\\)</p>"
+    },
+    {
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
+    },
+    {
+      "type": "text",
+      "body": "<p>Podzielmy obie strony przez \\(\\frac{3}{7}\\):</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\\(x=2:\\frac{3}{7}\\)</p>"
+    },
+    {
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
+    },
+    {
+      "type": "text",
+      "body": "<p>i obliczmy wartość \\(x\\):</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\\(x=2\\cdot \\frac{7}{3}=\\frac{14}{3}=4\\frac{2}{3}\\)</p>"
+    },
+    {
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
+    },
+    {
+      "type": "text",
+      "body": "<p>Jak widzisz, współrzędna \\(x\\) punktu \\(A\\) rzeczywiście znajduje się między \\(4\\) a \\(5\\).</p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/przyklad_02.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question_text\">\n        Oblicz i wpisz do poniższej tabeli brakującą współrzędną:\n    </p>"
+    },
+    {
+      "type": "fill_table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "kind": "static",
+              "html": "równanie prostej"
+            },
+            {
+              "kind": "static",
+              "html": "\\(x\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(y\\)"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(y=-3x-1\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(2\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "-7"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(y=2x+3\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "-5/2"
+            },
+            {
+              "kind": "static",
+              "html": "\\(-2\\)"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(y=-\\frac{2}{3}x+2\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(4\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "-2/3"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(y=\\frac{1}{2}x-2\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "6"
+            },
+            {
+              "kind": "static",
+              "html": "\\(1\\)"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<div class=\"success hidden\" id=\"success_question30\">\n        Doskonale! Przed Tobą jeszcze jedno zagadnienie.\n    </div>\n</p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "c4a2d8edc1101013f843d8c403ff5cb079b3a37b9c7719440be0d3f127de6064"
+}

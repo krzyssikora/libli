@@ -1,0 +1,54 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź równanie prostej równoległej do\n            \\[y=\\frac{2}{3}x-1\\]\n            i przechodzącej przez punkt \\((4, -1)\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Spróbuj rozwiązać to zadanie samodzielnie, używając w razie potrzeby poniższych wskazówek.\n        </p>"
+    },
+    {
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Szukamy prostej równoległej, więc jej współczynnik kierunkowy jest identyczny, jak danej prostej, czyli \\(\\frac{2}{3}\\).\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Szukana prosta ma więc równanie postaci\n                \\[y=\\frac{2}{3}x+b\\]\n            </p>"
+    },
+    {
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
+    },
+    {
+      "type": "text",
+      "body": "<p>Wiemy, że przechodzi przez punkt \\((4, -1)\\), więc współrzędne tego punktu \\((x=4, y=-1)\\) spełniają równanie szukanej prostej.\n            \\[y=\\frac{2}{3}x+b\\quad\\quad\\leftarrow\\quad\\quad x=4, y=-1\\]\n            Podstawiwszy współrzędne punktu do równania prostej otrzymujemy:\n            \\[-1=\\frac{2}{3}\\cdot 4+b\\]</p>"
+    },
+    {
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
+    },
+    {
+      "type": "text",
+      "body": "<p>Obliczmy \\(b\\):\n            \\[-1=\\frac{8}{3}+b\\]\n            \\[b=-1-\\frac{8}{3}=-\\frac{11}{3}\\]</p>"
+    },
+    {
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
+    },
+    {
+      "type": "text",
+      "body": "<p>Szukana prosta równoległa ma więc równanie:\n            \\[y=\\frac{2}{3}x-\\frac{11}{3}\\]</p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "e0f5cfcfb71f632be276252c74f5f56ba62fa3e7656407e708cf151908b7a022"
+}

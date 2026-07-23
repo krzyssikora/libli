@@ -396,8 +396,13 @@ class TextElement(ElementBase):
 
 class SpoilerElement(ElementBase):
     """A self-contained show/hide disclosure: an author-labelled button that
-    expands/collapses a block of rich text + math. Rendered as a native
-    <details>; two-way, repeatable, ungraded. See the spoiler-element design doc."""
+    expands/collapses either legacy rich-text `body` OR (nestable-spoiler) an
+    ordered list of native child elements. Rendered as a native <details>;
+    two-way, repeatable, ungraded. Single-slot container: its children live in
+    Element rows whose `parent` is this element's join row and whose `tab_id` is
+    the one fixed slot id SLOT_ID. Mirrors the TabsElement join-row substrate."""
+
+    SLOT_ID = "only"  # the single implicit child slot; child Element.tab_id value
 
     label = models.CharField(max_length=120, blank=True)
     body = models.TextField(blank=True)
@@ -406,6 +411,37 @@ class SpoilerElement(ElementBase):
     def save(self, *args, **kwargs):
         self.body = sanitize_html(self.body)
         super().save(*args, **kwargs)
+
+    def join_row(self):
+        """This concrete's single Element join row (the GFK is effectively 1:1)."""
+        return self.elements.order_by("pk").first()
+
+    def resolved_children(self):
+        """Ordered child Element join rows (order_by('order','pk')); [] when the
+        join row is transient/mid-create. Grouped by `parent` alone — the single
+        slot means tab_id is not needed to disambiguate."""
+        join = self.join_row()
+        if join is None:
+            return []
+        return list(
+            join.children.order_by("order", "pk")
+            .select_related("content_type")
+            .prefetch_related("content_object")
+        )
+
+    def render(self, *, element=None, state=None, slug=None, node_pk=None):
+        from django.template.loader import render_to_string
+
+        return render_to_string(
+            "courses/elements/spoilerelement.html",
+            {
+                "el": self,
+                "children": self.resolved_children(),
+                "element_state": state,
+                "slug": slug,
+                "node_pk": node_pk,
+            },
+        )
 
 
 class CalloutElement(ElementBase):
@@ -533,6 +569,11 @@ class MediaAsset(models.Model):
     kind = models.CharField(max_length=10, choices=Kind.choices)
     file = models.FileField(upload_to="courses/media/")
     original_filename = models.CharField(max_length=255)
+    # SHA-256 hex of the file bytes; used by the LAL import loader for durable
+    # (course, content_hash) dedup. Blank on assets created before/without hashing.
+    content_hash = models.CharField(
+        max_length=64, blank=True, default="", db_index=True
+    )
     name = models.CharField(max_length=255, blank=True, default="")
     uploaded_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL
@@ -787,34 +828,109 @@ class TableElement(ElementBase):
     elements = GenericRelation(Element)
 
     @staticmethod
+    def _span(raw, key):
+        """A colspan/rowspan value: a positive int > 1, clamped to that axis's
+        cap, else absent. Kept out of the cell dict when 1 so non-spanning
+        tables and the WYSIWYG editor are unaffected.
+
+        The clamp is per-axis: a rowspan clamped against MAX_COLS would
+        silently truncate a legal 30-row span. It is defence-in-depth only —
+        the forms REJECT an out-of-range span rather than relying on this
+        (a silent clamp produces a layout-inconsistent grid)."""
+        n = raw.get(key)
+        if isinstance(n, bool) or not isinstance(n, int):
+            return None
+        cap = TableElement.MAX_ROWS if key == "rowspan" else TableElement.MAX_COLS
+        return min(n, cap) if n > 1 else None
+
+    @staticmethod
+    def layout_dims(cells):
+        """(width, height) of a grid in LAYOUT terms, i.e. accounting for
+        colspan/rowspan rather than counting cells per row.
+
+        width = max over cells of (anchor column + colspan), 0 for an empty
+        grid; height = number of rows. Identical to table_grid.js's slotMap()
+        so the server and the editor can never disagree about a grid's size.
+
+        Degenerate input is coerced, never raised on (this runs on raw
+        author-supplied JSON in TableElementForm): a non-dict cell counts as a
+        1x1 occupant, a span value that fails _span's type test counts as 1,
+        and a non-list row is skipped."""
+        rows = cells if isinstance(cells, list) else []
+        occupied = set()
+        width = 0
+        for r, row in enumerate(rows):
+            if not isinstance(row, list):
+                continue
+            c = 0
+            for cell in row:
+                raw = cell if isinstance(cell, dict) else {}
+                while (r, c) in occupied:
+                    c += 1
+                colspan = TableElement._span(raw, "colspan") or 1
+                rowspan = TableElement._span(raw, "rowspan") or 1
+                for dr in range(rowspan):
+                    for dc in range(colspan):
+                        occupied.add((r + dr, c + dc))
+                c += colspan
+                width = max(width, c)
+        return width, len(rows)
+
+    @staticmethod
     def _cell(raw):
         raw = raw if isinstance(raw, dict) else {}
         h = raw.get("halign")
         v = raw.get("valign")
-        return {
+        cell = {
             "html": raw.get("html") or "",
             "halign": h if h in TableElement.HALIGN else "left",
             "valign": v if v in TableElement.VALIGN else "top",
         }
+        # Optional fields, present only when set (imported spanning tables): a
+        # header (<th>) cell and colspan/rowspan. The rectangular WYSIWYG editor
+        # ignores them; the render template emits them.
+        if raw.get("header"):
+            cell["header"] = True
+        for key in ("colspan", "rowspan"):
+            span = TableElement._span(raw, key)
+            if span is not None:
+                cell[key] = span
+        return cell
 
     @staticmethod
     def normalize_data(data):
         """Return a well-formed dict for arbitrary stored data: defaults for
         missing top-level keys; ragged rows rectangularised (padded, never
         truncated); non-list rows / non-dict cells coerced; and a
-        degenerate-collapse guard to the default 2x2 when height or width is 0."""
+        degenerate-collapse guard to the default 2x2 when height or width is 0.
+
+        A SPANNING table (any cell carries colspan/rowspan) keeps its ragged rows
+        verbatim — the browser lays it out from the spans, so rectangularising
+        would inject phantom cells and break the layout."""
         data = data if isinstance(data, dict) else {}
         rows = data.get("cells")
         rows = rows if isinstance(rows, list) else []
         rows = [r if isinstance(r, list) else [] for r in rows]
-        width = max((len(r) for r in rows), default=0)
-        if not rows or width == 0:
-            rows = [[{}, {}], [{}, {}]]  # default 2x2
-            width = 2
-        cells = [
-            [TableElement._cell(r[i] if i < len(r) else {}) for i in range(width)]
+        spanning = any(
+            isinstance(c, dict)
+            and (
+                TableElement._span(c, "colspan") is not None
+                or TableElement._span(c, "rowspan") is not None
+            )
             for r in rows
-        ]
+            for c in r
+        )
+        if spanning:
+            cells = [[TableElement._cell(c) for c in r] for r in rows]
+        else:
+            width = max((len(r) for r in rows), default=0)
+            if not rows or width == 0:
+                rows = [[{}, {}], [{}, {}]]  # default 2x2
+                width = 2
+            cells = [
+                [TableElement._cell(r[i] if i < len(r) else {}) for i in range(width)]
+                for r in rows
+            ]
         border = data.get("border")
         return {
             "header_row": bool(data.get("header_row")),
@@ -882,18 +998,47 @@ class FillTableElement(ElementBase):
         valign = v if v in TableElement.VALIGN else "top"
         if raw.get("kind") == FillTableElement.ANSWER:
             ans = raw.get("answer")
-            return {
+            cell = {
                 "kind": FillTableElement.ANSWER,
                 "answer": ans if isinstance(ans, str) else "",
                 "halign": halign,
                 "valign": valign,
             }
-        return {
-            "kind": FillTableElement.STATIC,
-            "html": raw.get("html") or "",
-            "halign": halign,
-            "valign": valign,
-        }
+        elif raw.get("kind") == "image":
+            media = raw.get("media")
+            if isinstance(media, int) and not isinstance(media, bool):
+                alt = raw.get("alt")
+                cell = {
+                    "kind": "image",
+                    "media": media,
+                    "alt": alt if isinstance(alt, str) else "",
+                    "halign": halign,
+                    "valign": valign,
+                }
+            else:
+                # invalid/missing media -> safe empty static (never a broken <img>)
+                cell = {
+                    "kind": FillTableElement.STATIC,
+                    "html": "",
+                    "halign": halign,
+                    "valign": valign,
+                }
+        else:
+            cell = {
+                "kind": FillTableElement.STATIC,
+                "html": raw.get("html") or "",
+                "halign": halign,
+                "valign": valign,
+            }
+        # Spanning-table extras (imported): a header (<th>) cell + colspan/rowspan.
+        # Absent when unset, so simple fill tables and the editor are unaffected.
+        if raw.get("header"):
+            cell["header"] = True
+        for key in ("colspan", "rowspan"):
+            span = TableElement._span(raw, key)
+            if span is not None:
+                cell[key] = span
+        return cell
 
     @staticmethod
     def normalize_data(data):
@@ -901,14 +1046,30 @@ class FillTableElement(ElementBase):
         rows = data.get("cells")
         rows = rows if isinstance(rows, list) else []
         rows = [r if isinstance(r, list) else [] for r in rows]
-        width = max((len(r) for r in rows), default=0)
-        if not rows or width == 0:
-            rows = [[{}, {}], [{}, {}]]  # default 2x2
-            width = 2
-        cells = [
-            [FillTableElement._cell(r[i] if i < len(r) else {}) for i in range(width)]
+        # A spanning table keeps its ragged rows verbatim (see TableElement).
+        spanning = any(
+            isinstance(c, dict)
+            and (
+                TableElement._span(c, "colspan") is not None
+                or TableElement._span(c, "rowspan") is not None
+            )
             for r in rows
-        ]
+            for c in r
+        )
+        if spanning:
+            cells = [[FillTableElement._cell(c) for c in r] for r in rows]
+        else:
+            width = max((len(r) for r in rows), default=0)
+            if not rows or width == 0:
+                rows = [[{}, {}], [{}, {}]]  # default 2x2
+                width = 2
+            cells = [
+                [
+                    FillTableElement._cell(r[i] if i < len(r) else {})
+                    for i in range(width)
+                ]
+                for r in rows
+            ]
         border = data.get("border")
         prompt = data.get("prompt")
         return {
@@ -924,15 +1085,17 @@ class FillTableElement(ElementBase):
 
     @property
     def canonical_cells(self):
-        """Grid shaped exactly like normalize_data(self.data)["cells"]: static
-        cells pass through unchanged; each answer cell's `answer` is replaced by
-        its FIRST pipe-delimited alternative (courses.filltable.split_alternatives
-        ()[0]; no configured alternatives -> ""). Restore-only (mine.done); reads
-        self.data via normalize_data() but NEVER mutates it -- normalize_data()
+        """Grid shaped exactly like resolved_cells: image cells resolved to a
+        MediaAsset (or degraded to empty static); static cells pass through
+        unchanged; each answer cell's `answer` is replaced by its FIRST
+        pipe-delimited alternative (courses.filltable.split_alternatives()[0];
+        no configured alternatives -> ""). Restore-only (mine.done); reads
+        self.data via resolved_cells but NEVER mutates it -- resolved_cells
         already returns fresh cell dicts, not references into self.data."""
         from courses.filltable import split_alternatives
 
-        cells = self.normalize_data(self.data)["cells"]
+        # resolve image pks -> MediaAsset, then swap answers
+        cells = self.resolved_cells
         out = []
         for row in cells:
             out_row = []
@@ -963,6 +1126,10 @@ class FillTableElement(ElementBase):
                     if cell.get("kind") == FillTableElement.ANSWER:
                         a = cell.get("answer")
                         cell["answer"] = a.strip() if isinstance(a, str) else ""
+                    elif cell.get("kind") == "image":
+                        alt = cell.get("alt")
+                        cell["alt"] = alt.strip() if isinstance(alt, str) else ""
+                        # leave `media` untouched; write NO html key
                     else:
                         cell["html"] = sanitize_cell(cell.get("html", ""))
         return data
@@ -984,12 +1151,60 @@ class FillTableElement(ElementBase):
                 "cells": self.canonical_cells,
             }
         else:
-            ctx["data"] = self.normalize_data(self.data)
+            ctx["data"] = {
+                **self.normalize_data(self.data),
+                "cells": self.resolved_cells,
+            }
         return render_to_string("courses/elements/filltableelement.html", ctx)
 
     @property
     def normalized_data(self):
         return self.normalize_data(self.data)
+
+    @staticmethod
+    def resolve_image_cells(cells):
+        """A normalized cells grid with each image cell's `media` int pk replaced
+        by its MediaAsset (one in_bulk pass). Unresolved pks degrade to an empty
+        static cell -- dropping any colspan/rowspan/header the cell carried --
+        so a dangling asset never 500s a lesson and never leaves a spanning gap
+        with nothing spanning it. Static/answer cells pass through unchanged.
+
+        Shared by resolved_cells (student render, resolves against self.data)
+        and FillTableElementForm.resolved_grid_cells (editor, resolves against
+        the submitted/stored grid_data on a rejected save) -- the two callers
+        must not diverge on this fallback."""
+        ids = [c["media"] for row in cells for c in row if c.get("kind") == "image"]
+        assets = MediaAsset.objects.in_bulk(ids) if ids else {}
+        out = []
+        for row in cells:
+            out_row = []
+            for c in row:
+                if c.get("kind") == "image":
+                    asset = assets.get(c["media"])
+                    if asset is not None:
+                        out_row.append({**c, "media": asset})
+                    else:
+                        out_row.append(
+                            {
+                                "kind": FillTableElement.STATIC,
+                                "html": "",
+                                "halign": c["halign"],
+                                "valign": c["valign"],
+                            }
+                        )
+                else:
+                    out_row.append(c)
+            out.append(out_row)
+        return out
+
+    @property
+    def resolved_cells(self):
+        """The normalized grid with each image cell's `media` int pk replaced by its
+        MediaAsset (one in_bulk pass). Unresolved pks degrade to an empty static cell
+        so a dangling asset never 500s a lesson. Static/answer cells pass through.
+        A property (parallel to normalized_data) so the editor template can read it."""
+        cells = self.normalize_data(self.data)["cells"]
+        return self.resolve_image_cells(cells)
 
 
 class GalleryElement(ElementBase):
@@ -1823,6 +2038,15 @@ class ChoiceGridQuestionElement(QuestionElement):
 
     REVEAL_TEMPLATE = "courses/elements/_reveal_choicegrid.html"
     elements = GenericRelation(Element)
+
+    def delete(self, *args, **kwargs):
+        # GridRow.correct_column PROTECTs GridColumn. Both rows and columns are
+        # CASCADE children of this question, but Django's collector can gather a
+        # column before the row that protects it and then raise ProtectedError.
+        # Deleting the rows first drops those PROTECT references so the question's
+        # own cascade can remove the (now unreferenced) columns cleanly.
+        self.rows.all().delete()
+        return super().delete(*args, **kwargs)
 
     def build_answer(self, post):
         rows = list(self.rows.all())

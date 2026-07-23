@@ -1,0 +1,56 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>Jeśli dane jest twierdzenie:\n    \\[p\\Rightarrow q\\]\n    to twierdzenie:\n    \\[q\\Rightarrow p\\]\n    nazywamy</p>"
+    },
+    {
+      "type": "text",
+      "body": "<strong>\n        twierdzeniem odwrotnym\n    </strong>"
+    },
+    {
+      "type": "text",
+      "body": "<p>.</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Uwaga! Twierdzenie odwrotne nie musi być prawdziwe.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Dla przykładu, twierdzenie:\n</p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/nie_romb.png",
+      "alt": "czworokąt, który nie jest rombem",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<blockquote class=\"centered\">\n    Jeśli czworokąt jest rombem, to jego przekątne przecinają się pod kątem prostym.\n</blockquote>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    jest prawdziwe, ale twierdzenie do niego odwrotne już nie.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Twierdzenie odrotne do powyższego brzmi:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<blockquote class=\"centered\">\n    Jeśli przekątne czworokąta przecinają się pod kątem prostym, to czworokąt ten jest rombem.\n</blockquote>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Rysunek przedstawia przykład czworokąta, którego przekątne przecinają się pod kątem prostym, a który nie jest rombem.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<small>\n    Do tego, by był rombem, brakuje, by jego przekątne przecinały się w połowie.\n</small>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "32b3464d1e8b0c3425735a4b084391ab25e0f862c9373b653d0e7291f02218d5"
+}

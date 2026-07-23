@@ -1,0 +1,130 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<h3 id=\"podsumowanie\">\n    Podsumowanie\n</h3>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "kąt \\(\\alpha\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(30^{\\circ}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(45^{\\circ}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(60^{\\circ}\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(\\sin\\alpha\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\frac{1}{2}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\frac{\\sqrt{2}}{2}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\frac{\\sqrt{3}}{2}\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(\\cos\\alpha\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\frac{\\sqrt{3}}{2}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\frac{\\sqrt{2}}{2}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\frac{1}{2}\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(\\text{tg }\\alpha\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\frac{1}{\\sqrt{3}}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\sqrt{3}\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(\\text{ctg }\\alpha\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\sqrt{3}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\frac{1}{\\sqrt{3}}\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "02ea4e6d44b6e4f2edf8aa3e716137926fc536a19e07acc13ff8b6ad74b9a82f"
+}

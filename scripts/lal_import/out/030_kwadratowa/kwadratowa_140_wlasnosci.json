@@ -1,0 +1,110 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Jeśli dziedziną funkcji kwadratowej jest zbiór liczb rzeczywistych \\(\\mathbb{R}\\), jej zbiór wartości jest wyznaczony przez położenie wierzchołka paraboli.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Spójrzmy na przykładowy wykres.\n</p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/kwadratowa_wartosci_1.png",
+      "alt": "zbiór wartości funkcji kwadratowej",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Współrzędne wierzchołka to \\((-5,-3)\\). Ze względu na to, że ramiona paraboli są skierowane do góry, wierzchołek wskazuje\n    <strong>\n        najmniejszą\n    </strong>\n    wartość \\(y=-3\\). Dlatego zbiorem wartości są wszystkie liczby\n    <strong>\n        większe lub równe\n    </strong>\n    \\(-3\\), czyli\n</p>"
+    },
+    {
+      "type": "math",
+      "latex": "\ny\\in \\langle -3,+\\infty)\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Jeśli zobrazowaną wyżej funkcję oznaczymy literą \\(f\\), mówimy, że\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<blockquote>\n    funkcja \\(f\\) idzie ze zbioru liczb rzeczywistych w zbiór \\(\\langle -3,+\\infty)\\)\n</blockquote>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    i zapisujemy:\n</p>"
+    },
+    {
+      "type": "math",
+      "latex": "\nf:\\ \\mathbb{R}\\longrightarrow\\langle -3,+\\infty)\n"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Wskaż zbiór wartości funkcji kwadratowych z wykresami, jak niżej.</p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/kwadratowa_wartosci_2.png",
+      "alt": "zbiór wartości funkcji kwadratowej",
+      "figcaption": ""
+    },
+    {
+      "type": "image",
+      "media_src": "static/kwadratowa_wartosci_3.png",
+      "alt": "zbiór wartości funkcji kwadratowej",
+      "figcaption": ""
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Wykres 1.</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(y\\in\\langle -1,+\\infty)\\)",
+          "is_correct": false
+        },
+        {
+          "text": "\\(y\\in (-\\infty, -1\\rangle\\)",
+          "is_correct": false
+        },
+        {
+          "text": "\\(y\\in\\langle 6,+\\infty)\\)",
+          "is_correct": false
+        },
+        {
+          "text": "\\(y\\in (-\\infty, 6\\rangle\\)",
+          "is_correct": true
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Wykres 2.</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(y\\in\\langle 2,+\\infty)\\)",
+          "is_correct": false
+        },
+        {
+          "text": "\\(y\\in (-\\infty, 2\\rangle\\)",
+          "is_correct": false
+        },
+        {
+          "text": "\\(y\\in\\langle -4,+\\infty)\\)",
+          "is_correct": true
+        },
+        {
+          "text": "\\(y\\in (-\\infty, -4\\rangle\\)",
+          "is_correct": false
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "c98707553ba4472373894c1f6d29d12e83143b6769667a5421c6e03ec582c6d5"
+}

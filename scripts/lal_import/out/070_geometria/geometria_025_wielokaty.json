@@ -1,0 +1,81 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<h3>\n    Kąt wewnętrzny w wielokącie foremnym\n</h3>"
+    },
+    {
+      "type": "text",
+      "body": "\n<strong>\n        Wielokąt foremny\n    </strong>\n    to taki, który ma zarówno wszystkie boki jak i kąty równe.\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Zauważ, że\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul style=\"list-style: none;\">\n<li>\n        nie mówimy \"\n        <em>\n            trójkąt foremny\n        </em>\n        \", lecz \"\n        <em>\n            trójkąt równoboczny\n        </em>\n        \",\n    </li>\n<li>\n        nie mówimy \"\n        <em>\n            czworotkąt foremny\n        </em>\n        \", lecz \"\n        <em>\n            kwadrat\n        </em>\n        \".\n    </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Suma kątów w \\(n\\)-kącie foremnym jest taka sama, jak w każdym innym wielokącie, czyli \\((n-2)\\cdot 180^{\\circ}\\), a ponieważ każdy z \\(n\\) kątów jest tej samej miary, więc możemy łatwo wyliczyć, jaka to miara.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Miara każdego kąta wewnętrznego w \\(n\\)-kącie foremnym jest równa\n    </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n                                                                                        \\frac{(n-2)\\cdot 180^{\\circ}}{n}\n                                                                                        "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Dla przykładu, miara pojedynczego kąta w sześciokącie foremnym to\n</p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n\\frac{(6-2)\\cdot 180^{\\circ}}{6}=120^{\\circ}\n"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Oblicz miary kątów wewnętrznych we wskazanych niżej wielokątach foremnych. Wpisz samą liczbę, bez znaku stopnia.\n        </p>"
+    },
+    {
+      "type": "fillblank",
+      "stem": "\n            Miara kąta wewnętrznego w pięciokącie foremnym jest równa\n            ￿0￿\n",
+      "blanks": [
+        [
+          "108"
+        ]
+      ]
+    },
+    {
+      "type": "fillblank",
+      "stem": "\n            Miara kąta wewnętrznego w ośmiokącie foremnym jest równa\n            ￿0￿\n",
+      "blanks": [
+        [
+          "135"
+        ]
+      ]
+    },
+    {
+      "type": "fillblank",
+      "stem": "\n            Miara kąta wewnętrznego w dziesięciokącie foremnym jest równa\n            ￿0￿\n",
+      "blanks": [
+        [
+          "144"
+        ]
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<div class=\"success hidden\" id=\"success_question30\">\n        Świetnie!\n    </div>\n</p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "78806541705822986a906249e7dce6f86751155f44aa238ab94b8f1bc1977850"
+}

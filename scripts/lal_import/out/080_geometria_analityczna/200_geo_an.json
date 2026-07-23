@@ -1,0 +1,284 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Okrąg \\(o\\) ma równanie\n        \\[\n        (x-2)^2+(y+3)^2=16\n        \\]\n        Znajdź wszystkie punkty na okręgu \\(o\\), których współrzędna \\(y=1\\).\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Podstawmy \\(y=1\\) do równania okręgu:\n                \\[\n                (x-2)^2+(1+3)^2=16\n                \\]\n                Nie wymnażajmy nawiasu \\((x-2)^2\\), ale wyliczmy całą resztę.</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Otrzymamy \\((x-2)^2=\\)\n                    \n\n\n\n\n￿0￿",
+          "options": [
+            "\\(8\\)",
+            "\\(32\\)",
+            "\\(0\\)"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "math",
+          "latex": "\n                (x-2)^2=0\n                "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    a tylko \\(0^2=0\\), więc\n                    \n\n\n\n\n￿0￿",
+          "options": [
+            "\\(x=2\\)",
+            "\\(x=-2\\)",
+            "\\(x=0\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Szukany punkt ma współrzędne \\((2, 1)\\).\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Zauważmy, że jest to punkt na samej górze okręgu, odległy dokładnie o promień (\\(4\\)) od środka.</p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/okrag_punkt_max.png",
+          "alt": "punkt na górze okręgu",
+          "figcaption": ""
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Okrąg \\(o\\) ma równanie\n        \\[\n        (x+1)^2+(y-2)^2=25\n        \\]\n        Znajdź wszystkie punkty na okręgu \\(o\\), których współrzędna \\(y=2\\).\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Podstawmy \\(x=2\\) do równania okręgu:\n                \\[\n                (2+1)^2+(y-2)^2=25\n                \\]\n                Nie wymnażajmy nawiasu \\((y-2)^2\\), ale wyliczmy całą resztę.</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Otrzymamy \\((y-2)^2=\\)\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(36\\)",
+            "\\(16\\)",
+            "\\(22\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Otrzymane równanie\n                \\[\n                (y-2)^2=16\n                \\]\n                możemy rozwiązać (z grubsza) na dwa sposoby. Zacznijmy od prostszego. Zauważ, że równanie ma postać\n                \\[\n                (\\text{jakaś liczba})^2=16\n                \\]\n                gdzie \"\\(\\text{jakaś liczba}\\)\" to w naszym przypadku wyrażenie \"\\(y-2\\)\".</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Ta \"\\(\\text{jakaś liczba}\\)\" ma więc wartość\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(4\\)",
+            "\\(16\\)",
+            "\\(4\\) lub \\(-4\\)"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "text",
+          "body": "<p>Istnieją dwie liczby, których kwadrat jest równy \\(16\\). Są to \\(4\\) i \\(-4\\). I dlatego</p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\(y-2=4\\quad\\quad\\) lub \\(\\quad\\quad y-2=-4\\)\n                "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    I dlatego współrzędna \\(y\\) ma więc wartość\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(6\\)",
+            "\\(6\\) lub \\(-2\\)",
+            "\\(-6\\) lub \\(2\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Skoro \\(y=-2\\) lub \\(y=6\\), a podstawialiśmy \\(x=2\\), to szukane punkty mają współrzędne \\((2, -2)\\) oraz \\((2, 6)\\).\n                </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/okrag_2_punkty.png",
+          "alt": "2 punkty wspólne prostej i okręgu",
+          "figcaption": ""
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    I to już koniec zadania, ale coś jeszcze chyba przed nami?\n                    \n￿0￿\n                    .\n                    \n\n￿1￿",
+          "options": [
+            "druga metoda rozwiązania równania"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Obiecana druga metoda rozwiązania równania\n                \\[\n                (y-2)^2=16\n                \\]\n                jest taka, że najpierw wszystko wymnażamy i przenosimy na lewą stronę:\n                \\[\n                y^2-4y-12=0\n                \\] \n                po czym liczymy deltę:\n                \\[\n                \\Delta = (-4)^2-4\\cdot 1\\cdot (-12)=64\n                \\]\n                i wreszcie dwie wartości \\(y\\):\n                \\[\n                y=\\frac{4\\pm 8}{2\\cdot 1}=-2\\text{ lub }6\n                \\]</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Znajdź punkty przecięcia okręgu\n        \\[\n        (x + 2)² + (y + 3)² = 10\n        \\]\n        z osią \\(OX\\).\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Wszystkie punkty na osi \\(OX\\) mają wspólną cechę.</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Ich współrzędna\n                    \n\n￿0￿\n                    jest równa \\(0\\).\n                    \n",
+          "options": [
+            "\\(x\\)-owa",
+            "\\(y\\)-owa"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Podstawmy więc \\(y=0\\) do równania\n                \\[\n                (x + 2)² + (y + 3)² = 10\n                \\]</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Otrzymamy \\((x+2)^2=\\)\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(7\\)",
+            "\\(1\\)",
+            "\\(5\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    A skoro \\((x+2)^2=1\\) to znaczy, że \\(x+2=\\)\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(-1\\) lub \\(1\\)",
+            "\\(1\\)",
+            "\\(-1\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    \\(x+2=-1\\) lub \\(x+2=1\\) oznacza, że \\(x=\\)\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(-3\\) lub \\(-1\\)",
+            "\\(1\\) lub \\(3\\)",
+            "\\(1\\) lub \\(-1\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Punkty, w których okrąg \\((x + 2)² + (y + 3)² = 10\\) przecina oś \\(OX\\) to \\((-3,0)\\) i \\((-1,0)\\).</p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/okrag_os_ox.png",
+          "alt": "punkty wspólne okręgu i osi OX",
+          "figcaption": ""
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Znajdź punkty przecięcia okręgu\n        \\[\n        (x - 3)² + (y + 2)² = 8\n        \\]\n        z osią \\(OY\\).\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Wszystkie punkty na osi \\(OY\\) mają wspólną cechę.</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Ich współrzędna\n                    \n\n￿0￿\n                    jest równa \\(0\\).\n                    \n",
+          "options": [
+            "\\(x\\)-owa",
+            "\\(y\\)-owa"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Podstawmy więc \\(x=0\\) do równania\n                \\[\n                (x - 3)² + (y + 2)² = 8\n                \\]</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Otrzymamy \\((y+2)^2=\\)\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(1\\)",
+            "\\(-1\\)",
+            "\\(5\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    A skoro \\((x+2)^2=-1\\) to znaczy, że szukamy liczby rzeczywistej, której kwadrat jest równy \\(-1\\). Taka liczba\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "to \\(-1\\)",
+            "nie istnieje",
+            "to \\(1\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Rzeczywiście, równanie \\((x+2)^2=-1\\) nie ma rozwiązań rzeczywistych.\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<small>\n                    (Gdybyśmy je rozpisali, dostalibyśmy \\(x^2+4x+5=0\\). Delta tego równania to \\(\\Delta=-4\\lt 0\\), co potwierdza, że nie ma rozwiązań.)\n                </small>"
+        },
+        {
+          "type": "text",
+          "body": "<p>I dlatego okrąg \\((x - 3)² + (y + 2)² = 8\\) nie przecina osi \\(OY\\).</p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/okrag_os_oy.png",
+          "alt": "punkty wspólne okręgu i osi OY",
+          "figcaption": ""
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "474373e1bf02c0cc6086e013e801a572f3685aeceb261b2e32a14d4c0274ef44"
+}

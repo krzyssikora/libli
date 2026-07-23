@@ -1,0 +1,61 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Nie każda funkcja kwadratowa ma miejsca zerowe, bo nie każda parabola przecina oś \\(x\\) (lub przynajmniej ją dotyka).\n</p>"
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Wskaż równania paraboli, które mają punkty wspólne z osią \\(x\\).</p>",
+      "multiple": true,
+      "choices": [
+        {
+          "text": "\\(y=\\frac{5}{2}(x+1)^2-2\\)",
+          "is_correct": true,
+          "feedback": "Ramiona tej paraboli są skierowane do góry, a wierzchołek...?"
+        },
+        {
+          "text": "\\(y=-3(x+2)^2-1\\)",
+          "is_correct": false,
+          "feedback": "Wierzchołek tej paraboli jest pod osią \\(x\\). W którą stronę są skierowane ramiona?"
+        },
+        {
+          "text": "\\(y=2(x-3)^2+7\\)",
+          "is_correct": false,
+          "feedback": "Ramiona tej paraboli są skierowane do góry. A wierzchołek? Jest nad, czy pod osią \\(x\\)?"
+        },
+        {
+          "text": "\\(y=-\\frac{2}{3}(x-5)^2+3\\)",
+          "is_correct": true,
+          "feedback": "Wierzchołek tej paraboli jest nad osią \\(x\\), a ramiona skierowane...?"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Funkcja kwadratowa ma miejsca zerowe jeśli spełniony jest jeden z dwóch warunków:\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n            jej ramiona są skierowane\n            <span style=\"color: blue;\">\n                ku górze\n            </span>\n            a wierzchołek leży\n            <span style=\"color: red;\">\n                poniżej\n            </span>\n            osi \\(x\\).\n        </li>\n<li>\n            jej ramiona są skierowane\n            <span style=\"color: blue;\">\n                do dołu\n            </span>\n            a wierzchołek leży\n            <span style=\"color: red;\">\n                powyżej\n            </span>\n            osi \\(x\\).\n        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Dla funkcji kwadratowej zapisanej w postaci kanonicznej:\n    </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n        y=a(x-p)^2+q\n                                                                                        "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        warunki te można przeformułować następująco:\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n<span style=\"color: blue;\">\n                \\(a\\gt 0\\)\n            </span>\n            i jednocześnie\n            <span style=\"color: red;\">\n                \\(q\\lt 0\\)\n            </span>\n</li>\n<li>\n<span style=\"color: blue;\">\n                \\(a\\lt 0\\)\n            </span>\n            i jednocześnie\n            <span style=\"color: red;\">\n                \\(q\\gt 0\\)\n            </span>\n</li>\n</ul>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "c743e8a023b365f3aef7179e33ce8db6bb5f426c50325822ecc7db02c4d7fa60"
+}

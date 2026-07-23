@@ -1,0 +1,65 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>W poniższym aplecie możesz:</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n                użyć\n                <span style=\"color: orange; background-color: gray;\">\n                    pomarańczowego\n                </span>\n                suwaka, żeby wybrać jedną z trzech funkcji,\n            </li>\n<li>\n                przesuwać punkt na osi \\(oy\\) będący końcem wektora, by przesuwać wykres wybranej funkcji,\n            </li>\n<li>\n                przesuwać\n                <span style=\"color: orange; background-color: gray;\">\n                    pomarańczowy\n                </span>\n                punkt na wykresie podstawowej (\n                <span style=\"color: green\">\n                    zielonym\n                </span>\n                ), by widzieć, jak przesuwa się na\n                <span style=\"color: red\">\n                    czerwony\n                </span>\n                wykres.\n            </li>\n</ul>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/hayusj5n/width/800/height/800/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Dany jest wykres funkcji \\(y=f(x)\\) oraz liczba dodatnia \\(q\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Wówczas wykres funkcji\n        </p>"
+    },
+    {
+      "type": "switch_grid",
+      "prompt": "",
+      "lines": [
+        {
+          "stem": "\n\n                \\(y=f(x)+q\\) jest przesunięty w\n            \n\n\n￿0￿\n                względem wykresu \\(y=f(x)\\).\n            \n",
+          "cyclers": [
+            {
+              "options": [
+                "górę",
+                "dół"
+              ],
+              "answer": 0
+            }
+          ]
+        },
+        {
+          "stem": "\n\n                \\(y=f(x)-q\\) jest przesunięty w\n            \n\n\n￿0￿\n                względem wykresu \\(y=f(x)\\).\n            \n",
+          "cyclers": [
+            {
+              "options": [
+                "górę",
+                "dół"
+              ],
+              "answer": 1
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "bd8642b68006aa490f8d1085cca229717279f335df4c3797c968963e1e66b94f"
+}

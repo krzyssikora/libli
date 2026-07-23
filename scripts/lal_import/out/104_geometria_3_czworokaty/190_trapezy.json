@@ -1,0 +1,300 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Przyjrzyj się poniższej animacji. Co pokazuje?\n        </p>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/tbtyskjj/width/634/height/431/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    },
+    {
+      "type": "spoiler",
+      "label": "Co pokazuje animacja",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n            Animacja pokazuje, że\n        </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_320_1.png",
+          "alt": "",
+          "figcaption": "pole trapezu o podstawach \\(\\color{blue}{a}\\) i \\(\\color{blue}{b}\\) i wysokości \\(\\color{red}{h}\\)"
+        },
+        {
+          "type": "image",
+          "media_src": "static/right_arrow.png",
+          "alt": "",
+          "figcaption": "jest równe"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_320_2.png",
+          "alt": "",
+          "figcaption": "polu trójkąta o podstawie \\((\\color{blue}{a+b})\\) i wysokości \\(\\color{red}{h}\\)"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Czyli wzór na pole trapezu, \\(P\\), to\n        </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n        P=\\frac{1}{2}(\\color{blue}{a+b})\\cdot\\color{red}{h}\n        "
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Pole trapezu, \\(P\\), o podstawach \\(\\color{blue}{a}\\) i \\(\\color{blue}{b}\\) oraz wysokości \\(\\color{red}{h}\\) jest równe\n    </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n    P=\\frac{1}{2}(\\color{blue}{a+b})\\cdot\\color{red}{h}\n    "
+    },
+    {
+      "type": "image",
+      "media_src": "static/geometria_3_zadanie_320_1.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Podstawy trapezu mają długości \\(a\\) i \\(b\\). Jego wysokość to \\(h\\), natomiast pole trapezu jest równe \\(P\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Uzupełnij tabelę.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<small>W pierwszych trzech przykładach możesz sprawdzić pełne rozwiązanie</small>\n</p>"
+    },
+    {
+      "type": "fill_table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "kind": "static",
+              "html": "\\(a\\)",
+              "header": true
+            },
+            {
+              "kind": "static",
+              "html": "\\(b\\)",
+              "header": true
+            },
+            {
+              "kind": "static",
+              "html": "\\(h\\)",
+              "header": true
+            },
+            {
+              "kind": "static",
+              "html": "\\(P\\)",
+              "header": true
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(6\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(3\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(4\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "18"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "<details>\n<summary><small>rozwiązanie</small></summary>\n                        \\[\n                        P=\\frac{1}{2}(6+3)\\cdot 4=\\frac{1}{2}\\cdot 9\\cdot 4=18\n                        \\]\n                    </details>",
+              "colspan": 4
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(7\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(2\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "3"
+            },
+            {
+              "kind": "static",
+              "html": "\\(13,5\\)"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "<details>\n<summary><small>rozwiązanie</small></summary>\n                        \\[\n                        \\begin{align}\n                        P&amp;=\\frac{1}{2}(a+b)\\cdot h\\\\\n                        13.5&amp;=\\frac{1}{2}(7+2)\\cdot h\\\\\n                        13.5&amp;=\\frac{1}{2}\\cdot 9\\cdot h\\\\\n                        \\frac{27}{2}&amp;=\\frac{9}{2}\\cdot h\\\\\n                        h&amp;=\\frac{27}{2}:\\frac{9}{2}\\\\\n                        h&amp;=\\frac{27}{2}\\cdot\\frac{2}{9}\\\\\n                        h&amp;=3\n                        \\end{align}\n                        \\]\n                    </details>",
+              "colspan": 4
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(14\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "8"
+            },
+            {
+              "kind": "static",
+              "html": "\\(9\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(99\\)"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "<details>\n<summary><small>rozwiązanie</small></summary>\n                        \\[\n                        \\begin{align}\n                        P&amp;=\\frac{1}{2}(a+b)\\cdot h\\\\\n                        99&amp;=\\frac{1}{2}(14+b)\\cdot 9\\\\\n                        11&amp;=\\frac{1}{2}(14+b)\\\\\n                        22&amp;=14+b\\\\\n                        8&amp;=b\\\\\n                        b&amp;=8\n                        \\end{align}\n                        \\]\n                    </details>",
+              "colspan": 4
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(11\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(9\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(6\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "60"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(11\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(8\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "5"
+            },
+            {
+              "kind": "static",
+              "html": "\\(47.5\\)"
+            }
+          ],
+          [
+            {
+              "kind": "answer",
+              "answer": "12"
+            },
+            {
+              "kind": "static",
+              "html": "\\(6\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(5\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(45\\)"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(16\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(12\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(2\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "28"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(13\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(6\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "16"
+            },
+            {
+              "kind": "static",
+              "html": "\\(152\\)"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(7\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "5"
+            },
+            {
+              "kind": "static",
+              "html": "\\(9\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(54\\)"
+            }
+          ]
+        ]
+      }
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "e1a8fb2fe1c55c7994842bee44c124751b23d866f4f04ac7712650e02e2e4103"
+}

@@ -1,0 +1,481 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n<strong>Twierdzenie o linii środkowej trapezu</strong>\n</p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/trapez_linia_srodkowa_twierdzenie.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n            Odcinek łączący środki ramion trapezu jest równoległy do obu podstaw.\n        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Jeśli długości podstaw to \\(a\\) i \\(b\\), a długość odcinka łączącego środki ramion to \\(s\\), to\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n            jego długość jest średnią długości podstaw, czyli \\(s=\\frac{a+b}{2}\\).\n        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Przykład</strong></p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/trapez_linia_srodkowa_przyklad.gif",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W trapezie podstawa dolna ma długość \\(15\\) cm, a podstawa górna ma długość \\(11\\) cm.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Oblicz długość odcinka łączącego środki ramion trapezu.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Zgodnie z twierdzeniem o linii środkowej trapezu, długość tego odcinka jest średnią długości podstaw, jest więc równa\n        </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n        \\frac{15+11}{2}=\\frac{26}{2}=13\n        "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Odcinek łączący środki ramion trapezu ma długość \\(13\\) cm.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<strong>Uwaga</strong>"
+    },
+    {
+      "type": "text",
+      "body": "<p>! Zauważ, że wysokość trapezu jest nieistotna - spójrz na animację powyżej.</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Oblicz długość linii środkowej, \\(s\\), w trapezie o podstawach długości \\(a\\) i \\(b\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Wpisz sam wynik.\n        </p>"
+    },
+    {
+      "type": "fill_table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "kind": "static",
+              "html": "\\(a\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(b\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(s\\)"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(14\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(8\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "11"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(28\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(32\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "30"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(12\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(15\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "13.5|13,5"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Górna podstawa trapezu ma długość \\(5\\), a odcinek łączący środki ramion ma długość \\(7\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Oblicz długość dolnej podstawy trapezu.\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_250.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Oznaczmy długość dolnej podstawy przez \\(a\\).\n                </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Wówczas\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(a=\\frac{5+7}{2}\\)",
+            "\\(7=\\frac{a+5}{2}\\)",
+            "\\(5=\\frac{a+7}{2}\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Rozwiązując równanie \\(7=\\frac{a+5}{2}\\) otrzymujemy\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(a=9\\)",
+            "\\(a=4\\)",
+            "\\(a=2\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Dolna podstawa ma długość \\(9\\).</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W trapezie \\(ABCD\\), w którym \\(AB\\parallel CD\\) punkty \\(M\\) i \\(N\\) to środki ramion \\(AD\\) i \\(BC\\) odpowiednio.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Ramię \\(AD\\) jest prostopadłe do podstaw.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Wiedząc, że długości odcinków \\(AB\\), \\(AM\\) i \\(MN\\) to odpowiednio \\(11\\), \\(4\\) i \\(8\\), oblicz obwód trapezu \\(ABCD\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<small>Uwaga! Zanim przejdziesz do rozwiązania, wykonaj samodzielnie rysunek pomocniczy.</small>\n</p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                    Przyjrzyj się poniższemu rysunkowi, przeczytaj ponownie treść zadania i sprawdź, czy wszystko się zgadza.\n                </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_260_1.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Znamy długości zaznaczone na niebiesko, musimy poznać te zaznaczone na szaro.\n                </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Zacznijmy od \\(DM\\). Ta jest najprostsza, bo\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "jest równa długości \\(AM\\)",
+            "jest dwukrotnie krótsza od  \\(AB\\)",
+            "jest równa długości \\(CD\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Czyli długość \\(DM\\) to \\(4\\).\n                </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_260_2.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Długość podstawy \\(CD\\) obliczymy z twierdzenia o linii środkowej, czyli z równania\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(CD=\\frac{8+11}{2}\\)",
+            "\\(8=\\frac{CD+11}{2}\\)",
+            "\\(11=\\frac{CD+8}{2}\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Skąd wyliczamy, że długość \\(CD\\) to \n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(5\\)",
+            "\\(6\\)",
+            "\\(7\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_260_3.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Pozostało nam ustalić długości odcinków \\(BN\\) i \\(CN\\), które są\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "długości \\(6\\)",
+            "równej długości",
+            "długości \\(MN\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Przyjrzyjmy się trójkątowi \\(PBN\\), gdzie \\(P\\) jest takim punktem na podstawie \\(AB\\), że \\(PN\\) i \\(PB\\) są prostopadłe. \n                </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_260_4.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Z długości \\(AB\\) i \\(MN\\) wnioskujemy, że długość \\(PB\\) to\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(3\\)",
+            "\\(4\\)",
+            "\\(5\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_260_5.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Długość \\(PN\\) to oczywiście\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(3\\)",
+            "\\(4\\)",
+            "\\(5\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_260_6.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    I teraz możemy policzyć długość \\(BN\\) z twierdzenia Pitagorasa w trójkącie prostokątnym \\(PBN\\). \\(BN^2=3^2+4^2\\), więc \n                    \n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(BN=3\\)",
+            "\\(BN=4\\)",
+            "\\(BN=5\\)",
+            "\\(BN=6\\)"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_260_7.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Odcinek \\(CN\\) też jest długości\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(5\\)",
+            "\\(4\\)",
+            "\\(3\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_260_8.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Pozostaje tylko obliczyć obwód: \\(11+5+5+5+4+4=\\)\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(30\\)",
+            "\\(34\\)",
+            "\\(38\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>OBwód trapezu \\(ABCD\\) to \\(34\\).</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W trapezie \\(ABCD\\), w którym \\(AB\\parallel CD\\) punkty \\(M\\) i \\(P\\) leżą na ramieniu \\(AD\\), a punkty \\(N\\) i \\(S\\) leżą na ramieniu \\(BC\\) w taki sposób, że:\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n                \\(AP=PM=MD\\) oraz\n            </li>\n<li>\n                \\(BS=SN=NC\\).\n            </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Wiedząc, że podstawa \\(AB\\) ma długość \\(12\\), a odcinek \\(MN\\) ma długość \\(8\\), znajdź długość podstawy \\(CD\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<small>W rozwiązaniu możesz przyjąć (zgodnie z prawdą), że odcinki \\(AB\\), \\(PS\\), \\(MN\\) i \\(CD\\) są równoległe.</small>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<small>Uwaga! Zanim przejdziesz do rozwiązania, wykonaj samodzielnie rysunek pomocniczy.</small>\n</p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_270_1.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Przyjrzyjmy się najpierw trapezowi \\(ABNM\\).\n                </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_270_2.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Z twierdzenia o linii środkowej\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(PS=\\frac{8+12}{2}\\)",
+            "\\(8=\\frac{PS+12}{2}\\)",
+            "\\(12=\\frac{PS+8}{2}\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Czyli \\(PS=10\\)\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Teraz przyjrzyjmy się trapezowi \\(PSCD\\).\n                </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_270_3.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Z twierdzenia o linii środkowej\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(CD=\\frac{8+10}{2}\\)",
+            "\\(8=\\frac{CD+10}{2}\\)",
+            "\\(10=\\frac{CD+8}{2}\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Stąd wyliczamy, że \n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(CD=4\\)",
+            "\\(CD=6\\)",
+            "\\(CD=8\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Tak więc podstawa \\(CD\\) ma długość \\(6\\).\n                </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_270_4.png",
+          "alt": "",
+          "figcaption": ""
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "518ada177128b35d9ee5c10432e116f4f265ba8916be5f656c969c6885ea2dec"
+}

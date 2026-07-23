@@ -1,0 +1,154 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Prostokątna kartka papieru ma takie wymiary, że jeśli przetniemy ją na trzy w kierunku prostopadłym do dłuższego boku, to otrzymamy trzy prostokąty podobne do początkowego.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Jaki jest stosunek dłuższego do krótszego boku kartki?\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "odpowiedź",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(\\sqrt{3}\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Boki pierwszego czworokąta mają długości kolejno: \\(9\\), \\(15\\), \\(12\\) i \\(10\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Drugi czworokąt jest podobny do pierwszego, a jego najdłuższy bok ma długość \\(20\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź długości pozostałych boków drugiego czworokąta.\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "odpowiedź",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Długości boków to kolejno: \\(12\\), (\\(20\\) - znany bok), \\(16\\), \\(13\\tfrac{1}{3}\\).</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Dwa romby są podobne w skali \\(\\frac{3}{4}\\). Przekątne większego rombu mają długości \\(6\\sqrt{6}\\) i \\(8\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź długość boku mniejszego rombu.\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "szkic rozwiązania",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Albo najpierw znajdź z podobieństwa długości przekątnych mniejszego rombu, a potem z twierdzenia Pitagorasa, z użyciem połówek przekątnych - długość boku, albo najpierw znajdź długość boku większego rombu (z twierdzenia Pitagorasa, z połówek przekątnych), a potem długość boku mniejszego z podobieństwa.</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "odpowiedź",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{3}{4}\\sqrt{70}\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Krótsza przekątna równoległoboku jest prostopadła do jednego z boków. Boki są długości \\(34\\) i \\(16\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Drugi równoległobok jest podobny do pierwszego, a jego krótsza przekątna ma długość \\(15\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Oblicz obwód drugiego równoległoboku. \n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "rysunek pomocniczy",
+      "elements": [
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_1240.png",
+          "alt": "",
+          "figcaption": "(rysunek nie zachowuje skali)"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "odpowiedź",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(50\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Stosunek długości boków w dwóch prostokątach podobnych to \\(3:5\\). Skala podobieństwa tych prostokątów  to \\(2:3\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Jeśli suma obwodów obu prostokątów jest równa \\(520\\), oblicz:\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ol class=\"bold\" type=\"A\">\n<li>\n                obwody,\n            </li>\n<li>\n                długości boków \n            </li>\n</ol>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            obu prostokątów.\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "odpowiedź",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<ol class=\"bold\" type=\"A\">\n<li>\n                mniejszy: \\(195\\), wiekszy: \\(325\\)\n            </li>\n<li>\n                mniejszy: \\(39\\) i \\(58,5\\), wiekszy: \\(65\\) i \\(97,5\\)\n            </li>\n</ol>"
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "5102c28b7b0228bf942f37d5734ba87fa3915fe73280029388c3d6722cc46e7a"
+}

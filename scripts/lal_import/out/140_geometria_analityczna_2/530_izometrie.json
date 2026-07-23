@@ -1,0 +1,124 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n<strong>Izometria</strong> to takie przekształcenie płaszczyzny, które zachowuje odległości między punktami.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<i>Dokładniej:</i>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>Izometria</strong> to takie przekształcenie płaszczyzny, \\(P\\), że jeśli\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n            \\(A\\) i \\(B\\) to dowolne punkty płaszczyzny\n        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        natomiast\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n            \\(P(A)\\) i \\(P(B)\\) to obrazy tych punktów w tym przekształceniu\n        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        to\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        \\[\n        |AB|=|P(A)P(B)|\n        \\]\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        czyli\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        odległość od \\(A\\) do \\(B\\) <u>jest równa</u> odległości od \\(P(A)\\) do \\(P(B)\\)\n    "
+    },
+    {
+      "type": "image",
+      "media_src": "static/izometria_ilustracja.png",
+      "alt": "",
+      "figcaption": "Strzałka obrazuje izometrię \\(P\\). \\(A_1=p(A)\\), \\(B_1=P(B)\\)Odległość \\(|AB|\\) jest równa odległości \\(|A_1B_1|\\)."
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Przykład</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Punkty \\(A_1\\) i \\(B_2\\) są obrazami punktów \\(A\\) i \\(B\\) w przesunięciu o pewien wektor.\n        </p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/izometria_przyklad_przesuniecie.gif",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Niezależnie od wyboru punktów \\(A\\) i \\(B\\), długości \\(|AB|\\) i \\(|A_1B_1|\\) są sobie równe.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Przykład</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Punkty \\(A_1\\) i \\(B_2\\) są obrazami punktów \\(A\\) i \\(B\\) w symetrii osiowej względem zaznaczonej na szaro prostej.\n        </p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/izometria_przyklad_symetria_osiowa.gif",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Niezależnie od wyboru punktów \\(A\\) i \\(B\\), długości \\(|AB|\\) i \\(|A_1B_1|\\) są sobie równe.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Przykład</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Punkty \\(A_1\\) i \\(B_2\\) są obrazami punktów \\(A\\) i \\(B\\) w symetrii środkowej względem zaznaczonego na szaro punktu.\n        </p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/izometria_przyklad_symetria_srodkowa.gif",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Niezależnie od wyboru punktów \\(A\\) i \\(B\\), długości \\(|AB|\\) i \\(|A_1B_1|\\) są sobie równe.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Przykład</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Punkty \\(A_1\\) i \\(B_2\\) są obrazami punktów \\(A\\) i \\(B\\) w obrocie wokół zaznaczonego na szaro punktu o pewien kąt.\n        </p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/izometria_przyklad_obrot.gif",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Niezależnie od wyboru punktów \\(A\\) i \\(B\\), długości \\(|AB|\\) i \\(|A_1B_1|\\) są sobie równe.\n        </p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "84bab69e1e88215e4744954dac6360b1a94db8f6261ee425307c403779cd9699"
+}

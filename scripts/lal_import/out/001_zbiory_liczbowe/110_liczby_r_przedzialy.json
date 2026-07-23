@@ -1,0 +1,71 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Wskaż poprawne wyniki działań na przedziałach.\n    "
+    },
+    {
+      "type": "switch_grid",
+      "prompt": "",
+      "lines": [
+        {
+          "stem": "\n\n                \\((-5,2)\\cup \\langle-1,5\\rangle\\)\n            \n\n\n\n\n\n\n\n￿0￿",
+          "cyclers": [
+            {
+              "options": [
+                "\\((-5,5)\\)",
+                "\\((-5,5\\rangle\\)",
+                "\\(\\langle-1,2)\\)",
+                "\\((-1,2\\rangle\\)",
+                "\\((-5,-1\\rangle\\)",
+                "\\((-5,-1)\\)",
+                "\\(\\langle2,5\\rangle\\)"
+              ],
+              "answer": 1
+            }
+          ]
+        },
+        {
+          "stem": "\n\n                \\((-5,2)\\cap \\langle-1,5\\rangle\\)\n            \n\n\n\n\n\n\n\n￿0￿",
+          "cyclers": [
+            {
+              "options": [
+                "\\((-5,5)\\)",
+                "\\((-5,5\\rangle\\)",
+                "\\(\\langle-1,2)\\)",
+                "\\((-1,2\\rangle\\)",
+                "\\((-5,-1\\rangle\\)",
+                "\\((-5,-1)\\)",
+                "\\(\\langle2,5\\rangle\\)"
+              ],
+              "answer": 2
+            }
+          ]
+        },
+        {
+          "stem": "\n\n                \\((-5,2)\\setminus \\langle-1,5\\rangle\\)\n            \n\n\n\n\n\n\n\n￿0￿",
+          "cyclers": [
+            {
+              "options": [
+                "\\((-5,5)\\)",
+                "\\((-5,5\\rangle\\)",
+                "\\(\\langle-1,2)\\)",
+                "\\((-1,2\\rangle\\)",
+                "\\((-5,-1\\rangle\\)",
+                "\\((-5,-1)\\)",
+                "\\(\\langle2,5\\rangle\\)"
+              ],
+              "answer": 5
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "b9ecaecd25f25f15b9d85cb1d18fe45d77f3fed5238bbdecc634dce82fd53530"
+}

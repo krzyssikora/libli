@@ -1,0 +1,202 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W trapezie równoramiennym suma długości podstaw jest równa \\(30\\), ramię ma długość \\(15\\), a wysokość \\(12\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Oblicz długości podstaw.\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                    Zacznijmy od obliczenia długości odcinka między końcem dłuższej podstawy a wysokością opuszczoną z końca krótszej podstawy. Na poniższym rysunku jego długość jest oznaczona przez \\(x\\).\n                </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_333_1.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Tę długość obliczymy z twierdzenia Pitagorasa: \n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(x^2=15^2-12^2\\)",
+            "\\(x^2=15^2+12^2\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Otrzymujemy \n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(x=3\\)",
+            "\\(x=9\\)",
+            "\\(x=81\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Przyjmijmy, że podstawy trapezu to \\(a\\) (dłuższa) i \\(b\\) (krótsza).</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Wówczas, z twierdzenia o wysokości w trapezie równoramiennym, wyliczona długość jest równa\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(\\frac{a+b}{2}\\)",
+            "\\(\\frac{a-b}{2}\\)",
+            "\\(\\frac{b-a}{2}\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Wiemy więc, że\n                \\[\n                \\frac{a-b}{2}=9\n                \\]\n                oraz (z treści zadania), że\n                \\[\n                a+b=30.\n                \\]\n                Mamy więc do rozwiązania układ równań:\n                \\[\n                \\begin{cases}\n                a-b=18\\\\\n                a+b=30\n                \\end{cases}\n                \\]</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Wyliczamy z niego, że \n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(a=24\\)",
+            "\\(a=48\\)",
+            "\\(a=26\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    A skoro \\(a=24\\), to\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(b=16\\)",
+            "\\(b=6\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Długości podstaw trapezu to \\(24\\) i \\(6\\).</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/geometria_3_zadanie_335_1.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Podstawy trapezu prostokątnego mają długości \\(9\\) i \\(11\\), a jego pole jest równe \\(40\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Oba ramiona trapezu przedłużono po sotrnie krószej podstawy (rysunek) tak, że jego wysokość stała się dwukrotnie większa.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Jakie jest pole tak utworzonego nowego trapezu?\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                    Oznaczmy wysokość początkowego trapezu przez \\(h\\), a nową podstawę powiększonego trapezu przez \\(b\\). \n                </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_335_2.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Pole początkowego trapezu jest równe \\(40\\), jego podstawy to \\(9\\) i \\(11\\), a wysokość \\(h\\). Stąd możemy ułożyć równanie\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\((9+11)\\cdot h=\\tfrac{1}{2}\\cdot40\\)",
+            "\\(\\tfrac{1}{2}(9+11)\\cdot h=40\\)",
+            "\\(\\tfrac{1}{2}\\cdot 9\\cdot 11\\cdot h=40\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Uprośćmy równanie:\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    \\begin{align}\n                    \\tfrac{1}{2}(9+11)\\cdot h&amp;=40\\\\\n                    \\tfrac{1}{2}\\cdot 20\\cdot h&amp;=40\\\\\n                    10\\cdot h&amp;=40\\\\\n                    h&amp;=4\n                    \\end{align}\n                    \\]\n                "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Pomyślmy teraz o powiększonym trapezie. Odcinek o długości \\(9\\) łączy w nim środki ramion.\n                </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Stąd (z pomocą twierdzenia o linii środkowej) wiemy, że\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(9=\\tfrac{1}{2}(b+11)\\)",
+            "\\(9=11-b\\)",
+            "\\(b=\\tfrac{1}{2}(11+9)\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Z równania \\(9=\\tfrac{1}{2}(b+11)\\) wyliczamy\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(b=6\\)",
+            "\\(b=7\\)",
+            "\\(b=8\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Tak więc powiększony trapez ma podstawy o długościach \\(7\\) i \\(11\\) oraz wysokość\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(4\\)",
+            "\\(8\\)",
+            "\\(12\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Pole powiększonego trapezu jest równe\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(\\tfrac{1}{2}(7+11)\\cdot 8\\)",
+            "\\((7+11)\\cdot 8\\)",
+            "\\(7\\cdot 11\\cdot 8\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Pole nowego trapezu jest równe\n                </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                \\tfrac{1}{2}(7+11)\\cdot 8=72\n                "
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "64f40e45496b4461c6b500f90bde8ce60afe11b899e4bb3fab33374f49fc8cf5"
+}

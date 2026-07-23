@@ -1,0 +1,135 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Czasami rozwiązania równań i nierówności zapisujemy w postaci zbiorów / przedziałów.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Często używamy sformułowania \"\n    <em>\n        zbiór rozwiązań\n    </em>\n    \" równania lub nierówności.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Przyjrzyj się następującym przykładom.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Rozwiążemy razem równanie:\n        \\[4x-7-x=1+3x\\]\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Jeśli przeniesiemy \\(-7\\) z lewej strony na prawą, otrzymamy tam\n            \\[1+7=8\\]\n        </p>"
+    },
+    {
+      "type": "fill_gate",
+      "stem": "\n<p>\n                Przenieś wszystkie \\(x\\)-y na lewą stronę równania i wpisz niżej, ile ich jest:\n            </p>\n<span class=\"myequation\">\n<span>\n￿0￿\n</span>\n                \\(\\cdot x=8\\)\n            </span>\n",
+      "answers": [
+        [
+          "0"
+        ]
+      ]
+    },
+    {
+      "type": "fill_gate",
+      "stem": "\n<p>\n                \\(0\\) pomnożone przez cokolwiek daje w wyniku \\(0\\), otrzymujemy więc:\n            </p>\n            \\[0=8\\]\n            <p>\n                Takie równanie jest\n                <strong>\n                    sprzeczne\n                </strong>\n                , tzn. nieprawdziwe. Nie ma więc żadnych rozwiązań.\n            </p>\n<p>\n                Możemy to zapisać jako:\n            </p>\n            \\[x\\in\\emptyset\\]\n            <p>\n                co czytamy jako \"\n                <em>\n                    \\(x\\) należy do zbioru pustego\n                </em>\n                \".\n            </p>\n<p>\n                Wiemy jednak, że zbiór pusty ma\n                <span>\n￿0￿\n</span>\n                elementów.\n            </p>\n",
+      "answers": [
+        [
+          "0"
+        ]
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Teraz rozwiążemy równanie:\n        \\[3x-7-2x+1=x-6\\]\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Jeśli przeniesiemy \\(x\\)-y z prawej strony na lewą, otrzymamy tam\n            \\[3x-2x-x=0\\cdot x=0\\].\n        </p>"
+    },
+    {
+      "type": "fill_gate",
+      "stem": "\n<p>\n                Przenieś liczby na prawą stronę równania i uzupełnij:\n            </p>\n<span class=\"myequation\">\n                \\(0=\\)\n                <span>\n￿0￿\n</span>\n</span>\n",
+      "answers": [
+        [
+          "0"
+        ]
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Otrzymaliśmy:\n            </p>"
+    },
+    {
+      "type": "math",
+      "latex": "0=0"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                To równanie nie jest sprzeczne, bo \\(0\\) rzeczywiście jest równe \\(0\\), niezależnie od tego, jaki byłby \\(x\\). Takie równanie nazywamy\n                <strong>\n                    tożsamościowym\n                </strong>\n                , a jego rozwiązaniami są\n                <strong>\n                    wszystkie\n                </strong>\n                liczby rzeczywiste.\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Możemy to zapisać jako:\n            </p>"
+    },
+    {
+      "type": "math",
+      "latex": "x\\in\\mathbb{R}"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                co czytamy np. jako \"\n                <em>\n                    \\(x\\) jest dowolną liczbą rzeczywistą\n                </em>\n                \".\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Równanie\n        <strong>\n            sprzeczne\n        </strong>\n        to takie, które nie posiada rozwiązań.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Równanie\n        <strong>\n            nieoznaczone (tożsamościowe)\n        </strong>\n        to takie, które ma nieskończenie wiele rozwiązań, a dokładniej jego rozwiązaniami są wszystkie liczby, które możemy podstawić do równania.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Równanie posiadające jednoznaczne rozwiązanie (czasem więcej niż jedno) nazywamy równaniem\n        <strong>\n            oznaczonym\n        </strong>\n        .\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Rozwiążemy nierówność:\n        \\[2x+1&gt;7-x\\]\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Jeśli przeniesiemy \\(1\\) z lewej strony na prawą, otrzymamy tam\n            \\[7-1=6\\].\n        </p>"
+    },
+    {
+      "type": "fill_gate",
+      "stem": "\n<p>\n                Przenieś wszystkie \\(x\\)-y na lewą stronę równania i wpisz niżej, ile ich jest:\n            </p>\n<span class=\"myequation\">\n<span>\n￿0￿\n</span>\n                \\(\\cdot x&gt;6\\)\n            </span>\n",
+      "answers": [
+        [
+          "3"
+        ]
+      ]
+    },
+    {
+      "type": "fill_gate",
+      "stem": "\n<p>\n                Otrzymaliśmy:\n            </p>\n            \\[3x&gt;6\\]\n            <p>\n                Podzielmy obie strony nierówności przez 3:\n            </p>\n<p>\n                \\(x&gt;\\)\n                <span>\n￿0￿\n</span>\n</p>\n",
+      "answers": [
+        [
+          "2"
+        ]
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "7e89617679020be72deae810b379157e810b540c2c0408de1e7db9ad65864667"
+}

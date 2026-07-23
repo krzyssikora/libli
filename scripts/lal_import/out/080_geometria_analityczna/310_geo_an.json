@@ -1,0 +1,34 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>Długość odcinka \\(AB\\), gdzie\n        \\[\n        A=(x_A, y_A),\\quad\\quad B=(x_B,y_B)\n        \\]\n        jest dana wzorem\n        \\[\n        AB=\\sqrt{(x_B-x_A)^2+(y_B-y_A)^2}\n        \\]</p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/dlugosc_odcinka.png",
+      "alt": "długość odcinka",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>Jeśli \\(A=\\left(x_A, y_A\\right)\\) i \\(B=\\left(x_B, y_B\\right)\\) to środek odcinka \\(AB\\) jest dany wzorem:</p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/srodek_odcinka.png",
+      "alt": "środek odcinka",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\\[\n        S=\\left(\\frac{x_A+x_B}{2}, \\frac{y_A+y_B}{2}\\right)\n        \\]</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><li>\n        Dla trójkąta \\(ABC\\) o wierzchołkach:\n        <div class=\"centered\">\n            \\(A=(x_A, y_A)\\), \\(B=(x_B, y_B)\\), \\(C=(x_C, y_C)\\)\n        </div>\n        punkt \\(S\\) zdefiniowany\n        \\[\n        S=\\left(\\frac{x_A+x_B+x_C}{3},\\frac{y_A+y_B+y_C}{3}\\right)\n        \\]\n        jest punktem przecięcia środkowych, czyli\n        <strong>\n            środkiem ciężkości\n        </strong>\n        .\n    </li>\n<li>\n        Nachylenie odcinka / prostej przechodzącej przez punkty \\(A=(x_A, y_A)\\) i \\(B=(x_B, y_B)\\) to liczba\n        \\[\n        \\frac{\\text{SKOK}}{\\text{KROK}}=\\frac{\\Delta y}{\\Delta x}=\\frac{y_B-y_A}{x_B-x_A}\n        \\]\n    </li>\n<li>\n        Nachylenia odcinków (współczynniki kerunkowe prostych) równoległych są sobie równe.\n    </li>\n<li>\n        Liczby \\(a_1\\) i \\(a_2\\) są nachyleniami odcinków (współczynnikami kierunkowymi prostych) prostopadłych, jeśli\n        <ul class=\"nolist\">\n<li>\n                \\(a_1\\cdot a_2=-1\\)\n            </li>\n<li>\n                lub równoważnie \\(a_2=-\\frac{1}{a_1}\\).\n            </li>\n</ul>\n</li>\n<li>\n        Równanie\n        <strong>\n            kierunkowe\n        </strong>\n        prostej to równanie postaci \n        \\[\n        y = ax + b\n        \\] \n        gdzie\n        <ul class=\"nolist\">\n<li>\n                \\(a\\) nazywamy współczynnikiem kierunkowym,\n            </li>\n</ul>\n        natomiast\n        <ul class=\"nolist\">\n<li>\n                \\(b\\) - wyrazem wolnym lub współczynnikiem przesunięcia.\n            </li>\n</ul>\n</li>\n<li>\n        Równanie\n        <strong>\n            ogólne\n        </strong>\n        prostej to równanie postaci\n        \\[\n        Ax+By+C=0\n        \\]\n        przy czym współczynniki \\(A\\) i \\(B\\) nie mogą być równocześnie równe \\(0\\).\n        <p>\n<small>\n                Warunek \"współczynniki \\(A\\) i \\(B\\) nie mogą być równocześnie równe \\(0\\)\" można też zapisać jako\n                \\[\n                A^2+B^2\\ne 0\n                \\]\n            </small>\n</p>\n</li>\n<li>\n        Proste o równaniach\n        <ul class=\"nolist\">\n<li>\n                \\(\\color{red}{A_1}x+\\color{orange}{B_1}y+C_1=0\\) oraz\n            </li>\n<li>\n                \\(\\color{red}{A_2}x+\\color{orange}{B_2}y+C_2=0\\)\n            </li>\n</ul>\n        są\n        <u>\n            równolegle\n        </u>\n        ,  wtedy i tylko wtedy, gdy\n        <ol class=\"bold\">\n<li>\n<strong>\n                    albo\n                </strong>\n                współczynniki \\(\\color{red}{A_1}\\), \\(\\color{red}{A_2}\\) oraz \\(\\color{orange}{B_1}\\), \\(\\color{orange}{B_2}\\) są proporcjonalne, tj. pozostają w tym samym stosunku, czyli\n            </li>\n<ul class=\"nolist\">\n<li>\n                    \\(\\frac{\\color{red}{A_1}}{\\color{red}{A_2}}=\\frac{\\color{orange}{B_1}}{\\color{orange}{B_2}}\\)\n                </li>\n<li>\n                    lub równoważnie \\(\\frac{\\color{red}{A_1}}{\\color{orange}{B_1}}=\\frac{\\color{red}{A_2}}{\\color{orange}{B_2}}\\).\n                </li>\n</ul>\n<li>\n<strong>\n                    albo\n                </strong>\n                \\(\\color{red}{A_1}=\\color{red}{A_2}=0\\)\n            </li>\n<li>\n<strong>\n                    albo\n                </strong>\n                \\(\\color{orange}{B_1}=\\color{orange}{B_2}=0\\)\n            </li>\n</ol>\n</li>\n<li>\n        Aby znaleźć równanie prostej\n        <u>\n            równoległej\n        </u>\n        do prostej \\(Ax+By+C=0\\) najlepiej skopiować współczynniki \\(A\\) i \\(B\\):\n        \\[\n        Ax+By+D=0\n        \\]\n        a następnie ustalić wartość współczynnika \\(D\\) na podstawie położenia prostej (np. z użyciem współrzędnych punktu, przez który prosta przechodzi).\n    </li>\n<li>\n        Proste o równaniach\n        <ul class=\"nolist\">\n<li>\n                \\(A_1x+B_1y+C_1=0\\) oraz\n            </li>\n<li>\n                \\(A_2x+B_2y+C_2=0\\)\n            </li>\n</ul>\n        są\n        <u>\n            prostopadłe\n        </u>\n        wtedy i tylko wtedy, gdy\n        \\[\n        A_1A_2+B_1B_2=0\n        \\]\n    </li>\n<li>\n        Aby znaleźć równanie prostej\n        <u>\n            prostopadłej\n        </u>\n        do prostej \\(Ax+By+C=0\\) najlepiej zamienić miejscami współczynniki \\(A\\) i \\(B\\) oraz zmienić znak jednego z nich, np.:\n        \\[\n        Bx-Ay+D=0\n        \\]\n        a następnie ustalić wartość współczynnika \\(D\\) na podstawie położenia prostej (np. z użyciem współrzędnych punktu, przez który prosta przechodzi).\n    </li>\n<li>\n<strong>\n            Równanie okręgu\n        </strong>\n        o środku w punkcie \\((a,b)\\) i promieniu długości \\(r\\) ma postać:\n        \\[\n        (x-a)^2+(y-b)^2=r^2\n        \\]\n        Taką postać równania nazywamy\n        <strong>\n            równaniem kanonicznym\n        </strong>\n        .\n    </li></p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "563f95020d824b3531cf7adfc549a8ad7fa9b152b7fdd461a054332357d387b2"
+}

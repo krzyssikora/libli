@@ -168,9 +168,52 @@ def _ser_table(el, ids):
 
 
 def _ser_fill_table(el, ids):
-    # Return the data dict DIRECTLY, mirroring _ser_table (see its comment): the
-    # importer calls BUILDERS["fill_table"](el["data"], assets) with this shape.
-    return dict(el.data)
+    # Build a FRESH data structure — never mutate el.data (export runs in-process,
+    # e.g. duplicate-unit). Register each image cell's asset (skipping unresolved
+    # pks, degrading them to empty static, like _gallery_assets), so the bundle
+    # references it; carry alt/halign/valign through.
+    from courses.models import MediaAsset
+
+    data = el.normalize_data(el.data)
+    rows = data["cells"]
+    img_pks = [c["media"] for row in rows for c in row if c.get("kind") == "image"]
+    assets = MediaAsset.objects.in_bulk(img_pks)
+    out_rows = []
+    for row in rows:
+        out_row = []
+        for c in row:
+            if c.get("kind") == "image":
+                asset = assets.get(c["media"])
+                if asset is not None:
+                    out_row.append(
+                        {
+                            "kind": "image",
+                            "media": ids.register(asset),
+                            "alt": c.get("alt", ""),
+                            "halign": c["halign"],
+                            "valign": c["valign"],
+                        }
+                    )
+                else:
+                    out_row.append(
+                        {
+                            "kind": "static",
+                            "html": "",
+                            "halign": c["halign"],
+                            "valign": c["valign"],
+                        }
+                    )
+            else:
+                out_row.append(dict(c))
+        out_rows.append(out_row)
+    return {
+        "header_row": data["header_row"],
+        "header_col": data["header_col"],
+        "case_sensitive": data["case_sensitive"],
+        "border": data["border"],
+        "prompt": data["prompt"],
+        "cells": out_rows,
+    }
 
 
 def _ser_tabs(el, ids):
@@ -365,13 +408,23 @@ def serialize_element_data(concrete, media_ids):
 
 def _element_mids(type_key, data):
     """All media ids an element references, routed by the element TYPE KEY (not
-    by sniffing the data shape): a gallery reads its `images[].media` list; every
-    other media-bearing type reads the scalar `media`."""
+    by sniffing the data shape): a gallery reads its `images[].media` list; a
+    fill_table walks its `cells` grid for image-kind cells' `media`; every other
+    media-bearing type reads the scalar `media`."""
     if type_key == "gallery":
         return [
             img["media"]
             for img in (data.get("images") or [])
             if isinstance(img, dict) and isinstance(img.get("media"), str)
+        ]
+    if type_key == "fill_table":
+        return [
+            c["media"]
+            for row in (data.get("cells") or [])
+            for c in (row or [])
+            if isinstance(c, dict)
+            and c.get("kind") == "image"
+            and isinstance(c.get("media"), str)
         ]
     m = data.get("media")
     return [m] if isinstance(m, str) else []
@@ -438,6 +491,9 @@ def walk_unit_joins(unit_pk, joins_by_unit):
             for col, children in obj.resolved_columns():
                 for child in children:
                     yield child, join, col["id"]
+        elif isinstance(obj, SpoilerElement):
+            for child in obj.resolved_children():
+                yield child, join, SpoilerElement.SLOT_ID
 
 
 def build_export(course, node=None, source_host="", *, drop_missing_media=True):

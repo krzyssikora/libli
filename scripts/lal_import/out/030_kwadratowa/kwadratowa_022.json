@@ -1,0 +1,256 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<h3>\n    Postać kanoniczna - podsumowanie\n</h3>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/parabola_kanoniczna.png",
+      "alt": "postać kanoniczna funkcji kwadratowej",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Jeśli wszystko powyższe wydaje Ci się bardzo łatwe, możesz pominąć poniższe pytanie. Jeśli jednak masz jakiekolwiek wątpliwości, rozwiąż je, żeby się sprawdzić.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question_text\">\n        Uzupełnij poniższą tabelę według wzoru w pierwszym wierszu.\n    </p>"
+    },
+    {
+      "type": "fill_table",
+      "data": {
+        "header_row": true,
+        "header_col": false,
+        "border": "rows",
+        "cells": [
+          [
+            {
+              "kind": "static",
+              "html": ""
+            },
+            {
+              "kind": "static",
+              "html": "równanie funkcji"
+            },
+            {
+              "kind": "static",
+              "html": ""
+            },
+            {
+              "kind": "static",
+              "html": ""
+            },
+            {
+              "kind": "static",
+              "html": ""
+            },
+            {
+              "kind": "static",
+              "html": "wierzchołek"
+            },
+            {
+              "kind": "static",
+              "html": ""
+            },
+            {
+              "kind": "static",
+              "html": ""
+            },
+            {
+              "kind": "static",
+              "html": ""
+            },
+            {
+              "kind": "static",
+              "html": "oś symetrii"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(y=3(x-1)^2+5\\)"
+            },
+            {
+              "kind": "static",
+              "html": ""
+            },
+            {
+              "kind": "static",
+              "html": ""
+            },
+            {
+              "kind": "static",
+              "html": ""
+            },
+            {
+              "kind": "static",
+              "html": "\\((1,5)\\)"
+            },
+            {
+              "kind": "static",
+              "html": ""
+            },
+            {
+              "kind": "static",
+              "html": ""
+            },
+            {
+              "kind": "static",
+              "html": ""
+            },
+            {
+              "kind": "static",
+              "html": ""
+            },
+            {
+              "kind": "static",
+              "html": "\\(x=1\\)"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(y=-\\frac{2}{3}(x+1)^2+1\\)"
+            },
+            {
+              "kind": "static",
+              "html": ""
+            },
+            {
+              "kind": "static",
+              "html": ""
+            },
+            {
+              "kind": "static",
+              "html": ""
+            },
+            {
+              "kind": "static",
+              "html": "<span class=\"myequation\">\n                                (",
+              "halign": "right"
+            },
+            {
+              "kind": "answer",
+              "answer": "-1.0|-1,0"
+            },
+            {
+              "kind": "static",
+              "html": ",",
+              "halign": "center"
+            },
+            {
+              "kind": "answer",
+              "answer": "1.0|1,0"
+            },
+            {
+              "kind": "static",
+              "html": ")\n                            </span>",
+              "halign": "left"
+            },
+            {
+              "kind": "answer",
+              "answer": "-1.0|-1,0"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "<span class=\"myequation\">\n                                \\(y=-(x+\\)",
+              "halign": "right"
+            },
+            {
+              "kind": "answer",
+              "answer": "2.0|2,0"
+            },
+            {
+              "kind": "static",
+              "html": "\\()^2+\\)",
+              "halign": "center"
+            },
+            {
+              "kind": "answer",
+              "answer": "-3.0|-3,0"
+            },
+            {
+              "kind": "static",
+              "html": "\\((-2, -3)\\)"
+            },
+            {
+              "kind": "static",
+              "html": ""
+            },
+            {
+              "kind": "static",
+              "html": ""
+            },
+            {
+              "kind": "static",
+              "html": ""
+            },
+            {
+              "kind": "static",
+              "html": ""
+            },
+            {
+              "kind": "answer",
+              "answer": "-2.0|-2,0"
+            }
+          ],
+          [
+            {
+              "kind": "answer",
+              "answer": "5.0|5,0"
+            },
+            {
+              "kind": "static",
+              "html": ""
+            },
+            {
+              "kind": "static",
+              "html": ""
+            },
+            {
+              "kind": "static",
+              "html": ""
+            },
+            {
+              "kind": "static",
+              "html": "<span class=\"myequation\">\n                                (",
+              "halign": "right"
+            },
+            {
+              "kind": "answer",
+              "answer": "-5.0|-5,0"
+            },
+            {
+              "kind": "static",
+              "html": ",",
+              "halign": "center"
+            },
+            {
+              "kind": "answer",
+              "answer": "3.0|3,0"
+            },
+            {
+              "kind": "static",
+              "html": ")\n                            </span>",
+              "halign": "left"
+            },
+            {
+              "kind": "static",
+              "html": "\\(x=-5\\)"
+            }
+          ]
+        ]
+      }
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "29d115c609500bf15bf893b2af402424cee02cb80c0c0a85db28a1bd9b18447c"
+}

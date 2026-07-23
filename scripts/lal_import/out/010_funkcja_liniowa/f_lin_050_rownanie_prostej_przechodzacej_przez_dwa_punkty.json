@@ -1,0 +1,283 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<h1>\n    Równanie prostej przechodzącej przez dwa punkty\n</h1>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Problem z jakim mamy teraz do czynienia możemy opisać następująco:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n    Dane są dwa punkty. Jak znaleźć równanie prostej która przez te dwa punkty przechodzi?\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Opiszemy trzy metody rozwiązania tego problemu, z których dwie są w naszym zasięgu już teraz. O trzeciej  będziemy mogli teraz opowiedzieć, a zrealizować ją później, już wkrótce.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Metody te są następujące:\n    <ol>\n<li>\n            z użyciem\n            <strong>\n                nachylenia\n            </strong>\n            prostej\n        </li>\n<li>\n            z użyciem odpowiedniego\n            <strong>\n                wzoru\n            </strong>\n</li>\n<li>\n            z użyciem tak zwanego\n            <strong>\n                układu równań\n            </strong>\n</li>\n</ol>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Opisując każdą z metod użyjemy tego samego przykładu.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Dane są punkty \\(A=(2, -1)\\) i \\(B=(-4, 3)\\).\n            <br/>\n            Znajdź równanie prostej przechodzącej przez te punkty.\n            <br/></p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/prosta_przez_punkty_1.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Szukamy prostej o równaniu w postaci \\(y = ax + b\\).\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Kliknij na odpowiednią zakładkę żeby zapoznać się z wybraną metodą.\n</p>"
+    },
+    {
+      "type": "tabs",
+      "tabs": [
+        {
+          "id": "t000000",
+          "label": "1. nachylenie",
+          "elements": [
+            {
+              "type": "text",
+              "body": "<p>\n            Znajdziemy najpierw współczynnik kierunkowy, czyli nachylenie tej prostej.\n        </p>"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n            Zapewne pamiętasz że nachylenia szukaliśmy używając metody nazwanej w skrócie \"skok przez krok\":\n        </p>"
+            },
+            {
+              "type": "text",
+              "body": "<ul class=\"nolist\">\n<li>\n                skok to odległość w pionie między punktami,\n            </li>\n<li>\n                krok to odległość w poziomie\n            </li>\n</ul>"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n            Jeśli punkty mają współrzędne:\n        </p>"
+            },
+            {
+              "type": "text",
+              "body": "<ul class=\"nolist\">\n<li>\n                \\(A=(x_A, y_A)\\)\n            </li>\n<li>\n                \\(B=(x_B, y_B)\\)\n            </li>\n</ul>"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n            to wówczas:\n        </p>"
+            },
+            {
+              "type": "text",
+              "body": "<ul class=\"nolist\">\n<li>\n                skok = \\(\\color{orange}{y_B-y_A}\\)\n            </li>\n<li>\n                krok = \\(\\color{green}{x_B-x_A}\\)\n            </li>\n</ul>"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n            Zwróć uwagę, że współrzędne odejmujemy w tej samej kolejności, to znaczy albo od \\(B\\) odejmujemy \\(A\\) (jak wyżej) albo od \\(A\\) odejmujemy \\(B\\).\n        </p>"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n            W naszej sytuacji:\n        </p>"
+            },
+            {
+              "type": "math",
+              "latex": "\\color{green}{x_A=-4}\\quad\\quad\\color{orange}{y_A=3}\\]\n                                \\[\\color{green}{x_B=2}\\quad\\quad\\color{orange}{y_B=-1}"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n            I teraz możemy obliczyć nachylenie szukanej prostej\n        </p>"
+            },
+            {
+              "type": "math",
+              "latex": "\n                                a=\\frac{\\color{orange}{\\text{skok}}}{\\color{green}{\\text{krok}}}=\\frac{\\color{orange}{y_B-y_A}}{\\color{green}{x_B-x_A}}=\\frac{\\color{orange}{(-1)-3}}{\\color{green}{2-(-4)}}=\\frac{\\color{orange}{-4}}{\\color{green}{6}}=-\\frac{2}{3}\n                                "
+            },
+            {
+              "type": "image",
+              "media_src": "static/prosta_przez_punkty_3.png",
+              "alt": "",
+              "figcaption": ""
+            },
+            {
+              "type": "text",
+              "body": "<p>\n            Tak otrzymaliśmy nachylenie. Możemy wstawić do równania prostej.\n        </p>"
+            },
+            {
+              "type": "math",
+              "latex": "y=ax+b\\quad\\quad\\rightarrow\\quad\\quad y=-\\frac{2}{3}x+b"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n            Pozostaje nam znalezienie współczynnika \\(b\\). Nie znamy, niestety, punktu na osi \\(y\\).\n        </p>"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n            Znamy jednak dwa inne punkty, przez które prosta przechodzi, czyli punkty \\(A\\) i \\(B\\). Wystarczy, że użyjemy współrzędnych jednego z nich. Weźmy na przykład punkt \\(A\\) i postawmy jego współrzędne do równania prostej:\n        </p>"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n            Otrzymaliśmy równanie w którym jedyną niewiadomą jest parametr b.\n        </p>"
+            },
+            {
+              "type": "math",
+              "latex": "y=-\\frac{2}{3}x+b \\quad\\quad\\rightarrow\\color{red}{A=(-4,3)}\\rightarrow\\quad\\quad \\color{red}{3}=-\\frac{2}{3}\\cdot\\color{red}{(-4)} +b"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n            Obliczmy go:\n        </p>"
+            },
+            {
+              "type": "math",
+              "latex": "3=-\\frac{2}{3}\\cdot(-4) +b\\]\n                                \\[3=\\frac{8}{3} +b\\]\n                                \\[b=3-\\frac{8}{3}=\\frac{9}{3}-\\frac{8}{3}=\\frac{1}{3}"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n            I teraz wstawmy tak otrzymane \\(b\\) do równania prostej, aby potrzymać rozwiązanie: prosta przechodząca przez punkty A i B ma równanie\n        </p>"
+            },
+            {
+              "type": "math",
+              "latex": "y=-\\frac{2}{3}x+\\frac{1}{3}"
+            },
+            {
+              "type": "image",
+              "media_src": "static/prosta_przez_punkty_2.png",
+              "alt": "",
+              "figcaption": ""
+            }
+          ]
+        },
+        {
+          "id": "t000001",
+          "label": "2. wzór",
+          "elements": [
+            {
+              "type": "text",
+              "body": "<p>\n            W\n            <em>\n                karcie wzorów\n            </em>\n            (dostępnej na maturze) znajdziemy następujące:\n        </p>"
+            },
+            {
+              "type": "text",
+              "body": "<p class=\"question_text\">\n            Równanie prostej, która przechodzi przez dwa dane punkty \\(A=(x_A, y_A), B=(x_B, y_B)\\):\n                                                \\[(y-y_A)(x_B-x_A)-(y_B-y_A)(x-x_A)=0\\]\n        </p>"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n            Użyjemy powyższego wzoru dla punktów:\n        </p>"
+            },
+            {
+              "type": "math",
+              "latex": "A=(\\color{green}{-4}, \\color{orange}{3}), B=(\\color{green}{2}, \\color{orange}{-1})"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n            Po podstawieniu otrzymujemy równanie:\n        </p>"
+            },
+            {
+              "type": "math",
+              "latex": "(y-\\color{orange}{3})(\\color{green}{2}-\\color{green}{(-4)})-(\\color{orange}{-1}-\\color{orange}{3})(x-\\color{green}{(-4)})=0"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n            Uprośćmy wyrażenia w nawiasach:\n        </p>"
+            },
+            {
+              "type": "math",
+              "latex": "(y-3)\\cdot \\color{green}{6}-\\color{orange}{(-4)}(x+4)=0"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n            Wymnóżmy nawiasy:\n        </p>"
+            },
+            {
+              "type": "math",
+              "latex": "6y-18+4x+16=0"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n            Przenieśmy wszystko poza \\(y\\)-ami na prawą stronę równania:\n        </p>"
+            },
+            {
+              "type": "math",
+              "latex": "6y=-4x+2"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n            I na zakończenie podzielmy obie strony na 6:\n        </p>"
+            },
+            {
+              "type": "math",
+              "latex": "y=-\\frac{2}{3}x+\\frac{1}{3}"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n            uzyskując równanie szukanej prostej.\n        </p>"
+            },
+            {
+              "type": "image",
+              "media_src": "static/prosta_przez_punkty_2.png",
+              "alt": "",
+              "figcaption": ""
+            }
+          ]
+        },
+        {
+          "id": "t000002",
+          "label": "3. układ równań",
+          "elements": [
+            {
+              "type": "text",
+              "body": "<p>\n            Podstawmy współrzędne \\((\\color{green}{x}, \\color{orange}{y})\\) punktów \\(A=(\\color{green}{2}, \\color{orange}{-1})\\) oraz \\(B=(\\color{green}{-4}, \\color{orange}{3})\\) do równania\n        </p>"
+            },
+            {
+              "type": "math",
+              "latex": "\\color{orange}{y}=a\\color{green}{x}+b"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n            Otrzymujemy w ten sposób dwa równania:\n        </p>"
+            },
+            {
+              "type": "text",
+              "body": "<ul class=\"nolist\">\n<li>\n                dla punktu \\(A\\): \\(\\color{orange}{3}=a\\cdot\\color{green}{(-4)}+b\\)\n            </li>\n<li>\n                dla punktu \\(B\\): \\(\\color{orange}{-1}=a\\cdot\\color{green}{2}+b\\)\n            </li>\n</ul>"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n            Po uproszczeniu:\n        </p>"
+            },
+            {
+              "type": "text",
+              "body": "<ul class=\"nolist\">\n<li>\n                \\(3=-4a+b\\)\n            </li>\n<li>\n                \\(-1=2a+b\\)\n            </li>\n</ul>"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n            Otrzymaliśmy tak zwany\n            <em>\n                układ równań\n            </em>\n            . Wkrótce nauczymy się, jak takie rozwiązywać. Gdybyśmy go rozwiązali (tj. znaleźli wartości \\(a\\) i \\(b\\) spełniające oba równania), otrzymalibyśmy\n        </p>"
+            },
+            {
+              "type": "math",
+              "latex": "a=-\\frac{2}{3}, b=\\frac{1}{3}"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n            Podstawiając te dwie wartości do równania prostej \\(y=ax+b\\) otrzymamy rozwiązanie:\n        </p>"
+            },
+            {
+              "type": "math",
+              "latex": "y=-\\frac{2}{3}x+\\frac{1}{3}"
+            },
+            {
+              "type": "image",
+              "media_src": "static/prosta_przez_punkty_2.png",
+              "alt": "",
+              "figcaption": ""
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "0d74032f794609bf171606281444f65bb90448f7c3a2d19fd75764ce26ef8988"
+}

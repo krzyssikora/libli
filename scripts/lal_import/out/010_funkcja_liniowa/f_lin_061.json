@@ -1,0 +1,51 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<h1>\n    Punkty na osiach układu współrzędnych\n</h1>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/xv5pzh9r/width/900/height/600/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Poprzesuwaj czerwony i niebieski punkt powyżej i zastanów się, jaką wspólną cechę mają:</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li style=\"color: blue;\">\n                wszystkie punkty na osi \\(x\\)\n            </li>\n<li style=\"color: red;\">\n                wszystkie punkty na osi \\(y\\)\n            </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Zapisz swoje odpowiedzi, a następnie porównaj je z odpowiedziami ukrytymi niżej.</p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "wspólna cecha punktów na osi \\(x\\)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>wszystkie punkty na osi \\(x\\) mają współrzędną \\(y=0\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "wspólna cecha punktów na osi \\(y\\)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>wszystkie punkty na osi \\(y\\) mają współrzędną \\(x=0\\)</p>"
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "7edfbb7bb20d7abaa9fb3834d7dc7a5011801f2a79d3993cc8a7f3beb0069968"
+}

@@ -1,0 +1,183 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Na rysunku poniżej przedstawiony (na niebiesko) jest stopień o wysokości 20 cm oraz (na szaro) podjazd dla wózków nachylony do ziemi pod kątem \\(10^{\\circ}\\).\n        </p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/podjazd_dla_wozka.png",
+      "alt": "podjazd dla wózków",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<ol>\n<li>\n                Ile miejsca w poziomie zajmuje podjazd? (odległość oznaczona na rysunku jako \\(d\\))\n            </li>\n<li>\n                Jakiej długości jest podjazd? (odległość oznaczona na rysunku jako \\(c\\))\n            </li>\n</ol>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Rozwiązanie zaczniemy od części pierwszej, czyli od znalezienia długości odcinka \\(d\\).\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        W tym celu potrzebujemy\n        <strong>\n            funkcji trygonometrycznej\n        </strong>\n        kąta \\(10^{\\circ}\\), która połączy boki \\(d\\) i 20 zaznaczone na czerwono na poniższym rysunku.\n    </p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/podjazd_dla_wozka_2.png",
+      "alt": "podjazd dla wózków",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Wskaż\n        <strong>\n            wszystkie\n        </strong>\n        funkcje, które spełniają ten warunek. Sprawdź swoją odpowiedź, i podążaj za rozwiązaniem.\n    </p>"
+    },
+    {
+      "type": "multi_grid",
+      "columns": [
+        "sinus",
+        "cosinus",
+        "tangens",
+        "cotangens"
+      ],
+      "rows": [
+        {
+          "statement": "",
+          "correct": [
+            2,
+            3
+          ]
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            A gdy odpowiesz na powyższe pytanie, przeczytaj rozwiązanie części pierwszej zadania.\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "Rozwiązanie części pierwszej - zobacz",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n            Użyjemy tangensa, bo jego wartość możemy znaleźć w tablicach trygonometrycznych.\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Widzimy tam, że\n            <span class=\"myequation\">\n                \\(\\text{tg }10^{\\circ}=0,1763\\)\n            </span>\n            .\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Jednocześnie tangens jest stosunkiem długości przyprostokątnych, czyli:\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<span class=\"myequation\">\n                \\(\\text{tg }10^{\\circ}=\\frac{20}{d}\\)\n            </span>\n</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Zestawiając oba powyższe równania razem otrzymujemy:\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<span class=\"myequation\">\n                \\(\\frac{20}{d}=0,1763\\)\n            </span>\n</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            I teraz wystarczy rozwiązać to równanie:\n        </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\\begin{align*}\n                    20&=0,1763d\\\\\n                    0,1763d&=20\\\\\n                    d&=\\frac{20}{0,1763}\\\\\n                    d&\\approx 113,443\n                    \\end{align*}"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Podjazd zajmuje w poziomie 113 centymetrów, w przybliżeniu do pełnego centymetra.\n        </p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Czas na drugą część zadania, czyli na znalezieniw długości odcinka \\(c\\).\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        W tym celu potrzebujemy\n        <strong>\n            funkcji trygonometrycznej\n        </strong>\n        kąta \\(10^{\\circ}\\), która połączy boki \\(c\\) i 20 zaznaczone na czerwono na poniższym rysunku.\n    </p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/podjazd_dla_wozka_3.png",
+      "alt": "podjazd dla wózków",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Która funkcja / funkcje spełniają ten warunek? Sprawdź swoją odpowiedź, i podążaj za rozwiązaniem.\n    </p>"
+    },
+    {
+      "type": "multi_grid",
+      "columns": [
+        "sinus",
+        "cosinus",
+        "tangens",
+        "cotangens"
+      ],
+      "rows": [
+        {
+          "statement": "",
+          "correct": [
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            A gdy odpowiesz na to pytanie, przeczytaj rozwiązanie drugiej części zadania.\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "Rozwiązanie drugiej części - zobacz",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n            Użyjemy sinusa, a w tablichach trygonometrycznych możemy sprawdzić, że\n            <span class=\"myequation\">\n                \\(\\sin 10^{\\circ}=0,1736\\)\n            </span>\n            .\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Jednocześnie sinus jest stosunkiem długości przyprostokątnej naprzeciwko kąta ostrego do przeciwprostokątnej, czyli:\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<span class=\"myequation\">\n                \\(\\sin 10^{\\circ}=\\frac{20}{c}\\)\n            </span>\n</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Zestawiając oba powyższe równania razem otrzymujemy:\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<span class=\"myequation\">\n                \\(\\frac{20}{c}=0,1736\\)\n            </span>\n</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            I teraz wystarczy rozwiązać to równanie:\n        </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\\begin{align*}\n                    20&=0,1736c\\\\\n                    0,1736c&=20\\\\\n                    c&=\\frac{20}{0,1736}\\\\\n                    c&\\approx 115,207\n                    \\end{align*}"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Długość podjazdu to 115 centymetrów, w przybliżeniu do pełnego centymetra.\n        </p>"
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "5e2ceee294c47b62f21674b68386017e61c3042b7d55cf81a9ff1092184f3ba3"
+}

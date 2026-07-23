@@ -1,0 +1,438 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Przykład</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Wyobraź sobie, że stoisz przy drodze. Obserwujesz ciąg przejeżdżających samochodów i notujesz ich kolory.\n    </p>"
+    },
+    {
+      "type": "video",
+      "media_src": "static/samochody.mp4"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": true,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "samochód:",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "pierwszy",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "drugi",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "trzeci",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "czwarty",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "piąty",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "szósty",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "...",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "kolor:",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "czerwony",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "niebieski",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "żółty",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "niebieski",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "zielony",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "czerwony",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "...",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Kolory, ułożone po kolei, tworzą <strong>ciąg</strong>. Kolejne elementy ciągu nazywamy <strong>wyrazami</strong>.  \n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>wyraz nr 1 to \"<span style=\"color: red\">czerwony</span>\",</li>\n<li>wyraz nr 2 to \"<span style=\"color: blue\">niebieski</span>\",</li>\n<li>wyraz nr 3 to \"<span class=\"yellow_on_gray\">żółty</span>\",</li>\n<li>wyraz nr 4 to (znowu) \"<span style=\"color: blue\">niebieski</span>\",</li>\n<li>itd.</li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Nas będą interesować <strong>ciągi liczbowe</strong>, czyli takie, których wyrazy są liczbami.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Przykład</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Do gabinetu pielęgniarki wchodzą pojedynczo pacjenci. Pielęgniarka mierzy i notuje ich wzrost w centymetrach.\n    </p>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": true,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "pacjent:",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "pierwszy",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "drugi",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "trzeci",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "czwarty",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "piąty",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "szósty",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "...",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "wzrost:",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "170",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "182",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "164",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "158",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "188",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "177",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "...",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Czy nie prościej numerować pacjentów liczbami, a nie słownie?\n    </p>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": true,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "pacjent:",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "1",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "2",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "3",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "4",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "5",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "6",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "...",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "wzrost:",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "170",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "182",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "164",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "158",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "188",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "177",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "...",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Czy taka tabla coś Ci przypomina? A może w takiej formie?\n    </p>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "\\(x\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(2\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(3\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(4\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(5\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(6\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "...",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(y\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(170\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(182\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(164\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(158\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(188\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(177\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "...",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>Zgadza się!</strong> To wygląda jak tabela wartości funkcji, której dziedzina to zbiór \\(\\{1, 2, 3, 4, \\dots\\}\\).\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Teraz jesteśmy gotowi, by sformułować <em>definicję</em> ciągu.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>Ciągiem</strong> nazywamy funkcję, której dziedziną jest zbiór liczb naturalnych dodatnich (\\(\\mathbb{N}^{+}\\)), a wartości są w zbiorze liczb rzeczywistych (\\(\\mathbb{R}\\)).\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Taka definicja wymaga wyjaśnienia i komentarza.\n</p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "70a68ea79c742afa9c01ee3403e583ccd099f480c8150e18787cd02d30d83b46"
+}

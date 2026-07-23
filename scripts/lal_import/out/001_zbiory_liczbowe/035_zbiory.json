@@ -1,0 +1,125 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Dane są zbiory:\n        </p>"
+    },
+    {
+      "type": "math",
+      "latex": "A=\\{1, 2, 3, 4\\}"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            oraz\n        </p>"
+    },
+    {
+      "type": "math",
+      "latex": "B=\\{3, 4, 5\\}"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Zastanowimy się, jakie są wyniki następujących działań na zbiorach \\(A\\) i \\(B\\).\n        </p>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "\\(\\cup\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "suma zbiorów",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(\\cap\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "iloczyn (część wspólna) zbiorów",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(\\setminus\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "różnica zbiorów",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Klikaj pola zaznaczone na niebiesko, aż zobaczysz odpowiednie działanie na zbiorach, dające podany wynik. Gdy wybierzesz wszystkie działania, zatwierdź odpowiedź.\n        </p>"
+    },
+    {
+      "type": "switch_grid",
+      "prompt": "",
+      "lines": [
+        {
+          "stem": "\n\n                \\(A\\)\n            \n\n\n\n￿0￿\n                \\(B=\\{1, 2\\}\\)\n            \n",
+          "cyclers": [
+            {
+              "options": [
+                "\\(\\cup\\)",
+                "\\(\\cap\\)",
+                "\\(\\setminus\\)"
+              ],
+              "answer": 2
+            }
+          ]
+        },
+        {
+          "stem": "\n\n                \\(A\\)\n            \n\n\n\n￿0￿\n                \\(B=\\{3, 4\\}\\)\n            \n",
+          "cyclers": [
+            {
+              "options": [
+                "\\(\\cup\\)",
+                "\\(\\cap\\)",
+                "\\(\\setminus\\)"
+              ],
+              "answer": 1
+            }
+          ]
+        },
+        {
+          "stem": "\n\n                \\(A\\)\n            \n\n\n\n￿0￿\n                \\(B=\\{1, 2, 3, 4, 5\\}\\)\n            \n",
+          "cyclers": [
+            {
+              "options": [
+                "\\(\\cup\\)",
+                "\\(\\cap\\)",
+                "\\(\\setminus\\)"
+              ],
+              "answer": 0
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "8afa0eb7c3d28f2f65cc15649926ef08cd4505c3011dc602b128d9b882504299"
+}

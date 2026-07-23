@@ -1,0 +1,82 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n        Symetria osiowa w osi \\(OX\\) to przekształcenie płaszczyzny, \\(P\\), zdefiniowane wzorem\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        \\[\n        P(x,y) = (x, -y) \n        \\]\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Symetria osiowa w osi \\(OY\\) to przekształcenie płaszczyzny, \\(P\\), zdefiniowane wzorem\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        \\[\n        P(x,y) = (-x, y) \n        \\]\n    "
+    },
+    {
+      "type": "image",
+      "media_src": "static/izometria_definicja_symetrie_osiowe.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W aplecie poniżej możesz przesuwać punkt zaznaczony krzyżykiem (\\(\\color{blue}{\\times}\\)).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Przesuwaj go i przyjrzyj się współrzędnym obrazów tego punktu w symetriach względem osi \\(OX\\) oraz \\(OY\\).\n        </p>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/jwnanemm/width/760/height/409/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        W której osi symetryczne są następujące pary punktów?\n    "
+    },
+    {
+      "type": "choice_grid",
+      "columns": [
+        "\\(OX\\)",
+        "\\(OY\\)"
+      ],
+      "rows": [
+        {
+          "statement": "\\((-4,-3)\\) i \\((-4,3)\\)",
+          "correct": 0
+        },
+        {
+          "statement": "\\((-5,7)\\) i \\((5,7)\\)",
+          "correct": 1
+        },
+        {
+          "statement": "\\((8,0)\\) i \\((-8,0)\\)",
+          "correct": 1
+        },
+        {
+          "statement": "\\((4,-6)\\) i \\((4,6)\\)",
+          "correct": 0
+        },
+        {
+          "statement": "\\((0,-3)\\) i \\((0,3)\\)",
+          "correct": 0
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "9261f549518e39d2fec5335d7f567b606e4201f65146f6d593141fa26562373b"
+}

@@ -1,0 +1,128 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Z proporcjonalnością prostą zetknąłeś/-aś się najprawdopodobniej w szkole podstawowej.\n</p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/water_poured.gif",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Mamy z nią do czynienia, gdy obserwujemy zmianę, która następuje w stałym tempie. Na przykład, gdy nalewamy wodę do naczynia ze stałą prędkością. Przyjmijmy dla przykładu, że\n    <strong>\n        w każdej sekundzie\n    </strong>\n    wlewamy do naczynia\n    <strong>\n        5cm\n        <sup>\n            3\n        </sup>\n</strong>\n    wody.\n</p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/water_to_glass_2.gif",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Przypuśćmy, że nasze naczynie początkowo było puste.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Możemy powiedzieć, że:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n        po czasie 0 sekund w naczyniu było 0cm\n        <sup>\n            3\n        </sup>\n        wody,\n    </li>\n<li>\n        po czasie 1 sekundy w naczyniu było 5cm\n        <sup>\n            3\n        </sup>\n        wody,\n    </li>\n<li>\n        i tak dalej\n    </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question_text\">\n        Uzupełnij tabelę.\n    </p>"
+    },
+    {
+      "type": "fill_table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "kind": "static",
+              "html": "czas\n                    <br/>\n                    [sekundy]"
+            },
+            {
+              "kind": "static",
+              "html": "\\(0\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(1\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(2\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(3\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(5\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(8\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(10\\)"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "ilość wody\n                    <br/>\n                    [centymetry sześcienne]"
+            },
+            {
+              "kind": "answer",
+              "answer": "0"
+            },
+            {
+              "kind": "answer",
+              "answer": "5"
+            },
+            {
+              "kind": "answer",
+              "answer": "10"
+            },
+            {
+              "kind": "answer",
+              "answer": "15"
+            },
+            {
+              "kind": "answer",
+              "answer": "25"
+            },
+            {
+              "kind": "answer",
+              "answer": "40"
+            },
+            {
+              "kind": "answer",
+              "answer": "50"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<div class=\"success hidden\" id=\"success_question10\">\n        Świetnie!\n    </div>\n</p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "7013e8cbaa614b363598269dfb365db442866ffeb4022c3d106b4a194881b052"
+}

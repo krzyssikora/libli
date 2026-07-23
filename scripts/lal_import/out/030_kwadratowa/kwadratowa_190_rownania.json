@@ -1,0 +1,492 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Równania kwadratowe pojawiają się często w zadaniach z matematyki na poziomie liceum. Dlatego ważne jest, by mieć wprawę w ich rozwiązywaniu. Poniżej widzisz kilkadziesiąt równań do rozwiązania. Rozwiąż tyle, ile potrzebujesz, by poczuć się kompetentnie.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Pierwsze 15 przykładów jest trochę prostszych - ich wyniki są wymierne, czasem nawet całkowite. Kolejne są już trudniejsze, a wyniki głównie niewymierne.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Rozwiąż równania. Sprawdź swoje odpowiedzi.\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "przykłady 1 - 15",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<h4>(1)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(2\\), \\(1\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(2)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(3\\), \\(-3\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(3)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(0\\), \\(2\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(4)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{3}{2}\\), \\(\\frac{3}{2}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(5)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{4}{5}\\), \\(0\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(6)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(-2\\), \\(-3\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(7)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(3\\), \\(-2\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(8)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(-4\\), \\(3\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(9)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(2\\), \\(-6\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(10)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{1}{2}\\), \\(\\frac{3}{2}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(11)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(-\\frac{1}{2}\\), \\(\\frac{3}{2}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(12)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(-\\frac{1}{3}\\), \\(\\frac{3}{2}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(13)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(-\\frac{2}{3}\\), \\(\\frac{1}{2}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(14)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{2}{5}\\), \\(-\\frac{3}{2}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(15)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(-\\frac{3}{5}\\), \\(\\frac{2}{3}\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "przykłady 16 - 25",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<h4>(16)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{-3-\\sqrt{5}}{2}\\), \\(\\frac{-3+\\sqrt{5}}{2}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(17)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>brak rozwiązania</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(18)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(-4-\\sqrt{10}\\), \\(-4+\\sqrt{10}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(19)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(3-\\sqrt{5}\\), \\(3+\\sqrt{5}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(20)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(-2-\\sqrt{2}\\), \\(-2+\\sqrt{2}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(21)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{-5-\\sqrt{5}}{2}\\), \\(\\frac{-5+\\sqrt{5}}{2}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(22)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{-1}{2}\\), \\(\\frac{8}{2}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(23)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{-4}{2}\\), \\(\\frac{3}{2}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(24)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{-3-\\sqrt{23}}{2}\\), \\(\\frac{-3+\\sqrt{23}}{2}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(25)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{3-\\sqrt{31}}{2}\\), \\(\\frac{3+\\sqrt{31}}{2}\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "przykłady 26 - 35",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<h4>(26)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{-2-2\\sqrt{7}}{3}\\), \\(\\frac{-2+2\\sqrt{7}}{3}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(27)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>brak rozwiązania</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(28)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>brak rozwiązania</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(29)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{-12}{2}\\), \\(\\frac{1}{2}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(30)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{-9}{3}\\), \\(\\frac{2}{3}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(31)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>brak rozwiązania</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(32)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{-10}{2}\\), \\(\\frac{1}{2}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(33)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{-7-\\sqrt{65}}{8}\\), \\(\\frac{-7+\\sqrt{65}}{8}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(34)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{-1-\\sqrt{6}}{5}\\), \\(\\frac{-1+\\sqrt{6}}{5}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(35)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{2-\\sqrt{7}}{3}\\), \\(\\frac{2+\\sqrt{7}}{3}\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "przykłady 36 - 45",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<h4>(36)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{-9-\\sqrt{89}}{4}\\), \\(\\frac{-9+\\sqrt{89}}{4}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(37)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{-5-\\sqrt{37}}{6}\\), \\(\\frac{-5+\\sqrt{37}}{6}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(38)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{-5-\\sqrt{13}}{4}\\), \\(\\frac{-5+\\sqrt{13}}{4}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(39)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{2-\\sqrt{7}}{2}\\), \\(\\frac{2+\\sqrt{7}}{2}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(40)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>brak rozwiązania</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(41)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(-4-2\\sqrt{2}\\), \\(-4+2\\sqrt{2}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(42)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{-5-\\sqrt{5}}{2}\\), \\(\\frac{-5+\\sqrt{5}}{2}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(43)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(2-\\sqrt{2}\\), \\(2+\\sqrt{2}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(44)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{4-\\sqrt{6}}{2}\\), \\(\\frac{4+\\sqrt{6}}{2}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(45)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{-3-\\sqrt{3}}{2}\\), \\(\\frac{-3+\\sqrt{3}}{2}\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "przykłady 46 - 55",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<h4>(46)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{-3-3\\sqrt{3}}{2}\\), \\(\\frac{-3+3\\sqrt{3}}{2}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(47)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{3-2\\sqrt{6}}{3}\\), \\(\\frac{3+2\\sqrt{6}}{3}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(48)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{4}{3}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(49)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{-3}{2}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(50)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{-1-\\sqrt{5}}{2}\\), \\(\\frac{-1+\\sqrt{5}}{2}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(51)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{-5-\\sqrt{33}}{4}\\), \\(\\frac{-5+\\sqrt{33}}{4}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(52)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{-3-\\sqrt{21}}{4}\\), \\(\\frac{-3+\\sqrt{21}}{4}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(53)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{-1-\\sqrt{10}}{3}\\), \\(\\frac{-1+\\sqrt{10}}{3}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(54)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{-3-\\sqrt{29}}{4}\\), \\(\\frac{-3+\\sqrt{29}}{4}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(55)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{1-2\\sqrt{7}}{3}\\), \\(\\frac{1+2\\sqrt{7}}{3}\\)</p>"
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "fdb990f01bb338005d33173dc7ca59d27e402eeecb2a389b89ddda0e84ada1a0"
+}

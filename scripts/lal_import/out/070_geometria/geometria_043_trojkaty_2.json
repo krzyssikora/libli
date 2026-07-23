@@ -1,0 +1,84 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n<strong>\n<u>\n                ZASADY PRZYSTAWANIA TRÓJKĄTÓW\n            </u>\n</strong>\n        (kliknij, żeby zobaczyć opis)\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n<details>\n<summary>\n<strong>\n                        bok-bok-bok\n                    </strong>\n</summary>\n<p>\n                    Trójkąty są przystające, jeśli mają trzy boki identycznej długości.\n                </p>\n</details>\n</li>\n<li>\n<details>\n<summary>\n<strong>\n                        bok-kąt-bok\n                    </strong>\n</summary>\n<p>\n                    Trójkąty są przystające, jeśli mają dwa boki identycznej długości i kąt między nimi o tej samej mierze.\n                </p>\n</details>\n</li>\n<li>\n<details>\n<summary>\n<strong>\n                        kąt-bok-kąt\n                    </strong>\n</summary>\n<p>\n                    Trójkąty są przystające, jeśli mają jeden bok identycznej długości i przyległe do niego kąty tej samej miary.\n                </p>\n</details>\n</li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Przyjrzyj się poniższym parom trójkątów i zaznacz, które z nich\n            <u>\n                muszą\n            </u>\n            być przystające.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Uwaga! Rysunki są pomocnicze, nie zachowują skali.\n        </p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/przystawanie_1.png",
+      "alt": "",
+      "figcaption": "1"
+    },
+    {
+      "type": "image",
+      "media_src": "static/przystawanie_2.png",
+      "alt": "",
+      "figcaption": "2"
+    },
+    {
+      "type": "image",
+      "media_src": "static/przystawanie_3.png",
+      "alt": "",
+      "figcaption": "3"
+    },
+    {
+      "type": "image",
+      "media_src": "static/przystawanie_4.png",
+      "alt": "",
+      "figcaption": "4"
+    },
+    {
+      "type": "image",
+      "media_src": "static/przystawanie_5.png",
+      "alt": "",
+      "figcaption": "5"
+    },
+    {
+      "type": "choice",
+      "stem": "",
+      "multiple": true,
+      "choices": [
+        {
+          "text": "para 1",
+          "is_correct": false,
+          "feedback": "- w zasadzie kąt-bok-kąt oba kąty muszą być przyległe do boku"
+        },
+        {
+          "text": "para 2",
+          "is_correct": true,
+          "feedback": "- gdy dane są dwa kąty, można łatwo obliczyć trzeci"
+        },
+        {
+          "text": "para 3",
+          "is_correct": false,
+          "feedback": "- w obu trójkątach kąty powinny być w tym samym położeniu względem boków"
+        },
+        {
+          "text": "para 4",
+          "is_correct": true,
+          "feedback": "- w zasadzie bok-kąt-bok kąt musi być między bokami, ale położenie trójkąta jest dowolne"
+        },
+        {
+          "text": "para 5",
+          "is_correct": false,
+          "feedback": "- zasada bok-kąt-bok nie obowiązuje, jeśli kąt nie jest między bokami"
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "80fd5fe3f013fcebc5a795b903895e20df66813af7ea3c579ed69623c5361d9d"
+}

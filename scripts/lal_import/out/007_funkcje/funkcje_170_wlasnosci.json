@@ -1,0 +1,124 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Wykres poniżej ilustruje głębokość pewnego zbiornika wody (\\(y\\), w metrach) zmieniającą się w ciągu jednego dnia (\\(x\\) to czas w godzinach).</p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/poziom_wody.png",
+      "alt": "poziom wody",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Najwyższy poziom wody (5 metrów) miał miejsce o północy - na początku i na końcu dnia.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Woda osiągnęła najniższy poziom 3 metrów w samo południe.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Z wykresu można odczytać więcej.\n        </p>"
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                O godzinie 4 rano poziom wody był równy\n                \n\n\n￿0￿\n                .\n                \n",
+      "options": [
+        "4 metry",
+        "4,5 metra",
+        "5 metrów"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                Taki sam poziom wody jak o 4 nad ranem został zaobserwowany później o godzinie\n                \n\n\n\n￿0￿\n                .\n                \n",
+      "options": [
+        "6 rano",
+        "6 wieczorem",
+        "8 wieczorem",
+        "10 wieczorem"
+      ],
+      "answer": 2
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                O godzinie 16-ej poziom wody był taki sam jak wcześniej o\n                \n\n\n￿0￿\n                .\n                \n",
+      "options": [
+        "6 rano",
+        "8 rano",
+        "10 rano"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Jak widać, funkcja opisująca poziom wody (\\(y\\)) w czasie (\\(x\\)) dla różnych argumentów może przyjmować\n                <strong>\n                    te same\n                </strong>\n                wartości.\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Gdyby wartości funkcji nie powtarzały się, tj. były różne dla różnych wartości, taką funkcję nazwalibyśmy\n                <strong>\n                    różnowartościową\n                </strong>\n                . Tą cechą funkcji zajmiemy się niżej.\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n    Funkcja \\(f:A\\longrightarrow B\\) nazywana jest\n    <strong>\n        różnowartościową\n    </strong>\n    , gdy dla dowolnych dwóch różnych argumentów \\(x_1, x_2\\in A\\), \\(x_1\\ne x_2\\), wartości im przypisane są także różne, tj. \\(f(x_1)\\ne f(x_2)\\)\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Symbolicznie możemy zapisać, że\n</p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n\\land_{x\\in A} (x_1\\ne x_2)\\Rightarrow(f(x_1)\\ne f(x_2))\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Jak pamiętamy ze wstępu do logiki, implikacja\n    <strong>\n        prosta\n    </strong>\n    jest równoważna implikacji\n    <strong>\n        przeciwstawnej\n    </strong>\n    , więc powyższą definicję różnowartowości funkcji można zapisać w postaci:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n    Funkcja \\(f:A\\longrightarrow B\\) jest\n    <strong>\n        różnowartościowa\n    </strong>\n    , gdy\n    \\[\n    \\land_{x\\in A} (f(x_1)= f(x_2))\\Rightarrow(x_1= x_2)\n    \\]\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Tej definicji będziemy używać weryfikując różnowartościowość funkcji o danym równaniu.\n    <br/>\n    Sprawdzanie różnowartościowości funkcji z wykresu jest znacznie prostsze.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n    Dla funkcji \\(f:A\\longrightarrow B\\), gdzie \\(A, B\\subset \\mathbb{R}\\),\n    <br/>\n    jeśli dowolna linia pozioma przecina wykres funkcji\n    <strong>\n        więcej niż raz\n    </strong>\n    , to funkcja\n    <strong>\n        nie jest\n    </strong>\n    różnowartowościowa.\n"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W aplecie poniżej możesz wybrać funkcję nr 1 lub nr 2 przesuwając niebieski suwak.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Przesuwając czerwony punkt oznaczony krzyżykiem na osi \\(OY\\), przesuniesz poziomą prostą przechodzącą przez ten punkt.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Przesuwaj tą prostą, by przekonać się, że\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n                funkcja nr 1 nie jest różnowartowościowa,\n            </li>\n<li>\n                funkcja nr 2 jest różnowartowościowa.\n            </li>\n</ul>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/qcc5e6bj/width/676/height/721/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "f3ade42d3d725956e9d45f65e58bb0d2c74b5687316fd63687939fe5954f6d0b"
+}

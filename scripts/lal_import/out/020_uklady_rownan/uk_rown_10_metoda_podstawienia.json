@@ -1,0 +1,108 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<h1>\n    Układ równań\n</h1>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question_text\">\n        Uzupełnij poniższe tabele wartościami \\(y\\) podanych funkcji liniowych.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                \\[\\color{blue}{y=\\frac{1}{2}x+\\frac{3}{2}}\\]\n            "
+    },
+    {
+      "type": "fill_table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "kind": "static",
+              "html": "\\(x\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(-2\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(-1\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(0\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(1\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(2\\)"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(y\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "0.5|0,5"
+            },
+            {
+              "kind": "answer",
+              "answer": "1.0|1,0"
+            },
+            {
+              "kind": "answer",
+              "answer": "1.5|1,5"
+            },
+            {
+              "kind": "answer",
+              "answer": "2.0|2,0"
+            },
+            {
+              "kind": "answer",
+              "answer": "2.5|2,5"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "\n                \\[\n                \\color{yellow}{y=-2x+4}\n                \\]\n            "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<div class=\"table_wrapper\">\n<table class=\"my_table_border\">\n<tr>\n<td>\n                                \\(x\\)\n                            </td>\n<td>\n                                \\(-2\\)\n                            </td>\n<td>\n                                \\(-1\\)\n                            </td>\n<td>\n                                \\(0\\)\n                            </td>\n<td>\n                                \\(1\\)\n                            </td>\n<td>\n                                \\(2\\)\n                            </td>\n</tr>\n<tr>\n<td>\n                                \\(y\\)\n                            </td>\n<td>\n<input class=\"table_input\" placeholder=\"wpisz wartość\" type=\"text\"/>\n</td>\n<td>\n<input class=\"table_input\" placeholder=\"wpisz wartość\" type=\"text\"/>\n</td>\n<td>\n<input class=\"table_input\" placeholder=\"wpisz wartość\" type=\"text\"/>\n</td>\n<td>\n<input class=\"table_input\" placeholder=\"wpisz wartość\" type=\"text\"/>\n</td>\n<td>\n<input class=\"table_input\" placeholder=\"wpisz wartość\" type=\"text\"/>\n</td>\n</tr>\n</table>\n</div>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<div class=\"success hidden\" id=\"success_question10\">\n        Świetnie!\n    </div>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Przyjrzyj się poniższej animacji, która przedstawia wzajemne położenie wykresów tych dwóch funkcji, czyli dwóch linii prostych.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        (Naciśnij \"START\", żeby uruchomić animację.)\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<figure>\n<div class=\"iframe_small hidden\">\n<small>\n                    Jeśli poniższy aplet nie wygląda lub nie działa w pełni poprawnie, użyj urządzenia o większym ekranie.\n                </small>\n<br/>\n<small>\n                    Minimalna zalecana rozdzielczość ekranu to 800px (szerokość) na 600px (wysokość).\n                </small>\n</div>\n<iframe height=\"500px\" scrolling=\"no\" src=\"https://www.geogebra.org/material/iframe/id/y9sb2et2/width/600/height/500/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false\" style=\"border:0px;\" title=\"dwie proste 1\" width=\"600px\">\n</iframe>\n<details class=\"info_iframe\">\n<summary>\n<small>\n                        aplet nie działa poprawnie?\n                    </small>\n</summary>\n<div class=\"iframe_zonk\">\n<p>\n                        Jeśli ten aplet nie działa poprawnie nawet na większym ekranie, wyślij wiadomość o treści jak niżej na\n                        <a class=\"mailto_tag\" href=\"mailto:krzysztof.sikora@lal.edu.pl?subject=[lms]iframe&amp;body=IFRAME_EMAIL_BODY\">\n                            ten email\n                        </a>\n                        .\n                    </p>\n<div class=\"iframe_telemetry\">\n</div>\n</div>\n</details>\n</figure>\n</p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "0ec0c9d272e822203e3a81644ec4e7f99b6890b5cba19930cae2eb9143a5e909"
+}

@@ -1,0 +1,388 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<h1>\n    Trójkąty - podstawy\n</h1>"
+    },
+    {
+      "type": "text",
+      "body": "\n        w tej lekcji\n    "
+    },
+    {
+      "type": "text",
+      "body": "<ol>\n<li>\n<a href=\"#klasyfikacja\">\n                Klasyfikacja trójkątów ze względu na boki i kąty\n            </a>\n</li>\n<li>\n<a href=\"#nierownosc_trojkata\">\n                Nierówność trójkąta\n            </a>\n</li>\n<li>\n<a href=\"#odcinek_srodki_bokow\">\n                Odcinek łączący środki boków w trójkącie\n            </a>\n</li>\n<li>\n<a href=\"#proste_odcinki\">\n                Szczególne proste i odcinki w trójkącie\n            </a>\n</li>\n<li>\n<a href=\"#twierdzenie_pitagorasa\">\n                Twierdzenie Pitagorasa i twierdzenie odwrotne\n            </a>\n<ul>\n<li>\n<a href=\"#pitagoras_odwrotny\">\n                        Twierdzenie odwrotne do twierdzenia Pitagorasa\n                    </a>\n</li>\n</ul>\n</li>\n</ol>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Trójkąty nazywamy zależnie od tego, jakie mają kąty, oraz jakie mają boki.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Zaznacz nazwy rodzajów trójkątów w różnych konfiguracjach i przyjrzyj się, jak wyglądają.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<figure>\n<div class=\"iframe_small hidden\">\n<small>\n                        Jeśli poniższy aplet nie wygląda lub nie działa w pełni poprawnie, użyj urządzenia o większym ekranie.\n                    </small>\n<br/>\n<small>\n                        Minimalna zalecana rozdzielczość ekranu to 800px (szerokość) na 600px (wysokość).\n                    </small>\n</div>\n<iframe height=\"700px\" scrolling=\"no\" src=\"https://www.geogebra.org/material/iframe/id/bd6gcqyx/width/800/height/700/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false\" style=\"border:0px;\" title=\"rodzaje trójkątów\" width=\"800px\">\n</iframe>\n<details class=\"info_iframe\">\n<summary>\n<small>\n                            aplet nie działa poprawnie?\n                        </small>\n</summary>\n<div class=\"iframe_zonk\">\n<p>\n                            Jeśli ten aplet nie działa poprawnie nawet na większym ekranie, wyślij wiadomość o treści jak niżej na\n                            <a class=\"mailto_tag\" href=\"mailto:krzysztof.sikora@lal.edu.pl?subject=[lms]iframe&amp;body=IFRAME_EMAIL_BODY\">\n                                ten email\n                            </a>\n                            .\n                        </p>\n<div class=\"iframe_telemetry\">\n</div>\n</div>\n</details>\n</figure>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<h2 id=\"nierownosc_trojkata\">\n    Nierówność trójkąta\n</h2>"
+    },
+    {
+      "type": "video",
+      "media_src": "static/nierownosc_trojkata.mp4"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Czy na pewno nie da się stworzyć trójkąta z odcinków o długościach 9, 4 i 5?\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Poniżej nagrana jest krótka demonstracja z użyciem appletu załączonego pod nagraniem.\n</p>"
+    },
+    {
+      "type": "video",
+      "media_src": "static/nierownosc_trojkata_demo.mp4"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<figure>\n<div class=\"iframe_small hidden\">\n<small>\n                Jeśli poniższy aplet nie wygląda lub nie działa w pełni poprawnie, użyj urządzenia o większym ekranie.\n            </small>\n<br/>\n<small>\n                Minimalna zalecana rozdzielczość ekranu to 800px (szerokość) na 600px (wysokość).\n            </small>\n</div>\n<iframe height=\"500px\" scrolling=\"no\" src=\"https://www.geogebra.org/material/iframe/id/nvgba4sy/width/800/height/500/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/true/ctl/false\" style=\"border:0px;\" title=\"nierówność trójkąta\" width=\"800px\">\n</iframe>\n<details class=\"info_iframe\">\n<summary>\n<small>\n                    aplet nie działa poprawnie?\n                </small>\n</summary>\n<div class=\"iframe_zonk\">\n<p>\n                    Jeśli ten aplet nie działa poprawnie nawet na większym ekranie, wyślij wiadomość o treści jak niżej na\n                    <a class=\"mailto_tag\" href=\"mailto:krzysztof.sikora@lal.edu.pl?subject=[lms]iframe&amp;body=IFRAME_EMAIL_BODY\">\n                        ten email\n                    </a>\n                    .\n                </p>\n<div class=\"iframe_telemetry\">\n</div>\n</div>\n</details>\n</figure>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>\n            Nierówność trójkąta\n        </strong>\n        mówi, że w każdym trójkącie każdy jego bok jest krótszy od sumy dwóch pozostałych.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Jeśli boki trójkąta mają dlugości \\(a\\), \\(b\\) i \\(c\\), to\n    </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n    \\begin{align*}\n    a&\\lt b+c\\\\\n    b&\\lt a+c\\\\\n    c&\\lt a+b\n    \\end{align*}\n    "
+    },
+    {
+      "type": "text",
+      "body": "\n    Zauważ, że by przekonać się, czy trzy odcinki mogą stworzyć trójkąt, wystarczy sprawdzić, czy najdłuższy z nich jest krótszy od sumy pozostałych. Czy widzisz dlaczego?\n"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Wskaż, które liczby mogą być długościami boków trójkąta.\n        </p>"
+    },
+    {
+      "type": "multi_grid",
+      "columns": [
+        "14, 11, 13",
+        "15, 14, 2",
+        "23, 12, 9",
+        "23, 23, 45"
+      ],
+      "rows": [
+        {
+          "statement": "",
+          "correct": [
+            0,
+            1,
+            3
+          ]
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<h2 id=\"odcinek_srodki_bokow\">\n    Odcinek łączący środki boków w trójkącie\n</h2>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W poniższym aplecie możesz przesuwać wierzchołki trójkąta, by zmienić jego kształt i rozmiar.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Gdy klikniesz na którykolwiek bok trójkąta, zobaczysz odcinek łączący\n            <strong>\n                środki dwóch pozostałych boków\n            </strong>\n            .\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<figure>\n<div class=\"iframe_small hidden\">\n<small>\n                        Jeśli poniższy aplet nie wygląda lub nie działa w pełni poprawnie, użyj urządzenia o większym ekranie.\n                    </small>\n<br/>\n<small>\n                        Minimalna zalecana rozdzielczość ekranu to 800px (szerokość) na 600px (wysokość).\n                    </small>\n</div>\n<iframe height=\"600px\" scrolling=\"no\" src=\"https://www.geogebra.org/material/iframe/id/beg7h4vq/width/800/height/600/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false\" style=\"border:0px;\" title=\"odcinek łączący środki boków trójkąta\" width=\"800px\">\n</iframe>\n<details class=\"info_iframe\">\n<summary>\n<small>\n                            aplet nie działa poprawnie?\n                        </small>\n</summary>\n<div class=\"iframe_zonk\">\n<p>\n                            Jeśli ten aplet nie działa poprawnie nawet na większym ekranie, wyślij wiadomość o treści jak niżej na\n                            <a class=\"mailto_tag\" href=\"mailto:krzysztof.sikora@lal.edu.pl?subject=[lms]iframe&amp;body=IFRAME_EMAIL_BODY\">\n                                ten email\n                            </a>\n                            .\n                        </p>\n<div class=\"iframe_telemetry\">\n</div>\n</div>\n</details>\n</figure>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Zastanów się, co możesz o tym odcinku powiedzieć, a następnie sprawdź swoją odpowiedź.\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "zobacz",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<ol>\n<li>\n                    równoległy do trzeciego boku i\n                </li>\n<li>\n                    dwukrotnie krótszy od trzeciego boku.\n                </li>\n</ol>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Odcinek łączący środki dwóch boków trójkąta jest:\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<h2 id=\"proste_odcinki\">\n    Szczególne proste i odcinki w trójkącie\n</h2>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    W każdym trójkącie istnieją cztery bardzo ważne rodzaje odcinków / półprostych / prostych, które odgrywają w nim szczególne role. Są to:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n        symetralne boków,\n    </li>\n<li>\n        dwusieczne kątów,\n    </li>\n<li>\n        środkowe i\n    </li>\n<li>\n        wysokości.\n    </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Obejrzyj nagranie na ich temat. Pod nagraniem znajdziesz aplet użyty w nagraniu - możesz go użyć, by lepiej poznać te cztery rodzaje obiektów.\n</p>"
+    },
+    {
+      "type": "video",
+      "media_src": "static/proste_w_trojkacie.mp4"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<figure>\n<div class=\"iframe_small hidden\">\n<small>\n                Jeśli poniższy aplet nie wygląda lub nie działa w pełni poprawnie, użyj urządzenia o większym ekranie.\n            </small>\n<br/>\n<small>\n                Minimalna zalecana rozdzielczość ekranu to 800px (szerokość) na 600px (wysokość).\n            </small>\n</div>\n<iframe height=\"650px\" scrolling=\"no\" src=\"https://www.geogebra.org/material/iframe/id/ygp3sazc/width/800/height/650/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false\" style=\"border:0px;\" title=\"ważne proste / odcinki i punkty w trójkącie\" width=\"800px\">\n</iframe>\n<details class=\"info_iframe\">\n<summary>\n<small>\n                    aplet nie działa poprawnie?\n                </small>\n</summary>\n<div class=\"iframe_zonk\">\n<p>\n                    Jeśli ten aplet nie działa poprawnie nawet na większym ekranie, wyślij wiadomość o treści jak niżej na\n                    <a class=\"mailto_tag\" href=\"mailto:krzysztof.sikora@lal.edu.pl?subject=[lms]iframe&amp;body=IFRAME_EMAIL_BODY\">\n                        ten email\n                    </a>\n                    .\n                </p>\n<div class=\"iframe_telemetry\">\n</div>\n</div>\n</details>\n</figure>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Wskaż, które z poniższych zdań są prawdziwe, a które fałszywe\n        </p>"
+    },
+    {
+      "type": "choice_grid",
+      "columns": [
+        "prawda",
+        "fałsz"
+      ],
+      "rows": [
+        {
+          "statement": "Symetralne przecinają się w środku okręgu opisanego na trójkącie.",
+          "correct": 0
+        },
+        {
+          "statement": "Symetralne przecinają się w środku okręgu wpisanego w trójkąt.",
+          "correct": 1
+        },
+        {
+          "statement": "Dwusieczne przecinają się w środku okręgu opisanego w trójkąt.",
+          "correct": 1
+        },
+        {
+          "statement": "Dwusieczne przecinają się w środku okręgu wpisanego w trójkąt.",
+          "correct": 0
+        },
+        {
+          "statement": "Środkowe dzielą trójkąt na dwa o takim samym polu.",
+          "correct": 0
+        },
+        {
+          "statement": "Dwusieczne dzielą trójkąt na dwa o takim samym polu.",
+          "correct": 1
+        },
+        {
+          "statement": "Środkowe dzielą kąty na połowy.",
+          "correct": 1
+        },
+        {
+          "statement": "Środkowe dzielą się w stosunku 1:2.",
+          "correct": 0
+        },
+        {
+          "statement": "Dwusieczne dzielą się w stosunku 1:2.",
+          "correct": 1
+        },
+        {
+          "statement": "Symetralne mogą przeciąć się poza trójkątem.",
+          "correct": 0
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Wskaż, które spośród czterech omówionych odcinków / prostych mają wymienione własności.\n        </p>"
+    },
+    {
+      "type": "multi_grid",
+      "columns": [
+        "symetralne",
+        "dwusieczne",
+        "środkowe",
+        "wysokości"
+      ],
+      "rows": [
+        {
+          "statement": "Są prostopadłe do boku.",
+          "correct": [
+            0,
+            3
+          ]
+        },
+        {
+          "statement": "Dzielą boki na połowy.",
+          "correct": [
+            0,
+            2
+          ]
+        },
+        {
+          "statement": "Przecinają się zawsze wewnątrz trójkąta.",
+          "correct": [
+            1,
+            2
+          ]
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<h2 id=\"twierdzenie_pitagorasa\">\n    Twierdzenie Pitagorasa i twierdzenie odwrotne\n</h2>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Twierdzenie Pitagorasa mówi, że w dowolnym trójkącie prostokątnym\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        suma kwadratów obu przyprostokątnych jest równa kwadratowi przeciwprostokątnej.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Poniżej widzisz aplet ilustrujący jeden z wielu, geometryczny dowód twierdzenia Pitagorasa.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Możesz przesuwać wierzchołki trójkąta, by zobaczyć, jak kształty, na które podzielone zostały kwadraty zbudowane na przyprostokątnych składają się na kwadrat zbudowany na przeciwprostokątnej.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<figure>\n<div class=\"iframe_small hidden\">\n<small>\n                Jeśli poniższy aplet nie wygląda lub nie działa w pełni poprawnie, użyj urządzenia o większym ekranie.\n            </small>\n<br/>\n<small>\n                Minimalna zalecana rozdzielczość ekranu to 800px (szerokość) na 600px (wysokość).\n            </small>\n</div>\n<iframe height=\"760px\" scrolling=\"no\" src=\"https://www.geogebra.org/material/iframe/id/dc2j6xqt/width/800/height/760/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/true/rc/false/ld/false/sdz/true/ctl/false\" style=\"border:0px;\" title=\"Pythagoras theorem illustration\" width=\"800px\">\n</iframe>\n<details class=\"info_iframe\">\n<summary>\n<small>\n                    aplet nie działa poprawnie?\n                </small>\n</summary>\n<div class=\"iframe_zonk\">\n<p>\n                    Jeśli ten aplet nie działa poprawnie nawet na większym ekranie, wyślij wiadomość o treści jak niżej na\n                    <a class=\"mailto_tag\" href=\"mailto:krzysztof.sikora@lal.edu.pl?subject=[lms]iframe&amp;body=IFRAME_EMAIL_BODY\">\n                        ten email\n                    </a>\n                    .\n                </p>\n<div class=\"iframe_telemetry\">\n</div>\n</div>\n</details>\n</figure>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<h3 id=\"pitagoras_odwrotny\">\n    Twierdzenie odwrotne do twierdzenia Pitagorasa\n</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    W twierdzeniu Pitagorasa z tego, że trójkąt jest prostokątny wynika równość dotycząca kwadratów boków.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    W twierdzeniu odwrotnym jest odwrotnie: z równości dotyczących kwadratów boków wynika to, że trójkąt jest prostokątny.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Twierdzenie odwrotne do twierdzenia Pitagorasa mówi, że jeśli suma kwadratów dwóch krószych boków trójkąta jest równa kwadratowi najdłuższego boku\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        to trójkąt jest prostokątny.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Udowodnij, że trójkąt o bokach 20, 21, 29 jest prostokątny.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Kliknij niżej, jeśli chcesz zobaczyć pełne rozwiązanie.\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "zobacz",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n            Sprawdźmy, jaka jest suma kwadratów dwóch krószych boków:\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            \\(20^2+21^2=400+441=841\\)\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            A teraz obliczmy kwadrat najdłuższego boku:\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            \\(29^2=841\\)\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Tak więc:\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            \\(20^2+21^2=29^2\\), czyli trójkąt jest prostokątny.\n        </p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Udowodnij, że trójkąt o bokach 12, 15, 19 nie jest prostokątny.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Kliknij niżej, jeśli chcesz zobaczyć pełne rozwiązanie.\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "zobacz",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n            Sprawdźmy, jaka jest suma kwadratów dwóch krószych boków:\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            \\(12^2+15^2=144+225=369\\)\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            A teraz obliczmy kwadrat najdłuższego boku:\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            \\(19^2=361\\)\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Tak więc, ponieważ:\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            \\(12^2+15^2\\ne 19^2\\), trójkąt\n            <strong>\n                nie\n            </strong>\n            jest prostokątny.\n        </p>"
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "7eccfc82dc5741020b724f7e1b60bbc811cbd18752a73928d134a18223271600"
+}

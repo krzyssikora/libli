@@ -1,0 +1,110 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<h3 id=\"pitagoras_odwrotny\">\n    Twierdzenie odwrotne do twierdzenia Pitagorasa\n</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    W twierdzeniu Pitagorasa z tego, że trójkąt jest prostokątny wynika równość dotycząca kwadratów boków.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    W twierdzeniu odwrotnym jest odwrotnie: z równości dotyczących kwadratów boków wynika to, że trójkąt jest prostokątny.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Twierdzenie odwrotne do twierdzenia Pitagorasa mówi, że jeśli suma kwadratów dwóch krószych boków trójkąta jest równa kwadratowi najdłuższego boku\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        to trójkąt jest prostokątny.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Udowodnij, że trójkąt o bokach 20, 21, 29 jest prostokątny.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Kliknij niżej, jeśli chcesz zobaczyć pełne rozwiązanie.\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "zobacz",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n            Sprawdźmy, jaka jest suma kwadratów dwóch krószych boków:\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            \\(20^2+21^2=400+441=841\\)\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            A teraz obliczmy kwadrat najdłuższego boku:\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            \\(29^2=841\\)\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Tak więc:\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            \\(20^2+21^2=29^2\\), czyli trójkąt jest prostokątny.\n        </p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Udowodnij, że trójkąt o bokach 12, 15, 19 nie jest prostokątny.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Kliknij niżej, jeśli chcesz zobaczyć pełne rozwiązanie.\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "zobacz",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n            Sprawdźmy, jaka jest suma kwadratów dwóch krószych boków:\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            \\(12^2+15^2=144+225=369\\)\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            A teraz obliczmy kwadrat najdłuższego boku:\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            \\(19^2=361\\)\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Tak więc, ponieważ:\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            \\(12^2+15^2\\ne 19^2\\), trójkąt\n            <strong>\n                nie\n            </strong>\n            jest prostokątny.\n        </p>"
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "92298a03fd4dccd4bf842a4baed1275b3f8b90828537bc9a58a8e7a9378cadb0"
+}

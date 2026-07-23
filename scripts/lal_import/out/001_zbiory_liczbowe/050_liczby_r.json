@@ -1,0 +1,10 @@
+{
+  "elements": [
+    {
+      "type": "video",
+      "media_src": "static/rzeczywiste_klasyfikacja.mp4"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "c7411677147a8f4d5c3a2d5ad269d7ad10a9e05110f56fd56bb113c0bcdd9050"
+}

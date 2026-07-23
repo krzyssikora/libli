@@ -1,0 +1,350 @@
+{
+  "elements": [
+    {
+      "type": "image",
+      "media_src": "static/trojkat_ABC.png",
+      "alt": "trojkat ABC",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>\n            Twierdzenie sinusów\n        </strong>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        W każdym trójkącie stosunek długości dowolnego boku do sinusa kąta leżącego naprzeciwko jest stały, a dokładniej: równy dwukrotności promienia, czyli średnicy okręgu opisanego.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Zapisujemy to:\n    \\[\n    \\frac{a}{\\sin A}=\\frac{b}{\\sin B}=\\frac{c}{\\sin C}= 2R\n    \\]</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>W poprzednich dwóch zadaniach z użyciem twierdzenia sinusów obliczyliśmy</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n        kąt w trójkącie (mając dany inny kąt oraz dwa boki przeciwległe tym kątom),\n    </li>\n<li>\n        bok trójkąta (mając dany drugi bok i dwa kąty przeciwległe tym bokom).\n    </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Teraz zwróćmy uwagę, że twierdzenie sinusów mówi także o długości promienia okręgu opisanego.</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Jeden z kątów wewnętrznych trójkąta \\(ABC\\) ma miarę \\(135^{\\circ}\\), a leżący naprzeciwko bok jest długości \\(8\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź długość promienia okręgu opisanego na tym trójkącie.\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                    Mamy daną parę (bok - przeciwległy kąt) więc przyjmijmy, że \\(A=135^{\\circ}\\) oraz \\(a=8\\).\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Użyjemy więc \"fragmentu\" twierdzenia sinusów:\n                \\[\n                \\frac{a}{\\sin A}=\\color{lightgray}{\\frac{b}{\\sin B}=\\frac{c}{\\sin C}}= 2R\n                \\]\n                czyli\n                \\[\n                \\frac{a}{\\sin A}= 2R\n                \\]\n                Po podstawieniu danych wartości:\n                \\[\n                \\tfrac{8}{\\sin 135^{\\circ}}=2R\n                \\]</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    \\(\\sin 135^{\\circ}=\\sin 45^{\\circ}\\), więc \\(\\sin 135^{\\circ}=\\)\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(\\tfrac{1}{2}\\)",
+            "\\(\\tfrac{\\sqrt{2}}{2}\\)",
+            "\\(\\tfrac{\\sqrt{3}}{2}\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Otrzymujemy więc równanie:\n                \\[\n                \\tfrac{8}{\\left(\\tfrac{\\sqrt{2}}{2}\\right)}=2R\n                \\]\n                Rozwiązując to równanie dostajemy</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n\n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(R=2\\sqrt{2}\\)",
+            "\\(R=4\\sqrt{2}\\)",
+            "\\(R=\\sqrt{2}\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Zwróć uwagę, że w tym zadaniu, w odróżnieniu od poprzednich, nie znamy kształtu trójkąta. Spójrz w poniższy aplet - możesz w nim przesuwać niebieski punkt po łuku, i wszystkie tak otrzymane okręgi będą spełniały warunki zadania, tj.</p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul>\n<li>\n                        będą miały jeden bok długości \\(8\\),\n                    </li>\n<li>\n                        kąt przeciwległy temu bokowi będzie miał miarę \\(135^{\\circ}\\),\n                    </li>\n<li>\n                        okrąg opisany na tym trójkącie będzie miał promień długości \\(4\\sqrt{2}\\).\n                    </li>\n</ul>"
+        },
+        {
+          "type": "iframe",
+          "url": "https://www.geogebra.org/material/iframe/id/aphnpkxm/width/571/height/437/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+          "title": ""
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W trójkącie \\(ABC\\) boki \\(a\\) i \\(b\\) są odpowiednio długości \\(4\\) i \\(4\\sqrt{2}\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Trójkąt jest wpisanuy w koło o promieniu \\(R=4\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź długość boku \\(c\\) trójkąta \\(ABC\\). Wynik podaj z dokładnością do \\(0,1\\).\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Tym razem mamy dany promień \\(R\\), skorzystajmy więc najpierw z równania:\n                \\[\n                \\frac{a}{\\sin A}=\\color{lightgray}{\\frac{b}{\\sin B}=\\frac{c}{\\sin C}}= 2R\n                \\]\n                czyli po podstawieniu:\n                \\[\n                \\frac{4}{\\sin A}= 2\\cdot 4 \n                \\]</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    I dlatego \\(\\sin A=\\)\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(\\tfrac{1}{2}\\)",
+            "\\(2\\)",
+            "\\(-4\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Teraz skorzystamy z równania:\n                \\[\n                \\color{lightgray}{\\frac{a}{\\sin A}=}\\color{black}{\\frac{b}{\\sin B}=}\\color{lightgray}{\\frac{c}{\\sin C}}= 2R\n                \\]\n                czyli po podstawieniu:\n                \\[\n                \\frac{4\\sqrt{2}}{\\sin B}= 2\\cdot 4 \n                \\]</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    I stąd \\(\\sin B =\\)\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(\\sqrt{2}\\)",
+            "\\(\\tfrac{\\sqrt{2}}{2}\\)",
+            "\\(2\\sqrt{2}\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Wiemy więc, że:</p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\(\\sin A=\\frac{1}{2}\\quad\\) oraz \\(\\quad \\sin B=\\frac{\\sqrt{2}}{2}\\)\n                "
+        },
+        {
+          "type": "text",
+          "body": "<p>Przypomnijmy, że:</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>jeśli wyznaczamy miarę kąta w trójkącie mając daną wartość jego sinusa, najczęściej znajdziemy dwa kąty o tej samej wartości sinusa:</p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                        \\(\\alpha\\quad\\) oraz \\(\\quad 180^{\\circ}-\\alpha\\)\n                    "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    I dlatego kąt \\(A\\) to\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(30^{\\circ}\\) lub \\(150^{\\circ}\\)",
+            "\\(45^{\\circ}\\) lub \\(135^{\\circ}\\)",
+            "\\(60^{\\circ}\\) lub \\(120^{\\circ}\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Natomiast kąt \\(B\\) to\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(30^{\\circ}\\) lub \\(150^{\\circ}\\)",
+            "\\(45^{\\circ}\\) lub \\(135^{\\circ}\\)",
+            "\\(60^{\\circ}\\) lub \\(120^{\\circ}\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Mamy więc dwie możliwe miary kąta \\(A\\) i dwie możliwe miary kąta \\(B\\). Jednak czy wszystkie pary \\(A\\), \\(B\\) mają sens? Pamiętajmy, że suma kątów w trójkącie to \\(180^{\\circ}\\).\n                    \n<div class=\"table_wrapper\">\n<table class=\"my_table_TL\">\n<tr>\n<td>\n                                        przypadek 1\n                                    </td>\n<td>\n                                        \\(A=30^{\\circ}\\)\n                                    </td>\n<td>\n                                        \\(B=45^{\\circ}\\)\n                                    </td>\n</tr>\n<tr>\n<td>\n                                        przypadek 2\n                                    </td>\n<td>\n                                        \\(A=30^{\\circ}\\)\n                                    </td>\n<td>\n                                        \\(B=135^{\\circ}\\)\n                                    </td>\n</tr>\n<tr>\n<td>\n                                        przypadek 3\n                                    </td>\n<td>\n                                        \\(A=150^{\\circ}\\)\n                                    </td>\n<td>\n                                        \\(B=45^{\\circ}\\)\n                                    </td>\n</tr>\n<tr>\n<td>\n                                        przypadek 4\n                                    </td>\n<td>\n                                        \\(A=150^{\\circ}\\)\n                                    </td>\n<td>\n                                        \\(B=135^{\\circ}\\)\n                                    </td>\n</tr>\n</table>\n</div>\n\n                    Sens mają\n                    \n\n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "wszystkie przypadki",
+            "przypadek 1 i 2",
+            "przypadek 1 i 3",
+            "przypadek 1, 2 i 3"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Zgadza się, w przypadku 3 i 4 \\(A+B\\gt 180^{\\circ}\\).</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    W przypadku 1, gdy \\(A=30^{\\circ}\\), a \\(B=45^{\\circ}\\), kąt \\(C=\\)\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(95^{\\circ}\\)",
+            "\\(105^{\\circ}\\)",
+            "\\(125^{\\circ}\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    W przypadku 2, gdy \\(A=30^{\\circ}\\), a \\(B=135^{\\circ}\\), kąt \\(C=\\)\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(15^{\\circ}\\)",
+            "\\(25^{\\circ}\\)",
+            "\\(35^{\\circ}\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Teraz możemy użyć równania:\n                \\[\n                \\color{lightgray}{\\frac{a}{\\sin A}=\\frac{b}{\\sin B}=}\\color{black}{\\frac{c}{\\sin C}}= 2R\n                \\]\n                czyli po podstawieniu:</p>"
+        },
+        {
+          "type": "table",
+          "data": {
+            "header_row": false,
+            "header_col": false,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "przypadek 1",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "przypadek 2",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(\\frac{c}{\\sin 105^{\\circ}}=2\\cdot 4\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\frac{c}{\\sin 15^{\\circ}}=2\\cdot 4\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "czyli",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(c=8\\sin 105^{\\circ}\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(c=8\\sin 15^{\\circ}\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "type": "image",
+          "media_src": "static/tw_sinusow_zad_3_tablice.png",
+          "alt": "trojkat ABC",
+          "figcaption": ""
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Wartości \\(\\sin 15^{\\circ}\\) i \\(\\sin 105^{\\circ}\\) sprawdzimy w tablicach trygonometrycznych. Zwróć uwagę, że kąt \\(105^{\\circ}\\) jest rozwarty, więc nie znajdziemy go w tablicach. Potrzebujemy kąta ostrego, którego wartość sinusa jest taka sama.\n                    \n<img alt=\"trojkat ABC\" height=\"300\" src=\"static/tw_sinusow_zad_3_tablice.png\"/>\n\n\n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(\\sin 15^{\\circ}\\approx 0,9659\\),  \\(\\sin 105^{\\circ}\\approx 0,2588\\)",
+            "\\(\\sin 15^{\\circ}\\approx 0,2588\\),  \\(\\sin 105^{\\circ}\\approx 0,2588\\)",
+            "\\(\\sin 15^{\\circ}\\approx 0,2588\\),  \\(\\sin 105^{\\circ}\\approx 0,9659\\)"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "text",
+          "body": "<p>Tak więc</p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>\n                        \\(c\\approx 8\\cdot 0,2588\\) lub\n                    </li>\n<li>\n                        \\(c\\approx 8\\cdot 0,9659\\)\n                    </li>\n</ul>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    czyli, w przybliżeniu do \\(0,1\\):\n                    \n\n\n\n\n￿0￿",
+          "options": [
+            "\\(c\\approx 2,1\\) lub \\(c\\approx 7,7\\)",
+            "\\(c\\approx 2,0\\) lub \\(c\\approx 7,7\\)",
+            "\\(c\\approx 2,1\\) lub \\(c\\approx 7,8\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>W zależności od położenia boku \\(AC\\) (tego o długości \\(b\\)), bok \\(AB\\) ma długość \\(c\\approx 2,1\\) lub \\(c\\approx 7,7\\).</p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/tw_sinusow_zad_3_rozw.png",
+          "alt": "trojkat ABC",
+          "figcaption": ""
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "81eb1507c20d53e456c7f0445d4caa1147e6c75462614b04b0f58917813dfbc1"
+}

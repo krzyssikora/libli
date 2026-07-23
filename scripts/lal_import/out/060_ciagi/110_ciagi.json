@@ -1,0 +1,250 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Ciągi, podobnie jak funkcje w ogólności, mogą być <strong>monotoniczne</strong>. \n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Będziemy rozróżniać ciągi:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>rosnące,</li>\n<li>malejące,</li>\n<li>niemalejące,</li>\n<li>nierosnące,</li>\n<li>stałe,</li>\n<li>oraz nie spełniające żadnego z powyższych warunków.</li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Przyjrzyj się uważnie wykresom sześciu ciągów pokazanym poniżej.</p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/ciag_monotoniczny_1.png",
+      "alt": "",
+      "figcaption": "1"
+    },
+    {
+      "type": "image",
+      "media_src": "static/ciag_monotoniczny_2.png",
+      "alt": "",
+      "figcaption": "2"
+    },
+    {
+      "type": "image",
+      "media_src": "static/ciag_monotoniczny_3.png",
+      "alt": "",
+      "figcaption": "3"
+    },
+    {
+      "type": "image",
+      "media_src": "static/ciag_monotoniczny_4.png",
+      "alt": "",
+      "figcaption": "4"
+    },
+    {
+      "type": "image",
+      "media_src": "static/ciag_monotoniczny_5.png",
+      "alt": "",
+      "figcaption": "5"
+    },
+    {
+      "type": "image",
+      "media_src": "static/ciag_monotoniczny_6.png",
+      "alt": "",
+      "figcaption": "6"
+    },
+    {
+      "type": "text",
+      "body": "<p>Pomyśl chwilę lub zdaj się na intuicję i do każdej nazwy przypisz jeden z ciągów zilustrowanych powyżej. Zrób to w taki sposób, by każdy ciąg był użyty</p>"
+    },
+    {
+      "type": "text",
+      "body": "<strong>dokładnie raz</strong>"
+    },
+    {
+      "type": "text",
+      "body": "<p>, czyli żeby do każdej nazwy przypisać inny ciąg.</p>"
+    },
+    {
+      "type": "choice_grid",
+      "columns": [
+        "\\(1\\)",
+        "\\(2\\)",
+        "\\(3\\)",
+        "\\(4\\)",
+        "\\(5\\)",
+        "\\(6\\)"
+      ],
+      "rows": [
+        {
+          "statement": "malejący",
+          "correct": 1
+        },
+        {
+          "statement": "nierosnący",
+          "correct": 3
+        },
+        {
+          "statement": "stały",
+          "correct": 2
+        },
+        {
+          "statement": "niemalejący",
+          "correct": 0
+        },
+        {
+          "statement": "rosnący",
+          "correct": 4
+        },
+        {
+          "statement": "żaden z powyższych",
+          "correct": 5
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "jeśli nie masz pewności, zerknij tutaj",
+      "elements": [
+        {
+          "type": "iframe",
+          "url": "https://www.geogebra.org/material/iframe/id/vmwr5rmj/width/431/height/516/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+          "title": ""
+        },
+        {
+          "type": "table",
+          "data": {
+            "header_row": false,
+            "header_col": true,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "rosnący",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "każdy kolejny wyraz jest <strong>większy</strong> niż poprzedni",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "malejący",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "każdy kolejny wyraz jest <strong>mniejszy</strong> niż poprzedni",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "niemalejący",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "żaden kolejny wyraz <strong>nie jest mniejszy</strong> niż poprzedni",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "nierosnący",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "żaden kolejny wyraz <strong>nie jest większy</strong> niż poprzedni",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "stały",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "wszystkie wyrazy są <strong>równe</strong>",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Zastanów się, jak formalnie określić, kiedy ciąg \\((a_n)\\) jest <strong>rosnący</strong>, <strong>malejący</strong>, <strong>niemalejący</strong>, <strong>rosnący</strong> i <strong>stały</strong>.\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "zobacz",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Ciąg \\((a_n)\\) jest rosnący, jeśli dla każdego \\(n\\in\\mathbb{N}^{+}\\)\n                        \\[\n                        a_{n+1}\\gt a_n\n                        \\]</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "zobacz",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Ciąg \\((a_n)\\) jest malejący, jeśli dla każdego \\(n\\in\\mathbb{N}^{+}\\)\n                        \\[\n                        a_{n+1}\\lt a_n\n                        \\]</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "zobacz",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Ciąg \\((a_n)\\) jest niemalejący, jeśli dla każdego \\(n\\in\\mathbb{N}^{+}\\)\n                        \\[\n                        a_{n+1}\\ge a_n\n                        \\]</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "zobacz",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Ciąg \\((a_n)\\) jest nierosnący, jeśli dla każdego \\(n\\in\\mathbb{N}^{+}\\)\n                        \\[\n                        a_{n+1}\\le a_n\n                        \\]</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "zobacz",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Ciąg \\((a_n)\\) jest stały, jeśli dla każdego \\(n\\in\\mathbb{N}^{+}\\)\n                        \\[\n                        a_{n+1}= a_n\n                        \\]</p>"
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "4576f22275e40467cce617e45388d62278132d1cca18d745321b3a788c78f450"
+}

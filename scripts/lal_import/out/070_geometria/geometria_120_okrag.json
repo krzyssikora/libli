@@ -1,0 +1,137 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/okrag_styczne_zad_1.png",
+      "alt": "okrąg i styczne - zadanie 1",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Rysunek przedstawia trójkąt \\(ABC\\) i okrąg o środku w punkcie \\(O\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n                Bok \\(BC\\) jest styczny do okręgu w punkcie \\(L\\).\n            </li>\n<li>\n                Przedłużenie boku \\(AB\\) jest styczne do okręgu w punkcie \\(K\\).\n            </li>\n<li>\n                Przedłużenie boku \\(AC\\) jest styczne do okręgu w punkcie \\(M\\).\n            </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Długość odcinka \\(AM\\) jest równa \\(21\\) centymetrów.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź obwód trójkąta \\(ABC\\).\n        </p>"
+    },
+    {
+      "type": "reveal_gate",
+      "label": "zacznij rozwiązanie"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        Z twierdzenia zilustrowanego poniższym rysunkiem\n                    </p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/okrag_styczne_zad_1_1.png",
+      "alt": "okrąg i styczne - zadanie 1",
+      "figcaption": ""
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                        wynika, że dlugość odcinka \\(AK\\) to\n                        \n\n\n￿0￿\n                        .\n                        \n",
+      "options": [
+        "\\(21\\)",
+        "\\(29\\)",
+        "\\(20\\)"
+      ],
+      "answer": 0
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        Z tego samego twierdzenia i z tego rysunku:\n                    </p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/okrag_styczne_zad_1_2.png",
+      "alt": "okrąg i styczne - zadanie 1",
+      "figcaption": ""
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                        wnioskujemy, że\n                        \n\n\n￿0￿\n                        .\n                        \n",
+      "options": [
+        "\\(BK=CM\\) i \\(BL=CK\\)",
+        "\\(BK=BL\\) i \\(CL=CM\\)",
+        "\\(BK=CK\\) i \\(BL=CM\\)"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        Wiemy więc, że\n                    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ol class=\"bold\">\n<li>\n                            \\(AK=AM=21\\) oraz\n                        </li>\n<li>\n                            \\(BK=BL\\) i \\(CL=CM\\)\n                        </li>\n</ol>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        Czas zająć się obwodem. Obwód trójkąta \\(ABC\\) to oczywiście\n                    </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n                                                        AB+AC+BC\n                                                        "
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                        Odcinek \\(BC\\) jest podzielony punktem \\(L\\) na dwa krótsze odcinki, więc obwód trójkąta \\(ABC\\) jest równy \\(AB+AC+BC=AB+AC+\\)\n                        \n\n\n￿0￿\n                        .\n                        \n",
+      "options": [
+        "\\(BM+CM\\)",
+        "\\(BL+CL\\)",
+        "\\(BK+CK\\)"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        Teraz skorzystajmy z wcześniejszej obserwacji nr\n                        <strong>\n                            2\n                        </strong>\n                        , by przedstawić obwód jako\n                    </p>"
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                        \\(AB+AC+BC=AB+AC+BL+CL=AB+AC+\\)\n                        \n\n￿0￿\n                        .\n                        \n",
+      "options": [
+        "\\(BK+CM\\)",
+        "\\(CK+BM\\)"
+      ],
+      "answer": 0
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        Przepiszmy otrzymane wyrażenie:\n                    </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n                                                        \\begin{align*}\n                                                        \\text{obwód }ABC&=AB+AC+BC=\\\\\n                                                        &=AB+AC+BL+CL=\\\\\n                                                        &=AB+AC+BK+CM=\\quad\\quad\\leftarrow\\text{tyle ustaliliśmy wcześniej}\\\\\n                                                        &=AB+BK+AC+CM=\\\\\n                                                        &=(AB+BK)+(AC+CM)\n                                                        \\end{align*}\n                                                        "
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                        Odcinki \\(AB\\) i \\(BK\\) tworzą razem \\(AK\\). Odcinki \\(AC\\) i \\(CM\\) tworzą razem \\(AM\\), tak więc obwód to \\(AK+AM\\). Teraz pozostaje użyć wcześniejszej obserwacji nr\n                        \n                            1\n                        \n                        , by obliczyć, że długość obwodu trójkąta \\(ABC\\) to\n                        \n\n\n￿0￿\n                        .\n                        \n",
+      "options": [
+        "\\(21\\)",
+        "\\(42\\)",
+        "\\(63\\)"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        Rozwiązaliśmy to zadanie korzystając trzykrotnie z tego samego twierdzenia o stycznych z jednego punktu.\n                    </p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "b19f1d2129f4878660b45a54d36ecd70dacb4fcfadc2e1b415db349dd79abfc7"
+}

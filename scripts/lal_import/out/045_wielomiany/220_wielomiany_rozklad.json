@@ -1,0 +1,110 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Pamiętasz, co to\n    <strong>\n        postać iloczynowa funkcji kwadratowej\n    </strong>\n    ?\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Przypomnijmy:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n    Jeśli funkcja kwadratowa:\n                                                    \\[\n                                                    y=ax^2+bx+c\n                                                    \\]\n                                                    ma miejsca zerowe \\(x_1\\) oraz \\(x_2\\), to możemy ją zapisać w\n    <strong>\n        postaci iloczynowej\n    </strong>\n    :\n                                                    \\[\n                                                    y=a(x-x_1)(x-x_2)\n                                                    \\]\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Z postaci iloczynowej można łatwo znaleźć miejsca zerowe (bez żadnego wzoru).\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Przykład</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Znajdź miejsca zerowe funkcji kwadratowej\n                                                    \\[\n                                                    y=6\\left(x-\\frac{3}{2}\\right)\\left(x+\\frac{1}{3}\\right)\n                                                    \\]</p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "przeczytaj",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n            Skorzystamy z prostej, ale bardzo ważnej obserwacji:\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>jeżeli iloczyn dwóch czynników (liczb, wyrażeń) jest równy \\(0\\):\n                    \\[\n                    A\\cdot B=0\n                    \\]\n                    to jeden z nich (lub oba) musi być równy \\(0\\):</p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                \\(A=0\\quad\\) lub \\(\\quad B=0\\)\n            "
+        },
+        {
+          "type": "text",
+          "body": "<p>Tak więc jeśli\n                                    \\[\n                                    6\\left(x-\\frac{3}{2}\\right)\\left(x+\\frac{1}{3}\\right)=0\n                                    \\]\n                                    to</p>"
+        },
+        {
+          "type": "text",
+          "body": "\n            \\(\\left(x-\\frac{3}{2}\\right)=0\\quad\\) lub \\(\\quad \\left(x+\\frac{1}{3}\\right)=0\\)\n        "
+        },
+        {
+          "type": "text",
+          "body": "<p>czyli</p>"
+        },
+        {
+          "type": "text",
+          "body": "\n            \\(x=\\frac{3}{2}\\quad\\) lub \\(\\quad x=-\\frac{1}{3}\\)\n        "
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Zauważmy, że funkcja kwadratowa może być zapisana w postaci\n    <strong>\n        iloczynu\n    </strong>\n    nie będącego\n    <strong>\n        postacią iloczynową\n    </strong>\n    , aby można było łatwo (bez żadnego wzoru) znaleźć miejsca zerowe.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Przykład</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Dla funkcji kwadratowej zapisanej w postaci:\n                                                    \\[\n                                                    y=(2x-3)(3x+1)\n                                                    \\]\n                                                    miejsca zerowe liczymy jednakowo łatwo.</p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "przeczytaj",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n            Skoro\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\[\n                                    (2x-3)(3x+1)=0\n                                    \\]\n                                    to</p>"
+        },
+        {
+          "type": "text",
+          "body": "\n            \\(2x-3=0\\quad\\) lub \\(\\quad 3x+1=0\\)\n        "
+        },
+        {
+          "type": "text",
+          "body": "<p>czyli</p>"
+        },
+        {
+          "type": "text",
+          "body": "\n            \\(x=\\frac{3}{2}\\quad\\) lub \\(\\quad x=-\\frac{1}{3}\\)\n        "
+        },
+        {
+          "type": "text",
+          "body": "<p>Zauważ, że rozwiązania są identyczne, jak w przykładzie powyżej. Nic dziwnego, użyliśmy tej samej funkcji, tylko zapisanej w innej postaci:\n                                    \\[\n                                    \\begin{align*}\n                                    y&=6\\left(x-\\frac{3}{2}\\right)\\left(x+\\frac{1}{3}\\right)=\\\\\n                                    &=\\color{red}{2}\\cdot\\color{blue}{3}\\cdot\\color{red}{\\left(x-\\frac{3}{2}\\right)}\\color{blue}{\\left(x+\\frac{1}{3}\\right)}=\\\\\n                                    &=\\color{red}{2}\\cdot\\color{red}{\\left(x-\\frac{3}{2}\\right)}\\cdot \\color{blue}{3}\\cdot\\color{blue}{\\left(x+\\frac{1}{3}\\right)}=\\\\\n                                    &=\\color{red}{\\left(2x-3\\right)}\\cdot \\color{blue}{\\left(3x+1\\right)}\n                                    \\end{align*}\n                                    \\]</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    A jakie z tego płyną wnioski dla wielomianów?\n</p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "d59b113345cd53c38cb26b8f016ae1587e3012439d035b4eb83de1dfa25262f5"
+}

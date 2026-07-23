@@ -1,0 +1,122 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Punkt \\(A=(-4,2)\\) leży na prostej o równaniu \\(y=\\frac{1}{2}x+4\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Znajdź współrzędne wszystkich punktów na tej prostej, których odległość od punktu \\(A\\) jest równa \\(5\\sqrt{5}\\).</p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Przyjrzyjmy się szkicowi sytuacji:</p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geom_analit_zad_2_1.png",
+          "alt": "geometria analityczna, zadanie 2",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>Jak widać, są dwa takie punkty. Spójrzmy na sytuację z trochę większego oddalenia.</p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geom_analit_zad_2_2.png",
+          "alt": "geometria analityczna, zadanie 2",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>Te dwa punkty to punkty wspólne danej prostej i okręgu o środku w \\(A=(-4,2)\\) i promieniu \\(5\\sqrt{5}\\).</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Równanie tego okręgu to\n                    \n\n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\((x+4)^2+(y-2)^2=5\\sqrt{5}\\)",
+            "\\((x+4)^2+(y-2)^2=125\\)",
+            "\\((x-4)^2+(y+2)^2=5\\sqrt{5}\\)",
+            "\\((x-4)^2+(y+2)^2=125\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Teraz musimy rozwiązać układ równań:\n                \\[\n                \\begin{cases}\n                (x+4)^2+(y-2)^2=125\\\\\n                y=\\frac{1}{2}x+4\n                \\end{cases}\n                \\]\n                Będzie nam łatwiej, jeśli z równania prostej wyliczymy \\(x\\).</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Otrzymamy\n                    \n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(x=2y-8\\)",
+            "\\(x=-2y+8\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Podstawiamy \\(x=2y-8\\) do równania okręgu \\((x+3)^2+(y-2)^2=125\\):\n                \\[\n                (2y-8+4)^2+(y-2)^2=125\n                \\]\n                i upraszczamy:\n                \\[\n                \\begin{align*}\n                (2y-8+4)^2+(y-2)^2&=125\\\\\n                (2y-4)^2+(y-2)^2&=125\\\\\n                4y^2-16y+16+y^2-4y+4&=125\\\\\n                5y^2-20y-107&=0\\\\\n                y^2-4y-21&=0\n                \\end{align*}\n                \\]</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Wyróżnik tego równania kwadratowego to \\(\\Delta=b^2-4ac=\\)\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(-68\\)",
+            "\\(100\\)",
+            "\\(88\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Obliczmy rozwiązania równania.</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    \\(y=\\frac{-b\\pm\\sqrt{\\Delta}}{2a}=\\frac{4\\pm 10}{2\\cdot 1}\\), więc\n                    \n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(y=-3\\) lub \\(y=7\\)",
+            "\\(y=-7\\) lub \\(y=3\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Współrzędne \\(y\\)-owe szukanych punktów to \\(-3\\) albo \\(7\\). Współrzędne \\(x\\)-owe policzymy z przekształconego równania prostej \\(x=2y-8\\).</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Dla \\(y=-3\\) i \\(y=7\\) otrzymujemy odpowiednio\n                    \n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(x=-2\\) i \\(x=6\\)",
+            "\\(x=-14\\) i \\(x=6\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Szukane punkty to \\((-14,-3)\\) i \\((6,7)\\).</p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geom_analit_zad_2_3.png",
+          "alt": "geometria analityczna, zadanie 2",
+          "figcaption": ""
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "e7d02cb2cbc1379a9e833ddc02cffe75eb5e61e9e8ec4ef68d8b1361c7d7191f"
+}

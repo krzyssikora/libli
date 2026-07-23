@@ -1,0 +1,18 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Przyjrzyj się wynikom w tabeli z poprzedniego pytania. Zastanów się nad pytaniami poniżej i sprawdź swoje odpowiedzi.\n    "
+    },
+    {
+      "type": "text",
+      "body": "<ol>\n<li>\n<p>\n                Jaki jest związek między miarami kątów ostrych \\(\\alpha\\) i \\(\\beta\\) w trójkącie prostokątnym?\n            </p>\n<div class=\"show_solution ks_button\">\n                zobacz\n            </div>\n<div class=\"question_solution hidden\">\n<p>\n                    Skoro suma kątów w trójkącie to \\(180^{\\circ}\\), to\n                </p>\n                \\(\n    \\alpha + \\beta = 90^{\\circ}\n    \\)\n                <p>\n                    czyli, innymi słowy, \\(\\alpha = 90^{\\circ} - \\beta\\) lub \\(\\beta = 90^{\\circ} - \\alpha\\).\n                </p>\n</div>\n<div class=\"question_answer\">\n</div>\n</li>\n<li>\n<p>\n                Jaki są związki między funkcjami trygonometrycznymi kątów ostrych w trójkącie prostokątnym?\n            </p>\n<div class=\"show_solution ks_button\">\n                zobacz\n            </div>\n<div class=\"question_solution hidden\">\n<p>\n                    Związki te wyrazimy a pomocą jednego z kątów, na przykład \\(\\alpha\\):\n                </p>\n<p class=\"important\">\n                    \\[\\begin{align}\n                                                        \\sin\\alpha &amp;=\\cos(90^{\\circ}-\\alpha)\\\\\n                                                        \\cos\\alpha &amp;=\\sin(90^{\\circ}-\\alpha)\\\\\n                                                        \\text{tg }\\alpha &amp;=\\text{ctg }(90^{\\circ}-\\alpha)\\\\\n                                                        \\text{ctg }\\alpha &amp;=\\text{tg }(90^{\\circ}-\\alpha)\\\\\n                                                        \\end{align}\\]\n                </p>\n</div>\n<div class=\"question_answer\">\n</div>\n</li>\n</ol>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "57ce032e831e22fae24d505b9c8bf8d8dcc3999b7cea59ff232cdd246f72bbde"
+}

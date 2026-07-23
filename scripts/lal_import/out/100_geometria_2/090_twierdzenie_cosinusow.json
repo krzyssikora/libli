@@ -1,0 +1,192 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n<i>\n        We wszystkich zadaniach poniżej \\(a\\), \\(b\\), \\(c\\) są długościami boków trójkąta, a \\(A\\), \\(B\\) i \\(C\\) miarami kątów przeciwległych do tych boków.\n    </i>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "W trójkącie \\(ABC\\) dane są długości boków \\(a=3\\), \\(b=7\\), \\(c=8\\).Znajdź miarę kąta \\(B\\).",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(B=60^{\\circ}\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "W trójkącie \\(ABC\\) dane są boki \\(b=8\\), \\(c=5\\) i kąt \\(A=60^{\\circ}\\).Znajdź długość boku \\(a\\).",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(a=7\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "W trójkącie \\(ABC\\) dane są długości boków \\(a=11\\sqrt{3}\\), \\(b=21\\) i kąt \\(A=120^{\\circ}\\).Znajdź długość boku \\(c\\).",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(c=2\\sqrt{3}\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "W trójkącie \\(ABC\\) dane są boki \\(a=3\\sqrt{2}\\), \\(c=7\\) i kąt \\(B=45^{\\circ}\\).Znajdź długość boku \\(b\\).",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(b=5\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "W trójkącie \\(ABC\\) dane są długości boków \\(a=3\\sqrt{2}\\), \\(b=1\\), \\(c=5\\).Znajdź miarę kąta \\(C\\).",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(C=135^{\\circ}\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "W trójkącie \\(ABC\\) dane są boki \\(a=8\\sqrt{2}\\), \\(b=7\\) i kąt \\(C=135^{\\circ}\\).Znajdź długość boku \\(c\\).",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(c=17\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "W trójkącie \\(ABC\\) dane są długości boków \\(c=7\\), \\(b=2\\) i kąt \\(C=30^{\\circ}\\).Znajdź długość boku \\(a\\).",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(a=\\sqrt{3}\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "W trójkącie \\(ABC\\) dane są długości boków \\(c=7\\), \\(a=5\\sqrt{3}\\) i kąt \\(C=150^{\\circ}\\).Znajdź długość boku \\(b\\).",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(b=2\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "W trójkącie \\(ABC\\) dane są długości boków \\(a=11\\), \\(b=5\\sqrt{3}\\), \\(c=19\\).Znajdź miarę kąta \\(C\\).",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(C=150^{\\circ}\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "W trójkącie \\(ABC\\) dane są długości boków \\(a=3\\sqrt{2}\\), \\(b=3\\) i miara kąta \\(C=75^{\\circ}\\).Znajdź miarę kąta \\(B\\).",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(B=60^{\\circ}\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "W trójkącie \\(ABC\\) dane są długości boków \\(b=4\\) i \\(c=2\\sqrt{6}\\) oraz miara kąta \\(B=45^{\\circ}\\).Oblicz miarę kąta \\(C\\).",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(C=60^{\\circ}\\) lub \\(C=120^{\\circ}\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "W trójkącie \\(ABC\\) dane są długości boków \\(b=\\sqrt{2}\\), \\(c=2\\) i miara kąta \\(B=30^{\\circ}\\).Oblicz miarę kąta \\(A\\).",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(A=15^{\\circ}\\) lub \\(A=105^{\\circ}\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "W trójkącie \\(ABC\\) dana jest długość boku \\(c=6\\) oraz miary kątów \\(A=45^{\\circ}\\) i \\(B=75^{\\circ}\\).Znajdź długość boku \\(a\\).",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(a=2\\sqrt{6}\\)</p>"
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "ec58b845fce8293335d2240360a16b6c244d0d10141a7769277c54fbaa2c43c9"
+}

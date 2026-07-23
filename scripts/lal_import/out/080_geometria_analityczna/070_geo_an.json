@@ -1,0 +1,125 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<h3>\n    \"Średnia\" z punktów\n</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Środek odcinka wyznaczamy jako \"średnią\" z końców odcinka. A dokładniej - współrzędne środka odcinka to średnie arytmetyczne współrzędnych końców odcinka.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Odcinek ma zawsze dwa końce. A co, gdybyśmy policzyli średnią z\n    <strong>\n        trzech\n    </strong>\n    punktów?\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Dany jest trójkąt \\(ABC\\) o wierzchołkach:\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n                \\(A=(x_A, y_A)\\),\n            </li>\n<li>\n                \\(B=(x_B, y_B)\\),\n            </li>\n<li>\n                \\(C=(x_C, y_C)\\).\n            </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Punkt \\(S\\) jest zdefiniowany:\n        </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n        S=\\left(\\frac{x_A+x_B+x_C}{3},\\frac{y_A+y_B+y_C}{3}\\right)\n        "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W poniższym aplecie widzisz niebieski trójkąt \\(ABC\\) oraz zaznaczony na czerwono punkt \\(S\\). Zmieniaj położenie wierzchołków trójkąta i skorzystaj z dwóch wskazówek, i zastanów się, czym jest punkt \\(S\\) w trójkącie \\(ABC\\).\n        </p>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/drdkb5pq/width/800/height/841/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    },
+    {
+      "type": "spoiler",
+      "label": "Czym jest punkt \\(S\\)?",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                    Dla trójkąta \\(ABC\\) o wierzchołkach:\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>\n                        \\(A=(x_A, y_A)\\),\n                    </li>\n<li>\n                        \\(B=(x_B, y_B)\\),\n                    </li>\n<li>\n                        \\(C=(x_C, y_C)\\)\n                    </li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    punkt \\(S\\) zdefiniowany\n                </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                S=\\left(\\frac{x_A+x_B+x_C}{3},\\frac{y_A+y_B+y_C}{3}\\right)\n                "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    jest punktem przecięcia środkowych, czyli\n                    <strong>\n                        środkiem ciężkości\n                    </strong>\n                    .\n                </p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<h3>\n    Sens fizyczny\n</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Wyobraźmy sobie, że trzymamy w ręku odcinek. No, może nie prawdziwy odcinek - bo taki nie ma grubości. Ale jakiś cienki, idealnie prosty, równy patyk. Chcielibyśmy ten patyk powiesić na nitce podwiązując go w jednym punkcie, ale tak, by wisiał, na ile to możliwe, poziomo. W jakim punkcie trzeba podwiązać patyk?\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<blockquote>\n    To dosyć proste: po obu stronach punktu, w którym podwiązujemy patyk powinno być po połowie patyka, więc ten punkt to jego środek.\n</blockquote>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    A w jakim punkcie należy podwiązać trójkąt, by wisiał w poziomie?\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<blockquote>\n    Tym punktem jest właśnie\n    <strong>\n        środek ciężkości\n    </strong>\n    .\n</blockquote>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Na zdjęciach poniżej widzisz trójkąt podwieszony w środku ciężkości.\n</p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/podwieczony_trojkat_1.jpg",
+      "alt": "Podwieszony trójkąt",
+      "figcaption": ""
+    },
+    {
+      "type": "image",
+      "media_src": "static/podwieczony_trojkat_2.jpg",
+      "alt": "Podwieszony trójkąt",
+      "figcaption": ""
+    },
+    {
+      "type": "image",
+      "media_src": "static/podwieczony_trojkat_3.jpg",
+      "alt": "Podwieszony trójkąt",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    A na ostatnim: trójkąt podwieszony trochę obok środka ciężkości. Teraz trójkąt nie wisi w poziomie, lecz opadł do pionu.\n</p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/podwieczony_trojkat_4.jpg",
+      "alt": "Podwieszony trójkąt",
+      "figcaption": ""
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "6ec480bef3b41aaaa994525878d5431945e6f594f636b50abcf710af4981a7da"
+}

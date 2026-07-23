@@ -1,0 +1,204 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Poprzednie zadanie rozwiązaliśmy z pomocą równań: \n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n    \\[\n    \\begin{cases}\n    a_1=10\\,000\\\\\n    a_2=1,2\\cdot a_1\\\\\n    a_3=1,2\\cdot a_2\\\\\n    a_4=1,2\\cdot a_3\\\\\n    a_5=1,2\\cdot a_4\n    \\end{cases}\n    \\]\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Równania te (poza pierwszym) są prawie identyczne! Dlatego zapiszmy je w skrócie\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n    \\[\n    \\begin{align}\n    a_n &amp;= 1,2\\cdot a_{n-1}&amp;\\text{ gdzie }n=2, 3, 4,\\dots\\\\\n    \\text{albo}&amp;\\\\\n    a_{n+1} &amp;= 1,2\\cdot a_n&amp;\\text{ gdzie }n=1, 2, 3, 4,\\dots\n    \\end{align}\n    \\]    \n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Przyjrzyj się uważnie obu wzorom. Widzisz różnice?\n</p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "Rozumiesz te różnice?",
+      "elements": [
+        {
+          "type": "table",
+          "data": {
+            "header_row": false,
+            "header_col": false,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "Pisząc:",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(a_n = 1,2\\cdot a_{n-1}\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "gdzie",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(n=2, 3, 4,\\dots\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "myślimy:",
+                  "halign": "left",
+                  "valign": "top",
+                  "rowspan": 2
+                },
+                {
+                  "html": "wyraz bieżący (\\(a_n\\))",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "więc",
+                  "halign": "left",
+                  "valign": "top",
+                  "rowspan": 2
+                },
+                {
+                  "html": "poprzedni indeks to co najmniej \\(1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "liczymy z poprzedniego (\\(a_{n-1}\\))",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "czyli \\(n-1\\ge 1\\), więc \\(n\\ge 2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "Pisząc:",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(a_{n+1} = 1,2\\cdot a_n\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "gdzie",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(n=1, 2, 3, 4,\\dots\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "myślimy:",
+                  "halign": "left",
+                  "valign": "top",
+                  "rowspan": 2
+                },
+                {
+                  "html": "wyraz kolejny (\\(a_{n+1}\\))",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "więc",
+                  "halign": "left",
+                  "valign": "top",
+                  "rowspan": 2
+                },
+                {
+                  "html": "bieżący indeks to co najmniej \\(1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "liczymy z bieżącego (\\(a_n\\))",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "czyli \\(n\\ge 1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "\n    Wzór, w którym kolejne wyrazy ciągu są zdefiniowane za pomocą wcześniejszych wyrazów nazywamy <strong>wzorem rekurencyjnym</strong>.\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Zwróć uwagę, że powyższe dwa wzory (na \\(a_n\\) lub na \\(a_{n+1}\\)) to jeszcze nie jest pełny wzór rekurencyjny. Można je nazwać <u>warunkiem przejścia</u> do kolejnego wyrazu. Jednak musimy też wiedzieć, od czego zaczynamy. Tę wiedzę nazwijmy <u>warunkiem początkowym</u>.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Ciąg z zadania o rosnącej pensji możemy zdefiniować następującym</p>"
+    },
+    {
+      "type": "text",
+      "body": "<strong>wzorem rekurencyjnym</strong>"
+    },
+    {
+      "type": "text",
+      "body": "<p>:</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        \\[\n        \\begin{cases}\n        \\begin{align}\n        a_1&amp;=10\\,000&amp;&amp;\\text{(warunek początkowy)}\\\\\n        a_n&amp;=1,2\\cdot a_{n-1}&amp;\\text{dla }n\\ge 2\\quad&amp;\\text{(warunek przejścia)}\n        \\end{align}\n        \\end{cases}\n        \\]\n    "
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "7be4e3f6beac622d52220d67dc35ec547b17488de4123973c51002b8d935e985"
+}

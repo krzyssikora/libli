@@ -1,0 +1,580 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Wiemy już, jak rozpoznać, czy prosta\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>nie ma punktów wspólnych z okręgiem,</li>\n<li>ma dokładnie jeden punkt wspólny z okręgiem,</li>\n<li>ma dwa punkty wspólne z okręgiem.</li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Ta metoda jest szybka, ale nie wynika z niej, jak znaleźć punkty wspólne.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Omówimy teraz sposób znalezienia punktów wspólnych. Tego sposobu można też użyć, by poznać liczbę punktów wspólnych.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>Ważne</strong>! Ten sposób wykorzystuje naszą wiedzę na temat rozwiązywania równań kwadratowych. Zauważ, że\n</p>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "<strong>okrąg i prosta</strong>\n<br/>\n                mogą mieć",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<strong>równanie kwadratowe</strong>\n<br/>\n                może mieć",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(0\\) punktów wspólnych",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(0\\) rozwiązań",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(1\\) punkt wspólny",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(1\\) rozwiązanie",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(2\\) punkty wspólne",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(2\\) rozwiązania",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Pamiętasz, jak obliczamy rozwiązania równanie kwadratowe, i od czego zależy liczba rozwiązań? Możesz przypomnieć sobie <a href=\"/jump_to_id/ea88ce739d8e4350afab6fa63688c75d\">tutaj</a>.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>punkty wspólne prostej i okręgu</strong>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<u>Dane</u>:\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>równanie okręgu, postaci \\((x-a)^2+(y-b)^2=r^2\\)</li>\n<li>równanie prostej, np. postaci \\(y=cx+d\\,^{(\\ast)}\\)</li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Rozwiązujemy układ równań <strong>metodą podstawienia</strong>.\n    </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\\color{blue}{\\Downarrow}\\]\n    \\[\n    (x-a)^2+(cx+d-b)^2=r^2\n    \\]\n    \\[\\color{blue}{\\Downarrow}"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Podnosimy nawiasy do kwadratu i redukujemy wyrazy podobne.\n    </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\\color{blue}{\\Downarrow}"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Otrzymujemy równanie kwadratowe postaci:\n    </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n    Ax^2+Bx+C=0\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Liczymy wyróżnik równania (deltę) \\(\\Delta=B^2-4AC\\) \n    </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\\color{blue}{\\Downarrow}"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "\\(\\Delta\\lt 0\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(0\\) rozwiązań\n                    <br/>\n<small>czyli \\(0\\) punktów wspólnych</small>",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(\\Delta = 0\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(1\\) rozwiązanie\n                    <br/>\n<small>czyli \\(1\\) punkt wspólny</small>",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(\\Delta\\gt 0\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(2\\) rozwiązania\n                    <br/>\n<small>czyli \\(2\\) punkty wspólne</small>",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "math",
+      "latex": "\\color{blue}{\\Downarrow}"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Liczymy współrzędne \\(x\\)-owe punktów. \n    </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\\color{blue}{\\Downarrow}"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Z użyciem równania prostej liczymy współrzędne \\(y\\)-owe punktów. \n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        \\(^{(\\ast)}\\) \n        <small>Równanie prostej nie musi być tej postaci. Musimy z niego wyliczyć jedną zmienną (albo \\(x=\\dots\\) albo \\(y=\\dots\\)), by móc podstawić do równania okręgu.</small>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Teraz możemy rozwiązać lekko poszerzone poprzednie zadanie.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Ile punktów wspólnych ma każda z poniższych prostych z okręgiem \\((x-3)^2+(y+1)^2=20\\)?\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź współrzędne tych punktów.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ol class=\"bold\">\n<li>\\(x-2y+5=0\\)</li>\n<li>\\(x-y-2=0\\)</li>\n<li>\\(2x+y+7=0\\)</li>\n</ol>"
+    },
+    {
+      "type": "text",
+      "body": "<h4>rozwiązanie</h4>"
+    },
+    {
+      "type": "tabs",
+      "tabs": [
+        {
+          "id": "t000000",
+          "label": "1",
+          "elements": [
+            {
+              "type": "text",
+              "body": "<p><strong>\\(x-2y+5=0\\)</strong></p>"
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                                Z równania prostej w tej sytuacji łątwiej wyznaczyć zmienną \\(x\\). Otrzymujemy\n                                \n\n\n\n￿0￿.\n                            ",
+              "options": [
+                "\\(x=2y-5\\)",
+                "\\(x=2y+5\\)",
+                "\\(x=-2y+5\\)"
+              ],
+              "answer": 0
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                                Podstawiamy \\(\\color{red}{x=2y-5}\\) do równania okręgu:\n                            </p>"
+            },
+            {
+              "type": "text",
+              "body": "\n                                \\[\n                                \\begin{align}\n                                (x-3)^2+(y+1)^2&amp;=20\\\\\n                                (\\color{red}{2y-5}-3)^2+(y+1)^2&amp;=20\\\\\n                                (2y-8)^2+(y+1)^2&amp;=20\\\\\n                                (2y-8)^2+(y+1)^2-20&amp;=0\n                                \\end{align}\n                                \\]\n                            "
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                                Po uproszczeniu lewej strony równania dostajemy\n                                \n\n\n\n￿0￿.\n                            ",
+              "options": [
+                "\\(3y^2-30y+45=0\\)",
+                "\\(5y^2-30y+45=0\\)",
+                "\\(5y^2-34y+45=0\\)"
+              ],
+              "answer": 1
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                                Dzieląc obie strony równania na \\(5\\) dostajemy:\n                            </p>"
+            },
+            {
+              "type": "math",
+              "latex": "\n                            y^2-6y+9=0\n                            "
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                                I teraz możemy policzyć \\(\\Delta\\).\n                            </p>"
+            },
+            {
+              "type": "spoiler",
+              "label": "pamiętasz, jak?",
+              "elements": [
+                {
+                  "type": "text",
+                  "body": "<p>\n                                        Dla równania kwadratowego\n                                    </p>"
+                },
+                {
+                  "type": "math",
+                  "latex": "Ax^2+Bx+C=0"
+                },
+                {
+                  "type": "text",
+                  "body": "<p>\n                                        jego wyróżnik (\\(\\Delta\\)) to\n                                    </p>"
+                },
+                {
+                  "type": "math",
+                  "latex": "\n                                    \\Delta=B^2-4AC\n                                    "
+                }
+              ]
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                                \\(\\Delta=\\)\n                                \n\n\n￿0￿.\n                            ",
+              "options": [
+                "\\(0\\)",
+                "\\(72\\)"
+              ],
+              "answer": 0
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                                \\(\\Delta=0\\) oznacza, że okrąg i prosta mają\n                                \n\n\n\n￿0￿.\n                            ",
+              "options": [
+                "\\(0\\) punktów wspólnych",
+                "\\(1\\) punkt wspólny",
+                "\\(2\\) punkty wspólne"
+              ],
+              "answer": 1
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                                Rozwiążmy równanie.\n                            </p>"
+            },
+            {
+              "type": "spoiler",
+              "label": "Pamiętasz, jak?",
+              "elements": [
+                {
+                  "type": "text",
+                  "body": "<p>\n                                        Rozwiązania równania kwadratowego\n                                    </p>"
+                },
+                {
+                  "type": "math",
+                  "latex": "Ax^2+Bx+C=0"
+                },
+                {
+                  "type": "text",
+                  "body": "<p>\n                                        są dane wzorami\n                                    </p>"
+                },
+                {
+                  "type": "text",
+                  "body": "\n                                        \\[\n                                        x=\\frac{-B-\\sqrt{\\Delta}}{2A}\\quad\\text{lub}\\quad x=\\frac{-B+\\sqrt{\\Delta}}{2A}\n                                        \\]\n                                    "
+                },
+                {
+                  "type": "text",
+                  "body": "<p>\n                                        albo w skrócie \\(x=\\frac{-B\\pm\\sqrt{\\Delta}}{2A}\\)\n                                    </p>"
+                },
+                {
+                  "type": "text",
+                  "body": "<p>\n                                        Dla równania \\(y^2-6y+9=0\\) rozwiązanie jest postaci\n                                    </p>"
+                },
+                {
+                  "type": "math",
+                  "latex": "\n                                    y=\\frac{6\\pm\\sqrt{0}}{2\\cdot 1}\n                                    "
+                }
+              ]
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                                Rozwiązaniem równania jest\n                                \n\n\n￿0￿.\n                            ",
+              "options": [
+                "\\(y=3\\)",
+                "\\(y=-3\\)"
+              ],
+              "answer": 0
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                                Pozostaje podstawić \\(y=3\\) do równania prostej \\(x=2y-5\\), by otrzymać\n                                \n\n\n￿0￿.\n                            ",
+              "options": [
+                "\\(x=1\\)",
+                "\\(x=-1\\)"
+              ],
+              "answer": 0
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                                Prosta ma jeden punkt wspólny z okręgiem. Jest to punkt \\(\\color{red}{(1, 3)}\\). \n                            </p>"
+            },
+            {
+              "type": "image",
+              "media_src": "static/geometria_analityczna_2_zadanie_1154.png",
+              "alt": "",
+              "figcaption": ""
+            },
+            {
+              "type": "text",
+              "body": "<p>\n<strong>Uwaga!</strong> Zauważmy, że równanie \n                            </p>"
+            },
+            {
+              "type": "math",
+              "latex": "\n                            y^2-6y+9=0\n                            "
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                                można rozwiązać szybciej:\n                            </p>"
+            },
+            {
+              "type": "math",
+              "latex": "\n                            \\begin{align}\n                            y^2-6y+9&=0\\\\\n                            (y-3)^2&=0\\\\\n                            y-3&=0\\\\\n                            y&=3\n                            \\end{align}\n                            "
+            }
+          ]
+        },
+        {
+          "id": "t000001",
+          "label": "2",
+          "elements": [
+            {
+              "type": "text",
+              "body": "<p><strong>\\(x-y-2=0\\)</strong></p>"
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                                Tym razem z równania prostej wyliczmy \\(y\\):\n                                \n\n\n\n￿0￿.\n                            ",
+              "options": [
+                "\\(y=x-2\\)",
+                "\\(y=x+2\\)",
+                "\\(y=-x+2\\)"
+              ],
+              "answer": 0
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                                Podstawiamy \\(\\color{red}{y=x-2}\\) do równania okręgu:\n                            </p>"
+            },
+            {
+              "type": "text",
+              "body": "\n                                \\[\n                                \\begin{align}\n                                (x-3)^2+(y+1)^2&amp;=20\\\\\n                                (x-3)^2+(\\color{red}{x-2}+1)^2&amp;=20\\\\\n                                (x-3)^2+(x-1)^2&amp;=20\\\\\n                                (x-3)^2+(x-1)^2-20&amp;=0\n                                \\end{align}\n                                \\]\n                            "
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                                Podnosząc wyrażenia do kwadratu, redukując wyrazy podobne i dzieląc obie strony przez \\(2\\) otrzymujemy\n                                \n\n\n\n￿0￿.\n                            ",
+              "options": [
+                "\\(x^2-4x-5=0\\)",
+                "\\(x^2-2x-5=0\\)",
+                "\\(x^2-2x+5=0\\)"
+              ],
+              "answer": 0
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                                Liczymy deltę:\n                                \n\n\n\n￿0￿.\n                            ",
+              "options": [
+                "\\(\\Delta=-4\\)",
+                "\\(\\Delta=36\\)",
+                "\\(\\Delta=16\\)"
+              ],
+              "answer": 1
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                                Wiemy już, że prosta i okrąg mają\n                                \n\n\n\n￿0￿.\n                            ",
+              "options": [
+                "\\(0\\) punktów wspólnych",
+                "\\(1\\) punkt wspólny",
+                "\\(2\\) punkty wspólne"
+              ],
+              "answer": 2
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                                Obliczamy rozwiązania równania: \\(x=\\frac{4\\pm\\sqrt{36}}{2\\cdot 1}\\) otrzymując\n                                \n\n\n\n￿0￿.\n                            ",
+              "options": [
+                "\\(x=-5\\) lub \\(x=1\\)",
+                "\\(x=-1\\) lub \\(x=5\\)",
+                "\\(x=-2\\) lub \\(x=10\\)"
+              ],
+              "answer": 1
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                                Podstawiając oba \\(x\\)-y do równania prostej \\(y=x-2\\) dostajemy\n                                \n\n\n￿0￿.\n                            ",
+              "options": [
+                "\\(y=-3\\), \\(y=3\\)",
+                "\\(y=1\\), \\(y=7\\)"
+              ],
+              "answer": 0
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                                Prosta ma dwa punkty wspólne z okręgiem. Są to punkt \\(\\color{red}{(-1, -3)}\\) oraz \\(\\color{red}{(5, 3)}\\). \n                            </p>"
+            },
+            {
+              "type": "image",
+              "media_src": "static/geometria_analityczna_2_zadanie_1156.png",
+              "alt": "",
+              "figcaption": ""
+            }
+          ]
+        },
+        {
+          "id": "t000002",
+          "label": "3",
+          "elements": [
+            {
+              "type": "text",
+              "body": "<p><strong>\\(2x+y+7=0\\)</strong></p>"
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                                Równanie prostej możemy przedstawić w postaci\n                                \n\n\n\n￿0￿.\n                            ",
+              "options": [
+                "\\(y=-2x-7\\)",
+                "\\(y=2x+7\\)",
+                "\\(y=2x-7\\)"
+              ],
+              "answer": 0
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                                Podstawiamy \\(\\color{red}{y=-2x-7}\\) do równania okręgu:\n                            </p>"
+            },
+            {
+              "type": "text",
+              "body": "\n                                \\[\n                                \\begin{align}\n                                (x-3)^2+(y+1)^2&amp;=20\\\\\n                                (x-3)^2+(\\color{red}{-2x-7}+1)^2&amp;=20\\\\\n                                (x-3)^2+(-2x-6)^2&amp;=20\\\\\n                                (x-3)^2+(-2x-6)^2-20&amp;=0\n                                \\end{align}\n                                \\]\n                            "
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                                Po podniesieniu wyrażeń do kwadratu, redukcji wyrazów podobnych dostajemy:\n                                \n\n\n\n￿0￿.\n                            ",
+              "options": [
+                "\\(5x^2+18x+25=0\\)",
+                "\\(5x^2-30x+25=0\\)",
+                "\\(3x^2-30x+25=0\\)"
+              ],
+              "answer": 0
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                                Obliczamy deltę.\n                            </p>"
+            },
+            {
+              "type": "spoiler",
+              "label": "pamiętasz, jak?",
+              "elements": [
+                {
+                  "type": "text",
+                  "body": "<p>\n                                        Dla równania kwadratowego\n                                    </p>"
+                },
+                {
+                  "type": "math",
+                  "latex": "Ax^2+Bx+C=0"
+                },
+                {
+                  "type": "text",
+                  "body": "<p>\n                                        jego wyróżnik (\\(\\Delta\\)) to\n                                    </p>"
+                },
+                {
+                  "type": "math",
+                  "latex": "\n                                    \\Delta=B^2-4AC\n                                    "
+                }
+              ]
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                                \\(\\Delta=18^2-4\\cdot 5\\cdot 25=\\)\n                                \n\n\n￿0￿.\n                            ",
+              "options": [
+                "\\(-176\\)",
+                "\\(824\\)"
+              ],
+              "answer": 0
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                                Stąd wiemy, że prosta i okrąg mają\n                                \n\n\n\n￿0￿.\n                            ",
+              "options": [
+                "\\(0\\) punktów wspólnych",
+                "\\(1\\) punkt wspólny",
+                "\\(2\\) punkty wspólne"
+              ],
+              "answer": 0
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                                Prosta nie ma punktów wspólnych z okręgiem.\n                            </p>"
+            },
+            {
+              "type": "image",
+              "media_src": "static/geometria_analityczna_2_zadanie_1158.png",
+              "alt": "",
+              "figcaption": ""
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "fully_mapped": false,
+  "seed_hash": "6c5c77876660485cafe9b6f4e3b0b9e8c7909f84251561315c0273b4901e162e"
+}

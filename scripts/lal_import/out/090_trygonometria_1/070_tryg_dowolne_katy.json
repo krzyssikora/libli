@@ -1,0 +1,64 @@
+{
+  "elements": [
+    {
+      "type": "image",
+      "media_src": "static/cwiartki.png",
+      "alt": "ćwiartki układu współrzędnych",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Będziemy niejednokrotnie mówili o kącie wyznaczonym przez punkt w układzie współrzędnych.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Będziemy wówczas mieli na myśli kąt między dodatnią częścią osi \\(OX\\) a odcinkiem łączącym ten punkt z początkiem układu współrzędnych, \\((0,0)\\).\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Będziemy też mówić, że punkt lub wyznaczony przez niego kąt znajdują się w danej ćwiartce układu współrzenych. Ćwiartki numerowane są przeciwnie do ruchu wskazówek zegara, jak na rysunku.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Dla dowolnego kąta wyznaczonego przez punkt na\n        <strong>\n            okręgu jednostkowym\n        </strong>\n<small>\n            (czyli takim, którego promień jest równy \\(1\\))\n        </small>\n<strong>\n            cosinus\n        </strong>\n        i\n        <strong>\n            sinus\n        </strong>\n        to współrzędne tego punktu.\n    </p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/okrag_jednostkowy.png",
+      "alt": "okrąg jednostkowy",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>\n            Tangens\n        </strong>\n        i\n        <strong>\n            cotangens\n        </strong>\n        liczymy dzieląc przez siebie współrzędne punktu:\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        \\(\\text{tg}\\alpha = \\frac{\\sin \\alpha}{\\cos \\alpha}=\\frac{y}{x}\\)\n        <span style=\"display: inline-block; width: 100;\">\n</span>\n        \\(\\text{ctg}\\alpha = \\frac{\\cos \\alpha}{\\sin \\alpha}=\\frac{x}{y}\\)\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    A jak obliczyć funkcje trygonometryczne kąta wyznaczonego przez punkt, który nie leży na kole jednostkowym?\n</p>"
+    },
+    {
+      "type": "video",
+      "media_src": "static/okrag_jednostkowy_ext.mp4"
+    },
+    {
+      "type": "image",
+      "media_src": "static/okrag_jednostkowy_ext.png",
+      "alt": "punkt poza okręgiem jednostkowym",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>W mocy są naturalne wzory\n                    \\[\n                    \\begin{align*}\n                    \\sin\\alpha&amp;=\\frac{y}{r}\\\\\n                    \\cos\\alpha&amp;=\\frac{v}{r}\\\\\n                    \\text{tg}\\alpha&amp;=\\frac{y}{x}\\\\\n                    \\text{ctg}\\alpha&amp;=\\frac{x}{y}\n                    \\end{align*}\n                    \\]\n                    gdzie \\(r=\\sqrt{x^2+y^2}\\)</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>\n                        Punkt \\(P\\) może być położony w dowolnym miejscu w układzie współrzędnych poza punktem \\((0,0)\\).\n                    </strong></p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "26b0e3e5ab1cba937988f02c28e579aa4f746f44fb9d16862ca9c4af562a6cde"
+}

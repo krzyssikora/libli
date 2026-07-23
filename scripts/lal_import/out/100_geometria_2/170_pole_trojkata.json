@@ -1,0 +1,151 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>Przypomnijmy ponownie wszystkie wzory na pole trójkąta, \\(P\\), o jakich dotąd mówiliśmy:</p>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": true,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "wzór",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "dane",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "<strong>\n                        1.\n                    </strong>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(P=\\frac{1}{2}ah\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(a\\) - podstawa, \\(h\\) - wysokość",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "<strong>\n                        2.\n                    </strong>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(P=\\frac{1}{2}ab\\sin\\gamma\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(a\\), \\(b\\) - boki, \\(\\gamma\\) - kąt między nimi",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "<strong>\n                        3.\n                    </strong>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(P=\\frac{abc}{4R}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(a\\), \\(b\\), \\(c\\) - boki, \\(R\\) - promień okręgu opisanego",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "<strong>\n                        4.\n                    </strong>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(P=\\sqrt{p(p-a)(p-b)(p-c)}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(a\\), \\(b\\), \\(c\\) - boki, \\(p\\) - połowa obwodu trójkąta",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Wprowadzając wzory\n    <strong>\n        2.\n    </strong>\n    i\n    <strong>\n        4.\n    </strong>\n    wspominaliśmy o zasadach przystawania trójkątów \"\n    <strong>\n        bok-kąt-bok\n    </strong>\n    \" i \"\n    <strong>\n        bok-bok-bok\n    </strong>\n    \". Jest jeszcze jedna zasada przystawania trójkątów: \"\n    <strong>\n        kąt-bok-kąt\n    </strong>\n    \".\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Czy istnieje wzór na pole trójkąta w zależności od jednego boku i dwóch kątów?\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Dany jest trójkąt o bokach \\(a\\), \\(b\\), \\(c\\). Kąty wewnętrzne przeciwległe do tych boków to odpowiednio \\(\\alpha\\), \\(\\beta\\) i \\(\\gamma\\).\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Wówczas pole trójkąta \\(P\\) dane jest wzorami:\n    \\[\n    P=\\frac{1}{2}a^2\\cdot\\frac{\\sin\\beta\\cdot\\sin\\gamma}{\\sin\\alpha}\n    =\\frac{1}{2}b^2\\cdot\\frac{\\sin\\gamma\\cdot\\sin\\alpha}{\\sin\\beta}\n    =\\frac{1}{2}c^2\\cdot\\frac{\\sin\\alpha\\cdot\\sin\\beta}{\\sin\\gamma}\n    \\]</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    W każdym z wzorów używamy wszystkich trzech kątów, ale moglibyśmy użyć tylko tych przyległych do boku, np.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\\[\nP=\\frac{1}{2}a^2\\cdot\\frac{\\sin\\beta\\cdot\\sin\\gamma}{\\sin(180^{\\circ}-\\beta-\\gamma)}\n\\]\nlub w uproszczeniu\n\\[\nP=\\frac{1}{2}a^2\\cdot\\frac{\\sin\\beta\\cdot\\sin\\gamma}{\\sin(\\beta+\\gamma)}\n\\]\nPrawdziwość tych wzorów można łatwo udowodnić. Spróbuj to zrobić samodzielnie zgodnie ze wskazówką w poniższym zadaniu i w razie potrzeby sprawdź moje rozwiązanie.</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Dany jest trójkąt o bokach \\(a\\), \\(b\\), \\(c\\). Kąty wewnętrzne przeciwległe do tych boków to odpowiednio \\(\\alpha\\), \\(\\beta\\) i \\(\\gamma\\). Pole trójkąta jest równe \\(P\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Korzystając ze wzoru\n        \\[\n        P=\\frac{1}{2}ab\\sin\\gamma\n        \\]\n        oraz z twierdzenia sinusów udowodnij, że\n        \\[\n        P=\\frac{1}{2}a^2\\cdot\\frac{\\sin\\beta\\cdot\\sin\\gamma}{\\sin\\alpha}\n        \\]</p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Zauważmy, że z danego wzoru\n        \\[\n        P=\\frac{1}{2}ab\\sin\\gamma\n        \\]\n        chcemy wyeliminować długość \\(b\\), a wprowadzić do wzoru kąt \\(\\alpha\\). Dlatego żyjemy równania z twierdzenia sinusów, w którym jest zarówno \\(b\\) jak i \\(\\alpha\\):\n        \\[\n        \\frac{b}{\\sin\\beta}=\\frac{a}{\\sin\\alpha}\n        \\] \n        Z tego równania wyliczamy \\(b\\):\n        \\[\n        b=\\frac{a\\sin\\beta}{\\sin\\alpha}\n        \\]\n        i wstawiamy do wzoru na pole:\n        \\[\n        \\begin{align*}\n        P&=\\frac{1}{2}ab\\sin\\gamma=\\\\\n        &=\\frac{1}{2}a\\cdot \\frac{a\\sin\\beta}{\\sin\\alpha}\\sin\\gamma=\\\\\n        &=\\frac{1}{2}a^2\\cdot\\frac{\\sin\\beta\\cdot\\sin\\gamma}{\\sin\\alpha}\n        \\end{align*}\n        \\]</p>"
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "764242100166abca7780ae3d8a2938c57fe7ae9eb0350b1843161831baa883b8"
+}

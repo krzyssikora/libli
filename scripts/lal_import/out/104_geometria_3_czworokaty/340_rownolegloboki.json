@@ -1,0 +1,114 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Przypomnijmy:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<strong>Kwadrat</strong> to czworokąt, w którym wszystkie kąty są proste i którego wszystkie boki są równej długości.\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Przyjrzyj się ponownie ilustracji klasyfikacji czworokątów, którą wcześniej wprowadziliśmy.\n        </p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/klasyfikacja_czworokatow.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "choice",
+      "stem": "",
+      "multiple": true,
+      "choices": [
+        {
+          "text": "trapezoidem",
+          "is_correct": false,
+          "feedback": "W trapezoidzie żadne boki nie są równoległe. A w kwadracie?"
+        },
+        {
+          "text": "deltoidem",
+          "is_correct": true,
+          "feedback": "W deltoidzie mamy dwie pary sąsiednich boków równej długości. A co jeśli boki z obu par są równej długości, a kąty proste?"
+        },
+        {
+          "text": "trapezem",
+          "is_correct": true,
+          "feedback": "W trapezie mamy przynajmniej jedną parę boków równoległych. A w kwadrarcie?"
+        },
+        {
+          "text": "równoległobokiem",
+          "is_correct": true,
+          "feedback": "W równoległoboku mamy dwie pary boków równoległych. A w kwadracie?"
+        },
+        {
+          "text": "prostokątem",
+          "is_correct": true,
+          "feedback": "W prostokącie wszystkie kąty są proste. A w kwadracie?"
+        },
+        {
+          "text": "rombem",
+          "is_correct": true,
+          "feedback": "W rombie wszystkie boki są równej długości. A w kwadracie?"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Kwadrat jest bardzo prostym, szczególnym prostokątem. W jego przypadku nie warto się odwoływać do własności równoległoboków i prostokątów, bo większość z nich, przez to że wszystkie boki i kąty są sobie równe, jest oczywista. Warto wspomnieć jedną własność, dotyczącą przekątnych.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Co wiemy o przekątnych...\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "prostokąta",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>są równej długości i przecinają się w połowie</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "rombu",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>przecinają się pod kątem prostym</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Kwadrat jest zarówno prostokątem, jak i rombem.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>Przekątne kwadratu</strong> są równej długości i przecinają się w połowie pod kątem prostym\n    </p>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/x5pgzhfw/width/425/height/428/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Warto pamiętać też, że\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n    przekątna kwadratu o boku długości \\(a\\) ma długość \\(a\\sqrt{2}\\).\n"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "682a716e4fbc823417deff6af3b966cc0ac8592d47f9a8dba7d85f06898b1cca"
+}

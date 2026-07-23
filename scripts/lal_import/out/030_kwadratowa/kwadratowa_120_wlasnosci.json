@@ -1,0 +1,108 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Przeczytaj następujące zadania.</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ol>\n<li>\n                Znajdź równanie funkcji kwadratowej, której wykres ma wierzchołek w punkcie \\((2,-3)\\) i przechodzi przez punkt \\((4,-1)\\).\n            </li>\n<li>\n                Znajdź równanie funkcji kwadratowej o miejscach zerowych \\(-3\\) i \\(-1\\), której wykres przechodzi przez punkt \\((-4,9)\\).\n            </li>\n<li>\n                Znajdź równanie funkcji kwadratowej, której wykres jest symetryczny względem prostej \\(x=3\\) i przechodzi przez punkty \\((1,0)\\) i \\((6,-2\\frac{1}{2})\\).\n            </li>\n</ol>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "Jak pamiętamy funkcję kwadratową zapisujemy w jednej z trzech postaci:",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            }
+          ],
+          [
+            {
+              "html": "ogólna",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(y=ax^2+bx+c\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "kanoniczna",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(y=a(x-p)^2+q\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "iloczynowa",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(y=a(x-x_1)(x-x_2)\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Od której z nich należy zacząć rozwiązując każde z tych zadań?\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<h4>\n    Wstęp do wszystkich trzech zadań\n</h4>"
+    },
+    {
+      "type": "video",
+      "media_src": "static/kwadratowa_wlasnosci_rownanie_1.mp4"
+    },
+    {
+      "type": "text",
+      "body": "<h4>\n    Wstęp do zadania 1.\n</h4>"
+    },
+    {
+      "type": "video",
+      "media_src": "static/kwadratowa_wlasnosci_rownanie_2.mp4"
+    },
+    {
+      "type": "text",
+      "body": "<h4>\n    Wstęp do zadania 2.\n</h4>"
+    },
+    {
+      "type": "video",
+      "media_src": "static/kwadratowa_wlasnosci_rownanie_3.mp4"
+    },
+    {
+      "type": "text",
+      "body": "<h4>\n    Wstęp do zadania 3.\n</h4>"
+    },
+    {
+      "type": "video",
+      "media_src": "static/kwadratowa_wlasnosci_rownanie_4.mp4"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "49114615cd7a6e2ca3ffe971ba60bd17a4f86133eb5a4c8c2aabd03a2dfe4461"
+}

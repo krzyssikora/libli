@@ -1,0 +1,239 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Jeden z boków prostokąta ma długość \\(10\\), a jego przekątna ma długość \\(26\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Oblicz pole prostokąta.\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                    Znamy długość jednego boku kwadratu. Oznaczmy drugą, nieznaną długość przez \\(a\\). \n                </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_760_1.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Możemy obliczyć \\(a\\) z twierdzenia Pitagorasa, czyli z równania\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(a^2=26^2+10^2\\)",
+            "\\(a^2=26^2-10^2\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Długość boku \\(a\\) jest równa\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(24\\)",
+            "\\(18\\)",
+            "\\(16\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    I dlatego pole prostokąta jest równe\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(120\\)",
+            "\\(240\\)",
+            "\\(260\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Pole prostokąta jest równe\n                \\[\n                P=24\\cdot 10=240\n                \\]</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Przekątna prostokąta ma tę samą długość, co przekątna kwadratu. \n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Pole prostokąta jest dwukrotnie mniejsze od pola kwadratu.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź miarę kąta między przekątnymi prostokąta.\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                    Oznaczmy przekątne prostokąta i kwadratu przez \\(d\\), a kąt między przekątnymi prostokąta przez \\(\\alpha\\).\n                </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_770_1.png",
+          "alt": "",
+          "figcaption": "Rysunek nie zachowuje skali."
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Pole prostokąta jest dwukrotnie mniejsze od pola kwadratu.\n                </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Pole kwadratu jest dane wyrażeniem\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(\\tfrac{1}{2}d^2\\)",
+            "\\(d^2\\)",
+            "\\(2d^2\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Pole prostokąta jest dane wyrażeniem\n                    \n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(\\tfrac{1}{2}d^2\\cos\\alpha\\)",
+            "\\(\\tfrac{1}{2}d^2\\sin\\alpha\\)",
+            "\\(d^2\\sin\\alpha\\)",
+            "\\(d^2\\cos\\alpha\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<blockquote>\n                    \"Pole prostokąta jest dwukrotnie mniejsze od pola kwadratu\"\n                </blockquote>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    więc \n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(2\\left(\\tfrac{1}{2}d^2\\sin\\alpha\\right)=\\tfrac{1}{2}d^2\\)",
+            "\\(\\tfrac{1}{2}d^2\\sin\\alpha=2\\left(\\tfrac{1}{2}d^2\\right)\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Uprośćmy równanie\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    \\begin{align}\n                    2\\left(\\tfrac{1}{2}d^2\\sin\\alpha\\right)&amp;=\\tfrac{1}{2}d^2\\\\\n                    d^2\\sin\\alpha&amp;=\\tfrac{1}{2}d^2\\\\\n                    \\sin\\alpha&amp;=\\tfrac{1}{2}\n                    \\end{align}\n                    \\]\n                "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    \\(\\sin\\alpha=\\tfrac{1}{2}\\), więc \n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(\\alpha=30^{\\circ}\\)",
+            "\\(\\alpha=45^{\\circ}\\)",
+            "\\(\\alpha=60^{\\circ}\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Kąt między przekątnymi prostokąta ma miarę \\(30^{\\circ}\\).</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Dane są dwa kwadraty. Długość boku pierwszego kwadratu jest równa długości przekątnej drugiego kwadratu.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Jaki jest stosunek pól pierwszego do drugiego kwadratu?\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                    Niech \\(a\\) oznacza długość boku drugiego kwadratu.\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<blockquote>\n                    \"długość boku pierwszego kwadratu jest równa długości przekątnej drugiego kwadratu\"\n                </blockquote>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Długość przekątnej drugiego kwadratu to\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(a\\sqrt{2}\\)",
+            "\\(a\\sqrt{3}\\)",
+            "\\(2a\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Jest to więc długość boku pierwszego kwadratu.\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Znamy więc długości boków kwadratów: \n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>pierwszego: \\(a\\sqrt{2}\\)</li>\n<li>drugiego: \\(a\\)</li>\n</ul>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Pole pierwszego kwadratu jest równe\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(2a\\)",
+            "\\(2a^2\\)",
+            "\\(a^2\\sqrt{2}\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Pole drugiego kwadratu to\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(a^2\\)",
+            "\\(\\tfrac{1}{2}a^2\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Stosunek pól pierwszego do drugiego kwadratu jest równy\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(2\\)",
+            "\\(\\tfrac{1}{2}\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Stosunek długości boków jest równy \\(\\sqrt{2}:1\\), więc stosunek pól to \\(2:1\\).</p>"
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "a1414dcbfbf552bf00d1734347f9cf2d3c8efb9f9f7aafb222663bd1b5c3812f"
+}

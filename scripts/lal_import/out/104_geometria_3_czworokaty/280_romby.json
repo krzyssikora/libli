@@ -1,0 +1,216 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Podsumujmy:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        W rombie\n    </p>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": true,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "przekątne",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "przecinają się w połowie",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "przecinają się pod kątem prostym",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "są osiami symetrii",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "kąty",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "przeciwległe są równe",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "sąsiednie sumują się do \\(180^{\\circ}\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "okrąg",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "można wpisać w każdy romb",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Warto wyciągnąć kilka dalej idących wniosków. Z faktu, że przekątne rombu są jego osiami symetrii widzimy, że\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n    Przekątne rombu są dwusiecznymi kątów wewnętrznych rombu.\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Rozwiązując zadania z geometrii, w tym też takie dotyczące rombów, często warto zacząć od rysunku pomocniczego.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Jeśli w zadaniu jest mowa o przekątnych, warto zrobić rysunek tak, by uwzględnić wspomniane wyżej własności.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Przykład</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Aby narysować romb z przekątnymi\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ol class=\"bold\">\n<li>\n                zacznij od punktu przecięcia przekątnych,\n            </li>\n<li>\n                narysuj pierwszą przekątną - po połowie po każdej stronie od punktu przecięcie,\n            </li>\n<li>\n                narysuj drugą przekątną, prostopadle do pierwszej - także po połowie po każdej stronie od punktu przecięcie,\n            </li>\n<li>\n                i połącz końce przekątnych.\n            </li>\n</ol>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Obejrzyj animację pokazującą wykonanie takiego rysunku.\n        </p>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/pxsu25uk/width/535/height/351/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Kolejna ważna obserwacja dotyczy okręgu wpisanego w romb. Jak wiemy, w każdy romb można wpisać okrąg.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n    Średnica okręgu wpisanego w romb jest równa wysokości rombu.\n"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W poniższym aplecie możesz przesuwać zaznaczone na czerwono wierzchołki rombu, żeby zmienić jego położenie, kształt i wielkość.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W aplecie widzisz okrąg wpisany między poroste zawierające dwa równoległe boki rombu. \n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Przesuń okrąg tak, by był wpisany w romb. Zwróć uwagę, że średnica okręgu jest równa odległości między prostymi - czyli wysokości rombu.\n        </p>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/j4qjrpfr/width/675/height/378/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    I jeszcze jedna uwaga na temat rysowania rombu - tym razem opisanego na okręgu.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Przykład</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Aby narysować romb opisany na okręgu\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ol class=\"bold\">\n<li>\n                zacznij od okręgu,\n            </li>\n<li>\n                następnie narysuj dwie proste równoległę styczne do okręgu,\n            </li>\n<li>\n                potem narysuj kolejne dwie proste równoległe styczne do okręgu (ale nie równoległe do poprzenich),\n            </li>\n<li>\n                połącz punkty przecięcia prostych.\n            </li>\n</ol>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Obejrzyj animację pokazującą wykonanie takiego rysunku.\n        </p>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/art38b9d/width/575/height/328/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    I jeszcze jedna prosta, ale ważna obserwacja.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n    Każdy romb ma tylko jedną wysokość.\n"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Przykład</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W poniższym aplecie możesz przesuwać trzy niebieskie wierzchołki rombu, by zmieniać jego wielkość, kształt i położenie.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Możesz też przesuwać czerwoną i żółtą wysokość (przesuwając punkty w odpowiednich kolorach).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Gdy zaznaczysz \"porównaj wysokości\" zobaczysz, że niezależnie od położenia, są równej długości.\n        </p>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/xvcc3gdm/width/675/height/478/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "4bffe2a8cf1f2ec9a0b290dc55c66e54cc45a28b7a5ddddd20b8335bb4861991"
+}

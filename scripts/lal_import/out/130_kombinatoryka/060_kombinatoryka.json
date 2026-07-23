@@ -1,0 +1,1163 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Ile jest trzycyfrowych liczb parzystych o różnych cyfrach?\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<h4>rozwiązanie (nagranie + krok po kroku)</h4>"
+    },
+    {
+      "type": "tabs",
+      "tabs": [
+        {
+          "id": "t000000",
+          "label": "nagranie",
+          "elements": [
+            {
+              "type": "video",
+              "media_src": "static/trzycyfrowe_parzyste_rozne.mp4"
+            }
+          ]
+        },
+        {
+          "id": "t000001",
+          "label": "krok po kroku",
+          "elements": [
+            {
+              "type": "text",
+              "body": "<p>\n                            Wszystkie cyfry, jakich możemy użyć to\n                        </p>"
+            },
+            {
+              "type": "text",
+              "body": "\n                            \\[\n                            0, 1, 2, 3, 4, 5, 6, 7, 8, 9\n                            \\]\n                        "
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                            Z trzech z nich mamy stworzyć liczbę parzystą. Użyjemy trzech cyfr, bo cyfry tej liczby mają być różne, więc żadna cyfra nie może się powtórzyć. Zacznijmy od ostatniej pozycji.\n                        </p>"
+            },
+            {
+              "type": "table",
+              "data": {
+                "header_row": false,
+                "header_col": false,
+                "border": "grid",
+                "cells": [
+                  [
+                    {
+                      "html": "",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "",
+                      "halign": "left",
+                      "valign": "top"
+                    }
+                  ],
+                  [
+                    {
+                      "html": "",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "",
+                      "halign": "left",
+                      "valign": "top"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                            Cyfra na ostatniej pozycji gwarantuje parzystość naszej liczby, więc możemy tam użyć jednej z \n                            \n\n\n\n\n￿0￿.\n                        ",
+              "options": [
+                "dziesięciu cyfr",
+                "pięciu cyfr",
+                "czterech cyfr",
+                "dziewięciu cyfr"
+              ],
+              "answer": 1
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                            Możemy użyć \\(0\\), \\(2\\), \\(4\\), \\(6\\) i \\(8\\), czyli pięciu cyfr.\n                        </p>"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                            Teraz pomyślmy o pierwszej pozycji. Na niej nie możemy umieścić zera, bo liczba ma być trzycyfrowa.\n                        </p>"
+            },
+            {
+              "type": "table",
+              "data": {
+                "header_row": false,
+                "header_col": false,
+                "border": "grid",
+                "cells": [
+                  [
+                    {
+                      "html": "nie \\(0\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "wybór z 5",
+                      "halign": "left",
+                      "valign": "top"
+                    }
+                  ],
+                  [
+                    {
+                      "html": "",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "",
+                      "halign": "left",
+                      "valign": "top"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                            I tu zaczynają się trudności. Cyfry, jakich możemy użyć na tej pozycji są inne, zależnie od tego, jakiej cyfry użyjemy na ostatniej pozycji.\n                        </p>"
+            },
+            {
+              "type": "table",
+              "data": {
+                "header_row": true,
+                "header_col": false,
+                "border": "grid",
+                "cells": [
+                  [
+                    {
+                      "html": "ostatnia cyfra",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "możliwe cyfry na pierwszej pozycji",
+                      "halign": "left",
+                      "valign": "top"
+                    }
+                  ],
+                  [
+                    {
+                      "html": "\\(0\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(1\\), \\(2\\), \\(3\\), \\(4\\), \\(5\\), \\(6\\), \\(7\\), \\(8\\), \\(9\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    }
+                  ],
+                  [
+                    {
+                      "html": "\\(2\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(1\\), \\(\\require{cancel}\\cancel{2}\\), \\(3\\), \\(4\\), \\(5\\), \\(6\\), \\(7\\), \\(8\\), \\(9\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    }
+                  ],
+                  [
+                    {
+                      "html": "\\(4\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(1\\), \\(2\\), \\(3\\), \\(\\require{cancel}\\cancel{4}\\), \\(5\\), \\(6\\), \\(7\\), \\(8\\), \\(9\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    }
+                  ],
+                  [
+                    {
+                      "html": "\\(6\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(1\\), \\(2\\), \\(3\\), \\(4\\), \\(5\\), \\(\\require{cancel}\\cancel{6}\\), \\(7\\), \\(8\\), \\(9\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    }
+                  ],
+                  [
+                    {
+                      "html": "\\(8\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(1\\), \\(2\\), \\(3\\), \\(4\\), \\(5\\), \\(6\\), \\(7\\), \\(\\require{cancel}\\cancel{8}\\), \\(9\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                            Zwróć uwagę, że jeśli na ostatniej pozycji użyjemy cyfry \\(2\\), \\(4\\), \\(6\\) lub \\(8\\), to nie możemy jej już użyć. Z zerem nie ma tego problemu\n                        </p>"
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                            Dlatego, jeśli ostatnią cyfrą jest \\(0\\), to na pierwszej pozycji możemy umieścić jedną z\n                            \n\n\n\n\n\n￿0￿.\n                        ",
+              "options": [
+                "dziesięciu cyfr",
+                "dziewięciu cyfr",
+                "ośmiu cyfr",
+                "pięciu cyfr",
+                "czterech cyfr"
+              ],
+              "answer": 1
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                            Jednak jeśli ostatnią cyfrą jest \\(2\\), \\(4\\), \\(6\\) lub \\(8\\), to na pierwszej pozycji możemy umieścić jedną z\n                            \n\n\n\n\n\n￿0￿.\n                        ",
+              "options": [
+                "dziesięciu cyfr",
+                "dziewięciu cyfr",
+                "ośmiu cyfr",
+                "pięciu cyfr",
+                "czterech cyfr"
+              ],
+              "answer": 2
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                            Mamy więc dwie sytuacje (na końcu \\(0\\) lub na końcu jedna z liczb \\(2\\), \\(4\\), \\(6\\), \\(8\\)), które należy obliczyć oddzielnie.\n                        </p>"
+            },
+            {
+              "type": "text",
+              "body": "<ul>\n<li>\n                                Jeśli na końcu jest \\(0\\), to:\n                                <ul>\n<li>\n                                        na ostatniej pozycji mamy wybór jednej cyfry (czyli \\(0\\) - skromny wybór),\n                                    </li>\n<li>\n                                        na pierwszej pozycji mamy wybór z dziewięciu cyfr.\n                                    </li>\n</ul>\n</li>\n<li>\n                                Jeśli na końcu jest \\(2\\), \\(4\\), \\(6\\) lub \\(8\\), to:\n                                <ul>\n<li>\n                                        na ostatniej pozycji mamy wybór z czterech cyfr (\\(2\\), \\(4\\), \\(6\\), \\(8\\)),\n                                    </li>\n<li>\n                                        na pierwszej pozycji mamy wybór z ośmiu cyfr.\n                                    </li>\n</ul>\n</li>\n</ul>"
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                            Oznacza to, że (w obu sytuacjach) zużyliśmy już dwie cyfry, więc na środkowej pozycji mamy wybór z\n                            \n\n\n\n￿0￿.\n                        ",
+              "options": [
+                "ośmiu cyfr",
+                "dziewięciu cyfr",
+                "dziesięciu cyfr"
+              ],
+              "answer": 0
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                            To oznacza, że w pierwszej sytuacji (\\(0\\) na końcu) mamy \n                            \n\n\n￿0￿.\n                        ",
+              "options": [
+                "\\(9\\cdot 8\\cdot 1\\) możliwości",
+                "\\(9 + 8 + 1\\) możliwości"
+              ],
+              "answer": 0
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                            Natomiast w drugiej sytuacji (\\(2\\), \\(4\\), \\(6\\) lub \\(8\\) na końcy) mamy\n                            \n\n\n\n￿0￿.\n                        ",
+              "options": [
+                "\\(9\\cdot 8\\cdot 4\\) możliwości",
+                "\\(8\\cdot 8\\cdot 4\\) możliwości",
+                "\\(8 + 8 + 4\\) możliwości"
+              ],
+              "answer": 1
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                            Więc całościowo jest\n                            \n\n\n￿0￿.\n                        ",
+              "options": [
+                "\\(9\\cdot 8\\cdot 1+8\\cdot 8\\cdot 4\\)",
+                "\\(9\\cdot 8\\cdot 1\\cdot 8\\cdot 8\\cdot 4\\)"
+              ],
+              "answer": 0
+            },
+            {
+              "type": "text",
+              "body": "<p>Finalnie mamy więc</p>"
+            },
+            {
+              "type": "text",
+              "body": "\n                            \\[\n                            \\begin{align}\n                            9\\cdot 8\\cdot 1+8\\cdot 8\\cdot 4&amp;=\\\\\n                            =72+256&amp;=\\\\\n                            =328&amp;\n                            \\end{align}\n                            \\]\n                        "
+            },
+            {
+              "type": "text",
+              "body": "<p>możliwości.</p>"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Ile jest czterocyfrowych liczb naturalnych, w których dokładnie jedna cyfra jest parzysta?\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                    Wiemy, że jedna cyfra ma być parzysta, ale nie wiemy, która. Mamy więc cztery oddzielne (rozłączne) sytuacje:\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ol class=\"bold\">\n<li>parzysta jest pierwsza cyfra,</li>\n<li>parzysta jest druga cyfra,</li>\n<li>parzysta jest trzecia cyfra,</li>\n<li>parzysta jest czwarta cyfra.</li>\n</ol>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    No to zacznijmy od \n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ol class=\"bold\">\n<li>umieszczenia cyfry parzystej na pierwszej pozycji.</li>\n</ol>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Spośród wszystkich dziesięciu: \\(0, 1, 2, 3, 4, 5, 6, 7, 8, 9\\) możemy na pierwszej pozycji umieścić jedną z \n                    \n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "9 cyfr",
+            "5 cyfr",
+            "4 cyfry",
+            "10 cyfr"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Cyfry parzyste to \\(0, 2, 4, 6, 8\\), ale zera na pierwszej pozycji nie możemy umieścić, więc zostają nam cztery cyfry.\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    To teraz czas na nieparzyste cyfry na pozostałych miejscach. Na każdym z nich możemy umieścić jedną z\n                </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n\n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "9 cyfr",
+            "5 cyfr",
+            "4 cyfry",
+            "10 cyfr"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    A dokładniej jedną z: \\(1, 3, 5, 7, 9\\).\n                </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    I dlatego kiedy pierwsza cyfra jest parzysta, mamy\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(4\\cdot 5\\cdot 5\\cdot 5\\) możliwości",
+            "\\(4\\cdot 5\\cdot 3\\) możliwości",
+            "\\(4+ 5+5+5\\) możliwości"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Teraz zajmiemy się drugą sytuacją, kiedy \n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ol class=\"bold\" start=\"2\">\n<li>cyfra parzystej jest umieszczona na drugiej pozycji.</li>\n</ol>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Możemy na tej pozycji umieścić jedną z \n                    \n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "9 cyfr",
+            "5 cyfr",
+            "4 cyfry",
+            "10 cyfr"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Tu już nie musimy wykluczać zera, więc pasuje każda z pięciu cyfr parzystych.</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Na pozostałych trzech miejscach umieścimy cyfry nieparzyste. Mamy do wyboru\n                    \n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "9 cyfr",
+            "5 cyfr",
+            "4 cyfry",
+            "10 cyfr"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    I dlatego w drugiej sytuacji jest\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(4\\cdot 5\\cdot 5\\cdot 5\\) możliwości",
+            "\\(5\\cdot 5\\cdot 5\\cdot 5\\) możliwości",
+            "\\(5\\cdot 4\\) możliwości"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Zauważmy, że pozostałe dwie sytuacje:</p>"
+        },
+        {
+          "type": "text",
+          "body": "<ol class=\"bold\" start=\"3\">\n<li>parzysta jest trzecia cyfra,</li>\n<li>parzysta jest czwarta cyfra</li>\n</ol>"
+        },
+        {
+          "type": "text",
+          "body": "<p>są podobne do sytuacji</p>"
+        },
+        {
+          "type": "text",
+          "body": "<strong>2</strong>"
+        },
+        {
+          "type": "text",
+          "body": "<p>. W nich też \\(0\\) jest dozwolone jako cyfra parzysta.</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Dlatego w każdej z tych sytuacji mamy\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(4\\cdot 5\\cdot 5\\cdot 5\\) możliwości",
+            "\\(5\\cdot 5\\cdot 5\\cdot 5\\) możliwości",
+            "\\(5\\cdot 4\\) możliwości"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Na zakończenie wystarczy zsumować:</p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[4\\cdot 5\\cdot 5\\cdot 5+5\\cdot 5\\cdot 5\\cdot 5+5\\cdot 5\\cdot 5\\cdot 5+5\\cdot 5\\cdot 5\\cdot 5\\]\n                "
+        },
+        {
+          "type": "text",
+          "body": "<p>możemy to zapisać prościej:</p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[4\\cdot 5\\cdot 5\\cdot 5+3\\cdot 5\\cdot 5\\cdot 5\\cdot 5\\]\n                "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    albo\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(4\\cdot 5^3+3\\cdot 5^4\\)",
+            "\\(4\\cdot 5^3+3\\cdot 5^3\\)",
+            "\\((4+3)\\cdot 5^7\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Wszystkich takich liczb jest</p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    4\\cdot 5^3+3\\cdot 5^4=500+1875=2375\n                    \\]\n                "
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Pan Antoni planuje dwutygodniowy urlop dla swojej rodziny. Chce spędzić go w dwóch miejscach - po tygodniu w każdym z nich.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Zastanawia się, czy pojechać:</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>nad morze i nad jezioro,</li>\n<li>czy nad jezioro i w góry.</li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Przeglądał oferty na portalu wynajmującym domy wakacyjne dla rodzin i znalazł kilkanaście interesujących go miejsc, a dokładniej:</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>8 miejsc nad morzem,</li>\n<li>11 miejsc nad jeziorem,</li>\n<li>9 miejsc w górach.</li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Ile różnych par miejsc na urlop może wybrać pan Antoni?\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                    Zacznijmy od pierwszej możliwej sytuacji, w której rodzina pana Antoniego jedzie nad morze i nad jezioro.\n                </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    W tej sytuacji pan Antoni ma\n                    \n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(8\\) możliwości",
+            "\\(8\\cdot 11\\) możliwości",
+            "\\(8 + 11\\) możliwości",
+            "\\(11\\) możliwości"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Natomiast w drugiej sytuacji, w któej rodzina pana Antoniego ma pojechać nad jezioro i w góry, pan Antoni ma do wyboru\n                    \n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(9\\) możliwości",
+            "\\(11\\cdot 9\\) możliwości",
+            "\\(11 + 9\\) możliwości",
+            "\\(11\\) możliwości"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    I dlatego całościowo ma\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(88\\cdot 99\\) możliwości",
+            "\\(88+99\\) możliwości"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "table",
+          "data": {
+            "header_row": false,
+            "header_col": false,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "morze i jezioro",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(8\\cdot 11=\\color{blue}{88}\\) możliwości",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "jezioro i góry",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(11\\cdot 9=\\color{green}{99}\\) możliwości",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "<strong>razem</strong>",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\color{blue}{88}+\\color{green}{99}=187\\) możliwości",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W pudełku jest 10 kulek z namalowanymi liczbami od 1 do 10.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ol class=\"bold\" type=\"A\">\n<li>\n<p>\n                    Wyjmujemy z pudełka jedną kulkę, odkładamy ją na bok, po czym wyjmujemy drugą.\n                </p>\n<p>\n                    Na ile sposobów możemy wyjąć kulki, na których liczby sumują się do liczby parzystej?\n                </p>\n</li>\n<li>\n<p>\n                    Wyjmujemy z pudełka jedną kulkę, zapisjemy jej liczbę, a kulkę odkładamy spowrotem do pudełka, po czym wyjmujemy z pudełka drugą kulkę i zapisujemy jej liczbę.\n                </p>\n<p>\n                    Na ile sposobów możemy zapisać liczby, które będą sumować się do liczby nieparzystej?\n                </p>\n</li>\n</ol>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>Uwaga</strong>, kolejność kulek ma znaczenie, tj. wyjęcie najpierw kulki numer 9, a potem kulki numer 5 to inny wynik, niż najpierw wyjęcie kulki numer 5, a potem numer 9.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<h4>rozwiązanie</h4>"
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                    Zacznijmy od obserwacji, że suma dwóch liczb jest parzysta, tylko jeśli\n                    \n\n\n\n\n￿0￿.\n                ",
+      "options": [
+        "obie liczby są parzyste lub obie nieparzyste",
+        "jedna z liczb jest parzysta a druga nieparzysta",
+        "obie liczby są parzyste",
+        "obie liczby są nieparzyste"
+      ],
+      "answer": 0
+    },
+    {
+      "type": "text",
+      "body": "<p>Zapisując w skrócie, jeśli</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li><strong style=\"color: blue;\">P</strong> to liczba parzysta a</li>\n<li><strong style=\"color: red;\">N</strong> to liczba nieparzysta</li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>to</p>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "<strong style=\"color: blue;\">P</strong>\\(+\\)<strong style=\"color: blue;\">P</strong>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(=\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<strong style=\"color: blue;\">P</strong>",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "<strong style=\"color: blue;\">P</strong>\\(+\\)<strong style=\"color: red;\">N</strong>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(=\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<strong style=\"color: red;\">N</strong>",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "<strong style=\"color: red;\">N</strong>\\(+\\)<strong style=\"color: blue;\">P</strong>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(=\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<strong style=\"color: red;\">N</strong>",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "<strong style=\"color: red;\">N</strong>\\(+\\)<strong style=\"color: red;\">N</strong>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(=\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<strong style=\"color: blue;\">P</strong>",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "tabs",
+      "tabs": [
+        {
+          "id": "t000000",
+          "label": "częśćA",
+          "elements": [
+            {
+              "type": "text",
+              "body": "<p>Jeśli suma ma być parzysta, musimy uwzględnić dwie odrębne sytuacje:</p>"
+            },
+            {
+              "type": "text",
+              "body": "<ol class=\"bold\">\n<li>obie liczby są parzyste</li>\n<li>obie liczby są nieparzyste</li>\n</ol>"
+            },
+            {
+              "type": "text",
+              "body": "<u>Zacznijmy od pierwszej</u>"
+            },
+            {
+              "type": "text",
+              "body": "<p>.</p>"
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                                        Wśród dziesięciu liczb na kulkach mamy\n                                        \n\n\n\n￿0￿.\n                                    ",
+              "options": [
+                "\\(5\\) liczb parzystych",
+                "\\(4\\) liczby parzyste",
+                "\\(6\\) liczb parzystych"
+              ],
+              "answer": 0
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                                        Wybieramy jedną z nich, odkładamy na bok i wówczas wśród pozostałych dziewięciu liczb na kulkach mamy\n                                        \n\n\n\n￿0￿.\n                                    ",
+              "options": [
+                "\\(5\\) liczb parzystych",
+                "\\(4\\) liczby parzyste",
+                "\\(6\\) liczb parzystych"
+              ],
+              "answer": 1
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                                        Czyli dwie liczby parzyste możemy wybrać na \\(5\\cdot 4=20\\) sposobów.\n                                    </p>"
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\nW drugiej sytuacji, wśród dziesięciu liczb na kulkach mamy\n                                        \n\n\n\n￿0￿.\n                                    ",
+              "options": [
+                "\\(5\\) liczb nieparzystych",
+                "\\(4\\) liczby nieparzyste",
+                "\\(6\\) liczb nieparzystych"
+              ],
+              "answer": 0
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                                        Wybieramy jedną z nich, odkładamy na bok i wówczas wśród pozostałych dziewięciu liczb na kulkach mamy\n                                        \n\n\n\n￿0￿.\n                                    ",
+              "options": [
+                "\\(5\\) liczb nieparzystych",
+                "\\(4\\) liczby nieparzyste",
+                "\\(6\\) liczb nieparzystych"
+              ],
+              "answer": 1
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                                        Czyli dwie liczby nieparzyste możemy wybrać na \\(5\\cdot 4=20\\) sposobów.\n                                    </p>"
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                                        Dlatego wszystkich możliwości jest\n                                        \n\n\n￿0￿.\n                                    ",
+              "options": [
+                "\\(20^2\\)",
+                "\\(20+20\\)"
+              ],
+              "answer": 1
+            },
+            {
+              "type": "text",
+              "body": "<p>Jeśli</p>"
+            },
+            {
+              "type": "text",
+              "body": "<strong>nie zwracamy</strong>"
+            },
+            {
+              "type": "text",
+              "body": "<p>kulek do pudełka po wyjęciu:</p>"
+            },
+            {
+              "type": "table",
+              "data": {
+                "header_row": false,
+                "header_col": false,
+                "border": "grid",
+                "cells": [
+                  [
+                    {
+                      "html": "\\(\\begin{pmatrix}\\text{pierwsza}\\\\\\text{liczba}\\\\\\text{parzysta}\\end{pmatrix}\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "i",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\begin{pmatrix}\\text{druga}\\\\\\text{liczba}\\\\\\text{parzysta}\\end{pmatrix}\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "lub",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\begin{pmatrix}\\text{pierwsza}\\\\\\text{liczba}\\\\\\text{nieparzysta}\\end{pmatrix}\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "i",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\begin{pmatrix}\\text{druga}\\\\\\text{liczba}\\\\\\text{nieparzysta}\\end{pmatrix}\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "",
+                      "halign": "left",
+                      "valign": "top"
+                    }
+                  ],
+                  [
+                    {
+                      "html": "\\(5\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\cdot\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(4\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(+\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(5\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\cdot\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(4\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(=40\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    }
+                  ]
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "t000001",
+          "label": "częśćB",
+          "elements": [
+            {
+              "type": "text",
+              "body": "<p>Jeśli suma ma być nieparzysta, musimy uwzględnić dwie odrębne sytuacje:</p>"
+            },
+            {
+              "type": "text",
+              "body": "<ol class=\"bold\">\n<li>pierwsza liczba jest <span style=\"color: blue\">parzysta</span>, a druga <span style=\"color: red;\">nieparzysta</span></li>\n<li>pierwsza liczba jest <span style=\"color: red\">nieparzysta</span>, a druga <span style=\"color: blue;\">parzysta</span></li>\n</ol>"
+            },
+            {
+              "type": "text",
+              "body": "<u>Zacznijmy od pierwszej</u>"
+            },
+            {
+              "type": "text",
+              "body": "<p>.</p>"
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                                        Wśród dziesięciu liczb na kulkach mamy\n                                        \n\n\n\n￿0￿.\n                                    ",
+              "options": [
+                "\\(5\\) liczb parzystych",
+                "\\(4\\) liczby parzyste",
+                "\\(6\\) liczb parzystych"
+              ],
+              "answer": 0
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                                        Wybieramy jedną z nich, zapisujemy liczbę, a kulkę odkładamy spowrotem do pudełka. Wówczas ponownie wybieramy z dziesięciu kulek, a wśród liczb na nich mamy\n                                        \n\n\n\n￿0￿.\n                                    ",
+              "options": [
+                "\\(5\\) liczb nieparzystych",
+                "\\(4\\) liczby nieparzyste",
+                "\\(6\\) liczb nieparzystych"
+              ],
+              "answer": 0
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                                        Czyli liczbę parzystą a po niej nieparzystą możemy wybrać na \\(5\\cdot 5=25\\) sposobów.\n                                    </p>"
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\nW drugiej sytuacji, wśród dziesięciu liczb na kulkach mamy\n                                        \n\n\n\n￿0￿.\n                                    ",
+              "options": [
+                "\\(5\\) liczb nieparzystych",
+                "\\(4\\) liczby nieparzyste",
+                "\\(6\\) liczb nieparzystych"
+              ],
+              "answer": 0
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                                        Wybieramy jedną z nich, zapisujemy liczbę, a kulkę odkładamy spowrotem do pudełka. Wówczas ponownie wybieramy z dziesięciu kulek, a wśród liczb na nich mamy\n                                        \n\n\n\n￿0￿.\n                                    ",
+              "options": [
+                "\\(5\\) liczb parzystych",
+                "\\(4\\) liczby parzyste",
+                "\\(6\\) liczb parzystych"
+              ],
+              "answer": 0
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                                        Czyli liczbę nieparzystą, a po niej parzystą możemy wybrać na \\(5\\cdot 5=25\\) sposobów.\n                                    </p>"
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                                        Dlatego wszystkich możliwości jest\n                                        \n\n\n￿0￿.\n                                    ",
+              "options": [
+                "\\(25^2\\)",
+                "\\(25+25\\)"
+              ],
+              "answer": 1
+            },
+            {
+              "type": "text",
+              "body": "<p>Jeśli</p>"
+            },
+            {
+              "type": "text",
+              "body": "<strong>zwracamy</strong>"
+            },
+            {
+              "type": "text",
+              "body": "<p>kulki do pudełka po wyjęciu:</p>"
+            },
+            {
+              "type": "table",
+              "data": {
+                "header_row": false,
+                "header_col": false,
+                "border": "grid",
+                "cells": [
+                  [
+                    {
+                      "html": "\\(\\begin{pmatrix}\\text{pierwsza}\\\\\\text{liczba}\\\\\\text{parzysta}\\end{pmatrix}\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "i",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\begin{pmatrix}\\text{druga}\\\\\\text{liczba}\\\\\\text{nieparzysta}\\end{pmatrix}\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "lub",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\begin{pmatrix}\\text{pierwsza}\\\\\\text{liczba}\\\\\\text{nieparzysta}\\end{pmatrix}\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "i",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\begin{pmatrix}\\text{druga}\\\\\\text{liczba}\\\\\\text{parzysta}\\end{pmatrix}\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "",
+                      "halign": "left",
+                      "valign": "top"
+                    }
+                  ],
+                  [
+                    {
+                      "html": "\\(5\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\cdot\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(5\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(+\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(5\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\cdot\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(5\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(=50\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    }
+                  ]
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "52352ad39f354ca20cf94dd9bb249a49becfa564b65025758b7530a516c83f8f"
+}

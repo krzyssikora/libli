@@ -1,0 +1,18 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<h1>\n    Podstawowe tożsamości trygonometryczne\n</h1>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>\n            Tożsamość\n        </strong>\n        to równość, która jest zawsze prawdziwa. Zawsze, lub przy pewnych założeniach.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n            Bardzo prostym przykładem tożsamości jest równość:\n                                                                                                \\[\n                                                                                                x-x=0\n                                                                                                \\]\n                                                                                                która jest prawdziwa dla każdej liczby \\(x\\in\\mathbb{R}\\).\n        </li>\n<li>\n            Innym przykładem jest równość:\n                                                                                                \\[\n                                                                                                \\frac{x}{x}=1\n                                                                                                \\]\n                                                                                                która jest prawdziwa dla każdej liczby \\(x\\in\\mathbb{R}\\) ale przy założeniu, że \\(x\\ne 0\\).\n        </li>\n</ul>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "be45a33ac342253108bed6a4f8273765ce8fc99acd3313c113395720b5746e65"
+}

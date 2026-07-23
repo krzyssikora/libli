@@ -1,0 +1,59 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>Jak zapewne wiesz, prosta może</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul style=\"list-style-type:square\">\n<li>\n        przecinać okrąg w dwóch punktach albo\n    </li>\n<li>\n        dotykać go w jednym punkcie (być styczną) albo\n    </li>\n<li>\n        przechodzić obok okręgu bez żadnych punktów wspólnych.\n    </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Tak więc, gdy rozwiązujemy układ równań (złożony z równania okręgu i równania prostej), po podstawieniu otrzymujemy jedno równanie, które ma</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul style=\"list-style-type:square\">\n<li>\n<strong>\n            dwa\n        </strong>\n        rozwiązania (dwa punkty przecięcia)\n    </li>\n<li>\n<strong>\n            jedno\n        </strong>\n        rozwiązanie (jeden punkt styczności)\n    </li>\n<li>\n<strong>\n            zero\n        </strong>\n        rozwiązań (prosta omijająca okrąg)\n    </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>To jedno równanie, które otrzymujemy po podstawieniu to</p>"
+    },
+    {
+      "type": "text",
+      "body": "<strong>\n    równanie kwadratowe\n</strong>"
+    },
+    {
+      "type": "text",
+      "body": "<p>, które, jak wiemy, może mieć</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul style=\"list-style-type:square\">\n<li>\n<strong>\n            dwa\n        </strong>\n        rozwiązania (\\(\\Delta \\gt 0\\))\n    </li>\n<li>\n<strong>\n            jedno\n        </strong>\n        rozwiązanie (\\(\\Delta = 0\\))\n    </li>\n<li>\n<strong>\n            zero\n        </strong>\n        rozwiązań (\\(\\Delta \\lt 0\\))\n    </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>W poniższym aplecie możesz przesuwać prostą oraz zmieniać położenie i wielkość okręgu. Poniżej widzisz:</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n<span style=\"color: blue\">\n                    równanie okręgu\n                </span>\n                ,\n            </li>\n<li>\n<span style=\"color: red\">\n                    równanie prostej\n                </span>\n                ,\n            </li>\n<li>\n<span style=\"color: green\">\n                    równanie powstałe po podstawieniu równania prostej do równania okręgu\n                </span>\n                ,\n            </li>\n<li>\n<span style=\"color: green\">\n                    informację, czy wyróżnik równania (delta) jest dodatni, zerowy, czy ujemny\n                </span>\n</li>\n</ul>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/dnqfvvut/width/525/height/811/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>Sprawdź, jak zmienia się wyróżnik w zależności od liczby punktów wspólnych prostej i okręgu.</p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "028a8dffd396a0881ccf4270b9127d2e436ee45695f47b6f3c5f23ad28dd7a75"
+}

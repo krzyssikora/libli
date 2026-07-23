@@ -625,6 +625,7 @@ def _val_fill_table(data, elid, media_kinds):
     rows = data.get("cells")
     if rows is not None and not isinstance(rows, list):
         _err(_("Element '%(el)s': fill-in table cells must be a list."), el=elid)
+    refs = set()
     for row in rows or []:
         if not isinstance(row, list):
             _err(_("Element '%(el)s': fill-in table row must be a list."), el=elid)
@@ -634,7 +635,9 @@ def _val_fill_table(data, elid, media_kinds):
                     _("Element '%(el)s': fill-in table cell must be an object."),
                     el=elid,
                 )
-    return set()
+            if cell.get("kind") == "image":
+                refs |= _require_media(cell.get("media"), elid, media_kinds, "image")
+    return refs
 
 
 def _val_tabs(data, elid, media_kinds):
@@ -703,6 +706,8 @@ def validate_nesting(elements):
     parent chain deeper than one level -- that depth bound is what lets the editor's
     recursive row template terminate without a guard."""
     from courses.builder import NESTABLE_TYPE_KEYS
+    from courses.builder import SPOILER_CHILD_TYPES
+    from courses.models import SpoilerElement
 
     # Step 4a applies the v2 shim before _exact_keys, so both keys are present.
     by_id = {el["id"]: el for el in elements}
@@ -713,15 +718,34 @@ def validate_nesting(elements):
         parent = by_id.get(parent_ref)
         if parent is None:
             _err(_("Element '%(el)s' references an unknown parent."), el=el["id"])
-        slot_key = _CONTAINER_SLOT_KEY.get(parent["type"])
-        if slot_key is None:
-            _err(
-                _("Element '%(el)s' has a parent that is not a container element."),
-                el=el["id"],
-            )
+        # Slot-membership: spoiler is a single-slot container with no `data` slot
+        # list, so its sole valid slot id is SpoilerElement.SLOT_ID; every other
+        # container reads its slot list from `data` via _CONTAINER_SLOT_KEY.
+        if parent["type"] == "spoiler":
+            valid_slot_ids = {SpoilerElement.SLOT_ID}
+            # Defence-in-depth: match resolve_scope()'s spoiler allowlist
+            # (SPOILER_CHILD_TYPES = static + interactive leaves) so a still-disallowed
+            # child — a container like tabs, or a non-fillblank question — that slips
+            # past a hostile/older-loader archive is rejected here too, not just via
+            # the general NESTABLE_TYPE_KEYS check below (which is broader — it also
+            # permits e.g. a container type as a tabs child).
+            if el["type"] not in SPOILER_CHILD_TYPES:
+                _err(
+                    _("Element '%(el)s' may not be nested inside a spoiler."),
+                    el=el["id"],
+                )
+        else:
+            slot_key = _CONTAINER_SLOT_KEY.get(parent["type"])
+            if slot_key is None:
+                _err(
+                    _("Element '%(el)s' has a parent that is not a container element."),
+                    el=el["id"],
+                )
+            valid_slot_ids = {s["id"] for s in parent["data"][slot_key]}
+        # Depth check runs for EVERY container (must NOT be skipped for spoiler).
         if parent["parent"] is not None:
             _err(_("Element '%(el)s' is nested more than one level deep."), el=el["id"])
-        if el["tab"] not in {s["id"] for s in parent["data"][slot_key]}:
+        if el["tab"] not in valid_slot_ids:
             _err(
                 _("Element '%(el)s' references a slot its parent does not have."),
                 el=el["id"],

@@ -1,0 +1,194 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Rozważmy zdanie:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<blockquote class=\"centered\">\n    Jeśli złapię autobus, zdążę do szkoły.\n</blockquote>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    To zdanie jest implikacją postaci:\n</p>"
+    },
+    {
+      "type": "math",
+      "latex": "\np\\Rightarrow q\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    gdzie\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n        \\(p\\) oznacza \"\n        <em>\n            złapię autobus\n        </em>\n        \",\n    </li>\n<li>\n        \\(q\\) oznacza \"\n        <em>\n            zdążę do szkoły\n        </em>\n        \".\n    </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Rozpatrzmy cztery możliwe wartości logiczne zdań \\(p\\) i \\(q\\) oraz całej implikacji.\n</p>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": true,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "zdanie \\(p\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "zdanie \\(q\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "implikacja",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "1.",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "złapałem autobus\n                    <br/>\n<span style=\"color: green;\">\n                        \\(p\\) prawdziwe\n                    </span>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "zdążyłem do szkoły\n                    <br/>\n<span style=\"color: green;\">\n                        \\(q\\) prawdziwe\n                    </span>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "implikacja prawdziwa",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "2.",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "złapałem autobus\n                    <br/>\n<span style=\"color: green;\">\n                        \\(p\\) prawdziwe\n                    </span>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "nie zdążyłem do szkoły\n                    <br/>\n<span style=\"color: red;\">\n                        \\(q\\) fałszywe\n                    </span>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "implikacja fałszywa",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "3.",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "nie złapałem autobusu\n                    <br/>\n<span style=\"color: red;\">\n                        \\(p\\) fałszywe\n                    </span>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "zdążyłem do szkoły\n                    <br/>\n<span style=\"color: green;\">\n                        \\(q\\) prawdziwe\n                    </span>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "implikacja prawdziwa",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "4.",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "nie złapałem autobusu\n                    <br/>\n<span style=\"color: red;\">\n                        \\(p\\) fałszywe\n                    </span>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "nie zdążyłem do szkoły\n                    <br/>\n<span style=\"color: red;\">\n                        \\(q\\) fałszywe\n                    </span>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "implikacja prawdziwa",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Pierwsze dwa przypadki są raczej proste:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Złapałem autobus, więc z implikacji wynika, że muszę zdążyć do szkoły.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n        zdążąm - implikacja jest prawdziwa,\n    </li>\n<li>\n        nie zdążam - implikacja jest fałszywa\n    </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Przypadki 3. i 4. budzą czasem wątpliwości. Zwłaszcza przypadek 3. Jakim cudem zdążyłem do szkoły, skoro nie złapałem autobusu? Przecież miałem zdążyć do szkoły\n    <em>\n        tylko\n    </em>\n    po złapaniu autobusu...\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Czy aby na pewno\n    <em>\n        tylko\n    </em>\n    ? Otóż nie!\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Implikacja była \"obietnicą\", że zdążę do szkoły, jeśli złapię autobus. Ta implikacja\n    <strong>\n        nie mówiła nic\n    </strong>\n    , co się stanie, jeśli nie złapię autobusu...!\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Jest możliwe, że po spóźnieniu się na autobus nie zdążę do szkoły (przypadek 4.), i implikacja pozostaje prawdziwa.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Jest też możliwe, że po spóźnieniu się na autobus zdążę do szkoły (przypadek 3.), bo np. znajomy mnie podwiezie samochodem. Implikacja tego przypadku nie obejmowała, pozostaje więc prawdziwa!\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Z powyższego widzimy, że implikacja \\(p\\Rightarrow q\\) jest fałszywa\n    <u>\n        wtedy i tylko wtedy\n    </u>\n    , gdy zdanie \\(p\\) jest prawdziwe, a zdanie \\(q\\) jest fałszywe.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n    \\[\n    \\neg(p\\Rightarrow q)\\Leftrightarrow(p\\wedge\\neg q)\n    \\]\n"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "0913088bdd5f88773eb3d650f91fbe24680b4a71dc0853405cf88be068066812"
+}

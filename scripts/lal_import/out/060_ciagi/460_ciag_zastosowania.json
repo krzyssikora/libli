@@ -1,0 +1,194 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    I wreszcie trzecie zadanie łączące ciąg arytmetyczny z geometrycznym.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Ciąg \\((a_n)\\) jest ciągiem arytmetycznym o pierwszym wyrazie równym \\(2\\) i różnicy \\(3\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Ciąg \\((b_n)\\) zdefiniowany jest równaniem ogólnym:\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n            \\[\n            b_n=2^{a_n},\\quad\\text{ dla }n\\in\\mathbb{N}^{+}\n            \\]\n        "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Udowodnij, że ciąg \\((b_n)\\) jest geometryczny i znajdź liczbę naturalną \\(k\\) taką, że suma pierwszych \\(k\\) wyrazów ciągu \\(b_n\\) jest równa \\(2340\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<h4>rozwiązanie</h4>"
+    },
+    {
+      "type": "tabs",
+      "tabs": [
+        {
+          "id": "t000000",
+          "label": "nagranie",
+          "elements": [
+            {
+              "type": "text",
+              "body": "<p>\n<strong>wzór ogólny ciągu arytmetycznego</strong>\n</p>"
+            },
+            {
+              "type": "video",
+              "media_src": "static/ap_gp_3_1.mp4"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n<strong>dowód, że drugi ciąg jest geometryczny</strong>\n</p>"
+            },
+            {
+              "type": "video",
+              "media_src": "static/ap_gp_3_2.mp4"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n<strong>obliczenie wartości \\(k\\)</strong>\n</p>"
+            },
+            {
+              "type": "video",
+              "media_src": "static/ap_gp_3_3.mp4"
+            }
+          ]
+        },
+        {
+          "id": "t000001",
+          "label": "krok po kroku",
+          "elements": [
+            {
+              "type": "text",
+              "body": "<p>Skoro</p>"
+            },
+            {
+              "type": "text",
+              "body": "<blockquote>\n                            \\((a_n)\\) jest ciągiem arytmetycznym o pierwszym wyrazie równym \\(2\\) i różnicy \\(3\\)\n                        </blockquote>"
+            },
+            {
+              "type": "text",
+              "body": "<p>to możemy, z użyciem wzoru\n                        \\[\n                        a_n=a_1+(n-1)r\n                        \\]</p>"
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                            wyznaczyć wzór na \\(n\\)-ty wyraz ciągu:\n                            \n\n\n\n￿0￿.\n                        ",
+              "options": [
+                "\\(a_n=2+3n\\)",
+                "\\(a_n=3n-1\\)",
+                "\\(a_n=2n+1\\)"
+              ],
+              "answer": 1
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                            A skoro \\(a_n=3n-1\\), to \\(b_n=2^{3n-1}\\).\n                        </p>"
+            },
+            {
+              "type": "text",
+              "body": "<p>Ustalmy wzór na kolejny wyraz tego ciągu, \\(b_{n+1}\\):\n                        \\[\n                        b_{n+1}=2^{3(\\color{red}{n+1})-1}\n                        \\]</p>"
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                            i dlatego \n                            \n\n\n\n￿0￿.\n                        ",
+              "options": [
+                "\\(b_{n+1}=2^{3n+2}\\)",
+                "\\(b_{n+1}=2^{3n+1}\\)",
+                "\\(b_{n+1}=2^{3n+3}\\)"
+              ],
+              "answer": 0
+            },
+            {
+              "type": "text",
+              "body": "<p>Żeby udowodnić, że ciąg \\((b_n)\\) jest geometryczny, musimy pokazać, że stosunek \\(q=\\frac{b_{n+1}}{b_n}\\) jest stały, niezależny od wartości \\(n\\).</p>"
+            },
+            {
+              "type": "text",
+              "body": "\n                            \\[\n                            q=\\frac{b_{n+1}}{b_n}=\\frac{2^{3n+2}}{2^{3n-1}}=2^{(3n+2)-(3n-1)}\n                            \\]\n                        "
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                            I dlatego\n                            \n\n\n\n￿0￿.\n                        ",
+              "options": [
+                "\\(q=6\\)",
+                "\\(q=8\\)",
+                "\\(q=9\\)"
+              ],
+              "answer": 1
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                            Iloraz \\(q=\\frac{b_{n+1}}{b_n}=8\\) jest stały, więc ciąg \\((b_n)\\) jest geometryczny.\n                        </p>"
+            },
+            {
+              "type": "text",
+              "body": "<p>Na zakończenie chcemy znaleźć</p>"
+            },
+            {
+              "type": "text",
+              "body": "<i>liczbę naturalną \\(k\\) taką, że</i>"
+            },
+            {
+              "type": "text",
+              "body": "<p>\\[\n                        \\textbf{*}\\quad\\quad\\quad S_k=2340\n                        \\]\n                        Użyjemy wzoru\n                        \\[\n                        \\textbf{**}\\quad\\quad S_k=b_1\\cdot \\frac{1-q^k}{1-q}\n                        \\]\n                        ale najpierw musimy znaleźć pierwszy wyraz, \\(b_1\\).</p>"
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                            Znając wzór \\(b_n=2^{3n-1}\\) obliczamy, że\n                            \n\n\n\n￿0￿.\n                        ",
+              "options": [
+                "\\(b_1=4\\)",
+                "\\(b_1=6\\)",
+                "\\(b_1=8\\)"
+              ],
+              "answer": 0
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                            Teraz, zestawiając ze sobą wzory (* i **) otrzymujemy równanie\n                            \n\n\n￿0￿.\n                        ",
+              "options": [
+                "\\(4\\cdot \\frac{1-8^k}{1-8}=2340\\)",
+                "\\(8\\cdot \\frac{1-4^k}{1-4}=2340\\)"
+              ],
+              "answer": 0
+            },
+            {
+              "type": "text",
+              "body": "<p>Uprośćmy równanie:\n                        \\[\n                        \\begin{align}\n                        4\\cdot \\frac{1-8^k}{1-8}&=2340\\\\\n                        4\\cdot \\frac{1-8^k}{-7}&=2340\\\\\n                        -\\frac{4}{7}\\cdot (1-8^k)&=2340\\\\\n                        1-8^k&=2340\\cdot \\left(-\\frac{7}{4}\\right)\\\\\n                        1-8^k&=-4095\\\\\n                        8^k&=4096\\\\\n                        \\end{align}\n                        \\]</p>"
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                            Sprawdzamy kolejne potęgi ósemki: \\(8^1=8\\), \\(8^2=64\\), \\(8^3=512\\), ... i ustalamy, że \n                            \n\n\n\n￿0￿.\n                        ",
+              "options": [
+                "\\(k=3\\)",
+                "\\(k=4\\)",
+                "\\(k=5\\)"
+              ],
+              "answer": 1
+            },
+            {
+              "type": "text",
+              "body": "<p>Suma</p>"
+            },
+            {
+              "type": "text",
+              "body": "<strong>czterech</strong>"
+            },
+            {
+              "type": "text",
+              "body": "<p>pierwszych wyrazów ciagu \\((b_n)\\) jest równa \\(2340\\).</p>"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "9ecbefc91855002b534b8ad76ad68071ec8164b8bc920c1f88d1a8cac3977724"
+}

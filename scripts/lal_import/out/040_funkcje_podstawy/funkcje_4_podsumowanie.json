@@ -1,0 +1,182 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<h1>\n    Podstawowe własności wybranych funkcji - podsumowanie\n</h1>"
+    },
+    {
+      "type": "text",
+      "body": "\n        równanie\n    "
+    },
+    {
+      "type": "text",
+      "body": "\n        \\(y=\\frac{c}{x}\\)\n    "
+    },
+    {
+      "type": "text",
+      "body": "\n        \\(y=a^x\\)\n    "
+    },
+    {
+      "type": "text",
+      "body": "\n        \\(y=\\log_a x\\)\n    "
+    },
+    {
+      "type": "text",
+      "body": "\n        \\(c\\gt 0\\)\n    "
+    },
+    {
+      "type": "text",
+      "body": "\n        \\(c\\lt 0\\)\n    "
+    },
+    {
+      "type": "text",
+      "body": "\n        \\(a\\gt 1\\)\n    "
+    },
+    {
+      "type": "text",
+      "body": "\n        \\(0\\lt a\\lt 1\\)\n    "
+    },
+    {
+      "type": "text",
+      "body": "\n        \\(a\\gt 1\\)\n    "
+    },
+    {
+      "type": "text",
+      "body": "\n        \\(0\\lt a\\lt 1\\)\n    "
+    },
+    {
+      "type": "text",
+      "body": "\n        dziedzina\n    "
+    },
+    {
+      "type": "text",
+      "body": "\n        \\(x\\in\\mathbb{R}\\setminus\\{0\\}\\)\n    "
+    },
+    {
+      "type": "text",
+      "body": "\n        \\(x\\in\\mathbb{R}\\)\n    "
+    },
+    {
+      "type": "text",
+      "body": "\n        \\(x\\ge 0\\)\n    "
+    },
+    {
+      "type": "text",
+      "body": "\n        zbiór wartości\n    "
+    },
+    {
+      "type": "text",
+      "body": "\n        \\(y\\in\\mathbb{R}\\setminus\\{0\\}\\)\n    "
+    },
+    {
+      "type": "text",
+      "body": "\n        \\(y\\ge 0\\)\n    "
+    },
+    {
+      "type": "text",
+      "body": "\n        \\(y\\in\\mathbb{R}\\)\n    "
+    },
+    {
+      "type": "text",
+      "body": "\n        monotoniczność\n    "
+    },
+    {
+      "type": "text",
+      "body": "\n        maleje dla \\(x\\lt 0\\) i potem dla \\(x\\gt 0\\)\n    "
+    },
+    {
+      "type": "text",
+      "body": "\n        rośnie dla \\(x\\lt 0\\) i potem dla \\(x\\gt 0\\)\n    "
+    },
+    {
+      "type": "text",
+      "body": "\n        rośnie\n    "
+    },
+    {
+      "type": "text",
+      "body": "\n        maleje\n    "
+    },
+    {
+      "type": "text",
+      "body": "\n        rośnie\n    "
+    },
+    {
+      "type": "text",
+      "body": "\n        maleje\n    "
+    },
+    {
+      "type": "text",
+      "body": "\n        punkty na osiach\n    "
+    },
+    {
+      "type": "text",
+      "body": "\n        brak\n    "
+    },
+    {
+      "type": "text",
+      "body": "\n        \\((0,1)\\)\n    "
+    },
+    {
+      "type": "text",
+      "body": "\n        \\((1,0)\\)\n    "
+    },
+    {
+      "type": "text",
+      "body": "\n        asymptoty\n    "
+    },
+    {
+      "type": "text",
+      "body": "\n        pozioma \\(y=0\\), pionowa \\(x=0\\)\n    "
+    },
+    {
+      "type": "text",
+      "body": "\n        pozioma \\(y=0\\)\n    "
+    },
+    {
+      "type": "text",
+      "body": "\n        pionowa \\(x=0\\)\n    "
+    },
+    {
+      "type": "text",
+      "body": "\n        symetrie\n    "
+    },
+    {
+      "type": "text",
+      "body": "\n        wykres ma środek symetrii \\((0,0)\\)\n    "
+    },
+    {
+      "type": "text",
+      "body": "\n        wykresy funkcji o\n        <strong>\n            odwrotnych\n        </strong>\n        podstawach są symetryczne w osi \\(y\\)\n    "
+    },
+    {
+      "type": "text",
+      "body": "\n        wykresy funkcji o\n        <strong>\n            odwrotnych\n        </strong>\n        podstawach są symetryczne w osi \\(x\\)\n    "
+    },
+    {
+      "type": "text",
+      "body": "\n        położenie wykresu\n    "
+    },
+    {
+      "type": "text",
+      "body": "\n        I i III ćwiartka\n    "
+    },
+    {
+      "type": "text",
+      "body": "\n        II i IV ćwiartka\n    "
+    },
+    {
+      "type": "text",
+      "body": "\n        nad osią \\(x\\) (I i II ćwiartka)\n    "
+    },
+    {
+      "type": "text",
+      "body": "\n        w prawo od osi \\(y\\) (I i IV ćwiartka)\n    "
+    },
+    {
+      "type": "text",
+      "body": "\n<a href=\"funkcje_0.html\">\n        wróć do spisu zagadnień\n    </a>\n"
+    }
+  ],
+  "fully_mapped": false,
+  "seed_hash": "086927e3fa694793c6c6d0fa3570d124be4f4726d01b3619d61986d1acccfde4"
+}

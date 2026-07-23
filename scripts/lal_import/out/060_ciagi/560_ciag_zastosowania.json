@@ -1,0 +1,281 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Pan Michał założył lokatę na 12 miesięcy i wpłacił na nią \\(10\\,000\\) zł. Oprocentowanie lokaty to \\(6\\%\\), a kapitalizacja odsetek jest roczna. \n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Lokata jest odnawialna, a odsetki są każdorazowo <strong style=\"color: blue;\">dołączane do kapitału lokaty</strong>.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Pan Michał zamknął lokatę po pięciu latach. Jaki jest całkowity zysk pana Michała z tej lokaty?\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                    Zacznijmy od tego, że\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<blockquote>\n                    \"odsetki są każdorazowo dołączane do kapitału lokaty\"\n                </blockquote>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    co oznacza, że mamy do czynienia z procentem\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "prostym",
+            "składanym"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Zwróćmy uwagę, że odsetki będą za każdym razem liczone z innego, powiększonego kapitału lokaty. Łatwiej nam będzie liczyć zmieniony kapitał, i dopiero na końcu ustalić zysk, zamiast za każdym razem liczyć odsetki, a z nich nowych kapitał. \n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Dlatego:\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>\n                        nie będziemy liczyć \\(6\\%\\) odsetek i dodawać ich do kapitału lokaty,\n                    </li>\n<li>\n                        lecz od razu powiększymy kapitał o \\(6\\%\\).\n                    </li>\n</ul>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Powiększyć kapitał o \\(6\\%\\) to inaczej pomnożyć go przez\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(6\\)",
+            "\\(0,06\\)",
+            "\\(1,06\\)"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "text",
+          "body": "<p>Oznaczmy kapitał początkowy lokaty przez \\(K_0\\) (oczywiście \\(K_0=10\\,000\\)) i ogólnie: kapitał po \\(n\\) latach przez \\(K_n\\).</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Wówczas kapitał po roku (\\(K_1\\)) otrzymamy z kapitału początkowego (\\(K_0\\)) obliczając\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(K_1=K_0\\cdot 1,06\\)",
+            "\\(K_1=K_0\\cdot 6\\)",
+            "\\(K_1=K_0\\cdot 0,06\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Podobnie kapitał po dwóch latach (\\(K_2\\)) otrzymamy z kapitału po roku (\\(K_1\\)) obliczając\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(K_2=K_1\\cdot 1,06\\)",
+            "\\(K_2=K_1\\cdot 6\\)",
+            "\\(K_2=K_1\\cdot 0,06\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>A skoro</p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    \\begin{align}\n                    \\color{blue}{K_1}&amp;=\\color{blue}{K_0\\cdot 1,06}\\\\\n                    K_2&amp;=\\color{blue}{K_1}\\cdot 1,06\n                    \\end{align}\n                    \\]\n                "
+        },
+        {
+          "type": "text",
+          "body": "<p>to</p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    K_2=\\color{blue}{(K_0\\cdot 1,06)}\\cdot 1,06\n                    \\]\n                "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    czyli\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(K_2=K_0\\cdot 1,06\\cdot 2\\)",
+            "\\(K_2=K_0\\cdot 1,06^2\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Podobnie:</p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    K_3=\\color{blue}{K_2}\\cdot 1,06\n                    \\]\n                "
+        },
+        {
+          "type": "text",
+          "body": "<p>a skoro</p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    \\color{blue}{K_2}=\\color{blue}{K_0\\cdot 1,06^2}\n                    \\]\n                "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    to\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(K_3=K_0\\cdot 1,06^3\\)",
+            "\\(K_3=K_0\\cdot 1,06\\cdot 33\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Powtarzając to rozumowanie dochodzimy do wniosku, że</p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    \\color{blue}{K_n}=\\color{blue}{K_0\\cdot 1,06^n}\n                    \\]\n                "
+        },
+        {
+          "type": "text",
+          "body": "<p>dla dowolnego, naturalnego \\(n\\).</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    I dlatego kapitał po pięciu latach będzie równy\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(K_5=K_0\\cdot 1,06^4\\)",
+            "\\(K_5=K_0\\cdot 1,06^5\\)",
+            "\\(K_5=K_0\\cdot 1,06^6\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Obliczmy, korzystając z kalkulatora:\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    \\begin{align}\n                    K_5&amp;=K_0\\cdot 1,06^5=\\\\\n                    &amp;=10000\\cdot 1,06^5=\\\\\n                    &amp;\\approx 10000\\cdot 1,338225578=\\\\\n                    &amp;= 13382,25578\\\\\n                    \\end{align}\n                    \\]\n                "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Wynik jest w złotówkach, więc zaokrąglimy go do jednego grosza:\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(K_5=13\\,382\\)",
+            "\\(K_5=13\\,382,25\\)",
+            "\\(K_5=13\\,382,26\\)"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    W zadaniu pytanie było o\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<blockquote>\n                    \"całkowity zysk pana Michała z tej lokaty\"\n                </blockquote>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    więc od kapitału końcowego musimy odjąć kapitał początkowy otrzymując \n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(3\\,382,26\\)",
+            "\\(382,26\\)",
+            "\\(3\\,382\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Zysk z lokaty na procent składany wyniósł \\(3\\,382\\) złote \\(26\\) groszy.</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    W zadaniu ustaliliśmy, że jeśli\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n        \\(K_0\\) to kapitał początkowy w złotych w lokacie na procent składany,\n    </li>\n<li>\n        \\(p\\) to oprocentowanie (w procentach),\n    </li>\n<li>\n        \\(n\\) to liczba kapitalizacji (liczba lat)\n    </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    to kapitał po \\(n\\) kapitalizacjach jest równy\n</p>"
+    },
+    {
+      "type": "math",
+      "latex": "\nK_0\\left(1+\\cdot \\frac{p}{100}\\right)^n\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Niech \\(K_n\\) oznacza wysokość kapitału po \\(n\\) kapitalizacjach (latach) oszczędzania na <strong>procent składany</strong>.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        \\(K_0\\) oznacza kapitał po \\(0\\) kapitalizacjach, czyli <u>kapitał początkowy</u>.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Niech \\(p\\%\\) będzie rocznym oprocentowaniem lokaty.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Wówczas dla \\(n\\in\\mathbb{N}\\):\n    </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n    K_n=K_0\\left(1+\\frac{p}{100}\\right)^n\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Udowodnij, że ciąg \\((K_n)\\) określony jak wyżej jest geometryczny.\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n            Skoro\n        </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n        K_n=K_0\\left(1+\\frac{p}{100}\\right)^n\n        "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            to\n        </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n        K_{n+1}=K_0\\left(1+\\frac{p}{100}\\right)^{n+1}\n        "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            a to oznacza, że\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n            \\[\n            \\begin{align}\n            \\frac{K_{n+1}}{K_n}&amp;=\\frac{K_0\\left(1+\\frac{p}{100}\\right)^{n+1}}{K_0\\left(1+\\frac{p}{100}\\right)^n}=&amp;\\text{skracamy }K_0\\\\\n            &amp;=\\frac{\\require{cancel}\\cancel{K_0}\\left(1+\\frac{p}{100}\\right)^{n+1}}{\\require{cancel}\\cancel{K_0}\\left(1+\\frac{p}{100}\\right)^n}=&amp;\\\\\n            &amp;=\\frac{\\left(1+\\frac{p}{100}\\right)^{n+1}}{\\left(1+\\frac{p}{100}\\right)^n}=&amp;\\text{ dzielimy potęgi o tej samej podstawie}\\\\\n            &amp;=\\left(1+\\frac{p}{100}\\right)^{(n+1)-n}=&amp;\\\\\n            &amp;=\\left(1+\\frac{p}{100}\\right)^{1}=&amp;\\\\\n            &amp;=1+\\frac{p}{100}&amp;\\\\\n            \\end{align}\n            \\]\n        "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Ponieważ \\(p\\) jest stałe, iloraz \\(q=\\frac{K_{n+1}}{K_n}\\) też jest stały, a to oznacza, że ciąg \\((K_n)\\) jest geometryczny.\n        </p>"
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "ceb9674c50e785dd6743b90d6b1d9dbb1f322d8ed173a19d04ca20d345031219"
+}

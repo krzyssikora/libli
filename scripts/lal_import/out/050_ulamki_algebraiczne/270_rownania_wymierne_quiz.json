@@ -1,0 +1,184 @@
+{
+  "elements": [
+    {
+      "type": "choice",
+      "stem": "<p>Ułamek</p><p>\\(\\frac{-2x+3}{5x-1}\\)</p><p>jest równoważny ułamkowi</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(\\frac{-2x+3}{-5x+1}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\frac{2x-3}{5x-1}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\frac{2x-3}{-5x+1}\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\frac{2x+3}{5x+1}\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Wyrażenie</p><p>\\(\\frac{-3x+6}{-x-2}\\)</p><p>jest równoważne wyrażeniu</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(\\frac{3x-6}{x+2}\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\frac{-3x+6}{x+2}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\frac{3x-6}{-x-2}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\frac{3x+6}{x+2}\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Zadania 3 i 4 dotyczą równania\n</p><p>\\(\\frac{5x+6}{x-5}=\\frac{2x-1}{x+3}\\)</p>"
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Równanie jest dobrze określone (ułamki mają sens), jeśli</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(x\\ne -5\\) i \\(x\\ne 3\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(x\\ne 5\\) i \\(x\\ne -3\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(x= 5\\) lub \\(x= -3\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(x= -5\\) lub \\(x= 3\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Przy założeniu z zadania 3, dane równanie jest równoważne równaniu</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\((5x+6)(x-5)=(x+3)(2x-1)\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\((5x+6)(2x-1)=(x-5)(x+3)\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\((5x+6)(x+3)=(x-5)(2x-1)\\)",
+          "is_correct": true,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Przy poprawnie określonej dziedzinie, równanie</p><p>\\(\\frac{x^2-5x-6}{2x^2-15x-8}=0\\)</p><p>jest równoważne równaniu</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(x^2-5x-6=0\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(2x^2-5x-8=0\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(x^2-5x-6=2x^2-5x-8\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Przy poprawnie określonej dziedzinie, równanie</p><p>\\(\\frac{x^2-5x-6}{2x^2-15x-8}=1\\)</p><p>jest równoważne równaniu</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(x^2-5x-6=0\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(2x^2-5x-8=0\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(x^2-5x-6=2x^2-5x-8\\)",
+          "is_correct": true,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\n<strong>Rozpatrz następujące zadanie.</strong>\n</p><p>\n    Basen jest napełniany wodą z dwóch kranów, A i B. Woda z każdego z nich leje się ze stałą prędkością.\n</p><p>\n    Kran A mógłby napełnić cały basen 3 godziny szybciej, niż kran B.\n</p><p>\n    Najpierw odkręcono kran A, a godzinę później kran B. W czasie czterech godzin od odkręcenia kranu A basen był pełny.\n</p><p>\n    Ile czasu zajęłoby napełnienie basenu z użyciem każdego kranu oddzielnie?\n</p><p>\n    Przyjmując, że \\(x\\) to czas (w godzinach) potrzebny do samodzielnego napełnienia basenu przez kran A, zadanie jest opisane równaniem:\n</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(\\frac{4}{x}+\\frac{3}{x+3}=1\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\frac{4}{x}+\\frac{3}{x-3}=1\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\frac{4}{x}+\\frac{1}{x+3}=1\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\frac{4}{x}+\\frac{1}{x-3}=1\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "3cd1e4248eafeff98b3f070f274d442c34da6d0a8ae87c5da4e018986171fc17"
+}

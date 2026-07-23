@@ -1,0 +1,87 @@
+{
+  "elements": [
+    {
+      "type": "choice",
+      "stem": "<p>Wskaż wynik \\((x+2y)^2\\):</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(x^2+4xy+4y^2\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(x^2+2xy+y^2\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(x^2+2xy+4y^2\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(x^2+2xy+2y^2\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Wskaż wynik \\((2a-3b)^2\\):</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(4a^2-6ab+9b^2\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(4a^2+6ab+9b^2\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(4a^2-12ab+9b^2\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(4a^2-4ab+b^2\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Wskaż wynik \\((2c^2+d)(2c^2-d)\\):</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(4c^2-d^2\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(4c^4-d^2\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(c^4-d^2\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(4c^4+d^2\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "6ab74256f5d5b2759a3ee4601266a35aeac439e7d08f9e569158eae8c00c1d17"
+}

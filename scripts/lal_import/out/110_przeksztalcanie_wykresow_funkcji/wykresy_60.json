@@ -1,0 +1,73 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W poniższym aplecie możesz przesuwać szary punkt.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<span style=\"color: blue\">\n                Niebieski\n            </span>\n            punkt to obraz szarego punktu w symetrii względem osi OX.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<span style=\"color: red\">\n                Czerwony\n            </span>\n            punkt to obraz szarego punktu w symetrii względem osi OY.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Przesuwaj szary punkt i zaobserwuj, jakie są współrzędne punktów odbitych symetrycznie w obu osiach.\n        </p>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/ysaehar8/width/700/height/700/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Klikaj współrzędne punktów obramowane granatowo, aż uzyskasz prawdziwe zdania - wtedy zatwierdź.\n    "
+    },
+    {
+      "type": "switch_grid",
+      "prompt": "",
+      "lines": [
+        {
+          "stem": "\n\n                Obraz punktu \\((x,y)\\) w symetrii względem osi\n                <span style=\"color: blue\">\n                    OX\n                </span>\n                ma współrzędne\n            \n\n\n\n\n￿0￿\n                .\n            \n",
+          "cyclers": [
+            {
+              "options": [
+                "\\((x,y)\\)",
+                "\\((-x,y)\\)",
+                "\\((x,-y)\\)",
+                "\\((-x,-y)\\)"
+              ],
+              "answer": 2
+            }
+          ]
+        },
+        {
+          "stem": "\n\n                Obraz punktu \\((x,y)\\) w symetrii względem osi\n                <span style=\"color: red\">\n                    OY\n                </span>\n                ma współrzędne\n            \n\n\n\n\n￿0￿\n                .\n            \n",
+          "cyclers": [
+            {
+              "options": [
+                "\\((x,y)\\)",
+                "\\((-x,y)\\)",
+                "\\((x,-y)\\)",
+                "\\((-x,-y)\\)"
+              ],
+              "answer": 1
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "71c6ae120f6e28ea510c15f469f86708fe0e598a08ddf76d9b783cf7f5810f84"
+}

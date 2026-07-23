@@ -17,7 +17,7 @@ blocked type is rejected regardless.
       <button type="button" class="typecard" data-add-type="video"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-video"/></svg>{% trans "Video" %}</button>
       <button type="button" class="typecard" data-add-type="iframe"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-iframe"/></svg>{% trans "Iframe" %}</button>
       <button type="button" class="typecard" data-add-type="math"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-math"/></svg>{% trans "Math" %}</button>
-      <button type="button" class="typecard" data-add-type="html"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-html"/></svg>{% trans "HTML" %}</button>
+      {% if not in_spoiler %}<button type="button" class="typecard" data-add-type="html"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-html"/></svg>{% trans "HTML" %}</button>{% endif %}
       <button type="button" class="typecard" data-add-type="table"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-table"/></svg>{% trans "Table" %}</button>
       <button type="button" class="typecard" data-add-type="gallery"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-gallery"/></svg>{% trans "Gallery" %}</button>
       <button type="button" class="typecard" data-add-type="callout"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-callout"/></svg>{% trans "Callout" %}</button>
@@ -32,10 +32,11 @@ blocked type is rejected regardless.
       <button type="button" class="typecard" data-add-type="switchgate"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-switchgate"/></svg>{% trans "Choose & confirm" %}</button>
       <button type="button" class="typecard" data-add-type="switchgrid"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-switchgrid"/></svg>{% trans "Switch grid" %}</button>
       <button type="button" class="typecard" data-add-type="filltable"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-filltable"/></svg>{% trans "Fill-in table" %}</button>
-      <button type="button" class="typecard" data-add-type="spoiler"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-spoiler"/></svg>{% trans "Spoiler" %}</button>
-      <button type="button" class="typecard" data-add-type="stepper"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-stepper"/></svg>{% trans "Step-by-step" %}</button>
-      <button type="button" class="typecard" data-add-type="markdone"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-markdone"/></svg>{% trans "Checklist" %}</button>
-      <button type="button" class="typecard" data-add-type="guessnumber"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-guessnumber"/></svg>{% trans "Guess the number" %}</button>
+      {% if not in_spoiler %}<button type="button" class="typecard" data-add-type="spoiler"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-spoiler"/></svg>{% trans "Spoiler" %}</button>{% endif %}
+      {% if not in_spoiler %}<button type="button" class="typecard" data-add-type="stepper"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-stepper"/></svg>{% trans "Step-by-step" %}</button>{% endif %}
+      {% if not in_spoiler %}<button type="button" class="typecard" data-add-type="markdone"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-markdone"/></svg>{% trans "Checklist" %}</button>{% endif %}
+      {% if not in_spoiler %}<button type="button" class="typecard" data-add-type="guessnumber"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-guessnumber"/></svg>{% trans "Guess the number" %}</button>{% endif %}
+      {% if in_spoiler %}<button type="button" class="typecard" data-add-type="fillblankquestion"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-fillblank"/></svg>{% trans "Fill in the blanks" %}</button>{% endif %}
     </div>
     {% endif %}
     {% if not nested %}

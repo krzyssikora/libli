@@ -1,0 +1,26 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Umiejętność rozwiązywania układów równań może być przydatna, gdy chcemy znaleźć równanie prostej przechodzącej przez dwa punkty. Wcześniej poznaliśmy dwie inne metody rozwiązania takiego problemu.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Znajdź równanie prostej przechodzącej przez punkty \\(P(-1,1)\\) oraz \\(S(2,-1)\\).\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Wpisz odpowiednie liczby w puste miejsca.\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"fill_steps\">\n<p>\n                Szukamy równania prostej postaci \\(y=ax+b\\).\n            </p>\n<p>\n                Współrzędne \\(x\\) i \\(y\\) punktów \\(P\\) i \\(S\\) muszą spełniać to równanie. Podstawmy więc współrzędne obu punków do równania \\(y=ax+b\\).\n            </p>\n<div class=\"fill_show_next\">\n                pokaż dalej\n            </div>\n<div class=\"fill_step\">\n<p>\n                    W punkcie \\(P\\) mamy \\(x=-1\\), \\(y=1\\), stąd:\n                    <span class=\"myequation\">\n                        \\(1=a\\cdot (-1)+b\\)\n                    </span>\n                    .\n                </p>\n<p>\n                    W punkcie \\(S\\) mamy \\(x=2\\), \\(y=-1\\), stąd:\n                    <span class=\"myequation\">\n                        \\(-1=a\\cdot \\)\n                        <span>\n<input class=\"fill_answer\" placeholder=\"???\" type=\"text\"/>\n</span>\n                        \\(+b\\)\n                    </span>\n                    .\n                </p>\n</div>\n<div class=\"fill_show_next\">\n                pokaż dalej\n            </div>\n<div class=\"fill_step\">\n<p>\n                    Otrzymaliśmy w ten sposób układ równań, w którym niewiadomymi nie są \\(x\\) i \\(y\\), jak w przykładach wyżej, lecz \\(a\\) i \\(b\\).\n                </p>\n                \\[\n                                               \\begin{matrix}\n                                               (1)&amp;-a+b=1\\\\\n                                               (2)&amp;2a+b=-1\n                                               \\end{matrix}\n                                               \\]\n                <p>\n                    Wyznaczmy \\(b\\) z równania (1):\n                </p>\n<span class=\"myequation\">\n                    \\(b=a+\\)\n                    <span>\n<input class=\"fill_answer\" placeholder=\"???\" type=\"text\"/>\n</span>\n</span>\n</div>\n<div class=\"fill_show_next\">\n                pokaż dalej\n            </div>\n<div class=\"fill_step\">\n<p>\n                    Wstawmy teraz \\(b=a+1\\) do równania (2):\n                </p>\n<span class=\"myequation\">\n                    \\(2a+a+1=-1\\)\n                </span>\n<p>\n                    Wyliczmy wartość \\(a\\):\n                </p>\n<p>\n<span class=\"myequation\">\n                        \\(a=\\)\n                        <span>\n<input class=\"fill_answer\" placeholder=\"???\" type=\"text\"/>\n</span>\n</span>\n</p>\n</div>\n<div class=\"fill_show_next\">\n                pokaż dalej\n            </div>\n<div class=\"fill_step\">\n<p>\n                    Teraz podstawmy tak uzyskaną wartość \\(a\\) do równania (1).\n                </p>\n<span class=\"myequation\">\n<span>\n<input class=\"fill_answer\" placeholder=\"???\" type=\"text\"/>\n</span>\n                    \\(+b=1\\)\n                </span>\n</div>\n<div class=\"fill_show_next\">\n                pokaż dalej\n            </div>\n<div class=\"fill_step\">\n<p>\n                    I wyliczmy wartość \\(b\\):\n                </p>\n<span class=\"myequation\">\n                    \\(b=\\)\n                    <span>\n<input class=\"fill_answer\" placeholder=\"???\" type=\"text\"/>\n</span>\n</span>\n</div>\n</p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "060852a3eb025e9002d6e46dac684fd9dfd96b2c8f09b8b4a92cd7811cd2b3b5"
+}

@@ -1,0 +1,190 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Jak pamiętasz, w ciągu arytmetycznym każdy kolejny wyraz tworzymy z poprzedniego przez <strong>dodanie</strong> stałej liczby, zwanej <strong>różnicą</strong> ciągu.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Teraz poznamy inny rodzaj ciągu, tworzony według trochę innej reguły.</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Pomyśl i wpisz dwa kolejne wyrazy każdego z podanych ciągów.\n    "
+    },
+    {
+      "type": "fill_table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "kind": "static",
+              "html": "\\(1,\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(2,\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(4,\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(8,\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(16,\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": ""
+            },
+            {
+              "kind": "answer",
+              "answer": ""
+            },
+            {
+              "kind": "static",
+              "html": "<div class=\"success hidden\" id=\"success_question410\">Świetnie!</div>"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(320,\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(160,\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(80,\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(40,\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(20,\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": ""
+            },
+            {
+              "kind": "answer",
+              "answer": ""
+            },
+            {
+              "kind": "static",
+              "html": "<div class=\"success hidden\" id=\"success_question415\">Świetnie!</div>"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(1,\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(-3,\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(9,\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(-27,\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(81,\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": ""
+            },
+            {
+              "kind": "answer",
+              "answer": ""
+            },
+            {
+              "kind": "static",
+              "html": "<div class=\"success hidden\" id=\"success_question420\">Świetnie!</div>"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(64,\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(96,\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(144,\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(216,\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(324,\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": ""
+            },
+            {
+              "kind": "answer",
+              "answer": ""
+            },
+            {
+              "kind": "static",
+              "html": "<div class=\"success hidden\" id=\"success_question425\">Świetnie!</div>"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Opisz w najprostszy możliwy sposób regułę, zgodnie z którą powstają kolejne wyrazy każdego z powyższych ciągów. Porównaj swoją odpowiedź z moją.\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "sprawdź",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>W każdym z powyższych ciągów każdy wyraz (poza pierwszym) powstaje przez pomnożenie poprzedniego wyrazu przez pewną stałą liczbę.</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"important\">\n    Ciągi takie, jak powyższe, nazywamy <strong>geometrycznymi</strong>.\n</p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "8c849e839ca3e3006bde5069f4a65834ed9966f6883d57530ab786c794dd03f0"
+}

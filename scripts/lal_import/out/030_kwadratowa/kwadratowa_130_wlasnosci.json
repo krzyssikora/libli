@@ -1,0 +1,274 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Rozwiążemy przeanalizowane wcześniej zadania.</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ol>\n<li>\n                Znajdź równanie funkcji kwadratowej, której wykres ma wierzchołek w punkcie \\((2,-3)\\) i przechodzi przez punkt \\((4,-1)\\).\n            </li>\n<li>\n                Znajdź równanie funkcji kwadratowej o miejscach zerowych \\(-3\\) i \\(-1\\), której wykres przechodzi przez punkt \\((-4,9)\\).\n            </li>\n<li>\n                Znajdź równanie funkcji kwadratowej, której wykres jest symetryczny względem prostej \\(x=3\\) i przechodzi przez punkty \\((1,0)\\) i \\((6,-2\\frac{1}{2})\\).\n            </li>\n</ol>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Do polecenia każdego z nich dodajmy jeszcze jedno zdanie:</p>"
+    },
+    {
+      "type": "text",
+      "body": "<blockquote>\n            Zapisz odpowiedź w postaci ogólnej.\n        </blockquote>"
+    },
+    {
+      "type": "tabs",
+      "tabs": [
+        {
+          "id": "t000000",
+          "label": "Zadanie 1.",
+          "elements": [
+            {
+              "type": "text",
+              "body": "<p>\n                    Znajdź równanie funkcji kwadratowej, której wykres ma wierzchołek w punkcie \\((2,-3)\\) i przechodzi przez punkt \\((4,-1)\\).\n                </p>"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                    Zapisz opowiedź w postaci ogólnej.\n                </p>"
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                        Wierzchołek ma współrzędne \\((2,-3)\\), więc równanie funkcji w postaci kanonicznej to\n                        \n\n\n\n￿0￿\n                        .\n                        \n",
+              "options": [
+                "\\(y=a(x-3)^2-2\\)",
+                "\\(y=a(x+2)^2-3\\)",
+                "\\(y=a(x-2)^2-3\\)",
+                "\\(y=a(x+3)^2-2\\)"
+              ],
+              "answer": 2
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                        Pozostaje nam znaleźć wartość współczynnika \\(a\\). W tym celu podstawimy do powyższego równania współrzędne punktu \\((4,-1)\\).\n                    </p>"
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                        Otrzymamy równanie\n                        \n\n\n￿0￿\n                        .\n                        \n",
+              "options": [
+                "\\(-1=a(4-2)^2-3\\)",
+                "\\(4=a(-1-2)^2-3\\)",
+                "\\(1=a(4-2)^2-3\\)"
+              ],
+              "answer": 0
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                        Z tego równania wyliczamy wartość współczynnika \\(a\\):\n                        \n\n\n￿0￿\n                        .\n                        \n",
+              "options": [
+                "\\(a=1\\)",
+                "\\(a=\\tfrac{1}{2}\\)",
+                "\\(a=-\\tfrac{1}{2}\\)"
+              ],
+              "answer": 1
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                        Otrzymaliśmy równanie w postaci kanonicznej: \\(y=\\tfrac{1}{2}(x-2)^2-3\\).\n                    </p>"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                        Pozostaje jedynie przekształcić je do postaci ogólnej.\n                    </p>"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                            Wykonaj działania, uprość i wpisz współczynniki:\n                        </p>"
+            },
+            {
+              "type": "fillblank",
+              "stem": "\n                            \\(y=\\)\n                            ￿0￿\n                            \\(x^2\\)\n                            ￿1￿\n                            \\(x\\)\n                            ￿2￿\n",
+              "blanks": [
+                [
+                  "0.5",
+                  "0,5"
+                ],
+                [
+                  "-2"
+                ],
+                [
+                  "-1"
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "id": "t000001",
+          "label": "Zadanie 2.",
+          "elements": [
+            {
+              "type": "text",
+              "body": "<p>\n                    Znajdź równanie funkcji kwadratowej o miejscach zerowych \\(-3\\) i \\(-1\\), której wykres przechodzi przez punkt \\((-4,9)\\).\n                </p>"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                    Zapisz opowiedź w postaci ogólnej.\n                </p>"
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                        Miejsca zerowe mają wartości \\(-3\\) i \\(-1\\), więc postać iloczynowa równania funkcji wygląda następująco:\n                        \n\n\n\n￿0￿\n                        .\n                        \n",
+              "options": [
+                "\\(y=a(x-3)(x-1)\\)",
+                "\\(y=a(x+3)(x+1)\\)",
+                "\\(y=a(x-3)(x+1)\\)",
+                "\\(y=a(x+3)(x-1)\\)"
+              ],
+              "answer": 1
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                        Pozostaje nam znaleźć wartość współczynnika \\(a\\). W tym celu podstawimy do powyższego równania współrzędne punktu \\((-4,9)\\).\n                    </p>"
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                        Otrzymamy równanie\n                        \n\n\n￿0￿\n                        .\n                        \n",
+              "options": [
+                "\\(9=a(-4+3)(-4+1)\\)",
+                "\\(9=a(4-3)(4-1)\\)",
+                "\\(-4=a(9+3)(9+1)\\)"
+              ],
+              "answer": 0
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                        Z tego równania wyliczamy wartość współczynnika \\(a\\):\n                        \n\n\n￿0￿\n                        .\n                        \n",
+              "options": [
+                "\\(a=\\frac{1}{3}\\)",
+                "\\(a=-3\\)",
+                "\\(a=3\\)"
+              ],
+              "answer": 2
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                        Otrzymaliśmy równanie w postaci iloczynowej: \\(y=3(x+3)(x+1)\\).\n                    </p>"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                        Pozostaje jedynie przekształcić je do postaci ogólnej.\n                    </p>"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                            Wykonaj działania, uprość i wpisz współczynniki:\n                        </p>"
+            },
+            {
+              "type": "fillblank",
+              "stem": "\n                            \\(y=\\)\n                            ￿0￿\n                            \\(x^2\\)\n                            ￿1￿\n                            \\(x\\)\n                            ￿2￿\n",
+              "blanks": [
+                [
+                  "3"
+                ],
+                [
+                  "12"
+                ],
+                [
+                  "9"
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "id": "t000002",
+          "label": "Zadanie 3.",
+          "elements": [
+            {
+              "type": "text",
+              "body": "<p>\n                    Znajdź równanie funkcji kwadratowej, której wykres jest symetryczny względem prostej \\(x=3\\) i przechodzi przez punkty \\((1,0)\\) i \\((6,-2\\frac{1}{2})\\).\n                </p>"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                    Zapisz odpowiedź w postaci ogólnej.\n                </p>"
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                        Wiedząc, że współrzędna \\(x\\)-owa wierzchołka jest równa \\(3\\), zaczniemy od równania w postaci kanonicznej:\n                        \n\n\n￿0￿\n                        .\n                        \n",
+              "options": [
+                "\\(y=a(x-p)^2+3\\)",
+                "\\(y=a(3-p)^2+q\\)",
+                "\\(y=a(x-3)^2+q\\)"
+              ],
+              "answer": 2
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                        Skoro wykres przechodzi przez punkty \\((1,0)\\) i \\((6,-2\\frac{1}{2})\\), podstawimy ich współrzędne do równania.\n                    </p>"
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                        Najpierw dla punktu \\((1,0)\\), otrzymamy:\n                        \n\n\n\n￿0￿",
+              "options": [
+                "\\(1=a(0-3)^2+q\\)",
+                "\\(0=a(1-3)^2+q\\)"
+              ],
+              "answer": 1
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                        Natomiast dla punktu \\((6,-2\\frac{1}{2})\\), otrzymamy:\n                        \n\n\n\n\n￿0￿",
+              "options": [
+                "\\(-2\\tfrac{1}{2}=a(6-3)^2+q\\)",
+                "\\(6=a(-2\\tfrac{1}{2}-3)^2+q\\)",
+                "\\(2\\tfrac{1}{2}=a(6-3)^2+q\\)"
+              ],
+              "answer": 0
+            },
+            {
+              "type": "text",
+              "body": "<p>Gdy uprościmy równania, otrzymamy:\n                                                                                                        \\[\n                                                                                                        \\begin{align*}\n                                                                                                        4a+q&=0\\\\\n                                                                                                        9a+q&=-2\\tfrac{1}{2}\n                                                                                                        \\end{align*}\n                                                                                                        \\]</p>"
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                        Rozwiązując równania (np. przez odjęcie ich stronami) otrzmamy\n                        \n\n\n￿0￿\n                        .\n                        \n",
+              "options": [
+                "\\(a=-\\tfrac{1}{2}\\) i \\(q=2\\)",
+                "\\(a=2\\) i \\(q=-\\tfrac{1}{2}\\)",
+                "\\(a=\\tfrac{1}{2}\\) i \\(q=-2\\)"
+              ],
+              "answer": 0
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                        Tym samym równanie funkcji przyjmuje postać kanoniczną: \\(y=-\\tfrac{1}{2}(x-3)^2+2\\).\n                    </p>"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                        Pozostaje przekształcić je do postaci ogólnej.\n                    </p>"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                            Wykonaj działania, uprość i wpisz współczynniki:\n                        </p>"
+            },
+            {
+              "type": "fillblank",
+              "stem": "\n                            \\(y=\\)\n                            ￿0￿\n                            \\(x^2\\)\n                            ￿1￿\n                            \\(x\\)\n                            ￿2￿\n",
+              "blanks": [
+                [
+                  "-0.5",
+                  "-0,5"
+                ],
+                [
+                  "3"
+                ],
+                [
+                  "-2.5",
+                  "-2,5"
+                ]
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "fcd961fda1549362fac0a3519ec0e504c14e4d0cd20e263f37745094ea5065df"
+}

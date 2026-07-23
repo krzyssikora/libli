@@ -1,0 +1,122 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n        Jak zapewne pamiętasz,\n        <strong>\n            średnia arytmetyczna\n        </strong>\n        (często nazywana po prostu średnią) to ich suma podzielona przez to, ile ich jest.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Dla dwóch liczb, \\(a\\) i \\(b\\), ich średnia to po prostu \\(\\frac{a+b}{2}\\).\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Przyjrzyj się poniższym liczbom, ich średniej, i położeniu wszystkich trzech liczb na osi liczbowej.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>liczba</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>liczba</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>średnia</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\\(4\\)</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\\(18\\)</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\\(11\\)</p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/srednia_1.png",
+      "alt": "średnia na osi liczbowej",
+      "figcaption": "położenie na osi"
+    },
+    {
+      "type": "text",
+      "body": "<p>\\(-3\\)</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\\(15\\)</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\\(6\\)</p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/srednia_2.png",
+      "alt": "średnia na osi liczbowej",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\\(-8,5\\)</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\\(-1,3\\)</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\\(-4,9\\)</p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/srednia_3.png",
+      "alt": "średnia na osi liczbowej",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\\(45\\)</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\\(113\\)</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\\(79\\)</p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/srednia_4.png",
+      "alt": "średnia na osi liczbowej",
+      "figcaption": ""
+    },
+    {
+      "type": "spoiler",
+      "label": "Co dostrzegasz?",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Średnia liczb \\(a\\) i \\(b\\) wyznacza środek odcinka osi liczbowej o końcach wskazanych przez \\(a\\) i \\(b\\).</p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/srednia_a_srodek.png",
+          "alt": "średnia na osi liczbowej",
+          "figcaption": ""
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "e8dbf8a2fb8f81458b6007d8a174862b518215f97211ce8f46523be4123d20c1"
+}

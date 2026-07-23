@@ -1,0 +1,288 @@
+{
+  "elements": [
+    {
+      "type": "image",
+      "media_src": "static/trojkat_ABC.png",
+      "alt": "trojkat ABC",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>\n            Twierdzenie sinusów\n        </strong>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        W każdym trójkącie stosunek długości dowolnego boku do sinusa kąta leżącego naprzeciwko jest stały, a dokładniej: równy dwukrotności promienia, czyli średnicy okręgu opisanego.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Zapisujemy to:\n                                                    \\[\n                                                    \\frac{a}{\\sin A}=\\frac{b}{\\sin B}=\\frac{c}{\\sin C}= 2R\n                                                    \\]</p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/tw_sinusow_kiedy.png",
+      "alt": "trojkat ABC",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>Twierdzenia sinusów możemy użyć przede wszystkim gdy:</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n            mamy daną parę (bok - przeciwległy kąt) i\n        </li>\n<li>\n            w innej parze (bok - przeciwległy kąt)\n            <ul>\n<li>\n                    albo mamy dany bok i chcemy znaleźć kąt\n                </li>\n<li>\n                    albo mamy dany kąt i chcemy znaleźć bok\n                </li>\n</ul>\n</li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Alternatywnie, zamiast jednej ze wspomnianych wyżej par możemy użyć promienia okręgu opisanego.</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/tw_sinusow_zad_1.png",
+      "alt": "trojkat ABC",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W trójkącie \\(ABC\\) kąt \\(A\\) ma miarę \\(30^{\\circ}\\), a boki \\(a\\) i \\(b\\) są odpowiednio długości \\(3\\sqrt{2}\\) i \\(6\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź miary pozostałych kątów wewnętrznych w trójkącie \\(ABC\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<small style=\"position: absolute; right: 2px; bottom: 2px;\">\n<i>\n                (Rysunek nie zachowuje skali.)\n            </i>\n</small>"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Mamy dane: \\(A=30^{\\circ}\\), \\(a=3\\sqrt{2}\\) i \\(b=6\\).</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Na podstawie twierdzenia sinusów możemy użyć równości\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(\\tfrac{a}{\\sin A}=\\tfrac{c}{\\sin C}\\)",
+            "\\(\\tfrac{a}{\\sin A}=\\tfrac{b}{\\sin B}\\)",
+            "\\(\\tfrac{b}{\\sin B}=\\tfrac{c}{\\sin C}\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Po podstawieniu danych wartości:\n    \\[\n    \\tfrac{3\\sqrt{2}}{\\sin 30^{\\circ}}=\\tfrac{6}{\\sin B}\n    \\]</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Ponieważ \\(\\sin 30^{\\circ}=\\)\n                    \n\n\n￿0￿\n                    ,\n                    \n",
+          "options": [
+            "\\(\\tfrac{1}{2}\\)",
+            "\\(\\tfrac{\\sqrt{2}}{2}\\)",
+            "\\(\\tfrac{\\sqrt{3}}{2}\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>otrzymujemy równanie:\n    \\[\n    \\tfrac{3\\sqrt{2}}{\\left(\\tfrac{1}{2}\\right)}=\\tfrac{6}{\\sin B}\n    \\]</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Wymnażając na krzyż dostaniemy\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(\\tfrac{1}{2}\\sin B=18\\sqrt{2}\\)",
+            "\\(\\tfrac{3}{2}\\sqrt{2}=3\\sin B\\)",
+            "\\(3\\sqrt{2}\\sin B=3\\)"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Rozwiązując równanie \\(3\\sqrt{2}\\sin B=3\\) otrzymujemy\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(\\sin B=\\tfrac{\\sqrt{2}}{2}\\)",
+            "\\(\\sin B=\\sqrt{2}\\)",
+            "\\(\\sin B=-\\sqrt{2}\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Skoro \\(\\sin B=\\tfrac{\\sqrt{2}}{2}\\), to jeśli kąt \\(B\\) jest ostry to\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(B=30^{\\circ}\\)",
+            "\\(B=45^{\\circ}\\)",
+            "\\(B=60^{\\circ}\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Jest też kąt rozwarty, który ma taką samą wartość sinusa, jak \\(45^{\\circ}\\).</p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/sinus_rowny_sinusowi_45.png",
+          "alt": "kąty o takim samym sinusie",
+          "figcaption": ""
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Ten kąt to\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(145^{\\circ}\\)",
+            "\\(135^{\\circ}\\)",
+            "\\(125^{\\circ}\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Miara kąta \\(B\\) to albo \\(45^{\\circ}\\) albo \\(135^{\\circ}\\). A skoro \\(A=30^{\\circ}\\), to kąt \\(C\\) możemy obliczyć z sumy kątów w trójkącie:\n    \\[\n    C=180^{\\circ}-A-B\n    \\]</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    I dlatego \\(C\\) może przyjąć wartości\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(15^{\\circ}\\) lub \\(105^{\\circ}\\)",
+            "\\(15^{\\circ}\\)",
+            "\\(105^{\\circ}\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Miary kątów w trójkącie \\(ABC\\) to\n    \\[\n    \\color{blue}{A=30^{\\circ},\\quad B=45^{\\circ}, \\quad C=105^{\\circ}}\n    \\]\n    albo\n    \\[\n    \\color{red}{A=30^{\\circ},\\quad B=135^{\\circ}, \\quad C=15^{\\circ}}\n    \\]</p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/tw_sinusow_zad_1_rozw.png",
+          "alt": "trojkat ABC",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>Jeśli wyznaczamy miarę kąta w trójkącie mając daną wartość jego sinusa, najczęściej znajdziemy dwa kąty o tej samej wartości sinusa:</p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                        \\(\\alpha\\quad\\) oraz \\(\\quad 180^{\\circ}-\\alpha\\)\n                    "
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/tw_sinusow_zad_2.png",
+      "alt": "trojkat ABC",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W trójkącie \\(ABC\\) kąt \\(A\\) ma miarę \\(120^{\\circ}\\), kąt \\(B\\) ma miarę \\(45^{\\circ}\\), a bok \\(a\\) jest długości \\(6\\sqrt{2}\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź długość boku \\(b\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<small style=\"position: absolute; right: 2px; bottom: 2px;\">\n<i>\n                (Rysunek nie zachowuje skali.)\n            </i>\n</small>"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Mamy daną jedną parę (bok - przeciwległy kąt) (\\(a\\) oraz \\(A\\)), mamy też dany kąt \\(B\\) naprzeciwko szukanego boku \\(b\\).</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Użyjemy więc równości\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(\\tfrac{a}{\\sin A}=\\tfrac{c}{\\sin C}\\)",
+            "\\(\\tfrac{a}{\\sin A}=\\tfrac{b}{\\sin B}\\)",
+            "\\(\\tfrac{b}{\\sin B}=\\tfrac{c}{\\sin C}\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Po podstawieniu danych wartości:\n    \\[\n    \\tfrac{6\\sqrt{2}}{\\sin 120^{\\circ}}=\\tfrac{b}{\\sin 45^{\\circ}}\n    \\]</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    \\(\\sin 120^{\\circ}=\\sin 60^{\\circ}\\), więc \\(\\sin 120^{\\circ}=\\)\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(\\tfrac{1}{2}\\)",
+            "\\(\\tfrac{\\sqrt{2}}{2}\\)",
+            "\\(\\tfrac{\\sqrt{3}}{2}\\)"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    A ponieważ \\(\\sin 45^{\\circ}=\\)\n                    \n\n\n￿0￿\n                    ,\n                    \n",
+          "options": [
+            "\\(\\tfrac{1}{2}\\)",
+            "\\(\\tfrac{\\sqrt{2}}{2}\\)",
+            "\\(\\tfrac{\\sqrt{3}}{2}\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>otrzymujemy równanie:\n    \\[\n    \\tfrac{6\\sqrt{2}}{\\left(\\tfrac{\\sqrt{3}}{2}\\right)}=\\tfrac{b}{\\left(\\tfrac{\\sqrt{2}}{2}\\right)}\n    \\]</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Wymnażając na krzyż dostaniemy\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(6=\\tfrac{\\sqrt{3}}{2}b\\)",
+            "\\(\\tfrac{\\sqrt{6}}{4}=6\\sqrt{2}\\cdot b\\)",
+            "\\(3\\sqrt{6}\\)=\\frac{\\sqrt{2}}{2}\\cdot b"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Rozwiązując równanie \\(\\tfrac{\\sqrt{3}}{2}b=6\\) otrzymujemy</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n\n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(b=3\\sqrt{3}\\)",
+            "\\(b=4\\sqrt{3}\\)",
+            "\\(b=\\sqrt{3}\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Szukany bok \\(AC=b\\) ma długość \\(4\\sqrt{3}\\).</p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/tw_sinusow_zad_2_rozw.png",
+          "alt": "trojkat ABC",
+          "figcaption": ""
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "419e8aac397fc163dc41dede789e07ad99a7370809b553aa9fc7e9b4fec9c12f"
+}

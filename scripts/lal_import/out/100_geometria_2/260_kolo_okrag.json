@@ -1,0 +1,119 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<h3>\n    Koło a okrąg\n</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Przypomnijmy:\n</p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/rysunek_okrag.png",
+      "alt": "okrąg",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>\n                Okrąg\n            </strong>\n            to zbiór punktów w równej odległości od jednego punktu, zwanego\n            <u>\n<span style=\"color: red\">\n                    środkiem okręgu\n                </span>\n</u>\n            .\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Ta wspólna odległość nazywana jest\n            <u>\n<span style=\"color: orange; background-color: white;\">\n                    promieniem okręgu\n                </span>\n</u>\n            .\n        </p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/rysunek_kolo.png",
+      "alt": "koło",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>\n                Koło\n            </strong>\n            to zbiór punktów w równej odległości od jednego punktu, zwanego\n            <u>\n<span style=\"color: red\">\n                    środkiem koła\n                </span>\n</u>\n            , lub bliżej.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Ta wspólna odległość nazywana jest\n            <u>\n<span style=\"color: orange; background-color: white;\">\n                    promieniem koła\n                </span>\n</u>\n            .\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Innymi słowy, koło to okrąg oraz obszar ograniczony okręgiem.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<h3>\n    Obwód koła / długość okręgu\n</h3>"
+    },
+    {
+      "type": "video",
+      "media_src": "static/dlugosc_okregu.mp4"
+    },
+    {
+      "type": "text",
+      "body": "<ol class=\"bold\">\n<li>\n            Połowa okręgu o promieniu \\(1\\) ma długość \\(\\pi\\approx 3,14159\\,26535\\,89793\\,23846\\,26433\\,83279\\,50288\\,41971\\,69399...\\)\n        </li>\n<li>\n            Okrąg o promieniu \\(1\\) ma długość \\(2\\pi\\).\n        </li>\n<li>\n            Okrąg o promieniu \\(r\\) ma długość \\(2\\pi r\\).\n        </li>\n</ol>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Pomyśl, dlaczego</p>"
+    },
+    {
+      "type": "text",
+      "body": "<blockquote>\n            jeśli\n            <u>\n                średnica\n            </u>\n            koła jest długości \\(1\\), to obwód koła ma długość \\(\\pi\\).\n        </blockquote>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/pi_unrolled.gif",
+      "alt": "okrąg o średnicy 1",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p><br/>\n<small>\n                    autor:\n                    <a href=\"https://en.wikipedia.org/wiki/User:John_Reid\" title=\"en:User:John Reid\">\n                        John Reid\n                    </a>\n                    , licencja:\n                    <a href=\"http://creativecommons.org/licenses/by-sa/3.0/\" title=\"Creative Commons Attribution-Share Alike 3.0\">\n                        CC BY-SA 3.0\n                    </a>\n                    ,\n                    <a href=\"https://commons.wikimedia.org/w/index.php?curid=1268581\">\n                        oryginalny gif\n                    </a>\n</small></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>W poniższym aplecie</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n                najpierw wpisz\n                <u>\n                    parzystą\n                </u>\n                liczbę między \\(4\\) a \\(100\\),\n            </li>\n<li>\n                później naciśnij start - koło zostanie podzielone na ustaloną liczbę wycinków, z których zostanie złżony inny kształt.\n            </li>\n<li>\n                Zacznij od mniejszej liczby, potem ją zwiększ.\n            </li>\n<li>\n                Co dostrzegasz? Jaki (mniej-więcej) kształt tworzą wycinki? Jakie są wymiary tego kształtu?\n            </li>\n</ul>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/r2v3ysqu/width/633/height/397/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    },
+    {
+      "type": "spoiler",
+      "label": "komentarz",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Im większa jest liczba wycinków, na które podzielimy koło, tym bardziej nowy kształt przypomina prostokąt o podstawie (linia złożona z czerwonych łuków) równej długości połowy okręgu, czyli \\(\\tfrac{1}{2}\\cdot 2\\pi r=\\pi r\\) oraz wysokości \\(r\\).</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Pole takiego prostokąta to \\(\\pi r\\cdot r=\\pi r^2\\).</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<h3>\n    Pole koła\n</h3>"
+    },
+    {
+      "type": "text",
+      "body": "\n    Pole koła o promieniu długości \\(r\\) jest dane wzorem\n    \\[\n    P=\\pi r^2\n    \\]\n"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "f77c5e1af57669a5edd096ad6a33a120a9668098a4bb03e8d6f44caf9a78e142"
+}

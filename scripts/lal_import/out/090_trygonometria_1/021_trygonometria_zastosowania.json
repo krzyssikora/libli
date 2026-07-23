@@ -1,0 +1,88 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Teraz, gdy już wiemy, czym są funkcje trygonometryczne kąta ostrego (sinus, cosinus, tangens i cotangens), możemy rozwiązać zadanie dotyczące podjazdu dla wózków.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    W zadaniu tym będzie mowa o kącie \\(10^{\\circ}\\). Powinniśmy wiedzieć, skąd wziąć wartości funkcji trygonometrycznych takiego i innych kątów.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Są na to dwie proste możliwości: możemy albo użyć odpowiedniego kalkulatora (ale takie nie są, niestety, dozwolone na egzaminie maturalnym), albo\n    <a href=\"/static/wybrane_wzory_matematyczne_EM2023.pdf\" target=\"_blank\">\n        tablic trygonometrycznych\n    </a>\n    . Tablice znajdziesz na samym końcu zalinkowanego pliku\n    <emph>\n        pdf\n    </emph>\n    .\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź w tablicach trygonometrycznych wartości wskazane w tabeli i wpisz je poniżej.\n        </p>"
+    },
+    {
+      "type": "fill_table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "kind": "static",
+              "html": "\\(\\sin 50^{\\circ}\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(\\text{tg }28^{\\circ}\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(\\cos 85^{\\circ}\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(\\sin 82^{\\circ}\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(\\text{tg }71^{\\circ}\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(\\cos 11^{\\circ}\\)"
+            }
+          ],
+          [
+            {
+              "kind": "answer",
+              "answer": "0.7660|0,7660"
+            },
+            {
+              "kind": "answer",
+              "answer": "0.5317|0,5317"
+            },
+            {
+              "kind": "answer",
+              "answer": "0.0872|0,0872"
+            },
+            {
+              "kind": "answer",
+              "answer": "0.9903|0,9903"
+            },
+            {
+              "kind": "answer",
+              "answer": "2.9042|2,9042"
+            },
+            {
+              "kind": "answer",
+              "answer": "0.9816|0,9816"
+            }
+          ]
+        ]
+      }
+    }
+  ],
+  "fully_mapped": false,
+  "seed_hash": "f54e237c56f3b86b6b43b18d7a92f84982bfdb86d2d2e8d314cf6414a2342372"
+}

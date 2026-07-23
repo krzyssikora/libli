@@ -1,0 +1,178 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Rozwiążemy teraz jedno bardziej wymagające zadanie. Obliczeniowo jest zbyt zaawansowane, żeby mogło pojawić się na maturze - trudno jest przeprowadzić obliczenia na bardzo prostym kalkulatorze. Znacznie łatwiej z użyciem kalkulatora \"naukowego\" lub arkusza kalkulacyjnego.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Firma podpisała umowę kredytową z Bankiem. Na mocy tej umowy Bank pożyczył firmie \\(100\\,000\\) złotych na 3 lata z oprocentowaniem \\(10\\%\\) w skali roku.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Kredyt ma być spłacany w trzech równych ratach - na zakończenie pierwszego, drugiego i trzeciego roku umowy kredytowej.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Jakiej wysokości będą raty?\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            O ile procent wyższa będzie suma trzech rat od pożyczonego kapitału?\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n            Rozwiązanie podzieliłem na kilka części, w których znajdziesz nagrania i skrócone obliczenia.\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>analiza wysokości rat</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                Uwaga! Długie nagranie - trwa 5 minut i 4 sekundy!\n            </p>"
+        },
+        {
+          "type": "video",
+          "media_src": "static/ciagi_raty_1.mp4"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                Niech \\(w\\) oznacza wysokość każdej z trzech rat. To jest wartość, której szukamy.\n            </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                Każda rata składa się z części kapitału (tę część oznaczymy w trzech ratach przez \\(k_1\\), \\(k_2\\) i \\(k_3\\)) oraz odsetek.\n            </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>Dla pierwszej raty odsetki są doliczane raz.</li>\n<li>Dla drugiej raty odsetki są doliczane dwa razy.</li>\n<li>Dla trzeciej raty odsetki są doliczane trzy razy.</li>\n</ul>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/ciag_raty.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                Na powyższym rysunku na niebiesko zaznaczono pożyczony kapitał, \\(100\\,000\\) złotych, podzielony na trzy części, \\(k_1\\), \\(k_2\\) i \\(k_3\\).\n            </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                Nad każdą z tych części widzisz doliczone do niej odsetki:\n            </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>na zielono - po pierwszym roku</li>\n<li>na żółto - po drugim roku</li>\n<li>na pomarańczowo - po trzecim roku</li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Zauważmy, że</p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>\n                    Do części pierwszej odestki doliczono raz - i zaraz potem pierwsza rata zostaje zwrócona.\n                </li>\n<li>\n                    Do części drugiej odestki doliczono dwa razy - i zaraz potem, po drugim roku, druga rata zostaje zwrócona.\n                </li>\n<li>\n                    Do części trzeciej odestki doliczono trzy razy - i zaraz potem, po trzecim roku, ostatnia rata zostaje zwrócona.\n                </li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Te obserwacje są ilustrowane przez równania:</p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                \\[\n                \\begin{align}\n                w &amp;= k_1\\cdot 1,1\\\\\n                w &amp;= k_2\\cdot 1,1^2\\\\\n                w &amp;= k_3\\cdot 1,1^3\\\\\n                \\end{align}\n                \\]\n            "
+        },
+        {
+          "type": "text",
+          "body": "<h4>równanie</h4>"
+        },
+        {
+          "type": "video",
+          "media_src": "static/ciagi_raty_2.mp4"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                Trzy części kapitału w trzech ratach sumują się do całego kapitału. \n            </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\[\n            k_1+k_2+k_3=100000\n            \\]\n            Z początkowych równań wyliczamy \\(k_1\\), \\(k_2\\) i \\(k_3\\) i podstawiamy powyżej:</p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                \\[\n                \\frac{w}{1,1}+\\frac{w}{1,1^2}+\\frac{w}{1,1^3}=100000\n                \\]\n            "
+        },
+        {
+          "type": "text",
+          "body": "<h4>odpowiedź</h4>"
+        },
+        {
+          "type": "video",
+          "media_src": "static/ciagi_raty_3.mp4"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                Wyłączamy \\(w\\) przed nawias i dzielimy przez wyrażenie w nawiasie.\n            </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                \\[\n                \\begin{align}\n                w\\left(\\frac{1}{1,1}+\\frac{1}{1,1^2}+\\frac{1}{1,1^3}\\right)&amp;=100000\\\\\n                w&amp;= \\frac{100000}{\\frac{1}{1,1}+\\frac{1}{1,1^2}+\\frac{1}{1,1^3}}\n                \\end{align}\n                \\]                \n            "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                I na zakończenie wystarczy użyć kalkulatora lub arkusza kalkulacyjnego, by obliczyć, że\n            </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n            w\\approx 40211,48\n            "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                Każda rata będzie wysokości \\(40\\,211,48\\) złotych.\n            </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                Można teraz łatwo policzyć, że trzy raty to w sumie \\(120\\,634,44\\) złotych, więc jest to ok. \\(20,6\\%\\) więcej od pożyczonych \\(100\\,000\\) złotych.\n            </p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>sprawdzenie</h4>"
+        },
+        {
+          "type": "video",
+          "media_src": "static/ciagi_raty_4.mp4"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                Dla sprawdzenia wyliczmy części początkowego kapitału w trzech ratach, \\(k_1\\), \\(k_2\\) i \\(k_3\\):\n            </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                \\[\n                \\begin{align}\n                k_1&amp;=\\frac{40\\,211,48}{1,1}&amp;\\approx 36555,89\\\\\n                k_2&amp;=\\frac{40\\,211,48}{1,1^2}&amp;\\approx 33232,63\\\\\n                k_3&amp;=\\frac{40\\,211,48}{1,1^3}&amp;\\approx 30211,48\n                \\end{align}\n                \\]\n            "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                I na zakończenie możemy potwierdzić, że \n            </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                \\[\n                \\begin{align}\n                k_1+k_2+k_3&amp;=36555,89+33232,63+30211,48=\\\\\n                &amp;=100000\n                \\end{align}\n                \\]\n            "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                Zgadza się, co do grosza.\n            </p>"
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "832505ddd5f1caf267ab652244de30747f4ec1c2973f1fb9df5be96c8a7d745f"
+}

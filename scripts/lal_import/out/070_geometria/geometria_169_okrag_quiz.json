@@ -1,0 +1,168 @@
+{
+  "elements": [
+    {
+      "type": "choice",
+      "stem": "<p>\n    Okrąg \\(o\\) ma promień \\(r=5\\) cm. Prosta \\(k\\) przebiega w odległości 6 cm od środka okręgu \\(o\\).\n</p><p>\n    Okrąg \\(o\\) i prosta \\(k\\):\n</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "nie przecinają się",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "spotykają się w jednym punkcie (są styczne)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "przecinają się w dwóch punktach",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\n    Okrąg \\(o\\) ma obwód \\(20\\pi\\) cm. Prosta \\(k\\) przebiega w odległości 9 cm od środka okręgu \\(o\\).\n</p><p>\n    Okrąg \\(o\\) i prosta \\(k\\):\n</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "nie przecinają się",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "spotykają się w jednym punkcie (są styczne)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "przecinają się w dwóch punktach",
+          "is_correct": true,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\n    Okrąg \\(o\\) ma pole \\(25\\pi\\) cm\\(^2\\). Prosta \\(k\\) przebiega w odległości 5 cm od środka okręgu \\(o\\).\n</p><p>\n    Okrąg \\(o\\) i prosta \\(k\\):\n</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "nie przecinają się",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "spotykają się w jednym punkcie (są styczne)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "przecinają się w dwóch punktach",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Dwa okręgi mają promienie o długościach \\(14\\) cm i \\(7\\) cm. Ich środki są w odległości \\(21\\) cm od siebie. Okręgi te są:</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "rozłączne zewnętrznie",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "styczne zewnętrznie",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "przecinające się",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "styczne wewnętrznie",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "rozłączne wewnętrznie",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Dwa okręgi mają promienie o długościach \\(9\\) cm i \\(16\\) cm. Ich środki są w odległości \\(7\\) cm od siebie. Okręgi te są:</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "rozłączne zewnętrznie",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "styczne zewnętrznie",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "przecinające się",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "styczne wewnętrznie",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "rozłączne wewnętrznie",
+          "is_correct": true,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Dwa okręgi mają promienie o długościach \\(8\\) cm i \\(14\\) cm. Ich środki są w odległości \\(7\\) cm od siebie. Okręgi te są:</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "rozłączne zewnętrznie",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "styczne zewnętrznie",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "przecinające się",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "styczne wewnętrznie",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "rozłączne wewnętrznie",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "083dc4deae59cc504a991afa79337031b70290767b33400ada841382c0f17d78"
+}

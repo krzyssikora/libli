@@ -1,0 +1,48 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<h3 id=\"zasady_podobienstwa\">\n    Zasady podobieństwa\n</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Poniżej widzisz dwa trójkąty podobne.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Przesuwaj zaznaczony okręgiem wierzchołek jednego z nich, by zmienić jego wielkość.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Czy widzisz jakąś zależność między długościami odpowiednich boków? Jeśli nie, zmień czerwony bok tak, by był 2, 3 lub 4 razy dłuższy od początkowej długości. Jak zmieniają się pozostałe boki?\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Pomyśl, a potem sprawdź odpowiedź poniżej.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<figure>\n<div class=\"iframe_small hidden\">\n<small>\n                        Jeśli poniższy aplet nie wygląda lub nie działa w pełni poprawnie, użyj urządzenia o większym ekranie.\n                    </small>\n<br/>\n<small>\n                        Minimalna zalecana rozdzielczość ekranu to 800px (szerokość) na 600px (wysokość).\n                    </small>\n</div>\n<iframe height=\"841px\" scrolling=\"no\" src=\"https://www.geogebra.org/material/iframe/id/fuehbyns/width/657/height/841/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false\" style=\"border:0px;\" title=\"podobieństwo\" width=\"657px\">\n</iframe>\n<details class=\"info_iframe\">\n<summary>\n<small>\n                            aplet nie działa poprawnie?\n                        </small>\n</summary>\n<div class=\"iframe_zonk\">\n<p>\n                            Jeśli ten aplet nie działa poprawnie nawet na większym ekranie, wyślij wiadomość o treści jak niżej na\n                            <a class=\"mailto_tag\" href=\"mailto:krzysztof.sikora@lal.edu.pl?subject=[lms]iframe&amp;body=IFRAME_EMAIL_BODY\">\n                                ten email\n                            </a>\n                            .\n                        </p>\n<div class=\"iframe_telemetry\">\n</div>\n</div>\n</details>\n</figure>\n</p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "zobacz",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                Długości boków w trójkątach podobnych są do siebie proporcjonalne, tzn.\n            </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n            \\begin{align*}\n            \\frac{\\color{orange}{\\text{żółty bok w większym trójkącie}}}{\\color{orange}{\\text{żółty bok w mniejszym trójkącie}}}&=\\\\\n            &=\\frac{\\color{red}{\\text{czerwony bok w większym trójkącie}}}{\\color{red}{\\text{czerwony bok w mniejszym trójkącie}}}\\\\\n            &=\\frac{\\color{blue}{\\text{niebieski bok w większym trójkącie}}}{\\color{blue}{\\text{niebieski bok w mniejszym trójkącie}}}\n            \\end{align*}\n            "
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "502b57077bc51d59490554f12de8cb875f501c7109978ef6f65152b2ea8baaf6"
+}

@@ -1,0 +1,28 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Na poniższym rysunku widzisz punkty\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n    \\(\\color{red}{A=(3, 5)}\\) i \\(\\color{blue}{B=(8,2)}\\)\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    oraz wektor \\(\\color{#800080}{\\vec{AB}}\\).\n</p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/wektor_w_ukladzie_wspolrzednych.png",
+      "alt": "wektor w układzie współrzędnych",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "\n    Współrzędne wektora \\(\\color{#800080}{\\vec{AB}}\\) obliczamy w następujący sposób:\n                                                    \\[\n                                                    \\begin{align*}\n                                    \\color{#800080}{\\vec{AB}}&amp;=\\\\\n                                    &amp;=(\\color{blue}{\\text{współrzędne końca}})-(\\color{red}{\\text{współrzędne początku}})=\\\\\n                                    &amp;=[\\color{blue}{8}-\\color{red}{3},\\color{blue}{2}-\\color{red}{5}]=\\\\\n                                    &amp;=\\color{#800080}{[5,-3]}\n                                                    \\end{align*}\n                                                    \\]\n"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "a4083a95daa187e80305eab225e5886390b0fe07c7f5acd0bfc405ae0e774001"
+}

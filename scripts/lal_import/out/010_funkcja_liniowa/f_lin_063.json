@@ -1,0 +1,63 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Aby znaleźć punkt przecięcia prostej z osią \\(x\\) możemy skorzystać z powyższej cechy punktów na osi \\(x\\):\n</p>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "wszystkie punkty na osi \\(x\\) mają współrzędną \\(y=0\\).",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź współrzędne punktu przecięcia prostej\n            \\[y=-\\frac{3}{2}x+\\frac{5}{2}\\]\n            z osią \\(x\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Spróbuj rozwiązać to zadanie samodzielnie, używając w razie potrzeby poniższych wskazówek.\n        </p>"
+    },
+    {
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
+    },
+    {
+      "type": "text",
+      "body": "<p>Skoro wszystkie punkty na osi \\(x\\) mają współrzędną \\(y=0\\), podstawmy \\(y=0\\) do równania prostej.</p>"
+    },
+    {
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
+    },
+    {
+      "type": "text",
+      "body": "<p>\\[0=-\\frac{3}{2}x+\\frac{5}{2}\\]\n            i obliczmy wartość \\(x\\).</p>"
+    },
+    {
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
+    },
+    {
+      "type": "text",
+      "body": "<p>\\[\\frac{3}{2}x=\\frac{5}{2}\\]\n            czyli\n            \\[x=\\frac{5}{2}:\\frac{3}{2}=\\frac{5}{2}\\cdot \\frac{2}{3}=\\frac{5}{3}\\]\n            co oznacza, że punkt przecięcia prostej z osią \\(x\\) ma współrzędne \\(\\color{blue}{(\\frac{5}{3}, 0)}\\).</p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "1da1bfbe2497716d6fab280247b71dff5dd381edae34587bcae6e1d5e304dc5b"
+}

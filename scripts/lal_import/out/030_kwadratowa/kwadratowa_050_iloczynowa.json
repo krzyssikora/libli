@@ -1,0 +1,77 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Wymnóż nawiasy i uprość wyrazy podobne.\n    "
+    },
+    {
+      "type": "fillblank",
+      "stem": "\n        \\((x+1)(x-3)=\\)\n        <span class=\"myequation\">\n            \\(x^2-3x+x\\)\n            ￿0￿\n</span>\n        \\(=\\)\n        <span class=\"myequation\">\n            \\(x^2\\)\n            ￿1￿\n            \\(x\\)\n            ￿2￿\n</span>\n",
+      "blanks": [
+        [
+          "-3"
+        ],
+        [
+          "-2"
+        ],
+        [
+          "-3"
+        ]
+      ]
+    },
+    {
+      "type": "video",
+      "media_src": "static/kwadratowa_zerowe.mp4"
+    },
+    {
+      "type": "text",
+      "body": "<p>Zwróć uwagę, że w nagraniu rozwiązaliśmy równanie\n    \\[\n    x^2-2x-3=0\n    \\]\n    i otrzymaliśmy dwa rozwiązania:</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        \\(x=-1\\) oraz \\(x=3\\)\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>To samo równanie jest wynikiem ćwiczenia znad nagrania:\n    \\[\n    (x+1)(x-3)=x^2-2x-3\n    \\]\n    Oznacza to, że równanie:\n    \\[\n    (x+1)(x-3)=0\n    \\]\n    ma dwa rozwiązania:</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        \\(x=-1\\) oraz \\(x=3\\)\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Czy dostrzegasz zależność między równaniem w tej postaci i jego rozwiązaniami?\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n    \\((x+1)(x-3)=0\\quad\\quad\\Leftrightarrow\\quad\\quad x=-1\\) oraz \\(x=3\\)\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Zaznaczmy odpowiednie liczby kolorem:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n    \\((x\\color{red}{+1})(x\\color{red}{-3})=0\\quad\\quad\\Leftrightarrow\\quad\\quad x=\\color{red}{-1}\\) oraz \\(x=\\color{red}{3}\\)\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    albo nawet zapiszmy równanie w trochę innej postaci:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n    \\((x-\\color{red}{(-1)})(x-\\color{red}{3})=0\\quad\\quad\\Leftrightarrow\\quad\\quad x=\\color{red}{-1}\\) oraz \\(x=\\color{red}{3}\\)\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    I tak oto dochodzimy do\n    <strong>\n        postaci iloczynowej\n    </strong>\n    funkcji kwadratowej.\n</p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "c31e477bd660bd2b6c37b2628c756230654b64a541e939410219326ed156b044"
+}

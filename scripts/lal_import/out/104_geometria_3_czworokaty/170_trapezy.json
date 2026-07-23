@@ -1,0 +1,126 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Przyjrzyjmy się teraz dwóm twierdzeniom na temat trapezów równoramiennych.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W poniższym aplecie widzisz trapez równoramienny i jego dwie przekątne.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Naciśnij \"start\" i przyjrzyj się animacji.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Co pokazuje animacja?\n        </p>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/shekf7z3/width/531/height/533/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>Twierdzenie o przekątnych trapezu równoramiennego</strong>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Przekątne w trapezie równoramiennym są równej długości.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<u>co więcej:</u>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n            odcinki <strong style=\"color: orange;\">nad</strong> punktem przecięcia przekątnych na obu przekątnych są równej długości,\n        </li>\n<li>\n            odcinki <strong style=\"color: red;\">pod</strong> punktem przecięcia przekątnych na obu przekątnych są równej długości,\n        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W poniższym aplecie widzisz trapez równoramienny i jego dwie podstawy: dłuższą \\(a\\) i krótszą \\(b\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Naciśnij \"start\" i przyjrzyj się uważnie animacji.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Czy widzisz, co pokazuje animacja?\n        </p>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/ej2t3u3n/width/775/height/608/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    },
+    {
+      "type": "spoiler",
+      "label": "Co pokazuje animacja?",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Na początku tworzymy odcinek o długości \\(\\frac{a+b}{2}\\).</p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/trapez_wysokosc_w_rownoramiennym_1.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "reveal_gate",
+          "label": "pokaż dalej"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Następnie tworzymy odcinek o długości \\(\\frac{a-b}{2}\\).\n                </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/trapez_wysokosc_w_rownoramiennym_2.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "reveal_gate",
+          "label": "pokaż dalej"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Wysokość trapezu opuszczona z wierzchołka krótszej podstawy dzieli dłuższą podstawę na odcinki o takich dwóch długościach. \n                </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/trapez_wysokosc_w_rownoramiennym_3.png",
+          "alt": "",
+          "figcaption": ""
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>Twierdzenie o wysokości trapezu równoramiennego</strong>\n</p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/trapez_wysokosc_w_rownoramiennym_3.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Wysokość trapezu równoramiennego opuszczona z wierzchołka krótszej podstawy dzieli dłuższą podstawę na odcinki o długościach \\(\\frac{a+b}{2}\\) i \\(\\frac{a-b}{2}\\).\n    </p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "fe5aa92fc06fd04e67f6280c65a6213086d722727bc6047640f16c2e54383d97"
+}

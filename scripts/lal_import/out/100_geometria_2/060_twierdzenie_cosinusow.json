@@ -1,0 +1,221 @@
+{
+  "elements": [
+    {
+      "type": "image",
+      "media_src": "static/trojkat_ABC.png",
+      "alt": "trojkat ABC",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>\n            Twierdzenie cosinusów\n        </strong>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Jeśli \\(a\\), \\(b\\), \\(c\\) to długości boków trójkąta, a \\(A\\), \\(B\\) i \\(C\\) to miary kątów przeciwległych do tych boków, to prawdziwe są następujące równania:\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n            \\(a^2=b^2+c^2-2bc\\cos A\\)\n        </li>\n<li>\n            \\(b^2=a^2+c^2-2ac\\cos B\\)\n        </li>\n<li>\n            \\(c^2=a^2+b^2-2ab\\cos C\\)\n        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Twierdzenia cosinusów możemy użyć gdy:</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n            mamy dane dwa boki i jeden kąt - by znaleźć trzeci bok\n        </li>\n<li>\n            mamy dane trzy boki - by znaleźć kąt\n        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/tw_cosinusow_zad_1.png",
+      "alt": "trojkat ABC",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W trójkącie \\(ABC\\) kąt \\(A\\) ma miarę \\(30^{\\circ}\\), a boki \\(b\\) i \\(c\\) są odpowiednio długości \\(4\\) i \\(6\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź \\(a\\), długość boku \\(BC\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<small style=\"position: absolute; right: 2px; bottom: 2px;\">\n<i>\n                (Rysunek nie zachowuje skali.)\n            </i>\n</small>"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Dany jest kąt \\(A\\), więc użyjemy równania\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(a^2=b^2+c^2-2bc\\cos A\\)",
+            "\\(b^2=a^2+c^2-2ac\\cos B\\)",
+            "\\(c^2=a^2+b^2-2ab\\cos C\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Podstawmy dane wartości:  \\(A=30^{\\circ}\\), \\(b=4\\) i \\(c=6\\):\n    \\[\n    a^2=4^2+6^2-2\\cdot 4\\cdot 6\\cdot\\cos 30^{\\circ}\n    \\]</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Ponieważ \\(\\cos 30^{\\circ}=\\)\n                    \n\n\n\n\n￿0￿",
+          "options": [
+            "\\(\\tfrac{1}{2}\\)",
+            "\\(\\tfrac{\\sqrt{2}}{2}\\)",
+            "\\(\\tfrac{\\sqrt{3}}{2}\\)"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "text",
+          "body": "<p>równanie przyjmuje postać\n    \\[\n    a^2=16+36-2\\cdot 4\\cdot 6\\cdot\\frac{\\sqrt{3}}{2}\n    \\]</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Upraszczamy je do postaci\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(a^2=28\\sqrt{3}\\)",
+            "\\(a^2=16\\)",
+            "\\(a^2=52-24\\sqrt{3}\\)"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "text",
+          "body": "<p>A skoro \\(a^2=52-24\\sqrt{3}\\), to\n    \\[\n    a=\\sqrt{52-24\\sqrt{3}}\n    \\]\n    Zwróć uwagę, że:</p>"
+        },
+        {
+          "type": "text",
+          "body": "<ol>\n<li>\n                        ten wynik możemy zapisać w postaci \\(a=2\\sqrt{13-6\\sqrt{3}}\\),\n                    </li>\n<li>\n                        możemy też skorzystać z kalkulatora i napisać: \\(a=\\sqrt{52-24\\sqrt{3}}\\approx 3,23\\), co daje lepszą informację, jak ma się znaleziona długość boku \\(BC\\) do długości innych boków,\n                    </li>\n<li>\n                        tym razem, mimo, że rozwiązujemy równanie kwadratowe, nie bierzemy pod uwagę drugiego wyniku, \\(a=-\\sqrt{52-24\\sqrt{3}}\\), a to dlatego, że \\(a\\) jest dłuigością, więc nie może być ujemne.\n                    </li>\n</ol>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W trójkącie \\(ABC\\) długości boków \\(a\\), \\(b\\) i \\(c\\) to odpowiednio \\(7\\), \\(5\\sqrt{2}\\) i \\(13\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź miarę\n            <strong>\n                największego\n            </strong>\n            kąta w trójkącie \\(ABC\\).\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Zacznimy od tego, że największy kąt leży naprzeciwko\n                    \n\n\n￿0￿\n                    boku.\n                    \n",
+          "options": [
+            "najdłuższego",
+            "najkrótszego",
+            "średniego"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Najdłuższy bok to\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(a=7\\)",
+            "\\(b=5\\sqrt{2}\\)",
+            "\\(c=13\\)"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Najdłuższy jest bok \\(AB\\) o długości \\(c=13\\), a największy kąt jest naprzeciwko tego boku, więc największym kątem jest ten z wierzchołkiem w punkcie\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(A\\)",
+            "\\(B\\)",
+            "\\(C\\)"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    I dlatego użyjemy równania\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(a^2=b^2+c^2-2bc\\cos A\\)",
+            "\\(b^2=a^2+c^2-2ac\\cos B\\)",
+            "\\(c^2=a^2+b^2-2ab\\cos C\\)"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "text",
+          "body": "<p>Po podstawieniu danych długości do równania:\n    \\[\n    c^2=a^2+b^2-2ab\\cos C\n    \\]\n    otrzymamy:\n    \\[\n    13^2=7^2+(5\\sqrt{2})^2-2\\cdot 7\\cdot 5\\sqrt{2}\\cdot\\cos C\n    \\]\n    Obliczamy:\n    \\[\n    169=49+50-70\\sqrt{2}\\cdot\\cos C\n    \\]\n    i upraszczamy:\n    \\[\n    70=-70\\sqrt{2}\\cdot\\cos C\n    \\]</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    I dlatego \\(\\cos C=\\)\n                    \n\n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(\\tfrac{\\sqrt{2}}{2}\\)",
+            "\\(-\\tfrac{\\sqrt{2}}{2}\\)",
+            "\\(-\\sqrt{2}\\)",
+            "\\(\\sqrt{2}\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Skoro \\(\\cos C\\lt 0\\), to znaczy, że kąt \\(C\\) jest\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "ostry",
+            "rozwarty",
+            "prosty"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Wiemy też, że \\(\\frac{\\sqrt{2}}{2}\\) to wartość\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(\\cos 30^{\\circ}\\)",
+            "\\(\\cos 45^{\\circ}\\)",
+            "\\(\\cos 60^{\\circ}\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    I dlatego\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(C=45^{\\circ}\\)",
+            "\\(C=135^{\\circ}\\)",
+            "\\(C=115^{\\circ}\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Największy kąt w trójkącie \\(ABC\\) ma miarę \\(135^{\\circ}\\).</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Zwróć uwagę, że jeśli kąt \\(\\alpha\\) jest kątem w trójkącie (czyli \\(0^{\\circ}\\lt \\alpha\\lt 180^{\\circ}\\)) to\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ol>\n<li>\n                        \\(\\cos \\alpha\\gt 0\\) oznacza, że \\(\\alpha\\) jest kątem ostrym,\n                    </li>\n<li>\n                        \\(\\cos \\alpha= 0\\) oznacza, że \\(\\alpha\\) jest kątem prostym,\n                    </li>\n<li>\n                        \\(\\cos \\alpha\\lt 0\\) oznacza, że \\(\\alpha\\) jest kątem rozwartym.\n                    </li>\n</ol>"
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "bb3bcb1d740dfb76387dcc1131f0e916768eed72e231f1953680bf0d2e35b427"
+}

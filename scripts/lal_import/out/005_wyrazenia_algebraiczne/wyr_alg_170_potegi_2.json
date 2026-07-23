@@ -1,0 +1,10 @@
+{
+  "elements": [
+    {
+      "type": "video",
+      "media_src": "static/potegi_wymierne.mp4"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "ddb4b7d42d5d76b1ea46b5b93016199cf150062f2ca09564c9cc23217f47cd23"
+}

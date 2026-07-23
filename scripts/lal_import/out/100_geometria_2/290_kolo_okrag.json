@@ -1,0 +1,378 @@
+{
+  "elements": [
+    {
+      "type": "image",
+      "media_src": "static/wycinek_kola_pole_dlugosc_luku.png",
+      "alt": "koło wipsane w wycinek koła",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>Dla koła o promieniu \\(r\\):</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n</li>\n<li>\n            obwód = \\(2\\pi r\\)\n        </li>\n<li>\n</li>\n<li>\n            pole = \\(\\pi r^2\\)\n        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Dla wycinka tego koła o kącie środkowym \\(\\alpha\\):</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n</li>\n<li>\n            długość łuku = \\(d=\\frac{\\alpha}{180^{\\circ}}\\cdot\\pi r\\)\n        </li>\n<li>\n</li>\n<li>\n            pole wycinka = \\(\\frac{\\alpha}{360^{\\circ}}\\cdot \\pi r^2\\quad = \\frac{d}{2}\\cdot r\\)\n        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Uzupełnij tabelę, by w każdym wierszu były wpisane dane na temat tego samego koła i jego wycinka o wskazanym kącie środkowym.\n    "
+    },
+    {
+      "type": "fill_table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "kind": "static",
+              "html": "promień\n                    <br/>\n                    koła"
+            },
+            {
+              "kind": "static",
+              "html": "pole\n                    <br/>\n                    koła"
+            },
+            {
+              "kind": "static",
+              "html": "obwód\n                    <br/>\n                    koła"
+            },
+            {
+              "kind": "static",
+              "html": "kąt\n                    <br/>\n                    środkowy"
+            },
+            {
+              "kind": "static",
+              "html": "pole\n                    <br/>\n                    wycinka"
+            },
+            {
+              "kind": "static",
+              "html": "długość\n                    <br/>\n                    łuku"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(3\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "9"
+            },
+            {
+              "kind": "answer",
+              "answer": "6"
+            },
+            {
+              "kind": "static",
+              "html": "\\(60^{\\circ}\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "3/2"
+            },
+            {
+              "kind": "answer",
+              "answer": "1"
+            }
+          ],
+          [
+            {
+              "kind": "answer",
+              "answer": "6"
+            },
+            {
+              "kind": "static",
+              "html": "\\(36\\pi\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "12"
+            },
+            {
+              "kind": "static",
+              "html": "\\(30^{\\circ}\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "3"
+            },
+            {
+              "kind": "answer",
+              "answer": "1"
+            }
+          ],
+          [
+            {
+              "kind": "answer",
+              "answer": "8"
+            },
+            {
+              "kind": "answer",
+              "answer": "64"
+            },
+            {
+              "kind": "static",
+              "html": "\\(16\\pi\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(135^{\\circ}\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "24"
+            },
+            {
+              "kind": "answer",
+              "answer": "6"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(4\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "16"
+            },
+            {
+              "kind": "answer",
+              "answer": "8"
+            },
+            {
+              "kind": "answer",
+              "answer": "45"
+            },
+            {
+              "kind": "static",
+              "html": "\\(2\\pi\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "1"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/odcinek_kola_zadanie.png",
+      "alt": "odcinek koła",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Wycinek koła o kącie środkowym \\(45^{\\circ}\\) w kole o promieniu \\(12\\) podzielono cięciwą na trójkąt i odcinek koła.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Oblicz pole odcinka koła.\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Zacznijmy od obliczenia pola całego wycinka (oznaczmy je \\(P_W\\)) z użyciem wzoru \\(P_W=\\frac{\\alpha}{360^{\\circ}}\\cdot \\pi r^2\\).</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    \\(P_W=\\frac{45^{\\circ}}{360^{\\circ}}\\cdot \\pi\\cdot 12^2=\\)\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(9\\pi\\)",
+            "\\(18\\pi\\)",
+            "\\(36\\pi\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Aby uzyskać pole odcinka koła, od policzonego właśnie pola wycinka musimy odjąć pole trójkąta.</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Znamy długości dwóch boków trójkąta (obie równe \\(12\\)) i miarę kąta między nimi (\\(45^{\\circ}\\)).\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Pole trójkąta jest</p>"
+        },
+        {
+          "type": "text",
+          "body": "<em>\n                    połową iloczynku dwóch boków i sinusa kąta między nimi\n                </em>"
+        },
+        {
+          "type": "text",
+          "body": "<p>(\\(P_{\\Delta}=\\frac{1}{2}ab\\cdot \\sin C\\)).</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    W naszej sytuacji \\(P_{\\Delta}=\\frac{1}{2}\\cdot 12\\cdot 12\\cdot \\sin 45^{\\circ}=\\)\n                    \n\n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(36\\sqrt{2}\\)",
+            "\\(36\\)",
+            "\\(36\\sqrt{3}\\)",
+            "\\(72\\sqrt{2}\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Na zakończenie, aby uzyskać pole odcinka, \\(P\\), wystarczy odjąć pole trójkąta od pola wycinka:</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    \\(P=P_W-P_{\\Delta}=\\)\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(36\\sqrt{2}-18\\pi\\)",
+            "\\(18\\pi-36\\sqrt{2}\\)",
+            "\\(18\\sqrt{2}-\\pi\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Pole odcinka to \\(18\\pi-36\\sqrt{2}\\) albo w przybliżeniu \\(5,64\\).</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/okrag_w_wycinku_zadanie_1.png",
+      "alt": "koło wipsane w wycinek koła",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W wycinek koła wpisano mniejsze koło w taki sposób, że jest styczne zarówno do obu promieni jak i do łuku ograniczających wycinek.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Wiedząc, że promień większego koła jest trzykrotnie dłuższy od promienia mniejszego koła, oblicz miarę kąta środkowego wycinka.\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "image",
+          "media_src": "static/okrag_w_wycinku_zadanie_2.png",
+          "alt": "koło wipsane w wycinek koła",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>Przyjmijmy oznaczenia, jak na rysunku obok.</p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>\n                        \\(C\\) - środek większego koła,\n                    </li>\n<li>\n                        \\(S\\) - środek mniejszego koła,\n                    </li>\n<li>\n                        \\(A\\) - punkt styczności mniejszego koła z jednym z promieni wycinka,\n                    </li>\n<li>\n                        \\(P\\) - punkt styczności mniejszego i większego okręgu,\n                    </li>\n<li>\n                        \\(r\\) - długość promienia mniejszego okręgu.\n                    </li>\n</ul>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Skoro tak, to długość promienia większego okręgu jest równa\n                    \n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(3r\\)",
+            "\\(r^3\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Odcinek \\(CP\\) to promień większego koła. Odcinek \\(SP\\) to promień mniejszego koła. Dlatego długość odcinka \\(CS\\) jest równa\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(3r\\)",
+            "\\(2r\\)",
+            "\\(r\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "image",
+          "media_src": "static/okrag_w_wycinku_zadanie_3.png",
+          "alt": "koło wipsane w wycinek koła",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>Pomyślmy teraz o trójkącie \\(CAS\\).</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Oznaczmy kąt z wierzchołkiem w \\(C\\) przez \\(\\alpha\\).</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Kąt z wierzchołkiem w punkcie \\(A\\) jest prosty, bo to kąt między styczną a promieniem.</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Stosunek boków \\(\\frac{AS}{CS}\\) to\n                    \n\n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(\\sin\\alpha\\)",
+            "\\(\\cos\\alpha\\)",
+            "\\(\\text{tg }\\alpha\\)",
+            "\\(\\text{ctg }\\alpha\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Wiemy więc, że\n                \\[\n                \\sin\\alpha = \\frac{AS}{CS} = \\frac{r}{2r} = \\frac{1}{2}\n                \\]</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Dlatego \\(\\alpha=\\)\n                    \n\n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(15^{\\circ}\\)",
+            "\\(30^{\\circ}\\)",
+            "\\(45^{\\circ}\\)",
+            "\\(60^{\\circ}\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Mamy obliczyć kąt środkowy wycinka, a jego miara jest równa\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(\\alpha\\)",
+            "\\(2\\alpha\\)",
+            "\\(3\\alpha\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>I dlatego kąt środkowy wycinka ma miarę \\(60^{\\circ}\\).</p>"
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "f2c1fbded63ac4ac459ec34682c9d2286f64e57c1e7489abde997bacc90619fb"
+}

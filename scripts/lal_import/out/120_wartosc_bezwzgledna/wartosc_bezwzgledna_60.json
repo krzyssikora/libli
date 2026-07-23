@@ -1,0 +1,36 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Ile rozwiązań mają poniższe równania?\n    "
+    },
+    {
+      "type": "choice_grid",
+      "columns": [
+        "wcale",
+        "jedno",
+        "dwa"
+      ],
+      "rows": [
+        {
+          "statement": "\\(|3x-2|=0\\)",
+          "correct": 1
+        },
+        {
+          "statement": "\\(|2x-1|=-1\\)?",
+          "correct": 0
+        },
+        {
+          "statement": "\\(|1-3x|=4\\)",
+          "correct": 2
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "124ebd6b3e7acd03599d7d1d59303131eeb3252ef983d94d8d0bcca294174082"
+}

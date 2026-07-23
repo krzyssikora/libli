@@ -1,0 +1,84 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Kwotę 12000 złotych zainwestowano na dwóch kontach.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n            Część tej kwoty na koncie A o oprocentowaniu 3% w skali roku,\n            <br/>\n            a resztę na koncie B o oprocentowaniu rocznym 4% w skali roku.\n        "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Po roku odsetki z obu kont wyniosły 430 złotych.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ol>\n<li>\n                Ile pieniędzy zainwestowano na każdym z kont?\n            </li>\n<li>\n                Z którego konta zysk był wyższy i o ile złotych?\n            </li>\n</ol>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Niech:\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n                \\(a\\) oznacza kwotę wpłaconą na konto A\n            </li>\n<li>\n                \\(b\\) oznacza kwotę wpłaconą na konto B\n            </li>\n</ul>"
+    },
+    {
+      "type": "fill_gate",
+      "stem": "\n<p>\n                Wówczas\n            </p>\n<span class=\"myequation\">\n                \\(a+b=\\)\n                <span>\n￿0￿\n</span>\n</span>\n",
+      "answers": [
+        [
+          "12000.0",
+          "12000,0"
+        ]
+      ]
+    },
+    {
+      "type": "fill_gate",
+      "stem": "\n<p>\n                Oprocentowanie na koncie A wynosiło 3%, więc po roku było tam\n                <span class=\"myequation\">\n                    \\(0,03\\cdot a\\)\n                </span>\n                odsetek.\n            </p>\n<p>\n                Oprocentowanie na koncie B wynosiło 4%, więc po roku było tam\n                <span class=\"myequation\">\n<span>\n￿0￿\n</span>\n                    \\(\\cdot b\\)\n                </span>\n                odsetek.\n            </p>\n",
+      "answers": [
+        [
+          "0.04",
+          "0,04"
+        ]
+      ]
+    },
+    {
+      "type": "fill_gate",
+      "stem": "\n<p>\n                Wówczas:\n            </p>\n<span class=\"myequation\">\n                \\(0,03a+0,04b=\\)\n                <span>\n￿0￿\n</span>\n</span>\n",
+      "answers": [
+        [
+          "430.0",
+          "430,0"
+        ]
+      ]
+    },
+    {
+      "type": "fill_gate",
+      "stem": "\n<p>\n                Mamy więc układ równań:\n            </p>\n            \\[\n                                                                                                \\begin{cases}\n                                                                                                a+b=12000\\\\\n                                                                                                0,03a+0,04b=430\n                                                                                                \\end{cases}\n                                                                                                \\]\n            <div class=\"question_solution hidden\">\n<p>\n                    Z pierwszego równania wyliczamy \\(b\\):\n                </p>\n                \\[\n                b=12000-a\n                \\]\n                <p>\n                    i podstawiamy do drugiego równania:\n                </p>\n                \\[\n                0,03a+0,04(12000-a)=430\n                \\]\n                <p>\n                    Wymnażamy, upraszczamy, wyliczamy \\(a\\):\n                </p>\n                \\[\n                \\begin{align}\n                0,03a+480-0,04a&amp;=430\\\\\n                0,03a-0,04a&amp;=430-480\\\\\n                -0,01a&amp;=-50\\\\\n                a&amp;=5000\n                \\end{align}\n                \\]\n                <p>\n                    A ponieważ \\(b=12000-a\\):\n                </p>\n                \\[b=12000-5000=7000\\]\n            </div>\n<div class=\"question_answer\">\n<p>\n                    Rozwiązując układ równań otrzymamy:\n                </p>\n                \\[\n                \\begin{cases}\n                a=5000\\\\\n                c=7000\n                \\end{cases}\n                \\]\n            </div>\n<div class=\"show_solution ks_button\">\n                Pełne rozwiązanie - zobacz\n            </div>\n<p>\n                Wiemy, ile wpłacono na każde z kont, czyli znamy odpowiedź na część pierwszą pytania.\n            </p>\n<p>\n                Aby odpowiedzieć na drugie pytanie: \"\n                <em>\n                    z którego konta zysk był wyższy i o ile\n                </em>\n                \"\n            </p>\n<p>\n                policzymy odsetki zgromadzone na każdym z kont:\n            </p>\n<p>\n                konto A:\n                <span class=\"myequation\">\n                    \\(0,03\\cdot a=0,03\\cdot 5000=150\\)\n                </span>\n</p>\n<p>\n                konto B:\n                <span class=\"myequation\">\n                    \\(0,04\\cdot b=0,04\\cdot 7000=\\)\n                    <span>\n￿0￿\n</span>\n</span>\n</p>\n",
+      "answers": [
+        [
+          "280.0",
+          "280,0"
+        ]
+      ]
+    },
+    {
+      "type": "fill_gate",
+      "stem": "\n<p>\n                W tym momencie warto zwrócić uwagę, że\n                <span class=\"myequation\">\n                    \\(0,03\\cdot a + 0,04\\cdot b = 150+280=430\\)\n                </span>\n                , jak powinno.\n            </p>\n<p>\n                Widzimy, że zysk z konta B był wyższy o\n                <span class=\"myequation\">\n<span>\n￿0￿\n</span>\n</span>\n                złotych.\n            </p>\n",
+      "answers": [
+        [
+          "130.0",
+          "130,0"
+        ]
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "6f1fc62a4f9a7d0f3f5999b92a8c1fb45f893371f98800010a28a2e4722d4b96"
+}

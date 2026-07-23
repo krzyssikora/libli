@@ -1,0 +1,206 @@
+{
+  "elements": [
+    {
+      "type": "choice",
+      "stem": "<p>\n    Parabola poniżej to wykres funkcji o równaniu \\(f(x)=ax^2+bx+c\\).\n</p><div class=\"centered\">\n<img alt=\"współczynniki funkcji kwadratowej z wykresu 1 - quiz\" height=\"400\" src=\"static/parabola_quiz_1.png\"/>\n</div><p>\n    Określ znak współczynnika \\(a\\).\n</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(a\\gt 0\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(a\\lt 0\\)",
+          "is_correct": true,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\n    Określ znak współczynnika \\(c\\).\n</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(c\\gt 0\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(c\\lt 0\\)",
+          "is_correct": true,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\n    Na podstawie położenia wierzchołka i jednej ze swoich poprzednich odpowiedzi określ znak współczynnika \\(b\\).\n</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(b\\gt 0\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(b\\lt 0\\)",
+          "is_correct": true,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\n    Określ znak wyróżnika, \\(\\Delta\\).\n</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(\\Delta\\gt 0\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\Delta = 0\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\Delta\\lt 0\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\n    Parabola poniżej to wykres funkcji o równaniu \\(f(x)=ax^2+bx+c\\).\n</p><div class=\"centered\">\n<img alt=\"współczynniki funkcji kwadratowej z wykresu 2 - quiz\" height=\"400\" src=\"static/parabola_quiz_2.png\"/>\n</div><p>\n    Określ znak współczynnika \\(a\\).\n</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(a\\gt 0\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(a\\lt 0\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\n    Określ znak współczynnika \\(c\\).\n</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(c\\gt 0\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(c\\lt 0\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\n    Na podstawie położenia wierzchołka i jednej ze swoich poprzednich odpowiedzi określ znak współczynnika \\(b\\).\n</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(b\\gt 0\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(b\\lt 0\\)",
+          "is_correct": true,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\n    Określ znak wyróżnika, \\(\\Delta\\).\n</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(\\Delta\\gt 0\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\Delta = 0\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\Delta\\lt 0\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Wskaż zbiór wartości funkcji</p><p>\\[\nf(x)=-2(x-2)^2-4\n\\]</p><p>określonej dla każdej liczby rzeczywistej \\(x\\).</p><p>\n    Jaki jest zbiór wartości tej funkcji?\n</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(\\langle -4,+\\infty)\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\((-\\infty, -4 \\rangle\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\langle 2,+\\infty)\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\((-\\infty, 2 \\rangle\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Wskaż zbiór wartości funkcji</p><p>\\[\nf(x)=\\tfrac{2}{3}(x+3)^2+1\n\\]</p><p>określonej dla każdej liczby rzeczywistej \\(x\\).</p><p>\n    Jaki jest zbiór wartości tej funkcji?\n</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(\\langle 1,+\\infty)\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\((-\\infty, 1 \\rangle\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\langle -3,+\\infty)\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\((-\\infty, -3 \\rangle\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "39758561fcb8e3297ab07e89a02c841e3d82ccbd4835ce41ef2eeee61af853c5"
+}

@@ -1,0 +1,31 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W poniższym aplecie widzisz liczby rzeczywiste. Część z nich to liczby wymierne, część całkowite, a część naturalne.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Przesuń każdą liczbę na odpowiednie miejsce, wskazujące, jaka to liczba.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Uwaga! Liczba \\(-10\\) jest rzeczywista, wymierna i całkowita, ale nie jest naturalna. Tę liczbę należałoby przesunąć do zbioru liczb całkowitych, bo to najlepsze określenie, jaką liczbą jest \\(-10\\) - każda liczba całkowita jest też bowiem wymierna i rzeczywsta, jednak nie każda wymierna czy rzeczywista jest całkowita.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Zadanie zostanie poprawnie wykonane, gdy pasek z napisem \"progres\" będzie zielony.\n        </p>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/trgu3fwj/width/700/height/850/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "e80ab4be7ce4509ec965453c19936da20bd7e72dd2a8ee5e4e98bccd963736b0"
+}

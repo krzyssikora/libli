@@ -1,0 +1,81 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Pamiętasz, czym różni się\n    <strong>\n        okrąg\n    </strong>\n    od\n    <strong>\n        koła\n    </strong>\n    ?\n</p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/okrag.png",
+      "alt": "okrąg",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>\n        Okrąg\n    </strong>\n    o środku w punkcie \\(O\\) i promieniu \\(r\\) (gdzie \\(r\\gt 0\\)) to zbiór wszystkich punktów płaszczyzny, których odległość od punktu \\(O\\) jest\n    <u>\n        równa\n    </u>\n    \\(r\\).</p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/kolo.png",
+      "alt": "koło",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>\n        Koło\n    </strong>\n    o środku w punkcie \\(O\\) i promieniu \\(r\\) (gdzie \\(r\\gt 0\\)) to zbiór wszystkich punktów płaszczyzny, których odległość od punktu \\(O\\) jest\n    <u>\n        mniejsza lub równa\n    </u>\n    \\(r\\).</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W poniższym aplecie, po prawej stronie, widzisz kilka pojęć, które należy znać. Jeśli klikniesz check-box przed którymś z nich, zobaczysz odpowiedni kształt zaznaczony na czerwono na rysunku. Zanim klikniesz - przypomnij sobie lub spróbuj wymyślić, co dane pojęcie może oznaczać.\n        </p>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/rx6mxmqg/width/600/height/500/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    },
+    {
+      "type": "text",
+      "body": "<h3>\n    Ważne wzory, które musisz pamiętać\n</h3>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "pole koła o promieniu \\(r\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\pi r^2\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "obwód koła o promieniu \\(r\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(2\\pi r\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "73eb684994920bd1d7076aaa765e4050076d018a3f2b8d8a72e44ba717d444da"
+}

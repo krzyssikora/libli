@@ -1,0 +1,226 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Oblicz i przedstaw wynik w najprostszej postaci. Sprawdź swój wynik.\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "przykłady prostsze",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<h4>(1)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{5x+12}{(x+2)(x+3)}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(2)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{-x}{(2x-3)(x-2)}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(3)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{24x}{(3x-2)(3x+2)}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(4)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{-12}{(2x+1)(2x-3)}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(5)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{4x+3}{(3x-4)(2x-1)}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(6)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{14x+16}{(3x-2)(2x+5)}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(7)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{17x+7}{(5x+1)(x+2)}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(8)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{8x+14}{(2x+5)(2x-1)}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(9)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{-18x+5}{(6x+2)(3-2x)}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(10)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{3x-1}{(6x-5)(3x-2)}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(11)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{4x+19}{(2x-5)(5x+2)}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(12)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{-6x+7}{(4-3x)(2x-3)}\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Oblicz i przedstaw wynik w najprostszej postaci. Sprawdź swój wynik.\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "przykłady trudniejsze",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<h4>(1)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{7x^2+x-5}{(2x+1)(x-2)(x+3)}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(2)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{x^2+7x+13}{(x+2)(x+3)(x-2)}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(3)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{-36x+5}{(2x+5)(2x-5)(3x-2)}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(4)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{-14x-8}{(2x+3)(3x-2)(2x-3)}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(5)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{14x^2-3x+3}{(2x+3)(2x-3)(2x+1)}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(6)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{21x^2-20x-1}{(2x-3)(5x-1)(2x+5)}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(7)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{10x^2+29x-1}{(5x-1)(3x+2)(x+2)}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(8)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{11x^2+7x-4}{(5x+2)(3x)(2x-1)}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(9)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{20x^2-2x-4}{(x-2)(3x-2)(2x-3)}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(10)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{12x^2-6x-2}{(2x+1)(3x+1)(3x-2)}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(11)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{-19x^2-25x}{(5x+2)(3x)(5x+2)}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(12)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{-15x^2+18x+10}{(2x+1)(5x+2)(2x-3)}\\)</p>"
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "d042bdaa1853a94f857bbdde3cda3c77981bdc770dbb73061db8213792ef0f1f"
+}

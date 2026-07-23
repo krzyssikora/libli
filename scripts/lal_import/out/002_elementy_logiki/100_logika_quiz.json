@@ -1,0 +1,141 @@
+{
+  "elements": [
+    {
+      "type": "choice",
+      "stem": "<p>Wskaż  wszystkie zdania, w których użyto kwantyfikatora ogólnego.</p>",
+      "multiple": true,
+      "choices": [
+        {
+          "text": "\\(p\\wedge q\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\lor_{x\\in B} x\\le 4\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\land_{x\\in A} x\\gt 3\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(p\\Rightarrow q\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Wskaż wszystkie implikacje.</p>",
+      "multiple": true,
+      "choices": [
+        {
+          "text": "\\(p\\vee q\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\lor_{x\\in B} x\\le 4\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\land_{x\\in A} x\\gt 3\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(p\\Rightarrow q\\)",
+          "is_correct": true,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Wskaż wszystkie alternatywy.</p>",
+      "multiple": true,
+      "choices": [
+        {
+          "text": "\\(p\\vee q\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\lor_{x\\in B} x\\le 4\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\land_{x\\in A} x\\gt 3\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(p\\Rightarrow q\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Rozpatrz następujące zdania:</p><p>\n    A. \"\n    <em>\n        Środkowe w trójkącie dzieła się w stosunku 1:2.\n    </em>\n    \"\n</p><p>\n    B. \"\n    <em>\n        Środkowa to odcinek łączący wierzchołek trójkąta ze środkiem przeciwległego boku.\n    </em>\n    \"\n</p><p>Wskaż poprawną odpowiedź:</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "oba zdania są definicjami",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "zdanie A jest twierdzeniem, a zdanie B definicją",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "zdanie A jest definicja, a zdanie B twierdzeniem",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "oba zdania są twierdzeniami",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Jak brzmi twierdzenie odwrotne do twierdzenia:</p><p>\n    \"\n    <em>\n        jeśli liczba jest podzielna przez 2 to jej kwadrat jest podzielny przez 4\n    </em>\n    \"\n</p><p>?</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "jeśli liczba nie jest podzielna przez 2 to jej kwadrat nie jest podzielny przez 4",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "jeśli kwadrat liczby jest podzielny przez 4 to liczba jest podzielna przez 2",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "jeśli kwadrat liczby nie jest podzielny przez 4 to liczba nie jest podzielna przez 2",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "jeśli kwadrat liczby nie jest podzielny przez 4 to liczba jest podzielna przez 2",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "c1d710011e97246694ab7197382cd6a3b7ef869097896b028951f52bd5d0af53"
+}

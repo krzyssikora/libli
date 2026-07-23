@@ -1,0 +1,14 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<h1>\n    Jak rozwiązujemy układy równań?\n</h1>"
+    },
+    {
+      "type": "video",
+      "media_src": "static/uklad_rownan_2.mp4"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "b9b962a8b360567e261e778aad53b89ecc2ad3b5ab9de3bd7ff28eceb0b9f06c"
+}

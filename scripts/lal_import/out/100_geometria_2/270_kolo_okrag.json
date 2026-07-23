@@ -1,0 +1,88 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>Dla koła o promieniu \\(r\\):</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n</li>\n<li>\n            obwód = \\(2\\pi r\\)\n        </li>\n<li>\n</li>\n<li>\n            pole = \\(\\pi r^2\\)\n        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Uzupełnij tabelę, by w każdym wierszu były wpisane promień, pole i obwód tego samego koła.\n    "
+    },
+    {
+      "type": "fill_table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "kind": "static",
+              "html": "promień"
+            },
+            {
+              "kind": "static",
+              "html": "pole"
+            },
+            {
+              "kind": "static",
+              "html": "obwód"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(3\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "9"
+            },
+            {
+              "kind": "answer",
+              "answer": "6"
+            }
+          ],
+          [
+            {
+              "kind": "answer",
+              "answer": "4"
+            },
+            {
+              "kind": "static",
+              "html": "\\(16\\pi\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "8"
+            }
+          ],
+          [
+            {
+              "kind": "answer",
+              "answer": "8"
+            },
+            {
+              "kind": "answer",
+              "answer": "64"
+            },
+            {
+              "kind": "static",
+              "html": "\\(16\\pi\\)"
+            }
+          ]
+        ]
+      }
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "f616ea49059d61a402d9c0bdcce08c58a41f2e87db5a4969f972b9f98ed9bf23"
+}

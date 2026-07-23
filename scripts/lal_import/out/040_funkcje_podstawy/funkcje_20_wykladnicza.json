@@ -1,0 +1,102 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<h1>\n    Funkcja wykładnicza\n</h1>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Przypomnijmy sobie bardzo krótko podstawowe działania na potęgach.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Przyjrzyj się poznanym wcześniej wzorom i uzupełnij brakujące pola.\n    "
+    },
+    {
+      "type": "fill_table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "kind": "static",
+              "html": "\\(a^n\\cdot a^k=a^{n+k}\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "7"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(a^n: a^k=a^{n-k}\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "5"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(\\left(a^n\\right)^k=a^{n\\cdot k}\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "20"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": ""
+            },
+            {
+              "kind": "answer",
+              "answer": "12"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(a^{-n}=\\frac{1}{a^n}\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "-3"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(a^{\\frac{1}{n}}=\\sqrt[n]{a}\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "1/5"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": ""
+            },
+            {
+              "kind": "answer",
+              "answer": "2/5"
+            }
+          ]
+        ]
+      }
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "6c79d7e82146afa7d2af93526032d9e2c62d2a249482fcf01a89bed16d767d49"
+}

@@ -1,0 +1,133 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź dokładne wartości \\(\\sin 314^{\\circ}\\), \\(\\cos 314^{\\circ}\\), \\(\\text{tg } 314^{\\circ}\\) i \\(\\text{ctg } 314^{\\circ}\\).\n        </p>"
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                Kąt \\(314^{\\circ}\\) leży w\n                \n\n\n\n￿0￿\n                układu współrzędnych.\n                \n",
+      "options": [
+        "I ćwiartce",
+        "II ćwiartce",
+        "III ćwiartce",
+        "IV ćwiartce"
+      ],
+      "answer": 3
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Musimy ustalić, jaki kąt w pierwszej ćwiartce układu współrzędnych ma prawie takie same wartości funkcji trygonometrycznych (z dokładnością do znaków). Jeśli nie pamiętasz, jak, może pomóc Ci aplet, którego wcześniej już używaliśmy:\n            </p>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/tfdcumpb/width/750/height/520/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                Odpowiednikiem kąta \\(314^{\\circ}\\) w pierwszej ćwiartce jest kąt\n                \n\n\n\n\n￿0￿",
+      "options": [
+        "\\(14^{\\circ}\\)",
+        "\\(46^{\\circ}\\)",
+        "\\(44^{\\circ}\\)"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                \\(360^{\\circ}-314^{\\circ}=46^{\\circ}\\)\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                W tablicach matematycznych znajdujemy przbliżone wartości:\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n                    \\(\\sin 46^{\\circ}=0,7193\\)\n                </li>\n<li>\n                    \\(\\cos 46^{\\circ}=0,6947\\)\n                </li>\n<li>\n                    \\(\\text{tg} 46^{\\circ}=1,0355\\)\n                </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Aby ustalić wartości dla kąta \\(314^{\\circ}\\), musimy wiedzieć, które funkcje są dodatnie, a które ujemne w czwartej ćwiartce.\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Do tego użyjemy zasady \"WSTeCz\", albo \"Wafle Są Tylko Czekoladowe\", albo \"Większość Słoni Trąbi Cicho\", czyli liter\n                <strong style=\"font-size:x-large;\">\n                    WSTC\n                </strong>\n                .\n            </p>"
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                W czwartej ćwiartce\n                \n\n\n\n￿0￿\n                .\n                \n",
+      "options": [
+        "<strong>\n                        W\n                    </strong>\n                    szystkie funkcje są dodatnie",
+        "<strong>\n                        S\n                    </strong>\n                    inus jest dodatni",
+        "<strong>\n                        T\n                    </strong>\n                    angens jest dodatni",
+        "<strong>\n                        C\n                    </strong>\n                    osinus jest dodatni"
+      ],
+      "answer": 3
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                W czwartej ćwiartce cosinus jest dodatni, czyli sinus i tangens są ujemne.\n            </p>"
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                I dlatego\n                \n\n\n\n￿0￿",
+      "options": [
+        "\\(\\sin 314^{\\circ}=0,7193\\)",
+        "\\(\\sin 314^{\\circ}=-0,7193\\)"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                Za to\n                \n\n￿0￿\n                .\n                \n",
+      "options": [
+        "\\(\\cos 314^{\\circ}=0,6947\\)",
+        "\\(\\cos 314^{\\circ}=-0,6947\\)"
+      ],
+      "answer": 0
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                I wreszcie\n                \n\n￿0￿\n                .\n                \n",
+      "options": [
+        "\\(\\text{tg } 314^{\\circ}=1,0355\\)",
+        "\\(\\text{tg } 314^{\\circ}=-1,0355\\)"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Możemy jeszcze ustalić wartość cotangensa, korzystając z tego, że\n            </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n            \\text{ctg} 314^{\\circ}=\\frac{1}{\\text{tg}314^{\\circ}}\n            "
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                I stąd (użyj kalkulatora!)\n                \n\n\n\n￿0￿\n                .\n                \n",
+      "options": [
+        "\\(\\text{ctg } 314^{\\circ}=0,965\\)",
+        "\\(\\text{ctg } 314^{\\circ}=1,0355\\)",
+        "\\(\\text{ctg } 314^{\\circ}=0,966\\)",
+        "\\(\\text{ctg } 314^{\\circ}=-0,966\\)"
+      ],
+      "answer": 3
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Podsumowując:\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                \\(\\sin 314^{\\circ}=-0,7193\\), \\(\\quad\\cos 314^{\\circ}=0,6947\\), \\(\\quad\\text{tg }314^{\\circ}=-1,0355\\), \\(\\quad\\text{ctg }314^{\\circ}=-0,966\\).\n            "
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "023c8e7b01569d505fc3e6efb8c36749e2cde4c9af58895188a06d08634597c7"
+}

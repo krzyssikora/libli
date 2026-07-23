@@ -1,0 +1,218 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W klasie jest 10 dziewcząt i 12 chłopców.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Na ile sposobów można wybrać z tej klasy 2 chłopców?\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(\\binom{12}{2}=\\frac{12\\cdot 11}{2}=66\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W klasie jest 10 dziewcząt i 12 chłopców.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Na ile sposobów można wybrać z tej klasy czteroosobową grupę składającą się z 2 chłopców i 2 dziewcząt?\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(\\binom{12}{2}\\cdot \\binom{10}{2}=\\frac{12\\cdot 11}{2}\\cdot \\frac{10\\cdot 9}{2}=66\\cdot 45=2970\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W klasie jest 10 dziewcząt i 12 chłopców.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Na ile sposobów można wybrać z tej klasy czteroosobową grupę, w której będzie co najwyżej jeden chłopiec?\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n            \"Co najwyżęj jeden chłopiec\", czyli \\(0\\) chłopców lub \\(1\\) chłopiec:\n        </p>"
+        },
+        {
+          "type": "table",
+          "data": {
+            "header_row": false,
+            "header_col": false,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "\\(0\\) chłopców,",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "czyli \\(4\\) dziewczęta:",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\binom{12}{0}\\cdot \\binom{10}{4}=1\\cdot \\frac{10!}{4!}{6!}=\\frac{10\\cdot 9\\cdot 8\\cdot 7}{1\\cdot 2\\cdot 3\\cdot 4}=210\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(1\\) chłopiec,",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "czyli \\(3\\) dziewczęta:",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\binom{12}{1}\\cdot \\binom{10}{3}=12\\cdot \\frac{10!}{3!}{7!}=12\\cdot\\frac{10\\cdot 9\\cdot 8}{1\\cdot 2\\cdot 3}=1440\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Razem: \\(210+1440=1650\\)\n        </p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W klasie jest 10 dziewcząt i 12 chłopców.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Na ile sposobów można wybrać z tej klasy czteroosobową grupę, w której będą sami chłopcy lub same dziewczęta?\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "\n            \\[\n            \\binom{12}{4}\\cdot\\binom{10}{0}+\\binom{12}{0}\\cdot\\binom{10}{4}=\\frac{12!}{4!\\cdot 8!}\\cdot 1+1\\cdot \\frac{10!}{4!\\cdot 6!}=\\frac{12\\cdot 11\\cdot 10\\cdot 9}{1\\cdot 2\\cdot 3\\cdot 4}+\\frac{10\\cdot 9\\cdot 8\\cdot 7}{1\\cdot 2\\cdot 3\\cdot 4}=495+210=705\n            \\]\n        "
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W klasie jest 10 dziewcząt i 12 chłopców.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Na ile sposobów można wybrać z tej klasy czteroosobową grupę, w której będzie przynajmniej jeden chłopiec?\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "wskazówka",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Aby uzyskać liczbę grup z przynajmniej jednym chłopcem, od wszystkich grup odejmijmy te, w których nie ma ani jednego chłopca.</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "table",
+          "data": {
+            "header_row": false,
+            "header_col": false,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "wszystkie grupy,",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "czyli \\(4\\) osoby z \\(22\\):",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\binom{22}{4}=\\frac{22!}{4!\\cdot 18!}=\\frac{22\\cdot 21\\cdot 20\\cdot 19}{1\\cdot 2\\cdot 3\\cdot 4}=7315\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "ani jednego chłopca,",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "czyli same dziewczęta (z \\(10\\)):",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\binom{10}{4}=\\frac{10!}{4!\\cdot 6!}=\\frac{10\\cdot 9\\cdot 8\\cdot 7}{1\\cdot 2\\cdot 3\\cdot 4}=210\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Czyli liczba grup z przynajmniej jednym chłopcem \\(=7315-210=7105\\)\n        </p>"
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "b7368ebf02f69e33ef9cfe1ee2ff67b6fbb55e38a4bc3a6a91749f4ecdf017e0"
+}

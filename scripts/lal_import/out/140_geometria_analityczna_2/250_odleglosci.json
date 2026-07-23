@@ -1,0 +1,189 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Podsumujmy krótko różnice między dwoma poznanymi rodzajami równań prostych.\n</p>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": true,
+        "header_col": true,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "równanie kierunkowe",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "równanie ogólne",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "wzór",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(y=ax+b\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(Ax+By+C=0\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "punkt na osi \\(OX\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "rozwiązujemy równanie:<br/>\n                \\(y=ax+b\\) dla \\(y=0\\), <br/>\n                czyli \\(0=ax+b\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "rozwiązujemy równanie:<br/>\n                \\(Ax+By+C=0\\) dla \\(y=0\\),<br/>\n                czyli \\(Ax+B\\cdot 0+C=0\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "punkt na osi \\(OY\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<div style=\"opacity: .5;\">rozwiązujemy równanie:<br/>\n                \\(y=ax+b\\) dla \\(x=0\\),<br/>\n                czyli  po prostu \\(y=b\\),<br/></div>\n                więc punkt \\((0,b)\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "rozwiązujemy równanie:<br/>\n                \\(Ax+By+C=0\\) dla \\(x=0\\),<br/>\n                czyli \\(A\\cdot 0+By+C=0\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "nachylenie",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(a\\) - widoczne w równaniu<br/>\n                \\(a=\\text{tg}\\,\\alpha\\),<br/>\n                gdzie \\(\\alpha\\) jest kątem nachylenia prostej do osi \\(OX\\).",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "żeby je znaleźć, zamieniamy równanie na postać kierunkową",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "rysowanie",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "łatwe: zaczynamy od punktu na osi \\(OY\\) (czyli \\((0, b)\\)), po czym używamy nachylenia \\(a\\) i metody \"skok-przez-krok\"",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "trochę gorzej:<br/>\n                albo zamieniamy na postać kierunkową,<br/>\n                albo szukamy punktów wspólnych z osiami układu współrzędnych i je łączymy",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Jak się dobrze zastanowić, to na razie nie widać żadnej praktycznej przewagi równania ogólnego nad równaniem kierunkowym.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Dlaczego więc uczymy się o równaniu ogólnym?\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Powodów jest wiele, zacznijmy od jednego.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Gdy chcemy obliczyć odległość punktu od prostej, jest to znacznie łatwiejsze i szybsze z użyciem równania w postaci ogólnej. \n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Co to właściwie jest odległość punktu od prostej?\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W poniższym aplecie widzisz\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n<span style=\"color: blue\">niebieską</span> prostą,\n            </li>\n<li>\n<span style=\"color: orange\">pomarańczowy</span> punkt\n            </li>\n<li>\n                szary odcinek łączący <span style=\"color: orange\">pomarańczowy</span> punkt z <span style=\"color: blue\">niebieską</span> prostą.\n            </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Przesuń punkt na prostej tak, by zarówno ten punkt jak i szary odcinek stały się <span style=\"color: red\">czerwone</span>.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Wówczas długość tego odcinka będzie odległością <span style=\"color: orange\">pomarańczowego</span> punktu od <span style=\"color: blue\">niebieskiej</span> prostej.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Co możesz powiedzieć o tej odległości?\n        </p>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/tnrxswpt/width/723/height/423/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>Odległość punku od prostej</strong> to długość <strong><u>najkrótszego</u></strong> odcinka łączącego ten punkt z pewnym punktem na prostej.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Taki odcinek jest <strong><u>prostopadły</u></strong> do tej prostej.\n    </p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/geometria_analityczna_2_odleglosc_punktu_od_prostej_definicja.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    To teraz obliczmy odległość punktu od prostej.\n</p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "bdaef6c7dcc156a2093381e724d7a4ca5944831dad912d8da55a8d11362735f6"
+}

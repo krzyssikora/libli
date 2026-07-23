@@ -1,0 +1,10 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n        Lokata jest na <strong>procent prosty</strong>, jeśli odsetki nie są dołączane do kapitału lokaty, a tym samym są stałe.\n    </li>\n<li>\n        Lokata jest na <strong>procent składany</strong>, jeśli odsetki są dołączane do kapitału lokaty, a więc są coraz większe.\n    </li>\n<li>\n        Niech\n        <ul class=\"nolist\">\n<li>\n                \\(K_n\\) - wysokość kapitału po \\(n\\) kapitalizacjach (latach) oszczędzania\n            </li>\n<li>\n                \\(K_0\\) - kapitał początkowy\n            </li>\n<li>\n                \\(p\\%\\) - roczne oprocentowanie lokaty\n            </li>\n</ul>\n        Wówczas jeśli lokata jest na\n        <ul>\n<li>\n<u>procent prosty</u>, to \\(K_n=K_0\\left(1+n\\cdot\\frac{p}{100}\\right)\\)\n            </li>\n<li>\n<u>procent złożony</u>, to \\(K_n=K_0\\left(1+\\frac{p}{100}\\right)^n\\)\n            </li>\n</ul>\n</li>\n</ul>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "f7c6238dcadb2b000b5e078338baeba9365df683c97e578b32aeb10e6387d205"
+}

@@ -1,0 +1,520 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W deltoidzie \\(D_1\\), którego wierzchołki to \\(A\\), \\(B\\), \\(C\\) i \\(D\\), bok \\(AB\\) ma długość \\(11\\), a bok \\(BC\\) ma długość \\(7\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Deltoid \\(D_2\\) jest podobny do deltoidu \\(D_1\\) w skali \\(\\frac{1}{2}\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź obwód deltoidu \\(D_2\\).\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                    Na początku przypomnijmy sobie, czym jest deltoid.\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ol class=\"bold\" type=\"A\">\n<li>\n                        Czworokąt, w którym przynajmniej jedna para boków jest równoległa.\n                    </li>\n<li>\n                        Czworokąt, w którym dwie pary sąsiednich boków są równej długości.\n                    </li>\n<li>\n                        Czworokąt, w którym są dwie pary kątów o równych miarach.\n                    </li>\n</ol>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Prawidłowa jest definicja  \n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "<strong>A</strong>",
+            "<strong>B</strong>",
+            "<strong>C</strong>"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>W deltoidzie \\(D_1\\) mam więc dwa boki o długości \\(7\\) i dwa boki o długości \\(11\\).</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Stąd wyliczamy, że obwód deltoidu \\(D_1\\) to\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(18\\)",
+            "\\(36\\)",
+            "\\(77\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<blockquote>\n                    \"Deltoid \\(D_2\\) jest podobny do deltoidu \\(D_1\\) w skali \\(\\frac{1}{2}\\).\"\n                </blockquote>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Oznacza to, że każda długość w deltoidzie \\(D_2\\) jest dwukrotnie \n                    \n\n\n￿0￿ od odpowiedniej długości w deltoidzie \\(D_1\\).\n                ",
+          "options": [
+            "krótsza",
+            "dłuższa"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    I dlatego obwód deltoidu \\(D_2\\) jest równy\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(18\\)",
+            "\\(36\\)",
+            "\\(72\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_1160.png",
+          "alt": "",
+          "figcaption": ""
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Zdjęcie ma kształt prostokąta.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Zdjęcie oprawione w ramkę ma także kształt prostokąta, którego szerokość i wysokość są o \\(3\\) centymetry większe od szerokości i wysokości zdjęcia bez ramki.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Oba prostokąty (samo zdjęcie i zdjęcie z ramką) są do siebie podobne.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Udowodnij, że zdjęcie ma kształt kwadratu.\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                    Oznaczmy długości boków zdjęcia przez \\(a\\) i \\(b\\) (wszystkie długości w centymetrach).\n                </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Wowczas zdjęcie z ramką ma wymiary\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(a+3\\) na \\(b+3\\)",
+            "\\(3a\\) na \\(3b\\)",
+            "\\(a-3\\) na \\(b-3\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_1170.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Jeśli te dwa prostokąty są podobne, to\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(\\frac{a+3}{b}=\\frac{b+3}{a}\\)",
+            "\\(\\frac{a}{b}=\\frac{a+3}{b+3}\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Wymnażając na skos:\n                </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                \\begin{align}\n                a(b+3)&=b(a+3)\\\\\n                ab+3a&=ab+3b\n                \\end{align}\n                "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Upraszczając to równanie otrzymujemy\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(a=b\\)",
+            "\\(a=b+6\\)",
+            "\\(a+6=b\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>A to oznacza, że prostokąt jest kwadratem.</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Prostokąt \\(P_1\\) ma wymiary \\(6\\) na \\(8\\) centrymetrów.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Przekątna prostokąta \\(P_2\\) jest o \\(5\\) centymetrów dłuższa od dłuższego boku.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Prostokąty \\(P_2\\) i \\(P_1\\) są podobne.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź obwód prostokąta \\(P_2\\).\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                    Zacznijmy od rysunku pomocniczego.\n                </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_1180_1.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Po lewej stronie widzimy prostokąt \\(P_1\\), po prawej - \\(P_2\\).\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Rysunek sugeruje, że prosotokąt \\(P_2\\) jest większy od \\(P_1\\), czyli że skala podobieństwa \\(P_2\\) do \\(P_1\\) jest większa od \\(1\\). Czy tak jest rzeczywiście?\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Żeby to sprawdzić, obliczmy z twierdzenia Pitagorasa długość przekątnej prostokąta \\(P_1\\).\n                </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Jeśli oznaczymy ją przez \\(d_1\\), to \\(d_1^2=8^2+6^2\\), czyli \n                    \n\n\n\n￿0￿ cm.\n                ",
+          "options": [
+            "\\(d=10\\)",
+            "\\(d=14\\)",
+            "\\(d=100\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Dłuższy bok prostokąta \\(P_1\\) to \\(8\\), więc \n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>\n                        w prostokącie \\(P_1\\) przekątna jest dłuższa od dłuższego boku o \\(10-8=2\\) cm, podczas gdy\n                    </li>\n<li>\n                        w prostokącie \\(P_1\\) przekątna jest dłuższa od dłuższego boku o \\(5\\) cm.\n                    </li>\n</ul>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_1180_2.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Prostokąt \\(P_2\\) jest rzeczywiście większy od \\(P_1\\), czyli skala podobieństwa \\(P_2\\) do \\(P_1\\) (oznaczmy ją \\(k\\)) jest większa od \\(1\\). Jaka jest ta skala?\n                </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Porównując różnice między przekątną a dłuższym bokiem otrzymujemy\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(k=0,4\\)",
+            "\\(k=2,5\\)",
+            "\\(k=3\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Chcemy znaleźć obwód prostokąta \\(P_2\\). Nie znamy jego boków, za to łatwo możemy znaleźć obwód prostokąta \\(P_1\\).\n                </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Jest on równy \n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(24\\)",
+            "\\(28\\)",
+            "\\(38\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    I teraz, używając skali podobieństwa, wyliczamy, że obwód prostokąta \\(P_2\\) jest równy\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(70\\)",
+            "\\(11,2\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_1180_3.png",
+          "alt": "",
+          "figcaption": ""
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Romb \\(R_2\\) jest podobny do rombu \\(R_1\\) w skali \\(2\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Jedna z przekątnych rombu \\(R_1\\) jest trzykrotnie dłuższa od drugiej.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Suma długości przekątnych rombu \\(R_2\\) to \\(48\\) centymetrów.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Oblicz długości boków obu rombów.\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                    Zacznijmy od rysunku pomocniczego. Narysujmy dwa romby:\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>\n                        \\(R_1\\), w którym jedna przekątna jest trzykrotnie dłuższa od drugiej (oznaczymy je \\(d\\) i \\(3d\\))\n                    </li>\n<li>\n                        oraz \\(R_2\\), dwukrotnie większy od \\(R_1\\).\n                    </li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Na rysunku wskazujemy, że przekątne rombów dzielą się na połowy pod kątem prostym.\n                </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_1190_1.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Dodatkowo oznaczmy szukane boki rombów:\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>\n                        \\(R_1\\) przez \\(a\\),\n                    </li>\n<li>\n                        \\(R_2\\) przez \\(b\\).\n                    </li>\n</ul>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Romb \\(R_2\\) jest podobny do rombu \\(R_1\\) w skali \\(2\\), więc krótsza przekątna rombu \\(R_2\\) to\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(2d\\)",
+            "\\(3d\\)",
+            "\\(6d\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Dłuższa przekątna rombu \\(R_2\\) to\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(2d\\)",
+            "\\(3d\\)",
+            "\\(6d\\)"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_1190_2.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<blockquote>\n                    \"Suma długości przekątnych rombu \\(R_2\\) to \\(48\\) centymetrów\"\n                </blockquote>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    czyli\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(d+3d=48\\)",
+            "\\(2d+6d=48\\)",
+            "\\(d+3d+2d+6d=48\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    \\begin{align}\n                    2d+6d&amp;=48\\\\\n                    8d&amp;=48\\\\\n                    d&amp;=6\n                    \\end{align}\n                    \\]\n                "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    I teraz możemy obliczyć, że przekątne rombu \\(R_1\\) mają długości \\(6\\) i \\(18\\), a przekątne rombu \\(R_2\\) mają długości \n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(12\\) i \\(36\\)",
+            "\\(18\\) i \\(30\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Na rysunku zapiszmy połowy długości przekątnych:\n                </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_1190_3.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Bok \\(a\\) rombu \\(R_1\\) możemy obliczyć z twierdzenia Pitagorasa:\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    \\begin{align}\n                    a^2&amp;=3^2+9^2\\\\\n                    a^2&amp;=9+81\\\\\n                    a^2&amp;=90\n                    \\end{align}\n                    \\]\n                "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Bok rombu \\(R_1\\) ma długość \\(a=\\)\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(10\\sqrt{3}\\)",
+            "\\(3\\sqrt{10}\\)",
+            "\\(9\\sqrt{10}\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_1190_4.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Bok \\(b\\) rombu \\(R_2\\) możemy także wyliczyć z twierdzenia Pitagorasa, ale znacznie łatwiej przypomnieć sobie, że romb \\(R_2\\) jest podobny do rombu \\(R_1\\) w skali \\(2\\).\n                </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Bok \\(b\\) ma długość\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(6\\sqrt{10}\\)",
+            "\\(9\\sqrt{10}\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_1190_5.png",
+          "alt": "",
+          "figcaption": ""
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Podstawy trapezu są długości \\(8\\) i \\(18\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Trapez podzielono odcinkiem rónoległym do podstaw na dwa trapezy podobne.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Oblicz długość tego odcinka.\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                    Zacznijmy od rysunku:\n                </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_1200_1.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Trapez górny i dolny mają być podobne.\n                </p>"
+        },
+        {
+          "type": "iframe",
+          "url": "https://www.geogebra.org/material/iframe/id/kbrvdtbg/width/478/height/342/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+          "title": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Oznacza to, że odpowiednie boki obu trapezów są proporcjonalne, na przykład\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    \\begin{align}\n                    \\frac{\\begin{matrix}\n                    \\text{górna podstawa}\\\\\\text{górnego trapezu}\n                    \\end{matrix}}{\\begin{matrix}\n                    \\text{górna podstawa}\\\\\\text{dolnego trapezu}\n                    \\end{matrix}}\n                    =\\frac{\\begin{matrix}\n                    \\text{dolna podstawa}\\\\\\text{górnego trapezu}\n                    \\end{matrix}}{\\begin{matrix}\n                    \\text{dolna podstawa}\\\\\\text{dolnego trapezu}\n                    \\end{matrix}}\n                    \\end{align}\n                    \\]\n                "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Czyli\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(\\frac{8}{x}=\\frac{x}{18}\\)",
+            "\\(\\frac{8}{x}=\\frac{18}{x}\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Wymnażając proporcję na krzyż otrzymujemy\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(2x=26\\)",
+            "\\(x^2=144\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    A stąd\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(x=12\\)",
+            "\\(x=13\\)",
+            "\\(x=14\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Odcinek dzielący trapez na dwa podobne ma długość \\(12\\).</p>"
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "0298f1723a0f9a1e84799d22e4c0e2d462b4eddcb65b8335e300e7b5ce2d6901"
+}

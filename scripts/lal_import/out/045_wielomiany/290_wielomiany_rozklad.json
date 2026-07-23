@@ -1,0 +1,1816 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Zajmiemy się jeszcze jednym wielomianem, tym razem trudniejszym - bo stopnia piątego. Na jego przykładzie przećwiczymy zastosowanie twierdzenia o pierwiastkach wymiernych wielomianu.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>\n            Twierdzenie o pierwiastkach wymiernych wielomianu\n        </strong>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Niech \\(a\\in\\mathbb{Q}\\) będzie liczbą wymierną, tzn. taką, którą możemy zapisać w postaci ułamka nieskracalnego \\(a=\\frac{p}{q}\\), gdzie \\(p, q\\in \\mathbb{Z}\\).\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Niech \\(W(x)\\) będzie wielomianem o współczynnikach całkowitych:\n    </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n    W(x)=\\color{green}{a_n}x^n+a_{n-1}x^{n-1}+\\dots+a_2x^2+a_1x+\\color{red}{a_0}\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        \\(a_n, a_{n-1}, \\dots, a_2, a_1, a_0\\in\\mathbb{Z}\\)\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Wówczas\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<em>\n<strong>\n            jeśli\n        </strong>\n</em>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<span style=\"display: inline-block; width: 50px;\">\n</span>\n        liczba wymierna \\(a\\in\\mathbb{Q}\\) jest pierwiaskiem wielomianu \\(W(x)\\) (tj. \\(W(a)=0\\))\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<em>\n<strong>\n            to\n        </strong>\n</em>"
+    },
+    {
+      "type": "text",
+      "body": "<span style=\"color: red;\">\n        \\(p\\) jest dzielnikiem wyrazu \\(a_0\\)\n    </span>"
+    },
+    {
+      "type": "text",
+      "body": "<p>,</p>"
+    },
+    {
+      "type": "text",
+      "body": "<span style=\"color: green;\">\n        \\(q\\) jest dzielnikiem wyrazu \\(a_n\\)\n    </span>"
+    },
+    {
+      "type": "text",
+      "body": "<p>.</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdż wszystkie liczby wymierne, które mogą być pierwiastkami wielomianu\n        </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n        W(x)=18x^5-63x^4+52x^3+52x^2-6x-5\n        "
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n            Jeśli liczba wymierna \\(\\frac{p}{q}\\) jest pierwiaskiem wielomianu \\(W(x)\\) to\n            <br/>\n            (wpisz dodatnie liczby naturalne)\n        </p>"
+        },
+        {
+          "type": "fillblank",
+          "stem": "\n<li>\n                    \\(p\\) jest dzielnikiem liczby\n                    ￿0￿\n                    ,\n                </li>\n<li>\n                    \\(q\\) jest dzielnikiem liczby\n                    ￿1￿\n                    ,\n                </li>\n",
+          "blanks": [
+            [
+              "5"
+            ],
+            [
+              "18"
+            ]
+          ]
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Liczba \\(p\\) może mieć wartości \\(\\pm 1, \\pm 5\\).\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Liczba \\(q\\) to dzielnik \\(18\\). A takich dzielników jest więcej.\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Wpisz w tabelę poniżej brakujące dzielniki w taki sposób, że iloczyn liczb w jednej kolumnie to \\(18\\).\n                </p>"
+        },
+        {
+          "type": "fill_table",
+          "data": {
+            "header_row": false,
+            "header_col": false,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "kind": "static",
+                  "html": "\\(1\\)"
+                },
+                {
+                  "kind": "static",
+                  "html": "\\(2\\)"
+                },
+                {
+                  "kind": "static",
+                  "html": "\\(3\\)"
+                }
+              ],
+              [
+                {
+                  "kind": "answer",
+                  "answer": "18"
+                },
+                {
+                  "kind": "answer",
+                  "answer": "9"
+                },
+                {
+                  "kind": "answer",
+                  "answer": "6"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "type": "text",
+          "body": "<p>Mamy więc \\(4\\) możliwe wartości dla liczby \\(p\\) i \\(6\\) dla liczby \\(q\\). (Tym razem, na szczęście, nie musimy już brać pod uwagę dzielników ujemnych - wiesz, dlaczego?)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Potencjalnych pierwiastków jest więc sporo (\\(4\\cdot 6=24\\)). Wypiszmy tylko \\(12\\) dodatnich:\n                </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                \\color{red}{1}, \\frac{1}{2}, \\color{green}{\\frac{1}{3}}, \\frac{1}{6}, \\color{orange}{\\frac{1}{9}}, \\frac{1}{18},\\\\\n                2, \\color{red}{\\frac{2}{2}}, \\frac{2}{3}, \\color{green}{\\frac{2}{6}}, \\frac{2}{9}, \\color{orange}{\\frac{2}{18}}\n                "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Zwróć uwagę na liczby zapisane tym samym kolorem. Powstały z innych par dzielników, ale mają tę samą wartość. Ostatecznie pierwiastków jest trochę mniej:\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\[\n                1, \\frac{1}{2}, \\frac{1}{3}, \\frac{1}{6}, \\frac{1}{9}, \\frac{1}{18}, 2, \\frac{2}{3}, \\frac{2}{9}\n                \\]\n                Oraz, oczywiście, liczby do nich przeciwne.</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdż wszystkie pierwiastki wymierne wielomianu\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\\[\n        W(x)=18x^5-63x^4+52x^3+52x^2-6x-5\n        \\]\n        Rozłóż wielomian na czynniki liniowe.</p>"
+    },
+    {
+      "type": "text",
+      "body": "<h4>rozwiązanie</h4>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    Z poprzedniego zadania wiemy, że potencjalne piewiastki to\n                </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n                \\pm\\left[1, \\frac{1}{2}, \\frac{1}{3}, \\frac{1}{6}, \\frac{1}{9}, \\frac{1}{18}, 2, \\frac{2}{3}, \\frac{2}{9}\\right]\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    Zdradzę Ci, że wielomian \\(W(x)\\) nie ma pierwiastków całkowitych.\n                </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    Co więcej, spośród liczb \\(-\\frac{1}{2}\\) oraz \\(\\frac{1}{2}\\) jedna jest pierwiastkiem, a druga nie.\n                </p>"
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                    Obliczamy wartości dla obu i sprawdź, że pierwszym pierwiaskiem wymiernym jest\n                    \n\n￿0￿\n                    .\n                    \n",
+      "options": [
+        "\\(\\tfrac{1}{2}\\)",
+        "\\(-\\tfrac{1}{2}\\)"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    \\(W\\left(-\\tfrac{1}{2}\\right)=-\\tfrac{9}{16}-\\tfrac{63}{16}-\\tfrac{13}{2}+13+3-5=0\\), więc\n                    <strong>\n                        mamy pierwszy pierwiastek\n                    </strong>\n                    !\n                </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    Teraz, korzystając z\n                    <strong>\n                        twierdzenia Bézout\n                    </strong>\n                    wiemy, że\n                </p>"
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n\n\n\n                        skoro\n                    \n                    \\(x=-\\tfrac{1}{2}\\) jest pierwiastkiem wielomianu \\(W(x)\\)\n                    \n\n\n\n                        to\n                    \n\n\n\n\n￿0￿\n                    jest dzielnikiem \\(W(x)\\).\n                    \n",
+      "options": [
+        "\\(\\left(x+\\tfrac{1}{2}\\right)\\)",
+        "\\(\\left(x-\\tfrac{1}{2}\\right)\\)",
+        "\\(\\left(x-2\\right)\\)",
+        "\\(\\left(x+2\\right)\\)"
+      ],
+      "answer": 0
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    \\(\\left(x+\\tfrac{1}{2}\\right)\\) jest dzielnikiem wielomianu \\(W(x)\\), ale podzielimy \\(W(x)\\) przez \\((2x+1)\\), aby współczynniki wyniku były dwukrotnie mniejsze.\n                </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    Możemy podzielić \"\n                    <strong>\n                        pod kreską\n                    </strong>\n                    \" albo\n                    <strong>\n                        schematem Hornera\n                    </strong>\n                    .\n                </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    Wykonaj dzielenie jedną metodą, sprawdź swój wynik i drugą metodę.\n                </p>"
+    },
+    {
+      "type": "tabs",
+      "tabs": [
+        {
+          "id": "t000000",
+          "label": "\"pod kreską\"",
+          "elements": [
+            {
+              "type": "table",
+              "data": {
+                "header_row": false,
+                "header_col": false,
+                "border": "grid",
+                "cells": [
+                  [
+                    {
+                      "html": "\\(9x^{4}\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(-36x^{3}\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(+44x^{2}\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(+4x\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(-5\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    }
+                  ],
+                  [
+                    {
+                      "html": "\\((18x^{5}\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(-63x^{4}\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(+52x^{3}\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(+52x^{2}\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(-6x\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(-5)\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(:(2x+1)\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    }
+                  ],
+                  [
+                    {
+                      "html": "\\(18x^{5}\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(+9x^{4}\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    }
+                  ],
+                  [
+                    {
+                      "html": "\\(=\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(-72x^{4}\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(+52x^{3}\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(+52x^{2}\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(-6x\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(-5\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    }
+                  ],
+                  [
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(-72x^{4}\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(-36x^{3}\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    }
+                  ],
+                  [
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(=\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(88x^{3}\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(+52x^{2}\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(-6x\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(-5\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    }
+                  ],
+                  [
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(88x^{3}\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(+44x^{2}\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    }
+                  ],
+                  [
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(=\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(8x^{2}\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(-6x\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(-5\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    }
+                  ],
+                  [
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(8x^{2}\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(+4x\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    }
+                  ],
+                  [
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(=\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(-10x\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(-5\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    }
+                  ],
+                  [
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(-10x\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(-5\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    }
+                  ],
+                  [
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(=\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                            Czyli\n                        </p>"
+            },
+            {
+              "type": "math",
+              "latex": "\n                        W(x)=(2x+1)(9x^4-36x^3+44x^2+4x-5)\n                        "
+            }
+          ]
+        },
+        {
+          "id": "t000001",
+          "label": "schemat Hornera",
+          "elements": [
+            {
+              "type": "text",
+              "body": "<p>\n                            Chcemy podzielić przez \\((2x+1)\\). Podzielmy więc najpierw przez \\(\\left(x+\\tfrac{1}{2}\\right)\\), a potem przez \\(2\\).\n                        </p>"
+            },
+            {
+              "type": "table",
+              "data": {
+                "header_row": false,
+                "header_col": false,
+                "border": "grid",
+                "cells": [
+                  [
+                    {
+                      "html": "",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(18\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(-63\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(52\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(52\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(-6\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(-5\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    }
+                  ],
+                  [
+                    {
+                      "html": "\\(-\\tfrac{1}{2}\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(18\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(-72\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(88\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(8\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(-10\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(0\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                            Z dzielenia przez \\(\\left(x+\\tfrac{1}{2}\\right)\\) wyszło\n                            <br/>\n<span style=\"display: inline-block; width: 50px;\">\n</span>\n                            \\(18x^4-72x^3+88x^2+8x-10\\)\n                        </p>"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                            Z dzielenia przez \\(\\left(2x+1\\right)\\) wyjdzie \\(2\\) razy mniej, czyli\n                            <br/>\n<span style=\"display: inline-block; width: 50px;\">\n</span>\n                            \\(9x^4-36x^3+44x^2+4x-5\\)\n                            <br/>\n                            czyli\n                        </p>"
+            },
+            {
+              "type": "math",
+              "latex": "\n                        W(x)=(2x+1)(9x^4-36x^3+44x^2+4x-5)\n                        "
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n\n\n                    Wynikiem dzielenia przez \\((2x+1)\\) jest\n                    \n\n￿0￿\n                    .\n                    \n",
+      "options": [
+        "\\((9x^4-36x^3+44x^2+4x-5)\\)",
+        "\\((18x^4-72x^3+88x^2+8x-10)\\)"
+      ],
+      "answer": 0
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    Wiemy już, że\n                </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\\[\n                \\begin{align*}\n                W(x)&=18x^5-63x^4+52x^3+52x^2-6x-5=\\\\\n                    &=(2x+1)(9x^4-36x^3+44x^2+4x-5)\n                \\end{align*}\n                \\]\n                czyli znamy:</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n                        jeden pierwiastek wielomianu: \\(x=-\\tfrac{1}{2}\\)\n                    </li>\n<li>\n                        oraz jeden czynnik w rozkładzie wielomianu: \\((2x+1)\\).\n                    </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    Musimy znaleźć pierwiastki z czynnika \\((9x^4-36x^3+44x^2+4x-5)\\) i rozłożyć go na \"drobniejsze\" czynniki.\n                </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    Do sprawdzenia zostały nam:\n                </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\\[\n                -\\frac{1}{2}, \\pm\\frac{1}{3}, \\pm\\frac{1}{6}, \\pm\\frac{1}{9}, \\pm\\frac{1}{18}, \\pm\\frac{2}{3}, \\pm\\frac{2}{9}\n                \\]\n                (Odrzuciłem całkowite i \\(\\tfrac{1}{2}\\), bo zdradziłem wcześniej, że nie są pierwiastkami.)\n                Nazwijmy wynik dzielenia \\(W_2\\):\n                \\[\n                W_2(x)=9x^4-36x^3+44x^2+4x-5\n                \\]\n                i sprawdźmy wartość tego wielomianu dla \\(x=-\\tfrac{1}{2}\\).</p>"
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n\n\n                    \\(W_2\\left(-\\tfrac{1}{2}\\right)=9\\left(-\\tfrac{1}{2}\\right)^4-36\\left(-\\tfrac{1}{2}\\right)^3+44\\left(-\\tfrac{1}{2}\\right)^2+4\\left(-\\tfrac{1}{2}\\right)-5=\\)\n                    \n\n\n                    \\(=\\tfrac{9}{16}+\\tfrac{36}{8}+\\tfrac{44}{4}-\\tfrac{4}{2}-5\\)\n                    \n\n￿0￿\n                    .\n                    \n",
+      "options": [
+        "\\(=0\\)",
+        "\\(\\ne 0\\)"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "text",
+      "body": "<p>\\(W_2\\left(-\\tfrac{1}{2}\\right)\\ne 0\\), więc spróbujmy kolejnej liczby: \\(x=\\tfrac{1}{3}\\).</p>"
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n\n\n                    \\(W_2\\left(\\tfrac{1}{3}\\right)\\)\n                    \n\n￿0￿\n                    .\n                    \n",
+      "options": [
+        "\\(=0\\)",
+        "\\(\\ne 0\\)"
+      ],
+      "answer": 0
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    \\(W_2\\left(\\tfrac{1}{3}\\right)=9\\left(\\tfrac{1}{3}\\right)^4-36\\left(\\tfrac{1}{3}\\right)^3+44\\left(\\tfrac{1}{3}\\right)^2+4\\left(\\tfrac{1}{3}\\right)-5=\\)\n                    <br/>\n                    \\(=\\tfrac{9}{81}-\\tfrac{36}{27}+\\tfrac{44}{9}+\\tfrac{4}{3}-5=\\)\n                    <br/>\n                    \\(=\\tfrac{1}{9}-\\tfrac{4}{3}+\\tfrac{44}{9}+\\tfrac{4}{3}-5=0\\), więc\n                    <strong>\n                        mamy drugi pierwiastek\n                    </strong>\n                    !\n                </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    Teraz, korzystając z\n                    <strong>\n                        twierdzenia Bézout\n                    </strong>\n                    wiemy, że\n                </p>"
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n\n\n\n                        skoro\n                    \n                    \\(x=\\tfrac{1}{3}\\) jest pierwiastkiem wielomianu \\(W(x)\\)\n                    \n\n\n\n                        to\n                    \n\n\n\n\n￿0￿\n                    jest dzielnikiem \\(W_2(x)\\)m czyli też \\(W(x)\\).\n                    \n",
+      "options": [
+        "\\(\\left(x+\\tfrac{1}{3}\\right)\\)",
+        "\\(\\left(x-\\tfrac{1}{3}\\right)\\)",
+        "\\(\\left(x-3\\right)\\)",
+        "\\(\\left(x+3\\right)\\)"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    Zamiast dzielić \\(W_2(x)\\) przez \\(\\left(x-\\tfrac{1}{3}\\right)\\), podzielimy przez \\((3x-1)\\).\n                </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    Wykonaj dzielenie jedną metodą, sprawdź swój wynik i drugą metodę.\n                </p>"
+    },
+    {
+      "type": "tabs",
+      "tabs": [
+        {
+          "id": "t000000",
+          "label": "\"pod kreską\"",
+          "elements": [
+            {
+              "type": "table",
+              "data": {
+                "header_row": false,
+                "header_col": false,
+                "border": "grid",
+                "cells": [
+                  [
+                    {
+                      "html": "\\(3x^{3}\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(-11x^{2}\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(+11x\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(+5\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    }
+                  ],
+                  [
+                    {
+                      "html": "\\((9x^{4}\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(-36x^{3}\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(+44x^{2}\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(+4x\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(-5)\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(:(3x-1)\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    }
+                  ],
+                  [
+                    {
+                      "html": "\\(9x^{4}\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(-3x^{3}\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    }
+                  ],
+                  [
+                    {
+                      "html": "\\(=\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(-33x^{3}\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(+44x^{2}\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(+4x\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(-5\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    }
+                  ],
+                  [
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(-33x^{3}\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(+11x^{2}\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    }
+                  ],
+                  [
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(=\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(33x^{2}\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(+4x\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(-5\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    }
+                  ],
+                  [
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(33x^{2}\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(-11x\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    }
+                  ],
+                  [
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(=\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(15x\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(-5\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    }
+                  ],
+                  [
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(15x\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(-5\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    }
+                  ],
+                  [
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(=\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                            Czyli\n                        </p>"
+            },
+            {
+              "type": "math",
+              "latex": "\n                        W_2(x)=(3x-1)(3x^3-11x^2+11x+5)\n                        \\]\n                        więc\n                        \\[\n                        W(x)=(2x+1)(3x-1)(3x^3-11x^2+11x+5)\n                        "
+            }
+          ]
+        },
+        {
+          "id": "t000001",
+          "label": "schemat Hornera",
+          "elements": [
+            {
+              "type": "text",
+              "body": "<p>\n                            Dzielimy przez \\((3x-1)\\), czyli najpierw przez \\(\\left(x-\\tfrac{1}{3}\\right)\\), a potem przez \\(3\\).\n                        </p>"
+            },
+            {
+              "type": "table",
+              "data": {
+                "header_row": false,
+                "header_col": false,
+                "border": "grid",
+                "cells": [
+                  [
+                    {
+                      "html": "",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(9\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(-36\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(44\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(4\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(-5\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    }
+                  ],
+                  [
+                    {
+                      "html": "\\(\\tfrac{1}{3}\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(9\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(-33\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(33\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(15\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(0\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                            Z dzielenia przez \\(\\left(x-\\tfrac{1}{3}\\right)\\) wyszło\n                            <br/>\n<span style=\"display: inline-block; width: 50px;\">\n</span>\n                            \\(9x^3-33x^2+33x+15\\)\n                        </p>"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                            Z dzielenia przez \\(\\left(3x-1\\right)\\) wyjdzie \\(3\\) razy mniej, czyli\n                            <br/>\n<span style=\"display: inline-block; width: 50px;\">\n</span>\n                            \\(3x^3-11x^2+11x+5\\)\n                            <br/>\n                            czyli\n                        </p>"
+            },
+            {
+              "type": "math",
+              "latex": "\n                        W_2(x)=(3x-1)(3x^3-11x^2+11x+5)\n                        \\]\n                        więc\n                        \\[\n                        W(x)=(2x+1)(3x-1)(3x^3-11x^2+11x+5)\n                        "
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n\n\n                    Wynikiem dzielenia przez \\((3x-1)\\) jest\n                    \n\n￿0￿\n                    .\n                    \n",
+      "options": [
+        "\\((9x^3-33x^2+33x+15)\\)",
+        "\\((3x^3-11x^2+11x+5)\\)"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    Wiemy już, że\n                </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\\[\n                \\begin{align*}\n                W(x)&=18x^5-63x^4+52x^3+52x^2-6x-5=\\\\\n                    &=(2x+1)(9x^4-36x^3+44x^2+4x-5)=\\\\\n                    &=(2x+1)(3x-1)(3x^3-11x^2+11x+5)\n                \\end{align*}\n                \\]\n                czyli znamy:</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n                        dwa pierwiastki wielomianu: \\(x=-\\tfrac{1}{2}\\), \\(x=\\tfrac{1}{3}\\)\n                    </li>\n<li>\n                        oraz dwa czynniki w rozkładzie wielomianu: \\((2x+1)\\), \\((3x-1)\\).\n                    </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    Teraz czas na kolejny czynnik, oznaczmy go \\(W_3(x)\\):\n                </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n                W_3(x)=3x^3-11x^2+11x+5\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    Do sprawdzenia zostały nam:\n                </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\\[\n                \\pm\\frac{1}{3}, \\pm\\frac{1}{6}, \\pm\\frac{1}{9}, \\pm\\frac{1}{18}, \\pm\\frac{2}{3}, \\pm\\frac{2}{9}\n                \\]\n                Sprawdźmy wartość wielomianu \\(W_3\\) dla \\(x=\\tfrac{1}{3}\\).</p>"
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n\n\n                    \\(W_3\\left(\\tfrac{1}{3}\\right)=3\\left(\\tfrac{1}{3}\\right)^3-11\\left(\\tfrac{1}{3}\\right)^2+11\\left(\\tfrac{1}{3}\\right)+5=\\)\n                    \n\n\n                    \\(=\\tfrac{3}{27}-\\tfrac{11}{9}+\\tfrac{11}{3}+5\\)\n                    \n\n￿0￿\n                    .\n                    \n",
+      "options": [
+        "\\(=0\\)",
+        "\\(\\ne 0\\)"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "text",
+      "body": "<p>\\(W_3\\left(\\tfrac{1}{3}\\right)\\ne 0\\), więc spróbujmy kolejnej liczby: \\(x=-\\tfrac{1}{3}\\).</p>"
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n\n\n                    \\(W_3\\left(-\\tfrac{1}{3}\\right)\\)\n                    \n\n￿0￿\n                    .\n                    \n",
+      "options": [
+        "\\(=0\\)",
+        "\\(\\ne 0\\)"
+      ],
+      "answer": 0
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    \\(W_3\\left(-\\tfrac{1}{3}\\right)=3\\left(-\\tfrac{1}{3}\\right)^3-11\\left(-\\tfrac{1}{3}\\right)^2+11\\left(-\\tfrac{1}{3}\\right)+5=\\)\n                    <br/>\n                    \\(=-\\tfrac{3}{27}-\\tfrac{11}{9}-\\tfrac{11}{3}+5=\\)\n                    <br/>\n                    \\(=-\\tfrac{1}{9}-\\tfrac{11}{9}-\\tfrac{11}{3}+5=0\\), więc\n                    <strong>\n                        mamy trzeci pierwiastek\n                    </strong>\n                    !\n                </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    Teraz, korzystając z\n                    <strong>\n                        twierdzenia Bézout\n                    </strong>\n                    wiemy, że\n                </p>"
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n\n\n\n                        skoro\n                    \n                    \\(x=-\\tfrac{1}{3}\\) jest pierwiastkiem wielomianu \\(W(x)\\)\n                    \n\n\n\n                        to\n                    \n\n\n\n\n￿0￿\n                    jest dzielnikiem \\(W_3(x)\\)m czyli też \\(W(x)\\).\n                    \n",
+      "options": [
+        "\\(\\left(x+\\tfrac{1}{3}\\right)\\)",
+        "\\(\\left(x-\\tfrac{1}{3}\\right)\\)",
+        "\\(\\left(x-3\\right)\\)",
+        "\\(\\left(x+3\\right)\\)"
+      ],
+      "answer": 0
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    Zamiast dzielić \\(W_3(x)\\) przez \\(\\left(x+\\tfrac{1}{3}\\right)\\), podzielimy przez \\((3x+1)\\).\n                </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    Wykonaj dzielenie jedną metodą, sprawdź swój wynik i drugą metodę.\n                </p>"
+    },
+    {
+      "type": "tabs",
+      "tabs": [
+        {
+          "id": "t000000",
+          "label": "\"pod kreską\"",
+          "elements": [
+            {
+              "type": "table",
+              "data": {
+                "header_row": false,
+                "header_col": false,
+                "border": "grid",
+                "cells": [
+                  [
+                    {
+                      "html": "\\(x^{2}\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(-4x\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(+5\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    }
+                  ],
+                  [
+                    {
+                      "html": "\\((3x^{3}\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(-11x^{2}\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(+11x\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(+5)\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(:(3x+1)\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    }
+                  ],
+                  [
+                    {
+                      "html": "\\(3x^{3}\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(+x^{2}\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    }
+                  ],
+                  [
+                    {
+                      "html": "\\(=\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(-12x^{2}\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(+11x\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(+5\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    }
+                  ],
+                  [
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(-12x^{2}\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(-4x\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    }
+                  ],
+                  [
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(=\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(15x\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(+5\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    }
+                  ],
+                  [
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(15x\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(+5\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    }
+                  ],
+                  [
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(=\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                            Czyli\n                        </p>"
+            },
+            {
+              "type": "math",
+              "latex": "\n                        W_2(x)=(3x-1)(3x^3-11x^2+11x+5)\n                        \\]\n                        więc\n                        \\[\n                        W(x)=(2x+1)(3x-1)(3x^3-11x^2+11x+5)\n                        "
+            }
+          ]
+        },
+        {
+          "id": "t000001",
+          "label": "schemat Hornera",
+          "elements": [
+            {
+              "type": "text",
+              "body": "<p>\n                            Dzielimy przez \\((3x-1)\\), czyli najpierw przez \\(\\left(x-\\tfrac{1}{3}\\right)\\), a potem przez \\(3\\).\n                        </p>"
+            },
+            {
+              "type": "table",
+              "data": {
+                "header_row": false,
+                "header_col": false,
+                "border": "grid",
+                "cells": [
+                  [
+                    {
+                      "html": "",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(3\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(-11\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(11\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(5\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    }
+                  ],
+                  [
+                    {
+                      "html": "\\(-\\tfrac{1}{3}\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(3\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(-12\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(15\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(0\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                            Z dzielenia przez \\(\\left(x+\\tfrac{1}{3}\\right)\\) wyszło\n                            <br/>\n<span style=\"display: inline-block; width: 50px;\">\n</span>\n                            \\(3x^2-12x+15\\)\n                        </p>"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                            Z dzielenia przez \\(\\left(3x+1\\right)\\) wyjdzie \\(3\\) razy mniej, czyli\n                            <br/>\n<span style=\"display: inline-block; width: 50px;\">\n</span>\n                            \\(x^2-4x+5\\)\n                            <br/>\n                            czyli\n                        </p>"
+            },
+            {
+              "type": "math",
+              "latex": "\n                        W_3(x)=(3x+1)(x^2-4x+5)\n                        \\]\n                        więc\n                        \\[\n                        W(x)=(2x+1)(3x-1)(3x+1)(x^2-4x+5)\n                        "
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n\n\n                    Wynikiem dzielenia przez \\((3x-1)\\) jest\n                    \n\n￿0￿\n                    .\n                    \n",
+      "options": [
+        "\\((x^2-4x+5)\\)",
+        "\\((3x^2-12x+15)\\)"
+      ],
+      "answer": 0
+    },
+    {
+      "type": "text",
+      "body": "<ol class=\"bold\">\n<li>\n                        Teraz możemy spróbować kolejnych liczb wymiernych, które mogą być pierwiastkami, ale ponieważ ten pozostały czynnik jest kwadratowy, to chyba lepiej znaleźć pierwiastki wyrażenia kwadratowego, np. według wzoru:\n                        \\[\n                        \\begin{align*}\n                        &amp;ax^2+bx+c=0\\\\\n                        x&amp;=\\frac{-b\\pm \\sqrt{\\Delta}}{2a}\\\\\n                        \\text{gdzie }&amp;\\Delta = b^2-4ac\n                        \\end{align*}\n                        \\]\n                    </li>\n</ol>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    A tu czeka nas drobna niespodzianka. Najpierw policzymy deltę:\n                </p>"
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                    \\(\\Delta=\\)\n                    \n\n\n￿0￿\n                    .\n                    \n",
+      "options": [
+        "\\(-4\\)",
+        "\\(4\\)",
+        "\\(0\\)"
+      ],
+      "answer": 0
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    Skoro \\(\\Delta\\lt 0\\), nie ma już więcej pierwiastków rzeczywistych.\n                </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    I ostatecznie pierwiastki wielomianu \\(W(x)\\) to\n                </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(x=-\\frac{1}{2},\\quad x=\\frac{1}{3}\\quad\\) i \\(\\quad x=-\\frac{1}{3}\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    a rozkład wielomianu wygląda tak:\n                </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n                \\begin{align*}\n                W(x)&=18x^5-63x^4+52x^3+52x^2-6x-5=\\\\\n                    &=(2x+1)(9x^4-36x^3+44x^2+4x-5)=\\\\\n                    &=(2x+1)(3x-1)(3x^3-11x^2+11x+5)=\\\\\n                    &=\\fbox{\\(\\color{blue}{(2x+1)(3x-1)(3x+1)(x^2-4x+5)}\\)}\n                \\end{align*}\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    Wielomian można też zapisać w postaci:\n                </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n                W(x)=18\\left(x+\\frac{1}{2}\\right)\\left(x-\\frac{1}{3}\\right)\\left(x+\\frac{1}{3}\\right)(x^2-4x+5)\n                "
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "91df55dcf25fde130316ed3662b3d3a0acde45b4c185bb72d394c1b3e300ee7c"
+}

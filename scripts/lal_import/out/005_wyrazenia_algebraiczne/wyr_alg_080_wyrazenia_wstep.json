@@ -1,0 +1,90 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Wiemy już, czym jest wyraz:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n    Wyraz to proste wyrażenie algebraiczne będące\n    <strong>\n        iloczynem\n    </strong>\n    liczb i zmiennych.\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Oznacza to, że:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n<div class=\"statement\" data-width=\"150px\">\n            \\(a+b\\)\n        </div>\n        nie jest wyrazem, bo dodajemy dwie zmienne\n    </li>\n<li>\n<div class=\"statement\" data-width=\"150px\">\n            \\(ab\\)\n        </div>\n        jest wyrazem\n    </li>\n<li>\n<div class=\"statement\" data-width=\"150px\">\n            \\(-3a^2b\\)\n        </div>\n        jest wyrazem (iloczyn liczby \\(-2\\) oraz zmiennych: \\(a\\), \\(a\\), \\(b\\))\n    </li>\n<li>\n<div class=\"statement\" data-width=\"150px\">\n            \\(2x^2y-3xy^2\\)\n        </div>\n        nie jest wyrazem; od wyrazu \\(2x^2y\\) odejmujemy wyraz \\(3xy^2\\)\n    </li>\n<li>\n<div class=\"statement\" data-width=\"150px\">\n            \\(2x^2y(-3xy^2)\\)\n        </div>\n        jest wyrazem; tym razem wyraz \\(2x^2y\\)\n        <strong>\n            mnożymy\n        </strong>\n        przez wyraz \\(-3xy^2\\)\n    </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<h3>\n    Upraszczanie wyrazów\n</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Postać wyrazu z ostatniego przykładu powyżej:\n</p>"
+    },
+    {
+      "type": "math",
+      "latex": "2x^2y(-3xy^2)"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    nie jest wygodna, bo nie jest uproszczona.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Żeby taki wyraz uprościć, przyjrzyjmy się, z czego się składa, a dokładniej wyróżnijmy:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n<span style=\"color: orange\">\n            liczby\n        </span>\n</li>\n<li>\n        oraz zmienne, ale każdą oddzielnie, czyli:\n        <ul>\n<li>\n<span style=\"color: red\">\n                    zmienną \\(x\\)\n                </span>\n</li>\n<li>\n<span style=\"color: blue\">\n                    zmienną \\(y\\)\n                </span>\n</li>\n</ul>\n</li>\n</ul>"
+    },
+    {
+      "type": "math",
+      "latex": "\n2x^2y(-3xy^2)=\\color{orange}{2}\\color{red}{x^2}\\color{blue}{y}(\\color{orange}{-3}\\color{red}{x}\\color{blue}{y^2})\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Zapiszmy dodatkowo każdy z tych czynników oddzielnie, pokazując, że są przez siebie mnożone.\n</p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n2x^2y(-3xy^2)=\\color{orange}{2}\\cdot\\color{red}{x^2}\\cdot\\color{blue}{y}\\cdot(\\color{orange}{-3})\\cdot\\color{red}{x}\\cdot\\color{blue}{y^2}\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Teraz skorzystamy z przemienności mnożenia i zmienimy kolejność zapisu czynników:\n</p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n2x^2y(-3xy^2)=\\color{orange}{2}\\cdot(\\color{orange}{-3})\\cdot\\color{red}{x^2}\\cdot\\color{red}{x}\\cdot\\color{blue}{y}\\cdot\\color{blue}{y^2}\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Teraz możemy wykonać mnożenie:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n        liczb: \\(\\color{orange}{2}\\cdot(\\color{orange}{-3})=\\color{orange}{-6}\\)\n    </li>\n<li>\n        zmiennej \\(x\\): \\(\\color{red}{x^2}\\cdot\\color{red}{x}=\\color{red}{x^{2+1}}=\\color{red}{x^3}\\)\n    </li>\n<li>\n        zmiennej \\(y\\): \\(\\color{blue}{y}\\cdot\\color{blue}{y^2}=\\color{blue}{y^3}\\)\n    </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    I stąd:\n</p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n2x^2y(-3xy^2)=\\color{orange}{-6}\\cdot\\color{red}{x^3}\\cdot\\color{blue}{y^3}\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Więc finalnie:\n</p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n2x^2y(-3xy^2)=-6x^3y^3\n"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "ecdd65f4eb3573981e00616be4cc41176863e1f4c90c635f9330cc087bac4daf"
+}

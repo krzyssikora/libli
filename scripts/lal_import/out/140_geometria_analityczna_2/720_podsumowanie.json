@@ -1,0 +1,166 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Wektor</strong> to uporządkowana para punktów.\n        <ul class=\"nolist\">\n<li>\n                Pierwszy z nich to <strong>początek wektora</strong>.\n            </li>\n<li>\n                Drugi z nich to <strong>koniec wektora</strong>.\n            </li>\n</ul>\n<p>\n            Wektor o początku w punkcie \\(A\\) i końcu w punkcie \\(B\\) zapisujemy jako \\(\\vec{AB}\\).\n        </p></p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/wektor_AB_definicja.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p><li>\n<p>\n<strong>Współrzędne wektora</strong> są różnicami między współrzędnymi końca a współrzędnymi początku wektora.\n        </p>\n<p>\n            Jeśli \\(A=\\left(x_A, y_A\\right)\\) jest początkiem wektora, zaś \\(B=\\left(x_B, y_B\\right)\\) jego końcem, to współrzędne wektora \\(\\vec{AB}\\) obliczamy w ten sposób:\n        </p>\n<ul class=\"nolist\">\n<li>współrzędna \\(x\\)-owa: \\(x_B-x_A\\)</li>\n<li>współrzędna \\(y\\)-owa: \\(y_B-y_A\\)</li>\n</ul>\n<p>\n            Współrzędne wektora zapisujemy w nawiasach kwadratowych, czyli\n        </p>\n        \\[\n        \\vec{AB}=[x_B-x_A, y_B-y_A]\n        \\]\n    </li>\n<li>\n<p>\n<strong>Długość wektora</strong> to długość odcinka łączącego początek i koniec wektora.\n        </p>\n<p>\n            Obliczamy ją z twierdzenia Pitagorasa i oznaczamy \\(|\\vec{AB}|\\). Jeśli \\(A=\\left(x_A, y_A\\right)\\) i \\(B=\\left(x_B, y_B\\right)\\) to:\n        </p>\n        \\[\n        |\\vec{AB}|=\\sqrt{\\left(x_B-x_A\\right)^2+\\left(y_B-y_A\\right)^2}\n        \\]\n    </li>\n<li>\n<p>\n            Wektory \\(\\vec{u}\\) i \\(\\vec{w}\\) są <strong>równe</strong>, gdy mają:\n        </p>\n<ul class=\"nolist\">\n<li>taką samą długość i</li>\n<li>taki sam kierunek i</li>\n<li>taki sam zwrot.</li>\n</ul>\n</li>\n<li>\n<p>\n            Wektory \\(\\vec{u}=[x_u, y_u]\\) i \\(\\vec{w}=[x_w, y_w]\\) są <strong>równe</strong>, jeśli mają równe <strong>obie współrzędne</strong>, czyli:\n        </p>\n<div class=\"centered\">\n            \\(x_u=x_w\\quad\\) oraz \\(\\quad y_u=y_w\\)\n        </div>\n</li>\n<li>\n<p>\n            Wektory \\(\\vec{u}\\) i \\(\\vec{w}\\) są <strong>przeciwne</strong>, gdy mają:\n        </p>\n<ul class=\"nolist\">\n<li>taką samą długość i</li>\n<li>taki sam kierunek, ale</li>\n<li><strong>przeciwny</strong> zwrot.</li>\n</ul>\n</li>\n<li>\n<p>\n            Wektory \\(\\vec{u}=[x_u, y_u]\\) i \\(\\vec{w}=[x_w, y_w]\\) są <strong>przeciwne</strong>, jeśli ich <strong>obie współrzędne są przeciwne</strong>, czyli:\n        </p>\n<div class=\"centered\">\n            \\(x_u=-x_w\\quad\\) oraz \\(\\quad y_u=-y_w\\)\n        </div>\n</li>\n<li>\n        Wektory są <strong>równoległe</strong>, gdy mają ten sam <strong>kierunek</strong> (ale niekoniecznie zwrot i długość).\n    </li>\n<li>\n<p>\n            Wektory \\(\\vec{u}=[x_u, y_u]\\) i \\(\\vec{w}=[x_w, y_w]\\) są <strong>równoległe</strong>, jeśli ich <strong>współrzędne są proporcjonalne</strong>, czyli:\n        </p>\n<div class=\"centered\">\n            \\(\\frac{y_u}{x_u}=\\frac{y_w}{x_w}\\quad\\) lub inaczej: \\(\\quad y_u\\cdot x_w=x_u\\cdot y_w\\)\n        </div>\n<p>\n<small>Proporcjonalność lepiej widać w równaniu \\(\\frac{y_u}{x_u}=\\frac{y_w}{x_w}\\), lecz w nim współrzędne \\(x\\)-owe nie mogą być równe \\(0\\).</small>\n</p>\n</li>\n<li>\n<p>\n            Wektory \\(\\vec{u}=[x_u, y_u]\\) i \\(\\vec{w}=[x_w, y_w]\\) są <strong>równoległe</strong>, jeśli istnieje stała \\(k\\ne 0\\) taka, że:\n        </p>\n        \\[\n        \\vec{u}=k\\cdot\\vec{w}\n        \\]\n        <hr/>\n<p>\n            Mnożenie wektora przez stałą polega na mnożeniu obu współrzędnych przez tę stałą:\n        </p>\n        \\[\n        \\begin{align}\n        \\vec{u}&amp;=\\color{red}{k}\\cdot\\vec{w}\\\\\n        [x_u, y_u]&amp;=\\color{red}{k}\\cdot [x_w, y_w]\\\\\n        [x_u, y_u]&amp;= [\\color{red}{k}\\cdot x_w, \\color{red}{k}\\cdot y_w]\\\\\n        \\end{align}\n        \\]\n    </li>\n<li>\n<p>\n<strong>Równaniem ogólnym prostej</strong> nazywamy równanie postaci\n        </p>\n        \\[Ax+By+C=0\\]\n        <p>\n            gdzie współczynniki \\(A\\), \\(B\\) i \\(C\\) są rzeczywiste, przy czym \\(A\\) i \\(B\\) nie mogą być jednocześnie równe \\(0\\).\n        </p>\n</li>\n<li>\n<p>\n            Równanie prostej, która przechodzi przez dwa dane punkty \\(P=(x_P, y_P), R=(x_R, y_R)\\):\n        </p>\n        \\[(y-y_P)(x_R-x_P)-(y_R-y_P)(x-x_P)=0\\]\n        <p>\n            lub\n        </p>\n        \\[\n        y=\\frac{y_R-y_P}{x_R-x_P}(x-x_P)+y_P\n        \\]\n    </li>\n<li>\n<p>\n            Jeśli\n        </p>\n<div class=\"table_wrapper centered\">\n            \\(A_1=A_2\\quad\\) oraz \\(\\quad B_1=B_2\\)\n        </div>\n<p>\n            to proste\n        </p>\n<div class=\"table_wrapper centered\">\n            \\(A_1x+B_1y+C_1=0\\quad\\) oraz \\(\\quad A_2x+B_2y+C_2=0\\)\n        </div>\n<p>\n            są równoległe.\n        </p>\n</li>\n<li>\n<p>\n            Proste o równaniach\n        </p>\n<div class=\"table_wrapper centered\">\n            \\(A_1x+B_1y+C_1=0\\quad\\) oraz \\(\\quad A_2x+B_2y+C_2=0\\)\n        </div>\n<p>\n            są <strong>równoległe</strong> <u>wtedy i tylko wtedy</u> gdy\n        </p>\n<p>\n            współczynniki \\(x\\)-ów i \\(y\\)-ów są proporcjonalne, czyli\n        </p>\n        \\[\n        \\frac{A_1}{B_1}=\\frac{A_2}{B_2}\\quad\\text{jeśli}\\quad B_1\\ne 0\\text{ i }B_2\\ne 0\n        \\]\n        <p>\n            lub\n        </p>\n        \\[\n        \\frac{B_1}{A_1}=\\frac{B_2}{A_2}\\quad\\text{jeśli}\\quad A_1\\ne 0\\text{ i }A_2\\ne 0\n        \\]\n    </li>\n<li>\n<p>\n            Aby stworzyć równanie prostej prostopadłej do prostej \\(Ax+By+C=0\\)\n        </p>\n<ol>\n<li>\n<hr/>\n<p style=\"margin-bottom: 2em;\">\n                    najpierw zamieniamy współrzędne \\(x\\)-a i \\(y\\)-a miejscami <span style=\"float: right\">\\(Bx+Ay+...=0\\)</span>\n</p>\n<hr/>\n</li>\n<li>\n<p style=\"margin-bottom: 2em;\">\n                    a potem zmieniamy jeden ze znaków: <span style=\"float: right\">\\(Bx\\color{red}{-}Ay+...=0\\)</span>\n</p>\n<p>\n                    albo: <span style=\"float: right\">\\(\\color{red}{-}Bx+Ay+...=0\\)</span>\n</p>\n<hr/>\n</li>\n</ol>\n<figure>\n<video autoplay=\"\" loop=\"\" muted=\"\" style=\"max-width: 600px;\" width=\"100%\">\n<source src=\"static/proste_prostopadle_rownanie_ogolne_animacja.mp4\" type=\"video/mp4\"/>\n</video>\n</figure>\n</li>\n<li>\n<p>\n            Proste o równaniach ogólnych\n        </p>\n        \\[\n        A_1x+B_1y+C_1=0\n        \\]\n        <p>\n            i\n        </p>\n        \\[\n        A_2x+B_2y+C_2=0\n        \\]\n        <p>\n            są prostopadłe, wtedy i tylko wtedy, gdy\n        </p>\n        \\[\n        A_1A_2+B_1B_2=0\n        \\]\n        <p>\n            Czyli suma dwóch iloczynów: współczynników \\(x\\)-ów i współczynników \\(y\\)-ów.\n        </p>\n</li></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><p>\n<strong>Odległość punku od prostej</strong> to długość <strong><u>najkrótszego</u></strong> odcinka łączącego ten punkt z pewnym punktem na prostej.\n        </p>\n<p>\n            Taki odcinek jest <strong><u>prostopadły</u></strong> do tej prostej.\n        </p></p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/geometria_analityczna_2_odleglosc_punktu_od_prostej_definicja.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p><p>\n            Odległość \\(d\\) punktu o współrzędnych \\((x_0, y_0)\\) od prostej o równaniu \\(Ax+By+C=0\\) jest dana wzorem\n        </p></p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/geometria_analityczna_2_odleglosc_punktu_od_prostej_wzor.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p><div class=\"table_wrapper\">\n            \\[\n            \\color{orange}{d}=\\frac{|\\color{blue}{A\\cdot\\color{red}{x_0}+B\\cdot\\color{red}{y_0}+C}|}{\\sqrt{A^2+B^2}}\n            \\]\n        </div>\n<details>\n<summary>jak używamy wzoru?</summary>\n<ol class=\"bold clearfix\">\n<li>\n<p>\n                        Do wyrażenia z lewej strony równania ogólnego prostej, \\(\\color{blue}{Ax+By+C}\\), podstawiamy współrzędne punktu, \\(\\color{blue}{x}=\\color{red}{x_0}\\) oraz \\(\\color{blue}{y}=\\color{red}{y_0}\\).\n                    </p>\n<p style=\"float: right\">\n                        Otrzymujemy: \\(\\color{blue}{A\\cdot\\color{red}{x_0}+B\\cdot\\color{red}{y_0}+C}\\)\n                    </p>\n</li>\n</ol>\n<ol class=\"bold clearfix\" start=\"2\">\n<li>\n<p>\n                        Obliczamy wartość bezwzględną tego wyniku (czyli usuwamy minus, jeśli wynik jest ujemny).\n                    </p>\n<p style=\"float: right\">\n                        Otrzymujemy: \\(|\\color{blue}{A\\cdot\\color{red}{x_0}+B\\cdot\\color{red}{y_0}+C}|\\)\n                    </p>\n</li>\n</ol>\n<ol class=\"bold clearfix\" start=\"3\">\n<li>\n<p>\n                        Dzielimy przez pierwiastek z sumy kwadratów współczynników \\(x\\)-a i \\(y\\)-a równania prostej.\n                    </p>\n<ul class=\"nolist\">\n<li>współczynniki \\(x\\)-a i \\(y\\)-a to \\(A\\) i \\(B\\),</li>\n<li>suma ich kwadratów to \\(A^2+B^2\\),</li>\n<li>pierwiastek z tej sumy to \\(\\sqrt{A^2+B^2}\\).</li>\n</ul>\n<p style=\"float: right\">\n                        Otrzymujemy: \\(\\frac{|\\color{blue}{A\\cdot\\color{red}{x_0}+B\\cdot\\color{red}{y_0}+C}|}{\\sqrt{A^2+B^2}}\\)\n                    </p>\n</li>\n</ol>\n</details></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><li>\n<p>\n            Odległość \\(d\\) między prostymi równoległymi o równaniach \\(\\color{blue}{Ax+By+C_1=0}\\) i \\(\\color{blue}{Ax+By+C_2=0}\\) jest dana wzorem\n        </p>\n<div class=\"table_wrapper\">\n            \\[\n            d=\\frac{|C_1-C_2|}{\\sqrt{A^2+B^2}}\n            \\]\n        </div>\n</li>\n<li>\n<p>\n            Równanie okręgu o środku w punkcie \\((a,b)\\) i promieniu \\(r\\) jest postaci\n        </p>\n<div class=\"table_wrapper\">\n            \\[\n            (x-a)^2+(y-b)^2=r^2\n            \\]\n        </div>\n</li></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><p>\n            Dany jest okrąg o <span style=\"color: red;\">promieniu</span> \\(r\\) i prosta, której <span style=\"color: orangered;\">odległość</span> od środka okręgu jest równa \\(d\\).\n        </p>\n<p>\n            Liczba punktów wspólnych prostej i okręgu jest równa:\n        </p>\n<ul class=\"nolist\">\n<li>\\(0\\quad\\) jeśli \\(r\\lt d\\)</li>\n<li>\\(1\\quad\\) jeśli \\(r= d\\)</li>\n<li>\\(2\\quad\\) jeśli \\(r\\gt d\\)</li>\n</ul></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><tr>\n<th>0<br/>punktów<br/>wspólnych</th>\n<th>1<br/>punkt<br/>wspólny</th>\n<th>2<br/>punkty<br/>wspólne</th>\n</tr>\n<tr>\n<td>\\(\\color{red}{r}\\lt \\color{orange}{d}\\)</td>\n<td>\\(\\color{red}{r}= \\color{orange}{d}\\)</td>\n<td>\\(\\color{red}{r}\\gt \\color{orange}{d}\\)</td>\n</tr></p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/geometria_analityczna_2_prosta_a_okrag_0_punktow.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "image",
+      "media_src": "static/geometria_analityczna_2_prosta_a_okrag_1_punkt.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "image",
+      "media_src": "static/geometria_analityczna_2_prosta_a_okrag_2_punkty.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p><li>\n        Aby znaleźć <strong>punkty wspólne prostej i okręgu</strong>, rozwiązujemy układ równań <strong>metodą podstawienia</strong>. W wyniku otrzymujemy równanie kwadratowe. Niech \\(Delta\\) oznacza wyróżnik tego równania. Wówczas\n        <div class=\"table_wrapper\">\n<table class=\"my_table_TC\">\n<tr>\n<td>\\(\\Delta\\lt 0\\)</td>\n<td>\n                        \\(0\\) rozwiązań\n                        <br/>\n<small>czyli \\(0\\) punktów wspólnych</small>\n</td>\n</tr>\n<tr>\n<td>\\(\\Delta = 0\\)</td>\n<td>\n                        \\(1\\) rozwiązanie\n                        <br/>\n<small>czyli \\(1\\) punkt wspólny</small>\n</td>\n</tr>\n<tr>\n<td>\\(\\Delta\\gt 0\\)</td>\n<td>\n                        \\(2\\) rozwiązania\n                        <br/>\n<small>czyli \\(2\\) punkty wspólne</small>\n</td>\n</tr>\n</table>\n</div>\n</li></p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/geometria_analityczna_2_styczna_do_okregu_definicja.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Styczna</strong> do okręgu to prosta, która ma z nim dokładnie jeden punkt wspólny.</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><p>\n<strong>Izometria</strong> to takie przekształcenie płaszczyzny, które zachowuje odległości między punktami.\n        </p>\n<p>\n<i>Dokładniej:</i>\n</p>\n<p>\n<strong>Izometria</strong> to takie przekształcenie płaszczyzny, \\(P\\), że jeśli\n        </p>\n<ul class=\"nolist\">\n<li>\n                \\(A\\) i \\(B\\) to dowolne punkty płaszczyzny\n            </li>\n</ul>\n<p>\n            natomiast\n        </p>\n<ul class=\"nolist\">\n<li>\n                \\(P(A)\\) i \\(P(B)\\) to obrazy tych punktów w tym przekształceniu\n            </li>\n</ul>\n<p>\n            to\n        </p>\n<div class=\"table_wrapper\">\n            \\[\n            |AB|=|P(A)P(B)|\n            \\]\n        </div>\n<p>\n            czyli\n        </p>\n<div class=\"centered\">\n            odległość od \\(A\\) do \\(B\\) <u>jest równa</u> odległości od \\(P(A)\\) do \\(P(B)\\)\n        </div></p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/izometria_ilustracja.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p><figcaption>\n<p>\n                    Strzałka obrazuje izometrię \\(P\\). \\(A_1=p(A)\\), \\(B_1=P(B)\\)\n                </p>\n<p>\n                    Odległość \\(|AB|\\) jest równa odległości \\(|A_1B_1|\\).\n                </p>\n</figcaption></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><p>\n<strong>Schemat dowodu, że przekształcenie \\(P\\) jest izometrią</strong>\n</p>\n<ol class=\"bold\">\n<li>\n                Rozpatrzmy dwa zupełnie dowolne punkty.\n                <div style=\"min-height: 2em;\">\n<span style=\"float: right;\">\n                        \\(A=(x_A,y_A)\\), \\(B=(x_B, y_B)\\)\n                    </span>\n</div>\n</li>\n<li>\n                Znajdźmy współrzęne obrazów tych punktów.\n                <div style=\"min-height: 2em;\">\n<span style=\"float: right;\">\n                        \\(P(A)=(\\dots,\\dots)\\), \\(P(B)=(\\dots, \\dots)\\)\n                    </span>\n</div>\n</li>\n<li>\n                Znajdźmy odległość od \\(P(A)\\) do \\(P(B)\\).\n                <div style=\"min-height: 2em;\">\n<span style=\"float: right;\">\n                        \\(|P(A)P(B)|\\)\n                    </span>\n</div>\n</li>\n<li>\n                Sprawdź, czy zawsze jest równa odległości od \\(A\\) do \\(B\\).\n                <div style=\"min-height: 2em;\">\n<span style=\"float: right;\">\n                        \\(|P(A)P(B)|\\stackrel{?}{=}|AB|\\)\n                    </span>\n</div>\n</li>\n</ol></p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/izometria_schemat_dowodu.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>Przesunięcie to przekształcenie płaszczyzny, \\(P\\), zdefiniowane wzorem\n        <div class=\"table_wrapper\">\n            \\[\n            P(x,y) = (x+a, y+b) \n            \\]\n        </div></p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/izometria_definicja_przesuniecie.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p><p>\n            Symetria osiowa w osi \\(OX\\) to przekształcenie płaszczyzny, \\(P\\), zdefiniowane wzorem\n        </p>\n<div class=\"table_wrapper\">\n            \\[\n            P(x,y) = (x, -y) \n            \\]\n        </div>\n<hr/>\n<p>\n            Symetria osiowa w osi \\(OY\\) to przekształcenie płaszczyzny, \\(P\\), zdefiniowane wzorem\n        </p>\n<div class=\"table_wrapper\">\n            \\[\n            P(x,y) = (-x, y) \n            \\]\n        </div>\n<hr/></p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/izometria_definicja_symetrie_osiowe.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p><p>\n            Symetria względem punktu \\((0,0)\\), czyli początku układu współrzędnych, to przekształcenie płaszczyzny, \\(P\\), zdefiniowane wzorem\n        </p>\n<div class=\"table_wrapper\">\n            \\[\n            P(x,y) = (-x, -y) \n            \\]\n        </div>\n<hr/>\n<p>\n            Symetria osiowa w osi \\(OY\\) to przekształcenie płaszczyzny, \\(P\\), zdefiniowane wzorem\n        </p>\n<div class=\"table_wrapper\">\n            \\[\n            P(x,y) = (-x, y) \n            \\]\n        </div>\n<hr/></p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/izometria_definicja_symetria_srodkowa.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p><p>\n            Obrazem wielokątu \\(W_1\\) w izometrii jest wielokąt przystający \\(W_2\\), którego wierzchołki są obrazami odpowiednich wierzchołków wielokąta \\(W_1\\).\n        </p></p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/izometria_obraz_wielokata.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p><p>\n            Obrazem okręu \\(O_1\\) w izometrii jest okrąg \\(O_2\\) o równym promieniu.\n        </p>\n<p>\n            Obrazem środka okręgu \\(O_1\\) jest środek okręgu \\(O_2\\).\n        </p></p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/izometria_obraz_okregu.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p><li>\n<p>\n<u>Obrazy izometryczne prostych</u>\n</p>\n<ul>\n<li>\n<p>\n                    Jeśli wykres funkcji \\(y=f(x)\\) przesuniemy o wektor \\([p,q]\\), równanie otrzymanego wykresu ma postać\n                </p>\n                \\[y=f(x-p)+q\\]\n                <p>więc</p>\n<p>\n                    jeśli prostą o równaniu \\(y=ax+b\\) przesuniemy o wektor \\([p,q]\\), równanie otrzymanej prostej ma postać\n                </p>\n                \\[\n                y=a(x-p)+q\n                \\]\n                <p>czyli</p>\n                \\[\n                y=ax-ap+q\n                \\]\n            </li>\n<li>\n<p>\n                    Obraz prostej \\(y=ax+b\\) w symetrii względem osi \\(OX\\) ma równanie\n                </p>\n                \\[\n                y=-ax-b\n                \\]\n            </li>\n<li>\n<p>\n                    Obraz prostej \\(y=ax+b\\) w symetrii względem osi \\(OY\\) ma równanie\n                </p>\n                \\[\n                y=-ax+b\n                \\]\n            </li>\n<li>\n<p>\n                    Obraz prostej \\(y=ax+b\\) w symetrii względem początku układu współrzędnych ma równanie\n                </p>\n                \\[\n                y=ax-b\n                \\]            \n            </li>\n</ul>\n</li></p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "6aec411548d5714a9ade5ff1074457a0604405ba8c18727b2b443d42e6c6e102"
+}

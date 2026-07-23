@@ -1,0 +1,178 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Mając dane współrzędne punktów \\(A\\) i \\(B\\) oblicz i wpisz współrzędne wektora \\(vec{AB}\\).\n        </p>"
+    },
+    {
+      "type": "fill_table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "rows",
+        "cells": [
+          [
+            {
+              "kind": "static",
+              "html": "\\(A(6,2)\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(B(11,-2)\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(\\vec{AB}=[\\)",
+              "halign": "right"
+            },
+            {
+              "kind": "answer",
+              "answer": "5"
+            },
+            {
+              "kind": "static",
+              "html": "\\(,\\)",
+              "halign": "center"
+            },
+            {
+              "kind": "answer",
+              "answer": "-4"
+            },
+            {
+              "kind": "static",
+              "html": "\\(]\\)",
+              "halign": "left"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(A(3,-1)\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(B(-4,2)\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(\\vec{AB}=[\\)",
+              "halign": "right"
+            },
+            {
+              "kind": "answer",
+              "answer": "-7"
+            },
+            {
+              "kind": "static",
+              "html": "\\(,\\)",
+              "halign": "center"
+            },
+            {
+              "kind": "answer",
+              "answer": "3"
+            },
+            {
+              "kind": "static",
+              "html": "\\(]\\)",
+              "halign": "left"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Punkt \\(B\\) jest obrazem punktu \\(A\\) w przesunięciu o wektor \\(vec{w}\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Oblicz i wpisz współrzędne punktu \\(B\\).\n        </p>"
+    },
+    {
+      "type": "fill_table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "rows",
+        "cells": [
+          [
+            {
+              "kind": "static",
+              "html": "\\(A(-8,4)\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(\\vec{w}=[7,3]\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(B=(\\)",
+              "halign": "right"
+            },
+            {
+              "kind": "answer",
+              "answer": "-1"
+            },
+            {
+              "kind": "static",
+              "html": "\\(,\\)",
+              "halign": "center"
+            },
+            {
+              "kind": "answer",
+              "answer": "7"
+            },
+            {
+              "kind": "static",
+              "html": "\\()\\)",
+              "halign": "left"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(A(-3, 5)\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(\\vec{w}=[3, -7]\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(B=(\\)",
+              "halign": "right"
+            },
+            {
+              "kind": "answer",
+              "answer": "0"
+            },
+            {
+              "kind": "static",
+              "html": "\\(,\\)",
+              "halign": "center"
+            },
+            {
+              "kind": "answer",
+              "answer": "-4"
+            },
+            {
+              "kind": "static",
+              "html": "\\()\\)",
+              "halign": "left"
+            }
+          ]
+        ]
+      }
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "8a7deffd6947fd9328ba7dd5733f07c26caa78a507126c8c5bcddff8b84d5f3d"
+}

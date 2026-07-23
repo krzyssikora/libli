@@ -1,0 +1,210 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>Przypomnijmy sobie przed chwilą wprowadzone wzory:</p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/pole_trojkata_bkb_wzor.png",
+      "alt": "pole trójkąta",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>Jeśli boki trójkąta mają długości \\(a\\), \\(b\\) oraz \\(c\\), a przeciwległe im kąty mają miary odpowiednio \\(\\alpha\\), \\(\\beta\\) i \\(\\gamma\\), to pole trójkąta \\(P\\) jest dane wzorem\n    \\[\n    P=\\frac{1}{2}ab\\sin\\gamma=\\frac{1}{2}ac\\sin\\beta=\\frac{1}{2}bc\\sin\\alpha\n    \\]\n    Czyli pole jest połową iloczynu długości boków i sinusa kąta między nimi.</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Skorzystaj z jednego z powyższch wzorów i wyprowadź wzór na pole trójkąta w zależności od długości boków i promienia okręgu opisanego na tym trójkącie.\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Tak naprawdę to wszystko jedno, z którego wzoru skorzystamy, zacznimy więc od pierwszego z brzegu:\n                \\[\n                P=\\frac{1}{2}ab\\sin\\gamma\n                \\]\n                Jest to wzór na pole \\(P\\) w zależności od \\(a\\), \\(b\\) oraz \\(\\gamma\\).</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Chcemy wzoru na \\(P\\) w zależności od\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(a\\), \\(b\\), \\(\\alpha\\) i \\(\\beta\\)",
+            "\\(a\\), \\(b\\) i \\(c\\)",
+            "\\(a\\), \\(b\\), \\(c\\) i \\(R\\), promienia okręgu opisanego na trójkącie"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "text",
+          "body": "<p>Chcemy więc wyeliminować z danego wzoru \\(\\gamma\\), a wprowadzić \\(R\\). Skorzystamy z twierdzenia sinusów.</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>twierdzenie sinusów - przypomnienie</h4>"
+        },
+        {
+          "type": "text",
+          "body": "\n                        W trójkącie \\(ABC\\), w którym boki przeciwległe wierzchołkom \\(A\\), \\(B\\) i \\(C\\) mają długości \\(a\\), \\(b\\) i \\(c\\) odpowiednio, a promień okręgu opisanego na trójkącie ma długość \\(R\\), zachodzą równości:\n                        \\[\n                        \\frac{a}{\\sin A}=\\frac{b}{\\sin B}=\\frac{c}{\\sin C}=2R\n                        \\]\n                        Jeśli kąty o wierzchołkach \\(A\\), \\(B\\) i \\(C\\) nazwiemy odpowiednio \\(\\alpha\\), \\(\\beta\\) i \\(\\gamma\\), to równości przyjmują postać:\n                        \\[\n                        \\frac{a}{\\sin \\alpha}=\\frac{b}{\\sin \\beta}=\\frac{c}{\\sin \\gamma}=2R\n                        \\]\n                    "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Z twierdzenia sinusów\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(\\sin \\gamma = 2Rc\\)",
+            "\\(\\sin \\gamma = \\frac{c}{2R}\\)",
+            "\\(\\sin \\gamma = \\frac{2R}{c}\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Podstawmy ten wynik do wzoru na pole trójkąta:\n                \\[\n                \\begin{align*}\n                P&=\\frac{1}{2}ab\\sin\\gamma\\\\\n                &=\\frac{1}{2}ab\\cdot\\frac{c}{2R}\n                \\end{align*}\n                \\]</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    W ten sposób otrzymujemy \\(P=\\)\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\( \\frac{abc}{4R}\\)",
+            "\\( \\frac{abc}{R}\\)",
+            "\\( \\frac{c}{4abR}\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Otrzymany wzór ma postać\n                \\[\n                P=\\frac{abc}{4R}\n                \\]</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "\n    Jeśli promień okręgu opisanego na trójkącie o bokach \\(a\\), \\(b\\), \\(c\\) ma promień długości \\(R\\), to pole trójkąta \\(P\\) dane jest wzorem\n    \\[\n    P=\\frac{abc}{4R}\n    \\]\n"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Trójkąt ma boki o  długości \\(a\\), \\(b\\) i \\(c\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Pole trójkąta jest równe \\(P\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Okrąg opisany na trójkącie ma promień długości \\(R\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Uzupełnij tabelę.\n        </p>"
+    },
+    {
+      "type": "fill_table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "kind": "static",
+              "html": "\\(a\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(b\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(c\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(R\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(P\\)"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(4\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(5\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(7\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(\\tfrac{35}{24}\\sqrt{6}\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "4"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(7\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(9\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(12\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(\\tfrac{27}{10}\\sqrt{5}\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "14"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(11\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(9\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(16\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(\\tfrac{22}{7}\\sqrt{7}\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "18"
+            }
+          ]
+        ]
+      }
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "52fb33b17da8e84b40d1ef8a080261e0a61ab78f7a5573b331872011d43b394b"
+}

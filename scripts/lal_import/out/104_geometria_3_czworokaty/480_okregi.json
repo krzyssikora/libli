@@ -1,0 +1,809 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Przypomnijmy:\n</p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/czworokat_wpisany_w_kolo_katy.png",
+      "alt": "",
+      "figcaption": "\\(\\color{green}{\\alpha}+\\color{green}{\\gamma}=180^{\\circ}=\\color{red}{\\beta}+\\color{red}{\\delta}\\)"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Na czworokącie można opisać okrąg, gdy sumy przeciwległych kątów czworokąta są sobie równe.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Taki czworokąt nazywamy wpisanym w koło.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Oznacza to też, że każda suma przeciwległych kątów, \\(\\color{green}{\\alpha}+\\color{green}{\\gamma}\\) oraz \\(\\color{red}{\\beta}+\\color{red}{\\delta}\\), jest równa \\(180^{\\circ}\\).\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Udowodnij, że na równoległoboku można opisać okrąg wtedy i tylko wtedy, gdy jest prostokątem.\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Równoległobok to czworokąt o dwóch parach boków równoległcyh.</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Z tego powodu \n                    \n\n\n￿0￿ kąty są równe.\n                    .\n                ",
+          "options": [
+            "przeciwległe",
+            "przyległe",
+            "sąsiednie"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Oznaczmy kąty w jednej parze przeciwległych przez \\(\\alpha\\), a w drugiej przez \\(\\beta\\).\n                </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_1020_1.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Mamy udowodnić, że\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p class=\"fbox\">\n<i>\n                            ma równoległoboky można opisać koło <u>wtedy i tylko wtedy</u>, gdy jest prostokątem.\n                        </i>\n</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Oznacza to, że musimy udowodnić, że\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p class=\"fbox\">\n<i>\n<u>jeśli</u> na równoległoboku można opisać koło <u>to</u> jest prostokątem\n                        </i>\n</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    oraz\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p class=\"fbox\">\n<i>\n<u>jeśli</u> równoległobok jest prostokątem <u>to</u> można na nim opisać koło.\n                        </i>\n</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Przypuśćmy najpierw, że na równoległoboku można opisać koło.\n                </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Oznacza to, że suma przeciwległych kątów jest równa \\(180^{\\circ}\\). W przypadku rozpatrywanego równoległoboku\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(\\alpha+\\beta=180^{\\circ}\\)",
+            "\\(\\alpha+\\alpha=180^{\\circ}\\) oraz \\(\\beta+\\beta=180^{\\circ}\\)",
+            "\\(\\alpha=180^{\\circ}-\\beta\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Stąd wnioskujemy, że \n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\(\\alpha=90^{\\circ}\\quad\\) oraz \\(\\quad\\beta=90^{\\circ}\\)\n                "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    A to oznacza, że równoległobok jest \n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "kwadratem",
+            "prostokątem",
+            "rombem"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Przypuśćmy teraz, że równoległobok jest prostokątem.\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Udowodnimy, że można na nim opisać okrąg.\n                </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Skoro jest prostokątem, to znaczy, że\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(\\alpha=90^{\\circ}\\) oraz \\(\\beta=90^{\\circ}\\)",
+            "wszystkie jego boki są równe"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Rozpatrzmy teraz sumy przeciwległych kątów. Przyjrzyj się rysunkowi powyżej.\n                </p>"
+        },
+        {
+          "type": "table",
+          "data": {
+            "header_row": false,
+            "header_col": false,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "<span style=\"color: red;\">czerwone</span>",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\alpha+\\alpha=90^{\\circ}+90^{\\circ}=180^{\\circ}\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "<span style=\"color: green;\">zielone</span>",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\beta+\\beta=90^{\\circ}+90^{\\circ}=180^{\\circ}\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    To oznacza, że ten równoległobok\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "można wpisać w koło",
+            "można opisać na kole"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Albo inaczej: można na nim opisać okrąg.</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Miary trzech kolejnych kątów wewnętrznych czworokąta wpisanego w koło są w stosunku \\(1:2:3\\). \n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź miary wszystkich kątów tego czworokąta.\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                    W poniższym aplecie możesz przyjrzeć się czworokątom z trzema kolejnymi kątami wewnętrznymi w stosunku \\(1:2:3\\). \n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>\\((\\color{#fcba03}{\\text{kąt żółty}})=2\\cdot(\\color{red}{\\text{kąt czerwony}})\\)</li>\n<li>\\((\\color{green}{\\text{kąt zielony}})=3\\cdot(\\color{red}{\\text{kąt czerwony}})\\)</li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<p>czyli</p>"
+        },
+        {
+          "type": "table",
+          "data": {
+            "header_row": false,
+            "header_col": false,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "(\\(\\color{red}{\\text{kąt czerwony}}\\))",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": ":",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "(\\(\\color{#fcba03}{\\text{kąt żółty}}\\))",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": ":",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "(\\(\\color{green}{\\text{kąt zielony}}\\))",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": ":",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": ":",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(3\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Z pomocą czerwonego suwaka możesz zmienić wielkość czerwonego kąta (a w konsekwencji też żółtego i zielonego). Możesz też przesuwać trzy niebieskie wierzchołki.\n                </p>"
+        },
+        {
+          "type": "iframe",
+          "url": "https://www.geogebra.org/material/iframe/id/ghq2arbh/width/515/height/499/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+          "title": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Nie wszystkie takie czworokąty można wpisać w koło.\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Oznaczmy te trzy kąty przez \\(\\color{red}{\\alpha}\\), \\(\\color{#fcba03}{2\\alpha}\\) oraz \\(\\color{green}{3\\alpha}\\).\n                </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Aby czworokąt można było wpisać w koło, musi być spełniony warunek\n                    \n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(\\alpha+2\\alpha=180^{\\circ}\\)",
+            "\\(\\alpha+3\\alpha=180^{\\circ}\\)",
+            "\\(\\alpha+2\\alpha+3\\alpha=180^{\\circ}\\)",
+            "\\(2\\alpha+3\\alpha=180^{\\circ}\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Stąd wyliczamy, że \\(\\alpha=\\)\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(45^{\\circ}\\)",
+            "\\(60^{\\circ}\\)",
+            "\\(36^{\\circ}\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    I teraz już znamy pierwsze trzy kąty czworokąta:\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    \\begin{align}\n                    \\alpha&amp;=45^{\\circ}\\\\\n                    2\\alpha&amp;=90^{\\circ}\\\\\n                    3\\alpha&amp;=135^{\\circ}\n                    \\end{align}\n                    \\]\n                "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Czwarty kąt obliczymy z sumy kątów w czworokącie, która jest równa \n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(180^{\\circ}\\)",
+            "\\(360^{\\circ}\\)",
+            "\\(400^{\\circ}\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Miara czwartego kąta to \\(360^{\\circ}-45^{\\circ}-90^{\\circ}-135^{\\circ}=\\)\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(45^{\\circ}\\)",
+            "\\(90^{\\circ}\\)",
+            "\\(135^{\\circ}\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Kolejne kąty czworokąta to \\(45^{\\circ}\\), \\(90^{\\circ}\\), \\(135^{\\circ}\\) i \\(90^{\\circ}\\).\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Zwróć uwagę, że dwa kąty proste leżą naprzeciwko siebie, więc ich suma też jest równa \\(180^{\\circ}\\).\n                </p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Czworokąt \\(ABCD\\) jest wpisany w koło. Styczna do koła w punkcie \\(A\\) tworzy z odcinkami \\(AD\\) i \\(AB\\) kąty o miarach odpowiednio \\(45^{\\circ}\\) i \\(60^{\\circ}\\). \n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Kąt między przekątną \\(BD\\) a bokiem \\(CD\\) ma miarę \\(25^{\\circ}\\). \n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź miary wszystkich kątów wewnętrznych czworokąta.\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                Naszkicujmy rysunek pomocniczy. Zacznijmy od okręgu. Zaznaczmy na nim punkt \\(A\\) i narysujmy styczną do okręgu przechodzącą przez punkt \\(A\\).\n            </p>"
+        },
+        {
+          "type": "reveal_gate",
+          "label": "pokaż dalej"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_1040_1.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Teraz dorysujmy odcinki \n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>\n                        \\(AD\\) - pod kątem \\(45^{\\circ}\\) do stycznej,\n                    </li>\n<li>\n                        \\(AB\\) - pod kątem \\(60^{\\circ}\\) do stycznej.\n                    </li>\n</ul>"
+        },
+        {
+          "type": "reveal_gate",
+          "label": "pokaż dalej"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_1040_2.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Połączmy punkty \\(B\\) i \\(D\\) i odznaczmy odcinek pod kątem \\(25^{\\circ}\\) od przekątnej \\(BD\\), z wierzchołkiem w \\(D\\).\n                </p>"
+        },
+        {
+          "type": "reveal_gate",
+          "label": "pokaż dalej"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_1040_3.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Tak otrzymujemy punkt \\(C\\) - ostatni wierzchołek czworokąta \\(ABCD\\).\n                </p>"
+        },
+        {
+          "type": "reveal_gate",
+          "label": "pokaż dalej"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_1040_4.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Mamy znaleźć miary wszystkich kątów wewnętrznych czworokąta. Zacznijmy od najłatwiejszego - kąta w wierzchołku \\(A\\).\n                </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                                Ten kąt, wraz z kątami \\(45^{\\circ}\\) i \\(60^{\\circ}\\) dają w sumie\n                                \n\n\n\n￿0￿.\n                            ",
+          "options": [
+            "\\(180^{\\circ}\\)",
+            "\\(270^{\\circ}\\)",
+            "\\(360^{\\circ}\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_1040_5.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                                Teraz możemy obliczyć miarę kąta w wierzchołku \\(C\\).\n                            </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                                Korzystając z zapisanej na górze strony reguły na temat czworokątów wpisanych w koło obliczamy, że miara kąta w wierzhołku \\(C\\) jest równa \n                                \n\n\n\n￿0￿.\n                            ",
+          "options": [
+            "\\(95^{\\circ}\\)",
+            "\\(105^{\\circ}\\)",
+            "\\(115^{\\circ}\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                                Miara kąta w wierzchołku \\(C\\) jest równa \\(180^{\\circ}-75^{\\circ}=105^{\\circ}\\)\n                            </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_1040_6.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                                Aby znaleźć miarę kolejnego kąta, tego w wierzchołku \\(D\\), musimy przypomnieć sobie <strong>twierdzenie o kącie między styczną a cięciwą</strong>.\n                            </p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>pamiętasz?</h4>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/tw_katy_3_alternate.png",
+          "alt": "Kąt między styczną a cięciwą",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<u>\n                                            Kąt między styczną a cięciwą\n                                        </u>\n</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                                        Dany jest okrąg i styczna do tego okręgu. Jeśli cięciwa zaczyna się w punkcie styczności, to kąt między styczną a cięciwą jest równy kątowi wpisanemu opartemu na tej cięciwie.\n                                    </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<small>\n                                            (Wierzchołek kąta wpisanego musi znajdować się na zewnątrz kąta między styczną a cięciwą, jak na rysunku.)\n                                        </small>\n</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                                Z tego twierdzenia wynika, że kąt \\(ADB\\) ma miarę\n                                \n\n\n\n￿0￿.\n                            ",
+          "options": [
+            "\\(60^{\\circ}\\)",
+            "\\(45^{\\circ}\\)",
+            "\\(75^{\\circ}\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_1040_7.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                                Miara kąta w wierzchołku \\(D\\) to oczywiście \\(25^{\\circ}+60^{\\circ}=85^{\\circ}\\).\n                            </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                                Na zakończenie, ponownie korzystając z reguły na temat czworokątów wpisanych w koło, obliczamy, że miara kąta w wierzchołku \\(D\\) jest równa\n                                \n\n\n\n￿0￿.\n                            ",
+          "options": [
+            "\\(85^{\\circ}\\)",
+            "\\(95^{\\circ}\\)",
+            "\\(105^{\\circ}\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_1040_8.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                                Kąty wewnętrzne czworokąta w wierzchołkach \\(A\\), \\(B\\), \\(C\\) i \\(D\\) mają miary odpowiednio \\(75^{\\circ}\\), \\(95^{\\circ}\\), \\(105^{\\circ}\\) i \\(85^{\\circ}\\).\n                            </p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Trapez o podstawach 8 i 6 wpisano w koło o promieniu 5.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź długości ramion trapezu.\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                Zacznijmy od rysunku. Naszkicujmy okrąg, a w nim dwa promienie, tworzące razem średnicę.\n            </p>"
+        },
+        {
+          "type": "reveal_gate",
+          "label": "pokaż dalej"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_1050_01.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Teraz narysujmy podstawę o długości \\(6\\), równolegle do tych promieni.\n                </p>"
+        },
+        {
+          "type": "reveal_gate",
+          "label": "pokaż dalej"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_1050_02.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Z narysowaniem podstawy o długości \\(8\\) jest trochę inaczej. Możemy ją narysować zarówno po tej samej stronie środka koła, co krótsza podstawa, jak i po przeciwnej.\n                </p>"
+        },
+        {
+          "type": "reveal_gate",
+          "label": "pokaż dalej"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_1050_03.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    I dlatego istnieją dwa trapezy spełniające warunki zadania.\n                </p>"
+        },
+        {
+          "type": "reveal_gate",
+          "label": "pokaż dalej"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_1050_04.png",
+          "alt": "",
+          "figcaption": "trapez o większej wysokości"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_1050_05.png",
+          "alt": "",
+          "figcaption": "trapez o mniejszej wysokości"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Zacznijmy od trapezu o większej wysokości. Najpierw:\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>\n                        połączmy środek okręgu promieniami z końcami krótszej podstawy,\n                    </li>\n<li>\n                        tak otrzymany trójkąt równoramienny podzielmy na dwa prostokątne wysokością opadającą ze środka okręgu na podstawę długości \\(6\\). Tę wysokość oznaczmy jako \\(h_1\\).\n                    </li>\n</ul>"
+        },
+        {
+          "type": "reveal_gate",
+          "label": "pokaż dalej"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_1050_06.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                                Z twierdzenia Pitagorasa w zacieniowanym na pomarańczowo trójkącie obliczamy, że \n                                \n\n\n\n￿0￿.\n                            ",
+          "options": [
+            "\\(h_1=3\\)",
+            "\\(h_1=4\\)",
+            "\\(h_1=\\frac{5\\sqrt{3}}{2}\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                                Teraz analogicznie narysujmy trójkąt prostokątny, którego jedna z przyprostokątnych jest połową dłuższej podstawy. Nieznaną wysokość oznaczmy jako \\(h_2\\). \n                            </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_1050_07.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                                Z twierdzenia Pitagorasa w zacieniowanym na pomarańczowo trójkącie obliczamy, że\n                                \n\n\n\n￿0￿.\n                            ",
+          "options": [
+            "\\(h_2=3\\)",
+            "\\(h_2=4\\)",
+            "\\(h_2=\\frac{5\\sqrt{3}}{2}\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                                Tak uzyskaliśmy wysokość pierwszego trapezu.\n                            </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_1050_08.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                                Jest ona równa\n                                \n\n\n\n￿0￿.\n                            ",
+          "options": [
+            "\\(7\\)",
+            "\\(4\\)",
+            "\\(3\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                                Zauważmy, że bardzo podobnie możemy obliczyć wysokość drugiego trapezu.\n                            </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_1050_09.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                                Jest ona równa\n                                \n\n\n\n\n￿0￿.\n                            ",
+          "options": [
+            "\\(1\\)",
+            "\\(2\\)",
+            "\\(3\\)",
+            "\\(4\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                                Opuśćmy wysokość z końca krótszej podstawy trapezu. Otrzymujemy trójkąt prostokątny, w którym \n                            </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>\n                                    przeciwprostokątna to szukane ramię trapezu, \\(c\\),\n                                </li>\n<li>\n                                    a przyprostokątna pionowa to znaleziona przed chwilą wysokość o długości \\(7\\).\n                                </li>\n</ul>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_1050_10.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                                Długość poziomej przyprostokątnej to\n                                \n\n\n\n￿0￿.\n                            ",
+          "options": [
+            "\\(2\\)",
+            "\\(1\\)",
+            "\\(3\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_1050_11.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                                Długość \\(c\\) możemy obliczyć z twierdzenia Pitagorasa:\n                                \n\n\n￿0￿.\n                            ",
+          "options": [
+            "\\(c^2=7^2+1^2\\)",
+            "\\(c^2=7^2-1^2\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                                W wyniku otrzymujemy \\(c=\\)\n                                \n\n\n\n￿0￿.\n                            ",
+          "options": [
+            "\\(7\\)",
+            "\\(5\\sqrt{2}\\)",
+            "\\(2\\sqrt{5}\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_1050_12.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                                To kończy zadanie w przypadku pierwszego trapezu, o większej wysokości.\n                            </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                                W przypadku niższego trapezu możemy postąpić analogicznie - też odciąć wysokością trójkąt prostokątny, o bokach jak na rysunku.\n                            </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_1050_13.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                                W tej sytuacji długość ramienia \\(c\\) to\n                                \n\n\n\n\n￿0￿.\n                            ",
+          "options": [
+            "\\(\\sqrt{2}\\)",
+            "\\(1\\)",
+            "\\(\\sqrt{3}\\)",
+            "\\(2\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                                Ramiona trapezu mają długość albo \\(5\\sqrt{2}\\), albo \\(\\sqrt{2}\\).\n                            </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_1050_14.png",
+          "alt": "",
+          "figcaption": ""
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "63d4105dc3ea9996ace5fb99364333e86180a76b586d445216f0bfa21b0a8ce6"
+}

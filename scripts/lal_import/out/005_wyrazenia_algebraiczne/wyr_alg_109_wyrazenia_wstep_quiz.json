@@ -1,0 +1,87 @@
+{
+  "elements": [
+    {
+      "type": "choice",
+      "stem": "<p>Wskaż, które z poniższych wyrażeń algebraicznych są wyrazami.</p>",
+      "multiple": true,
+      "choices": [
+        {
+          "text": "\\(3x-2y\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(abc\\cdot ab^2\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\((3x)(-2y)\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(3a^2+2a\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Wyrażenie \\((-2a)(3ab)(-2abc)\\) upraszcza się do:</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(-12a^3b^2c\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(24a^3bc\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(12a^3b^2c\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(24a^3b^2c\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Wskaż wszystkie wyrazy podobne do \\(-5a^3x^2\\).</p>",
+      "multiple": true,
+      "choices": [
+        {
+          "text": "\\(-5a^3x^2y\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(a^2x^2\\cdot 2a\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(6aaxx\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(3a(ax^2)\\)",
+          "is_correct": true,
+          "feedback": ""
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "44bd338bbe7c636f42bf211b0388d64a71e85285b02f2c111825585e9a06c87c"
+}

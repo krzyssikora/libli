@@ -1,0 +1,143 @@
+{
+  "elements": [
+    {
+      "type": "spoiler",
+      "label": "Przypomnijmy, czym jest podobieństwo:",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n            Czworokąty \\(A_1B_1C_1D_1\\) i \\(A_2B_2C_2D_2\\) są <strong>podobne</strong> (\\(A_1B_1C_1D_1\\sim A_2B_2C_2D_2\\)) jeśli\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>\n                równe są kolejne kąty wewnętrzne:\n                <div class=\"table_wrapper\">\n                    \\[\n                    \\color{red}{A_1}=\\color{red}{A_2},\\quad \\color{green}{B_1}=\\color{green}{B_2},\\quad \\color{orange}{C_1}=\\color{orange}{C_2},\\quad \\color{blue}{D_1}=\\color{blue}{D_2}\n                    \\]\n                </div>\n</li>\n<li>\n                odpowiednie boki są proporcjonalne:\n                <div class=\"table_wrapper\">\n                    \\[\n                    \\color{red}{\\frac{A_2B_2}{A_1B_1}}=\\color{green}{\\frac{B_2C_2}{B_1C_1}}=\\color{orange}{\\frac{C_2D_2}{C_1D_1}}=\\color{blue}{\\frac{D_2A_2}{D_1A_1}}\n                    \\]\n                </div>\n</li>\n</ul>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/czworokaty_podobne_def_1.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Wartość każdego ułamka z powyższych to <strong>skala podobieństwa</strong> czworokąta \\(A_2B_2C_2D_2\\) do \\(A_1B_1C_1D_1\\).\n        </p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Jeśli\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n            figura \\(F_1\\) jest podobna do figury \\(F_2\\) w skali \\(k\\), a figura \\(F_2\\) jest podobna do figury \\(F_3\\) w skali \\(m\\)\n        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        to\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n            figura \\(F_1\\) jest podobna do figury \\(F_3\\) w skali \\(k\\cdot m\\).\n        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "\n        \\[\n        F_1\\underset{k}{\\sim} F_2 \\underset{m}{\\sim} F_3 \\quad\\Rightarrow\\quad F_1 \\underset{k\\cdot m}{\\sim} F_3\n        \\]\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Przykład</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Na rysunku poniżej kąty oznaczone tymsamym kolorem są tej samej miary.\n        </p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/podobienstwo_skala_przechodnia.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Czworokąt \\(W_2\\) jest podobny do czworokąta \\(W_1\\) w skali \\(\\frac{3}{2}\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Czworokąt \\(W_3\\) jest podobny do czworokąta \\(W_2\\) w skali \\(2\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            I dlatego czworokąt \\(W_3\\) jest podobny do czworokąta \\(W_1\\) w skali \\(\\frac{3}{2}\\cdot 2=3\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Widzimy to na przykładzie boków o długościach zapisanych na czerwono:\n        </p>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "\\(10\\cdot\\frac{3}{2}=15\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\quad\\quad\\quad\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(15\\cdot 2=30\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(10\\cdot \\left(\\frac{3}{2}\\cdot 2\\right)=10\\cdot 3=30\\)",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 3
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Uzupełnij zdania.\n    "
+    },
+    {
+      "type": "fillblank",
+      "stem": "\n<li style=\"margin-bottom: 1rem;\">\n            Jeśli wielokąt \\(W_2\\) jest podobny do wielokąta \\(W_1\\) w skali \\(4\\), <br/>\n            a wielokąt \\(W_3\\) jest podobny do wielokąta \\(W_2\\) w skali \\(3\\),<br/>\n            to wielokąt \\(W_3\\) jest podobny do wielokąta \\(W_1\\) w skali ￿0￿.\n        </li>\n<li style=\"margin-bottom: 1rem;\">\n            Jeśli wielokąt \\(W_2\\) jest podobny do wielokąta \\(W_1\\) w skali \\(6\\), <br/>\n            a wielokąt \\(W_3\\) jest podobny do wielokąta \\(W_2\\) w skali \\(\\frac{1}{4}\\),<br/>\n            to wielokąt \\(W_3\\) jest podobny do wielokąta \\(W_1\\) w skali ￿1￿.\n        </li>\n<li style=\"margin-bottom: 1rem;\">\n            Jeśli wielokąt \\(W_2\\) jest podobny do wielokąta \\(W_1\\) w skali \\(3\\), <br/>\n            a wielokąt \\(W_3\\) jest podobny do wielokąta \\(W_2\\) w skali ￿2￿,<br/>\n            to wielokąt \\(W_3\\) jest podobny do wielokąta \\(W_1\\) w skali \\(6\\).\n        </li>\n<li>\n            Jeśli wielokąt \\(W_2\\) jest podobny do wielokąta \\(W_1\\) w skali \\(2\\), <br/>\n            a wielokąt \\(W_3\\) jest podobny do wielokąta \\(W_2\\) w skali ￿3￿,<br/>\n            to wielokąt \\(W_3\\) jest podobny do wielokąta \\(W_1\\) w skali \\(5\\).\n        </li>\n",
+      "blanks": [
+        [
+          "12"
+        ],
+        [
+          "1.5",
+          "1,5"
+        ],
+        [
+          "2"
+        ],
+        [
+          "2.5",
+          "2,5"
+        ]
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "fd7699f4ef5bf498403cc41a648965b4130bce2fc2b9b0824c95caa27cdb0087"
+}

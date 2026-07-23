@@ -1,0 +1,166 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Spójrz na nazwy zbiorów liczbowych poniżej. Pamiętasz, co oznaczają?\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Spróbuj zdefiniować każdy z nich, a następnie porównaj swoje odpowiedzi z moimi.\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "liczby naturalne",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p class=\"important\">\n                            symbol: \\(\\mathbb{N}\\)\n                        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                            Liczby, których w naturalny sposób używamy do liczenia obiektów, które obserwujemy, np.\n                        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul>\n<li>\n                                \\(0\\) drzew\n                            </li>\n<li>\n                                \\(1\\) drzewo\n                            </li>\n<li>\n                                \\(2\\) drzewa\n                            </li>\n<li>\n                                \\(3\\) drzewa\n                            </li>\n<li>\n                                itd\n                            </li>\n</ul>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "liczby całkowite",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p class=\"important\">\n                            symbol: \\(\\mathbb{Z}\\)\n                        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                            Liczby naturalne i ich przeciwności, czyli także liczby ujemne:\n                        </p>"
+        },
+        {
+          "type": "table",
+          "data": {
+            "header_row": false,
+            "header_col": false,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "\\(0\\)",
+                  "halign": "left",
+                  "valign": "top",
+                  "rowspan": 2
+                },
+                {
+                  "html": "\\(1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(3\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "...",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(-1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(-2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(-3\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "...",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "liczby wymierne",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p class=\"important\">\n                            symbol: \\(\\mathbb{Q}\\)\n                        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                            Liczby, które możemy przedstawić w postaci ułamka (nieskracalnego):\n                        </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\\frac{p}{q}"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                            gdzie zarówno licznik (\\(p\\)) jak i mianownik (\\(q\\)) to liczby całkowite.\n                        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                            Przykładowe liczby wymierne to:\n                        </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                            \\[\\frac{1}{2},\\quad\\quad-2\\frac{1}{3}=\\frac{-7}{3},\\quad\\quad 4,01=\\frac{401}{100},\\quad\\quad 4,(5)=4\\frac{5}{9}=\\frac{41}{9}\\]\n                        "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                            Liczbami wymiernymi nie są:\n                        </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                            \\[\\sqrt{2},\\quad\\quad \\sqrt[3]{5},\\quad\\quad 3+\\sqrt{7},\\quad\\quad \\pi\\]\n                        "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                            i setki, tysiące innych.\n                        </p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "liczby rzeczywiste",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p class=\"important\">\n                            symbol: \\(\\mathbb{R}\\)\n                        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                            wszystkie liczby z osi liczbowej\n                        </p>"
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "34b5fdc3626018aeab5b6caa7da9087c2c76d5cff9bac352e14830ed0836bc70"
+}

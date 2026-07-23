@@ -1,0 +1,229 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Podsumujmy założenia obu lokat.\n</p>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "<strong>kapitał początkowy</strong>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(10\\,000\\) złotych",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "<strong>okres trwania</strong>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "12 miesięcy",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "<strong>oprocentowanie</strong>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(6\\%\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "<strong>odnawialna</strong>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "tak",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "<strong>całkowity czas</strong>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "5 lat",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Różniły się tylko w jednym.\n</p>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "<span class=\"question_like\" style=\"white-space: nowrap;\">Przykład 1</span>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "odsetki każdorazowo przelewane na konto pana Michała",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "<span class=\"question_like\" style=\"white-space: nowrap;\">Przykład 2</span>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "odsetki każdorazowo dołączane do kapitału lokaty",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Mówimy, że do obliczania odsetek używamy odpowiednio <strong>procentu prostego</strong> i <strong>procentu składanego</strong>.\n</p>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "<span class=\"question_like\" style=\"white-space: nowrap;\">Przykład 1</span>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "procent prosty",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "<span class=\"question_like\" style=\"white-space: nowrap;\">Przykład 2</span>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "procent składany",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p>Z</p>"
+    },
+    {
+      "type": "text",
+      "body": "<strong>procentem prostym</strong>"
+    },
+    {
+      "type": "text",
+      "body": "<p>mamy do czynienia, gdy odsetki</p>"
+    },
+    {
+      "type": "text",
+      "body": "<u>nie</u>"
+    },
+    {
+      "type": "text",
+      "body": "<p>są doliczane do oprocentowanego wkładu.</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n            Tym samym przy każdej kapitalizacji doliczane są odsetki <u>tej samej wysokości</u>.\n        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Z</p>"
+    },
+    {
+      "type": "text",
+      "body": "<strong>procentem składanym</strong>"
+    },
+    {
+      "type": "text",
+      "body": "<p>mamy do czynienia, gdy odsetki są doliczane do oprocentowanego wkładu.</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n            Tym samym przy każdej kapitalizacji doliczane są odsetki <u>coraz większe</u>, bo liczone od coraz większego kapitału.\n        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W poniższym aplecie:\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n<span style=\"color: blue;\">niebieskie</span> prostokąty oznaczają kapitał początkowy,\n            </li>\n<li>\n                suwak na górze oznacza oprocentowanie - możesz je zmienić,\n            </li>\n<li>\n<span style=\"color: orange\">pomarańczowe</span> prostokąty oznaczają odsetki z procentu prostego,\n            </li>\n<li>\n<span style=\"color: green\">zielone</span> prostokąty oznaczają odsetki z procentu składanego.\n            </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Odsetki w obu sytuacjach doliczane są pięciokrotnie.\n        </p>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/stswub4j/width/479/height/791/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Zwróć uwagę, że  \n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n                kolejne odsetki z <span style=\"color: orange;\">procentu prostego</span> są równej wielkości\n            </li>\n<li>\n                kolejne odsetki z <span style=\"color: green;\">procentu składanego</span> są coraz większe (te wyższe są kolejne, im wyższe - tym większe).\n            </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Przyjrzyj się, jak różnica między nimi zmienia się, gdy zmieniasz oprocentowanie.\n        </p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "1c49a833b2746249ea0eef57477c0c3e90d458961076878e3b4a5b8b134d41ce"
+}

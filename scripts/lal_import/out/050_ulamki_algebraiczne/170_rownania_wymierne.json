@@ -1,0 +1,172 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<strong>Równaniem wymiernym</strong>"
+    },
+    {
+      "type": "text",
+      "body": "<p>nazywamy równanie, które możemy przekształcić w równanie równoważne postaci</p>"
+    },
+    {
+      "type": "text",
+      "body": "\\[\n    \\frac{W(x)}{V(x)}=0\n    \\]"
+    },
+    {
+      "type": "text",
+      "body": "<p>gdzie \\(W(x)\\) i \\(V(x)\\) to wielomiany zmiennej \\(x\\), przy czym \\(V(x)\\ne 0\\).</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Zanim przyjrzymy się równaniom wymiernym i metodom ich rozwiązywania, przyjrzyjmy się kilku prostym dzieleniom.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<h3>\n    Rozgrzewka\n</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Przy każdym dzieleniu wskaż, czy można je wykonać, czyli czy istnieje jego liczbowy wynik.\n    "
+    },
+    {
+      "type": "choice_grid",
+      "columns": [
+        "tak",
+        "nie"
+      ],
+      "rows": [
+        {
+          "statement": "\\(2:3\\)",
+          "correct": 0
+        },
+        {
+          "statement": "\\(4:0\\)",
+          "correct": 1
+        },
+        {
+          "statement": "\\(0:5\\)",
+          "correct": 0
+        },
+        {
+          "statement": "\\(0:0\\)",
+          "correct": 1
+        },
+        {
+          "statement": "\\(0:0,002\\)",
+          "correct": 0
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Kiedy można wykonać dzielenie \\(a:b\\), albo, zapisując inaczej: \\(\\frac{a}{b}\\)?\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Jaki warunek musi spełniać liczba / wyrażenie \\(a\\)?\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Jaki warunek musi spełniać liczba / wyrażenie \\(b\\)?\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Zastanów się i sprawdź odpowiedzi.\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "odpowiedź - zobacz",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n            Liczba \\(a\\) może być zupełnie <strong>dowolna</strong>.\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Liczba \\(b\\) musi być różna od \\(0\\).\n        </p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Przy każdym dzieleniu wskaż, czy jego wynik jest równy \\(0\\).\n    "
+    },
+    {
+      "type": "choice_grid",
+      "columns": [
+        "tak",
+        "nie"
+      ],
+      "rows": [
+        {
+          "statement": "\\(2:3\\)",
+          "correct": 1
+        },
+        {
+          "statement": "\\(4:0\\)",
+          "correct": 1
+        },
+        {
+          "statement": "\\(0:5\\)",
+          "correct": 0
+        },
+        {
+          "statement": "\\(0:0\\)",
+          "correct": 1
+        },
+        {
+          "statement": "\\(0:0,002\\)",
+          "correct": 0
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Kiedy wynikiem dzielenia \\(a:b\\) (albo, zapisując inaczej: \\(\\frac{a}{b}\\)) jest \\(0\\)?\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Jaki warunek musi spełniać liczba / wyrażenie \\(a\\)?\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Jaki warunek musi spełniać liczba / wyrażenie \\(b\\)?\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Zastanów się i sprawdź odpowiedzi.\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "odpowiedź - zobacz",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n            Liczba \\(a\\) musi być <strong>równa</strong> \\(0\\), \\(\\quad a=0\\).\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Liczba \\(b\\) musi być <strong>różna</strong> od \\(0\\), \\(\\quad b\\ne 0\\).\n        </p>"
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "49d4d54f9dbcc31dd424a8e00aa1a3a57119685db7a2dcabd289360032980fa0"
+}

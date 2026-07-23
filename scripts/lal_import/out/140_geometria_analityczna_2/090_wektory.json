@@ -1,0 +1,82 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Na odcinku \\(AB\\), w którym \\(A=(-3,2)\\) zaś \\(B=(1,-4)\\) znajdź punkt \\(M\\) taki, że \\(|AM|:|MB|=3:5\\).\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "odpowiedź",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(\\left(-1\\tfrac{1}{2},-\\tfrac{1}{4}\\right)\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Na odcinku \\(BC\\), w którym \\(B=(3,1)\\) zaś \\(C=(-3,-2)\\) znajdź punkt \\(E\\) taki, że \\(|BE|:|EC|=5:1\\).\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "odpowiedź",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(\\left(-2,-1\\tfrac{1}{2}\\right)\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Na odcinku \\(MN\\), w którym \\(M=(1,8)\\) zaś \\(N=(-5,-10)\\) znajdź punkt \\(P\\) taki, że \\(|MP|:|PN|=7:5\\).\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "odpowiedź",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(\\left(-2\\tfrac{1}{2},-2\\tfrac{1}{2}\\right)\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Na odcinku \\(AB\\) leży punkt \\(P\\) taki, że \\(|AP|:|PB|=3:5\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Wiedząc, że \\(A=(1,4)\\) a \\(P=(-2,-2)\\), znajdź współrzędne punktu \\(P\\).\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "odpowiedź",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(\\left(-7,-12\\right)\\)</p>"
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "cb2825a7d69cad4d5807f56cca024595110978eaba10f0bd011f92dfc3eb415b"
+}

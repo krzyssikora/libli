@@ -1,0 +1,149 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W poniższym aplecie możesz przesuwać niebieską prostą (przesuwając dwa niebieskie punkty leżące na prostej).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Przesuwaj prostą, by zobaczyć, w ilu punktach prosta może przecinać okrąg.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Punkty przecięcia prostej i okręgu zaznaczone są na czerwono.\n        </p>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/fgz76xgp/width/732/height/841/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                    Prosta może przecinać okrąg\n                    \n\n\n\n\n￿0￿",
+      "options": [
+        "w \\(0\\), \\(1\\) lub w \\(2\\) punktach.",
+        "w maksymalnie jednym punkcie.",
+        "w dowolnie wielu punktach."
+      ],
+      "answer": 0
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    Spójrz jeszcze raz na aplet.\n                </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n                        Niebieską przerywaną linią zaznaczona jest odległość od środka okręgu do prostej. Oznaczmy ją przez \\(d\\).\n                    </li>\n<li>\n                        Żółtą linią przerywaną zaznaczony jest promień okręgu. Oznaczmy go przez \\(r\\).\n                    </li>\n</ul>"
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                    Prosta wcale nie przecina okręgu, gdy\n                    \n\n\n\n\n￿0￿",
+      "options": [
+        "\\(r\\gt d\\)",
+        "\\(r= d\\)",
+        "\\(r\\lt d\\)"
+      ],
+      "answer": 2
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                    Prosta przecina okrąg w jednym punkcie, gdy\n                    \n\n\n\n\n￿0￿",
+      "options": [
+        "\\(r\\gt d\\)",
+        "\\(r= d\\)",
+        "\\(r\\lt d\\)"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                    Prosta przecina okrąg w dwóch punktach, gdy\n                    \n\n\n\n\n￿0￿",
+      "options": [
+        "\\(r\\gt d\\)",
+        "\\(r= d\\)",
+        "\\(r\\lt d\\)"
+      ],
+      "answer": 0
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    Podsumujmy:\n                </p>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": true,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "punktów przecięcia",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "warunek",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(0\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(r\\lt d\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(r= d\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(2\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(r\\gt d\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Prosta, która ma jeden punkt wspólny z okręgiem nazywa się prostą\n        <strong>\n            styczną\n        </strong>\n        do okręgu.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Punkt wspólny okręgu i stycznej nazywa się\n        <strong>\n            punktem styczności\n        </strong>\n        .\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Prosta, która ma dwa punkty wspólne z okręgiem nazywa się\n        <strong>\n            sieczną\n        </strong>\n        okręgu.\n    </p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "406ab29af4fcc11d7c378765de732752dadb9a9332d713d49581081a5d2f9058"
+}

@@ -1,0 +1,20 @@
+[
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: /jump_to_id/fbc819931db64e0e90d3ba05d25782d2",
+    "raw_excerpt": "<a href=\"/jump_to_id/fbc819931db64e0e90d3ba05d25782d2\">\n<strong>\n            Funkcja liniowa\n        </strong>\n</a>",
+    "unit_json": "110_geo_an.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: /jump_to_id/4bf9e10fdd7444c1a5c84d17512f1955",
+    "raw_excerpt": "<a href=\"/jump_to_id/4bf9e10fdd7444c1a5c84d17512f1955\">\n<strong>\n            Podsumowanie\n        </strong>\n</a>",
+    "unit_json": "110_geo_an.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: /jump_to_id/6e7e46b8f0be4ac885af94cfb366287e",
+    "raw_excerpt": "<a href=\"/jump_to_id/6e7e46b8f0be4ac885af94cfb366287e\">\n        Zamiana postaci ogólnej funkcji kwadratowej na postać kanoniczną\n    </a>",
+    "unit_json": "210_geo_an.json"
+  }
+]

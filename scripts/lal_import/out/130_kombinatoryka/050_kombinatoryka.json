@@ -1,0 +1,280 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Wychowawca klasy planuje popołudnie jednego z dni na wycieczce dla swoich podopiecznych. Myśli, że mogliby\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n                pójść do muzeum - bo znalazł <strong>trzy</strong> interesujące muzea w okolicy,\n            </li>\n<li>\n<u>albo</u> pojechać na wycieczkę rowerową - bo są <strong>dwie</strong> trasy rowerowe, któe pozwoliłyby jego klasie zobaczyć kilka ciekawych miejsc,\n            </li>\n<li>\n<u>albo</u> pójść do kina, gdzie grane są <strong>cztery</strong> godne uwagi filmy.\n            </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Ile możliwości do wyboru ma wychowawca?\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "pomyśl i sprawdź",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                Zauważmy, że ta sytuacja nie ma nic wspólnego z regułą mnożenia. \n            </p>"
+        },
+        {
+          "type": "reveal_gate",
+          "label": "pokaż dalej"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Regułę mnożenia stosowalibyśmy, gdyby nauczyciel miał wybrać <strong>zarówno</strong> wycieczkę do jednego z muzeów, <strong>jak i</strong> wycieczkę rowerową, <strong>jak i</strong> wyjście do kina.\n                </p>"
+        },
+        {
+          "type": "reveal_gate",
+          "label": "pokaż dalej"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    W opisanej sytuacji nauczyciel wybiera <strong>albo</strong> wycieczkę do jednego z muzeów, <strong>albo</strong> wycieczkę rowerową, <strong>albo</strong> wyjście do kina.\n                </p>"
+        },
+        {
+          "type": "reveal_gate",
+          "label": "pokaż dalej"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Możliwości ma więc:\n                </p>"
+        },
+        {
+          "type": "reveal_gate",
+          "label": "pokaż dalej"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\(3\\) (muzea) \\(+2\\) (wycieczki rowerowe) \\(+4\\) (filmy) \\(=9\\)\n                "
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Reguła dodawania</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Jeśli dane są dwa zbiory i mamy wybrać jeden element <strong>albo</strong> z jednego <strong>albo</strong> z drugiego z nich, przy czym\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n            jeden ma \\(n\\) elementów\n        </li>\n<li>\n            drugi ma \\(k\\) elementów\n        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        to wszystkich możliwych wyborów jest \\(n+ k\\).\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Regułę dodawania możemy uogólnić na dowolną liczbę zbiorów.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Reguła dodawania</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Jeśli dane jest \\(s\\) zbiorów i mamy wybrać jeden element tylko z jednego z nich, przy czym\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n            zbiór numer \\(1\\) ma \\(n_1\\) elementów\n        </li>\n<li>\n            zbiór numer \\(2\\) ma \\(n_2\\) elementów\n        </li>\n<li>\n            zbiór numer \\(3\\) ma \\(n_3\\) elementów\n        </li>\n<li>\n            \\(\\dots\\)\n        </li>\n<li>\n            zbiór numer \\(s\\) ma \\(n_s\\) elementów\n        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        to wszystkich możliwych wyborów jest \\(n_1+ n_2+ n_3+ \\dots+ n_s\\).\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Przypomnijmy i podsumujmy:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<u>Regułę mnożenia</u> stosujemy, gdy interesuje nas wynik, gdy każdy z wyborów jest dokonany, np. gdy wybieramy <strong>i</strong> koszulkę, <strong>i</strong> spodnie, <strong>i</strong> buty, a nie tylko niektóre z nich.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p style=\"color: blue;\">\n        W przypadku reguły mnożenia możemy mieć do czynienia ze spójnikami \"<strong>i</strong>\", \"<strong>oraz</strong>\".\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<u>Regułę dodawania</u> stosujemy, gdy interesuje nas wynik, gdy tylko jeden z wyborów jest dokonany, np. gdy wybieramy <strong>albo</strong> muzeum, <strong>albo</strong> rower, <strong>albo</strong> kino, a nie wszystkie z nich.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p style=\"color: blue;\">\n        W przypadku reguły dodawania możemy mieć do czynienia ze spójnikami \"<strong>lub</strong>\", \"<strong>albo</strong>\".\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W menu restauracyjnym jest do wyboru:\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>4 zupy,</li>\n<li>5 dań głównych</li>\n<li>i 3 desery.</li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Alicja chce zjeść dwudaniowy posiłek, złożony\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>albo z zupy i dania głównego</li>\n<li>albo z dania głównego i deseru.</li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Ile różnych takich dwudaniowych posiłków może zamówić?\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                    Alicja chce zamówić dwudaniowy posiłek, więc zamówi\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    (zupę i danie główne) <strong>albo</strong> (danie główne i deser)\n                "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    To oznacza, że dla obliczenia końcowego wyniku użyjemy\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "reguły mnożenia",
+            "reguły dodawania"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    A dokładniej, żeby znaleźć odpowiedź na postawione pytanie skorzystamy z:\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p><i>opcja pierwsza</i></p>"
+        },
+        {
+          "type": "text",
+          "body": "<p><i>opcja druga</i></p>"
+        },
+        {
+          "type": "text",
+          "body": "<p><strong>albo</strong></p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/bottom_brace.png",
+          "alt": "",
+          "figcaption": "(zupę oraz danie główne)"
+        },
+        {
+          "type": "image",
+          "media_src": "static/bottom_brace.png",
+          "alt": "",
+          "figcaption": "(danie główne oraz deser)"
+        },
+        {
+          "type": "text",
+          "body": "<p>reguły mnożenia</p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/bottom_brace.png",
+          "alt": "",
+          "figcaption": "reguły mnożenia"
+        },
+        {
+          "type": "text",
+          "body": "<p>reguły dodawania</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Przyjrzyjmy się opcji pierwszej: zupę i danie główne można wybrać na\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(4\\cdot 5\\) sposobów",
+            "\\(4+ 5\\) sposobów",
+            "\\(4\\cdot 5\\cdot 3\\) sposoby"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    A jeśli chodzi o opcję drugą: danie główne i deser można wybrać na\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(5\\cdot 3\\) sposobów",
+            "\\(5 + 3\\) sposobów",
+            "\\(4\\cdot 5\\cdot 3\\) sposobów"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    I dlatego wszystkich możliwych dwudaniowych posiłków jest\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(20\\cdot 15\\)",
+            "\\(20 + 15\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Wszystkich takich posiłków jest</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p><i>opcja pierwsza</i></p>"
+        },
+        {
+          "type": "text",
+          "body": "<p><i>opcja druga</i></p>"
+        },
+        {
+          "type": "text",
+          "body": "<p><strong>albo</strong></p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/bottom_brace.png",
+          "alt": "",
+          "figcaption": "(zupę oraz danie główne)"
+        },
+        {
+          "type": "image",
+          "media_src": "static/bottom_brace.png",
+          "alt": "",
+          "figcaption": "(danie główne oraz deser)"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(5\\cdot 3\\)</p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/bottom_brace.png",
+          "alt": "",
+          "figcaption": "\\(4\\cdot 5\\)"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(4\\cdot 5+5\\cdot 3=20+15=35\\)</p>"
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "59564d891180ad8f53c173c3597565dbd2c4f26e18ca3b721e960e43d0478b43"
+}

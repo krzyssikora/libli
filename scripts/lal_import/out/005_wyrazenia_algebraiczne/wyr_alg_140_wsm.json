@@ -1,0 +1,87 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<h1>\n    Wzory skróconego mnożenia\n</h1>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Wprowadzimy teraz tzw. wzory skróconego mnożenia stopnia drugiego.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n<em>\n            wzory\n        </em>\n        - wiadomo, bo będą to wzory,\n    </li>\n<li>\n<em>\n            skróconego mnożenia\n        </em>\n        - bo znając je mnożymy niektóre sumy algebraiczne trochę szybciej\n    </li>\n<li>\n<em>\n            stopnia drugiego\n        </em>\n        - bo podnosimy w nich zmienne do drugiej potęgi, do kwadratu\n    </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Te wzory to:\n</p>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "kwadrat sumy",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\quad\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\((a+b)^2=a^2+2ab+b^2\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "kwadrat różnicy",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\quad\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\((a-b)^2=a^2-2ab+b^2\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "różnica kwadratów",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\quad\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\((a+b)(a-b)=a^2-b^2\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Przejdź dalej, by obejrzeć krótkie nagrania wyjaśniające te wzory i zobaczyć przykłady ich używania.\n</p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "c380590ef6257315651d6bc878d4b91aadd55c154d61b5492bc9cdc1ce328fe2"
+}

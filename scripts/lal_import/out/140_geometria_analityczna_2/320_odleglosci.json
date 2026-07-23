@@ -1,0 +1,148 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Znajdź odległość między prostymi\n        \\[\n        2x+3y-4=0\\quad\\text{i}\\quad 2x+3y+9=0\n        \\]\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "odpowiedź",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(\\sqrt{13}\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Znajdź odległość między prostymi\n        \\[\n        y=\\frac{5}{3}x-9\\quad\\text{i}\\quad y=\\frac{5}{3}x+8\n        \\]\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "odpowiedź",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{3}{2}\\sqrt{34}\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Znajdź odległość między prostymi\n        \\[\n        4x-3y-2=0\\quad\\text{i}\\quad 8x-6y+11=0\n        \\]\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "odpowiedź",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(1,5\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Znajdź równania prostych leżących w odległości \\(7\\sqrt{2}\\) od prostej\n        \\[\n        x+7y-16=0\n        \\]\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "odpowiedź",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(x+7y-86=0\\) oraz \\(x+7y+54=0\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Znajdź równania prostych leżących w odległości \\(17\\) od prostej\n        \\[\n        8x+15y-5=0\n        \\]\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "odpowiedź",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(8x+15y-294=0\\) oraz \\(8x+15y+284=0\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Boki rombu zawierają się w prostych\n        </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n        4x+7y+1=0\\quad\\text{i}\\quad 4x+7y+131=0\n        "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Oblicz wysokość rombu.\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "odpowiedź",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(2\\sqrt{65}\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Boki prostokąta o długości \\(3\\sqrt{17}\\) zawierają się w prostych\n        </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n        9x+2y+1=0\\quad\\text{i}\\quad 9x+2y-84=0\n        "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź pole prostokąta.\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "odpowiedź",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(51\\sqrt{5}\\)</p>"
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "58f2cdbcf74855adf721bea542073baa060b4e857d33cd6ab49284896843e9cb"
+}

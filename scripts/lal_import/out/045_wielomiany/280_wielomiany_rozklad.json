@@ -1,0 +1,715 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Co zrobić, jeśli wielomian nie ma pierwiastków całkowitych?\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Przykład</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Rozpatrzmy wielomian\n    </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n    W(x)=12x^3-4x^2-3x+1\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Jakie są całkowite pierwiastki tego wielomianu?\n    </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "przeczytaj",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n            Z\n            <u>\n                twierdzenia o pierwiastkach całkowitych wielomianu\n            </u>\n            wiemy, że\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<strong>\n                jeśli\n            </strong>\n            wielomian \\(W(x)\\) ma pierwiastek\n            <u>\n                całkowity\n            </u>\n            , to jest on dzielnikiem wyrazu wolnego, czyli liczby \\(1\\).\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Liczba \\(1\\) ma tylko jeden dzielnik naturalny - samą siebie. Mamy więc tylko dwie liczby całkowite, które mogą być pierwiastkami wielomianu \\(W(x)\\): \\(1\\) i liczba przeciwna, \\(-1\\).\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Sprawdżmy:\n        </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n        \\begin{align*}\n        W(1)&=12\\cdot 1^3-4\\cdot 1^2-3\\cdot 1+1=\\\\\n        &=12\\cdot 1-4\\cdot 1-3\\cdot 1+1=\\\\\n        &=12-4-3+1 = 6\\ne 0\n        \\end{align*}\n        "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            I jeszcze:\n        </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n        \\begin{align*}\n        W(-1)&=12\\cdot (-1)^3-4\\cdot (-1)^2-3\\cdot (-1)+1=\\\\\n        &=12\\cdot (-1)-4\\cdot 1-3\\cdot (-1)+1=\\\\\n        &=-12-4+3+1 = 12\\ne 0\n        \\end{align*}\n        "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Tak więc zarówno \\(W(1)\\ne 0\\) jak i \\(W(-1)\\ne 0\\), czyli\n            <strong>\n                wielomian \\(W(x)\\) nie ma żadnych pierwiastków całkowitych\n            </strong>\n            .\n        </p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Co w takiej sytuacji?\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Przyda nam się następujące twierdzenie.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>\n            Twierdzenie o pierwiastkach wymiernych wielomianu\n        </strong>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Niech \\(a\\in\\mathbb{Q}\\) będzie liczbą wymierną, tzn. taką, którą możemy zapisać w postaci ułamka nieskracalnego\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\\[\n    a=\\frac{p}{q}\n    \\]\n    gdzie \\(p, q\\in \\mathbb{Z}\\).</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<em>\n<strong>\n                jeśli\n            </strong>\n</em>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<span style=\"display: inline-block; width: 50px;\">\n</span>\n        liczba wymierna \\(a\\in\\mathbb{Q}\\) jest pierwiaskiem wielomianu o współczynnikach całkowitych \\(W(x)\\) (tj. \\(W(a)=0\\))\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<em>\n<strong>\n            to\n        </strong>\n</em>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<span style=\"display: inline-block; width: 50px;\">\n</span>\n        \\(p\\) jest dzielnikiem wyrazu wolnego wielomianu,\n        <br/>\n<span style=\"display: inline-block; width: 50px;\">\n</span>\n        \\(q\\) jest dzielnikiem współczynnika przy najwyższej potędze \\(x\\) wielomianu.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<u>\n        Dokładniej\n    </u>"
+    },
+    {
+      "type": "text",
+      "body": "<p>: jeśli wielomian zapiszemy w postaci:\n    \\[\n    W(x)=\\color{green}{a_n}x^n+a_{n-1}x^{n-1}+\\dots+a_2x^2+a_1x+\\color{red}{a_0}\n    \\]\n    to pierwiastek wymierny wielomianu, \\(a=\\frac{p}{q}\\) ma tę własność, że</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n<span style=\"color: red;\">\n                \\(p\\) jest dzielnikiem wyrazu \\(a_0\\)\n            </span>\n            ,\n        </li>\n<li>\n<span style=\"color: green;\">\n                \\(q\\) jest dzielnikiem wyrazu \\(a_n\\)\n            </span>\n            .\n        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Przykład</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Rozpatrzmy ponownie wielomian\n    </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n    W(x)=12x^3-4x^2-3x+1\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Jakie są możliwe\n        <strong>\n            wymierne\n        </strong>\n        pierwiastki tego wielomianu?\n    </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "przeczytaj",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n            Wiemy już z\n            <span class=\"question_like\">\n                Przykładu 1\n            </span>\n            , że wielomian \\(W(x)\\) nie ma pierwiastków całkowitych.\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<strong>\n                Jeśli\n            </strong>\n            wielomian \\(W(x)\\) ma pierwiastek\n            <u>\n                wymierny\n            </u>\n            \\(\\frac{p}{q}\\), to\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>\n                \\(p\\) jest dzielnikiem liczby \\(1\\) (wyrazu wolnego),\n            </li>\n<li>\n                \\(q\\) jest dzielnikiem liczby \\(12\\) (współczynnika \\(x^3\\)).\n            </li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Możliwe wartości \\(p\\) to \\(-1\\) i \\(1\\).\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Możliwe wartości \\(q\\) to\n        </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n        -1, 1, -2, 2, -3, 3, -4, 4, -6, 6, -12, 12\n        "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Czyli potencjalne pierwiastki postaci \\(\\frac{p}{q}\\) to\n        </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n        \\pm 1, \\pm\\frac{1}{2}, \\pm\\frac{1}{3}, \\pm\\frac{1}{4}, \\pm\\frac{1}{6}, \\pm\\frac{1}{12}\n        "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Jednak już teraz wiemy, że\n            <strong>\n                żadna inna liczba całkowita\n            </strong>\n            nie może być pierwiastkiem tego wielomianu.\n        </p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdż wszystkie pierwiastki wymierne wielomianu\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\\[\n        W(x)=12x^3-4x^2-3x+1\n        \\]\n        Rozłóż wielomian na czynniki liniowe.</p>"
+    },
+    {
+      "type": "text",
+      "body": "<h4>rozwiązanie</h4>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    Z\n                    <span class=\"question_like\">\n                        Przykładu 2\n                    </span>\n                    wiemy, że możliwe pierwiastki wymierne wielomianu \\(W(x)\\) to\n                </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n                \\pm 1, \\pm\\frac{1}{2}, \\pm\\frac{1}{3}, \\pm\\frac{1}{4}, \\pm\\frac{1}{6}, \\pm\\frac{1}{12}\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    Z\n                    <span class=\"question_like\">\n                        Przykładu 1\n                    </span>\n                    wiemy, że wielomian \\(W(x)\\) nie ma pierwiastków całkowitych, zostają nam więc\n                </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n                \\pm\\frac{1}{2}, \\pm\\frac{1}{3}, \\pm\\frac{1}{4}, \\pm\\frac{1}{6}, \\pm\\frac{1}{12}\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    Cóż pozostaje nam zrobić? Sprawdzamy po kolei.\n                </p>"
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                    Zacznijmy od \\(x=\\tfrac{1}{2}\\). Obliczamy wartość:\n                    \n\n\n                    \\(W\\left(\\tfrac{1}{2}\\right)=12\\left(\\tfrac{1}{2}\\right)^3-4\\left(\\tfrac{1}{2}\\right)^2-3\\left(\\tfrac{1}{2}\\right)+1=\\)\n                    \n\n\n                    \\(=12\\left(\\tfrac{1}{8}\\right)-4\\left(\\tfrac{1}{4}\\right)-3\\left(\\tfrac{1}{2}\\right)+1=\\)\n                    \n\n\n                    \\(=\\tfrac{12}{8}-1-\\tfrac{3}{2}+1\\)\n                    \n\n￿0￿\n                    .\n                    \n",
+      "options": [
+        "\\(=0\\)",
+        "\\(\\ne 0\\)"
+      ],
+      "answer": 0
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    \\(W\\left(\\tfrac{1}{2}\\right)=\\tfrac{3}{2}-1-\\tfrac{3}{2}+1=0\\), więc\n                    <strong>\n                        znaleźliśmy pierwszy pierwiastek\n                    </strong>\n                    !\n                </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    Teraz, korzystając z\n                    <strong>\n                        twierdzenia Bézout\n                    </strong>\n                    wiemy, że\n                </p>"
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n\n\n\n                        skoro\n                    \n                    \\(x=\\tfrac{1}{2}\\) jest pierwiastkiem wielomianu \\(W(x)\\)\n                    \n\n\n\n                        to\n                    \n\n\n\n\n￿0￿\n                    jest dzielnikiem \\(W(x)\\).\n                    \n",
+      "options": [
+        "\\(\\left(x+\\tfrac{1}{2}\\right)\\)",
+        "\\(\\left(x-\\tfrac{1}{2}\\right)\\)",
+        "\\(\\left(x-2\\right)\\)",
+        "\\(\\left(x+2\\right)\\)"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "text",
+      "body": "\n<strong>\n                        Uwaga\n                    </strong>\n                    !!! Ważny moment!\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    \\(\\left(x-\\tfrac{1}{2}\\right)\\) jest dzielnikiem wielomianu \\(W(x)\\), ale możemy znaleźć lepszy dzielnik, przez który będzie nam wygodniej dzielić.\n                </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    W dzielniku \\(\\left(x-\\tfrac{1}{2}\\right)\\) niewygodny jest ułamek, więc pozbądźmy się go, dzieląc przez\n                </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n                2\\cdot\\left(x-\\tfrac{1}{2}\\right)=2x-1\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    Możemy podzielić \"\n                    <strong>\n                        pod kreską\n                    </strong>\n                    \" albo\n                    <strong>\n                        schematem Hornera\n                    </strong>\n                    .\n                </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<u>\n                        Warto przyjrzeć się obu metodom.\n                    </u>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    Wykonaj dzielenie jedną metodą, sprawdź swój wynik i drugą metodę.\n                </p>"
+    },
+    {
+      "type": "tabs",
+      "tabs": [
+        {
+          "id": "t000000",
+          "label": "\"pod kreską\"",
+          "elements": [
+            {
+              "type": "text",
+              "body": "<p>\n                            Tu bez zaskoczeń:\n                        </p>"
+            },
+            {
+              "type": "table",
+              "data": {
+                "header_row": false,
+                "header_col": false,
+                "border": "grid",
+                "cells": [
+                  [
+                    {
+                      "html": "\\(6x^{2}\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(+x\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(-1\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    }
+                  ],
+                  [
+                    {
+                      "html": "\\((12x^{3}\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(-4x^{2}\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(-3x\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(+1)\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(:(2x-1)\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    }
+                  ],
+                  [
+                    {
+                      "html": "\\(12x^{3}\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(-6x^{2}\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    }
+                  ],
+                  [
+                    {
+                      "html": "\\(=\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(2x^{2}\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(-3x\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(+1\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    }
+                  ],
+                  [
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(2x^{2}\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(-x\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    }
+                  ],
+                  [
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(=\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(-2x\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(+1\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    }
+                  ],
+                  [
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(-2x\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(+1\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    }
+                  ],
+                  [
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(=\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                            Czyli\n                        </p>"
+            },
+            {
+              "type": "math",
+              "latex": "\n                        W(x)=(2x-1)(6x^2+x-1)\n                        "
+            }
+          ]
+        },
+        {
+          "id": "t000001",
+          "label": "schemat Hornera",
+          "elements": [
+            {
+              "type": "text",
+              "body": "<p>\n                            A tu musimy chwilę pomyśleć. Schemat Hornera pozwala tylko na dzielenie przez dwumiany postaci \\((x-\\alpha)\\).\n                        </p>"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                            My chcemy podzielić przez \\((2x-1)\\). Podzielmy więc najpierw przez \\(\\left(x-\\tfrac{1}{2}\\right)\\), a potem przez \\(2\\).\n                        </p>"
+            },
+            {
+              "type": "table",
+              "data": {
+                "header_row": false,
+                "header_col": false,
+                "border": "grid",
+                "cells": [
+                  [
+                    {
+                      "html": "",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(12\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(-4\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(-3\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(1\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    }
+                  ],
+                  [
+                    {
+                      "html": "\\(\\tfrac{1}{2}\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(12\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(2\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(-2\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(0\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                            Z dzielenia przez \\(\\left(x-\\tfrac{1}{2}\\right)\\) wyszło\n                            <br/>\n<span style=\"display: inline-block; width: 50px;\">\n</span>\n                            \\(12x^2+2x-2\\)\n                        </p>"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                            Z dzielenia przez \\(\\left(2x-1\\right)\\) wyjdzie \\(2\\) razy mniej, czyli\n                            <br/>\n<span style=\"display: inline-block; width: 50px;\">\n</span>\n                            \\(6x^2+x-1\\)\n                            <br/>\n                            czyli\n                        </p>"
+            },
+            {
+              "type": "math",
+              "latex": "\n                        W(x)=(2x-1)(6x^2+x-1)\n                        "
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n\n\n                    Wynikiem dzielenia przez \\((2x-1)\\) jest\n                    \n\n\n￿0￿\n                    .\n                    \n",
+      "options": [
+        "\\((12x^2+2x-2)\\)",
+        "\\((6x^2+x-1)\\)",
+        "\\((x^2+x-6)\\)"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    Wiemy już, że\n                </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\\[\n                \\begin{align*}\n                W(x)&=12x^3-4x^2-3x+1=\\\\\n                    &=(2x-1)(6x^2+x-1)\n                \\end{align*}\n                \\]\n                czyli znamy:</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n                        jeden pierwiastek wielomianu: \\(x=\\tfrac{1}{2}\\)\n                    </li>\n<li>\n                        oraz jeden czynnik w rozkładzie wielomianu: \\((2x-1)\\).\n                    </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    Musimy znaleźć pierwiastki z czynnika \\((6x^2+x-1)\\) i rozłożyć go na \"drobniejsze\" czynniki.\n                </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    I\n                    <strong>\n                        mamy dwie możliwości\n                    </strong>\n                    :\n                </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ol class=\"bold\">\n<li>\n                        Możemy spróbować kolejnych liczb wymiernych, które mogą być pierwiastkami:\n                        \\[\n                        \\pm\\frac{1}{2}, \\pm\\frac{1}{3}, \\pm\\frac{1}{4}, \\pm\\frac{1}{6}, \\pm\\frac{1}{12}\n                        \\]\n                        identycznie, jak poprzednio.\n                    </li>\n<li>\n                        Ale ponieważ ten pozostały czynnik jest kwadratowy, to chyba lepiej znaleźć pierwiastki wyrażenia kwadratowego, np. według wzoru:\n                        \\[\n                        \\begin{align*}\n                        &amp;ax^2+bx+c=0\\\\\n                        x&amp;=\\frac{-b\\pm \\sqrt{\\Delta}}{2a}\\\\\n                        \\text{gdzie }&amp;\\Delta = b^2-4ac\n                        \\end{align*}\n                        \\]\n                    </li>\n</ol>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Wybierz wygodną dla siebie metodę i znajdź pozostałe dwa pierwiastki.</p>"
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                    Te dwa pierwiastki to\n                    \n\n\n\n￿0￿\n                    .\n                    \n",
+      "options": [
+        "\\(x=2\\) i \\(x=-3\\)",
+        "\\(x=-2\\) i \\(x=3\\)",
+        "\\(x=\\tfrac{1}{2}\\) i \\(x=-\\tfrac{1}{3}\\)",
+        "\\(x=-\\tfrac{1}{2}\\) i \\(x=\\tfrac{1}{3}\\)"
+      ],
+      "answer": 3
+    },
+    {
+      "type": "text",
+      "body": "<p>A skoro</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>pozostałe dwa pierwiastki to \\(x=-\\tfrac{1}{2}\\) i \\(x=\\tfrac{1}{3}\\)</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>to pozostałe dwa czynniki to \\(\\left(x+\\tfrac{1}{2}\\right)\\) i \\(\\left(x-\\tfrac{1}{3}\\right)\\).</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    Czyli wyrażenie kwadratowe możemy przedstawić w postaci iloczynowej\n                </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n                6x^2+x-1=6\\left(x+\\tfrac{1}{2}\\right)\\left(x-\\tfrac{1}{3}\\right)\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    Na zakończenie możemy współczynnik \\(6\\) rozbić na \\(2\\cdot 3\\) i \"wmnożyć\" te dwie liczby w nawiasy, by nie było w nich ułamków.\n                </p>"
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                    I wówczas pozostałe dwa czynniki przyjmą postać\n                    \n\n￿0￿\n                    .\n                    \n",
+      "options": [
+        "\\((2x+1)\\) i \\((3x-1)\\)",
+        "\\((2x-1)\\) i \\((3x+1)\\)"
+      ],
+      "answer": 0
+    },
+    {
+      "type": "text",
+      "body": "<strong>\n                    Brawo\n                </strong>"
+    },
+    {
+      "type": "text",
+      "body": "<p>! Ostatecznie:</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    pierwiastki wielomianu \\(W(x)\\) to\n                </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(x=\\frac{1}{2},\\quad x=-\\frac{1}{2}\\quad\\) i \\(\\quad x=\\frac{1}{3}\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    a rozkład wielomianu wygląda tak:\n                </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n                \\begin{align*}\n                W(x)&=12x^3-4x^2-3x+1=\\\\\n                    &=(2x-1)(6x^2+x-1)=\\\\\n                    &=\\fbox{\\(\\color{blue}{(2x-1)(2x+1)(3x-1)}\\)}\n                \\end{align*}\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    Wielomian można też zapisać w postaci:\n                </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n                W(x)=12\\left(x-\\frac{1}{2}\\right)\\left(x+\\frac{1}{2}\\right)\\left(x-\\frac{1}{3}\\right)\n                "
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "b5f4d57774a6bc526fec3e905e03af1d43073f51c7c1cc9ac50ea3660cbedb3c"
+}

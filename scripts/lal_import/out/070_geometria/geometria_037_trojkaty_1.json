@@ -1,0 +1,27 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n        Twierdzenie Pitagorasa mówi, że w dowolnym trójkącie prostokątnym\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        suma kwadratów obu przyprostokątnych jest równa kwadratowi przeciwprostokątnej.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Poniżej widzisz aplet ilustrujący jeden z wielu, geometryczny dowód twierdzenia Pitagorasa.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Możesz przesuwać wierzchołki trójkąta, by zobaczyć, jak kształty, na które podzielone zostały kwadraty zbudowane na przyprostokątnych składają się na kwadrat zbudowany na przeciwprostokątnej.\n</p>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/dc2j6xqt/width/800/height/760/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/true/rc/false/ld/false/sdz/true/ctl/false",
+      "title": ""
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "74800df970afd68f3e37a6e71133e6fb29e8d7cbc2d5f1c5d1b7a25aaa84dd6e"
+}

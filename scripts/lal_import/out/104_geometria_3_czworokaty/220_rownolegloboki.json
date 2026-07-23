@@ -1,0 +1,117 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n<strong>Równoległobok</strong> to czworokąt, który ma dwie pary boków równoległych.\n    </p>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/hhhfec3d/width/475/height/328/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    },
+    {
+      "type": "text",
+      "body": "<h3>\n    Własności równoległoboku\n</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W poniższym aplecie możesz przesuwać trzy wierzchołki równoległoboku, by zmieniać jego kształt, wielkość i położenie.\n        </p>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/jqvznsrb/width/675/height/428/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Przyjrzyj się uważnie równoległobokowi i zastanów się, jakie własności mają wymienione niżej elementy.\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "długości boków",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Długości przeciwległych boków równoległoboku są sobie równe.</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "przeciwległe kąty",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Miary przeciwległych kątów są sobie równe.</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "sąsiednie kąty",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Sumy miar sąsiednich kątów (tj. kątów ze wspólnym ramieniem) są równe \\(180^{\\circ}\\).</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "przekątne",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Przekątne przecinają się w połowie.</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<h3>Wysokości</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>Wysokość</strong> równoległoboku to najkrótszy odcinek łączący boki równoległe.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<small><i>Innymi słowy:</i></small>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>Wysokość</strong> równoległoboku to odcinek prostopadły do boków równoległych, którego końce leżą na tych bokach lub na prostych zawierających te boki.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>Wysokością</strong> nazywamy też liczbę - długość odcinka - wysokości.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Jeśli boki równoległoboku są różnej długości, to wtedy wysokości równoległoboku także są różnej długości.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W poniższym aplecie możesz przesuwać trzy wierzchołki równoległoboku, by zmieniać jego kształt, wielkość i położenie.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Możesz też przesuwać wysokości. Sprawdź ich różne położenia.\n        </p>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/vxjwqs5v/width/675/height/628/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "a625c4d5ac4ae1d56d1ab957924412c097ee086ecee87ba0c80600ee501b858a"
+}

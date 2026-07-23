@@ -1,0 +1,162 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Udowodnij, że przekształcenie płaszczyzny \\(P\\), zdefiniowane wzorem \n        </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n        P(x,y)=(-y,x)\n        "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            jest izometrią.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Udowodnij, że symetria względem osi \\(OX\\) jest izometrią.\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Pokaż, że przekształcenie płaszczyzny \\(P\\), zdefiniowane wzorem \n        </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n        P(x,y)=(\\frac{1}{2}x,y)\n        "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>nie</strong> jest izometrią.\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "wskazówka",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<ol class=\"bold\">\n<li>\n                Rozpatrz dwa różne punkty, na przykład \\((1, 2)\\) i \\((3, 4)\\).\n            </li>\n<li>\n                Znajdź odległość między nimi i między ich obrazami.\n            </li>\n<li>\n                Sprawdź, że te odległości są różne.\n            </li>\n</ol>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź równanie obrazu okrągu o równaniu \\((x+3)^2+(y+5)^2=20\\) w przekształceniu \\(P\\) zdefiniowanym wzorem\n        </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n        P(x,y)=(-x, -y)\n        "
+    },
+    {
+      "type": "spoiler",
+      "label": "odpowiedź",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n            Przekształcenie \\(P\\) to symetria względem początku układu współrzędnych. Obrazem jest okrąg o równaniu \\((x-3)^2+(y-5)^2=20\\).\n        </p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź równanie obrazu okrągu o równaniu \\((x+2)^2+(y-11)^2=81\\) w przekształceniu \\(P\\) zdefiniowanym wzorem\n        </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n        P(x,y)=(x+2, y-3)\n        "
+    },
+    {
+      "type": "spoiler",
+      "label": "odpowiedź",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n            Przekształcenie \\(P\\) to przesunięcie o wektor \\([2, -3]\\). Obrazem jest okrąg o równaniu \\(x^2+(y-8)^2=81\\).\n        </p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź równanie obrazu prostej o równaniu \\(y=-\\frac{2}{5}x+1\\) w przekształceniu \\(P\\) zdefiniowanym wzorem\n        </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n        P(x,y)=(x-5, y-3)\n        "
+    },
+    {
+      "type": "spoiler",
+      "label": "odpowiedź",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(y=-\\frac{2}{5}x-4\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź równanie obrazu prostej o równaniu \\(y=2x+1\\) w przekształceniu \\(P\\) zdefiniowanym wzorem\n        </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n        P(x,y)=(-x, -y)\n        "
+    },
+    {
+      "type": "spoiler",
+      "label": "odpowiedź",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(y=2x-1\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź równanie obrazu prostej o równaniu \\(y=2x+1\\) w symetrii względem osi \\(OX\\).\n    </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "odpowiedź",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(y=-2x-1\\)</p>"
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "3f083f0086250d8d05f96cfe291b0e92f309f8476f932ff943639f12afe3d0fe"
+}

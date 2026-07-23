@@ -1,0 +1,83 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n        Symetria względem punktu \\((0,0)\\), czyli początku układu współrzędnych, to przekształcenie płaszczyzny, \\(P\\), zdefiniowane wzorem\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        \\[\n        P(x,y) = (-x, -y) \n        \\]\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Symetria osiowa w osi \\(OY\\) to przekształcenie płaszczyzny, \\(P\\), zdefiniowane wzorem\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        \\[\n        P(x,y) = (-x, y) \n        \\]\n    "
+    },
+    {
+      "type": "image",
+      "media_src": "static/izometria_definicja_symetria_srodkowa.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W aplecie poniżej możesz przesuwać wierzchołki czerwonego trójkąta.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Zwróć uwagę, że niezależnie od położenia wierzchołków czerwonego trójkąta, jego obraz w symetrii w początku układu współrzędnych (pomarańczowy trójkąt) możemy otrzymać stosując kolejno symetrie w dwóch osiach układu współrzędnych - i to w dowolnej kolejności.\n        </p>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/tfbpwayq/width/660/height/455/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Czy podane punkty są symetryczne względem osi \\(OX\\), względem osi \\(OY\\), czy względem początku układu współrzędnych, \\((0,0)\\)?\n    "
+    },
+    {
+      "type": "choice_grid",
+      "columns": [
+        "\\(OX\\)",
+        "\\(OY\\)",
+        "\\((0,0)\\)"
+      ],
+      "rows": [
+        {
+          "statement": "\\((-4,-3)\\) i \\((4,3)\\)",
+          "correct": 2
+        },
+        {
+          "statement": "\\((5,7)\\) i \\((5,-7)\\)",
+          "correct": 0
+        },
+        {
+          "statement": "\\((0,-8)\\) i \\((0,8)\\)",
+          "correct": 0
+        },
+        {
+          "statement": "\\((4,-6)\\) i \\((-4,6)\\)",
+          "correct": 2
+        },
+        {
+          "statement": "\\((3,-3)\\) i \\((-3,-3)\\)",
+          "correct": 1
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "616d8686b84f0979a43378228c1cc044bcc48c69bf5cf4ae0ec191b3040249cf"
+}

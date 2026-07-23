@@ -1,0 +1,60 @@
+{
+  "elements": [
+    {
+      "type": "numeric",
+      "stem": "<p>Wpisz stopnie podanych wielomianów.</p><p>\\(W_1(x)=\\frac{1}{2}x^5-3x^3+4x^2-7x+11\\)</p>",
+      "value": "5",
+      "tolerance": "0"
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>\\(W_2(x)=7x^2-5x^3+x\\)</p>",
+      "value": "3",
+      "tolerance": "0"
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>\\(W_3(x)=-4\\)</p>",
+      "value": "0",
+      "tolerance": "0"
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>\\(W_4(x)=-7x+1\\)</p>",
+      "value": "1",
+      "tolerance": "0"
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>Jaki jest stopień wielomianu \\(W_1(x)+W_2(x)\\) jeśli</p><p>\\(W_1(x)=\\frac{3}{2}x^5-2x^4+4x^2-7x+11\\)</p><p>\\(W_2(x)=\\frac{3}{2}x^4-2x^3+4x^2-7x+11\\)</p>",
+      "value": "5",
+      "tolerance": "0"
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>Jaki jest stopień wielomianu \\(W_1(x)-W_2(x)\\) jeśli</p><p>\\(W_1(x)=4x^5-2x^4+4x^2-7x+11\\)</p><p>\\(W_2(x)=4x^5-2x^4-2x^3+4x^2-7x+11\\)</p>",
+      "value": "3",
+      "tolerance": "0"
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>Jaki jest stopień wielomianu \\(W_1(x)\\cdot W_2(x)\\) jeśli</p><p>\\(W_1(x)=4x^5-2x^4+4x^2-7x+11\\)</p><p>\\(W_2(x)=\\frac{3}{2}x^4-2x^3+4x^2-7x+11\\)</p>",
+      "value": "20",
+      "tolerance": "0"
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>Podaj wartości współczynników \\(a\\) i \\(b\\), dla których wielomiany \\(W_1\\) i \\(W_2\\) są równe.</p><p>\\(W_1(x)=ax^3+5x^2-7x+1\\)</p><p>\\(W_1(x)=6x^3+5x^2+bx+1\\)</p><p>\\(a=\\)</p>",
+      "value": "6",
+      "tolerance": "0"
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>\\(b=\\)</p>",
+      "value": "-7",
+      "tolerance": "0"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "dcd7beef28eb90e78ae6a6adb5d8a4915f475057766979ca9ca82ac067474d71"
+}

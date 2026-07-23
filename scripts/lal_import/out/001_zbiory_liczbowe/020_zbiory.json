@@ -1,0 +1,18 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Obejrzyj poniższe nagranie dotyczące działań na zbiorach.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Uwaga! To nagranie jest długie! Trwa równo 8 minut. Uzbrój się w cierpliwość.\n</p>"
+    },
+    {
+      "type": "video",
+      "media_src": "static/zbiory_dzialania.mp4"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "41de1a9bf25f2306cf3d3f7a0a965633db774db410cb4419c1647b8ffa1d9b68"
+}

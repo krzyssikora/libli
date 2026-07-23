@@ -1,0 +1,94 @@
+{
+  "elements": [
+    {
+      "type": "choice",
+      "stem": "<p>Czy \\(\\sin 45^{\\circ}\\lt \\cos 30^{\\circ}\\)</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "TAK",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "NIE",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Czy \\(\\cos 45^{\\circ}\\lt \\sin 30^{\\circ}\\)</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "TAK",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "NIE",
+          "is_correct": true,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Jaki jest wynik działania \\(\\frac{\\cos 60^{\\circ}}{\\sin 60^{\\circ}}\\)?</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(\\frac{1}{4\\sqrt{3}}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\frac{\\sqrt{3}}{3}\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\sqrt{3}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\frac{\\sqrt{3}}{2}\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Jaki jest wynik działania \\(\\sqrt{3}\\cdot \\sin 60^{\\circ}\\)?</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(\\sqrt{3}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\frac{\\sqrt{3}}{2}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\frac{3}{2}\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\frac{\\sqrt{6}}{2}\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "9fcd5d4d0ad7a0a8caf387c6ffbf8b4cd775ac75dfed3cf3bcedfd4a80d2dedb"
+}

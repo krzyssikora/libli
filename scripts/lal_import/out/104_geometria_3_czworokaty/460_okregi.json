@@ -1,0 +1,126 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Trapez równoramienny o obwodzie \\(40\\) opisano na kole o promieniu \\(4\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź długości boków trapezu.\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "szkic rozwiązania",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<ol>\n<li>\n                Oznaczmy:\n                <ul class=\"nolist\">\n<li>dłuższą podstawę przez \\(a\\),</li>\n<li>krótszą podstawę przez \\(b\\),</li>\n<li>ramiona przez \\(c\\).</li>\n</ul>\n</li>\n<li>\n                Skoro obwód jest równy \\(40\\), to znaczy, że \n                <ul class=\"nolist\">\n<li>\\(a+b=20=c+c\\)</li>\n</ul>\n</li>\n<li>\n                Stąd długość ramienia \\(c=10\\).\n            </li>\n<li>\n                Jeśli promień koła wpisanego to \\(r=4\\), to wysokość trapezu \\(h=2r=4\\).\n            </li>\n<li>\n                Jeśli narysujemy wysokość opuszczoną z końca krótszej podstawy, odetniemy trójkąt prostokątny o bokach:\n                <ul class=\"nolist\">\n<li>przeciwprostokątnej \\(c=10\\),</li>\n<li>i pionowej przyprostokątnej \\(h=8\\).</li>\n</ul>\n</li>\n<li>\n                Pozioma przyprostokątna tego trójkąta jest opisana wyrażeniem \\(\\frac{a-b}{2}\\) (z twierdzenia o wysokości w trójkącie równoramiennym).\n            </li>\n<li>\n                Jej długość wyliczamy z twierdzenia Pitagorasa, \\(\\frac{a-b}{2}=6\\).\n            </li>\n<li>\n                Z tego równania, oraz z \\(a+b=20\\) wyliczamy \\(a=16\\) i \\(b=4\\).\n            </li>\n</ol>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Ramiona trapezu są długości \\(10\\), a podstawy \\(16\\) i \\(4\\).\n        </p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Udowodnij, że w każdy deltoid można wpisać koło. \n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "szkic rozwiązania",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<ol>\n<li>\n                Deltoid to czworokąt, w którym dwie pary sąsiednich boków są równej długości. Oznaczmy kolejne boki deltoidu przez \\(a\\), \\(a\\), \\(b\\) oraz \\(b\\).\n            </li>\n<li>\n                Bokiem przeciwległym do każdego boku o długości \\(a\\) jest bok o długości \\(b\\).\n            </li>\n<li>\n                Dlatego suma obu par przeciwległych boków to \\(a+b\\).\n            </li>\n<li>\n                Obie te sumy są równe, więc w deltoid można wpisać koło.\n            </li>\n</ol>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Równoległobok, w którym jeden z boków jest długości \\(8\\) opisano na kole o polu \\(12\\pi\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ol class=\"bold\" type=\"A\">\n<li>\n                Znajdź długość drugiego boku równoległoboku.\n            </li>\n<li>\n                Oblicz miarę ostrego kąta wewnętrznego równoległoboku.\n            </li>\n</ol>"
+    },
+    {
+      "type": "spoiler",
+      "label": "szkic rozwiązania",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<ol>\n<li>\n                Jeśli długości boków równoległoboku oznaczymy przez \\(a\\) i \\(b\\), to z faktu, że równoległobok jest opisany na kole wynika \\(a+a=b+b\\). Stąd \\(a=b\\), więc równoległobok jest rombem. Stąd: <strong>A</strong>. drugi bok też jest długości \\(8\\).\n            </li>\n<li>\n                Pole koła to \\(12\\pi\\). Jeśli promień koła oznaczymy \\(r\\), to z wzoru na pole koła, \\(\\pi r^2\\), wyliczamy, że \\(r=2\\sqrt{3}\\).\n            </li>\n<li>\n                Wysokość rombu \\(h=2r=4\\sqrt{3}\\). \n            </li>\n<li>\n                Jeśli narysujemy wyskość z jedego z wirzchołków rombu, to z odciętego w ten sposób trójkąta odczytamy, że stosunek długości wysokości rombu do boku, czyli \\(\\frac{4\\sqrt{3}}{8}\\) to sinus ostrego kąta wewnętrznego. \n            </li>\n<li>\n                Uproszczony stosunek to \\(\\frac{\\sqrt{3}}{2}\\), więc <strong>B</strong>. szukany kąt to \\(60^{\\circ}\\).\n            </li>\n</ol>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Oblicz obwód trapezu równoramiennego opisanego na okręgu o promieniu \\(8\\) wiedząc, że wysokość trapezu jest o \\(20\\%\\) krótsza od ramienia trapezu.\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "szkic rozwiązania",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<ol>\n<li>\n                Wysokość trapezu jest o \\(20\\%\\) krótsza od ramienia trapezu, więc jeśli ramię trapezu oznaczymy \\(c\\), to wysokość jest równa \\(0,8c\\).\n            </li>\n<li>\n                Wysokość trapezu jest też równa średnicy okręgu wpisanego. Z równania \\(0,8c=2\\cdot 8\\) wyliczamy \\(c=20\\).\n            </li>\n<li>\n                Jeśli podstawy trapezu oznaczymy \\(a\\) i \\(b\\), to z faktu, że trapez jest opisany na okręgu wynika \\(a+b=2c\\).\n            </li>\n<li>\n                Skoro \\(c=20\\), to \\(2c=40\\) i \\(a+b=40\\).\n            </li>\n<li>\n                Obwód trapezu to \\(a+b+2c=40+40=80\\).\n            </li>\n</ol>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Oblicz pole trapezu prostokątnego o obwodzie \\(36\\) opisanego na kole o polu \\(16\\pi\\).\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "szkic rozwiązania",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<ol>\n<li>\n                Z pola koła wyliczamy jego promień, \\(r=4\\).\n            </li>\n<li>\n                Wysokość trapezu, \\(h=2r=8\\).\n            </li>\n<li>\n                Ta wysokość to także ramię przy kącie prostym.\n            </li>\n<li>\n                Jeśli drugie ramie to \\(c\\), a podstawy to \\(a\\) i \\(b\\), to z faktu, że trapez jest opisany na kole wynika, że \\(a+b=c+h=36:2=18\\).\n            </li>\n<li>\n                Skoro \\(c+h=18\\) i \\(h=8\\), to \\(c=10\\).\n            </li>\n<li>\n                Wzór na pole trapezu, \\(P\\) to \\(P=\\frac{1}{2}(a+b)h\\). Wiemy, że \n                <ul class=\"nolist\">\n<li>\\(a+b=18\\)</li>\n<li>\\(h=8\\)</li>\n</ul>\n</li>\n<li>\n                Stąd pole \\(P=\\frac{1}{2}\\cdot 18\\cdot 8=72\\).\n            </li>\n</ol>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Oblicz pole koła wpisanego w trapez równoramienny o obwodzie \\(60\\) wiedząc, że ramię trapezu jest dwuipółkrotnie dłuższe od krótszej podstawy trapezu.\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "szkic rozwiązania",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<ol>\n<li>\n                Oznaczmy podstawy trapezu: dłuższą przez \\(a\\) i krótszą przez \\(b\\), a ramiona przez \\(c\\).\n            </li>\n<li>\n                \"Ramię trapezu jest dwuipółkrotnie dłuższe od krótszej podstawy\", więc \\(c=2,5b\\).\n            </li>\n<li>\n                Trapez jest opisany na kole, więc \\(a+b=2c\\), czyli \\(a+b=2\\cdot 2,5b\\), więc \\(a=4b\\).\n            </li>\n<li>\n                Obwód trapezu to \\(a+b+2c=4b+b+2\\cdot 2,5b=10b\\). Jest równy \\(60\\), więc \\(b=6\\).\n            </li>\n<li>\n                Stąd \\(c=2,5\\cdot b=2,5\\cdot 6=15\\) i \\(a=4b=4\\cdot 6=24\\).\n            </li>\n<li>\n                Wysokość opuszczona z wierzchołka krótszej podstawy trapezu odcina trójkąt prostokątny, o bokach:\n                <ul class=\"li\">\n<li>przeciwprostokątnej \\(c=15\\),</li>\n<li>poziomej przyprostokątnej \\(\\frac{a-b}{2}=\\frac{24-6}{2}=9\\).</li>\n</ul>\n</li>\n<li>\n                Z twierdzenia Pitagorasa wyliczamy pionową przyprostokątną, czyli wysokość trapezu, \\(h=12\\).\n            </li>\n<li>\n                Wysokość to średnica koła wpisanego, więc jego promień to \\(6\\).\n            </li>\n<li>\n                Pole koła to \\(36\\pi\\).\n            </li>\n</ol>"
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "38aff05a860c4816cdca6b1c240ce8a13a47c5052d12144ed87d8a3f4d58df7b"
+}

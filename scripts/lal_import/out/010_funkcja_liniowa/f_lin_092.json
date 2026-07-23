@@ -1,0 +1,185 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Badawczy Instytut Rolniczy przeprowadził badania wpływu ilości stosowanego nawozu na ilość zebranej kukurydzy w pewnych stałych, określonych warukach. Ustalono, że:\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n                przy zastosowaniu 5 kilogramów nawozu zebrano 3,8 tony kukurydzy\n            </li>\n<li>\n                przy zastosowaniu 25 kilogramów nawozu zebrano 5,2 tony kukurydzy\n            </li>\n<li>\n                relacja między ilością zastosowanego nawozu a ilością zebranej kukurydzy jest\n                <strong>\n                    liniowa\n                </strong>\n                .\n            </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Przyjmując powyższe ustalenia, odpowiedz na pytania:</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ol>\n<li>\n                jeśli \\(x\\) to ilość zastosowanego nawozu w kilogramach a \\(y\\) to ilość zebranej kukurydzy w tonach, jakie równanie opisuje relację między tymi dwiema wielkościami?\n            </li>\n<li>\n                ile kukurydzy zebranoby bez stosowania nawozu?\n            </li>\n<li>\n                ile nawozu zastosowano, jeśli zebrano 4,85 tony kukurydzy?\n            </li>\n<li>\n                czy można tej liniowej relacji użyć, by wyliczyć, ile nawozu należy użyć, żeby zebrać 80 ton kukurydzy?\n            </li>\n</ol>"
+    },
+    {
+      "type": "tabs",
+      "tabs": [
+        {
+          "id": "t000000",
+          "label": "nagranie",
+          "elements": [
+            {
+              "type": "text",
+              "body": "<p>\n                W nagraniu nie będę odczytywał treści zadania, koniecznie przeczytaj ją samodzielnie, zanim zaczniesz oglądać.\n            </p>"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                Pierwsza część pytania.\n            </p>"
+            },
+            {
+              "type": "video",
+              "media_src": "static/corn1.mp4"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                Druga część pytania.\n            </p>"
+            },
+            {
+              "type": "video",
+              "media_src": "static/corn2.mp4"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                Trzecia część pytania.\n            </p>"
+            },
+            {
+              "type": "video",
+              "media_src": "static/corn3.mp4"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                Czwarta część pytania.\n            </p>"
+            },
+            {
+              "type": "video",
+              "media_src": "static/corn4.mp4"
+            }
+          ]
+        },
+        {
+          "id": "t000001",
+          "label": "krok po kroku",
+          "elements": [
+            {
+              "type": "text",
+              "body": "<p>\n                    1.\n                    <br/>\n                    Najpierw znajdziemy równanie między \\(x\\) - ilością zastosowanego nawozu w kilogramach a \\(y\\) - ilością zebranej kukurydzy w tonach.\n                </p>"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                    Zauważmy, że:\n                </p>"
+            },
+            {
+              "type": "text",
+              "body": "<ul>\n<li>\n                        gdy \\(x=5\\) to \\(y=3,8\\)\n                    </li>\n<li>\n                        gdy \\(x=25\\) to \\(y=5,2\\)\n                    </li>\n</ul>"
+            },
+            {
+              "type": "reveal_gate",
+              "label": "pokaż dalej"
+            },
+            {
+              "type": "text",
+              "body": "<p>Szukamy równania prostej postaci\n                                                               \\[y=ax+b\\]\n                                                               przechodzącej przez punkty \\((x_A, y_A)=(5; 3,8)\\) oraz \\((x_B,y_B)=(25; 5,2)\\).</p>"
+            },
+            {
+              "type": "reveal_gate",
+              "label": "pokaż dalej"
+            },
+            {
+              "type": "text",
+              "body": "<p>Zrobimy to z pomocą wzoru na prostą przechodzącą przez dwa punkty:\n                                                               \\[(y-y_A)(x_B-x_A)-(y_B-y_A)(x-x_A)=0\\]\n                                                               Podstawiając powyższe współrzędne otrzymujemy:\n                                                               \\[(y-3,8)(25-5)-(5,2-3,8)(x-5)=0\\]</p>"
+            },
+            {
+              "type": "reveal_gate",
+              "label": "pokaż dalej"
+            },
+            {
+              "type": "text",
+              "body": "<p>Uprośćmy równanie:\n                                                               \\[(y-3,8)\\cdot 20-1,4(x-5)=0\\]\n                                                               \\[20y-76-1,4x+7=0\\]\n                                                               \\[20y-1,4x-69=0\\]\n                                                               I wyliczmy \\(y\\):\n                                                               \\[20y=1,4x+83\\]\n                                                               czyli relacja jest opisana równaniem:\n                                                               \\[y=0,07x+3,45\\]</p>"
+            },
+            {
+              "type": "reveal_gate",
+              "label": "pokaż dalej"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                        2.\n                        <br/>\n                        Odpowiedź na pytanie \"ile kukurydzy zebranoby bez stosowania nawozu?\" jest prosta: wystarczy sprawdzić, jaka będzie wartość \\(y\\) gdy \\(x=0\\).\n                    </p>"
+            },
+            {
+              "type": "reveal_gate",
+              "label": "pokaż dalej"
+            },
+            {
+              "type": "text",
+              "body": "<p>\\[y=0,07\\cdot 0+3,45=3,45\\]\n                                                               Bez nawozu zebrano by 3,45 tony kukurydzy.</p>"
+            },
+            {
+              "type": "reveal_gate",
+              "label": "pokaż dalej"
+            },
+            {
+              "type": "text",
+              "body": "<p>3.</p>"
+            },
+            {
+              "type": "text",
+              "body": "<p>W kolejnym pytaniu, \"ile nawozu zastosowano, jeśli zebrano 4,85 tony kukurydzy?\" dana jest wartość \\(y=4,85\\), a wyliczyć musimy wartość \\(x\\).</p>"
+            },
+            {
+              "type": "reveal_gate",
+              "label": "pokaż dalej"
+            },
+            {
+              "type": "math",
+              "latex": "y=0,07x+3,45\\quad\\quad\\leftarrow\\quad\\quad y=4,85\\]\n                                                               \\[4,85=0,07x+3,45"
+            },
+            {
+              "type": "reveal_gate",
+              "label": "pokaż dalej"
+            },
+            {
+              "type": "text",
+              "body": "<p>\\[0,07x=1,4\\]\n                                                               \\[x=20\\]\n                                                               Zastosowano 20 kilogramów nawozu.</p>"
+            },
+            {
+              "type": "reveal_gate",
+              "label": "pokaż dalej"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                        4.\n                        <br/>\n                        By odpowiedzieć na ostatnie pytanie, \"czy można tej liniowej relacji użyć, by wyliczyć, ile nawozu należy użyć, żeby zebrać 80 ton kukurydzy?\", spójrzmy na wykres przedstawiający relację między ilością nawozu a kukurydzy.\n                    </p>"
+            },
+            {
+              "type": "image",
+              "media_src": "static/kukurydza.png",
+              "alt": "",
+              "figcaption": ""
+            },
+            {
+              "type": "reveal_gate",
+              "label": "pokaż dalej"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                        Na wykresie możemy wskazać wszystko, co do tej pory wyliczyliśmy. Jednak wartości 80 ton kukurydzy tu nie znajdziemy. Wykres musiałby być dużo, dużo większy. Z tego powodu nie powinniśmy na takie pytanie odpowiadać używając tego wykresu: nie miałoby to realnego sensu. Zwróć uwagę, że skoro badania przeprowadzano w \"stałych, określonych warunkach\", i za każdym razem otrzymywano kilka ton kukurydzy, nie sposób wyobrazić sobie, żeby z tego samego pola nagle uzyskano kilkanaście razy więcej. Choćby dlatego, że pole to byłoby po prostu za małe.\n                    </p>"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                        Zaznaczmy jednak, że ta część pytania wychodzi poza znajomość funkcji liniowej, a dotyczy stosowania matematyki w życiu. Na maturze takiego pytania nie musisz się spodziewać.\n                    </p>"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "3d28b7133251e123b5ec38cf5ccfad6d7699961fc286b0477092e9127faeb7cd"
+}

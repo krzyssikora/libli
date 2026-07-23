@@ -1,0 +1,98 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Rzeczywista odległość w linii prostej z Warszawy do Olsztyna to około \\(175\\) kilometrów.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Na mapie Warszawa i Olsztyn są w odległości \\(14\\) centymetrów.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Jaka jest skala mapy?\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "odpowiedź",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(1:1\\,250\\,000\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Rzeczywista odległość w linii prostej z Wrocławia do Ostrowia Wielkopolskiego to około \\(80\\) kilometrów.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W jakiej odległości są te miasta na mapie w skali \\(1:1\\,600\\,000\\)?\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "odpowiedź",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(5\\text{cm}\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Jezioro Czorsztyńskie na mapie w skali \\(1:100\\,000\\) ma powierzchnię \\(11\\,\\text{cm}^2\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Jaka jest rzeczywista powierzchnia Jeziora Czorsztyńskiego?\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "odpowiedź",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(11\\,\\text{km}^2\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Jezioro Zegrzyńskie ma powierzchnię około \\(30\\,\\text{km}^2\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Jaka jest jego powierzchnia na mapie w skali \\(1:125\\,000\\)?\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "odpowiedź",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(19,2\\,\\text{cm}^2\\)</p>"
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "5ecf64cd89d2c3ab212131f141081bed392c2924133a0c7d5a7bc2d80de3a4cf"
+}

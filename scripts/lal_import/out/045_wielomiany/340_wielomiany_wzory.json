@@ -1,0 +1,151 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Przydatne okażą się nam następujące wzory.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Następujące wzory są prawdziwe dla dowolnych liczb / wyrażeń \\(a\\) i \\(b\\).\n    </p>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": true,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "wzór",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "nazwa",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\((a+b)^3=a^3+3a^2b+3ab^2+b^3\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "sześcian sumy",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\((a-b)^3=a^3-3a^2b+3ab^2-b^3\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "sześcian różnicy",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(a^3+b^3=(a+b)(a^2-ab+b^2)\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "suma sześcianów",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(a^3-b^3=(a-b)(a^2+ab+b^2)\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "różnica sześcianów",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Zacznijmy od przykładu na rozgrzewkę.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Przykład</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Wymnożymy sumę algebraiczną i doprowadzimy ją do najprostszej postaci.\n    </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n    (2ab-3b^2)^3\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "zobacz",
+      "elements": [
+        {
+          "type": "math",
+          "latex": "\n        \\begin{align*}\n        (2ab-3b^2)^3&=(\\color{red}{2ab}-\\color{darkcyan}{3b^2})^3=\\\\\n        &=\\begin{bmatrix}\n        \\text{na podstawie wzoru:}\\\\\n        (\\color{red}{a}-\\color{darkcyan}{b})^3=\\color{red}{a}^3-3\\color{red}{a}^2\\color{darkcyan}{b}+3\\color{red}{a}\\color{darkcyan}{b}^2-\\color{darkcyan}{b}^3\\\\\n        \\text{przy czym wstawiamy:}\\\\\n        \\text{zamiast }\\color{red}{a}\\longrightarrow\\color{red}{2ab}\\\\\n        \\text{zamiast }\\color{darkcyan}{b}\\longrightarrow\\color{darkcyan}{3b^2}\\\\\n        \\end{bmatrix}=\\\\\n        &=(\\color{red}{2ab})^3-3\\cdot(\\color{red}{2ab})^2\\cdot\\color{darkcyan}{3b^2}+3\\cdot\\color{red}{2ab}\\cdot(\\color{darkcyan}{3b^2})^2-(\\color{darkcyan}{3b^2})^3=\\\\\n        &=4a^3b^3-3\\cdot 4a^2b^2\\cdot 3b^2+3\\cdot 2ab\\cdot 9b^4-27b^6=\\\\\n        &=4a^3b^3-36a^2b^4+54ab^5-27b^6\n        \\end{align*}\n        "
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    I przejdźmy do zadań.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Usuń niewymierności z mianownika.\n    "
+    },
+    {
+      "type": "text",
+      "body": "<ol class=\"bold\">\n<li>\n            \\(\\frac{10}{\\sqrt[3]{2}-3}\\)\n            <details>\n<summary>\n                    rozwiązanie\n                </summary>\n<div id=\"question332\">\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n<strong>\n                                1.\n                            </strong>\n<span style=\"display: inline-block; width: 50px;\">\n</span>\n                            \\(\\frac{10}{\\sqrt[3]{2}-3}\\)\n                            <p>\n                                Usuwając niewymierności ze zwykłymi, kwadratowymi pierwiastkami, używaliśmy wzoru:\n                            </p>\n                            \\[\n                            (a-b)(a+b)=a^2-b^2\n                            \\]\n                            dzięki któremu pierwiastek był podnoszony do kwadratu. Mogliśmy użyć tego wzoru niezależnie, czy w ułamku była suma, czy różnica - bo po lewej stronie wzoru są obie.\n                            <p>\n                                Tym razem mamy do czynienia z pierwiaskiem\n                                <strong>\n                                    stopnia trzeciego\n                                </strong>\n                                , więc musimy podnieść do potęgi trzeciej. A w ułamku widzimy różnicę.\n                            </p>\n<div class=\"switch_line\">\n                                Dlatego użyjemy wzoru na\n                                <div class=\"switch_value\">\n                                    &gt;&gt; wybierz &gt;&gt;\n                                </div>\n<div class=\"switch_value\">\n                                    sześcian sumy\n                                </div>\n<div class=\"switch_value\">\n                                    sześcian różnicy\n                                </div>\n<div class=\"switch_value\">\n                                    sumę sześcianów\n                                </div>\n<div class=\"switch_value\">\n                                    różnicę sześcianów\n                                </div>\n                                .\n                                <div class=\"switch_show_next ks_button\">\n                                    zatwierdź\n                                </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                                Skorzystamy ze wzoru\n                            </p>\n                            \\[\n                            a^3-b^3=(a-b)(a^2+ab+b^2)\n                            \\]\n                            a raczej\n                            \\[\n                            (a-b)(a^2+ab+b^2)=a^3-b^3\n                            \\]\n                            gdzie \\(a=\\sqrt[3]{2}\\), zaś \\(b=3\\).\n                            <div class=\"switch_line\">\n                                Musimy pomnożyć górę i dół ułamka przez \\((a^2-ab+b^2)\\) czyli przez\n                                <div class=\"switch_value\">\n                                    &gt;&gt; wybierz &gt;&gt;\n                                </div>\n<div class=\"switch_value\">\n                                    \\(\\sqrt[3]{2}+3\\sqrt[3]{2}+3\\)\n                                </div>\n<div class=\"switch_value\">\n                                    \\(\\sqrt[3]{2}-3\\sqrt[3]{2}+3\\)\n                                </div>\n<div class=\"switch_value\">\n                                    \\(\\sqrt[3]{4}+3\\sqrt[3]{2}+9\\)\n                                </div>\n<div class=\"switch_value\">\n                                    \\(\\sqrt[3]{4}-3\\sqrt[3]{2}+9\\)\n                                </div>\n                                .\n                                <div class=\"switch_show_next ks_button\">\n                                    zatwierdź\n                                </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n                            \\[\n                            a^2+ab+b^2=(\\sqrt[3]{2})^2+\\sqrt[3]{2}\\cdot 3+3^2=\\sqrt[3]{4}+3\\sqrt[3]{2}+9\n                            \\]\n                            Otrzymujemy:\n                            \\[\n                            \\frac{10}{\\sqrt[3]{2}-3}\\cdot\\frac{\\sqrt[3]{4}+3\\sqrt[3]{2}+9}{\\sqrt[3]{4}+3\\sqrt[3]{2}+9}\n                            \\]\n                            <div class=\"switch_line\">\n                                Na dole ułamka korzystamy z wybranego wzoru i uzyskujemy\n                                <div class=\"switch_value\">\n                                    &gt;&gt; wybierz &gt;&gt;\n                                </div>\n<div class=\"switch_value\">\n                                    \\(2-3^3\\) czyli \\(-25\\)\n                                </div>\n<div class=\"switch_value\">\n                                    \\(2+3^3\\) czyli \\(29\\)\n                                </div>\n<div class=\"switch_value\">\n                                    \\(\\sqrt[3]{4}-9\\)\n                                </div>\n<div class=\"switch_value\">\n                                    \\(\\sqrt[3]{4}+9\\)\n                                </div>\n                                .\n                                <div class=\"switch_show_next ks_button\">\n                                    zatwierdź\n                                </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n                            Rzeczywiście,\n                            \\[\n                            a^3-b^3=(\\sqrt[3]{2})^3-3^3=2-27=-25\n                            \\]\n                            I stąd:\n                            \\[\n                            \\frac{10}{\\sqrt[3]{2}-3}\\cdot\\frac{\\sqrt[3]{4}+3\\sqrt[3]{2}+9}{\\sqrt[3]{4}+3\\sqrt[3]{2}+9}=\\frac{10(\\sqrt[3]{4}+3\\sqrt[3]{2}+9)}{-25}\n                            \\]\n                            <div class=\"switch_line\">\n                                Pozostaje nam skrócić ułamek przez\n                                <div class=\"switch_value\">\n                                    &gt;&gt; wybierz &gt;&gt;\n                                </div>\n<div class=\"switch_value\">\n                                    \\(5\\)\n                                </div>\n<div class=\"switch_value\">\n                                    \\(10\\)\n                                </div>\n<div class=\"switch_value\">\n                                    \\(25\\)\n                                </div>\n<div class=\"switch_value\">\n                                    \\(\\sqrt[3]{2}\\)\n                                </div>\n                                .\n                                <div class=\"switch_show_next ks_button\">\n                                    zatwierdź\n                                </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n<hr/>\n                            I ostatecznie:\n                            <br/>\n<span style=\"display: inline-block; width: 50px;\">\n</span>\n                            \\(\\frac{10}{\\sqrt[3]{2}-3}=-\\frac{2}{5}(\\sqrt[3]{4}+3\\sqrt[3]{2}+9)\\)\n                        </div>\n</div>\n</div>\n</details>\n</li>\n<li>\n            \\(\\frac{9}{2+\\sqrt[3]{4}}\\)\n            <details>\n<summary>\n                    rozwiązanie\n                </summary>\n<div id=\"question334\">\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n<hr/>\n<strong>\n                                2.\n                            </strong>\n<span style=\"display: inline-block; width: 50px;\">\n</span>\n                            \\(\\frac{9}{2+\\sqrt[3]{4}}\\)\n                            <p>\n                                Tym razem w ułamku widzimy sumę, a każdy ze składników musimy podnieść do potęgi trzeciej.\n                            </p>\n<div class=\"switch_line\">\n                                Dlatego użyjemy wzoru na\n                                <div class=\"switch_value\">\n                                    &gt;&gt; wybierz &gt;&gt;\n                                </div>\n<div class=\"switch_value\">\n                                    sześcian sumy\n                                </div>\n<div class=\"switch_value\">\n                                    sześcian różnicy\n                                </div>\n<div class=\"switch_value\">\n                                    sumę sześcianów\n                                </div>\n<div class=\"switch_value\">\n                                    różnicę sześcianów\n                                </div>\n                                .\n                                <div class=\"switch_show_next ks_button\">\n                                    zatwierdź\n                                </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                                Skorzystamy ze wzoru\n                            </p>\n                            \\[\n                            a^3+b^3=(a+b)(a^2-ab+b^2)\n                            \\]\n                            a raczej\n                            \\[\n                            (a+b)(a^2-ab+b^2)=a^3+b^3\n                            \\]\n                            gdzie \\(a=2\\), zaś \\(b=\\sqrt[3]{4}\\).\n                            <div class=\"switch_line\">\n                                Musimy pomnożyć górę i dół ułamka przez \\((a^2-ab+b^2)\\) czyli przez\n                                <div class=\"switch_value\">\n                                    &gt;&gt; wybierz &gt;&gt;\n                                </div>\n<div class=\"switch_value\">\n                                    \\(2+2\\sqrt[3]{4}+\\sqrt[3]{4}\\)\n                                </div>\n<div class=\"switch_value\">\n                                    \\(4+2\\sqrt[3]{4}+\\sqrt[3]{16}\\)\n                                </div>\n<div class=\"switch_value\">\n                                    \\(2-2\\sqrt[3]{4}+\\sqrt[3]{4}\\)\n                                </div>\n<div class=\"switch_value\">\n                                    \\(4-2\\sqrt[3]{4}+\\sqrt[3]{16}\\)\n                                </div>\n                                .\n                                <div class=\"switch_show_next ks_button\">\n                                    zatwierdź\n                                </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n                            \\[\n                            a^2-ab+b^2=2^2+2\\sqrt[3]{4}+(\\sqrt[3]{4})^2=4-2\\sqrt[3]{4}+\\sqrt[3]{16}\n                            \\]\n                            Otrzymujemy:\n                            \\[\n                            \\frac{9}{2+\\sqrt[3]{4}}\\cdot\\frac{4-2\\sqrt[3]{4}+\\sqrt[3]{16}}{4-2\\sqrt[3]{4}+\\sqrt[3]{16}}\n                            \\]\n                            <div class=\"switch_line\">\n                                Na dole ułamka korzystamy z wybranego wzoru i uzyskujemy\n                                <div class=\"switch_value\">\n                                    &gt;&gt; wybierz &gt;&gt;\n                                </div>\n<div class=\"switch_value\">\n                                    \\(8-4\\) czyli \\(4\\)\n                                </div>\n<div class=\"switch_value\">\n                                    \\(8+4\\) czyli \\(12\\)\n                                </div>\n<div class=\"switch_value\">\n                                    \\(4-\\sqrt[3]{16}\\)\n                                </div>\n<div class=\"switch_value\">\n                                    \\(4+\\sqrt[3]{16}\\)\n                                </div>\n                                .\n                                <div class=\"switch_show_next ks_button\">\n                                    zatwierdź\n                                </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n                            Rzeczywiście,\n                            \\[\n                            a^3+b^3=2^3+(\\sqrt[3]{4})^3=8+4=12\n                            \\]\n                            I stąd:\n                            \\[\n                            \\frac{9}{2+\\sqrt[3]{4}}\\cdot\\frac{4-2\\sqrt[3]{4}+\\sqrt[3]{16}}{4-2\\sqrt[3]{4}+\\sqrt[3]{16}}=\\frac{9(4-2\\sqrt[3]{4}+\\sqrt[3]{16})}{12}\n                            \\]\n                            <div class=\"switch_line\">\n                                Pozostaje nam skrócić ułamek przez\n                                <div class=\"switch_value\">\n                                    &gt;&gt; wybierz &gt;&gt;\n                                </div>\n<div class=\"switch_value\">\n                                    \\(3\\)\n                                </div>\n<div class=\"switch_value\">\n                                    \\(4\\)\n                                </div>\n<div class=\"switch_value\">\n                                    \\(9\\)\n                                </div>\n<div class=\"switch_value\">\n                                    \\(12\\)\n                                </div>\n<div class=\"switch_value\">\n                                    \\(\\sqrt[3]{2}\\)\n                                </div>\n                                .\n                                <div class=\"switch_show_next ks_button\">\n                                    zatwierdź\n                                </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n<hr/>\n                            I ostatecznie:\n                            <br/>\n<span style=\"display: inline-block; width: 50px;\">\n</span>\n                            \\(\\frac{9}{2+\\sqrt[3]{4}}=\\frac{3}{4}(4-2\\sqrt[3]{4}+\\sqrt[3]{16})\\)\n                        </div>\n</div>\n</div>\n</details>\n</li>\n</ol>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "cb36c5b4e608f816f67653bcd349c9df5962122ba231e0cbf254924a31db8907"
+}

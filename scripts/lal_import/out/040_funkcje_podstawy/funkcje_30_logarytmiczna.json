@@ -1,0 +1,148 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<h1>\n    Funkcja logarytmiczna\n</h1>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Przypomnijmy sobie bardzo krótko podstawowe działania na logarytmach.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Przyjrzyj się poznanym wcześniej wzorom i uzupełnij brakujące pola.\n    "
+    },
+    {
+      "type": "fill_table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "rows",
+        "cells": [
+          [
+            {
+              "kind": "static",
+              "html": "\\(\\log_{a}b=c\\quad\\Leftrightarrow\\quad a^c=b\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "4"
+            },
+            {
+              "kind": "static",
+              "html": ""
+            },
+            {
+              "kind": "static",
+              "html": ""
+            },
+            {
+              "kind": "static",
+              "html": ""
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(\\log_{a}b+\\log_{a}c=\\log_{a}(bc)\\)"
+            },
+            {
+              "kind": "static",
+              "html": "<span class=\"myequation\">\n                            \\(\\log_{6}4+\\log_{6}9=\\log_{6}\\)",
+              "halign": "right"
+            },
+            {
+              "kind": "answer",
+              "answer": "36"
+            },
+            {
+              "kind": "static",
+              "html": "\\(=\\)",
+              "halign": "center"
+            },
+            {
+              "kind": "answer",
+              "answer": "2"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(\\log_{a}b-\\log_{a}c=\\log_{a}\\left(\\frac{b}{c}\\right)\\)"
+            },
+            {
+              "kind": "static",
+              "html": "<span class=\"myequation\">\n                            \\(\\log_{6}12-\\log_{6}2=\\log_{6}\\)",
+              "halign": "right"
+            },
+            {
+              "kind": "answer",
+              "answer": "6"
+            },
+            {
+              "kind": "static",
+              "html": "\\(=\\)",
+              "halign": "center"
+            },
+            {
+              "kind": "answer",
+              "answer": "1"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(\\log_{a}n^s=s\\cdot\\log_{a}n\\)"
+            },
+            {
+              "kind": "static",
+              "html": "<span class=\"myequation\">\n                            \\(\\log_{3}9^{11}=11\\cdot\\)",
+              "halign": "right"
+            },
+            {
+              "kind": "answer",
+              "answer": "2"
+            },
+            {
+              "kind": "static",
+              "html": "\\(=\\)",
+              "halign": "center"
+            },
+            {
+              "kind": "answer",
+              "answer": "22"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(\\log_{a}b=\\frac{\\log_c b}{\\log_c a}\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "3/4"
+            },
+            {
+              "kind": "static",
+              "html": ""
+            },
+            {
+              "kind": "static",
+              "html": ""
+            },
+            {
+              "kind": "static",
+              "html": ""
+            }
+          ]
+        ]
+      }
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "cc337a6705d6d6d108b8198ad65c6ba009334c58598a7181c76ecb50f2abd910"
+}

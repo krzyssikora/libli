@@ -1,0 +1,80 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n<strong>Podobieństwo</strong> to takie przekształcenie płaszczyzny, dla którego istnieje stała \\(k\\gt 0\\), zwana <strong>skalą podobieństwa</strong>, takie, że jeśli\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n            \\(A\\) i \\(B\\) to dowolne dwa punkty płaszyczyzn przed przekształceniem,\n        </li>\n<li>\n            \\(A\\) jest przekształcany w \\(A'\\),\n        </li>\n<li>\n            \\(B\\) jest przekształcany w \\(B'\\),\n        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        to między odległościami \\(AB\\) i \\(A'B'\\) zachodzi równość\n    </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n    AB\\cdot k = A'B'\n    "
+    },
+    {
+      "type": "text",
+      "body": "\n    Jeśli figury \\(F_1\\) i \\(F_2\\) są do siebie podobne, zapisujemy to\n    \\[\n    F_1\\sim F_2\n    \\]\n"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Przykład</strong></p>"
+    },
+    {
+      "type": "video",
+      "media_src": "static/podobienstwo_jako_przeksztalcenie.mp4"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Przykład</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Dowolne dwa koła są podobne.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W poniższym aplecie możesz przesuwać niebieskie i czerwone punkty, by zmienić położenie i wielkość kół.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Gdy klikniesz \"start\", zobaczysz, jak niebieskie koło można przekształcić w czerwone.\n        </p>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/ehgwcydh/width/625/height/428/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Przykład</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Dowolne dwa kwadraty są podobne.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W poniższym aplecie możesz przesuwać niebieskie i czerwone punkty, by zmienić położenie i wielkość kwadratów.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Gdy klikniesz \"start\", zobaczysz, jak niebieski kwadrat można przekształcić w czerwony.\n        </p>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/jzqzgrpz/width/625/height/428/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Oczywiście, poszukiwanie oraz formalne opisywanie przekształceń wskazujących podobieństwo dwóch figur to rzecz dość skomplikowana. Nie będziemy tego robić. Skupimy się na rozpoznawaniu i używaniu podobieństwa czworokątów.\n</p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "916d405ff238910b7365823b5ae325c834c333e24d5ad0eb99eed1f2cf49638a"
+}

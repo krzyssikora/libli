@@ -1,0 +1,76 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<h3>\n    Czy wiesz jak rozwiązać takie równania?\n</h3>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "\\(|x|=3\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(x=-3\\) lub \\(x=3\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(|x+2|=5\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(x=3\\) lub \\(x=-7\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(|3x-1|=-5\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "nie ma rozwiązań",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(|2x+4|=0\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(x=-2\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Jeśli nie wiesz, lub nie jesteś pewna/pewien, obejrzyj poniższe nagranie.\n</p>"
+    },
+    {
+      "type": "video",
+      "media_src": "static/wartosc_bezwzgledna_rownania.mp4"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "2fc78710b1e6e29259a65b62a4d397b986d29e29f47448675eddd0e06ad2e8ce"
+}

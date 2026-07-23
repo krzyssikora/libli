@@ -1,0 +1,144 @@
+{
+  "elements": [
+    {
+      "type": "choice",
+      "stem": "<p>\n    Które z poniższych stwierdzeń są prawdziwe dla funkcji liniowej  / prostej o równaniu \\(y=-\\frac{5}{4}x-2\\)?\n</p>",
+      "multiple": true,
+      "choices": [
+        {
+          "text": "Prosta przechodzi przez punkt \\((0,-2)\\) na osi \\(OY\\).",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "Prosta przechodzi przez punkt \\((0,2)\\) na osi \\(OY\\).",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "Prosta przechodzi przez punkt \\((-2,0)\\) na osi \\(OX\\).",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "Prosta przechodzi przez punkt \\((-\\frac{5}{4},0)\\) na osi \\(OX\\).",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "Prosta przechodzi przez punkt \\((\\frac{5}{4},0)\\) na osi \\(OX\\).",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "Prosta przechodzi przez punkt \\((-\\frac{8}{5},0)\\) na osi \\(OX\\).",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "Funkcja ma jedno miejsce zerowe.",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "Funkcja nie ma miejsc zerowych.",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ],
+      "points": "2"
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\n    Które z poniższych stwierdzeń są prawdziwe dla funkcji liniowej  / prostej o równaniu \\(y=\\frac{2}{3}x+1\\)?\n</p>",
+      "multiple": true,
+      "choices": [
+        {
+          "text": "Prosta przechodzi przez punkt \\((0,-1)\\) na osi \\(OY\\).",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "Prosta przechodzi przez punkt \\((0,1)\\) na osi \\(OY\\).",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "Prosta przechodzi przez punkt \\((1,0)\\) na osi \\(OX\\).",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "Prosta przechodzi przez punkt \\((\\frac{2}{3},0)\\) na osi \\(OX\\).",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "Prosta przechodzi przez punkt \\((-\\frac{3}{2},0)\\) na osi \\(OX\\).",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "Prosta przechodzi przez punkt \\((-\\frac{2}{3},0)\\) na osi \\(OX\\).",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "Funkcja ma jedno miejsce zerowe.",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "Funkcja nie ma miejsc zerowych.",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ],
+      "points": "2"
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\n    Które z poniższych stwierdzeń są prawdziwe dla funkcji liniowej  / prostej o równaniu \\(y=-4\\)?\n</p>",
+      "multiple": true,
+      "choices": [
+        {
+          "text": "Prosta przechodzi przez punkt \\((0,-4)\\) na osi \\(OY\\).",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "Prosta przechodzi przez punkt \\((0,4)\\) na osi \\(OY\\).",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "Prosta przechodzi przez punkt \\((-4,0)\\) na osi \\(OX\\).",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "Prosta przechodzi przez punkt \\((4,0)\\) na osi \\(OX\\).",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "Funkcja ma jedno miejsce zerowe.",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "Funkcja nie ma miejsc zerowych.",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "Funkcja ma nieskończenie wiele miejsc zerowych.",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "d4c61b50ccd07cd6b46ac15f1a2bdcf1c57b13c013290489e451b0fde926cf7d"
+}

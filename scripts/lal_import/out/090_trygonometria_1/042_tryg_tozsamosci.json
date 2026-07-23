@@ -1,0 +1,30 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Tożsamości trygonometryczne, jakie musimy znać na tym etapie to:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li style=\"margin-bottom: 20px;\">\n            \\(\\sin^2\\alpha+\\cos^2\\alpha=1\\) (tzw.\n            <strong>\n                jedynka trygonometryczna\n            </strong>\n            )\n        </li>\n<li style=\"margin-bottom: 20px;\">\n            \\(\\text{tg }\\alpha = \\frac{\\sin\\alpha}{\\cos\\alpha}\\) oraz \\(\\text{ctg }\\alpha = \\frac{\\cos\\alpha}{\\sin\\alpha}\\)\n        </li>\n<li>\n            \\(\\text{tg }\\alpha\\cdot\\text{ctg }\\alpha = 1\\)\n        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Wszystkie powyższe tożsamości są prawdziwe dla</p>"
+    },
+    {
+      "type": "text",
+      "body": "<strong>\n        każdego kąta ostrego\n    </strong>"
+    },
+    {
+      "type": "text",
+      "body": "<p>.</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n    Obejrzyj lub przeczytaj uzasadnienia tych tożsamości.\n"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "93e48edc9a6cd493b43af6dd2fb89df5c6d7e984321dc1882ac819525886b4d0"
+}

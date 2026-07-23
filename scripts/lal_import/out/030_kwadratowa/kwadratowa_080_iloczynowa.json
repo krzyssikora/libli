@@ -1,0 +1,26 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Aby obliczyć miejsca zerowe funkcji kwadratowej\n</p>"
+    },
+    {
+      "type": "math",
+      "latex": "\ny=ax^2+bx+c\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    nie musimy sprowadzać równania do postaci kanonicznej.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Obejrzyj nagranie, by poznać odpowiedni wzór i zobaczyć, jak go stosować.\n</p>"
+    },
+    {
+      "type": "video",
+      "media_src": "static/kwadratowa_wzor.mp4"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "2e3fe6ae8611d80519463eac2b86c7a4ad941a3e583180d7fa8f8102f5b1fe3d"
+}

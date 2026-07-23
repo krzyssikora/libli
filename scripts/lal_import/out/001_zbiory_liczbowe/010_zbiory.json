@@ -1,0 +1,108 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Poniżej widzisz pojęcia, o których była mowa w nagraniach.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Spróbuj opisać własnymi słowami znaczenie każdego z nich. Najlepiej: zapisz, jak być je opisał/-a.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Następnie sprawdź moje odpowiedzi i porównaj je ze swoimi.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Jak obliczyć następujące całki?\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "zbiór pusty",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Zbiór, który nie posiada żadnych elementów.</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Taki zbiór oznaczamy \\(\\emptyset\\) albo (rzadziej) \\(\\{\\}\\).</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "zbiór skończony",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Zbiór, który ma skończenie wiele elementów.</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "zbiór nieskończony",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Zbiór, którego liczba elementów jest nieskończona.</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "element zbioru",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Każdy pojedynczy obiekt wchodzący w skład zbioru. Elementami</p>"
+        },
+        {
+          "type": "text",
+          "body": "<strong>\n                            zbiorów liczbowych\n                        </strong>"
+        },
+        {
+          "type": "text",
+          "body": "<p>są, rzecz jasna, liczby.</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "równość zbiorów",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Zbiory są równe, gdy mają takie same elementy, czyli gdy każdy element jednego ze zbiorów jest też elementem drugiego - i odwrotnie.</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "zbiory rozłączne",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Zbiory nazywamy rozłącznymi, jeśli nie mają żadnego wspólnego elementu.</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "dopełnienie zbioru",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Zbiór wszystkich elementów, które nie należą do danego zbioru.</p>"
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "80cd099c228a7f62f08a30ab43ddaf5a49cf043ebb2937e611f271a42e444a4a"
+}

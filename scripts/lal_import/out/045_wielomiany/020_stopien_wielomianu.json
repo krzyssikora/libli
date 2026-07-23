@@ -1,0 +1,169 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<strong>\n        Wielomian\n    </strong>"
+    },
+    {
+      "type": "text",
+      "body": "<p>to funkcja \\(W:\\mathbb{R}\\longrightarrow\\mathbb{R}\\) zdefiniowana równaniem postaci\n    \\[\n    W(x)=a_nx^n+a_{n-1}x^{n-1}+\\dots+a_2x^2+a_2x+a_0\n    \\]\n    przy czym:</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n            \\(a_n\\), \\(a_{n-1}\\),... , \\(a_2\\), \\(a_1\\), \\(a_0\\) to współczynniki rzeczywiste,\n        </li>\n<li>\n            \\(a_n\\ne 0\\).\n        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Liczba \\(n\\) (czyli najwyższa potęga \\(x\\)-a o niezerowym współczynniku) nazywana jest</p>"
+    },
+    {
+      "type": "text",
+      "body": "<strong>\n        stopniem wielomianu\n    </strong>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\\(W\\), co zapisujemy\n    \\[\n    n=\\deg(W)\n    \\]</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Przyjrzyjmy się bliżej stopniom wielomianów.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Przykład</strong></p>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/seph5mn4/width/450/height/780/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    },
+    {
+      "type": "text",
+      "body": "\n            W aplecie możesz użyć suwaka, by zmienić stopień wielomianu, \\(n\\) - od \\(0\\) do \\(6\\). Zobaczysz przykładowy\n            <span style=\"color: red;\">\n                wykres\n            </span>\n            wielomianu danego stopnia oraz ogólne\n            <span style=\"color: blue;\">\n                równanie\n            </span>\n            takiego wielomianu.\n        "
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Przykład</strong></p>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": true,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "wielomian \\(W(x)\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "stopień wielomianu, \\(\\deg(W)\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(3x^2-5x+7\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\color{red}{2}\\), bo \\(3x^{\\color{red}{2}}\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(-3x+1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\color{red}{1}\\), bo \\(-3x=-3x^{\\color{red}{1}}\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(4\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\color{red}{0}\\), bo \\(4=4x^{\\color{red}{0}}\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(0\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "???",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Jaki jest stopień wielomianu stałego\n</p>"
+    },
+    {
+      "type": "math",
+      "latex": "\nW(x)=0\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    ?\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Zauważyliśmy wcześniej, że\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n        funkcja kwadratowa, \\(y=a_2x^2+a_1x+a_0\\) jest wielomianem stopnia \\(2\\), bo \\(a_2\\ne 0\\)\n    </li>\n<li>\n        funkcja liniowa, \\(y=a_1x+a_0\\) jest wielomianem stopnia \\(1\\), jeśli \\(a_1\\ne 0\\)\n    </li>\n<li>\n        stała funkcja liniowa, \\(y=a_0\\) jest wielomianem stopnia \\(0\\), jeśli \\(a_0\\ne 0\\)\n    </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    No ale w przypadku funkcji o równaniu\n</p>"
+    },
+    {
+      "type": "math",
+      "latex": "\ny=0\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>\n        żaden\n    </strong>\n    współczynnik nie jest niezerowy!\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Wielomian o równaniu\n    \\[\n    W(x)=0\n    \\]\n    nazywany jest wielomianem</p>"
+    },
+    {
+      "type": "text",
+      "body": "<strong>\n        zerowym\n    </strong>"
+    },
+    {
+      "type": "text",
+      "body": "<p>.</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Stopień wielomianu zerowego jest\n        <u>\n            nieokreślony\n        </u>\n        .\n    </p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "cdbe4f0b008eba5c9bbbcecec1d757faab4a7af4d20728971cbbe75cabb3ab90"
+}

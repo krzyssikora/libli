@@ -1,0 +1,164 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<h3>\n    Jak obliczyć pole trójkąta o danych współrzędnych wierzchołków?\n</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Podstawowy, najprostszy wzór na pole trójkąta to\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n    \\[\n    \\text{Pole } = \\frac{1}{2}\\cdot(\\text{podstawa})\\cdot(\\text{wysokość})\n    \\]\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    przy czym \n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n        podstawa to dowolnie wybrany bok trójkąta,\n    </li>\n<li>\n<p>\n            wysokość to długość ocinka łączącego trzeci wierzchołek (nie z podstawy) z prostą zawierającą podstawę pod kątem prostym\n        </p>\n<p>\n<u>czyli</u>\n</p>\n<p>\n            wysokość to odległość trzeciego wierzchołka od podstawy.\n        </p>\n</li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Na rysunku poniżej widzisz trójkąt \\(KMN\\), w którym\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n            wybieramy bok \\(KM\\) jako podstawę,\n        </li>\n<li>\n            wysokością opdadającą na podstawę \\(KM\\) jest odcinek \\(NS\\).\n        </li>\n</ul>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/geometria_analityczna_2_pole_trojkata_KMN.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Współrzędne wierzchołków \\(K\\), \\(M\\) i \\(N\\) to \\((x_K, y_K)\\), \\((x_M, y_M)\\) i \\((x_N, y_N)\\) odpowiednio.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Niech \\(P\\) oznacza pole trójkąta \\(KMN\\). Wówczas\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        \\[\n        P=\\frac{1}{2}\\cdot KM\\cdot NS\n        \\]\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        gdzie\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n<p>\n                \\(KM\\), podstawa, to długość odcinka \\(KM\\).\n            </p>\n<details>\n<summary>jak obliczyć długość odcinka?</summary>\n<div class=\"important\">\n<p>\n                        Długość odcinka o końcach \\(K=(x_K, y_K)\\) i \\(M=(x_M, y_M)\\) dana jest wzorem\n                    </p>\n<div class=\"table_wrapper\">\n                        \\[\n                        KM=\\sqrt{(x_M-x_K)^2+(y_M-y_K)^2}\n                        \\]\n                    </div>\n</div>\n<p>\n<!-- Więcej na temat długości odcinka znajdziesz <a href=\"#\">tutaj</a>. -->\n<!-- ADD INTERNAL LINK -->\n</p>\n</details>\n</li>\n<li>\n<p>\n                \\(NS\\), wysokość, to odległość punktu \\(N\\) od prostej przechodzącej przez punkty \\(K\\) i \\(M\\).\n            </p>\n<details>\n<summary>jak znaleźć równanie ogólne prostej?</summary>\n<div class=\"important\">\n<p>\n                        Równanie ogólne prostej przechodzącej przez punkty \\(K=(x_K, y_K)\\) i \\(M=(x_M, y_M)\\) można wyznaczyć ze wzoru\n                    </p>\n<div class=\"table_wrapper\">\n                        \\[\n                        (y-y_K)(x_M-x_K)-(y_M-y_K)(x-x_K)=0\n                        \\]\n                    </div>\n</div>\n<p>\n                    Można też użyć innych metod. Więcej na ten znajdziesz <a href=\"#\">tutaj</a>.\n                    <!-- INTERNAL LINK -->\n</p>\n</details>\n<details>\n<summary>jak znaleźć odległość punktu od prostej?</summary>\n<div class=\"important\">\n<p>\n                        Odległość punktu \\(N=(x_N, y_N)\\) od prostej o równaniu ogólnym \\(Ax+By+C=0\\) (w naszej sytuacji: od prostej przchodzącej przez punkty \\(K\\) i \\(M\\)) dana jest wzorem\n                    </p>\n<div class=\"table_wrapper\">\n                        \\[\n                        \\frac{|A\\cdot x_N+B\\cdot y_N+C|}{\\sqrt{A^2+B^2}}\n                        \\]\n                    </div>\n</div>\n<p>\n                    Więcej o odległości punktu od prostej znajdziesz <a href=\"#\">tutaj</a>.\n                    <!-- INTERNAL LINK -->\n</p>\n</details>\n</li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Poniższy przykład możesz rozwiązać samodzielnie, sprawdzając wyniki w poszczególnych krokach. A jeśli wolisz rozwiązać podobne zadanie krok po kroku, przejdź dalej, a do tego przykładu możesz wrócić później.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Przykład</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Znajdź pole trójkąta \\(KMN\\) o wierzchołkach: \\(K=(-4,-2)\\), \\(M=(6,1)\\) i \\(N=(-2,4)\\).\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "długość podstawy \\(KM\\)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<h4>metoda</h4>"
+        },
+        {
+          "type": "text",
+          "body": "\n                \\[\n                \\begin{align}\n                KM&amp;=\\sqrt{(x_M-x_K)^2+(y_M-y_K)^2}=\\\\\n                &amp;=\\sqrt{(6-(-4))^2+(1-(-2))^2}\\\n                \\end{align}\n                \\]\n            "
+        },
+        {
+          "type": "text",
+          "body": "<h4>odpowiedź</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\sqrt{109}\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "równanie prostej przechodzącej przez \\(K\\) i \\(M\\)",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<h4>metoda</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Na przykład wzór:</p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                \\[\n                \\begin{align}\n                (y-y_K)(x_M-x_K)-(y_M-y_K)(x-x_K)&amp;=0\\\\\n                (y-(-2))(6-(-4))-(1-(-2))(x-(-4))&amp;=0\n                \\end{align}\n                \\]\n            "
+        },
+        {
+          "type": "text",
+          "body": "<h4>odpowiedź</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(3x-10y-8=0\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "wysokość - odległość punktu \\(N\\) od prostej",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<h4>metoda</h4>"
+        },
+        {
+          "type": "text",
+          "body": "\n                \\[\n                \\begin{align}\n                h&amp;=\\frac{|A\\cdot x_N+B\\cdot y_N+C|}{\\sqrt{A^2+B^2}}=\\\\\n                &amp;=\\frac{|3\\cdot (-2)-10\\cdot 4-8|}{\\sqrt{3^2+(-10)^2}}\n                \\end{align}\n                \\]\n            "
+        },
+        {
+          "type": "text",
+          "body": "<h4>odpowiedź</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{54}{\\sqrt{109}}\\) lub \\(\\frac{54\\sqrt{109}}{\\sqrt{109}}\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "pole trójkąta",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<h4>metoda</h4>"
+        },
+        {
+          "type": "text",
+          "body": "\n                \\[\n                \\begin{align}\n                P&amp;=\\frac{1}{2}\\cdot KM\\cdot h=\\\\\n                &amp;=\\frac{1}{2}\\cdot \\sqrt{109}\\cdot \\frac{54}{\\sqrt{109}}\n                \\end{align}\n                \\]\n            "
+        },
+        {
+          "type": "text",
+          "body": "<h4>odpowiedź</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(27\\)</p>"
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "599ecfd2192ce05071e5c4b9d274c8e3c4aae69b049fe4c18dc9d16bc36c6141"
+}

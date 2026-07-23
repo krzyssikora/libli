@@ -1,0 +1,629 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    W kilku kolejnych zadaniach dany będzie wzór na sumę pierwszych \\(n\\) wyrazów ciągu, \\(S_n\\). Wygodnie będzie umieć z wzoru na \\(S_n\\) wyznaczyć wzór ogólny na \\(a_n\\), \\(n\\)-ty wyraz ciągu.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n    Jeśli \\(S_n\\) to suma \\(n\\) pierwszych wyrazów ciągu, gdzie \\(n=1, 2, 3,\\dots\\), to \\(n\\)-ty wyraz ciągu \\(a_n\\) jest dany różnicą\n    \\[\n    a_n=S_n-S_{n-1}, \\quad\\text{gdzie }n=2, 3, 4,\\dots\n    \\] \n"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozumiesz, dlaczego?",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n        Sprawdźmy kilka prostych przypadków wzóru \\(a_n=S_n-S_{n-1}\\).\n    </p>"
+        },
+        {
+          "type": "table",
+          "data": {
+            "header_row": false,
+            "header_col": false,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "\\(n=2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\quad\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(a_2=\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(S_2\\color{blue}{-S_1}=\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(a_2+a_1\\color{blue}{-a_1}=\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(a_2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\quad\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "zgadza się",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(n=3\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\quad\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(a_3=\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(S_3\\color{blue}{-S_2}=\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(a_3+a_2+a_1\\color{blue}{-a_2-a_1}=\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(a_3\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\quad\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "zgadza się",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(n=4\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\quad\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(a_4=\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(S_4\\color{blue}{-S_3}=\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(a_4+a_3+a_2+a_1\\color{blue}{-a_3-a_2-a_1}=\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(a_4\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\quad\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "zgadza się",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "type": "text",
+          "body": "<p>\n        I bardziej ogólnie:\n    </p>"
+        },
+        {
+          "type": "table",
+          "data": {
+            "header_row": false,
+            "header_col": false,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "\\(S_n\\color{blue}{-S_{n-1}}\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(=\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(a_n\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(+a_{n-1}\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(+a_{n-2}\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(+\\dots\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(+a_3\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(+a_2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(+a_1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\color{blue}{-a_{n-1}}\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\color{blue}{-a_{n-2}}\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\color{blue}{-\\dots}\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\color{blue}{-a_3}\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\color{blue}{-a_2}\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\color{blue}{-a_1}\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(=\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(a_n\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "zgadza się",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Suma pierwszych \\(n\\) wyrazów ciągu \\((a_n)\\) jest dana wzorem:\n        </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n        S_n=3n^2+n\n        "
+    },
+    {
+      "type": "text",
+      "body": "<ol class=\"bold\">\n<li>\n                Znajdź wzór ogólny na \\(n\\)-ty wyraz ciągu i udowodnij, że ciąg \\((a_n)\\) jest arytmetyczny.\n            </li>\n</ol>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Trzy wyraz tego ciągu: \\(a_2\\), \\(a_m\\) i \\(a_{27}\\) są kolejnymi wyrazami ciągu geometrycznego.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ol class=\"bold\" start=\"2\">\n<li>\n                Znajdź wartość indeksu \\(m\\).\n            </li>\n</ol>"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Zacznijmy od \\(n\\)-tego wyrazy, zgodnie z regułą wzkazaną powyżej:\n                \\[\n                a_n=S_n-S_{n-1}\n                \\]\n                A skoro\n                \\[\n                S_n=3n^2+n\n                \\]</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    to \n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(S_{n-1}=3n^2+n-1\\)",
+            "\\(S_{n-1}=3(n-1)^2+n\\)",
+            "\\(S_{n-1}=3(n-1)^2+n-1\\)"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "text",
+          "body": "<p>Stąd\n                \\[\n                \\begin{align}\n                a_n&=S_n-S_{n-1}=\\\\\n                &=\\left(3n^2+n\\right)-\\left(3(n-1)^2+n-1\\right)=\\\\\n                &=\\left(3n^2+n\\right)-\\left(3n^2-6n+3+n-1\\right)\\\\\n                \\end{align}\n                \\]</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    I dlatego\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(a_n=6n-2\\)",
+            "\\(a_n=-6n+4\\)",
+            "\\(a_n=6n+2\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Znaleźliśmy wzór ogólny ciągu \\((a_n)\\):\n                \\[\n                a_n=6n-2\n                \\]</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Teraz, by wykazać, że jest to ciąg arytmetyczny, musimy udoodnić, że różnica między kolejnymi wyrazami ciągu jest stała.\n                </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Dlatego najpierw znajdźmy wzór na kolejny wyraz, \\(a_{n+1}\\), podstawiając \\((n+1)\\) w miejsce \\(n\\) w powyższym wzorze.\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(a_{n+1}=6n+4\\)",
+            "\\(a_{n+1}=6n-8\\)",
+            "\\(a_{n+1}=6n-1\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Różnica między kolejnymi wyrazami jest równa \\(a_{n+1}-a_n=(6n+4)-(6n-2)=\\)\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(-2\\)",
+            "\\(6\\)",
+            "\\(12n+6\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Różnica jest stała, \\(a_{n+1}-a_n=6\\), więc \\((a_n)\\) jest ciągiem arytmetycznym o różnicy \\(r=6\\).\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Przejdźmy do drugiej części zadania.\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<blockquote>\n                    \"Trzy wyraz tego ciągu: \\(a_2\\), \\(a_m\\) i \\(a_{27}\\) są kolejnymi wyrazami ciągu geometrycznego.\"\n                </blockquote>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Najpierw zapiszmy każdy z tych wyrazów - jego wartość liczbową lub wyrażenie.\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(a_2=6\\cdot 2-2=10\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(a_m=6\\cdot m-2=6m-2\\)</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    \\(a_{27}=6\\cdot 27-2=\\)\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(160\\)",
+            "\\(162\\)",
+            "\\(164\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Te trzy wyrazy</p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    10,\\quad\\quad 6m-2,\\quad\\quad 160\n                    \\]\n                "
+        },
+        {
+          "type": "text",
+          "body": "<p>to kolejne wyrazy ciągu geometrycznego.</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>pamiętasz związek między kolejnymi wyrazami ciągu geometrycznego?</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Jeśli \\(b_{n-1}\\), \\(b_{n}\\) oraz \\(b_{n+1}\\) są kolejnymi wyrazami ciągu geometrycznego, to\n                    \\[\n                    (b_n)^2=b_{n-1}\\cdot b_{n+1}\n                    \\]\n                    czyli kwadrat środkowego wyrazu jest iloczynem sąsiednich wyrazów.</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Dlatego \n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(10=160(6m-2)\\)",
+            "\\(160=10(6m-2)\\)",
+            "\\((6m-2)^2=10\\cdot 160\\)"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "text",
+          "body": "<p>Aby rozwiązać równanie\n                \\[\n                (6m-2)^2=1600\n                \\]</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    możemy po prostu spierwiastkować obie strony, otrzymując\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(6m-2=40\\)",
+            "\\(6m-2=-40\\) lub \\(6m-2=40\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Z równania \\(6m-2=-40\\) wynika \\(m=-\\frac{19}{6}\\). Ten wynik jest po pierwsze</p>"
+        },
+        {
+          "type": "text",
+          "body": "<u>ujemny</u>"
+        },
+        {
+          "type": "text",
+          "body": "<p>, a po drugie</p>"
+        },
+        {
+          "type": "text",
+          "body": "<u>niecałkowity</u>"
+        },
+        {
+          "type": "text",
+          "body": "<p>- nie może być więc numerem wyrazu ciągu.</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Z równania \\(6m-2=40\\) wynika\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(m=7\\)",
+            "\\(m=8\\)",
+            "\\(m=6\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>I dlatego wyrazy drugi,</p>"
+        },
+        {
+          "type": "text",
+          "body": "<u>siódmy</u>"
+        },
+        {
+          "type": "text",
+          "body": "<p>i dwudziesty siódmy ciągu arytmetycznego są też kolejnymi wyrazami ciągu geometrycznego.</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    W kolejnym zadaniu także skorzystamy z reguły \\(a_n=S_n-S_{n-1}\\), jednak tym razem dana będzie suma ciągu geometrycznego, a nie arytmetycznego.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Suma pierwszych \\(n\\) wyrazów ciągu \\((a_n)\\) jest dana wzorem:\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\\[\n        S_n=2^{2n-1}-2\n        \\]\n        Znajdź wzór ogólny na \\(n\\)-ty wyraz ciągu \\((a_n)\\) i udowodnij, że jest geometryczny.</p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Zacznijmy od wzoru na sumę \\(n-1\\) wyrazów. Skoro\n                \\[\n                S_n=2^{2n-1}-2\n                \\]\n                to</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(S_{n-1}=2^{2n-1}-2\\)",
+            "\\(S_{n-1}=2^{2n-2}-2\\)",
+            "\\(S_{n-1}=2^{2n-3}-2\\)"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "text",
+          "body": "<p>I teraz wyliczymy\n                \\[\n                \\begin{align}\n                a_n&=S_n-S_{n-1}=\\\\\n                &=\\left(2^{2n-1}-2\\right)-\\left(2^{2n-3}-2\\right)=\\\\\n                &=2^{2n-1}-2-2^{2n-3}+2=\\\\\n                &=2^{2n-1}-2^{2n-3}\\\\\n                \\end{align}\n                \\]</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Z powyższego wyrażenia możemy wyłączyć \\(2^{2n-3}\\) przed nawias:\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(2^{2n-3}\\cdot\\left(2-1\\right)\\)",
+            "\\(2^{2n-3}\\cdot\\left(2^2-1\\right)\\)",
+            "\\(2^{2n-3}\\cdot\\left(2^{-2}-1\\right)\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Zgadza się,</p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>\n                        wyłączając \\(2^{2n-3}\\) z \\(2^{2n-1}\\) dzielimy \\(2^{2n-1}:2^{2n-3}=2^{2n-1-(2n-3)}=2^2\\),\n                    </li>\n<li>\n                        wyłączając \\(2^{2n-3}\\) z \\(2^{2n-3}\\) dzielimy \\(2^{2n-3}:2^{2n-3}=1\\).\n                    </li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Ostatecznie więc:</p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    \\begin{align}\n                    a_n&amp;=2^{2n-3}\\cdot\\left(2^2-1\\right)\\\\\n                    a_n&amp;=3\\cdot 2^{2n-3}\n                    \\end{align}\n                    \\]\n                "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Znamy wzór ogólny ciągu \\((a_n)\\), a teraz, by wykazać, że jest to ciąg geometryczny, musimy udoodnić, że iloraz kolejnych wyrazów ciągu jest stały.\n                </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Dlatego najpierw znajdźmy wzór na kolejny wyraz, \\(a_{n+1}\\), podstawiając \\((n+1)\\) w miejsce \\(n\\) w powyższym wzorze.\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(a_{n+1}=3\\cdot 2^{2n-3}+1\\)",
+            "\\(a_{n+1}=3\\cdot 2^{2n-2}\\)",
+            "\\(a_{n+1}=3\\cdot 2^{2n-1}\\)"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Iloraz kolejnych wyrazów jest równy \\(\\frac{a_{n+1}}{a_n}=\\frac{3\\cdot 2^{2n-1}}{3\\cdot 2^{2n-3}}=\\frac{2^{2n-1}}{2^{2n-3}}=\\)\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(2^2=4\\)",
+            "\\(2^{-4}=\\tfrac{1}{16}\\)",
+            "\\(2^3=8\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Iloraz jest stały, \\(\\frac{a_{n+1}}{a_n}=4\\), więc \\((a_n)\\) jest ciągiem geometrycznym o ilorazie \\(q=4\\).</p>"
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "c5a6dc243841283944886a7a2008e011d65c42c9bda2472eccd5a291be623852"
+}
