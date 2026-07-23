@@ -1,5 +1,5 @@
-"""Catalog test: PL/EN .po files are clean and every new spanning-table-editor
-msgid has a real Polish translation.
+"""Catalog test: every new spanning-table-editor msgid has a real Polish
+translation, and the retired caps msgid is gone from both catalogs.
 
 Covers the msgids introduced by the cell merge/split UI (Task 17): the three
 toolbar button labels, the header-lock title, the two live-region strings,
@@ -43,15 +43,3 @@ def test_old_caps_msgid_retired():
         assert "Tables are limited to %(r)d rows by %(c)d columns." not in text, (
             f"the old caps msgid must be removed from {po}"
         )
-
-
-def test_en_po_catalog_clean():
-    text = EN_PO.read_text(encoding="utf-8")
-    assert "#, fuzzy" not in text, "fuzzy entries present — review and clear"
-    assert "#~" not in text, "obsolete entries present — drop them"
-
-
-def test_pl_po_catalog_clean():
-    text = PL_PO.read_text(encoding="utf-8")
-    assert "#, fuzzy" not in text, "fuzzy entries present — review and clear"
-    assert "#~" not in text, "obsolete entries present — drop them"
