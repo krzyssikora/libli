@@ -26,6 +26,38 @@ def test_learner_asset_exists_and_is_an_alpha_mask():
         )
 
 
+def test_learner_asset_alpha_fades_out_at_the_bottom():
+    """The mask's CONTENT, not just its envelope.
+
+    mode/size/byte-budget are all satisfied by a fully transparent -- or fully
+    opaque -- 1600x672 LA PNG, so nothing above pins the one derivation step that
+    was hard to get right: the smoothstep ramp that dissolves the figure into the
+    page instead of cutting it off at a hard edge.
+    """
+    with Image.open(LEARNER) as im:
+        alpha = im.getchannel("A")
+        width, height = im.size
+
+        def row_max(y):
+            return alpha.crop((0, y, width, y + 1)).getextrema()[1]
+
+        # Neither blank nor solid.
+        assert alpha.getextrema() == (0, 255), (
+            "alpha must span the full range; a uniform channel means the mask is "
+            f"blank or solid. Got {alpha.getextrema()}"
+        )
+        # Fully dissolved at the very bottom edge -- this is the ramp's endpoint.
+        assert row_max(height - 1) == 0, (
+            "the last row must be fully transparent; a non-zero max means the "
+            "figure is cut off by a hard edge instead of faded out"
+        )
+        # ...while the figure is still at full strength above the ramp (the
+        # observed value at 0.5*H is 255).
+        assert row_max(height // 2) >= 128, (
+            "the mid-height row is nearly gone; the fade starts far too high"
+        )
+
+
 def test_learner_asset_is_within_budget():
     size = LEARNER.stat().st_size
     assert size <= 60 * 1024, f"learner.png is {size} bytes; budget is 60 KB"

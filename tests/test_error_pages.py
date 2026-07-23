@@ -19,6 +19,11 @@ def test_404_renders_the_illustrated_page(client):
     assert b"We appreciate your eagerness to discover" in body
     assert b"report it to your administrator" in body
     assert b"couldn" not in body.split(b"<main")[1], "old copy still present"
+    # The action row -- label AND target in ONE assertion, because neither half
+    # stands alone: base.html's brand link is already href="/" (a bare href
+    # assertion is vacuous), and a bare label assertion would happily tolerate a
+    # button that points nowhere. `landing` reverses to "/".
+    assert b'<a class="btn" href="/">Back to main page</a>' in body
 
 
 def test_404_echoes_the_attempted_path_in_a_code_element(client):
@@ -110,6 +115,11 @@ def test_403_hides_the_login_action_from_an_authenticated_user(client):
     assert resp.status_code == 403
     assert b"Not for you" in resp.content
     assert b"/accounts/login/?next=" not in resp.content
+    # ...and the arm still offers a way out. This is the arm essentially every
+    # real 403 hits, yet only the anonymous arm was covered. The exact
+    # `class="btn"` (not `btn btn--ghost`) is what pins it to the authenticated
+    # branch -- the anonymous branch renders its own ghost-styled copy.
+    assert b'<a class="btn" href="/">Back to main page</a>' in resp.content
 
 
 def test_403_offers_a_login_action_to_an_anonymous_visitor(rf):

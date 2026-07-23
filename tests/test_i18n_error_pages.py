@@ -60,8 +60,17 @@ def test_404_renders_in_polish(client):
     assert b"Nic tu nie ma" in body
     assert "Doceniamy zapał do odkrywania".encode() in body
     assert "Próbowano otworzyć:".encode() in body
+    # The report line and the action button, which the heading/lead/path trio
+    # left unasserted: strip {% trans %} from either and the Polish page ships an
+    # English paragraph (or an English button) with every other test still green.
+    # test_every_new_msgid_has_a_polish_translation proves the CATALOG has these
+    # entries; only a render assertion proves the TEMPLATE asks for them.
+    assert "zgłoś to administratorowi".encode() in body
+    assert "Powrót do strony głównej".encode() in body
     assert b"Nothing here" not in body
     assert b"We appreciate your eagerness" not in body
+    assert b"report it to your administrator" not in body
+    assert b"Back to main page" not in body
 
 
 def test_403_renders_in_polish(client):
