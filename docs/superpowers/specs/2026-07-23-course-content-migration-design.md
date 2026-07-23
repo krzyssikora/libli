@@ -258,8 +258,19 @@ The correlation must therefore be made where the source primary keys are still i
 phase already receives `media_assets` as `(mid, asset, is_placeholder)` triples, so it writes a
 **bundle-level side table** — one small JSON file beside the archives — mapping each source
 `MediaAsset.pk` to the list of part indices whose archive contains it. Those indices are the same
-0-based `order` values used in the archive filenames (see "One index space" below), so a side-table
-entry `[3, 7]` reads directly against `03-…zip` and `07-…zip`. Verification reads that table:
+0-based `order` values used in the archive filenames (see "One index space"), so a side-table entry
+`[3, 7]` reads directly against `03-…zip` and `07-…zip`.
+
+**It is accumulated in memory and written once, only on a fully successful export.** Each
+`build_export` call sees one part's assets, so the pk→parts mapping only exists as cross-part state
+held by the export loop. Writing it incrementally would leave a stale, partial table behind after a
+problems-abort at part 12 — and `verify` reading that table would silently under-report cross-part
+sharing, turning a legitimate media delta back into an apparent fault. Exactly the hazard the archives
+already handle via deterministic overwrite, which this artifact must not be exempt from: a re-run
+overwrites the table wholesale, and an aborted run leaves none at all, so `verify` either finds a
+table matching a complete bundle or refuses to run.
+
+Verification reads that table:
 entries with more than one part index are genuine cross-part sharing and explain a positive delta;
 a delta that the table does not account for is an implementation fault. The side table lives outside
 the archives and is never imported.
@@ -332,6 +343,8 @@ Required coverage:
 - **The bundle side table correlates shared media by source pk**, and verification uses it to explain
   a positive media delta — a test should cover an asset referenced from two parts arriving as two
   target rows *and* being accounted for, rather than reported as a fault.
+- **An aborted export leaves no side table**, and `verify` refuses to run against a bundle whose table
+  is missing rather than silently treating every asset as unshared.
 - **A corrupt or oversized archive in the bundle names that specific archive** in the import phase's
   error, rather than escaping as a raw traceback — the promise made in Error handling, and the
   failure mode most likely to occur across 21 real archives.
