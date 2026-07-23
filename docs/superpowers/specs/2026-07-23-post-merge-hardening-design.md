@@ -210,8 +210,12 @@ entries is worse than no guard. Four parsing hazards must be handled explicitly:
 
 Failure messages list the offending msgids so a failure points at its fix instead of starting a hunt.
 Truncation is pinned rather than left to taste: each msgid is truncated to **80 characters** with a
-trailing ellipsis, and the list is capped at **20 entries** followed by an "and N more" line. No
-`polib` dependency is added; the parser is hand-rolled and kept small.
+trailing ellipsis, and the list is capped at **20 entries** followed by an "and N more" line.
+
+That formatting lives in **one shared helper used by all three guards**, not only the untranslated
+check. All three consume the same `_entries()` list and all three can have multiple offenders — a
+sweep that reintroduced fuzzy entries would name dozens — so the same truncation and cap applies
+uniformly. No `polib` dependency is added; the parser is hand-rolled and kept small.
 
 ## Testing
 
@@ -232,16 +236,42 @@ video pk does the same. Each falsified by unscoping the lookup. Assert on galler
 the row is dropped entirely — not on the fill-table's degrade-to-static, since the two forms
 deliberately differ here.
 
-**Issue C.** The hand-rolled parser is itself the risk, so it must be proven against **three** scenarios,
-each as concrete as the others — two proving it fires, one proving it does not:
+**Issue C.** The hand-rolled parser is itself the risk, and — critically — **the real catalogs cannot
+prove most of it**. They currently contain zero fuzzy and zero obsolete entries, which is precisely
+what the prior cleanup achieved. So `test_no_fuzzy_entries` and `test_no_obsolete_entries`, run against
+the real files, assert over empty sets: a `_entries()` bug that left `fuzzy` and `obsolete` permanently
+`False` would make both guards **vacuously green forever**. Each guard therefore needs a fixture that
+makes it fire.
+
+Six scenarios are required, all built as `tmp_path` fixtures. Four prove a guard fires; two prove one
+does not:
+
+*Untranslated check:*
 
 - blank a real Polish `msgstr` → the untranslated check fails, naming that msgid;
 - blank **one form** of a plural entry → it also fails (a single scalar falsification would leave the
   plural path, the subtlest branch, unproven);
 - an obsolete entry with an empty translation (`#~ msgid "..."` / `#~ msgstr ""`) → it must **not**
-  fire. This is the false-positive direction, and without it "excluded from the untranslated scan"
-  could be satisfied by a shallow assertion that never exercises an obsolete entry carrying a blank
-  `msgstr` at all.
+  fire. Without this, "excluded from the untranslated scan" could be satisfied by a shallow assertion
+  that never exercises an obsolete entry carrying a blank `msgstr` at all.
+
+*The other two guards — each must be shown capable of failing:*
+
+- inject a `#, fuzzy` entry → `test_no_fuzzy_entries`'s assertion fails. Falsify by reverting
+  `_entries()`'s fuzzy-flag parsing and confirming it goes red for that reason.
+- inject a `#~`-prefixed entry → `test_no_obsolete_entries`'s assertion fails. Note this is the
+  *opposite* direction from the obsolete scenario above: there, obsolete entries must be ignored by the
+  untranslated scan; here, they must be detected by the obsolete guard. Both must hold simultaneously,
+  which is exactly why `_entries()` retains and marks them rather than dropping them.
+
+*Header entry:*
+
+- the header (`msgid ""`) must never reach the untranslated report. This one is **not** accidentally
+  covered by running against the real catalog — the header's joined `msgstr` is non-empty metadata, so
+  an implementation missing the header-skip rule entirely would still pass every other scenario here.
+  Unit-test `_entries()` directly: assert the header row is excluded (or marked such that it cannot
+  reach the scan), using a fixture whose header is present and whose body contains a genuinely
+  untranslated entry, so the report names the latter and never the former.
 
 **These three scenarios must never mutate the real catalogs.** CI runs `uv run python -m pytest -n auto`
 (`.github/workflows/ci.yml:49`), so tests are distributed across parallel xdist workers; editing
