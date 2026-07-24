@@ -411,6 +411,7 @@ Run each with: `DATABASE_URL=postgres://libli:libli@localhost:5432/libli_spannin
 | Delete the `if halign is not None and halign not in TableElement.HALIGN:` block | `test_val_table_out_of_enum_alignment_rejected` | out-of-enum `halign` passes → no `TransferError` |
 | Delete the `if set(cell) - allowed:` block | `test_val_table_unknown_cell_key_rejected` | unknown cell key passes → no `TransferError` |
 | Delete the per-cell `if not isinstance(cell, dict):` line | `test_val_table_non_dict_cell_rejected_no_raw_exception` | the int cell `5` then hits `set(cell)` → raw `TypeError` (int not iterable), *before* the unknown-key check → `pytest.raises(TransferError)` does not catch it → the test errors (RED). (The spanning-detection `if isinstance(c, dict)` filter is never reached for this cell, so leave it in place.) |
+| Delete the non-spanning `if len(widths) != 1:` block (in the `else` / non-spanning branch) | `test_val_table_non_spanning_ragged_still_rejected` | a non-spanning ragged table is no longer rejected → no `TransferError` |
 
 Expected each time: the named test FAILS; after reverting, the full `tests/test_table_transfer.py` is green again. Confirm the revert with a final `uv run pytest -m "not e2e" tests/test_table_transfer.py -q` → PASS before committing.
 
