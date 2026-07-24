@@ -50,8 +50,8 @@ def test_format_version_is_5():
 
 - [ ] **Step 2: Run the tests to verify they fail**
 
-Run: `DATABASE_URL=postgres://libli:libli@localhost:5432/libli_spanning uv run pytest -m "not e2e" tests/test_transfer_schema.py::test_format_version_is_current tests/test_tabs_transfer.py::test_format_version_is_5 tests/test_transfer_export.py -k format_version -q`
-Expected: FAIL (`FORMAT_VERSION` is still 4). (If a test name differs, run the whole file; the point is a RED on the version assertions.)
+Run: `DATABASE_URL=postgres://libli:libli@localhost:5432/libli_spanning uv run pytest -m "not e2e" tests/test_transfer_schema.py tests/test_tabs_transfer.py::test_format_version_is_5 tests/test_transfer_export.py::test_build_export_full_course_document -q`
+Expected: FAIL — `FORMAT_VERSION` is still 4, so all three version assertions fail: `test_tabs_transfer.py::test_format_version_is_5`, the `assert FORMAT_VERSION == 5` at `tests/test_transfer_schema.py:57` (which lives inside the broader test `test_transfer_error_carries_message`, not a dedicated node), and `manifest["format_version"] == 5` inside `test_build_export_full_course_document`. Run whole files / real node ids — do not invent `format_version`-named nodes (only `test_tabs_transfer.py` has one).
 
 - [ ] **Step 3: Bump the constant**
 
@@ -86,7 +86,7 @@ git commit -m "feat(transfer): bump FORMAT_VERSION to 5 for spanning-table suppo
 - Test: `tests/test_table_transfer.py` (add new tests), `tests/test_transfer_validation.py` (optional home for the pure-validator cases — put them in `test_table_transfer.py` for locality)
 
 **Interfaces:**
-- Consumes: `TableElement._span(raw, key)` → `int|None`; `TableElement.layout_dims(cells)` → `(width, height)`; `TableElement.HALIGN`, `VALIGN`, `MAX_ROWS`, `MAX_COLS` (all already referenced in `payloads.py`). Schema helpers `_err`, `check_bool`, `check_list`, `_exact_keys` (already imported).
+- Consumes: `TableElement._span(raw, key)` → `int|None`; `TableElement.layout_dims(cells)` → `(width, height)`; `TableElement.HALIGN`, `VALIGN`, `MAX_ROWS`, `MAX_COLS` (all already referenced in `payloads.py`). `_err` is the **module-local** helper at `payloads.py:31` (not imported from schema); `check_bool`, `check_list`, `_exact_keys` are imported from `courses.transfer.schema`.
 - Produces: `_val_table(data, elid, media_kinds) -> set()` — unchanged signature and return; now accepts spanning tables.
 
 - [ ] **Step 1: Write the failing tests**
@@ -140,8 +140,11 @@ def test_val_table_spanning_over_max_cols_rejected():
 
 
 def test_val_table_non_dict_cell_rejected_no_raw_exception():
+    # Guard: a non-dict cell is rejected as TransferError, never a raw
+    # AttributeError from _span (falsified in Step 4b by removing BOTH isinstance
+    # guards). Passes before AND after the fix (today via _exact_keys' isinstance).
     data = {"header_row": False, "header_col": False, "border": "grid", "cells": [["oops"]]}
-    with pytest.raises(TransferError):  # NOT AttributeError
+    with pytest.raises(TransferError):
         VALIDATORS["table"](data, "e1", {})
 
 
@@ -211,8 +214,7 @@ def test_spanning_table_round_trip_preserves_data(client, settings, tmp_path):
     saved = TableElement.objects.create(data=original)
     add_element(unit, saved)
 
-    import io
-    buf = io.BytesIO()
+    buf = io.BytesIO()  # `io` is imported at the module top
     write_archive(src, None, buf)
     buf.seek(0)
     owner = make_login(client, "span-importer")
@@ -232,22 +234,65 @@ def test_spanning_table_round_trip_preserves_data(client, settings, tmp_path):
     assert tables[0].data == saved.data
 
 
-def test_legacy_v4_bundle_with_spans_imports(client, settings, tmp_path):
-    # Span handling keys on span-key PRESENCE, not on the version bump: a table
-    # carrying spans validates regardless of the declared format_version.
+def test_spanning_table_imports_from_legacy_v4_declared_bundle(client, settings, tmp_path):
+    # Spec test #8: a bundle DECLARING format_version=4 but carrying a spanning
+    # table imports through the full gate (4 <= FORMAT_VERSION=5) AND the spanning
+    # branch — proving span handling keys on span-key presence, not the version.
+    # Build a real archive via write_archive (emits v5), then downgrade the
+    # manifest's declared version to 4 and re-drive it through the importer.
+    import json
+    import zipfile
+
+    settings.MEDIA_ROOT = tmp_path
+    src = CourseFactory()
+    unit = ContentNodeFactory(course=src, kind="unit", unit_type="lesson")
     data = TableElement.normalize_data(
         {
             "header_row": False, "header_col": False, "border": "grid",
             "cells": [[_span_cell("x", colspan=2)], [_span_cell("a"), _span_cell("b")]],
         }
     )
-    assert VALIDATORS["table"](data, "e1", {}) == set()
+    add_element(unit, TableElement.objects.create(data=data))
+
+    import io
+    src_buf = io.BytesIO()
+    write_archive(src, None, src_buf)
+    src_buf.seek(0)
+
+    out = io.BytesIO()
+    with zipfile.ZipFile(src_buf) as zin, zipfile.ZipFile(out, "w") as zout:
+        for name in zin.namelist():
+            raw = zin.read(name)
+            if name == "manifest.json":
+                m = json.loads(raw)
+                m["format_version"] = 4
+                raw = json.dumps(m).encode()
+            zout.writestr(name, raw)
+    out.seek(0)
+
+    owner = make_login(client, "v4-importer")
+    with open_archive(out, expected_kind="course") as (zf, mani, doc, media):
+        assert mani["format_version"] == 4
+        validate_archive_document(zf, mani, doc, media, kind="course", target_course=None)
+        dest = import_course(zf, mani, doc, media, owner)
+
+    tables = [
+        join.content_object
+        for node in dest.nodes.all()
+        for join in node.elements.all()
+        if isinstance(join.content_object, TableElement)
+    ]
+    assert len(tables) == 1  # v4 bundle with spans imported via the spanning branch
 ```
+
+(This test uses a local `import io` / `import json` / `import zipfile`; `io` is also at module top, so the local `import io` is harmless — keep it self-contained. The single-column non-spanning tests already import nothing extra.)
 
 - [ ] **Step 2: Run the new tests to verify they fail**
 
 Run: `DATABASE_URL=postgres://libli:libli@localhost:5432/libli_spanning uv run pytest -m "not e2e" tests/test_table_transfer.py -q`
-Expected: the spanning/header/tolerance/round-trip tests FAIL (today's `_val_table` rejects them: `_exact_keys` rejects `header`/`colspan`/`rowspan`, `len(widths) != 1` rejects ragged, and `test_val_table_non_dict_cell...` currently raises `AttributeError` at `_span`). The `non_spanning_ragged_still_rejected` and existing tests already pass.
+Expected: the genuinely RED-first tests FAIL today — `test_val_table_accepts_spanning_ragged_table`, `test_val_table_rectangular_header_no_spans_accepted`, `test_val_table_tolerates_bogus_optional_and_absent_core`, `test_spanning_table_round_trip_preserves_data`, and `test_spanning_table_imports_from_legacy_v4_declared_bundle` (today's `_val_table` rejects them: `_exact_keys` rejects the `header`/`colspan`/`rowspan` keys and any absent core key; `len(widths) != 1` rejects ragged rows).
+
+**These tests are NOT red-first** — they pass before AND after (today they raise `TransferError` via `_exact_keys`/`check_str`; after the fix, via the new checks): `test_val_table_spanning_over_max_cols_rejected` (today the `colspan` key trips `_exact_keys`' unknown-key rejection), `test_val_table_non_dict_cell_rejected_no_raw_exception`, `test_val_table_unknown_cell_key_rejected`, `test_val_table_non_str_html_rejected`, `test_val_table_out_of_enum_alignment_rejected`, and `test_val_table_non_spanning_ragged_still_rejected`. Merely running them proves nothing about whether the NEW guards are wired — so Step 4b falsifies each. (Note: the current `_val_table` never calls `_span`; a non-dict cell is rejected by `_exact_keys`' `isinstance` guard, **not** by any `AttributeError`.)
 
 - [ ] **Step 3: Rewrite `_val_table`**
 
@@ -349,6 +394,22 @@ def _val_table(data, elid, media_kinds):
 
 Run: `DATABASE_URL=postgres://libli:libli@localhost:5432/libli_spanning uv run pytest -m "not e2e" tests/test_table_transfer.py tests/test_transfer_validation.py tests/test_transfer_import.py tests/test_transfer_export.py -q`
 Expected: PASS (all new tests green; existing non-spanning/round-trip/over-cap tests still green).
+
+- [ ] **Step 4b: Falsify each new guard (break → confirm RED for the stated reason → restore)**
+
+The tests listed as "NOT red-first" above pass by construction; this step proves each new guard is actually wired by breaking it and confirming the matching test goes RED. For **each** row: make the temporary edit to `courses/transfer/payloads.py::_val_table`, run the named test, confirm it FAILS for the stated reason, then **revert the edit** before the next row.
+
+Run each with: `DATABASE_URL=postgres://libli:libli@localhost:5432/libli_spanning uv run pytest -m "not e2e" tests/test_table_transfer.py::<test> -q`
+
+| Break | Test that must go RED | Why |
+|---|---|---|
+| Delete the spanning `if width > TableElement.MAX_COLS:` block | `test_val_table_spanning_over_max_cols_rejected` | over-cap span layout no longer rejected → no `TransferError` |
+| Delete the `if html is not None and not isinstance(html, str):` block | `test_val_table_non_str_html_rejected` | non-str `html` passes validation → no `TransferError` |
+| Delete the `if halign is not None and halign not in TableElement.HALIGN:` block | `test_val_table_out_of_enum_alignment_rejected` | out-of-enum `halign` passes → no `TransferError` |
+| Delete the `if set(cell) - allowed:` block | `test_val_table_unknown_cell_key_rejected` | unknown cell key passes → no `TransferError` |
+| Delete BOTH the per-cell `if not isinstance(cell, dict):` line AND the `if isinstance(c, dict)` filter in the spanning-detection generator | `test_val_table_non_dict_cell_rejected_no_raw_exception` | a non-dict cell reaches `TableElement._span("oops", ...)` → raw `AttributeError` (not `TransferError`) → `pytest.raises(TransferError)` errors out |
+
+Expected each time: the named test FAILS; after reverting, the full `tests/test_table_transfer.py` is green again. Confirm the revert with a final `uv run pytest -m "not e2e" tests/test_table_transfer.py -q` → PASS before committing.
 
 - [ ] **Step 5: Lint and commit**
 
