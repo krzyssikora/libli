@@ -140,10 +140,13 @@ def test_val_table_spanning_over_max_cols_rejected():
 
 
 def test_val_table_non_dict_cell_rejected_no_raw_exception():
-    # Guard: a non-dict cell is rejected as TransferError, never a raw
-    # AttributeError from _span (falsified in Step 4b by removing BOTH isinstance
-    # guards). Passes before AND after the fix (today via _exact_keys' isinstance).
-    data = {"header_row": False, "header_col": False, "border": "grid", "cells": [["oops"]]}
+    # Guard: a non-dict cell is rejected as TransferError, never a raw exception.
+    # Uses an int cell (5): without the isinstance guard, `set(5)` raises a raw
+    # TypeError (int not iterable) BEFORE the unknown-key check -> RED (falsified
+    # in Step 4b). Passes before AND after the fix (today via _exact_keys'
+    # isinstance guard). A string cell would NOT work here: set("x") is iterable
+    # and the unknown-key check would still raise TransferError, masking the guard.
+    data = {"header_row": False, "header_col": False, "border": "grid", "cells": [[5]]}
     with pytest.raises(TransferError):
         VALIDATORS["table"](data, "e1", {})
 
@@ -407,7 +410,7 @@ Run each with: `DATABASE_URL=postgres://libli:libli@localhost:5432/libli_spannin
 | Delete the `if html is not None and not isinstance(html, str):` block | `test_val_table_non_str_html_rejected` | non-str `html` passes validation → no `TransferError` |
 | Delete the `if halign is not None and halign not in TableElement.HALIGN:` block | `test_val_table_out_of_enum_alignment_rejected` | out-of-enum `halign` passes → no `TransferError` |
 | Delete the `if set(cell) - allowed:` block | `test_val_table_unknown_cell_key_rejected` | unknown cell key passes → no `TransferError` |
-| Delete BOTH the per-cell `if not isinstance(cell, dict):` line AND the `if isinstance(c, dict)` filter in the spanning-detection generator | `test_val_table_non_dict_cell_rejected_no_raw_exception` | a non-dict cell reaches `TableElement._span("oops", ...)` → raw `AttributeError` (not `TransferError`) → `pytest.raises(TransferError)` errors out |
+| Delete the per-cell `if not isinstance(cell, dict):` line | `test_val_table_non_dict_cell_rejected_no_raw_exception` | the int cell `5` then hits `set(cell)` → raw `TypeError` (int not iterable), *before* the unknown-key check → `pytest.raises(TransferError)` does not catch it → the test errors (RED). (The spanning-detection `if isinstance(c, dict)` filter is never reached for this cell, so leave it in place.) |
 
 Expected each time: the named test FAILS; after reverting, the full `tests/test_table_transfer.py` is green again. Confirm the revert with a final `uv run pytest -m "not e2e" tests/test_table_transfer.py -q` → PASS before committing.
 
