@@ -586,32 +586,82 @@ def _val_table(data, elid, media_kinds):
             el=elid,
             n=TableElement.MAX_ROWS,
         )
+    # Per-row list check + width gather. The per-row check_list MUST run before
+    # spanning detection / the cell check iterate a row, so a non-list row is
+    # rejected (not silently walked as keys/chars). widths feeds the emptiness
+    # guard and the non-spanning uniform-width check.
     widths = set()
     for row in rows:
         cells = check_list(row, "cells row")
         widths.add(len(cells))
     if not rows or widths == {0}:
         _err(_("Element '%(el)s': a table needs at least one cell."), el=elid)
-    if len(widths) != 1:
-        _err(
-            _("Element '%(el)s': all table rows must have the same number of cells."),
-            el=elid,
-        )
-    n_cols = next(iter(widths))
-    if n_cols > TableElement.MAX_COLS:
-        _err(
-            _("Element '%(el)s': a table may have at most %(n)d columns."),
-            el=elid,
-            n=TableElement.MAX_COLS,
-        )
+
+    # Unified per-cell shape check (BOTH branches), mirroring the model's
+    # leniency: reject only genuine corruption; tolerate whatever the model
+    # coerces (absent/null fields; bogus optional header/colspan/rowspan). Every
+    # field is read by value via .get with an explicit `is not None` guard, so a
+    # missing key and an explicit null are treated identically (both tolerated).
+    allowed = {"html", "halign", "valign", "header", "colspan", "rowspan"}
     for row in rows:
         for cell in row:
-            _exact_keys(cell, ["html", "halign", "valign"], _("table cell"))
-            check_str(cell["html"], "cell html")
-            if cell["halign"] not in TableElement.HALIGN:
+            if not isinstance(cell, dict):
+                _err(_("Element '%(el)s': a table cell must be an object."), el=elid)
+            if set(cell) - allowed:
+                _err(
+                    _("Element '%(el)s': a table cell has an unknown key."),
+                    el=elid,
+                )
+            html = cell.get("html")
+            if html is not None and not isinstance(html, str):
+                # Crash-guard (not model-mirroring): a truthy non-str html
+                # survives normalize_data's `get("html") or ""` and TypeErrors in
+                # sanitize_cell's re.sub. Rejecting all present non-null non-str
+                # matches today's check_str.
+                _err(_("Element '%(el)s': a table cell's html must be text."), el=elid)
+            halign = cell.get("halign")
+            if halign is not None and halign not in TableElement.HALIGN:
                 _err(_("Element '%(el)s': unknown cell horizontal alignment."), el=elid)
-            if cell["valign"] not in TableElement.VALIGN:
+            valign = cell.get("valign")
+            if valign is not None and valign not in TableElement.VALIGN:
                 _err(_("Element '%(el)s': unknown cell vertical alignment."), el=elid)
+            # header/colspan/rowspan: optional, NOT value-checked (model coerces).
+
+    # Geometry: the only branch difference. Detection is byte-equivalent to the
+    # model's normalize_data spanning predicate; the isinstance guard is
+    # mandatory (all cells are dicts here — the check above errored otherwise —
+    # but keep it to mirror the model exactly and never call _span on a non-dict).
+    spanning = any(
+        TableElement._span(c, "colspan") is not None
+        or TableElement._span(c, "rowspan") is not None
+        for row in rows
+        for c in row
+        if isinstance(c, dict)
+    )
+    if spanning:
+        width, _height = TableElement.layout_dims(rows)
+        if width > TableElement.MAX_COLS:
+            _err(
+                _("Element '%(el)s': a table may have at most %(n)d columns."),
+                el=elid,
+                n=TableElement.MAX_COLS,
+            )
+    else:
+        if len(widths) != 1:
+            _err(
+                _(
+                    "Element '%(el)s': all table rows must have the same number "
+                    "of cells."
+                ),
+                el=elid,
+            )
+        n_cols = next(iter(widths))
+        if n_cols > TableElement.MAX_COLS:
+            _err(
+                _("Element '%(el)s': a table may have at most %(n)d columns."),
+                el=elid,
+                n=TableElement.MAX_COLS,
+            )
     return set()
 
 
