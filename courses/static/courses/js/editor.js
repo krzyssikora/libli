@@ -58,6 +58,27 @@
     paneBodies().forEach(function (b, i) { if (s[i] != null) b.scrollTop = s[i]; });
   }
 
+  // Every element op bumps unit.updated (builder.save_element), and the swap below
+  // re-renders the token carriers INSIDE the panes. The unit-level forms live OUTSIDE
+  // both panes in editor.html -- the Settings <details> and the Lesson/Quiz type
+  // toggle -- so they kept the token this page was FIRST rendered with, and the
+  // author's next settings save / type switch 409'd with "This changed elsewhere",
+  // succeeding only on the retry after the reload. Re-stamp them from the pane the
+  // server just re-rendered. Anchored on the unit pk (each form carries name="node"),
+  // so an unrelated token input is never touched. Mirrors the builder's applyRename,
+  // which must likewise refresh EVERY carrier of a node's token.
+  function refreshUnitTokens() {
+    var pane = root.querySelector('[data-scope="editor"]');
+    if (!pane) return;
+    var updated = pane.getAttribute("data-updated");
+    var unitPk = pane.getAttribute("data-unit");
+    if (!updated || !unitPk) return;
+    root.querySelectorAll('form input[name="token"]').forEach(function (input) {
+      var node = input.form && input.form.querySelector('input[name="node"]');
+      if (node && node.value === unitPk) input.value = updated;
+    });
+  }
+
   function applyFragments(html) {
     var scrolls = captureScroll();
     var tmp = document.createElement("div");
@@ -67,6 +88,7 @@
       var existing = root.querySelector('[data-scope="' + scope + '"]');
       if (incoming && existing) existing.replaceWith(incoming);
     });
+    refreshUnitTokens();  // after the swap: the pane now carries the fresh token
     applyStoredTabs(root);
     var preview = root.querySelector('[data-scope="preview"]');
     if (preview && window.libliRenderMath) window.libliRenderMath(preview);
