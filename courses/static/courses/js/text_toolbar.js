@@ -12,6 +12,29 @@
     try { document.execCommand(cmd, false, value || null); } catch (e) { /* ignore */ }
   }
 
+  // The block element the caret sits in, as a lowercased tag ("h3", "p", ...), or
+  // "" when the selection is outside `surface`. Walking the DOM beats
+  // queryCommandValue("formatBlock"), which Firefox reports inconsistently (and
+  // which returns "" for an unstyled block) — and we need this to be exact,
+  // because it decides both the toggle-off and the button's active state.
+  var BLOCK_TAGS = {
+    h1: 1, h2: 1, h3: 1, h4: 1, h5: 1, h6: 1,
+    p: 1, div: 1, blockquote: 1, pre: 1, li: 1
+  };
+  function currentBlock(surface) {
+    var sel = window.getSelection();
+    if (!sel || !sel.rangeCount) return "";
+    var node = sel.getRangeAt(0).startContainer;
+    if (node && node.nodeType === 3) node = node.parentNode;   // text -> element
+    if (!node || !surface.contains(node)) return "";
+    while (node && node !== surface) {
+      var tag = (node.tagName || "").toLowerCase();
+      if (BLOCK_TAGS[tag]) return tag;
+      node = node.parentNode;
+    }
+    return "";
+  }
+
   // Toggle the persistent document-global styleWithCSS flag. MUST be a direct
   // execCommand call — the exec() wrapper does `value || null`, so exec("styleWithCSS",
   // false) would pass null, and any 3rd-arg other than the literal "false" turns
@@ -65,11 +88,19 @@
         styleWithCss(false);  // MUST reset — persistent document-global flag
         break;
       }
-      case "h2": case "h3": case "h4": case "blockquote":
-        exec("formatBlock", "<" + TAG_CMD[cmd] + ">"); break;
+      // formatBlock is NOT a toggle: re-applying the tag the caret already sits in
+      // is a no-op, so without this the block could never be removed (an imported
+      // <h3> was stuck bold-looking forever). Pressing the active button reverts
+      // to <p> — the paragraph tag the stored content already uses.
+      case "h2": case "h3": case "h4": case "blockquote": {
+        var want = TAG_CMD[cmd];
+        exec("formatBlock", "<" + (currentBlock(surface) === want ? "p" : want) + ">");
+        break;
+      }
       case "ul": exec("insertUnorderedList"); break;
       case "ol": exec("insertOrderedList"); break;
-      case "code": exec("formatBlock", "<pre>"); break;
+      case "code":
+        exec("formatBlock", "<" + (currentBlock(surface) === "pre" ? "p" : "pre") + ">"); break;
       case "link":
         var url = window.prompt("URL");
         if (url) exec("createLink", url);
@@ -150,6 +181,24 @@
       if (cBtn) cBtn.classList.toggle("is-on", !!center);
       if (rBtn) rBtn.classList.toggle("is-on", !!right);
       if (lBtn) lBtn.classList.toggle("is-on", !center && !right);
+      // Block-format buttons: formatBlock has no queryCommandState, so derive the
+      // active block from the caret. Without this the heading buttons never showed
+      // as on, so there was no way to tell a block was applied.
+      var block = currentBlock(surface);
+      ["h2", "h3", "h4", "blockquote"].forEach(function (c) {
+        var b = toolbar.querySelector('[data-cmd="' + c + '"]');
+        if (b) b.classList.toggle("is-on", block === TAG_CMD[c]);
+      });
+      var codeBtn = toolbar.querySelector('[data-cmd="code"]');
+      if (codeBtn) codeBtn.classList.toggle("is-on", block === "pre");
+      // Lists DO toggle natively via execCommand; they were only missing the state.
+      [["ul", "insertUnorderedList"], ["ol", "insertOrderedList"]].forEach(function (p) {
+        var b = toolbar.querySelector('[data-cmd="' + p[0] + '"]');
+        if (!b) return;
+        var on = false;
+        try { on = document.queryCommandState(p[1]); } catch (e) { on = false; }
+        b.classList.toggle("is-on", !!on);
+      });
     }
     surface.addEventListener("keyup", refreshActive);
     surface.addEventListener("mouseup", refreshActive);
