@@ -14,8 +14,10 @@ Element 'e89': all table rows must have the same number of cells.
 ```
 
 Concretely, the source course holds **16 spanning `TableElement`s** (ragged rows carrying
-`colspan`/`rowspan`/`header` on cells). Any course export that contains a spanning table is currently
-un-importable. This feature makes spanning tables a first-class, round-trippable transfer payload so
+`colspan`/`rowspan`/`header` on cells). These are provably spanning, not merely ragged:
+`normalize_data` rectangularises a *non*-spanning table on save (padding, never truncating), so a
+**stored** ragged table must carry `colspan`/`rowspan` — raggedness cannot survive save otherwise. Any
+course export that contains a spanning table is currently un-importable. This feature makes spanning tables a first-class, round-trippable transfer payload so
 the migration — and any future export/import of spanning-table content — succeeds without data loss.
 
 ### Why the validator is the whole problem
@@ -55,11 +57,14 @@ but the serializer gap is a correctness fix that belongs with this work.
   all bumped for schema additions). A bundle that predates this fix cannot import span-carrying content
   anyway; bumping makes a not-yet-upgraded instance reject a v5 bundle cleanly via the version gate
   (`if version > FORMAT_VERSION: reject`) rather than emit a confusing per-element validation error.
-- **Validator mirrors the model (lenient).** The spanning branch accepts any layout the model's
-  `normalize_data` preserves — it type-checks cells and enforces `MAX_ROWS`/`MAX_COLS` on the
-  span-aware geometry, but does **not** enforce a perfect rectangular tiling (no gaps/overlaps). These
-  tables already render in the source course; enforcing tiling the model itself does not enforce would
-  risk rejecting real content.
+- **Validator mirrors the model (lenient).** The validator accepts any layout and cell shape the
+  model's `normalize_data` would preserve or coerce: it rejects only genuine structural corruption
+  (non-dict cell, unknown cell key, present-but-wrong-type `html`, out-of-enum alignment) and enforces
+  `MAX_ROWS`/`MAX_COLS` on the span-aware geometry. It does **not** reject bogus *optional* values
+  (`header`/`colspan`/`rowspan` of the wrong type) — the model coerces those (`_span` treats a
+  bool/non-int/≤1 span as absent; `_cell` normalizes any truthy `header` to `True`) — and does **not**
+  enforce a perfect rectangular tiling (no gaps/overlaps). These tables already render in the source
+  course; being stricter than the model would risk rejecting real content.
 
 **Out of scope**
 
@@ -86,28 +91,56 @@ in `payloads.py` for `MAX_ROWS`/`BORDERS`/etc. — so validator and model can ne
 
 ### Component 1 — `payloads.py::_val_table` (core change)
 
-Restructured into a shared prefix plus a two-way branch on whether the table spans:
+Restructured into a shared prefix, a **unified per-cell shape check applied to every cell in both
+branches**, and a two-way branch that differs **only in geometry**. Separating cell-shape from geometry
+is deliberate: the per-cell `header` key is orthogonal to spanning — `normalize_data`'s spanning
+detector keys only on `colspan`/`rowspan`, while `_cell` emits `header: True` for any header cell
+whether or not it spans — so a rectangular, non-spanning table can legitimately carry `header` cells.
+Gating optional-key acceptance on spanning (the naive design) would wrongly reject those.
 
 - **Shared prefix (unchanged):** `_exact_keys(data, ["header_row","header_col","border","cells"])`,
-  the two `check_bool`s, the border-enum check, `rows = check_list(data["cells"], ...)`, the
-  `len(rows) > MAX_ROWS` check, and the "at least one cell" emptiness check.
-- **Spanning detection:** `spanning = any(TableElement._span(cell, "colspan") is not None or
-  TableElement._span(cell, "rowspan") is not None ...)` over dict cells — the exact predicate
-  `normalize_data` uses.
-- **Non-spanning branch (unchanged behavior):** keep the existing `if len(widths) != 1` uniform-width
-  rejection, the `n_cols > MAX_COLS` check, and the per-cell `_exact_keys(cell,
-  ["html","halign","valign"])` + halign/valign enum checks. Ordinary tables validate exactly as today —
-  zero regression.
-- **Spanning branch (new):** accept ragged rows; validate the grid's span-aware size with
-  `TableElement.layout_dims(rows)` → reject if `width > MAX_COLS` (height already bounded by the
-  shared `MAX_ROWS` check). For each cell: it must be a dict; `html` must be a str; `halign`/`valign`
-  must be in their enums; `header` (if present) must be boolean; `colspan`/`rowspan` (if present) must
-  each be a positive int (mirroring `_span`'s type contract — reject a bool or non-int, matching the
-  model treating it as absent rather than honoring a bogus span); and **no key outside**
-  `{html, halign, valign, header, colspan, rowspan}` is allowed. This whitelist mirrors `_cell`'s
-  output exactly, so the validator accepts precisely what a normalized spanning cell can contain.
+  the two `check_bool`s, the border-enum check, `rows = check_list(data["cells"], ...)`, and the
+  `len(rows) > MAX_ROWS` check. Per-row cell counts (`widths`) are still gathered here, because the
+  emptiness guard depends on them.
+- **Emptiness guard (unchanged):** reject when there are no rows or every row is empty
+  (`widths == {0}`).
+- **Spanning detection:** `spanning = any(TableElement._span(c, "colspan") is not None or
+  TableElement._span(c, "rowspan") is not None for row in rows for c in row if isinstance(c, dict))`.
+  The explicit `isinstance(c, dict)` filter is **mandatory** and mirrors the model exactly: `_span`
+  calls `raw.get(key)` and would raise `AttributeError` (→ 500, violating the module's
+  no-raw-exceptions-on-hostile-input contract) on a non-dict cell otherwise.
+- **Unified per-cell check (both branches), mirroring the model's leniency.** For each cell:
+  - reject if not a dict;
+  - reject if it carries any key outside `{html, halign, valign, header, colspan, rowspan}` — an
+    allowed-keys/no-extra-keys check, hand-rolled, **not** `_exact_keys` (which enforces *presence of
+    all listed keys* and would wrongly require header/colspan/rowspan on every cell);
+  - `html`: if present, must be a str (reject non-str); **absent is tolerated** — the model defaults
+    it to `""`;
+  - `halign` / `valign`: if present, must be in `HALIGN` / `VALIGN` (reject out-of-enum); absent is
+    tolerated (model defaults to `left`/`top`);
+  - `header`, `colspan`, `rowspan`: optional and **not value-checked** — the model coerces them, so
+    rejecting a bogus optional value would be stricter than the model and contradict the
+    mirror-the-model decision. Access every key via `.get` so an absent key never raises `KeyError`.
+
+  This rejects only genuine structural corruption (non-dict cell, unknown key, present-but-wrong-type
+  `html`, out-of-enum alignment) and never a value the model would silently normalize.
+- **Geometry — the only branch difference:**
+  - **Non-spanning** (no cell spans): keep the existing uniform-width rejection (`if len(widths) != 1`)
+    and `n_cols > MAX_COLS` check. Ordinary rectangular tables validate exactly as before.
+  - **Spanning:** accept ragged rows; compute the span-aware grid width with
+    `TableElement.layout_dims(rows)` and reject when `width > MAX_COLS`. Row *count* is bounded by the
+    shared `MAX_ROWS` check; a `rowspan` that extends the occupied grid past `len(rows)` is left
+    unclamped, **matching the model** (which clamps each span per-axis via `_span` but does not bound
+    total occupied height) — the implementer must not add a spurious height guard.
 
 Returns `set()` (a table references no media), unchanged.
+
+**Relationship to today's non-spanning behavior.** The unified cell check is slightly *more permissive*
+than today's `_exact_keys(cell, ["html","halign","valign"])`: it additionally allows the optional
+`header`/`colspan`/`rowspan` keys and tolerates an absent core key — both of which the model already
+normalizes. It never *newly rejects* a cell that validates today, so no table that currently imports
+stops importing; it only stops rejecting content the model would have accepted. Geometry validation for
+non-spanning tables is unchanged.
 
 ### Component 2 — `export.py::_ser_fill_table` (latent-gap fix)
 
@@ -130,27 +163,34 @@ TableElement.data (spanning: ragged rows, colspan/rowspan/header cells)
   → bundle document (format_version = 5)
   → import: deserialize
   → _val_table  [NEW: spanning branch accepts it; caps via layout_dims]
-  → _build_table → TableElement.normalize_data → save()  [preserves ragged + spans]
-  → TableElement.data  ≡  normalize_data(source data)   [byte-identical round-trip]
+  → _build_table → TableElement.normalize_data → save()→_sanitized_data  [preserves ragged + spans]
+  → TableElement.data  ≡  saved source's data   [round-trip preserves spans/header/ragged shape]
 
 FillTableElement image cell with a span
   → export: _ser_fill_table  [NEW: carries header/colspan/rowspan]
   → _val_fill_table (lenient, unchanged) → _build_fill_table → normalize_data  [preserved]
 ```
 
-The invariant the tests assert: for a spanning table, the imported element's `data` equals
-`TableElement.normalize_data(source.data)` — spans, header flags, and ragged shape all preserved.
+The invariant the tests assert: for a spanning table **that was saved through the model**, the imported
+element's `data` equals the source's stored `data` — equivalently `_sanitized_data(normalize_data(
+source))`, since import applies `normalize_data` then `save()`→`_sanitized_data`. Spans, header flags,
+and ragged shape are all preserved. Asserting against a *saved* (already normalized + sanitized) source
+keeps the test from accidentally depending on sanitize-stable fixtures.
 
 ## Error handling
 
 - **Over-cap spanning layout** (e.g. colspans summing beyond `MAX_COLS`): rejected by the
   `layout_dims` width check with the existing "at most N columns" error. Height beyond `MAX_ROWS` is
   caught by the shared prefix.
-- **Corrupt spanning cell** (non-dict cell, non-str `html`, bad halign/valign enum, non-boolean
-  `header`, non-positive-int span, or an unknown extra key): rejected with a clear per-element error,
-  same `_err` machinery as the rest of the validator.
-- **Non-spanning tables:** take the unchanged branch and fail/pass exactly as before (ragged
-  non-spanning tables are still rejected — no behavior change).
+- **Corrupt cell** (non-dict cell, an unknown extra key, a present-but-non-str `html`, or an
+  out-of-enum `halign`/`valign`): rejected with a clear per-element error, same `_err` machinery as the
+  rest of the validator. A bogus *optional* value (`header`/`colspan`/`rowspan` of the wrong type) is
+  **not** rejected — the model coerces it — so the validator stays no stricter than the model on
+  optional keys.
+- **Non-spanning tables:** geometry validation is unchanged — ragged non-spanning tables are still
+  rejected. The unified cell check is slightly more permissive (allows `header`, tolerates absent core
+  keys — both matching the model) but never *newly rejects* a cell that validates today, so no
+  currently-importable table stops importing.
 - **Cross-version import:** a pre-fix (`FORMAT_VERSION = 4`) instance importing a new v5 bundle is
   rejected wholesale by the version gate with the "found N, max M" message — a clean failure, not a
   confusing table error. New code reading old (≤4) bundles is unaffected (no span keys present → the
@@ -164,21 +204,29 @@ Test-driven; each new guard is falsified (broken → confirm its test goes RED f
 restored). Tests live alongside the existing transfer tests (e.g. `tests/` transfer payload/round-trip
 suites).
 
-1. **Round-trip byte-identity (core):** construct a spanning `TableElement` (a cell with `colspan`, a
-   cell with `rowspan`, a `header` cell, genuinely ragged rows) → export → validate → import; assert
-   the imported `data` equals `TableElement.normalize_data(source.data)` (spans, header, ragged shape
-   all intact).
-2. **Fill-table image-span round-trip:** a `FillTableElement` with a spanning **image** cell survives
-   export with its span keys (falsifies the `_ser_fill_table` fix — RED before, GREEN after).
-3. **Validator falsification (spanning branch):** an over-`MAX_COLS` span layout is rejected; a
-   corrupt spanning cell (bad type / unknown key) is rejected; each with the expected error.
-4. **Non-spanning regression:** a non-spanning ragged table is still rejected, and a normal
-   rectangular table still validates — proving the non-spanning branch is unchanged. Existing table
-   transfer tests remain green.
-5. **Version bump:** the export bundle now declares `format_version = 5`; the version-assertion
+1. **Round-trip byte-identity (core):** construct and **save** a spanning `TableElement` (a cell with
+   `colspan`, a cell with `rowspan`, a `header` cell, genuinely ragged rows) → export → validate →
+   import; assert the imported `data` equals the source's *stored* `data` (spans, header, ragged shape
+   all intact). Asserting against the saved source avoids depending on sanitize-stable fixtures.
+2. **Rectangular header, no spans (falsifies C1):** a non-spanning, uniform-width `TableElement` whose
+   only optional key is a per-cell `header: True` round-trips through export → validate → import. This
+   is the case the spanning-vs-non-spanning split must not regress — it exercises the unified cell check
+   on the *non-spanning* branch, and fails before the fix (today's `_exact_keys` rejects the `header`
+   key).
+3. **Fill-table image-span round-trip:** a `FillTableElement` with a spanning **image** cell survives
+   export with its `header`/`colspan`/`rowspan` keys intact (falsifies the `_ser_fill_table` fix — RED
+   before, GREEN after).
+4. **Validator falsification, per guard:** a distinct failing case for each new/kept guard —
+   over-`MAX_COLS` span layout rejected; non-dict cell rejected (with no raw exception); unknown extra
+   cell key rejected; present-but-non-str `html` rejected; out-of-enum `halign`/`valign` rejected. Plus
+   two *acceptance* cases proving the mirror-the-model leniency: a cell with a bogus optional value
+   (e.g. `colspan: 0`) is accepted, and a cell omitting a core key is accepted.
+5. **Non-spanning regression:** a non-spanning ragged table is still rejected, and a normal rectangular
+   table still validates. Existing table transfer tests remain green.
+6. **Version bump:** the export bundle now declares `format_version = 5`; the version-assertion
    test(s) are updated and pass.
-6. **Real-content fixture:** a fixture mirroring the shape of the failing matematyka `e89` table
-   validates and round-trips.
+7. **Real-content fixture:** a fixture mirroring the shape of the failing matematyka `e89` table
+   (confirmed to carry actual `colspan`/`rowspan`, not merely ragged) validates and round-trips.
 
 **Real end-to-end proof (out-of-band, not part of this plan's automated tests):** after merge, re-run
 the local migration dry-run (`migrate_course_content export` against `libli_mat` → `import --dry-run`
