@@ -117,21 +117,28 @@ Gating optional-key acceptance on spanning (the naive design) would wrongly reje
   - reject if it carries any key outside `{html, halign, valign, header, colspan, rowspan}` — an
     allowed-keys/no-extra-keys check, hand-rolled, **not** `_exact_keys` (which enforces *presence of
     all listed keys* and would wrongly require header/colspan/rowspan on every cell);
-  - `html`: if present, must be a str (reject non-str). This guard is **deliberately stricter** than
-    `normalize_data` (which leaves a truthy non-str `html` as-is via `raw.get("html") or ""`): the
-    downstream `save()`→`_sanitized_data`→`sanitize_cell` runs `re.sub` on the value and would
-    `TypeError` (→ 500) on a non-str, so rejecting it is a crash-guard, matching today's
-    `check_str(cell["html"], ...)` — it must **not** be "relaxed to mirror the model." **Absent is
-    tolerated** — the model defaults it to `""`;
-  - `halign` / `valign`: if present, must be in `HALIGN` / `VALIGN` (reject out-of-enum); absent is
-    tolerated (model defaults to `left`/`top`);
-  - `header`, `colspan`, `rowspan`: optional and **not value-checked** — the model coerces them, so
-    rejecting a bogus optional value would be stricter than the model and contradict the
-    mirror-the-model decision. Access every key via `.get` so an absent key never raises `KeyError`.
+  Every field is read **by value via `.get` with an explicit `is not None` guard** (never by key
+  *presence*), so a missing key and an explicit `null` are treated identically — both tolerated,
+  matching the model, which coerces absent-or-null to its default. Specifically:
+  - `html`: reject only a **present, non-null** value that is not a str
+    (`h = cell.get("html"); if h is not None and not isinstance(h, str): reject`). This is a
+    **crash-guard**, not model-mirroring: a *truthy* non-str `html` survives `normalize_data`'s
+    `raw.get("html") or ""` and then `TypeError`s (→ 500) in
+    `save()`→`_sanitized_data`→`sanitize_cell`'s `re.sub`. Rejecting *all* present non-null non-str
+    (matching today's `check_str`) is simpler and harmless defense-in-depth. An **absent or `null`**
+    `html` is tolerated — the model coerces it to `""`;
+  - `halign` / `valign`: reject only a **present, non-null, out-of-enum** value
+    (`v = cell.get("halign"); if v is not None and v not in HALIGN: reject`). An **absent or `null`**
+    value is tolerated — the model coerces it to the default (`left`/`top`). Checking by value (not by
+    key presence) is what keeps a `null` from being wrongly rejected;
+  - `header`, `colspan`, `rowspan`: optional and **not value-checked** at all — the model coerces them,
+    so rejecting a bogus optional value would be stricter than the model and contradict the
+    mirror-the-model decision.
 
-  This rejects only genuine structural corruption — a non-dict cell, an unknown key, an out-of-enum
-  alignment, or an `html` that is neither absent nor a str (a downstream-crash guard, not
-  model-mirroring). It never rejects a value the model would silently normalize or coerce.
+  This rejects only genuine structural corruption — a non-dict cell, an unknown key, a present non-null
+  out-of-enum alignment, or a present non-null non-str `html` (a downstream-crash guard, scoped to the
+  truthy case that actually crashes). It never rejects an absent-or-null field, nor any value the model
+  would silently normalize or coerce.
 - **Geometry — the only branch difference:**
   - **Non-spanning** (no cell spans): keep the existing uniform-width rejection (`if len(widths) != 1`)
     and `n_cols > MAX_COLS` check. Ordinary rectangular tables validate exactly as before.
@@ -210,8 +217,11 @@ keeps the test from accidentally depending on sanitize-stable fixtures.
   currently-importable table stops importing.
 - **Cross-version import:** a pre-fix (`FORMAT_VERSION = 4`) instance importing a new v5 bundle is
   rejected wholesale by the version gate with the "found N, max M" message — a clean failure, not a
-  confusing table error. New code reading old (≤4) bundles is unaffected (no span keys present → the
-  non-spanning branch).
+  confusing table error. New code reading old (≤4) bundles is unaffected because **the branch is chosen
+  by actual span-key presence, not by version**: current export already serializes spans verbatim, so a
+  v4 bundle *can* carry span keys (pre-bump archives of the 16 spanning tables are exactly this) — under
+  new code it now takes the **spanning** branch and imports (previously rejected), while a v4 bundle
+  without spans takes the non-spanning branch, exactly as before.
 - The migration command's own guards (manifest presence, media caps, `--start-at` baseline) are
   unchanged and orthogonal to this fix.
 
@@ -245,6 +255,9 @@ suites).
    test(s) are updated and pass.
 7. **Real-content fixture:** a fixture mirroring the shape of the failing matematyka `e89` table
    (confirmed to carry actual `colspan`/`rowspan`, not merely ragged) validates and round-trips.
+8. **Legacy-version span-bearing bundle:** a bundle *declaring* `format_version = 4` but carrying a
+   spanning table imports via the spanning branch — proving span handling keys on span-key presence,
+   not on the version bump.
 
 **Real end-to-end proof (out-of-band, not part of this plan's automated tests):** after merge, re-run
 the local migration dry-run (`migrate_course_content export` against `libli_mat` → `import --dry-run`
