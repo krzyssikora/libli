@@ -185,24 +185,26 @@ def _ser_fill_table(el, ids):
             if c.get("kind") == "image":
                 asset = assets.get(c["media"])
                 if asset is not None:
-                    out_row.append(
-                        {
-                            "kind": "image",
-                            "media": ids.register(asset),
-                            "alt": c.get("alt", ""),
-                            "halign": c["halign"],
-                            "valign": c["valign"],
-                        }
-                    )
+                    out_cell = {
+                        "kind": "image",
+                        "media": ids.register(asset),
+                        "alt": c.get("alt", ""),
+                        "halign": c["halign"],
+                        "valign": c["valign"],
+                    }
                 else:
-                    out_row.append(
-                        {
-                            "kind": "static",
-                            "html": "",
-                            "halign": c["halign"],
-                            "valign": c["valign"],
-                        }
-                    )
+                    out_cell = {
+                        "kind": "static",
+                        "html": "",
+                        "halign": c["halign"],
+                        "valign": c["valign"],
+                    }
+                # Carry span/header through BOTH branches: losing the image
+                # must not silently un-span the cell and shift the grid.
+                for k in ("header", "colspan", "rowspan"):
+                    if k in c:
+                        out_cell[k] = c[k]
+                out_row.append(out_cell)
             else:
                 out_row.append(dict(c))
         out_rows.append(out_row)

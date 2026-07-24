@@ -174,3 +174,49 @@ def test_validator_image_cell_unregistered_media_raises():
     payload = {"cells": [[{"kind": "image", "media": "m9", "alt": "x"}]]}
     with pytest.raises(TransferError):
         VALIDATORS["fill_table"](payload, "e1", {})  # m9 not in media_kinds
+
+
+def test_ser_fill_table_carries_span_on_resolved_image_cell():
+    course = make_course()
+    asset = make_image_asset(course, "g.png")
+    src = FillTableElement(
+        data={
+            "case_sensitive": False,
+            "prompt": "",
+            "cells": [
+                [
+                    {"kind": "image", "media": asset.pk, "colspan": 2, "header": True},
+                    {"kind": "static", "html": "x"},
+                ]
+            ],
+        }
+    )
+    src.save()  # normalize_data keeps colspan>1 + header
+    payload = SERIALIZERS["fill_table"][1](src, MediaIdMap())
+    img = payload["cells"][0][0]
+    assert img["kind"] == "image"
+    assert img["colspan"] == 2
+    assert img["header"] is True
+
+
+def test_ser_fill_table_carries_span_on_unresolved_image_cell():
+    course = make_course()
+    asset = make_image_asset(course, "g.png")
+    src = FillTableElement(
+        data={
+            "case_sensitive": False,
+            "prompt": "",
+            "cells": [
+                [
+                    {"kind": "image", "media": asset.pk, "colspan": 2, "header": True},
+                ]
+            ],
+        }
+    )
+    src.save()
+    asset.delete()  # now unresolvable -> degrade-to-static branch
+    payload = SERIALIZERS["fill_table"][1](src, MediaIdMap())
+    cell = payload["cells"][0][0]
+    assert cell["kind"] == "static"
+    assert cell["colspan"] == 2  # geometry preserved even though the image is gone
+    assert cell["header"] is True
