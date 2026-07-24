@@ -5,6 +5,7 @@ from django.http import JsonResponse
 from django.urls import include
 from django.urls import path
 
+from core.media_serve import serve_media
 from core.views import home
 from core.views import landing
 
@@ -33,4 +34,11 @@ urlpatterns = [
 ]
 
 if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    # serve_media, not the stock django.views.static.serve that static() wires up:
+    # Django implements no HTTP Range handling, and without 206 responses a browser
+    # will not let a student seek inside a <video> (no skipping, no replaying a
+    # passage without starting over). See core/media_serve.py — including its note
+    # on what a real deployment needs, since this branch is DEBUG-only.
+    urlpatterns += static(
+        settings.MEDIA_URL, view=serve_media, document_root=settings.MEDIA_ROOT
+    )
