@@ -100,8 +100,11 @@ Gating optional-key acceptance on spanning (the naive design) would wrongly reje
 
 - **Shared prefix (unchanged):** `_exact_keys(data, ["header_row","header_col","border","cells"])`,
   the two `check_bool`s, the border-enum check, `rows = check_list(data["cells"], ...)`, and the
-  `len(rows) > MAX_ROWS` check. Per-row cell counts (`widths`) are still gathered here, because the
-  emptiness guard depends on them.
+  `len(rows) > MAX_ROWS` check. The existing **per-row** `check_list(row, "cells row")` is retained here
+  too, so a non-list row is rejected *before* spanning detection or the unified cell check ever iterate
+  it (otherwise `for c in row` would silently walk a dict's keys / a string's chars instead of
+  rejecting "cells row must be a list"). Per-row cell counts (`widths`) are gathered in the same pass,
+  because the emptiness guard depends on them.
 - **Emptiness guard (unchanged):** reject when there are no rows or every row is empty
   (`widths == {0}`).
 - **Spanning detection:** `spanning = any(TableElement._span(c, "colspan") is not None or
@@ -114,16 +117,21 @@ Gating optional-key acceptance on spanning (the naive design) would wrongly reje
   - reject if it carries any key outside `{html, halign, valign, header, colspan, rowspan}` — an
     allowed-keys/no-extra-keys check, hand-rolled, **not** `_exact_keys` (which enforces *presence of
     all listed keys* and would wrongly require header/colspan/rowspan on every cell);
-  - `html`: if present, must be a str (reject non-str); **absent is tolerated** — the model defaults
-    it to `""`;
+  - `html`: if present, must be a str (reject non-str). This guard is **deliberately stricter** than
+    `normalize_data` (which leaves a truthy non-str `html` as-is via `raw.get("html") or ""`): the
+    downstream `save()`→`_sanitized_data`→`sanitize_cell` runs `re.sub` on the value and would
+    `TypeError` (→ 500) on a non-str, so rejecting it is a crash-guard, matching today's
+    `check_str(cell["html"], ...)` — it must **not** be "relaxed to mirror the model." **Absent is
+    tolerated** — the model defaults it to `""`;
   - `halign` / `valign`: if present, must be in `HALIGN` / `VALIGN` (reject out-of-enum); absent is
     tolerated (model defaults to `left`/`top`);
   - `header`, `colspan`, `rowspan`: optional and **not value-checked** — the model coerces them, so
     rejecting a bogus optional value would be stricter than the model and contradict the
     mirror-the-model decision. Access every key via `.get` so an absent key never raises `KeyError`.
 
-  This rejects only genuine structural corruption (non-dict cell, unknown key, present-but-wrong-type
-  `html`, out-of-enum alignment) and never a value the model would silently normalize.
+  This rejects only genuine structural corruption — a non-dict cell, an unknown key, an out-of-enum
+  alignment, or an `html` that is neither absent nor a str (a downstream-crash guard, not
+  model-mirroring). It never rejects a value the model would silently normalize or coerce.
 - **Geometry — the only branch difference:**
   - **Non-spanning** (no cell spans): keep the existing uniform-width rejection (`if len(widths) != 1`)
     and `n_cols > MAX_COLS` check. Ordinary rectangular tables validate exactly as before.
@@ -144,10 +152,19 @@ non-spanning tables is unchanged.
 
 ### Component 2 — `export.py::_ser_fill_table` (latent-gap fix)
 
-When emitting an **image** cell, carry `header`/`colspan`/`rowspan` through when present (alongside the
-existing `kind`/`media`/`alt`/`halign`/`valign`), so a spanning image cell is not silently flattened on
-export. Static/answer cells (via `dict(c)`) are unaffected. No change to `_val_fill_table` (already
-lenient) or `_build_fill_table` (already remaps media then `normalize_data`-preserves spans).
+`_ser_fill_table` rebuilds each image cell from scratch, in two branches, and **both** drop span keys
+today:
+
+- **Resolved** (asset found): emits `{kind: image, media, alt, halign, valign}` — carry
+  `header`/`colspan`/`rowspan` through when present.
+- **Unresolved** (`asset is None`, e.g. the `MediaAsset` row was deleted — a documented shared-file
+  lifetime hazard): degrades the cell to `{kind: static, html: "", halign, valign}` — also carry
+  `header`/`colspan`/`rowspan` through, so losing the *image* does not additionally corrupt the grid
+  *geometry* by silently un-spanning that cell and shifting every cell after it.
+
+Static/answer cells (copied via `dict(c)`) already preserve their span keys. No change to
+`_val_fill_table` (already lenient) or `_build_fill_table` (already remaps media then
+`normalize_data`-preserves spans).
 
 ### Component 3 — `schema.py::FORMAT_VERSION`
 
@@ -213,9 +230,10 @@ suites).
    is the case the spanning-vs-non-spanning split must not regress — it exercises the unified cell check
    on the *non-spanning* branch, and fails before the fix (today's `_exact_keys` rejects the `header`
    key).
-3. **Fill-table image-span round-trip:** a `FillTableElement` with a spanning **image** cell survives
-   export with its `header`/`colspan`/`rowspan` keys intact (falsifies the `_ser_fill_table` fix — RED
-   before, GREEN after).
+3. **Fill-table image-span round-trip (both branches):** a `FillTableElement` with a spanning **image**
+   cell survives export with its `header`/`colspan`/`rowspan` keys intact — asserted for **both** the
+   resolved branch and the unresolved branch (asset deleted → cell degraded to `static`, which must
+   still carry the span keys). Falsifies the `_ser_fill_table` fix — RED before, GREEN after.
 4. **Validator falsification, per guard:** a distinct failing case for each new/kept guard —
    over-`MAX_COLS` span layout rejected; non-dict cell rejected (with no raw exception); unknown extra
    cell key rejected; present-but-non-str `html` rejected; out-of-enum `halign`/`valign` rejected. Plus
