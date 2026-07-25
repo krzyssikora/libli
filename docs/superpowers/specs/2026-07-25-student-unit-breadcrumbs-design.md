@@ -55,10 +55,11 @@ What a student can do to read a segment the layout has shortened or hidden:
 | Context | Affordance |
 |---|---|
 | Desktop, a segment clipped by `text-overflow` | Hovering the crumb shows its full title — a native `title` tooltip. |
-| Desktop, mid segments collapsed to `…` | Hovering the `…` shows `hidden_path`, the exact titles it stands in for. |
+| Pointer device, narrow viewport (≤ the collapse breakpoint) | Hovering the `…` shows `hidden_path`, the exact titles it stands in for. Note this row is unreachable at desktop widths, where the `…` is `display: none`. |
 | Any width, screen reader | Every crumb's text is real DOM text, so clipped titles are read in full. Where the mid crumbs are `display: none` they leave the accessibility tree, so the `…` carries their text as its accessible name (see §2). |
 | Print | The collapse query is scoped to `screen`, and `@media print` lets the strip wrap. A printout always shows the complete path. |
-| Touch / no hover | **`title` does nothing.** The full chain is available from the **Contents** drawer in the unit footer, which the tree already opens to the current unit. |
+| Touch / no hover, JS on | **`title` does nothing.** The full chain is available from the **Contents** drawer in the unit footer, which the tree already opens to the current unit. |
+| Narrow viewport, JS off | Nothing discloses the mids. The drawer trigger is gated on `unit_nav.js` removing `[hidden]`, and the inline tree is `display: none` below 640px — so with JS off there is neither. Accepted; see below. |
 
 `title` is emitted **unconditionally** on every crumb, not only on truncated ones — CSS cannot
 express "is this element currently clipped", so the alternative is no tooltip at all. The cost is a
@@ -72,6 +73,15 @@ Contents drawer already provides one tap away. The comment at `templates/courses
 records the same reasoning for the tree's own labels: *"Touch has no hover, so the drawer wraps
 these labels instead."* The breadcrumb is an orientation strip, not the system of record for the
 chain — the drawer is.
+
+**The drawer fallback is weaker than it first sounds, and the spec says so rather than overselling
+it.** The Contents trigger only appears once `unit_nav.js` removes its `[hidden]`, and the inline
+tree is `display: none` below 640px — so a narrow viewport *with JS disabled* has no route to the
+mid titles at all. This is accepted for two reasons: it matches the pre-existing behaviour of the
+tree itself (that combination already hid the chain before this change), and the breadcrumb strictly
+improves on the status quo even in that case, since it still shows `Course › <deepest group>` where
+previously there was nothing. It is recorded here so a future reader does not mistake it for an
+oversight.
 
 A consequence worth naming: a screen-reader user on a narrow viewport hears
 `Course › <deepest group>` plus the `…`'s accessible name. That is the whole path, in two pieces.
@@ -157,17 +167,18 @@ Each `<li>` is itself a flex row of an optional separator plus a label; the labe
 carries the clipping.
 
 ```django
-{% load i18n %}
-<nav class="unit-crumbs" aria-label="{% trans 'Breadcrumb' %}">
+{% load i18n %}{% get_current_language as LANGUAGE_CODE %}
+<nav class="unit-crumbs" aria-label="{% trans 'Breadcrumb' %}" lang="{{ LANGUAGE_CODE }}">
   <ol class="unit-crumbs__list" role="list">
     <li class="unit-crumbs__item unit-crumbs__item--course" title="{{ course.title }}">
-      <a class="unit-crumbs__label" href="{% url 'courses:course_outline' slug=course.slug %}">{{ course.title }}</a>
+      <a class="unit-crumbs__label" lang="{{ course.language }}"
+         href="{% url 'courses:course_outline' slug=course.slug %}">{{ course.title }}</a>
     </li>
 
-    {% if unit_nav.hidden_path %}
+    {% if unit_nav.ancestors|length > 1 %}
       <li class="unit-crumbs__item unit-crumbs__item--ellipsis" title="{{ unit_nav.hidden_path }}">
         <span class="unit-crumbs__sep" aria-hidden="true">›</span>
-        <span class="unit-crumbs__label">…<span class="visually-hidden">{{ unit_nav.hidden_path }}</span></span>
+        <span class="unit-crumbs__label">…<span class="visually-hidden" lang="{{ course.language }}">{{ unit_nav.hidden_path }}</span></span>
       </li>
     {% endif %}
 
@@ -175,7 +186,7 @@ carries the clipping.
       <li class="unit-crumbs__item unit-crumbs__item--{% if forloop.last %}leaf{% else %}mid{% endif %}"
           title="{{ a.title }}">
         <span class="unit-crumbs__sep" aria-hidden="true">›</span>
-        <span class="unit-crumbs__label">{{ a.title }}</span>
+        <span class="unit-crumbs__label" lang="{{ course.language }}">{{ a.title }}</span>
       </li>
     {% endfor %}
   </ol>
@@ -190,8 +201,13 @@ Rules this markup encodes, each with its reason:
   it has no `aria-hidden`), so neither should be "fixed" to match the other.
 - **The course crumb has no separator**; every subsequent crumb has exactly one, leading. So the
   rendered glyph count is always `visible items − 1`, which is what the e2e asserts.
-- **The `…` item is emitted only when `hidden_path` is non-empty.** A 0- or 1-ancestor course never
-  emits it, so there is nothing to hide and nothing to mis-announce.
+- **The `…` item is emitted on the structural condition `ancestors|length > 1`, not on
+  `hidden_path` being truthy.** The CSS hides mids structurally (`len(ancestors) - 1` items carry
+  `--mid`), so the emission test must be structural too. Keying it on the derived string would
+  desynchronise the two whenever the string is empty but a mid still exists — a course whose only
+  mid ancestor has a blank `title` yields `hidden_path == ""` with two ancestors, and the `…` would
+  vanish while the CSS still hid a crumb, silently breaking §1's invariant 5. A 0- or 1-ancestor
+  course still never emits it, which is the common case this rule also has to get right.
 - **The `…` sits immediately after the course crumb** — the position the mid crumbs it replaces
   would occupy.
 - **`title` goes on the `<li>`, never on the `<a>`.** A `title` on the link would join its
@@ -207,10 +223,14 @@ Rules this markup encodes, each with its reason:
   `_unit_tree_node.html`, which does use `aria-current="page"`.
 - `Breadcrumb` is the only new translatable string.
 
-**No `lang` attribute is set inside this partial.** The include sits inside
-`<article … lang="{{ course.language }}">`, so author-authored node titles already inherit the
-course language — unlike the sidebar tree, which sits *outside* the article and therefore has to set
-`lang` per title itself.
+**`lang` is set in two directions, deliberately.** The include sits inside
+`<article … lang="{{ course.language }}">`, so *author content* inherits the course language for
+free. But `aria-label="{% trans 'Breadcrumb' %}"` is *interface* text in the active UI language, and
+it would inherit the course language too — announcing a Polish label with an English voice on an
+`en` course. So the `<nav>` carries `lang="{{ LANGUAGE_CODE }}"` (via
+`{% get_current_language %}`, the pattern `base.html` already uses) and each label carries
+`lang="{{ course.language }}"` back. This mirrors what `_unit_tree_node.html` does for the same
+reason.
 
 ### 3. Placement — inside the two article partials
 
@@ -229,83 +249,112 @@ the padding and its mobile override. Inside the article it inherits both, plus `
 
 ### 4. CSS — `courses/static/courses/css/courses.css`
 
-A new `.unit-crumbs` block adjacent to the existing `.lesson-unit__head` rules, **plus two media
-queries of its own** — not folded into an existing block. (`courses.css` has three
-`@media (max-width: 640px)` blocks; the unit-shell one contains `.unit-shell { display: block }` /
-`.unit-tree { display: none }`. The crumb uses none of them.)
+A new `.unit-crumbs` block adjacent to the existing `.lesson-unit__head` rules, plus **two new media
+queries authored alongside it** — one `screen` collapse query and one `print` query. Neither is
+folded into an existing block: `courses.css` has three `@media (max-width: 640px)` blocks (the
+unit-shell one contains `.unit-shell { display: block }` / `.unit-tree { display: none }`) and a
+`@media print` block at `courses.css:1238` whose every rule is `.el--tabs`-scoped under a
+tabs-specific comment. Dropping generic crumb rules into any of them would file them under a comment
+that does not describe them. The tabs print block is cited below as *precedent*, not reused.
+
+**Minimum supported viewport: 360px.** Two claims below rest on this number, and the e2e asserts at
+exactly that width.
 
 Mechanism:
 
-- `.unit-crumbs__list` — `display: flex; flex-wrap: nowrap; align-items: baseline;
-  overflow: hidden;` with `list-style: none` and margin/padding zeroed. `gap` supplies **all**
-  spacing between crumbs, rather than margins, because a `display: none` item takes its gap with it
-  whereas a margin-based version leaves a dangling space.
+- `.unit-crumbs__list` — `display: flex; flex-wrap: nowrap; align-items: center; overflow: hidden;`
+  with `list-style: none` and margin/padding zeroed. `gap` supplies **all** spacing between crumbs,
+  rather than margins, because a `display: none` item takes its gap with it whereas a margin-based
+  version leaves a dangling space.
   `overflow: hidden` is the backstop keeping a worst case from pushing the whole page into
   horizontal scroll. It does not mask the e2e guard: `scrollWidth` still reports content width.
-- `.unit-crumbs__item` — `display: flex; align-items: baseline; min-width: 0;` plus its own small
-  internal `gap` between separator and label.
-- `.unit-crumbs__label` — `min-width: 0; overflow: hidden; text-overflow: ellipsis;
-  white-space: nowrap;`. **This is where clipping lives**, not on the `<li>`. `min-width: 0` is
-  load-bearing on both the item and the label: without it a flex child refuses to shrink below its
-  content width and the strip overflows instead of clipping. (The container does not need it — the
-  ancestor `.unit-shell__main` already carries `min-width: 0`.)
+- `.unit-crumbs__item` — `display: flex; align-items: center; min-width: 0;` plus its own internal
+  `gap` between separator and label. **`min-width: 0` here is the load-bearing declaration** — the
+  item is a flex child with the default `overflow: visible`, so without it its automatic minimum
+  size resolves to the full nowrap width of sep + label and the strip overflows instead of clipping.
+- `.unit-crumbs__label` — `overflow: hidden; text-overflow: ellipsis; white-space: nowrap;`.
+  **This is where clipping lives**, not on the `<li>`. Note it needs **no** `min-width: 0`: per CSS
+  Flexbox §4.5 a flex item whose computed main-axis overflow is not `visible` already has an
+  automatic minimum size of zero. Adding one is harmless documentation but changes nothing —
+  do not mistake it for the guard (see the e2e falsifying mutation in §Testing).
 - `.unit-crumbs__sep` — `flex: 0 0 auto` so separators never shrink or clip.
 
-**Shrink order, pinned explicitly** — this is the whole "pinned ends, squeezed middle" mechanic and
-the order matters at every width:
+**`align-items: center`, not `baseline`.** A flex item with `overflow: hidden` is a scroll container
+and exposes no text baseline, so the UA synthesizes one from its border box. Baseline-aligning the
+plain-text separator against that synthesized edge shifts the label a few pixels off its own
+separator, at both levels of nesting. Centring sidesteps it. If the design pass wants baseline
+alignment it must *measure* sep/label alignment at both viewports, not assume it.
 
-| Item | `flex-shrink` | `min-width` floor |
+**Spacing is one quantity, not two.** The rendered sequence is
+`label — list-gap — sep — item-gap — label`, so the list gap and the item gap must resolve to the
+same value or the separator sits visibly off-centre between its neighbours. Express both from a
+single custom property (e.g. `--crumb-gap`) so the design pass has one knob, not two.
+
+**Shrink order, pinned explicitly** — this is the whole "pinned ends, squeezed middle" mechanic and
+the order matters at every width. The **floors go on the label**, not the `<li>`: an `<li>` floor
+also has to cover the separator and the internal gap, so a 4ch item floor at 0.85rem leaves roughly
+2ch for the text — an ellipsis glyph and nothing else, which is very nearly the orphaned-separator
+look the floor exists to prevent.
+
+| Crumb | `flex-shrink` (on the item) | `min-width` floor (on its label) |
 |---|---|---|
 | `--mid` | ~200 | ~4ch |
 | `--course` | 3 | ~6ch |
 | `--leaf` | 1 | ~6ch |
 
-Mids absorb essentially all of any deficit first; then the course crumb; the leaf last. The floors
-are not cosmetic — with `min-width: 0` and a 200× factor a mid would otherwise collapse toward 0px
-while its separator keeps full width, producing `Algebra 2 › › Series`, the same orphaned-separator
-failure the collapse rule exists to prevent, just at a wider viewport.
+Mids absorb essentially all of any deficit first; then the course crumb; the leaf last.
+
+**Source-order rule.** `.unit-crumbs__item` and `.unit-crumbs__item--mid` have identical
+specificity, so the cascade is decided by order alone: every modifier rule must appear **after** the
+base `.unit-crumbs__item` rule in the file, or `min-width: 0` silently wins over the floors.
 
 **When even the floors do not fit**, the list's `overflow: hidden` clips at the inline-end, so the
 leaf is what gets cut. The floors are sized so this only occurs below ~240px of content width —
-narrower than any supported viewport — and the e2e asserts it does not happen at 360px.
+narrower than the 360px minimum — and the e2e asserts it does not happen at 360px.
 
 - `.unit-crumbs__item--ellipsis` — `display: none` by default; `flex: 0 0 auto` (it is one glyph and
   must never shrink).
 - **Collapse query — `@media screen and (max-width: 52rem)`:** `--mid` items go `display: none`;
   `--ellipsis` goes `display: flex` (the value is immaterial since a flex container blockifies its
   children, but naming it stops it being re-litigated).
-- **Print query — inside the existing `@media print` block:** the collapse never applies (it is
-  `screen`-scoped), and `.unit-crumbs__list` gets `flex-wrap: wrap` with
+- **Print query — a new `@media print` block colocated with the `.unit-crumbs` rules:** the collapse
+  never applies (it is `screen`-scoped), and `.unit-crumbs__list` gets `flex-wrap: wrap` with
   `.unit-crumbs__label { overflow: visible; white-space: normal; text-overflow: clip; }` so a long
-  path wraps instead of being clipped. `courses.css` already carries an `@media print` block whose
-  comment records a screen-only hiding rule silently destroying printed content once; this avoids
-  repeating that.
+  path wraps instead of being clipped. Precedent for taking print seriously: the `.el--tabs` print
+  block at `courses.css:1238` exists because a screen-only hiding rule once silently destroyed
+  printed content.
 
 **Why 52rem and not the shell's 640px.** The content column is *narrowest just above* the shell
 breakpoint: at 641px the 14rem rail is still present, leaving ~417px, whereas at 360px the rail is
 gone and the column is ~328px of a much simpler layout. Collapsing at the shell breakpoint would
-leave the worst case uncollapsed. 52rem is a starting value the design pass may tune.
+leave the worst case uncollapsed.
 
-**Invariants the design pass may not break** (colour, size, weight, glyph, spacing, and the
-breakpoint value are all otherwise free):
+**Invariants the design pass may not break.** Colour, size, weight, glyph and spacing are free. The
+breakpoint is **tunable but bounded**: it must sit strictly between 360px and 1280px, because the
+e2e pins the collapsed state at 360px and the expanded state at 1280px. Those two widths are the
+contract; 52rem is just a value inside them.
 
-1. On screen, the strip is exactly one line at every viewport width. (Print deliberately wraps.)
+1. On screen, the strip is exactly one line at every viewport width ≥ 360px. (Print deliberately
+   wraps.)
 2. It never causes page-level horizontal scroll.
 3. A rendered separator always has rendered text on both sides — no orphaned glyphs.
-4. The course crumb and the deepest crumb are always present and legible at supported widths.
+4. At 360px, the course label and the leaf label each render at no less than their declared
+   `min-width` floor, with `clientWidth > 0`. (Stated mechanically so it can be asserted; "legible"
+   cannot be.)
 5. The set of crumbs hidden by the collapse query is exactly the set `hidden_path` names.
 6. The separator glyph matches `CRUMB_SEP`.
 
 Baseline styling: `--text-tertiary`, ~0.85rem, `--space-3` bottom margin, course link inheriting the
 muted colour rather than the default link blue.
 
-**Focus ring.** The course crumb is the first flex item, flush against the list's content edge, and
-**two** ancestors clip: `.unit-crumbs__label` and `.unit-crumbs__list`. An `outline-offset` ring on
-the link is therefore cut on the left by the list even after the label-level clip is handled. The
-fix is inline padding on `.unit-crumbs__list` sized to the ring (overflow clips at the padding box,
-so the padding buys the room), with a compensating negative inline margin if the crumb must stay
-flush with the `<h1>`. Keyboard focus on the course link — **checked at the left edge specifically**
-— is an explicit item on the design-pass QA checklist.
+**Focus ring.** The course crumb's `<a>` **is** `.unit-crumbs__label` — the label is the focusable
+element, not an ancestor of it, and an element's own `overflow` never clips its own outline. So
+exactly **one** ancestor clips the ring: `.unit-crumbs__list`, against which the first crumb sits
+flush. The fix is inline padding on `.unit-crumbs__list` sized to the ring (overflow clips at the
+padding box, so the padding buys the room), with a compensating negative inline margin if the crumb
+must stay flush with the `<h1>`. **Do not relax `overflow` on `.unit-crumbs__label` as part of this
+fix** — that is the declaration the entire shrink mechanic depends on. Keyboard focus on the course
+link, **checked at the left edge specifically**, is an explicit item on the design-pass QA checklist.
 
 ## Data flow
 
@@ -381,7 +430,17 @@ There is no user input and no write path here; the failure modes are all "missin
 10. Every `<li>` after the first contains exactly one `.unit-crumbs__sep`, and the first contains
     none — the structural pairing rule from §2.
 11. Flat course renders the `<nav>` with the course crumb and **no** `…` item.
-12. `test_build_unit_nav_adds_no_queries` (already present) still passes — the zero-query guarantee.
+12. **Ellipsis positive case** (≥2 ancestors): the `--ellipsis` `<li>` is emitted, its `title`
+    equals `hidden_path`, and it contains a `.visually-hidden` descendant whose text is
+    `hidden_path`. That span is the *sole* accessibility carrier behind §2's "not `aria-hidden`"
+    rule, and without this test deleting it would ship green. Falsifying mutation: delete the span.
+13. **Blank mid title:** a course with exactly two ancestors where the first has `title=""` still
+    emits the `…` item — the structural-gating rule from §2. Falsifying mutation: change the
+    template condition back to `{% if unit_nav.hidden_path %}`.
+14. **Non-goal guard:** a GET for a **SUBMITTED** quiz (which redirects to `courses:quiz_results`)
+    yields a final page containing **no** `unit-crumbs` markup. Pins the stated non-goal and doubles
+    as a regression guard on the redirect that test 7's quiz-GET fixture note depends on.
+15. `test_build_unit_nav_adds_no_queries` (already present) still passes — the zero-query guarantee.
 
 ### Falsification — mandatory
 
@@ -401,9 +460,11 @@ it fails at import or raises `SynchronousOnlyOperation`:
 - a `_make_student` helper and the `_login(page, live_server, username)` helper (import from
   `tests/test_e2e_unit_nav.py` or copy)
 
-**Fixtures are `browser` and `live_server`** — there is no `page` fixture in this repo. Each test
-does `ctx = browser.new_context(viewport={...})` then `ctx.new_page()`, and closes the context. That
-per-context viewport is also how the two widths are obtained; do not use `page.set_viewport_size()`.
+**Use `browser` + `live_server`, not the `page` fixture.** `pytest-playwright` does supply `page`,
+`context` and `browser` — but the repo convention is `browser` + an explicit
+`ctx = browser.new_context(viewport={...})` then `ctx.new_page()`, closing the context afterwards.
+Follow it here for a concrete reason: the viewport must be fixed at context creation, and that
+per-context viewport is how the two widths are obtained. Do not use `page.set_viewport_size()`.
 
 **Seeding needs a new local helper, not an extension of `_seed_nav_course`.** That helper builds a
 single `kind="part"` with unit children, so it can never yield three ancestors no matter what titles
@@ -415,10 +476,15 @@ runaway browsers.
 Assertions:
 
 - **The real guard, at 1280px and at 360px:** `.unit-crumbs__list` `scrollWidth <= clientWidth`, and
-  `document.documentElement.scrollWidth <= window.innerWidth`. **Falsifying mutation:** delete
-  `min-width: 0` from `.unit-crumbs__label` — labels then refuse to shrink and the first assertion
-  goes red. The height check below does **not** catch this, which is why it is not the primary
-  guard.
+  `document.documentElement.scrollWidth <= window.innerWidth`. **Falsifying mutation: delete
+  `min-width: 0` from `.unit-crumbs__item`** — the item is a flex child with `overflow: visible`, so
+  its automatic minimum size snaps back to the full nowrap width of sep + label, the row refuses to
+  shrink, and the first assertion goes red. Do **not** try to falsify by touching
+  `.unit-crumbs__label`: `overflow: hidden` already zeroes that element's automatic minimum size, so
+  removing a `min-width: 0` there changes nothing and the test stays green — which would look like a
+  vacuous test rather than a wrong mutation. (Removing the label's `overflow: hidden` also works as
+  a mutation, but it changes two behaviours at once.) The height check below does **not** catch any
+  of this, which is why it is not the primary guard.
 - Secondary: `.unit-crumbs__list` `offsetHeight` equals one line height. Cheap, and catches an
   accidental `flex-wrap: wrap`.
 - At 360px: no `--mid` item is visible, the `…` **is** visible, and the count of **visible**
