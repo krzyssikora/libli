@@ -173,6 +173,7 @@ Expected: 5 passed.
 
 For each of the three student templates: delete `data-zoomable`, re-run, confirm that test goes RED, restore.
 For the negative test: add `data-zoomable` to the `<img>` in `_edit_gallery.html`, re-run, confirm RED, restore.
+For `test_fragment_anchor_survives_sanitisation`: remove `"href"` from `ALLOWED_ATTRIBUTES["a"]` in `courses/sanitize.py`, re-run, confirm RED, restore. (It guards existing behaviour rather than new code, but it is falsifiable, so it is not an exemption.)
 Expected: every test observed RED at least once, then 5 passed again.
 
 - [ ] **Step 6: Commit**
@@ -219,8 +220,14 @@ def test_scrim_token_is_declared_once_and_never_in_the_dark_block():
     assert len(decls) == 1, f"expected one --scrim-solid declaration, got {len(decls)}"
     # The absence from the dark block IS the light/dark mechanism; this catches a
     # *relocated* definition, which the count alone would not.
-    dark_block = source.index('[data-theme="dark"]')
-    assert decls[0].start() < dark_block
+    #
+    # Anchor on the SELECTOR, not the first occurrence of the string: the comment this
+    # token ships with names the `[data-theme="dark"]` block in prose, and that mention
+    # sits ABOVE the declaration it documents -- so a plain str.index would find the
+    # comment and the assertion would fail for a reason unrelated to the invariant.
+    dark_selector = re.search(r'^\[data-theme="dark"\]\s*\{', source, re.MULTILINE)
+    assert dark_selector, "tokens.css must still have a dark-theme block"
+    assert decls[0].start() < dark_selector.start()
 
 
 def test_closed_dialog_is_display_none_and_box_rules_are_open_scoped():
@@ -325,7 +332,9 @@ Expected: 8 passed.
 - Add a second `--scrim-solid: …` inside the `[data-theme="dark"]` block → the count test goes RED. Restore.
 - Move the declaration into the dark block → the position test goes RED. Restore.
 - Change `.imgzoom[open] {` to `.imgzoom {` → the open-scoping test goes RED. Restore.
-- Change the image rule to `width: 100%` → `test_overlay_image_can_only_shrink` goes RED. Restore.
+- Replace `max-width: 100%; max-height: 100%` in `.imgzoom__img` with `width: 100%; height: 100%` → the first assertion goes RED. Restore.
+- Change `.imgzoom__img`'s `max-width: 100%` to `max-width: 100vw` → the no-`100vw` assertion goes RED. Restore.
+  (Editing `width: auto` → `width: 100%` is **not** a valid break here: the substring and the `100vw` scan both still hold, so the test stays green. That break belongs to Task 10's no-upscale e2e.)
 
 - [ ] **Step 7: Commit**
 
@@ -1593,6 +1602,7 @@ def _tab_walk(page, n=24):
             " if (!a || a === document.body) return null;"
             " const item = a.closest('.gallery__item');"
             " return { tag: a.tagName, cls: a.getAttribute('class') || '',"
+            "   alt: a.getAttribute('alt') || '',"
             "   inInactiveFigure: !!(item && !item.classList.contains('is-active')),"
             "   isTrigger: a.classList.contains('imgzoom-trigger'),"
             "   inHiddenPanel: !!a.closest('[hidden]') }; }"
@@ -1709,6 +1719,11 @@ def test_inactive_tab_panel_keeps_its_image_out_of_the_tab_order(
     seen_after = _tab_walk(page, n=30)
     assert any(s["isTrigger"] for s in seen_after), "tab image unreachable once revealed"
 
+    # Falsify with `[data-tab-panel][hidden] { display: block }` in courses.css -- that
+    # keeps the attribute while making the image focusable. REMOVING the hidden attribute
+    # is not a valid break: this assertion keys on closest('[hidden]'), which would then
+    # return null and leave inHiddenPanel false, and tabs.js:96-99 re-applies it anyway.
+
 
 def test_closed_spoiler_keeps_its_image_out_of_the_tab_order(
     page, live_server, hidden_lesson, media_route
@@ -1747,7 +1762,12 @@ def test_gated_image_stays_out_of_the_tab_order(
         ".some(el => el.checkVisibility() && el.alt.includes('gated'))"
     )
     assert not gated_reachable, "gated answer image is rendered before the gate is passed"
-    assert not any(s["inInactiveFigure"] for s in seen)
+    # No inInactiveFigure assertion here: hidden_lesson has no gallery, so that flag is
+    # False for every observation by construction and the check could never fail. What the
+    # walk is for is this -- the gated trigger must never be reached before the gate:
+    assert not any(
+        s["isTrigger"] and "gated" in (s.get("alt") or "") for s in seen
+    )
     # Positive control: pass the gate, the image becomes reachable.
     page.locator("[data-reveal-gate]").click()
     page.wait_for_timeout(200)
@@ -1772,7 +1792,7 @@ Expected: 20 passed. Expect to iterate on the `hidden_lesson` fixture's nesting 
 | Drop the focus rescue, keep the inerting | `test_arrow_key_navigation_survives_inerting` |
 | Remove `inn.removeAttribute("inert")` (`:119`) | `test_clicking_the_active_gallery_figure_opens_the_overlay` |
 | Delete the `aria-label` branch in `armOne` | `test_decorative_gallery_figure_is_named_for_the_control` |
-| Remove the panel's `hidden` attribute, or give it an author `display: block` | `test_inactive_tab_panel_keeps_its_image_out_of_the_tab_order` |
+| Add `[data-tab-panel][hidden] { display: block }` to `courses.css` | `test_inactive_tab_panel_keeps_its_image_out_of_the_tab_order` |
 | Delete the whole `display: none` declaration from the `{% if has_reveal_gate %}` `<style>` in `lesson_unit.html` — **not** the `:not(.reveal-shown)` clause, which would hide the block *unconditionally* and leave the test green | `test_gated_image_stays_out_of_the_tab_order` |
 
 - [ ] **Step 4: Commit**
@@ -1925,7 +1945,21 @@ def test_editor_preview_rearms_after_a_real_save(
     page.locator("[data-edit-slot] button[type='submit']").click()
     page.wait_for_selector('[data-scope="preview"] [data-zoomable]')
 
-    _open(page, page.locator('[data-scope="preview"] [data-zoomable]').first)
+    # Assert ARMING, not just that a click opens something. The click path is delegated on
+    # document and matches e.target.closest("[data-zoomable]") by design, so an UNARMED
+    # swapped-in image opens the overlay just the same -- meaning _open() alone stays green
+    # with the editor.js re-arm line deleted, and would prove only that delegation
+    # survives a fragment swap. These four attributes are what the re-arm line actually
+    # produces, so removing it breaks this and nothing else does.
+    swapped = page.locator('[data-scope="preview"] [data-zoomable]').first
+    page.wait_for_function(
+        "el => el.dataset.imgzoomReady === '1'", arg=swapped.element_handle()
+    )
+    assert swapped.get_attribute("role") == "button"
+    assert swapped.get_attribute("tabindex") == "0"
+    assert "imgzoom-trigger" in (swapped.get_attribute("class") or "")
+
+    _open(page, swapped)  # smoke check on top of the arming assertions
 ```
 
 **Note for the implementer:** the editor URL (`courses:manage_editor`), the save gesture (`[data-edit-slot] button[type='submit']`, asserting on `[data-scope="preview"]`) and the fill-table image-cell schema are all pinned above against the real code. The one thing still to copy from `tests/test_e2e_editor.py` is the selector that *opens* an existing element's edit fragment, which depends on the builder row markup. The assertions (overlay opens after a real save; image cell opens; 1×1 not upscaled) are the contract.
