@@ -177,8 +177,14 @@ has_stateful_elements = node.elements.filter(
 ).exists()
 ```
 
-Added to the returned context dict beside the existing `has_*` flags. `state_svc` is already imported
-(`views.py:27`). **No new import is required** — see below.
+**Insertion point, pinned:** immediately after `has_guess_number` (`views.py:367-369`), i.e. at the end
+of the `has_*` block and **before** the `progress = None` / `state = {}` block that begins at
+`views.py:371`. The flag is then added to the returned context dict beside its `has_*` neighbours.
+`state_svc` is already imported (`views.py:27`). **No new import is required** — see below.
+
+That ordering matters for one thing beyond tidiness: the `state` local does not exist yet at this point,
+so any mutation that wants to consult stored state (test 7's falsification) must be applied at the
+context-dict assembly, not here. Test 7 says so explicitly.
 
 **Call it as `state_svc.stateful_element_model_names()`, through the module attribute.** This is
 load-bearing for test 6, not just style: a `from courses.state import stateful_element_model_names` at
@@ -389,11 +395,14 @@ qualified: `from courses import state` then `state.VALIDATORS`, never a bare `VA
    403, a 404 or a 500, i.e. by every failure mode of the fixture rather than of the condition, which is
    exactly the hazard the preamble names.
 
-   *Falsification: **widen C1's union with `"textelement"`**. This fires test 2 alone: test 7's
-   surviving element is deliberately a `VideoElement`, not a `TextElement`, precisely so this mutation
-   separates the two absence guards; and test 6 monkeypatches the helper, so a production widening never
-   reaches it. Deleting the `{% if %}` in C3 also fires test 2, but it fires test 7 as well — which
-   would leave test 2 with no falsification of its own, the condition the preamble forbids.*
+   *Falsification: **append `"textelement"` to the name list at C2's call site** — i.e. widen the
+   sequence passed to `content_type__model__in`, not C1's union. This fires test 2 alone: test 7's
+   survivor is deliberately a `VideoElement`; test 6's monkeypatched tuple already contains
+   `"textelement"`, so it stays green; and C1's output is untouched, so test 8 stays green. Do **not**
+   widen C1's union instead — test 8 asserts both the 18-name equality and `"textelement"`'s absence, so
+   that mutation necessarily co-fires it. Deleting the `{% if %}` in C3 also fires test 2, but it fires
+   test 7 too, which would leave test 2 with no falsification of its own — the condition the preamble
+   forbids.*
 3. **A nested state-bearing element still shows the link.** Follow the working pattern in
    `courses/tests/test_switchgrid_context.py:59-77` (`test_has_switch_grid_flag_when_nested_in_tab`),
    the same flat-query-under-a-tab guard for a sibling flag: create a `TabsElement` with
@@ -415,20 +424,27 @@ qualified: `from courses import state` then `state.VALIDATORS`, never a bare `VA
    the union, so nothing would catch an implementation that mishandles the `RESTORABLE_IN_LESSON` half,
    and a unit whose only interactive content is a question would silently lose its link. Seed
    `ShortTextQuestionElement.objects.create(stem="Q", accepted="x")` via `add_element` — and **nothing
-   else**, so the question is genuinely the only interactive element. *Falsification: restrict **C2's**
-   filter to the validator half only (e.g. intersect the name list with `state.VALIDATORS`). This fires
-   test 4 alone, given test 5's fixture carries a `MarkDoneElement` beside its question. Do **not**
-   falsify by narrowing C1's union — that also turns test 8 RED.*
+   else**, so the question is genuinely the only interactive element.
+
+   *Falsification: restrict **C2's** filter to the validator half only (e.g. intersect the name list with
+   `state.VALIDATORS`). **Test 6 co-fires, unavoidably** — it monkeypatches the helper to return
+   `"textelement"`, which any C2-side validator-half intersection filters straight back out; that is
+   inherent to test 6's purpose (proving the helper's output reaches the filter), not a defect in this
+   mutation. Test 5 stays green because its fixture carries a `MarkDoneElement` beside its question. Do
+   **not** falsify by narrowing C1's union instead — that co-fires test 8, which is no better.*
 5. **The flag survives the non-GET render path.** POST `courses:check_answer` for a question in a
    stateful unit **without** the JS-fragment header, so the no-JS branch at `views.py:837` re-renders
    the full page; assert the reset URL is still present. A missing context variable renders as false in
    Django with no error, which is why this needs a test rather than §Data flow prose.
 
-   **Name the question type and the POST body**, at the recipe density of tests 3/4/7:
-   `ShortTextQuestionElement.objects.create(stem="Q", accepted="x")`, posted with the exact field name
-   `build_answer` reads for that type. `question.build_answer(request.POST)` is field-name sensitive per
-   type, and a wrong payload still renders 200 — so an unspecified body would let this test pass while
-   exercising a different branch than intended.
+   **The question type and the POST body, literally:** seed
+   `ShortTextQuestionElement.objects.create(stem="Q", accepted="x")` and post
+   `{"answer": "x"}` — `ShortTextQuestionElement.build_answer` is `post.get("answer", "")`
+   (`models.py:1819`). The value **must be non-empty**: an absent or empty `answer` takes the
+   `answer_is_empty` branch at `views.py:800-801` (which clears stored state) rather than the store
+   branch at `802-804`, so the test would exercise a different path while still rendering 200. The
+   in-repo precedent is `courses/tests/test_question_restore.py:193`, which posts exactly
+   `{"answer": "paris"}` to this route.
 
    **Seed a `MarkDoneElement` alongside the question** in this unit. Without it the unit's only
    interactive element is the question, and test 4's falsification (restricting C2 to the validator
@@ -461,16 +477,25 @@ qualified: `from courses import state` then `state.VALIDATORS`, never a bare `VA
    rather than a `TextElement` specifically so test 2's `"textelement"` falsification leaves this test
    green — see test 2.
 
-   **The fixture must be exact, or the falsification silently cannot fire.** The `element_state` the
-   falsification would read is *not* the DB column — it is `ctx["element_state"]`, rebuilt at
-   `views.py:388-396`, which (a) exists only when a `state_row` does (enrolled, or authenticated with a
-   pre-existing row) and (b) **drops every non-`dict` value and every non-int-coercible key**. So seed an
+   **The fixture must be exact, or the falsification silently cannot fire.** The state the falsification
+   would read is *not* the DB column — it is the `state` local (`views.py:373`), published as
+   `ctx["element_state"]` at `views.py:421`. That local is (a) **always present but empty** unless a
+   `state_row` exists (enrolled, or authenticated with a pre-existing row) — it is initialized
+   unconditionally at `views.py:373`, so the *key* never goes missing, only its contents — and (b)
+   rebuilt at `views.py:386-397` in a way that **drops every non-`dict` value and every non-int-coercible
+   key**. So seed an
    **enrolled** student and a **str-keyed, dict-valued** blob captured before the deletion — e.g.
    `UnitProgress.objects.create(student=…, unit=unit, element_state={str(join_row.pk): {"items": [item.pk]}})`.
    Seed `{"5": True}` (non-dict value) or an unenrolled user and the context dict comes back empty, the
    falsification goes GREEN, and the implementer records a falsification that never happened — the exact
-   hazard the preamble names. *Falsification: OR `bool(element_state)` into C2's flag. This fires test 7
-   alone — test 2's text-only unit has no blob, so it stays green.*
+   hazard the preamble names.
+
+   *Falsification: **at the context-dict assembly (`views.py:404-428`), publish
+   `"has_stateful_elements": has_stateful_elements or bool(state)`.** The local is named `state`, not
+   `element_state` — and it is assigned at `views.py:373`, **after** the `has_*` block where C2 sits, so
+   applying the OR at C2's own line would raise `UnboundLocalError` on every lesson render and red the
+   entire suite rather than test 7. This fires test 7 alone: test 2's unit has no blob, so it stays
+   green.*
 
 ### Tests 8-9 — `courses/tests/test_state_module.py`
 
@@ -589,16 +614,26 @@ qualified: `from courses import state` then `state.VALIDATORS`, never a bare `VA
     `notes`, `notifications`, `tags`, `integrations`. A hand-written list is how this very spec first got
     it wrong — an earlier draft named six and silently dropped `accounts`, `institution` and `grouping`,
     the last of which owns cohort code and is a plausible home for a progress write. So walk
-    `django.apps.apps.get_app_configs()`, keep the configs whose `path` is under `ROOT` (that filter is
-    what excludes Django's own apps, allauth, DRF and `django_extensions`), and **assert the resulting
-    package set equals those nine names** so a tenth app cannot be added without this guard noticing.
+    `django.apps.apps.get_app_configs()` and **assert the resulting package set equals those nine
+    names**, so a tenth app cannot be added without this guard noticing.
 
-    Also walk `manage.py` and the `config/` package (`settings/`, `urls.py`, `asgi.py`, `wsgi.py`), which
-    no app config covers. Skip any path containing a `migrations` or `tests` segment, any filename
-    starting with `test_`, and `conftest.py`. Deriving the roots this way also sidesteps `rglob`-ing the
-    repo root, which would reach `staticfiles/`, `htmlcov/`, `node_modules/`, or a `venv/` spelled
-    without the dot. The two cited precedents are single-file readers and offer no walk convention to
-    inherit, so this one is specified here in full.
+    **Filter by `Path(cfg.path).resolve().parent == ROOT`, NOT by "path is under `ROOT`".** The obvious
+    filter is wrong for this repo's layout: the virtualenv lives **inside** the checkout (`.venv/`, per
+    `.gitignore:4`, and `uv run` creates `<worktree>/.venv` the same way), so *every* third-party app
+    config — Django's own, allauth, DRF, `django_extensions` — has a path under `ROOT` via
+    `.venv/Lib/site-packages/`. Under the naive filter the nine-name assertion reds for a reason
+    unrelated to the invariant, and the walk `rglob`s all of site-packages: precisely the over-broad scan
+    this section claims to avoid (an earlier draft worried about a `venv/` spelled without the dot and
+    let `.venv/` straight back in). First-party apps are *top-level packages of the repo*, so
+    parent-equality is the filter that actually holds. Belt and braces: also reject any path containing a
+    `.venv`, `site-packages`, or `node_modules` segment.
+
+    Also walk `manage.py`, the `config/` package (`settings/`, `urls.py`, `asgi.py`, `wsgi.py`), and
+    `scripts/` — all first-party in-tree Python that no app config covers. (`scripts/` holds one-off
+    importers that do not touch `UnitProgress` today; walk it anyway, since "the whole application"
+    should not depend on that staying true.) Skip any path containing a `migrations` or `tests` segment,
+    any filename starting with `test_`, and `conftest.py`. The two cited precedents are single-file
+    readers and offer no walk convention to inherit, so this one is specified here in full.
 
     **Read mechanism.** `Path(...).read_text(encoding="utf-8")`, following the repo's convention for
     source-text guards: a module under `tests/` with `ROOT = Path(__file__).resolve().parent.parent`
