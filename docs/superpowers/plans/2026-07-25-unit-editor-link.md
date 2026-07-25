@@ -452,7 +452,18 @@ In `full_lesson_render_context` (~:431), after the existing `ctx.update(unit_tag
     ctx.update(unit_edit_context(user, node))
 ```
 
-and extend its docstring — change `the author's notes + tag panel` to `the author's notes + tag panel + the edit-unit link`.
+and extend its docstring. Do **not** do this as an in-place substitution: the target line
+(`courses/views.py:433`) is already 84 characters, and inserting the phrase makes it **105**, which
+fails E501 on Step 10's `ruff check` (ruff's default `line-length` is 88 and `E` is selected).
+Formatters do not rewrap docstring prose, so `ruff format` will not rescue it. Type this rewrapped
+block instead, replacing the existing four-line docstring in full:
+
+```python
+    """Full context for rendering courses/lesson_unit.html: lesson context +
+    unit nav + feedback defaults + the author's notes + tag panel + the
+    edit-unit link. Single-sourced so every render site (lesson_unit GET,
+    check_answer re-render, notes no-JS re-render) stays consistent."""
+```
 
 In `build_quiz_context` (~:995), after the existing `ctx.update(unit_tags_context(user, node, panel_open=False))`:
 
@@ -1189,11 +1200,23 @@ import tempfile
 from pathlib import Path
 
 import pytest
-from playwright.sync_api import expect
 
+from courses.models import QuizSubmission
+from tags import services
+from tests.factories import ContentNodeFactory
+from tests.factories import CourseFactory
+from tests.factories import EnrollmentFactory
+from tests.factories import QuizSubmissionFactory
 from tests.factories import TEST_PASSWORD
+from tests.factories import TagFactory
+from tests.factories import make_quiz_unit
 from tests.factories import make_verified_user
 ```
+
+This covers every name Step 1's six rows actually call — `services.tag_unit`, `TagFactory`,
+`QuizSubmissionFactory` / `QuizSubmission.Status`, `CourseFactory`, `ContentNodeFactory`,
+`make_quiz_unit` and `EnrollmentFactory`. (`expect` is **not** needed: this harness only captures
+images, it asserts nothing.)
 
 **`SHOT_DIR` lives outside the repository.** Do not write the images into the worktree and do not add
 a git ignore: this is a *linked* worktree, so `.git` is a **file**, not a directory —
@@ -1204,21 +1227,24 @@ that and removes the accidental-commit risk entirely.
 
 ```python
 SHOT_DIR = Path(tempfile.gettempdir()) / "unit-strip-shots"
+VARIANT = os.environ.get("SHOT_VARIANT", "feature")
 
 
-def _shoot(page, name, variant="feature"):
+def _shoot(page, name, variant=None):
     """Capture the current viewport in both themes.
 
     `variant` distinguishes the same row captured under different source states —
     "feature" (as built), "nomin" (min-width: 0 deleted), "baseline" (feature
     rendering reverted). Step 2's A/B comparisons need all three to coexist; a
     filename derived from `name` alone would overwrite the very image being
-    compared against.
+    compared against. It defaults to the SHOT_VARIANT env var so an entire
+    re-run can be labelled without editing the file.
 
     data-theme is baked server-side and core/context_processors.py resolves the
     default `auto` preference to "light", so page.emulate_media(color_scheme=...)
     does NOTHING here — it would silently produce two identical light images.
     """
+    variant = variant or VARIANT
     SHOT_DIR.mkdir(parents=True, exist_ok=True)
     for theme in ("light", "dark"):
         page.evaluate(f"document.documentElement.setAttribute('data-theme', '{theme}')")
@@ -1234,7 +1260,15 @@ resolves. pytest-playwright's `page` fixture is function-scoped, so a separate f
 gives each a fresh browser context. Row assignment:
 
 - `test_shots_owner` → matrix rows 1, 3, 4, 6 (the four owner rows)
-- `test_shots_student` → matrix rows 2 and 5 (the two enrolled-student rows)
+- `test_shots_student` → matrix row 2 only (desktop enrolled student)
+- `test_shots_ab_narrow_student` → matrix row 5 only (~400px enrolled student)
+
+**Row 5 gets a function to itself, and that isolation is load-bearing.** It is the only row Step 2
+re-captures under a modified source tree. If it shared a function with any other row, re-running that
+function would also re-capture its siblings — under the *modified* tree, at their default
+`variant="feature"` filenames, silently overwriting the Step 1 images. `_shoot` never clears
+`SHOT_DIR`, so the parity run in particular would refile feature-off renderings as `_feature_`, and
+Step 3 would then judge baseline images believing they showed the feature.
 
 Viewports: **desktop** `page.set_viewport_size({"width": 1280, "height": 900})`; **narrow**
 `page.set_viewport_size({"width": 400, "height": 900})`.
@@ -1247,14 +1281,17 @@ across lines it joins to exactly 88 characters, and `ruff format` would collapse
 
 Six states × light and dark = **12 shots**.
 
-| Page | Viewport | Actor | Tag panel |
-|---|---|---|---|
-| `lesson_unit` | desktop | owner (link present) | closed |
-| `lesson_unit` | desktop | enrolled student (link absent) | closed |
-| `lesson_unit` | desktop | owner (link present) | **open** |
-| `lesson_unit` | ~400px | owner, **populated panel** | **open** |
-| `lesson_unit` | ~400px | enrolled student, **long-token tag** | **open** |
-| `quiz_results` | desktop | owner, **needs a SUBMITTED submission** | closed |
+Each row's **shot name** is the literal string passed to `_shoot`, and Step 2's filenames are built
+from it — use these exact keys:
+
+| Page | Viewport | Actor | Tag panel | Shot name |
+|---|---|---|---|---|
+| `lesson_unit` | desktop | owner (link present) | closed | `desktop_owner_closed` |
+| `lesson_unit` | desktop | enrolled student (link absent) | closed | `desktop_student_closed` |
+| `lesson_unit` | desktop | owner (link present) | **open** | `desktop_owner_open` |
+| `lesson_unit` | ~400px | owner, **populated panel** | **open** | `narrow_owner` |
+| `lesson_unit` | ~400px | enrolled student, **long-token tag** | **open** | `narrow_student` |
+| `quiz_results` | desktop | owner, **needs a SUBMITTED submission** | closed | `results_owner` |
 
 **Open the panel** by loading with `?panel=tags` — the server-side switch the views already read. Do **not** click the `<summary>` in Playwright; that adds a disclosure animation to race against.
 
@@ -1290,12 +1327,22 @@ that `-m e2e` is mandatory here for the same reason as in Task 7.
 
 - [ ] **Step 2: Run the two A/B validations**
 
-Both validations re-capture the **~400px student row** under a modified source tree, so pass the
-`variant` argument each time — otherwise the second run overwrites the image it is meant to be
-compared against, and there is nothing left to compare.
+Both validations re-capture the **~400px student row** under a modified source tree. Two rules make
+that safe, and both matter:
 
-*Fixture validation:* delete `min-width: 0` from `courses.css`, re-run the harness capturing that row
-as `_shoot(page, "narrow_student", variant="nomin")`, then restore. Compare:
+1. **Run only `test_shots_ab_narrow_student`** — never the whole file, and never a function holding
+   other rows. Anything else re-captures its siblings under the modified tree and overwrites their
+   Step 1 images.
+2. **Label the run** via `SHOT_VARIANT`, so the new images land beside the originals instead of on
+   top of them.
+
+*Fixture validation:* delete `min-width: 0` from `courses.css`, then:
+
+```bash
+SHOT_VARIANT=nomin uv run pytest -m e2e   tests/test_e2e_unit_strip_shots.py::test_shots_ab_narrow_student -v
+```
+
+Restore the declaration afterwards. Compare:
 
 ```
 narrow_student_feature_light.png   vs   narrow_student_nomin_light.png
@@ -1307,14 +1354,24 @@ proves nothing — that is a fixture bug to fix, not evidence the declaration is
 *Parity validation:* produce the **feature-off baseline** — **do not check out master**, which
 discards the fixture code the shot depends on. Undo the feature's *rendering* in place: revert the
 three `{% include "courses/_unit_strip.html" %}` lines to `{% include "tags/_unit_tag_panel.html" %}`
-and remove the two `.unit-strip*` rules from `courses.css`. Re-run capturing that row as
-`_shoot(page, "narrow_student", variant="baseline")`, then restore. Compare:
+and remove the two `.unit-strip*` rules from `courses.css`. Then:
+
+```bash
+SHOT_VARIANT=baseline uv run pytest -m e2e   tests/test_e2e_unit_strip_shots.py::test_shots_ab_narrow_student -v
+```
+
+Restore everything afterwards. Compare:
 
 ```
 narrow_student_feature_light.png   vs   narrow_student_baseline_light.png
 ```
 
 These must be **equivalent**. Repeat both comparisons for the `_dark` pair.
+
+**Before moving to Step 3, confirm the `_feature_` images are still the Step 1 ones** — i.e. captured
+under the unmodified tree. If a stray whole-file re-run happened at any point, delete `SHOT_DIR` and
+re-capture Step 1 from scratch; judging a baseline image as though it were the feature is exactly the
+vacuous pass this task exists to prevent.
 
 - [ ] **Step 3: Self-critique the shots against the acceptance criteria**
 
@@ -1336,8 +1393,8 @@ These must be **equivalent**. Repeat both comparisons for the `_dark` pair.
 
 ```bash
 rm tests/test_e2e_unit_strip_shots.py
-rm -rf _shots/
-git status --short   # must show no stray harness or image files
+rm -rf "${TMPDIR:-/tmp}/unit-strip-shots"   # SHOT_DIR, outside the repo
+git status --short                          # must show no stray harness file
 ```
 
 The harness is scaffolding for the manual pass, not a deliverable — it asserts nothing and would only
