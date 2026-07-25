@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-25 16:41+0200\n"
+"POT-Creation-Date: 2026-07-26 02:58+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: English\n"
@@ -822,12 +822,12 @@ msgstr ""
 msgid "Zone must not extend past the image."
 msgstr ""
 
-#: .\courses\models.py:2364
+#: .\courses\models.py:2370
 #: .\templates\courses\manage\review_submission.html:45
 msgid "In progress"
 msgstr ""
 
-#: .\courses\models.py:2365
+#: .\courses\models.py:2371
 msgid "Submitted"
 msgstr ""
 
@@ -2073,11 +2073,11 @@ msgid ""
 "it — paste the link to one video."
 msgstr ""
 
-#: .\courses\views.py:1146
+#: .\courses\views.py:1166
 msgid "This quiz has already been submitted."
 msgstr ""
 
-#: .\courses\views.py:1477
+#: .\courses\views.py:1498
 #, python-format
 msgid "You're now enrolled in %(course)s."
 msgstr ""
@@ -3657,7 +3657,7 @@ msgstr ""
 msgid "Mark as done"
 msgstr ""
 
-#: .\templates\courses\_lesson_article.html:27
+#: .\templates\courses\_lesson_article.html:28
 #: .\templates\courses\_outline_node.html:24
 #: .\templates\courses\_outline_node.html:25
 #: .\templates\courses\outline.html:11
@@ -3726,6 +3726,14 @@ msgstr ""
 
 #: .\templates\courses\_unit_shell.html:20 .\templates\courses\catalog.html:60
 msgid "Close"
+msgstr ""
+
+#: .\templates\courses\_unit_strip.html:10
+msgid "Edit unit"
+msgstr ""
+
+#: .\templates\courses\_unit_strip.html:10
+msgid "(opens in a new tab)"
 msgstr ""
 
 #: .\templates\courses\_unit_tree.html:6 .\templates\courses\_unit_tree.html:7

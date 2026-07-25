@@ -1,5 +1,6 @@
 import pytest
 from django.urls import reverse
+from django.utils import translation
 
 from courses.models import QuizSubmission
 from courses.models import ShortTextQuestionElement
@@ -346,3 +347,39 @@ def test_quiz_answer_nojs_rerender_carries_the_link(client):
 
     assert resp.status_code == 200
     assert _editor_href(course, quiz) in resp.content.decode()
+
+
+@pytest.mark.parametrize("msgid", ["Edit unit", "(opens in a new tab)"])
+def test_pl_translation_present(msgid):
+    """Catalog half — the common repo pattern (13 of the 17 tests/test_i18n_*.py
+    files are exactly this; cf. tests/test_i18n_stepper.py)."""
+    with translation.override("pl"):
+        assert translation.gettext(msgid) != msgid
+
+
+@pytest.mark.django_db
+def test_edit_link_label_renders_in_polish(client):
+    """Render half — the rarer pattern (only 4 test_i18n_* files issue a request).
+    Catalog health cannot prove the template routes the label through {% trans %}
+    or that the Polish string reaches the page.
+
+    translation.override ALONE renders English: SessionLocaleMiddleware
+    re-activates a language per request from the session key / Accept-Language,
+    discarding whatever the test process activated, and conftest.py pins en before
+    every test. All three activations below are required — copied from
+    tests/test_i18n_quiz.py::test_quiz_finish_label_translated_pl.
+    """
+    owner = make_student(client, "owner")
+    course = CourseFactory(owner=owner)
+    unit = _lesson_unit(course)
+
+    session = client.session
+    session["_language"] = "pl"
+    session.save()
+    with translation.override("pl"):
+        resp = client.get(
+            f"/courses/{course.slug}/u/{unit.pk}/", HTTP_ACCEPT_LANGUAGE="pl"
+        )
+
+    assert resp.status_code == 200
+    assert "Edytuj jednostkę" in resp.content.decode()
