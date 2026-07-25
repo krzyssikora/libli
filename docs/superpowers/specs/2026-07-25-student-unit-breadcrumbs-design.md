@@ -100,7 +100,7 @@ therefore **already computed** — it just needs collecting.
 Add a module-level constant and a helper:
 
 ```python
-CRUMB_SEP = " › "   # ALSO hard-coded in templates/courses/_unit_crumbs.html — see the invariant below
+HIDDEN_PATH_SEP = ", "   # NOT the visible "›" — see "the spoken separator" below
 
 def _current_ancestors(tree):
     """Root→parent ContentNodes on the stamped current chain, excluding the unit itself."""
@@ -129,7 +129,7 @@ leaving that stale would make the file contradict itself.
 | Key | Type | Meaning |
 |---|---|---|
 | `ancestors` | `list[ContentNode]` | root→parent, unit excluded; drives the template loop |
-| `hidden_path` | `str` | the all-but-deepest ancestor titles joined with `CRUMB_SEP`; `""` when `len(ancestors) < 2` |
+| `hidden_path` | `str` | the all-but-deepest ancestor titles joined with `HIDDEN_PATH_SEP`; `""` whenever that join is empty — which covers `len(ancestors) < 2` **and** the all-blank-titles case. The two are *not* equivalent, which is precisely why §2 gates the `…` on ancestor count rather than on this string. |
 
 `hidden_path` is the `title` and accessible name for the collapsed `…`, pre-joined in Python so the
 template needs no custom filter and no parallel list.
@@ -140,9 +140,16 @@ ever hides a different set, the tooltip silently describes the wrong crumbs — 
 string, the hardest kind of defect to notice. This coupling is guarded by an e2e assertion (see
 §Testing) and may not be broken by the design pass.
 
-**Invariant — one separator glyph, two call sites.** The glyph lives in `CRUMB_SEP` and in
-`_unit_crumbs.html`. Changing it means changing both; a render test asserts the rendered separator
-text equals `CRUMB_SEP.strip()` so the two cannot drift.
+**The spoken separator is not the visible one, deliberately.** The visible `›` spans are
+`aria-hidden`, so assistive tech never announces the glyph. But `hidden_path` *is* exposed to AT —
+as the `…`'s text and as its `title` — so joining it with `" › "` would put the glyph straight back
+into the accessibility tree and have a screen reader announce "single right-pointing angle quotation
+mark" once per hidden crumb, defeating the `aria-hidden` decision. It is therefore joined with
+`HIDDEN_PATH_SEP = ", "`, which reads naturally both as speech and as a hover tooltip.
+
+A welcome consequence: the `›` glyph now has **exactly one home**, `_unit_crumbs.html`. An earlier
+draft carried it in Python as well and needed a constant plus a drift test to keep the two in sync;
+neither is required any more.
 
 **Query budget: zero additional queries.** The tree is already materialised in memory; the helper is
 pure dict traversal. A naive `unit.parent` walk (up to 3 queries per page load) is explicitly
@@ -222,9 +229,18 @@ Rules this markup encodes, each with its reason:
   course still never emits it, which is the common case this rule also has to get right.
 - **The `…` sits immediately after the course crumb** — the position the mid crumbs it replaces
   would occupy.
-- **`title` goes on the `<li>`, never on the `<a>`.** A `title` on the link would join its
-  accessible name and be announced twice ("Algebra 2, Algebra 2"); on a non-interactive `<li>` it
-  still produces the hover tooltip without touching any accessible name.
+- **`title` goes on the `<li>`, never on the `<a>`.** A `title` on the link would definitely join
+  its accessible name and be announced twice ("Algebra 2, Algebra 2"). Moving it to the `<li>` makes
+  that *less* likely — but the earlier draft's claim that it touches no accessible name at all was
+  wrong and is retracted: `listitem` is name-from-author, and HTML-AAM falls back to `title` when no
+  other naming source exists, so the `<li>` may well acquire a name equal to its own text.
+  **This is to be measured, not asserted** (per the `false-mechanism-survives-review` lesson): the
+  design-pass QA checklist includes reading the computed accessible name of a crumb `<li>` in a real
+  engine — Playwright exposes it, and axe will flag it — and recording the result here. If the name
+  does duplicate, the remedy is to drop `title` from the `--ellipsis` item specifically, whose
+  `visually-hidden` span already carries the same string; the other crumbs keep theirs, since for
+  them the tooltip is the whole point and the duplication is a repeat of visible text rather than of
+  otherwise-unavailable text.
 - **The `…` is not `aria-hidden`.** At the widths where it renders, the mid crumbs are
   `display: none` and therefore *absent* from the accessibility tree — so the `…` is the only
   carrier of that text, and it holds it in a `visually-hidden` span (the utility already exists in
@@ -325,20 +341,27 @@ item-level floors (a bare 4ch item floor leaves ~2ch for text once the separator
 | Crumb | `flex-shrink` (item) | `min-width` floor (item) |
 |---|---|---|
 | `--mid` | ~200 | `calc(4ch + 1em + var(--crumb-gap))` |
-| `--course` | 3 | `calc(6ch + 1em + var(--crumb-gap))` |
+| `--course` | 3 | `6ch` |
 | `--leaf` | 1 | `calc(6ch + 1em + var(--crumb-gap))` |
 
-(The `1em` term is the separator's own advance width; `--course` has no separator, so its floor may
-drop that term. Treat the ch/em values as starting points to verify by measurement, not as
-constants.) `.unit-crumbs__label` carries **no** `min-width` at all — `overflow: hidden` already
+(The `1em + gap` term is the separator's advance width plus the item's internal gap. `--course` is
+the one crumb with no separator, so it takes the bare `6ch` — carrying the term there would be dead
+width that shifts the shrink balance against the leaf at the narrowest widths. Treat the ch/em
+values as starting points to verify by measurement, not as constants.)
+`.unit-crumbs__label` carries **no** `min-width` at all — `overflow: hidden` already
 zeroes its automatic minimum size, and adding one there is what caused the overflow above.
 
 Mids absorb essentially all of any deficit first; then the course crumb; the leaf last.
 
-**Source-order rule.** With the floors back on the item, `.unit-crumbs__item { min-width: 0 }` and
-`.unit-crumbs__item--mid { min-width: … }` target the same element at identical specificity, so the
-cascade is decided by source order alone: every modifier rule must appear **after** the base
-`.unit-crumbs__item` rule in the file, or `min-width: 0` silently wins and the floors never apply.
+**Source-order rule.** Base and modifier target the same element at identical specificity, and media
+queries add none, so the cascade here is decided by source order alone. The base
+`.unit-crumbs__item` block must appear **before** every modifier rule *and* before the
+`@media screen and (max-width: 52rem)` block. This governs two properties, not one:
+
+- `min-width` — base `0` vs the modifier floors. Wrong order and the floors never apply.
+- `display` — base `flex` vs `--ellipsis { display: none }` and the collapse query's
+  `--mid { display: none }` / `--ellipsis { display: flex }`. Author the collapse block above the
+  base rules and the collapse silently does nothing at all.
 
 **When even the floors do not fit** — i.e. when the container is narrower than the summed floors
 plus gaps — the list's `overflow: hidden` clips at the inline-end, so the leaf is what gets cut. The
@@ -374,12 +397,16 @@ contract; 52rem is just a value inside them.
 2. It never causes page-level horizontal scroll.
 3. A rendered separator always has rendered text on both sides — no orphaned glyphs.
 4. At 360px, every crumb's label is **contained within its own `<li>`**
-   (`label.clientWidth <= li.clientWidth`) and no two adjacent crumbs' bounding boxes overlap.
-   Stated against the *item*, not the label: a floor declared on the label is satisfied by
-   construction whether or not the label fits, so asserting on the label would pass in exactly the
-   broken state described in the shrink-order section. Overlap is the falsifying mutation.
+   (`label.clientWidth <= li.clientWidth`), and no two adjacent **label** bounding rects overlap.
+   Containment is stated against the *item* because a floor declared on the label is satisfied by
+   construction whether or not the label fits — asserting on the label alone would pass in exactly
+   the broken state described in the shrink-order section. Overlap is stated against the **labels**
+   for the same reason: sibling flex items in a single-line row with no negative margins never
+   overlap, so an `<li>`-level overlap check could not go red under any mutation. It is the labels
+   that spill and paint over each other.
 5. The set of crumbs hidden by the collapse query is exactly the set `hidden_path` names.
-6. The separator glyph matches `CRUMB_SEP`.
+6. The `›` glyph appears in exactly one place, `_unit_crumbs.html`. It is never reintroduced
+   into Python, and never into `hidden_path` (see "the spoken separator" in §1).
 
 Baseline styling: `--text-tertiary`, ~0.85rem, `--space-3` bottom margin, course link inheriting the
 muted colour rather than the default link blue.
@@ -412,7 +439,7 @@ _quiz_render_feedback ─→ ctx["unit_nav"] = ──────────┘
                                                        ├─ build_outline(course, user)         → tree             (2 queries, existing)
                                                        ├─ _stamp_current_chain(tree, unit.pk) → contains_current (0 queries, existing)
                                                        └─ _current_ancestors(tree)            → ancestors        (0 queries, NEW)
-                                                            └─ hidden_path = CRUMB_SEP.join(a.title for a in ancestors[:-1])
+                                                            └─ hidden_path = HIDDEN_PATH_SEP.join(a.title for a in ancestors[:-1])
 
 templates: lesson_unit.html / quiz_unit.html
   └─ _unit_shell.html
@@ -455,10 +482,10 @@ There is no user input and no write path here; the failure modes are all "missin
 3. `_current_ancestors` returns `[]` for a stamped tree with no match, and raises `KeyError` for an
    unstamped tree.
 4. Skipped level: unit → part only (in a `uses_*`-all-True course) yields exactly `[part]`.
-5. `hidden_path` equals the all-but-deepest titles joined with `CRUMB_SEP`; `""` at 0 and 1
-   ancestors.
-6. The rendered separator text equals `CRUMB_SEP.strip()` — locks the glyph's two call sites
-   together.
+5. `hidden_path` equals the all-but-deepest titles joined with `HIDDEN_PATH_SEP`; `""` at 0 and 1
+   ancestors. Assert explicitly that it does **not** contain `›` — the guard on §1's spoken-separator
+   rule. Falsifying mutation: join with `" › "`.
+6. The rendered separator span's text is `›` and it carries `aria-hidden="true"`.
 7. Crumb renders on the lesson GET and the quiz GET, and on **both** no-JS POST re-renders. Assert
    the ancestors are present, not merely that the page returns 200. Required fixture state, because
    these are easy to set up wrongly:
@@ -534,8 +561,15 @@ browsers.
 *visible but squeezed* — at 360px they are hidden and at 1280px there is room to spare. By §4's own
 argument the content column is narrowest while the rail is still present, so the worst case for
 invariant 3 and for label containment sits **just above the collapse breakpoint** (~833px at the
-starting 52rem, where the column is roughly 561px for four crumbs). Derive the third width from the
-declared breakpoint rather than hard-coding it, so tuning the breakpoint moves the test with it.
+starting 52rem, where the column is roughly 561px for four crumbs).
+
+The breakpoint lives only as a literal inside `courses.css`, and a media query cannot be read from a
+custom property, so "derive it" needs a concrete mechanism rather than good intentions. Use the
+cheapest one that stays honest: a module-level `COLLAPSE_BREAKPOINT_PX` constant in the test file,
+the third width computed as `COLLAPSE_BREAKPOINT_PX + 1`, **plus a plain unit test asserting
+`courses.css` contains the exact string `@media screen and (max-width: 52rem)`**. That converts a
+silent drift into a failing assertion naming both call sites — the same treatment the `›` glyph got
+in §1, and the reason it needs one is the same.
 
 Assertions:
 
@@ -551,10 +585,14 @@ Assertions:
   vacuous test rather than a wrong mutation. (Removing the label's `overflow: hidden` also works as
   a mutation, but it changes two behaviours at once.) The height check below does **not** catch any
   of this, which is why it is not the primary guard.
-- Secondary, one-line check: compare the list's height to a single crumb's rather than to a guessed
-  pixel value — `list.offsetHeight <= 1.5 * item.offsetHeight` for any `.unit-crumbs__item`. The
-  focus-ring fix adds inline padding to the same element, so a hard-coded number or a raw
-  `line-height` comparison would be brittle. Cheap, and catches an accidental `flex-wrap: wrap`.
+- Secondary, one-line check, **at all three widths**: compare the list's height to a single crumb's
+  rather than to a guessed pixel value —
+  `list.offsetHeight <= 1.5 * courseItem.offsetHeight`. The reference must be
+  `.unit-crumbs__item--course` specifically, the one crumb that renders at every width: `--mid` is
+  `display: none` at 360px and `--ellipsis` is at 1280px, so "any item" would compare against
+  `offsetHeight == 0` and could never pass. A hard-coded pixel value or a raw `line-height`
+  comparison would be brittle because the focus-ring fix adds inline padding to the list. Cheap, and
+  catches an accidental `flex-wrap: wrap`.
 - **Just above the breakpoint** (the third width), where mids are visible and squeezed: every
   `--mid` label has `clientWidth > 0`, every label is contained in its `<li>`
   (`label.clientWidth <= li.clientWidth`), and no two adjacent `<li>` bounding boxes overlap. This
@@ -564,13 +602,16 @@ Assertions:
   assertion that actually catches an orphaned separator.
 - At 360px: read `get_attribute("title")` from each `li.unit-crumbs__item--mid` **in DOM order**
   (that selector only — separators and the leaf must not be swept in) and assert
-  `CRUMB_SEP.join(those) == ` the `…` item's `title`. This is the guard on the §1 invariant coupling
+  `HIDDEN_PATH_SEP.join(those) == ` the `…` item's `title`. This is the guard on the §1 invariant coupling
   `hidden_path` to the collapse query.
 - At 1280px: `--ellipsis` has zero client rects, and every `--mid` and `--leaf` has
   `clientWidth > 0`. Stated mechanically because "with a short path" was ambiguous — long titles are
   clipped, not hidden, so the assertion holds for either fixture and the short-title fixture is not
   what makes it meaningful.
-- **Print**, via `page.emulate_media(media="print")` at a narrow width: every `--mid` is visible,
+- **Print**, via `page.emulate_media(media="print")` **at 360px** (the declared minimum) and
+  **with the long-title depth-3 fixture** — both matter: the wrap assertion below is only meaningful
+  when the path cannot fit one line, and with short titles it would fail for a legitimate reason.
+  Every `--mid` is visible,
   the `--ellipsis` is not, `.unit-crumbs__list` `scrollWidth <= clientWidth`, and `offsetHeight`
   exceeds one line — proving it wrapped rather than clipped. §Disclosure promises a printout shows
   the complete path and §4 cites the `.el--tabs` block as precedent for a screen-only rule silently
