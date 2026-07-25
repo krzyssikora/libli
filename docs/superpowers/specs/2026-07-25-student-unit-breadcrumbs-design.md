@@ -303,18 +303,27 @@ exactly that width.
 Mechanism:
 
 - `.unit-crumbs__list` — `display: flex; flex-wrap: nowrap; align-items: center; overflow: hidden;`
-  with `list-style: none`, `margin: 0`, and the UA's `padding-inline-start: 40px` replaced **not by
-  `0` but by the ring allowance** given under §Focus ring below (that paragraph is the single
-  authority on this element's padding and margin; do not also zero them here).
+  with `list-style: none`. Its **padding and margin are specified in §Focus ring below and nowhere
+  else** — the UA's `padding-inline-start: 40px` is replaced by the ring allowance, not by `0`, and
+  the margin is the negative compensation for it, not `0`. Do not add `margin: 0` or `padding: 0`
+  here: a zeroed margin would leave the strip inset 5px from the `<h1>` in both axes, which is the
+  very misalignment the negative margin exists to cancel.
   `gap` supplies **all** spacing between crumbs,
   rather than margins, because a `display: none` item takes its gap with it whereas a margin-based
   version leaves a dangling space.
   `overflow: hidden` is the backstop keeping a worst case from pushing the whole page into
   horizontal scroll. It does not mask the e2e guard: `scrollWidth` still reports content width.
 - `.unit-crumbs__item` — `display: flex; align-items: center; min-width: 0;` plus its own internal
-  `gap` between separator and label. **`min-width: 0` here is the load-bearing declaration** — the
-  item is a flex child with the default `overflow: visible`, so without it its automatic minimum
-  size resolves to the full nowrap width of sep + label and the strip overflows instead of clipping.
+  `gap` between separator and label.
+
+  **What is load-bearing here is "a non-`auto` `min-width`", not this particular declaration.** The
+  item is a flex child with the default `overflow: visible`, so with `min-width: auto` its automatic
+  minimum size resolves to the full nowrap width of sep + label and the strip overflows instead of
+  clipping. *Any* explicit `min-width` suppresses that — which means the three sized crumbs are
+  actually held open by their **modifier floors** (see the shrink table below), not by this `0`. The
+  base value is the fallback for items with no floor: today just `--ellipsis`, plus any modifier
+  added later. Do not read this bullet as "the base `0` is what keeps the strip shrinking" — it
+  isn't, and the e2e's falsifying mutation targets the floors accordingly.
 - `.unit-crumbs__label` — `overflow: hidden; text-overflow: ellipsis; white-space: nowrap;`.
   **This is where clipping lives**, not on the `<li>`. It carries **no `min-width` of any kind**:
   per CSS Flexbox §4.5 a flex item whose computed main-axis overflow is not `visible` already has an
@@ -616,9 +625,11 @@ There is no user input and no write path here; the failure modes are all "missin
     in CI and in screenshots. Falsifying mutation: delete the role attributes.
 18. **Breakpoint drift guard:** `courses.css` contains the **full** authored query
     `f"@media screen and (max-width: {COLLAPSE_BREAKPOINT_PX}px)"` — not a bare
-    `f"max-width: {…}px"` substring, which at a retuned value of 640px would already match one of
-    the three unrelated pre-existing `@media (max-width: 640px)` blocks and pass even if the crumb
-    collapse query had been deleted outright. Additionally assert `.unit-crumbs__item--mid` appears
+    `f"max-width: {…}px"` substring, which would pass on any value that happens to collide with an
+    unrelated query elsewhere in the file even if the crumb collapse query had been deleted
+    outright. (The nearest such collision is the three existing `@media (max-width: 640px)` blocks —
+    just *outside* the permitted range, which is illustrative of the hazard rather than an instance
+    of it; 640 is excluded by §4's strict bound.) Additionally assert `.unit-crumbs__item--mid` appears
     inside that block, so the guard cannot be satisfied by an unrelated query at any value. The
     expected string must be **derived from `COLLAPSE_BREAKPOINT_PX`** rather than hardcoded —
     otherwise the guard
@@ -681,26 +692,40 @@ treatment the `›` glyph got in §1, and the reason it needs one is the same.
 **One fixture, named once.** Every assertion below runs against the **long-title depth-3 fixture**.
 This is not incidental: both of the named falsifying mutations are only detectable when the content
 actually exceeds the column. On a short-title fixture at 833px (column ~561px) or at 1280px nothing
-shrinks, so deleting `min-width: 0` still leaves `scrollWidth <= clientWidth` true and a floor moved
-onto the label still leaves `label.clientWidth <= li.clientWidth` true. Since §Falsification is
+shrinks, so setting the modifier floors to `min-width: auto` still leaves `scrollWidth <=
+clientWidth` true and a floor moved onto the label still leaves `label.clientWidth <=
+li.clientWidth` true. Since §Falsification is
 mandatory and says a test that cannot be made to fail is not a test, an implementer who ran these
 against a short fixture would watch the spec's own mutations come up green and correctly conclude
 the tests were worthless.
 
 Assertions:
 
-- **The real guard, at all three widths:** `.unit-crumbs__list` `scrollWidth <= clientWidth`, and
+- **The real guard, at all three widths:** `.unit-crumbs__list` `scrollWidth <= clientWidth`.
+
+  **Falsifying mutation: change the three modifier floors (`--course`, `--mid`, `--leaf`) to
+  `min-width: auto`.** That restores the automatic minimum size — the full nowrap width of sep +
+  label — on every crumb, the row refuses to shrink, and the assertion goes red at 833px and 360px.
+
+  Two mutations that do **not** work, recorded because both look plausible and both stay green:
+  deleting `min-width: 0` from the base `.unit-crumbs__item` rule (every `<li>` the template emits
+  carries a modifier whose explicit floor already overrides it, so only `--ellipsis` is affected and
+  that item is `flex: 0 0 auto` anyway); and deleting a `min-width: 0` from `.unit-crumbs__label`
+  (`overflow: hidden` already zeroes that element's automatic minimum size, and per §4 the label
+  carries no `min-width` at all). Removing the label's `overflow: hidden` does go red, but changes
+  two behaviours at once.
+
+  The height check below does **not** catch any of this, which is why it is not the primary guard.
+- **Page-level tripwire, at all three widths:**
   `document.documentElement.scrollWidth <= document.documentElement.clientWidth` (**not**
   `window.innerWidth`, which includes the classic scrollbar gutter and would tolerate ~15px of real
-  overflow). **Falsifying mutation: delete
-  `min-width: 0` from `.unit-crumbs__item`** — the item is a flex child with `overflow: visible`, so
-  its automatic minimum size snaps back to the full nowrap width of sep + label, the row refuses to
-  shrink, and the first assertion goes red. Do **not** try to falsify by touching
-  `.unit-crumbs__label`: `overflow: hidden` already zeroes that element's automatic minimum size, so
-  removing a `min-width: 0` there changes nothing and the test stays green — which would look like a
-  vacuous test rather than a wrong mutation. (Removing the label's `overflow: hidden` also works as
-  a mutation, but it changes two behaviours at once.) The height check below does **not** catch any
-  of this, which is why it is not the primary guard.
+  overflow). This one is **exempt from the falsification requirement**, and the exemption is stated
+  rather than left as an unpaid debt: by §4's own mechanism the list's `overflow: hidden` clips any
+  crumb overflow before it can reach the document, and the only crumb geometry that escapes the list
+  is the `<ol>`'s ±5px negative margin, which stays well inside the article's 24px/16px padding. So
+  no single crumb-CSS mutation can turn it red. It is kept anyway as a cheap standing guard on
+  invariant 2 against future layout changes elsewhere on the page — the same standing-guard role
+  `test_build_unit_nav_adds_no_queries` plays for the query budget.
 - Secondary, one-line check, **at all three widths**: compare the list's **content** height to a
   single crumb's, rather than to a guessed pixel value. Subtract the list's block padding first:
 
