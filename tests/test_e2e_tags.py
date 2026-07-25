@@ -105,3 +105,50 @@ def test_tag_filter_untag_delete_via_ui(page, live_server):
     page.get_by_role("link", name="Delete exam").click()
     page.get_by_role("button", name="Yes").click()
     expect(page.locator(".tag-section", has_text="exam")).to_have_count(0)
+
+
+@pytest.mark.django_db(transaction=True)
+def test_edit_link_survives_adding_a_tag(page, live_server):
+    """The Edit link must survive tags.js's panel.replaceWith() swap.
+
+    This is the ONLY test that can catch it: the swap happens with JS on only, so
+    every server-side test passes while the link silently vanishes the first time
+    the user tags a unit — during the exact workflow this feature exists for.
+    """
+    from tests.factories import ContentNodeFactory
+    from tests.factories import CourseFactory
+
+    user = make_verified_user(
+        username="editor", email="editor@test.example.com", password=TEST_PASSWORD
+    )
+    course = CourseFactory(title="Owned", owner=user)
+    part = ContentNodeFactory(course=course, kind="part", unit_type=None)
+    unit = ContentNodeFactory(
+        course=course, parent=part, unit_type="lesson", title="Photosynthesis"
+    )
+
+    _login(page, live_server, "editor")
+    page.goto(f"{live_server.url}/courses/{course.slug}/u/{unit.pk}/?panel=tags")
+
+    # 1. The link is there to begin with — anchors the later assertion to a
+    #    proven positive.
+    expect(page.locator(".unit-strip__edit")).to_be_visible()
+
+    # 2. Add a tag through the REAL form: a real fill and a real click on the real
+    #    submit. Never page.evaluate — an e2e that bypasses the gesture ships
+    #    broken UX green.
+    page.locator(".unit-tags__add input[name='name']").fill("walkthrough")
+    page.get_by_role("button", name="Add").click()
+
+    # 3. Wait on a CONTENT condition on the swapped-in panel. tags.js swaps from
+    #    an un-awaited fetch().then() and leaves behind no marker attribute,
+    #    status node or URL change, so there is no deterministic anchor to wait
+    #    on. Same idiom as the ADD block above. A bare timeout is NOT acceptable.
+    expect(
+        page.locator(".unit-tags__chips .tag-chip", has_text="walkthrough")
+    ).to_be_visible()
+
+    # 4. ONLY NOW assert the link survived. The ordering is load-bearing:
+    #    asserting it before the swap completes would pass even if the swap went
+    #    on to destroy it — green while broken.
+    expect(page.locator(".unit-strip__edit")).to_be_visible()
