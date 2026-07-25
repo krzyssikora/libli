@@ -2,7 +2,11 @@ import re
 
 import pytest
 from bs4 import BeautifulSoup
+from django.urls import reverse
 
+from courses.models import Choice
+from courses.models import ChoiceQuestionElement
+from courses.models import QuizSubmission
 from courses.rollups import HIDDEN_PATH_SEP
 from courses.rollups import _current_ancestors
 from courses.rollups import _stamp_current_chain
@@ -13,6 +17,8 @@ from tests.factories import ContentNodeFactory
 from tests.factories import CourseFactory
 from tests.factories import EnrollmentFactory
 from tests.factories import UnitProgressFactory
+from tests.factories import add_element
+from tests.factories import make_quiz_unit
 from tests.factories import make_verified_user
 
 
@@ -717,3 +723,108 @@ def test_crumb_carries_the_aria_scaffolding(client):
     assert soup.select_one("ol.unit-crumbs__list")["role"] == "list"
     items = soup.select("li.unit-crumbs__item")
     assert items and all(li["role"] == "listitem" for li in items)
+
+
+def _quiz_course():
+    """A course whose single unit is a quiz with one answerable question.
+
+    Uses the repo's real element API: a ChoiceQuestionElement plus Choice rows,
+    attached to the unit through an Element join-row via add_element().
+    """
+    course = CourseFactory()
+    part = ContentNodeFactory(
+        course=course, kind="part", parent=None, unit_type=None, title="Quiz Part"
+    )
+    unit = make_quiz_unit(course=course, parent=part, title="The Quiz")
+    question = ChoiceQuestionElement.objects.create(stem="<p>2+2?</p>", multiple=False)
+    right = Choice.objects.create(question=question, text="4", is_correct=True, order=0)
+    Choice.objects.create(question=question, text="5", is_correct=False, order=1)
+    element = add_element(unit, question)
+    return course, part, unit, element, right
+
+
+@pytest.mark.django_db
+def test_crumb_renders_on_the_quiz_page(client):
+    """quiz_unit redirects a SUBMITTED quiz away, so the student must have no
+    submission for this GET to reach _quiz_article.html at all."""
+    student = _make_student("crumb_quiz")
+    course, part, unit, _element, _right = _quiz_course()
+    EnrollmentFactory(student=student, course=course)
+    client.force_login(student)
+
+    # Go straight to quiz_unit. The lesson_unit URL 302s a quiz node here, so a GET
+    # without follow=True would return an empty 302 body and fail regardless of the
+    # implementation — the same trap is documented in this file's existing
+    # test_all_quiz_group_renders_no_counter_and_no_check.
+    url = reverse("courses:quiz_unit", kwargs={"slug": course.slug, "node_pk": unit.pk})
+    soup = BeautifulSoup(client.get(url).content.decode(), "html.parser")
+
+    assert soup.select_one("article.quiz nav.unit-crumbs") is not None
+    assert part.title in soup.select_one("nav.unit-crumbs").get_text()
+
+
+@pytest.mark.django_db
+def test_crumb_survives_the_no_js_check_answer_re_render(client):
+    """Omitting the fragment header makes check_answer re-render the whole page."""
+    student = _make_student("crumb_check")
+    course, groups, unit = _chain_course(2)
+    question = ChoiceQuestionElement.objects.create(stem="<p>2+2?</p>", multiple=False)
+    right = Choice.objects.create(question=question, text="4", is_correct=True, order=0)
+    element = add_element(unit, question)
+    EnrollmentFactory(student=student, course=course)
+    client.force_login(student)
+
+    url = reverse(
+        "courses:check_answer",
+        kwargs={"slug": course.slug, "node_pk": unit.pk, "element_pk": element.pk},
+    )
+    soup = BeautifulSoup(
+        client.post(url, {"choice": str(right.pk)}).content.decode(), "html.parser"
+    )
+
+    nav = soup.select_one("nav.unit-crumbs")
+    assert nav is not None
+    assert groups[-1].title in nav.get_text()
+
+
+@pytest.mark.django_db
+def test_crumb_survives_the_no_js_quiz_answer_re_render(client):
+    """quiz_answer needs an ENROLLED student (a previewer gets PermissionDenied), an
+    unlocked response with attempts left, and a NON-EMPTY answer — an empty POST
+    takes the validation branch instead."""
+    student = _make_student("crumb_qa")
+    course, part, unit, element, right = _quiz_course()
+    EnrollmentFactory(student=student, course=course)
+    client.force_login(student)
+
+    url = reverse(
+        "courses:quiz_answer",
+        kwargs={"slug": course.slug, "node_pk": unit.pk, "element_pk": element.pk},
+    )
+    soup = BeautifulSoup(
+        client.post(url, {"choice": str(right.pk)}, follow=True).content.decode(),
+        "html.parser",
+    )
+
+    nav = soup.select_one("nav.unit-crumbs")
+    assert nav is not None
+    assert part.title in nav.get_text()
+
+
+@pytest.mark.django_db
+def test_submitted_quiz_results_page_has_no_crumb(client):
+    """Stated non-goal: quiz_results.html is outside _unit_shell.html, has no
+    unit_nav, and is deliberately not covered. Also guards the redirect the quiz-GET
+    fixture above depends on."""
+    student = _make_student("crumb_results")
+    course, _part, unit, _element, _right = _quiz_course()
+    EnrollmentFactory(student=student, course=course)
+    QuizSubmission.objects.create(
+        student=student, unit=unit, status=QuizSubmission.Status.SUBMITTED
+    )
+    client.force_login(student)
+
+    resp = client.get(f"/courses/{course.slug}/u/{unit.pk}/", follow=True)
+
+    assert resp.redirect_chain, "a SUBMITTED quiz must redirect to the results page"
+    assert "unit-crumbs" not in resp.content.decode()
