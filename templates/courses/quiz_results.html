@@ -7,7 +7,7 @@
   {% if has_math %}<link rel="stylesheet" href="{% static 'courses/vendor/katex/katex.min.css' %}">{% endif %}
 {% endblock %}
 {% block content %}
-  {% include "tags/_unit_tag_panel.html" %}
+  {% include "courses/_unit_strip.html" %}
 <article class="quiz-results result" lang="{{ course.language }}">
   <h1 class="result__title">{{ unit.title }} — {% trans "results" %}</h1>
 

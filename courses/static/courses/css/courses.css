@@ -1529,3 +1529,31 @@ a.unit-crumbs__label:focus-visible { outline: 2px solid var(--primary); outline-
 .markdone-row { display: flex; align-items: center; gap: 0.5rem; }
 .markdone-row input[type="text"] { flex: 1; }
 .markdone-row__del { display: inline-flex; align-items: center; gap: 0.25rem; color: var(--text-secondary); white-space: nowrap; }
+
+/* Unit strip: the tag panel and the Edit-unit link on one row.
+   The strip owns the block rhythm; .unit-tags' own .5rem margin (from tags.css)
+   is zeroed inside it so both flex items align on the row's top edge, so no
+   hardcoded .5rem is duplicated onto the anchor, and so the .5rem below the
+   strip survives the wrapped narrow layout (where .btn has no block-end margin
+   and .unit-shell would otherwise start with 0px of separation).
+   NOTE: this override wins on SPECIFICITY, not source order — courses.css loads
+   BEFORE tags.css, so a bare `.unit-tags` selector here would lose. Keep both
+   classes.
+   `margin-block: .5rem` is a literal rather than var(--space-N) on purpose: it
+   TRACKS tags.css's `.unit-tags { margin: .5rem 0 }`, which this rule relocates,
+   and must stay numerically equal to it. If that value changes, change this one.
+   `gap: .5rem` is NOT related to it — that is the spacing between the panel and
+   the button, an independent choice that happens to share the number. Do not
+   change the gap because the tag panel's margin changed. */
+.unit-strip { display: flex; flex-wrap: wrap; gap: .5rem; align-items: flex-start;
+              margin-block: .5rem; }
+/* min-width: 0 is load-bearing. Wrapping the panel in a flex container makes it a
+   flex item for the first time — on master it is a plain block child of .app-main
+   with no automatic minimum. Without this, the UA's `min-inline-size: min-content`
+   on <fieldset class="unit-tags__picker"> would floor the panel's border box at
+   min-content, inflating its chrome. This RESTORES master's rendering; it does not
+   add a behaviour. See the spec's three-state table. */
+.unit-strip .unit-tags { flex: 1 1 auto; min-width: 0; margin-block: 0; }
+
+/* An affordance for a second browser tab is noise on paper. */
+@media print { .unit-strip__edit { display: none; } }

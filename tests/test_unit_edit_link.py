@@ -1,13 +1,16 @@
 import pytest
 from django.urls import reverse
 
+from courses.models import QuizSubmission
 from courses.rendering import unit_edit_context
 from tests.factories import ContentNodeFactory
 from tests.factories import CourseFactory
 from tests.factories import EnrollmentFactory
 from tests.factories import GroupFactory
+from tests.factories import QuizSubmissionFactory
 from tests.factories import make_ca
 from tests.factories import make_pa
+from tests.factories import make_quiz_unit
 from tests.factories import make_student
 from tests.factories import make_teacher
 
@@ -149,3 +152,116 @@ def test_enrolled_student_does_not_get_the_link(client):
 
     assert ctx["can_edit_unit"] is False
     assert ctx["unit_editor_url"] is None
+
+
+def _editor_href(course, unit):
+    return reverse("courses:manage_editor", kwargs={"slug": course.slug, "pk": unit.pk})
+
+
+@pytest.mark.django_db
+def test_lesson_unit_shows_the_link_to_the_owner(client):
+    owner = make_student(client, "owner")
+    course = CourseFactory(owner=owner)
+    unit = _lesson_unit(course)
+
+    resp = client.get(f"/courses/{course.slug}/u/{unit.pk}/")
+
+    assert resp.status_code == 200
+    body = resp.content.decode()
+    assert _editor_href(course, unit) in body
+    # The whole anchor, not just the URL: the new-tab behaviour IS the feature's
+    # ergonomic premise ("the walkthrough stays where it is"), so losing
+    # target="_blank" would ship green while destroying the reader's place.
+    assert 'target="_blank"' in body
+    assert 'rel="noopener"' in body
+
+
+@pytest.mark.django_db
+def test_lesson_unit_hides_the_link_from_an_enrolled_student(client):
+    """The actor MUST be enrolled. A bare make_student gets 403 before any
+    template renders, and the assertion would then pass for the wrong reason —
+    staying green even if the {% if can_edit_unit %} guard were deleted."""
+    student = make_student(client, "stu")
+    course = CourseFactory()
+    unit = _lesson_unit(course)
+    EnrollmentFactory(student=student, course=course)
+
+    resp = client.get(f"/courses/{course.slug}/u/{unit.pk}/")
+
+    assert resp.status_code == 200
+    body = resp.content.decode()
+    assert _editor_href(course, unit) not in body
+    # Both assertions are required and neither catches the other's mutation:
+    # inverting the predicate is caught by the href; deleting the template guard
+    # is caught ONLY here, because an unguarded anchor renders href="None",
+    # which does not contain the reversed manage_editor URL.
+    assert "unit-strip__edit" not in body
+
+
+@pytest.mark.django_db
+def test_quiz_unit_shows_the_link_to_the_owner(client):
+    owner = make_student(client, "owner")
+    course = CourseFactory(owner=owner)
+    quiz = make_quiz_unit(course=course)
+
+    # No submission for this actor: quiz_unit redirects to quiz_results once one
+    # is SUBMITTED.
+    resp = client.get(f"/courses/{course.slug}/u/{quiz.pk}/quiz/")
+
+    assert resp.status_code == 200
+    assert _editor_href(course, quiz) in resp.content.decode()
+
+
+@pytest.mark.django_db
+def test_quiz_unit_hides_the_link_from_an_enrolled_student(client):
+    student = make_student(client, "stu")
+    course = CourseFactory()
+    quiz = make_quiz_unit(course=course)
+    EnrollmentFactory(student=student, course=course)
+
+    resp = client.get(f"/courses/{course.slug}/u/{quiz.pk}/quiz/")
+
+    assert resp.status_code == 200
+    body = resp.content.decode()
+    assert _editor_href(course, quiz) not in body
+    assert "unit-strip__edit" not in body
+
+
+@pytest.mark.django_db
+def test_quiz_results_shows_the_link_to_the_owner(client):
+    """quiz_results filters submissions by student=request.user and REDIRECTS to
+    quiz_unit when there is none — and the owner, being non-enrolled, never
+    accumulates one naturally. All three kwargs are required: the factory
+    defaults `unit` to a brand-new quiz unit in a brand-new course, and `status`
+    to IN_PROGRESS."""
+    owner = make_student(client, "owner")
+    course = CourseFactory(owner=owner)
+    quiz = make_quiz_unit(course=course)
+    QuizSubmissionFactory(
+        student=owner, unit=quiz, status=QuizSubmission.Status.SUBMITTED
+    )
+
+    resp = client.get(f"/courses/{course.slug}/u/{quiz.pk}/quiz/results/")
+
+    # Assert we landed on quiz_results, not on a 302 to quiz_unit (which also
+    # renders the strip and would pass the body assertion against the wrong page).
+    assert resp.status_code == 200
+    assert _editor_href(course, quiz) in resp.content.decode()
+
+
+@pytest.mark.django_db
+def test_quiz_results_hides_the_link_from_an_enrolled_student(client):
+    student = make_student(client, "stu")
+    course = CourseFactory()
+    quiz = make_quiz_unit(course=course)
+    EnrollmentFactory(student=student, course=course)
+    QuizSubmissionFactory(
+        student=student, unit=quiz, status=QuizSubmission.Status.SUBMITTED
+    )
+
+    resp = client.get(f"/courses/{course.slug}/u/{quiz.pk}/quiz/results/")
+
+    assert resp.status_code == 200
+    body = resp.content.decode()
+    assert _editor_href(course, quiz) not in body
+    assert "unit-strip__edit" not in body
