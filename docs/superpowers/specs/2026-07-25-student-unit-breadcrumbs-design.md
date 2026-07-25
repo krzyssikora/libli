@@ -679,11 +679,20 @@ per-context viewport is how the three widths are obtained. Do not use `page.set_
 **Seeding needs a new local helper, not an extension of `_seed_nav_course`.** That helper builds a
 single `kind="part"` with unit children, so it can never yield three ancestors no matter what titles
 it is given. The crumbs helper must build `part → chapter → section → unit` and pass an explicit
-`CourseFactory(title=…)`, since the factory's default title is a `factory.Sequence`. Give the helper explicit **`title_len`**
-and **`depth`** parameters. **Every assertion below runs against the long-title depth-3 fixture**
-(~60 chars at every level) unless it says otherwise — see "one fixture, named once" below. `depth`
-exists so test 11's flat-course case and the 0/1-ancestor cases can reuse the helper; `title_len`
-is a convenience for readable debugging output, not a second mandated fixture. Run focused and in the foreground — a background `-m e2e` sweep spawns runaway
+`CourseFactory(title=…)`, since the factory's default title is a `factory.Sequence`. Seed ~60-char
+titles at every level.
+
+**The helper takes no parameters and lives in `tests/test_e2e_unit_crumbs.py`**, matching the repo
+convention that every `test_e2e_*.py` defines its own seed helper. Every e2e assertion below runs
+against that single fixture, so `depth`/`title_len` knobs would have no consumer. The unit-render
+tests do **not** reuse it — they keep building their courses in place, as
+`tests/test_unit_nav_render.py` already does with `_course_with_part`.
+
+That direction matters. `COLLAPSE_BREAKPOINT_PX` is defined in `tests/test_unit_nav_render.py` and
+imported *by* the e2e module (test 18). If the render module also imported the seeding helper back
+out of the e2e module, the two would form a module-level import cycle that raises `ImportError` at
+collection depending on which pytest imports first — and it would make the unit-render module depend
+on the e2e module. **Exactly one cross-module dependency, pointing render → e2e.** Run focused and in the foreground — a background `-m e2e` sweep spawns runaway
 browsers.
 
 **Three viewports, not two.** 1280px and 360px alone never exercise the state where mids are
@@ -816,6 +825,6 @@ screenshot QA pass across desktop × mobile × light × dark, including keyboard
 link at the strip's left edge. This is an explicit user request and an explicit deliverable of this
 work, not an optional polish step — a previous pipeline run shipped unpolished UI precisely by
 treating it as optional. The design pass may freely change the visual treatment; it may not break
-the seven invariants listed in §4 — including invariant 7, the breakpoint bound, which is the one
-the design pass is most likely to touch and the only one whose violation leaves the whole test suite
-green.
+the seven invariants listed in §4 — including invariant 7, the breakpoint bound: the one the design
+pass is most likely to touch, and the only one that needed an explicit range assertion (test 18) to
+stop a lockstep retune from passing the entire suite.
