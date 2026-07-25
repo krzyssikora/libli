@@ -699,10 +699,17 @@ summary.unit-tree__head:focus-visible { outline: 2px solid var(--primary); outli
    sides); 5px = the repo's 4px ring plus 1px of slack so the containment check does
    not sit on a zero-margin equality. The negative margin cancels it so the strip stays
    flush with the <h1>. Do not "tidy" either to 0. */
+/* .8rem / --text-secondary, NOT --text-tertiary. Tertiary (#8A8477) is this app's
+   micro-type-and-chrome colour — tree counters, uppercase .6-.7rem eyebrows — where it
+   sits on decoration. Here it would carry the student's actual location, at body size,
+   at 3.7:1 on --surface-raised light and 3.9:1 dark: below AA either way. Secondary
+   reads 7.5:1 / 7.2:1 and is theme-aware (tertiary is one hex in both themes). The
+   size drops with the colour lift so the strip still recedes against the ~2rem <h1>,
+   and every min-width floor below is in ch/em, so they scale with it in proportion. */
 .unit-crumbs__list {
   display: flex; flex-wrap: nowrap; align-items: center; overflow: hidden;
   list-style: none; gap: var(--crumb-gap); padding: 5px; margin: -5px;
-  font-size: .85rem; color: var(--text-tertiary);
+  font-size: .8rem; color: var(--text-secondary);
 }
 /* align-items:center, not baseline: a flex item with overflow:hidden is a scroll
    container and exposes no text baseline, so the UA synthesises one from its border
@@ -715,9 +722,19 @@ summary.unit-tree__head:focus-visible { outline: 2px solid var(--primary); outli
    here would be a floor on a descendant that flexbox does not consult when sizing the
    <li> — the label would then overflow its own crumb and paint over its neighbour. */
 .unit-crumbs__label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.unit-crumbs__sep { flex: 0 0 auto; }
+/* The separator is aria-hidden chrome, so it is pinned one step BELOW the labels it
+   divides — the same rank the tree gives its chevron and counter against their titles.
+   A DECLARED colour, not inheritance: it must stay tertiary even inside the leaf <li>,
+   which lifts its own label to --text-primary. Declared always beats inherited, so this
+   holds no matter what any item modifier below sets, and no source-order tie is
+   involved. Pinning weight too, for the same reason. */
+.unit-crumbs__sep { flex: 0 0 auto; color: var(--text-tertiary); font-weight: 400; }
 a.unit-crumbs__label { color: inherit; text-decoration: none; }
-a.unit-crumbs__label:hover { text-decoration: underline; }
+/* The course crumb is the strip's only link and nothing marks it at rest — matching the
+   tree, where .unit-tree__unit is also an undifferentiated --text-secondary row until
+   hover. Colour joins the underline so the affordance survives for anyone who reads
+   weight and hue faster than a 1px rule. */
+a.unit-crumbs__label:hover { color: var(--primary); text-decoration: underline; }
 a.unit-crumbs__label:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 
 /* Modifiers — AFTER the base rule, or min-width:0 wins and the floors never apply.
@@ -729,6 +746,22 @@ a.unit-crumbs__label:focus-visible { outline: 2px solid var(--primary); outline-
 .unit-crumbs__item--course { flex-shrink: 3; min-width: 6ch; }
 .unit-crumbs__item--leaf { flex-shrink: 1; min-width: calc(6ch + 1em + var(--crumb-gap)); }
 .unit-crumbs__item--ellipsis { display: none; flex: 0 0 auto; }
+
+/* Graded presence: the deepest crumb is the one the <h1> directly continues from
+   ("… › Fractions" / "Adding unlike denominators"), so it carries the most weight and
+   the rest of the path recedes behind it. That gradient encodes proximity to where the
+   student actually is — a real property of this content, not decoration — and it costs
+   zero layout width, which is what makes it affordable under the one-line invariant.
+   Deliberately NOT --primary: the leaf is the section CONTAINING the current unit, not
+   the unit, and the accent is already spoken for by the tree's is-active row.
+   On the LABEL, not the <li>: the floors above resolve `ch` against the <li>'s own
+   font, and bolding the <li> would quietly widen every one of them. */
+.unit-crumbs__item--leaf > .unit-crumbs__label { color: var(--text-primary); font-weight: 500; }
+/* The "…" stands in for entire crumbs and owns a title listing them, so it has to read
+   as a mark rather than three stray dots — punctuation carries far less optical weight
+   than letterforms at the same value. Width-safe: this item is flex:0 0 auto, so the
+   extra fraction of a pixel is fixed, not taken out of the shrink balance. */
+.unit-crumbs__item--ellipsis > .unit-crumbs__label { font-weight: 600; }
 
 /* Collapse — AFTER the modifiers (the --ellipsis display pair is decided by order).
    Scoped to `screen` so print never collapses. 832px, not the shell's 640px: the
