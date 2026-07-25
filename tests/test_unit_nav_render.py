@@ -2,6 +2,9 @@ import re
 
 import pytest
 
+from courses.rollups import HIDDEN_PATH_SEP
+from courses.rollups import _current_ancestors
+from courses.rollups import _stamp_current_chain
 from courses.rollups import build_outline
 from courses.rollups import build_unit_nav
 from tests.factories import TEST_PASSWORD
@@ -400,3 +403,110 @@ def test_childless_group_keeps_the_plain_head_shape(client):
     html = client.get(f"/courses/{course.slug}/u/{unit.pk}/").content.decode()
 
     assert '<div class="unit-tree__head"' in html, "childless group keeps the plain div"
+
+
+def _chain_course(depth):
+    """A course with `depth` group ancestors above one lesson unit.
+
+    depth 0 -> unit is a root; 1 -> part; 2 -> part/chapter; 3 -> part/chapter/section.
+    Returns (course, groups, unit) with groups root-first.
+    """
+    course = CourseFactory()
+    kinds = ["part", "chapter", "section"][:depth]
+    groups, parent = [], None
+    for kind in kinds:
+        parent = ContentNodeFactory(
+            course=course,
+            kind=kind,
+            parent=parent,
+            unit_type=None,
+            title=f"{kind.title()} title",
+        )
+        groups.append(parent)
+    unit = ContentNodeFactory(
+        course=course, kind="unit", unit_type="lesson", parent=parent, title="The Unit"
+    )
+    return course, groups, unit
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("depth", [0, 1, 2, 3])
+def test_current_ancestors_returns_the_chain_root_first(depth):
+    student = _make_student(f"anc{depth}")
+    course, groups, unit = _chain_course(depth)
+
+    nav = build_unit_nav(course, student, unit)
+
+    assert [n.pk for n in nav["ancestors"]] == [g.pk for g in groups]
+
+
+@pytest.mark.django_db
+def test_current_ancestors_excludes_the_current_unit():
+    student = _make_student("anc_excl")
+    course, groups, unit = _chain_course(3)
+
+    nav = build_unit_nav(course, student, unit)
+
+    assert unit.pk not in [n.pk for n in nav["ancestors"]]
+    assert all(n.kind != "unit" for n in nav["ancestors"])
+
+
+@pytest.mark.django_db
+def test_current_ancestors_returns_empty_for_a_stamped_tree_with_no_match():
+    """Stamped-but-unmatched is a legitimate empty result, not an error."""
+    student = _make_student("anc_nomatch")
+    course, _groups, _unit = _chain_course(2)
+    tree = build_outline(course, student)
+    _stamp_current_chain(tree, -1)  # a pk that is certainly not in the tree
+
+    assert _current_ancestors(tree) == []
+
+
+@pytest.mark.django_db
+def test_current_ancestors_raises_on_an_unstamped_tree():
+    """Distinct from the empty case: forgetting to stamp must fail loudly."""
+    student = _make_student("anc_unstamped")
+    course, _groups, _unit = _chain_course(2)
+    tree = build_outline(course, student)
+
+    with pytest.raises(KeyError):
+        _current_ancestors(tree)
+
+
+@pytest.mark.django_db
+def test_current_ancestors_handles_a_skipped_level():
+    """A 'Full' course may still hold a unit whose only ancestor is a part."""
+    student = _make_student("anc_skip")
+    course = CourseFactory()
+    part = ContentNodeFactory(
+        course=course, kind="part", parent=None, unit_type=None, title="Only Part"
+    )
+    unit = ContentNodeFactory(
+        course=course, kind="unit", unit_type="lesson", parent=part
+    )
+
+    nav = build_unit_nav(course, student, unit)
+
+    assert [n.pk for n in nav["ancestors"]] == [part.pk]
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("depth,expected", [(0, ""), (1, ""), (2, "Part title")])
+def test_hidden_path_joins_all_but_the_deepest(depth, expected):
+    student = _make_student(f"hp{depth}")
+    course, _groups, unit = _chain_course(depth)
+
+    assert build_unit_nav(course, student, unit)["hidden_path"] == expected
+
+
+@pytest.mark.django_db
+def test_hidden_path_joins_with_the_spoken_separator_and_never_the_glyph():
+    """The visible '›' is aria-hidden; hidden_path is read aloud, so it must not
+    contain the glyph or a screen reader announces its Unicode name per crumb."""
+    student = _make_student("hp_sep")
+    course, groups, unit = _chain_course(3)
+
+    hidden_path = build_unit_nav(course, student, unit)["hidden_path"]
+
+    assert hidden_path == HIDDEN_PATH_SEP.join(g.title for g in groups[:-1])
+    assert "›" not in hidden_path

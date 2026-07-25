@@ -683,6 +683,9 @@ def _element_conflict(request, course):
 
 
 # --- editor｜preview page (Task 4) ---
+# Twin of courses.rollups._current_ancestors, which serves the STUDENT breadcrumb.
+# Deliberately separate: that one reads an already-materialised outline tree for free,
+# this one walks node.parent because the builder has no such tree. Keep both.
 def _unit_ancestors(unit):
     """Root→parent chain (excluding the unit), for the breadcrumb. Variable depth."""
     chain, cur = [], unit.parent
