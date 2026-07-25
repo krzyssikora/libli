@@ -19,6 +19,13 @@ page. The Groups walkthrough is simply where it will be noticed most.
 
 ## Scope
 
+The motivating journey is fully covered by the three templates below, and that is checkable rather
+than assumed: every Groups surface (`templates/grouping/my_groups.html`, `group_list.html`,
+`group_detail.html`, `collection_detail.html`) links into a course through
+`courses:course_outline`, whose tree rows link to `courses:lesson_unit`, which redirects to
+`courses:quiz_unit` for a quiz unit, which in turn redirects to `courses:quiz_results` once
+submitted. There is no fourth unit-reading view to miss.
+
 **In scope** — the three unit consumption templates:
 
 - `templates/courses/lesson_unit.html`
@@ -98,13 +105,29 @@ or more render sites, chosen so no render path is left out:
   to its existing `unit_tags_context` merge (`:1114`), *not* into the `quiz_unit` view. This is
   load-bearing: `courses/quiz_unit.html` is rendered from **two** sites — the `quiz_unit` view
   (`:1135`) and `_quiz_render_feedback`'s no-JS full re-render (`:1170`) — and both build their
-  context here. Merging in the view instead would silently drop the link the moment a manager
-  answered a quiz question with JS off.
+  context here. Merging in the view instead would leave the second site without `can_edit_unit`,
+  and the link would vanish from it.
+
+  To be accurate about how reachable that second site is, rather than overstating it: `quiz_answer`
+  raises `PermissionDenied` unless `is_enrolled(request.user, course)`, and `build_quiz_context` sets
+  `read_only` when there is no submission — so a manager who is *not* enrolled in their own course
+  gets a read-only quiz and can never trigger the no-JS re-render at all. The path is live only for a
+  manager who is also enrolled. The merge point is still chosen for `build_quiz_context` — it
+  single-sources both sites for free — but the justification is insurance against divergence, not a
+  bug that exists today. Because the path is genuinely reachable (an enrolled owner is an ordinary
+  case), it gets an assertion of its own rather than being left to the argument above.
 - **`quiz_results`** (`courses/views.py:1284`) — a single render site with a locally-built context;
   merge next to its existing `unit_tags_context` merge.
 
 Merging the whole dict (rather than setting `ctx["can_edit_unit"]` by hand at each site) keeps the
 three sites from drifting if the helper ever returns a third key.
+
+`from courses.rendering import unit_edit_context` goes at **module top level** in `courses/views.py`.
+The neighbouring `unit_tags_context` / `lesson_notes_context` merges use function-local imports
+carrying a `# lazy: avoid import cycle` comment, and copying that style here would be cargo-culting:
+`courses/rendering.py` imports only `courses.access` and `django.urls`, both of which
+`courses/views.py` already imports at module level, so there is no cycle to avoid and a lazy import
+with a cycle comment would assert something false.
 
 The "one builder covers N render sites" property is exactly the kind of claim that decays silently
 under refactoring, so the non-GET paths get their own assertions rather than being trusted (see
@@ -165,7 +188,16 @@ anywhere:
 ```css
 .unit-strip { display: flex; flex-wrap: wrap; gap: .5rem; align-items: flex-start; }
 .unit-strip .unit-tags { flex: 1 1 auto; min-width: 0; }
+.unit-strip__edit { margin-block-start: .5rem; }
 ```
+
+`.unit-strip__edit` is not decorative and not merely a test hook — it exists to resolve a collision
+between the two decisions below. `align-items: flex-start` aligns each flex item's **margin box** to
+the row's cross-start; `.unit-tags` carries `margin: .5rem 0` while a bare `.btn` carries none, so
+without this rule the anchor's top edge would sit ~8px above the panel's border-box top — visibly
+misaligned, and in direct contradiction of the "the link aligns with the tag summary" acceptance
+criterion. Matching the panel's own `.5rem` block-start margin puts the two border boxes on the same
+line. (It doubles as the stable selector hook the view tests and e2e use.)
 
 `min-width: 0` is not boilerplate — it is the fix for a hazard this repo has already been bitten by.
 A flex item's automatic minimum size is its min-content size, and `tags/_unit_tag_panel.html` renders
@@ -173,6 +205,15 @@ a `<fieldset class="unit-tags__picker">` inside the panel. The UA stylesheet's
 `min-inline-size: min-content` on `<fieldset>` inflates that min-content size to the widest label row,
 so with the panel **open** on a narrow viewport the strip would overflow horizontally instead of
 wrapping. `min-width: 0` lets the item shrink and the row wrap as intended.
+
+That fieldset is itself conditional — `{% if addable_tags %}` — so it renders only when the actor
+owns at least one tag *not already on this unit*. Any test or screenshot meant to exercise this
+hazard must therefore be set up with `addable_tags` non-empty (several owned tags, at least one with
+a long label); with an empty picker there is no fieldset, no blowout, and the check passes even with
+`min-width: 0` deleted.
+
+Because that declaration is load-bearing but otherwise guarded only by a human looking at a
+screenshot, it also gets a cheap automated guard — see Testing.
 
 The new rule deliberately does **not** restate a margin. `.unit-tags` keeps its own `margin: .5rem 0`
 from `tags/css/tags.css`, untouched — flex items' margins do not collapse, so that margin still
@@ -249,8 +290,10 @@ confirm it goes RED. A green test that was never seen to fail proves nothing. Us
 page-rendering groups and the two non-GET path assertions — the feature's own module. The
 fragment-contract test belongs in the existing `tests/test_tags_consumption.py`, beside the tags
 consumption tests whose behaviour it constrains, because that is where someone editing the panel will
-look. The e2e goes in the existing e2e tags module if one exists, otherwise
-`tests/test_e2e_unit_edit_link.py`.
+look. The e2e extends `tests/test_e2e_tags.py`, whose existing add-a-tag flow already uses the exact
+wait idiom this spec prescribes
+(`expect(page.locator(".unit-tags__chips .tag-chip", has_text=…)).to_be_visible()` after the fetch
+swap) — copy that flow rather than writing a new one.
 
 **A trap that makes naive negative tests worthless.** `tests/factories._make_role` attaches the role
 permission group but does **not** set `is_staff` (production derives it in `accounts/services.py`; the
@@ -282,28 +325,66 @@ duplicate of the student row and stops guarding anything. A positive row also as
 **View rendering — all three pages.** For each of `lesson_unit`, `quiz_unit` and `quiz_results`: the
 owner's response (200) contains the editor href, and an **enrolled** non-managing viewer's response
 (also 200 — see the trap above) does not. `quiz_unit` redirects to `quiz_results` once a submission is
-SUBMITTED, so the quiz-results case needs a submitted `QuizSubmission` (`QuizSubmissionFactory`) for
-whichever actor is being tested, and the quiz-unit case must have none.
+SUBMITTED, so the quiz-unit case must have no submission for the actor.
+
+The quiz-results case needs more care than "a submitted submission" suggests: `quiz_results` filters
+by `student=request.user` and **redirects back to `quiz_unit`** when that user has none. So *each*
+actor needs their **own** SUBMITTED `QuizSubmissionFactory` row — including the owner, who being
+non-enrolled would never accumulate one naturally. Without it the test silently follows a 302 to
+`quiz_unit`, which for the owner still contains the href and so passes while asserting against the
+wrong page. Each quiz-results test must therefore assert it actually landed on `quiz_results`
+(`follow=False` and a 200, or `resp.redirect_chain == []`) before asserting on the body.
 
 At least one positive assertion checks the **whole anchor**, not just the URL: `target="_blank"` and
 `rel="noopener"` must both be present. The new-tab behaviour is the feature's entire ergonomic
 premise — "the walkthrough stays where it is" — so dropping `target="_blank"` would ship green while
 silently destroying the reader's place in the course.
 
-**The two non-GET lesson render paths.** The claim that `full_lesson_render_context` covers three
-paths is true today and nothing pins it, so one assertion each: a no-JS `check_answer` POST response
-and a no-JS note-validation-error re-render (status 422, `notes/views.py:194`) each still carry the
-editor href for the owner. The 422 one matters most in practice — it is a page a manager hits
-precisely while annotating during the walkthrough this feature serves.
+**The non-GET render paths.** The claim that one context builder covers N render sites is exactly the
+kind of thing that decays silently under refactoring, so each secondary site gets its own assertion —
+the response still carries the editor href for the owner:
 
-**The fragment contract.** `tags/views.py::tag_add` returns `_panel_response`'s panel-only fragment
-**only** when `_wants_fragment(request)` is true, i.e. when the request carries
-`X-Requested-With: fetch`; a plain no-JS POST instead returns a 302 redirect with an empty body.
-The test must therefore POST to `tags:tag_add` **with `HTTP_X_REQUESTED_WITH="fetch"`**, assert a 200,
-and assert the body contains `unit-tags` but **not** the editor href. Posting without that header
-would make the assertion trivially true regardless of where the link lives — unfalsifiable, and
-useless as the guard it is meant to be. Falsify it explicitly: temporarily move the link inside
-`tags/_unit_tag_panel.html` and confirm this test goes RED.
+| Path | Copy the setup from |
+|---|---|
+| no-JS `check_answer` POST re-render | `tests/test_courses_views.py::test_check_answer_nojs_rerender_includes_unit_nav` (same shape: asserting the shared context survived) |
+| no-JS note-validation-error re-render (422) | `tests/test_notes_views.py::test_create_note_invalid_no_js_422_repopulates_rejected_text` |
+| no-JS `quiz_answer` re-render (`_quiz_render_feedback`) | any no-JS quiz-answer case; the actor must be an **enrolled** owner, since `quiz_answer` refuses non-enrolled users |
+
+Naming an existing test per row matters: each needs non-trivial fixtures (a `QuestionElement` plus an
+acceptable answer body; a blank note POST that fails `NoteForm`; an enrolled manager with a live
+submission) that are already assembled in those tests. The 422 row matters most in practice — that is
+a page a manager hits precisely while annotating during the walkthrough this feature serves.
+
+**The `min-width: 0` guard.** A pre-ship screenshot is not re-run by CI, so the load-bearing
+declaration gets a cheap static assertion in `tests/test_consumption_css.py`, following the existing
+precedent there (`test_uploaded_video_is_constrained_to_its_container` regex-extracts a rule block
+from `courses.css` and asserts on its declarations): assert the `.unit-strip .unit-tags` block exists
+and contains `min-width: 0`, with a comment naming the `<fieldset>` hazard so a future deleter sees
+why it is there.
+
+**The containment contract** — the server-side guard that the link is a *sibling* of the panel, not
+a child of it. This must be asserted **on the full unit page**, not on the tag fragment, and the
+reason is worth pinning down because the obvious formulation is unfalsifiable:
+
+`tags/views.py::_panel_response` builds its context from `unit_tags_context(...)` plus
+`course` / `unit` / `tag_error` / `tag_draft` — it never carries `can_edit_unit` or
+`unit_editor_url`. So if someone moved the anchor into `tags/_unit_tag_panel.html`, the *fragment*
+would render `{% if can_edit_unit %}` against a missing variable, emit nothing, and a
+"fragment does not contain the href" assertion would stay GREEN through the very regression it
+exists to catch. (An unguarded anchor is no better: `{{ unit_editor_url }}` on a missing key renders
+`""` via `string_if_invalid`.) By this project's own rule — a test that cannot be made to fail is not
+a test — the fragment formulation must be rejected.
+
+The falsifiable form is a **structural containment assertion on the page**, as the course owner
+(an actor for whom the link is genuinely present, so the negative is anchored to a proven positive):
+
+1. GET the lesson unit as the owner; assert 200 and that the editor href **is** present.
+2. Extract the `<details class="unit-tags"> … </details>` substring from the body.
+3. Assert the editor href does **not** occur inside that substring.
+
+Because the page render *does* carry `can_edit_unit`, moving the anchor into the panel partial makes
+step 3 fail immediately — a one-step falsification, which is how this test must be verified before
+acceptance.
 
 **e2e (`e2e` marker) — the `replaceWith` trap.** As the owner, on a lesson unit with JS on: assert
 the Edit link is present, add a tag through the real form — a real click on the real submit, never
@@ -336,6 +417,11 @@ panel open the page has **no horizontal overflow** (the `min-width: 0` fix worki
 view is visually equivalent to today's vertical rhythm. The narrow shots are taken with the panel open
 deliberately — closed, the summary is short enough that the row will not wrap and the shot would prove
 nothing.
+
+The narrow-viewport fixture must also give the actor **several owned tags not yet on the unit**, at
+least one with a long label, so `addable_tags` is non-empty and the `<fieldset class="unit-tags__picker">`
+actually renders. Without it the shot contains no fieldset, exhibits no min-content blowout, and would
+look identical with `min-width: 0` deleted.
 
 **i18n.** Two new msgids — `Edit unit` and `(opens in a new tab)` — added to both the EN and PL
 catalogs via `uv run python manage.py makemessages -l pl -l en --no-obsolete`. Two standing hazards:
