@@ -109,6 +109,10 @@ def test_platform_admin_non_owner_gets_the_link(client):
     """A PA holds courses.change_course, so the permission branch grants it on
     every course — including one they do not own."""
     pa = make_pa(client, "pa")
+    # is_staff deliberately NOT set here, unlike the CA and teacher rows below.
+    # Production PAs are is_staff too, but this row is asserting the
+    # courses.change_course branch: setting is_staff would make it indistinguishable
+    # under Step 5b's is_staff-broadening mutation, which expects this row GREEN.
     course = CourseFactory()  # owner is None
     unit = _lesson_unit(course)
 
@@ -197,7 +201,7 @@ def test_enrolled_student_does_not_get_the_link(client):
     assert ctx["unit_editor_url"] is None
 ```
 
-Note: these tests issue no request but still take `client` — every role helper routes through `_make_role(client, …)` → `make_login(client, username)`, which needs a client. Each row uses a **distinct username** so building several roles cannot collide on `create_user`.
+Note: these tests issue no request but still take `client` — every role helper routes through `_make_role(client, …)` → `make_login(client, username)`, which needs a client. Usernames must be **distinct within a single test**, because two role helpers in one test body would collide on `create_user`; they need not be distinct *across* tests, and by Task 6 several rows legitimately reuse `"owner"` and `"stu"` (each test rolls back its own database state).
 
 - [ ] **Step 2: Run the tests to verify they fail**
 
@@ -615,7 +619,13 @@ Expected: all pass
 uv run pytest
 ```
 
-Expected: all pass, no new failures against master.
+Expected: **all pass.**
+
+This is the plan's first whole-suite run, so it is also the most likely place to meet an **unrelated
+pre-existing failure** for the first time. If one appears, apply Task 8 Step 5's procedure rather than
+absorbing it here: re-run that test on the base commit to prove this diff did not cause it, and fix it
+in its **own** PR. Do not phrase the gate as "no new failures against master" — no master baseline is
+captured at this point, so that is not a checkable criterion.
 
 Step 9 covers only the new permission check inside `build_quiz_context`. This task *also* inserts a
 new `<div class="unit-strip">` wrapper at the top of `{% block content %}` on all three consumption
@@ -653,15 +663,26 @@ git commit -m "feat(courses): Edit unit link on the three unit consumption pages
 - Consumes: everything from Task 2.
 - Produces: nothing new — these assertions exist solely to pin the "one shared builder covers N render sites" property, which decays silently under refactoring.
 
-Each row copies its fixture from a named precedent. **Every copy needs the course to end up with `owner=<the acting user>`** — all three precedents build a plain `CourseFactory()` (so `owner` is `None`) and merely *enroll* the actor, and copied verbatim the positive assertion fails with no stated cause.
+**The code blocks in Step 1 are normative — write those, not the precedents.** The table below records
+which existing test each row's *shape* was derived from, so you can check the route and status codes
+against something real; it is not an instruction to go and copy those fixtures. They differ
+deliberately: all three precedents build a plain `CourseFactory()` (so `owner` is `None`) and merely
+*enroll* the actor, which would make every positive assertion here fail with no stated cause, so each
+block below builds its actor first and passes `owner=owner`.
 
-| Path | Copy the setup from | Expected status |
+| Path | Shape derived from (reference, not a copy target) | Expected status |
 |---|---|---|
 | no-JS `check_answer` POST re-render | `tests/test_courses_views.py::test_check_answer_nojs_rerender_includes_unit_nav` | 200 |
 | no-JS note-validation re-render | `tests/test_notes_views.py::test_create_note_invalid_no_js_422_repopulates_rejected_text` | **422** |
 | no-JS `quiz_answer` re-render | **no precedent exists** — build from the recipe below | 200 |
 
-**Fixture-ordering warning:** `CourseFactory(owner=user)` needs the user to exist first, and in two precedents it does not — `test_check_answer_nojs…` creates the actor ~25 lines after the course, and the notes precedent's actor comes from `_enrolled_user(course)`, which takes the course as an argument. For those two, either hoist the actor's creation above `CourseFactory(owner=…)` or assign afterwards (`course.owner = user; course.save()`).
+**Fixture-ordering note — already resolved below, recorded so it is not reintroduced.**
+`CourseFactory(owner=user)` needs the user to exist first, and in two of the precedents it does not:
+`test_check_answer_nojs…` creates the actor ~25 lines after the course, and the notes precedent's
+actor comes from `_enrolled_user(course)`, which takes the course as an argument. The Step 1 blocks
+sidestep this by creating the actor on their first line, so **no hoisting is needed** — but if you
+ever restructure one of them, either keep the actor first or assign afterwards
+(`course.owner = user; course.save()`).
 
 - [ ] **Step 1: Write the pinning tests**
 
@@ -915,12 +936,34 @@ def test_edit_link_is_a_sibling_of_the_tag_panel_not_a_child(client):
 Run: `uv run pytest tests/test_tags_consumption.py::test_edit_link_is_a_sibling_of_the_tag_panel_not_a_child -v`
 Expected: PASS
 
-- [ ] **Step 3: Falsify — move the anchor into the panel**
+- [ ] **Step 3: Falsify — TWO mutations, one per half of the assertion**
 
-Temporarily move the whole `{% if can_edit_unit %}…{% endif %}` block from `templates/courses/_unit_strip.html` into `tags/templates/tags/_unit_tag_panel.html`, inside the `<details>`.
+The test has a negative half (steps 1–3: the link is not inside the panel) and a positive half
+(step 4: the link is inside the strip, after the panel, before the shell). **One mutation exercises
+only the negative half**, leaving step 4 a green line never seen to fail — exactly what this plan
+forbids everywhere else. Both mutations are required. Same command each time:
 
-Run: `uv run pytest tests/test_tags_consumption.py::test_edit_link_is_a_sibling_of_the_tag_panel_not_a_child -v`
-Expected: **FAIL at step 3** (the href is now inside the panel). This is a one-step falsification — the page render carries `can_edit_unit`, so the anchor really does render there. Restore.
+```bash
+uv run pytest tests/test_tags_consumption.py::test_edit_link_is_a_sibling_of_the_tag_panel_not_a_child -v
+```
+
+*Mutation A — move the anchor INTO the panel.* Temporarily move the whole
+`{% if can_edit_unit %}…{% endif %}` block from `templates/courses/_unit_strip.html` into
+`tags/templates/tags/_unit_tag_panel.html`, inside the `<details>`.
+
+Expected: **FAIL at step 3** (the href is now inside the panel). The page render carries
+`can_edit_unit`, so the anchor really does render there. Restore.
+
+*Mutation B — move the anchor OUT of the strip entirely.* Temporarily move the same block from
+`_unit_strip.html` into `templates/courses/lesson_unit.html`, placed **after** the
+`{% include "courses/_unit_shell.html" %}` line.
+
+Expected: **steps 1–3 still pass, step 4 FAILS.** The href is still on the page and still outside the
+panel, so the negative half is satisfied; but the anchor now follows `<div class="unit-shell"`, so
+`body.index(href) < shell_start` is false and the chained assertion breaks. This is the regression the
+step-4 docstring names ("moving the anchor out of `.unit-strip` entirely … leaves steps 1-3 green
+while destroying the flex row") — and until this mutation is run, that claim is untested. **If step 3
+fails instead, the block landed inside the panel rather than after the shell; re-place it.** Restore.
 
 - [ ] **Step 4: Lint and commit**
 
@@ -979,8 +1022,10 @@ def test_unit_strip_rules_are_present_and_load_bearing():
       assertion here can pass while this one's absence undoes the feature.
     - flex-wrap: wrap — without it the narrow layout overflows horizontally
       instead of dropping the button onto its own line.
-    - margin-block — deleting it reintroduces the 0px gap before .unit-shell in
-      the wrapped layout (where .btn contributes no block-end margin).
+    - margin-block, and it must be NON-ZERO — deleting it *or zeroing it*
+      reintroduces the 0px gap before .unit-shell in the wrapped layout (where
+      .btn contributes no block-end margin). The exact value is left free so it
+      can keep tracking tags.css's `.unit-tags { margin: .5rem 0 }`.
 
     On .unit-strip .unit-tags:
     - min-width: 0 — wrapping the panel in a flex container makes it a flex item
@@ -1002,8 +1047,14 @@ def test_unit_strip_rules_are_present_and_load_bearing():
     # display: flex FIRST — it is the declaration every other one here presupposes.
     assert "display: flex" in outer, f"display: flex missing (no row at all): {outer!r}"
     assert "flex-wrap: wrap" in outer, f"flex-wrap: wrap missing: {outer!r}"
-    assert "margin-block" in outer, (
-        f"the strip must own the block rhythm: {outer!r}"
+    # Value-checked, not substring-checked: `.unit-strip { margin-block: 0 }`
+    # reintroduces the very 0px gap this assertion exists to guard, and a bare
+    # `"margin-block" in outer` would stay green through it.
+    rhythm = re.search(r"margin-block:\s*([^;}]+)", outer)
+    assert rhythm, f"the strip must own the block rhythm: {outer!r}"
+    assert rhythm.group(1).strip() not in {"0", "0px", "0rem", "0em"}, (
+        f"margin-block must be NON-ZERO — zeroing it reintroduces the 0px gap "
+        f"before .unit-shell in the wrapped layout: {rhythm.group(1)!r}"
     )
 
     inner = re.search(r"\.unit-strip\s+\.unit-tags\s*\{([^}]*)\}", css)
@@ -1035,11 +1086,18 @@ Expected: FAIL. Restore.
 
 Repeat once per guarded declaration, confirming FAIL each time and restoring after each —
 `margin-block: 0` and `flex: 1 1 auto` on `.unit-strip .unit-tags`, then `display: flex`,
-`flex-wrap: wrap` and `margin-block` on `.unit-strip`. **Six deletions, six REDs**, one per assertion
-in the test: a guard you never saw fail is not a guard.
+`flex-wrap: wrap` and `margin-block` on `.unit-strip`.
 
-Delete each declaration *individually* and restore before the next. Deleting `display: flex` together
-with anything else would leave you unable to say which assertion fired.
+Then **one seventh mutation that is not a deletion**: change `.unit-strip`'s `margin-block: .5rem` to
+`margin-block: 0`. Expected: FAIL on the *non-zero* assertion, not the presence one. This is the
+mutation that distinguishes the value-checked assertion from a substring check — without it, the
+`margin-block: 0` regression the docstring names is untested. Restore.
+
+**Seven mutations, seven REDs** — six deletions plus one zeroing, one per assertion in the test: a
+guard you never saw fail is not a guard.
+
+Mutate *individually* and restore before the next. Deleting `display: flex` together with anything
+else would leave you unable to say which assertion fired.
 
 - [ ] **Step 4: Lint and commit**
 
@@ -1682,12 +1740,17 @@ harness, so an omission noticed after that point cannot be recovered without reb
   exercised. Rows 1 and 3 are the same page and actor and should share one unit, so the fixture is
   built once; row 1 then legitimately shows `Tags (4)` on its closed summary.
 - The `quiz_results` row needs `QuizSubmissionFactory(student=<owner>, unit=<the quiz node>, status=QuizSubmission.Status.SUBMITTED)`, or the view redirects to `quiz_unit`, which renders the same strip and looks entirely plausible while leaving the row's actual purpose unverified. **Confirm the captured URL is the results path.**
-- Both ~400px rows need a **populated** panel. With an empty panel the row will not wrap and the shot cannot show the layout it exists to show. **If the ~400px owner shot is not wrapped, the fixture is wrong.**
+- Both ~400px rows need a **populated** panel — but for different reasons, and only one of them
+  wraps. `narrow_owner` has two flex items, so a populated panel is what pushes it into the wrapped
+  layout: **if the ~400px owner shot is not wrapped, the fixture is wrong.** `narrow_student` has no
+  button (the actor cannot edit), so it can never wrap; its populated panel exists to make the panel
+  *wide* enough to expose the `min-width: 0` hazard. Do not judge it on wrapping — see Step 3.
 - **The owner rows' shared panel fixture, explicitly** — built **once** and used by rows 1, 3 and 4
   (all `lesson_unit`, same actor, same unit). It needs *both* kinds of tag, and they are built
   differently, which is exactly the trap described in the next bullet:
   ```python
-  from tags import services
+  # `services` comes from the module-level `from tags import services` in Step 0's
+  # imports block — do not re-import it function-locally.
 
   # Chips (attached) — these are what widen the OPEN panel enough to force the wrap.
   for name in ("revision", "photosynthesis", "needs-diagram", "chapter-two"):
@@ -1771,8 +1834,16 @@ SHOT_VARIANT=feature320 uv run pytest -m e2e   tests/test_e2e_unit_strip_shots.p
 SHOT_VARIANT=nomin320   uv run pytest -m e2e   tests/test_e2e_unit_strip_shots.py::test_shots_ab_narrow_student -v   # min-width: 0 deleted
 ```
 
-Temporarily set that function's viewport to 320 for both runs, and note that the Step 0 sanity check
-("if a `narrow_*` PNG is 1280px wide the viewport call is missing") then expects **320**, not 400.
+Temporarily set that function's viewport to 320 for both runs. Two consequences:
+
+- **Restore the viewport to 400 before the parity validation below** (or re-capture the parity
+  baseline at 320 as well). Left at 320, `narrow_student_baseline_*` would be captured at 320 and read
+  against `narrow_student_feature_*` at 400 — the parity read would then fail on the panel's edges and
+  the page height for a reason that has nothing to do with the feature, and Step 3 would score that as
+  a defect.
+- The Step 0 sanity check applies to `narrow_student_*` at **320** for these runs. It still expects
+  **400** for `narrow_owner_*`, which `test_shots_owner` captures and this escape hatch never touches.
+
 Only if the 320px pair *also* hash-matches is the hazard genuinely unreproducible — and that would be
 a finding about the declaration worth stating, not a fixture bug to grind on.
 
@@ -1819,8 +1890,14 @@ pre-accepts both for that row; picking the criterion by viewport would make a wr
 look like a defect against a state that is expected.
 
 - **Rows whose strip did NOT wrap:** the button is pinned to the far right end of the row and **shares the tag panel's top edge**, without overlapping it.
-- **Rows whose strip DID wrap** — both ~400px rows, and `desktop_owner_open` if it wraps at full width: the button sits on its own line, flush with the content column's left edge, with the `.5rem` gap below the strip intact. (The top-edge criterion is meaningless here — the items are on different lines.)
-- **Panel border box** at ~400px with the panel open: its right edge sits within the content column.
+- **Rows whose strip DID wrap** — `narrow_owner`, and `desktop_owner_open` if it wraps at full width: the button sits on its own line, flush with the content column's left edge, with the `.5rem` gap below the strip intact. (The top-edge criterion is meaningless here — the items are on different lines.)
+- **Row 5 (`narrow_student`) is judged by a different criterion, and wrapping is not part of it.** That
+  actor is an enrolled student, so `can_edit_unit` is false and the strip holds **one** flex item and
+  **no button at all** — a single-item flex line cannot wrap, so any wrapped-row criterion is
+  unjudgeable here and a "defect" reported against it would be phantom. Judge this row on exactly two
+  things: the panel's border box stays within the content column (this is the `min-width: 0` hazard
+  the row exists for), and it reads as equivalent to its `_baseline_` counterpart.
+- **Panel border box** at ~400px with the panel open (`narrow_owner` and `narrow_student` alike): its right edge sits within the content column.
 - **No horizontal overflow.** Only two rows have a feature-off baseline (rows 2 and 5, captured in
   Step 2), and only those two are judged *relatively*: no overflow beyond their `_baseline_` image.
   **For the four owner rows there is no baseline and none is captured** — judge them by this absolute
@@ -1854,7 +1931,30 @@ look like a defect against a state that is expected.
   run-together form `'Edit unit(opens in a new tab)'`, which means the `&nbsp;` was dropped or
   replaced by a collapsible space that `.visually-hidden`'s `position: absolute` then stripped; that
   is real, and Step 6 is where its fix gets committed.
+- **Dark mode is judged separately, not assumed to follow light.** Six of the twelve shots are dark,
+  and every criterion above is theme-agnostic geometry, so without this bullet the dark half is
+  captured and never judged (the "light and dark must differ" rule is a *capture-health* check, not a
+  design one). In dark: the ghost button's border and label must stay legible against the tag panel's
+  `--surface-raised`, and the strip must introduce no new colour seam against the panel it wraps.
+  **State the dark verdict separately from the light one in the report** — "looks fine" covering both
+  is the failure mode this bullet exists to prevent.
 - **`quiz_results` overhang is pre-recorded as ACCEPTED, not a pass/fail gate.** The strip spans 920px above a 736px `.result` article — ~90px per side. This is not new: the tag panel already does exactly this on master. Confirm it reads as deliberate rather than broken; if a human judges otherwise that is a follow-up styling decision, **not a blocker for this change**.
+
+**If Step 3 finds a real defect, fix it HERE — before Step 4, not at Step 6.** The harness is the only
+instrument in this plan that can render the strip, and Step 4 destroys it; a CSS fix authored
+afterwards would ship on a mental model, with no way to confirm it corrected the shot that motivated
+it. So, on the defect branch:
+
+1. Apply the fix (`courses.css` or `templates/courses/_unit_strip.html`).
+2. Re-capture the affected row(s) with a fresh `SHOT_VARIANT` label (e.g. `SHOT_VARIANT=fixed`) —
+   never at the default `feature` label, which would overwrite the images that recorded the defect.
+3. Re-judge those rows against the same criteria, and keep both the before and after images.
+4. If the fix touched `courses.css`, **re-run Task 5's guard**
+   (`uv run pytest tests/test_consumption_css.py -v`) — a layout fix can easily change one of the six
+   declarations it pins.
+5. Only then continue to Step 4.
+
+**On the clean branch there is nothing to fix and nothing to re-capture — go straight to Step 4.**
 
 - [ ] **Step 4: Delete the capture harness — BEFORE the lint gate**
 
@@ -1944,15 +2044,24 @@ Two specific things to expect here and resolve rather than shrug at:
 - **A modified `.mo` file.** Step 5 re-runs `compilemessages`, which rewrites the binary catalogs
   Task 6 already committed. If a `.mo` shows as modified, the recompile was not byte-identical —
   most likely because a Step 6b restore was missed. Fix the `.po`, recompile, and confirm clean.
-- **A modified `courses.css` or template.** That is an unrestored falsification mutation. Restore it
-  and re-run Step 5's suite; do **not** commit it as a "fix".
+- **A modified `courses.css` or template.** Which of two opposite things this is depends entirely on
+  Step 3, so decide by that and nothing else:
+  - **Step 3 recorded a defect** and this modification is the fix you authored there → **expected**.
+    Leave it; Step 6 commits it. (You will have noted the intended change at Step 3, so compare
+    against that note rather than trusting recall.)
+  - **Step 3 was clean** → this is an unrestored falsification mutation. Restore it and re-run
+    Step 5's suite. Do **not** commit it as a "fix" — there is no defect for it to be fixing.
 
+**Expected output is empty on the clean branch, and exactly the Step-3 fix on the defect branch.**
 The branch is handed to the caller's finish stage from here, so an unrestored mutation left now would
 be reviewed and pushed as if it were intended.
 
 - [ ] **Step 6: Commit any screenshot-driven fixes**
 
-Only if Step 3 revealed a real defect:
+Only if Step 3 revealed a real defect. **This step commits a fix that was already authored and
+re-verified back at Step 3** — it does not author one now; by this point the harness is gone and no
+new layout claim could be checked. If you find yourself wanting to write a fix here, the sequence went
+wrong: go back, rebuild the harness, and re-judge.
 
 ```bash
 git branch --show-current
