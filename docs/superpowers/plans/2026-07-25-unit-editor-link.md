@@ -171,11 +171,23 @@ def test_course_admin_who_owns_the_course_gets_the_link(client):
 
 @pytest.mark.django_db
 def test_group_teacher_with_read_access_does_not_get_the_link(client):
-    """Built so the actor genuinely passes can_access_course (non-archived group
-    on THIS course, actor in group.teachers). Without that this row degrades into
-    a duplicate of the student row and stops guarding anything."""
+    """A read-access actor who must NOT get the link.
+
+    Two things make this row work, and neither is the one you would guess:
+
+    - `is_staff = True` is LOAD-BEARING, for Step 5b's mutation. It also means the
+      actor passes can_access_course on the STAFF branch: accessible_courses
+      short-circuits with `if user.is_staff: return Course.objects.all()` before
+      the groups__teachers clause is ever evaluated.
+    - Because of that short-circuit the group scaffolding below does NOT drive the
+      outcome. It is kept to mirror the spec's matrix row (a real group teacher on
+      a non-archived group of THIS course), not to grant access.
+
+    Do not "simplify" by deleting `is_staff = True` to restore the group as the
+    access route — that is precisely what Step 5b's mutation depends on.
+    """
     teacher = make_teacher(client, "teach")
-    teacher.is_staff = True  # same reason as the CA row above
+    teacher.is_staff = True  # load-bearing; see the docstring
     teacher.save(update_fields=["is_staff"])
     course = CourseFactory()
     unit = _lesson_unit(course)
@@ -257,6 +269,15 @@ def unit_edit_context(user, unit):
 
 Run: `uv run pytest tests/test_unit_edit_link.py -v`
 Expected: 6 passed
+
+**If the owner row fails on its `status_code == 200` while `ctx["can_edit_unit"] is True` passes, the
+defect is NOT in the helper.** A Student-role, `is_staff=False` course owner rendering
+`manage_editor` is a combination the suite has never exercised — every existing editor-page test
+(`tests/test_editor_page.py`, `test_editor_scripts.py`, `test_editor_view_toggle.py`,
+`test_editor_count_i18n.py`, …) builds its actor with `make_pa`. It is very likely fine
+(`base.html`'s admin nav is `{% if perms.… %}`-gated throughout), but if it is not, look at
+`templates/courses/manage/editor/editor.html` and `base.html`, and treat it as a **pre-existing bug
+for its own PR** rather than a fault in `unit_edit_context`.
 
 - [ ] **Step 5: Falsify — invert the predicate**
 
@@ -566,9 +587,12 @@ Append to `courses/static/courses/css/courses.css`:
    NOTE: this override wins on SPECIFICITY, not source order — courses.css loads
    BEFORE tags.css, so a bare `.unit-tags` selector here would lose. Keep both
    classes.
-   Both .5rem literals are deliberate rather than var(--space-N): they track the
-   value in tags.css's `.unit-tags { margin: .5rem 0 }`, which this rule relocates
-   and must stay numerically equal to. If that value changes, change these too. */
+   `margin-block: .5rem` is a literal rather than var(--space-N) on purpose: it
+   TRACKS tags.css's `.unit-tags { margin: .5rem 0 }`, which this rule relocates,
+   and must stay numerically equal to it. If that value changes, change this one.
+   `gap: .5rem` is NOT related to it — that is the spacing between the panel and
+   the button, an independent choice that happens to share the number. Do not
+   change the gap because the tag panel's margin changed. */
 .unit-strip { display: flex; flex-wrap: wrap; gap: .5rem; align-items: flex-start;
               margin-block: .5rem; }
 /* min-width: 0 is load-bearing. Wrapping the panel in a flex container makes it a
@@ -629,7 +653,11 @@ captured at this point, so that is not a checkable criterion.
 
 Step 9 covers only the new permission check inside `build_quiz_context`. This task *also* inserts a
 new `<div class="unit-strip">` wrapper at the top of `{% block content %}` on all three consumption
-pages, rendered from seven sites — a structural DOM change whose blast radius is far wider than those
+pages, rendered from **six** sites — `courses/views.py:593` (lesson_unit GET), `:837` (check_answer
+no-JS), `:1135` (quiz_unit GET), `:1170` (`_quiz_render_feedback` no-JS), `:1328` (quiz_results) and
+`notes/views.py:200` (note_add 422); `tags/views.py`'s `_panel_response` renders the tag *fragment*,
+not the strip, and Task 4 depends on it never carrying `can_edit_unit`. A structural DOM change
+across six render sites has a blast radius far wider than those
 four modules. Deferring every consequence of it to Task 8 Step 5 would mean bisecting a breakage back
 through four intervening commits. Validate it in the commit that introduces it.
 
@@ -1247,8 +1275,18 @@ def test_edit_link_label_renders_in_polish(client):
 
 - [ ] **Step 5: Run the tests to verify they pass**
 
-Run: `uv run pytest tests/test_unit_edit_link.py tests/test_i18n_po_health.py -v`
-Expected: all pass
+Run: `uv run pytest tests/test_unit_edit_link.py tests/test_i18n_*.py -v`
+Expected: all pass. Confirm the glob actually expanded — a run collecting only the first module means
+the shell did not expand it, and the check below never happened.
+
+**Run every `test_i18n_*` module, not just `test_i18n_po_health.py`.** The repo has 17 of them, and
+16 assert that *specific* msgids translate (`test_i18n_quiz.py`, `test_i18n_stepper.py`, …).
+`test_i18n_po_health.py` only guards fuzzy/obsolete/blank-PL health across the whole catalog — so a
+msgid **dropped** by Step 1's `--no-obsolete` leaves the catalog perfectly *healthy* while breaking
+the per-string module that asserted it. That is exactly the collateral Step 1b warns about, and this
+is the cheap decisive check for it; Step 1b's `git diff | grep` read is the manual counterpart.
+Without this, such a breakage first surfaces at Task 8 Step 5 — four commits later, with Tasks 7 and
+8 already stacked on top.
 
 If `test_edit_link_label_renders_in_polish` fails with the English label present, the activation is incomplete — check all three of the session key, the `save()`, and the `HTTP_ACCEPT_LANGUAGE` header.
 
@@ -1919,18 +1957,27 @@ look like a defect against a state that is expected.
 - **Accessible name.** The `&nbsp;` + `.visually-hidden` "(opens in a new tab)" construction is this
   feature's only accessibility affordance and is deliberately guarded by **no automated test** — the
   spec routes its verification entirely into this pass, so it is unverified by anything if skipped
-  here. The verification is the `ACCESSIBLE NAME:` line printed by `_report_accessible_name` in
-  Step 1's `-s` run — that is the browser's own computed name, which is what a screen reader
-  announces. **Copy that line verbatim into this task's completion report**, not into a commit (the
+  here. The verification is the `ACCESSIBLE NAME:` line printed by `_report_accessible_name` — that
+  is the browser's own computed name, which is what a screen reader announces. Take it from **the
+  last `-s` run that captured the shipped markup**: normally Step 1's, but if the defect branch
+  re-ran it after a fix, that later line is the one that describes what actually ships.
+  **Copy that line verbatim into this task's completion report**, not into a commit (the
   happy path commits nothing); it is the sole artifact of the only verification this construction
   ever gets. **The expected passing output is `'Edit unit\xa0(opens in a new tab)'`** — `\xa0` is the
   `&nbsp;` from Task 2's partial doing exactly its job. `_report_accessible_name` prints with `!r`,
   and Chromium's accname algorithm does not fold U+00A0 into a plain space, so the escape appearing
   in the string is the **healthy** result, not a defect. A plain-space variant
-  (`'Edit unit (opens in a new tab)'`) is equally acceptable. The **only** defect signature is the
-  run-together form `'Edit unit(opens in a new tab)'`, which means the `&nbsp;` was dropped or
-  replaced by a collapsible space that `.visually-hidden`'s `position: absolute` then stripped; that
-  is real, and Step 6 is where its fix gets committed.
+  (`'Edit unit (opens in a new tab)'`) is equally acceptable. There are **two** defect signatures, and
+  both block the clean branch:
+  - `'Edit unit'` — **the worse one.** The suffix is absent entirely, so the span never reached the
+    accname computation (a `.visually-hidden` that resolved to `display: none`, a stray `hidden` or
+    `aria-hidden`, or the span simply dropped). The new-tab warning is then never announced at all —
+    strictly worse than mis-spacing, and easy to mistake for a pass if you only scan for the
+    parenthetical running into the label.
+  - `'Edit unit(opens in a new tab)'` — run together, meaning the `&nbsp;` was dropped or replaced by
+    a collapsible space that `.visually-hidden`'s `position: absolute` then stripped.
+
+  Either one is fixed at Step 3 (see the defect branch below) and committed at Step 6.
 - **Dark mode is judged separately, not assumed to follow light.** Six of the twelve shots are dark,
   and every criterion above is theme-agnostic geometry, so without this bullet the dark half is
   captured and never judged (the "light and dark must differ" rule is a *capture-health* check, not a
@@ -1946,13 +1993,27 @@ afterwards would ship on a mental model, with no way to confirm it corrected the
 it. So, on the defect branch:
 
 1. Apply the fix (`courses.css` or `templates/courses/_unit_strip.html`).
-2. Re-capture the affected row(s) with a fresh `SHOT_VARIANT` label (e.g. `SHOT_VARIANT=fixed`) —
-   never at the default `feature` label, which would overwrite the images that recorded the defect.
-3. Re-judge those rows against the same criteria, and keep both the before and after images.
-4. If the fix touched `courses.css`, **re-run Task 5's guard**
-   (`uv run pytest tests/test_consumption_css.py -v`) — a layout fix can easily change one of the six
-   declarations it pins.
-5. Only then continue to Step 4.
+2. **Re-obtain the evidence for the criterion that failed.** The two kinds are not interchangeable:
+   - *A layout defect* → re-capture the affected row(s) with a fresh `SHOT_VARIANT` label (e.g.
+     `SHOT_VARIANT=fixed`) — never at the default `feature` label, which would overwrite the images
+     that recorded the defect — then re-judge those rows against the same criteria, keeping both the
+     before and after images.
+   - *An accessible-name defect* → the fix is in `_unit_strip.html`, and **an image cannot show it**.
+     Re-run `test_shots_owner` under the fresh `SHOT_VARIANT` **with `-s`** and confirm a new
+     `ACCESSIBLE NAME:` line appears. **It is that line, not Step 1's, that goes into the completion
+     report** — otherwise the report would record the defective string while the shipped markup
+     produces the fixed one, making the plan's only record of its only a11y verification actively
+     wrong.
+3. **Re-run the guards the fix could have broken — while the harness still exists.** Symmetric by
+   which file changed, because both files are guarded:
+   - Touched `courses.css` → `uv run pytest tests/test_consumption_css.py -v` (a layout fix easily
+     changes one of the six declarations Task 5 pins).
+   - Touched `_unit_strip.html` → `uv run pytest tests/test_unit_edit_link.py tests/test_tags_consumption.py -v`
+     **and** `uv run pytest -m e2e tests/test_e2e_tags.py::test_edit_link_survives_adding_a_tag -v`.
+     Four separate guards key on that markup: Task 2's three `"unit-strip__edit" not in body` rows,
+     Task 4's `strip_start < panel.end() <= body.index(href) < shell_start` ordering chain, Task 6's
+     `"Edytuj jednostkę" in body` render test, and Task 7's `.unit-strip__edit` e2e locator.
+4. Only then continue to Step 4.
 
 **On the clean branch there is nothing to fix and nothing to re-capture — go straight to Step 4.**
 
@@ -2066,7 +2127,7 @@ wrong: go back, rebuild the harness, and re-judge.
 ```bash
 git branch --show-current
 git add <the specific files>
-git commit -m "fix(css): <what the screenshot revealed>"
+git commit -m "fix(courses): <what the verification revealed>"
 ```
 
 If the shots were clean, there is nothing to commit — say so plainly rather than inventing a commit.
