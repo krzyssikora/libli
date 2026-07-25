@@ -30,8 +30,9 @@
   `ruff check --fix` repairs **import order only**; it cannot fix E501 in a comment or docstring, and it
   does not run the formatter. If you reflow a line, re-run both gates before committing.
 - **After every falsification: revert, re-run the test, and confirm it is GREEN again** before applying
-  the next mutation. Record the RED→GREEN pair. A partially-reverted mutation surfacing in Task 6 is
-  much harder to attribute.
+  the next mutation. Record the RED→GREEN pair. This matters most in Task 3, whose three mutations all
+  edit `courses/views.py` while its commit stages only the test file — a leftover mutation would sit
+  unstaged until **Task 4 Step 5** blanket-stages `courses/views.py` and quietly commits it.
 
 ---
 
@@ -194,7 +195,7 @@ Apply each mutation, run the named test, confirm RED, then **revert before the n
 
 | Guard | Mutation in `courses/state.py` | Must go RED |
 |---|---|---|
-| 18-name equality (+ inert-type absence — same mutation) | `(set(VALIDATORS) & known) - {"stepperelement"}` | `test_stateful_element_model_names_is_the_expected_18` |
+| 18-name equality (+ inert-type absence — same mutation) | `(set(VALIDATORS) & known) - {"stepperelement"}` | **both tests** — `test_stateful_element_model_names_is_the_expected_18` and `test_a_bogus_validator_key_is_dropped_from_the_derived_names`, which asserts the same 18-name equality. Step 4 runs the whole module, so expect two failures, not one. Record both REDs. |
 | Sortedness | `return set(...)` instead of `tuple(sorted(...))` | same test |
 | `& known` intersection | delete `& known` | `test_a_bogus_validator_key_is_dropped_from_the_derived_names` |
 | `VALIDATORS <= ELEMENT_MODELS` | **test-side only** — temporarily change the first test's signature to `def test_stateful_element_model_names_is_the_expected_18(monkeypatch):` and add `monkeypatch.setitem(state.VALIDATORS, "nosuchelement", lambda *a: None)` as its first line. Without the signature change you get `NameError: monkeypatch`, which is not the RED you are looking for. | first test |
@@ -413,8 +414,16 @@ git add courses/views.py templates/courses/_lesson_article.html courses/tests/te
 git commit -m "feat(courses): show Start fresh only on units that can hold practice state"
 ```
 
-Expected: `pytest` exits 0. If any test outside `test_reset_controls.py` reds on a lesson render, this
-commit is the cause — fix it here rather than carrying it forward.
+Expected: `pytest` exits 0.
+
+**The sweep behind that expectation, so a red reads as the surprise it would be:** the only non-e2e
+test that asserts the per-unit reset URL on a *rendered* lesson page is `test_reset_controls.py:19`,
+which this task already rewrites. `courses/tests/test_progress_reset.py` and
+`courses/tests/test_question_restore.py` hit the reset URL directly and never read the link.
+
+So if anything outside `test_reset_controls.py` reds here: **stop and report.** Do not edit outside this
+task's file list to make it pass — a red means a real assumption in the spec was wrong, and the
+Global Constraints forbid the obvious quick fixes (CSS, new strings) anyway.
 
 ---
 
@@ -489,9 +498,7 @@ def test_views_calls_the_state_helper_rather_than_an_inlined_list(client, monkey
     """
     from courses import state
 
-    monkeypatch.setattr(
-        state, "stateful_element_model_names", lambda: ("textelement",)
-    )
+    monkeypatch.setattr(state, "stateful_element_model_names", lambda: ("textelement",))
     course, unit = make_course_with_unit()
     add_element(unit, TextElement.objects.create(body="<p>hi</p>"))
     _login(client, course)
@@ -766,6 +773,17 @@ Expected: PASS, still 3 hits — confirming the comments did not trip the matche
 
 - [ ] **Step 5: Lint and commit**
 
+**First, confirm `courses/views.py` carries only this task's change.** Task 3's three falsifications all
+mutated that file, and this is the first step that stages it wholesale — a stale mutation would ride
+along silently:
+
+```bash
+git diff courses/views.py
+```
+
+Expected: exactly one hunk, the two-line comment above `rows.update(element_state={})`. Anything else is
+an un-reverted Task 3 mutation — revert it before continuing.
+
 ```bash
 uv run ruff check tests/test_element_state_write_routes.py courses/models.py courses/views.py
 uv run ruff format --check tests/test_element_state_write_routes.py courses/models.py courses/views.py
@@ -933,6 +951,11 @@ uv run pytest -m e2e tests/test_e2e_unit_head_layout.py -v
 
 Expected: 2 passed.
 
+**Why only this e2e module, as a checked decision rather than an omission:** it is the only e2e that
+depends on the lesson page's Start-fresh link. `tests/test_e2e_practice_state.py` reaches reset by URL
+(`:142-146` navigates directly and clicks the *interstitial's* button), and its seeded unit carries a
+MarkDone element anyway, so the gate cannot hide anything from it.
+
 - [ ] **Step 4: Lint, migrations, checks**
 
 ```bash
@@ -959,33 +982,41 @@ import pytest
 from tests.factories import add_element
 from tests.test_e2e_unit_head_layout import _login
 
-pytestmark = pytest.mark.e2e
+# Set HEAD_SHOT_DIR to YOUR OWN scratchpad before running -- the path is
+# session-specific, and a hard-coded one writes PNGs somewhere you will not find them.
+# .get(), not [...]: pytest IMPORTS every matching module before applying the
+# `-m 'not e2e'` deselection, so a bare KeyError here would kill collection for any
+# plain `uv run pytest` for as long as this file exists.
+SHOTS = os.environ.get("HEAD_SHOT_DIR")
+
+pytestmark = [
+    pytest.mark.e2e,
+    pytest.mark.skipif(not SHOTS, reason="set HEAD_SHOT_DIR to your scratchpad"),
+]
 
 
 # MANDATORY, and easy to miss: this autouse fixture lives in
 # test_e2e_unit_head_layout.py and does NOT travel with the imported _login helper.
 # 36 e2e modules each declare their own copy. Without it the ORM calls below can
-# raise SynchronousOnlyOperation when this module runs in isolation.
+# raise SynchronousOnlyOperation when this module runs in isolation. This copy
+# cleans up after itself, unlike the in-repo ones (setdefault + a bare yield) --
+# that difference is deliberate, so leave it as written.
 @pytest.fixture(scope="session", autouse=True)
 def _allow_async_unsafe():
     os.environ["DJANGO_ALLOW_ASYNC_UNSAFE"] = "true"
     yield
     os.environ.pop("DJANGO_ALLOW_ASYNC_UNSAFE", None)
 
-# Set HEAD_SHOT_DIR to YOUR OWN scratchpad before running -- the path is
-# session-specific, and a hard-coded one writes PNGs somewhere you will not find them.
-SHOTS = os.environ["HEAD_SHOT_DIR"]
-
 
 @pytest.mark.django_db(transaction=True)
 def test_capture_two_child_head_row(page, live_server):
     from courses.models import Enrollment
     from courses.models import TextElement
+    from tests.factories import TEST_PASSWORD
     from tests.factories import ContentNodeFactory
     from tests.factories import CourseFactory
-    from tests.test_e2e_unit_head_layout import LONG_TITLE
     from tests.factories import make_verified_user
-    from tests.factories import TEST_PASSWORD
+    from tests.test_e2e_unit_head_layout import LONG_TITLE
 
     student = make_verified_user(
         username="shot", email="shot@t.example.com", password=TEST_PASSWORD
@@ -1016,11 +1047,16 @@ def test_capture_two_child_head_row(page, live_server):
             )
 ```
 
-Before running, open `tests/test_e2e_unit_head_layout.py` and check that `_login`'s signature,
-`LONG_TITLE`/`TEST_PASSWORD`'s import locations, **and the `_allow_async_unsafe` fixture's body** match
-what is written above; adjust if they differ.
+Before running, open `tests/test_e2e_unit_head_layout.py` and check that `_login`'s signature and
+`LONG_TITLE`/`TEST_PASSWORD`'s import locations match what is written above; adjust if they differ.
+(The `_allow_async_unsafe` body is *expected* to differ from the in-repo copies — see its comment.)
 
-Run it in the **foreground**, with the mandatory marker, pointing `HEAD_SHOT_DIR` at your own scratchpad:
+Run it in the **foreground**, with the mandatory marker, pointing `HEAD_SHOT_DIR` at your own
+scratchpad. The primary shell here is PowerShell, which has no inline env-var prefix, so both forms:
+
+```powershell
+$env:HEAD_SHOT_DIR = '<your-scratchpad-dir>'; uv run pytest -m e2e tests/test_tmp_head_shot.py -v
+```
 
 ```bash
 HEAD_SHOT_DIR=<your-scratchpad-dir> uv run pytest -m e2e tests/test_tmp_head_shot.py -v
