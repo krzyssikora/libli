@@ -196,7 +196,7 @@ Apply each mutation, run the named test, confirm RED, then **revert before the n
 | Guard | Mutation in `courses/state.py` | Must go RED |
 |---|---|---|
 | 18-name equality (+ inert-type absence — same mutation) | `(set(VALIDATORS) & known) - {"stepperelement"}` | **both tests** — `test_stateful_element_model_names_is_the_expected_18` and `test_a_bogus_validator_key_is_dropped_from_the_derived_names`, which asserts the same 18-name equality. Step 4 runs the whole module, so expect two failures, not one. Record both REDs. |
-| Sortedness | `return set(...)` instead of `tuple(sorted(...))` | same test |
+| Sortedness | `return set(...)` instead of `tuple(sorted(...))` | `test_stateful_element_model_names_is_the_expected_18` **only** — the bogus-key test wraps the result in `set(...)`, so a raw set still compares equal there and stays GREEN. One RED, not two. |
 | `& known` intersection | delete `& known` | `test_a_bogus_validator_key_is_dropped_from_the_derived_names` |
 | `VALIDATORS <= ELEMENT_MODELS` | **test-side only** — temporarily change the first test's signature to `def test_stateful_element_model_names_is_the_expected_18(monkeypatch):` and add `monkeypatch.setitem(state.VALIDATORS, "nosuchelement", lambda *a: None)` as its first line. Without the signature change you get `NameError: monkeypatch`, which is not the RED you are looking for. | first test |
 
@@ -782,7 +782,8 @@ git diff courses/views.py
 ```
 
 Expected: exactly one hunk, the two-line comment above `rows.update(element_state={})`. Anything else is
-an un-reverted Task 3 mutation — revert it before continuing.
+either an un-reverted Task 3 mutation **or this task's own Step 2 `_throwaway` write** — both land in
+this file, so check for both before continuing, and revert whatever you find.
 
 ```bash
 uv run ruff check tests/test_element_state_write_routes.py courses/models.py courses/views.py
