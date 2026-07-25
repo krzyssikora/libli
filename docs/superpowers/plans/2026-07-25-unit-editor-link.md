@@ -532,8 +532,12 @@ Expected: all 12 passed
 Each assertion catches a different regression; run both, separately.
 
 *Mutation A — invert the predicate* (`courses/rendering.py`: `can_edit = not can_manage_course(...)`):
-Run: `uv run pytest tests/test_unit_edit_link.py -v`
-Expected: the three `shows_the_link` tests FAIL **and** the three `hides_the_link` tests FAIL (href now present for the student). Restore.
+Run: `uv run pytest tests/test_unit_edit_link.py -v -k "shows_the_link or hides_the_link"`
+Expected: all six FAIL — the three `shows_the_link` tests (href now absent) **and** the three
+`hides_the_link` tests (href now present for the student). The `-k` filter is deliberate: run the
+whole file and you also redden Task 1's six matrix rows, which Task 1 Step 5 already showed go red
+under this same mutation — 12 failures against a stated expectation of 6 reads as a surprise when it
+is not one. Restore.
 
 *Mutation B — delete the template guard* (in `_unit_strip.html`, remove the `{% if can_edit_unit %}` / `{% endif %}` lines, keeping the anchor):
 Run: `uv run pytest tests/test_unit_edit_link.py -v -k hides_the_link`
@@ -994,7 +998,38 @@ This is **mandatory, not optional** (`docs/development/conventions.md:50`): both
 
 - [ ] **Step 4: Write the tests**
 
-Append to `tests/test_unit_edit_link.py` (add `from django.utils import translation` to the imports):
+Append to `tests/test_unit_edit_link.py`. This is the fourth and final edit to the file's import
+block, so here it is complete — `from django.utils import translation` slots after
+`from django.urls import reverse`, still inside the third-party group:
+
+```python
+import pytest
+from django.urls import reverse
+from django.utils import translation
+
+from courses.models import QuizSubmission
+from courses.models import ShortTextQuestionElement
+from courses.rendering import unit_edit_context
+from notes.models import NOTE_MAX_LEN
+from tests.factories import ContentNodeFactory
+from tests.factories import CourseFactory
+from tests.factories import ElementFactory
+from tests.factories import EnrollmentFactory
+from tests.factories import GroupFactory
+from tests.factories import QuizSubmissionFactory
+from tests.factories import add_element
+from tests.factories import make_ca
+from tests.factories import make_pa
+from tests.factories import make_quiz_unit
+from tests.factories import make_student
+from tests.factories import make_teacher
+```
+
+Note there is deliberately **no** `TEST_PASSWORD` import here: these tests never reference it (the
+role helpers handle logins internally), so importing it would raise `F401`. The Global Constraints
+rule about it applies wherever a password *is* needed — in this feature, only the Task 7 e2e.
+
+Then the tests:
 
 ```python
 @pytest.mark.parametrize("msgid", ["Edit unit", "(opens in a new tab)"])
@@ -1391,8 +1426,9 @@ vacuous pass this task exists to prevent.
   this feature's only accessibility affordance and is deliberately guarded by **no automated test** —
   the spec routes its verification entirely into this manual pass, so it is unverified by anything if
   skipped here. Confirm the announced accessible name of `.unit-strip__edit` with a real screen
-  reader (or, at minimum, the browser devtools accessibility inspector) and **record the observed
-  name** in the task's completion notes, to be carried into the PR body (see Step 6). Expected: the label and the parenthetical are announced as separate words, not
+  reader (or, at minimum, the browser devtools accessibility inspector) and **state the observed name
+  verbatim in this task's completion report** — not in a commit, since the happy path commits
+  nothing. It is the sole artifact of the only verification this construction ever gets. Expected: the label and the parenthetical are announced as separate words, not
   run together as "unit(opens".
 - **`quiz_results` overhang is pre-recorded as ACCEPTED, not a pass/fail gate.** The strip spans 920px above a 736px `.result` article — ~90px per side. This is not new: the tag panel already does exactly this on master. Confirm it reads as deliberate rather than broken; if a human judges otherwise that is a follow-up styling decision, **not a blocker for this change**.
 
@@ -1400,9 +1436,17 @@ vacuous pass this task exists to prevent.
 
 ```bash
 rm tests/test_e2e_unit_strip_shots.py
-rm -rf "${TMPDIR:-/tmp}/unit-strip-shots"   # SHOT_DIR, outside the repo
-git status --short                          # must show no stray harness file
+uv run python -c "import shutil, tempfile, pathlib; shutil.rmtree(pathlib.Path(tempfile.gettempdir()) / 'unit-strip-shots', ignore_errors=True)"
+git status --short   # must show no stray harness file
 ```
+
+**Derive that path the way the harness does — do not hand-write a shell expansion.** In this
+environment `TMPDIR` is unset in Bash, so `${TMPDIR:-/tmp}` expands to `/tmp`, while Python's
+`tempfile.gettempdir()` returns the real Windows temp directory — an `rm -rf` on the former silently
+removes nothing. That matters beyond tidiness: Step 2's recovery instruction ("delete `SHOT_DIR` and
+re-capture Step 1 from scratch") is the plan's only defence against judging a baseline image as
+though it were the feature, and a no-op delete would leave the mislabelled images in place while you
+believed they were purged. Use this same command there.
 
 The harness is scaffolding for the manual pass, not a deliverable — it asserts nothing and would only
 rot in CI (where it is excluded by `addopts` anyway).
@@ -1439,12 +1483,21 @@ Run the full e2e suite in the **foreground**:
 uv run pytest -m e2e
 ```
 
-If a full run is impractical, the minimum is every module that consumes a unit page with an
-owner-actor or geometric assertions:
+The full run is **strongly preferred**. If it is genuinely impractical, the minimum is every module
+that pairs an owner-actor unit page with geometric assertions — and the first entry is not optional:
 
 ```bash
-uv run pytest -m e2e tests/test_e2e_tags.py tests/test_e2e_unit_nav.py   tests/test_e2e_unit_head_layout.py tests/test_e2e_scroll_affordance.py   tests/test_e2e_practice_state.py tests/test_e2e_markdone.py -v
+uv run pytest -m e2e tests/test_e2e_wide_content_scroll.py tests/test_e2e_tags.py tests/test_e2e_unit_nav.py tests/test_e2e_unit_head_layout.py tests/test_e2e_scroll_affordance.py tests/test_e2e_practice_state.py tests/test_e2e_markdone.py tests/test_e2e_tabs.py tests/test_e2e_slideshow.py tests/test_e2e_twocolumn.py tests/test_e2e_questions_2dii.py -v
 ```
+
+**`tests/test_e2e_wide_content_scroll.py` is named first because it is the repo's only automated
+guard against page-level horizontal overflow on this exact page and viewport.** It builds
+`CourseFactory(slug=slug, owner=student)` (`:66`) — so the logged-in actor **owns** the course and the
+new link renders for it — sets a **390px** phone viewport, loads `/courses/<slug>/u/<pk>/`, and
+asserts `document.documentElement.scrollWidth <= clientWidth`. That is exactly the property the new
+`.unit-strip` flex wrapper could break, and it is the automated counterpart to the spec's "no
+horizontal overflow beyond the baseline" criterion. Omitting it would leave the single most relevant
+automated check unrun.
 
 Never background an `-m e2e` run — it has previously spawned runaway browsers in this repo.
 
