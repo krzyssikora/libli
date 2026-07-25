@@ -289,9 +289,27 @@ border-box top — visibly misaligned. Zeroing it *inside the strip* and moving 
    margin is simply relocated to its wrapper. (Horizontally the student case is unchanged too,
    provided `min-width: 0` is present — see "What the student actually sees.")
 
-`.unit-strip__edit` therefore carries **no styling at all**. It exists solely as a stable selector
-hook for the view tests and the e2e, and is documented as such so it does not read as an undefined
-class.
+`.unit-strip__edit` therefore carries **no screen styling at all**. It exists primarily as a stable
+selector hook for the view tests and the e2e, and is documented as such so it does not read as an
+undefined class.
+
+Its one and only rule is a print hide:
+
+```css
+@media print { .unit-strip__edit { display: none; } }
+```
+
+**Print is worth a decision rather than an omission.** The repo tunes print output deliberately —
+`core/static/core/css/app.css:971` and `courses/static/courses/css/courses.css:1238` both carry
+`@media print` blocks written for lesson printing — and neither hides `.btn` or the tag strip. Without
+this rule a manager who prints a lesson during the very walkthrough this feature serves gets an
+"Edit unit" button on paper, which is pure noise: it is an affordance for a second browser tab, and
+paper has none. Hiding it costs one line.
+
+This does not weaken anything that leaned on "no styling": the CI guard below asserts on
+`.unit-strip` and `.unit-strip .unit-tags` (margins and `min-width`), not on `.unit-strip__edit`, and
+the e2e/selector-hook justification is unaffected — a print-only rule changes no screen layout. State
+the property as "no *screen* styling, one print rule" so the two are not read as contradicting.
 
 **Horizontal placement is intentional.** `flex: 1 1 auto` on the panel makes it take the remaining
 width, which pins the button to the **far right end of the row** — adjacent to the row's edge, not to
@@ -401,8 +419,9 @@ degradation.
 
 The acceptance criterion is therefore about the **panel's border box**, not the page: its right edge
 sits within the content column at ~400px with the panel open, and the page shows no horizontal
-overflow **beyond what the same page shows on master without the feature** (compare against a
-baseline shot; do not assert an absolute).
+overflow **beyond what the same page shows with the feature's rendering undone** (compare against the
+feature-off baseline described in the screenshot section — produced by reverting the three includes
+and the two CSS rules in place, *not* by checking out master; do not assert an absolute).
 
 That fieldset is itself conditional — `{% if addable_tags %}` — so it renders only when the actor
 owns at least one tag *not already on this unit*. Any test or screenshot meant to exercise this
@@ -609,8 +628,15 @@ must therefore pass all three kwargs —
 `QuizSubmissionFactory(student=<actor>, unit=<the quiz node under test>, status=QuizSubmission.Status.SUBMITTED)`
 (the status field defaults to `IN_PROGRESS`). Without it the test silently follows a 302 to
 `quiz_unit`, which for the owner still contains the href and so passes while asserting against the
-wrong page. Each quiz-results test must therefore assert it actually landed on `quiz_results`
-(`follow=False` and a 200, or `resp.redirect_chain == []`) before asserting on the body.
+wrong page. Each quiz-results test must therefore assert it actually landed on `quiz_results` before asserting on
+the body. These are **two mutually exclusive setups, not one recipe** — `redirect_chain` exists only
+on a response fetched with `follow=True`, so pairing it with a non-following GET raises
+`AttributeError`:
+
+- **prescribed:** `resp = client.get(url)` (no follow) → `assert resp.status_code == 200`; or
+- `resp = client.get(url, follow=True)` → `assert resp.redirect_chain == []`.
+
+Use the first unless there is a reason not to; a 302 then fails the status assertion directly.
 
 At least one positive assertion checks the **whole anchor**, not just the URL: `target="_blank"` and
 `rel="noopener"` must both be present. The new-tab behaviour is the feature's entire ergonomic
@@ -756,8 +782,12 @@ backwards. In the normative `_unit_strip.html` the anchor is a *following* sibli
 `<details class="unit-tags">`, so the href's index is strictly **greater** than the end of
 `</details>`. The assertion is therefore: the href's index falls **after** the end of the panel's
 `</details>` and **before** the start of the strip's next top-level sibling in `{% block content %}`
-— `<div class="unit-shell"` on the lesson and quiz pages, `<article class="result` on the results
-page. An assertion written the other way round (href *before* `</details>`) fails against correct
+— `<div class="unit-shell"` on the lesson and quiz pages (`_unit_shell.html:2`), and
+`<article class="quiz-results` on the results page. Note that results-page literal carefully:
+`quiz_results.html:11` renders `<article class="quiz-results result" …>`, so a bound written as
+`<article class="result` never matches and `find()` returns `-1`. Prefer a class-order-tolerant regex
+(`<article class="[^"]*\bresult\b`) if the assertion is ever extended beyond the lesson page, which
+the per-page enumeration here invites. An assertion written the other way round (href *before* `</details>`) fails against correct
 markup, and an implementer "fixing" it would reorder the link ahead of the panel, changing both the
 approved layout and the reading order. Whichever form is used, keep the match assertion from step 2: a
 `find()` returning `-1` must fail loudly, never slice garbage.)
@@ -769,8 +799,16 @@ markup is always `<details class="unit-tags" >` (note the trailing space) or
 `str.find()` without checking for `-1` would slice a garbage region and step 3 would pass vacuously
 in **both** the healthy and the regressed state — which is why step 2's match assertion is mandatory.
 
-The test needs its **own** fixture — `CourseFactory(owner=user)` plus `ContentNodeFactory` — and must
-not reuse `tests/test_tags_consumption.py`'s `_enrolled(user, …)` helper, which builds a plain
+The test needs its **own** fixture — an actor built with `make_login(client, …)` (or
+`make_verified_user`), plus `CourseFactory(owner=user)` and `ContentNodeFactory`. The actor's
+**verified email is a hard requirement, not a detail**: allauth's `AccountMiddleware` enforces
+mandatory verification and redirects an unverified session to verify-email before any template
+renders, which is exactly why `tests/factories.make_login` uses `make_verified_user` and says so in
+its docstring. With a bare `UserFactory()` + `force_login`, step 1's "assert 200 and the href is
+present" fails as a redirect, and the test gets misread as broken rather than as guarding something —
+the same failure this paragraph warns about, reached by a different route.
+
+It must also not reuse `tests/test_tags_consumption.py`'s `_enrolled(user, …)` helper, which builds a plain
 `CourseFactory()` — so the course has **no owner** (`owner=None`) — and merely enrolls the actor. With that helper the actor is not a manager,
 step 1 fails, and the whole test is misread as broken rather than as guarding something.
 
@@ -847,13 +885,23 @@ Which criterion applies to which row:
 - **The ~400px student row** is a **parity guard**, not a sign-off on a degradation (see "What the
   student actually sees"). It needs a tag label with a 50-character unbroken token so the fieldset's
   min-content actually exceeds the column. Its criterion is two-part, and both halves are required:
-  1. the shot is **equivalent to the same page on master** — same panel border box, same sideways
+  1. the shot is **equivalent to the feature-off baseline** — same panel border box, same sideways
      scroll; and
   2. the prescribed A/B — the same shot with `min-width: 0` deleted from `courses.css` — **differs**.
 
   Part 2 is what proves the fixture reproduced the hazard at all; part 1 is what proves the
   declaration does its job. A run where both shots are identical means the fixture failed, not that
   the declaration is unnecessary.
+
+  **How to produce the "feature-off baseline" — do not check out master.** The shot depends on a
+  fixture (an actor with several owned tags, one a 50-character unbroken token, loaded with
+  `?panel=tags`) that exists only on this branch; checking out master discards the fixture code and
+  there is nothing left to shoot. Undo the feature's *rendering* instead, in place: revert the three
+  `{% include "courses/_unit_strip.html" %}` lines to `{% include "tags/_unit_tag_panel.html" %}` and
+  remove the two `.unit-strip*` rules from `courses.css`, take the shot, then restore. That yields
+  master's rendering with this branch's fixture — the only combination that makes the comparison
+  meaningful. The same procedure produces the baseline for the general "no horizontal overflow beyond
+  the master baseline" criterion, which otherwise has no runnable definition either.
 - **The `quiz_results` row needs the same submission fixture the `quiz_results` *tests* need**, and it
   fails silently without it. That view (`courses/views.py:1289`) filters `QuizSubmission` by
   `student=request.user, status=SUBMITTED` and **redirects to `quiz_unit`** when the actor has none —
@@ -922,18 +970,43 @@ existing house terms (`Unit` → `Jednostka`, `Edit` → `Edytuj`):
 **A per-feature i18n test, following the repo's own precedent.** Catalog health
 (`test_i18n_po_health.py`) proves only that the PL `msgstr` is non-empty — not that the template
 actually routes the label through `{% trans %}`, nor that the Polish string reaches the rendered page.
-The repo carries **17** `tests/test_i18n_*.py` files doing exactly that per feature, so skipping it
-here would be a deviation rather than a default. Add both halves to `tests/test_unit_edit_link.py`:
+Add both halves to `tests/test_unit_edit_link.py`:
 
-1. **Catalog level**, in the established idiom (see `tests/test_i18n_stepper.py`): for each of the two
-   new msgids, `with translation.override("pl"): assert translation.gettext(msgid) != msgid`.
-2. **Render level** — the half catalog health cannot cover: GET the lesson unit as the owner under
-   `translation.override("pl")` and assert `Edytuj jednostkę` appears in the response body. This is
-   what fails if the template ships the label as a bare literal instead of `{% trans %}`.
+1. **Catalog level.** The common repo pattern — 13 of the 17 `tests/test_i18n_*.py` files are exactly
+   this, e.g. `tests/test_i18n_stepper.py`: for each of the two new msgids,
+   `with translation.override("pl"): assert translation.gettext(msgid) != msgid`.
+2. **Render level** — the half catalog health cannot cover, and the *rarer* pattern: only four
+   `test_i18n_*` files issue a request at all (`test_i18n_catalog.py`, `test_i18n_error_pages.py`,
+   `test_i18n_quiz.py`, `test_i18n_results.py`). GET the lesson unit as the owner in Polish and assert
+   `Edytuj jednostkę` appears in the response body. This is what fails if the template ships the label
+   as a bare literal instead of `{% trans %}`.
+
+**Activating Polish takes more than `translation.override` — this is the part that will silently
+fail.** `config/settings/base.py:48` installs `core.middleware.SessionLocaleMiddleware`, which
+**re-activates a language per request** from the session's `_language` key / `Accept-Language`,
+discarding whatever the test process activated ambiently. `LANGUAGE_CODE = "en"`, and the root
+`conftest.py` autouse fixture re-activates it before every test. So a bare
+`with translation.override("pl"): client.get(...)` renders **English**, the assertion is red from the
+start, and the prescribed falsification proves nothing because it was already failing.
+
+Copy `tests/test_i18n_quiz.py::test_quiz_finish_label_translated_pl` — the closest precedent (a
+logged-in unit-page GET asserting a PL string). It sets all three:
+
+```python
+session = client.session
+session["_language"] = "pl"
+session.save()
+with translation.override("pl"):
+    resp = client.get(url, HTTP_ACCEPT_LANGUAGE="pl")
+```
+
+The `conftest.py` autouse fixture resets the active language afterwards, so nothing leaks into
+neighbouring tests.
 
 Falsify the render half by removing the `{% trans %}` wrapper (the body then carries the English
-literal and the assertion goes RED) — not by emptying the catalog, which would redden the first half
-too and prove nothing about the template.
+literal and the assertion goes RED) — but only **after** confirming it is green with the activation
+above. Do not falsify it by emptying the catalog, which would redden the catalog half too and prove
+nothing about the template.
 
 **`compilemessages` is required, not optional.** `locale/en/LC_MESSAGES/django.mo` and
 `locale/pl/LC_MESSAGES/django.mo` are both **tracked in git**, and Django reads `.mo` at runtime — so
