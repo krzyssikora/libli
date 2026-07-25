@@ -777,10 +777,10 @@ Temporarily comment out both include lines. Use the **single-line** `{# … #}` 
 Then:
 
 ```bash
-uv run pytest tests/test_unit_nav_render.py -k "crumb_quiz or crumb_check or crumb_qa or crumb_results" -q
+uv run pytest tests/test_unit_nav_render.py -k "renders_on_the_quiz_page or check_answer_re_render or quiz_answer_re_render or submitted_quiz_results_page" -q
 ```
 
-Expected: **4 collected** — the three positive tests FAIL (`nav is None`), and `test_submitted_quiz_results_page_has_no_crumb` passes either way, since it is falsified differently in Step 4. (The narrow `-k` names matter: a broader filter like `-k quiz` also sweeps in the pre-existing `test_all_quiz_group_renders_no_counter_and_no_check`, which passes regardless and makes the expected output harder to read.)
+Expected: **4 collected** — the three positive tests FAIL (`nav is None`), and `test_submitted_quiz_results_page_has_no_crumb` passes either way, since it is falsified differently in Step 4. (The `-k` tokens must be substrings of the **test function names** — pytest matches `-k` against item, module and marker names, never against fixture arguments, so filtering on the `_make_student("crumb_quiz")` usernames would collect **0** tests and exit 5. And they are narrow on purpose: a broader `-k quiz` also sweeps in the pre-existing `test_all_quiz_group_renders_no_counter_and_no_check`, which passes regardless and makes the expected output harder to read.)
 
 **Restore both includes** and re-run to confirm GREEN before moving on. Step 4 re-applies a similar mutation per-test; that overlap is deliberate — this step proves the three positives are wired to the include at all, Step 4 proves each one is wired to the *specific* thing it names.
 
@@ -1222,7 +1222,10 @@ def test_labels_stay_inside_their_crumbs_and_never_overlap(browser, live_server,
         )
         for b in boxes:
             assert b["fits"], f"label overflows its own crumb: {b['cls']}"
-        for a, b in zip(boxes, boxes[1:]):
+        # strict=False is required: ruff selects B, so a bare zip() is a B905
+        # failure, and the offset slice is intentionally one shorter. Matches the
+        # same adjacent-pair idiom at tests/test_color_bands.py:100.
+        for a, b in zip(boxes, boxes[1:], strict=False):
             assert a["right"] <= b["left"] + 0.5, f"labels overlap: {a['cls']} / {b['cls']}"
 
         # The pinned ends must still have *something* to show. This is what makes
@@ -1378,9 +1381,14 @@ Expected: green. Task 8 still runs the whole browser suite at the end; this is t
 
 **If one goes red**, triage it exactly as Task 8 Step 2 does: a hard-coded y-coordinate or element index that the new first child shifted, or a tab-order assertion that now meets the crumb link first. Fix the **test** if it was over-specified about geometry it never meant to pin; fix the **crumb** if the breadcrumb genuinely broke something. Then re-run the repaired module *and* `uv run pytest -q`, and **commit the repair here**, in its own commit:
 
+Stage **whatever you actually repaired** — a test module, a template, or the stylesheet — and use the message that matches. Task 6 Step 4 stages only `tests/test_e2e_unit_crumbs.py` and `courses.css`, and Task 7 Step 6 only `courses.css`, `tests/test_unit_nav_render.py` and the findings doc, so a template repair has no other home and would otherwise ride uncommitted all the way to the clean-tree check:
+
 ```bash
-git add -- <the module(s) you repaired>
+git add -- <the files you repaired>
+# test-only repair:
 git commit -m "test(e2e): adjust for the new breadcrumb first child"
+# crumb repair (production code — template or CSS):
+git commit -m "fix(ui): <what the breadcrumb broke and how>"
 ```
 
 Committing it here rather than leaving it for Task 8 matters: Task 8's Step 1 would then pass, its Step 3 says "if nothing needed repair, skip the commit entirely", and the repair would never be committed at all — leaving a dirty tree the Definition of Done forbids.
@@ -1571,6 +1579,11 @@ def test_capture_design_qa(browser, live_server):
                     "Accessibility.getPartialAXTree",
                     {"nodeId": node["nodeId"], "fetchRelatives": False},
                 )["nodes"]
+                # Flush NOW, not after the loop. The measurements only happen in this
+                # first iteration; if a later screenshot iteration throws, a
+                # write-at-the-end would discard them and Step 4 would have no file to
+                # read, forcing a full re-run for nothing.
+                (OUT / "findings.json").write_text(json.dumps(findings, indent=2))
             ctx.close()
 
     (OUT / "findings.json").write_text(json.dumps(findings, indent=2))
@@ -1724,10 +1737,10 @@ git commit -m "docs: record the existing-e2e sweep result for the PR body"
 ## Definition of done
 
 - [ ] The **21 new test functions** in Tasks 1–4 (which implement spec tests 1–18 — several spec items map to more than one function) and the 6 e2e tests in Task 6 are implemented, and **each has been falsified** — mutation applied, RED confirmed, reverted, GREEN confirmed. Two documented exceptions: the e2e page-level scroll tripwire (structurally unfalsifiable, exemption argued in the spec), and spec test 19 (`test_build_unit_nav_adds_no_queries`), which is pre-existing, must stay unmodified, and is verified by running it rather than by mutation.
-- [ ] `uv run pytest -q` green; `uv run pytest -q -m e2e` green — the **whole** browser suite, not just the new file (Task 8), since `addopts` excludes e2e from every other gate.
+- [ ] `uv run pytest -q` green, and the **whole** browser suite green — verified via Task 8 Step 1's three chunked `-m e2e -n 2` invocations, **never** as a single `uv run pytest -m e2e` run, which will not finish inside one invocation and leaves orphaned browsers when killed. The chunked sweep matters because `addopts` excludes e2e from every other gate in the plan.
 - [ ] `uv run ruff format --check .` and `uv run ruff check .` clean.
 - [ ] `test_build_unit_nav_adds_no_queries` still passes, unmodified.
 - [ ] `tests/test_i18n_po_health.py` passes; zero `#, fuzzy`, zero `#~`.
 - [ ] Six screenshots reviewed; `findings.json` shows the focus ring contained on all four sides at 360px, with a non-zero `ring` value proving the measurement actually ran.
-- [ ] `docs/superpowers/plans/crumbs-qa-findings.md` exists and holds the accessible-name measurement plus the `quiz_results.html` follow-up; the PR body quotes both from it.
+- [ ] `docs/superpowers/plans/crumbs-qa-findings.md` exists and holds all three sections the PR description must quote: the accessible-name measurement, the `quiz_results.html` follow-up, and the existing-e2e sweep result. (Opening the PR itself is the surrounding pipeline's job, not a step in this plan — this file is the handoff.)
 - [ ] The throwaway QA harness (`tests/test_e2e_crumbs_qa.py`) and `crumbs-qa/` are deleted, and `git status` reports a clean tree. `.env` is gitignored and must **not** appear — if it does, it was staged by mistake.
