@@ -541,7 +541,7 @@ def _crumb_nav(html):
 uv run pytest tests/test_unit_nav_render.py -k crumb -q
 ```
 
-Expected: all nine fail. Eight raise `AttributeError: 'NoneType' object has no attribute 'select'` — the partial does not exist, so `_crumb_nav` returns `None`. `test_crumb_lives_inside_the_lesson_article` builds its own soup instead and fails with a plain `AssertionError`; that is correct, not a symptom of something else being wrong.
+Expected: all nine fail, in three distinct ways — all three are correct, and none is a symptom of something else being wrong. Six raise `AttributeError: 'NoneType' object has no attribute 'select'`/`'select_one'`, because the partial does not exist so `_crumb_nav` returns `None`. The two `lang`/ARIA tests raise `TypeError: 'NoneType' object is not subscriptable` instead, because they subscript the returned tag directly (`soup["lang"]`, `soup["aria-label"]`). And `test_crumb_lives_inside_the_lesson_article` builds its own full-document soup, so it fails with a plain `AssertionError`.
 
 - [ ] **Step 3: Create the partial**
 
@@ -695,8 +695,8 @@ def test_crumb_renders_on_the_quiz_page(client):
 
     # Go straight to quiz_unit. The lesson_unit URL 302s a quiz node here, so a GET
     # without follow=True would return an empty 302 body and fail regardless of the
-    # implementation — see the same trap documented in this file's existing
-    # test_unit_shell_part_chip_hidden_for_root_unit.
+    # implementation — the same trap is documented in this file's existing
+    # test_all_quiz_group_renders_no_counter_and_no_check.
     url = reverse(
         "courses:quiz_unit", kwargs={"slug": course.slug, "node_pk": unit.pk}
     )
@@ -1623,6 +1623,7 @@ Open all six PNGs in `crumbs-qa/` and judge them per `verify-ui-with-screenshots
 
 Then check `crumbs-qa/findings.json`:
 
+- **`ring` carrying an `error` key** — the measurement never ran, because the tab-hunt did not reach the crumb link. There are no numbers and no booleans to read, and **the CSS-fix loop below does not apply**: "fix courses.css" is the wrong remedy and its termination condition (all four sides `true`) is unreachable from this state. Diagnose which it is: if the crumb `<a>` is genuinely unreachable by keyboard that is a real defect — fix it in the template or CSS; if the 60-Tab cap was simply exhausted, raise the cap and re-run the harness. Only once numeric `ring`/`slack` values are present do the bullets below apply.
 - **`ring`** — read the numbers **before** the booleans.
   - **`ring` must be non-zero** (expect 4: a 2px outline at a 2px offset). A `ring` of 0 means the focused link computes no outline at all — for instance if the design pass swapped it for a `box-shadow`, which `overflow: hidden` *does* clip. With `ring == 0` every comparison degenerates to `edge >= edge - padding` and all four booleans come out `true` **even with the padding removed**, so a zero here means the measurement did not happen and the booleans must not be believed. Fix the CSS and re-measure.
   - **`slack`** should be ~1px (the list's `padding` minus the ring). Zero or negative means the padding no longer covers the ring.
