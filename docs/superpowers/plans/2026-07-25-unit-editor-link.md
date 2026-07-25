@@ -37,23 +37,38 @@
 
 - [ ] **Step 1: Write the failing test**
 
-Create `tests/test_unit_edit_link.py`:
+Create `tests/test_unit_edit_link.py`.
+
+**Two repo lint rules govern every snippet in this plan** — `pyproject.toml` sets
+`[tool.ruff.lint] select = ["E", "F", "I", "UP", "B", "S"]` with
+`[tool.ruff.lint.isort] force-single-line = true`:
+
+- **One name per `from … import` line.** A parenthesized multi-name import raises `I001`. Every
+  existing test module follows this.
+- **88-character lines** (ruff's default `line-length`, and `E` is selected). This is why the fixture
+  below is factored into a `_lesson_unit()` helper rather than repeated inline — the inline form is
+  90 characters and would fail `ruff check` *and* `ruff format --check` in eleven places.
 
 ```python
 import pytest
 from django.urls import reverse
 
 from courses.rendering import unit_edit_context
-from tests.factories import (
-    ContentNodeFactory,
-    CourseFactory,
-    EnrollmentFactory,
-    GroupFactory,
-    make_ca,
-    make_pa,
-    make_student,
-    make_teacher,
-)
+from tests.factories import ContentNodeFactory
+from tests.factories import CourseFactory
+from tests.factories import EnrollmentFactory
+from tests.factories import GroupFactory
+from tests.factories import make_ca
+from tests.factories import make_pa
+from tests.factories import make_student
+from tests.factories import make_teacher
+
+
+def _lesson_unit(course):
+    """A top-level lesson unit. Factored out to keep every call under 88 chars."""
+    return ContentNodeFactory(
+        course=course, parent=None, kind="unit", unit_type="lesson"
+    )
 
 
 @pytest.mark.django_db
@@ -64,7 +79,7 @@ def test_owner_without_change_course_perm_gets_the_link(client):
     ownership check outright would leave it green."""
     owner = make_student(client, "owner")
     course = CourseFactory(owner=owner)
-    unit = ContentNodeFactory(course=course, parent=None, kind="unit", unit_type="lesson")
+    unit = _lesson_unit(course)
 
     ctx = unit_edit_context(owner, unit)
 
@@ -80,7 +95,7 @@ def test_platform_admin_non_owner_gets_the_link(client):
     every course — including one they do not own."""
     pa = make_pa(client, "pa")
     course = CourseFactory()  # owner is None
-    unit = ContentNodeFactory(course=course, parent=None, kind="unit", unit_type="lesson")
+    unit = _lesson_unit(course)
 
     ctx = unit_edit_context(pa, unit)
 
@@ -95,7 +110,7 @@ def test_course_admin_non_owner_does_not_get_the_link(client):
     broadening the predicate to is_staff, must break here."""
     ca = make_ca(client, "ca")
     course = CourseFactory()
-    unit = ContentNodeFactory(course=course, parent=None, kind="unit", unit_type="lesson")
+    unit = _lesson_unit(course)
     EnrollmentFactory(student=ca, course=course)
 
     ctx = unit_edit_context(ca, unit)
@@ -110,7 +125,7 @@ def test_course_admin_who_owns_the_course_gets_the_link(client):
     alone, which is also how they come to see the course under Groups at all."""
     ca = make_ca(client, "ca2")
     course = CourseFactory(owner=ca)
-    unit = ContentNodeFactory(course=course, parent=None, kind="unit", unit_type="lesson")
+    unit = _lesson_unit(course)
 
     ctx = unit_edit_context(ca, unit)
 
@@ -124,7 +139,7 @@ def test_group_teacher_with_read_access_does_not_get_the_link(client):
     a duplicate of the student row and stops guarding anything."""
     teacher = make_teacher(client, "teach")
     course = CourseFactory()
-    unit = ContentNodeFactory(course=course, parent=None, kind="unit", unit_type="lesson")
+    unit = _lesson_unit(course)
     group = GroupFactory(course=course, archived=False)
     group.teachers.add(teacher)
 
@@ -138,7 +153,7 @@ def test_group_teacher_with_read_access_does_not_get_the_link(client):
 def test_enrolled_student_does_not_get_the_link(client):
     student = make_student(client, "stu")
     course = CourseFactory()
-    unit = ContentNodeFactory(course=course, parent=None, kind="unit", unit_type="lesson")
+    unit = _lesson_unit(course)
     EnrollmentFactory(student=student, course=course)
 
     ctx = unit_edit_context(student, unit)
@@ -249,7 +264,7 @@ def _editor_href(course, unit):
 def test_lesson_unit_shows_the_link_to_the_owner(client):
     owner = make_student(client, "owner")
     course = CourseFactory(owner=owner)
-    unit = ContentNodeFactory(course=course, parent=None, kind="unit", unit_type="lesson")
+    unit = _lesson_unit(course)
 
     resp = client.get(f"/courses/{course.slug}/u/{unit.pk}/")
 
@@ -270,7 +285,7 @@ def test_lesson_unit_hides_the_link_from_an_enrolled_student(client):
     staying green even if the {% if can_edit_unit %} guard were deleted."""
     student = make_student(client, "stu")
     course = CourseFactory()
-    unit = ContentNodeFactory(course=course, parent=None, kind="unit", unit_type="lesson")
+    unit = _lesson_unit(course)
     EnrollmentFactory(student=student, course=course)
 
     resp = client.get(f"/courses/{course.slug}/u/{unit.pk}/")
@@ -354,14 +369,25 @@ def test_quiz_results_hides_the_link_from_an_enrolled_student(client):
     assert "unit-strip__edit" not in body
 ```
 
-Add to the import block at the top of the file:
+The file's import block becomes exactly this (one name per line — `force-single-line`; the three new
+entries are `QuizSubmission`, `QuizSubmissionFactory`, `make_quiz_unit`, each slotted in isort order):
 
 ```python
+import pytest
+from django.urls import reverse
+
 from courses.models import QuizSubmission
-from tests.factories import (  # extend the existing import
-    QuizSubmissionFactory,
-    make_quiz_unit,
-)
+from courses.rendering import unit_edit_context
+from tests.factories import ContentNodeFactory
+from tests.factories import CourseFactory
+from tests.factories import EnrollmentFactory
+from tests.factories import GroupFactory
+from tests.factories import QuizSubmissionFactory
+from tests.factories import make_ca
+from tests.factories import make_pa
+from tests.factories import make_quiz_unit
+from tests.factories import make_student
+from tests.factories import make_teacher
 ```
 
 - [ ] **Step 2: Run the tests to verify they fail**
@@ -423,7 +449,13 @@ In `build_quiz_context` (~:995), after the existing `ctx.update(unit_tags_contex
     ctx.update(unit_edit_context(user, node))
 ```
 
-and extend its docstring — after `threads per-question quiz state (responses, locked, attempts_left)`, add `, plus the edit-unit link context`.
+and extend its docstring. The existing second sentence ends `…(responses, locked, attempts_left).` —
+replace that sentence in full with:
+
+```
+    threads per-question quiz state (responses, locked, attempts_left), plus the
+    edit-unit link context.
+```
 
 In `quiz_results` (~:1284), after the existing `ctx.update(unit_tags_context(...))` block:
 
@@ -446,7 +478,10 @@ Append to `courses/static/courses/css/courses.css`:
    and .unit-shell would otherwise start with 0px of separation).
    NOTE: this override wins on SPECIFICITY, not source order — courses.css loads
    BEFORE tags.css, so a bare `.unit-tags` selector here would lose. Keep both
-   classes. */
+   classes.
+   Both .5rem literals are deliberate rather than var(--space-N): they track the
+   value in tags.css's `.unit-tags { margin: .5rem 0 }`, which this rule relocates
+   and must stay numerically equal to. If that value changes, change these too. */
 .unit-strip { display: flex; flex-wrap: wrap; gap: .5rem; align-items: flex-start;
               margin-block: .5rem; }
 /* min-width: 0 is load-bearing. Wrapping the panel in a flex container makes it a
@@ -521,7 +556,11 @@ Each row copies its fixture from a named precedent. **Every copy needs the cours
 
 **Fixture-ordering warning:** `CourseFactory(owner=user)` needs the user to exist first, and in two precedents it does not — `test_check_answer_nojs…` creates the actor ~25 lines after the course, and the notes precedent's actor comes from `_enrolled_user(course)`, which takes the course as an argument. For those two, either hoist the actor's creation above `CourseFactory(owner=…)` or assign afterwards (`course.owner = user; course.save()`).
 
-- [ ] **Step 1: Write the failing tests**
+- [ ] **Step 1: Write the pinning tests**
+
+These are *pinning* tests: they pass as soon as they are written, because Task 2 already wired the
+builders. Their red half comes from the relocation mutations in Step 3 — that is what makes them
+tests rather than decoration.
 
 Append to `tests/test_unit_edit_link.py`:
 
@@ -534,7 +573,7 @@ def test_check_answer_nojs_rerender_carries_the_link(client):
     with owner= added."""
     owner = make_student(client, "owner")
     course = CourseFactory(owner=owner)
-    unit = ContentNodeFactory(course=course, parent=None, kind="unit", unit_type="lesson")
+    unit = _lesson_unit(course)
     q = ShortTextQuestionElement.objects.create(
         stem="2+2?", accepted="4", marking_mode="A", max_marks=1
     )
@@ -554,11 +593,11 @@ def test_check_answer_nojs_rerender_carries_the_link(client):
 def test_notes_invalid_nojs_422_rerender_carries_the_link(client):
     """The notes no-JS validation re-render returns 422 BY DESIGN — assert that,
     not 200. This is the path a manager hits while annotating during the very
-    walkthrough this feature serves. Fixture shape from
-    tests/test_notes_views.py::test_create_note_invalid_no_js_422_repopulates_rejected_text."""
+    walkthrough this feature serves. Fixture shape from test_notes_views.py's
+    test_create_note_invalid_no_js_422_repopulates_rejected_text."""
     owner = make_student(client, "owner")
     course = CourseFactory(owner=owner)
-    unit = ContentNodeFactory(course=course, parent=None, kind="unit", unit_type="lesson")
+    unit = _lesson_unit(course)
     el = ElementFactory(unit=unit)
     EnrollmentFactory(student=owner, course=course)
 
@@ -603,12 +642,13 @@ def test_quiz_answer_nojs_rerender_carries_the_link(client):
     assert _editor_href(course, quiz) in resp.content.decode()
 ```
 
-Extend the imports at the top of the file:
+Add these four lines to the import block, each in isort order (one name per line):
 
 ```python
 from courses.models import ShortTextQuestionElement
 from notes.models import NOTE_MAX_LEN
-from tests.factories import ElementFactory, add_element
+from tests.factories import ElementFactory
+from tests.factories import add_element
 ```
 
 - [ ] **Step 2: Run the tests to verify they pass**
@@ -622,11 +662,29 @@ If the `quiz_answer` one returns 302 or 403, the actor is not enrolled or the UR
 
 The Task-2 mutations do not work here: both also redden the plain GET tests, so seeing RED proves nothing about *where* the merge lives. The mutation must be relocation, and the **green half is as load-bearing as the red half**.
 
-*Mutation A:* move `ctx.update(unit_edit_context(user, node))` out of `full_lesson_render_context` and into the `lesson_unit` view.
-Run: `uv run pytest tests/test_unit_edit_link.py -v`
-Expected: `test_check_answer_nojs_rerender_carries_the_link` and `test_notes_invalid_nojs_422_rerender_carries_the_link` **FAIL**, while `test_lesson_unit_shows_the_link_to_the_owner` **still PASSES**. If the GET test also fails, the merge was deleted rather than relocated and the falsification does not count. Restore.
+**The relocated line must be rewritten, not moved verbatim.** The builders have a local `user`; the
+destination views do not — `lesson_unit` (`courses/views.py:580`) and `quiz_unit` (`:1119`) have only
+`request.user` and `node`. Pasting `unit_edit_context(user, node)` into either raises `NameError`,
+which makes the GET test *error* rather than stay green — and you would then read that as "the merge
+was deleted rather than relocated" and chase a mistake that isn't there.
 
-*Mutation B:* move `ctx.update(unit_edit_context(user, node))` out of `build_quiz_context` and into the `quiz_unit` view.
+*Mutation A:* delete `ctx.update(unit_edit_context(user, node))` from `full_lesson_render_context`,
+and in `lesson_unit` insert this immediately after the `ctx = full_lesson_render_context(...)` call:
+
+```python
+    ctx.update(unit_edit_context(request.user, node))
+```
+
+Run: `uv run pytest tests/test_unit_edit_link.py -v`
+Expected: `test_check_answer_nojs_rerender_carries_the_link` and `test_notes_invalid_nojs_422_rerender_carries_the_link` **FAIL**, while `test_lesson_unit_shows_the_link_to_the_owner` **still PASSES**. If the GET test errors instead, check you made the `user` → `request.user` change. Restore.
+
+*Mutation B:* delete `ctx.update(unit_edit_context(user, node))` from `build_quiz_context`, and in
+`quiz_unit` insert the same line immediately after `ctx = build_quiz_context(node, request.user)`:
+
+```python
+    ctx.update(unit_edit_context(request.user, node))
+```
+
 Run: `uv run pytest tests/test_unit_edit_link.py -v`
 Expected: `test_quiz_answer_nojs_rerender_carries_the_link` **FAILS**, `test_quiz_unit_shows_the_link_to_the_owner` **still PASSES**. Restore.
 
@@ -655,12 +713,15 @@ git commit -m "test(courses): pin the edit link to the shared builders, not the 
 
 **Why this must assert on the full page, not the tag fragment.** `tags/views.py::_panel_response` builds its context from `unit_tags_context(...)` plus `course` / `unit` / `tag_error` / `tag_draft` — it never carries `can_edit_unit`. So if someone moved the anchor into `tags/_unit_tag_panel.html`, the *fragment* would render `{% if can_edit_unit %}` against a missing variable, emit nothing, and a "fragment does not contain the href" assertion would stay **green through the very regression it exists to catch**. By this project's own rule — a test that cannot be made to fail is not a test — the fragment formulation is rejected.
 
-- [ ] **Step 1: Write the failing test**
+- [ ] **Step 1: Write the pinning test**
 
-Append to `tests/test_tags_consumption.py`:
+A pinning test — green on arrival, with its red half supplied by Step 3's mutation.
+
+Append to `tests/test_tags_consumption.py`. Note there is **no `@pytest.mark.django_db` decorator**:
+that module already sets `pytestmark = pytest.mark.django_db` at line 11, and every other test in the
+file relies on it.
 
 ```python
-@pytest.mark.django_db
 def test_edit_link_is_a_sibling_of_the_tag_panel_not_a_child(client):
     """The Edit link must sit OUTSIDE <details class="unit-tags">.
 
@@ -757,7 +818,9 @@ A pre-ship screenshot is not re-run by CI, so the two load-bearing declarations 
 
 Note what this guard does **not** catch: a specificity-losing rewrite (changing `.unit-strip .unit-tags` to a bare `.unit-tags`) keeps the declarations present while silently losing the cascade to `tags.css`. That reason is recorded in the CSS comment from Task 2.
 
-- [ ] **Step 1: Write the failing test**
+- [ ] **Step 1: Write the pinning test**
+
+Another pinning test — green on arrival; Step 3's deletion is its red half.
 
 Append to `tests/test_consumption_css.py`:
 
@@ -891,7 +954,7 @@ def test_edit_link_label_renders_in_polish(client):
     """
     owner = make_student(client, "owner")
     course = CourseFactory(owner=owner)
-    unit = ContentNodeFactory(course=course, parent=None, kind="unit", unit_type="lesson")
+    unit = _lesson_unit(course)
 
     session = client.session
     session["_language"] = "pl"
@@ -945,6 +1008,16 @@ git commit -m "i18n(courses): translate the Edit unit link into Polish"
 - Produces: nothing.
 
 This is the only test that can catch the regression the whole wrapper exists to prevent: `tags.js` replaces the `.unit-tags` subtree after a tag is added, with JS on only. A server-side test cannot see it.
+
+**`-m e2e` is MANDATORY on every command in this task.** `pyproject.toml` sets
+`addopts = "-q -m 'not e2e'"`, and that marker filter applies **even when a test is selected by node
+id**. Without `-m e2e` both the verification run and the falsification run report *"1 deselected, no
+tests ran"* with exit code 5 — which is not a pass. The only test guarding the `replaceWith`
+regression would ship unrun, and Task 8's bare `uv run pytest` excludes it too, so nothing else
+covers the gap.
+
+**Treat "no tests ran" as a failure of the step**, never as a green result. Confirm the run actually
+collected the test before believing either outcome.
 
 **Run e2e focused and in the FOREGROUND.** A backgrounded `-m e2e` run has previously spawned runaway browsers in this repo.
 
@@ -1009,14 +1082,15 @@ def test_edit_link_survives_adding_a_tag(page, live_server):
 
 - [ ] **Step 2: Run it in the foreground**
 
-Run: `uv run pytest tests/test_e2e_tags.py::test_edit_link_survives_adding_a_tag -v`
-Expected: PASS
+Run: `uv run pytest -m e2e tests/test_e2e_tags.py::test_edit_link_survives_adding_a_tag -v`
+Expected: **1 passed**. If the output says "1 deselected" or "no tests ran", the `-m e2e` flag is
+missing — the step has not been performed.
 
 - [ ] **Step 3: Falsify — put the link inside the replaced subtree**
 
 Temporarily move the `{% if can_edit_unit %}…{% endif %}` block into `tags/templates/tags/_unit_tag_panel.html`, inside the `<details>`.
 
-Run: `uv run pytest tests/test_e2e_tags.py::test_edit_link_survives_adding_a_tag -v`
+Run: `uv run pytest -m e2e tests/test_e2e_tags.py::test_edit_link_survives_adding_a_tag -v`
 Expected: **step 1 passes, step 4 FAILS** — the link renders initially and is destroyed by the swap. That asymmetry is the whole point; if step 1 also fails, the mutation broke the initial render instead and the falsification does not count. Restore.
 
 - [ ] **Step 4: Commit**
@@ -1033,11 +1107,48 @@ git commit -m "test(e2e): the Edit link survives the tag panel's replaceWith swa
 
 ### Task 8: Visual verification and full-suite green
 
-**Files:** none modified unless a screenshot reveals a defect.
+**Files:**
+- Create (temporary, **not committed**): `tests/test_e2e_unit_strip_shots.py`
+- Modify: none, unless Step 3 reveals a defect
 
 **Interfaces:** consumes the finished feature.
 
 This is the only verification for the one regression this design can actually cause: `.unit-strip` now wraps an element that three pages already position.
+
+- [ ] **Step 0: Write the capture harness**
+
+The shots need a logged-in Playwright `page`, and the repo's only login path is `_login()` inside
+`tests/test_e2e_tags.py` — an `e2e`-marked module. So the harness is itself an `e2e` test, run with
+`-m e2e` in the **foreground**, and deleted at the end of the task.
+
+Create `tests/test_e2e_unit_strip_shots.py`, modelled on `tests/test_e2e_tags.py` (copy its
+`_allow_sync_orm_under_playwright` fixture and its `_login` helper verbatim — including
+`pytestmark = pytest.mark.e2e`):
+
+```python
+SHOT_DIR = Path(__file__).resolve().parent.parent / "_shots"
+
+
+def _shoot(page, name):
+    """Capture the same viewport in both themes.
+
+    data-theme is baked server-side and core/context_processors.py resolves the
+    default `auto` preference to "light", so page.emulate_media(color_scheme=...)
+    does NOTHING here — it would silently produce two identical light images.
+    """
+    SHOT_DIR.mkdir(exist_ok=True)
+    for theme in ("light", "dark"):
+        page.evaluate(
+            f"document.documentElement.setAttribute('data-theme', '{theme}')"
+        )
+        page.screenshot(path=str(SHOT_DIR / f"{name}_{theme}.png"), full_page=True)
+```
+
+Viewports: **desktop** `page.set_viewport_size({"width": 1280, "height": 900})`; **narrow**
+`page.set_viewport_size({"width": 400, "height": 900})`.
+
+Add `_shots/` to `.git/info/exclude` (a local ignore, not a committed `.gitignore` change) so the
+images cannot be committed by accident.
 
 - [ ] **Step 1: Capture the screenshot matrix**
 
@@ -1054,20 +1165,30 @@ Six states × light and dark = **12 shots**.
 
 **Open the panel** by loading with `?panel=tags` — the server-side switch the views already read. Do **not** click the `<summary>` in Playwright; that adds a disclosure animation to race against.
 
-**Force dark mode with `data-theme`, not `emulate_media`.** `base.html` bakes `data-theme` server-side and `core/context_processors.py` resolves the default `auto` preference to **`"light"`**, so `page.emulate_media(color_scheme="dark")` changes nothing and you silently capture six duplicate light images:
+Each row is one `_shoot(page, "<row-name>")` call from Step 0, which handles both themes.
 
-```python
-page.evaluate("document.documentElement.setAttribute('data-theme', 'light')")
-page.screenshot(path=".../lesson_owner_light.png", full_page=True)
-page.evaluate("document.documentElement.setAttribute('data-theme', 'dark')")
-page.screenshot(path=".../lesson_owner_dark.png", full_page=True)
-```
+Run: `uv run pytest -m e2e tests/test_e2e_unit_strip_shots.py -v` — in the **foreground**, and note
+that `-m e2e` is mandatory here for the same reason as in Task 7.
 
-**If a light and dark pair are identical, the capture failed** — that is a fixture bug, not a theme that happens to match.
+**If a light and dark pair are identical, the capture failed** — that is a harness bug, not a theme that happens to match.
 
 **Fixtures that are easy to get wrong:**
 - The `quiz_results` row needs `QuizSubmissionFactory(student=<owner>, unit=<the quiz node>, status=QuizSubmission.Status.SUBMITTED)`, or the view redirects to `quiz_unit`, which renders the same strip and looks entirely plausible while leaving the row's actual purpose unverified. **Confirm the captured URL is the results path.**
 - Both ~400px rows need a **populated** panel. With an empty panel the row will not wrap and the shot cannot show the layout it exists to show. **If the ~400px owner shot is not wrapped, the fixture is wrong.**
+- **The ~400px owner row's fixture, explicitly** — it needs *both* kinds of tag, and they are built
+  differently, which is exactly the trap described in the next bullet:
+  ```python
+  from tags import services
+
+  # Chips (attached) — these are what widen the OPEN panel enough to force the wrap.
+  for name in ("revision", "photosynthesis", "needs-diagram", "chapter-two"):
+      services.tag_unit(owner, unit, name)
+  # One UNATTACHED tag so {% if addable_tags %} is true and the <fieldset> renders.
+  TagFactory(author=owner, name="not-yet-applied")
+  ```
+  The attached chips produce the wrap; the unattached tag produces the fieldset. Confirm
+  `services.tag_unit`'s signature before use — if it differs, the equivalent is a `Tag` plus a
+  `UnitTag` join row (`UnitTagFactory(tag=…, unit=…)`).
 - The long-token tag must be created **unattached** — every service in `tags/services.py` attaches the tag to the unit, which removes it from `addable_tags`:
   ```python
   TagFactory(author=actor, name="WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW")  # 50 chars
@@ -1087,6 +1208,13 @@ page.screenshot(path=".../lesson_owner_dark.png", full_page=True)
 - **Panel border box** at ~400px with the panel open: its right edge sits within the content column.
 - **No horizontal overflow beyond the feature-off baseline** for the same page. Do not assert an absolute.
 - **Student view** is visually equivalent to today's vertical rhythm.
+- **Screen-reader name.** The `&nbsp;` + `.visually-hidden` "(opens in a new tab)" construction is
+  this feature's only accessibility affordance and is deliberately guarded by **no automated test** —
+  the spec routes its verification entirely into this manual pass, so it is unverified by anything if
+  skipped here. Confirm the announced accessible name of `.unit-strip__edit` with a real screen
+  reader (or, at minimum, the browser devtools accessibility inspector) and **record the observed
+  name** in the PR. Expected: the label and the parenthetical are announced as separate words, not
+  run together as "unit(opens".
 - **`quiz_results` overhang is pre-recorded as ACCEPTED, not a pass/fail gate.** The strip spans 920px above a 736px `.result` article — ~90px per side. This is not new: the tag panel already does exactly this on master. Confirm it reads as deliberate rather than broken; if a human judges otherwise that is a follow-up styling decision, **not a blocker for this change**.
 
 - [ ] **Step 4: Full suite, lint, and migration check**
@@ -1105,7 +1233,18 @@ Note: `pytest` verdict lines do not survive a Bash pipe in this environment — 
 
 If an **unrelated pre-existing flaky** test fails, prove it is not caused by this diff (re-run it on the base commit) and fix it in its **own** PR rather than bundling it here.
 
-- [ ] **Step 5: Commit any screenshot-driven fixes**
+- [ ] **Step 5: Delete the capture harness**
+
+```bash
+rm tests/test_e2e_unit_strip_shots.py
+rm -rf _shots/
+git status --short   # must show no stray harness or image files
+```
+
+The harness is scaffolding for the manual pass, not a deliverable — it asserts nothing and would only
+rot in CI (where it is excluded by `addopts` anyway).
+
+- [ ] **Step 6: Commit any screenshot-driven fixes**
 
 Only if Step 3 revealed a real defect:
 
