@@ -16,7 +16,7 @@
 - **Test DB:** this worktree's `.env` pins `DATABASE_URL=…/libli_freshbtn`. Never change it — a parallel worktree is live and shares the Postgres server.
 - **`pytest` excludes e2e by default** (`pyproject.toml:49` = `addopts = "-q -m 'not e2e'"`). Any e2e run needs an explicit `-m e2e` or it silently collects zero tests and exits 0.
 - **pytest verdict lines do not survive a Bash pipe on this box.** Rely on the exit code, or `grep FAILED`, or read the tail of a redirected file.
-- **Two symbols are named `VALIDATORS`.** `courses.state.VALIDATORS` is the one this plan means; `courses.transfer.payloads.VALIDATORS` is a different namespace that ~20 test modules import bare. Always write `state.VALIDATORS`.
+- **Two symbols are named `VALIDATORS`.** `courses.state.VALIDATORS` is the one this plan means; `courses.transfer.payloads.VALIDATORS` is a different namespace that ~20 test modules import bare. In **test modules** write `state.VALIDATORS` (after `from courses import state`). **Inside `courses/views.py` write `state_svc.VALIDATORS`** — `state` is a *local variable* in `build_lesson_context` (`views.py:373`, `state = {}`), so `state.VALIDATORS` there raises `UnboundLocalError` on every lesson render.
 - **Falsify every guard.** A passing test proves nothing here. For each test, apply its named mutation, observe RED, revert, and report the observed RED in the task's completion notes. Never report "passes" alone.
 - **No migration, no new or changed translatable strings, no CSS change.** If a step seems to need one, stop — the spec is wrong and needs revisiting.
 - **Never assert line numbers** in source-text guards; this change moves them.
@@ -24,9 +24,11 @@
   `build_lesson_context`, so from Task 3 onward every anchor below `:370` has shifted down by roughly
   that much (`:373`→~`:384`, `:404-428`→~`:415-439`, `:559`→~`:570`, `:828`→~`:839`). Navigate by the
   quoted symbol or code text given alongside each anchor, never by the number alone.
-- **Run `uv run ruff check --fix` before each task's lint gate.** `pyproject.toml` selects `I` with
-  `force-single-line = true`, so new imports must land in sorted position; appending them in a block
-  yields `I001`. The merged import blocks below are already sorted, but `--fix` is the safety net.
+- **Lint config: `select = ["E", "F", "I", "UP", "B", "S"]`, no `line-length` override → E501 at 88
+  columns, and isort with `force-single-line = true`.** Every code block below has been run through
+  `uv run ruff check` and `uv run ruff format --check` and is clean as written — type it verbatim.
+  `ruff check --fix` repairs **import order only**; it cannot fix E501 in a comment or docstring, and it
+  does not run the formatter. If you reflow a line, re-run both gates before committing.
 - **After every falsification: revert, re-run the test, and confirm it is GREEN again** before applying
   the next mutation. Record the RED→GREEN pair. A partially-reverted mutation surfacing in Task 6 is
   much harder to attribute.
@@ -56,7 +58,7 @@
 
 **Interfaces:**
 - Consumes: `courses.state.VALIDATORS` (existing, 8 keys); `courses.models.ELEMENT_MODELS` (existing, 31 names).
-- Produces: `courses.state.stateful_element_model_names() -> tuple[str, ...]` — a **sorted tuple** of 18 `content_type.model` names. Task 2 calls it as `state_svc.stateful_element_model_names()`; Task 3's test 6 monkeypatches it by that dotted path.
+- Produces: `courses.state.stateful_element_model_names() -> tuple[str, ...]` — a **sorted tuple** of 18 `content_type.model` names. Task 2 calls it as `state_svc.stateful_element_model_names()`; Task 3's seam test monkeypatches the attribute on the `courses.state` module object (`monkeypatch.setattr(state, "stateful_element_model_names", …)`), which is why Task 2 must call it through the module attribute rather than importing the function by name.
 
 - [ ] **Step 1: Write the two failing tests**
 
@@ -142,7 +144,7 @@ def stateful_element_model_names():
     Returns a sorted tuple of strings, fed straight to a content_type__model__in filter.
 
     DERIVED, never hand-listed. A literal list here would be a second hand-maintained
-    copy of two registries that live elsewhere, in the same namespace they already use --
+    copy of two registries that live elsewhere, in the namespace they already use --
     and it would drift silently: a new state-bearing type would keep its state but lose
     its reset affordance.
 
@@ -166,17 +168,17 @@ def stateful_element_model_names():
     from courses.models import ELEMENT_MODELS
 
     known = set(ELEMENT_MODELS)
-    return tuple(
-        sorted(
-            (set(VALIDATORS) & known)
-            | {
-                name
-                for name in ELEMENT_MODELS
-                if getattr(apps.get_model("courses", name), "RESTORABLE_IN_LESSON", False)
-            }
-        )
-    )
+    restorable = {
+        name
+        for name in ELEMENT_MODELS
+        if getattr(apps.get_model("courses", name), "RESTORABLE_IN_LESSON", False)
+    }
+    return tuple(sorted((set(VALIDATORS) & known) | restorable))
 ```
+
+The `restorable` local is not cosmetic: inlining that set comprehension into the `sorted(...)` call
+pushes the `getattr` line past 88 columns (E501) **and** `ruff format` rewrites it into a three-line
+call, so the inlined form fails both gates this task runs in Step 6. This shape is verified clean.
 
 - [ ] **Step 4: Run the tests to verify they pass**
 
@@ -235,7 +237,7 @@ Expected: PASS (pre-change baseline).
 
 In `courses/tests/test_reset_controls.py`, **replace** `test_lesson_page_links_to_the_reset_interstitial` (lines 19-26) with the version below, and append the three new tests.
 
-**Replace the file's whole import block** with this merged, already-sorted version (isort is enforced with `force-single-line = true`, so appending a block would fail `I001`):
+**Replace lines 1-7 only** — the file's import block — with this merged, already-sorted version (isort is enforced with `force-single-line = true`, so appending a block would fail `I001`). **Keep `pytestmark = pytest.mark.django_db` at line 9 exactly as it is**: it is this module's only DB grant (the root `conftest.py` grants none, and `tests/conftest.py`'s autouse `_enable_db_access` covers only the `tests/` subtree), so losing it errors every test in the file with "Database access not allowed":
 
 ```python
 import pytest
@@ -385,8 +387,16 @@ Revert each mutation before the next.
 | `..._for_an_element_nested_in_a_tab` | add `parent__isnull=True,` to C2's `.filter(...)` | Fires alone |
 | `..._links_to_the_reset_interstitial` | none needed | Its Step-1 pass → Step-3 behaviour change IS the signal |
 
-The fourth test in this task, `..._on_a_question_only_unit`, is falsified in **Task 3 Step 4** — its
+The fourth test in this task, `..._on_a_question_only_unit`, is falsified in **Task 3 Step 3** — its
 mutation co-fires a test that does not exist until then, so it cannot be honestly performed here.
+
+**`content_type__app_label="courses"` is knowingly unfalsifiable, and that is recorded rather than
+hidden.** Deleting it leaves the whole suite green: no other installed app declares a model named like
+an element type, so no fixture can construct a case where the pin changes the result. It is kept
+because the filter matches on a bare model name across every installed app and a future collision would
+be silent — the same defence-in-depth reasoning as `& known` in Task 1, which *did* get a dedicated test
+(there, a bogus registry key makes the difference observable; here nothing does). Do not invent a
+mutation for it; note it in the completion report as a deliberate exemption.
 
 - [ ] **Step 8: Lint and commit**
 
@@ -556,7 +566,7 @@ lines. After each mutation: observe RED, revert, **re-run and confirm GREEN**, t
 | `..._no_js_check_answer_rerender` | in `check_answer`'s no-JS branch, at the line `ctx = full_lesson_render_context(node, request.user)`, add `ctx.pop("has_stateful_elements")` immediately after it. **Do not** substitute a sparse hand-built dict — that also breaks `tests/test_questions_consumption.py` and `tests/test_unit_nav_render.py`. | this test alone |
 | `..._calls_the_state_helper_...` | replace C2's `state_svc.stateful_element_model_names()` with a literal tuple of the 18 names | this test alone |
 | `..._orphaned_blob_...` | in `build_lesson_context`'s returned dict, change the entry to `"has_stateful_elements": has_stateful_elements or bool(state),`. The local is named **`state`**, not `element_state`, and it is assigned *after* C2's line — so applying the OR at C2 itself raises `UnboundLocalError` on every lesson render and reds the whole suite instead of this test. | this test alone |
-| **`..._on_a_question_only_unit`** (deferred from Task 2) | intersect C2's name list with `state.VALIDATORS`, e.g. `content_type__model__in=tuple(n for n in state_svc.stateful_element_model_names() if n in state.VALIDATORS)` | **two** tests: the question-only test **and** `..._calls_the_state_helper_...`. The co-fire is unavoidable and expected — that test monkeypatches the helper to return `"textelement"`, which any validator-half intersection filters straight back out. Record both REDs. |
+| **`..._on_a_question_only_unit`** (deferred from Task 2) | intersect C2's name list with the validator half — `content_type__model__in=tuple(n for n in state_svc.stateful_element_model_names() if n in state_svc.VALIDATORS)`. **`state_svc.VALIDATORS`, never `state.VALIDATORS`**: `state` is a local in `build_lesson_context` assigned *after* this line, so the latter raises `UnboundLocalError` and reds the whole suite instead of two tests. | **two** tests: the question-only test **and** `..._calls_the_state_helper_...`. The co-fire is unavoidable and expected — that test monkeypatches the helper to return `"textelement"`, which any validator-half intersection filters straight back out. Record both REDs. |
 
 - [ ] **Step 4: Lint and commit**
 
@@ -619,11 +629,13 @@ WRITE = re.compile(
 # F-expression, or a write spelled through a local alias. A tripwire, not a proof.
 
 EXPECTED_WRITE_FILES = {"courses/views.py"}
-EXPECTED_WRITE_COUNT = 3  # views.py: progress_reset's update, and the helper's pop + subscript assign
+# views.py only: progress_reset's update, plus the helper's pop and subscript assign.
+EXPECTED_WRITE_COUNT = 3
 
 
 def _first_party_roots():
-    """Every in-tree Python root: the 9 first-party apps, plus config/, scripts/, manage.py.
+    """Every in-tree Python root: the 9 first-party apps, plus config/,
+    scripts/ and manage.py.
 
     Filters app configs by `path.parent == ROOT` -- NOT "path is under ROOT". The
     virtualenv lives INSIDE the checkout (.venv/), so "under ROOT" keeps every
@@ -678,12 +690,13 @@ def test_element_state_write_routes_are_unchanged():
             hits.append(path.relative_to(ROOT).as_posix())
 
     assert len(hits) == EXPECTED_WRITE_COUNT and set(hits) == EXPECTED_WRITE_FILES, (
-        f"element_state write routes changed: found {len(hits)} in {sorted(set(hits))}, "
-        f"expected {EXPECTED_WRITE_COUNT} in {sorted(EXPECTED_WRITE_FILES)}. "
-        "A NEW WRITE ROUTE into UnitProgress.element_state must extend "
-        "courses.state.stateful_element_model_names() in lockstep -- otherwise whatever "
-        "it persists becomes unresettable from the unit page. Read that contract before "
-        "bumping this number."
+        f"element_state write routes changed: found {len(hits)} in "
+        f"{sorted(set(hits))}, expected {EXPECTED_WRITE_COUNT} in "
+        f"{sorted(EXPECTED_WRITE_FILES)}. A NEW WRITE ROUTE into "
+        "UnitProgress.element_state must extend "
+        "courses.state.stateful_element_model_names() in lockstep -- else whatever "
+        "it persists becomes unresettable from the unit page. Read that contract "
+        "before bumping this number."
     )
 ```
 
@@ -725,11 +738,12 @@ nothing else."). **Keep it** and append the contract note beneath it, so the fie
     # Per-student practice state, keyed by Element (join-row) pk:
     # {"<Element.pk>": {...per-type blob}}. Personal, ungraded, invisible to
     # analytics. Reset (progress_reset) clears this and nothing else.
-    # WRITE ROUTES INTO THIS FIELD ARE A CONTRACT. courses.state.stateful_element_model_names()
-    # enumerates the element types whose state the unit page offers to clear, derived from
-    # state.VALIDATORS + QuestionElement.RESTORABLE_IN_LESSON. A new write route here must
-    # extend that function in lockstep, or whatever it stores becomes unresettable from the
-    # unit page. Guarded by tests/test_element_state_write_routes.py.
+    # WRITE ROUTES INTO THIS FIELD ARE A CONTRACT.
+    # courses.state.stateful_element_model_names() enumerates the element types
+    # whose state the unit page offers to clear, derived from state.VALIDATORS +
+    # QuestionElement.RESTORABLE_IN_LESSON. A new write route here must extend that
+    # function in lockstep, or whatever it stores becomes unresettable from the unit
+    # page. Guarded by tests/test_element_state_write_routes.py.
     element_state = models.JSONField(default=dict)
 ```
 
@@ -777,20 +791,28 @@ git commit -m "test: pin the element_state write routes; document the lockstep c
 
 - [ ] **Step 1: Add a stateful element to `_seed`**
 
-In `tests/test_e2e_unit_head_layout.py`, add to the imports inside `_seed`:
+In `tests/test_e2e_unit_head_layout.py`, `_seed`'s function-local import block is isort-ordered too
+(`force-single-line` applies inside functions). **Replace the whole local block** with this sorted
+version — `MarkDoneElement` must land between `Enrollment` and `TextElement` or `I001` fires:
 
 ```python
+    from courses.models import Element
+    from courses.models import Enrollment
     from courses.models import MarkDoneElement
+    from courses.models import TextElement
+    from tests.factories import ContentNodeFactory
+    from tests.factories import CourseFactory
 ```
 
 and after the existing `Element.objects.create(...)` for the `TextElement` (`:57-59`), add:
 
 ```python
     # KEEPS THE "Start fresh" LINK RENDERED. The link is gated on the unit containing a
-    # state-bearing element type; without this row the head row drops to two children and
-    # this module silently stops guarding the crowded three-item case it exists for.
-    # MarkDone over a question: no child rows, no answer setup, and markdone.js's boot
-    # pass is read-only (it POSTs only on click), so it adds no traffic to a layout test.
+    # state-bearing element type; without this row the head row drops to two
+    # children and this module silently stops guarding the crowded three-item case
+    # it exists for. MarkDone over a question: no child rows, no answer setup, and
+    # markdone.js's boot pass is read-only (it POSTs only on click), so it adds no
+    # network traffic to a layout test.
     Element.objects.create(
         unit=unit, content_object=MarkDoneElement.objects.create(prompt="P")
     )
@@ -800,9 +822,10 @@ Keep the existing `TextElement` row — both tests share `_seed`, and the text b
 
 - [ ] **Step 2: Measure the third child**
 
-Replace the `MEASURE` body's `return` block so it also reports the reset link:
+Replace the **whole `MEASURE` string** (the `MEASURE = """ … """` assignment at lines 63-78, not just its `return` block) with:
 
-```javascript
+```python
+MEASURE = """
 () => {
   const head = document.querySelector('.lesson-unit__head');
   const title = head.querySelector('.lesson-unit__title');
@@ -822,6 +845,7 @@ Replace the `MEASURE` body's `return` block so it also reports the reset link:
     reset_left: r ? Math.round(r.left) : null,
   };
 }
+"""
 ```
 
 Each test gets its **own** assertion, mirroring the `done_top` comparison it already makes — the two
@@ -831,7 +855,9 @@ In `test_long_title_does_not_overflow_under_the_action_buttons` (phone), after t
 `assert m["done_top"] >= m["title_bottom"] - 1` block:
 
 ```python
-    assert m["has_reset"], "the reset link vanished — _seed's MarkDoneElement is what keeps it"
+    assert m["has_reset"], (
+        "the reset link vanished -- _seed's MarkDoneElement is what keeps it"
+    )
     assert m["reset_top"] >= m["title_bottom"] - 1, (
         f"the reset link still shares the title's line at {PHONE['width']}px "
         f"(title bottom {m['title_bottom']}, reset top {m['reset_top']})"
@@ -842,7 +868,9 @@ In `test_desktop_keeps_the_actions_beside_the_title`, after the existing
 `assert m["done_top"] < m["title_bottom"]` block:
 
 ```python
-    assert m["has_reset"], "the reset link vanished — _seed's MarkDoneElement is what keeps it"
+    assert m["has_reset"], (
+        "the reset link vanished -- _seed's MarkDoneElement is what keeps it"
+    )
     assert m["reset_top"] < m["title_bottom"], (
         "on desktop the reset link should still sit on the title's line"
     )
@@ -924,6 +952,8 @@ Create a **throwaway** e2e module at `tests/test_tmp_head_shot.py` (deleted in S
 committed):
 
 ```python
+import os
+
 import pytest
 
 from tests.factories import add_element
@@ -931,7 +961,20 @@ from tests.test_e2e_unit_head_layout import _login
 
 pytestmark = pytest.mark.e2e
 
-SHOTS = "C:/Users/krzys/AppData/Local/Temp/claude/C--Users-krzys-Documents-Python-own-libli/e2e68207-43a4-4129-a443-c225117f2d91/scratchpad"
+
+# MANDATORY, and easy to miss: this autouse fixture lives in
+# test_e2e_unit_head_layout.py and does NOT travel with the imported _login helper.
+# 36 e2e modules each declare their own copy. Without it the ORM calls below can
+# raise SynchronousOnlyOperation when this module runs in isolation.
+@pytest.fixture(scope="session", autouse=True)
+def _allow_async_unsafe():
+    os.environ["DJANGO_ALLOW_ASYNC_UNSAFE"] = "true"
+    yield
+    os.environ.pop("DJANGO_ALLOW_ASYNC_UNSAFE", None)
+
+# Set HEAD_SHOT_DIR to YOUR OWN scratchpad before running -- the path is
+# session-specific, and a hard-coded one writes PNGs somewhere you will not find them.
+SHOTS = os.environ["HEAD_SHOT_DIR"]
 
 
 @pytest.mark.django_db(transaction=True)
@@ -973,13 +1016,14 @@ def test_capture_two_child_head_row(page, live_server):
             )
 ```
 
-Check `_login`'s signature and `LONG_TITLE`/`TEST_PASSWORD`'s import locations against
-`tests/test_e2e_unit_head_layout.py` before running, and adjust if they differ.
+Before running, open `tests/test_e2e_unit_head_layout.py` and check that `_login`'s signature,
+`LONG_TITLE`/`TEST_PASSWORD`'s import locations, **and the `_allow_async_unsafe` fixture's body** match
+what is written above; adjust if they differ.
 
-Run it in the **foreground**, with the mandatory marker:
+Run it in the **foreground**, with the mandatory marker, pointing `HEAD_SHOT_DIR` at your own scratchpad:
 
 ```bash
-uv run pytest -m e2e tests/test_tmp_head_shot.py -v
+HEAD_SHOT_DIR=<your-scratchpad-dir> uv run pytest -m e2e tests/test_tmp_head_shot.py -v
 ```
 
 Expected: 1 passed, and four PNGs in the scratchpad. Then **read all four** with the Read tool and
@@ -989,7 +1033,13 @@ confirm:
 - phone: the title takes its own row and the pill sits below it, left-aligned;
 - neither theme shows a stray gap, a stretched pill, or a title colliding with the pill.
 
-If any of that reads as broken rather than merely different, C3's "no CSS change is required" claim is wrong and must be revisited before merge. Attach the four screenshots to the completion notes.
+**If any of that reads as broken rather than merely different — stop.** Do not commit anything further,
+do not attempt a CSS fix (the Global Constraints forbid one, and inventing a token here would be exactly
+the unilateral scope change this plan exists to prevent). Delete the throwaway module, attach the four
+screenshots, and report: *"spec C3's 'no CSS change is required' is falsified — the head row needs a CSS
+decision before merge."* That hands the call back to the spec's owner, which is where it belongs.
+
+If it reads as intentional, attach the four screenshots to the completion notes and continue.
 
 - [ ] **Step 6: Delete the throwaway module and report**
 
