@@ -6,13 +6,13 @@
     {% csrf_token %}
     <fieldset {% if quiz_submitted or locked %}disabled{% endif %}
               style="border:0;padding:0;margin:0;">
-      <div class="multigrid-scroll">
+      <div class="scroll-x" data-scroll-x><div class="multigrid-scroll">
         {% if element.pk == feedback_for_pk %}
           {% render_multigrid el submitted_values %}
         {% else %}
           {% render_multigrid el %}
         {% endif %}
-      </div>
+      </div></div>
     </fieldset>
     <button type="submit" class="btn btn--small"
             {% if quiz_submitted or locked %}disabled{% endif %}>{% trans "Check" %}</button>
@@ -21,6 +21,6 @@
     </div>
   </form>
   {% else %}
-    <div class="multigrid-scroll">{% render_multigrid el %}</div>
+    <div class="scroll-x" data-scroll-x><div class="multigrid-scroll">{% render_multigrid el %}</div></div>
   {% endif %}
 </div>

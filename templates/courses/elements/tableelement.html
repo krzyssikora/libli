@@ -8,6 +8,7 @@ breaks the layout the editor saved.{% endcomment %}
 <div class="el el--table el--table--border-{{ data.border }}"
      {% if data.header_row %}data-header-row{% endif %}
      {% if data.header_col %}data-header-col{% endif %}>
+  <div class="scroll-x" data-scroll-x>
   <div class="el--table__scroll">
     <table>
       {% for row in data.cells %}
@@ -33,5 +34,6 @@ breaks the layout the editor saved.{% endcomment %}
       </tr>
       {% endfor %}
     </table>
+  </div>
   </div>
 </div>

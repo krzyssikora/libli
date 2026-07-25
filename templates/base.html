@@ -152,6 +152,10 @@
     {% block content %}{% endblock %}
   </main>
   <script src="{% static 'core/js/ui.js' %}" defer></script>
+  {% comment %}Global: every horizontally scrollable box (.scroll-x) gets its edge
+  affordance, from lesson tables to the manage-page ledgers. Pure enhancement —
+  with JS off the boxes still scroll and no gradient is ever shown.{% endcomment %}
+  <script src="{% static 'core/js/scroll_affordance.js' %}" defer></script>
   {% block extra_body %}{% endblock %}
   {% block extra_js %}{% endblock %}
 </body>

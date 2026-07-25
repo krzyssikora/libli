@@ -72,7 +72,7 @@ the answer-input placeholder, and the two submit-guard messages.{% endcomment %}
             title="{% trans 'Header cell' %}" aria-label="{% trans 'Header cell' %}"><svg class="ic" aria-hidden="true" focusable="false"><use href="#ed-header"/></svg></button>
   </div>
 
-  <div class="table-editor__grid filltable-editor__grid" data-table-grid>
+  <div class="scroll-x" data-scroll-x><div class="table-editor__grid filltable-editor__grid" data-table-grid>
     <table>
       {% for row in form.resolved_grid_cells %}
       <tr>
@@ -123,7 +123,7 @@ the answer-input placeholder, and the two submit-guard messages.{% endcomment %}
       </tr>
       {% endfor %}
     </table>
-  </div>
+  </div></div>
 
   {% comment %}Range membership is announced here rather than with aria-selected,
   which is only meaningful on gridcell/option/row roles and is ignored (and

@@ -121,6 +121,12 @@
     // (zone-editor.js otherwise only self-inits on DOMContentLoaded, before the form
     // is fetched). Idempotent via dataset.zoneReady, so a re-swap is safe.
     if (editorPane && window.libliZoneEditor) window.libliZoneEditor(editorPane);
+    // Swapped-in tables/grids arrive with no scroll listener; re-arm both panes so
+    // the edge affordance works on freshly rendered content as well as first paint.
+    if (window.libliInitScrollAffordance) {
+      if (editorPane) window.libliInitScrollAffordance(editorPane);
+      if (preview) window.libliInitScrollAffordance(preview);
+    }
     bindDnD();  // handlers re-bound after every swap (Task 8)
     bindHover();  // re-bind editor->preview hover after the pane is replaced
     restoreScroll(scrolls);  // last: after re-init so layout has settled

@@ -17,6 +17,7 @@ indices into normalize_data(data)["cells"].{% endcomment %}
   <div class="el el--filltable el--filltable--border-{{ data.border }}"
        {% if data.header_row %}data-header-row{% endif %}
        {% if data.header_col %}data-header-col{% endif %}>
+    <div class="scroll-x" data-scroll-x>
     <div class="el--filltable__scroll">
       <table>
         {% for row in data.cells %}
@@ -34,6 +35,7 @@ indices into normalize_data(data)["cells"].{% endcomment %}
         </tr>
         {% endfor %}
       </table>
+    </div>
     </div>
   </div>
   {% if not mine.done %}<button type="button" class="filltable__confirm btn btn--small">{% trans "Check" %}</button>{% endif %}

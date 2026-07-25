@@ -35,7 +35,7 @@
   </form>
 
   {% if rows %}
-    <table class="people-table">
+    <div class="scroll-x" data-scroll-x><table class="people-table">
       <thead>
         <tr>
           <th>{% trans "Name" %}</th><th>{% trans "Email" %}</th><th>{% trans "Role" %}</th>
@@ -56,7 +56,7 @@
           </tr>
         {% endfor %}
       </tbody>
-    </table>
+    </table></div>
 
     {% if page_obj.has_other_pages %}
       <nav class="pagination" aria-label="{% trans 'Pagination' %}">
