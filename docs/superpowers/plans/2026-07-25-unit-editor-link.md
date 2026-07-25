@@ -167,7 +167,9 @@ Note: these tests issue no request but still take `client` — every role helper
 - [ ] **Step 2: Run the tests to verify they fail**
 
 Run: `uv run pytest tests/test_unit_edit_link.py -v`
-Expected: FAIL — `ModuleNotFoundError: No module named 'courses.rendering'`
+Expected: a pytest **collection ERROR** (exit code 2, an `ERRORS` section, zero tests collected) —
+`ModuleNotFoundError: No module named 'courses.rendering'`. Note this is an error, not a `FAILED`
+line: a missing module aborts collection before any test runs.
 
 - [ ] **Step 3: Write the implementation**
 
@@ -429,11 +431,20 @@ Exactly one line changes per file. Do **not** touch `tags/templates/tags/panel_p
 
 - [ ] **Step 5: Wire the three merge points**
 
-In `courses/views.py`, add at **module top level** (not function-local — `courses/rendering.py` imports only `courses.access` and `django.urls`, both already imported at module level here, so there is no cycle and a `# lazy: avoid import cycle` comment would assert something false):
+In `courses/views.py`, add at **module top level** (not function-local — `courses/rendering.py` imports only `courses.access` and `django.urls`, both already imported at module level here, so there is no cycle and a `# lazy: avoid import cycle` comment would assert something false).
+
+Placement is not free: the file has a strictly single-line-sorted first-party block, and anywhere else
+raises `I001` on Step 10's `ruff check`. `rendering` sorts between `quiz` and `rollups`, so insert it
+**immediately after `from courses.quiz import selected_ids` (line 74) and immediately before
+`from courses.rollups import build_course_results` (line 75)**:
 
 ```python
+from courses.quiz import selected_ids
 from courses.rendering import unit_edit_context
+from courses.rollups import build_course_results
 ```
+
+(The middle line is the new one; the other two are existing context showing where it goes.)
 
 In `full_lesson_render_context` (~:431), after the existing `ctx.update(unit_tags_context(...))`:
 
@@ -449,12 +460,13 @@ In `build_quiz_context` (~:995), after the existing `ctx.update(unit_tags_contex
     ctx.update(unit_edit_context(user, node))
 ```
 
-and extend its docstring. The existing second sentence ends `…(responses, locked, attempts_left).` —
-replace that sentence in full with:
+and extend its docstring. Replace the existing second sentence — *"Parallels build_lesson_context but
+threads per-question quiz state (responses, locked, attempts_left)."* — with this complete sentence,
+keeping the "Parallels build_lesson_context but" clause:
 
 ```
-    threads per-question quiz state (responses, locked, attempts_left), plus the
-    edit-unit link context.
+    Parallels build_lesson_context but threads per-question quiz state
+    (responses, locked, attempts_left), plus the edit-unit link context.
 ```
 
 In `quiz_results` (~:1284), after the existing `ctx.update(unit_tags_context(...))` block:
@@ -642,13 +654,30 @@ def test_quiz_answer_nojs_rerender_carries_the_link(client):
     assert _editor_href(course, quiz) in resp.content.decode()
 ```
 
-Add these four lines to the import block, each in isort order (one name per line):
+The file's import block becomes exactly this — shown in full, as in Task 2, so no isort placement has
+to be inferred (`notes.models` sorts after `courses.*` and before `tests.*`; the four new entries are
+`ShortTextQuestionElement`, `NOTE_MAX_LEN`, `ElementFactory`, `add_element`):
 
 ```python
+import pytest
+from django.urls import reverse
+
+from courses.models import QuizSubmission
 from courses.models import ShortTextQuestionElement
+from courses.rendering import unit_edit_context
 from notes.models import NOTE_MAX_LEN
+from tests.factories import ContentNodeFactory
+from tests.factories import CourseFactory
 from tests.factories import ElementFactory
+from tests.factories import EnrollmentFactory
+from tests.factories import GroupFactory
+from tests.factories import QuizSubmissionFactory
 from tests.factories import add_element
+from tests.factories import make_ca
+from tests.factories import make_pa
+from tests.factories import make_quiz_unit
+from tests.factories import make_student
+from tests.factories import make_teacher
 ```
 
 - [ ] **Step 2: Run the tests to verify they pass**
@@ -749,9 +778,7 @@ def test_edit_link_is_a_sibling_of_the_tag_panel_not_a_child(client):
     unit = ContentNodeFactory(
         course=course, parent=None, kind="unit", unit_type="lesson"
     )
-    href = reverse(
-        "courses:manage_editor", kwargs={"slug": course.slug, "pk": unit.pk}
-    )
+    href = reverse("courses:manage_editor", kwargs={"slug": course.slug, "pk": unit.pk})
 
     # 1. Plain URL, no ?panel=tags. Anchor the negative to a proven positive.
     resp = client.get(f"/courses/{course.slug}/u/{unit.pk}/")
@@ -857,6 +884,11 @@ def test_unit_strip_rules_are_present_and_load_bearing():
     block = inner.group(1)
     assert "min-width: 0" in block, f"min-width: 0 missing (fieldset hazard): {block!r}"
     assert "margin-block: 0" in block, f"margin-block: 0 missing: {block!r}"
+    # flex: 1 1 auto is what makes the panel absorb the remaining width, which is
+    # what pins the button to the row's FAR RIGHT edge — the single criterion the
+    # desktop screenshots exist to judge. Delete it and the panel shrink-wraps its
+    # summary, the button lands beside "Tags (n)", and nothing else in CI notices.
+    assert "flex: 1 1 auto" in block, f"flex: 1 1 auto missing (right-pin): {block!r}"
 ```
 
 - [ ] **Step 2: Run the test to verify it passes**
@@ -868,7 +900,11 @@ Expected: all pass
 
 Delete `min-width: 0;` from the `.unit-strip .unit-tags` rule in `courses.css`.
 Run: `uv run pytest tests/test_consumption_css.py::test_unit_strip_rules_are_present_and_load_bearing -v`
-Expected: FAIL. Restore, then repeat for `margin-block: 0` and confirm FAIL again. Restore.
+Expected: FAIL. Restore.
+
+Repeat once per guarded declaration — `margin-block: 0`, `flex: 1 1 auto`, and `margin-block` on
+`.unit-strip` — confirming FAIL each time and restoring after each. Four deletions, four REDs: a
+guard you never saw fail is not a guard.
 
 - [ ] **Step 4: Lint and commit**
 
@@ -898,6 +934,23 @@ git commit -m "test(css): guard the unit-strip layout declarations"
 ```bash
 uv run python manage.py makemessages -l pl -l en --no-obsolete
 ```
+
+- [ ] **Step 1b: Check the catalogs for collateral churn BEFORE editing them**
+
+```bash
+git diff --stat locale/
+git diff -U0 locale/ | grep -E '^[+-](msgid|msgstr|#, fuzzy)' | sort | uniq -c
+```
+
+These are ~6,300-line catalogs and `makemessages` runs repo-wide: it rewrites every entry's `#:`
+location comment, and it can re-flag pre-existing entries as **fuzzy** or, under `--no-obsolete`,
+drop entries it considers dead — none of it caused by this change.
+
+**The only `msgid`/`msgstr` content changes may be the two new entries.** Location-comment churn is
+expected and fine. Anything else — a newly fuzzy pre-existing entry, a dropped msgid — is collateral:
+**revert it, or split it into its own commit. Never ship it silently inside this feature's i18n
+commit.** If `test_i18n_po_health.py` goes red on an entry this feature never touched, that is what
+happened; do not "fix" it here.
 
 - [ ] **Step 2: Fill in the Polish translations and clear any fuzzy flags**
 
@@ -1121,34 +1174,74 @@ The shots need a logged-in Playwright `page`, and the repo's only login path is 
 `tests/test_e2e_tags.py` — an `e2e`-marked module. So the harness is itself an `e2e` test, run with
 `-m e2e` in the **foreground**, and deleted at the end of the task.
 
-Create `tests/test_e2e_unit_strip_shots.py`, modelled on `tests/test_e2e_tags.py` (copy its
-`_allow_sync_orm_under_playwright` fixture and its `_login` helper verbatim — including
-`pytestmark = pytest.mark.e2e`):
+Create `tests/test_e2e_unit_strip_shots.py`, modelled on `tests/test_e2e_tags.py`. Copy from it
+verbatim: the `_allow_sync_orm_under_playwright` fixture, the `_login` helper, and
+`pytestmark = pytest.mark.e2e`. Every shot test **also** needs
+`@pytest.mark.django_db(transaction=True)`, exactly as `test_tag_filter_untag_delete_via_ui` carries
+it — `live_server` runs in a separate thread and must see the fixture rows, so without it every test
+errors on "Database access not allowed" before a single pixel is captured.
+
+The file's imports, in full:
 
 ```python
-SHOT_DIR = Path(__file__).resolve().parent.parent / "_shots"
+import os
+import tempfile
+from pathlib import Path
+
+import pytest
+from playwright.sync_api import expect
+
+from tests.factories import TEST_PASSWORD
+from tests.factories import make_verified_user
+```
+
+**`SHOT_DIR` lives outside the repository.** Do not write the images into the worktree and do not add
+a git ignore: this is a *linked* worktree, so `.git` is a **file**, not a directory —
+`.git/info/exclude` is an unwritable path here, and git actually reads
+`$(git rev-parse --git-common-dir)/info/exclude`, which is the **main checkout's** git dir, shared
+with every other worktree and any parallel session. Writing images outside the repo sidesteps all of
+that and removes the accidental-commit risk entirely.
+
+```python
+SHOT_DIR = Path(tempfile.gettempdir()) / "unit-strip-shots"
 
 
-def _shoot(page, name):
-    """Capture the same viewport in both themes.
+def _shoot(page, name, variant="feature"):
+    """Capture the current viewport in both themes.
+
+    `variant` distinguishes the same row captured under different source states —
+    "feature" (as built), "nomin" (min-width: 0 deleted), "baseline" (feature
+    rendering reverted). Step 2's A/B comparisons need all three to coexist; a
+    filename derived from `name` alone would overwrite the very image being
+    compared against.
 
     data-theme is baked server-side and core/context_processors.py resolves the
     default `auto` preference to "light", so page.emulate_media(color_scheme=...)
     does NOTHING here — it would silently produce two identical light images.
     """
-    SHOT_DIR.mkdir(exist_ok=True)
+    SHOT_DIR.mkdir(parents=True, exist_ok=True)
     for theme in ("light", "dark"):
-        page.evaluate(
-            f"document.documentElement.setAttribute('data-theme', '{theme}')"
-        )
-        page.screenshot(path=str(SHOT_DIR / f"{name}_{theme}.png"), full_page=True)
+        page.evaluate(f"document.documentElement.setAttribute('data-theme', '{theme}')")
+        path = SHOT_DIR / f"{name}_{variant}_{theme}.png"
+        page.screenshot(path=str(path), full_page=True)
 ```
+
+**Write TWO test functions, one per actor** — `test_shots_owner(page, live_server)` and
+`test_shots_student(page, live_server)`. This is not cosmetic: `_login()` navigates to the login page
+and fills the form, but never logs out, and allauth redirects an already-authenticated visitor away
+from `/accounts/login/`, so a second `_login()` on the same `page` hangs on a locator that never
+resolves. pytest-playwright's `page` fixture is function-scoped, so a separate function per actor
+gives each a fresh browser context. Row assignment:
+
+- `test_shots_owner` → matrix rows 1, 3, 4, 6 (the four owner rows)
+- `test_shots_student` → matrix rows 2 and 5 (the two enrolled-student rows)
 
 Viewports: **desktop** `page.set_viewport_size({"width": 1280, "height": 900})`; **narrow**
 `page.set_viewport_size({"width": 400, "height": 900})`.
 
-Add `_shots/` to `.git/info/exclude` (a local ignore, not a committed `.gitignore` change) so the
-images cannot be committed by accident.
+The harness must itself be `ruff format`-clean, because Step 4's repo-wide lint gate runs before it is
+deleted — the `page.evaluate(...)` line above is already in its collapsed form for that reason (split
+across lines it joins to exactly 88 characters, and `ruff format` would collapse it anyway).
 
 - [ ] **Step 1: Capture the screenshot matrix**
 
@@ -1197,9 +1290,31 @@ that `-m e2e` is mandatory here for the same reason as in Task 7.
 
 - [ ] **Step 2: Run the two A/B validations**
 
-*Fixture validation:* re-take the ~400px student shot with `min-width: 0` deleted from `courses.css`. The two images **must differ** — if they are identical the fixture failed to reproduce the hazard and the shot proves nothing. Restore.
+Both validations re-capture the **~400px student row** under a modified source tree, so pass the
+`variant` argument each time — otherwise the second run overwrites the image it is meant to be
+compared against, and there is nothing left to compare.
 
-*Parity validation:* produce the **feature-off baseline** — **do not check out master**, which discards the fixture code the shot depends on. Undo the feature's rendering in place: revert the three `{% include "courses/_unit_strip.html" %}` lines to `{% include "tags/_unit_tag_panel.html" %}` and remove the two `.unit-strip*` rules from `courses.css`, take the shot, then restore. The student shot must be **equivalent** to that baseline.
+*Fixture validation:* delete `min-width: 0` from `courses.css`, re-run the harness capturing that row
+as `_shoot(page, "narrow_student", variant="nomin")`, then restore. Compare:
+
+```
+narrow_student_feature_light.png   vs   narrow_student_nomin_light.png
+```
+
+They **must differ**. If they are identical the fixture failed to reproduce the hazard and the shot
+proves nothing — that is a fixture bug to fix, not evidence the declaration is unnecessary.
+
+*Parity validation:* produce the **feature-off baseline** — **do not check out master**, which
+discards the fixture code the shot depends on. Undo the feature's *rendering* in place: revert the
+three `{% include "courses/_unit_strip.html" %}` lines to `{% include "tags/_unit_tag_panel.html" %}`
+and remove the two `.unit-strip*` rules from `courses.css`. Re-run capturing that row as
+`_shoot(page, "narrow_student", variant="baseline")`, then restore. Compare:
+
+```
+narrow_student_feature_light.png   vs   narrow_student_baseline_light.png
+```
+
+These must be **equivalent**. Repeat both comparisons for the `_dark` pair.
 
 - [ ] **Step 3: Self-critique the shots against the acceptance criteria**
 
@@ -1213,11 +1328,26 @@ that `-m e2e` is mandatory here for the same reason as in Task 7.
   the spec routes its verification entirely into this manual pass, so it is unverified by anything if
   skipped here. Confirm the announced accessible name of `.unit-strip__edit` with a real screen
   reader (or, at minimum, the browser devtools accessibility inspector) and **record the observed
-  name** in the PR. Expected: the label and the parenthetical are announced as separate words, not
+  name** in the task's completion notes, to be carried into the PR body (see Step 6). Expected: the label and the parenthetical are announced as separate words, not
   run together as "unit(opens".
 - **`quiz_results` overhang is pre-recorded as ACCEPTED, not a pass/fail gate.** The strip spans 920px above a 736px `.result` article — ~90px per side. This is not new: the tag panel already does exactly this on master. Confirm it reads as deliberate rather than broken; if a human judges otherwise that is a follow-up styling decision, **not a blocker for this change**.
 
-- [ ] **Step 4: Full suite, lint, and migration check**
+- [ ] **Step 4: Delete the capture harness — BEFORE the lint gate**
+
+```bash
+rm tests/test_e2e_unit_strip_shots.py
+rm -rf _shots/
+git status --short   # must show no stray harness or image files
+```
+
+The harness is scaffolding for the manual pass, not a deliverable — it asserts nothing and would only
+rot in CI (where it is excluded by `addopts` anyway).
+
+**This must happen before Step 5's lint gate.** `uv run ruff check` and `ruff format --check` take no
+path argument there, so they cover the whole tree including this throwaway file — and you would be
+debugging a lint failure in scaffolding you are about to delete.
+
+- [ ] **Step 5: Full suite, lint, and migration check**
 
 ```bash
 uv run pytest
@@ -1232,17 +1362,6 @@ Expected: all clean, **no new migration**.
 Note: `pytest` verdict lines do not survive a Bash pipe in this environment — rely on the exit code, or grep for `FAILED`.
 
 If an **unrelated pre-existing flaky** test fails, prove it is not caused by this diff (re-run it on the base commit) and fix it in its **own** PR rather than bundling it here.
-
-- [ ] **Step 5: Delete the capture harness**
-
-```bash
-rm tests/test_e2e_unit_strip_shots.py
-rm -rf _shots/
-git status --short   # must show no stray harness or image files
-```
-
-The harness is scaffolding for the manual pass, not a deliverable — it asserts nothing and would only
-rot in CI (where it is excluded by `addopts` anyway).
 
 - [ ] **Step 6: Commit any screenshot-driven fixes**
 
