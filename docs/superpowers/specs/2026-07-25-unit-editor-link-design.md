@@ -350,11 +350,19 @@ today. `min-width: 0` defeats that new floor and restores master's behaviour exa
 
 So the three states are:
 
+The three states below describe the panel when it is **alone on its line** — i.e. the student case
+(no link) and the wrapped narrow case. That is the state where the floor is observable:
+
 | | panel's border box | fieldset |
 |---|---|---|
 | master | container width (no floor — not a flex item) | spills outside the chrome |
 | this change, **without** `min-width: 0` | floored at min-content — **regression** | contained, chrome inflated |
 | this change, **with** `min-width: 0` | container width — same as master | spills outside the chrome |
+
+In the link-present **unwrapped** state (the closed-panel desktop rows, i.e. the approved mockup) the
+panel is deliberately *not* container width: `flex: 1 1 auto` gives it the container **less the button
+and the `.5rem` gap**, which is exactly what pins the button to the row's right edge. Do not judge the
+desktop owner shots against the table above — it does not describe them.
 
 Be precise about what that does and does not change, because the intuitive story is wrong. It is
 **not** about wrapping: flex line-breaking is decided from each item's outer *hypothetical* main size,
@@ -424,8 +432,22 @@ feature-off baseline described in the screenshot section — produced by reverti
 and the two CSS rules in place, *not* by checking out master; do not assert an absolute).
 
 That fieldset is itself conditional — `{% if addable_tags %}` — so it renders only when the actor
-owns at least one tag *not already on this unit*. Any test or screenshot meant to exercise this
-hazard must therefore be set up with `addable_tags` non-empty. The "long label" must be a **single
+has at least one tag of their own *not already on this unit*. Any test or screenshot meant to
+exercise this hazard must therefore be set up with `addable_tags` non-empty.
+
+**Spell that fixture out, because the obvious routes all produce an empty `addable_tags`.** Every
+tag-creating service in `tags/services.py` (`tag_unit`, `tag_unit_by_id`) *attaches* the tag to the
+unit, which removes it from `addable_tags` — `tags/rendering.py` filters `list_tags(user)` by
+`t.pk not in on_ids`. The tag must therefore be created **unattached**:
+
+```python
+TagFactory(author=actor, name="WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW")  # 50 chars
+```
+
+Two details that are easy to get wrong: the model field is **`author`**, not `owner`
+(`tags/models.py:20`) — this spec's "the actor's own tags" phrasing is about ownership in the
+informal sense, not a kwarg name; and `list_tags` filters only on `author`, annotating rather than
+requiring a unit, so a tag attached to nothing does appear in `addable_tags`. The "long label" must be a **single
 unbroken token** with no spaces, at the model's full `TAG_NAME_MAX_LEN = 50` cap:
 `.unit-tags__picker label` is `inline-flex` around plain text, so its min-content size is the longest
 *unbreakable* token, not the label's length — a 50-character label of ordinary words simply wraps and
@@ -851,7 +873,29 @@ base size is its max-content size: the same viewport with the panel open and sev
 row exactly like the narrow shots, producing a completely different layout. Leaving the state
 unstated would make it undefined which layout the "pinned far right" criterion is judged against.
 
-**How to open it:** load the page with `?panel=tags`. That is the server-side switch the views already
+**How to force dark mode — `prefers-color-scheme` alone is not enough in this app.** Six of the
+twelve shots are dark, and the obvious approach silently produces six duplicate *light* images.
+`templates/base.html:4` bakes `data-theme="{{ data_theme }}"` server-side, and
+`core/context_processors.py:40` resolves the default `auto` preference to **`"light"`**
+(`data_theme = "light" if pref == "auto" else pref` — the server cannot know the OS setting); only an
+inline pre-paint script re-resolves `auto` via `matchMedia`. So `page.emulate_media(color_scheme=
+"dark")` after `goto` changes nothing, and the run reports "light + dark verified" having verified one.
+
+Use the deterministic idiom from `tests/test_e2e_builder_tree_layout.py:104`, which works regardless
+of the actor's `User.theme` preference:
+
+```python
+page.evaluate("document.documentElement.setAttribute('data-theme', 'light')")
+page.screenshot(...)
+page.evaluate("document.documentElement.setAttribute('data-theme', 'dark')")
+page.screenshot(...)
+```
+
+And apply the same sanity check used for the `min-width: 0` A/B: **if the light and dark images are
+identical, the capture failed** — that is a fixture bug, not a theme that happens to look the same.
+(`tests/test_e2e_smoke.py:66` carries an explicit warning about this exact trap.)
+
+**How to open the tag panel:** load the page with `?panel=tags`. That is the server-side switch the views already
 read (`courses/views.py:591` for `lesson_unit`, `:1134` for `quiz_unit`, `:1325` for `quiz_results`),
 it renders `<details class="unit-tags" open>` directly, and the existing e2e already uses it.
 Closed-panel shots are taken by loading the same URL without the parameter. Do **not** open the panel
