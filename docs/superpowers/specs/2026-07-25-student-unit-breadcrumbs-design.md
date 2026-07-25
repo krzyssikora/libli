@@ -785,13 +785,12 @@ Assertions:
   `courses.rollups`, never spelling `", "` as a literal. This is the guard on the §1 invariant coupling
   `hidden_path` to the collapse query.
 - At 1280px: `--ellipsis` has zero client rects, and every `--mid` and `--leaf` has
-  `clientWidth > 0`. Stated mechanically because "with a short path" was ambiguous — long titles are
-  clipped, not hidden, so the assertion holds for either fixture and the short-title fixture is not
-  what makes it meaningful.
-- **Print**, via `page.emulate_media(media="print")` **at 360px** (the declared minimum) and
-  **with the long-title depth-3 fixture** — both matter: the wrap assertion below is only meaningful
-  when the path cannot fit one line, and with short titles it would fail for a legitimate reason.
-  Every `--mid` is visible,
+  `clientWidth > 0`. Stated mechanically because an earlier draft's "at 1280px with a short path"
+  was ambiguous — long titles are clipped, not hidden, so the visibility assertion never needed a
+  short-title fixture in the first place. This is why the sole fixture is sufficient.
+- **Print**, via `page.emulate_media(media="print")` **at 360px** (the declared minimum) — the width
+  matters: the wrap assertion below is only meaningful
+  when the path cannot fit one line. Every `--mid` is visible,
   the `--ellipsis` is not, `.unit-crumbs__list` `scrollWidth <= clientWidth`, and
   `contentH > 1.5 * courseItem.offsetHeight` — using the same padding-subtracted `contentH` as the
   screen check above, so both height assertions share one reference and one currency, and neither
