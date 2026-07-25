@@ -669,7 +669,12 @@ summary.unit-tree__head:focus-visible { outline: 2px solid var(--primary); outli
    Completion is auto-tracked (progress.js); the pill is the live status + no-JS fallback. */
 .lesson-unit__head { display: flex; align-items: flex-start; justify-content: space-between;
   gap: 1rem; margin-bottom: var(--space-6); }
-.lesson-unit__head .lesson-unit__title { margin: 0; flex: 1; min-width: 0; }
+/* overflow-wrap: min-width:0 lets this column shrink below its content, and a word
+   wider than the resulting column would otherwise overflow the box and paint over
+   whatever sits beside it. Breaking the word keeps the text inside its own bounds at
+   every width; the mobile query below additionally gives the title its own row. */
+.lesson-unit__head .lesson-unit__title { margin: 0; flex: 1; min-width: 0;
+  overflow-wrap: break-word; }
 .unit-done { flex: none; }
 .unit-done__pill { display: inline-flex; align-items: center; gap: .3rem; white-space: nowrap;
   font-size: .72rem; font-weight: 600; padding: .3rem .7rem; border-radius: 9999px;
@@ -710,6 +715,20 @@ summary.unit-tree__head:focus-visible { outline: 2px solid var(--primary); outli
   .unit-drawer__close { margin-left: auto; border: none; background: transparent;
     font-size: 1rem; color: var(--text-tertiary); cursor: pointer; }
   .unit-drawer__list { padding: .5rem .5rem 1.2rem; }
+  /* Touch has no hover, so the title= that rescues a truncated row on desktop is
+     unreachable here: sibling units sharing a long prefix would stay identical.
+     Let the label wrap to its full length instead — the same treatment
+     .unit-tree__grouptitle already gets, and the drawer scrolls anyway. */
+  .unit-drawer__list .unit-tree__label {
+    white-space: normal; overflow: visible; text-overflow: clip; }
+  /* The row centres a one-line label; once it can wrap, hang the ✓ from the top. */
+  .unit-drawer__list .unit-tree__unit { align-items: flex-start; }
+  /* Long titles collide with the action buttons on a phone: the title column is
+     flex:1;min-width:0, so it is squeezed to ~98px while the buttons keep their
+     size, and a word wider than that column overflows and paints UNDER them.
+     Give the title its own full-width row and let the actions follow beneath. */
+  .lesson-unit__head { flex-wrap: wrap; justify-content: flex-start; row-gap: .6rem; }
+  .lesson-unit__head .lesson-unit__title { flex-basis: 100%; }
 }
 
 /* Collapsed desktop rail — state lives on <html> (pre-paint script), so scope from it. */
