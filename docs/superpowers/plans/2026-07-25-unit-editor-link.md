@@ -471,13 +471,14 @@ In `build_quiz_context` (~:995), after the existing `ctx.update(unit_tags_contex
     ctx.update(unit_edit_context(user, node))
 ```
 
-and extend its docstring. Replace the existing second sentence — *"Parallels build_lesson_context but
-threads per-question quiz state (responses, locked, attempts_left)."* — with this complete sentence,
-keeping the "Parallels build_lesson_context but" clause:
+and extend its docstring. As with `full_lesson_render_context` above, replace the **whole** docstring
+rather than substituting a sentence — its second sentence begins mid-way through line 1, so a
+sentence-level substitution leaves that line's ending undefined:
 
-```
-    Parallels build_lesson_context but threads per-question quiz state
-    (responses, locked, attempts_left), plus the edit-unit link context.
+```python
+    """Element/render context for a QUIZ unit. Parallels build_lesson_context
+    but threads per-question quiz state (responses, locked, attempts_left),
+    plus the edit-unit link context."""
 ```
 
 In `quiz_results` (~:1284), after the existing `ctx.update(unit_tags_context(...))` block:
@@ -1203,15 +1204,18 @@ import pytest
 
 from courses.models import QuizSubmission
 from tags import services
+from tests.factories import TEST_PASSWORD
 from tests.factories import ContentNodeFactory
 from tests.factories import CourseFactory
 from tests.factories import EnrollmentFactory
 from tests.factories import QuizSubmissionFactory
-from tests.factories import TEST_PASSWORD
 from tests.factories import TagFactory
 from tests.factories import make_quiz_unit
 from tests.factories import make_verified_user
 ```
+
+(`TEST_PASSWORD` sorts **first** within the group: ruff's default `order-by-type` puts CONSTANTS
+before Classes before functions. Every one of the ~60 repo modules importing it has it first.)
 
 This covers every name Step 1's six rows actually call — `services.tag_unit`, `TagFactory`,
 `QuizSubmissionFactory` / `QuizSubmission.Status`, `CourseFactory`, `ContentNodeFactory`,
@@ -1252,8 +1256,10 @@ def _shoot(page, name, variant=None):
         page.screenshot(path=str(path), full_page=True)
 ```
 
-**Write TWO test functions, one per actor** — `test_shots_owner(page, live_server)` and
-`test_shots_student(page, live_server)`. This is not cosmetic: `_login()` navigates to the login page
+**Write THREE test functions** — `test_shots_owner(page, live_server)`,
+`test_shots_student(page, live_server)` and `test_shots_ab_narrow_student(page, live_server)`. Two of
+them exist because of the actor split, the third because of the A/B isolation described below; do not
+collapse them. The actor split is not cosmetic: `_login()` navigates to the login page
 and fills the form, but never logs out, and allauth redirects an already-authenticated visitor away
 from `/accounts/login/`, so a second `_login()` on the same `page` hangs on a locator that never
 resolves. pytest-playwright's `page` fixture is function-scoped, so a separate function per actor
@@ -1273,9 +1279,10 @@ Step 3 would then judge baseline images believing they showed the feature.
 Viewports: **desktop** `page.set_viewport_size({"width": 1280, "height": 900})`; **narrow**
 `page.set_viewport_size({"width": 400, "height": 900})`.
 
-The harness must itself be `ruff format`-clean, because Step 4's repo-wide lint gate runs before it is
-deleted — the `page.evaluate(...)` line above is already in its collapsed form for that reason (split
-across lines it joins to exactly 88 characters, and `ruff format` would collapse it anyway).
+Keep the harness `ruff format`-clean anyway, so that a stray `ruff check` on it before Step 4 does not
+send you debugging scaffolding you are about to delete. The `page.evaluate(...)` line above is already
+in its collapsed form for that reason (split across lines it joins to exactly 88 characters, and
+`ruff format` would collapse it).
 
 - [ ] **Step 1: Capture the screenshot matrix**
 
@@ -1417,6 +1424,29 @@ uv run python manage.py makemigrations --check
 Expected: all clean, **no new migration**.
 
 Note: `pytest` verdict lines do not survive a Bash pipe in this environment — rely on the exit code, or grep for `FAILED`.
+
+**"All clean" above does NOT include e2e — run it separately.** `addopts = "-q -m 'not e2e'"` means
+the bare `uv run pytest` covers **zero** e2e tests, and this change inserts a new visible element at
+the top of `{% block content %}` on all three consumption pages *for course owners* — while many
+existing e2e fixtures build `CourseFactory(..., owner=<the actor>)` and then assert on geometry
+(`bounding_box()`, `scrollTop`) of those same pages. `tests/test_e2e_unit_nav.py` does both. Reporting
+"all clean" without running these would miss exactly the regression this feature is most likely to
+cause, and CI runs e2e as a separate job.
+
+Run the full e2e suite in the **foreground**:
+
+```bash
+uv run pytest -m e2e
+```
+
+If a full run is impractical, the minimum is every module that consumes a unit page with an
+owner-actor or geometric assertions:
+
+```bash
+uv run pytest -m e2e tests/test_e2e_tags.py tests/test_e2e_unit_nav.py   tests/test_e2e_unit_head_layout.py tests/test_e2e_scroll_affordance.py   tests/test_e2e_practice_state.py tests/test_e2e_markdone.py -v
+```
+
+Never background an `-m e2e` run — it has previously spawned runaway browsers in this repo.
 
 If an **unrelated pre-existing flaky** test fails, prove it is not caused by this diff (re-run it on the base commit) and fix it in its **own** PR rather than bundling it here.
 
