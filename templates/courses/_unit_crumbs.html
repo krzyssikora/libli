@@ -1,0 +1,40 @@
+{% load i18n %}{% get_current_language as LANGUAGE_CODE %}
+{% comment %}Student breadcrumb: the path TO this unit. The current unit is deliberately
+NOT a crumb — the <h1> immediately below already names it. Only the course crumb is a
+link; part/chapter/section have no student-facing page.
+
+Every separator lives INSIDE the <li> it introduces. Two reasons: an <ol>'s content
+model permits only <li> children (sibling <span>s would also undermine role="list"),
+and it makes the hide-the-separator-with-its-crumb rule structural instead of a
+hand-maintained pairing convention.
+
+lang is split on purpose: the nav takes the UI language so the aria-label is announced
+correctly, and each <li> takes the course language back for the author-written titles —
+which the surrounding <article lang="{{ course.language }}"> would otherwise have
+supplied for both. On the <li> rather than the label so it also covers the title
+attribute, which holds the same author content.{% endcomment %}
+<nav class="unit-crumbs" aria-label="{% trans 'Breadcrumb' %}" lang="{{ LANGUAGE_CODE }}">
+  <ol class="unit-crumbs__list" role="list">
+    <li class="unit-crumbs__item unit-crumbs__item--course" role="listitem"
+        lang="{{ course.language }}" title="{{ course.title }}">
+      <a class="unit-crumbs__label" href="{% url 'courses:course_outline' slug=course.slug %}">{{ course.title }}</a>
+    </li>
+    {% if unit_nav.ancestors|length > 1 %}
+      {% comment %}Gated on ancestor COUNT, not on hidden_path being truthy: the CSS hides
+      mids structurally, so a blank mid title would empty the string while a crumb was
+      still hidden. Rendered at every width; CSS reveals it below the breakpoint.{% endcomment %}
+      <li class="unit-crumbs__item unit-crumbs__item--ellipsis" role="listitem"
+          lang="{{ course.language }}" title="{{ unit_nav.hidden_path }}">
+        <span class="unit-crumbs__sep" aria-hidden="true">›</span>
+        <span class="unit-crumbs__label">…<span class="visually-hidden">{{ unit_nav.hidden_path }}</span></span>
+      </li>
+    {% endif %}
+    {% for a in unit_nav.ancestors %}
+      <li class="unit-crumbs__item unit-crumbs__item--{% if forloop.last %}leaf{% else %}mid{% endif %}"
+          role="listitem" lang="{{ course.language }}" title="{{ a.title }}">
+        <span class="unit-crumbs__sep" aria-hidden="true">›</span>
+        <span class="unit-crumbs__label">{{ a.title }}</span>
+      </li>
+    {% endfor %}
+  </ol>
+</nav>

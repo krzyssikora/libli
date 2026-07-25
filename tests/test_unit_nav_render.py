@@ -1,6 +1,7 @@
 import re
 
 import pytest
+from bs4 import BeautifulSoup
 
 from courses.rollups import HIDDEN_PATH_SEP
 from courses.rollups import _current_ancestors
@@ -20,6 +21,17 @@ def _make_student(username):
     return make_verified_user(
         username=username, email=f"{username}@t.example.com", password=TEST_PASSWORD
     )
+
+
+def _crumb_nav(html):
+    """The crumb <nav> as soup. The unit page renders the tree twice (rail + drawer)
+    but the crumb exactly once, so select_one is unambiguous.
+
+    NOTE: the returned Tag IS the <nav>. Read its own attributes directly
+    (soup["lang"]); a self-referential soup.select_one("nav.unit-crumbs") returns
+    None, because Tag.select_one matches descendants only.
+    """
+    return BeautifulSoup(html, "html.parser").select_one("nav.unit-crumbs")
 
 
 def _course_with_part():
@@ -510,3 +522,198 @@ def test_hidden_path_joins_with_the_spoken_separator_and_never_the_glyph():
 
     assert hidden_path == HIDDEN_PATH_SEP.join(g.title for g in groups[:-1])
     assert "›" not in hidden_path
+
+
+@pytest.mark.django_db
+def test_crumb_renders_the_full_chain_with_one_leading_separator_each(client):
+    student = _make_student("crumb_chain")
+    course, groups, unit = _chain_course(3)
+    EnrollmentFactory(student=student, course=course)
+    client.force_login(student)
+
+    html = client.get(f"/courses/{course.slug}/u/{unit.pk}/").content.decode()
+
+    soup = _crumb_nav(html)
+    items = soup.select("li.unit-crumbs__item")
+    # course + ellipsis + 3 ancestors
+    assert len(items) == 5
+    # The course crumb has NO separator; every later crumb has exactly one.
+    assert items[0].select("span.unit-crumbs__sep") == []
+    for item in items[1:]:
+        assert len(item.select("span.unit-crumbs__sep")) == 1
+    assert {s.get_text(strip=True) for s in soup.select("span.unit-crumbs__sep")} == {
+        "›"
+    }
+    assert all(
+        s.get("aria-hidden") == "true" for s in soup.select("span.unit-crumbs__sep")
+    )
+
+
+@pytest.mark.django_db
+def test_course_crumb_links_to_the_outline_and_carries_its_title(client):
+    student = _make_student("crumb_course")
+    course, _groups, unit = _chain_course(2)
+    EnrollmentFactory(student=student, course=course)
+    client.force_login(student)
+
+    soup = _crumb_nav(
+        client.get(f"/courses/{course.slug}/u/{unit.pk}/").content.decode()
+    )
+
+    li = soup.select_one("li.unit-crumbs__item--course")
+    assert li["title"] == course.title
+    assert li.select_one("a.unit-crumbs__label")["href"] == f"/courses/{course.slug}/"
+
+
+@pytest.mark.django_db
+def test_group_crumbs_are_plain_text_never_links(client):
+    student = _make_student("crumb_plain")
+    course, _groups, unit = _chain_course(3)
+    EnrollmentFactory(student=student, course=course)
+    client.force_login(student)
+
+    soup = _crumb_nav(
+        client.get(f"/courses/{course.slug}/u/{unit.pk}/").content.decode()
+    )
+
+    for cls in ("--mid", "--leaf", "--ellipsis"):
+        for li in soup.select(f"li.unit-crumbs__item{cls}"):
+            assert li.select("a") == [], f"{cls} crumb must not be a link"
+
+
+@pytest.mark.django_db
+def test_flat_course_renders_the_course_crumb_and_no_ellipsis(client):
+    student = _make_student("crumb_flat")
+    course, _groups, unit = _chain_course(0)
+    EnrollmentFactory(student=student, course=course)
+    client.force_login(student)
+
+    soup = _crumb_nav(
+        client.get(f"/courses/{course.slug}/u/{unit.pk}/").content.decode()
+    )
+
+    assert soup.select_one("li.unit-crumbs__item--course") is not None
+    assert soup.select("li.unit-crumbs__item--ellipsis") == []
+    assert soup.select("li.unit-crumbs__item--mid") == []
+
+
+@pytest.mark.django_db
+def test_ellipsis_carries_hidden_path_as_title_and_visually_hidden_text(client):
+    """The visually-hidden span is the SOLE accessibility carrier for the collapsed
+    crumbs — at the collapse breakpoint the mids are display:none and gone from the
+    accessibility tree. Without this test, deleting the span ships green."""
+    student = _make_student("crumb_ellipsis")
+    course, groups, unit = _chain_course(3)
+    EnrollmentFactory(student=student, course=course)
+    client.force_login(student)
+
+    soup = _crumb_nav(
+        client.get(f"/courses/{course.slug}/u/{unit.pk}/").content.decode()
+    )
+
+    expected = HIDDEN_PATH_SEP.join(g.title for g in groups[:-1])
+    li = soup.select_one("li.unit-crumbs__item--ellipsis")
+    assert li is not None
+    assert li["title"] == expected
+    assert li.select_one("span.visually-hidden").get_text(strip=True) == expected
+    assert li.get("aria-hidden") is None
+
+
+@pytest.mark.django_db
+def test_ellipsis_is_gated_on_ancestor_count_not_on_hidden_path_being_truthy(client):
+    """Two ancestors whose mid has a blank title yields hidden_path == "" while the
+    CSS still hides one crumb. Gating on the string would drop the ellipsis and
+    silently break invariant 5."""
+    student = _make_student("crumb_blank")
+    course = CourseFactory()
+    part = ContentNodeFactory(
+        course=course, kind="part", parent=None, unit_type=None, title=""
+    )
+    chapter = ContentNodeFactory(
+        course=course, kind="chapter", parent=part, unit_type=None, title="Chapter"
+    )
+    unit = ContentNodeFactory(
+        course=course, kind="unit", unit_type="lesson", parent=chapter
+    )
+    EnrollmentFactory(student=student, course=course)
+    client.force_login(student)
+
+    soup = _crumb_nav(
+        client.get(f"/courses/{course.slug}/u/{unit.pk}/").content.decode()
+    )
+
+    assert soup.select_one("li.unit-crumbs__item--ellipsis") is not None
+
+
+@pytest.mark.django_db
+def test_crumb_lives_inside_the_lesson_article(client):
+    """The two-file include is justified entirely by padding and lang inheritance from
+    the <article>. A later 'de-duplicate into _unit_shell.html' refactor would keep
+    every other test green while breaking both."""
+    student = _make_student("crumb_place")
+    course, _groups, unit = _chain_course(2)
+    EnrollmentFactory(student=student, course=course)
+    client.force_login(student)
+
+    html = client.get(f"/courses/{course.slug}/u/{unit.pk}/").content.decode()
+    soup = BeautifulSoup(html, "html.parser")
+
+    assert soup.select_one("article.lesson nav.unit-crumbs") is not None
+
+
+@pytest.mark.django_db
+def test_crumb_sets_ui_language_on_the_nav_and_course_language_on_each_item(client):
+    """Author titles are course-language; the aria-label is UI-language. Both live
+    inside <article lang="{{ course.language }}">, so the nav must override.
+
+    UI = pl, course = en — deliberately INVERTED from the defaults. settings
+    .LANGUAGE_CODE is "en" and conftest's autouse fixture pins the active language to
+    it, so a UI-language assertion of "en" would also pass against a hardcoded
+    lang="en" on the nav. Driving the UI to pl makes the two values distinguishable.
+    The session key is how this repo switches UI language for a client request
+    (SessionLocaleMiddleware); see tests/test_catalog_views.py for the precedent.
+    """
+    from core.middleware import LANGUAGE_SESSION_KEY
+
+    student = _make_student("crumb_lang")
+    course = CourseFactory(language="en")
+    part = ContentNodeFactory(
+        course=course, kind="part", parent=None, unit_type=None, title="Part One"
+    )
+    unit = ContentNodeFactory(
+        course=course, kind="unit", unit_type="lesson", parent=part
+    )
+    EnrollmentFactory(student=student, course=course)
+    client.force_login(student)
+    session = client.session
+    session[LANGUAGE_SESSION_KEY] = "pl"
+    session.save()
+
+    soup = _crumb_nav(
+        client.get(f"/courses/{course.slug}/u/{unit.pk}/").content.decode()
+    )
+
+    # soup IS the <nav> — read the attribute off it directly. Tag.select_one()
+    # matches DESCENDANTS only, so soup.select_one("nav.unit-crumbs") is None.
+    assert soup["lang"] == "pl"  # UI language
+    items = soup.select("li.unit-crumbs__item")
+    assert items and all(li["lang"] == "en" for li in items)  # course language
+
+
+@pytest.mark.django_db
+def test_crumb_carries_the_aria_scaffolding(client):
+    """WebKit drops list semantics under list-style:none, and changing an <li>'s
+    display away from list-item is a second trigger — hence both roles."""
+    student = _make_student("crumb_aria")
+    course, _groups, unit = _chain_course(2)
+    EnrollmentFactory(student=student, course=course)
+    client.force_login(student)
+
+    soup = _crumb_nav(
+        client.get(f"/courses/{course.slug}/u/{unit.pk}/").content.decode()
+    )
+
+    assert soup["aria-label"].strip()  # soup IS the <nav>; see the note above
+    assert soup.select_one("ol.unit-crumbs__list")["role"] == "list"
+    items = soup.select("li.unit-crumbs__item")
+    assert items and all(li["role"] == "listitem" for li in items)
