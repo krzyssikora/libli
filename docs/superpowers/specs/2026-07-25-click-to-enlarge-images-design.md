@@ -23,7 +23,7 @@ Armed (all non-interactive content images):
 **Container elements inherit arming transitively.** Tabs, Two-column and Spoiler render their nested
 children through the very same element templates, so an image element inside a tab panel, a column, or
 a `<details>` body is armed automatically. That is desirable and needs no extra work, but it puts
-armed images inside **six** different hiding mechanisms, which differ in whether they remove the tab
+armed images inside **seven** different hiding mechanisms, which differ in whether they remove the tab
 stop. This table is meant to be exhaustive — a mechanism missing from it is a potential leaked tab stop:
 
 | Hiding mechanism | Removes the tab stop? |
@@ -33,6 +33,7 @@ stop. This table is meant to be exhaustive — a mechanism missing from it is a 
 | Reveal cascade — the `{% if has_reveal_gate %}` inline `<style>` in `lesson_unit.html:38-44` hides post-gate siblings via `…:not(.reveal-shown) { display: none }`, for all three gate families | Yes. **The highest-stakes row**: these hide *answers*, so a leaked tab stop would let a keyboard user open a gated answer image before passing the gate. Safe because the selectors are author-origin `display:none` at high specificity — unlike `[hidden]`, they cannot be defeated by an element wrapper's own `display` rule |
 | Stepper — the `{% if has_stepper %}` inline `<style>` hides `[data-stepper-step]:not(.stepper-shown):not(:first-child)` the same way | Yes, same mechanism and same reasoning |
 | Slideshow — a paginating unit's non-current `.slide` carries the `hidden` attribute (`slideshow.js` hides all at rest; `courses.css:238` → `display:none`) | Yes. One wrinkle: during the 320ms cross-fade the outgoing slide is `opacity:0` but not yet `hidden`, so its images are briefly focusable — the same window the gallery has permanently, and too short to reach by Tab |
+| Editor view toggle — `editor.html`'s 3-way toggle hides the whole preview pane (`editor.css:42-43`, `.editor-grid.is-mode-editor .preview-pane { display: none }`) | Yes — plain `display:none`, no work needed. Listed because the editor is an armed surface and this table's value is its exhaustiveness |
 | Gallery — inactive figure is `opacity:0; pointer-events:none` + `aria-hidden="true"`, deliberately still laid out (`courses.css:1235-1236`) so `gallery.js` can measure its height | **No** — see "Gallery figures need `inert`" below |
 
 Not armed, deliberately:
@@ -75,7 +76,8 @@ leak into the editor.
 
 ## Architecture
 
-Two new artifacts and ten touched files. No models, no migrations, no views, no forms, no new
+Two new artifacts and ten touched application files, plus `tests/factories.py` (two new parameters),
+both `locale/*/django.po` catalogs, and two new test modules. No models, no migrations, no views, no forms, no new
 template-context flags.
 
 ### New: `courses/static/courses/js/imagezoom.js`
@@ -114,12 +116,27 @@ responsibilities:
      author's value is whitespace-only, since an overlay `alt="   "` is announced or filename-substituted
      by some assistive tech rather than treated as decorative — then `dialog.showModal()`.
    - Close: `dialog.close()` on any click inside the dialog (the image included). Escape closing is the
-     `<dialog>` element's own behaviour — but the dialog *does* carry a `keydown` listener that calls
-     `e.stopPropagation()` for Escape (never `preventDefault()`, which would stop the close). Without
-     it one Escape press would also reach the document-level Escape handlers that every armed page
-     registers — `unit_nav.js:95` (mobile unit drawer), `core/static/core/js/ui.js:76,116` (nav menus),
-     and on the editor page `math_input.js` / `media_picker.js` / `catalog_modal.js` — closing the
-     overlay *and* a second unrelated thing. Two lines beats reasoning about six handlers.
+     `<dialog>` element's own behaviour.
+
+   **Escape must not also reach the page's own Escape handlers, and a listener on the dialog cannot
+   achieve that.** The mobile unit drawer registers its handler as
+   `document.addEventListener("keydown", onKeydown, true)` (`unit_nav.js:113`) — **capture phase, on
+   `document`** — so it fires on the way *down*, before any listener on the dialog could run; a
+   bubble-phase `stopPropagation()` on the dialog is powerless against it, and one Escape would close
+   the overlay *and* the drawer.
+
+   The guard is therefore: a **capture-phase `keydown` listener on `document`, registered at module
+   boot**, which for Escape — and only while `dialog.open` — calls **`stopImmediatePropagation()`**, and
+   never `preventDefault()` (that would suppress the dialog's own close request). Boot-time registration
+   is what makes it win: same-node, same-phase listeners run in registration order, and the drawer
+   registers its own only when the drawer opens. `stopImmediatePropagation` rather than
+   `stopPropagation` because the competing listener is on the *same node* in the *same phase*.
+
+   Scope, stated honestly: of the handlers this protects, the unit drawer is the one that actually
+   needs it. `math_input.js:39` and `catalog_modal.js:36` are each gated on their own modal being open
+   (`!modal.hidden`), so they are no-ops anyway; the nav-menu handlers at
+   `core/static/core/js/ui.js:76,116` close menus that are normally already closed. The drawer alone
+   justifies the four lines.
    - On the dialog's `close` event: **`img.removeAttribute("src")`** — never `img.src = ""`, which
      resolves against the document URL and makes the browser fetch the current HTML page as an image
      on every close (a real request plus a decode error). Then `if (trigger) trigger.focus()` — guarded,
@@ -209,7 +226,9 @@ the incoming item. The incoming item's `inert` has **already** been cleared at `
 why focus can land there — do **not** re-clear it. Target the incoming figure's **armed** trigger
 (`.imgzoom-trigger`, i.e. `[data-zoomable]` that arming has actually given a `tabindex`); if there is
 none, fall back to **the first *enabled* control in the bar**, and if none is enabled, to the container
-itself given a `tabindex="-1"`.
+itself given a `tabindex="-1"`. Query it as `bar.querySelector("button:not([disabled])")`, whose DOM order
+is prev → dots → next. The "none enabled" arm is defensive only and unreachable by construction:
+`gallery.js:27` returns early for `items.length < 2`, so `prev` and `next` can never both be disabled.
 
 **The rescue must be correct with `imagezoom.js` absent.** Targeting a bare `[data-zoomable]` would be a
 latent repeat of the very bug being fixed: `tabindex` comes from arming, not from the template, so in the
@@ -499,6 +518,14 @@ Postgres test database. This branch's test runs use a worktree-unique `DATABASE_
 Real Playwright gestures only — never `page.evaluate` to simulate the interaction, per the project's
 e2e rule. Run focused and in the foreground (a background `-m e2e` sweep spawns runaway browsers).
 
+**Focus placement is sanctioned setup, not a simulated interaction.** Several cases need a trigger
+*focused but not activated* (case 4 blurs before opening; cases 7 and 10 press a key on a focused image) —
+and a real click on an armed image opens the overlay, so the obvious gesture is unavailable. For those,
+`locator.focus()` and `evaluate(el => el.blur())` are explicitly allowed: the rule constrains the
+interaction **under test** (the click, the keypress, the wheel), which stays real, not how the precondition
+is arranged. Case 9's traversal is the exception that must use real `Tab` presses, because the tab order
+*is* what it tests.
+
 #### The media-serving problem — solve this first, or every geometry assertion is fiction
 
 `config/settings/test.py` sets `DEBUG = False`, and `config/urls.py` routes `/media/` **only** inside
@@ -512,8 +539,9 @@ handler in `StaticFilesHandler`, which serves `/static/` regardless of `DEBUG` �
 test *do* load. Only `/media/` is unserved, so only `/media/` needs intercepting.
 
 Mechanism: **`page.route("**/media/**", …)` resolves each requested path to its file under `MEDIA_ROOT`
-(which these tests point at `tmp_path`, so the real bytes are on disk) and fulfils with *those* bytes,
-404-ing any path that does not map.** Per-request resolution, not one canned response: a single handler
+(which these tests point at `tmp_path`, so the real bytes are on disk) and fulfils with **`route.fulfill(path=<resolved file>)`** —
+`path=` rather than `body=`, so the content type is inferred from the extension instead of defaulting to
+`text/plain` — and `route.fulfill(status=404)` for any path that does not map.** Per-request resolution, not one canned response: a single handler
 that always returned the 1400×900 fixture's bytes would silently serve them for the 1×1 asset, the
 portrait asset and the structured visual-review asset too — case 17 would measure `naturalWidth == 1400`
 for a 1×1 image and the visual review would judge the wrong picture, both while appearing to pass. No app
@@ -544,24 +572,42 @@ stray key there would raise on an unknown model field. This module's fixture pas
 
 #### Fixture inventory
 
-Six cases need pages this section would otherwise leave to invention, and a wrong guess silently changes
-what they test (an active gallery figure with a non-empty `alt`, say, would quietly gut the accessible-name
-branch). Reuse `tests/test_e2e_gallery.py`'s existing helpers — `_make_gallery_unit(course, descs)`,
-`_lesson_url(live_server, unit)`, `_seed_student` — rather than rebuilding them.
+The cases below need pages this section would otherwise leave to invention, and a wrong guess silently
+changes what they test (an active gallery figure with a non-empty `alt`, say, would quietly gut the
+accessible-name branch). Reuse `tests/test_e2e_gallery.py`'s `_lesson_url(live_server, unit)` and
+`_seed_student` as-is.
+
+**Gallery `alt` is not authorable — it is derived, and that constrains the fixture.** `GalleryElement`
+stores only `{media, desc}` per figure; `render()` computes `alt = desc_to_alt(desc)` and, when a
+non-empty description strips to nothing (math-only), substitutes a generic `"Image {n} of {total}"`
+(`courses/models.py:1298-1312`). So the empty-`alt` branch is reachable **only via an empty description**,
+and a math-only description must be avoided because it produces a non-empty generic alt instead.
+`_make_gallery_unit(course, descs)` cannot be reused unchanged for this: it hardcodes
+`make_image_asset(course, filename=f"g{i}.png")`, i.e. 1×1 black assets. Either extend it with per-figure
+`size`/`color`, or have `gallery_lesson` build its `GalleryElement` locally — but do not assume the
+existing helper produces the sizes and colours this table specifies.
+
+**`MEDIA_ROOT` must be redirected before any asset exists.** `make_image_asset` writes bytes through the
+`FileField` at `MediaAsset.objects.create()` time, so the override belongs in an **autouse fixture that
+every asset-building fixture depends on**. Applied later — in a test body, or in a fixture ordered after
+the assets — the 1400×900 PNG lands in the developer's real `media/` tree *and* the `page.route` resolver
+404s, because nothing maps under `tmp_path`.
 
 | Fixture | Content | Assets | Used by |
 |---|---|---|---|
-| `zoom_lesson` | lesson unit, one `ImageElement`, non-empty `alt` | 1400×900 `#FF00FF` | geometry, occlusion, open/close, keyboard, focus trap, `src`-cleared |
+| `zoom_lesson` | lesson unit, one `ImageElement`, non-empty `alt` | 1400×900 `#FF00FF` | closed-dialog, geometry, occlusion, second-click, Escape + no-leak (at 390×844), double-click, keyboard open, accessible name (non-empty branch), focus trap, `src`-cleared |
 | `tall_lesson` | `zoom_lesson` plus enough text elements that `scrollHeight > innerHeight` at 1280×800 (asserted, not assumed) | same image | scroll-lock |
-| `gallery_lesson` | 3-figure gallery; figure 1 active on load; **figure 1 has a non-empty `alt`**, figure 2 `alt=""` (the decorative branch), figure 3 with a description containing an `<a href>` (the pre-existing focusable-link case `inert` also closes) | three distinct 800×600 assets, distinct colours | gallery tab-order, arrow-key nav, gallery click-to-open, empty-`alt` name |
+| `gallery_lesson` | a text element containing a link (the Tab anchor — it must precede the gallery in DOM order, see case 9), then a 3-figure gallery. Figure 1 is active on load and carries an **empty description → empty `alt`**: that is the decorative branch, and it must be the *active* figure, because inactive figures are `aria-hidden` and Playwright's role engine cannot see them at all. Figures 2 and 3 have non-empty descriptions; figure 3's contains an `<a href>` (the pre-existing focusable-link case `inert` also closes) | three distinct 800×600 assets, distinct colours | gallery tab-order, arrow-key nav, gallery click-to-open, empty-`alt` name |
 | `hidden_lesson` | one image inside an inactive tab panel, one inside a closed spoiler, one behind a reveal gate, one in a non-first stepper step | 400×300 assets | hidden-container tab-order |
 | `filltable_lesson` | fill-in table with one image cell | 800×600 | fill-table surface |
 | `tiny_lesson` | lesson unit, one `ImageElement` | **1×1** | no-upscale |
-| `editor_unit` | a unit with one `ImageElement`, opened in the editor | 1400×900 | preview re-arm |
+| `editor_unit` | a unit with one `ImageElement`, opened in the editor **as a verified `is_staff` user with access to the course** — course management is gated on `is_staff`, not on teaching, so a `make_teacher`-style user 403s and the test fails for an unrelated reason. Copy the seeding from `tests/test_e2e_editor.py` | 1400×900 | preview re-arm |
 
 The **structured** asset the visual review needs (contrasting blocks, not a flat fill) comes from a
-module-local helper in the e2e file that composes two `ImageDraw.rectangle` fills and writes into
-`MEDIA_ROOT`; `make_image_asset` stays flat-fill only, per its "and nothing else" contract above. The
+module-local helper in the e2e file that **creates a `MediaAsset` and then overwrites that asset's own
+`file.path`** with a two-block `ImageDraw.rectangle` PNG under a filename unique to this module — not a
+bare write into `MEDIA_ROOT` (which the route resolver could not map to a row) and not an overwrite of an
+existing asset's file (which risks the documented shared-file-lifetime trap); `make_image_asset` stays flat-fill only, per its "and nothing else" contract above. The
 portrait asset for the visual review is the same helper at 900×1400.
 
 **Viewport is set explicitly to 1280×800 for every geometry assertion** — never inherited. At that size
@@ -592,16 +638,25 @@ screenshot pixels and no conversion arithmetic is needed anywhere below.
      `x >= -0.5`, `y >= -0.5`, `x + width <= 1280.5`, `y + height <= 800.5`. The tolerance is not
      decoration: for this fixture the vertical axis sits **exactly at** the 800px cap and the 0.888…
      scale factor rounds at device-pixel resolution, so only the horizontal axis has real slack. This is
-     the assertion that would catch a `100vw` regression (scrollbar overflow shows up as
-     `x + width ≈ 1295`);
-   - and the image is **centred**: the left and right letterbox bands are equal within ~1px,
-     `abs(box.x - (dialog_width - box.x - box.width)) <= 1`. Without this, a left-flush overlay — the
-     exact outcome of leaving the UA's `width: fit-content` in place — satisfies every other assertion
-     here, and case 3(b) would merely abort with "band not usable" rather than fail.
+     the assertion that catches a *clipped* image;
+   - and the **dialog's own width equals `document.documentElement.clientWidth`** (the scrollbar-excluded
+     ICB). This, not the image box, is what a `100vw` regression violates: with `width: 100vw` the dialog
+     spans 1280 while the ICB is ~1265, yet the height-capped image still centres inside the dialog at
+     x≈17.8 with `x + width ≈ 1262`, so every image-box assertion stays green;
+   - and the image is **centred in the viewport**: the bands are measured against `clientWidth`, not the
+     dialog — `abs(box.x - (clientWidth - box.x - box.width)) <= 1`. Measuring inside the dialog would be
+     invariant to the dialog not filling the viewport (a `fit-content` dialog is as wide as its content,
+     so both of its internal bands are 0 and the check passes while the overlay sits flush left);
+   - and the aspect ratio survives: `abs(width / height - 1400 / 900) < 0.01`, so a stretched image is
+     caught regardless of how an engine treats grid stretching of a replaced element.
 
    Falsify, one break per contract: delete `max-height: 100%` from `.imgzoom__img` (the in-viewport
-   assertion must go RED); switch the dialog to `width: 100vw` (the `x + width <= 1280.5` assertion must
-   go RED); remove `place-items: center` or drop `width: auto` (the centring assertion must go RED).
+   assertion must go RED); switch the dialog to `width: 100vw` (the **dialog-width** assertion must go
+   RED — not the image-box one, per above); set `place-items: start` instead of `center`, which is
+   unambiguously top-left flush (the centring assertion must go RED); drop `width: auto` so the UA's
+   `fit-content` returns (the centring assertion must go RED). `place-items` *removed* is deliberately
+   not used as a break: the grid item would then default to stretch, and if the engine stretches the
+   replaced image the aspect-ratio assertion is what catches it.
 3. **Nothing but the image is visible.** `checkVisibility()` cannot express this — a modal `<dialog>`
    makes the rest of the document *inert*, not unrendered, so the lesson article still reports visible.
    Two independent assertions instead:
@@ -645,27 +700,38 @@ screenshot pixels and no conversion arithmetic is needed anywhere below.
      ours suppresses it. Deleting our `keydown` listener does **not** falsify it (that listener only calls
      `stopPropagation`, and the dialog still closes). The one break that works: add `e.preventDefault()`
      to the Escape branch, which suppresses the close request — that must go RED.
-   - at a narrow viewport, with the mobile unit drawer open beforehand, **one** Escape press closes the
-     overlay and leaves the drawer **open**. This is the only guard on the `stopPropagation` decision;
+   - at **390×844** — the drawer's Contents trigger is only displayed at ≤640px, and `unit_nav.js:127`
+     force-closes the drawer above 640px, so a mid-size viewport would silently test nothing — open the
+     drawer by clicking `[data-unit-drawer-open]`, then open the overlay, then press Escape **once**: the
+     overlay closes and the drawer stays **open**. This is the only guard on the `stopPropagation` decision;
      without it, deleting those two lines leaves every other test green while one keypress closes two
      unrelated things. Falsify: delete the `stopPropagation` call.
 6. **Double-click** a trigger → the overlay ends **closed** (open-then-close, the accepted
    behaviour). Falsify: add a timing window that swallows the second click; this must go RED, which
    is what keeps the behaviour a decision rather than an accident.
 7. **Keyboard open**: focus the image, press Enter → dialog open. Falsify: remove the `keydown` listener.
-8. **Accessible name, both branches.** A non-empty-`alt` trigger is reachable as
-   `get_by_role("button", name=<alt>)`; an empty-`alt` gallery figure as
-   `get_by_role("button", name="Enlarge image")`. Falsify each by deleting its arm branch. Also assert
-   the open dialog's own name is "Enlarged image" and **not** the image's `alt` (the no-duplication rule).
+8. **Accessible name, both branches.** The non-empty-`alt` branch on `zoom_lesson`'s image element:
+   reachable as `get_by_role("button", name=<alt>)`. The empty-`alt` branch on `gallery_lesson`'s
+   **active** figure (the one with an empty description): reachable as
+   `get_by_role("button", name="Enlarge image")`. It has to be the *active* figure — an inactive one is
+   `aria-hidden`, and Playwright's role engine skips ARIA-hidden elements entirely, so the locator would
+   never resolve. Falsify each by deleting its arm branch. Also assert the open dialog's own name is
+   "Enlarged image" and **not** the image's `alt` (the no-duplication rule).
 9. **Gallery: only the active figure is a tab stop.** A `get_by_role("button")` **count is not a valid
    test here** — inactive figures already carry `aria-hidden="true"` today and Playwright's role engine
    excludes ARIA-hidden elements by default, so that assertion is already green with `inert` removed.
    Assert real tab traversal instead, with a **bounded loop and a positive control**. Pinned so it cannot
-   drift: the anchor is the gallery's "Previous image" button, focused by a real click on it; press `Tab`
-   at most **N = 24** times (the `gallery_lesson` fixture's focusable set — page nav, unit chrome, three
+   drift: the anchor is **the link in the text element that precedes the gallery**, focused by a real click
+   on it. Two traps this avoids — the gallery's "Previous image" button is `disabled` at rest
+   (`gallery.js:115`, after the boot `show(0)` at `:195`), so it can be neither clicked nor focused; and
+   `gallery.js` appends the bar *after* the stage (`:78`), so the figures precede every bar control in DOM
+   order and forward-Tabbing from a bar control would only reach them after wrapping past the end of the
+   document. Anchoring before the gallery makes forward Tab reach the triggers directly. Press `Tab` at
+   most **N = 24** times (the fixture's focusable set — page nav, unit chrome, the anchor link, three
    figures' triggers, the bar's two controls and three dots — with headroom), stopping early once the
-   anchor is refocused (focus has wrapped); record `document.activeElement` at each step and treat
-   `<body>` or a null active element as "left the page" and stop. Then assert over the recorded list that
+   anchor is refocused. Record `document.activeElement` at each step; a single `<body>`/null observation is
+   a **wrap, not an exit** (Chromium passes through it), so continue — only two consecutive such
+   observations terminate the loop. Then assert over the recorded list that
    (i) it **did** reach the *active* figure's trigger — without which the whole assertion could pass by
    never reaching the gallery at all, the same vacuity this case was written to replace — and (ii) it
    never landed inside a non-`is-active` `.gallery__item`. Falsify: remove the `inert` handling from
@@ -695,8 +761,11 @@ screenshot pixels and no conversion arithmetic is needed anywhere below.
 14. **No `src` left behind on close.** After closing, the overlay `<img>` has **no `src` attribute** —
     the guard on the `removeAttribute("src")` decision, whose regression (`img.src = ""`) fires a request
     for the HTML page itself on every close. Falsify: replace the call with `img.src = ""`.
-15. **Hidden container: inactive tab panel.** On `hidden_lesson`, Tab-traverse and require focus never to
-    enter the inactive panel. Falsify: remove the panel's `hidden` attribute, or give it an author
+15. **Hidden container: inactive tab panel.** On `hidden_lesson`, Tab-traverse with the **same shape as
+    case 9** — a pinned anchor preceding the container, an explicit N derived from `hidden_lesson`'s
+    focusable set, the same wrap/stop rule, and a positive control (after activating the tab, the image
+    *is* reached) — and require focus never to enter the inactive panel. Without the positive control a
+    negative-only traversal passes by never reaching the region, the vacuity case 9 was rewritten to fix. Falsify: remove the panel's `hidden` attribute, or give it an author
     `display: block`; must go RED. This is the falsifiable half of the `[hidden]`-vs-author-`display` trap
     the repo already documents (`courses.css:353`) and does exercise (`.el--twocolumn { display: flex }`).
 16. **Hidden container: closed spoiler.** Same traversal, focus never enters the closed `<details>`.
@@ -704,12 +773,18 @@ screenshot pixels and no conversion arithmetic is needed anywhere below.
     `content-visibility`, and skipped contents are not focusable, so an author `display: block` on a child
     cannot restore focusability — there is no break available. Its value is the positive control: opening
     the `<details>` must make the image reachable, proving the traversal reaches that far at all.
-17. **Hidden container: reveal gate and stepper.** Same traversal over `hidden_lesson`'s gated answer
-    image and its non-first stepper step; focus must never enter either. These are the rows the
+17. **Hidden container: reveal gate and stepper.** Same traversal — same anchor, N, wrap/stop rule and
+    positive controls (after passing the gate, and after stepping, each image *is* reached) — over
+    `hidden_lesson`'s gated answer image and its non-first stepper step; focus must never enter either. These are the rows the
     hiding-mechanism table itself flags as highest-stakes — a leaked tab stop would let a keyboard user
     open a gated *answer* image before passing the gate — and until now the two lowest-stakes rows had a
-    guard while these had none. Falsify: delete the `:not(.reveal-shown)` clause from `lesson_unit.html`'s
-    inline `<style>`, and the stepper selector respectively; each must go RED.
+    guard while these had none. Falsify — and note that the obvious break is a
+    trap: deleting `:not(.reveal-shown)` leaves `… ~ .lesson-block { display: none }`, which hides the
+    gated block *unconditionally*, so the test stays GREEN. The break must **un-hide**: delete the whole
+    `display: none` declaration from the `{% if has_reveal_gate %}` `<style>` block (or the `reveal-armed`
+    prepaint class). Likewise for the stepper: delete its rule's `display: none` (not the
+    `:not(.stepper-shown)` clause, which would leave `:not(:first-child)` hiding the step anyway). Each
+    must go RED.
 18. **Editor preview re-arm, through the real UI.** On the editor page with `editor_unit`, save an
     existing `ImageElement`'s alt text through its own edit form — the gesture that drives `editor.js`'s
     `applyFragments`, whose replaced `[data-scope="preview"]` node is what the re-arm hook receives — then
