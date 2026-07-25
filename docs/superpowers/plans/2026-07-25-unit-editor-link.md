@@ -1417,8 +1417,14 @@ vacuous pass this task exists to prevent.
 
 - [ ] **Step 3: Self-critique the shots against the acceptance criteria**
 
-- **Unwrapped rows:** the button is pinned to the far right end of the row and **shares the tag panel's top edge**, without overlapping it.
-- **Wrapped (~400px) rows:** the button sits on its own line, flush with the content column's left edge, with the `.5rem` gap below the strip intact. (The top-edge criterion is meaningless here — the items are on different lines.)
+**Judge each shot by the layout it actually landed in, not by its viewport.** Wrapping is not a
+property of the narrow rows alone: opening the tag panel can push the strip into the wrapped layout at
+full desktop width too, so `desktop_owner_open` may legitimately land in either state. The spec
+pre-accepts both for that row; picking the criterion by viewport would make a wrapped desktop shot
+look like a defect against a state that is expected.
+
+- **Rows whose strip did NOT wrap:** the button is pinned to the far right end of the row and **shares the tag panel's top edge**, without overlapping it.
+- **Rows whose strip DID wrap** — both ~400px rows, and `desktop_owner_open` if it wraps at full width: the button sits on its own line, flush with the content column's left edge, with the `.5rem` gap below the strip intact. (The top-edge criterion is meaningless here — the items are on different lines.)
 - **Panel border box** at ~400px with the panel open: its right edge sits within the content column.
 - **No horizontal overflow beyond the feature-off baseline** for the same page. Do not assert an absolute.
 - **Student view** is visually equivalent to today's vertical rhythm.
