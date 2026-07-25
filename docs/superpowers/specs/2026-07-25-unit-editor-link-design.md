@@ -181,8 +181,10 @@ and a future reader must not "tidy" the merge out of `build_quiz_context` or mir
 `build_lesson_context` without re-reading the two-render-sites argument above.
 
 `from courses.rendering import unit_edit_context` goes at **module top level** in `courses/views.py`.
-The neighbouring `unit_tags_context` / `lesson_notes_context` merges use function-local imports
-carrying a `# lazy: avoid import cycle` comment, and copying that style here would be cargo-culting:
+The neighbouring `unit_tags_context` / `lesson_notes_context` merges use function-local imports, one
+of which — `lesson_notes_context` at `courses/views.py:436` — carries a `# lazy: avoid import cycle`
+comment (the three `unit_tags_context` imports at `:437`, `:1112` and `:1321` are function-local but
+uncommented). Copying that style here would be cargo-culting:
 `courses/rendering.py` imports only `courses.access` and `django.urls`, both of which
 `courses/views.py` already imports at module level, so there is no cycle to avoid and a lazy import
 with a cycle comment would assert something false.
@@ -284,9 +286,8 @@ border-box top — visibly misaligned. Zeroing it *inside the strip* and moving 
    the following `.unit-shell` would start with **0px** of separation — a real regression against
    today's `.5rem`, in exactly the state the narrow screenshots scrutinise.
 3. The link-absent (student) case keeps today's vertical rhythm exactly: the panel's `.5rem` block
-   margin is simply relocated to its wrapper. (This is a statement about the **margin** only. The
-   `min-width: 0` below does change one student-visible state — see "What the student actually
-   sees.")
+   margin is simply relocated to its wrapper. (Horizontally the student case is unchanged too,
+   provided `min-width: 0` is present — see "What the student actually sees.")
 
 `.unit-strip__edit` therefore carries **no styling at all**. It exists solely as a stable selector
 hook for the view tests and the e2e, and is documented as such so it does not read as an undefined
@@ -304,7 +305,7 @@ breaks, the panel is alone on line 1 (still `flex: 1 1 auto`, still full width) 
 alone on line 2, where — with no `justify-content` and no auto margin — it starts at the row's
 inline-start edge, directly under the panel's left edge. This is a deliberate acceptance, not an
 omission: right-pinning it in the wrapped state would require `margin-inline-start: auto` on the
-anchor, which would contradict the "`.unit-strip__edit` carries no styling at all" property below and
+anchor, which would contradict the "`.unit-strip__edit` carries no styling at all" property above and
 buy nothing — a lone button on its own line reads naturally at the start of the line, following the
 panel above it in reading order.
 
@@ -313,11 +314,29 @@ items are on different lines**, which is exactly the state the ~400px owner shot
 wrapped-layout acceptance criterion is: the button sits on its own line, flush with the content
 column's left edge, with the `.5rem` block gap below it intact (see the margin discussion above).
 
-`min-width: 0` is not boilerplate — it is the fix for a hazard this repo has already been bitten by.
-A flex item's automatic minimum size is its min-content size, and `tags/_unit_tag_panel.html` renders
-a `<fieldset class="unit-tags__picker">` inside the panel. The UA stylesheet's
-`min-inline-size: min-content` on `<fieldset>` inflates that min-content size to the widest label row,
-so without `min-width: 0` the panel's used width is floored at that inflated min-content size.
+`min-width: 0` is not boilerplate — but be exact about what it is for, because it is easy to describe
+backwards. **It does not add a behaviour; it prevents this change from regressing one.**
+
+On master `.unit-tags` is a plain block-level child of `<main class="app-main">`
+(`templates/base.html:146`; `lesson_unit.html`'s `{% block content %}` includes the panel directly),
+and `.app-main` declares no `display` (`core/static/core/css/app.css:34`) — so the panel is **not** a
+flex item today and has **no** automatic minimum at all. Its width is simply the containing block's
+width, and an over-wide `<fieldset class="unit-tags__picker">` spills outside the panel's chrome.
+
+Wrapping the panel in `.unit-strip` makes it a flex item for the first time, and *that* is what
+introduces the floor: a flex item's automatic minimum is its min-content size, and the UA
+stylesheet's `min-inline-size: min-content` on `<fieldset>` inflates that min-content to the widest
+label row. Without `min-width: 0`, the panel's used width would be floored there — its border,
+background and rounded corners inflating with the fieldset, which is **not** how the page renders
+today. `min-width: 0` defeats that new floor and restores master's behaviour exactly.
+
+So the three states are:
+
+| | panel's border box | fieldset |
+|---|---|---|
+| master | container width (no floor — not a flex item) | spills outside the chrome |
+| this change, **without** `min-width: 0` | floored at min-content — **regression** | contained, chrome inflated |
+| this change, **with** `min-width: 0` | container width — same as master | spills outside the chrome |
 
 Be precise about what that does and does not change, because the intuitive story is wrong. It is
 **not** about wrapping: flex line-breaking is decided from each item's outer *hypothetical* main size,
@@ -328,9 +347,9 @@ line's width instead of staying floored at min-content. Without it, the panel's 
 and rounded corners extend past the content column.
 
 That is the observable: at ~400px with the panel open, **the panel's right border edge lines up with
-the content column's right edge** rather than running past it. The acceptance criterion is stated in
-those terms, because it is the only thing that actually distinguishes the declaration's presence from
-its absence.
+the content column's right edge** — as it does on master — rather than running past it. The acceptance
+criterion is stated in those terms, because it is the only thing that actually distinguishes the
+declaration's presence from its absence.
 
 **What it does not buy, stated plainly so the acceptance criteria stay honest.** `min-width: 0`
 defeats the automatic minimum of the *flex item* it is set on (`.unit-tags`). It does nothing about
@@ -364,28 +383,21 @@ sole box in the chain with a floor to defeat — a fix to the tags panel's inter
 rendering for every reader, including those who never see this link. That is a separate concern from "add an edit link" and is deliberately not bundled
 here.
 
-**What the student actually sees — the one state that is *not* unchanged.** `min-width: 0` is scoped
-to `.unit-strip .unit-tags`, and the strip wraps the panel for **every** reader, link or no link. A
-student's panel is always the sole flex item on its line, so the declaration applies to them in every
-render. In the long-unbreakable-token state analysed above that produces a real, if narrow, difference
-from master:
+**What the student actually sees: nothing new — and that is the whole point.** `min-width: 0` is
+scoped to `.unit-strip .unit-tags`, and the strip wraps the panel for **every** reader, link or no
+link, so a student's panel becomes a flex item too. That is exactly why the declaration is not
+optional for them: without it, the student — who never sees the link and gets no benefit from this
+feature at all — would be the one who inherits the new min-content floor.
 
-- **master:** the panel's automatic minimum floors its border box at min-content, so the panel's
-  border, background and rounded corners grow *with* the fieldset and run past the content column
-  together.
-- **with this change:** the panel's border box clamps to the content column and the fieldset spills
-  *outside* the panel's chrome.
+With it, the student rendering matches master in **every** state, including the long-token one (see
+the three-state table above: master and this-change-with-`min-width: 0` are the same row twice). There
+is no accepted student-visible trade-off here, because there is no student-visible change to accept.
 
-Either way the page scrolls sideways by the same amount — the overflow is the fieldset's, and it is
-pre-existing — but the two are not pixel-identical, and the new one is arguably the uglier of the two.
-This is **accepted, not claimed away**: it requires a tag label with a ~40–50 character unbroken token,
-it does not regress the common case, and the alternative (scoping `min-width: 0` to the link-present
-case) would mean two divergent panel layouts to reason about for a state neither of them fixes. The
-student × ~400px × panel-open × long-token combination therefore gets its own screenshot row so a
-human signs off on it rather than discovering it later.
-
-Outside that state — i.e. for every tag label of ordinary words — the student rendering **is**
-unchanged, because `min-width: 0` only ever binds when min-content exceeds the available width.
+This is worth stating flatly because the tempting framing — "we clamp the panel, so the fieldset now
+spills out" — describes something master already does, and would send a reviewer looking for a
+regression that isn't there, or asking this change to fix pre-existing overflow that is out of scope.
+The student narrow screenshot row therefore exists as a **parity guard**, not as a sign-off on a
+degradation.
 
 The acceptance criterion is therefore about the **panel's border box**, not the page: its right edge
 sits within the content column at ~400px with the panel open, and the page shows no horizontal
@@ -502,7 +514,9 @@ confirm it goes RED. A green test that was never seen to fail proves nothing. Us
 **Where the tests live.** A new `tests/test_unit_edit_link.py` owns the helper matrix, the three
 page-rendering groups and **all three** non-GET path assertions — one per row of the table in "The
 non-GET render paths" below, which is the authoritative count. The
-fragment-contract test belongs in the existing `tests/test_tags_consumption.py`, beside the tags
+**containment test** — so named because the fragment-level formulation is rejected further down as
+unfalsifiable; it asserts on the **full page render** despite living beside the tags tests — belongs
+in the existing `tests/test_tags_consumption.py`, beside the tags
 consumption tests whose behaviour it constrains, because that is where someone editing the panel will
 look. The e2e extends `tests/test_e2e_tags.py`, whose existing add-a-tag flow already uses the exact
 wait idiom this spec prescribes
@@ -634,9 +648,25 @@ the recipe instead:
 - an **enrolled** course owner (`quiz_answer` raises `PermissionDenied` for non-enrolled users, and
   the owner needs the link, so both properties are required of the same actor);
 - a quiz unit with a question `Element` (e.g. `ShortTextQuestionElement`);
-- a GET of the quiz unit first, to create the `IN_PROGRESS` `QuizSubmission` the answer path expects;
-- then `client.post(f"{base}/q/{el.pk}/answer/", {"answer": …})` **with no `HTTP_X_REQUESTED_WITH`
-  header**.
+- then, directly, the POST — **no preparatory GET is required**. `quiz_answer` opens with
+  `QuizSubmission.objects.select_for_update().get_or_create(student=request.user, unit=node)`
+  (`courses/views.py:1191`), so it creates the `IN_PROGRESS` submission itself; a GET first is
+  optional realism, not a precondition, and describing it as one would send an implementer looking
+  for a fixture that does not exist.
+
+The POST URL must be written out literally, because the quiz route is **not** the lesson route with
+the verb swapped:
+
+```python
+client.post(
+    f"/courses/{course.slug}/u/{quiz.pk}/quiz/q/{el.pk}/answer/",
+    {"answer": "..."},
+)   # no HTTP_X_REQUESTED_WITH
+```
+
+Note the `quiz/` segment (`courses/urls.py:75`), which the lesson `check/` route (`:40`) does not
+carry — the nearest precedent, `test_check_answer_nojs_rerender_includes_unit_nav`, posts to
+`/courses/{slug}/u/{pk}/q/{el}/check/`, so pattern-matching off it produces a 404.
 
 **The header's absence is the entire point of the row** and is the single easiest thing to lose when
 adapting one of the header-ful tests above: include it and the assertion tests the fragment branch,
@@ -721,10 +751,16 @@ so the test asserts *both* sides of "sibling of the panel, child of the strip".
 
 (A caveat on step 4's regex, so it is not written naively: `.unit-strip`'s content includes the
 panel's own `</div>` tags, so a non-greedy `.*?</div>` stops at the **first** closing tag, not the
-strip's. Anchor the match to the anchor element instead — e.g. assert the href's index in the page
-falls between the index of `<div class="unit-strip"` and the index of the following `</details>`'s
-end — or match the strip's full extent with an explicit pattern. Whichever form is used, keep the
-match assertion from step 2: a `find()` returning `-1` must fail loudly, never slice garbage.)
+strip's. Use index bounds instead — but get their **order** right, because the obvious phrasing is
+backwards. In the normative `_unit_strip.html` the anchor is a *following* sibling of
+`<details class="unit-tags">`, so the href's index is strictly **greater** than the end of
+`</details>`. The assertion is therefore: the href's index falls **after** the end of the panel's
+`</details>` and **before** the start of the strip's next top-level sibling in `{% block content %}`
+— `<div class="unit-shell"` on the lesson and quiz pages, `<article class="result` on the results
+page. An assertion written the other way round (href *before* `</details>`) fails against correct
+markup, and an implementer "fixing" it would reorder the link ahead of the panel, changing both the
+approved layout and the reading order. Whichever form is used, keep the match assertion from step 2: a
+`find()` returning `-1` must fail loudly, never slice garbage.)
 
 The regex — rather than a literal `<details class="unit-tags">` — is required, not stylistic. The
 partial emits `<details class="unit-tags" {% if tags_panel_open %}open{% endif %}>`, so the rendered
@@ -791,7 +827,7 @@ benefit, when the state is reachable declaratively.
 | `lesson_unit` | desktop | owner (link present) | **open** | ✓ | ✓ |
 | `lesson_unit` | ~400px | owner, **populated panel** (see below) | **open** | ✓ | ✓ |
 | `lesson_unit` | ~400px | enrolled student, **long-token tag** | **open** | ✓ | ✓ |
-| `quiz_results` | desktop | owner (link present) | closed | ✓ | ✓ |
+| `quiz_results` | desktop | owner (link present), **needs a SUBMITTED submission** | closed | ✓ | ✓ |
 
 Which criterion applies to which row:
 
@@ -808,11 +844,31 @@ Which criterion applies to which row:
   column even with the button beside it, so the row would simply not wrap and the shot could not show
   the layout it exists to show. Treat it as a fixture failure, not a pass: **if this shot is not
   wrapped, the fixture is wrong.**
-- **The ~400px student row** is the one that proves `min-width: 0`'s student-visible effect (see
-  "What the student actually sees"). It needs a tag label with a ~40–50 character unbroken token so
-  the fieldset's min-content actually exceeds the column; the thing to confirm is that the panel's
-  chrome clamping to the column while the fieldset spills out reads as acceptable, and that the page
-  scrolls sideways no further than the same page does on master.
+- **The ~400px student row** is a **parity guard**, not a sign-off on a degradation (see "What the
+  student actually sees"). It needs a tag label with a 50-character unbroken token so the fieldset's
+  min-content actually exceeds the column. Its criterion is two-part, and both halves are required:
+  1. the shot is **equivalent to the same page on master** — same panel border box, same sideways
+     scroll; and
+  2. the prescribed A/B — the same shot with `min-width: 0` deleted from `courses.css` — **differs**.
+
+  Part 2 is what proves the fixture reproduced the hazard at all; part 1 is what proves the
+  declaration does its job. A run where both shots are identical means the fixture failed, not that
+  the declaration is unnecessary.
+- **The `quiz_results` row needs the same submission fixture the `quiz_results` *tests* need**, and it
+  fails silently without it. That view (`courses/views.py:1289`) filters `QuizSubmission` by
+  `student=request.user, status=SUBMITTED` and **redirects to `quiz_unit`** when the actor has none —
+  and the owner, being non-enrolled, never accumulates one naturally. The shot would then capture
+  `quiz_unit`, which renders the same strip and looks entirely plausible, while the one property this
+  row exists to check (the 736px `.result` under a 920px strip) goes unverified. Build it with
+  `QuizSubmissionFactory(student=<owner>, unit=<the quiz node>, status=QuizSubmission.Status.SUBMITTED)`
+  and **confirm the captured URL is the results path**, not a redirect target. The spec already spells
+  this trap out for the tests; the screenshot is just as exposed to it.
+
+**`quiz_unit` is deliberately not screenshotted.** It is one of the three edited templates, so its
+absence is a decision rather than an oversight: its strip heads `.unit-shell` at the same clamped
+920px as `lesson_unit`'s, so every layout property the shots examine is already covered by the
+`lesson_unit` rows. `quiz_results` earns a row of its own only because `.result` is narrower and
+produces the overhang discussed next.
 
 Naming the page matters, and `quiz_results` is not redundant with the lesson rows. `.app-main` is
 `max-width: 960px` with `var(--space-5)` (20px) inline padding; `box-sizing: border-box` is global,
@@ -862,6 +918,22 @@ existing house terms (`Unit` → `Jednostka`, `Edit` → `Edytuj`):
 
 - `Edit unit` → `Edytuj jednostkę`
 - `(opens in a new tab)` → `(otwiera się w nowej karcie)`
+
+**A per-feature i18n test, following the repo's own precedent.** Catalog health
+(`test_i18n_po_health.py`) proves only that the PL `msgstr` is non-empty — not that the template
+actually routes the label through `{% trans %}`, nor that the Polish string reaches the rendered page.
+The repo carries **17** `tests/test_i18n_*.py` files doing exactly that per feature, so skipping it
+here would be a deviation rather than a default. Add both halves to `tests/test_unit_edit_link.py`:
+
+1. **Catalog level**, in the established idiom (see `tests/test_i18n_stepper.py`): for each of the two
+   new msgids, `with translation.override("pl"): assert translation.gettext(msgid) != msgid`.
+2. **Render level** — the half catalog health cannot cover: GET the lesson unit as the owner under
+   `translation.override("pl")` and assert `Edytuj jednostkę` appears in the response body. This is
+   what fails if the template ships the label as a bare literal instead of `{% trans %}`.
+
+Falsify the render half by removing the `{% trans %}` wrapper (the body then carries the English
+literal and the assertion goes RED) — not by emptying the catalog, which would redden the first half
+too and prove nothing about the template.
 
 **`compilemessages` is required, not optional.** `locale/en/LC_MESSAGES/django.mo` and
 `locale/pl/LC_MESSAGES/django.mo` are both **tracked in git**, and Django reads `.mo` at runtime — so
