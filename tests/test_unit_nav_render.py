@@ -1,4 +1,5 @@
 import re
+from pathlib import Path
 
 import pytest
 from bs4 import BeautifulSoup
@@ -20,6 +21,8 @@ from tests.factories import UnitProgressFactory
 from tests.factories import add_element
 from tests.factories import make_quiz_unit
 from tests.factories import make_verified_user
+
+COLLAPSE_BREAKPOINT_PX = 832
 
 
 def _make_student(username):
@@ -828,3 +831,42 @@ def test_submitted_quiz_results_page_has_no_crumb(client):
 
     assert resp.redirect_chain, "a SUBMITTED quiz must redirect to the results page"
     assert "unit-crumbs" not in resp.content.decode()
+
+
+def _media_block(css, query):
+    """The body of the @media block introduced by `query`, by brace matching."""
+    start = css.index(query) + len(query)
+    depth, i = 0, start
+    while i < len(css):
+        if css[i] == "{":
+            depth += 1
+        elif css[i] == "}":
+            depth -= 1
+            if depth == 0:
+                return css[start : i + 1]
+        i += 1
+    raise AssertionError(f"unterminated @media block for {query!r}")
+
+
+def test_collapse_breakpoint_is_in_bounds_and_matches_the_stylesheet():
+    """Invariant 7 plus the CSS<->constant coupling.
+
+    The range check is not redundant with the string check: because the expected
+    query is DERIVED from the constant, a retune updates constant, CSS and expected
+    string in lockstep and every other assertion stays green — while the e2e's third
+    viewport (BREAKPOINT + 1) silently slides below 640 into the rail-less regime and
+    stops sampling the four-crumb worst case. This bare range check is the only thing
+    standing between that retune and a vacuous e2e.
+    """
+    assert 640 < COLLAPSE_BREAKPOINT_PX < 1280
+
+    css = (
+        Path(__file__).resolve().parent.parent
+        / "courses/static/courses/css/courses.css"
+    ).read_text(encoding="utf-8")
+
+    query = f"@media screen and (max-width: {COLLAPSE_BREAKPOINT_PX}px)"
+    assert query in css, f"stylesheet does not contain {query!r}"
+    # Assert the crumb rule is INSIDE that block: a bare "max-width: NNNpx" substring
+    # could be satisfied by an unrelated pre-existing query at some values.
+    assert ".unit-crumbs__item--mid" in _media_block(css, query)

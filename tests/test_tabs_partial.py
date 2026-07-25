@@ -63,10 +63,16 @@ def test_courses_css_defines_the_tabs_element():
 
 
 def _print_block():
-    """The @media print body. Split on the literal brace so a prose comment merely
-    mentioning "@media print" cannot masquerade as the rule."""
+    """The @media print body for .el--tabs. Split on the literal brace so a prose
+    comment merely mentioning "@media print" cannot masquerade as the rule. The
+    stylesheet now carries more than one @media print block (the crumb breadcrumbs'
+    own block was inserted earlier in the file), so pick the chunk that actually
+    contains the tabs selectors rather than just the first split."""
     css = CSS.read_text(encoding="utf-8")
-    return css.split("@media print {")[1][:1200]
+    for chunk in css.split("@media print {")[1:]:
+        if ".el--tabs" in chunk[:1200]:
+            return chunk[:1200]
+    raise AssertionError("no @media print block found for .el--tabs")
 
 
 def _screen_label_rule():

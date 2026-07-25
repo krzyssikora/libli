@@ -686,6 +686,70 @@ summary.unit-tree__head:focus-visible { outline: 2px solid var(--primary); outli
 .unit-done.is-complete .unit-done__pill { border-color: var(--success);
   color: var(--success); background: var(--success-subtle); }
 
+/* ── Student breadcrumbs (path TO the unit; the <h1> below is the unit itself) ──
+   "Pinned ends, squeezed middle": the course crumb and the deepest crumb survive,
+   the middle absorbs the squeeze and then collapses to "…" below the breakpoint.
+   One line always, zero JS. The four rule groups below MUST stay in this order —
+   base, modifiers, screen query, print — because every collision between them is at
+   equal specificity and is resolved by source order alone. */
+.unit-crumbs { --crumb-gap: var(--space-2); margin-bottom: var(--space-3); }
+
+/* padding/margin here are the focus-ring allowance, NOT a reset. The list is the one
+   ancestor that clips the course link's focus ring (overflow:hidden clips on all four
+   sides); 5px = the repo's 4px ring plus 1px of slack so the containment check does
+   not sit on a zero-margin equality. The negative margin cancels it so the strip stays
+   flush with the <h1>. Do not "tidy" either to 0. */
+.unit-crumbs__list {
+  display: flex; flex-wrap: nowrap; align-items: center; overflow: hidden;
+  list-style: none; gap: var(--crumb-gap); padding: 5px; margin: -5px;
+  font-size: .85rem; color: var(--text-tertiary);
+}
+/* align-items:center, not baseline: a flex item with overflow:hidden is a scroll
+   container and exposes no text baseline, so the UA synthesises one from its border
+   box and the label sits a few pixels off its own separator. */
+.unit-crumbs__item {
+  display: flex; align-items: center; min-width: 0; gap: var(--crumb-gap);
+}
+/* Clipping lives on the LABEL, never on the <li>. No min-width of any kind here:
+   overflow:hidden already zeroes this element's automatic minimum size, and a floor
+   here would be a floor on a descendant that flexbox does not consult when sizing the
+   <li> — the label would then overflow its own crumb and paint over its neighbour. */
+.unit-crumbs__label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.unit-crumbs__sep { flex: 0 0 auto; }
+a.unit-crumbs__label { color: inherit; text-decoration: none; }
+a.unit-crumbs__label:hover { text-decoration: underline; }
+a.unit-crumbs__label:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+
+/* Modifiers — AFTER the base rule, or min-width:0 wins and the floors never apply.
+   Floors are on the <li> (the flex item the list actually shrinks) and sized to cover
+   the separator's advance plus the internal gap. --course has no separator, so it
+   takes the bare 6ch: carrying the extra term there would be dead width that shifts
+   the shrink balance against the leaf at the narrowest widths. */
+.unit-crumbs__item--mid { flex-shrink: 200; min-width: calc(4ch + 1em + var(--crumb-gap)); }
+.unit-crumbs__item--course { flex-shrink: 3; min-width: 6ch; }
+.unit-crumbs__item--leaf { flex-shrink: 1; min-width: calc(6ch + 1em + var(--crumb-gap)); }
+.unit-crumbs__item--ellipsis { display: none; flex: 0 0 auto; }
+
+/* Collapse — AFTER the modifiers (the --ellipsis display pair is decided by order).
+   Scoped to `screen` so print never collapses. 832px, not the shell's 640px: the
+   narrowest column that must hold four UNCOLLAPSED crumbs is just above the shell
+   breakpoint (~369px at 641px, where the 14rem rail is still present). */
+@media screen and (max-width: 832px) {
+  .unit-crumbs__item--mid { display: none; }
+  .unit-crumbs__item--ellipsis { display: flex; }
+}
+
+/* Print — LAST. Resetting the LIST's overflow matters as much as the label's: leaving
+   it hidden means a single unbreakable 200-char title escapes the now-visible label
+   and is clipped by the list, losing printed text silently. Cf. the .el--tabs print
+   block below, which exists because a screen-only rule once did exactly that. */
+@media print {
+  .unit-crumbs__list { flex-wrap: wrap; overflow: visible; }
+  .unit-crumbs__label {
+    overflow: visible; white-space: normal; text-overflow: clip; overflow-wrap: anywhere;
+  }
+}
+
 /* Mobile drawer — wired by unit_nav.js, opened by the footer Contents trigger.
    Hidden by default; shown ≤640px. */
 .unit-drawer { display: none; }
