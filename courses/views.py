@@ -368,6 +368,19 @@ def build_lesson_context(node, user):
         content_type__model="guessnumberelement"
     ).exists()
 
+    # Capability, NOT stored state: true iff this unit CONTAINS a state-bearing element
+    # type, regardless of whether this student has stored anything (spec D1). Flat over
+    # node.elements (NOT parent__isnull=True) so a gate or question nested in a tab,
+    # column or spoiler still counts -- children keep their own `unit` FK.
+    # app_label pins the join the way Element.content_type's own limit_choices_to does;
+    # get_for_model ct-ids were rejected because cold-cache CT SELECTs break
+    # tests/test_html_element.py's query-count assertion.
+    # Called through the module attribute so test 6's monkeypatch can bind.
+    has_stateful_elements = node.elements.filter(
+        content_type__app_label="courses",
+        content_type__model__in=state_svc.stateful_element_model_names(),
+    ).exists()
+
     progress = None
     seen_ids = set()
     state = {}
@@ -418,6 +431,7 @@ def build_lesson_context(node, user):
         "has_stepper": has_stepper,
         "has_markdone": has_markdone,
         "has_guess_number": has_guess_number,
+        "has_stateful_elements": has_stateful_elements,
         "element_state": state,
         "slug": node.course.slug,
         "node_pk": node.pk,
@@ -556,6 +570,8 @@ def progress_reset(request, slug, node_pk=None):
         # practice state. IDOR-safe against other STUDENTS by construction
         # (student=request.user); the cross-COURSE hole is closed by
         # get_node_or_404 above, not by this filter.
+        # A DIRECT write, bypassing save_element_state -- the house style, and the
+        # reason the lockstep contract lives on the field itself (see models.py).
         rows.update(element_state={})
         return redirect(safe_next or fallback)
 

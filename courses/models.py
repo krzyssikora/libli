@@ -2337,6 +2337,12 @@ class UnitProgress(models.Model):
     # Per-student practice state, keyed by Element (join-row) pk:
     # {"<Element.pk>": {...per-type blob}}. Personal, ungraded, invisible to
     # analytics. Reset (progress_reset) clears this and nothing else.
+    # WRITE ROUTES INTO THIS FIELD ARE A CONTRACT.
+    # courses.state.stateful_element_model_names() enumerates the element types
+    # whose state the unit page offers to clear, derived from state.VALIDATORS +
+    # QuestionElement.RESTORABLE_IN_LESSON. A new write route here must extend that
+    # function in lockstep, or whatever it stores becomes unresettable from the unit
+    # page. Guarded by tests/test_element_state_write_routes.py.
     element_state = models.JSONField(default=dict)
     completed = models.BooleanField(default=False)
     completed_at = models.DateTimeField(null=True, blank=True)
