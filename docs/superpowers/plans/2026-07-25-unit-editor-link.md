@@ -19,6 +19,16 @@
 - **No migration is expected.** `uv run python manage.py makemigrations --check` must stay clean.
 - **Two new msgids only:** `Edit unit` and `(opens in a new tab)`. PL translations `Edytuj jednostkę` / `(otwiera się w nowej karcie)`. EN `msgstr`s stay **empty by design**. `tests/test_i18n_po_health.py` enforces only *half* of that asymmetry: `test_pl_has_no_untranslated_msgid` is Polish-only (its docstring says so explicitly), so **PL non-empty is enforced while EN blanks are a convention the tests deliberately do not police** — a stray EN translation would ship green. Fuzzy and obsolete `#~` entries *are* guarded, in both catalogs.
 - **`.mo` files are tracked in git.** `compilemessages` is mandatory and its output is part of the commit.
+- **Every fenced command block in this plan is Bash — run them through the Bash tool, not
+  PowerShell.** The environment's primary shell is PowerShell, where three constructs used below are
+  parse errors or missing cmdlets: the inline env-var prefix (`SHOT_VARIANT=nomin uv run …`, Task 8
+  Step 2), `rm` (Task 8 Step 4), and backslash line continuations in `git add` (Tasks 2 and 6). If a
+  block must be run in PowerShell, translate it — `$env:SHOT_VARIANT='nomin'; uv run …`,
+  `Remove-Item`, backtick continuation — rather than pasting it verbatim.
+- **In-app help (`templates/help/`, `core.help`) is deliberately out of scope.** This change adds a
+  *discoverability* affordance for an editor those same users already reach from the builder; it
+  creates no new capability, no new permission and no new page, so the role manuals stay accurate as
+  written. Recorded here as a decision so the omission is not read as an oversight.
 - **Icons are inline monochrome `currentColor` line SVGs** with the shared `.icon` class — never emoji, and never a `<use href="#…">` sprite reference (the sprite is included only on manage pages and would render blank here).
 
 ---
@@ -87,6 +97,11 @@ def test_owner_without_change_course_perm_gets_the_link(client):
     assert ctx["unit_editor_url"] == reverse(
         "courses:manage_editor", kwargs={"slug": course.slug, "pk": unit.pk}
     )
+    # The predicate identity, TESTED rather than merely asserted in a docstring:
+    # follow the URL. `can_edit_unit` is only a safe gate while it stays exactly
+    # what views_manage.editor enforces; if a future change adds a gate there,
+    # this is the row that notices instead of shipping a link that 403s.
+    assert client.get(ctx["unit_editor_url"]).status_code == 200
 
 
 @pytest.mark.django_db
@@ -109,6 +124,14 @@ def test_course_admin_non_owner_does_not_get_the_link(client):
     the course gets nothing. Adding courses.change_course to the CA role, or
     broadening the predicate to is_staff, must break here."""
     ca = make_ca(client, "ca")
+    # is_staff must be set BY HAND. _make_role is only make_login + groups.add;
+    # it never calls accounts.services.set_user_role, which is the sole place
+    # is_staff is synced — so make_ca() alone yields is_staff=False while the
+    # production Course Admin has role_is_staff(COURSE_ADMIN) is True. Without
+    # this line the fixture does not model the actor the docstring claims, and
+    # Step 5's is_staff mutation would leave this row GREEN.
+    ca.is_staff = True
+    ca.save(update_fields=["is_staff"])
     course = CourseFactory()
     unit = _lesson_unit(course)
     # Inert here, and deliberately kept: unit_edit_context is request-free and
@@ -121,6 +144,12 @@ def test_course_admin_non_owner_does_not_get_the_link(client):
 
     assert ctx["can_edit_unit"] is False
     assert ctx["unit_editor_url"] is None
+    # The other half of the predicate identity (see the owner row): the URL this
+    # actor is NOT given must genuinely refuse them.
+    editor_url = reverse(
+        "courses:manage_editor", kwargs={"slug": course.slug, "pk": unit.pk}
+    )
+    assert client.get(editor_url).status_code == 403
 
 
 @pytest.mark.django_db
@@ -142,6 +171,8 @@ def test_group_teacher_with_read_access_does_not_get_the_link(client):
     on THIS course, actor in group.teachers). Without that this row degrades into
     a duplicate of the student row and stops guarding anything."""
     teacher = make_teacher(client, "teach")
+    teacher.is_staff = True  # same reason as the CA row above
+    teacher.save(update_fields=["is_staff"])
     course = CourseFactory()
     unit = _lesson_unit(course)
     group = GroupFactory(course=course, archived=False)
@@ -200,7 +231,9 @@ def unit_edit_context(user, unit):
 
     `can_edit_unit` is exactly the predicate courses.views_manage.editor enforces
     before serving the editor, so the link can never appear where following it
-    would 403.
+    would 403. That identity is PINNED, not merely claimed here: two rows in
+    tests/test_unit_edit_link.py follow the URL and assert 200 for the owner and
+    403 for the non-owning Course Admin.
     """
     can_edit = can_manage_course(user, unit.course)
     return {
@@ -229,6 +262,28 @@ Run: `uv run pytest tests/test_unit_edit_link.py -v`
 Expected: **all 6 FAIL**. If any row still passes, that row is not guarding what it claims — fix it before continuing.
 
 Restore the line.
+
+- [ ] **Step 5b: Falsify — broaden the predicate to `is_staff`**
+
+The inversion above reddens everything, so it cannot tell you whether the matrix distinguishes
+*roles*. This mutation can, and it is the specific regression the CA row exists to catch —
+`can_manage_course` carries an explicit "deliberately does NOT key on `is_staff`" comment
+(`courses/access.py`), so a future edit re-adding it is a live risk, not a hypothetical.
+
+Temporarily change the helper's predicate to:
+
+```python
+    can_edit = user.is_staff or can_manage_course(user, unit.course)
+```
+
+Run: `uv run pytest tests/test_unit_edit_link.py -v`
+Expected: **exactly 2 FAIL, 4 pass** — `test_course_admin_non_owner_does_not_get_the_link` and
+`test_group_teacher_with_read_access_does_not_get_the_link`, the two rows whose fixtures set
+`is_staff = True`. The other four are unaffected: the owner and student actors are not staff, the PA
+passes through the permission branch either way, and the CA-owner row passes through ownership.
+
+**If 0 fail, the `is_staff = True` fixture lines were dropped** — the mutation is then invisible and
+the two rows guard nothing. Restore the predicate.
 
 - [ ] **Step 6: Lint and commit**
 
@@ -745,7 +800,12 @@ and in `lesson_unit` insert this immediately after the `ctx = full_lesson_render
 ```
 
 Run: `uv run pytest tests/test_unit_edit_link.py -v`
-Expected: `test_check_answer_nojs_rerender_carries_the_link` and `test_notes_invalid_nojs_422_rerender_carries_the_link` **FAIL**, while `test_lesson_unit_shows_the_link_to_the_owner` **still PASSES**. If the GET test errors instead, check you made the `user` → `request.user` change. Restore.
+Expected: **13 passed, 2 failed** of the 15 tests in the file at this point (Task 1's six + Task 2's
+six + these three). The two failures are `test_check_answer_nojs_rerender_carries_the_link` and
+`test_notes_invalid_nojs_422_rerender_carries_the_link`; `test_lesson_unit_shows_the_link_to_the_owner`
+**still PASSES**, and that green half is the point of the mutation. A third failure means the
+relocation went somewhere else than intended. If the GET test *errors* instead, check you made the
+`user` → `request.user` change. Restore.
 
 *Mutation B:* delete `ctx.update(unit_edit_context(user, node))` from `build_quiz_context`, and in
 `quiz_unit` insert the same line immediately after `ctx = build_quiz_context(node, request.user)`:
@@ -755,7 +815,9 @@ Expected: `test_check_answer_nojs_rerender_carries_the_link` and `test_notes_inv
 ```
 
 Run: `uv run pytest tests/test_unit_edit_link.py -v`
-Expected: `test_quiz_answer_nojs_rerender_carries_the_link` **FAILS**, `test_quiz_unit_shows_the_link_to_the_owner` **still PASSES**. Restore.
+Expected: **14 passed, 1 failed** of the same 15. The single failure is
+`test_quiz_answer_nojs_rerender_carries_the_link`; `test_quiz_unit_shows_the_link_to_the_owner`
+**still PASSES**. Restore.
 
 (`quiz_results` builds its context locally and has no shared-builder property to guard, which is why it has no row here.)
 
@@ -893,6 +955,11 @@ Note what this guard does **not** catch, both by decision:
   does not destroy the layout, and Task 8's shots are the right instrument for that class of defect.
   `display: flex` is a different case and *is* guarded below — deleting it stacks the panel and the
   button vertically and renders `flex: 1 1 auto` inert, i.e. it silently undoes the whole feature.
+- The **`@media print` rule** (`.unit-strip__edit { display: none }`) is deliberately unguarded too.
+  It is one of the three CSS rules the Architecture line names, but nothing tests it: no assertion
+  here, and Task 8's shots never emulate print media. Losing it degrades a printed page by one
+  greyed-out button — the cheapest defect in the whole change — and a static substring assertion for
+  it would only restate the stylesheet rather than test any behaviour.
 
 - [ ] **Step 1: Write the pinning test**
 
@@ -1474,6 +1541,94 @@ not, the parity read still compares two same-width images, and Step 3's wrapped-
 judged against a shot that never wrapped. All three gates keep passing while measuring the wrong
 thing. **Sanity check: if a `narrow_*` PNG is 1280px wide, the viewport call is missing.**
 
+**Skeletons — actor construction and the `goto` per row.** Everything else in this task is specified
+to the character, so these are too; the URLs are the same ones Task 2's tests use. Each function
+carries `@pytest.mark.django_db(transaction=True)`. Fixture bodies are elided to the bullets above.
+
+```python
+@pytest.mark.django_db(transaction=True)
+def test_shots_owner(page, live_server):
+    owner = make_verified_user(
+        username="shotowner",
+        email="shotowner@test.example.com",
+        password=TEST_PASSWORD,
+    )
+    course = CourseFactory(title="Shots", owner=owner)
+    unit = ContentNodeFactory(
+        course=course, parent=None, kind="unit", unit_type="lesson"
+    )
+    quiz = make_quiz_unit(course=course)
+    QuizSubmissionFactory(         # or results_owner redirects to quiz_unit
+        student=owner, unit=quiz, status=QuizSubmission.Status.SUBMITTED
+    )
+    # ... the shared panel fixture (chips + one unattached tag) goes here ...
+
+    _login(page, live_server, "shotowner")
+    base = f"{live_server.url}/courses/{course.slug}/u"
+
+    page.set_viewport_size({"width": 1280, "height": 900})
+    page.goto(f"{base}/{unit.pk}/")
+    _report_accessible_name(page)          # once, anywhere the link renders
+    _shoot(page, "desktop_owner_closed")
+
+    page.set_viewport_size({"width": 1280, "height": 900})
+    page.goto(f"{base}/{unit.pk}/?panel=tags")
+    _shoot(page, "desktop_owner_open")
+
+    page.set_viewport_size({"width": 1280, "height": 900})
+    page.goto(f"{base}/{quiz.pk}/quiz/results/")
+    _shoot(page, "results_owner")
+
+    page.set_viewport_size({"width": 400, "height": 900})   # narrow row LAST
+    page.goto(f"{base}/{unit.pk}/?panel=tags")
+    _shoot(page, "narrow_owner")
+
+
+@pytest.mark.django_db(transaction=True)
+def test_shots_student(page, live_server):
+    student = make_verified_user(
+        username="shotstudent",
+        email="shotstudent@test.example.com",
+        password=TEST_PASSWORD,
+    )
+    course = CourseFactory(title="Shots student")   # no owner= : no link
+    unit = ContentNodeFactory(
+        course=course, parent=None, kind="unit", unit_type="lesson"
+    )
+    EnrollmentFactory(student=student, course=course)   # or the page 403s
+
+    _login(page, live_server, "shotstudent")
+    page.set_viewport_size({"width": 1280, "height": 900})
+    page.goto(f"{live_server.url}/courses/{course.slug}/u/{unit.pk}/")
+    _shoot(page, "desktop_student_closed")
+
+
+@pytest.mark.django_db(transaction=True)
+def test_shots_ab_narrow_student(page, live_server):
+    student = make_verified_user(
+        username="shotnarrow",
+        email="shotnarrow@test.example.com",
+        password=TEST_PASSWORD,
+    )
+    course = CourseFactory(title="Shots narrow")
+    unit = ContentNodeFactory(
+        course=course, parent=None, kind="unit", unit_type="lesson"
+    )
+    EnrollmentFactory(student=student, course=course)
+    # UNATTACHED and authored by the VIEWING actor, or it never reaches
+    # addable_tags and the <fieldset> the whole row exists to show never renders.
+    TagFactory(author=student, name="W" * 50)
+
+    _login(page, live_server, "shotnarrow")
+    page.set_viewport_size({"width": 400, "height": 900})
+    page.goto(f"{live_server.url}/courses/{course.slug}/u/{unit.pk}/?panel=tags")
+    _shoot(page, "narrow_student")
+```
+
+Each function builds its **own** course and actor: `_login` never logs out, and allauth redirects an
+already-authenticated visitor away from `/accounts/login/`, so sharing state across them is what the
+three-function split exists to avoid in the first place.
+
 Keep the harness `ruff format`-clean anyway, so that a stray `ruff check` on it before Step 4 does not
 send you debugging scaffolding you are about to delete. The `page.evaluate(...)` line above is already
 in its collapsed form for that reason (split across lines it joins to exactly 88 characters, and
@@ -1494,6 +1649,13 @@ from it — use these exact keys:
 | `lesson_unit` | ~400px | owner, **populated panel** | **open** | `narrow_owner` |
 | `lesson_unit` | ~400px | enrolled student, **long-token tag** | **open** | `narrow_student` |
 | `quiz_results` | desktop | owner, **needs a SUBMITTED submission** | closed | `results_owner` |
+
+**`quiz_unit` gets no row of its own, deliberately.** Its `{% block content %}` is structurally
+identical to `lesson_unit.html`'s — `_unit_strip.html`, then `_unit_shell.html` with a different
+`content_partial`, then `_tags_i18n.html` — so the strip sits in exactly the same box and rows 1/3/4
+already cover its layout. `quiz_results.html` is the one that genuinely differs (the strip sits above
+a bare `<article class="quiz-results result">`, not inside `_unit_shell.html`), which is why it earns
+row 6 and why its overhang is called out separately in Step 3.
 
 **Open the panel** by loading with `?panel=tags` — the server-side switch the views already read. Do **not** click the `<summary>` in Playwright; that adds a disclosure animation to race against.
 
@@ -1597,6 +1759,22 @@ written both files, so checking the second costs one more hash and closes the as
 parity gate below. They **must differ**. If the hashes match, the fixture failed to reproduce the
 hazard and the shot proves nothing — that is a fixture bug to fix, **not** evidence the declaration
 is unnecessary.
+
+**If they hash-match, there is exactly one lever, and it is not the fixture.** The token is already
+pinned at `TAG_NAME_MAX_LEN = 50` and the panel's min-content width is set by its *widest single
+label*, so neither a longer token nor more tags can widen it further — "fix the fixture" has no
+remaining degree of freedom. **Narrow the viewport instead:** re-capture this row at 320px (still a
+real phone width) for **both** variants, so the comparison stays like-for-like:
+
+```bash
+SHOT_VARIANT=feature320 uv run pytest -m e2e   tests/test_e2e_unit_strip_shots.py::test_shots_ab_narrow_student -v   # min-width: 0 present
+SHOT_VARIANT=nomin320   uv run pytest -m e2e   tests/test_e2e_unit_strip_shots.py::test_shots_ab_narrow_student -v   # min-width: 0 deleted
+```
+
+Temporarily set that function's viewport to 320 for both runs, and note that the Step 0 sanity check
+("if a `narrow_*` PNG is 1280px wide the viewport call is missing") then expects **320**, not 400.
+Only if the 320px pair *also* hash-matches is the hazard genuinely unreproducible — and that would be
+a finding about the declaration worth stating, not a fixture bug to grind on.
 
 *Parity validation (rows 5 AND 2):* produce the **feature-off baseline** — **do not check out
 master**, which discards the fixture code the shot depends on. Undo the feature's *rendering* in
