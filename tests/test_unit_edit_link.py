@@ -2,12 +2,16 @@ import pytest
 from django.urls import reverse
 
 from courses.models import QuizSubmission
+from courses.models import ShortTextQuestionElement
 from courses.rendering import unit_edit_context
+from notes.models import NOTE_MAX_LEN
 from tests.factories import ContentNodeFactory
 from tests.factories import CourseFactory
+from tests.factories import ElementFactory
 from tests.factories import EnrollmentFactory
 from tests.factories import GroupFactory
 from tests.factories import QuizSubmissionFactory
+from tests.factories import add_element
 from tests.factories import make_ca
 from tests.factories import make_pa
 from tests.factories import make_quiz_unit
@@ -265,3 +269,80 @@ def test_quiz_results_hides_the_link_from_an_enrolled_student(client):
     body = resp.content.decode()
     assert _editor_href(course, quiz) not in body
     assert "unit-strip__edit" not in body
+
+
+@pytest.mark.django_db
+def test_check_answer_nojs_rerender_carries_the_link(client):
+    """full_lesson_render_context covers the check_answer POST re-render, not just
+    the lesson_unit GET. Fixture shape copied from
+    tests/test_courses_views.py::test_check_answer_nojs_rerender_includes_unit_nav,
+    with owner= added."""
+    owner = make_student(client, "owner")
+    course = CourseFactory(owner=owner)
+    unit = _lesson_unit(course)
+    q = ShortTextQuestionElement.objects.create(
+        stem="2+2?", accepted="4", marking_mode="A", max_marks=1
+    )
+    el = add_element(unit, q)
+    EnrollmentFactory(student=owner, course=course)
+
+    # No X-Requested-With header -> full-page no-JS re-render.
+    resp = client.post(
+        f"/courses/{course.slug}/u/{unit.pk}/q/{el.pk}/check/", {"answer": "5"}
+    )
+
+    assert resp.status_code == 200
+    assert _editor_href(course, unit) in resp.content.decode()
+
+
+@pytest.mark.django_db
+def test_notes_invalid_nojs_422_rerender_carries_the_link(client):
+    """The notes no-JS validation re-render returns 422 BY DESIGN — assert that,
+    not 200. This is the path a manager hits while annotating during the very
+    walkthrough this feature serves. Fixture shape from test_notes_views.py's
+    test_create_note_invalid_no_js_422_repopulates_rejected_text."""
+    owner = make_student(client, "owner")
+    course = CourseFactory(owner=owner)
+    unit = _lesson_unit(course)
+    el = ElementFactory(unit=unit)
+    EnrollmentFactory(student=owner, course=course)
+
+    # Over-cap body (NOT a blank one — that is a different validation branch).
+    resp = client.post(
+        f"/courses/{course.slug}/u/{unit.pk}/notes/add/",
+        {"element": el.pk, "body": "z" * (NOTE_MAX_LEN + 1)},
+    )
+
+    assert resp.status_code == 422
+    assert _editor_href(course, unit) in resp.content.decode()
+
+
+@pytest.mark.django_db
+def test_quiz_answer_nojs_rerender_carries_the_link(client):
+    """build_quiz_context covers _quiz_render_feedback's no-JS full re-render, not
+    just the quiz_unit GET. No precedent exists to copy: every server-side
+    quiz-answer test in the suite sends HTTP_X_REQUESTED_WITH="fetch" and returns
+    at the fragment branch before reaching the builder.
+
+    The actor must be an ENROLLED owner — quiz_answer raises PermissionDenied for
+    non-enrolled users, and the owner needs the link."""
+    owner = make_student(client, "owner")
+    course = CourseFactory(owner=owner)
+    quiz = make_quiz_unit(course=course)
+    EnrollmentFactory(student=owner, course=course)
+    q = ShortTextQuestionElement.objects.create(
+        stem="Capital?", accepted="Rome", marking_mode="A", max_marks=1
+    )
+    el = add_element(quiz, q)
+
+    # No preparatory GET needed: quiz_answer get_or_creates the submission itself.
+    # Note the `quiz/` URL segment — the lesson `check/` route does NOT carry it,
+    # so pattern-matching off the check_answer test above produces a 404.
+    # THE ABSENCE OF HTTP_X_REQUESTED_WITH IS THE ENTIRE POINT OF THIS TEST.
+    resp = client.post(
+        f"/courses/{course.slug}/u/{quiz.pk}/quiz/q/{el.pk}/answer/",
+        {"answer": "Paris"},
+    )
+
+    assert resp.status_code == 200
+    assert _editor_href(course, quiz) in resp.content.decode()
