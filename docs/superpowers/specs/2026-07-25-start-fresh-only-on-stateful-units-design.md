@@ -50,6 +50,24 @@ still sees the link and still lands on "Nothing to clear here.". That residual i
 control whose presence depends only on the lesson's content, and is the deliberate trade against the
 flicker described above.
 
+**Rejected alternative — the union rule (`has_stateful_elements or bool(element_state)`).** This is
+the strictly stronger option and it deserves its own entry, because the flicker argument above does
+**not** rule it out: on a capability-bearing unit the link would always show regardless of what JS
+wrote, so nothing flickers; on a non-capability unit it would appear only when an orphaned blob exists
+and vanish once cleared, which is correct rather than flickery. `element_state` is already in the
+context (`views.py:421`), so the union costs zero extra queries and would delete the accepted cost above
+and the flat-course degradation in §Error handling entirely.
+
+It is nevertheless **not** adopted. The union was put to the decision-maker alongside the two pure
+rules and capability-only was chosen deliberately, for a reason the union cannot offer: under
+capability-only, the link's presence is a function of the lesson's *content alone* — the same for every
+student, explainable in one sentence ("this lesson has interactive work in it"), and stable under any
+sequence of student actions. The union makes presence depend on a per-student, JS-written blob in one
+of its two branches, which is a harder rule to reason about and to test, in exchange for covering a
+case (orphaned blobs) that requires an author to delete the last interactive element from a unit a
+student has already worked. If that case turns out to matter in practice, the union is the first thing
+to reach for and needs no new query to implement.
+
 **D2 — Unit page only.** The per-container link (`_outline_node.html:24`) and the course-level link
 (`outline.html:11`) stay unconditional. Rationale in §Non-goals; its known weak spot (flat courses) is
 recorded in §Error handling.
@@ -111,7 +129,9 @@ inside `build_lesson_context`, **500-ing every lesson page on the platform**. To
 harmless: `validate_state` (`state.py:124`) just `.get()`s the registry and returns `REJECT`, so one
 element silently fails to persist. Turning a silent per-element bug into a site-wide outage is not an
 acceptable side effect of a button-visibility change. The intersection removes that blast radius
-structurally; **test 6** then re-raises the same typo loudly in CI, where it belongs.
+structurally; **test 6** then re-raises the same typo loudly in CI, where it belongs, and **test 9**
+falsifies the intersection itself (test 6 alone cannot — the real registry is clean by construction, so
+deleting `& known` leaves the whole suite green).
 
 **Placement.** `state.py` is the state domain and already owns half the union. Its docstring calls it
 "a pure module (no views, no writes)"; the real invariant that protects is *no model imports at import
@@ -167,10 +187,10 @@ the wrong semantics. The chosen name is capability-shaped, matching its neighbou
 
 **Content-type ids, not `content_type__model__in`.** Filtering on the joined
 `django_content_type.model` matches a bare model name across **every installed app**. This mirrors
-`has_questions` (`views.py:334`), which builds `question_ct_ids` from `ContentType.objects.get_for_model`
-inline in exactly this way. `get_for_model` is in-process cached, and ten of these eighteen types —
-the question half — are already warmed by line 334 eight lines earlier, so at most eight lookups are
-new and none recur. `ContentType.objects.get_for_models(*classes)` is available if the implementer
+`has_questions` (`views.py:344`), whose `question_ct_ids` are built from
+`ContentType.objects.get_for_model` inline at `views.py:334` in exactly this way. `get_for_model` is
+in-process cached, and ten of these eighteen types — the question half — are already warmed by that
+line, so at most eight lookups are new and none recur. `ContentType.objects.get_for_models(*classes)` is available if the implementer
 prefers one batched call; either is acceptable.
 
 **The query is flat** — over `node.elements`, *not* scoped to `parent__isnull=True`. Children of a
@@ -197,6 +217,14 @@ Add a short comment at `save_element_state` (`views.py:670`) naming
 `state.stateful_element_model_names()` as the function that must be extended whenever a new write
 route into `element_state` is introduced. This is the cheap half of the write-route invariant; the
 enforcing half is test 5.
+
+**The comment goes at the mutation surface, not only at the helper.** The contract is about writes to
+`UnitProgress.element_state`, and this codebase's established shape for such a write is a *direct*
+one — `progress_reset` does `rows.update(element_state={})` at `views.py:559`, and migration 0050
+assigns `up.element_state` directly. A future third route of that shape would never call
+`save_element_state` and so would never read a comment attached only to it. Put the note where
+`element_state` is actually assigned (`views.py:685`/`691` inside the helper) and make test 5 count the
+mutation surface, per its revised form below.
 
 **The comment must not contain the literal token `save_element_state(`** (with the open paren) — test
 5 counts that token in this file, and a comment repeating it would silently move the pinned number in
@@ -246,6 +274,13 @@ enrollment, so it is unaffected by the enrolled / non-enrolled (author-preview) 
   instead of becoming a platform-wide lesson-page 500. Test 6 surfaces it in CI instead.
 - **`getattr(..., "RESTORABLE_IN_LESSON", False)`** defaults to `False`, so non-question element types
   (which never define the attr) are correctly excluded without a type check.
+- **A dangling GFK join row is an accepted false positive.** C2 matches on `content_type_id` alone, so
+  an `Element` row whose `content_object` has been deleted still flips the flag and shows the link on a
+  unit that renders nothing stateful. This state is real, not hypothetical — `courses_extras.py:41-43`
+  returns `""` for exactly that case. No `content_object` existence check is warranted: every one of the
+  nine existing `.exists()`-backed `has_*` flags has the same property, checking would cost a fetch per
+  row, and the failure mode is a link that reaches "Nothing to clear here." — the residual D1 already
+  accepts.
 - **Fail direction.** Every *runtime data* failure mode of this feature degrades to a hidden link,
   never a broken page — the flag only ever gates an anchor, and the one input that could raise is
   structurally fenced by the intersection above. The single deliberate hard failure is bullet 1's
@@ -263,9 +298,11 @@ enrollment, so it is unaffected by the enrolled / non-enrolled (author-preview) 
 
   This degradation is accepted for now — an orphaned blob requires an author to delete the last
   interactive element from a unit a student has already worked, which is rare, and the student's own
-  work elsewhere is what a whole-course reset would also take. If it proves unacceptable in practice,
-  the fix is to gate the outline's **unit rows** rather than its containers, which reverses D2 and is
-  explicitly out of scope here.
+  work elsewhere is what a whole-course reset would also take. Two remediations exist if it proves
+  unacceptable in practice, both out of scope here: adopt the union rule (see the rejected alternative
+  under D1 — zero new queries, removes this case entirely), or **add** a per-unit reset link to the
+  outline's unit rows. Note the second is an addition, not a gating change: `_outline_node.html` renders
+  no reset link on unit rows today, so there is nothing there to gate.
 
 ## Non-goals
 
@@ -329,17 +366,37 @@ qualified: `from courses import state` then `state.VALIDATORS`, never a bare `VA
    its link. Seed `ShortTextQuestionElement.objects.create(stem="Q", accepted="x")` via `add_element`
    and assert the reset URL is present. Falsify by narrowing C1's union to `set(VALIDATORS) & known`.
 
+### `tests/` — a source-text guard module (NOT `courses/tests/`)
+
+5. **The write-route invariant — pinned at the mutation surface, not at the helper.** Nothing else
+   pins the "two independent routes" claim that C1 rests on: test 6 catches a new state-bearing *type*,
+   but not a new *write route*.
+
+   **Count `element_state` writes, not `save_element_state` calls.** An earlier draft counted
+   `save_element_state(` occurrences (5 today: the `def` at `views.py:670` plus calls at 772/775 via
+   `validate_state` and 801/803 via `RESTORABLE_IN_LESSON`). That guard is aimed at the wrong surface:
+   the contract concerns writes to `UnitProgress.element_state`, and a direct write is the established
+   shape here — `progress_reset` does exactly that at `views.py:559`, as did migration 0050. A third
+   route of that shape leaves the `save_element_state(` count at 5, never touches the helper, and ships
+   a state-bearing type with no reset affordance — the exact drift this test exists to catch.
+
+   So assert the count of **`element_state` assignment/subscript-write sites in `courses/views.py`**:
+   today `views.py:559` (`rows.update(element_state={})`), `views.py:685` (`.pop`) and `views.py:691`
+   (`[...] = blob`) — three, two of them inside the helper. Reads (`views.py:391`, `421`, `565`, `750`)
+   are not writes and must not be counted, so pick a token that excludes them and state it in the test.
+   The assertion message must name the contract — "a new write route into `element_state` must extend
+   `state.stateful_element_model_names()` in lockstep" — so the next author reads the contract rather
+   than bumping the number. Keeping the `save_element_state(` count alongside it is optional and
+   harmless, but it is not the invariant's enforcement.
+
+   **Read mechanism and placement.** Read the source as
+   `Path(courses.views.__file__).read_text(encoding="utf-8")`. The repo's convention for source-text
+   guards is a module under `tests/` holding a `ROOT = Path(__file__).resolve().parent.parent` constant
+   (`tests/test_align_render.py:5-10`, `tests/test_builder_js_invariants.py:13-28`), and
+   `courses/tests/test_state_module.py` carries a module-level `pytestmark = pytest.mark.django_db`
+   that a pure text assertion does not need. Put this test in `tests/`, not in the django_db module.
 ### `courses/tests/test_state_module.py`
 
-5. **The write-route invariant.** Nothing else pins the "two independent routes" claim that C1 rests
-   on: test 6 catches a new state-bearing *type*, but not a new *write route*. Assert
-   `src.count("save_element_state(") == 5` over `courses/views.py` — that is **1 `def` (`views.py:670`)
-   plus 4 call sites across the 2 write routes** (`views.py:772`/`775` via `validate_state`, and
-   `views.py:801`/`803` via `RESTORABLE_IN_LESSON`). Say "two write routes, four call sites, five
-   occurrences" explicitly in the assertion message so the next reader cannot mistake routes for sites
-   and cannot bump the number without reading the contract. A fifth call site should force a deliberate
-   decision about whether `stateful_element_model_names()` must grow. (C4's comment is written without
-   the open paren precisely so it does not perturb this count.)
 6. **The derived set is correct.** This tests `courses/state.py`, so it belongs here, not in
    `test_reset_controls.py` — this module is already where `state.VALIDATORS` is asserted key-by-key
    (lines 102, 129, 181). Assert `set(state.stateful_element_model_names())` equals an **explicitly
@@ -366,19 +423,42 @@ qualified: `from courses import state` then `state.VALIDATORS`, never a bare `VA
    failure instead of a silently dropped element; without it the intersection would hide the typo
    entirely.
 
+9. **The `& known` intersection itself.** Test 6's subset assertion guards the *production registry*;
+   it does not guard the *intersection*. Delete `& known` from C1 and the entire suite stays green,
+   because the real `VALIDATORS` is clean by construction — leaving the one guard in this design with a
+   stated platform-wide blast radius as the only one nothing falsifies. Fix that directly:
+   `monkeypatch.setitem(state.VALIDATORS, "nosuchelement", lambda *a: None)`, then assert
+   `stateful_element_model_names()` neither raises nor contains `"nosuchelement"`. Falsify by removing
+   `& known` — the test must then raise `LookupError`.
+
 ### `courses/tests/test_reset_controls.py` (render-path coverage)
 
 7. **The flag survives the non-GET render path.** POST `courses:check_answer` for a question in a
    stateful unit **without** the JS-fragment header, so the no-JS branch at `views.py:837` re-renders
-   the full page, and assert the reset URL is still present. Falsify by deleting
-   `has_stateful_elements` from `build_lesson_context`'s returned dict — a missing context variable
-   renders as false in Django with no error, which is exactly why this needs a test rather than the
-   §Data flow prose alone.
+   the full page, and assert the reset URL is still present. A missing context variable renders as
+   false in Django with no error, which is exactly why this needs a test rather than the §Data flow
+   prose alone.
 
-**Falsifiability note.** Tests 2, 3, 4 and 7 can fail from the production condition being wrong; test 1
-fails from the fixture, test 5 from the write surface, test 6 from the derivation. State the
-falsification result for each in the task's completion report — not "passes", but "went RED when X was
-removed".
+   **Falsify by replacing `full_lesson_render_context(node, request.user)` at `views.py:828` with a
+   hand-assembled context dict** — and require test 7 to be the *only* test that goes RED. Do **not**
+   falsify by deleting `has_stateful_elements` from `build_lesson_context`'s returned dict: that turns
+   tests 1, 3, 4 and 8 RED too, so the observed RED would prove nothing about the property test 7
+   exists for (that the non-GET path reaches the same context builder).
+
+8. **The C1→C2 seam is live.** Every other test here stays green if `build_lesson_context` hand-inlines
+   the 18 names instead of calling `state_svc.stateful_element_model_names()` — tests 2/3/4/7 assert
+   rendered outcomes and test 6 asserts C1's output in isolation. That is exactly the drift D3 exists to
+   prevent: when a 19th stateful type ships, test 6 goes RED, the author updates C1 and the test
+   literal, and a stale inlined list in `views.py` silently keeps the new type's link hidden.
+   Monkeypatch `courses.state.stateful_element_model_names` to return a tuple containing
+   `"textelement"`, then assert the reset link **appears** on a text-only unit. Falsify by inlining a
+   literal list in C2. This is the only cheap assertion that proves the seam is wired.
+
+**Falsifiability note.** Tests 2, 3, 4, 7 and 8 can fail from the production condition being wrong;
+test 1 fails from the fixture, test 5 from the write surface, tests 6 and 9 from the derivation. Each
+test above names its own distinct falsification — state the observed result for each in the task's
+completion report, not "passes" but "went RED when X was removed". Where two tests would go RED from
+the same deletion, the falsification is not specific enough and must be re-chosen.
 
 ### e2e — `tests/test_e2e_unit_head_layout.py`
 
