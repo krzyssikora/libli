@@ -13,7 +13,7 @@
 ## Global Constraints
 
 - **Tooling:** `ruff`, `pytest` and `python` are **not** on PATH. Every command runs under `uv run`. `uv run ruff format --check .` and `uv run ruff check .` are part of the gate.
-- **Worktree database:** this runs in a git worktree. Export a unique `DATABASE_URL` before any pytest invocation or it collides with a concurrent session on the Postgres `test_libli` database. Task 1 Step 1 sets this up; **every later task assumes it is exported in the shell.**
+- **Worktree database:** this runs in a git worktree and needs a unique `DATABASE_URL`, or it collides with a concurrent session on the Postgres `test_libli` database. It is configured **durably, via a `.env` file** (Task 1 Step 1) — *not* by exporting a shell variable. A shell `export` would be wrong twice over: agent tool calls do not share shell state between invocations, and `export` is bash syntax on a PowerShell-primary host. `config/settings/base.py` calls `env.read_env()` on a worktree-root `.env`, and `.env` is already in `.gitignore`, so the file is picked up automatically by every `uv run` command and never committed.
 - **Zero new JavaScript.** No JS file, no inline script, no resize observer.
 - **Zero additional queries.** `tests/test_unit_nav_render.py::test_build_unit_nav_adds_no_queries` asserts 2 queries and must keep passing untouched.
 - **Falsification is mandatory.** Every test below names its falsifying mutation. Apply the mutation, confirm **RED**, revert, confirm **GREEN**, and only then commit. A test that cannot be made to fail is not a test.
@@ -55,21 +55,27 @@
   - `courses.rollups._current_ancestors(tree: list[dict]) -> list[ContentNode]`
   - `build_unit_nav(...)` return dict gains `"ancestors": list[ContentNode]` and `"hidden_path": str`
 
-- [ ] **Step 1: Set up the worktree database URL**
+- [ ] **Step 1: Give the worktree its own database, durably**
 
-Run this once in the shell you will use for every subsequent task:
+Write a `.env` at the **worktree root** (next to `manage.py`). `config/settings/base.py` reads it via `env.read_env()`, so every `uv run` command picks it up with no shell state involved:
 
 ```bash
-export DATABASE_URL='postgres://libli:libli@localhost:5432/libli_crumbs'
+cd "C:/Users/krzys/Documents/Python/own/.pipeline-worktrees/student-unit-breadcrumbs"
+printf 'DATABASE_URL=postgres://libli:libli@localhost:5432/libli_crumbs\n' > .env
 ```
 
-Verify the suite can collect:
+Do **not** `export` it instead: agent tool calls do not share shell state, so the variable would be gone by the next step and pytest would silently fall back to the default `libli` database — recreating the exact cross-worktree collision this avoids.
+
+Verify it took effect (the printed name must be `libli_crumbs`, not `libli`):
 
 ```bash
+uv run python -c "from django.conf import settings; import django, os; os.environ.setdefault('DJANGO_SETTINGS_MODULE','config.settings.test'); django.setup(); print(settings.DATABASES['default']['NAME'])"
 uv run pytest tests/test_unit_nav_render.py --collect-only -q
 ```
 
-Expected: collects ~14 tests, no errors.
+Expected: `libli_crumbs`, then a clean collection (~14 tests, no errors).
+
+`.env` is gitignored — never stage it.
 
 - [ ] **Step 2: Write the failing tests**
 
@@ -246,13 +252,24 @@ and extend the returned dict with:
         "hidden_path": HIDDEN_PATH_SEP.join(a.title for a in ancestors[:-1]),
 ```
 
-Update the docstring's return line — it currently enumerates the exact shape, and leaving it stale would make the file contradict itself:
+Update the docstring's return line. **Careful — the sentence continues on the same line.** The existing text is:
+
+```
+    Returns {tree, current_pk, prev, next, part_progress, course_progress}. Prev/Next
+    are the immediate neighbours of current_node among the is_unit leaves of the
+```
+
+Replace **only the first sentence**, keeping the "Prev/Next are the immediate neighbours…" sentence intact. The result:
 
 ```
     Returns {tree, current_pk, prev, next, part_progress, course_progress, ancestors,
     hidden_path}. ancestors is the root→parent chain of the current unit (0–3 nodes,
     unit excluded); hidden_path joins all but the deepest with HIDDEN_PATH_SEP and is
-    the collapsed "…" crumb's tooltip and accessible name.
+    the collapsed "…" crumb's tooltip and accessible name. Prev/Next
+    are the immediate neighbours of current_node among the is_unit leaves of the
+    already-computed build_outline tree, located by pk (the walk builds its own node
+    instances, distinct from the view's current_node). No queries beyond
+    build_outline's.
 ```
 
 - [ ] **Step 6: Add the reciprocal comment in `views_manage.py`**
@@ -444,25 +461,36 @@ def test_crumb_lives_inside_the_lesson_article(client):
 @pytest.mark.django_db
 def test_crumb_sets_ui_language_on_the_nav_and_course_language_on_each_item(client):
     """Author titles are course-language; the aria-label is UI-language. Both live
-    inside <article lang="{{ course.language }}">, so the nav must override."""
+    inside <article lang="{{ course.language }}">, so the nav must override.
+
+    UI = pl, course = en — deliberately INVERTED from the defaults. settings
+    .LANGUAGE_CODE is "en" and conftest's autouse fixture pins the active language to
+    it, so a UI-language assertion of "en" would also pass against a hardcoded
+    lang="en" on the nav. Driving the UI to pl makes the two values distinguishable.
+    The session key is how this repo switches UI language for a client request
+    (SessionLocaleMiddleware); see tests/test_catalog_views.py for the precedent.
+    """
+    from core.middleware import LANGUAGE_SESSION_KEY
+
     student = _make_student("crumb_lang")
-    course = CourseFactory(language="pl")
+    course = CourseFactory(language="en")
     part = ContentNodeFactory(
-        course=course, kind="part", parent=None, unit_type=None, title="Czesc"
+        course=course, kind="part", parent=None, unit_type=None, title="Part One"
     )
     unit = ContentNodeFactory(
         course=course, kind="unit", unit_type="lesson", parent=part
     )
     EnrollmentFactory(student=student, course=course)
     client.force_login(student)
+    session = client.session
+    session[LANGUAGE_SESSION_KEY] = "pl"
+    session.save()
 
-    soup = _crumb_nav(
-        client.get(f"/courses/{course.slug}/u/{unit.pk}/", HTTP_ACCEPT_LANGUAGE="en").content.decode()
-    )
+    soup = _crumb_nav(client.get(f"/courses/{course.slug}/u/{unit.pk}/").content.decode())
 
-    assert soup.select_one("nav.unit-crumbs")["lang"] == "en"
+    assert soup.select_one("nav.unit-crumbs")["lang"] == "pl"  # UI language
     items = soup.select("li.unit-crumbs__item")
-    assert items and all(li["lang"] == "pl" for li in items)
+    assert items and all(li["lang"] == "en" for li in items)  # course language
 
 
 @pytest.mark.django_db
@@ -503,7 +531,7 @@ def _crumb_nav(html):
 uv run pytest tests/test_unit_nav_render.py -k crumb -q
 ```
 
-Expected: every test fails with `AttributeError: 'NoneType' object has no attribute 'select'` — the partial does not exist and `_crumb_nav` returns `None`.
+Expected: all nine fail. Eight raise `AttributeError: 'NoneType' object has no attribute 'select'` — the partial does not exist, so `_crumb_nav` returns `None`. `test_crumb_lives_inside_the_lesson_article` builds its own soup instead and fails with a plain `AssertionError`; that is correct, not a symptom of something else being wrong.
 
 - [ ] **Step 3: Create the partial**
 
@@ -566,13 +594,14 @@ In `templates/courses/_quiz_article.html`, immediately above `<h1 class="lesson-
   {% include "courses/_unit_crumbs.html" %}
 ```
 
-- [ ] **Step 5: Run the tests to verify they pass**
+- [ ] **Step 5: Run the tests, then the whole suite**
 
 ```bash
 uv run pytest tests/test_unit_nav_render.py -q
+uv run pytest -q
 ```
 
-Expected: all pass.
+Expected: both green. **The full-suite run is not optional here.** This task inserts a `<nav>`, an `<ol>` and an `<a href="/courses/<slug>/">` as the first child of `article.lesson` and `article.quiz`, which every existing test that parses a unit page can see. Catching collateral breakage now costs one fix; catching it in Task 7 means bisecting across five commits and a design pass.
 
 - [ ] **Step 6: Falsify each new test**
 
@@ -651,8 +680,14 @@ def test_crumb_renders_on_the_quiz_page(client):
     EnrollmentFactory(student=student, course=course)
     client.force_login(student)
 
-    html = client.get(f"/courses/{course.slug}/u/{unit.pk}/").content.decode()
-    soup = BeautifulSoup(html, "html.parser")
+    # Go straight to quiz_unit. The lesson_unit URL 302s a quiz node here, so a GET
+    # without follow=True would return an empty 302 body and fail regardless of the
+    # implementation — see the same trap documented in this file's existing
+    # test_unit_shell_part_chip_hidden_for_root_unit.
+    url = reverse(
+        "courses:quiz_unit", kwargs={"slug": course.slug, "node_pk": unit.pk}
+    )
+    soup = BeautifulSoup(client.get(url).content.decode(), "html.parser")
 
     assert soup.select_one("article.quiz nav.unit-crumbs") is not None
     assert part.title in soup.select_one("nav.unit-crumbs").get_text()
@@ -731,13 +766,19 @@ def test_submitted_quiz_results_page_has_no_crumb(client):
 
 - [ ] **Step 2: Run to verify they fail**
 
-Temporarily comment out both `{% include "courses/_unit_crumbs.html" %}` lines, then:
+Temporarily comment out both include lines. Use the **single-line** `{# … #}` form — this repo has a recorded lesson that `{# #}` must stay on one line, and an HTML comment would not work at all because Django still evaluates tags inside `<!-- -->`, leaving the include rendering and the RED check vacuous:
+
+```django
+{# {% include "courses/_unit_crumbs.html" %} #}
+```
+
+Then:
 
 ```bash
 uv run pytest tests/test_unit_nav_render.py -k "quiz or check_answer or results" -q
 ```
 
-Expected: the three positive tests FAIL (`nav is None`); `test_submitted_quiz_results_page_has_no_crumb` passes either way — that one is falsified differently, in Step 4. Restore the includes.
+Expected: the three positive tests FAIL (`nav is None`); `test_submitted_quiz_results_page_has_no_crumb` passes either way — that one is falsified differently, in Step 4. **Restore both includes** and re-run to confirm GREEN before moving on.
 
 - [ ] **Step 3: Run to verify they pass**
 
@@ -833,7 +874,7 @@ Expected: FAIL — `stylesheet does not contain '@media screen and (max-width: 8
 
 - [ ] **Step 3: Add the CSS**
 
-Append to `courses/static/courses/css/courses.css`, immediately after the `.unit-done` rules that follow `.lesson-unit__head`.
+**Insert** into `courses/static/courses/css/courses.css` — not append. The block goes immediately after the last `.unit-done` rule (`.unit-done.is-complete .unit-done__pill { … }`, currently ~line 687) and **before** the `/* Mobile drawer … */` comment, so it sits adjacent to the `.lesson-unit__head` rules it belongs with, as the spec asks. Appending at end-of-file would put it after the `.el--tabs` `@media print` block instead, producing a different diff and orphaning it from its neighbours.
 
 **The order of the four groups below is load-bearing** — base, then modifiers, then the screen query, then print. All four target the same elements at identical specificity and media queries add no specificity, so source order alone decides. Authoring the collapse query above the modifiers leaves the `…` permanently hidden; authoring print above the base stops the printout wrapping.
 
@@ -903,13 +944,14 @@ a.unit-crumbs__label:focus-visible { outline: 2px solid var(--primary); outline-
 }
 ```
 
-- [ ] **Step 4: Run to verify it passes**
+- [ ] **Step 4: Run to verify it passes, then the whole suite**
 
 ```bash
 uv run pytest tests/test_unit_nav_render.py -q
+uv run pytest -q
 ```
 
-Expected: all pass.
+Expected: both green. The full-suite gate repeats here because the CSS is the last change before the browser tests, and a stylesheet edit can break existing render or e2e assertions that match on markup near `.lesson-unit__head`.
 
 - [ ] **Step 5: Falsify**
 
@@ -1235,8 +1277,14 @@ def test_ellipsis_tooltip_names_exactly_the_hidden_crumbs(browser, live_server):
 
 @pytest.mark.django_db(transaction=True)
 def test_wide_shows_every_crumb_and_no_ellipsis(browser, live_server):
-    """Falsifying mutation: drop the `screen and` from the collapse query — print
-    emulation aside, an always-on query hides the mids at 1280 too."""
+    """Falsifying mutation: delete `display: none` from the `--ellipsis` modifier —
+    the "…" then renders at 1280 alongside the mids it is meant to replace.
+
+    NOT "drop the `screen and`": that yields `@media (max-width: 832px)`, which does
+    not match a 1280px viewport under any media type, so every assertion here would
+    stay green. (That mutation is the right one for the print test below, which is
+    what makes it look plausible here.)
+    """
     ctx, page = _open(browser, live_server, "crumb_wide", WIDE)
     try:
         assert page.locator(".unit-crumbs__item--ellipsis").count() == 1
@@ -1299,9 +1347,11 @@ Apply each mutation named in the docstrings above, confirm RED, revert, confirm 
 
 ```bash
 uv run ruff format . && uv run ruff check .
-git add tests/test_e2e_unit_crumbs.py
+git add tests/test_e2e_unit_crumbs.py courses/static/courses/css/courses.css
 git commit -m "test(e2e): guard the breadcrumb one-line collapse at three viewports"
 ```
+
+The stylesheet is staged too because Step 2 explicitly authorises retuning the floor values. If you did retune them, commit that as its own change first — `fix(ui): tune breadcrumb min-width floors against measured widths` — so it does not get swept into Task 7's `style(ui): design pass` commit under a misleading message.
 
 ---
 
@@ -1341,33 +1391,138 @@ uv run pytest tests/test_e2e_unit_crumbs.py -q -m e2e
 
 Expected: all green. If the pass retuned the breakpoint, `COLLAPSE_BREAKPOINT_PX` must have moved with it.
 
-- [ ] **Step 3: Screenshot QA — 3 widths × 2 themes**
+- [ ] **Step 3: Screenshot QA, focus check and accessible-name measurement — one script**
 
-Capture 360px, `COLLAPSE_BREAKPOINT_PX + 1`, and 1280px, each in light and dark. Force dark with `data-theme="dark"` on `documentElement`. Then **look at all six** and self-critique per `verify-ui-with-screenshots`: is the strip quiet enough not to compete with the `<h1>`, is the separator optically centred between its neighbours, is the ellipsis legible, does the muted colour hold contrast in dark mode?
+Steps 3–5 all need a live browser on the same seeded page, so drive them from one throwaway Playwright test rather than three hand-waves. Write it to `tests/test_e2e_crumbs_qa.py`, run it, then **delete it** — it is a capture harness, not a guard.
 
-- [ ] **Step 4: Keyboard focus check**
+```python
+"""THROWAWAY design-QA harness — delete after Task 7. Captures the six screenshots,
+measures focus-ring containment, and reads the crumb accessible name."""
 
-At 360px, focus the course link and confirm the focus ring is **not clipped on any side** — the left edge especially, where the first crumb sits flush against the list's padding box. Confirm the ring appears on keyboard focus only (`:focus-visible`), not on mouse click.
+import json
+import os
+import pathlib
 
-- [ ] **Step 5: Measure the accessible name (informational)**
+import pytest
 
-Read the computed accessible name of a crumb `<li>` in a real engine — Playwright exposes it; axe will flag a duplication. The spec predicts `title` on a `listitem` may produce a name duplicating the label text. **Record the finding in the PR body. Change nothing either way** — the remedy was considered and ruled out of bounds, because that `title` is load-bearing for two tests and the documented hover affordance.
+from tests.test_e2e_unit_crumbs import _login
+from tests.test_e2e_unit_crumbs import _seed_crumb_course
+from tests.test_unit_nav_render import COLLAPSE_BREAKPOINT_PX
 
-- [ ] **Step 6: Commit**
+pytestmark = pytest.mark.e2e
+OUT = pathlib.Path("crumbs-qa")
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _allow_async_unsafe():
+    os.environ.setdefault("DJANGO_ALLOW_ASYNC_UNSAFE", "true")
+    yield
+
+
+@pytest.mark.django_db(transaction=True)
+def test_capture_design_qa(browser, live_server):
+    OUT.mkdir(exist_ok=True)
+    course, unit = _seed_crumb_course("crumb_qa_shots")
+    findings = {}
+
+    for width in (360, COLLAPSE_BREAKPOINT_PX + 1, 1280):
+        for theme in ("light", "dark"):
+            ctx = browser.new_context(viewport={"width": width, "height": 900})
+            page = ctx.new_page()
+            _login(page, live_server, "crumb_qa_shots")
+            page.goto(f"{live_server.url}/courses/{course.slug}/u/{unit.pk}/")
+            page.wait_for_selector("nav.unit-crumbs")
+            page.evaluate(
+                "t => document.documentElement.setAttribute('data-theme', t)", theme
+            )
+            page.locator("nav.unit-crumbs").screenshot(
+                path=str(OUT / f"crumbs-{width}-{theme}.png")
+            )
+
+            if width == 360 and theme == "light":
+                # Focus ring containment, exactly as the spec pins it: the link's rect
+                # expanded by the 4px ring must lie inside the list's rect, compared
+                # NON-STRICTLY with the 1px of padding slack. A strict comparison
+                # flaps on sub-pixel item heights; an eyeball cannot verify the 1px.
+                page.keyboard.press("Tab")
+                for _ in range(25):
+                    if page.evaluate(
+                        "() => document.activeElement"
+                        ".classList.contains('unit-crumbs__label')"
+                    ):
+                        break
+                    page.keyboard.press("Tab")
+                else:
+                    pytest.fail("never reached the crumb link by tabbing")
+
+                findings["ring"] = page.evaluate(
+                    """() => {
+                      const RING = 4, SLACK = 1;
+                      const a = document.activeElement.getBoundingClientRect();
+                      const l = document.querySelector('.unit-crumbs__list')
+                                        .getBoundingClientRect();
+                      return {
+                        left:   (a.left   - RING) >= (l.left   - SLACK),
+                        right:  (a.right  + RING) <= (l.right  + SLACK),
+                        top:    (a.top    - RING) >= (l.top    - SLACK),
+                        bottom: (a.bottom + RING) <= (l.bottom + SLACK),
+                      };
+                    }"""
+                )
+                # Accessible name of a crumb <li>. The sync Python API has no
+                # accessible_name getter and page.accessibility.snapshot() is
+                # deprecated, so use aria_snapshot(); axe is NOT a dependency of this
+                # repo, so the axe half of the spec's suggestion is unavailable.
+                findings["aria"] = page.locator(
+                    "li.unit-crumbs__item--leaf"
+                ).aria_snapshot()
+            ctx.close()
+
+    (OUT / "findings.json").write_text(json.dumps(findings, indent=2))
+```
+
+Run it in the **foreground**:
 
 ```bash
-git add courses/static/courses/css/courses.css
+uv run pytest tests/test_e2e_crumbs_qa.py -q -m e2e
+```
+
+- [ ] **Step 4: Read the output and self-critique**
+
+Open all six PNGs in `crumbs-qa/` and judge them per `verify-ui-with-screenshots`: is the strip quiet enough not to compete with the `<h1>`? Is the separator optically centred between its neighbours? Is the `…` legible? Does the muted colour hold contrast in dark mode?
+
+Then check `crumbs-qa/findings.json`:
+
+- **`ring`** — all four sides must be `true`. A `false` on any side means the list's `padding: 5px` is missing or was reduced in that axis, and the focus ring is being clipped. Fix the CSS, do not relax the check. Also click the link with the mouse and confirm **no** ring appears — that is what `:focus-visible` buys, and a bare `:focus` would look identical to the keyboard test.
+- **`aria`** — informational only.
+
+- [ ] **Step 5: Record the accessible-name finding**
+
+Append the `aria` value and a one-line reading of it to `docs/superpowers/plans/crumbs-qa-findings.md`, together with the `quiz_results.html` follow-up note. That file is the carrier into the PR body — a measurement made in a throwaway script with nowhere to land is a measurement that gets lost.
+
+The spec predicts `title` on a `listitem` may produce an accessible name duplicating the label text. **Change nothing either way.** The remedy was considered and ruled explicitly out of bounds: that `title` is load-bearing for two tests and for the documented hover affordance.
+
+- [ ] **Step 6: Delete the harness and commit**
+
+```bash
+rm -rf tests/test_e2e_crumbs_qa.py crumbs-qa/
+uv run ruff format . && uv run ruff check .
+uv run pytest -q
+git add courses/static/courses/css/courses.css tests/test_unit_nav_render.py docs/superpowers/plans/crumbs-qa-findings.md
 git commit -m "style(ui): design pass on the student breadcrumbs"
 ```
+
+`tests/test_unit_nav_render.py` is staged because the pass is allowed to retune the breakpoint, and retuning means moving `COLLAPSE_BREAKPOINT_PX` in lockstep with the CSS. Committing one without the other leaves a tree that is green locally and red in CI on `test_collapse_breakpoint_is_in_bounds_and_matches_the_stylesheet`. If the pass touched any other file, stage that too.
 
 ---
 
 ## Definition of done
 
-- [ ] All 19 spec tests implemented, each falsified (RED confirmed) except the one documented exemption.
+- [ ] The 18 new tests in Tasks 1–4 and the 6 e2e tests in Task 6 are implemented, and **each has been falsified** — mutation applied, RED confirmed, reverted, GREEN confirmed. Two documented exceptions: the e2e page-level scroll tripwire (structurally unfalsifiable, exemption argued in the spec), and spec test 19 (`test_build_unit_nav_adds_no_queries`), which is pre-existing, must stay unmodified, and is verified by running it rather than by mutation.
 - [ ] `uv run pytest -q` green; `uv run pytest -m e2e tests/test_e2e_unit_crumbs.py` green.
 - [ ] `uv run ruff format --check .` and `uv run ruff check .` clean.
 - [ ] `test_build_unit_nav_adds_no_queries` still passes, unmodified.
 - [ ] `tests/test_i18n_po_health.py` passes; zero `#, fuzzy`, zero `#~`.
-- [ ] Six screenshots reviewed; focus ring unclipped at 360px.
-- [ ] PR body records the accessible-name measurement and the `quiz_results.html` follow-up.
+- [ ] Six screenshots reviewed; `findings.json` shows the focus ring contained on all four sides at 360px; the ring does **not** appear on mouse click.
+- [ ] `docs/superpowers/plans/crumbs-qa-findings.md` exists and holds the accessible-name measurement plus the `quiz_results.html` follow-up; the PR body quotes both from it.
+- [ ] The throwaway QA harness (`tests/test_e2e_crumbs_qa.py`) and `crumbs-qa/` are deleted; `git status` is clean apart from the gitignored `.env`.
