@@ -5,9 +5,12 @@ from courses.models import ContentNode
 from courses.models import Element
 from courses.models import Enrollment
 from courses.models import MarkDoneElement
+from courses.models import MarkDoneItem
 from courses.models import ShortTextQuestionElement
 from courses.models import TabsElement
 from courses.models import TextElement
+from courses.models import UnitProgress
+from courses.models import VideoElement
 from tests.factories import add_element
 from tests.factories import make_course_with_unit
 from tests.factories import make_verified_user
@@ -148,3 +151,89 @@ def test_editor_preview_markdone_is_inert(client):
     from courses.models import UnitProgress
 
     assert not UnitProgress.objects.filter(unit=unit).exists()
+
+
+def test_reset_link_survives_the_no_js_check_answer_rerender(client):
+    """The flag must reach the POST re-render path, not just the GET.
+
+    A missing context variable renders as FALSE in Django with no error, so a future
+    render site built with a hand-assembled context would drop the link silently. Only
+    a test catches that.
+    """
+    course, unit = make_course_with_unit()
+    q = ShortTextQuestionElement.objects.create(stem="Q", accepted="x")
+    q_row = add_element(unit, q)
+    # A MarkDoneElement beside the question so Task 2's question-only falsification
+    # (restricting the filter to the validator half) does NOT co-fire this test.
+    add_element(unit, MarkDoneElement.objects.create(prompt="P"))
+    _login(client, course)
+
+    # No X-Requested-With header -> _wants_fragment is False -> the full-page re-render
+    # branch. The answer must be NON-EMPTY: an empty one takes the clear branch instead
+    # of the store branch, exercising a different path while still returning 200.
+    r = client.post(
+        reverse("courses:check_answer", args=[course.slug, unit.pk, q_row.pk]),
+        {"answer": "x"},
+    )
+    assert r.status_code == 200
+    assert _reset_url(course, unit) in r.content.decode()
+
+
+def test_views_calls_the_state_helper_rather_than_an_inlined_list(client, monkeypatch):
+    """Proves the C1 -> C2 seam is live.
+
+    Every other test here stays green if build_lesson_context hand-inlines the 18
+    names, because the inlined list would be correct today. The drift shows up only
+    when a 19th type ships: the derivation test goes RED, the author updates both it
+    and state.py, and a stale list in views.py silently keeps the new type hidden.
+    """
+    from courses import state
+
+    monkeypatch.setattr(state, "stateful_element_model_names", lambda: ("textelement",))
+    course, unit = make_course_with_unit()
+    add_element(unit, TextElement.objects.create(body="<p>hi</p>"))
+    _login(client, course)
+
+    r = client.get(reverse("courses:lesson_unit", args=[course.slug, unit.pk]))
+    assert r.status_code == 200
+    # A text-only unit now matches, because the helper says textelement is stateful.
+    assert _reset_url(course, unit) in r.content.decode()
+
+
+def test_an_orphaned_blob_does_not_bring_the_reset_link_back(client):
+    """Pins the accepted cost of D1, in BOTH directions.
+
+    Deleting a unit's last state-bearing element strands the student's stored blob:
+    the unit page no longer offers to clear it (the outline's container/course resets
+    still do). That is deliberate -- capability, not stored state. The union rule
+    (`has_stateful_elements or bool(element_state)`) would cover this case at zero
+    query cost and is the documented first thing to reach for if it ever matters; this
+    test exists so adopting it is a decision rather than an accident.
+    """
+    course, unit = make_course_with_unit()
+    # The SURVIVOR is a VideoElement, not a TextElement: the spec's scenario is an
+    # author deleting the last STATEFUL element from a unit that still holds content,
+    # and a video keeps Task 2's "textelement" falsification from firing this test.
+    add_element(unit, VideoElement.objects.create(url="https://example.com/embed/x"))
+    md = MarkDoneElement.objects.create(prompt="P")
+    md_row = add_element(unit, md)
+    item = MarkDoneItem.objects.create(element=md, content="a")
+
+    student = make_verified_user()
+    Enrollment.objects.create(student=student, course=course)
+    # STR key, DICT value, and an ENROLLED student: build_lesson_context drops every
+    # non-dict value and every non-int-coercible key, and never populates state at all
+    # without a UnitProgress row. Get any of that wrong and the falsification below
+    # silently passes without ever having fired.
+    UnitProgress.objects.create(
+        student=student,
+        unit=unit,
+        element_state={str(md_row.pk): {"items": [item.pk]}},
+    )
+    md.delete()  # cascades the join row; the blob survives
+    client.force_login(student)
+
+    r = client.get(reverse("courses:lesson_unit", args=[course.slug, unit.pk]))
+    assert r.status_code == 200
+    assert UnitProgress.objects.get(student=student, unit=unit).element_state != {}
+    assert _reset_url(course, unit) not in r.content.decode()
