@@ -170,23 +170,24 @@ carries the clipping.
 {% load i18n %}{% get_current_language as LANGUAGE_CODE %}
 <nav class="unit-crumbs" aria-label="{% trans 'Breadcrumb' %}" lang="{{ LANGUAGE_CODE }}">
   <ol class="unit-crumbs__list" role="list">
-    <li class="unit-crumbs__item unit-crumbs__item--course" title="{{ course.title }}">
-      <a class="unit-crumbs__label" lang="{{ course.language }}"
-         href="{% url 'courses:course_outline' slug=course.slug %}">{{ course.title }}</a>
+    <li class="unit-crumbs__item unit-crumbs__item--course" role="listitem"
+        lang="{{ course.language }}" title="{{ course.title }}">
+      <a class="unit-crumbs__label" href="{% url 'courses:course_outline' slug=course.slug %}">{{ course.title }}</a>
     </li>
 
     {% if unit_nav.ancestors|length > 1 %}
-      <li class="unit-crumbs__item unit-crumbs__item--ellipsis" title="{{ unit_nav.hidden_path }}">
+      <li class="unit-crumbs__item unit-crumbs__item--ellipsis" role="listitem"
+          lang="{{ course.language }}" title="{{ unit_nav.hidden_path }}">
         <span class="unit-crumbs__sep" aria-hidden="true">›</span>
-        <span class="unit-crumbs__label">…<span class="visually-hidden" lang="{{ course.language }}">{{ unit_nav.hidden_path }}</span></span>
+        <span class="unit-crumbs__label">…<span class="visually-hidden">{{ unit_nav.hidden_path }}</span></span>
       </li>
     {% endif %}
 
     {% for a in unit_nav.ancestors %}
       <li class="unit-crumbs__item unit-crumbs__item--{% if forloop.last %}leaf{% else %}mid{% endif %}"
-          title="{{ a.title }}">
+          role="listitem" lang="{{ course.language }}" title="{{ a.title }}">
         <span class="unit-crumbs__sep" aria-hidden="true">›</span>
-        <span class="unit-crumbs__label" lang="{{ course.language }}">{{ a.title }}</span>
+        <span class="unit-crumbs__label">{{ a.title }}</span>
       </li>
     {% endfor %}
   </ol>
@@ -199,6 +200,17 @@ Rules this markup encodes, each with its reason:
   copied with the text, and is read inconsistently by assistive tech. This is the *structural* point
   `.editor-crumb` also follows — note that it deviates in two details on purpose (it uses `/`, and
   it has no `aria-hidden`), so neither should be "fixed" to match the other.
+  *Accepted wrinkle:* because spacing comes from `gap` and the template's inter-element whitespace
+  is whitespace-only text between flex items (not rendered), copying the strip yields
+  `Algebra 2›Sequences›Series` without spaces. Padding the span with `&nbsp;` would fix the copy at
+  the cost of double-spacing against the gap; copy fidelity is not worth that, so it is recorded and
+  left.
+- **Each `<li>` carries `role="listitem"`** to match the container's `role="list"`. WebKit drops
+  list semantics under `list-style: none`, which is why the container role is there at all; changing
+  an `<li>`'s `display` away from `list-item` — which §4 does, to `flex` — is a second reported
+  trigger for losing the implicit child role. Restating both roles is the belt-and-braces
+  convention and costs one attribute; omitting the child role would leave a `role="list"` whose
+  owned children are not guaranteed `listitem`.
 - **The course crumb has no separator**; every subsequent crumb has exactly one, leading. So the
   rendered glyph count is always `visible items − 1`, which is what the e2e asserts.
 - **The `…` item is emitted on the structural condition `ancestors|length > 1`, not on
@@ -228,9 +240,15 @@ Rules this markup encodes, each with its reason:
 free. But `aria-label="{% trans 'Breadcrumb' %}"` is *interface* text in the active UI language, and
 it would inherit the course language too — announcing a Polish label with an English voice on an
 `en` course. So the `<nav>` carries `lang="{{ LANGUAGE_CODE }}"` (via
-`{% get_current_language %}`, the pattern `base.html` already uses) and each label carries
+`{% get_current_language %}`, the pattern `base.html` already uses) and each **`<li>`** carries
 `lang="{{ course.language }}"` back. This mirrors what `_unit_tree_node.html` does for the same
 reason.
+
+The attribute sits on the `<li>` rather than the label deliberately: the `title` attributes are
+author content too — they hold the very same node titles — and AT can expose them as descriptions.
+Putting `lang` on the `<li>` covers the `title`, the label, and the ellipsis's `visually-hidden`
+span in one place, all by inheritance. On the label alone it would have covered only the visible
+text and left the tooltips announced in the wrong language.
 
 ### 3. Placement — inside the two article partials
 
@@ -273,10 +291,11 @@ Mechanism:
   item is a flex child with the default `overflow: visible`, so without it its automatic minimum
   size resolves to the full nowrap width of sep + label and the strip overflows instead of clipping.
 - `.unit-crumbs__label` — `overflow: hidden; text-overflow: ellipsis; white-space: nowrap;`.
-  **This is where clipping lives**, not on the `<li>`. Note it needs **no** `min-width: 0`: per CSS
-  Flexbox §4.5 a flex item whose computed main-axis overflow is not `visible` already has an
-  automatic minimum size of zero. Adding one is harmless documentation but changes nothing —
-  do not mistake it for the guard (see the e2e falsifying mutation in §Testing).
+  **This is where clipping lives**, not on the `<li>`. It carries **no `min-width` of any kind**:
+  per CSS Flexbox §4.5 a flex item whose computed main-axis overflow is not `visible` already has an
+  automatic minimum size of zero, so `min-width: 0` here is a no-op (do not mistake it for the
+  guard — see the e2e falsifying mutation in §Testing), and a `min-width` *floor* here is actively
+  wrong (see the shrink-order section below).
 - `.unit-crumbs__sep` — `flex: 0 0 auto` so separators never shrink or clip.
 
 **`align-items: center`, not `baseline`.** A flex item with `overflow: hidden` is a scroll container
@@ -291,26 +310,42 @@ same value or the separator sits visibly off-centre between its neighbours. Expr
 single custom property (e.g. `--crumb-gap`) so the design pass has one knob, not two.
 
 **Shrink order, pinned explicitly** — this is the whole "pinned ends, squeezed middle" mechanic and
-the order matters at every width. The **floors go on the label**, not the `<li>`: an `<li>` floor
-also has to cover the separator and the internal gap, so a 4ch item floor at 0.85rem leaves roughly
-2ch for the text — an ellipsis glyph and nothing else, which is very nearly the orphaned-separator
-look the floor exists to prevent.
+the order matters at every width.
 
-| Crumb | `flex-shrink` (on the item) | `min-width` floor (on its label) |
+**The floors go on the `<li>`, sized to include the separator and the internal gap.** This is
+load-bearing and was got wrong twice, so the reasoning is recorded. The `<li>` is the flex item the
+*list* shrinks; a floor on `.unit-crumbs__label` is a floor on a descendant, which flexbox does not
+consult when sizing the `<li>`. With `min-width: 0` on the item and the floor on the label, the item
+collapses toward a few pixels while the label refuses to shrink and simply **overflows its own
+`<li>`**, painting over the neighbouring crumb — and the overflowing text is then outside the
+element carrying the `title`, so the tooltip disclosure breaks too. The earlier objection to
+item-level floors (a bare 4ch item floor leaves ~2ch for text once the separator is inside it) is a
+*sizing* problem, answered by sizing the floor to cover the separator, not by relocating it:
+
+| Crumb | `flex-shrink` (item) | `min-width` floor (item) |
 |---|---|---|
-| `--mid` | ~200 | ~4ch |
-| `--course` | 3 | ~6ch |
-| `--leaf` | 1 | ~6ch |
+| `--mid` | ~200 | `calc(4ch + 1em + var(--crumb-gap))` |
+| `--course` | 3 | `calc(6ch + 1em + var(--crumb-gap))` |
+| `--leaf` | 1 | `calc(6ch + 1em + var(--crumb-gap))` |
+
+(The `1em` term is the separator's own advance width; `--course` has no separator, so its floor may
+drop that term. Treat the ch/em values as starting points to verify by measurement, not as
+constants.) `.unit-crumbs__label` carries **no** `min-width` at all — `overflow: hidden` already
+zeroes its automatic minimum size, and adding one there is what caused the overflow above.
 
 Mids absorb essentially all of any deficit first; then the course crumb; the leaf last.
 
-**Source-order rule.** `.unit-crumbs__item` and `.unit-crumbs__item--mid` have identical
-specificity, so the cascade is decided by order alone: every modifier rule must appear **after** the
-base `.unit-crumbs__item` rule in the file, or `min-width: 0` silently wins over the floors.
+**Source-order rule.** With the floors back on the item, `.unit-crumbs__item { min-width: 0 }` and
+`.unit-crumbs__item--mid { min-width: … }` target the same element at identical specificity, so the
+cascade is decided by source order alone: every modifier rule must appear **after** the base
+`.unit-crumbs__item` rule in the file, or `min-width: 0` silently wins and the floors never apply.
 
-**When even the floors do not fit**, the list's `overflow: hidden` clips at the inline-end, so the
-leaf is what gets cut. The floors are sized so this only occurs below ~240px of content width —
-narrower than the 360px minimum — and the e2e asserts it does not happen at 360px.
+**When even the floors do not fit** — i.e. when the container is narrower than the summed floors
+plus gaps — the list's `overflow: hidden` clips at the inline-end, so the leaf is what gets cut. The
+threshold is exactly that sum; at the starting values above it lands well under the 360px minimum
+supported viewport, but it is a computed consequence of whatever the floors end up being, not an
+independent number to quote. The e2e asserts no clipping occurs at 360px, which is the check that
+actually matters.
 
 - `.unit-crumbs__item--ellipsis` — `display: none` by default; `flex: 0 0 auto` (it is one glyph and
   must never shrink).
@@ -338,9 +373,11 @@ contract; 52rem is just a value inside them.
    wraps.)
 2. It never causes page-level horizontal scroll.
 3. A rendered separator always has rendered text on both sides — no orphaned glyphs.
-4. At 360px, the course label and the leaf label each render at no less than their declared
-   `min-width` floor, with `clientWidth > 0`. (Stated mechanically so it can be asserted; "legible"
-   cannot be.)
+4. At 360px, every crumb's label is **contained within its own `<li>`**
+   (`label.clientWidth <= li.clientWidth`) and no two adjacent crumbs' bounding boxes overlap.
+   Stated against the *item*, not the label: a floor declared on the label is satisfied by
+   construction whether or not the label fits, so asserting on the label would pass in exactly the
+   broken state described in the shrink-order section. Overlap is the falsifying mutation.
 5. The set of crumbs hidden by the collapse query is exactly the set `hidden_path` names.
 6. The separator glyph matches `CRUMB_SEP`.
 
@@ -355,6 +392,13 @@ padding box, so the padding buys the room), with a compensating negative inline 
 must stay flush with the `<h1>`. **Do not relax `overflow` on `.unit-crumbs__label` as part of this
 fix** — that is the declaration the entire shrink mechanic depends on. Keyboard focus on the course
 link, **checked at the left edge specifically**, is an explicit item on the design-pass QA checklist.
+
+**Focus scrolling.** `overflow: hidden` also makes the list a programmatically scrollable container.
+If the focused link's border box ever exceeded the visible area, the UA would scroll the list to
+reveal it — and with no scrollbar and no keyboard scroll affordance the strip would stay shifted,
+hiding the leaf, until re-layout. It does not happen here because the label's *box* always fits (it
+is the text that ellipses, not the box), but that is a property to confirm rather than assume: the
+QA checklist item asserts `list.scrollLeft === 0` after focusing the course link at 360px.
 
 ## Data flow
 
@@ -399,6 +443,7 @@ There is no user input and no write path here; the failure modes are all "missin
 | **`unit_nav` absent from the context** on some re-render path | Django resolves the missing variable to empty: the `{% for %}` yields nothing, `hidden_path` is empty, and the course crumb still renders. Degrades; does not raise. |
 | **`current_pk` not present in the tree** | `_current_ancestors` returns `[]` → course crumb only. A legitimate empty result, not an error. |
 | **Unstamped tree passed to `_current_ancestors`** | `KeyError`, deliberately — matches `_top_level_part`'s existing contract, so a future caller that forgets to stamp fails loudly instead of silently rendering an empty crumb. |
+| **Blank ancestor title** | The crumb renders empty and `hidden_path` keeps its slot, so three ancestors with a blank first title give `" › Chapter"` — a tooltip with a leading separator. Accepted, not filtered: a blank title is already a content defect the author should fix, and filtering blanks out of the join would desynchronise `hidden_path` from the §Testing e2e assertion that joins every `--mid` title verbatim. Emission of the `…` is unaffected because it is keyed on ancestor *count*, not on the string. |
 | **Pathological title lengths** (`ContentNode.title` allows 200 chars) | Labels clip with an ellipsis in the §4 shrink order — mids first, then the course crumb, then the leaf. Below the collapse breakpoint the mids are gone entirely and only course + leaf compete. The strip stays one line and the page never scrolls horizontally. |
 
 ## Testing
@@ -440,7 +485,17 @@ There is no user input and no write path here; the failure modes are all "missin
 14. **Non-goal guard:** a GET for a **SUBMITTED** quiz (which redirects to `courses:quiz_results`)
     yields a final page containing **no** `unit-crumbs` markup. Pins the stated non-goal and doubles
     as a regression guard on the redirect that test 7's quiz-GET fixture note depends on.
-15. `test_build_unit_nav_adds_no_queries` (already present) still passes — the zero-query guarantee.
+15. **`lang` split:** on a course whose `language` differs from the active UI language, assert
+    `nav.unit-crumbs[lang]` equals the active `LANGUAGE_CODE` and every `li.unit-crumbs__item[lang]`
+    equals `course.language`. The pair is subtle and a "simplify the template" refactor would drop
+    one silently — the failure is inaudible in CI and invisible in screenshots. Falsifying mutation:
+    delete either attribute.
+16. **Placement:** the crumb `<nav>` is a descendant of `article.lesson` and of `article.quiz`
+    respectively. §3's whole argument for editing two files rather than one is padding and `lang`
+    inheritance from the article; without this, a future "de-duplicate the include" move into
+    `_unit_shell.html` keeps every other test green while breaking both. Falsifying mutation: move
+    the include into `_unit_shell.html`.
+17. `test_build_unit_nav_adds_no_queries` (already present) still passes — the zero-query guarantee.
 
 ### Falsification — mandatory
 
@@ -469,14 +524,25 @@ per-context viewport is how the two widths are obtained. Do not use `page.set_vi
 **Seeding needs a new local helper, not an extension of `_seed_nav_course`.** That helper builds a
 single `kind="part"` with unit children, so it can never yield three ancestors no matter what titles
 it is given. The crumbs helper must build `part → chapter → section → unit` and pass an explicit
-`CourseFactory(title=…)`, since the factory's default title is a `factory.Sequence`. Seed ~60-char
-titles at every level. Run focused and in the foreground — a background `-m e2e` sweep spawns
-runaway browsers.
+`CourseFactory(title=…)`, since the factory's default title is a `factory.Sequence`. Give the helper
+explicit **`title_len`** and **`depth`** parameters — the assertions below need both a long-title
+fixture (~60 chars at every level, depth 3) and a short-title one, and "seed long titles" alone
+cannot serve both. Run focused and in the foreground — a background `-m e2e` sweep spawns runaway
+browsers.
+
+**Three viewports, not two.** 1280px and 360px alone never exercise the state where mids are
+*visible but squeezed* — at 360px they are hidden and at 1280px there is room to spare. By §4's own
+argument the content column is narrowest while the rail is still present, so the worst case for
+invariant 3 and for label containment sits **just above the collapse breakpoint** (~833px at the
+starting 52rem, where the column is roughly 561px for four crumbs). Derive the third width from the
+declared breakpoint rather than hard-coding it, so tuning the breakpoint moves the test with it.
 
 Assertions:
 
-- **The real guard, at 1280px and at 360px:** `.unit-crumbs__list` `scrollWidth <= clientWidth`, and
-  `document.documentElement.scrollWidth <= window.innerWidth`. **Falsifying mutation: delete
+- **The real guard, at all three widths:** `.unit-crumbs__list` `scrollWidth <= clientWidth`, and
+  `document.documentElement.scrollWidth <= document.documentElement.clientWidth` (**not**
+  `window.innerWidth`, which includes the classic scrollbar gutter and would tolerate ~15px of real
+  overflow). **Falsifying mutation: delete
   `min-width: 0` from `.unit-crumbs__item`** — the item is a flex child with `overflow: visible`, so
   its automatic minimum size snaps back to the full nowrap width of sep + label, the row refuses to
   shrink, and the first assertion goes red. Do **not** try to falsify by touching
@@ -485,8 +551,14 @@ Assertions:
   vacuous test rather than a wrong mutation. (Removing the label's `overflow: hidden` also works as
   a mutation, but it changes two behaviours at once.) The height check below does **not** catch any
   of this, which is why it is not the primary guard.
-- Secondary: `.unit-crumbs__list` `offsetHeight` equals one line height. Cheap, and catches an
-  accidental `flex-wrap: wrap`.
+- Secondary, one-line check: compare the list's height to a single crumb's rather than to a guessed
+  pixel value — `list.offsetHeight <= 1.5 * item.offsetHeight` for any `.unit-crumbs__item`. The
+  focus-ring fix adds inline padding to the same element, so a hard-coded number or a raw
+  `line-height` comparison would be brittle. Cheap, and catches an accidental `flex-wrap: wrap`.
+- **Just above the breakpoint** (the third width), where mids are visible and squeezed: every
+  `--mid` label has `clientWidth > 0`, every label is contained in its `<li>`
+  (`label.clientWidth <= li.clientWidth`), and no two adjacent `<li>` bounding boxes overlap. This
+  is the assertion that catches a floor declared in the wrong place — see §4's shrink-order section.
 - At 360px: no `--mid` item is visible, the `…` **is** visible, and the count of **visible**
   `.unit-crumbs__sep` elements equals the count of visible `.unit-crumbs__item` minus one — the
   assertion that actually catches an orphaned separator.
@@ -494,9 +566,18 @@ Assertions:
   (that selector only — separators and the leaf must not be swept in) and assert
   `CRUMB_SEP.join(those) == ` the `…` item's `title`. This is the guard on the §1 invariant coupling
   `hidden_path` to the collapse query.
-- At 1280px with a short path: the `…` is not visible and every ancestor is.
-- Screenshots at both widths × light and dark, reviewed per `verify-ui-with-screenshots`. Force dark
-  with `data-theme="dark"` on `documentElement`.
+- At 1280px: `--ellipsis` has zero client rects, and every `--mid` and `--leaf` has
+  `clientWidth > 0`. Stated mechanically because "with a short path" was ambiguous — long titles are
+  clipped, not hidden, so the assertion holds for either fixture and the short-title fixture is not
+  what makes it meaningful.
+- **Print**, via `page.emulate_media(media="print")` at a narrow width: every `--mid` is visible,
+  the `--ellipsis` is not, `.unit-crumbs__list` `scrollWidth <= clientWidth`, and `offsetHeight`
+  exceeds one line — proving it wrapped rather than clipped. §Disclosure promises a printout shows
+  the complete path and §4 cites the `.el--tabs` block as precedent for a screen-only rule silently
+  destroying printed content; without this the spec ships that exact risk untested. Falsifying
+  mutation: remove `screen and` from the collapse query.
+- Screenshots at all three widths × light and dark, reviewed per `verify-ui-with-screenshots`. Force
+  dark with `data-theme="dark"` on `documentElement`.
 
 ### i18n
 
