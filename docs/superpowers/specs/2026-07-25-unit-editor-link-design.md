@@ -286,10 +286,11 @@ contributes nothing, leaving the shot identical with `min-width: 0` deleted.
 Because that declaration is load-bearing but otherwise guarded only by a human looking at a
 screenshot, it also gets a cheap automated guard — see Testing.
 
-The new rule deliberately does **not** restate a margin. `.unit-tags` keeps its own `margin: .5rem 0`
-from `tags/css/tags.css`, untouched — flex items' margins do not collapse, so that margin still
-produces exactly the vertical rhythm the three pages have today, and a later change in `tags.css`
-carries through rather than being silently overridden here.
+To state the margin ownership once, unambiguously: `.unit-tags` keeps its `margin: .5rem 0` from
+`tags/css/tags.css` **everywhere except inside `.unit-strip`**, where it is zeroed and the strip owns
+the block rhythm instead (for the three reasons enumerated above). That is a deliberate override, not
+an inheritance — so if the `.5rem` in `tags.css` ever changes, the matching value on `.unit-strip`
+must be changed with it.
 
 The link is a plain `.btn.btn--ghost.btn--small`, matching the existing "Start fresh" / "My notes"
 affordances. `flex-wrap: wrap` lets the row break to two lines on narrow viewports with no media
@@ -378,7 +379,13 @@ page-level actor in this feature must therefore be given genuine read access —
 page-level test must `assert resp.status_code == 200` **before** asserting on the body.
 
 **Unit — `unit_edit_context` (the permission matrix).** The negative rows are the point of the
-feature, so they are tested at least as carefully as the positive ones:
+feature, so they are tested at least as carefully as the positive ones.
+
+Although this test issues no request, it still takes the `client` fixture: every role helper routes
+through `_make_role(client, …)` → `make_login(client, username)`, which needs a client and logs it in
+as a side effect. Writing it as a pure helper-level test without `client` raises `TypeError` on the
+first row. Pass an explicit, distinct `username` per row so building several roles in one test cannot
+collide on `create_user`.
 
 | Actor | `can_edit_unit` |
 |---|---|
@@ -404,7 +411,22 @@ duplicate of the student row and stops guarding anything. A positive row also as
 
 **View rendering — all three pages.** For each of `lesson_unit`, `quiz_unit` and `quiz_results`: the
 owner's response (200) contains the editor href, and an **enrolled** non-managing viewer's response
-(also 200 — see the trap above) does not. `quiz_unit` redirects to `quiz_results` once a submission is
+(also 200 — see the trap above) contains **neither** the editor href **nor** the string
+`unit-strip__edit`.
+
+Asserting both is not belt-and-braces; each catches a different mutation, and neither catches the
+other's:
+
+- Inverting the predicate in `unit_edit_context` is caught by the **href** assertion.
+- Deleting the `{% if can_edit_unit %}` guard from the template is caught **only** by the
+  `unit-strip__edit` assertion. It is *not* caught by the href one: for a non-manager
+  `unit_editor_url` is `None`, so the unguarded anchor renders `href="None"`, which does not contain
+  the reversed `manage_editor` URL — the href assertion sails through the very regression it looks
+  like it is guarding.
+
+So when falsifying these tests, the mutation to try for the href assertion is **inverting the
+predicate**, and for the class assertion it is **deleting the template guard**. Running only the
+latter against only the former would produce a green result with no stated interpretation. `quiz_unit` redirects to `quiz_results` once a submission is
 SUBMITTED, so the quiz-unit case must have no submission for the actor.
 
 The quiz-results case needs more care than "a submitted submission" suggests: `quiz_results` filters
@@ -526,26 +548,36 @@ no link) case is the far more common one and the one that would regress for the 
 | `lesson_unit`, ~400px | enrolled student | ✓ | ✓ |
 | `quiz_results`, desktop | owner (link present) | ✓ | ✓ |
 
-Naming the page matters, and `quiz_results` is not redundant with the lesson rows: the strip sits
-above `.unit-shell` (`max-width: 72rem`, effectively the full `.app-main` column) on
-`lesson_unit`/`quiz_unit`, but above `.result` (`max-width: 46rem; margin-inline: auto`) on
-`quiz_results`. The strip keeps the full column width there, so the right-pinned button lands well
-outside the narrower article it heads — a composition four lesson shots would never reveal. (The tag
-panel already has this geometry today; the point is to confirm the button does not make it read as
-broken.)
+Naming the page matters, and `quiz_results` is not redundant with the lesson rows. `.app-main` is
+`max-width: 960px` with `var(--space-5)` padding, giving a content box of roughly **880px**. On
+`lesson_unit`/`quiz_unit` the strip heads `.unit-shell`, whose `max-width: 72rem` is always clamped by
+that, so the two are the same width. On `quiz_results` it heads `.result`, which is
+`max-width: 46rem; margin-inline: auto` — **736px** — so the strip, and with it the right-pinned
+button, overhangs the article it heads by about **70px per side**.
 
-That row gets its own pass/fail criterion, since the general ones below are all satisfied no matter
-how far outside the article the button sits: **the button's right edge must fall within the
-article's right edge, or the mismatch must be explicitly judged acceptable and recorded in the PR.**
-If it fails, the named remedy is to constrain the strip on that page only —
-`.quiz-results-page .unit-strip { max-width: 46rem; margin-inline: auto; }` or equivalent — rather
-than restyling the button.
+**This overhang is pre-recorded as accepted, not as a pass/fail gate**, because it is certain rather
+than hypothetical and it is not new: the tag panel already spans the full 880px above that same 736px
+article on master today. The button simply sits at the panel's right edge, where the panel's own
+border already is. The screenshot row exists to confirm that reads as deliberate rather than broken —
+if a human judges otherwise, that is a follow-up styling decision, not a blocker for this change. No
+`.quiz-results-page` hook is invented for it: no such class exists, `quiz_results.html` overrides
+neither `body_class` nor `main_class`, and the strip is a preceding *sibling* of the article, so
+constraining it would require a fourth template edit and would break the "each template changes
+exactly one line" property for no proven gain.
 
 General acceptance criteria: the button shares the tag panel's top edge and does not overlap it; the
 panel's right border edge sits within the content column at ~400px with the panel open; there is
 `.5rem` of separation below the strip in the **wrapped** narrow layout, exactly as today; no
 horizontal overflow **beyond the master baseline** for the same page; and the student view is
-visually equivalent to today's vertical rhythm. The narrow shots are taken with the panel open
+visually equivalent to today's vertical rhythm.
+
+**The margin relocation gets the same CI guard as `min-width: 0`.** The argument for guarding one
+applies verbatim to the other: `margin-block: .5rem` on `.unit-strip` and `margin-block: 0` on
+`.unit-strip .unit-tags` are jointly load-bearing — deleting them reintroduces both the ~8px top-edge
+misalignment and the 0px gap before `.unit-shell` in the wrapped layout — and a screenshot a human
+looks at once does not stop that from silently returning later. Extend the same
+`tests/test_consumption_css.py` assertion to cover both extracted rule blocks, with a comment naming
+the wrapped-layout gap. The narrow shots are taken with the panel open
 deliberately — closed, the summary is short enough that the row will not wrap and the shot would prove
 nothing.
 
