@@ -136,11 +136,12 @@ def test_strip_never_overflows_and_stays_one_line(browser, live_server, width):
         )
         assert page_overflow <= 0, f"page scrolls horizontally by {page_overflow}px"
 
-        # One line. Reference the COURSE crumb specifically: it is the only crumb that
-        # renders at every width (--mid is display:none at 360, --ellipsis at 1280), so
-        # "any item" would compare against offsetHeight == 0 and could never pass. The
-        # list's block padding is subtracted because the focus-ring fix adds it in both
-        # axes and would otherwise eat the tolerance.
+        # One line. Reference the COURSE crumb specifically: it is guaranteed present
+        # and non-zero-height at every tested width, whereas --mid (display:none at
+        # 360) and --ellipsis (display:none at 1280) are each hidden at one of them, so
+        # referencing "any item" could compare against offsetHeight == 0 and never
+        # pass. The list's block padding is subtracted because the focus-ring fix adds
+        # it in both axes and would otherwise eat the tolerance.
         content_h = page.evaluate(CONTENT_HEIGHT_JS)
         item_h = page.locator(".unit-crumbs__item--course").evaluate(
             "el => el.offsetHeight"

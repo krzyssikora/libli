@@ -586,8 +586,11 @@ def test_group_crumbs_are_plain_text_never_links(client):
     )
 
     for cls in ("--mid", "--leaf", "--ellipsis"):
-        for li in soup.select(f"li.unit-crumbs__item{cls}"):
-            assert li.select("a") == [], f"{cls} crumb must not be a link"
+        items = soup.select(f"li.unit-crumbs__item{cls}")
+        assert items, f"no {cls} crumbs found"
+        assert all(li.select("a") == [] for li in items), (
+            f"{cls} crumb must not be a link"
+        )
 
 
 @pytest.mark.django_db
@@ -624,7 +627,9 @@ def test_ellipsis_carries_hidden_path_as_title_and_visually_hidden_text(client):
     li = soup.select_one("li.unit-crumbs__item--ellipsis")
     assert li is not None
     assert li["title"] == expected
-    assert li.select_one("span.visually-hidden").get_text(strip=True) == expected
+    span = li.select_one("span.visually-hidden")
+    assert span is not None, "ellipsis crumb is missing its visually-hidden span"
+    assert span.get_text(strip=True) == expected
     assert li.get("aria-hidden") is None
 
 
