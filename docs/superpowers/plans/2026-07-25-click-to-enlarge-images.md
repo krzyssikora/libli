@@ -256,7 +256,7 @@ than an assertion — that is a valid RED, not a malformed test.
 
 - [ ] **Step 3: Add the token**
 
-In `core/static/core/css/tokens.css`, inside the `:root` block, **after the `--scroll-edge` declaration** (line 41). Not immediately after `--surface-overlay` (line 36): lines 37–41 are the comment belonging to `--scroll-edge`, and inserting there would wedge this token between that comment and the declaration it documents.
+In `core/static/core/css/tokens.css`, inside the `:root` block, **after the `--scroll-edge` declaration** (line 41). Not immediately after `--surface-overlay` (line 36): the lines between it and `--scroll-edge` (line 41) are that token's own explanatory comment, and inserting there would wedge this token between that comment and the declaration it documents.
 
 ```css
   /* Lightbox scrim for the click-to-enlarge overlay. Declared ONCE, here, and
@@ -665,9 +665,9 @@ def test_gallery_rescues_focus_before_inerting_the_outgoing_item():
 - [ ] **Step 2: Run the tests and verify they fail**
 
 Run: `uv run pytest tests/test_imagezoom_render.py -v -k gallery`
-Expected: both FAIL.
+Expected: the two new `test_gallery_*` invariants FAIL. Note `-k gallery` also selects Task 1's `test_gallery_figure_renders_the_hook`, which passes — so the line reads "2 failed, 1 passed", not "both failed".
 
-- [ ] **Step 3: Add `inert` to the three setting sites and the one clearing site**
+- [ ] **Step 3: Add `inert` to two of the three setting sites** (the third, the outgoing item in `show()`, lands in Step 4 with the rescue it depends on)
 
 In `courses/static/courses/js/gallery.js`:
 
@@ -2091,4 +2091,4 @@ git commit -m "style(imagezoom): scrim value from the light/dark visual review"
 
 **Two scope corrections the code forced, recorded rather than buried.** (1) A stepper step is a `CharField` of text + KaTeX, so it can never contain an image: the spec's case-17 stepper half is unreachable by this feature and no stepper assertion or falsification exists. (2) Gallery descriptions cannot contain `<a href>` — `sanitize_cell`'s allowlist is `{strong,b,em,i,u,br}` with `attributes={}` — so the spec's aside that they "permit `<a href>`" is wrong. The `.imgzoom-trigger` targeting it was used to justify is still correct, just for a simpler reason: with `imagezoom.js` absent, *nothing* inside a figure is focusable, so the rescue never fires at all.
 
-**One thing still to look up during execution:** the selector that opens an existing element's edit fragment in the builder row (Task 10), which depends on markup this plan does not otherwise touch.
+**Nothing is left to look up.** The last open item — the selector that opens an existing element's edit fragment — is now pinned to `.el-act-edit` (`_element_row.html:33`), with the note that `tests/test_e2e_editor.py` is *not* a usable reference for it because every case there adds a new element rather than editing an existing one.
