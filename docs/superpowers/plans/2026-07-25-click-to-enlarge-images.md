@@ -40,7 +40,7 @@
 | `courses/static/courses/js/editor.js` | **Modify.** One re-arm line beside `libliInitGallery`. |
 | `tests/factories.py` | **Modify.** `make_image_asset` gains `size` and `color` named parameters. |
 | `tests/test_imagezoom_render.py` | **New.** Template + JS/CSS source invariants. |
-| `tests/test_e2e_imagezoom.py` | **New.** 20 Playwright cases + the media-route harness and fixtures. |
+| `tests/test_e2e_imagezoom.py` | **New.** 23 test functions covering the spec's 20 numbered cases, plus the media-route harness and fixtures. |
 | `locale/{en,pl}/LC_MESSAGES/django.po` | **Modify.** Two new msgids. |
 
 ---
@@ -74,6 +74,7 @@ form/formset context to render, and the claim is about what the template *says*,
 about what one particular context happens to produce.
 """
 
+import re
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -87,6 +88,16 @@ HOOK = "data-zoomable"
 
 def _media(url="/media/x.png"):
     return SimpleNamespace(file=SimpleNamespace(url=url))
+
+
+def test_fragment_anchor_survives_sanitisation():
+    """The e2e Tab-traversal cases anchor on a seeded <a href="#">, and four of them would
+    fail for an unrelated reason if the sanitiser dropped a bare fragment href. Nothing
+    else in this repo seeds one, so pin it here rather than discovering it in Playwright.
+    """
+    from courses.sanitize import sanitize_html
+
+    assert 'href="#"' in sanitize_html('<p><a href="#">Anchor link</a></p>')
 
 
 def test_image_element_renders_the_hook():
@@ -190,11 +201,9 @@ git commit -m "feat(imagezoom): mark student content images data-zoomable"
 
 - [ ] **Step 1: Write the failing test**
 
-Append to `tests/test_imagezoom_render.py`:
+Append to `tests/test_imagezoom_render.py` (`re` is already imported at the top from Task 1 — ruff's E402 forbids adding it here):
 
 ```python
-import re
-
 TOKENS_CSS = REPO / "core" / "static" / "core" / "css" / "tokens.css"
 COURSES_CSS = REPO / "courses" / "static" / "courses" / "css" / "courses.css"
 
@@ -238,7 +247,7 @@ Expected: all three FAIL (token and rules do not exist yet).
 
 - [ ] **Step 3: Add the token**
 
-In `core/static/core/css/tokens.css`, inside the `:root` block, immediately after the `--surface-overlay` line:
+In `core/static/core/css/tokens.css`, inside the `:root` block, **after the `--scroll-edge` declaration** (line 41). Not immediately after `--surface-overlay` (line 36): lines 37–41 are the comment belonging to `--scroll-edge`, and inserting there would wedge this token between that comment and the declaration it documents.
 
 ```css
   /* Lightbox scrim for the click-to-enlarge overlay. Declared ONCE, here, and
@@ -392,7 +401,9 @@ def test_escape_guard_is_capture_phase_and_uses_stop_immediate():
     # cannot stop a same-node/same-phase peer.
     module = (JS / "imagezoom.js").read_text(encoding="utf-8")
     assert "stopImmediatePropagation()" in module
-    assert "true);" in module  # the capture flag on the document listener
+    # Regex, not a `"true);"` substring: the registration is formatted across lines,
+    # so `true` is followed by a newline and `);` -- a substring test would fail forever.
+    assert re.search(r",\s*true\s*\)", module), "listener must be registered capture-phase"
     assert "dialog && dialog.open" in module  # lazily created: null before first open
 ```
 
@@ -625,10 +636,14 @@ def test_gallery_rescues_focus_before_inerting_the_outgoing_item():
     # Must skip disabled controls: prev/next are disabled at the boundary slides and
     # focus() on a disabled button drops focus to <body>.
     assert 'button:not([disabled])' in source
-    # The rescue must run BEFORE the outgoing item is inerted.
-    assert source.index("rescueFocus(out, inn)") < source.index(
-        'out.setAttribute("inert", "")'
-    )
+    # The rescue must run BEFORE the outgoing item is inerted -- and the comparison
+    # must anchor on the CALL, not the definition: rescueFocus is defined next to
+    # settleHidden, i.e. earlier in the file than show(), so str.index would find the
+    # definition and be true no matter where the call sits.
+    show_at = source.index("function show(")
+    call_at = source.index("rescueFocus(out, inn);", show_at)
+    inert_at = source.index('out.setAttribute("inert", "")', show_at)
+    assert call_at < inert_at
 ```
 
 - [ ] **Step 2: Run the tests and verify they fail**
@@ -920,12 +935,16 @@ def _lesson_url(live_server, unit):
 
 
 def _login(page, live_server, user):
-    from django.urls import reverse
-
-    page.goto(f"{live_server.url}{reverse('account_login')}")
-    page.fill("#id_login", user.username)
-    page.fill("#id_password", TEST_PASSWORD)
-    page.click("button[type=submit]")
+    # Scope to the login form. base.html renders one <button type="submit"
+    # name="language"> per enabled language in the header (templates/base.html:60-67),
+    # and page.click is non-strict -- an unscoped click POSTs the language switcher and
+    # reloads the login page with nobody authenticated. Mirrors the proven helper at
+    # tests/test_e2e_editor.py:38-47.
+    page.goto(f"{live_server.url}/accounts/login/")
+    form = page.locator("form[action*='login']")
+    form.locator("input[name='login']").fill(user.username)
+    form.locator("input[name='password']").fill(TEST_PASSWORD)
+    form.locator("button[type='submit']").click()
 
 
 def _image_unit(course, size=BIG, color=MAGENTA, alt="A labelled diagram", name="z.png"):
@@ -938,8 +957,13 @@ def _image_unit(course, size=BIG, color=MAGENTA, alt="A labelled diagram", name=
 
 
 @pytest.fixture
-def zoom_lesson(db):
-    """One lesson unit, one ImageElement, 1400x900 magenta, non-empty alt."""
+def zoom_lesson(db, _isolated_media):
+    """One lesson unit, one ImageElement, 1400x900 magenta, non-empty alt.
+
+    _isolated_media is listed explicitly, not relied on as autouse-ordering: the asset
+    is written through the FileField at create() time, and a silent mis-ordering would
+    drop a 1400x900 PNG into the developer's real media/ tree.
+    """
     course = CourseFactory()
     unit = _image_unit(course)
     user = _student()
@@ -961,6 +985,14 @@ def _trigger(page):
 def _open(page, trigger):
     trigger.click()
     page.wait_for_selector("dialog.imgzoom[open]")
+    # The [open] attribute is set synchronously, but the overlay <img> re-requests
+    # through page.route (Chromium disables the HTTP cache for routed requests), so
+    # measuring immediately can read naturalWidth == 0 and a zero-area box. Wait for the
+    # decode before any geometry is taken.
+    page.wait_for_function(
+        "() => { const i = document.querySelector('.imgzoom__img');"
+        " return i && i.complete && i.naturalWidth > 0; }"
+    )
     return page.locator("dialog.imgzoom")
 
 
@@ -1002,7 +1034,7 @@ Expected: RED with `assert 0 == 1400` — proving the route is load-bearing and 
 Run: `uv run pytest tests/test_gallery_render.py tests/test_courses_elements.py tests/test_media_model.py -v`
 Expected: PASS (defaults reproduce the old 1×1 black PNG exactly).
 
-Run: `git status --porcelain media/` — expected: **empty**. Nothing may have been written into the real media tree.
+Run: `git status --porcelain --ignored media/` — expected: **empty**. `--ignored` is mandatory: `.gitignore:8` is `/media/`, so a plain `git status --porcelain media/` is empty whether or not a stray PNG landed there — a vacuous guard on exactly the file-lifetime incident this is meant to catch.
 
 - [ ] **Step 6: Commit**
 
@@ -1086,7 +1118,9 @@ def test_overlay_enlarges_without_upscaling_and_fits_the_viewport(
     assert abs(box["width"] / box["height"] - 1400 / 900) < 0.01
 
 
-def test_nothing_but_the_image_is_visible(page, live_server, zoom_lesson, media_route):
+def test_nothing_but_the_image_is_visible(
+    page, live_server, zoom_lesson, media_route, tmp_path
+):
     """checkVisibility() cannot express this -- a modal <dialog> makes the rest of the
     document inert, not unrendered, so the lesson article still reports visible. Assert
     occlusion two independent ways instead.
@@ -1112,14 +1146,20 @@ def test_nothing_but_the_image_is_visible(page, live_server, zoom_lesson, media_
     resolved = dialog.evaluate("el => getComputedStyle(el).backgroundColor")
     got = [int(n) for n in resolved.split("(")[1].split(")")[0].split(",")[:3]]
     assert all(abs(a - b) <= 12 for a, b in zip(got, expected)), (resolved, token)
+    # Relative luminance, the third spec invariant: it is what catches a retune to a
+    # LIGHT scrim that still matches its own token.
+    lum = (0.2126 * got[0] + 0.7152 * got[1] + 0.0722 * got[2]) / 255
+    assert lum < 0.05, f"scrim must be dark, luminance {lum:.3f}"
     # Asserting alpha alone would be untestable: the UA gives dialog an OPAQUE
     # `background-color: Canvas`, so deleting the author background leaves alpha at 1.0
     # and renders an opaque WHITE panel. Hence the channel check.
 
     # (b) pixel sampling in the letterbox bands beside the measured image box -- NOT
     # where the article text sits, which at this viewport is entirely behind the image.
+    # Pin the assumption the coordinate mapping rests on rather than trusting a default.
+    assert page.evaluate("() => devicePixelRatio") == 1
     assert box["x"] >= 6, f"letterbox band too narrow to sample: x={box['x']}"
-    shot = Path(page.video_dir or ".") / "imgzoom-occlusion.png"
+    shot = tmp_path / "imgzoom-occlusion.png"  # never the repo root
     dialog.screenshot(path=str(shot))
     frame = Image.open(shot).convert("RGB")
     xs = [2, int(box["x"] / 2), int(box["x"]) - 3]
@@ -1176,7 +1216,7 @@ Append to `tests/test_e2e_imagezoom.py`:
 
 ```python
 @pytest.fixture
-def tall_lesson(db):
+def tall_lesson(db, _isolated_media):
     """zoom_lesson plus enough text that the page scrolls at 1280x800."""
     from courses.models import TextElement
 
@@ -1281,10 +1321,8 @@ def test_focus_stays_inside_the_open_overlay(page, live_server, zoom_lesson, med
     unit, user = zoom_lesson
     _goto(page, live_server, unit, user, media_route)
 
-    before = page.evaluate("() => document.activeElement.tagName")
     page.keyboard.press("Tab")
     page.keyboard.press("Tab")
-    assert page.evaluate("() => document.activeElement.tagName") != before or True
     moved = page.evaluate("() => document.activeElement !== document.body")
     assert moved, "positive control: Tab must move focus on the closed page"
 
@@ -1345,7 +1383,6 @@ Expected: 13 passed.
 | Delete `e.stopImmediatePropagation()` | `test_escape_does_not_also_close_the_unit_drawer` |
 | Add a timing window that swallows the second click | `test_double_click_opens_then_closes` |
 | Delete the `keydown` delegation | `test_enter_opens_from_the_keyboard` |
-| Delete the `aria-label` fallback branch in `armOne` | `test_accessible_names` (after Task 9's gallery case is added) |
 | Replace `removeAttribute("src")` with `img.src = ""` | `test_close_removes_the_src_attribute` |
 
 - [ ] **Step 4: Commit**
@@ -1373,19 +1410,22 @@ Append to `tests/test_e2e_imagezoom.py`:
 
 ```python
 @pytest.fixture
-def gallery_lesson(db):
+def gallery_lesson(db, _isolated_media):
     """Anchor link, then a 3-figure gallery.
 
     Figure 1 is active on load and carries an EMPTY description -> empty alt: that is
     the decorative branch, and it must be the ACTIVE figure because inactive figures are
-    aria-hidden and Playwright's role engine cannot see them at all. Figure 3's
-    description carries an <a href> -- the pre-existing focusable-link case `inert` also
-    closes.
+    aria-hidden and Playwright's role engine cannot see them at all.
 
     Gallery alt is NOT authorable: GalleryElement stores {media, desc} and render()
     derives alt = desc_to_alt(desc), substituting a generic "Image n of m" when a
     non-empty desc strips to nothing. So an empty alt requires an EMPTY desc, and a
     math-only desc must be avoided.
+
+    No <a href> in any description: GalleryElement.save() sanitises each desc through
+    sanitize_cell, whose allowlist is CELL_TAGS = {strong, b, em, i, u, br} with
+    attributes={} (courses/sanitize.py:62) -- a link would be silently stripped to bare
+    text, so a fixture "carrying a link" would document a case it does not have.
     """
     from courses.models import GalleryElement
     from courses.models import TextElement
@@ -1395,7 +1435,7 @@ def gallery_lesson(db):
     add_element(
         unit, TextElement.objects.create(body='<p><a href="#">Anchor link</a></p>')
     )
-    descs = ["", "Second figure", 'Third <a href="#">figure</a>']
+    descs = ["", "Second figure", "Third figure"]
     colors = ["#FF00FF", "#00FF00", "#0000FF"]
     images = [
         {
@@ -1416,9 +1456,9 @@ def gallery_lesson(db):
 
 
 @pytest.fixture
-def hidden_lesson(db):
-    """DOM order is LOAD-BEARING and fixed: anchor, tabs, spoiler, stepper, then the
-    reveal gate with the gated image LAST.
+def hidden_lesson(db, _isolated_media):
+    """DOM order is LOAD-BEARING and fixed: anchor, tabs, spoiler, then the reveal gate
+    with the gated image LAST.
 
     The gate's rule is `.slide > .lesson-block:has(...) ~ .lesson-block:not(.reveal-shown)
     { display: none }` -- a GENERAL SIBLING combinator over blocks that
@@ -1426,11 +1466,17 @@ def hidden_lesson(db):
     block in the unit, not just its own answer: anything placed after it would be
     display:none and its positive control would fail for a reason unrelated to this
     feature, while its negative half passed vacuously.
+
+    NO STEPPER IMAGE, deliberately. StepperStep.content is a CharField of plain text +
+    KaTeX (courses/models.py:503-508) -- a stepper step cannot contain an element at all,
+    so no image can ever be hidden by the stepper mechanism and there is nothing for this
+    feature to test there. The stepper row of the spec's hiding table stays true (it does
+    hide steps) but is unreachable by an image, which is why no stepper case follows.
     """
+    from courses.models import Element
     from courses.models import ImageElement
     from courses.models import RevealGateElement
     from courses.models import SpoilerElement
-    from courses.models import StepperElement
     from courses.models import TabsElement
     from courses.models import TextElement
 
@@ -1444,18 +1490,36 @@ def hidden_lesson(db):
     add_element(
         unit, TextElement.objects.create(body='<p><a href="#">Anchor link</a></p>')
     )
-    # Tabs and spoiler carry a nested image each; consult the element models for the
-    # exact nesting API (Element.parent + content_object), mirroring
-    # tests/test_e2e_tabs.py and tests/test_e2e_twocolumn.py.
-    tabs = add_element(unit, TabsElement.objects.create(data={"tabs": ["One", "Two"]}))
-    spoiler = add_element(unit, SpoilerElement.objects.create(summary="Show"))
-    stepper = add_element(unit, StepperElement.objects.create())
+
+    # Tabs: default_data() MINTS its own tab ids (new_tab_id -> "t" + 6 hex), so read
+    # them back rather than assuming literals, and key the child to the SECOND tab so it
+    # lands in the panel that ships [hidden]. Nesting pattern: tests/test_e2e_tabs.py:110.
+    tabs_obj = TabsElement.objects.create(data=TabsElement.default_data())
+    tabs_join = add_element(unit, tabs_obj)
+    second_tab_id = tabs_obj.data["tabs"][1]["id"]
+    Element.objects.create(
+        unit=unit, content_object=img("tabbed.png"), parent=tabs_join, tab_id=second_tab_id
+    )
+
+    # Spoiler: `label`, not `summary` (courses/models.py:397-408), and its single child
+    # slot id is SpoilerElement.SLOT_ID == "only".
+    spoiler_join = add_element(unit, SpoilerElement.objects.create(label="Show"))
+    Element.objects.create(
+        unit=unit,
+        content_object=img("spoilered.png"),
+        parent=spoiler_join,
+        tab_id=SpoilerElement.SLOT_ID,
+    )
+
+    # The gate hides every FOLLOWING sibling, so it goes second-to-last and its answer
+    # image last.
     add_element(unit, RevealGateElement.objects.create(label="Show answer"))
     add_element(unit, img("gated.png"))
 
     user = _student("hiddenstudent")
     EnrollmentFactory(course=course, student=user)
-    return unit, user, {"tabs": tabs, "spoiler": spoiler, "stepper": stepper}
+    return unit, user
+
 
 
 def _tab_walk(page, n=24):
@@ -1569,14 +1633,19 @@ def test_decorative_gallery_figure_is_named_for_the_control(
 def test_inactive_tab_panel_keeps_its_image_out_of_the_tab_order(
     page, live_server, hidden_lesson, media_route
 ):
-    unit, user, parts = hidden_lesson
+    unit, user = hidden_lesson
     _goto(page, live_server, unit, user, media_route)
     page.get_by_role("link", name="Anchor link").click()
     seen = _tab_walk(page, n=30)
     assert not any(s["inHiddenPanel"] for s in seen)
-    # Positive control: activating the tab makes its image reachable.
+
+    # Positive control, and it must be able to fail: activate the second tab, walk
+    # again, and require a trigger inside the now-visible panel to be REACHED.
     page.locator("[data-tab-btn]").nth(1).click()
-    assert page.locator("[data-tab-panel]:not([hidden]) .imgzoom-trigger").count() >= 0
+    page.wait_for_selector('[data-tab-panel]:not([hidden]) .imgzoom-trigger')
+    page.get_by_role("link", name="Anchor link").click()
+    seen_after = _tab_walk(page, n=30)
+    assert any(s["isTrigger"] for s in seen_after), "tab image unreachable once revealed"
 
 
 def test_closed_spoiler_keeps_its_image_out_of_the_tab_order(
@@ -1587,7 +1656,7 @@ def test_closed_spoiler_keeps_its_image_out_of_the_tab_order(
     `display: block` on a child cannot restore focusability -- there is no break
     available. Its value is the positive control below.
     """
-    unit, user, parts = hidden_lesson
+    unit, user = hidden_lesson
     _goto(page, live_server, unit, user, media_route)
     spoiler_img = page.locator("details .imgzoom-trigger")
     assert spoiler_img.evaluate_all("els => els.every(el => !el.checkVisibility())")
@@ -1595,12 +1664,19 @@ def test_closed_spoiler_keeps_its_image_out_of_the_tab_order(
     assert spoiler_img.first.evaluate("el => el.checkVisibility()")
 
 
-def test_gated_and_stepped_images_stay_out_of_the_tab_order(
+def test_gated_image_stays_out_of_the_tab_order(
     page, live_server, hidden_lesson, media_route
 ):
-    """The highest-stakes rows of the hiding table: a leaked tab stop would let a
-    keyboard user open a gated ANSWER image before passing the gate."""
-    unit, user, parts = hidden_lesson
+    """The highest-stakes row of the hiding table: a leaked tab stop would let a keyboard
+    user open a gated ANSWER image before passing the gate.
+
+    Gate only, no stepper half: StepperStep.content is a CharField of plain text + KaTeX
+    (courses/models.py:503-508), so a stepper step cannot contain an element and no image
+    can ever be hidden by that mechanism. The stepper row of the spec's hiding table stays
+    true but is unreachable by this feature -- so there is deliberately no stepper
+    assertion here, and no stepper falsification either.
+    """
+    unit, user = hidden_lesson
     _goto(page, live_server, unit, user, media_route)
     page.get_by_role("link", name="Anchor link").click()
     seen = _tab_walk(page, n=30)
@@ -1619,7 +1695,7 @@ def test_gated_and_stepped_images_stay_out_of_the_tab_order(
     )
 ```
 
-**Note for the implementer:** the `hidden_lesson` fixture's nested-element construction (image inside a tab panel / spoiler / stepper step) uses this repo's `Element.parent` nesting API. Copy the exact pattern from `tests/test_e2e_tabs.py` and `tests/test_nest_selfchecks.py` rather than inventing it; if a nesting turns out not to be supported for `ImageElement`, place that image as a direct child of the container that does support it and adjust the corresponding assertion's selector, noting the change in the commit message.
+**Note for the implementer:** the `hidden_lesson` fixture's nested-element construction (image inside a tab panel and inside a spoiler — never a stepper step, which cannot hold an element) uses this repo's `Element.parent` nesting API, spelled out in the fixture above. The nesting call is `Element.objects.create(unit=unit, content_object=obj, parent=<container join row>, tab_id=<slot id>)`, verified at `tests/test_e2e_tabs.py:110`, and `"image"` is in `courses/builder.py`'s `NESTABLE_TYPE_KEYS`, so an image genuinely does nest in tabs and spoilers. Other real references: `tests/test_e2e_twocolumn.py`, `tests/test_e2e_reveal_gate.py`, `tests/test_context_stepper.py`. (`tests/test_nest_selfchecks.py` does **not** exist — do not go looking for it.)
 
 - [ ] **Step 2: Run the tests**
 
@@ -1635,8 +1711,7 @@ Expected: 20 passed. Expect to iterate on the `hidden_lesson` fixture's nesting 
 | Remove `inn.removeAttribute("inert")` (`:119`) | `test_clicking_the_active_gallery_figure_opens_the_overlay` |
 | Delete the `aria-label` branch in `armOne` | `test_decorative_gallery_figure_is_named_for_the_control` |
 | Remove the panel's `hidden` attribute, or give it an author `display: block` | `test_inactive_tab_panel_keeps_its_image_out_of_the_tab_order` |
-| Delete the whole `display: none` declaration from the `{% if has_reveal_gate %}` `<style>` in `lesson_unit.html` — **not** the `:not(.reveal-shown)` clause, which would hide the block *unconditionally* and leave the test green | `test_gated_and_stepped_images_stay_out_of_the_tab_order` |
-| Delete the `display: none` from the `{% if has_stepper %}` rule (again not the `:not(.stepper-shown)` clause, which leaves `:not(:first-child)` hiding the step anyway) | same test |
+| Delete the whole `display: none` declaration from the `{% if has_reveal_gate %}` `<style>` in `lesson_unit.html` — **not** the `:not(.reveal-shown)` clause, which would hide the block *unconditionally* and leave the test green | `test_gated_image_stays_out_of_the_tab_order` |
 
 - [ ] **Step 4: Commit**
 
@@ -1663,15 +1738,18 @@ Append to `tests/test_e2e_imagezoom.py`:
 
 ```python
 @pytest.fixture
-def filltable_lesson(db):
+def filltable_lesson(db, _isolated_media):
     """A fill-in table whose one cell is an image cell."""
     from courses.models import FillTableElement
 
     course = CourseFactory()
     unit = ContentNodeFactory(course=course, kind="unit", unit_type="lesson")
     asset = make_image_asset(course, filename="cell.png", size=(800, 600), color="#FFAA00")
-    # Consult FillTableElement.normalize_data / tests/test_filltable_*.py for the exact
-    # cell schema; the image cell needs kind="image" and the asset pk.
+    # Verified schema (courses/models.py:1007-1017): an image cell is
+    # {"kind": "image", "media": <int pk>, "alt": str, "halign": ..., "valign": ...}.
+    # `media` MUST be a real int -- normalize_data silently downgrades a non-int (or a
+    # bool) to an empty STATIC cell, which renders no <img> at all and would make this
+    # test fail for a reason unrelated to the feature.
     add_element(
         unit,
         FillTableElement.objects.create(
@@ -1689,7 +1767,7 @@ def filltable_lesson(db):
 
 
 @pytest.fixture
-def tiny_lesson(db):
+def tiny_lesson(db, _isolated_media):
     course = CourseFactory()
     unit = _image_unit(course, size=(1, 1), color="black", alt="Tiny", name="tiny.png")
     user = _student("tinystudent")
@@ -1717,49 +1795,73 @@ def test_tiny_image_opens_and_is_not_upscaled(page, live_server, tiny_lesson, me
     assert box["width"] <= 1.5, f"1x1 image was upscaled to {box['width']}"
 
 
-def test_editor_preview_rearms_after_a_real_save(page, live_server, db, media_route):
+def _make_pa_user(username):
+    """A Platform Admin, which is what actually opens the editor.
+
+    NOT an is_staff user. `can_manage_course` is "the course owner, OR anyone holding the
+    courses.change_course model perm (the Platform Admin group)" and its own docstring
+    says it "Deliberately does NOT key on is_staff" (courses/access.py:36-42). is_staff
+    widens accessible_courses -- STUDENT access -- which is a different gate entirely.
+    And make_verified_user takes only (username, email, password): there is no is_staff
+    parameter to pass it. Mirrors tests/test_e2e_editor.py:24-36.
+    """
+    from django.contrib.auth.models import Group
+
+    from institution.roles import PLATFORM_ADMIN
+    from institution.roles import seed_roles
+
+    seed_roles()
+    user = make_verified_user(
+        username=username, email=f"{username}@t.example.com", password=TEST_PASSWORD
+    )
+    user.groups.add(Group.objects.get(name=PLATFORM_ADMIN))
+    return user
+
+
+def test_editor_preview_rearms_after_a_real_save(
+    page, live_server, db, _isolated_media, media_route
+):
     """A source grep proves the string exists in editor.js; it cannot prove the name
     matches what imagezoom.js exports or that arming survives a real fragment swap
     (applyFragments replaces the whole [data-scope="preview"] node).
 
-    Course management is gated on is_staff, NOT on teaching -- a make_teacher-style user
-    would 403 here. Copy the seeding from tests/test_e2e_editor.py.
+    There is no per-element edit PAGE in this app -- `courses:element_edit` does not
+    exist and `reverse` would raise NoReverseMatch. Element editing happens inside the
+    unit editor (`courses:manage_editor`, manage/courses/<slug>/build/unit/<pk>/edit/)
+    via fetched fragments that mount in [data-edit-slot]; the save gesture is that
+    fragment's own submit button, exactly as tests/test_e2e_editor.py:99-107 drives it.
     """
     from django.urls import reverse
 
     from courses.models import ImageElement
 
-    course = CourseFactory()
+    owner = _make_pa_user("zoompa")
+    course = CourseFactory(owner=owner)
     unit = ContentNodeFactory(course=course, kind="unit", unit_type="lesson")
     asset = make_image_asset(course, filename="ed.png", size=BIG, color=MAGENTA)
-    element = add_element(
-        unit, ImageElement.objects.create(media=asset, alt="Editor image")
-    )
-    staff = make_verified_user(
-        username="zoomstaff",
-        email="zoomstaff@t.example.com",
-        password=TEST_PASSWORD,
-        is_staff=True,
-    )
+    add_element(unit, ImageElement.objects.create(media=asset, alt="Editor image"))
 
     page.set_viewport_size(VIEWPORT)
     media_route(page)
-    _login(page, live_server, staff)
+    _login(page, live_server, owner)
     page.goto(
         f"{live_server.url}"
-        f"{reverse('courses:element_edit', kwargs={'slug': course.slug, 'pk': element.pk})}"
+        f"{reverse('courses:manage_editor', kwargs={'slug': course.slug, 'pk': unit.pk})}"
     )
 
-    # Save the alt text through the element's own edit form: that is the gesture that
-    # drives applyFragments and swaps the preview pane.
-    page.fill("#id_alt", "Editor image v2")
-    page.click("[data-element-save], button[type=submit]")
+    # Open the existing element's edit fragment, change its alt, submit. Take the exact
+    # row/edit-trigger selector from tests/test_e2e_editor.py; the contract here is "a
+    # real save swaps [data-scope=preview] and the swapped-in image is armed", not any
+    # particular click target.
+    page.wait_for_selector("[data-edit-slot] form[data-op='element-save']")
+    page.locator("[data-edit-slot] input[name='alt']").fill("Editor image v2")
+    page.locator("[data-edit-slot] button[type='submit']").click()
     page.wait_for_selector('[data-scope="preview"] [data-zoomable]')
 
     _open(page, page.locator('[data-scope="preview"] [data-zoomable]').first)
 ```
 
-**Note for the implementer:** the `element_edit` URL name, the save-button selector and the `FillTableElement` cell schema must be taken from the codebase, not from these placeholders-by-shape — `tests/test_e2e_editor.py` and `tests/test_filltable_render.py` show the real forms. The assertions (overlay opens after a real save; image cell opens; 1×1 not upscaled) are the contract.
+**Note for the implementer:** the editor URL (`courses:manage_editor`), the save gesture (`[data-edit-slot] button[type='submit']`, asserting on `[data-scope="preview"]`) and the fill-table image-cell schema are all pinned above against the real code. The one thing still to copy from `tests/test_e2e_editor.py` is the selector that *opens* an existing element's edit fragment, which depends on the builder row markup. The assertions (overlay opens after a real save; image cell opens; 1×1 not upscaled) are the contract.
 
 - [ ] **Step 2: Run the whole e2e module**
 
@@ -1828,7 +1930,7 @@ Expected: both clean. Fix anything reported.
 
 ```bash
 git status --porcelain          # only intended files
-git status --porcelain media/   # MUST be empty
+git status --porcelain --ignored media/   # MUST be empty (--ignored: /media/ is gitignored)
 git branch --show-current       # pipeline/click-to-enlarge-images
 ```
 
@@ -1840,7 +1942,7 @@ Confirm every test in both new modules has been observed RED at least once, exce
 
 ```bash
 git branch --show-current
-git add core/static/core/css/tokens.css   # only if retuned
+git add core/static/core/css/tokens.css   # plus courses.css, if the review changed it too
 git commit -m "style(imagezoom): scrim value from the light/dark visual review"
 ```
 
@@ -1870,4 +1972,8 @@ git commit -m "style(imagezoom): scrim value from the light/dark visual review"
 
 **Type/name consistency.** `armAll` / `armOne` / `open` / `build` / `label` / `trimmedAlt` are used consistently; `window.libliInitImageZoom = armAll` matches the `editor.js` call and the both-sides source test; `.imgzoom` / `.imgzoom__img` / `.imgzoom-trigger` match between Task 2's CSS, Task 3's JS, Task 4's `rescueFocus` query and every e2e selector; `data-imgzoom-ready` is written as `img.dataset.imgzoomReady`, which is the same attribute.
 
-**Known soft spots, flagged rather than hidden.** Three fixtures depend on repo APIs whose exact shape must be copied from existing tests rather than from this plan: `hidden_lesson`'s nested-element construction (Task 9), `filltable_lesson`'s cell schema and the `element_edit` URL/save selector (Task 10). Each carries a note naming the file to copy from and stating which assertion is the real contract. Everything else — the implementation, the CSS, the source tests, the geometry and occlusion maths — is exact.
+**Verified against the code, not guessed.** Every fixture API in Tasks 6–10 was checked against the worktree during plan review: the nesting call and `tab_id` slots (`tests/test_e2e_tabs.py:110`, `SpoilerElement.SLOT_ID`, `TabsElement.default_data()` minting its own ids), the fill-table image-cell schema and its int-`pk` requirement (`courses/models.py:1007-1017`), the editor gate (`can_manage_course` — owner or Platform Admin, **not** `is_staff`), the editor URL (`courses:manage_editor`), the scoped login form, and `make_verified_user`'s real signature.
+
+**Two scope corrections the code forced, recorded rather than buried.** (1) A stepper step is a `CharField` of text + KaTeX, so it can never contain an image: the spec's case-17 stepper half is unreachable by this feature and no stepper assertion or falsification exists. (2) Gallery descriptions cannot contain `<a href>` — `sanitize_cell`'s allowlist is `{strong,b,em,i,u,br}` with `attributes={}` — so the spec's aside that they "permit `<a href>`" is wrong. The `.imgzoom-trigger` targeting it was used to justify is still correct, just for a simpler reason: with `imagezoom.js` absent, *nothing* inside a figure is focusable, so the rescue never fires at all.
+
+**One thing still to look up during execution:** the selector that opens an existing element's edit fragment in the builder row (Task 10), which depends on markup this plan does not otherwise touch.
