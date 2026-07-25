@@ -126,7 +126,9 @@ responsibilities:
    the overlay *and* the drawer.
 
    The guard is therefore: a **capture-phase `keydown` listener on `document`, registered at module
-   boot**, which for Escape — and only while `dialog.open` — calls **`stopImmediatePropagation()`**, and
+   boot**, which for Escape — and only while **`dialog && dialog.open`** (the dialog is created lazily, so the
+   reference is null until the first open; an unguarded `dialog.open` would throw from a document-level
+   capture handler on every lesson page) — calls **`stopImmediatePropagation()`**, and
    never `preventDefault()` (that would suppress the dialog's own close request). Boot-time registration
    is what makes it win: same-node, same-phase listeners run in registration order, and the drawer
    registers its own only when the drawer opens. `stopImmediatePropagation` rather than
@@ -506,7 +508,11 @@ Postgres test database. This branch's test runs use a worktree-unique `DATABASE_
   checks the call site cannot catch a typo'd export.
 - `imagezoom.js`'s `close` handler contains the null-guarded `trigger.focus()` — a source assertion,
   because no Chromium e2e can falsify its removal (see e2e case 4).
-- **`--scrim-solid` appears exactly once in `tokens.css`, and not inside the dark-theme block** — the
+- **`--scrim-solid` is *declared* exactly once in `tokens.css`, and not inside the dark-theme block.**
+  Count **declaration lines** — those matching `--scrim-solid\s*:` — not substring occurrences: the CSS
+  section also mandates an explanatory comment in that file, and a comment that names its own subject
+  would otherwise make the count two and turn this RED on the first run. The comment may name the token
+  freely — the
   invariant the whole light/dark scrim mechanism rests on, and the one a routine token edit would break
   silently since every neighbouring token is defined twice. The dark block is delimited by the
   `[data-theme="dark"] {` selector (line 65; there is no `prefers-color-scheme` block in this file). The
@@ -577,6 +583,15 @@ changes what they test (an active gallery figure with a non-empty `alt`, say, wo
 accessible-name branch). Reuse `tests/test_e2e_gallery.py`'s `_lesson_url(live_server, unit)` and
 `_seed_student` as-is.
 
+**Nothing may follow the reveal gate in `hidden_lesson`.** The gate's rule is
+`.reveal-armed .slide > .lesson-block:has(…) ~ .lesson-block:not(.reveal-shown) { display: none }`
+(`lesson_unit.html:39`) — a *general sibling* combinator — and `_lesson_article.html` wraps every lesson's
+blocks in `.slide > .lesson-block`. So the gate hides **every** later block in the unit, not just its own
+answer. Built in the order the containers are listed above, a stepper placed after the gate would be
+`display: none`, and case 17's stepper positive control would fail for a reason that has nothing to do with
+this feature while its negative half passed vacuously — exactly the silent vacuity cases 9 and 15 were
+rewritten to eliminate. Hence: gate second-to-last, gated image last.
+
 **Gallery `alt` is not authorable — it is derived, and that constrains the fixture.** `GalleryElement`
 stores only `{media, desc}` per figure; `render()` computes `alt = desc_to_alt(desc)` and, when a
 non-empty description strips to nothing (math-only), substitutes a generic `"Image {n} of {total}"`
@@ -597,8 +612,8 @@ the assets — the 1400×900 PNG lands in the developer's real `media/` tree *an
 |---|---|---|---|
 | `zoom_lesson` | lesson unit, one `ImageElement`, non-empty `alt` | 1400×900 `#FF00FF` | closed-dialog, geometry, occlusion, second-click, Escape + no-leak (at 390×844), double-click, keyboard open, accessible name (non-empty branch), focus trap, `src`-cleared |
 | `tall_lesson` | `zoom_lesson` plus enough text elements that `scrollHeight > innerHeight` at 1280×800 (asserted, not assumed) | same image | scroll-lock |
-| `gallery_lesson` | a text element containing a link (the Tab anchor — it must precede the gallery in DOM order, see case 9), then a 3-figure gallery. Figure 1 is active on load and carries an **empty description → empty `alt`**: that is the decorative branch, and it must be the *active* figure, because inactive figures are `aria-hidden` and Playwright's role engine cannot see them at all. Figures 2 and 3 have non-empty descriptions; figure 3's contains an `<a href>` (the pre-existing focusable-link case `inert` also closes) | three distinct 800×600 assets, distinct colours | gallery tab-order, arrow-key nav, gallery click-to-open, empty-`alt` name |
-| `hidden_lesson` | one image inside an inactive tab panel, one inside a closed spoiler, one behind a reveal gate, one in a non-first stepper step | 400×300 assets | hidden-container tab-order |
+| `gallery_lesson` | a text element containing an `href="#"` link (the Tab anchor — it must precede the gallery in DOM order, see case 9; the fragment `href` matters because a real click on the anchor performs its default action, and anything else would navigate away and break four cases at once), then a 3-figure gallery. Figure 1 is active on load and carries an **empty description → empty `alt`**: that is the decorative branch, and it must be the *active* figure, because inactive figures are `aria-hidden` and Playwright's role engine cannot see them at all. Figures 2 and 3 have non-empty descriptions; figure 3's contains an `<a href>` (the pre-existing focusable-link case `inert` also closes) | three distinct 800×600 assets, distinct colours | gallery tab-order, arrow-key nav, gallery click-to-open, empty-`alt` name |
+| `hidden_lesson` | **DOM order is load-bearing and fixed**: anchor link first, then tabs, spoiler, stepper, then the reveal gate, with the gated image last. Contents: an anchor (a text element with an `href="#"` link, as `gallery_lesson` has — cases 15–17 all need it), one image inside an inactive tab panel, one inside a closed spoiler, one in a non-first stepper step, and one behind a reveal gate | 400×300 assets | hidden-container tab-order (15, 16, 17) |
 | `filltable_lesson` | fill-in table with one image cell | 800×600 | fill-table surface |
 | `tiny_lesson` | lesson unit, one `ImageElement` | **1×1** | no-upscale |
 | `editor_unit` | a unit with one `ImageElement`, opened in the editor **as a verified `is_staff` user with access to the course** — course management is gated on `is_staff`, not on teaching, so a `make_teacher`-style user 403s and the test fails for an unrelated reason. Copy the seeding from `tests/test_e2e_editor.py` | 1400×900 | preview re-arm |
@@ -687,14 +702,19 @@ screenshot pixels and no conversion arithmetic is needed anywhere below.
      the scrim over the equally-tinted `::backdrop` resolves to ≈ the token's own rgb. Require each
      channel within ±12 of that computed expectation — comfortably tight enough to exclude the fixture's
      `#FF00FF`, and retune-proof. Falsify by deleting **both** scrim declarations, the
-     box `background` *and* `.imgzoom::backdrop`: they paint the same colour, so removing one leaves the
-     other painting it and this half would stay GREEN.
-4. **Close by second click**, focus back on the trigger. Note honestly that plain Chromium cannot
-   falsify the explicit `trigger.focus()`: Chromium focuses the trigger on click, so `<dialog>`'s native
-   restore satisfies this assertion even with the line deleted. Two guards instead — the source-level
-   assertion listed above, plus a variant here that **blurs the trigger before opening** (reproducing
-   WebKit's pre-open focus of `<body>`) and still requires focus on the trigger after close. That
-   variant *is* falsifiable in Chromium; the plain case is a smoke test, not a guard.
+     box `background` *and* `.imgzoom::backdrop`. Only the `::backdrop` half is individually
+     unfalsifiable — the sampled band lies *inside* the dialog box, so the box background covers it;
+     deleting the box `background` alone exposes the UA's opaque white `Canvas` and this half goes RED on
+     its own.
+4. **Close by second click**, focus back on the trigger. Stated plainly: **this case cannot falsify the
+   explicit `trigger.focus()`, and no Chromium e2e can.** Chromium focuses the trigger on `mousedown` —
+   after any blur, before the delegated click handler runs `showModal()` — so the recorded pre-open focus
+   is the trigger and the native restore satisfies the assertion with our line deleted; and the only other
+   way to open, `Enter`, requires the trigger to be focused by definition. There is therefore no
+   real-gesture sequence that opens the overlay with `<body>` focused in Chromium, so a
+   "blur-before-open" variant would be theatre. The **source-level assertion is the sole guard** on
+   `trigger.focus()`, and the WebKit rationale behind that line is recorded as untested-by-design rather
+   than dressed up as covered. This case remains a useful smoke test of the close path.
 5. **Close by Escape — and Escape does not leak to document handlers.** Two assertions, one gesture:
    - the overlay closes. Escape-closing is the UA's close request, so what this pins is that nothing of
      ours suppresses it. Deleting our `keydown` listener does **not** falsify it (that listener only calls
@@ -702,10 +722,19 @@ screenshot pixels and no conversion arithmetic is needed anywhere below.
      to the Escape branch, which suppresses the close request — that must go RED.
    - at **390×844** — the drawer's Contents trigger is only displayed at ≤640px, and `unit_nav.js:127`
      force-closes the drawer above 640px, so a mid-size viewport would silently test nothing — open the
-     drawer by clicking `[data-unit-drawer-open]`, then open the overlay, then press Escape **once**: the
-     overlay closes and the drawer stays **open**. This is the only guard on the `stopPropagation` decision;
+     drawer by clicking `[data-unit-drawer-open]`, then open the overlay **by `locator.focus()` on the
+     trigger plus a real `Enter` press**, then press Escape **once**: the overlay closes and the drawer
+     stays **open**.
+
+     The gesture is spelled out because the obvious one is impossible. An open drawer is
+     `position: fixed; inset: 0; z-index: 50` with a full-viewport `.unit-drawer__scrim` carrying
+     `data-unit-drawer-close` (`courses.css:803-804`), so every image is behind a dismiss target: a real
+     click either fails Playwright's hit-target check or lands on the scrim and closes the drawer. The
+     reverse order is impossible too — a modal `<dialog>` makes the document inert, so the drawer cannot
+     be opened afterwards. Focus placement here is sanctioned setup (see above); the `Enter` keydown is a
+     real gesture and passes the drawer's handler untouched. This is the only guard on the `stopImmediatePropagation` decision;
      without it, deleting those two lines leaves every other test green while one keypress closes two
-     unrelated things. Falsify: delete the `stopPropagation` call.
+     unrelated things. Falsify: delete the `stopImmediatePropagation` call.
 6. **Double-click** a trigger → the overlay ends **closed** (open-then-close, the accepted
    behaviour). Falsify: add a timing window that swallows the second click; this must go RED, which
    is what keeps the behaviour a decision rather than an accident.
