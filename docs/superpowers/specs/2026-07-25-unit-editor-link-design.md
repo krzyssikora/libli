@@ -164,9 +164,14 @@ while its lesson counterpart `build_lesson_context` stays pure.
 That matters because `build_quiz_context` has **direct unit-test callers** that bypass the views
 entirely — `courses/tests/test_callout_has_math.py:58`, `tests/test_slideshow_context.py:29`,
 `tests/test_tabs_invariant.py:99`, `tests/test_tags_consumption.py:84` — so all four now execute
-`can_manage_course` on whatever user they pass. None of them should break (each passes a non-owning
-user against a `CourseFactory` whose `owner` is `None`, so the predicate returns `False` and the
-`reverse()` branch is never taken), but they must be **run and confirmed green** rather than assumed,
+`can_manage_course` on whatever user they pass. None of them should break, but state the reason
+precisely, because the tempting shorthand ("the course has no owner") is false for one of them:
+**none of the four passes an actor who owns the course, and none holds `courses.change_course`**, so
+both branches of the predicate return `False` and the `reverse()` branch is never taken. Note in
+particular that `test_callout_has_math.py` *does* give its course an owner —
+`pa = make_pa(client, "pa"); course = CourseFactory(owner=pa)` — while the user it passes to
+`build_quiz_context` is `student_user`, an unrelated plain verified user. The conclusion survives; the
+"owner is None" premise does not. They must be **run and confirmed green** rather than assumed,
 and a future reader must not "tidy" the merge out of `build_quiz_context` or mirror it into
 `build_lesson_context` without re-reading the two-render-sites argument above.
 
@@ -479,12 +484,20 @@ collide on `create_user`.
 
 | Actor | `can_edit_unit` |
 |---|---|
-| Course owner | `True` |
+| Course owner **holding no `courses.change_course`** | `True` |
 | Platform Admin (holds `courses.change_course`), non-owner | `True` |
 | **Course Admin (`make_ca`), non-owner, enrolled** | **`False`** |
 | **Course Admin (`make_ca`) who owns the course** | **`True`** |
 | Group teacher with `can_access_course` on the course, non-owner | `False` |
 | Enrolled student | `False` |
+
+**The owner row's actor is constrained for the same reason the `make_ca` rows exist.** It must hold
+**no** `courses.change_course` — build it as `make_student(client, "owner")` (or a bare verified
+user) plus `CourseFactory(owner=that_user)`. Built instead with `make_pa(client, "owner")`, the row
+would be satisfied by the *permission* branch of `can_manage_course` and would never exercise the
+`owner_id == user.id` branch at all: deleting the ownership check outright would leave it green, and
+the row would silently duplicate the PA row below it. Ownership is the only route by which a Course
+Admin reaches this link, so the row that proves ownership works must not be reachable any other way.
 
 The two `make_ca` rows are the most valuable in the table, and are easy to omit precisely because the
 role's *name* suggests they are redundant. They pin the asymmetry this design rests on — a Course
@@ -548,10 +561,29 @@ the response still carries the editor href for the owner:
 | no-JS `quiz_answer` re-render (`_quiz_render_feedback`) | any no-JS quiz-answer case; the actor must be an **enrolled** owner, since `quiz_answer` refuses non-enrolled users |
 
 Naming an existing test per row matters: each needs non-trivial fixtures (a `QuestionElement` plus an
-acceptable answer body; a blank note POST that fails `NoteForm`; an enrolled manager with a live
-submission) that are already assembled in those tests.
+acceptable answer body; an **over-length** note body — `"z" * (NOTE_MAX_LEN + 1)` — posted with a real
+`element` pk, which is what fails `NoteForm` and triggers the no-JS 422 lesson re-render; an enrolled
+manager with a live submission) that are already assembled in those tests. The notes row is worth
+describing precisely because a *blank* body is a different validation branch and need not produce the
+same 422 re-render shape.
 
-**Every copy needs the same one-line adaptation:** set `owner=<the acting user>` on the course.
+**Falsifying these three needs its own mutation — the page-render mutations do not work here.** The
+two mutations named above (invert the predicate, delete the template guard) both redden the plain GET
+tests as well, so seeing RED after either one proves nothing about the property these three rows
+actually guard: that the merge lives in the **shared builder** and not in the individual view. The
+falsification must therefore be *relocation*, and the green half of the result is as load-bearing as
+the red half:
+
+| Mutation | Must go RED | Must stay GREEN |
+|---|---|---|
+| Move the `unit_edit_context` merge out of `full_lesson_render_context` and into the `lesson_unit` view | `check_answer` row, notes-422 row | `lesson_unit` GET |
+| Move the merge out of `build_quiz_context` and into the `quiz_unit` view | `quiz_answer` row | `quiz_unit` GET |
+
+If the GET test also goes red, the mutation was applied wrongly (the merge was deleted rather than
+relocated) and the falsification does not count. `quiz_results` builds its context locally and has no
+shared-builder property to guard, which is why it has no row here.
+
+**Every copy needs the same adaptation:** the course must end up with `owner=<the acting user>`.
 `CourseFactory` declares no `owner`, so it defaults to `None`, and all three precedent tests build a
 plain `CourseFactory()` and merely *enroll* the actor. Copied verbatim, `can_manage_course` returns
 `False` (its `owner_id is not None` guard fails and the actor holds no `courses.change_course`), the
@@ -559,6 +591,20 @@ prescribed positive assertion fails, and the implementer has no stated cause. Ke
 copied fixture already carries — `check_answer` and the notes path do not require it, but
 `quiz_answer` does. The 422 row matters most in practice — that is
 a page a manager hits precisely while annotating during the walkthrough this feature serves.
+
+**It is not literally a one-line edit in two of the three copies, because of fixture ordering.**
+`CourseFactory(owner=user)` needs the user to exist first, and in two precedents it does not:
+
+- `test_check_answer_nojs_rerender_includes_unit_nav` builds `course = CourseFactory()` first and
+  only creates the actor ~25 lines later with `make_login(client, "njs")`.
+- `test_create_note_invalid_no_js_422_repopulates_rejected_text` builds the course first by
+  necessity — its actor comes from `_enrolled_user(course)`, which takes the course as an argument.
+
+For those two, either hoist the actor's creation above `CourseFactory(owner=…)`, or leave the order
+alone and assign afterwards (`course.owner = user; course.save()`). Only the e2e copy — where the
+user genuinely precedes the course — is a true one-liner. Flagging this matters because an
+implementer who tries the drop-in edit hits a `NameError` or a not-yet-existent user and has no
+stated cause.
 
 **The `min-width: 0` guard.** A pre-ship screenshot is not re-run by CI, so the load-bearing
 declaration gets a cheap static assertion in `tests/test_consumption_css.py`, following the existing
@@ -639,6 +685,13 @@ no link) case is the far more common one and the one that would regress for the 
 base size is its max-content size: the same viewport with the panel open and several tags can wrap the
 row exactly like the narrow shots, producing a completely different layout. Leaving the state
 unstated would make it undefined which layout the "pinned far right" criterion is judged against.
+
+**How to open it:** load the page with `?panel=tags`. That is the server-side switch the views already
+read (`courses/views.py:591` for `lesson_unit`, `:1134` for `quiz_unit`, `:1325` for `quiz_results`),
+it renders `<details class="unit-tags" open>` directly, and the existing e2e already uses it.
+Closed-panel shots are taken by loading the same URL without the parameter. Do **not** open the panel
+by clicking the `<summary>` in Playwright — that adds a disclosure animation to race against for no
+benefit, when the state is reachable declaratively.
 
 | Page | Viewport | Actor | Tag panel | light | dark |
 |---|---|---|---|---|---|
