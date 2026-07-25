@@ -20,6 +20,16 @@
 - **Falsify every guard.** A passing test proves nothing here. For each test, apply its named mutation, observe RED, revert, and report the observed RED in the task's completion notes. Never report "passes" alone.
 - **No migration, no new or changed translatable strings, no CSS change.** If a step seems to need one, stop — the spec is wrong and needs revisiting.
 - **Never assert line numbers** in source-text guards; this change moves them.
+- **`courses/views.py` line numbers in this plan are pre-Task-2.** Task 2 inserts ~11 lines into
+  `build_lesson_context`, so from Task 3 onward every anchor below `:370` has shifted down by roughly
+  that much (`:373`→~`:384`, `:404-428`→~`:415-439`, `:559`→~`:570`, `:828`→~`:839`). Navigate by the
+  quoted symbol or code text given alongside each anchor, never by the number alone.
+- **Run `uv run ruff check --fix` before each task's lint gate.** `pyproject.toml` selects `I` with
+  `force-single-line = true`, so new imports must land in sorted position; appending them in a block
+  yields `I001`. The merged import blocks below are already sorted, but `--fix` is the safety net.
+- **After every falsification: revert, re-run the test, and confirm it is GREEN again** before applying
+  the next mutation. Record the RED→GREEN pair. A partially-reverted mutation surfacing in Task 6 is
+  much harder to attribute.
 
 ---
 
@@ -185,7 +195,7 @@ Apply each mutation, run the named test, confirm RED, then **revert before the n
 | 18-name equality (+ inert-type absence — same mutation) | `(set(VALIDATORS) & known) - {"stepperelement"}` | `test_stateful_element_model_names_is_the_expected_18` |
 | Sortedness | `return set(...)` instead of `tuple(sorted(...))` | same test |
 | `& known` intersection | delete `& known` | `test_a_bogus_validator_key_is_dropped_from_the_derived_names` |
-| `VALIDATORS <= ELEMENT_MODELS` | **test-side only** — add `monkeypatch.setitem(state.VALIDATORS, "nosuchelement", lambda *a: None)` to the first test | first test |
+| `VALIDATORS <= ELEMENT_MODELS` | **test-side only** — temporarily change the first test's signature to `def test_stateful_element_model_names_is_the_expected_18(monkeypatch):` and add `monkeypatch.setitem(state.VALIDATORS, "nosuchelement", lambda *a: None)` as its first line. Without the signature change you get `NameError: monkeypatch`, which is not the RED you are looking for. | first test |
 
 Record all four observed REDs in the completion notes.
 
@@ -223,15 +233,24 @@ Expected: PASS (pre-change baseline).
 
 - [ ] **Step 2: Write the failing tests**
 
-In `courses/tests/test_reset_controls.py`, **replace** `test_lesson_page_links_to_the_reset_interstitial` (lines 19-26) with the version below, and append the three new tests. Add these imports at the top of the file, beside the existing ones:
+In `courses/tests/test_reset_controls.py`, **replace** `test_lesson_page_links_to_the_reset_interstitial` (lines 19-26) with the version below, and append the three new tests.
+
+**Replace the file's whole import block** with this merged, already-sorted version (isort is enforced with `force-single-line = true`, so appending a block would fail `I001`):
 
 ```python
+import pytest
+from django.urls import reverse
+
+from courses.models import ContentNode
 from courses.models import Element
+from courses.models import Enrollment
 from courses.models import MarkDoneElement
 from courses.models import ShortTextQuestionElement
 from courses.models import TabsElement
 from courses.models import TextElement
 from tests.factories import add_element
+from tests.factories import make_course_with_unit
+from tests.factories import make_verified_user
 ```
 
 ```python
@@ -360,22 +379,32 @@ Expected: all 7 PASS (4 above + the 3 pre-existing outline/editor tests, which a
 
 Revert each mutation before the next.
 
-| Test | Mutation | Notes |
+| Test | Mutation (literal) | Notes |
 |---|---|---|
-| `..._hides_the_reset_link_...` | append `"textelement"` to the name list **at C2's call site** (not to C1's union) | Fires this test alone. Widening C1 instead would co-fire Task 1's test 8. |
-| `..._for_an_element_nested_in_a_tab` | add `parent__isnull=True` to C2's filter | Fires alone |
-| `..._on_a_question_only_unit` | intersect C2's name list with `state.VALIDATORS` | **Task 3's test 6 co-fires, unavoidably** — it monkeypatches the helper to return `"textelement"`, which any C2-side validator-half intersection filters back out. Inherent to that test's purpose, not a defect here. Run this falsification after Task 3 and note both REDs. |
+| `..._hides_the_reset_link_...` | `content_type__model__in=state_svc.stateful_element_model_names() + ("textelement",)` | Fires this test alone. **Widen at C2's call site, not C1's union** — widening C1 would co-fire Task 1's derivation test. |
+| `..._for_an_element_nested_in_a_tab` | add `parent__isnull=True,` to C2's `.filter(...)` | Fires alone |
 | `..._links_to_the_reset_interstitial` | none needed | Its Step-1 pass → Step-3 behaviour change IS the signal |
+
+The fourth test in this task, `..._on_a_question_only_unit`, is falsified in **Task 3 Step 4** — its
+mutation co-fires a test that does not exist until then, so it cannot be honestly performed here.
 
 - [ ] **Step 8: Lint and commit**
 
+This task changes what **every** lesson unit page renders, so it gets a full-suite gate before its
+commit rather than deferring to Task 6 — a red surfacing three commits later is far harder to attribute.
+
 ```bash
+uv run pytest -n auto
+uv run ruff check --fix courses/views.py courses/tests/test_reset_controls.py
 uv run ruff check courses/views.py courses/tests/test_reset_controls.py
 uv run ruff format --check courses/views.py courses/tests/test_reset_controls.py
 uv run python manage.py check
 git add courses/views.py templates/courses/_lesson_article.html courses/tests/test_reset_controls.py
 git commit -m "feat(courses): show Start fresh only on units that can hold practice state"
 ```
+
+Expected: `pytest` exits 0. If any test outside `test_reset_controls.py` reds on a lesson render, this
+commit is the cause — fix it here rather than carrying it forward.
 
 ---
 
@@ -392,12 +421,25 @@ These three are separated from Task 2 because each has a fixture requirement tha
 
 - [ ] **Step 1: Write the three failing tests**
 
-Append to `courses/tests/test_reset_controls.py`. Add these imports beside the existing ones:
+Append to `courses/tests/test_reset_controls.py`. **Replace the import block again** with this merged, sorted version (three names added to Task 2's block):
 
 ```python
+import pytest
+from django.urls import reverse
+
+from courses.models import ContentNode
+from courses.models import Element
+from courses.models import Enrollment
+from courses.models import MarkDoneElement
 from courses.models import MarkDoneItem
+from courses.models import ShortTextQuestionElement
+from courses.models import TabsElement
+from courses.models import TextElement
 from courses.models import UnitProgress
 from courses.models import VideoElement
+from tests.factories import add_element
+from tests.factories import make_course_with_unit
+from tests.factories import make_verified_user
 ```
 
 ```python
@@ -427,7 +469,7 @@ def test_reset_link_survives_the_no_js_check_answer_rerender(client):
     assert _reset_url(course, unit) in r.content.decode()
 
 
-def test_views_calls_the_state_helper_rather_than_an_inlined_list(monkeypatch):
+def test_views_calls_the_state_helper_rather_than_an_inlined_list(client, monkeypatch):
     """Proves the C1 -> C2 seam is live.
 
     Every other test here stays green if build_lesson_context hand-inlines the 18
@@ -442,10 +484,7 @@ def test_views_calls_the_state_helper_rather_than_an_inlined_list(monkeypatch):
     )
     course, unit = make_course_with_unit()
     add_element(unit, TextElement.objects.create(body="<p>hi</p>"))
-    client = Client()
-    student = make_verified_user()
-    Enrollment.objects.create(student=student, course=course)
-    client.force_login(student)
+    _login(client, course)
 
     r = client.get(reverse("courses:lesson_unit", args=[course.slug, unit.pk]))
     assert r.status_code == 200
@@ -492,23 +531,7 @@ def test_an_orphaned_blob_does_not_bring_the_reset_link_back(client):
     assert _reset_url(course, unit) not in r.content.decode()
 ```
 
-Add these imports for the monkeypatch test's explicit client:
-
-```python
-from django.test import Client
-```
-
-- [ ] **Step 2: Run the tests to verify they fail**
-
-```bash
-uv run pytest courses/tests/test_reset_controls.py -k "no_js_check_answer or state_helper or orphaned_blob" -v
-```
-
-Expected: all three FAIL — `test_views_calls_the_state_helper...` fails because the monkeypatch has no effect if the seam is wrong, and the other two need Task 2's flag. If any PASSES here, Task 2 is already merged; re-verify by falsification in Step 4 rather than assuming.
-
-- [ ] **Step 3: Run them against Task 2's implementation**
-
-No production change is needed for this task — Task 2 already shipped the flag.
+- [ ] **Step 2: Run the tests — expect PASS, not RED**
 
 ```bash
 uv run pytest courses/tests/test_reset_controls.py -v
@@ -516,17 +539,29 @@ uv run pytest courses/tests/test_reset_controls.py -v
 
 Expected: all 10 PASS.
 
-- [ ] **Step 4: Falsify each guard and record the observed RED**
+**This task has no RED phase, deliberately.** Task 2 already shipped the flag, the template gate and
+the `state_svc` call, so all three of these tests describe behaviour that is already correct: the no-JS
+re-render already carries `has_stateful_elements` (it goes through `full_lesson_render_context`), the
+monkeypatch already binds because C2 calls through the module attribute, and the orphaned-blob unit
+already renders no link. They are **characterization guards** over shipped behaviour — their entire
+proof of worth is the falsification in Step 3. A test that passes here has demonstrated nothing yet.
+
+- [ ] **Step 3: Falsify each guard and record the observed RED→GREEN**
+
+Navigate by the quoted code, not the line number — Task 2 shifted every `views.py` anchor down by ~11
+lines. After each mutation: observe RED, revert, **re-run and confirm GREEN**, then move on.
 
 | Test | Mutation | Must go RED |
 |---|---|---|
-| `..._no_js_check_answer_rerender` | at `views.py:828`, keep the call and drop the key: `ctx = full_lesson_render_context(node, request.user)` then `ctx.pop("has_stateful_elements")`. **Do not** substitute a sparse hand-built dict — that also breaks `tests/test_questions_consumption.py` and `tests/test_unit_nav_render.py`. | this test alone |
-| `..._calls_the_state_helper_...` | replace C2's `state_svc.stateful_element_model_names()` with a literal list of the 18 names | this test alone |
-| `..._orphaned_blob_...` | at the context-dict assembly (`views.py:404-428`), publish `"has_stateful_elements": has_stateful_elements or bool(state)`. The local is named **`state`**, not `element_state`, and it is assigned at `:373` — *after* C2's line — so applying the OR at C2 itself raises `UnboundLocalError` on every lesson render and reds the whole suite instead of this test. | this test alone |
+| `..._no_js_check_answer_rerender` | in `check_answer`'s no-JS branch, at the line `ctx = full_lesson_render_context(node, request.user)`, add `ctx.pop("has_stateful_elements")` immediately after it. **Do not** substitute a sparse hand-built dict — that also breaks `tests/test_questions_consumption.py` and `tests/test_unit_nav_render.py`. | this test alone |
+| `..._calls_the_state_helper_...` | replace C2's `state_svc.stateful_element_model_names()` with a literal tuple of the 18 names | this test alone |
+| `..._orphaned_blob_...` | in `build_lesson_context`'s returned dict, change the entry to `"has_stateful_elements": has_stateful_elements or bool(state),`. The local is named **`state`**, not `element_state`, and it is assigned *after* C2's line — so applying the OR at C2 itself raises `UnboundLocalError` on every lesson render and reds the whole suite instead of this test. | this test alone |
+| **`..._on_a_question_only_unit`** (deferred from Task 2) | intersect C2's name list with `state.VALIDATORS`, e.g. `content_type__model__in=tuple(n for n in state_svc.stateful_element_model_names() if n in state.VALIDATORS)` | **two** tests: the question-only test **and** `..._calls_the_state_helper_...`. The co-fire is unavoidable and expected — that test monkeypatches the helper to return `"textelement"`, which any validator-half intersection filters straight back out. Record both REDs. |
 
-- [ ] **Step 5: Lint and commit**
+- [ ] **Step 4: Lint and commit**
 
 ```bash
+uv run ruff check --fix courses/tests/test_reset_controls.py
 uv run ruff check courses/tests/test_reset_controls.py
 uv run ruff format --check courses/tests/test_reset_controls.py
 git add courses/tests/test_reset_controls.py
@@ -662,7 +697,11 @@ uv run pytest tests/test_element_state_write_routes.py -v
 
 Expected: PASS (2 tests).
 
-Now falsify. Add a fourth write to `courses/views.py`, e.g. inside `progress_reset` above the return:
+Now falsify. Add a fourth write to `courses/views.py`, at **function-level indentation (four spaces)
+immediately above `progress_reset`'s final `return render(request, "courses/progress_reset_confirm.html", …)`**
+— not above the earlier `return redirect(safe_next or fallback)`, which sits inside the
+`if request.method == "POST":` block at eight spaces and would make this snippet an `IndentationError`
+rather than a clean RED:
 
 ```python
     _throwaway = UnitProgress.objects.first()
@@ -678,9 +717,14 @@ Expected: FAIL, message naming 4 hits. **Revert the mutation.** Also falsify the
 
 - [ ] **Step 3: Add the lockstep comments**
 
-In `courses/models.py`, at `UnitProgress.element_state` (`:2340`), replace the field line with:
+In `courses/models.py`, `UnitProgress.element_state` **already carries a three-line comment**
+("Per-student practice state, keyed by Element (join-row) pk… Reset (progress_reset) clears this and
+nothing else."). **Keep it** and append the contract note beneath it, so the field reads:
 
 ```python
+    # Per-student practice state, keyed by Element (join-row) pk:
+    # {"<Element.pk>": {...per-type blob}}. Personal, ungraded, invisible to
+    # analytics. Reset (progress_reset) clears this and nothing else.
     # WRITE ROUTES INTO THIS FIELD ARE A CONTRACT. courses.state.stateful_element_model_names()
     # enumerates the element types whose state the unit page offers to clear, derived from
     # state.VALIDATORS + QuestionElement.RESTORABLE_IN_LESSON. A new write route here must
@@ -780,14 +824,33 @@ Replace the `MEASURE` body's `return` block so it also reports the reset link:
 }
 ```
 
-In **both** tests, after the existing `.unit-done` assertions, add:
+Each test gets its **own** assertion, mirroring the `done_top` comparison it already makes — the two
+tests guard opposite layouts, so one shared assertion cannot serve both.
+
+In `test_long_title_does_not_overflow_under_the_action_buttons` (phone), after the existing
+`assert m["done_top"] >= m["title_bottom"] - 1` block:
 
 ```python
-    assert m["has_reset"], "the reset link vanished -- _seed's MarkDoneElement is what keeps it"
-    assert m["reset_top"] >= m["title_bottom"] or m["reset_left"] >= m["title_width"]
+    assert m["has_reset"], "the reset link vanished — _seed's MarkDoneElement is what keeps it"
+    assert m["reset_top"] >= m["title_bottom"] - 1, (
+        f"the reset link still shares the title's line at {PHONE['width']}px "
+        f"(title bottom {m['title_bottom']}, reset top {m['reset_top']})"
+    )
 ```
 
-Mirror whichever comparison each test already makes against `done_top`/`done_left`; the point is that the row's widest action is now measured too, not just the pill.
+In `test_desktop_keeps_the_actions_beside_the_title`, after the existing
+`assert m["done_top"] < m["title_bottom"]` block:
+
+```python
+    assert m["has_reset"], "the reset link vanished — _seed's MarkDoneElement is what keeps it"
+    assert m["reset_top"] < m["title_bottom"], (
+        "on desktop the reset link should still sit on the title's line"
+    )
+```
+
+Do **not** compare `reset_left` against `title_width`: one is a viewport-absolute x-coordinate and the
+other a width, so the comparison is a category error that happens to be true whenever the page has any
+left padding — it would pass unconditionally on desktop while asserting nothing.
 
 - [ ] **Step 3: Run the e2e in the foreground**
 
@@ -823,10 +886,16 @@ Expected: exit code 0. The verdict line does not survive a pipe here — check `
 - [ ] **Step 2: The query-count test, in isolation as well**
 
 ```bash
-uv run pytest tests/test_html_element.py -k has_html -v
+uv run pytest tests/test_html_element.py::test_lesson_html_render_query_count_invariant -v
 ```
 
-Expected: PASS. This is the test C2's rejected `get_for_model` alternative would have broken via cold-cache ContentType SELECTs, and it only reds in isolated runs — `-n auto` alone would not surface it.
+Expected: **1 passed**. Report the count — the point of the node id is that a mis-selection shows up as
+`0 selected` rather than a green run of the wrong tests. (`-k has_html` looks right and is **wrong**: it
+selects `test_course_form_has_html_css_js_fields`, `test_lesson_sets_has_html` and
+`test_lesson_loads_html_js_only_when_has_html` — three tests, none of them this invariant.)
+
+This is the test C2's rejected `get_for_model` alternative would have broken via cold-cache ContentType
+SELECTs, and it only reds in isolated runs — `-n auto` alone would not surface it.
 
 - [ ] **Step 3: e2e**
 
@@ -851,7 +920,70 @@ Expected: all clean, no migrations generated.
 
 This feature's entire visible output is a head row with its third child removed, and nothing above ever renders it — the e2e deliberately restores the three-child row, and the unit tests only grep HTML for a URL string.
 
-Drive a real browser (Playwright, following the pattern in `tests/test_e2e_unit_head_layout.py`) to a lesson unit seeded with **no** stateful element, and screenshot at **1280px and 390px**, in **light and dark**. Confirm:
+Create a **throwaway** e2e module at `tests/test_tmp_head_shot.py` (deleted in Step 6 — it must never be
+committed):
+
+```python
+import pytest
+
+from tests.factories import add_element
+from tests.test_e2e_unit_head_layout import _login
+
+pytestmark = pytest.mark.e2e
+
+SHOTS = "C:/Users/krzys/AppData/Local/Temp/claude/C--Users-krzys-Documents-Python-own-libli/e2e68207-43a4-4129-a443-c225117f2d91/scratchpad"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_capture_two_child_head_row(page, live_server):
+    from courses.models import Enrollment
+    from courses.models import TextElement
+    from tests.factories import ContentNodeFactory
+    from tests.factories import CourseFactory
+    from tests.test_e2e_unit_head_layout import LONG_TITLE
+    from tests.factories import make_verified_user
+    from tests.factories import TEST_PASSWORD
+
+    student = make_verified_user(
+        username="shot", email="shot@t.example.com", password=TEST_PASSWORD
+    )
+    course = CourseFactory(slug="shot-course", owner=student)
+    Enrollment.objects.get_or_create(student=student, course=course)
+    unit = ContentNodeFactory(
+        course=course, kind="unit", unit_type="lesson", parent=None, title=LONG_TITLE
+    )
+    # NO stateful element: this is the two-child head row the feature ships.
+    add_element(unit, TextElement.objects.create(body="<p>Treść.</p>"))
+
+    _login(page, live_server, "shot")
+    for w, h, label in [(1280, 900, "desktop"), (390, 780, "phone")]:
+        page.set_viewport_size({"width": w, "height": h})
+        for theme in ["light", "dark"]:
+            page.goto(f"{live_server.url}/courses/{course.slug}/u/{unit.pk}/")
+            page.wait_for_selector(".lesson-unit__head")
+            # The app's theme toggle stamps data-theme on <html>; setting the
+            # attribute is what actually flips the token set.
+            page.evaluate(
+                "t => document.documentElement.setAttribute('data-theme', t)", theme
+            )
+            page.wait_for_timeout(150)
+            assert page.locator(".lesson-unit__reset").count() == 0
+            page.locator(".lesson-unit__head").screenshot(
+                path=f"{SHOTS}/head-{label}-{theme}.png"
+            )
+```
+
+Check `_login`'s signature and `LONG_TITLE`/`TEST_PASSWORD`'s import locations against
+`tests/test_e2e_unit_head_layout.py` before running, and adjust if they differ.
+
+Run it in the **foreground**, with the mandatory marker:
+
+```bash
+uv run pytest -m e2e tests/test_tmp_head_shot.py -v
+```
+
+Expected: 1 passed, and four PNGs in the scratchpad. Then **read all four** with the Read tool and
+confirm:
 
 - desktop: the "Mark as done" pill sits hard right, the title fills the remaining width;
 - phone: the title takes its own row and the pill sits below it, left-aligned;
@@ -859,9 +991,20 @@ Drive a real browser (Playwright, following the pattern in `tests/test_e2e_unit_
 
 If any of that reads as broken rather than merely different, C3's "no CSS change is required" claim is wrong and must be revisited before merge. Attach the four screenshots to the completion notes.
 
-- [ ] **Step 6: Report**
+- [ ] **Step 6: Delete the throwaway module and report**
 
-Summarize: suite result, the falsification RED observed for each of tests 1-10, the e2e collected/passed count, and the screenshot verdict. Do not claim completion without the falsification table.
+```bash
+rm tests/test_tmp_head_shot.py
+git status --porcelain
+```
+
+Expected: `git status` shows no untracked `tests/test_tmp_head_shot.py`. The screenshots stay in the
+scratchpad; they are never committed either.
+
+Summarize: the full-suite result, the query-count test's `1 passed`, the e2e collected/passed count (2),
+the screenshot verdict, and a falsification table covering **tests 2-10** — each with its observed
+RED→GREEN pair. Test 1 has no falsification by design; report instead that it passed before Task 2 and
+required a stateful fixture afterwards, which is its signal. Do not claim completion without that table.
 
 ---
 
