@@ -236,11 +236,16 @@ Rules this markup encodes, each with its reason:
   other naming source exists, so the `<li>` may well acquire a name equal to its own text.
   **This is to be measured, not asserted** (per the `false-mechanism-survives-review` lesson): the
   design-pass QA checklist includes reading the computed accessible name of a crumb `<li>` in a real
-  engine — Playwright exposes it, and axe will flag it — and recording the result here. If the name
-  does duplicate, the remedy is to drop `title` from the `--ellipsis` item specifically, whose
-  `visually-hidden` span already carries the same string; the other crumbs keep theirs, since for
-  them the tooltip is the whole point and the duplication is a repeat of visible text rather than of
-  otherwise-unavailable text.
+  engine — Playwright exposes it, and axe will flag it — and recording the result in the PR body.
+  **Whatever the measurement shows, the markup does not change: no `title` is removed.** The finding
+  is informational. Dropping `title` from the `--ellipsis` item was considered as a remedy and is
+  explicitly **out of bounds**, because that one attribute is load-bearing three times over — test 12
+  asserts it, the 360px e2e coupling assertion (the guard on §1's invariant 5, which §1 says may not
+  be broken) reads it, and §Disclosure's narrow-viewport row promises it as the hover affordance.
+  Trading all three for a possible doubled announcement on a single element at a single breakpoint is
+  a bad exchange, and leaving the branch open would land a later QA pass with two red tests and no
+  instruction. If the duplication is confirmed and someone later wants it gone, that is a follow-up
+  with its own spec, not a QA-time edit.
 - **The `…` is not `aria-hidden`.** At the widths where it renders, the mid crumbs are
   `display: none` and therefore *absent* from the accessibility tree — so the `…` is the only
   carrier of that text, and it holds it in a `visually-hidden` span (the utility already exists in
@@ -356,7 +361,7 @@ Mids absorb essentially all of any deficit first; then the course crumb; the lea
 **Source-order rule.** Base and modifier target the same element at identical specificity, and media
 queries add none, so the cascade here is decided by source order alone. The base
 `.unit-crumbs__item` block must appear **before** every modifier rule *and* before the
-`@media screen and (max-width: 52rem)` block **and** before the `@media print` block. This governs
+`@media screen and (max-width: 832px)` block **and** before the `@media print` block. This governs
 three groups of declarations, not one:
 
 - `min-width` — base `0` vs the modifier floors. Wrong order and the floors never apply.
@@ -375,17 +380,29 @@ actually matters.
 
 - `.unit-crumbs__item--ellipsis` — `display: none` by default; `flex: 0 0 auto` (it is one glyph and
   must never shrink).
-- **Collapse query — `@media screen and (max-width: 52rem)`:** `--mid` items go `display: none`;
+- **Collapse query — `@media screen and (max-width: 832px)`:** `--mid` items go `display: none`;
   `--ellipsis` goes `display: flex` (the value is immaterial since a flex container blockifies its
   children, but naming it stops it being re-litigated).
 - **Print query — a new `@media print` block colocated with the `.unit-crumbs` rules:** the collapse
-  never applies (it is `screen`-scoped), and `.unit-crumbs__list` gets `flex-wrap: wrap` with
-  `.unit-crumbs__label { overflow: visible; white-space: normal; text-overflow: clip; }` so a long
-  path wraps instead of being clipped. Precedent for taking print seriously: the `.el--tabs` print
+  never applies (it is `screen`-scoped), and `.unit-crumbs__list` gets
+  `flex-wrap: wrap; overflow: visible;` with
+  `.unit-crumbs__label { overflow: visible; white-space: normal; text-overflow: clip;
+  overflow-wrap: anywhere; }` so a long path wraps instead of being clipped. **Resetting the
+  *list's* `overflow` matters as much as the label's:** leaving it `hidden` means a single
+  unbreakable token longer than the column (titles run to 200 chars) escapes the now-`visible` label
+  and is then clipped by the list — printed text lost silently, which is precisely the failure the
+  `.el--tabs` precedent is cited to prevent. `overflow-wrap: anywhere` handles the same token inside
+  the label. Precedent for taking print seriously: the `.el--tabs` print
   block at `courses.css:1238` exists because a screen-only hiding rule once silently destroyed
   printed content.
 
-**Why 52rem and not the shell's 640px.** The content column is *narrowest just above* the shell
+**Authored in `px`, not `rem`.** Every other media query in `courses.css` (lines 451, 693, 735, 814)
+is in `px`, and test 18's drift guard has to build the expected query string from
+`COLLAPSE_BREAKPOINT_PX` — a `rem` literal would force an unstated ÷16 conversion whose obvious
+formatting (`f"{832/16}rem"` → `"52.0rem"`) does not even match the CSS. `px` makes the guard
+`f"max-width: {COLLAPSE_BREAKPOINT_PX}px"` with no conversion at all.
+
+**Why 832px (≈52rem) and not the shell's 640px.** The content column is *narrowest just above* the shell
 breakpoint: at 641px the 14rem rail is still present, leaving ~417px, whereas at 360px the rail is
 gone and the column is ~328px of a much simpler layout. Collapsing at the shell breakpoint would
 leave the worst case uncollapsed.
@@ -393,7 +410,7 @@ leave the worst case uncollapsed.
 **Invariants the design pass may not break.** Colour, size, weight, glyph and spacing are free. The
 breakpoint is **tunable but bounded**: it must sit strictly between 360px and 1280px, because the
 e2e pins the collapsed state at 360px and the expanded state at 1280px. Those two widths are the
-contract; 52rem is just a value inside them.
+contract; 832px is just a value inside them.
 
 1. On screen, the strip is exactly one line at every viewport width ≥ 360px. (Print deliberately
    wraps.)
@@ -410,8 +427,10 @@ contract; 52rem is just a value inside them.
    overlap, so an `<li>`-level overlap check could not go red under any mutation. It is the labels
    that spill and paint over each other.
 5. The set of crumbs hidden by the collapse query is exactly the set `hidden_path` names.
-6. The `›` glyph appears in exactly one place, `_unit_crumbs.html`. It is never reintroduced
-   into Python, and never into `hidden_path` (see "the spoken separator" in §1).
+6. The `›` glyph appears in exactly one place **in shipped code**, `_unit_crumbs.html`. It is never
+   reintroduced into production Python, and never into `hidden_path` (see "the spoken separator" in
+   §1). Tests 5 and 6 necessarily spell the glyph as a literal to guard it — that is intended, and
+   is not a reason to reintroduce a Python-side constant for them to import.
 
 Baseline styling: `--text-tertiary`, ~0.85rem, `--space-3` bottom margin, course link inheriting the
 muted colour rather than the default link blue.
@@ -436,9 +455,19 @@ checklist.
 **Focus scrolling.** `overflow: hidden` also makes the list a programmatically scrollable container.
 If the focused link's border box ever exceeded the visible area, the UA would scroll the list to
 reveal it — and with no scrollbar and no keyboard scroll affordance the strip would stay shifted,
-hiding the leaf, until re-layout. It does not happen here because the label's *box* always fits (it
-is the text that ellipses, not the box), but that is a property to confirm rather than assume: the
-QA checklist item asserts `list.scrollLeft === 0` after focusing the course link at 360px.
+hiding the leaf, until re-layout.
+
+That hazard is **structurally unreachable here**, and the reason is worth recording so nobody adds a
+test that cannot fail. Scroll-into-view only fires for an element outside the visible area; the
+course crumb is the *first* child of the list and, per decision 2 and test 9, the *only* focusable
+element in the strip. The sole focusable element sits at scroll origin, so in LTR `scrollLeft` can
+never leave `0` — not even in the broken state, where the row overflows to the right and the first
+link stays put. An earlier draft's `list.scrollLeft === 0` check was therefore vacuous and has been
+dropped.
+
+What the padding fix actually buys is worth checking instead, so the QA item is: focus the course
+link at 360px and confirm its `getBoundingClientRect()` — **expanded by the 4px ring** — lies fully
+inside the list's own rect. That goes red if the padding is missing in either axis.
 
 ## Data flow
 
@@ -483,7 +512,7 @@ There is no user input and no write path here; the failure modes are all "missin
 | **`unit_nav` absent from the context** on some re-render path | Django resolves the missing variable to empty: the `{% for %}` yields nothing, `hidden_path` is empty, and the course crumb still renders. Degrades; does not raise. |
 | **`current_pk` not present in the tree** | `_current_ancestors` returns `[]` → course crumb only. A legitimate empty result, not an error. |
 | **Unstamped tree passed to `_current_ancestors`** | `KeyError`, deliberately — matches `_top_level_part`'s existing contract, so a future caller that forgets to stamp fails loudly instead of silently rendering an empty crumb. |
-| **Blank ancestor title** | The crumb renders empty and `hidden_path` keeps its slot, so three ancestors with a blank first title give `" › Chapter"` — a tooltip with a leading separator. Accepted, not filtered: a blank title is already a content defect the author should fix, and filtering blanks out of the join would desynchronise `hidden_path` from the §Testing e2e assertion that joins every `--mid` title verbatim. Emission of the `…` is unaffected because it is keyed on ancestor *count*, not on the string. |
+| **Blank ancestor title** | The crumb renders empty and `hidden_path` keeps its slot, so ancestors `["", "Chapter", "Section"]` give `hidden_path == ", Chapter"` — a tooltip with an empty leading entry, i.e. a leading comma. (Joined with `HIDDEN_PATH_SEP`, never the visible glyph — see §1.) Accepted, not filtered: a blank title is already a content defect the author should fix, and filtering blanks out of the join would desynchronise `hidden_path` from the §Testing e2e assertion that joins every `--mid` title verbatim. Emission of the `…` is unaffected because it is keyed on ancestor *count*, not on the string. |
 | **Pathological title lengths** (`ContentNode.title` allows 200 chars) | Labels clip with an ellipsis in the §4 shrink order — mids first, then the course crumb, then the leaf. Below the collapse breakpoint the mids are gone entirely and only course + leaf compete. The strip stays one line and the page never scrolls horizontally. |
 
 ## Testing
@@ -591,7 +620,7 @@ browsers.
 *visible but squeezed* — at 360px they are hidden and at 1280px there is room to spare. By §4's own
 argument the content column is narrowest while the rail is still present, so the worst case for
 invariant 3 and for label containment sits **just above the collapse breakpoint** (~833px at the
-starting 52rem, where the column is roughly 561px for four crumbs).
+starting 832px, where the column is roughly 561px for four crumbs).
 
 The breakpoint lives only as a literal inside `courses.css`, and a media query cannot be read from a
 custom property, so "derive it" needs a concrete mechanism rather than good intentions. Use the
@@ -615,14 +644,23 @@ Assertions:
   vacuous test rather than a wrong mutation. (Removing the label's `overflow: hidden` also works as
   a mutation, but it changes two behaviours at once.) The height check below does **not** catch any
   of this, which is why it is not the primary guard.
-- Secondary, one-line check, **at all three widths**: compare the list's height to a single crumb's
-  rather than to a guessed pixel value —
-  `list.offsetHeight <= 1.5 * courseItem.offsetHeight`. The reference must be
-  `.unit-crumbs__item--course` specifically, the one crumb that renders at every width: `--mid` is
-  `display: none` at 360px and `--ellipsis` is at 1280px, so "any item" would compare against
-  `offsetHeight == 0` and could never pass. A hard-coded pixel value or a raw `line-height`
-  comparison would be brittle because the focus-ring fix adds inline padding to the list. Cheap, and
-  catches an accidental `flex-wrap: wrap`.
+- Secondary, one-line check, **at all three widths**: compare the list's **content** height to a
+  single crumb's, rather than to a guessed pixel value. Subtract the list's block padding first:
+
+  ```
+  cs = getComputedStyle(list)
+  contentH = list.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom)
+  assert contentH <= 1.5 * courseItem.offsetHeight
+  ```
+
+  Two things this gets right that a naive version does not. The reference must be
+  `.unit-crumbs__item--course` specifically — the one crumb that renders at every width, since
+  `--mid` is `display: none` at 360px and `--ellipsis` is at 1280px, so "any item" would compare
+  against `offsetHeight == 0` and could never pass. And the block padding **must** be subtracted:
+  the focus-ring fix adds padding in *both* axes (§4), and at the baseline values (a ~20px item plus
+  4px of ring per side) a raw `offsetHeight <= 1.5 × item` check leaves about 2px of headroom, so a
+  perfectly correct implementation can go red and the implementer has no way to tell a real wrap
+  from exhausted tolerance. Cheap, and catches an accidental `flex-wrap: wrap`.
 - **Containment and overlap, at both 360px and just above the breakpoint.** Every label is
   contained in its own `<li>` (`label.clientWidth <= li.clientWidth`), and no two adjacent
   **`.unit-crumbs__label` bounding rects** overlap (`getBoundingClientRect()`, not the `<li>` boxes
@@ -652,9 +690,9 @@ Assertions:
   when the path cannot fit one line, and with short titles it would fail for a legitimate reason.
   Every `--mid` is visible,
   the `--ellipsis` is not, `.unit-crumbs__list` `scrollWidth <= clientWidth`, and
-  `list.offsetHeight > 1.5 * courseItem.offsetHeight` — proving it wrapped rather than clipped.
-  Stated in the same currency as the screen one-line check above, so both height assertions share
-  one reference and neither invites a hardcoded pixel value. §Disclosure promises a printout shows
+  `contentH > 1.5 * courseItem.offsetHeight` — using the same padding-subtracted `contentH` as the
+  screen check above, so both height assertions share one reference and one currency, and neither
+  invites a hardcoded pixel value. Wrapping is what makes this exceed; clipping would not. §Disclosure promises a printout shows
   the complete path and §4 cites the `.el--tabs` block as precedent for a screen-only rule silently
   destroying printed content; without this the spec ships that exact risk untested. Falsifying
   mutation: remove `screen and` from the collapse query.
