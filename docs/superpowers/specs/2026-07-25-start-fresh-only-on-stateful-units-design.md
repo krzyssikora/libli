@@ -126,24 +126,30 @@ def stateful_element_model_names():
 **The `& known` intersection is load-bearing, not defensive noise.** Without it, a `VALIDATORS` key
 that is not a real element model — a typo, or a type deleted from `ELEMENT_MODELS` without its
 validator being unregistered — would flow into the `__in` filter and silently widen it, and any future
-consumer that resolves these names to model classes would raise `LookupError`. Today such a typo is
-harmless: `validate_state` (`state.py:124`) just `.get()`s the registry and returns `REJECT`, so one
-element silently fails to persist. **Test 8** re-raises the typo loudly in CI, and **test 9** falsifies
-the intersection itself (test 8 alone cannot — the real registry is clean by construction, so deleting
-`& known` leaves the whole suite green).
+consumer that resolves these names to model classes would raise `LookupError`. Note precisely what the
+intersection does and does not do: it does **not** protect the `apps.get_model` call, which only ever
+sees `ELEMENT_MODELS` names (see §Error handling); it keeps the *returned tuple* honest. Today such a
+typo is harmless: `validate_state` (`state.py:124`) just `.get()`s the registry and returns `REJECT`, so
+one element silently fails to persist. **Test 8** re-raises the typo loudly in CI, and **test 9**
+falsifies the intersection itself (test 8 alone cannot — the real registry is clean by construction, so
+deleting `& known` leaves the whole suite green).
 
 **Placement.** `state.py` is the state domain and already owns half the union. Its docstring calls it
 "a pure module (no views, no writes)"; the real invariant that protects is *no model imports at import
-time*, which a function-local import preserves.
+time*, which a function-local import preserves. Put the function **immediately after `validate_state`**
+so the module reads `VALIDATORS` (`state.py:110`) → `validate_state` → `stateful_element_model_names`
+top-to-bottom, keeping the registry beside both of its consumers.
 
 **Not cached — deliberately.** An earlier draft wrapped this in `@functools.cache`. That is unsafe
 here: `VALIDATORS` is a module-level mutable dict, and the suite already mutates it
 (`courses/tests/test_state_module.py:74` uses `monkeypatch.setitem`). Today's patch only replaces an
 existing key, so the key-set is unchanged — but a future `setitem` with a new key, or a `delitem`,
 would be invisible behind a cache and produce order-dependent test results. Tests 6 and 9 both
-monkeypatch this surface, so a cache would actively break them. The uncached cost is 31 `getattr`s over
-in-memory model classes, negligible beside the DB query it feeds. (This also removes the need for a
-`functools` import; `state.py` currently imports only `logging`.)
+monkeypatch this surface, so a cache would actively break them. The uncached cost is 31
+`apps.get_model` app-registry lookups plus 31 `getattr`s, no DB — negligible beside the query it feeds,
+and stated in full here because it is the figure anyone revisiting the caching decision will weigh.
+(Dropping the cache also removes the need for a `functools` import; `state.py` currently imports only
+`logging`.)
 
 **Sorted tuple, not a frozenset.** The names go directly into `content_type__model__in` (see C2), so
 sorting here fixes the SQL parameter list's order end to end: identical query text run to run, captured
@@ -242,7 +248,8 @@ note is not.
 ```
 lesson_unit GET  ->  full_lesson_render_context -> build_lesson_context(node, user)
                        |
-                       +-- stateful_element_model_names()   (no DB, uncached, ~31 getattrs)
+                       +-- stateful_element_model_names()
+                       |     (no DB, uncached: 31 apps.get_model lookups + 31 getattrs)
                        |     (VALIDATORS keys & ELEMENT_MODELS) U {RESTORABLE_IN_LESSON types}
                        |     -> sorted tuple of 18 names
                        |
@@ -277,10 +284,14 @@ enrollment, so it is unaffected by the enrolled / non-enrolled (author-preview) 
   resolving to a real model is already pinned by the transfer-schema tests — so a name in it that
   resolves to nothing is a broken deployment that should fail loudly, not silently drop a type and hide
   reset buttons.
-- **Unknown key in `VALIDATORS`** never reaches `apps.get_model`: C1 intersects with `ELEMENT_MODELS`
-  first. Under the join-based C2 such a key would merely widen the `__in` list harmlessly, but the
-  intersection keeps the function's output honest and keeps it safe for any future consumer that does
-  resolve names to classes. Test 8 surfaces the typo in CI; test 9 falsifies the intersection.
+- **Unknown key in `VALIDATORS`** cannot reach `apps.get_model` — but **not because of the
+  intersection**. The resolution loop iterates `ELEMENT_MODELS`, so a `VALIDATORS` key is never passed
+  to `get_model` whether or not `& known` is present. `& known`'s sole job is to keep the *returned
+  tuple* free of names that resolve to nothing: under the join-based C2 such a name would merely widen
+  the `__in` list harmlessly, but it would break any future consumer that does resolve names to
+  classes, and it makes the function's output a lie about what exists. (Stating the mechanism precisely
+  matters here — this project has been bitten by a confident, false mechanism surviving review.) Test 8
+  surfaces the typo in CI; test 9 falsifies the intersection.
 - **`getattr(..., "RESTORABLE_IN_LESSON", False)`** defaults to `False`, so non-question element types
   (which never define the attr) are correctly excluded without a type check.
 - **A dangling GFK join row is an accepted false positive.** C2 matches on the join row's content type
@@ -338,9 +349,13 @@ Every guard below must be **falsified**, not merely run green: delete the guard,
 This codebase has shipped vacuous tests repeatedly (see the practice-state build's four cases), and the
 specific hazard here is a test that passes because of the *fixture*, not the condition.
 
-**Each test names its own falsification, and no two share one.** Where two tests would go RED from the
-same mutation, the falsification is not specific enough — the mutations below are chosen so each test
-is the only one that fires.
+**Each test names its own falsification, and no test's falsification is *subsumed* by another's.** The
+weaker phrasing is deliberate and was earned: "exactly one test fires per mutation" is unachievable
+here, because tests 2 and 7 are both link-*absence* guards and deleting the `{% if %}` in C3 necessarily
+fires both. What matters is that every test has at least one mutation that fires it and that no test's
+entire falsification surface is covered by another test — test 7's `bool(element_state)` OR fires test 7
+alone, which is the property that makes it a real guard. Where a listed mutation fires more than one
+test, the co-firing tests are named.
 
 **Namespace warning for every test below.** There are **two** symbols named `VALIDATORS`:
 `courses.state.VALIDATORS` (content-type-model namespace — the one this spec means) and
@@ -361,7 +376,8 @@ qualified: `from courses import state` then `state.VALIDATORS`, never a bare `VA
    **Also assert `status_code == 200` and a positive anchor from the same head block** (the
    `courses:complete` URL, or the unit title) — "URL absent" is otherwise satisfied by a 302 to login, a
    403, a 404 or a 500, i.e. by every failure mode of the fixture rather than of the condition, which is
-   exactly the hazard the preamble names. *Falsification: delete the `{% if %}` in C3.*
+   exactly the hazard the preamble names. *Falsification: delete the `{% if %}` in C3 — **test 7 fires
+   on this mutation too**; both are absence guards, and that is expected per the preamble.*
 3. **A nested state-bearing element still shows the link.** Follow the working pattern in
    `courses/tests/test_switchgrid_context.py:59-77` (`test_has_switch_grid_flag_when_nested_in_tab`),
    the same flat-query-under-a-tab guard for a sibling flag: create a `TabsElement` with
@@ -376,19 +392,26 @@ qualified: `from courses import state` then `state.VALIDATORS`, never a bare `VA
 4. **A question-only unit shows the link.** Every other render-level test uses the *validator* half of
    the union, so nothing would catch an implementation that mishandles the `RESTORABLE_IN_LESSON` half,
    and a unit whose only interactive content is a question would silently lose its link. Seed
-   `ShortTextQuestionElement.objects.create(stem="Q", accepted="x")` via `add_element`; assert the reset
-   URL is present. *Falsification: restrict **C2's** filter to the validator half only (e.g. intersect
-   the name list with `state.VALIDATORS`). Do **not** falsify by narrowing C1's union — that also turns
-   test 8 RED.*
+   `ShortTextQuestionElement.objects.create(stem="Q", accepted="x")` via `add_element` — and **nothing
+   else**, so the question is genuinely the only interactive element. *Falsification: restrict **C2's**
+   filter to the validator half only (e.g. intersect the name list with `state.VALIDATORS`). This fires
+   test 4 alone, given test 5's fixture carries a `MarkDoneElement` beside its question. Do **not**
+   falsify by narrowing C1's union — that also turns test 8 RED.*
 5. **The flag survives the non-GET render path.** POST `courses:check_answer` for a question in a
    stateful unit **without** the JS-fragment header, so the no-JS branch at `views.py:837` re-renders
    the full page; assert the reset URL is still present. A missing context variable renders as false in
    Django with no error, which is why this needs a test rather than §Data flow prose.
-   *Falsification: at `views.py:828`, replace `full_lesson_render_context(node, request.user)` with a
-   dict containing **every key that function returns except `has_stateful_elements`**. The mutation must
-   be that precise: a genuinely hand-assembled (i.e. sparse) context also breaks
-   `tests/test_questions_consumption.py:182` and `:211` and `tests/test_unit_nav_render.py:790`, which
-   drive the same path and assert on the rendered page.*
+
+   **Seed a `MarkDoneElement` alongside the question** in this unit. Without it the unit's only
+   interactive element is the question, and test 4's falsification (restricting C2 to the validator
+   half) would fire this test too — the co-firing the preamble asks us to avoid where it is cheap to
+   avoid, and here it costs one extra fixture row.
+
+   *Falsification: at `views.py:828`, keep the call and drop the key —
+   `ctx = full_lesson_render_context(node, request.user); ctx.pop("has_stateful_elements")`. That is the
+   minimal mutation with the right blast radius. Do **not** substitute a genuinely hand-assembled
+   (sparse) context: it also breaks `tests/test_questions_consumption.py:182` and `:211` and
+   `tests/test_unit_nav_render.py:790`, which drive this same path and assert on the rendered page.*
 6. **The C1→C2 seam is live.** Every other test stays green if `build_lesson_context` hand-inlines the
    18 names instead of calling `state_svc.stateful_element_model_names()` — tests 2/3/4/5 assert
    rendered outcomes and test 8 asserts C1's output in isolation. That is the drift D3 exists to
@@ -402,8 +425,18 @@ qualified: `from courses import state` then `state.VALIDATORS`, never a bare `VA
    records that choice, so a later author "fixing" it — or accidentally implementing the union rule —
    would pass unnoticed in both directions. Seed a stateful element, store an `element_state` blob for
    the student, delete the element (leaving the blob), and assert the link is **absent**. Comment the
-   test with D1 and the union alternative. *Falsification: OR `bool(element_state)` into C2's flag —
-   which leaves test 2 green, since a text-only unit with no blob still hides the link.*
+   test with D1 and the union alternative.
+
+   **The fixture must be exact, or the falsification silently cannot fire.** The `element_state` the
+   falsification would read is *not* the DB column — it is `ctx["element_state"]`, rebuilt at
+   `views.py:388-396`, which (a) exists only when a `state_row` does (enrolled, or authenticated with a
+   pre-existing row) and (b) **drops every non-`dict` value and every non-int-coercible key**. So seed an
+   **enrolled** student and a **str-keyed, dict-valued** blob captured before the deletion — e.g.
+   `UnitProgress.objects.create(student=…, unit=unit, element_state={str(join_row.pk): {"items": [item.pk]}})`.
+   Seed `{"5": True}` (non-dict value) or an unenrolled user and the context dict comes back empty, the
+   falsification goes GREEN, and the implementer records a falsification that never happened — the exact
+   hazard the preamble names. *Falsification: OR `bool(element_state)` into C2's flag. This fires test 7
+   alone — test 2's text-only unit has no blob, so it stays green.*
 
 ### Tests 8-9 — `courses/tests/test_state_module.py`
 
@@ -428,13 +461,29 @@ qualified: `from courses import state` then `state.VALIDATORS`, never a bare `VA
    would not. Also assert the return is sorted and that known-inert types (`textelement`,
    `videoelement`) are absent, and assert **`set(state.VALIDATORS) <= set(ELEMENT_MODELS)`** — the
    registry contract C1's intersection relies on, and the guard that turns a registry typo into a loud
-   CI failure rather than a silently dropped element. *Falsification: change one name in C1's union.*
+   CI failure rather than a silently dropped element.
+
+   **This test bundles four guards, and each needs its own named falsification** — "change one name in
+   C1's union" is not performable, since C1 contains no literal names to change. Use:
+   - *18-name equality:* drop a term from a derivation clause in C1 — e.g. `(set(VALIDATORS) & known) -
+     {"stepperelement"}`.
+   - *Sortedness:* have C1 return the raw `set`/`frozenset` instead of `tuple(sorted(...))`.
+   - *Inert-type absence:* it shares the equality guard's mutation; note that explicitly rather than
+     inventing a second one.
+   - *`VALIDATORS <= ELEMENT_MODELS`:* falsified **test-side**, by
+     `monkeypatch.setitem(state.VALIDATORS, "nosuchelement", …)`. Label it as a test-side falsification —
+     there is no production edit that fires it — or split it into its own test.
 9. **The `& known` intersection itself.** Test 8's subset assertion guards the *production registry*,
    not the *intersection*: delete `& known` from C1 and the suite stays green, because the real
    `VALIDATORS` is clean by construction — leaving the one guard with a stated platform-wide rationale
    as the only one nothing falsifies. `monkeypatch.setitem(state.VALIDATORS, "nosuchelement", lambda
-   *a: None)`, then assert `stateful_element_model_names()` neither raises nor contains
-   `"nosuchelement"`. *Falsification: remove `& known` — `"nosuchelement"` then appears in the output.*
+   *a: None)`, then assert the return is **still exactly the 18 names** (equality, not merely
+   `"nosuchelement" not in …`, so a widened `__in` list is caught as a value change).
+
+   **Do not assert "it does not raise".** Per §Error handling, no arrangement of `VALIDATORS` can make
+   C1 raise — the resolution loop iterates `ELEMENT_MODELS` — so that half can never go RED under this
+   or any other production edit, and would be exactly the vacuous assertion this section forbids.
+   *Falsification: remove `& known` — `"nosuchelement"` then appears in the output.*
 
 ### Test 10 — a source-text guard under `tests/` (NOT `courses/tests/`)
 
@@ -456,23 +505,48 @@ qualified: `from courses import state` then `state.VALIDATORS`, never a bare `VA
     ```python
     WRITE = re.compile(
         r"\.update\(\s*element_state=|element_state\.pop\(|element_state\[[^\]]*\]\s*="
+        r"|\.element_state\s*=(?!=)"
     )
     ```
 
+    **The fourth alternation is mandatory, not belt-and-braces.** Plain attribute assignment is the
+    house style for this write — migration 0050 spells it `up.element_state = forward_state(...)`, and
+    six existing e2e fixtures spell it `progress.element_state = <blob>` (`tests/test_e2e_fillgate.py:136`,
+    `test_e2e_filltable.py:217`, `test_e2e_guessnumber.py:131`, `test_e2e_reveal_gate.py:209`,
+    `test_e2e_switchgate.py:139`, `test_e2e_switchgrid.py:159`). Without it the matcher is provably blind
+    to the very shape this section calls the established one, and a fourth route written in house style
+    ships green. The `(?!=)` guard against `==` follows `tests/test_builder_js_invariants.py:24`'s
+    `panel\.innerHTML\s*=(?!=)`.
+
     Expected: **3** matches — `views.py:559` (`.update(`), `685` (`.pop(`), `691` (subscript assign).
-    Non-matching confounders, all containing the substring `element_state` and none of them writes:
-    the comment at `383`; reads at `391`, `421`, `565`, `750`; and the *names* `save_element_state`
-    (`670`, `772`, `775`, `801`, `803`) and `element_state_save` (`672`, `697`).
+    The new alternation adds no double-counts: `rows.update(element_state=` and
+    `rows.exclude(element_state=` have no preceding dot on `element_state`, and `685`/`691` are followed
+    by `.pop`/`[`, not `=`. Non-matching confounders, all containing the substring `element_state` and
+    none of them writes: the comment at `383`; reads at `391`, `421`, `565`, `750`; and the *names*
+    `save_element_state` (`670`, `772`, `775`, `801`, `803`) and `element_state_save` (`672`, `697`).
 
-    **State the matcher's blind spot in the test.** It catches `.update()`, `.pop()` and subscript
-    assignment; it does **not** catch `setattr`, a queryset `.bulk_update`, an F-expression, or a write
-    spelled through a local alias. The guard is a tripwire for the common shapes, not a proof.
+    **C1's docstring and C4's two comments must not spell `.element_state =` in prose**, or they will
+    trip the widened matcher and move the expected count in the same commit that adds them.
 
-    **Scope: the whole application, not one file.** C1's contract is platform-wide, so scan every
-    non-migration, non-test `.py` under the repo (excluding `.venv`), with the three known `views.py`
-    sites enumerated as the expected set. A `views.py`-only scan would stay green for a new route in
-    `courses/state.py`, another app, a signal handler, or a management command — exactly the drift this
-    test exists to catch.
+    **Assert a count and a path set — never line numbers.** State the shape explicitly: the number of
+    matches is 3, and the set of matching file paths is exactly `{courses/views.py}`. Line numbers are
+    forbidden: C4 inserts a comment beside `views.py:559` and C2 inserts a block earlier in the same
+    file, so this change itself moves all three sites.
+
+    **State the matcher's blind spot in the test.** It catches `.update()`, `.pop()`, subscript
+    assignment and attribute assignment; it does **not** catch `setattr`, a queryset `.bulk_update`, an
+    F-expression, or a write spelled through a local alias. The guard is a tripwire for the common
+    shapes, not a proof.
+
+    **Scope: the whole application, not one file.** C1's contract is platform-wide; a `views.py`-only
+    scan would stay green for a new route in `courses/state.py`, another app, a signal handler, or a
+    management command — exactly the drift this test exists to catch. Pin the walk explicitly rather
+    than `rglob`-ing the repo root (which would also reach `staticfiles/`, `htmlcov/`, `node_modules/`,
+    or a `venv/` spelled without the dot): iterate the application packages — `courses`, `core`,
+    `notes`, `notifications`, `tags`, `integrations` — plus `manage.py` and the settings module, and skip
+    any path containing a `migrations` or `tests` segment, any filename starting with `test_`, and
+    `conftest.py`. The two cited precedents are single-file readers and offer no walk convention to
+    inherit, so this one is specified here in full.
 
     **Read mechanism.** `Path(...).read_text(encoding="utf-8")`, following the repo's convention for
     source-text guards: a module under `tests/` with `ROOT = Path(__file__).resolve().parent.parent`
@@ -517,3 +591,13 @@ out of scope for the per-test RED report in §Definition of done.
   and `uv run python manage.py check` all clean.
 - Tests 2-10 each reported with their observed RED under their own named falsification (test 1's signal
   is its pre-change RED; the e2e assertions are exempt per above).
+- **Look at the two-child head row.** This feature's whole visible output is a head row with the third
+  child removed, on every text/video/image unit — and nothing above ever renders it to a screen: the
+  e2e deliberately restores the *three*-child row, and tests 2 and 7 only assert a URL string is absent
+  from HTML. Reasoned-about is not seen, and this repo's standing lesson is to screenshot styling
+  changes before shipping. Screenshot a lesson unit with **no** stateful element at 1280px and 390px, in
+  light and dark, and confirm the row reads as intentional: `justify-content: space-between` with
+  `flex: 1` on the title should keep the pill hard right on desktop, and the `max-width: 640px` rule
+  should give the title its own row with the pill left-aligned beneath it at phone width. If either
+  reads as broken rather than merely different, the "no CSS change is required" claim in C3 is wrong and
+  must be revisited before merge.
