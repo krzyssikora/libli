@@ -129,3 +129,41 @@ def validate_state(element, obj, payload):
     except Exception:
         logger.exception("state validator failed for %s", element.content_type.model)
         return REJECT
+
+
+def stateful_element_model_names():
+    """content_type.model NAMES of every element type that can persist practice state:
+    the validator registry UNION the question types that opt into RESTORABLE_IN_LESSON.
+    Returns a sorted tuple of strings, fed straight to a content_type__model__in filter.
+
+    DERIVED, never hand-listed. A literal list here would be a second hand-maintained
+    copy of two registries that live elsewhere, in the namespace they already use --
+    and it would drift silently: a new state-bearing type would keep its state but lose
+    its reset affordance.
+
+    Sorted so the generated SQL parameter list is stable run to run. NOT cached: the
+    suite monkeypatches VALIDATORS (see test_state_module.py), and a cache would make
+    the result order-dependent -- 31 registry lookups is nothing beside the query this
+    feeds.
+
+    The `& known` intersection keeps a bogus/stale VALIDATORS key out of the RETURNED
+    tuple. It does NOT guard the get_model call below -- that loop only ever iterates
+    ELEMENT_MODELS, so a bad registry key could never reach it either way.
+
+    CONTRACT (restated at the UnitProgress.element_state field declaration): these two
+    routes are the only LIVE APPLICATION write routes into element_state -- migration
+    0050's historical re-key and progress_reset's bulk clear aside, neither of which
+    introduces a new state-bearing type. A third such route must extend this function in
+    lockstep, or whatever it persists becomes unresettable from the unit page.
+    """
+    from django.apps import apps  # lazy: keeps this module import-time model-free
+
+    from courses.models import ELEMENT_MODELS
+
+    known = set(ELEMENT_MODELS)
+    restorable = {
+        name
+        for name in ELEMENT_MODELS
+        if getattr(apps.get_model("courses", name), "RESTORABLE_IN_LESSON", False)
+    }
+    return tuple(sorted((set(VALIDATORS) & known) | restorable))
