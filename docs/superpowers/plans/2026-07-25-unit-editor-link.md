@@ -4,7 +4,7 @@
 
 **Goal:** Add an "Edit unit" link to the three student-facing unit pages, visible only to a user who can actually author the course, opening that unit's editor in a new tab.
 
-**Architecture:** One new request-free context helper (`courses/rendering.py::unit_edit_context`) merged into the two shared context builders plus `quiz_results`' local context; one new template partial (`courses/_unit_strip.html`) that wraps the existing tag panel and adds the link as its *sibling*; two CSS rules. No new view, no new URL, no JS, no migration.
+**Architecture:** One new request-free context helper (`courses/rendering.py::unit_edit_context`) merged into the two shared context builders plus `quiz_results`' local context; one new template partial (`courses/_unit_strip.html`) that wraps the existing tag panel and adds the link as its *sibling*; three CSS rules (two layout, one print hide). No new view, no new URL, no JS, no migration.
 
 **Tech Stack:** Django 5.2, `uv run` for every tool invocation, pytest + pytest-django, Playwright for e2e, Django i18n (`.po` + tracked `.mo`).
 
@@ -17,7 +17,7 @@
 - **Never hardcode a password literal.** Use `tests.factories.TEST_PASSWORD`. GitGuardian blocks literals.
 - **Every new test must be falsified before acceptance:** break the thing it guards, watch it go RED, restore. A green test never seen to fail proves nothing. Each task below names its specific mutation.
 - **No migration is expected.** `uv run python manage.py makemigrations --check` must stay clean.
-- **Two new msgids only:** `Edit unit` and `(opens in a new tab)`. PL translations `Edytuj jednostkę` / `(otwiera się w nowej karcie)`. EN `msgstr`s stay **empty by design**; PL must be non-empty (`tests/test_i18n_po_health.py` enforces the asymmetry). Obsolete `#~` entries are forbidden.
+- **Two new msgids only:** `Edit unit` and `(opens in a new tab)`. PL translations `Edytuj jednostkę` / `(otwiera się w nowej karcie)`. EN `msgstr`s stay **empty by design**. `tests/test_i18n_po_health.py` enforces only *half* of that asymmetry: `test_pl_has_no_untranslated_msgid` is Polish-only (its docstring says so explicitly), so **PL non-empty is enforced while EN blanks are a convention the tests deliberately do not police** — a stray EN translation would ship green. Fuzzy and obsolete `#~` entries *are* guarded, in both catalogs.
 - **`.mo` files are tracked in git.** `compilemessages` is mandatory and its output is part of the commit.
 - **Icons are inline monochrome `currentColor` line SVGs** with the shared `.icon` class — never emoji, and never a `<use href="#…">` sprite reference (the sprite is included only on manage pages and would render blank here).
 
@@ -111,6 +111,10 @@ def test_course_admin_non_owner_does_not_get_the_link(client):
     ca = make_ca(client, "ca")
     course = CourseFactory()
     unit = _lesson_unit(course)
+    # Inert here, and deliberately kept: unit_edit_context is request-free and
+    # consults only can_manage_course (owner_id + courses.change_course), so no
+    # enrollment can change this row's outcome. It mirrors the spec's matrix row,
+    # where enrollment IS load-bearing (it keeps the page-level actor off a 403).
     EnrollmentFactory(student=ca, course=course)
 
     ctx = unit_edit_context(ca, unit)
@@ -249,7 +253,7 @@ git commit -m "feat(courses): unit_edit_context helper for the unit-page editor 
 
 **Interfaces:**
 - Consumes: `unit_edit_context(user, unit)` from Task 1.
-- Produces: the CSS class `.unit-strip__edit` (a selector hook relied on by Tasks 4, 6 and 7) and the rendered anchor carrying `target="_blank"` and `rel="noopener"`.
+- Produces: two distinct selector hooks, with distinct consumers — `.unit-strip` / `.unit-strip .unit-tags` (the structure Task 4's containment assertions and Task 5's CSS guard key on) and `.unit-strip__edit` (used by *this* task's three `hides_the_link` negative assertions, Task 7's e2e locator and Task 8's accessible-name probe — **not** by Tasks 4 or 6). Plus the rendered anchor carrying `target="_blank"` and `rel="noopener"`.
 
 **Why the merge goes in `build_quiz_context` and not the `quiz_unit` view:** `quiz_unit.html` is rendered from **two** sites — the `quiz_unit` view (`:1135`) and `_quiz_render_feedback`'s no-JS re-render (`:1170`) — and both build their context in `build_quiz_context`. Merging in the view would leave the second site without `can_edit_unit`. Task 3 asserts this.
 
@@ -549,6 +553,26 @@ The merge makes `build_quiz_context` perform a permission check, and four unit t
 
 Run: `uv run pytest courses/tests/test_callout_has_math.py tests/test_slideshow_context.py tests/test_tabs_invariant.py tests/test_tags_consumption.py -v`
 Expected: all pass
+
+- [ ] **Step 9b: Run the whole non-e2e suite BEFORE committing**
+
+```bash
+uv run pytest
+```
+
+Expected: all pass, no new failures against master.
+
+Step 9 covers only the new permission check inside `build_quiz_context`. This task *also* inserts a
+new `<div class="unit-strip">` wrapper at the top of `{% block content %}` on all three consumption
+pages, rendered from seven sites — a structural DOM change whose blast radius is far wider than those
+four modules. Deferring every consequence of it to Task 8 Step 5 would mean bisecting a breakage back
+through four intervening commits. Validate it in the commit that introduces it.
+
+(This is the non-e2e suite only — `addopts = "-q -m 'not e2e'"`. The e2e sweep stays in Task 8 Step 5,
+where the feature is complete; running it here would cost a full browser suite twice.)
+
+Note: `pytest` verdict lines do not survive a Bash pipe in this environment — rely on the exit code,
+or grep for `FAILED`.
 
 - [ ] **Step 10: Lint and commit**
 
@@ -859,7 +883,16 @@ git commit -m "test(tags): guard the edit link as a sibling of the tag panel"
 
 A pre-ship screenshot is not re-run by CI, so the two load-bearing declarations get a cheap static assertion. This follows the existing precedent in this file (`test_uploaded_video_is_constrained_to_its_container` regex-extracts a rule block from `courses.css` and asserts on its declarations).
 
-Note what this guard does **not** catch: a specificity-losing rewrite (changing `.unit-strip .unit-tags` to a bare `.unit-tags`) keeps the declarations present while silently losing the cascade to `tags.css`. That reason is recorded in the CSS comment from Task 2.
+Note what this guard does **not** catch, both by decision:
+
+- A **specificity-losing rewrite** (changing `.unit-strip .unit-tags` to a bare `.unit-tags`) keeps
+  every asserted declaration present while silently losing the cascade to `tags.css`. That reason is
+  recorded in the CSS comment from Task 2.
+- `gap: .5rem` and `align-items: flex-start` on `.unit-strip` are **deliberately unguarded**. Losing
+  either degrades the row cosmetically (items touch, or the button centres against a tall panel) but
+  does not destroy the layout, and Task 8's shots are the right instrument for that class of defect.
+  `display: flex` is a different case and *is* guarded below — deleting it stacks the panel and the
+  button vertically and renders `flex: 1 1 auto` inert, i.e. it silently undoes the whole feature.
 
 - [ ] **Step 1: Write the pinning test**
 
@@ -869,17 +902,28 @@ Append to `tests/test_consumption_css.py`:
 
 ```python
 def test_unit_strip_rules_are_present_and_load_bearing():
-    """.unit-strip and .unit-strip .unit-tags carry three jointly load-bearing
+    """.unit-strip and .unit-strip .unit-tags carry SIX jointly load-bearing
     declarations. A screenshot a human looks at once does not stop them silently
-    returning later.
+    returning later. Exactly these six are asserted below, in this order:
 
+    On .unit-strip:
+    - display: flex — without it there is no row at all: the panel and the button
+      stack vertically and `flex: 1 1 auto` below becomes inert. Every other
+      assertion here can pass while this one's absence undoes the feature.
+    - flex-wrap: wrap — without it the narrow layout overflows horizontally
+      instead of dropping the button onto its own line.
+    - margin-block — deleting it reintroduces the 0px gap before .unit-shell in
+      the wrapped layout (where .btn contributes no block-end margin).
+
+    On .unit-strip .unit-tags:
     - min-width: 0 — wrapping the panel in a flex container makes it a flex item
       for the first time (on master it is a plain block child of .app-main).
       Without this, the UA's `min-inline-size: min-content` on
       <fieldset class="unit-tags__picker"> floors the panel's border box at
       min-content and inflates its chrome. This RESTORES master's rendering.
-    - margin-block on both — deleting them reintroduces the ~8px top-edge
-      misalignment AND the 0px gap before .unit-shell in the wrapped layout.
+    - margin-block: 0 — deleting it reintroduces the ~8px top-edge misalignment
+      between the two flex items.
+    - flex: 1 1 auto — what pins the button to the row's far right edge.
     """
     import re
 
@@ -887,8 +931,12 @@ def test_unit_strip_rules_are_present_and_load_bearing():
 
     strip = re.search(r"\.unit-strip\s*\{([^}]*)\}", css)
     assert strip, ".unit-strip rule missing"
-    assert "margin-block" in strip.group(1), (
-        f"the strip must own the block rhythm: {strip.group(1)!r}"
+    outer = strip.group(1)
+    # display: flex FIRST — it is the declaration every other one here presupposes.
+    assert "display: flex" in outer, f"display: flex missing (no row at all): {outer!r}"
+    assert "flex-wrap: wrap" in outer, f"flex-wrap: wrap missing: {outer!r}"
+    assert "margin-block" in outer, (
+        f"the strip must own the block rhythm: {outer!r}"
     )
 
     inner = re.search(r"\.unit-strip\s+\.unit-tags\s*\{([^}]*)\}", css)
@@ -918,9 +966,13 @@ Delete `min-width: 0;` from the `.unit-strip .unit-tags` rule in `courses.css`.
 Run: `uv run pytest tests/test_consumption_css.py::test_unit_strip_rules_are_present_and_load_bearing -v`
 Expected: FAIL. Restore.
 
-Repeat once per guarded declaration — `margin-block: 0`, `flex: 1 1 auto`, and `margin-block` on
-`.unit-strip` — confirming FAIL each time and restoring after each. Four deletions, four REDs: a
-guard you never saw fail is not a guard.
+Repeat once per guarded declaration, confirming FAIL each time and restoring after each —
+`margin-block: 0` and `flex: 1 1 auto` on `.unit-strip .unit-tags`, then `display: flex`,
+`flex-wrap: wrap` and `margin-block` on `.unit-strip`. **Six deletions, six REDs**, one per assertion
+in the test: a guard you never saw fail is not a guard.
+
+Delete each declaration *individually* and restore before the next. Deleting `display: flex` together
+with anything else would leave you unable to say which assertion fired.
 
 - [ ] **Step 4: Lint and commit**
 
@@ -1082,7 +1134,33 @@ Only after it is green: in `_unit_strip.html`, replace `{% trans "Edit unit" %}`
 Run: `uv run pytest tests/test_unit_edit_link.py::test_edit_link_label_renders_in_polish -v`
 Expected: FAIL. Restore.
 
-Do **not** falsify by emptying the catalog — that reddens the catalog half too and proves nothing about the template.
+Do **not** falsify *this* test by emptying the catalog: that reddens the catalog half too, so the RED
+would no longer prove anything about the **template**, which is the only thing this test exists to
+guard. (The prohibition is scoped to the render test — the catalog half has its own mutation, next.)
+
+- [ ] **Step 6b: Falsify the catalog half**
+
+`test_pl_translation_present` is a new test too, and the Global Constraint admits no exceptions, so it
+gets its own mutation. Emptying the catalog is the *correct* mutation here — the same act that is
+forbidden above for the other test.
+
+In `locale/pl/LC_MESSAGES/django.po`, blank one of the two new `msgstr`s (use `Edit unit`), then:
+
+```bash
+uv run python manage.py compilemessages
+uv run pytest tests/test_unit_edit_link.py -v -k "pl_translation_present and Edit unit"
+```
+
+Expected: **1 failed** — and confirm it collected exactly one test, not zero. A `-k` filter that
+matches nothing reports "no tests ran" with exit code 5, which is not a RED.
+
+Then restore the `msgstr` and **re-run `compilemessages`** — skipping the recompile leaves a stale
+`.mo` with the blank translation, and the render test from Step 6 would then fail for a reason that
+has nothing to do with the template.
+
+Run this mutation's check **narrowly, by node/`-k`**: a blank PL `msgstr` also reddens
+`tests/test_i18n_po_health.py::test_pl_has_no_untranslated_msgid`, which is expected collateral and
+not a finding.
 
 - [ ] **Step 7: Commit**
 
@@ -1291,6 +1369,46 @@ def _shoot(page, name, variant=None):
         page.screenshot(path=str(path), full_page=True)
 ```
 
+**Also add this second helper — it is the only executable form the accessible-name check has.** Step 3
+requires the announced name of `.unit-strip__edit` stated verbatim, and this harness is the only thing
+in the whole plan that can query it; Step 4 then deletes the harness, so the check has to run *here*,
+while it still exists:
+
+```python
+def _report_accessible_name(page, selector=".unit-strip__edit"):
+    """Print the browser's COMPUTED accessible name for the edit link.
+
+    The `&nbsp;` + .visually-hidden "(opens in a new tab)" construction has no
+    automated guard by design, so this printed string is its ONLY verification.
+    It is deliberately a print, not an assert: the exact spacing the accname
+    algorithm produces is what we want to READ (Step 3 judges it), and pinning it
+    in a harness that Step 4 deletes would guard nothing anyway.
+    """
+    session = page.context.new_cdp_session(page)
+    session.send("Accessibility.enable")
+    root = session.send("DOM.getDocument")["root"]["nodeId"]
+    node = session.send("DOM.querySelector", {"nodeId": root, "selector": selector})
+    tree = session.send("Accessibility.getPartialAXTree", {"nodeId": node["nodeId"]})
+    for ax in tree["nodes"]:
+        if ax.get("role", {}).get("value") == "link" and ax.get("name"):
+            print(f"\nACCESSIBLE NAME: {ax['name']['value']!r}\n")
+            return
+    raise AssertionError(f"no link AX node found for {selector}")
+```
+
+Call it **once**, from `test_shots_owner`, on the desktop `lesson_unit` page (row 1 or 3) — any page
+carrying the link will do; the markup is identical on all three.
+
+Two operational notes:
+
+- **Run that test with `-s`**, or pytest captures the print and the string never reaches you:
+  `uv run pytest -m e2e tests/test_e2e_unit_strip_shots.py -v -s`.
+- `new_cdp_session` is **Chromium-only**. That is the repo's default browser, so the happy path is
+  fine; if the harness is run under Firefox or WebKit, substitute the framework-level probe —
+  `expect(page.get_by_role("link", name="Edit unit", exact=False)).to_be_visible()` plus
+  `print(page.locator(".unit-strip__edit").inner_text())` — and say in the report which probe you
+  used, since the second one reads the text content rather than the true computed name.
+
 **Write THREE test functions** — `test_shots_owner(page, live_server)`,
 `test_shots_student(page, live_server)` and `test_shots_ab_narrow_student(page, live_server)`. Two of
 them exist because of the actor split, the third because of the A/B isolation described below; do not
@@ -1303,6 +1421,22 @@ gives each a fresh browser context. Row assignment:
 - `test_shots_owner` → matrix rows 1, 3, 4, 6 (the four owner rows)
 - `test_shots_student` → matrix row 2 only (desktop enrolled student)
 - `test_shots_ab_narrow_student` → matrix row 5 only (~400px enrolled student)
+
+**`test_shots_owner` spans BOTH viewports, so capture its rows in this order and call
+`page.set_viewport_size(...)` immediately before *every* row — not only at the two transitions:**
+
+| Order | Row | Shot name | Viewport to set first |
+|---|---|---|---|
+| 1 | 1 | `desktop_owner_closed` | desktop |
+| 2 | 3 | `desktop_owner_open` | desktop |
+| 3 | 6 | `results_owner` | desktop |
+| 4 | 4 | `narrow_owner` | **narrow** |
+
+The viewport persists across calls within a function. Capturing in the table's listed order (1, 3, 4,
+6) would shoot `results_owner` at 400px, and Step 3 then judges that row against a desktop-only
+criterion ("the strip spans 920px above a 736px `.result` article") that a 400px shot cannot show —
+a mismatch nothing else in this task would flag. Putting the single narrow row **last**, and setting
+the viewport explicitly on every row anyway, makes the hazard unreachable rather than merely avoided.
 
 **Row 5 gets a function to itself, and that isolation is load-bearing.** It is the only row Step 2
 re-captures under a modified source tree. If it shared a function with any other row, re-running that
@@ -1330,7 +1464,7 @@ from it — use these exact keys:
 |---|---|---|---|---|
 | `lesson_unit` | desktop | owner (link present) | closed | `desktop_owner_closed` |
 | `lesson_unit` | desktop | enrolled student (link absent) | closed | `desktop_student_closed` |
-| `lesson_unit` | desktop | owner (link present) | **open** | `desktop_owner_open` |
+| `lesson_unit` | desktop | owner, **populated panel** | **open** | `desktop_owner_open` |
 | `lesson_unit` | ~400px | owner, **populated panel** | **open** | `narrow_owner` |
 | `lesson_unit` | ~400px | enrolled student, **long-token tag** | **open** | `narrow_student` |
 | `quiz_results` | desktop | owner, **needs a SUBMITTED submission** | closed | `results_owner` |
@@ -1345,9 +1479,17 @@ that `-m e2e` is mandatory here for the same reason as in Task 7.
 **If a light and dark pair are identical, the capture failed** — that is a harness bug, not a theme that happens to match.
 
 **Fixtures that are easy to get wrong:**
+- **Row 3 (`desktop_owner_open`) needs the same populated panel as row 4** — the chips-plus-one-
+  unattached-tag fixture spelled out below. Left empty, its open `<details>` renders no chips, no
+  `<fieldset>` (`{% if addable_tags %}` is false) and no datalist: a panel state no real user with
+  tags ever sees, and one that can only ever land *unwrapped* — so the wrapped-at-desktop-width
+  possibility Step 3 goes out of its way to pre-accept for this row would never actually be
+  exercised. Rows 1 and 3 are the same page and actor and should share one unit, so the fixture is
+  built once; row 1 then legitimately shows `Tags (4)` on its closed summary.
 - The `quiz_results` row needs `QuizSubmissionFactory(student=<owner>, unit=<the quiz node>, status=QuizSubmission.Status.SUBMITTED)`, or the view redirects to `quiz_unit`, which renders the same strip and looks entirely plausible while leaving the row's actual purpose unverified. **Confirm the captured URL is the results path.**
 - Both ~400px rows need a **populated** panel. With an empty panel the row will not wrap and the shot cannot show the layout it exists to show. **If the ~400px owner shot is not wrapped, the fixture is wrong.**
-- **The ~400px owner row's fixture, explicitly** — it needs *both* kinds of tag, and they are built
+- **The owner rows' shared panel fixture, explicitly** — built **once** and used by rows 1, 3 and 4
+  (all `lesson_unit`, same actor, same unit). It needs *both* kinds of tag, and they are built
   differently, which is exactly the trap described in the next bullet:
   ```python
   from tags import services
@@ -1367,53 +1509,93 @@ that `-m e2e` is mandatory here for the same reason as in Task 7.
   ```
   The model field is **`author`**, not `owner`. Use **wide glyphs** (uppercase/`W`/digits) at the full 50-character `TAG_NAME_MAX_LEN` cap — at `.8rem` a 50-char lowercase token is right at the ~345px boundary and a 40-char one provably shows nothing.
 
-- [ ] **Step 2: Run the two A/B validations**
+- [ ] **Step 1b: Record the Step-1 hashes**
 
-Both validations re-capture the **~400px student row** under a modified source tree. Two rules make
-that safe, and both matter:
+Immediately after the capture run, before touching the source tree for Step 2:
 
-1. **Run only `test_shots_ab_narrow_student`** — never the whole file, and never a function holding
-   other rows. Anything else re-captures its siblings under the modified tree and overwrites their
-   Step 1 images.
-2. **Label the run** via `SHOT_VARIANT`, so the new images land beside the originals instead of on
-   top of them.
+```bash
+uv run python -c "
+import hashlib, pathlib, tempfile
+d = pathlib.Path(tempfile.gettempdir()) / 'unit-strip-shots'
+for p in sorted(d.glob('*.png')):
+    print(hashlib.sha256(p.read_bytes()).hexdigest()[:16], p.name)
+"
+```
 
-*Fixture validation:* delete `min-width: 0` from `courses.css`, then:
+Keep this output. It is what makes Step 2's "confirm the `_feature_` images are still the Step 1 ones"
+a *check* rather than a hope — re-run the same command at the end of Step 2 and compare the 12
+`_feature_` lines. **Derive the path in Python, not as a shell expansion** — see Step 4 for why
+`${TMPDIR:-/tmp}` silently resolves to the wrong directory here.
+
+- [ ] **Step 2: Run the A/B validations**
+
+Both A/B validations re-capture rows under a **modified source tree**. Two rules make that safe, and
+both matter:
+
+1. **Run only the single isolated test named in each command** — never the whole file, and never a
+   function holding rows you are not re-capturing. Anything else re-captures its siblings under the
+   modified tree and overwrites their Step 1 images.
+2. **Label every such run** via `SHOT_VARIANT`, so the new images land beside the originals instead of
+   on top of them.
+
+**How to compare — this is not left to taste:**
+
+| Gate | Method |
+|---|---|
+| "must differ" (fixture validation) | **SHA-256**. Different hash = differ. Identical hash = the fixture failed. |
+| light vs dark pair identical (Step 1) | **SHA-256** on the `_light`/`_dark` pair of the same shot. |
+| `_feature_` images still the Step 1 ones | **SHA-256**, against the Step 1b output. |
+| "must be equivalent" (parity validation) | **Read both PNGs visually** (the Read tool renders images). A hash comparison is *wrong* here: full-page screenshots differ by a byte over antialiasing, so a hash gate would fail spuriously. |
+
+For the visual parity read, compare exactly these properties and say so explicitly in the report:
+the panel's **left and right edges**, the **vertical offset** of everything below the strip, and the
+**page's total height**. Anything else (a 1px antialiasing difference) is noise. If a real difference
+appears in one of those three, it is a defect for Step 6, not an acceptable variance.
+
+*Fixture validation (row 5 only):* delete `min-width: 0` from `courses.css`, then:
 
 ```bash
 SHOT_VARIANT=nomin uv run pytest -m e2e   tests/test_e2e_unit_strip_shots.py::test_shots_ab_narrow_student -v
 ```
 
-Restore the declaration afterwards. Compare:
+Restore the declaration afterwards. Compare `narrow_student_feature_light.png` against
+`narrow_student_nomin_light.png` by hash. They **must differ**. If the hashes match, the fixture
+failed to reproduce the hazard and the shot proves nothing — that is a fixture bug to fix, **not**
+evidence the declaration is unnecessary.
 
-```
-narrow_student_feature_light.png   vs   narrow_student_nomin_light.png
-```
-
-They **must differ**. If they are identical the fixture failed to reproduce the hazard and the shot
-proves nothing — that is a fixture bug to fix, not evidence the declaration is unnecessary.
-
-*Parity validation:* produce the **feature-off baseline** — **do not check out master**, which
-discards the fixture code the shot depends on. Undo the feature's *rendering* in place: revert the
-three `{% include "courses/_unit_strip.html" %}` lines to `{% include "tags/_unit_tag_panel.html" %}`
-and remove the two `.unit-strip*` rules from `courses.css`. Then:
+*Parity validation (rows 5 AND 2):* produce the **feature-off baseline** — **do not check out
+master**, which discards the fixture code the shot depends on. Undo the feature's *rendering* in
+place: revert the three `{% include "courses/_unit_strip.html" %}` lines to
+`{% include "tags/_unit_tag_panel.html" %}` and remove the **two layout rules** (`.unit-strip` and
+`.unit-strip .unit-tags`) from `courses.css`. The `@media print` rule can stay — it affects no
+screen capture. Then run **both** isolated single-row tests:
 
 ```bash
 SHOT_VARIANT=baseline uv run pytest -m e2e   tests/test_e2e_unit_strip_shots.py::test_shots_ab_narrow_student -v
+SHOT_VARIANT=baseline uv run pytest -m e2e   tests/test_e2e_unit_strip_shots.py::test_shots_student -v
 ```
 
-Restore everything afterwards. Compare:
+Restore everything afterwards. Read and compare, per the table above:
 
 ```
-narrow_student_feature_light.png   vs   narrow_student_baseline_light.png
+narrow_student_feature_light.png    vs   narrow_student_baseline_light.png
+desktop_student_closed_feature_light.png  vs  desktop_student_closed_baseline_light.png
 ```
 
-These must be **equivalent**. Repeat both comparisons for the `_dark` pair.
+Both pairs must be **equivalent**. Repeat both comparisons for the `_dark` pair.
 
-**Before moving to Step 3, confirm the `_feature_` images are still the Step 1 ones** — i.e. captured
-under the unmodified tree. If a stray whole-file re-run happened at any point, delete `SHOT_DIR` and
-re-capture Step 1 from scratch; judging a baseline image as though it were the feature is exactly the
-vacuous pass this task exists to prevent.
+**`test_shots_student` is included here deliberately.** Step 3 judges the student view as "visually
+equivalent to today's vertical rhythm" — a *relative* criterion, which without this baseline has
+nothing to be relative to. It is safe to re-run precisely because row 2 already lives alone in its
+own function, so the Step-2 isolation rule is satisfied with no restructuring. The four **owner** rows
+get no baseline (their whole point is that a new element appears, so "equivalent to before" is not a
+criterion for them) — see Step 3 for how their overflow criterion is judged instead.
+
+**Before moving to Step 3, confirm the `_feature_` images are still the Step 1 ones** by re-running
+the Step 1b hash command and diffing the `_feature_` lines against the recorded output. If any hash
+changed, a stray re-run captured under a modified tree: delete `SHOT_DIR` (with the Step 4 command)
+and re-capture Step 1 from scratch. Judging a baseline image as though it were the feature is exactly
+the vacuous pass this task exists to prevent.
 
 - [ ] **Step 3: Self-critique the shots against the acceptance criteria**
 
@@ -1426,16 +1608,27 @@ look like a defect against a state that is expected.
 - **Rows whose strip did NOT wrap:** the button is pinned to the far right end of the row and **shares the tag panel's top edge**, without overlapping it.
 - **Rows whose strip DID wrap** — both ~400px rows, and `desktop_owner_open` if it wraps at full width: the button sits on its own line, flush with the content column's left edge, with the `.5rem` gap below the strip intact. (The top-edge criterion is meaningless here — the items are on different lines.)
 - **Panel border box** at ~400px with the panel open: its right edge sits within the content column.
-- **No horizontal overflow beyond the feature-off baseline** for the same page. Do not assert an absolute.
-- **Student view** is visually equivalent to today's vertical rhythm.
-- **Screen-reader name.** The `&nbsp;` + `.visually-hidden` "(opens in a new tab)" construction is
-  this feature's only accessibility affordance and is deliberately guarded by **no automated test** —
-  the spec routes its verification entirely into this manual pass, so it is unverified by anything if
-  skipped here. Confirm the announced accessible name of `.unit-strip__edit` with a real screen
-  reader (or, at minimum, the browser devtools accessibility inspector) and **state the observed name
-  verbatim in this task's completion report** — not in a commit, since the happy path commits
-  nothing. It is the sole artifact of the only verification this construction ever gets. Expected: the label and the parenthetical are announced as separate words, not
-  run together as "unit(opens".
+- **No horizontal overflow.** Only two rows have a feature-off baseline (rows 2 and 5, captured in
+  Step 2), and only those two are judged *relatively*: no overflow beyond their `_baseline_` image.
+  **For the four owner rows there is no baseline and none is captured** — judge them by the absolute
+  criterion instead: no content is clipped at the viewport's right edge and no horizontal scrollbar
+  appears. Their automated counterpart is `tests/test_e2e_wide_content_scroll.py` in Step 5, which
+  asserts `scrollWidth <= clientWidth` at 390px on this exact page with an **owner** actor; that test,
+  not this shot, is the binding overflow guard for the owner case.
+- **Student view** (`desktop_student_closed`) is visually equivalent to its `_baseline_` counterpart
+  from Step 2 — same vertical rhythm, no shift. This is the row that proves the feature is a visual
+  no-op for people who cannot use it.
+- **Accessible name.** The `&nbsp;` + `.visually-hidden` "(opens in a new tab)" construction is this
+  feature's only accessibility affordance and is deliberately guarded by **no automated test** — the
+  spec routes its verification entirely into this pass, so it is unverified by anything if skipped
+  here. The verification is the `ACCESSIBLE NAME:` line printed by `_report_accessible_name` in
+  Step 1's `-s` run — that is the browser's own computed name, which is what a screen reader
+  announces. **Copy that line verbatim into this task's completion report**, not into a commit (the
+  happy path commits nothing); it is the sole artifact of the only verification this construction
+  ever gets. Expected: the label and the parenthetical are **separate words**, e.g.
+  `'Edit unit (opens in a new tab)'` — not run together as `'Edit unit(opens in a new tab)'`. If they
+  are run together, the `&nbsp;` was dropped or replaced by a collapsible space; that is a real
+  defect and Step 6 is where its fix gets committed.
 - **`quiz_results` overhang is pre-recorded as ACCEPTED, not a pass/fail gate.** The strip spans 920px above a 736px `.result` article — ~90px per side. This is not new: the tag panel already does exactly this on master. Confirm it reads as deliberate rather than broken; if a human judges otherwise that is a follow-up styling decision, **not a blocker for this change**.
 
 - [ ] **Step 4: Delete the capture harness — BEFORE the lint gate**
@@ -1520,3 +1713,17 @@ git commit -m "fix(css): <what the screenshot revealed>"
 ```
 
 If the shots were clean, there is nothing to commit — say so plainly rather than inventing a commit.
+
+---
+
+## After Task 8: publication is the caller's responsibility
+
+The plan ends with the work **committed locally on `pipeline/unit-editor-link` and nothing pushed**.
+That is deliberate: this plan is executed by the `pipeline` skill, which owns the finish stage — the
+committed-diff code review, `git push`, opening the PR against `master`, and removing the worktree.
+Do not push or open a PR from inside Task 8.
+
+If you are executing this plan **standalone**, outside that harness, then those steps are yours:
+review the diff, `git push -u origin pipeline/unit-editor-link`, and open the PR. Either way, the
+completion report must carry Task 8 Step 3's verbatim `ACCESSIBLE NAME:` line — it is the only record
+of that verification anywhere.
