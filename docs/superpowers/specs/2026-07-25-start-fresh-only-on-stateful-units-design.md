@@ -180,6 +180,12 @@ has_stateful_elements = node.elements.filter(
 Added to the returned context dict beside the existing `has_*` flags. `state_svc` is already imported
 (`views.py:27`). **No new import is required** — see below.
 
+**Call it as `state_svc.stateful_element_model_names()`, through the module attribute.** This is
+load-bearing for test 6, not just style: a `from courses.state import stateful_element_model_names` at
+the top of `views.py` would bind the function object at import time, so test 6's
+`monkeypatch.setattr("courses.state.stateful_element_model_names", …)` would never reach this call site
+and the test would be permanently RED regardless of whether the seam is wired correctly.
+
 **`app_label`-pinned join, not `get_for_model`-derived content-type ids.** Filtering on the joined
 `django_content_type.model` alone would match a bare model name across every installed app; adding
 `content_type__app_label="courses"` closes that completely, and is the established idiom in this
@@ -311,9 +317,14 @@ enrollment, so it is unaffected by the enrolled / non-enrolled (author-preview) 
   - **Structured course** (parts/chapters/sections exist): the container-level reset
     (`_outline_node.html:24`) clears that subtree — precise enough.
   - **Flat course** (no grouping nodes at all): `_outline_node.html` renders its reset link only in the
-    non-unit `{% else %}` branch (lines 19-26), so **no container-level reset exists**. The only
-    surviving route is `outline.html:11`, which resets the **entire course**. The escape hatch
+    non-unit `{% else %}` branch (lines 19-26), so **no container-level reset exists**. The only route
+    **the UI still offers** is `outline.html:11`, which resets the **entire course**. The escape hatch
     degrades from "clear this subtree" to "clear everything".
+
+    Precisely: the degradation is one of **discoverability, not reachability**. `progress_reset` is
+    unchanged (§Non-goals), so the per-unit reset URL keeps working for anyone who navigates to it
+    directly — `tests/test_e2e_practice_state.py:142-146` already reaches it that way — and its
+    confirmation page would still report a non-zero `affected_count` for the orphaned blob.
 
   This degradation is accepted for now — an orphaned blob requires an author to delete the last
   interactive element from a unit a student has already worked, which is rare, and the student's own
@@ -376,8 +387,13 @@ qualified: `from courses import state` then `state.VALIDATORS`, never a bare `VA
    **Also assert `status_code == 200` and a positive anchor from the same head block** (the
    `courses:complete` URL, or the unit title) — "URL absent" is otherwise satisfied by a 302 to login, a
    403, a 404 or a 500, i.e. by every failure mode of the fixture rather than of the condition, which is
-   exactly the hazard the preamble names. *Falsification: delete the `{% if %}` in C3 — **test 7 fires
-   on this mutation too**; both are absence guards, and that is expected per the preamble.*
+   exactly the hazard the preamble names.
+
+   *Falsification: **widen C1's union with `"textelement"`**. This fires test 2 alone: test 7's
+   surviving element is deliberately a `VideoElement`, not a `TextElement`, precisely so this mutation
+   separates the two absence guards; and test 6 monkeypatches the helper, so a production widening never
+   reaches it. Deleting the `{% if %}` in C3 also fires test 2, but it fires test 7 as well — which
+   would leave test 2 with no falsification of its own, the condition the preamble forbids.*
 3. **A nested state-bearing element still shows the link.** Follow the working pattern in
    `courses/tests/test_switchgrid_context.py:59-77` (`test_has_switch_grid_flag_when_nested_in_tab`),
    the same flat-query-under-a-tab guard for a sibling flag: create a `TabsElement` with
@@ -387,7 +403,13 @@ qualified: `from courses import state` then `state.VALIDATORS`, never a bare `VA
    parent=join, tab_id=tab_id)`. **Use `MarkDoneElement` as the nested child** — the cited test nests a
    switch grid via a local `_grid()` helper that does not exist in this module, so do not copy that
    part. Note `tests/factories.py:162` `add_element(unit, obj)` creates **top-level rows only** (no
-   `parent`/`tab_id`), so the child row must be created directly. *Falsification: scope C2's query to
+   `parent`/`tab_id`), so the child row must be created directly.
+
+   **Assert the rendered link, not the context flag.** Copy the cited test's *fixture*, not its
+   assertion: it calls `build_lesson_context(unit, user)` directly and checks `ctx["has_switch_grid"] is
+   True`, whereas this test lives in `test_reset_controls.py` where every test drives the client. Log in
+   as an enrolled student, GET the unit, and assert `status_code == 200` plus the presence of the
+   `courses:progress_reset` URL — the same shape as test 2. *Falsification: scope C2's query to
    `parent__isnull=True`.*
 4. **A question-only unit shows the link.** Every other render-level test uses the *validator* half of
    the union, so nothing would catch an implementation that mishandles the `RESTORABLE_IN_LESSON` half,
@@ -401,6 +423,12 @@ qualified: `from courses import state` then `state.VALIDATORS`, never a bare `VA
    stateful unit **without** the JS-fragment header, so the no-JS branch at `views.py:837` re-renders
    the full page; assert the reset URL is still present. A missing context variable renders as false in
    Django with no error, which is why this needs a test rather than §Data flow prose.
+
+   **Name the question type and the POST body**, at the recipe density of tests 3/4/7:
+   `ShortTextQuestionElement.objects.create(stem="Q", accepted="x")`, posted with the exact field name
+   `build_answer` reads for that type. `question.build_answer(request.POST)` is field-name sensitive per
+   type, and a wrong payload still renders 200 — so an unspecified body would let this test pass while
+   exercising a different branch than intended.
 
    **Seed a `MarkDoneElement` alongside the question** in this unit. Without it the unit's only
    interactive element is the question, and test 4's falsification (restricting C2 to the validator
@@ -423,9 +451,15 @@ qualified: `from courses import state` then `state.VALIDATORS`, never a bare `VA
 7. **The orphaned-blob decision is pinned.** §Purpose accepts, deliberately, that a stored blob on a
    unit whose stateful element has since been deleted is no longer offered a reset link. Nothing else
    records that choice, so a later author "fixing" it — or accidentally implementing the union rule —
-   would pass unnoticed in both directions. Seed a stateful element, store an `element_state` blob for
-   the student, delete the element (leaving the blob), and assert the link is **absent**. Comment the
-   test with D1 and the union alternative.
+   would pass unnoticed in both directions. Seed a stateful element **and a surviving `VideoElement`**,
+   store an `element_state` blob for the student, delete the stateful element (leaving the blob and the
+   video), and assert the link is **absent**. Comment the test with D1 and the union alternative.
+
+   **The surviving element is not decoration.** §Purpose frames the accepted cost as an author deleting
+   the *last state-bearing* element from a unit that still holds content; without a survivor the unit is
+   empty, which is a degenerate case indistinguishable from test 2's fixture. It is a `VideoElement`
+   rather than a `TextElement` specifically so test 2's `"textelement"` falsification leaves this test
+   green — see test 2.
 
    **The fixture must be exact, or the falsification silently cannot fire.** The `element_state` the
    falsification would read is *not* the DB column — it is `ctx["element_state"]`, rebuilt at
@@ -467,7 +501,10 @@ qualified: `from courses import state` then `state.VALIDATORS`, never a bare `VA
    C1's union" is not performable, since C1 contains no literal names to change. Use:
    - *18-name equality:* drop a term from a derivation clause in C1 — e.g. `(set(VALIDATORS) & known) -
      {"stepperelement"}`.
-   - *Sortedness:* have C1 return the raw `set`/`frozenset` instead of `tuple(sorted(...))`.
+   - *Sortedness:* have C1 return the raw `set`/`frozenset` instead of `tuple(sorted(...))`. Write the
+     assertion as `assert names == tuple(sorted(names))`, **not** `list(names) == sorted(names)` — a set
+     of 18 strings could in principle iterate in sorted order, making the RED a property of hash seeding
+     rather than of the guard; a set never equals a tuple, so the type mismatch fails deterministically.
    - *Inert-type absence:* it shares the equality guard's mutation; note that explicitly rather than
      inventing a second one.
    - *`VALIDATORS <= ELEMENT_MODELS`:* falsified **test-side**, by
@@ -529,9 +566,14 @@ qualified: `from courses import state` then `state.VALIDATORS`, never a bare `VA
     trip the widened matcher and move the expected count in the same commit that adds them.
 
     **Assert a count and a path set — never line numbers.** State the shape explicitly: the number of
-    matches is 3, and the set of matching file paths is exactly `{courses/views.py}`. Line numbers are
+    matches is 3, and the set of matching file paths is exactly `{"courses/views.py"}`. Line numbers are
     forbidden: C4 inserts a comment beside `views.py:559` and C2 inserts a block earlier in the same
     file, so this change itself moves all three sites.
+
+    **Compare paths as POSIX strings.** This is a Windows box, so
+    `str(p.relative_to(ROOT)) == "courses/views.py"` fails on `courses\\views.py` for a reason unrelated
+    to the invariant. Use `p.relative_to(ROOT).as_posix()` (or compare `Path` objects), and say so in the
+    test — this section has already taken responsibility for specifying the walk in full.
 
     **State the matcher's blind spot in the test.** It catches `.update()`, `.pop()`, subscript
     assignment and attribute assignment; it does **not** catch `setattr`, a queryset `.bulk_update`, an
@@ -540,12 +582,22 @@ qualified: `from courses import state` then `state.VALIDATORS`, never a bare `VA
 
     **Scope: the whole application, not one file.** C1's contract is platform-wide; a `views.py`-only
     scan would stay green for a new route in `courses/state.py`, another app, a signal handler, or a
-    management command — exactly the drift this test exists to catch. Pin the walk explicitly rather
-    than `rglob`-ing the repo root (which would also reach `staticfiles/`, `htmlcov/`, `node_modules/`,
-    or a `venv/` spelled without the dot): iterate the application packages — `courses`, `core`,
-    `notes`, `notifications`, `tags`, `integrations` — plus `manage.py` and the settings module, and skip
-    any path containing a `migrations` or `tests` segment, any filename starting with `test_`, and
-    `conftest.py`. The two cited precedents are single-file readers and offer no walk convention to
+    management command — exactly the drift this test exists to catch.
+
+    **Derive the app list; do not hand-write it.** There are **nine** first-party apps
+    (`config/settings/base.py:18-41`): `core`, `accounts`, `institution`, `courses`, `grouping`,
+    `notes`, `notifications`, `tags`, `integrations`. A hand-written list is how this very spec first got
+    it wrong — an earlier draft named six and silently dropped `accounts`, `institution` and `grouping`,
+    the last of which owns cohort code and is a plausible home for a progress write. So walk
+    `django.apps.apps.get_app_configs()`, keep the configs whose `path` is under `ROOT` (that filter is
+    what excludes Django's own apps, allauth, DRF and `django_extensions`), and **assert the resulting
+    package set equals those nine names** so a tenth app cannot be added without this guard noticing.
+
+    Also walk `manage.py` and the `config/` package (`settings/`, `urls.py`, `asgi.py`, `wsgi.py`), which
+    no app config covers. Skip any path containing a `migrations` or `tests` segment, any filename
+    starting with `test_`, and `conftest.py`. Deriving the roots this way also sidesteps `rglob`-ing the
+    repo root, which would reach `staticfiles/`, `htmlcov/`, `node_modules/`, or a `venv/` spelled
+    without the dot. The two cited precedents are single-file readers and offer no walk convention to
     inherit, so this one is specified here in full.
 
     **Read mechanism.** `Path(...).read_text(encoding="utf-8")`, following the repo's convention for
@@ -585,8 +637,12 @@ out of scope for the per-test RED report in §Definition of done.
 - Full non-e2e suite green (`uv run pytest -n auto`), against the worktree's own `libli_freshbtn`
   database. `tests/test_html_element.py`'s query-count assertion must be green **both** under `-n auto`
   and in isolation (`-k has_html`), since C2's rejected alternative is the thing that would break it.
-- `tests/test_e2e_unit_head_layout.py` green, run in the **foreground** (background `-m e2e` runs have
-  spawned runaway browsers here before).
+- `uv run pytest -m e2e tests/test_e2e_unit_head_layout.py` green, run in the **foreground**
+  (background `-m e2e` runs have spawned runaway browsers here before). **The `-m e2e` is mandatory**:
+  `pyproject.toml:49` sets `addopts = "-q -m 'not e2e'"` and the module is `pytestmark =
+  pytest.mark.e2e`, so a bare `uv run pytest tests/test_e2e_unit_head_layout.py` deselects both tests
+  and exits 0 — a green run that executed nothing, in the one DoD item covering the only
+  rendered-to-screen assertion in this build. Report the collected/passed count (2), not "green".
 - `uv run ruff check`, `uv run ruff format --check`, `uv run python manage.py makemigrations --check`,
   and `uv run python manage.py check` all clean.
 - Tests 2-10 each reported with their observed RED under their own named falsification (test 1's signal
