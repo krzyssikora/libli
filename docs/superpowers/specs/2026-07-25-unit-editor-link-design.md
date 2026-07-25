@@ -43,6 +43,14 @@ invalid tag name with JS off lands there without the strip. That is a transient 
 reader immediately navigates back out of, and giving it the strip would mean giving it a full unit
 context it does not build — an accepted, stated gap rather than an oversight.
 
+**In-app help** (`core.help`, the bilingual permission-gated manuals) is an accepted **follow-up**,
+not part of this change. The feature adds an affordance squarely inside the Course Admin walkthrough
+those manuals describe, so a sentence in the relevant topic is warranted — but it is documentation
+work with its own bilingual review, and bundling it would widen this change's blast radius for no
+functional gain. No committed help screenshot needs regenerating either way:
+`tests/capture_help_screenshots.py` clips the `content-consume` and `interactive` shots to
+`article.lesson`, which sits *below* the strip and therefore excludes it.
+
 ## Architecture / components
 
 Three pieces, each mirroring a pattern the repo already uses.
@@ -181,9 +189,10 @@ The link itself:
   reference would render blank on these consumption templates. `.icon` is defined globally in
   `core/static/core/css/app.css` and supplies fill/stroke, so the SVG carries only `viewBox`,
   `aria-hidden` and `focusable`.
-- Visible label `{% trans "Edit unit" %}`, plus
-  `<span class="visually-hidden">{% trans "(opens in a new tab)" %}</span>` so the new-tab jump is
-  announced rather than surprising. `.visually-hidden` is defined globally in
+- Visible label `{% trans "Edit unit" %}`, plus a visually-hidden "(opens in a new tab)" so the
+  new-tab jump is announced rather than surprising. **The code block above is the normative markup**
+  — note the space *inside* the span, before the parenthetical, which keeps a screen reader from
+  running "unit" and "(opens" together. `.visually-hidden` is defined globally in
   `core/static/core/css/app.css` and needs no per-page CSS.
 
 ### Styling
@@ -192,25 +201,33 @@ In `courses/static/courses/css/courses.css` — all three templates already load
 anywhere:
 
 ```css
-.unit-strip { display: flex; flex-wrap: wrap; gap: .5rem; align-items: flex-start; }
-.unit-strip .unit-tags { flex: 1 1 auto; min-width: 0; }
-.unit-strip__edit { margin-block-start: .5rem; }
+/* The strip owns the block rhythm; .unit-tags' own .5rem margin is zeroed inside it
+   so both flex items align on the row's top edge and the spacing survives wrapping. */
+.unit-strip { display: flex; flex-wrap: wrap; gap: .5rem; align-items: flex-start;
+              margin-block: .5rem; }
+.unit-strip .unit-tags { flex: 1 1 auto; min-width: 0; margin-block: 0; }
 ```
 
-`.unit-strip__edit` is not decorative and not merely a test hook — it exists to resolve a collision
-between the two decisions below. `align-items: flex-start` aligns each flex item's **margin box** to
-the row's cross-start; `.unit-tags` carries `margin: .5rem 0` while a bare `.btn` carries none, so
-without this rule the anchor's top edge would sit ~8px above the panel's border-box top — visibly
-misaligned, and in direct contradiction of the "the link aligns with the tag summary" acceptance
-criterion. Matching the panel's own `.5rem` block-start margin puts the two border boxes on the same
-line. (It doubles as the stable selector hook the view tests and e2e use.)
+**Why the strip takes over the margin.** `align-items: flex-start` aligns each item's **margin box**
+to the row's cross-start. `.unit-tags` carries `margin: .5rem 0` from `tags.css` while a bare `.btn`
+carries none, so leaving that margin in place would drop the anchor's top edge ~8px above the panel's
+border-box top — visibly misaligned. Zeroing it *inside the strip* and moving the `.5rem` up to
+`.unit-strip` fixes three things at once and introduces no duplicated literal:
 
-One consequence to check rather than assume: when the row **wraps** at narrow widths, that `.5rem`
-block-start margin stacks on the container's `.5rem` row-gap *and* the panel's `.5rem` block-end
-margin, giving roughly `1.5rem` of separation rather than the nominal gap. That is acceptable
-(wrapped, the button reads as a separate row and wants the breathing room), but it is what the ~400px
-owner screenshot is checking — if it looks detached rather than deliberate, scope the margin to the
-unwrapped case.
+1. Both items now have zero block margin, so their border boxes align exactly — no compensating
+   margin on the anchor, and therefore no hardcoded `.5rem` in `courses.css` silently coupled to the
+   value in `tags.css`.
+2. The `.5rem` above and below the strip is preserved in **every** state. This matters most in the
+   wrapped narrow layout, where the button is the last flex line and `.btn` has no block-end margin:
+   with the margin left on `.unit-tags`, the strip's bottom edge would be the button's bottom edge and
+   the following `.unit-shell` would start with **0px** of separation — a real regression against
+   today's `.5rem`, in exactly the state the narrow screenshots scrutinise.
+3. The link-absent (student) case stays pixel-identical: the panel's `.5rem` block margin is simply
+   relocated to its wrapper.
+
+`.unit-strip__edit` therefore carries **no styling at all**. It exists solely as a stable selector
+hook for the view tests and the e2e, and is documented as such so it does not read as an undefined
+class.
 
 **Horizontal placement is intentional.** `flex: 1 1 auto` on the panel makes it take the remaining
 width, which pins the button to the **far right end of the row** — adjacent to the row's edge, not to
@@ -223,9 +240,20 @@ panel's top edge**, not that it sits beside the summary.
 A flex item's automatic minimum size is its min-content size, and `tags/_unit_tag_panel.html` renders
 a `<fieldset class="unit-tags__picker">` inside the panel. The UA stylesheet's
 `min-inline-size: min-content` on `<fieldset>` inflates that min-content size to the widest label row,
-so without `min-width: 0` the strip **row** could not wrap: the panel would refuse to shrink, and the
-row would be forced wider than its container. `min-width: 0` lets the item shrink so the row wraps as
-intended. That — the row's wrapping behaviour — is precisely and only what this declaration buys.
+so without `min-width: 0` the panel's used width is floored at that inflated min-content size.
+
+Be precise about what that does and does not change, because the intuitive story is wrong. It is
+**not** about wrapping: flex line-breaking is decided from each item's outer *hypothetical* main size,
+and with `flex-wrap: wrap` the button moves to a second line whenever the panel's content plus the
+button exceeds the container — identically with or without this declaration. What the declaration
+buys is that once the panel is alone on a shrunk line, its **own border box** can shrink to that
+line's width instead of staying floored at min-content. Without it, the panel's border, background
+and rounded corners extend past the content column.
+
+That is the observable: at ~400px with the panel open, **the panel's right border edge lines up with
+the content column's right edge** rather than running past it. The acceptance criterion is stated in
+those terms, because it is the only thing that actually distinguishes the declaration's presence from
+its absence.
 
 **What it does not buy, stated plainly so the acceptance criteria stay honest.** `min-width: 0`
 defeats the automatic minimum of the *flex item* (`.unit-tags`). It does nothing about the UA
@@ -242,9 +270,10 @@ fix to the tags panel's internals that changes rendering for every reader, inclu
 see this link. That is a separate concern from "add an edit link" and is deliberately not bundled
 here.
 
-The acceptance criterion is therefore about the **row**, not the panel's innards: the strip wraps
-instead of stretching, and the page shows **no horizontal overflow beyond what the same page shows on
-master without the feature** (i.e. compare against a baseline shot, don't assert an absolute).
+The acceptance criterion is therefore about the **panel's border box**, not the page: its right edge
+sits within the content column at ~400px with the panel open, and the page shows no horizontal
+overflow **beyond what the same page shows on master without the feature** (compare against a
+baseline shot; do not assert an absolute).
 
 That fieldset is itself conditional — `{% if addable_tags %}` — so it renders only when the actor
 owns at least one tag *not already on this unit*. Any test or screenshot meant to exercise this
@@ -355,8 +384,17 @@ feature, so they are tested at least as carefully as the positive ones:
 |---|---|
 | Course owner | `True` |
 | Platform Admin (holds `courses.change_course`), non-owner | `True` |
+| **Course Admin (`make_ca`), non-owner, enrolled** | **`False`** |
+| **Course Admin (`make_ca`) who owns the course** | **`True`** |
 | Group teacher with `can_access_course` on the course, non-owner | `False` |
 | Enrolled student | `False` |
+
+The two `make_ca` rows are the most valuable in the table, and are easy to omit precisely because the
+role's *name* suggests they are redundant. They pin the asymmetry this design rests on — a Course
+Admin holds `grouping.change_group`, not `courses.change_course`, so the link reaches them through
+**ownership alone**. Without these rows, adding `courses.change_course` to the CA role group, or
+"helpfully" broadening the predicate to `user.is_staff`, would silently widen who can edit while every
+other test stayed green.
 
 The teacher row must be built so the actor genuinely passes `can_access_course` (a `GroupFactory`
 group on the course, actor in `group.teachers`, `archived=False`) — otherwise it degrades into a
@@ -371,8 +409,13 @@ SUBMITTED, so the quiz-unit case must have no submission for the actor.
 
 The quiz-results case needs more care than "a submitted submission" suggests: `quiz_results` filters
 by `student=request.user` and **redirects back to `quiz_unit`** when that user has none. So *each*
-actor needs their **own** SUBMITTED `QuizSubmissionFactory` row — including the owner, who being
-non-enrolled would never accumulate one naturally. Without it the test silently follows a 302 to
+actor needs their **own** SUBMITTED row — including the owner, who being non-enrolled would never
+accumulate one naturally. Spell the fixture out explicitly, because the factory's defaults build
+something useless here: `QuizSubmissionFactory` defaults `student` to a fresh `UserFactory` and
+`unit` to `make_quiz_unit()`, which mints a brand-new quiz unit **in a brand-new course**. Every row
+must therefore pass all three kwargs —
+`QuizSubmissionFactory(student=<actor>, unit=<the quiz node under test>, status=QuizSubmission.Status.SUBMITTED)`
+(the status field defaults to `IN_PROGRESS`). Without it the test silently follows a 302 to
 `quiz_unit`, which for the owner still contains the href and so passes while asserting against the
 wrong page. Each quiz-results test must therefore assert it actually landed on `quiz_results`
 (`follow=False` and a 200, or `resp.redirect_chain == []`) before asserting on the body.
@@ -394,7 +437,15 @@ the response still carries the editor href for the owner:
 
 Naming an existing test per row matters: each needs non-trivial fixtures (a `QuestionElement` plus an
 acceptable answer body; a blank note POST that fails `NoteForm`; an enrolled manager with a live
-submission) that are already assembled in those tests. The 422 row matters most in practice — that is
+submission) that are already assembled in those tests.
+
+**Every copy needs the same one-line adaptation:** set `owner=<the acting user>` on the course.
+`CourseFactory` declares no `owner`, so it defaults to `None`, and all three precedent tests build a
+plain `CourseFactory()` and merely *enroll* the actor. Copied verbatim, `can_manage_course` returns
+`False` (its `owner_id is not None` guard fails and the actor holds no `courses.change_course`), the
+prescribed positive assertion fails, and the implementer has no stated cause. Keep the enrollment the
+copied fixture already carries — `check_answer` and the notes path do not require it, but
+`quiz_answer` does. The 422 row matters most in practice — that is
 a page a manager hits precisely while annotating during the walkthrough this feature serves.
 
 **The `min-width: 0` guard.** A pre-ship screenshot is not re-run by CI, so the load-bearing
@@ -483,9 +534,18 @@ outside the narrower article it heads — a composition four lesson shots would 
 panel already has this geometry today; the point is to confirm the button does not make it read as
 broken.)
 
-Acceptance criteria: the button shares the tag panel's top edge and does not overlap it; the strip
-wraps rather than stretching at ~400px, with no horizontal overflow **beyond the master baseline**
-for the same page; and the student view is visually equivalent to today's vertical rhythm. The narrow shots are taken with the panel open
+That row gets its own pass/fail criterion, since the general ones below are all satisfied no matter
+how far outside the article the button sits: **the button's right edge must fall within the
+article's right edge, or the mismatch must be explicitly judged acceptable and recorded in the PR.**
+If it fails, the named remedy is to constrain the strip on that page only —
+`.quiz-results-page .unit-strip { max-width: 46rem; margin-inline: auto; }` or equivalent — rather
+than restyling the button.
+
+General acceptance criteria: the button shares the tag panel's top edge and does not overlap it; the
+panel's right border edge sits within the content column at ~400px with the panel open; there is
+`.5rem` of separation below the strip in the **wrapped** narrow layout, exactly as today; no
+horizontal overflow **beyond the master baseline** for the same page; and the student view is
+visually equivalent to today's vertical rhythm. The narrow shots are taken with the panel open
 deliberately — closed, the summary is short enough that the row will not wrap and the shot would prove
 nothing.
 
@@ -504,12 +564,20 @@ existing house terms (`Unit` → `Jednostka`, `Edit` → `Edytuj`):
 - `Edit unit` → `Edytuj jednostkę`
 - `(opens in a new tab)` → `(otwiera się w nowej karcie)`
 
+**`compilemessages` is required, not optional.** `locale/en/LC_MESSAGES/django.mo` and
+`locale/pl/LC_MESSAGES/django.mo` are both **tracked in git**, and Django reads `.mo` at runtime — so
+`makemessages` plus hand-written Polish `msgstr`s would ship a stale binary catalog and the Polish
+strings above would simply never render. `uv run python manage.py compilemessages` is the mandatory
+third step (`docs/development/conventions.md:50`), and the regenerated `.mo` files are **part of the
+commit**.
+
 Two standing hazards:
 `makemessages` can pre-fill a new msgid with a **fuzzy** translation lifted from an unrelated string,
 so each new entry's Polish text must be read and corrected, and clearing a fuzzy means deleting
 **both** the `#, fuzzy` line and the `#| msgid` line above it. The project forbids obsolete `#~`
 entries; `tests/test_i18n_po_health.py` guards the catalogs and must stay green.
 
-**Suite-level.** `uv run pytest`, `uv run ruff check`, `uv run ruff format --check`, and
-`uv run python manage.py makemigrations --check` all clean. Note that bash `pytest` / `ruff` /
+**Suite-level.** `uv run pytest`, `uv run ruff check`, `uv run ruff format --check`,
+`uv run python manage.py compilemessages`, and `uv run python manage.py makemigrations --check` all
+clean. Note that bash `pytest` / `ruff` /
 `python` are not on PATH in this environment — every invocation goes through `uv run`.
