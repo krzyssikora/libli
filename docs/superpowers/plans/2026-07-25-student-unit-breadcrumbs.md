@@ -1030,15 +1030,18 @@ Leave the `en` msgstr empty (gettext falls back to the source string), matching 
 
 ```bash
 uv run python manage.py compilemessages
-uv run pytest tests/test_i18n_po_health.py -q
+uv run pytest -q
 ```
 
-Expected: PASS. That module forbids `#~` obsolete entries and `#, fuzzy` flags across the whole catalogue, so it is the real gate here.
+Expected: all green. **The gate is the full suite, not just `tests/test_i18n_po_health.py`.** That module forbids `#~` obsolete entries and `#, fuzzy` flags, but `makemessages --no-obsolete` + `compilemessages` rewrites both `.po` files *and* the tracked `.mo` files, and five other modules read those exact artefacts — `test_i18n_auth.py`, `test_i18n_ws4.py` and `test_i18n_error_pages.py` parse the `.po` text, while `test_i18n_spanning_table.py` and `test_tags_i18n.py` call `translation.gettext` and so read the compiled `.mo`. A msgid dropped by `--no-obsolete`, a msgstr clobbered while clearing a fuzzy, or a half-successful `compilemessages` is invisible to the health module and would stay green.
+
+**If an unrelated test goes red**, repair it, re-run `uv run pytest -q`, and stage that file alongside `locale/` in Step 5.
 
 - [ ] **Step 5: Commit**
 
 ```bash
 git add locale/
+# ...plus any unrelated file you had to repair for the full-suite gate in Step 4
 git commit -m "i18n: add the Breadcrumb aria-label (en, pl)"
 ```
 
