@@ -23,12 +23,15 @@ Armed (all non-interactive content images):
 **Container elements inherit arming transitively.** Tabs, Two-column and Spoiler render their nested
 children through the very same element templates, so an image element inside a tab panel, a column, or
 a `<details>` body is armed automatically. That is desirable and needs no extra work, but it puts
-armed images inside three different hiding mechanisms, which differ in whether they remove the tab stop:
+armed images inside **five** different hiding mechanisms, which differ in whether they remove the tab
+stop. This table is meant to be exhaustive — a mechanism missing from it is a potential leaked tab stop:
 
 | Hiding mechanism | Removes the tab stop? |
 |---|---|
 | Tabs — inactive panel carries the `hidden` attribute | Yes (`display:none` subtree is not focusable) |
 | Spoiler — closed `<details>` | Yes (content is not rendered) |
+| Reveal cascade — the `{% if has_reveal_gate %}` inline `<style>` in `lesson_unit.html:38-44` hides post-gate siblings via `…:not(.reveal-shown) { display: none }`, for all three gate families | Yes. **The highest-stakes row**: these hide *answers*, so a leaked tab stop would let a keyboard user open a gated answer image before passing the gate. Safe because the selectors are author-origin `display:none` at high specificity — unlike `[hidden]`, they cannot be defeated by an element wrapper's own `display` rule |
+| Stepper — the `{% if has_stepper %}` inline `<style>` hides `[data-stepper-step]:not(.stepper-shown):not(:first-child)` the same way | Yes, same mechanism and same reasoning |
 | Slideshow — a paginating unit's non-current `.slide` carries the `hidden` attribute (`slideshow.js` hides all at rest; `courses.css:238` → `display:none`) | Yes. One wrinkle: during the 320ms cross-fade the outgoing slide is `opacity:0` but not yet `hidden`, so its images are briefly focusable — the same window the gallery has permanently, and too short to reach by Tab |
 | Gallery — inactive figure is `opacity:0; pointer-events:none` + `aria-hidden="true"`, deliberately still laid out (`courses.css:1233-1234`) so `gallery.js` can measure its height | **No** — see "Gallery figures need `inert`" below |
 
@@ -85,8 +88,11 @@ responsibilities:
 1. **Arm** — `armAll(root)` walks `[data-zoomable]` within `root` and, for each not already armed:
    - sets `role="button"` and `tabindex="0"`;
    - adds class `imgzoom-trigger` (the cursor affordance and focus-ring hook);
-   - leaves a non-empty `alt` to serve as the accessible name; when `alt` is empty (a decorative
-     gallery figure), sets `aria-label = IMAGEZOOM_I18N.enlarge` so the control is never nameless;
+   - leaves a non-empty `alt` to serve as the accessible name; when `alt` is empty, sets
+     `aria-label = IMAGEZOOM_I18N.enlarge` so the control is never nameless. **"Empty" means absent or
+     empty after trimming** — all three templates always render the attribute, and `alt` is free author
+     text, so a whitespace-only value would otherwise slip through as "non-empty" and produce an
+     effectively nameless control. The trimmed test is what the accessible-name e2e relies on;
    - marks it armed via `dataset.imgzoomReady = "1"` — idempotent, exactly as `stepper.js`'s `initOne`
      guards on `dataset.stepperReady`.
 
@@ -127,7 +133,9 @@ responsibilities:
    ("Enlarged image"); the description lives on the contained image's `alt` and only there. Naming the
    dialog with the same `alt` string would make a screen reader read the description twice on entry —
    the accessible-name duplication this repo already shipped once in `_unit_crumbs.html` and does not
-   want a second instance of.
+   want a second instance of. Consequence for a decorative figure, stated deliberately: an empty `alt`
+   is the author declaring the image decorative, so the overlay is description-free — the `aria-label`
+   names the *control*, never the image, and there is nothing else for a screen reader to read.
 
    **Focus restoration is explicit, not inherited.** `<dialog>` restores focus to whatever was focused
    before `showModal()`, which is the trigger only if the browser focuses an
@@ -181,12 +189,27 @@ focusable for the first time. Inerting an element blurs any `document.activeElem
 item is inerted → focus drops to `<body>` → the next ArrowRight is ignored and the focus ring has
 silently vanished. Keyboard carousel navigation would die after exactly one step.
 
-Requirement: before inerting an item, check whether it contains `document.activeElement`; if it does,
-move focus deliberately to the incoming item's `[data-zoomable]` (clearing the incoming item's `inert`
-*before* the move, since focus cannot land inside an inert subtree), falling back to the container's
-`.gallery__next` / `.gallery__prev` control when the incoming figure has no trigger. Focus already
-sitting on a nav button or a dot is outside the items and needs no rescue. An e2e presses ArrowRight
-twice from a focused gallery image and asserts the carousel advanced twice.
+**The rescue belongs to exactly one of the four sites: `show()`, immediately before the `:125` write.**
+Only there are both the outgoing and incoming items in scope. The other three sites need no rescue and
+must not attempt one:
+
+- **rest-init (`:41`)** runs before `idx` is set and before the nav bar exists (`:78`), so it has no
+  target to move focus to — and nothing inside a figure is focused yet, since the page has just loaded.
+- **`settleHidden` (`:97`)** receives only the item, knows nothing of `pending.inn`, and runs from the
+  fade timer or `finalizePending()` — 320ms *after* `show()` already inerted that same item at `:125`.
+  Its write is a re-assert on an already-inert item.
+
+Requirement at that one site: if the outgoing item contains `document.activeElement`, clear the
+incoming item's `inert` **first** (focus cannot land inside an inert subtree), then move focus to the
+incoming item's `[data-zoomable]`; if the incoming figure has no trigger, fall back to **the first
+*enabled* control in the bar**, and if none is enabled, to the container itself given a `tabindex="-1"`.
+The "enabled" qualifier is load-bearing: `gallery.js` sets `next.disabled` at the last slide and
+`prev.disabled` at the first (`:115-118`), and `focus()` on a disabled button is a no-op that drops
+focus to `<body>` — reintroducing the exact bug the rescue exists to prevent, at both boundary slides.
+Those flags are updated at `:115-118`, before the inerting at `:125`, so the check reads the
+post-update state. Focus already sitting on a nav button or a dot is outside the items and needs no
+rescue. An e2e presses ArrowRight twice from a focused gallery image and asserts the carousel advanced
+twice.
 
 This also closes a latent pre-existing hole: gallery descriptions are sanitised HTML that permits
 `<a href>`, so links inside inactive figures were already focusable inside an `aria-hidden` subtree.
@@ -202,8 +225,11 @@ Appended as its own commented section, following the file's existing per-element
 /* Every box declaration is scoped to [open]: an unscoped author-origin `display`
    would beat the UA's `dialog:not([open]) { display: none }` and leave the dialog
    permanently covering the page. Same trap as `[hidden]` vs `display:grid` at
-   courses.css:352. The :not([open]) rule below makes that explicit and guards a
-   future edit that forgets the scoping. */
+   courses.css:352. The rule below makes that explicit and guards a future edit
+   that forgets the scoping — at (0,2,1) it also OUTRANKS an unscoped
+   `.imgzoom { display: grid }` (0,1,0), which is why it, not the UA rule, is what
+   governs the closed state, and why the e2e falsification for case 1 must delete
+   BOTH this guard and the [open] scoping to go red. */
 dialog.imgzoom:not([open]) { display: none; }
 
 .imgzoom[open] {
@@ -250,7 +276,14 @@ page stays legible, contradicting "nothing but the image." Define `--scrim-solid
 absence is the mechanism by which it is identical in both themes, and it carries a comment saying so,
 because every neighbouring surface token *is* defined twice. Image viewers are conventionally dark in
 both themes. The design pass (see Testing → visual review) may retune the value; it may not change the
-mechanism.
+mechanism — and precisely because every neighbour is defined twice, the next routine edit to
+`tokens.css` is the one that would silently break this, so a **source-level test** guards the invariant
+rather than a one-off review (see Testing).
+
+Note also that the UA gives `dialog { background-color: Canvas }` — fully **opaque**, and light in the
+light theme. A missing author `background` therefore does not fail loudly as a see-through overlay; it
+fails as an opaque white panel. That is why the occlusion test asserts the resolved *colour* and not
+merely the alpha channel.
 
 Styling both the dialog box and `::backdrop` is intentional: the box's own background is what
 guarantees opacity, and the matching `::backdrop` covers anything outside the box.
@@ -288,9 +321,12 @@ glance. The attribute is the contract, greppable from both sides.
 ### Sizing — why no measurement is needed
 
 `max-width` / `max-height` only ever *shrink* a replaced element; neither can scale an image above its
-intrinsic size. So with `width: auto; height: auto; max-width: 100%; max-height: 100dvh`, the rendered
-size is exactly `min(natural, viewport-fit)` — the "original size at most, fitted to the screen"
-requirement, with no JS reading `naturalWidth` and no resize listener.
+intrinsic size. So with `width: auto; height: auto; max-width: 100%; max-height: 100%` — 100% of the
+dialog's content box, which *is* the fitted viewport per the CSS comment above — the rendered size is
+exactly `min(natural, viewport-fit)`: the "original size at most, fitted to the screen" requirement,
+with no JS reading `naturalWidth` and no resize listener. (Stated as `100%`, not `100dvh`, to match the
+declaration exactly; the two coincide today only because the dialog is exactly `100dvh` tall, and would
+diverge the moment the Non-goals' gutter escape hatch were used.)
 
 This is a **claim to verify by measurement**, not an assumption: the e2e tests assert the resulting
 geometry (see Testing) rather than trusting the reasoning.
@@ -304,9 +340,14 @@ platform behaviour: top-layer rendering that cannot lose a z-index fight with th
 (`app.css:229`, `z-index: 50` — the highest stacking value on a lesson page) or, on the editor page
 (also an armed surface), `.math-modal` at `z-index: 1000` (`editor.css:552`); Escape-to-close; a focus
 trap; and the rest of the document inert. Reimplementing those
-correctly is more code and more failure modes than using them. The behaviours we rely on are asserted
-in e2e rather than assumed — and focus *restoration*, the one platform affordance that is not
-cross-browser reliable, is done explicitly instead (see above).
+correctly is more code and more failure modes than using them.
+
+Which of those are actually verified, stated honestly rather than as a blanket claim: Escape-to-close
+and scroll-blocking get their own e2e cases, and the focus trap gets one (Tab twice, focus never leaves
+the dialog — non-obvious here because the overlay contains no focusable element). Top-layer stacking and
+document-inertness are taken on trust; nothing in the design degrades badly if an engine differs. Focus
+*restoration*, the one affordance that is provably not cross-browser reliable, is not trusted at all —
+it is done explicitly (see above).
 
 **`role="button"` on the `<img>`, not a wrapping `<button>`.** A real button element is the
 conventional choice, and the *behaviour* it provides is what we ship — Tab-reachable, Enter/Space
@@ -377,13 +418,13 @@ Every failure mode degrades to "the image behaves as it does today."
 |---|---|
 | `imagezoom.js` 404s or is blocked | Images render normally, unarmed, no cursor affordance, no dead click target. No page error. |
 | `IMAGEZOOM_I18N` missing (a template that includes the script but not the blob) | Fallbacks used for both labels, read defensively (`(window.IMAGEZOOM_I18N \|\| {}).enlarge \|\| "Enlarge image"`), so the script never throws on a missing global. |
-| `HTMLDialogElement`/`showModal` unavailable | Feature-detected at boot (`typeof d.showModal === "function"`); if absent the module returns before arming anything, so no image is made to look clickable when clicking cannot work. |
+| `HTMLDialogElement`/`showModal` unavailable | Feature-detected at boot with a throwaway element — `typeof document.createElement("dialog").showModal === "function"` — since the real dialog is created lazily and does not exist yet at boot. If absent the module returns before arming anything (no image is made to look clickable when clicking cannot work) and `window.libliInitImageZoom` is **not exported**, which `editor.js`'s existing `window.libliInitImageZoom &&` guard already tolerates. |
 | Broken image URL (deleted media, placeholder) | The trigger still opens; the overlay shows the browser's broken-image state for the same `src` the page shows. No special handling — the page-level defect is already visible inline. |
 | Key auto-repeat from a held Enter/Space | `if (dialog.open) return` guard; `showModal()` on an open dialog would throw `InvalidStateError`. |
 | Mouse double-click on a trigger | Opens, then closes — the second click lands on the now-covering dialog. Accepted and pinned by e2e; see "A double-click opens then closes" above. It never re-enters the open path, so the `dialog.open` guard is not what handles it. |
 | Double arming (boot + editor re-init over the same node) | `data-imgzoom-ready` guard makes `armAll` idempotent. |
 | Image inside a `<summary>` / `<label>` / link (not currently possible) | `preventDefault()` on the delegated click stops the host control from also activating. |
-| Print with the overlay closed (the normal case) | Every box declaration is `[open]`-scoped, so the UA's `dialog:not([open]) { display: none }` applies and print output is byte-identical to today's. |
+| Print with the overlay closed (the normal case) | The author guard `dialog.imgzoom:not([open]) { display: none }` governs (it outranks the UA's equivalent rule, which sits beneath it as a backstop), so print output is byte-identical to today's. |
 | Print while the overlay is open | Out of scope. Chromium includes top-layer content in print output, so the printed page would be the enlarged image. Nothing makes the dialog close on `beforeprint`, and nothing should: a user who prints while looking at an enlarged image plausibly wants that image. |
 | Trigger removed from the DOM while the overlay is open (preview swap) | `trigger.focus()` on a detached node is a no-op, not a throw; the overlay closes normally. |
 
@@ -412,8 +453,16 @@ Postgres test database. This branch's test runs use a worktree-unique `DATABASE_
   `IMAGEZOOM_I18N` blob (a script tag without its i18n blob is a live failure mode, so both are
   asserted together), with `imagezoom.js` appearing **after** `gallery.js` in each. Falsify: remove the
   blob from one page; swap the two script tags.
-- `editor.js` contains the `libliInitImageZoom(preview)` re-init call, and `gallery.js` sets and clears
-  `inert` — JS-source assertions in the style of `tests/test_builder_js_invariants.py`.
+- `editor.js` contains the `libliInitImageZoom(preview)` re-init call and `imagezoom.js` exports the
+  **same literal**, and `gallery.js` sets and clears `inert` — JS-source assertions in the style of
+  `tests/test_builder_js_invariants.py`. Pinning both sides of the name is the point: a grep that only
+  checks the call site cannot catch a typo'd export.
+- `imagezoom.js`'s `close` handler contains the null-guarded `trigger.focus()` — a source assertion,
+  because no Chromium e2e can falsify its removal (see e2e case 4).
+- **`--scrim-solid` appears exactly once in `tokens.css`, and not inside the dark-theme block** — the
+  invariant the whole light/dark scrim mechanism rests on, and the one a routine token edit would break
+  silently since every neighbouring token is defined twice. Falsify: add a second definition in the dark
+  block.
 
 ### e2e — `tests/test_e2e_imagezoom.py` (new, `pytestmark = pytest.mark.e2e`)
 
@@ -428,14 +477,23 @@ a broken image with `naturalWidth === 0`, and every width/geometry/pixel asserti
 while measuring nothing. No existing e2e contradicts this — `test_e2e_gallery.py` asserts carousel
 structure only, never that an image loaded.
 
-Mechanism: **`page.route("**/media/**", …)` fulfils each media request with the fixture's real PNG bytes**
-(the same bytes the factory generated), in a fixture shared by this module. No app config is touched, no
-URLConf is mutated, and the `<img>`, its `src`, and every gesture stay real — the interception replaces
-only the unserved transport. This does not weaken the "e2e must drive real UI" rule, which is about
-driving real gestures rather than stubbing them.
+Note the asymmetry, so the scope of the fix is self-evident: pytest-django's `live_server` wraps the
+handler in `StaticFilesHandler`, which serves `/static/` regardless of `DEBUG` — so the CSS and JS under
+test *do* load. Only `/media/` is unserved, so only `/media/` needs intercepting.
 
-Guard against silent regress: the geometry test **asserts `naturalWidth == 1400` before measuring
-anything**, so a routing failure fails loudly instead of quietly measuring a broken image.
+Mechanism: **`page.route("**/media/**", …)` resolves each requested path to its file under `MEDIA_ROOT`
+(which these tests point at `tmp_path`, so the real bytes are on disk) and fulfils with *those* bytes,
+404-ing any path that does not map.** Per-request resolution, not one canned response: a single handler
+that always returned the 1400×900 fixture's bytes would silently serve them for the 1×1 asset, the
+portrait asset and the structured visual-review asset too — case 14 would measure `naturalWidth == 1400`
+for a 1×1 image and the visual review would judge the wrong picture, both while appearing to pass. No app
+config is touched, no URLConf is mutated, and the `<img>`, its `src`, and every gesture stay real — the
+interception replaces only the unserved transport. This does not weaken the "e2e must drive real UI"
+rule, which is about driving real gestures rather than stubbing them.
+
+Guard against silent regress: **every case that measures geometry first asserts the natural size it
+expects** — `naturalWidth == 1400` for the large fixture, `naturalWidth == 1` for the tiny one — so a
+routing failure or a mis-mapped asset fails loudly instead of quietly measuring the wrong file.
 
 #### Fixture
 
@@ -462,11 +520,18 @@ to within the column padding and the comparison becomes a coin flip.
 
 #### Cases
 
+Device scale factor is pinned to **1** in the browser context, so CSS-pixel box coordinates map 1:1 onto
+screenshot pixels and no conversion arithmetic is needed anywhere below.
+
 1. **A closed dialog is not rendered.** The dialog is created lazily, so asserting "absent or invisible"
    *before* the first open is vacuous — it passes even with `display: grid` unscoped, which is the very
    bug it exists to catch. Instead: open the overlay, close it, and **then** assert the now-existing
-   `.imgzoom` reports `checkVisibility()` false **and** a zero-area bounding box. No "or does not exist"
-   escape hatch — one way to pass. Falsify: move `display: grid` out of the `[open]` scope; must go RED.
+   `.imgzoom` reports `checkVisibility()` false, and that `bounding_box()` is `None` (the expected
+   outcome for a `display:none` element — it does **not** return a zero-area box; a non-`None` box must
+   have zero area). No "or does not exist" escape hatch. Falsify: the break is **two deletions** —
+   unscope `display: grid` **and** delete the `dialog.imgzoom:not([open])` guard. Unscoping alone leaves
+   the test GREEN, because the guard at (0,2,1) outranks `.imgzoom` at (0,1,0); the guard is what makes
+   the scoping individually untestable, so the paired deletion is the only valid break.
 2. **Open + geometry.** Click the image → assert `naturalWidth == 1400` first (see above), then:
    - the dialog is open;
    - the overlay image's rendered width is **greater** than the inline image's was;
@@ -480,19 +545,41 @@ to within the column padding and the comparison becomes a coin flip.
 3. **Nothing but the image is visible.** `checkVisibility()` cannot express this — a modal `<dialog>`
    makes the rest of the document *inert*, not unrendered, so the lesson article still reports visible.
    Two independent assertions instead:
-   - (a) the computed `background-color` of `.imgzoom` has alpha ≥ 0.95. Falsify by deleting the
-     `background` declaration from `.imgzoom[open]`.
-   - (b) pixel sampling, with the sample rectangle **computed from the measured image bounding box, not
-     from where text used to be**: at 1280×800 the fitted image spans x≈18–1262 and the full height, so
-     the article column is entirely *behind the image* and sampling "where the text was" would sample
-     image pixels. Sample instead inside the letterbox bands to the left/right of the measured box
-     (x < box.x − 2), and require every sampled pixel to match `--scrim-solid` within a tolerance tight
-     enough to exclude the fixture's `#FF00FF`. Falsify by deleting **both** scrim declarations — the box
-     `background` *and* `.imgzoom::backdrop`, which paint the same colour, so removing one leaves the
+   - (a) the computed `background-color` of `.imgzoom` is the near-black scrim: **assert the resolved
+     colour channels** (each within ±12 of `rgb(12,11,10)`) as well as alpha ≥ 0.95. Asserting alpha
+     alone is not enough and its obvious falsification is impossible: the UA sets
+     `dialog { background-color: Canvas }`, which is opaque, so deleting the author `background` leaves
+     alpha at 1.0 and the overlay renders as an opaque **white** panel with the test still GREEN.
+     Falsify instead by re-pointing the declaration at the translucent `var(--surface-overlay)`
+     (alpha 0.45/0.55) — the real regression this guards — which must go RED.
+   - (b) pixel sampling. Mechanism, stated because Playwright cannot read pixels: take an element
+     screenshot of the dialog, decode it with **Pillow**, and sample a fixed set of points (the four
+     corners and the midpoint of each usable band). With `device_scale_factor = 1` the box coordinates
+     are the image coordinates. The sample rectangle is **computed from the measured image bounding box,
+     not from where text used to be**: at 1280×800 the fitted image spans x≈18–1262 and the full height,
+     so the article column is entirely *behind the image*, and sampling "where the text was" would
+     sample image pixels. Sample inside the letterbox bands beside the measured box (x < box.x − 2).
+     **First assert the band is usable** (`box.x >= 6`) and fail with a clear message otherwise: the
+     band is only ~17.8 CSS px at this viewport and shrinks to ~10px once a classic scrollbar narrows
+     the initial containing block, and if the fixture ever became width-capped instead the bands would
+     move to the top/bottom and a left/right rectangle would silently sample nothing. The expected value
+     is the **composited** colour, not the raw token — `rgba(12,11,10,0.97)` over the equally-tinted
+     `::backdrop` resolves to ≈`rgb(12,11,10)` — with each channel required within ±12, which also
+     comfortably excludes the fixture's `#FF00FF`. Falsify by deleting **both** scrim declarations, the
+     box `background` *and* `.imgzoom::backdrop`: they paint the same colour, so removing one leaves the
      other painting it and this half would stay GREEN.
-4. **Close by second click**, and focus is on the trigger image afterwards.
-5. **Close by Escape.**
+4. **Close by second click**, focus back on the trigger. Note honestly that plain Chromium cannot
+   falsify the explicit `trigger.focus()`: Chromium focuses the trigger on click, so `<dialog>`'s native
+   restore satisfies this assertion even with the line deleted. Two guards instead — the source-level
+   assertion listed above, plus a variant here that **blurs the trigger before opening** (reproducing
+   WebKit's pre-open focus of `<body>`) and still requires focus on the trigger after close. That
+   variant *is* falsifiable in Chromium; the plain case is a smoke test, not a guard.
+5. **Close by Escape.** Falsify: remove the dialog from the close path (or the Escape `keydown`
+   wiring); note that Escape-closing is UA behaviour, so what is really pinned is that nothing in our
+   code suppresses it.
 6. **Double-click** a trigger → the overlay ends **closed** (open-then-close, the accepted behaviour).
+   Falsify: add a timing window that swallows the second click; this must go RED, which is what keeps
+   the behaviour a decision rather than an accident.
 7. **Keyboard open**: focus the image, press Enter → dialog open. Falsify: remove the `keydown` listener.
 8. **Accessible name, both branches.** A non-empty-`alt` trigger is reachable as
    `get_by_role("button", name=<alt>)`; an empty-`alt` gallery figure as
@@ -501,22 +588,46 @@ to within the column padding and the comparison becomes a coin flip.
 9. **Gallery: only the active figure is a tab stop.** A `get_by_role("button")` **count is not a valid
    test here** — inactive figures already carry `aria-hidden="true"` today and Playwright's role engine
    excludes ARIA-hidden elements by default, so that assertion is already green with `inert` removed.
-   Assert real tab traversal instead: from a known anchor, press `Tab` repeatedly and require
-   `document.activeElement` never to land inside a non-`is-active` `.gallery__item`. Falsify: remove the
-   `inert` handling from `gallery.js`; must go RED.
+   Assert real tab traversal instead, with a **bounded loop and a positive control**: from a known
+   anchor, press `Tab` a fixed N times (N covering the page's focusable set), recording
+   `document.activeElement` at each step, then assert over the recorded list that (i) it **did** reach
+   the *active* figure's trigger — without which the whole assertion could pass by never reaching the
+   gallery at all, the same vacuity this case was written to replace — and (ii) it never landed inside a
+   non-`is-active` `.gallery__item`. Falsify: remove the `inert` handling from `gallery.js`; must go RED.
 10. **Gallery: arrow-key navigation survives the `inert` change.** Focus a gallery zoom trigger, press
     ArrowRight **twice**, assert the carousel advanced **twice** (and that focus is still inside the
     container, not on `<body>`). This is the C4 focus-rescue guard. Falsify: drop the focus rescue and
     keep the inerting; the second press must stop working.
 11. **The page behind does not scroll.** Record `window.scrollY`, dispatch a real wheel gesture over the
-    open overlay, assert `scrollY` unchanged — testing the platform claim rather than trusting it.
-12. **Editor preview re-arm, through the real UI.** On the editor page, make an edit and save so the
+    open overlay, assert `scrollY` unchanged — testing the platform claim rather than trusting it. Two
+    things make this non-vacuous: the fixture page must **exceed the viewport height** (asserted as a
+    precondition, `scrollHeight > innerHeight`), or `scrollY` is 0 before and after on any engine, lock
+    or no lock; and the **positive control is the falsification** — the identical wheel gesture with the
+    overlay *closed* must change `scrollY`. There is no line of our code to delete here, so that control
+    is what stands in for a break.
+12. **Focus trap.** With the overlay open, press Tab twice and assert `document.activeElement` never
+    leaves the dialog. Non-obvious precisely because the overlay contains no focusable element.
+13. **No `src` left behind on close.** After closing, the overlay `<img>` has **no `src` attribute** —
+    the guard on the `removeAttribute("src")` decision, whose regression (`img.src = ""`) fires a request
+    for the HTML page itself on every close. Falsify: replace the call with `img.src = ""`.
+14. **Hidden containers keep their images out of the tab order.** Tab-traverse a lesson containing an
+    image inside an inactive tab panel and inside a closed spoiler; focus must never enter either. The
+    `hidden`/`display:none` rows of the hiding-mechanism table are currently safe *by inheritance* and
+    have no other guard, while this repo has the documented `[hidden]` vs author-`display` trap
+    (`courses.css:352`) and does put `display` on element wrappers (`.el--twocolumn { display: flex }`).
+    Falsify: give the panel or the spoiler child an author `display: block`.
+15. **Editor preview re-arm, through the real UI.** On the editor page, make an edit and save so the
     preview pane swaps, then click the preview's image with a real gesture and assert the overlay opens.
     A source grep proves the string `libliInitImageZoom` exists in `editor.js`; it cannot prove the name
     matches what `imagezoom.js` exports or that arming survives a real fragment swap. The source
-    assertion must pin the **same literal** on both sides (export and call site).
-13. **Fill-in-table image cell** opens the overlay — the third armed surface.
-14. **Tiny image**: a 1×1 asset still opens (the always-clickable decision) and is not upscaled.
+    assertion must pin the **same literal** on both sides (export and call site). Falsify: remove the
+    `editor.js` re-init line.
+16. **Fill-in-table image cell** opens the overlay — the third armed surface. Falsify: drop
+    `data-zoomable` from `_filltable_cell.html`.
+17. **Tiny image**: a 1×1 asset still opens (the always-clickable decision) and is **not upscaled** —
+    asserting `naturalWidth == 1` as its precondition (so a mis-mapped media route cannot hand it the
+    1400px fixture) and then that the overlay image's rendered width is 1, not stretched to the viewport.
+    Falsify: give `.imgzoom__img` a `width: 100%`, which upscales it; must go RED.
 
 ### i18n
 
