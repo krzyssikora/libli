@@ -114,7 +114,9 @@ the permission group **without** setting `is_staff`, so `make_pa(client)` yields
 `unit_editor_url` is `reverse("courses:manage_editor", kwargs={"slug": unit.course.slug, "pk": unit.pk})`
 when permitted, and `None` otherwise — never a URL the template must guard against emitting.
 
-That `reverse(...)` line is byte-identical to `courses/views_manage.py::_editor_path` (`:1106`), and
+That `reverse(...)` call duplicates `courses/views_manage.py::_editor_path` (`:1106`) — same route
+name and same kwargs, differing only in how the course is reached (`_editor_path` takes `course` as a
+parameter and writes `course.slug`; the helper has only the unit and writes `unit.course.slug`) — and
 the duplication is deliberate rather than overlooked. `_editor_path` is a private helper of the manage
 layer; importing it into `courses/views.py` would make the consumption path depend on the authoring
 module for two lines of URL construction. Duplicating them keeps the dependency arrow pointing one
