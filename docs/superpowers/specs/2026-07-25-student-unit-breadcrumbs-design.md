@@ -466,6 +466,13 @@ crumbs in the rail-present column at 641px — untested with every assertion sti
    "exactly one occurrence" reading would be false on arrival. Tests 5 and 6 necessarily spell the
    glyph as a literal to guard it; that is intended, and is not a reason to reintroduce a
    Python-side constant for them to import.
+7. **The collapse breakpoint sits strictly within (640px, 1280px)** — the bound argued above. This
+   is numbered rather than left as prose precisely because it is the one constraint whose violation
+   leaves the *entire suite green*: test 18 derives its expected media query **from**
+   `COLLAPSE_BREAKPOINT_PX`, so retuning to 600px would update the constant, the CSS and the
+   expected string in lockstep while the third e2e viewport (601px) silently slid into the
+   rail-less regime and stopped sampling the four-crumb worst case. Test 18 therefore also asserts
+   `640 < COLLAPSE_BREAKPOINT_PX < 1280` outright. Falsifying mutation: set the constant to 600.
 
 Baseline styling: `--text-tertiary`, ~0.85rem, course link inheriting the muted colour rather than
 the default link blue. The `--space-3` bottom margin goes on the **`<nav class="unit-crumbs">`**,
@@ -630,7 +637,11 @@ There is no user input and no write path here; the failure modes are all "missin
     outright. (The nearest such collision is the three existing `@media (max-width: 640px)` blocks —
     just *outside* the permitted range, which is illustrative of the hazard rather than an instance
     of it; 640 is excluded by §4's strict bound.) Additionally assert `.unit-crumbs__item--mid` appears
-    inside that block, so the guard cannot be satisfied by an unrelated query at any value. The
+    inside that block, so the guard cannot be satisfied by an unrelated query at any value. Assert
+    `640 < COLLAPSE_BREAKPOINT_PX < 1280` here too (invariant 7) — deriving the query string from
+    the constant means a retune keeps CSS, string and constant in lockstep and every other assertion
+    green, so this bare range check is the only thing standing between a retune and a silently
+    vacuous third e2e viewport. Falsifying mutation: set the constant to 600. The
     expected string must be **derived from `COLLAPSE_BREAKPOINT_PX`** rather than hardcoded —
     otherwise the guard
     couples CSS↔literal but not literal↔constant, and a retuned breakpoint could update the CSS and
@@ -805,4 +816,6 @@ screenshot QA pass across desktop × mobile × light × dark, including keyboard
 link at the strip's left edge. This is an explicit user request and an explicit deliverable of this
 work, not an optional polish step — a previous pipeline run shipped unpolished UI precisely by
 treating it as optional. The design pass may freely change the visual treatment; it may not break
-the six invariants listed in §4.
+the seven invariants listed in §4 — including invariant 7, the breakpoint bound, which is the one
+the design pass is most likely to touch and the only one whose violation leaves the whole test suite
+green.
