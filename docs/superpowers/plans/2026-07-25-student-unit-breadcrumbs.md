@@ -12,6 +12,7 @@
 
 ## Global Constraints
 
+- **Shell:** every ```bash block in this plan is POSIX shell and must be run through the **Bash tool** (Git Bash), never PowerShell. In Windows PowerShell 5.1 `&&` is a parser error, `printf`/`grep`/`rm -rf` do not exist, and native executables get **no** glob expansion — so `pytest tests/test_e2e_[a-g]*.py` would receive the pattern literally and abort with "file or directory not found".
 - **Tooling:** `ruff`, `pytest` and `python` are **not** on PATH. Every command runs under `uv run`. `uv run ruff format --check .` and `uv run ruff check .` are part of the gate.
 - **Worktree database:** this runs in a git worktree and needs a unique `DATABASE_URL`, or it collides with a concurrent session on the Postgres `test_libli` database. It is configured **durably, via a `.env` file** (Task 1 Step 1) — *not* by exporting a shell variable. A shell `export` would be wrong twice over: agent tool calls do not share shell state between invocations, and `export` is bash syntax on a PowerShell-primary host. `config/settings/base.py` calls `env.read_env()` on a worktree-root `.env`, and `.env` is already in `.gitignore`, so the file is picked up automatically by every `uv run` command and never committed.
 - **Zero new JavaScript.** No JS file, no inline script, no resize observer.
@@ -490,7 +491,9 @@ def test_crumb_sets_ui_language_on_the_nav_and_course_language_on_each_item(clie
 
     soup = _crumb_nav(client.get(f"/courses/{course.slug}/u/{unit.pk}/").content.decode())
 
-    assert soup.select_one("nav.unit-crumbs")["lang"] == "pl"  # UI language
+    # soup IS the <nav> — read the attribute off it directly. Tag.select_one()
+    # matches DESCENDANTS only, so soup.select_one("nav.unit-crumbs") is None.
+    assert soup["lang"] == "pl"  # UI language
     items = soup.select("li.unit-crumbs__item")
     assert items and all(li["lang"] == "en" for li in items)  # course language
 
@@ -506,7 +509,7 @@ def test_crumb_carries_the_aria_scaffolding(client):
 
     soup = _crumb_nav(client.get(f"/courses/{course.slug}/u/{unit.pk}/").content.decode())
 
-    assert soup.select_one("nav.unit-crumbs")["aria-label"].strip()
+    assert soup["aria-label"].strip()  # soup IS the <nav>; see the note above
     assert soup.select_one("ol.unit-crumbs__list")["role"] == "list"
     items = soup.select("li.unit-crumbs__item")
     assert items and all(li["role"] == "listitem" for li in items)
@@ -523,7 +526,12 @@ and this helper next to `_course_with_part`:
 ```python
 def _crumb_nav(html):
     """The crumb <nav> as soup. The unit page renders the tree twice (rail + drawer)
-    but the crumb exactly once, so select_one is unambiguous."""
+    but the crumb exactly once, so select_one is unambiguous.
+
+    NOTE: the returned Tag IS the <nav>. Read its own attributes directly
+    (soup["lang"]); a self-referential soup.select_one("nav.unit-crumbs") returns
+    None, because Tag.select_one matches descendants only.
+    """
     return BeautifulSoup(html, "html.parser").select_one("nav.unit-crumbs")
 ```
 
@@ -605,6 +613,8 @@ uv run pytest -q
 
 Expected: both green. **The full-suite run is not optional here.** This task inserts a `<nav>`, an `<ol>` and an `<a href="/courses/<slug>/">` as the first child of `article.lesson` and `article.quiz`, which every existing test that parses a unit page can see. Catching collateral breakage now costs one fix; catching it in Task 7 means bisecting across five commits and a design pass.
 
+**If an unrelated test goes red**, repair it, re-run `uv run pytest -q`, and stage that file too in Step 7 — the `git add` line there lists only the files this task creates, and a repair left out of it rides uncommitted all the way to the Definition of Done's clean-tree check.
+
 - [ ] **Step 6: Falsify each new test**
 
 | Test | Mutation |
@@ -624,6 +634,7 @@ Expected: both green. **The full-suite run is not optional here.** This task ins
 ```bash
 uv run ruff format . && uv run ruff check .
 git add templates/courses/_unit_crumbs.html templates/courses/_lesson_article.html templates/courses/_quiz_article.html tests/test_unit_nav_render.py
+# ...plus any unrelated file you had to repair for the full-suite gate in Step 5
 git commit -m "feat(courses): render student breadcrumbs above the unit title"
 ```
 
@@ -957,6 +968,8 @@ uv run pytest -q
 
 Expected: both green. The full-suite gate repeats here because the CSS is the last change before the browser tests, and a stylesheet edit can break existing render or e2e assertions that match on markup near `.lesson-unit__head`.
 
+As in Task 2: **if an unrelated test goes red**, repair it, re-run `uv run pytest -q`, and add that file to Step 6's `git add`, which otherwise lists only this task's own two files.
+
 - [ ] **Step 5: Falsify**
 
 | Assertion | Mutation |
@@ -970,6 +983,7 @@ Expected: both green. The full-suite gate repeats here because the CSS is the la
 ```bash
 uv run ruff format . && uv run ruff check .
 git add courses/static/courses/css/courses.css tests/test_unit_nav_render.py
+# ...plus any unrelated file you had to repair for the full-suite gate in Step 4
 git commit -m "feat(ui): one-line breadcrumb collapse, pure CSS"
 ```
 
@@ -992,8 +1006,10 @@ uv run python manage.py makemessages -l pl -l en --no-obsolete
 
 ```bash
 grep -n -B2 -A4 'msgid "Breadcrumb"' locale/pl/LC_MESSAGES/django.po locale/en/LC_MESSAGES/django.po
-grep -c "#, fuzzy" locale/pl/LC_MESSAGES/django.po locale/en/LC_MESSAGES/django.po
+grep -c "#, fuzzy" locale/pl/LC_MESSAGES/django.po locale/en/LC_MESSAGES/django.po || true
 ```
+
+(The `|| true` is not cosmetic: `grep -c` exits 1 when nothing matches, so the *expected* result would otherwise surface as a failed command.)
 
 Expected: `0` for both files. `tests/test_i18n_po_health.py` asserts zero fuzzy entries across both catalogues, so any non-zero count must be cleared — two deletions each — before Step 4.
 
@@ -1505,17 +1521,23 @@ def test_capture_design_qa(browser, live_server):
                 # NON-STRICTLY with the 1px of padding slack. A strict comparison
                 # flaps on sub-pixel item heights; an eyeball cannot verify the 1px.
                 page.keyboard.press("Tab")
-                for _ in range(25):
+                reached = False
+                for _ in range(60):
                     if page.evaluate(
                         "() => document.activeElement"
                         ".classList.contains('unit-crumbs__label')"
                     ):
+                        reached = True
                         break
                     page.keyboard.press("Tab")
-                else:
-                    pytest.fail("never reached the crumb link by tabbing")
 
-                findings["ring"] = page.evaluate(
+                if not reached:
+                    # Record rather than fail: a pytest.fail here aborts during the
+                    # FIRST of six iterations and loses the other five screenshots.
+                    # Step 4 rejects a findings["ring"] carrying an "error" key.
+                    findings["ring"] = {"error": "never reached the crumb link"}
+
+                findings["ring"] = findings["ring"] if not reached else page.evaluate(
                     """() => {
                       // Derive both from computed style rather than hardcoding 4/1:
                       // the design pass may retune the outline or the list padding,
