@@ -147,9 +147,10 @@ into the accessibility tree and have a screen reader announce "single right-poin
 mark" once per hidden crumb, defeating the `aria-hidden` decision. It is therefore joined with
 `HIDDEN_PATH_SEP = ", "`, which reads naturally both as speech and as a hover tooltip.
 
-A welcome consequence: the `›` glyph now has **exactly one home**, `_unit_crumbs.html`. An earlier
-draft carried it in Python as well and needed a constant plus a drift test to keep the two in sync;
-neither is required any more.
+A welcome consequence: the crumb's `›` now has **exactly one home in this feature**,
+`_unit_crumbs.html`. An earlier draft carried it in Python as well and needed a constant plus a
+drift test to keep the two in sync; neither is required any more. (Scoped to this feature — the
+glyph appears in unrelated shipped code too; see invariant 6 in §4.)
 
 **Query budget: zero additional queries.** The tree is already materialised in memory; the helper is
 pure dict traversal. A naive `unit.parent` walk (up to 3 queries per page load) is explicitly
@@ -302,7 +303,10 @@ exactly that width.
 Mechanism:
 
 - `.unit-crumbs__list` — `display: flex; flex-wrap: nowrap; align-items: center; overflow: hidden;`
-  with `list-style: none` and margin/padding zeroed. `gap` supplies **all** spacing between crumbs,
+  with `list-style: none`, `margin: 0`, and the UA's `padding-inline-start: 40px` replaced **not by
+  `0` but by the ring allowance** given under §Focus ring below (that paragraph is the single
+  authority on this element's padding and margin; do not also zero them here).
+  `gap` supplies **all** spacing between crumbs,
   rather than margins, because a `display: none` item takes its gap with it whereas a margin-based
   version leaves a dangling space.
   `overflow: hidden` is the backstop keeping a worst case from pushing the whole page into
@@ -359,10 +363,18 @@ zeroes its automatic minimum size, and adding one there is what caused the overf
 Mids absorb essentially all of any deficit first; then the course crumb; the leaf last.
 
 **Source-order rule.** Base and modifier target the same element at identical specificity, and media
-queries add none, so the cascade here is decided by source order alone. The base
-`.unit-crumbs__item` block must appear **before** every modifier rule *and* before the
-`@media screen and (max-width: 832px)` block **and** before the `@media print` block. This governs
-three groups of declarations, not one:
+queries add none, so the cascade here is decided by source order alone. Author the blocks in this
+**total order** — pinning only the base's position is not enough:
+
+> base rules → modifier rules → `@media screen and (max-width: 832px)` → `@media print`
+
+The modifier-before-media-query half is the one an earlier draft missed, and the decisive pair is
+`display` on the ellipsis: `.unit-crumbs__item--ellipsis { display: none }` (a modifier) against the
+collapse query's `.unit-crumbs__item--ellipsis { display: flex }`. Same specificity, so the collapse
+only wins if it is authored *after* the modifier — an arrangement satisfying "base first" but
+placing the collapse query above the modifiers leaves the `…` permanently hidden at every width.
+
+This governs three groups of declarations, not one:
 
 - `min-width` — base `0` vs the modifier floors. Wrong order and the floors never apply.
 - `display` — base `flex` vs `--ellipsis { display: none }` and the collapse query's
@@ -402,15 +414,25 @@ is in `px`, and test 18's drift guard has to build the expected query string fro
 formatting (`f"{832/16}rem"` → `"52.0rem"`) does not even match the CSS. `px` makes the guard
 `f"max-width: {COLLAPSE_BREAKPOINT_PX}px"` with no conversion at all.
 
-**Why 832px (≈52rem) and not the shell's 640px.** The content column is *narrowest just above* the shell
-breakpoint: at 641px the 14rem rail is still present, leaving ~417px, whereas at 360px the rail is
-gone and the column is ~328px of a much simpler layout. Collapsing at the shell breakpoint would
-leave the worst case uncollapsed.
+**Why 832px (≈52rem) and not the shell's 640px.** The narrowest column that must still hold *four
+uncollapsed* crumbs sits just above the shell breakpoint. Measured consistently — net of the
+article's padding in both cases — at 641px the 14rem rail is still present and the content column is
+641 − 224 − 48 ≈ **369px**, against **561px** at 833px and **328px** at 360px. (360px is narrower in
+absolute terms, but there the rail is gone, the layout is simpler, and the mids are already
+collapsed — so it is not the four-crumb worst case.) Collapsing at the shell breakpoint would leave
+that 369px case uncollapsed.
 
-**Invariants the design pass may not break.** Colour, size, weight, glyph and spacing are free. The
-breakpoint is **tunable but bounded**: it must sit strictly between 360px and 1280px, because the
-e2e pins the collapsed state at 360px and the expanded state at 1280px. Those two widths are the
-contract; 832px is just a value inside them.
+**Invariants the design pass may not break.** Colour, size, weight and spacing are free. **The glyph
+is not** — it is pinned to `›` by invariant 6 and asserted by tests 5 and 6, so changing it is not a
+design-pass decision. (An earlier draft listed it as free while three assertions hardcoded it; that
+would have handed the pass an authorised change that turns mandated tests red with no instruction.)
+
+The breakpoint is **tunable but bounded**: strictly between **640px** and 1280px. The upper bound is
+the e2e's expanded-state width. The lower bound is the shell's own breakpoint, and 640 rather than
+360 for a reason the e2e depends on: below 641px the rail is gone
+(`.unit-tree { display: none }`), so a breakpoint under 640 would put the third viewport
+(`BREAKPOINT + 1`) in the rail-*less* regime and leave the genuine worst case — four uncollapsed
+crumbs in the rail-present column at 641px — untested with every assertion still green.
 
 1. On screen, the strip is exactly one line at every viewport width ≥ 360px. (Print deliberately
    wraps.)
@@ -427,13 +449,20 @@ contract; 832px is just a value inside them.
    overlap, so an `<li>`-level overlap check could not go red under any mutation. It is the labels
    that spill and paint over each other.
 5. The set of crumbs hidden by the collapse query is exactly the set `hidden_path` names.
-6. The `›` glyph appears in exactly one place **in shipped code**, `_unit_crumbs.html`. It is never
-   reintroduced into production Python, and never into `hidden_path` (see "the spoken separator" in
-   §1). Tests 5 and 6 necessarily spell the glyph as a literal to guard it — that is intended, and
-   is not a reason to reintroduce a Python-side constant for them to import.
+6. **The crumb separator glyph** is authored in exactly one place, `_unit_crumbs.html`, is pinned to
+   `›`, and is never introduced into `courses/rollups.py` or into `hidden_path` (see "the spoken
+   separator" in §1). Scoped to this feature deliberately: `›` already appears in shipped code
+   elsewhere — `courses/forms.py`, `courses/transfer/importer.py`, and
+   `templates/courses/_unit_footer.html`, which renders on this very page — so a repo-wide
+   "exactly one occurrence" reading would be false on arrival. Tests 5 and 6 necessarily spell the
+   glyph as a literal to guard it; that is intended, and is not a reason to reintroduce a
+   Python-side constant for them to import.
 
-Baseline styling: `--text-tertiary`, ~0.85rem, `--space-3` bottom margin, course link inheriting the
-muted colour rather than the default link blue.
+Baseline styling: `--text-tertiary`, ~0.85rem, course link inheriting the muted colour rather than
+the default link blue. The `--space-3` bottom margin goes on the **`<nav class="unit-crumbs">`**,
+never on the `<ol>` — the ring-compensating negative margin below lives on the `<ol>`, and if both
+landed on the same element they would silently net against each other and the strip's rhythm under
+the `<h1>` would become an accident.
 
 **Focus ring.** The course crumb's `<a>` **is** `.unit-crumbs__label` — the label is the focusable
 element, not an ancestor of it, and an element's own `overflow` never clips its own outline. So
@@ -443,11 +472,17 @@ flush.
 That one ancestor clips on **all four sides**, so the fix is padding in *both* axes, not just the
 inline one. With `align-items: center` and no block padding the list's content box height equals the
 item height, so the link's border box spans it exactly — and the repo's ring convention
-(`outline: 2px solid var(--primary); outline-offset: 2px`, see `app.css`) paints 4px above and below
-it, entirely outside the padding box. So: `padding: <ring> <ring>` on `.unit-crumbs__list` sized to
-the ring (overflow clips at the padding box, so the padding buys the room), with a compensating
-negative margin in both axes if the crumb must stay flush with the `<h1>` and keep its vertical
-rhythm. **Do not relax `overflow` on `.unit-crumbs__label` as part of this fix** — that is the
+(`.unit-crumbs__label:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }` —
+note `:focus-visible`, which every occurrence in `app.css` uses; a bare `:focus` would paint the
+ring on mouse click too, and the keyboard-only QA item would never catch it) paints 4px beyond the
+border box on each side.
+
+So: `padding: 5px` on `.unit-crumbs__list` — the 4px ring **plus 1px of slack** — with a
+compensating negative margin in both axes on the `<ol>` if the crumb must stay flush with the `<h1>`.
+The extra pixel is deliberate: at exactly 4px the list's rect edge coincides with the ring's outer
+edge on all four sides, so the containment check below becomes a zero-margin equality that flaps on
+sub-pixel item heights (0.85rem text with `align-items: center`) and can fail a correct
+implementation — the same trap already fixed for the height check. **Do not relax `overflow` on `.unit-crumbs__label` as part of this fix** — that is the
 declaration the entire shrink mechanic depends on. Keyboard focus on the course link, inspecting the
 **full ring perimeter** rather than the left edge alone, is an explicit item on the design-pass QA
 checklist.
@@ -466,8 +501,9 @@ link stays put. An earlier draft's `list.scrollLeft === 0` check was therefore v
 dropped.
 
 What the padding fix actually buys is worth checking instead, so the QA item is: focus the course
-link at 360px and confirm its `getBoundingClientRect()` — **expanded by the 4px ring** — lies fully
-inside the list's own rect. That goes red if the padding is missing in either axis.
+link at 360px and confirm its `getBoundingClientRect()` **expanded by the 4px ring** lies inside the
+list's own rect, compared **non-strictly with the 1px of padding slack** as the tolerance. That goes
+red if the padding is missing in either axis, and does not flap on sub-pixel rounding.
 
 ## Data flow
 
@@ -490,8 +526,9 @@ templates: lesson_unit.html / quiz_unit.html
 ```
 
 **Five render sites, and the asymmetry between them.** The three lesson sites are genuinely
-single-sourced — all go through `full_lesson_render_context`, which sets `unit_nav` — so one test
-covers them. The quiz side is **not**: `build_quiz_context` does not call `build_unit_nav`;
+single-sourced — all go through `full_lesson_render_context`, which sets `unit_nav`. Test 7 still
+asserts two of them directly (`lesson_unit` and the `check_answer` POST) and leaves only the notes
+no-JS 422 covered transitively. The quiz side is **not**: `build_quiz_context` does not call `build_unit_nav`;
 `quiz_unit` and `_quiz_render_feedback` each set `ctx["unit_nav"]` themselves. Hoisting it into
 `build_quiz_context` is out of scope (it would alter a context builder shared with other callers),
 so the mitigation is coverage: §Testing requires an assertion at **both** quiz sites, and the
@@ -537,8 +574,12 @@ There is no user input and no write path here; the failure modes are all "missin
      the `QuestionResponse` must be **unlocked with attempts remaining**, and the body must carry a
      **non-empty** answer, or the view takes its validation branch. Omit the fragment header.
    - *`check_answer` POST* — omit the fragment header so the full page re-renders.
-   - The three lesson sites (`lesson_unit`, `check_answer`, the notes no-JS 422) are collapsed into
-     one assertion because `full_lesson_render_context` single-sources them.
+   - So this test carries **four** assertions: lesson GET, quiz GET, `check_answer` POST,
+     `quiz_answer` POST. Only the **notes no-JS 422** site is covered transitively rather than
+     asserted — it shares `full_lesson_render_context` with `lesson_unit` and `check_answer`, both of
+     which *are* asserted, so a third assertion on the same single source would add nothing. (An
+     earlier draft said all three lesson sites were collapsed into one assertion while also
+     specifying `check_answer`'s fixture; the four-assertion reading is the intended one.)
 8. The course crumb is an `<a href>` to `courses:course_outline`, and its `<li>` carries
    `title` equal to `course.title`. The mid and leaf tooltips come from one shared template
    expression and are transitively guarded by the 360px `hidden_path` join, but the course crumb's
@@ -573,8 +614,14 @@ There is no user input and no write path here; the failure modes are all "missin
     carries `role="listitem"`, and the `<nav>` carries a non-empty `aria-label`. Same failure class
     as test 15 — a "simplify the template" refactor drops them silently, and the loss is invisible
     in CI and in screenshots. Falsifying mutation: delete the role attributes.
-18. **Breakpoint drift guard:** `courses.css` contains the collapse media query, with the expected
-    string **derived from `COLLAPSE_BREAKPOINT_PX`** rather than hardcoded — otherwise the guard
+18. **Breakpoint drift guard:** `courses.css` contains the **full** authored query
+    `f"@media screen and (max-width: {COLLAPSE_BREAKPOINT_PX}px)"` — not a bare
+    `f"max-width: {…}px"` substring, which at a retuned value of 640px would already match one of
+    the three unrelated pre-existing `@media (max-width: 640px)` blocks and pass even if the crumb
+    collapse query had been deleted outright. Additionally assert `.unit-crumbs__item--mid` appears
+    inside that block, so the guard cannot be satisfied by an unrelated query at any value. The
+    expected string must be **derived from `COLLAPSE_BREAKPOINT_PX`** rather than hardcoded —
+    otherwise the guard
     couples CSS↔literal but not literal↔constant, and a retuned breakpoint could update the CSS and
     the string while leaving the constant stale, silently moving the e2e's third viewport off "just
     above the breakpoint". Define `COLLAPSE_BREAKPOINT_PX` **here**, in
@@ -596,7 +643,7 @@ it fails at import or raises `SynchronousOnlyOperation`:
 
 - `pytestmark = pytest.mark.e2e`
 - the session-scoped autouse `_allow_async_unsafe` fixture setting `DJANGO_ALLOW_ASYNC_UNSAFE` —
-  it lives module-locally in all ~35 existing `tests/test_e2e_*.py` files, **not** in any `conftest.py`
+  it lives module-locally in every existing `tests/test_e2e_*.py` file, **not** in any `conftest.py`
 - `@pytest.mark.django_db(transaction=True)` on every test
 - a `_make_student` helper and the `_login(page, live_server, username)` helper (import from
   `tests/test_e2e_unit_nav.py` or copy)
@@ -605,15 +652,16 @@ it fails at import or raises `SynchronousOnlyOperation`:
 `context` and `browser` — but the repo convention is `browser` + an explicit
 `ctx = browser.new_context(viewport={...})` then `ctx.new_page()`, closing the context afterwards.
 Follow it here for a concrete reason: the viewport must be fixed at context creation, and that
-per-context viewport is how the two widths are obtained. Do not use `page.set_viewport_size()`.
+per-context viewport is how the three widths are obtained. Do not use `page.set_viewport_size()`.
 
 **Seeding needs a new local helper, not an extension of `_seed_nav_course`.** That helper builds a
 single `kind="part"` with unit children, so it can never yield three ancestors no matter what titles
 it is given. The crumbs helper must build `part → chapter → section → unit` and pass an explicit
-`CourseFactory(title=…)`, since the factory's default title is a `factory.Sequence`. Give the helper
-explicit **`title_len`** and **`depth`** parameters — the assertions below need both a long-title
-fixture (~60 chars at every level, depth 3) and a short-title one, and "seed long titles" alone
-cannot serve both. Run focused and in the foreground — a background `-m e2e` sweep spawns runaway
+`CourseFactory(title=…)`, since the factory's default title is a `factory.Sequence`. Give the helper explicit **`title_len`**
+and **`depth`** parameters. **Every assertion below runs against the long-title depth-3 fixture**
+(~60 chars at every level) unless it says otherwise — see "one fixture, named once" below. `depth`
+exists so test 11's flat-course case and the 0/1-ancestor cases can reuse the helper; `title_len`
+is a convenience for readable debugging output, not a second mandated fixture. Run focused and in the foreground — a background `-m e2e` sweep spawns runaway
 browsers.
 
 **Three viewports, not two.** 1280px and 360px alone never exercise the state where mids are
@@ -629,6 +677,15 @@ and imported here, with the third width computed as `COLLAPSE_BREAKPOINT_PX + 1`
 drift guard of test 18, which asserts `courses.css` contains the media query *derived from that same
 constant*. That converts a silent drift into a failing assertion naming both call sites — the same
 treatment the `›` glyph got in §1, and the reason it needs one is the same.
+
+**One fixture, named once.** Every assertion below runs against the **long-title depth-3 fixture**.
+This is not incidental: both of the named falsifying mutations are only detectable when the content
+actually exceeds the column. On a short-title fixture at 833px (column ~561px) or at 1280px nothing
+shrinks, so deleting `min-width: 0` still leaves `scrollWidth <= clientWidth` true and a floor moved
+onto the label still leaves `label.clientWidth <= li.clientWidth` true. Since §Falsification is
+mandatory and says a test that cannot be made to fail is not a test, an implementer who ran these
+against a short fixture would watch the spec's own mutations come up green and correctly conclude
+the tests were worthless.
 
 Assertions:
 
@@ -679,7 +736,8 @@ Assertions:
   assertion that actually catches an orphaned separator.
 - At 360px: read `get_attribute("title")` from each `li.unit-crumbs__item--mid` **in DOM order**
   (that selector only — separators and the leaf must not be swept in) and assert
-  `HIDDEN_PATH_SEP.join(those) == ` the `…` item's `title`. This is the guard on the §1 invariant coupling
+  `HIDDEN_PATH_SEP.join(those) == ` the `…` item's `title` — importing `HIDDEN_PATH_SEP` from
+  `courses.rollups`, never spelling `", "` as a literal. This is the guard on the §1 invariant coupling
   `hidden_path` to the collapse query.
 - At 1280px: `--ellipsis` has zero client rects, and every `--mid` and `--leaf` has
   `clientWidth > 0`. Stated mechanically because "with a short path" was ambiguous — long titles are
