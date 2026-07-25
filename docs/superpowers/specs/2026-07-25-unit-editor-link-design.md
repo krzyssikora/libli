@@ -87,6 +87,12 @@ the permission group **without** setting `is_staff`, so `make_pa(client)` yields
 `unit_editor_url` is `reverse("courses:manage_editor", kwargs={"slug": unit.course.slug, "pk": unit.pk})`
 when permitted, and `None` otherwise — never a URL the template must guard against emitting.
 
+That `reverse(...)` line is byte-identical to `courses/views_manage.py::_editor_path` (`:1106`), and
+the duplication is deliberate rather than overlooked. `_editor_path` is a private helper of the manage
+layer; importing it into `courses/views.py` would make the consumption path depend on the authoring
+module for two lines of URL construction. Duplicating them keeps the dependency arrow pointing one
+way, and `reverse()` fails loudly on both sides if the route ever changes.
+
 The module is new but the shape is not: `tags/rendering.py` and `notes/rendering.py` are the same
 thing — a thin, request-free context builder that a view merges into its context and a test can call
 directly. `courses/access.py` is deliberately left alone; it answers permission questions, and URL
@@ -199,18 +205,54 @@ misaligned, and in direct contradiction of the "the link aligns with the tag sum
 criterion. Matching the panel's own `.5rem` block-start margin puts the two border boxes on the same
 line. (It doubles as the stable selector hook the view tests and e2e use.)
 
+One consequence to check rather than assume: when the row **wraps** at narrow widths, that `.5rem`
+block-start margin stacks on the container's `.5rem` row-gap *and* the panel's `.5rem` block-end
+margin, giving roughly `1.5rem` of separation rather than the nominal gap. That is acceptable
+(wrapped, the button reads as a separate row and wants the breathing room), but it is what the ~400px
+owner screenshot is checking — if it looks detached rather than deliberate, scope the margin to the
+unwrapped case.
+
+**Horizontal placement is intentional.** `flex: 1 1 auto` on the panel makes it take the remaining
+width, which pins the button to the **far right end of the row** — adjacent to the row's edge, not to
+the "Tags (n)" summary text. That is the approved mockup, and it is also what keeps the link-absent
+(student) case pixel-identical to today: a lone `flex: 1 1 auto` item fills the row exactly as the
+block-level panel does now. The acceptance criterion is therefore that the button **shares the tag
+panel's top edge**, not that it sits beside the summary.
+
 `min-width: 0` is not boilerplate — it is the fix for a hazard this repo has already been bitten by.
 A flex item's automatic minimum size is its min-content size, and `tags/_unit_tag_panel.html` renders
 a `<fieldset class="unit-tags__picker">` inside the panel. The UA stylesheet's
 `min-inline-size: min-content` on `<fieldset>` inflates that min-content size to the widest label row,
-so with the panel **open** on a narrow viewport the strip would overflow horizontally instead of
-wrapping. `min-width: 0` lets the item shrink and the row wrap as intended.
+so without `min-width: 0` the strip **row** could not wrap: the panel would refuse to shrink, and the
+row would be forced wider than its container. `min-width: 0` lets the item shrink so the row wraps as
+intended. That — the row's wrapping behaviour — is precisely and only what this declaration buys.
+
+**What it does not buy, stated plainly so the acceptance criteria stay honest.** `min-width: 0`
+defeats the automatic minimum of the *flex item* (`.unit-tags`). It does nothing about the UA
+`min-inline-size: min-content` on the `<fieldset>` itself, nor about `.unit-tags__add`'s own
+`min-width: auto` floor (it is `display: flex` too). So a sufficiently wide unbreakable token in a tag
+label can still push the fieldset past the `<details>` box — which has no `overflow` clipping — and
+scroll the page sideways, *with this fix fully in place*.
+
+That overflow is **pre-existing and out of scope**: `.unit-tags` is full-container-width today, so the
+same label overflows the same way on master. This feature does not make it worse (when the row wraps,
+the panel is full width again, exactly as now). Cutting the chain properly would mean adding
+`min-inline-size: 0` to `.unit-tags__picker` and `min-width: 0` to `.unit-tags__add` — a one-line-each
+fix to the tags panel's internals that changes rendering for every reader, including those who never
+see this link. That is a separate concern from "add an edit link" and is deliberately not bundled
+here.
+
+The acceptance criterion is therefore about the **row**, not the panel's innards: the strip wraps
+instead of stretching, and the page shows **no horizontal overflow beyond what the same page shows on
+master without the feature** (i.e. compare against a baseline shot, don't assert an absolute).
 
 That fieldset is itself conditional — `{% if addable_tags %}` — so it renders only when the actor
 owns at least one tag *not already on this unit*. Any test or screenshot meant to exercise this
-hazard must therefore be set up with `addable_tags` non-empty (several owned tags, at least one with
-a long label); with an empty picker there is no fieldset, no blowout, and the check passes even with
-`min-width: 0` deleted.
+hazard must therefore be set up with `addable_tags` non-empty. The "long label" must be a **single
+unbroken token** (a ~40–50 character run with no spaces, within the model's `maxlength=50`):
+`.unit-tags__picker label` is `inline-flex` around plain text, so its min-content size is the longest
+*unbreakable* token, not the label's length — a 50-character label of ordinary words simply wraps and
+contributes nothing, leaving the shot identical with `min-width: 0` deleted.
 
 Because that declaration is load-bearing but otherwise guarded only by a human looking at a
 screenshot, it also gets a cheap automated guard — see Testing.
@@ -378,9 +420,23 @@ a test — the fragment formulation must be rejected.
 The falsifiable form is a **structural containment assertion on the page**, as the course owner
 (an actor for whom the link is genuinely present, so the negative is anchored to a proven positive):
 
-1. GET the lesson unit as the owner; assert 200 and that the editor href **is** present.
-2. Extract the `<details class="unit-tags"> … </details>` substring from the body.
-3. Assert the editor href does **not** occur inside that substring.
+1. GET the lesson unit as the owner (plain URL, no `?panel=tags`); assert 200 and that the editor
+   href **is** present.
+2. Extract the panel's markup with the regex `<details class="unit-tags"[^>]*>.*?</details>` under
+   `re.DOTALL`, and **assert the match succeeded** before going further.
+3. Assert the editor href does **not** occur inside the matched text.
+
+The regex — rather than a literal `<details class="unit-tags">` — is required, not stylistic. The
+partial emits `<details class="unit-tags" {% if tags_panel_open %}open{% endif %}>`, so the rendered
+markup is always `<details class="unit-tags" >` (note the trailing space) or
+`<details class="unit-tags" open>`; the naive literal never matches. Worse, an implementer using
+`str.find()` without checking for `-1` would slice a garbage region and step 3 would pass vacuously
+in **both** the healthy and the regressed state — which is why step 2's match assertion is mandatory.
+
+The test needs its **own** fixture — `CourseFactory(owner=user)` plus `ContentNodeFactory` — and must
+not reuse `tests/test_tags_consumption.py`'s `_enrolled(user, …)` helper, which creates a course with
+a factory-generated owner and merely enrolls the actor. With that helper the actor is not a manager,
+step 1 fails, and the whole test is misread as broken rather than as guarding something.
 
 Because the page render *does* carry `can_edit_unit`, moving the anchor into the panel partial makes
 step 3 fail immediately — a one-step falsification, which is how this test must be verified before
@@ -394,9 +450,15 @@ link is **still** in the DOM.
 The wait between those two steps needs a deterministic anchor, and `tags.js` provides none: it swaps
 the panel from an un-awaited `fetch(...).then(...)` and leaves behind no marker attribute, status
 node, or URL change. So the wait is expressed as a **content** condition on the swapped-in panel —
-`expect(page.locator(".unit-tags__chips")).to_contain_text(<tag name>)` — and only once that passes is
-the Edit link asserted. The ordering is load-bearing: asserting the link first would pass even if the
-swap went on to destroy it, i.e. green while broken. A bare timeout is not acceptable here.
+`expect(page.locator(".unit-tags__chips .tag-chip", has_text=<tag name>)).to_be_visible()`, the same
+idiom already used at `tests/test_e2e_tags.py:68` — and only once that passes is the Edit link
+asserted. The ordering is load-bearing: asserting the link first would pass even if the swap went on
+to destroy it, i.e. green while broken. A bare timeout is not acceptable here.
+
+Copying that existing flow requires **one change**: it builds `CourseFactory(...)` plus an
+`Enrollment`, so its actor is not the course owner and would see no Edit link at all. The copy must
+set `owner=user` on the course. No enrollment is needed for the tag-add step — `tags.views.tag_add`
+gates on `can_access_course`, which an owner passes.
 
 Run e2e focused and in the **foreground** — a backgrounded `-m e2e` run has previously spawned
 runaway browsers.
@@ -405,16 +467,25 @@ runaway browsers.
 states, because `.unit-strip` now wraps `.unit-tags` for *every* reader — the single-child (student,
 no link) case is the far more common one and the one that would regress for the whole user base:
 
-| | light | dark |
-|---|---|---|
-| desktop, owner (link present) | ✓ | ✓ |
-| desktop, enrolled student (link absent) | ✓ | ✓ |
-| ~400px, owner, **tag panel open** | ✓ | ✓ |
-| ~400px, enrolled student | ✓ | ✓ |
+| Page | State | light | dark |
+|---|---|---|---|
+| `lesson_unit`, desktop | owner (link present) | ✓ | ✓ |
+| `lesson_unit`, desktop | enrolled student (link absent) | ✓ | ✓ |
+| `lesson_unit`, ~400px | owner, **tag panel open** | ✓ | ✓ |
+| `lesson_unit`, ~400px | enrolled student | ✓ | ✓ |
+| `quiz_results`, desktop | owner (link present) | ✓ | ✓ |
 
-Acceptance criteria: the link aligns with the tag summary and does not overlap it; at ~400px with the
-panel open the page has **no horizontal overflow** (the `min-width: 0` fix working); and the student
-view is visually equivalent to today's vertical rhythm. The narrow shots are taken with the panel open
+Naming the page matters, and `quiz_results` is not redundant with the lesson rows: the strip sits
+above `.unit-shell` (`max-width: 72rem`, effectively the full `.app-main` column) on
+`lesson_unit`/`quiz_unit`, but above `.result` (`max-width: 46rem; margin-inline: auto`) on
+`quiz_results`. The strip keeps the full column width there, so the right-pinned button lands well
+outside the narrower article it heads — a composition four lesson shots would never reveal. (The tag
+panel already has this geometry today; the point is to confirm the button does not make it read as
+broken.)
+
+Acceptance criteria: the button shares the tag panel's top edge and does not overlap it; the strip
+wraps rather than stretching at ~400px, with no horizontal overflow **beyond the master baseline**
+for the same page; and the student view is visually equivalent to today's vertical rhythm. The narrow shots are taken with the panel open
 deliberately — closed, the summary is short enough that the row will not wrap and the shot would prove
 nothing.
 
@@ -423,8 +494,17 @@ least one with a long label, so `addable_tags` is non-empty and the `<fieldset c
 actually renders. Without it the shot contains no fieldset, exhibits no min-content blowout, and would
 look identical with `min-width: 0` deleted.
 
-**i18n.** Two new msgids — `Edit unit` and `(opens in a new tab)` — added to both the EN and PL
-catalogs via `uv run python manage.py makemessages -l pl -l en --no-obsolete`. Two standing hazards:
+**i18n.** Two new msgids — `Edit unit` and `(opens in a new tab)` — regenerated into both catalogs via
+`uv run python manage.py makemessages -l pl -l en --no-obsolete`. The two catalogs are **not**
+symmetric, and `tests/test_i18n_po_health.py` enforces the asymmetry: every PL entry needs a non-empty
+`msgstr` (`test_pl_has_no_untranslated_msgid`), while EN `msgstr`s are intentionally left blank.
+So the EN entries stay empty by design, and PL gets real translations, following the catalog's
+existing house terms (`Unit` → `Jednostka`, `Edit` → `Edytuj`):
+
+- `Edit unit` → `Edytuj jednostkę`
+- `(opens in a new tab)` → `(otwiera się w nowej karcie)`
+
+Two standing hazards:
 `makemessages` can pre-fill a new msgid with a **fuzzy** translation lifted from an unrelated string,
 so each new entry's Polish text must be read and corrected, and clearing a fuzzy means deleting
 **both** the `#, fuzzy` line and the `#| msgid` line above it. The project forbids obsolete `#~`
