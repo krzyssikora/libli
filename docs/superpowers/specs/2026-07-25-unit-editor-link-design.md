@@ -72,15 +72,20 @@ every view that reaches them:
 | View | Reaches the helper via |
 |---|---|
 | `courses.views.lesson_unit` | `full_lesson_render_context` |
-| `courses.views.check_answer` | `full_lesson_render_context` |
+| `courses.views.check_answer` | `full_lesson_render_context` — **no-JS branch only** |
 | `notes.views.note_add` | `full_lesson_render_context` |
 | `courses.views.quiz_unit` | `build_quiz_context` |
-| `courses.views.quiz_answer` (via `_quiz_render_feedback`) | `build_quiz_context` |
+| `courses.views.quiz_answer` (via `_quiz_render_feedback`) | `build_quiz_context` — **no-JS branch only** |
 | `courses.views.quiz_results` | local context |
 
 All six carry `@login_required` and resolve their node with `get_node_or_404(..., require_unit=True)`,
 so the precondition genuinely holds — but the enumeration is spelled out because "the three views" is
-the wrong set to re-audit against if the builders ever gain a seventh caller. Behaviour
+the wrong set to re-audit against if the builders ever gain a seventh caller.
+
+The two "no-JS branch only" annotations matter for the same reason: both views return their fragment
+early (`courses/views.py:822` and `:1157`) before reaching the builder, so on the JS path they never
+execute `unit_edit_context` at all. The precondition is unaffected — it holds wherever the helper is
+reached — but a future re-audit should not expect the helper to run on every request to those two. Behaviour
 on other inputs is unspecified: an anonymous user happens to return `False` safely, via
 `can_manage_course`'s `owner_id is not None` guard, but that is an accident of the current
 implementation and not a contract; a chapter node would produce a reversible URL that 404s.
@@ -231,8 +236,8 @@ The link itself:
 - Visible label `{% trans "Edit unit" %}`, plus a visually-hidden "(opens in a new tab)" so the
   new-tab jump is announced rather than surprising. **The code block above is the normative markup** —
   note the `&nbsp;` *inside* the span, before the parenthetical. It is a non-breaking space on
-  purpose, and an ordinary space would not do: `.visually-hidden` sets `position: absolute`
-  (`core/static/core/css/app.css:1167`), which blockifies the span, and leading collapsible whitespace
+  purpose, and an ordinary space would not do: `.visually-hidden` sets `position: absolute`, which
+  blockifies the span, and leading collapsible whitespace
   at the start of a block box is stripped — so a plain space there is simply discarded and the markup
   is not doing what it appears to. `&nbsp;` is not collapsible and survives.
 
@@ -243,7 +248,13 @@ The link itself:
   automated test guards it. Confirm the announced name with a real screen reader during the same
   manual pass that checks the screenshots, not by asserting on markup bytes.
 
-  `.visually-hidden` is defined globally in `core/static/core/css/app.css` and needs no per-page CSS.
+  `.visually-hidden` needs no per-page CSS, but note it is defined **three times** in the repo —
+  `core/static/core/css/app.css:1167`, `tags/static/tags/css/tags.css:6`, and
+  `notes/static/notes/css/notes.css:4`. On these three pages `tags.css` loads last, so *its* copy is
+  the one that applies; it adds `padding: 0; margin: -1px; border: 0` on top of the same
+  `position: absolute`. The argument above depends only on `position: absolute`, which all three
+  share, so the conclusion is unaffected — but cite the right rule, since a reader checking only
+  `app.css` would be checking a copy that loses the cascade here.
 
 ### Styling
 
@@ -322,17 +333,35 @@ those terms, because it is the only thing that actually distinguishes the declar
 its absence.
 
 **What it does not buy, stated plainly so the acceptance criteria stay honest.** `min-width: 0`
-defeats the automatic minimum of the *flex item* (`.unit-tags`). It does nothing about the UA
-`min-inline-size: min-content` on the `<fieldset>` itself, nor about `.unit-tags__add`'s own
-`min-width: auto` floor (it is `display: flex` too). So a sufficiently wide unbreakable token in a tag
-label can still push the fieldset past the `<details>` box — which has no `overflow` clipping — and
-scroll the page sideways, *with this fix fully in place*.
+defeats the automatic minimum of the *flex item* it is set on (`.unit-tags`). It does nothing about
+the UA `min-inline-size: min-content` on the `<fieldset class="unit-tags__picker">` further down, and
+that fieldset's min-content contribution still propagates up through ordinary min-content sizing into
+`.unit-tags`. So a sufficiently wide unbreakable token in a tag label can still push the fieldset past
+the `<details>` box — which has no `overflow` clipping — and scroll the page sideways, *with this fix
+fully in place*.
+
+Be exact about **which** boxes have an automatic-minimum floor here, because the plausible-sounding
+version of this story is wrong and the repo has been bitten by confidently-stated false mechanisms
+before. `min-width: auto` resolves to a content-based minimum **only for flex and grid items**. The
+relevant nesting is:
+
+```
+<details class="unit-tags">              ← flex ITEM of .unit-strip   → automatic minimum applies
+  <div class="unit-tags__panel">         ← plain block (padding + border-top only, no display:flex)
+    <form class="unit-tags__add">        ← block-level child of a BLOCK → NOT a flex item
+      <fieldset class="unit-tags__picker">  ← flex item of .unit-tags__add → floor is the UA
+                                             min-inline-size: min-content, plus width: 100%
+```
+
+`.unit-tags__add` is `display: flex` — but that makes it a flex *container*, not a flex *item*. Its
+parent `.unit-tags__panel` is a plain block, so `.unit-tags__add` has **no** automatic-minimum floor
+and `min-width: 0` on it would be a no-op. The floor that actually survives is the fieldset's.
 
 That overflow is **pre-existing and out of scope**: `.unit-tags` is full-container-width today, so the
 same label overflows the same way on master. Cutting the chain properly would mean adding
-`min-inline-size: 0` to `.unit-tags__picker` and `min-width: 0` to `.unit-tags__add` — a one-line-each
-fix to the tags panel's internals that changes rendering for every reader, including those who never
-see this link. That is a separate concern from "add an edit link" and is deliberately not bundled
+`min-inline-size: 0` to `.unit-tags__picker` — one line, and one line only, since that fieldset is the
+sole box in the chain with a floor to defeat — a fix to the tags panel's internals that changes
+rendering for every reader, including those who never see this link. That is a separate concern from "add an edit link" and is deliberately not bundled
 here.
 
 **What the student actually sees — the one state that is *not* unchanged.** `min-width: 0` is scoped
@@ -366,10 +395,25 @@ baseline shot; do not assert an absolute).
 That fieldset is itself conditional — `{% if addable_tags %}` — so it renders only when the actor
 owns at least one tag *not already on this unit*. Any test or screenshot meant to exercise this
 hazard must therefore be set up with `addable_tags` non-empty. The "long label" must be a **single
-unbroken token** (a ~40–50 character run with no spaces, within the model's `maxlength=50`):
+unbroken token** with no spaces, at the model's full `TAG_NAME_MAX_LEN = 50` cap:
 `.unit-tags__picker label` is `inline-flex` around plain text, so its min-content size is the longest
 *unbreakable* token, not the label's length — a 50-character label of ordinary words simply wraps and
 contributes nothing, leaving the shot identical with `min-width: 0` deleted.
+
+**The margin here is thin, so do not trust a character count — validate the shot by A/B.** The
+label renders at `font-size: .8rem` (12.8px, `tags/css/tags.css:175`). At a 400px viewport the content
+column is ~368px, and after `.unit-tags`' border and `.unit-tags__panel`'s `.65rem` inline padding
+roughly **~345px** reaches the fieldset. A 50-character lowercase token at 12.8px lands around
+325–350px including the checkbox and gap — i.e. *right at the boundary* — and a 40-character one is
+nowhere near it. Since 50 is a hard model cap there is no headroom to fix a too-short token by
+lengthening it. Two consequences:
+
+1. Use **wide glyphs** to buy margin — uppercase letters, `W`s, digits — not 50 narrow lowercase
+   characters, and consider dropping the shot's viewport to ~360px.
+2. **Validate the fixture, don't assume it:** take the shot once with `min-width: 0` deleted from
+   `courses.css` and confirm the two images actually differ. If they are identical the fixture failed
+   to reproduce the hazard and the shot is proving nothing — which is precisely the failure this
+   paragraph exists to prevent.
 
 Because that declaration is load-bearing but otherwise guarded only by a human looking at a
 screenshot, it also gets a cheap automated guard — see Testing.
@@ -379,6 +423,15 @@ To state the margin ownership once, unambiguously: `.unit-tags` keeps its `margi
 the block rhythm instead (for the three reasons enumerated above). That is a deliberate override, not
 an inheritance — so if the `.5rem` in `tags.css` ever changes, the matching value on `.unit-strip`
 must be changed with it.
+
+**The override wins on specificity, not source order — keep the two-class selector.** All three
+templates link `courses.css` *before* `tags.css` (`lesson_unit.html:33` and `:35`), so `tags.css`'s
+`.unit-tags { margin: .5rem 0 }` comes later in the cascade and would win a source-order tie. The
+override survives only because `.unit-strip .unit-tags` is (0,2,0) against (0,1,0). Anyone
+"simplifying" that selector to a bare `.unit-tags` inside `courses.css` — or hoisting the rule into a
+stylesheet that loads earlier still — silently reintroduces both the ~8px top-edge misalignment and
+the 0px wrapped-layout gap this section spends three paragraphs justifying. The CI guard below
+catches the deletion; it does not catch a specificity-losing rewrite, so the reason is recorded here.
 
 The link is a plain `.btn.btn--ghost.btn--small`, matching the existing "Start fresh" / "My notes"
 affordances. `flex-wrap: wrap` lets the row break to two lines on narrow viewports with no media
@@ -558,7 +611,7 @@ the response still carries the editor href for the owner:
 |---|---|
 | no-JS `check_answer` POST re-render | `tests/test_courses_views.py::test_check_answer_nojs_rerender_includes_unit_nav` (same shape: asserting the shared context survived) |
 | no-JS note-validation-error re-render (422) | `tests/test_notes_views.py::test_create_note_invalid_no_js_422_repopulates_rejected_text` |
-| no-JS `quiz_answer` re-render (`_quiz_render_feedback`) | any no-JS quiz-answer case; the actor must be an **enrolled** owner, since `quiz_answer` refuses non-enrolled users |
+| no-JS `quiz_answer` re-render (`_quiz_render_feedback`) | **no precedent exists — build it from the recipe below** |
 
 Naming an existing test per row matters: each needs non-trivial fixtures (a `QuestionElement` plus an
 acceptable answer body; an **over-length** note body — `"z" * (NOTE_MAX_LEN + 1)` — posted with a real
@@ -566,6 +619,28 @@ acceptable answer body; an **over-length** note body — `"z" * (NOTE_MAX_LEN + 
 manager with a live submission) that are already assembled in those tests. The notes row is worth
 describing precisely because a *blank* body is a different validation branch and need not produce the
 same 422 re-render shape.
+
+**The `quiz_answer` row has no precedent to copy, and that is a verified absence rather than an
+oversight.** Every server-side POST to `quiz_answer` in the suite sends `HTTP_X_REQUESTED_WITH="fetch"`
+(`tests/test_quiz_answer.py`, `test_questions_2diii_quiz.py`, `test_questions_2d_results.py`,
+`test_questions_2d_quiz_noleak.py`, `test_choice_nudge_paths.py`, `test_quiz_finish.py`,
+`test_questions_2diii_results.py`), so every one of them takes the fragment branch and returns at
+`courses/views.py:1157` — *before* `_quiz_render_feedback` ever reaches `build_quiz_context` at
+`:1161`. The only no-JS quiz flow in the repo is the browser e2e
+`tests/test_e2e_quiz.py::test_quiz_no_js_full_flow`, which is not a copyable fixture. So this row —
+the one needing the heaviest setup — is also the one with nothing to copy, and the spec must supply
+the recipe instead:
+
+- an **enrolled** course owner (`quiz_answer` raises `PermissionDenied` for non-enrolled users, and
+  the owner needs the link, so both properties are required of the same actor);
+- a quiz unit with a question `Element` (e.g. `ShortTextQuestionElement`);
+- a GET of the quiz unit first, to create the `IN_PROGRESS` `QuizSubmission` the answer path expects;
+- then `client.post(f"{base}/q/{el.pk}/answer/", {"answer": …})` **with no `HTTP_X_REQUESTED_WITH`
+  header**.
+
+**The header's absence is the entire point of the row** and is the single easiest thing to lose when
+adapting one of the header-ful tests above: include it and the assertion tests the fragment branch,
+which never touches the builder, and the row silently stops guarding anything.
 
 **Falsifying these three needs its own mutation — the page-render mutations do not work here.** The
 two mutations named above (invert the predicate, delete the template guard) both redden the plain GET
@@ -634,6 +709,22 @@ The falsifiable form is a **structural containment assertion on the page**, as t
 2. Extract the panel's markup with the regex `<details class="unit-tags"[^>]*>.*?</details>` under
    `re.DOTALL`, and **assert the match succeeded** before going further.
 3. Assert the editor href does **not** occur inside the matched text.
+4. Assert the href **does** occur inside the strip: extract `<div class="unit-strip"[^>]*>.*?</div>`
+   under the same `re.DOTALL`, assert *that* match succeeded too, and assert the href is inside it.
+
+Step 4 is not redundant with step 1. Steps 1–3 alone pin only the *negative* half of the sibling
+relationship — "not inside the panel" — which stays satisfied if someone moves the anchor out of
+`.unit-strip` altogether (below `.unit-shell`, or as a sibling of the strip rather than a child).
+That would leave the page containing the href, the panel not containing it, all three steps green,
+and the entire flex row the Styling section is built around destroyed. Step 4 pins the positive half,
+so the test asserts *both* sides of "sibling of the panel, child of the strip".
+
+(A caveat on step 4's regex, so it is not written naively: `.unit-strip`'s content includes the
+panel's own `</div>` tags, so a non-greedy `.*?</div>` stops at the **first** closing tag, not the
+strip's. Anchor the match to the anchor element instead — e.g. assert the href's index in the page
+falls between the index of `<div class="unit-strip"` and the index of the following `</details>`'s
+end — or match the strip's full extent with an explicit pattern. Whichever form is used, keep the
+match assertion from step 2: a `find()` returning `-1` must fail loudly, never slice garbage.)
 
 The regex — rather than a literal `<details class="unit-tags">` — is required, not stylistic. The
 partial emits `<details class="unit-tags" {% if tags_panel_open %}open{% endif %}>`, so the rendered
@@ -698,7 +789,7 @@ benefit, when the state is reachable declaratively.
 | `lesson_unit` | desktop | owner (link present) | closed | ✓ | ✓ |
 | `lesson_unit` | desktop | enrolled student (link absent) | closed | ✓ | ✓ |
 | `lesson_unit` | desktop | owner (link present) | **open** | ✓ | ✓ |
-| `lesson_unit` | ~400px | owner | **open** | ✓ | ✓ |
+| `lesson_unit` | ~400px | owner, **populated panel** (see below) | **open** | ✓ | ✓ |
 | `lesson_unit` | ~400px | enrolled student, **long-token tag** | **open** | ✓ | ✓ |
 | `quiz_results` | desktop | owner (link present) | closed | ✓ | ✓ |
 
@@ -711,7 +802,12 @@ Which criterion applies to which row:
   layout at full width too — not only at 400px. Judge it by whichever criterion its actual layout
   lands in (unwrapped → top-edge; wrapped → flush-left-on-its-own-line).
 - **The ~400px owner row** is the wrapped layout, judged by the wrapped-line criterion above,
-  including the `.5rem` gap below the strip.
+  including the `.5rem` gap below the strip. It needs the **same populated fixture** as the student
+  row below it — several chips and/or a non-empty `addable_tags`. With an empty panel the open
+  panel's max-content is barely the text input plus the Add button, comfortably under the ~368px
+  column even with the button beside it, so the row would simply not wrap and the shot could not show
+  the layout it exists to show. Treat it as a fixture failure, not a pass: **if this shot is not
+  wrapped, the fixture is wrong.**
 - **The ~400px student row** is the one that proves `min-width: 0`'s student-visible effect (see
   "What the student actually sees"). It needs a tag label with a ~40–50 character unbroken token so
   the fieldset's min-content actually exceeds the column; the thing to confirm is that the panel's
