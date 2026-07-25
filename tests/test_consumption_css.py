@@ -67,3 +67,65 @@ def test_courses_css_defines_code_field():
         encoding="utf-8"
     )
     assert "--font-mono:" in tokens
+
+
+def test_unit_strip_rules_are_present_and_load_bearing():
+    """.unit-strip and .unit-strip .unit-tags carry SIX jointly load-bearing
+    declarations. A screenshot a human looks at once does not stop them silently
+    returning later. Exactly these six are asserted below, in this order:
+
+    On .unit-strip:
+    - display: flex — without it there is no row at all: the panel and the button
+      stack vertically and `flex: 1 1 auto` below becomes inert. Every other
+      assertion here can pass while this one's absence undoes the feature.
+    - flex-wrap: wrap — without it the narrow layout overflows horizontally
+      instead of dropping the button onto its own line.
+    - margin-block, and it must be NON-ZERO — deleting it *or zeroing it*
+      reintroduces the 0px gap before .unit-shell in the wrapped layout (where
+      .btn contributes no block-end margin). The exact value is left free so it
+      can keep tracking tags.css's `.unit-tags { margin: .5rem 0 }`.
+
+    On .unit-strip .unit-tags:
+    - min-width: 0 — wrapping the panel in a flex container makes it a flex item
+      for the first time (on master it is a plain block child of .app-main).
+      Without this, the UA's `min-inline-size: min-content` on
+      <fieldset class="unit-tags__picker"> floors the panel's border box at
+      min-content and inflates its chrome. This RESTORES master's rendering.
+    - margin-block: 0 — deleting it reintroduces the ~8px top-edge misalignment
+      between the two flex items.
+    - flex: 1 1 auto — what pins the button to the row's far right edge.
+    """
+    import re
+
+    css = CSS.read_text(encoding="utf-8")
+
+    strip = re.search(r"\.unit-strip\s*\{([^}]*)\}", css)
+    assert strip, ".unit-strip rule missing"
+    outer = strip.group(1)
+    # display: flex FIRST — it is the declaration every other one here presupposes.
+    assert "display: flex" in outer, f"display: flex missing (no row at all): {outer!r}"
+    assert "flex-wrap: wrap" in outer, f"flex-wrap: wrap missing: {outer!r}"
+    # Value-checked, not substring-checked: `.unit-strip { margin-block: 0 }`
+    # reintroduces the very 0px gap this assertion exists to guard, and a bare
+    # `"margin-block" in outer` would stay green through it.
+    rhythm = re.search(r"margin-block:\s*([^;}]+)", outer)
+    assert rhythm, f"the strip must own the block rhythm: {outer!r}"
+    assert rhythm.group(1).strip() not in {"0", "0px", "0rem", "0em"}, (
+        f"margin-block must be NON-ZERO — zeroing it reintroduces the 0px gap "
+        f"before .unit-shell in the wrapped layout: {rhythm.group(1)!r}"
+    )
+
+    inner = re.search(r"\.unit-strip\s+\.unit-tags\s*\{([^}]*)\}", css)
+    assert inner, (
+        ".unit-strip .unit-tags rule missing — note the TWO-class selector is "
+        "required: courses.css loads before tags.css, so a bare .unit-tags here "
+        "would lose the cascade to tags.css's margin: .5rem 0"
+    )
+    block = inner.group(1)
+    assert "min-width: 0" in block, f"min-width: 0 missing (fieldset hazard): {block!r}"
+    assert "margin-block: 0" in block, f"margin-block: 0 missing: {block!r}"
+    # flex: 1 1 auto is what makes the panel absorb the remaining width, which is
+    # what pins the button to the row's FAR RIGHT edge — the single criterion the
+    # desktop screenshots exist to judge. Delete it and the panel shrink-wraps its
+    # summary, the button lands beside "Tags (n)", and nothing else in CI notices.
+    assert "flex: 1 1 auto" in block, f"flex: 1 1 auto missing (right-pin): {block!r}"
