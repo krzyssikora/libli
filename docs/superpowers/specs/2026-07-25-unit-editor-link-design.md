@@ -65,8 +65,22 @@ def unit_edit_context(user, unit):
 Returns `{"can_edit_unit": bool, "unit_editor_url": str | None}`.
 
 **Precondition.** Callers pass an **authenticated** user and a **UNIT** `ContentNode`. Both hold at
-every call site (all three views are `@login_required` and resolve their node with
-`get_node_or_404(..., require_unit=True)`), so the helper does not defend against either. Behaviour
+every call site, so the helper does not defend against either. Note that "every call site" is **six
+views, not three** — because the merge happens inside two *shared builders*, the helper runs from
+every view that reaches them:
+
+| View | Reaches the helper via |
+|---|---|
+| `courses.views.lesson_unit` | `full_lesson_render_context` |
+| `courses.views.check_answer` | `full_lesson_render_context` |
+| `notes.views.note_add` | `full_lesson_render_context` |
+| `courses.views.quiz_unit` | `build_quiz_context` |
+| `courses.views.quiz_answer` (via `_quiz_render_feedback`) | `build_quiz_context` |
+| `courses.views.quiz_results` | local context |
+
+All six carry `@login_required` and resolve their node with `get_node_or_404(..., require_unit=True)`,
+so the precondition genuinely holds — but the enumeration is spelled out because "the three views" is
+the wrong set to re-audit against if the builders ever gain a seventh caller. Behaviour
 on other inputs is unspecified: an anonymous user happens to return `False` safely, via
 `can_manage_course`'s `owner_id is not None` guard, but that is an accident of the current
 implementation and not a contract; a chapter node would produce a reversible URL that 404s.
@@ -136,6 +150,26 @@ or more render sites, chosen so no render path is left out:
 Merging the whole dict (rather than setting `ctx["can_edit_unit"]` by hand at each site) keeps the
 three sites from drifting if the helper ever returns a third key.
 
+**Update both builders' docstrings.** `full_lesson_render_context` and `build_quiz_context` each open
+with a docstring that enumerates exactly what they assemble; adding an authoring-permission key
+without touching them leaves two descriptions that are now incomplete. Extend both to mention the
+edit-link context — it is part of the change, not follow-up tidying.
+
+**The merge layer is deliberately asymmetric, and that asymmetry has a consequence worth stating.**
+Lessons merge one layer *above* `build_lesson_context` (in `full_lesson_render_context`), while
+quizzes merge *inside* `build_quiz_context` — for the single-sourcing reason given above. The result
+is that `build_quiz_context` becomes a builder that performs a permission check and a `reverse()`,
+while its lesson counterpart `build_lesson_context` stays pure.
+
+That matters because `build_quiz_context` has **direct unit-test callers** that bypass the views
+entirely — `courses/tests/test_callout_has_math.py:58`, `tests/test_slideshow_context.py:29`,
+`tests/test_tabs_invariant.py:99`, `tests/test_tags_consumption.py:84` — so all four now execute
+`can_manage_course` on whatever user they pass. None of them should break (each passes a non-owning
+user against a `CourseFactory` whose `owner` is `None`, so the predicate returns `False` and the
+`reverse()` branch is never taken), but they must be **run and confirmed green** rather than assumed,
+and a future reader must not "tidy" the merge out of `build_quiz_context` or mirror it into
+`build_lesson_context` without re-reading the two-render-sites argument above.
+
 `from courses.rendering import unit_edit_context` goes at **module top level** in `courses/views.py`.
 The neighbouring `unit_tags_context` / `lesson_notes_context` merges use function-local imports
 carrying a `# lazy: avoid import cycle` comment, and copying that style here would be cargo-culting:
@@ -159,7 +193,7 @@ Testing).
       <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
         <path d="M4 20h4L18.5 9.5a2.1 2.1 0 0 0-3-3L5 17v3z"/><path d="M14.5 5.5l4 4"/>
       </svg>
-      {% trans "Edit unit" %}<span class="visually-hidden"> {% trans "(opens in a new tab)" %}</span>
+      {% trans "Edit unit" %}<span class="visually-hidden">&nbsp;{% trans "(opens in a new tab)" %}</span>
     </a>
   {% endif %}
 </div>
@@ -190,10 +224,21 @@ The link itself:
   `core/static/core/css/app.css` and supplies fill/stroke, so the SVG carries only `viewBox`,
   `aria-hidden` and `focusable`.
 - Visible label `{% trans "Edit unit" %}`, plus a visually-hidden "(opens in a new tab)" so the
-  new-tab jump is announced rather than surprising. **The code block above is the normative markup**
-  — note the space *inside* the span, before the parenthetical, which keeps a screen reader from
-  running "unit" and "(opens" together. `.visually-hidden` is defined globally in
-  `core/static/core/css/app.css` and needs no per-page CSS.
+  new-tab jump is announced rather than surprising. **The code block above is the normative markup** —
+  note the `&nbsp;` *inside* the span, before the parenthetical. It is a non-breaking space on
+  purpose, and an ordinary space would not do: `.visually-hidden` sets `position: absolute`
+  (`core/static/core/css/app.css:1167`), which blockifies the span, and leading collapsible whitespace
+  at the start of a block box is stripped — so a plain space there is simply discarded and the markup
+  is not doing what it appears to. `&nbsp;` is not collapsible and survives.
+
+  Be honest about how much this buys: browsers generally insert a separator when concatenating an
+  accessible name across element boundaries, so "Edit unit" and "(opens" would very likely be
+  announced apart regardless. The `&nbsp;` makes the separation explicit rather than dependent on
+  accname implementation details; it is cheap insurance, **not** a load-bearing invariant, and no
+  automated test guards it. Confirm the announced name with a real screen reader during the same
+  manual pass that checks the screenshots, not by asserting on markup bytes.
+
+  `.visually-hidden` is defined globally in `core/static/core/css/app.css` and needs no per-page CSS.
 
 ### Styling
 
@@ -222,8 +267,10 @@ border-box top — visibly misaligned. Zeroing it *inside the strip* and moving 
    with the margin left on `.unit-tags`, the strip's bottom edge would be the button's bottom edge and
    the following `.unit-shell` would start with **0px** of separation — a real regression against
    today's `.5rem`, in exactly the state the narrow screenshots scrutinise.
-3. The link-absent (student) case stays pixel-identical: the panel's `.5rem` block margin is simply
-   relocated to its wrapper.
+3. The link-absent (student) case keeps today's vertical rhythm exactly: the panel's `.5rem` block
+   margin is simply relocated to its wrapper. (This is a statement about the **margin** only. The
+   `min-width: 0` below does change one student-visible state — see "What the student actually
+   sees.")
 
 `.unit-strip__edit` therefore carries **no styling at all**. It exists solely as a stable selector
 hook for the view tests and the e2e, and is documented as such so it does not read as an undefined
@@ -232,9 +279,23 @@ class.
 **Horizontal placement is intentional.** `flex: 1 1 auto` on the panel makes it take the remaining
 width, which pins the button to the **far right end of the row** — adjacent to the row's edge, not to
 the "Tags (n)" summary text. That is the approved mockup, and it is also what keeps the link-absent
-(student) case pixel-identical to today: a lone `flex: 1 1 auto` item fills the row exactly as the
-block-level panel does now. The acceptance criterion is therefore that the button **shares the tag
-panel's top edge**, not that it sits beside the summary.
+(student) case the same width as today: a lone `flex: 1 1 auto` item fills the row exactly as the
+block-level panel does now. The acceptance criterion for the **unwrapped** row is therefore that the
+button **shares the tag panel's top edge**, not that it sits beside the summary.
+
+**On the wrapped line the button sits flush left, and that is the intended behaviour.** Once the row
+breaks, the panel is alone on line 1 (still `flex: 1 1 auto`, still full width) and the button is
+alone on line 2, where — with no `justify-content` and no auto margin — it starts at the row's
+inline-start edge, directly under the panel's left edge. This is a deliberate acceptance, not an
+omission: right-pinning it in the wrapped state would require `margin-inline-start: auto` on the
+anchor, which would contradict the "`.unit-strip__edit` carries no styling at all" property below and
+buy nothing — a lone button on its own line reads naturally at the start of the line, following the
+panel above it in reading order.
+
+State it as its own criterion because the top-edge criterion above is **meaningless once the two
+items are on different lines**, which is exactly the state the ~400px owner shot captures. The
+wrapped-layout acceptance criterion is: the button sits on its own line, flush with the content
+column's left edge, with the `.5rem` block gap below it intact (see the margin discussion above).
 
 `min-width: 0` is not boilerplate — it is the fix for a hazard this repo has already been bitten by.
 A flex item's automatic minimum size is its min-content size, and `tags/_unit_tag_panel.html` renders
@@ -263,12 +324,34 @@ label can still push the fieldset past the `<details>` box — which has no `ove
 scroll the page sideways, *with this fix fully in place*.
 
 That overflow is **pre-existing and out of scope**: `.unit-tags` is full-container-width today, so the
-same label overflows the same way on master. This feature does not make it worse (when the row wraps,
-the panel is full width again, exactly as now). Cutting the chain properly would mean adding
+same label overflows the same way on master. Cutting the chain properly would mean adding
 `min-inline-size: 0` to `.unit-tags__picker` and `min-width: 0` to `.unit-tags__add` — a one-line-each
 fix to the tags panel's internals that changes rendering for every reader, including those who never
 see this link. That is a separate concern from "add an edit link" and is deliberately not bundled
 here.
+
+**What the student actually sees — the one state that is *not* unchanged.** `min-width: 0` is scoped
+to `.unit-strip .unit-tags`, and the strip wraps the panel for **every** reader, link or no link. A
+student's panel is always the sole flex item on its line, so the declaration applies to them in every
+render. In the long-unbreakable-token state analysed above that produces a real, if narrow, difference
+from master:
+
+- **master:** the panel's automatic minimum floors its border box at min-content, so the panel's
+  border, background and rounded corners grow *with* the fieldset and run past the content column
+  together.
+- **with this change:** the panel's border box clamps to the content column and the fieldset spills
+  *outside* the panel's chrome.
+
+Either way the page scrolls sideways by the same amount — the overflow is the fieldset's, and it is
+pre-existing — but the two are not pixel-identical, and the new one is arguably the uglier of the two.
+This is **accepted, not claimed away**: it requires a tag label with a ~40–50 character unbroken token,
+it does not regress the common case, and the alternative (scoping `min-width: 0` to the link-present
+case) would mean two divergent panel layouts to reason about for a state neither of them fixes. The
+student × ~400px × panel-open × long-token combination therefore gets its own screenshot row so a
+human signs off on it rather than discovering it later.
+
+Outside that state — i.e. for every tag label of ordinary words — the student rendering **is**
+unchanged, because `min-width: 0` only ever binds when min-content exceeds the available width.
 
 The acceptance criterion is therefore about the **panel's border box**, not the page: its right edge
 sits within the content column at ~400px with the panel open, and the page shows no horizontal
@@ -359,7 +442,8 @@ confirm it goes RED. A green test that was never seen to fail proves nothing. Us
 `tests.factories.TEST_PASSWORD` — never a password literal, which GitGuardian flags.
 
 **Where the tests live.** A new `tests/test_unit_edit_link.py` owns the helper matrix, the three
-page-rendering groups and the two non-GET path assertions — the feature's own module. The
+page-rendering groups and **all three** non-GET path assertions — one per row of the table in "The
+non-GET render paths" below, which is the authoritative count. The
 fragment-contract test belongs in the existing `tests/test_tags_consumption.py`, beside the tags
 consumption tests whose behaviour it constrains, because that is where someone editing the panel will
 look. The e2e extends `tests/test_e2e_tags.py`, whose existing add-a-tag flow already uses the exact
@@ -376,7 +460,13 @@ factory does not). `can_access_course` grants a non-owner, non-enrolled user acc
 keeps passing even if the `{% if can_edit_unit %}` guard is deleted outright. Every negative
 page-level actor in this feature must therefore be given genuine read access — enrolled via
 `EnrollmentFactory`, or added to a non-archived `GroupFactory` group's `teachers` — and every
-page-level test must `assert resp.status_code == 200` **before** asserting on the body.
+page-level test must assert the **expected** status **before** asserting on the body.
+
+"Expected" is 200 everywhere in this feature *except* the no-JS note-validation re-render, which
+`notes/views.py:194` returns with **status 422** by design. Taking the 200 rule literally there would
+fail the test on its own precondition, so that one row asserts `422`. The rule's purpose is to prove
+the page actually rendered rather than short-circuiting into a 403 or a redirect — a 422 that carries
+the re-rendered lesson body satisfies that purpose exactly as a 200 does.
 
 **Unit — `unit_edit_context` (the permission matrix).** The negative rows are the point of the
 feature, so they are tested at least as carefully as the positive ones.
@@ -528,6 +618,11 @@ idiom already used at `tests/test_e2e_tags.py:68` — and only once that passes 
 asserted. The ordering is load-bearing: asserting the link first would pass even if the swap went on
 to destroy it, i.e. green while broken. A bare timeout is not acceptable here.
 
+Both Edit-link assertions use the `.unit-strip__edit` hook — `expect(page.locator(".unit-strip__edit"))
+.to_be_visible()` — which is the whole reason that class exists (it carries no styling; see Styling).
+Naming it here rather than leaving the locator to the implementer keeps the hook's stated
+justification and its actual use in agreement.
+
 Copying that existing flow requires **one change**: it builds `CourseFactory(...)` plus an
 `Enrollment`, so its actor is not the course owner and would see no Edit link at all. The copy must
 set `owner=user` on the course. No enrollment is needed for the tag-add step — `tags.views.tag_add`
@@ -540,13 +635,35 @@ runaway browsers.
 states, because `.unit-strip` now wraps `.unit-tags` for *every* reader — the single-child (student,
 no link) case is the far more common one and the one that would regress for the whole user base:
 
-| Page | State | light | dark |
-|---|---|---|---|
-| `lesson_unit`, desktop | owner (link present) | ✓ | ✓ |
-| `lesson_unit`, desktop | enrolled student (link absent) | ✓ | ✓ |
-| `lesson_unit`, ~400px | owner, **tag panel open** | ✓ | ✓ |
-| `lesson_unit`, ~400px | enrolled student | ✓ | ✓ |
-| `quiz_results`, desktop | owner (link present) | ✓ | ✓ |
+**Every row pins the tag panel's open/closed state**, because the panel is a `<details>` whose flex
+base size is its max-content size: the same viewport with the panel open and several tags can wrap the
+row exactly like the narrow shots, producing a completely different layout. Leaving the state
+unstated would make it undefined which layout the "pinned far right" criterion is judged against.
+
+| Page | Viewport | Actor | Tag panel | light | dark |
+|---|---|---|---|---|---|
+| `lesson_unit` | desktop | owner (link present) | closed | ✓ | ✓ |
+| `lesson_unit` | desktop | enrolled student (link absent) | closed | ✓ | ✓ |
+| `lesson_unit` | desktop | owner (link present) | **open** | ✓ | ✓ |
+| `lesson_unit` | ~400px | owner | **open** | ✓ | ✓ |
+| `lesson_unit` | ~400px | enrolled student, **long-token tag** | **open** | ✓ | ✓ |
+| `quiz_results` | desktop | owner (link present) | closed | ✓ | ✓ |
+
+Which criterion applies to which row:
+
+- **Closed-panel desktop rows** are where "the button is pinned to the far right end of the row,
+  sharing the panel's top edge" is judged. The summary is short, the row cannot wrap, and this is the
+  approved mockup's state.
+- **The open-panel desktop row** exists because opening the panel can push the row into the wrapped
+  layout at full width too — not only at 400px. Judge it by whichever criterion its actual layout
+  lands in (unwrapped → top-edge; wrapped → flush-left-on-its-own-line).
+- **The ~400px owner row** is the wrapped layout, judged by the wrapped-line criterion above,
+  including the `.5rem` gap below the strip.
+- **The ~400px student row** is the one that proves `min-width: 0`'s student-visible effect (see
+  "What the student actually sees"). It needs a tag label with a ~40–50 character unbroken token so
+  the fieldset's min-content actually exceeds the column; the thing to confirm is that the panel's
+  chrome clamping to the column while the fieldset spills out reads as acceptable, and that the page
+  scrolls sideways no further than the same page does on master.
 
 Naming the page matters, and `quiz_results` is not redundant with the lesson rows. `.app-main` is
 `max-width: 960px` with `var(--space-5)` (20px) inline padding; `box-sizing: border-box` is global,
@@ -557,7 +674,7 @@ that, so the two are the same width. On `quiz_results` it heads `.result`, which
 button, overhangs the article it heads by about **90px per side**.
 
 **This overhang is pre-recorded as accepted, not as a pass/fail gate**, because it is certain rather
-than hypothetical and it is not new: the tag panel already spans the full 880px above that same 736px
+than hypothetical and it is not new: the tag panel already spans the full 920px above that same 736px
 article on master today. The button simply sits at the panel's right edge, where the panel's own
 border already is. The screenshot row exists to confirm that reads as deliberate rather than broken —
 if a human judges otherwise, that is a follow-up styling decision, not a blocker for this change. No
