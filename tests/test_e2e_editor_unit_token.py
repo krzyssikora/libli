@@ -72,6 +72,14 @@ def _seed(username, slug, title="Lesson One"):
     return unit
 
 
+def _add_second_element(unit):
+    """A second element, so delete and reorder have something to act on."""
+    from courses.models import TextElement
+    from tests.factories import add_element
+
+    return add_element(unit, TextElement.objects.create(body="<p>Second</p>"))
+
+
 def _editor_url(live_server, unit):
     return (
         f"{live_server.url}/manage/courses/{unit.course.slug}"
@@ -119,6 +127,16 @@ def _stale_token_carriers(page):
     )
 
 
+def _rename_via_settings(page, title):
+    """Open the Settings <details> and save a new title — the reported flow."""
+    page.locator("details.unit-settings > summary").click()
+    box = page.locator("details.unit-settings input[name='title']")
+    box.wait_for(state="visible")
+    box.fill(title)
+    page.locator("details.unit-settings button[type='submit']").click()
+    page.wait_for_selector(".editor-head__title")
+
+
 @pytest.mark.django_db(transaction=True)
 def test_settings_title_saves_on_first_attempt_after_an_element_edit(page, live_server):
     """Edit an element, then rename via Settings — must save on the FIRST submit."""
@@ -132,13 +150,7 @@ def test_settings_title_saves_on_first_attempt_after_an_element_edit(page, live_
 
     # Precondition: without the fix this is exactly where the token goes stale.
     stale = _stale_token_carriers(page)
-
-    page.locator("details.unit-settings > summary").click()
-    title = page.locator("details.unit-settings input[name='title']")
-    title.wait_for(state="visible")
-    title.fill("Renamed On First Try")
-    page.locator("details.unit-settings button[type='submit']").click()
-    page.wait_for_selector(".editor-head__title")
+    _rename_via_settings(page, "Renamed On First Try")
 
     assert page.locator(".op-error").count() == 0, (
         "Got the 'changed elsewhere' conflict notice on the first settings save "
@@ -193,3 +205,103 @@ def test_no_unit_token_carrier_is_left_stale_by_a_swap(page, live_server):
 
     stale = _stale_token_carriers(page)
     assert stale == [], f"unit-level token carriers left stale after a swap: {stale}"
+
+
+# ── Every OTHER op that bumps unit.updated ───────────────────────────────────
+# save_element is not the only one: reorder_element and delete_element both end
+# in unit.save(update_fields=["updated"]) (courses/builder.py), and an add runs a
+# save under the hood. All of them swap the panes, so all of them must leave the
+# unit-level token carriers fresh. The original guard only covered the edit path,
+# which left the others resting on the assumption that one funnel serves them all
+# — these pin it instead.
+
+
+@pytest.mark.django_db(transaction=True)
+def test_settings_saves_first_try_after_adding_an_element(page, live_server):
+    """Adding an element is the commonest authoring action, not editing one."""
+    _make_pa_user("tok_add")
+    _login(page, live_server, "tok_add")
+    unit = _seed("tok_add", "tok-add")
+
+    page.goto(_editor_url(live_server, unit))
+    page.wait_for_selector('[data-scope="editor"]')
+
+    page.locator("[data-add-toggle]").first.click()
+    page.locator("[data-add-type='text']").first.click()
+    page.wait_for_selector("[data-edit-slot] form[data-op='element-save']")
+    surface = page.locator("[data-edit-slot] .rte-surface")
+    surface.wait_for(state="visible")
+    surface.click()
+    page.keyboard.type("added")
+    page.locator("[data-edit-slot] button[type='submit']").click()
+    page.wait_for_selector(
+        "[data-edit-slot] form[data-op='element-save']", state="detached"
+    )
+
+    stale = _stale_token_carriers(page)
+    _rename_via_settings(page, "Renamed After Add")
+
+    assert page.locator(".op-error").count() == 0, (
+        f"conflict notice on the first settings save after an ADD; stale={stale}"
+    )
+    unit.refresh_from_db()
+    assert unit.title == "Renamed After Add"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_settings_saves_first_try_after_deleting_an_element(page, live_server):
+    _make_pa_user("tok_del")
+    _login(page, live_server, "tok_del")
+    unit = _seed("tok_del", "tok-del")
+    _add_second_element(unit)
+
+    page.goto(_editor_url(live_server, unit))
+    page.wait_for_selector('[data-scope="editor"]')
+    page.once("dialog", lambda d: d.accept())
+    page.locator("form[data-op='element-delete'] button").first.click()
+    page.wait_for_function(
+        "() => document.querySelectorAll('.el-row[data-element]').length === 1"
+    )
+
+    stale = _stale_token_carriers(page)
+    _rename_via_settings(page, "Renamed After Delete")
+
+    assert page.locator(".op-error").count() == 0, (
+        f"conflict notice on the first settings save after a DELETE; stale={stale}"
+    )
+    unit.refresh_from_db()
+    assert unit.title == "Renamed After Delete"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_settings_saves_first_try_after_reordering_elements(page, live_server):
+    _make_pa_user("tok_ord")
+    _login(page, live_server, "tok_ord")
+    unit = _seed("tok_ord", "tok-ord")
+    _add_second_element(unit)
+
+    page.goto(_editor_url(live_server, unit))
+    page.wait_for_selector('[data-scope="editor"]')
+    first_before = page.locator(".el-row[data-element]").first.get_attribute(
+        "data-element"
+    )
+    # Move the FIRST row DOWN, not up. "Up" on the first row is a boundary no-op,
+    # which builder.reorder_node returns without saving — so it never bumps the
+    # token and the test would pass without exercising anything.
+    page.locator("form[data-op='element-move'] button[value='down']").first.click()
+    # Applied once the first row is a different element.
+    page.wait_for_function(
+        "(before) => {"
+        " const r = document.querySelector('.el-row[data-element]');"
+        " return r && r.getAttribute('data-element') !== before; }",
+        arg=first_before,
+    )
+
+    stale = _stale_token_carriers(page)
+    _rename_via_settings(page, "Renamed After Reorder")
+
+    assert page.locator(".op-error").count() == 0, (
+        f"conflict notice on the first settings save after a REORDER; stale={stale}"
+    )
+    unit.refresh_from_db()
+    assert unit.title == "Renamed After Reorder"
