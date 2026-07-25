@@ -63,7 +63,7 @@ row/column handles client-side and cannot call {% templatetag openblock %} trans
   toggles themselves deliberately do NOT promote cells to <th> here: if they
   did, serialize() would start writing header:true for cells that never had it
   and break byte-identity for every existing header-row table.{% endcomment %}
-  <div class="table-editor__grid" data-table-grid>
+  <div class="scroll-x" data-scroll-x><div class="table-editor__grid" data-table-grid>
     <table>
       {% for row in d.cells %}
       <tr>
@@ -79,7 +79,7 @@ row/column handles client-side and cannot call {% templatetag openblock %} trans
       </tr>
       {% endfor %}
     </table>
-  </div>
+  </div></div>
 
   {% comment %}Range membership is announced here rather than with aria-selected,
   which is only meaningful on gridcell/option/row roles and is ignored (and

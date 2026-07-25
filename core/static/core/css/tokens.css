@@ -34,6 +34,11 @@
   /* surfaces / text / borders — flat literals (design-language.md, light) */
   --surface-base: #F4F1EA; --surface-raised: #FFFFFF; --surface-sunken: #FAF8F3;
   --surface-overlay: rgba(30,28,24,0.45);
+  /* Edge shading for a horizontally scrollable box (.scroll-x). A translucent
+     shade rather than a fade to a surface colour: it sits over table cells whose
+     own backgrounds vary (raised card, sunken header tint, zebra rows), so any
+     opaque fade colour would be wrong against at least one of them. */
+  --scroll-edge: rgba(30,28,24,0.16);
   --text-primary: #1E1C18; --text-secondary: #5A544A; --text-tertiary: #8A8477;
   --text-inverse: #FBF9F4;
   --border-subtle: #EDE8DE; --border-default: #E7E1D6; --border-strong: #D6CFC1;
@@ -70,6 +75,7 @@
   /* surfaces / text / borders — flat literals (design-language.md, dark) */
   --surface-base: #1A1816; --surface-raised: #2C2925; --surface-sunken: #15130F;
   --surface-overlay: rgba(0,0,0,0.55);
+  --scroll-edge: rgba(0,0,0,0.45);   /* deeper: dark surfaces swallow a light shade */
   --text-primary: #F2EFE9; --text-secondary: #BDB6A8; --text-tertiary: #8A8477;
   --text-inverse: #1E1C18;
   --border-subtle: #2A2620; --border-default: #322E29; --border-strong: #4A4036;

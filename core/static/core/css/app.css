@@ -1558,3 +1558,47 @@ a.notif-menu__row:hover { background: var(--surface-sunken); }
   padding-left: var(--space-3);
   border-left: 3px solid var(--success);
 }
+
+/* ── Horizontally scrollable box: edge affordance ────────────────────────────
+   A clipped table gives no hint that more exists sideways — the overlay
+   scrollbars this app runs under paint nothing when idle and reserve no layout
+   space (measured: offsetHeight - clientHeight == 0), so the scrollbar cannot be
+   the affordance. Shade the edge that has content beyond it instead.
+
+   The shading must sit ABOVE the cells, not behind them: the grids give their
+   header row and zebra rows opaque backgrounds, which cover anything painted in
+   the scroll container's own background layer (an inset box-shadow there shows
+   over transparent body cells and vanishes under the header — worse than
+   nothing). Hence the wrapper: .scroll-x does not scroll, so its absolutely
+   positioned pseudo-elements stay pinned to the visible edges while the content
+   moves under them.
+
+   Class names match the .tabs__bar scroller (tabs.js), which already toggles
+   is-scroll-start / is-scroll-end with the same meaning: the side that has
+   scrolled-away content. */
+.scroll-x { position: relative; }
+.scroll-x::before,
+.scroll-x::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1.5rem;
+  z-index: 1;
+  pointer-events: none;   /* never swallow a click on a cell or a checkbox */
+  opacity: 0;
+  transition: opacity .15s ease;
+}
+.scroll-x::before {
+  left: 0;
+  background: linear-gradient(to right, var(--scroll-edge), transparent);
+}
+.scroll-x::after {
+  right: 0;
+  background: linear-gradient(to left, var(--scroll-edge), transparent);
+}
+.scroll-x.is-scroll-start::before { opacity: 1; }
+.scroll-x.is-scroll-end::after { opacity: 1; }
+@media (prefers-reduced-motion: reduce) {
+  .scroll-x::before, .scroll-x::after { transition: none; }
+}

@@ -46,7 +46,7 @@
 <div class="settings__section">
   <h2 class="settings__section-title">{% trans "Recent deliveries" %}</h2>
   {% if recent_deliveries %}
-  <table class="settings__table">
+  <div class="scroll-x" data-scroll-x><table class="settings__table">
     <thead>
       <tr>
         <th>{% trans "Event" %}</th>
@@ -69,7 +69,7 @@
       </tr>
       {% endfor %}
     </tbody>
-  </table>
+  </table></div>
   {% else %}
   <p class="settings__help">{% trans "No deliveries yet." %}</p>
   {% endif %}
