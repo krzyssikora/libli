@@ -10,6 +10,16 @@ body {
 h1, h2, h3, h4 { line-height: 1.15; letter-spacing: var(--heading-letter-spacing); }
 img, picture, svg { display: block; max-width: 100%; }
 button, input, select, textarea { font: inherit; color: inherit; }
+/* The UA stylesheet gives fieldset `min-inline-size: min-content`, so a fieldset
+   is never narrower than its widest content. That silently defeats any
+   overflow-x:auto box nested inside one: the scroll container is sized by its
+   parent, so if the parent has already inflated to content width there is
+   nothing left to scroll and the overflow escapes to the page instead. The
+   grid questions wrap their .multigrid-scroll / .choicegrid-scroll in
+   <form><fieldset> (to disable the whole widget in one attribute), so a wide
+   grid pushed the document sideways on mobile. Reset it globally — no layout in
+   this app wants a fieldset to outgrow its column. */
+fieldset { min-inline-size: 0; }
 a { color: var(--accent); text-underline-offset: 2px; }
 :focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; border-radius: 3px; }
 .sr-only {
