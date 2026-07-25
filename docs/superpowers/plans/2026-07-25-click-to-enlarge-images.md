@@ -142,7 +142,7 @@ def test_authoring_and_dragimage_templates_have_no_hook():
 - [ ] **Step 2: Run the tests and verify the three positives fail**
 
 Run: `uv run pytest tests/test_imagezoom_render.py -v`
-Expected: the three `*_renders_the_hook` tests FAIL (`assert 'data-zoomable' in html`); `test_authoring_and_dragimage_templates_have_no_hook` already PASSES (it guards an absence that is currently true — that is fine and expected; its falsification comes in Step 5).
+Expected: the three `*_renders_the_hook` tests FAIL (`assert 'data-zoomable' in html`). Two already PASS, which is fine and expected: `test_authoring_and_dragimage_templates_have_no_hook` guards an absence that is currently true (its falsification comes in Step 5), and `test_fragment_anchor_survives_sanitisation` pins existing sanitiser behaviour rather than new code.
 
 - [ ] **Step 3: Add the hook to the three student templates**
 
@@ -167,13 +167,13 @@ Expected: the three `*_renders_the_hook` tests FAIL (`assert 'data-zoomable' in 
 - [ ] **Step 4: Run the tests and verify they pass**
 
 Run: `uv run pytest tests/test_imagezoom_render.py -v`
-Expected: 4 passed.
+Expected: 5 passed.
 
 - [ ] **Step 5: Falsify all four**
 
 For each of the three student templates: delete `data-zoomable`, re-run, confirm that test goes RED, restore.
 For the negative test: add `data-zoomable` to the `<img>` in `_edit_gallery.html`, re-run, confirm RED, restore.
-Expected: every test observed RED at least once, then 4 passed again.
+Expected: every test observed RED at least once, then 5 passed again.
 
 - [ ] **Step 6: Commit**
 
@@ -243,7 +243,9 @@ def test_overlay_image_can_only_shrink():
 - [ ] **Step 2: Run the tests and verify they fail**
 
 Run: `uv run pytest tests/test_imagezoom_render.py -v -k "scrim or dialog or overlay_image"`
-Expected: all three FAIL (token and rules do not exist yet).
+Expected: all three FAIL (token and rules do not exist yet). `test_overlay_image_can_only_shrink`
+fails with `ValueError: substring not found` from `source.index(".imgzoom-trigger")` rather
+than an assertion — that is a valid RED, not a malformed test.
 
 - [ ] **Step 3: Add the token**
 
@@ -301,6 +303,11 @@ dialog.imgzoom:not([open]) { display: none; }
   display: grid; place-items: center;
   cursor: zoom-out;
 }
+/* Belt-and-braces for any engine where the box does not fill the viewport. Note that
+   ::backdrop only inherits custom properties from its originating element in newer
+   engines (Chromium 122+); before that var(--scrim-solid) resolves to nothing here and
+   the declaration is simply inert. Harmless either way, because .imgzoom[open] already
+   covers the viewport -- so this rule buys less than it appears to. */
 .imgzoom::backdrop { background: var(--scrim-solid); }
 /* 100% of the dialog's content box — which IS the fitted viewport, per above.
    Full-bleed by design: a gutter must come as max-height: calc(100% - 2 * gutter)
@@ -311,7 +318,7 @@ dialog.imgzoom:not([open]) { display: none; }
 - [ ] **Step 5: Run the tests and verify they pass**
 
 Run: `uv run pytest tests/test_imagezoom_render.py -v`
-Expected: 7 passed.
+Expected: 8 passed.
 
 - [ ] **Step 6: Falsify**
 
@@ -474,7 +481,7 @@ Create `courses/static/courses/js/imagezoom.js`:
     document.body.appendChild(dialog);
   }
 
-  function open(img) {
+  function openOverlay(img) {
     if (!dialog) build();
     if (dialog.open) return; // showModal() on an open dialog throws InvalidStateError
     trigger = img;
@@ -513,7 +520,7 @@ Create `courses/static/courses/js/imagezoom.js`:
     // <label>. It does NOT suppress image drag or text selection -- those start at
     // mousedown, long before click -- and no such suppression is wanted.
     e.preventDefault();
-    open(img);
+    openOverlay(img);
   });
 
   document.addEventListener("keydown", function (e) {
@@ -521,7 +528,7 @@ Create `courses/static/courses/js/imagezoom.js`:
     var img = e.target.closest && e.target.closest("[data-zoomable]");
     if (!img) return;
     e.preventDefault(); // Space would scroll the page
-    open(img); // auto-repeat is harmless: later events hit the dialog.open guard
+    openOverlay(img); // auto-repeat is harmless: later events hit the dialog.open guard
   });
 
   // Escape must close ONLY the overlay. unit_nav.js registers its drawer handler as
@@ -574,7 +581,7 @@ In `courses/static/courses/js/editor.js`, directly after the `libliInitGallery` 
 - [ ] **Step 6: Run the tests and verify they pass**
 
 Run: `uv run pytest tests/test_imagezoom_render.py -v`
-Expected: 12 passed.
+Expected: 13 passed.
 
 - [ ] **Step 7: Falsify**
 
@@ -676,7 +683,7 @@ Rest-init (~line 41) — extend the comment and the write:
       it.classList.remove("is-active");
       it.style.opacity = "";
       it.setAttribute("aria-hidden", "true");
-      it.setAttribute("inert", "");  // re-assert: show() already inerted it at :125
+      it.setAttribute("inert", "");  // re-assert: show() already inerted it at the fade start
     }
 ```
 
@@ -726,7 +733,16 @@ In `show()`, immediately before the outgoing item's `aria-hidden` write (~line 1
 - [ ] **Step 5: Run the tests and the existing gallery suite**
 
 Run: `uv run pytest tests/test_imagezoom_render.py tests/test_gallery_render.py tests/test_gallery_model.py -v`
-Expected: all pass. (`inert` changes no layout, so the carousel's height measurement is unaffected.)
+Expected: all pass.
+
+Then, in the **foreground**, the tests that actually execute `gallery.js`:
+
+Run: `uv run pytest tests/test_e2e_gallery.py -m e2e -v`
+Expected: all pass. This step is not optional — `test_gallery_render.py` and
+`test_gallery_model.py` are template/model tests that never run the JS, so on their own
+they cannot detect an `inert` or `rescueFocus` regression at all. This task ships a live
+behaviour change to the student carousel; verifying it only by source grep and deferring
+the real check to Task 11 would mean committing it unverified.
 
 - [ ] **Step 6: Falsify**
 
@@ -919,6 +935,10 @@ def media_route(settings):
     return install
 
 
+# _student / _lesson_url / _login are defined here rather than imported from
+# tests/test_e2e_gallery.py: this module needs a user OBJECT (for EnrollmentFactory), not
+# a username, and every e2e module in this repo is deliberately self-contained. The login
+# helper is the same scoped-form version that module uses.
 def _student(username="zoomstudent"):
     return make_verified_user(
         username=username, email=f"{username}@t.example.com", password=TEST_PASSWORD
@@ -996,6 +1016,21 @@ def _open(page, trigger):
     return page.locator("dialog.imgzoom")
 
 
+def _await_decoded(page, locator):
+    """Wait for an <img> to actually have pixels before measuring it.
+
+    locator.wait_for() defaults to state="visible", which only needs a non-empty box --
+    and an <img> whose bytes have not arrived still gets one from its alt text, so
+    naturalWidth can legitimately read 0. Every fixture image is served through
+    page.route, and Chromium disables the HTTP cache for routed requests, so this race
+    is real for the inline trigger exactly as it is for the overlay image.
+    """
+    locator.wait_for()
+    page.wait_for_function(
+        "el => el.complete && el.naturalWidth > 0", arg=locator.element_handle()
+    )
+
+
 def _box(locator):
     box = locator.bounding_box()
     assert box is not None, "expected a laid-out box"
@@ -1015,7 +1050,7 @@ def test_harness_serves_the_real_fixture_image(page, live_server, zoom_lesson, m
     unit, user = zoom_lesson
     _goto(page, live_server, unit, user, media_route)
     trigger = _trigger(page)
-    trigger.wait_for()
+    _await_decoded(page, trigger)
     assert _natural_width(trigger) == 1400
 ```
 
@@ -1082,9 +1117,9 @@ def test_overlay_enlarges_without_upscaling_and_fits_the_viewport(
     unit, user = zoom_lesson
     _goto(page, live_server, unit, user, media_route)
     trigger = _trigger(page)
-    trigger.wait_for()
+    _await_decoded(page, trigger)  # or inline_width is measured pre-load and the
     assert _natural_width(trigger) == 1400, "media route must serve the real image"
-    inline_width = _box(trigger)["width"]
+    inline_width = _box(trigger)["width"]  # "overlay is wider" passes for the wrong reason
 
     dialog = _open(page, trigger)
     img = page.locator(".imgzoom__img")
@@ -1170,7 +1205,7 @@ def test_nothing_but_the_image_is_visible(
             assert all(abs(a - b) <= 12 for a, b in zip(px, expected)), (x, y, px)
 ```
 
-Note: `device_scale_factor` defaults to 1 in Playwright's Chromium context, so box coordinates map 1:1 onto screenshot pixels. If the project's `page` fixture ever sets a different value, pin it to 1 in this module.
+Note: `device_scale_factor` defaults to 1 in Playwright's Chromium context (nothing in `conftest.py` overrides `browser_context_args`), so box coordinates map 1:1 onto screenshot pixels. That assumption is not left implicit — the occlusion test asserts `devicePixelRatio == 1` before it samples, so a future context change fails loudly here instead of skewing the sample coordinates silently.
 
 - [ ] **Step 2: Run the tests**
 
@@ -1287,7 +1322,19 @@ def test_double_click_opens_then_closes(page, live_server, zoom_lesson, media_ro
     """The accepted behaviour: the second click lands on the now-covering dialog."""
     unit, user = zoom_lesson
     _goto(page, live_server, unit, user, media_route)
-    _trigger(page).dblclick()
+    trigger = _trigger(page)
+
+    # Positive control first, or this test cannot tell "opened then closed" from "never
+    # opened at all": a 404'd script, a bailed feature detect or a deleted click handler
+    # would all leave the count at 0 and read as GREEN.
+    box = _box(trigger)
+    point = (box["x"] + box["width"] / 2, box["y"] + box["height"] / 2)
+    trigger.click()
+    page.wait_for_selector("dialog.imgzoom[open]")  # proves the open really happens
+    page.keyboard.press("Escape")
+    page.wait_for_selector("dialog.imgzoom[open]", state="detached")
+
+    page.mouse.dblclick(*point)
     assert page.locator("dialog.imgzoom[open]").count() == 0
 
 
@@ -1384,6 +1431,7 @@ Expected: 13 passed.
 | Add a timing window that swallows the second click | `test_double_click_opens_then_closes` |
 | Delete the `keydown` delegation | `test_enter_opens_from_the_keyboard` |
 | Replace `removeAttribute("src")` with `img.src = ""` | `test_close_removes_the_src_attribute` |
+| Delete the dialog's `aria-label` write in `build()` | `test_accessible_names` (its dialog-name half) |
 
 - [ ] **Step 4: Commit**
 
@@ -1516,6 +1564,10 @@ def hidden_lesson(db, _isolated_media):
     add_element(unit, RevealGateElement.objects.create(label="Show answer"))
     add_element(unit, img("gated.png"))
 
+    # Ordering comes from creation sequence: Element.order is OrderField(for_fields=["unit"])
+    # with Meta.ordering = ["order", "pk"], and nested child rows consume numbers from the
+    # same per-unit counter -- which is why each container's child is created immediately
+    # after the container above, keeping the top-level sequence monotonic.
     user = _student("hiddenstudent")
     EnrollmentFactory(course=course, student=user)
     return unit, user
@@ -1527,6 +1579,10 @@ def _tab_walk(page, n=24):
 
     A single <body>/null observation is a WRAP, not an exit (Chromium passes through it),
     so continue; only two consecutive such observations terminate.
+
+    `cls` reads getAttribute('class') rather than a.className, because on an SVG element
+    className is an SVGAnimatedString and would not serialise as a string. It is only used
+    for debugging output, but a silently-empty field is worse than none.
     """
     seen = []
     blanks = 0
@@ -1536,7 +1592,7 @@ def _tab_walk(page, n=24):
             "() => { const a = document.activeElement;"
             " if (!a || a === document.body) return null;"
             " const item = a.closest('.gallery__item');"
-            " return { tag: a.tagName, cls: a.className,"
+            " return { tag: a.tagName, cls: a.getAttribute('class') || '',"
             "   inInactiveFigure: !!(item && !item.classList.contains('is-active')),"
             "   isTrigger: a.classList.contains('imgzoom-trigger'),"
             "   inHiddenPanel: !!a.closest('[hidden]') }; }"
@@ -1641,7 +1697,13 @@ def test_inactive_tab_panel_keeps_its_image_out_of_the_tab_order(
 
     # Positive control, and it must be able to fail: activate the second tab, walk
     # again, and require a trigger inside the now-visible panel to be REACHED.
-    page.locator("[data-tab-btn]").nth(1).click()
+    # `.tabs__tab`, NOT `[data-tab-btn]` -- that attribute exists nowhere in the repo.
+    # tabselement.html emits only [data-tab-label] headings and [data-tab-panel] panels;
+    # tabs.js:66-73 builds the strip buttons itself as button.tabs__tab[role=tab].
+    # Walk order to expect: active tab button -> active panel (tabs.js:77 sets
+    # panel.tabIndex = 0) -> the trigger inside it, with a roving tabindex on the
+    # inactive tab buttons (tabs.js:94).
+    page.get_by_role("tab").nth(1).click()
     page.wait_for_selector('[data-tab-panel]:not([hidden]) .imgzoom-trigger')
     page.get_by_role("link", name="Anchor link").click()
     seen_after = _tab_walk(page, n=30)
@@ -1787,7 +1849,7 @@ def test_tiny_image_opens_and_is_not_upscaled(page, live_server, tiny_lesson, me
     unit, user = tiny_lesson
     _goto(page, live_server, unit, user, media_route)
     trigger = _trigger(page)
-    trigger.wait_for()
+    _await_decoded(page, trigger)
     # Precondition: a mis-mapped media route must not hand this the 1400px fixture.
     assert _natural_width(trigger) == 1
     _open(page, trigger)
@@ -1849,10 +1911,15 @@ def test_editor_preview_rearms_after_a_real_save(
         f"{reverse('courses:manage_editor', kwargs={'slug': course.slug, 'pk': unit.pk})}"
     )
 
-    # Open the existing element's edit fragment, change its alt, submit. Take the exact
-    # row/edit-trigger selector from tests/test_e2e_editor.py; the contract here is "a
-    # real save swaps [data-scope=preview] and the swapped-in image is armed", not any
-    # particular click target.
+    # Open the existing element's edit fragment, change its alt, submit. The contract is
+    # "a real save swaps [data-scope=preview] and the swapped-in image is armed".
+    # [data-edit-slot] renders EMPTY on load: _element_row.html:42 only injects
+    # open_form when open_form_pk == el.pk. So the fragment must be opened first, via
+    # the row's edit button (_element_row.html:33 -- `button.iconbtn.el-select.el-act-edit`
+    # carrying data-element-id and data-form-url). Note that tests/test_e2e_editor.py
+    # never does this: every case there ADDS a new element via [data-add-toggle], so it
+    # is not a usable reference for editing an existing one.
+    page.locator(".el-act-edit").first.click()
     page.wait_for_selector("[data-edit-slot] form[data-op='element-save']")
     page.locator("[data-edit-slot] input[name='alt']").fill("Editor image v2")
     page.locator("[data-edit-slot] button[type='submit']").click()
@@ -1896,12 +1963,26 @@ git commit -m "test(imagezoom): e2e fill-table cell, tiny image and editor previ
 
 - [ ] **Step 1: Capture the overlay in both themes**
 
-Write a throwaway Playwright script (scratchpad, not the repo) that, using the same media-route trick as the e2e module, opens the overlay and screenshots it:
+Do **not** write a standalone script. A bare script has no `_isolated_media` fixture, so
+`MediaAsset.objects.create()` would write its PNGs through the `FileField` straight into
+`BASE_DIR / "media" / "courses/media/"` — the developer's real media tree, the exact
+file-lifetime hazard this plan cites — and Step 6's `--ignored` guard would then fail with
+no remedy. It also has no answer for which database, how the app is served, or how the
+student logs in.
+
+Instead add a **temporary pytest module** in the scratchpad (or a temporary
+`tests/test_zz_imgzoom_shots.py` deleted before the final commit), marked
+`pytestmark = pytest.mark.e2e`, which reuses the real harness — `_isolated_media`,
+`media_route`, `_login`, `_goto` — so `MEDIA_ROOT` isolation, the `live_server`, the test
+database and authentication all come for free. Set the theme with
+`page.evaluate("document.documentElement.dataset.theme = 'dark'")`, and loop explicitly
+over **2 viewports × 2 themes × 2 orientations = 8 shots**, writing them to the scratchpad
+directory (never the repo). It opens the overlay and screenshots it:
 
 - at 1280×800 and at 360×640,
 - in light and dark theme (set `data-theme` on `<html>`),
 - with a **landscape** 1400×900 image and a **portrait** 900×1400 image,
-- using an image with **visible internal structure** — two contrasting `ImageDraw.rectangle` blocks, not a flat fill. A flat rectangle on a near-black field shows neither the fit nor the scrim boundary, which is exactly what is being judged. Build it with a module-local helper that creates a `MediaAsset` and then overwrites *that asset's* `file.path` with the structured PNG, under a filename unique to the script (never a bare write into `MEDIA_ROOT`, which the resolver could not map to a row, and never an overwrite of an existing asset's file, which risks the shared-file-lifetime trap).
+- using an image with **visible internal structure** — two contrasting `ImageDraw.rectangle` blocks, not a flat fill. A flat rectangle on a near-black field shows neither the fit nor the scrim boundary, which is exactly what is being judged. Build it with a module-local helper that creates a `MediaAsset` (so the route resolver has a row to map) and then overwrites *that asset's own* `file.path` with the structured PNG, under a filename unique to this module — never a bare write into `MEDIA_ROOT`, which maps to no row, and never an overwrite of another asset's file, which is the shared-file-lifetime trap. Because the module runs under `_isolated_media`, that path is inside `tmp_path` and nothing touches the real tree.
 
 - [ ] **Step 2: Self-critique the screenshots**
 
@@ -1936,7 +2017,7 @@ git branch --show-current       # pipeline/click-to-enlarge-images
 
 - [ ] **Step 7: Falsification audit**
 
-Confirm every test in both new modules has been observed RED at least once, except the two explicitly labelled unfalsifiable (the closed-spoiler smoke check, and `test_second_click_closes_and_restores_focus`'s focus half, whose guard is the source-level assertion). If any test has never been seen to fail, break it now or delete it — a test that cannot fail is worse than no test, because it reads as coverage.
+Confirm every test in both new modules has been observed RED at least once, except the **four** explicitly labelled as having no available break, each of which carries its reason in its own docstring: the closed-spoiler smoke check (`content-visibility` cannot be re-enabled by an author `display`), `test_second_click_closes_and_restores_focus`'s focus half (Chromium's native restore satisfies it either way — the source assertion is its guard), `test_focus_stays_inside_the_open_overlay` and `test_the_page_behind_does_not_scroll` (both pin UA behaviour, and their positive controls stand in for a break). If any test has never been seen to fail, break it now or delete it — a test that cannot fail is worse than no test, because it reads as coverage.
 
 - [ ] **Step 8: Commit any review-driven change**
 
