@@ -1,7 +1,16 @@
 import re
+from pathlib import Path
 
 import pytest
+from bs4 import BeautifulSoup
+from django.urls import reverse
 
+from courses.models import Choice
+from courses.models import ChoiceQuestionElement
+from courses.models import QuizSubmission
+from courses.rollups import HIDDEN_PATH_SEP
+from courses.rollups import _current_ancestors
+from courses.rollups import _stamp_current_chain
 from courses.rollups import build_outline
 from courses.rollups import build_unit_nav
 from tests.factories import TEST_PASSWORD
@@ -9,7 +18,11 @@ from tests.factories import ContentNodeFactory
 from tests.factories import CourseFactory
 from tests.factories import EnrollmentFactory
 from tests.factories import UnitProgressFactory
+from tests.factories import add_element
+from tests.factories import make_quiz_unit
 from tests.factories import make_verified_user
+
+COLLAPSE_BREAKPOINT_PX = 832
 
 
 def _make_student(username):
@@ -17,6 +30,17 @@ def _make_student(username):
     return make_verified_user(
         username=username, email=f"{username}@t.example.com", password=TEST_PASSWORD
     )
+
+
+def _crumb_nav(html):
+    """The crumb <nav> as soup. The unit page renders the tree twice (rail + drawer)
+    but the crumb exactly once, so select_one is unambiguous.
+
+    NOTE: the returned Tag IS the <nav>. Read its own attributes directly
+    (soup["lang"]); a self-referential soup.select_one("nav.unit-crumbs") returns
+    None, because Tag.select_one matches descendants only.
+    """
+    return BeautifulSoup(html, "html.parser").select_one("nav.unit-crumbs")
 
 
 def _course_with_part():
@@ -400,3 +424,454 @@ def test_childless_group_keeps_the_plain_head_shape(client):
     html = client.get(f"/courses/{course.slug}/u/{unit.pk}/").content.decode()
 
     assert '<div class="unit-tree__head"' in html, "childless group keeps the plain div"
+
+
+def _chain_course(depth):
+    """A course with `depth` group ancestors above one lesson unit.
+
+    depth 0 -> unit is a root; 1 -> part; 2 -> part/chapter; 3 -> part/chapter/section.
+    Returns (course, groups, unit) with groups root-first.
+    """
+    course = CourseFactory()
+    kinds = ["part", "chapter", "section"][:depth]
+    groups, parent = [], None
+    for kind in kinds:
+        parent = ContentNodeFactory(
+            course=course,
+            kind=kind,
+            parent=parent,
+            unit_type=None,
+            title=f"{kind.title()} title",
+        )
+        groups.append(parent)
+    unit = ContentNodeFactory(
+        course=course, kind="unit", unit_type="lesson", parent=parent, title="The Unit"
+    )
+    return course, groups, unit
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("depth", [0, 1, 2, 3])
+def test_current_ancestors_returns_the_chain_root_first(depth):
+    student = _make_student(f"anc{depth}")
+    course, groups, unit = _chain_course(depth)
+
+    nav = build_unit_nav(course, student, unit)
+
+    assert [n.pk for n in nav["ancestors"]] == [g.pk for g in groups]
+
+
+@pytest.mark.django_db
+def test_current_ancestors_excludes_the_current_unit():
+    student = _make_student("anc_excl")
+    course, groups, unit = _chain_course(3)
+
+    nav = build_unit_nav(course, student, unit)
+
+    assert unit.pk not in [n.pk for n in nav["ancestors"]]
+    assert all(n.kind != "unit" for n in nav["ancestors"])
+
+
+@pytest.mark.django_db
+def test_current_ancestors_returns_empty_for_a_stamped_tree_with_no_match():
+    """Stamped-but-unmatched is a legitimate empty result, not an error."""
+    student = _make_student("anc_nomatch")
+    course, _groups, _unit = _chain_course(2)
+    tree = build_outline(course, student)
+    _stamp_current_chain(tree, -1)  # a pk that is certainly not in the tree
+
+    assert _current_ancestors(tree) == []
+
+
+@pytest.mark.django_db
+def test_current_ancestors_raises_on_an_unstamped_tree():
+    """Distinct from the empty case: forgetting to stamp must fail loudly."""
+    student = _make_student("anc_unstamped")
+    course, _groups, _unit = _chain_course(2)
+    tree = build_outline(course, student)
+
+    with pytest.raises(KeyError):
+        _current_ancestors(tree)
+
+
+@pytest.mark.django_db
+def test_current_ancestors_handles_a_skipped_level():
+    """A 'Full' course may still hold a unit whose only ancestor is a part."""
+    student = _make_student("anc_skip")
+    course = CourseFactory()
+    part = ContentNodeFactory(
+        course=course, kind="part", parent=None, unit_type=None, title="Only Part"
+    )
+    unit = ContentNodeFactory(
+        course=course, kind="unit", unit_type="lesson", parent=part
+    )
+
+    nav = build_unit_nav(course, student, unit)
+
+    assert [n.pk for n in nav["ancestors"]] == [part.pk]
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("depth,expected", [(0, ""), (1, ""), (2, "Part title")])
+def test_hidden_path_joins_all_but_the_deepest(depth, expected):
+    student = _make_student(f"hp{depth}")
+    course, _groups, unit = _chain_course(depth)
+
+    assert build_unit_nav(course, student, unit)["hidden_path"] == expected
+
+
+@pytest.mark.django_db
+def test_hidden_path_joins_with_the_spoken_separator_and_never_the_glyph():
+    """The visible '›' is aria-hidden; hidden_path is read aloud, so it must not
+    contain the glyph or a screen reader announces its Unicode name per crumb."""
+    student = _make_student("hp_sep")
+    course, groups, unit = _chain_course(3)
+
+    hidden_path = build_unit_nav(course, student, unit)["hidden_path"]
+
+    assert hidden_path == HIDDEN_PATH_SEP.join(g.title for g in groups[:-1])
+    assert "›" not in hidden_path
+
+
+@pytest.mark.django_db
+def test_crumb_renders_the_full_chain_with_one_leading_separator_each(client):
+    student = _make_student("crumb_chain")
+    course, groups, unit = _chain_course(3)
+    EnrollmentFactory(student=student, course=course)
+    client.force_login(student)
+
+    html = client.get(f"/courses/{course.slug}/u/{unit.pk}/").content.decode()
+
+    soup = _crumb_nav(html)
+    items = soup.select("li.unit-crumbs__item")
+    # course + ellipsis + 3 ancestors
+    assert len(items) == 5
+    # The course crumb has NO separator; every later crumb has exactly one.
+    assert items[0].select("span.unit-crumbs__sep") == []
+    for item in items[1:]:
+        assert len(item.select("span.unit-crumbs__sep")) == 1
+    assert {s.get_text(strip=True) for s in soup.select("span.unit-crumbs__sep")} == {
+        "›"
+    }
+    assert all(
+        s.get("aria-hidden") == "true" for s in soup.select("span.unit-crumbs__sep")
+    )
+
+
+@pytest.mark.django_db
+def test_course_crumb_links_to_the_outline_and_carries_its_title(client):
+    student = _make_student("crumb_course")
+    course, _groups, unit = _chain_course(2)
+    EnrollmentFactory(student=student, course=course)
+    client.force_login(student)
+
+    soup = _crumb_nav(
+        client.get(f"/courses/{course.slug}/u/{unit.pk}/").content.decode()
+    )
+
+    li = soup.select_one("li.unit-crumbs__item--course")
+    assert li["title"] == course.title
+    assert li.select_one("a.unit-crumbs__label")["href"] == f"/courses/{course.slug}/"
+
+
+@pytest.mark.django_db
+def test_group_crumbs_are_plain_text_never_links(client):
+    student = _make_student("crumb_plain")
+    course, _groups, unit = _chain_course(3)
+    EnrollmentFactory(student=student, course=course)
+    client.force_login(student)
+
+    soup = _crumb_nav(
+        client.get(f"/courses/{course.slug}/u/{unit.pk}/").content.decode()
+    )
+
+    for cls in ("--mid", "--leaf", "--ellipsis"):
+        items = soup.select(f"li.unit-crumbs__item{cls}")
+        assert items, f"no {cls} crumbs found"
+        assert all(li.select("a") == [] for li in items), (
+            f"{cls} crumb must not be a link"
+        )
+
+
+@pytest.mark.django_db
+def test_flat_course_renders_the_course_crumb_and_no_ellipsis(client):
+    student = _make_student("crumb_flat")
+    course, _groups, unit = _chain_course(0)
+    EnrollmentFactory(student=student, course=course)
+    client.force_login(student)
+
+    soup = _crumb_nav(
+        client.get(f"/courses/{course.slug}/u/{unit.pk}/").content.decode()
+    )
+
+    assert soup.select_one("li.unit-crumbs__item--course") is not None
+    assert soup.select("li.unit-crumbs__item--ellipsis") == []
+    assert soup.select("li.unit-crumbs__item--mid") == []
+
+
+@pytest.mark.django_db
+def test_ellipsis_carries_hidden_path_as_title_and_visually_hidden_text(client):
+    """The visually-hidden span is the SOLE accessibility carrier for the collapsed
+    crumbs — at the collapse breakpoint the mids are display:none and gone from the
+    accessibility tree. Without this test, deleting the span ships green."""
+    student = _make_student("crumb_ellipsis")
+    course, groups, unit = _chain_course(3)
+    EnrollmentFactory(student=student, course=course)
+    client.force_login(student)
+
+    soup = _crumb_nav(
+        client.get(f"/courses/{course.slug}/u/{unit.pk}/").content.decode()
+    )
+
+    expected = HIDDEN_PATH_SEP.join(g.title for g in groups[:-1])
+    li = soup.select_one("li.unit-crumbs__item--ellipsis")
+    assert li is not None
+    assert li["title"] == expected
+    span = li.select_one("span.visually-hidden")
+    assert span is not None, "ellipsis crumb is missing its visually-hidden span"
+    assert span.get_text(strip=True) == expected
+    assert li.get("aria-hidden") is None
+
+
+@pytest.mark.django_db
+def test_ellipsis_is_gated_on_ancestor_count_not_on_hidden_path_being_truthy(client):
+    """Two ancestors whose mid has a blank title yields hidden_path == "" while the
+    CSS still hides one crumb. Gating on the string would drop the ellipsis and
+    silently break invariant 5."""
+    student = _make_student("crumb_blank")
+    course = CourseFactory()
+    part = ContentNodeFactory(
+        course=course, kind="part", parent=None, unit_type=None, title=""
+    )
+    chapter = ContentNodeFactory(
+        course=course, kind="chapter", parent=part, unit_type=None, title="Chapter"
+    )
+    unit = ContentNodeFactory(
+        course=course, kind="unit", unit_type="lesson", parent=chapter
+    )
+    EnrollmentFactory(student=student, course=course)
+    client.force_login(student)
+
+    soup = _crumb_nav(
+        client.get(f"/courses/{course.slug}/u/{unit.pk}/").content.decode()
+    )
+
+    assert soup.select_one("li.unit-crumbs__item--ellipsis") is not None
+
+
+@pytest.mark.django_db
+def test_crumb_lives_inside_the_lesson_article(client):
+    """The two-file include is justified entirely by padding and lang inheritance from
+    the <article>. A later 'de-duplicate into _unit_shell.html' refactor would keep
+    every other test green while breaking both."""
+    student = _make_student("crumb_place")
+    course, _groups, unit = _chain_course(2)
+    EnrollmentFactory(student=student, course=course)
+    client.force_login(student)
+
+    html = client.get(f"/courses/{course.slug}/u/{unit.pk}/").content.decode()
+    soup = BeautifulSoup(html, "html.parser")
+
+    assert soup.select_one("article.lesson nav.unit-crumbs") is not None
+
+
+@pytest.mark.django_db
+def test_crumb_sets_ui_language_on_the_nav_and_course_language_on_each_item(client):
+    """Author titles are course-language; the aria-label is UI-language. Both live
+    inside <article lang="{{ course.language }}">, so the nav must override.
+
+    UI = pl, course = en — deliberately INVERTED from the defaults. settings
+    .LANGUAGE_CODE is "en" and conftest's autouse fixture pins the active language to
+    it, so a UI-language assertion of "en" would also pass against a hardcoded
+    lang="en" on the nav. Driving the UI to pl makes the two values distinguishable.
+    The session key is how this repo switches UI language for a client request
+    (SessionLocaleMiddleware); see tests/test_catalog_views.py for the precedent.
+    """
+    from core.middleware import LANGUAGE_SESSION_KEY
+
+    student = _make_student("crumb_lang")
+    course = CourseFactory(language="en")
+    part = ContentNodeFactory(
+        course=course, kind="part", parent=None, unit_type=None, title="Part One"
+    )
+    unit = ContentNodeFactory(
+        course=course, kind="unit", unit_type="lesson", parent=part
+    )
+    EnrollmentFactory(student=student, course=course)
+    client.force_login(student)
+    session = client.session
+    session[LANGUAGE_SESSION_KEY] = "pl"
+    session.save()
+
+    soup = _crumb_nav(
+        client.get(f"/courses/{course.slug}/u/{unit.pk}/").content.decode()
+    )
+
+    # soup IS the <nav> — read the attribute off it directly. Tag.select_one()
+    # matches DESCENDANTS only, so soup.select_one("nav.unit-crumbs") is None.
+    assert soup["lang"] == "pl"  # UI language
+    items = soup.select("li.unit-crumbs__item")
+    assert items and all(li["lang"] == "en" for li in items)  # course language
+
+
+@pytest.mark.django_db
+def test_crumb_carries_the_aria_scaffolding(client):
+    """WebKit drops list semantics under list-style:none, and changing an <li>'s
+    display away from list-item is a second trigger — hence both roles."""
+    student = _make_student("crumb_aria")
+    course, _groups, unit = _chain_course(2)
+    EnrollmentFactory(student=student, course=course)
+    client.force_login(student)
+
+    soup = _crumb_nav(
+        client.get(f"/courses/{course.slug}/u/{unit.pk}/").content.decode()
+    )
+
+    assert soup["aria-label"].strip()  # soup IS the <nav>; see the note above
+    assert soup.select_one("ol.unit-crumbs__list")["role"] == "list"
+    items = soup.select("li.unit-crumbs__item")
+    assert items and all(li["role"] == "listitem" for li in items)
+
+
+def _quiz_course():
+    """A course whose single unit is a quiz with one answerable question.
+
+    Uses the repo's real element API: a ChoiceQuestionElement plus Choice rows,
+    attached to the unit through an Element join-row via add_element().
+    """
+    course = CourseFactory()
+    part = ContentNodeFactory(
+        course=course, kind="part", parent=None, unit_type=None, title="Quiz Part"
+    )
+    unit = make_quiz_unit(course=course, parent=part, title="The Quiz")
+    question = ChoiceQuestionElement.objects.create(stem="<p>2+2?</p>", multiple=False)
+    right = Choice.objects.create(question=question, text="4", is_correct=True, order=0)
+    Choice.objects.create(question=question, text="5", is_correct=False, order=1)
+    element = add_element(unit, question)
+    return course, part, unit, element, right
+
+
+@pytest.mark.django_db
+def test_crumb_renders_on_the_quiz_page(client):
+    """quiz_unit redirects a SUBMITTED quiz away, so the student must have no
+    submission for this GET to reach _quiz_article.html at all."""
+    student = _make_student("crumb_quiz")
+    course, part, unit, _element, _right = _quiz_course()
+    EnrollmentFactory(student=student, course=course)
+    client.force_login(student)
+
+    # Go straight to quiz_unit. The lesson_unit URL 302s a quiz node here, so a GET
+    # without follow=True would return an empty 302 body and fail regardless of the
+    # implementation — the same trap is documented in this file's existing
+    # test_all_quiz_group_renders_no_counter_and_no_check.
+    url = reverse("courses:quiz_unit", kwargs={"slug": course.slug, "node_pk": unit.pk})
+    soup = BeautifulSoup(client.get(url).content.decode(), "html.parser")
+
+    assert soup.select_one("article.quiz nav.unit-crumbs") is not None
+    assert part.title in soup.select_one("nav.unit-crumbs").get_text()
+
+
+@pytest.mark.django_db
+def test_crumb_survives_the_no_js_check_answer_re_render(client):
+    """Omitting the fragment header makes check_answer re-render the whole page."""
+    student = _make_student("crumb_check")
+    course, groups, unit = _chain_course(2)
+    question = ChoiceQuestionElement.objects.create(stem="<p>2+2?</p>", multiple=False)
+    right = Choice.objects.create(question=question, text="4", is_correct=True, order=0)
+    element = add_element(unit, question)
+    EnrollmentFactory(student=student, course=course)
+    client.force_login(student)
+
+    url = reverse(
+        "courses:check_answer",
+        kwargs={"slug": course.slug, "node_pk": unit.pk, "element_pk": element.pk},
+    )
+    soup = BeautifulSoup(
+        client.post(url, {"choice": str(right.pk)}).content.decode(), "html.parser"
+    )
+
+    nav = soup.select_one("nav.unit-crumbs")
+    assert nav is not None
+    assert groups[-1].title in nav.get_text()
+
+
+@pytest.mark.django_db
+def test_crumb_survives_the_no_js_quiz_answer_re_render(client):
+    """quiz_answer needs an ENROLLED student (a previewer gets PermissionDenied), an
+    unlocked response with attempts left, and a NON-EMPTY answer — an empty POST
+    takes the validation branch instead."""
+    student = _make_student("crumb_qa")
+    course, part, unit, element, right = _quiz_course()
+    EnrollmentFactory(student=student, course=course)
+    client.force_login(student)
+
+    url = reverse(
+        "courses:quiz_answer",
+        kwargs={"slug": course.slug, "node_pk": unit.pk, "element_pk": element.pk},
+    )
+    soup = BeautifulSoup(
+        client.post(url, {"choice": str(right.pk)}, follow=True).content.decode(),
+        "html.parser",
+    )
+
+    nav = soup.select_one("nav.unit-crumbs")
+    assert nav is not None
+    assert part.title in nav.get_text()
+
+
+@pytest.mark.django_db
+def test_submitted_quiz_results_page_has_no_crumb(client):
+    """Stated non-goal: quiz_results.html is outside _unit_shell.html, has no
+    unit_nav, and is deliberately not covered. Also guards the redirect the quiz-GET
+    fixture above depends on."""
+    student = _make_student("crumb_results")
+    course, _part, unit, _element, _right = _quiz_course()
+    EnrollmentFactory(student=student, course=course)
+    QuizSubmission.objects.create(
+        student=student, unit=unit, status=QuizSubmission.Status.SUBMITTED
+    )
+    client.force_login(student)
+
+    resp = client.get(f"/courses/{course.slug}/u/{unit.pk}/", follow=True)
+
+    assert resp.redirect_chain, "a SUBMITTED quiz must redirect to the results page"
+    assert "unit-crumbs" not in resp.content.decode()
+
+
+def _media_block(css, query):
+    """The body of the @media block introduced by `query`, by brace matching."""
+    start = css.index(query) + len(query)
+    depth, i = 0, start
+    while i < len(css):
+        if css[i] == "{":
+            depth += 1
+        elif css[i] == "}":
+            depth -= 1
+            if depth == 0:
+                return css[start : i + 1]
+        i += 1
+    raise AssertionError(f"unterminated @media block for {query!r}")
+
+
+def test_collapse_breakpoint_is_in_bounds_and_matches_the_stylesheet():
+    """Invariant 7 plus the CSS<->constant coupling.
+
+    The range check is not redundant with the string check: because the expected
+    query is DERIVED from the constant, a retune updates constant, CSS and expected
+    string in lockstep and every other assertion stays green — while the e2e's third
+    viewport (BREAKPOINT + 1) silently slides below 640 into the rail-less regime and
+    stops sampling the four-crumb worst case. This bare range check is the only thing
+    standing between that retune and a vacuous e2e.
+    """
+    assert 640 < COLLAPSE_BREAKPOINT_PX < 1280
+
+    css = (
+        Path(__file__).resolve().parent.parent
+        / "courses/static/courses/css/courses.css"
+    ).read_text(encoding="utf-8")
+
+    query = f"@media screen and (max-width: {COLLAPSE_BREAKPOINT_PX}px)"
+    assert query in css, f"stylesheet does not contain {query!r}"
+    # Assert the crumb rule is INSIDE that block: a bare "max-width: NNNpx" substring
+    # could be satisfied by an unrelated pre-existing query at some values.
+    assert ".unit-crumbs__item--mid" in _media_block(css, query)

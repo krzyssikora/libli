@@ -33,6 +33,13 @@ _QUESTION_MODELS = [
     ExtendedResponseQuestionElement,
 ]
 
+# The separator used in hidden_path, which is READ ALOUD (it is the ellipsis crumb's
+# accessible name). Deliberately NOT the visible "›": the visible separators are
+# aria-hidden precisely so AT never announces the glyph's Unicode name, and joining
+# hidden_path with it would put the glyph straight back into the accessibility tree.
+# The visible glyph is authored only in templates/courses/_unit_crumbs.html.
+HIDDEN_PATH_SEP = ", "
+
 
 def _walk_preorder(course):
     """Yield every ContentNode of `course` in depth-first pre-order.
@@ -717,11 +724,41 @@ def _top_level_part(tree):
     return None
 
 
+def _current_ancestors(tree):
+    """Root→parent ContentNodes on the stamped current chain, excluding the unit.
+
+    REQUIRES a tree already stamped by _stamp_current_chain, and reads
+    contains_current directly (not via .get()) so an unstamped tree raises KeyError
+    loudly — the same contract _top_level_part uses. That is distinct from a stamped
+    tree with no match, which legitimately returns [] (build_unit_nav already handles
+    the no-match case defensively for prev/next).
+
+    Pure dict traversal over an already-materialised tree — no queries.
+
+    NOTE: courses/views_manage.py::_unit_ancestors does the same job for the BUILDER
+    breadcrumb by walking node.parent. The duplication is deliberate: the builder side
+    has no materialised tree to read from, so a parent walk is right there, whereas
+    here a walk would cost up to 3 extra queries per page load.
+    """
+    ancestors = []
+    level = tree
+    while True:
+        match = next((d for d in level if d["contains_current"]), None)
+        if match is None:
+            return ancestors
+        if not match["is_unit"]:
+            ancestors.append(match["node"])
+        level = match["children"]
+
+
 def build_unit_nav(course, user, current_node):
     """Pure navigation context for a unit page (mirrors build_lesson_context's role:
     the single source both unit views call, so they cannot drift).
 
-    Returns {tree, current_pk, prev, next, part_progress, course_progress}. Prev/Next
+    Returns {tree, current_pk, prev, next, part_progress, course_progress, ancestors,
+    hidden_path}. ancestors is the root→parent chain of the current unit (0–3 nodes,
+    unit excluded); hidden_path joins all but the deepest with HIDDEN_PATH_SEP and is
+    the collapsed "…" crumb's tooltip and accessible name. Prev/Next
     are the immediate neighbours of current_node among the is_unit leaves of the
     already-computed build_outline tree, located by pk (the walk builds its own node
     instances, distinct from the view's current_node). No queries beyond
@@ -751,6 +788,8 @@ def build_unit_nav(course, user, current_node):
             "title": top["node"].title,
         }
 
+    ancestors = _current_ancestors(tree)
+
     return {
         "tree": tree,
         "current_pk": current_node.pk,
@@ -758,4 +797,6 @@ def build_unit_nav(course, user, current_node):
         "next": next_node,
         "part_progress": part_progress,
         "course_progress": course_progress,
+        "ancestors": ancestors,
+        "hidden_path": HIDDEN_PATH_SEP.join(a.title for a in ancestors[:-1]),
     }
