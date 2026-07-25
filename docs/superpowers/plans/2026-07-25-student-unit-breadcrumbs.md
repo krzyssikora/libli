@@ -1359,14 +1359,14 @@ Expected: all pass.
 2. at 360px, both `--course` and `--leaf` labels have `clientWidth > 0`; and
 3. at `COLLAPSE_BREAKPOINT_PX + 1`, every `--mid` label has `clientWidth > 0`.
 
-All three are asserted by `test_labels_stay_inside_their_crumbs_and_never_overlap` (criterion 1 via `fits`, criterion 2 via the pinned-crumb `w > 0` loop, criterion 3 via the `SQUEEZED` branch) and `test_strip_never_overflows_and_stays_one_line`. So the check is: **after any retune, re-run the whole of `tests/test_e2e_unit_crumbs.py` plus `uv run pytest -q`, and re-confirm the primary falsifying mutation still goes red.** That last part matters — the floors *are* the subject of that mutation, so a retune in the wrong direction can quietly turn the primary guard into a test that is always green (floors so loose nothing shrinks) or always red (floors so tight the row cannot fit), and neither shows up as a failure at the time.
+Each maps to a specific assertion — worth knowing so a failure is located rather than hunted. **Criterion 1** → `test_strip_never_overflows_and_stays_one_line`'s `scrollWidth <= clientWidth`; when the floors over-run the column, each `<li>` still sits at its floor with its label fitting inside it, so `fits` stays *green* and only the overflow check goes red. **Criteria 2 and 3** → `test_labels_stay_inside_their_crumbs_and_never_overlap`, via the pinned-crumb `w > 0` loop and the `SQUEEZED` branch respectively. So the check is: **after any retune, re-run the whole of `tests/test_e2e_unit_crumbs.py` plus `uv run pytest -q`, and re-confirm the primary falsifying mutation still goes red.** That last part matters — the floors *are* the subject of that mutation, so a retune in the wrong direction can quietly turn the primary guard into a test that is always green (floors so loose nothing shrinks) or always red (floors so tight the row cannot fit), and neither shows up as a failure at the time.
 
 - [ ] **Step 2b: Sweep the existing unit-page e2e modules — now, not in Task 8**
 
 The browser harness exists as of this task, so run the modules most exposed to a new first child and a new focusable link **here**, while a regression is still attributable to one commit rather than to six commits and a design pass:
 
 ```bash
-uv run pytest -q -m e2e -n auto \
+uv run pytest -q -m e2e -n 2 \
   tests/test_e2e_unit_nav.py \
   tests/test_e2e_unit_head_layout.py \
   tests/test_e2e_scroll_affordance.py \
@@ -1375,6 +1375,15 @@ uv run pytest -q -m e2e -n auto \
 ```
 
 Expected: green. Task 8 still runs the whole browser suite at the end; this is the early, cheap half of that sweep. Foreground only.
+
+**If one goes red**, triage it exactly as Task 8 Step 2 does: a hard-coded y-coordinate or element index that the new first child shifted, or a tab-order assertion that now meets the crumb link first. Fix the **test** if it was over-specified about geometry it never meant to pin; fix the **crumb** if the breadcrumb genuinely broke something. Then re-run the repaired module *and* `uv run pytest -q`, and **commit the repair here**, in its own commit:
+
+```bash
+git add -- <the module(s) you repaired>
+git commit -m "test(e2e): adjust for the new breadcrumb first child"
+```
+
+Committing it here rather than leaving it for Task 8 matters: Task 8's Step 1 would then pass, its Step 3 says "if nothing needed repair, skip the commit entirely", and the repair would never be committed at all — leaving a dirty tree the Definition of Done forbids.
 
 - [ ] **Step 3: Falsify**
 
@@ -1508,6 +1517,10 @@ def test_capture_design_qa(browser, live_server):
                       const ecs = getComputedStyle(el), lcs = getComputedStyle(list);
                       const RING = parseFloat(ecs.outlineWidth)
                                  + parseFloat(ecs.outlineOffset);
+                      // A zero RING makes every comparison below degenerate to
+                      // "edge >= edge - padding", which is true even with the padding
+                      // removed — the check would report all-clear on a genuinely
+                      // clipped ring. Report it so Step 4 can reject the reading.
                       const SLACK = parseFloat(lcs.paddingLeft) - RING;
                       const a = el.getBoundingClientRect();
                       const l = list.getBoundingClientRect();
@@ -1575,10 +1588,13 @@ Open all six PNGs in `crumbs-qa/` and judge them per `verify-ui-with-screenshots
 
 Then check `crumbs-qa/findings.json`:
 
-- **`ring`** — `left`/`right`/`top`/`bottom` must all be `true`. A `false` on any side means the list's `padding: 5px` is missing or was reduced in that axis, and the focus ring is being clipped. The reported `ring` and `slack` values let you see what the check actually measured; `slack` should be ~1px, and a `slack` of 0 or negative means the padding no longer covers the ring at all.
+- **`ring`** — read the numbers **before** the booleans.
+  - **`ring` must be non-zero** (expect 4: a 2px outline at a 2px offset). A `ring` of 0 means the focused link computes no outline at all — for instance if the design pass swapped it for a `box-shadow`, which `overflow: hidden` *does* clip. With `ring == 0` every comparison degenerates to `edge >= edge - padding` and all four booleans come out `true` **even with the padding removed**, so a zero here means the measurement did not happen and the booleans must not be believed. Fix the CSS and re-measure.
+  - **`slack`** should be ~1px (the list's `padding` minus the ring). Zero or negative means the padding no longer covers the ring.
+  - Only then: `left`/`right`/`top`/`bottom` must all be `true`. A `false` on any side means the list's `padding: 5px` is missing or was reduced in that axis and the ring is being clipped.
 - **`aria` / `ax`** — informational; read them in Step 5.
 
-There is deliberately **no mouse-click measurement**: the ring is supplied by the global `:focus-visible` rule in `core/static/core/css/reset.css`, not by any rule this change authors, so there is no bare-`:focus` mistake available to make. (See the comment in the harness for why the earlier attempt at one was doubly broken.)
+There is deliberately **no mouse-click measurement**. This change *does* author `a.unit-crumbs__label:focus-visible`, but that rule is a verbatim duplicate of the global `:focus-visible` rule already in `core/static/core/css/reset.css`, so the ring's click behaviour is the platform's and the reset's, not this diff's — there is nothing a click test could catch here that the keyboard test does not. (See the comment in the harness for why the earlier attempt at one was doubly broken.)
 
 **If `ring` fails on any side, fix `courses/static/courses/css/courses.css` — do not relax the check — then re-run Step 3's harness and re-read `findings.json`.** This loop is mandatory: Step 2's gate ran *before* these measurements, so a CSS edit made here has been validated by nothing at the point Step 6 commits it. Keep looping until all four sides are `true`.
 
@@ -1647,12 +1663,16 @@ The e2e re-run is not redundant with Step 2: `pytest -q` inherits `addopts = "-q
 There are 69 `tests/test_e2e_*.py` modules. Serially they will not finish inside a single foreground tool invocation, and a killed run leaves exactly the orphaned browsers this plan warns about. Use xdist (already a dev dependency; CI runs `-m e2e -n 2`) and split into chunks so each invocation returns:
 
 ```bash
-uv run pytest -q -m e2e -n auto tests/test_e2e_a*.py tests/test_e2e_b*.py tests/test_e2e_c*.py tests/test_e2e_d*.py tests/test_e2e_e*.py tests/test_e2e_f*.py tests/test_e2e_g*.py
-uv run pytest -q -m e2e -n auto tests/test_e2e_[h-q]*.py
-uv run pytest -q -m e2e -n auto tests/test_e2e_[r-z]*.py
+uv run pytest -q -m e2e -n 2 tests/test_e2e_[a-g]*.py
+uv run pytest -q -m e2e -n 2 tests/test_e2e_[h-q]*.py
+uv run pytest -q -m e2e -n 2 tests/test_e2e_[r-z]*.py
 ```
 
-Each chunk should return in a few minutes. If one still approaches the invocation limit, split it further — a timeout here is a harness limit, **not** a test failure, and must not be recorded as one.
+Character classes, not `a*.py b*.py c*.py …`: an unmatched literal glob is passed through verbatim and pytest aborts the whole invocation with `ERROR: file or directory not found`, exit 4, having collected **nothing**. There is no `tests/test_e2e_d*.py` in this repo — exactly how an earlier draft of this step would have silently skipped 25 modules. The three classes cover all 69 files.
+
+`-n 2` matches CI (`.github/workflows/ci.yml` runs the browser suite at `-n 2`). Do **not** use `-n auto`: one browser process and one test database per core invites resource-contention flakes, which Step 2 would then misdiagnose as a breadcrumb regression.
+
+Each chunk should return in a few minutes. Two outcomes that are **not** test failures and must not be recorded as one: an invocation timeout (a harness limit — split the chunk further) and `ERROR: file or directory not found` (a command bug — fix the glob and re-run). And a failure that does not reproduce at `-n 0` is a contention flake, not a regression.
 
 - [ ] **Step 2: Triage any failure**
 
@@ -1668,7 +1688,7 @@ If you changed anything in Step 2 — **including** a template or CSS repair —
 ```bash
 uv run ruff format . && uv run ruff check .
 uv run pytest -q
-uv run pytest -q -m e2e -n auto tests/test_e2e_unit_crumbs.py tests/test_e2e_unit_nav.py
+uv run pytest -q -m e2e -n 2 tests/test_e2e_unit_crumbs.py tests/test_e2e_unit_nav.py <every module you touched or that failed in Step 1>
 git add -- <only the files you actually repaired>
 ```
 
@@ -1691,7 +1711,13 @@ Three things must reach the PR description, and no earlier step owns it:
 2. The `quiz_results.html` follow-up, from the same file.
 3. The result of this sweep — either "existing e2e suite green, no changes" or a one-line description of each repair and which category it fell into.
 
-Append (3) to `crumbs-qa-findings.md` under a `## Existing e2e suite` heading so the whole PR body has one source, then commit that file if it changed.
+Append (3) to `crumbs-qa-findings.md` under a `## Existing e2e suite` heading so the whole PR body has one source. **This step always runs**, whether or not Step 3 committed — on the "nothing needed repair" path it is the task's only commit, and the Definition of Done's clean-tree requirement depends on it:
+
+```bash
+uv run ruff format --check . && uv run ruff check .
+git add docs/superpowers/plans/crumbs-qa-findings.md
+git commit -m "docs: record the existing-e2e sweep result for the PR body"
+```
 
 ---
 
@@ -1702,6 +1728,6 @@ Append (3) to `crumbs-qa-findings.md` under a `## Existing e2e suite` heading so
 - [ ] `uv run ruff format --check .` and `uv run ruff check .` clean.
 - [ ] `test_build_unit_nav_adds_no_queries` still passes, unmodified.
 - [ ] `tests/test_i18n_po_health.py` passes; zero `#, fuzzy`, zero `#~`.
-- [ ] Six screenshots reviewed; `findings.json` shows the focus ring contained on all four sides at 360px; the ring does **not** appear on mouse click.
+- [ ] Six screenshots reviewed; `findings.json` shows the focus ring contained on all four sides at 360px, with a non-zero `ring` value proving the measurement actually ran.
 - [ ] `docs/superpowers/plans/crumbs-qa-findings.md` exists and holds the accessible-name measurement plus the `quiz_results.html` follow-up; the PR body quotes both from it.
 - [ ] The throwaway QA harness (`tests/test_e2e_crumbs_qa.py`) and `crumbs-qa/` are deleted, and `git status` reports a clean tree. `.env` is gitignored and must **not** appear — if it does, it was staged by mistake.
