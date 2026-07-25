@@ -37,7 +37,7 @@
 | `tests/test_e2e_unit_crumbs.py` (create) | Playwright e2e; imports `COLLAPSE_BREAKPOINT_PX` from the above |
 | `locale/{en,pl}/LC_MESSAGES/django.po` (modify) | The one new msgid, `Breadcrumb` |
 
-**Dependency direction:** exactly one cross-module test import, `test_e2e_unit_crumbs` → `test_unit_nav_render`. Never the reverse — the reverse is a collection-time `ImportError`.
+**Dependency direction:** exactly one *permanent* cross-module test import, `test_e2e_unit_crumbs` → `test_unit_nav_render`. Never the reverse — the reverse closes a cycle and raises `ImportError` at collection. (Task 7's throwaway QA harness adds two more imports, both pointing the same way; they are deleted with it.)
 
 ---
 
@@ -285,8 +285,10 @@ Above `_unit_ancestors`, add:
 - [ ] **Step 7: Run the tests to verify they pass**
 
 ```bash
-uv run pytest tests/test_unit_nav_render.py -q
+uv run pytest tests/test_unit_nav_render.py tests/test_courses_rollups.py -q
 ```
+
+`test_courses_rollups.py` is included because it is the module that owns `courses/rollups.py`'s coverage — five of its tests exercise `build_unit_nav` directly — and this is the first task to touch production Python.
 
 Expected: all pass, including the pre-existing `test_build_unit_nav_adds_no_queries` — the new work is pure dict traversal and must not move the query count off 2.
 
@@ -775,10 +777,12 @@ Temporarily comment out both include lines. Use the **single-line** `{# … #}` 
 Then:
 
 ```bash
-uv run pytest tests/test_unit_nav_render.py -k "quiz or check_answer or results" -q
+uv run pytest tests/test_unit_nav_render.py -k "crumb_quiz or crumb_check or crumb_qa or crumb_results" -q
 ```
 
-Expected: the three positive tests FAIL (`nav is None`); `test_submitted_quiz_results_page_has_no_crumb` passes either way — that one is falsified differently, in Step 4. **Restore both includes** and re-run to confirm GREEN before moving on.
+Expected: **4 collected** — the three positive tests FAIL (`nav is None`), and `test_submitted_quiz_results_page_has_no_crumb` passes either way, since it is falsified differently in Step 4. (The narrow `-k` names matter: a broader filter like `-k quiz` also sweeps in the pre-existing `test_all_quiz_group_renders_no_counter_and_no_check`, which passes regardless and makes the expected output harder to read.)
+
+**Restore both includes** and re-run to confirm GREEN before moving on. Step 4 re-applies a similar mutation per-test; that overlap is deliberate — this step proves the three positives are wired to the include at all, Step 4 proves each one is wired to the *specific* thing it names.
 
 - [ ] **Step 3: Run to verify they pass**
 
@@ -862,7 +866,7 @@ def test_collapse_breakpoint_is_in_bounds_and_matches_the_stylesheet():
     assert ".unit-crumbs__item--mid" in _media_block(css, query)
 ```
 
-Add `from pathlib import Path` to the imports.
+Placement: define `COLLAPSE_BREAKPOINT_PX` immediately after the imports (Task 6 imports it, so it must be module-level and easy to find), and append `_media_block` plus the test at the end of the file. Add `from pathlib import Path` to the imports.
 
 - [ ] **Step 2: Run to verify it fails**
 
@@ -990,6 +994,8 @@ uv run python manage.py makemessages -l pl -l en --no-obsolete
 grep -n -B2 -A4 'msgid "Breadcrumb"' locale/pl/LC_MESSAGES/django.po locale/en/LC_MESSAGES/django.po
 grep -c "#, fuzzy" locale/pl/LC_MESSAGES/django.po locale/en/LC_MESSAGES/django.po
 ```
+
+Expected: `0` for both files. `tests/test_i18n_po_health.py` asserts zero fuzzy entries across both catalogues, so any non-zero count must be cleared — two deletions each — before Step 4.
 
 A fuzzy entry can arrive **pre-filled from an unrelated msgid**; clearing the flag without replacing the text promotes a wrong translation. Clearing a fuzzy is **two** deletions — the `#, fuzzy` line *and* the `#| msgid` line above it.
 
@@ -1337,7 +1343,15 @@ def test_print_shows_the_whole_path_wrapped(browser, live_server):
 uv run pytest tests/test_e2e_unit_crumbs.py -q -m e2e
 ```
 
-Expected: all pass. If a floor value proves too tight or too loose at 360px, tune the `ch`/`em` starting values in the CSS — the spec explicitly calls them starting points to verify by measurement.
+Expected: all pass.
+
+**If a floor needs retuning** — the spec calls the `ch`/`em` values starting points to verify by measurement — the acceptance criterion is not "looks right". It is:
+
+1. The summed floors plus gaps stay **below the measured 360px content column** (~328px), so nothing is ever clipped at the minimum supported width; and
+2. at 360px, both `--course` and `--leaf` labels have `clientWidth > 0`; and
+3. at `COLLAPSE_BREAKPOINT_PX + 1`, every `--mid` label has `clientWidth > 0`.
+
+These are exactly what `test_labels_stay_inside_their_crumbs_and_never_overlap` and `test_strip_never_overflows_and_stays_one_line` already assert, so the check is: **after any retune, re-run the whole of `tests/test_e2e_unit_crumbs.py` plus `uv run pytest -q`, and re-confirm the primary falsifying mutation still goes red.** That last part matters — the floors *are* the subject of that mutation, so a retune in the wrong direction can quietly turn the primary guard into a test that is always green (floors so loose nothing shrinks) or always red (floors so tight the row cannot fit), and neither shows up as a failure at the time.
 
 - [ ] **Step 3: Falsify**
 
@@ -1435,7 +1449,13 @@ def test_capture_design_qa(browser, live_server):
             page.evaluate(
                 "t => document.documentElement.setAttribute('data-theme', t)", theme
             )
-            page.locator("nav.unit-crumbs").screenshot(
+
+            # Region shot, not an element shot: the self-critique below asks whether
+            # the strip competes with the <h1> and whether the muted colour holds
+            # contrast — both are judgements about the crumb IN CONTEXT, and a
+            # locator screenshot of the nav alone is a ~330x20px sliver that shows
+            # neither the heading nor the page background.
+            page.locator("article.lesson, article.quiz").first.screenshot(
                 path=str(OUT / f"crumbs-{width}-{theme}.png")
             )
 
@@ -1469,13 +1489,44 @@ def test_capture_design_qa(browser, live_server):
                       };
                     }"""
                 )
+                # :focus-visible, measured rather than eyeballed. A bare :focus would
+                # be indistinguishable from the keyboard check above, and this runs
+                # headless with no human at a mouse — so the mouse case needs its own
+                # measurement or it is not checked at all.
+                page.locator("a.unit-crumbs__label").click()
+                findings["mouse_ring"] = page.evaluate(
+                    "() => getComputedStyle("
+                    "document.querySelector('a.unit-crumbs__label')"
+                    ").outlineStyle"
+                )
+                page.go_back()
+                page.wait_for_selector("nav.unit-crumbs")
+
                 # Accessible name of a crumb <li>. The sync Python API has no
                 # accessible_name getter and page.accessibility.snapshot() is
-                # deprecated, so use aria_snapshot(); axe is NOT a dependency of this
-                # repo, so the axe half of the spec's suggestion is unavailable.
+                # deprecated; axe is NOT a dependency of this repo, so the axe half of
+                # the spec's suggestion is unavailable. aria_snapshot() is the cheap
+                # read, but whether it emits a name for a listitem named only by title
+                # is EXACTLY the uncertainty being measured — a snapshot with no name
+                # is indistinguishable from "no name exists". So take a CDP reading
+                # too, which reports the computed name and its source directly.
                 findings["aria"] = page.locator(
                     "li.unit-crumbs__item--leaf"
                 ).aria_snapshot()
+                cdp = ctx.new_cdp_session(page)
+                cdp.send("Accessibility.enable")
+                doc = cdp.send("DOM.getDocument")
+                node = cdp.send(
+                    "DOM.querySelector",
+                    {
+                        "nodeId": doc["root"]["nodeId"],
+                        "selector": "li.unit-crumbs__item--leaf",
+                    },
+                )
+                findings["ax"] = cdp.send(
+                    "Accessibility.getPartialAXTree",
+                    {"nodeId": node["nodeId"], "fetchRelatives": False},
+                )["nodes"]
             ctx.close()
 
     (OUT / "findings.json").write_text(json.dumps(findings, indent=2))
@@ -1493,12 +1544,41 @@ Open all six PNGs in `crumbs-qa/` and judge them per `verify-ui-with-screenshots
 
 Then check `crumbs-qa/findings.json`:
 
-- **`ring`** — all four sides must be `true`. A `false` on any side means the list's `padding: 5px` is missing or was reduced in that axis, and the focus ring is being clipped. Fix the CSS, do not relax the check. Also click the link with the mouse and confirm **no** ring appears — that is what `:focus-visible` buys, and a bare `:focus` would look identical to the keyboard test.
-- **`aria`** — informational only.
+- **`ring`** — all four sides must be `true`. A `false` on any side means the list's `padding: 5px` is missing or was reduced in that axis, and the focus ring is being clipped.
+- **`mouse_ring`** — must be `"none"`. Anything else means the ring rule is on `:focus` rather than `:focus-visible` and paints on mouse click too.
+- **`aria` / `ax`** — informational; read them in Step 5.
+
+**If either check fails, fix `courses/static/courses/css/courses.css` — do not relax the check — then re-run Step 3's harness and re-read `findings.json`.** This loop is mandatory: Step 2's gate ran *before* these measurements, so a CSS edit made here has been validated by nothing at the point Step 6 commits it. Keep looping until `ring` is `true` on all four sides and `mouse_ring` is `"none"`.
 
 - [ ] **Step 5: Record the accessible-name finding**
 
-Append the `aria` value and a one-line reading of it to `docs/superpowers/plans/crumbs-qa-findings.md`, together with the `quiz_results.html` follow-up note. That file is the carrier into the PR body — a measurement made in a throwaway script with nowhere to land is a measurement that gets lost.
+Create `docs/superpowers/plans/crumbs-qa-findings.md` (it does not exist yet) with exactly these two sections — the PR body quotes both, so the shape matters:
+
+```markdown
+# Breadcrumb QA findings
+
+## Accessible-name measurement
+
+Measured on <engine/version> at 360px, on `li.unit-crumbs__item--leaf`.
+
+- `aria_snapshot()`: <paste>
+- CDP computed name: <the `name.value` from the `ax` node, or "none emitted">
+- Reading: <one line — either "title contributes an accessible name duplicating the
+  label text" or "no accessible name is computed from title on a listitem">
+
+No change was made either way: the spec rules the remedy out of bounds because that
+`title` is load-bearing for render test 12, for the 360px e2e coupling assertion, and
+for the documented hover affordance.
+
+## Follow-up: no breadcrumb on quiz_results.html
+
+A student who has submitted a quiz is redirected to `quiz_results.html`, which renders
+outside `_unit_shell.html` with no sidebar tree, no drawer and no `unit_nav` — so it is
+the page with the *least* orientation and it deliberately gets no crumb in this change.
+Covering it needs a `build_unit_nav` call on that view plus its own alignment work.
+```
+
+Interpreting the two readings: if the CDP node reports a `name` whose value equals the crumb's title text, `title` **does** contribute an accessible name and the duplication the spec predicted is real. If no `name` is emitted, it does not. `aria_snapshot()` alone cannot settle this — a snapshot without a name is ambiguous between the two — which is why the CDP reading is taken.
 
 The spec predicts `title` on a `listitem` may produce an accessible name duplicating the label text. **Change nothing either way.** The remedy was considered and ruled explicitly out of bounds: that `title` is load-bearing for two tests and for the documented hover affordance.
 
@@ -1508,18 +1588,62 @@ The spec predicts `title` on a `listitem` may produce an accessible name duplica
 rm -rf tests/test_e2e_crumbs_qa.py crumbs-qa/
 uv run ruff format . && uv run ruff check .
 uv run pytest -q
+uv run pytest tests/test_e2e_unit_crumbs.py -q -m e2e
 git add courses/static/courses/css/courses.css tests/test_unit_nav_render.py docs/superpowers/plans/crumbs-qa-findings.md
 git commit -m "style(ui): design pass on the student breadcrumbs"
 ```
+
+The e2e re-run is not redundant with Step 2: `pytest -q` inherits `addopts = "-q -m 'not e2e'"` and therefore **excludes** the browser suite, so without this line any CSS the design pass or the Step-4 loop changed would be committed without the tests that actually guard the layout ever seeing it.
+
+`tests/test_unit_nav_render.py` is staged because the pass is allowed to retune the breakpoint, and retuning means moving `COLLAPSE_BREAKPOINT_PX` in lockstep with the CSS. Committing one without the other leaves a tree that is green locally and red in CI on `test_collapse_breakpoint_is_in_bounds_and_matches_the_stylesheet`. If the pass touched any other file, stage that too.
 
 `tests/test_unit_nav_render.py` is staged because the pass is allowed to retune the breakpoint, and retuning means moving `COLLAPSE_BREAKPOINT_PX` in lockstep with the CSS. Committing one without the other leaves a tree that is green locally and red in CI on `test_collapse_breakpoint_is_in_bounds_and_matches_the_stylesheet`. If the pass touched any other file, stage that too.
 
 ---
 
+### Task 8: Regression sweep over the existing browser suite
+
+**Files:** none — verification only.
+
+**Why:** this change inserts a `<nav>` and an `<ol>` as the **first child** of both `article.lesson` and `article.quiz`, and a new **focusable `<a>` ahead of all page content**. That shifts vertical geometry and tab order on every unit page. The plan gates twice on the non-e2e suite for exactly this collateral-breakage reason; the browser suite is the one most likely to be disturbed and `addopts = "-m 'not e2e'"` means none of the earlier gates ever ran it.
+
+- [ ] **Step 1: Run the unit-page e2e modules, foreground**
+
+```bash
+uv run pytest -q -m e2e \
+  tests/test_e2e_unit_nav.py \
+  tests/test_e2e_unit_head_layout.py \
+  tests/test_e2e_scroll_affordance.py \
+  tests/test_e2e_practice_state.py \
+  tests/test_e2e_notes.py
+```
+
+Foreground, never backgrounded — a background `-m e2e` sweep spawns runaway browsers.
+
+- [ ] **Step 2: Run the whole browser suite once**
+
+```bash
+uv run pytest -q -m e2e
+```
+
+Expected: green. A failure here is almost certainly one of two things — a hard-coded y-coordinate or element-index that the new first child shifted, or a tab-order assertion that now meets the crumb link first. Fix the **test** if it was over-specified about geometry it never meant to pin; fix the **crumb** if the breadcrumb genuinely broke something. State which in the commit message.
+
+- [ ] **Step 3: Commit any repairs**
+
+```bash
+uv run ruff format . && uv run ruff check .
+git add -- <only the files you actually repaired>
+git commit -m "test(e2e): adjust for the new breadcrumb first child"
+```
+
+If nothing needed repair, skip the commit and record "existing e2e suite green, no changes" in the PR body.
+
+---
+
 ## Definition of done
 
-- [ ] The 18 new tests in Tasks 1–4 and the 6 e2e tests in Task 6 are implemented, and **each has been falsified** — mutation applied, RED confirmed, reverted, GREEN confirmed. Two documented exceptions: the e2e page-level scroll tripwire (structurally unfalsifiable, exemption argued in the spec), and spec test 19 (`test_build_unit_nav_adds_no_queries`), which is pre-existing, must stay unmodified, and is verified by running it rather than by mutation.
-- [ ] `uv run pytest -q` green; `uv run pytest -m e2e tests/test_e2e_unit_crumbs.py` green.
+- [ ] The **21 new test functions** in Tasks 1–4 (which implement spec tests 1–18 — several spec items map to more than one function) and the 6 e2e tests in Task 6 are implemented, and **each has been falsified** — mutation applied, RED confirmed, reverted, GREEN confirmed. Two documented exceptions: the e2e page-level scroll tripwire (structurally unfalsifiable, exemption argued in the spec), and spec test 19 (`test_build_unit_nav_adds_no_queries`), which is pre-existing, must stay unmodified, and is verified by running it rather than by mutation.
+- [ ] `uv run pytest -q` green; `uv run pytest -q -m e2e` green — the **whole** browser suite, not just the new file (Task 8), since `addopts` excludes e2e from every other gate.
 - [ ] `uv run ruff format --check .` and `uv run ruff check .` clean.
 - [ ] `test_build_unit_nav_adds_no_queries` still passes, unmodified.
 - [ ] `tests/test_i18n_po_health.py` passes; zero `#, fuzzy`, zero `#~`.
