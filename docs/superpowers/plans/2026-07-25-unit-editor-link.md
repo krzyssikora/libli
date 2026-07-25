@@ -1148,17 +1148,24 @@ In `locale/pl/LC_MESSAGES/django.po`, blank one of the two new `msgstr`s (use `E
 
 ```bash
 uv run python manage.py compilemessages
-uv run pytest tests/test_unit_edit_link.py -v -k "pl_translation_present and Edit unit"
+uv run pytest "tests/test_unit_edit_link.py::test_pl_translation_present[Edit unit]" -v
 ```
 
-Expected: **1 failed** — and confirm it collected exactly one test, not zero. A `-k` filter that
-matches nothing reports "no tests ran" with exit code 5, which is not a RED.
+Expected: **1 failed** — and confirm it collected exactly one test, not zero.
+
+**Select the parametrised case by node id, quoted — not with `-k`.** Both param ids contain
+characters `-k`'s expression grammar rejects: `Edit unit` is two adjacent bare identifiers
+(`-k "pl_translation_present and Edit unit"` fails with `ERROR: Wrong expression passed to '-k' …
+expected end of input; got identifier`), and the other id, `(opens in a new tab)`, is worse — its
+parentheses parse as grouping. That is a *usage error* with its own exit code, not a RED and not the
+"no tests ran" exit 5; mistaking it for either would end the step believing something was verified.
+The quotes around the node id are required too: the `[...]` and the space are shell-significant.
 
 Then restore the `msgstr` and **re-run `compilemessages`** — skipping the recompile leaves a stale
 `.mo` with the blank translation, and the render test from Step 6 would then fail for a reason that
 has nothing to do with the template.
 
-Run this mutation's check **narrowly, by node/`-k`**: a blank PL `msgstr` also reddens
+Run this mutation's check **narrowly, by node id**: a blank PL `msgstr` also reddens
 `tests/test_i18n_po_health.py::test_pl_has_no_untranslated_msgid`, which is expected collateral and
 not a finding.
 
@@ -1404,10 +1411,16 @@ Two operational notes:
 - **Run that test with `-s`**, or pytest captures the print and the string never reaches you:
   `uv run pytest -m e2e tests/test_e2e_unit_strip_shots.py -v -s`.
 - `new_cdp_session` is **Chromium-only**. That is the repo's default browser, so the happy path is
-  fine; if the harness is run under Firefox or WebKit, substitute the framework-level probe —
-  `expect(page.get_by_role("link", name="Edit unit", exact=False)).to_be_visible()` plus
-  `print(page.locator(".unit-strip__edit").inner_text())` — and say in the report which probe you
-  used, since the second one reads the text content rather than the true computed name.
+  fine; if the harness is run under Firefox or WebKit, substitute this one-line fallback:
+
+  ```python
+  print(f"\nACCESSIBLE NAME (text fallback): {page.locator('.unit-strip__edit').inner_text()!r}\n")
+  ```
+
+  It needs no extra import — deliberately, since the imports block above omits `expect` and this
+  harness asserts nothing. **Say in the report which probe you used:** the fallback reads the
+  element's rendered text content, which is a proxy for the computed accessible name, not the name
+  itself.
 
 **Write THREE test functions** — `test_shots_owner(page, live_server)`,
 `test_shots_student(page, live_server)` and `test_shots_ab_narrow_student(page, live_server)`. Two of
@@ -1448,6 +1461,19 @@ Step 3 would then judge baseline images believing they showed the feature.
 Viewports: **desktop** `page.set_viewport_size({"width": 1280, "height": 900})`; **narrow**
 `page.set_viewport_size({"width": 400, "height": 900})`.
 
+**Every one of the three functions sets its viewport explicitly — none may inherit a default.**
+pytest-playwright's `page` fixture starts at **1280×720**, which is neither of these:
+
+- `test_shots_owner` — per the order table above, before *every* row.
+- `test_shots_student` — desktop, as its first statement after `_login`.
+- `test_shots_ab_narrow_student` — **narrow**, as its first statement after `_login`.
+
+Row 5 is the one that actually breaks silently. Written without its `set_viewport_size` call it
+captures at 1280px, and *nothing reports a problem*: Step 2's `nomin` hash gate still "differs" or
+not, the parity read still compares two same-width images, and Step 3's wrapped-layout criterion is
+judged against a shot that never wrapped. All three gates keep passing while measuring the wrong
+thing. **Sanity check: if a `narrow_*` PNG is 1280px wide, the viewport call is missing.**
+
 Keep the harness `ruff format`-clean anyway, so that a stray `ruff check` on it before Step 4 does not
 send you debugging scaffolding you are about to delete. The `page.evaluate(...)` line above is already
 in its collapsed form for that reason (split across lines it joins to exactly 88 characters, and
@@ -1473,8 +1499,15 @@ from it — use these exact keys:
 
 Each row is one `_shoot(page, "<row-name>")` call from Step 0, which handles both themes.
 
-Run: `uv run pytest -m e2e tests/test_e2e_unit_strip_shots.py -v` — in the **foreground**, and note
+Run: `uv run pytest -m e2e tests/test_e2e_unit_strip_shots.py -v -s` — in the **foreground**, and note
 that `-m e2e` is mandatory here for the same reason as in Task 7.
+
+**`-s` is mandatory too, and for a reason that only bites later.** pytest surfaces captured stdout for
+*failing* tests only, so without it the passing `test_shots_owner` swallows the `ACCESSIBLE NAME:`
+line that `_report_accessible_name` prints — and that line is the sole artifact of Step 3's
+accessibility check and a required element of this task's completion report. Step 4 deletes the
+harness, so an omission noticed after that point cannot be recovered without rebuilding it.
+**Before leaving this step, confirm the `ACCESSIBLE NAME:` line actually appeared in the output.**
 
 **If a light and dark pair are identical, the capture failed** — that is a harness bug, not a theme that happens to match.
 
@@ -1559,9 +1592,11 @@ SHOT_VARIANT=nomin uv run pytest -m e2e   tests/test_e2e_unit_strip_shots.py::te
 ```
 
 Restore the declaration afterwards. Compare `narrow_student_feature_light.png` against
-`narrow_student_nomin_light.png` by hash. They **must differ**. If the hashes match, the fixture
-failed to reproduce the hazard and the shot proves nothing — that is a fixture bug to fix, **not**
-evidence the declaration is unnecessary.
+`narrow_student_nomin_light.png` by hash, **and the `_dark` pair likewise** — `_shoot` has already
+written both files, so checking the second costs one more hash and closes the asymmetry with the
+parity gate below. They **must differ**. If the hashes match, the fixture failed to reproduce the
+hazard and the shot proves nothing — that is a fixture bug to fix, **not** evidence the declaration
+is unnecessary.
 
 *Parity validation (rows 5 AND 2):* produce the **feature-off baseline** — **do not check out
 master**, which discards the fixture code the shot depends on. Undo the feature's *rendering* in
@@ -1610,9 +1645,17 @@ look like a defect against a state that is expected.
 - **Panel border box** at ~400px with the panel open: its right edge sits within the content column.
 - **No horizontal overflow.** Only two rows have a feature-off baseline (rows 2 and 5, captured in
   Step 2), and only those two are judged *relatively*: no overflow beyond their `_baseline_` image.
-  **For the four owner rows there is no baseline and none is captured** — judge them by the absolute
-  criterion instead: no content is clipped at the viewport's right edge and no horizontal scrollbar
-  appears. Their automated counterpart is `tests/test_e2e_wide_content_scroll.py` in Step 5, which
+  **For the four owner rows there is no baseline and none is captured** — judge them by this absolute
+  criterion instead: **the PNG's pixel width equals the row's viewport width** (1280 for the desktop
+  rows, 400 for `narrow_owner`); a wider image means the page overflowed horizontally.
+
+  Do **not** phrase this as "nothing is clipped" or "no scrollbar appears" — neither is observable in
+  these artifacts. `_shoot` captures with `full_page=True`, and a full-page Chromium capture draws no
+  scrollbars at all and expands the image to the whole scrollable content box, so overflow never
+  shows up as clipping; it shows up only as extra image width. (Device pixel ratio is 1 by default
+  here, so image pixels and CSS pixels are the same number. If a run is ever configured otherwise,
+  compare against `viewport × DPR`.) Their automated counterpart is
+  `tests/test_e2e_wide_content_scroll.py` in Step 5, which
   asserts `scrollWidth <= clientWidth` at 390px on this exact page with an **owner** actor; that test,
   not this shot, is the binding overflow guard for the owner case.
 - **Student view** (`desktop_student_closed`) is visually equivalent to its `_baseline_` counterpart
@@ -1625,10 +1668,14 @@ look like a defect against a state that is expected.
   Step 1's `-s` run — that is the browser's own computed name, which is what a screen reader
   announces. **Copy that line verbatim into this task's completion report**, not into a commit (the
   happy path commits nothing); it is the sole artifact of the only verification this construction
-  ever gets. Expected: the label and the parenthetical are **separate words**, e.g.
-  `'Edit unit (opens in a new tab)'` — not run together as `'Edit unit(opens in a new tab)'`. If they
-  are run together, the `&nbsp;` was dropped or replaced by a collapsible space; that is a real
-  defect and Step 6 is where its fix gets committed.
+  ever gets. **The expected passing output is `'Edit unit\xa0(opens in a new tab)'`** — `\xa0` is the
+  `&nbsp;` from Task 2's partial doing exactly its job. `_report_accessible_name` prints with `!r`,
+  and Chromium's accname algorithm does not fold U+00A0 into a plain space, so the escape appearing
+  in the string is the **healthy** result, not a defect. A plain-space variant
+  (`'Edit unit (opens in a new tab)'`) is equally acceptable. The **only** defect signature is the
+  run-together form `'Edit unit(opens in a new tab)'`, which means the `&nbsp;` was dropped or
+  replaced by a collapsible space that `.visually-hidden`'s `position: absolute` then stripped; that
+  is real, and Step 6 is where its fix gets committed.
 - **`quiz_results` overhang is pre-recorded as ACCEPTED, not a pass/fail gate.** The strip spans 920px above a 736px `.result` article — ~90px per side. This is not new: the tag panel already does exactly this on master. Confirm it reads as deliberate rather than broken; if a human judges otherwise that is a follow-up styling decision, **not a blocker for this change**.
 
 - [ ] **Step 4: Delete the capture harness — BEFORE the lint gate**
@@ -1701,6 +1748,29 @@ automated check unrun.
 Never background an `-m e2e` run — it has previously spawned runaway browsers in this repo.
 
 If an **unrelated pre-existing flaky** test fails, prove it is not caused by this diff (re-run it on the base commit) and fix it in its **own** PR rather than bundling it here.
+
+- [ ] **Step 5b: Confirm the working tree is clean**
+
+```bash
+git -C . status --short
+```
+
+**Expected: empty output.** Anything listed means a mutation was never restored — and this plan
+performs a lot of them: Task 5's six individual CSS deletions, Task 8 Step 2's `min-width: 0` removal
+and its whole feature-off revert (three `{% include %}` lines plus two CSS rules), Task 6 Step 6/6b's
+template and catalog edits. Step 4's `git status --short` looks only for the stray harness file, so
+this is the first check that covers all of them.
+
+Two specific things to expect here and resolve rather than shrug at:
+
+- **A modified `.mo` file.** Step 5 re-runs `compilemessages`, which rewrites the binary catalogs
+  Task 6 already committed. If a `.mo` shows as modified, the recompile was not byte-identical —
+  most likely because a Step 6b restore was missed. Fix the `.po`, recompile, and confirm clean.
+- **A modified `courses.css` or template.** That is an unrestored falsification mutation. Restore it
+  and re-run Step 5's suite; do **not** commit it as a "fix".
+
+The branch is handed to the caller's finish stage from here, so an unrestored mutation left now would
+be reviewed and pushed as if it were intended.
 
 - [ ] **Step 6: Commit any screenshot-driven fixes**
 
