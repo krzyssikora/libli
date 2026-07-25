@@ -507,8 +507,8 @@ markup is always `<details class="unit-tags" >` (note the trailing space) or
 in **both** the healthy and the regressed state — which is why step 2's match assertion is mandatory.
 
 The test needs its **own** fixture — `CourseFactory(owner=user)` plus `ContentNodeFactory` — and must
-not reuse `tests/test_tags_consumption.py`'s `_enrolled(user, …)` helper, which creates a course with
-a factory-generated owner and merely enrolls the actor. With that helper the actor is not a manager,
+not reuse `tests/test_tags_consumption.py`'s `_enrolled(user, …)` helper, which builds a plain
+`CourseFactory()` — so the course has **no owner** (`owner=None`) — and merely enrolls the actor. With that helper the actor is not a manager,
 step 1 fails, and the whole test is misread as broken rather than as guarding something.
 
 Because the page render *does* carry `can_edit_unit`, moving the anchor into the panel partial makes
@@ -549,11 +549,12 @@ no link) case is the far more common one and the one that would regress for the 
 | `quiz_results`, desktop | owner (link present) | ✓ | ✓ |
 
 Naming the page matters, and `quiz_results` is not redundant with the lesson rows. `.app-main` is
-`max-width: 960px` with `var(--space-5)` padding, giving a content box of roughly **880px**. On
+`max-width: 960px` with `var(--space-5)` (20px) inline padding; `box-sizing: border-box` is global,
+so the content box is 960 − 2×20 = **920px**. On
 `lesson_unit`/`quiz_unit` the strip heads `.unit-shell`, whose `max-width: 72rem` is always clamped by
 that, so the two are the same width. On `quiz_results` it heads `.result`, which is
 `max-width: 46rem; margin-inline: auto` — **736px** — so the strip, and with it the right-pinned
-button, overhangs the article it heads by about **70px per side**.
+button, overhangs the article it heads by about **90px per side**.
 
 **This overhang is pre-recorded as accepted, not as a pass/fail gate**, because it is certain rather
 than hypothetical and it is not new: the tag panel already spans the full 880px above that same 736px
