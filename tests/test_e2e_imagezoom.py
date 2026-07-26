@@ -1,12 +1,19 @@
 """Playwright e2e for click-to-enlarge images.
 
-Media is NOT served under the test settings: config/settings/test.py sets DEBUG = False
-and config/urls.py routes /media/ only inside `if settings.DEBUG:`. So every fixture
-image would 404 and every geometry assertion would silently measure a broken image
-(naturalWidth == 0). `media_route` fulfils each /media/ request from MEDIA_ROOT with the
-real bytes, per request, and every geometry case asserts the natural size it expects
-BEFORE measuring anything. (live_server's StaticFilesHandler serves /static/ regardless
-of DEBUG, so the CSS and JS under test load normally -- only media needs intercepting.)
+Media IS served under live_server, regardless of DEBUG: django.test.testcases.
+LiveServerThread.run() (django/test/testcases.py:1755) unconditionally builds
+`self.static_handler(_MediaFilesHandler(WSGIHandler()))` -- no DEBUG check anywhere in
+that chain. `_MediaFilesHandler.get_base_dir()`/`get_base_url()`
+(django/test/testcases.py:1716-1726) return `settings.MEDIA_ROOT`/`settings.MEDIA_URL`
+at request time, so `/media/<path>` is served straight from `MEDIA_ROOT` via
+django.views.static.serve, entirely bypassing this project's own config/urls.py (whose
+DEBUG-gated route only matters for a real dev/prod server). This means `_isolated_media`
+is not just about not polluting the developer's real media/ tree: it is *also* what
+makes the fixture images resolve at all, because `_MediaFilesHandler` reads
+`settings.MEDIA_ROOT` per request -- point it at tmp_path and that is what gets served.
+No Playwright-level route interception is needed or present; every `naturalWidth`
+assertion below is a live guard against a MEDIA_ROOT misconfiguration or a
+wrongly-sized fixture, not a workaround for a serving gap that does not exist.
 
 Focus placement via locator.focus()/blur() is sanctioned SETUP here: several cases need
 a trigger focused but not activated, and a real click on an armed image opens the
@@ -19,8 +26,6 @@ background `-m e2e` sweep spawns runaway browsers.
 """
 
 import os
-import urllib.parse
-from pathlib import Path
 
 import pytest
 
@@ -49,38 +54,18 @@ def _allow_async_unsafe():
 
 @pytest.fixture(autouse=True)
 def _isolated_media(settings, tmp_path):
-    """Redirect MEDIA_ROOT before any asset exists.
+    """Redirect MEDIA_ROOT before any asset exists. Two independent reasons, both real:
 
-    Autouse and depended on by every asset fixture, deliberately: make_image_asset
-    writes its bytes through the FileField at create() time, so an override applied
-    later would drop a 1400x900 PNG into the developer's real media/ tree AND leave the
-    route resolver with nothing to map under tmp_path.
+    1. make_image_asset writes its bytes through the FileField at create() time, so an
+       override applied later would drop a 1400x900 PNG into the developer's real
+       media/ tree.
+    2. live_server's `_MediaFilesHandler` (see the module docstring) reads
+       `settings.MEDIA_ROOT` per request to decide what `/media/<path>` serves -- this
+       fixture pointing it at tmp_path is what makes a freshly created fixture image
+       resolve at all, not an optional convenience.
     """
     settings.MEDIA_ROOT = str(tmp_path)
     return tmp_path
-
-
-@pytest.fixture
-def media_route(settings):
-    """Install a per-request /media/ resolver on a page.
-
-    Per-request resolution, not one canned response: a handler that always returned the
-    1400x900 bytes would serve them for the 1x1 asset too, and the no-upscale case would
-    measure naturalWidth == 1400 while appearing to pass.
-    """
-
-    def install(page):
-        def handler(route, request):
-            rel = urllib.parse.urlparse(request.url).path.split("/media/", 1)[-1]
-            path = Path(settings.MEDIA_ROOT) / urllib.parse.unquote(rel)
-            if path.is_file():
-                route.fulfill(path=str(path))  # path=, so the MIME type is inferred
-            else:
-                route.fulfill(status=404)
-
-        page.route("**/media/**", handler)
-
-    return install
 
 
 # _student / _lesson_url / _login are defined here rather than imported from
@@ -141,9 +126,8 @@ def zoom_lesson(db, _isolated_media):
     return unit, user
 
 
-def _goto(page, live_server, unit, user, media_route):
+def _goto(page, live_server, unit, user):
     page.set_viewport_size(VIEWPORT)
-    media_route(page)
     _login(page, live_server, user)
     page.goto(_lesson_url(live_server, unit))
 
@@ -155,10 +139,10 @@ def _trigger(page):
 def _open(page, trigger):
     trigger.click()
     page.wait_for_selector("dialog.imgzoom[open]")
-    # The [open] attribute is set synchronously, but the overlay <img> re-requests
-    # through page.route (Chromium disables the HTTP cache for routed requests), so
-    # measuring immediately can read naturalWidth == 0 and a zero-area box. Wait for the
-    # decode before any geometry is taken.
+    # The [open] attribute is set synchronously, but the overlay <img> still has to
+    # request and decode its bytes, so measuring immediately can read naturalWidth == 0
+    # and a zero-area box regardless of who serves the file. Wait for the decode before
+    # any geometry is taken.
     page.wait_for_function(
         "() => { const i = document.querySelector('.imgzoom__img');"
         " return i && i.complete && i.naturalWidth > 0; }"
@@ -171,9 +155,10 @@ def _await_decoded(page, locator):
 
     locator.wait_for() defaults to state="visible", which only needs a non-empty box --
     and an <img> whose bytes have not arrived still gets one from its alt text, so
-    naturalWidth can legitimately read 0. Every fixture image is served through
-    page.route, and Chromium disables the HTTP cache for routed requests, so this race
-    is real for the inline trigger exactly as it is for the overlay image.
+    naturalWidth can legitimately read 0. This race is real independent of who serves
+    the bytes (see the module docstring): a fresh request always needs a round trip and
+    a decode, and it applies to the inline trigger exactly as it does to the overlay
+    image.
     """
     locator.wait_for()
     page.wait_for_function(
@@ -191,16 +176,17 @@ def _natural_width(locator):
     return locator.evaluate("el => el.naturalWidth")
 
 
-def test_harness_serves_the_real_fixture_image(
-    page, live_server, zoom_lesson, media_route
-):
+def test_harness_serves_the_real_fixture_image(page, live_server, zoom_lesson):
     """The precondition every geometry case depends on.
 
-    Without the media route this fails with naturalWidth == 0, which is exactly the
-    silent failure the route exists to prevent.
+    Django's live_server serves /media/ from MEDIA_ROOT on its own (see the module
+    docstring), so this assertion is not a workaround for a serving gap -- it is a live
+    guard against a MEDIA_ROOT misconfiguration (e.g. _isolated_media mis-ordered
+    relative to asset creation) or a fixture built at the wrong size: either would
+    surface here as naturalWidth != 1400 instead of silently measuring the wrong image.
     """
     unit, user = zoom_lesson
-    _goto(page, live_server, unit, user, media_route)
+    _goto(page, live_server, unit, user)
     trigger = _trigger(page)
     _await_decoded(page, trigger)
     assert _natural_width(trigger) == 1400
