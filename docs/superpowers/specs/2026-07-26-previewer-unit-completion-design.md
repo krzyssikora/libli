@@ -178,7 +178,11 @@ the student, and this spec accepts that rather than hiding it behind "pre-existi
 *shape* predates the change; the odds do not. Take a `seen` flush whose UPDATE is issued *between*
 `complete`'s `SELECT … FOR UPDATE` and `complete`'s COMMIT. On the base commit `complete` holds no
 lock and runs in autocommit, so that UPDATE lands **first** and `complete`'s write then overwrites
-it — benign. With the lock, the same UPDATE **blocks** until `complete` commits (a plain `UPDATE`
+it — benign **for the click's outcome**, and only that. Say it precisely, because this paragraph is
+addressed to a future `seen`-hardener who would otherwise read the base as clean: on base that same
+overwrite discards the flush's own `seen_element_ids`, since `complete`'s unlocked full-row `save()`
+writes back the seen-set it read *before* the flush landed. The sliver is therefore a **trade** — a
+reversal of which side loses — not a move from a lossless state to a lossy one. With the lock, the same UPDATE **blocks** until `complete` commits (a plain `UPDATE`
 does block on an existing `FOR UPDATE`, per the mechanism established just above) and *then* writes
 its stale row — `completed=False` — back over the click. An interleaving that used to resolve in the
 student's favour now resolves against them. The new losing set is the old one plus this
@@ -201,7 +205,7 @@ very one that just wrote `False`. Two interleavings follow:
   That property is about un-flipping a server-rendered pill, never about the click's own outcome.)
 
 So the loss is **recoverable but potentially silent**, not permanent: nothing re-sets the row by
-itself unless a later flush completes the element set (`current.issubset(merged)`, `views.py:664`),
+itself unless a later flush completes the element set (`current.issubset(merged)`, `views.py:665`),
 yet any re-click after any reload restores it. "Lost for good" overstates it; "harmless"
 understates it. Narrowing the mitigation is not on the table:
 `complete` is one code path for both populations, and taking the lock only on a previewer branch
@@ -267,7 +271,9 @@ on. `build_lesson_context` is the only producer of `seen_count`/`element_count` 
 (`views.py:441-442`), and **no template or view in the repo reads either**. Be precise about the
 grep, or a verifier hits an unrelated match and cannot tell whether this claim missed it: there is
 no other **context key** named `element_count` outside the transfer-preview context
-(`transfer/importer.py:444` → `manage/import_preview.html`); `courses/views_manage.py::_element_count`
+(`courses/transfer/importer.py:444` → `templates/courses/manage/import_preview.html` — walkable
+paths, since this is the sentence demanding grep precision);
+`courses/views_manage.py::_element_count`
 (defined `:542`, called `:434`) is an unrelated helper whose value lands under the key `"elements"`.
 The asymmetry is therefore deliberate
 rather than discovered, and closed rather than merely bounded to one page.
@@ -283,6 +289,13 @@ callers:
 
 All three now show "✓ Completed" to a previewer who has marked the unit, which is the correct
 outcome and comes for free from the single shared assignment.
+
+**And the closed form for the key itself, in the same register as `seen_count` above:** `progress`
+has exactly **two** references repo-wide, both in `templates/courses/_lesson_article.html` (`:12`
+and `:14`), and nothing in `full_lesson_render_context` or the rest of the template tree reads it.
+So making `progress` non-`None` for previewers has exactly one render consequence — the pill. Stated
+because the enumeration above bounds the *surfaces* but not the *consumers*, and a reader otherwise
+cannot tell whether the read edit leaks anywhere else.
 
 **`check_answer`'s JS path never re-renders the pill at all.** `full_lesson_render_context` is
 called only *after* the `if _wants_fragment(request):` early return (`views.py:825-845`), and
@@ -313,8 +326,10 @@ with a message about new write routes and an unresettable state-bearing type —
 nothing to do with this diff, and exactly the confusing-failure shape the query-count caveat and
 the §7 `_login` trap exist to pre-empt. **State the ban against the regex, not against a list of
 literals** — a literal list is both leaky and over-broad, since `row.element_state= blob` matches the
-pattern while evading any literal, and `element_state[pk]` with no following `=` matches neither. So:
-**no comment body in `courses/views.py` may match**
+pattern while evading any literal, and `element_state[pk]` with no following `=` matches neither. The
+ban also covers **docstrings, not just comments** — `read_text()` strips neither, and one of the five
+corrections below *is* a docstring (`build_lesson_context`, ≈:273-275). So: **no prose this diff adds
+to `courses/views.py`, comment or docstring, may match**
 
 ```
 \.update\(\s*element_state=|element_state\.pop\(|element_state\[[^\]]*\]\s*=|\.element_state\s*=(?!=)
@@ -383,8 +398,10 @@ against its own behaviour. All five below are corrections of fact:
   their practice state both persist; it is specifically the **scroll signal** that is dropped. This
   comment sits exactly at the asymmetry the spec most wants legible, so it must name that asymmetry:
   seen-tracking is not recorded for previewers, while completion via the explicit button is.
-  **It must also cite the guard by name — `test_previewer_seen_no_write_and_ignores_stored_completion`
-  (the post-rename name Testing §3 pins).** This bullet is the *binding* statement of that
+  **It must also cite the guard the way the precedent does — as a module path plus function:
+  `tests/test_courses_progress.py::test_previewer_seen_no_write_and_ignores_stored_completion`
+  (the post-rename name Testing §3 pins).** A bare function name is not greppable to a file, and the
+  DoD's reviewer gate cannot check a drifted reference without knowing where to look. This bullet is the *binding* statement of that
   requirement; Architecture §3 and Testing §3 both defer to it, so there is one place to change if it
   is ever revisited. Citing a test from a comment is house style here, not an innovation —
   `UnitProgress.element_state`'s own comment cites `tests/test_element_state_write_routes.py` the
@@ -602,6 +619,16 @@ It must be rewritten, never left alongside a contradicting new test.
      seed **`UnitProgressFactory(student=viewer, unit=unit, completed=False, element_state={…})`**
      — both kwargs mandatory, see 6(b) — POST `complete`, assert `completed is True`, `completed_at`
      stamped, **and `element_state` byte-identical after `refresh_from_db()`**.
+     **Seed the blob with STRING keys, or the assertion false-REDs against correct code.**
+     `element_state` is a `JSONField`: an int-keyed seed (`{1: {...}}`) round-trips as `{"1": {...}}`,
+     so comparing to the in-memory literal fails for a reason that has nothing to do with the write.
+     Int keys are the natural mistake here, because `build_lesson_context` hands the *template* an
+     int-keyed map (`views.py:405-412`) while the real writer `save_element_state` stores
+     `element_state[str(element_pk)]` — and the repo has already been bitten by exactly this
+     (`courses/tests/test_reset_controls.py:224` documents "STR key, DICT value"). Use production
+     shape: `element_state={str(element_row.pk): {"answer": "x"}}`, and compare against that
+     string-keyed literal (or a value captured from the DB), never against a dict whose keys JSON
+     will coerce.
      *Falsify:* the `completed` half rides 1(a)'s recipe (restore the `is_enrolled` branch → RED).
      The `element_state` half is **exempt in writing**, on the §11 reasoning: sequentially,
      `get_or_create` re-reads the row, so the blob survives even a lock-less implementation and no
@@ -1094,6 +1121,12 @@ route, and their two negative twins (archived group, unrelated logged-in user) o
 **Invocation: every command below goes through `uv run`.** Bare `ruff`, `pytest` and `python` are
 not on PATH in this repo's shell, and the spec is otherwise exact about invocation (the `-m e2e`
 exit-5 trap), so spelling them bare here would cost an implementer a command-not-found round.
+**And pin the test database, because this work happens in a worktree.** Concurrent pytest runs
+across worktrees collide on the shared Postgres `test_libli`, and `-n auto` widens that window; the
+run needs a worktree-unique `DATABASE_URL` (equivalently, a worktree-unique test-DB name), and **no
+second pytest invocation may run at the same time**. A collision here produces failures with nothing
+to do with this diff — the same false-failure register as the query-count caveat immediately below,
+and it must be ruled out before any failure is attributed to the change.
 
 - Full non-e2e suite green (`uv run pytest -n auto`), no new failures against the base. One caveat: the repo
   records `tests/test_html_element.py::test_lesson_html_render_query_count_invariant` as already
