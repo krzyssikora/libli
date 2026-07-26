@@ -148,6 +148,27 @@ def test_manager_who_is_not_an_accessor_gets_404(client):
     assert resp.status_code == 404
 
 
+def test_sanitiser_passes_internal_links_through_untouched():
+    """The single assumption every other decision in part 1 rests on.
+
+    No custom scheme, no marker class, href-prefix CSS -- all of it is justified by
+    sanitize_html leaving a relative anchor alone. A future tightening of
+    ALLOWED_ATTRIBUTES would silently void every stored link with nothing going red.
+    The two negative rows are what the URL contract's rejections exist for.
+    """
+    from courses.sanitize import sanitize_html
+
+    keeps = '<a href="/courses/n/12/">u</a>'
+    assert sanitize_html(keeps) == keeps
+    # Survives untouched -- an off-site link wearing a relative disguise, which is why
+    # the dialog rejects it rather than trusting the sanitiser to.
+    off_site = '<a href="//evil.com/x">x</a>'
+    assert sanitize_html(off_site) == off_site
+    # Stripped at SAVE, after the author saw a working-looking link -- which is why the
+    # dialog rejects it up front instead.
+    assert sanitize_html('<a href="javascript:alert(1)">j</a>') == "<a>j</a>"
+
+
 def test_anonymous_is_redirected_to_login(client):
     course, _chapter, unit = _course_with_chapter()
     resp = client.get(reverse("courses:node_permalink", kwargs={"node_pk": unit.pk}))
@@ -207,14 +228,22 @@ def node_permalink(request, node_pk):
 - [ ] **Step 5: Run the tests to verify they pass**
 
 Run: `uv run pytest tests/test_node_permalink.py -q`
-Expected: PASS (8 tests).
+Expected: PASS (9 tests).
 
-- [ ] **Step 6: Falsify the 404-not-403 guard**
+- [ ] **Step 6: Falsify the sanitiser guard**
+
+Temporarily add `"class"` to `ALLOWED_ATTRIBUTES["a"]` in `courses/sanitize.py` and
+change the first assertion's input to carry a class. Confirm
+`test_sanitiser_passes_internal_links_through_untouched` still passes (the guard is
+about *hrefs*), then instead remove `"href"` from `ALLOWED_ATTRIBUTES["a"]` and confirm
+it FAILS. Restore.
+
+- [ ] **Step 7: Falsify the 404-not-403 guard**
 
 Temporarily change `raise Http404(...)` to `raise PermissionDenied`. Run
 `uv run pytest tests/test_node_permalink.py -q`. Expected: `test_inaccessible_course_is_404_not_403` and `test_manager_who_is_not_an_accessor_gets_404` FAIL. Restore the `Http404`.
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
 git add courses/urls.py courses/views.py tests/test_node_permalink.py
@@ -287,8 +316,13 @@ def test_target_highlight_is_scoped_to_the_row_not_the_li():
 
 
 def test_outline_li_has_scroll_margin():
+    # Scoped to the rule, not the file: a bare `"scroll-margin-top" in css` would pass
+    # on any unrelated occurrence in a 3000-line stylesheet -- including before this
+    # change was made at all.
     css = APP_CSS.read_text(encoding="utf-8")
-    assert "scroll-margin-top" in css
+    assert ".outline-node {" in css
+    block = css.split(".outline-node {", 1)[1].split("}", 1)[0]
+    assert "scroll-margin-top" in block
 ```
 
 - [ ] **Step 2: Run the tests to verify they fail**
@@ -335,11 +369,18 @@ In `core/static/core/css/app.css`, immediately after the existing `.outline-unit
 Run: `uv run pytest tests/test_outline_anchors.py -q`
 Expected: PASS (3 tests).
 
-- [ ] **Step 6: Check both themes**
+- [ ] **Step 6: Falsify both guards**
+
+Remove `id="node-{{ item.node.pk }}"` from `_outline_node.html`; confirm
+`test_outline_rows_carry_a_node_id` FAILS; restore. Then change the highlight selector
+to a bare `.outline-node:target`; confirm
+`test_target_highlight_is_scoped_to_the_row_not_the_li` FAILS; restore.
+
+- [ ] **Step 7: Check both themes**
 
 Start the app (`uv run python manage.py runserver`), open a course outline with `#node-<pk>` for a chapter, and screenshot in light and dark. Judge dark separately — do not infer it from light. If the highlight is illegible in either, adjust the two custom properties above and re-check.
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
 git add templates/courses/_outline_node.html core/static/core/css/app.css tests/test_outline_anchors.py
@@ -483,7 +524,9 @@ def test_query_count_is_flat_in_tree_size(client, django_assert_num_queries):
         # 1 session, 1 user, 1 course lookup (+perm), 1 _children_map
         client.get(url)
     # The invariant that actually matters: the tree costs ONE query regardless of size.
-    node_queries = [q for q in captured.captured_queries if "courses_contentnode" in q["sql"]]
+    node_queries = [
+        q for q in captured.captured_queries if "courses_contentnode" in q["sql"]
+    ]
     assert len(node_queries) == 1, node_queries
 ```
 
@@ -531,7 +574,7 @@ def link_picker(request, slug):
 `templates/courses/manage/editor/_link_picker.html` — seeds `level=1`. Django's `add` filter returns `""` for a non-numeric input, so a missing `level` would render *every* `aria-level` empty at every depth:
 
 ```html
-{% load courses_manage_extras %}
+{# get_item is needed only in the ROW partial; this one just loops top_nodes. #}
 <ol class="link-picker__scope" role="none">
   {% for node in top_nodes %}
     {% include "courses/manage/editor/_link_picker_node.html" with n=node children_map=children_map level=1 %}
@@ -582,7 +625,12 @@ focusable and keyboard-operable.{% endcomment %}
 - [ ] **Step 6: Run the tests to verify they pass**
 
 Run: `uv run pytest tests/test_link_picker.py -q`
-Expected: PASS (8 tests).
+
+Expected: 7 pass, and `test_query_count_is_flat_in_tree_size` **probably fails** with the
+real number — 4 is a lower bound, not a measurement. `can_manage_course` runs
+`user.has_perm(...)` (a group/permission query on a cold cache) and allauth's
+`AccountMiddleware` reads `EmailAddress` on every authenticated request, neither of which
+the comment lists. Record the real number, then apply the rule below.
 
 If the query-count test reports a different number, do **not** just record it. Read the
 captured queries (`django_assert_num_queries` prints them on failure) and apply this
@@ -958,7 +1006,8 @@ def test_remove_leaves_the_caret_at_the_end_of_the_recovered_text(page_with_modu
         {"remove": True},
         (
             "(s) => { const r = window.getSelection().getRangeAt(0);"
-            " return [r.collapsed, r.startContainer.textContent.slice(0, r.startOffset)]; }"
+            " const before = r.startContainer.textContent.slice(0, r.startOffset);"
+            " return [r.collapsed, before]; }"
         ),
     )
     assert got[0] is True
@@ -1290,7 +1339,7 @@ def test_dialog_is_not_inside_any_data_scope(client):
     node = soup.select_one(".link-dialog")
     assert node is not None, "dialog partial is not rendered at all"
     for parent in node.parents:
-        assert not (parent.has_attr and parent.get("data-scope")), (
+        assert not parent.get("data-scope"), (
             "the dialog must not sit inside a [data-scope] pane"
         )
 
@@ -1299,6 +1348,19 @@ def test_editor_loads_both_js_modules(client):
     html, _course = _editor(client)
     assert "link_apply.js" in html
     assert "link_dialog.js" in html
+
+
+def test_tree_mount_is_a_named_tree(client):
+    # role="tree" and the aria-label must live on the SAME element -- the mount div.
+    # Delete either and every treeitem becomes an orphan with no owning tree, and
+    # nothing else in the suite notices.
+    html, _course = _editor(client)
+    from bs4 import BeautifulSoup
+
+    mount = BeautifulSoup(html, "html.parser").select_one("[data-link-tree]")
+    assert mount is not None
+    assert mount.get("role") == "tree"
+    assert (mount.get("aria-label") or "").strip()
 
 
 def test_dialog_buttons_are_type_button(client):
@@ -1349,6 +1411,11 @@ def test_editor_css_defines_every_class_the_link_ui_uses():
         ".link-picker__item",
         ".link-picker__row",
         ".tree__badge",
+        # Exact substring: data-scope is NOT editor-only (the builder puts it on every
+        # tree scope), so a "simplification" to [data-scope] .el a would break the
+        # builder, and deleting the rule lets a preview click discard unsaved work --
+        # both silently.
+        '[data-scope="preview"] .el a',
     ):
         assert cls in css, f"editor.css must style {cls}"
 
@@ -1411,13 +1478,24 @@ nothing else -- see the dismissal handler in link_dialog.js.{% endcomment %}
            aria-label="{% trans 'Course content' %}"></div>
       <p class="link-dialog__msg" data-msg="loading">{% trans "Loading…" %}</p>
       <p class="link-dialog__msg" data-msg="empty" hidden>{% trans "This course has no content yet." %}</p>
-      <p class="link-dialog__msg" data-msg="nomatch" hidden>{% trans "No matches." %}</p>
+
       <p class="link-dialog__msg" data-msg="foreign" hidden>{% trans "This link's target is not in this course." %}</p>
       <p class="link-dialog__msg link-dialog__msg--error" data-msg="fetch" hidden>
         {% trans "Could not load the course tree." %}
         <button type="button" class="btn btn--small" data-link-retry>{% trans "Retry" %}</button>
       </p>
-      <p class="link-dialog__status" aria-live="polite" data-link-status></p>
+      {% comment %}The live region owns BOTH the count and the zero-match line, so the
+      state the debounce exists to convey is actually announced. A bare digit outside
+      it would be announced with no context and in no language.{% endcomment %}
+      <p class="link-dialog__status" aria-live="polite" data-link-status>
+        <span data-msg="nomatch" hidden>{% trans "No matches." %}</span>
+        <span data-link-count hidden></span>
+      </p>
+      {% comment %}The count's noun, carried as translatable text the JS reads. A fully
+      inflected count would need ngettext, which this dialog has no request cycle for --
+      an accepted simplification, stated so it is not mistaken for an oversight.
+      {% endcomment %}
+      <span data-count-template hidden>{% trans "matches found" %}</span>
     </div>
 
     <div class="picker__panel" role="tabpanel" id="link-panel-url"
@@ -1481,6 +1559,10 @@ Append to `courses/static/courses/css/editor.css`:
 .link-dialog__msg { margin: var(--space-2) 0 0; color: var(--text-secondary); font-size: .85rem; }
 .link-dialog__msg--error { color: var(--danger); }
 .link-dialog__status { margin: var(--space-2) 0 0; font-size: .8rem; color: var(--text-secondary); }
+/* editor.css's existing .search rules are scoped to .picker, which this dialog is not,
+   so without these the filter renders at the UA default width inside a 34rem dialog. */
+.link-dialog .search { display: block; margin-bottom: var(--space-3); }
+.link-dialog .search .input { width: 100%; }
 
 /* A UA <dialog> caps at roughly the viewport, so without an explicit cap a 925-row
    tree either overflows or grows the dialog past the screen. */
@@ -1562,6 +1644,7 @@ stubbed with page.route so no server is needed; everything else -- <dialog>, foc
 tabs, keyboard -- is the genuine browser.
 """
 
+import os
 from pathlib import Path
 
 import pytest
@@ -1572,6 +1655,20 @@ pytestmark = pytest.mark.e2e
 JS_DIR = (
     Path(__file__).resolve().parent.parent / "courses" / "static" / "courses" / "js"
 )
+
+# page.set_content leaves the document on about:blank, where a ROOT-RELATIVE fetch
+# throws "Failed to parse URL" before it ever reaches the network -- so page.route
+# never fires and every test hangs. MEASURED, not assumed. A <base> gives the injected
+# document a real origin; the value is arbitrary because the fetch is stubbed.
+BASE = "<base href='https://example.test/'>"
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _allow_sync_orm_under_playwright():
+    # Every e2e file in this repo sets this; the fixture below touches the ORM inside a
+    # live Playwright session, which raises SynchronousOnlyOperation without it.
+    os.environ.setdefault("DJANGO_ALLOW_ASYNC_UNSAFE", "true")
+    yield
 
 TREE_HTML = """
 <ol class="link-picker__scope" role="none">
@@ -1598,12 +1695,17 @@ def dialog_page(page, db):
     markup = render_to_string(
         "courses/manage/editor/_link_dialog.html", {"course": course}
     )
-    page.set_content(f"<main>{markup}</main>")
-    page.route(
-        "**/link-picker/", lambda route: route.fulfill(status=200, body=TREE_HTML)
-    )
+    page.set_content(f"{BASE}<main>{markup}</main>")
+    routed = {"n": 0}
+
+    def _serve(route):
+        routed["n"] += 1
+        route.fulfill(status=200, body=TREE_HTML)
+
+    page.route("**/link-picker/", _serve)
     page.add_script_tag(path=str(JS_DIR / "link_apply.js"))
     page.add_script_tag(path=str(JS_DIR / "link_dialog.js"))
+    page.__routed = routed          # so _open can prove the stub was really hit
     return page
 
 
@@ -1620,6 +1722,9 @@ def _open(page, **opts):
         {"existing": None, "touchedAnchors": 0, "selectionText": "", **opts},
     )
     page.locator(".link-picker__item").first.wait_for()
+    # Prove the stub was actually reached. Without this, a regression to about:blank
+    # shows up as an opaque wait_for timeout instead of a clear cause.
+    assert page.__routed["n"] >= 1
 
 
 def test_module_exports_when_markup_is_present(dialog_page):
@@ -1693,6 +1798,20 @@ def test_arrow_down_moves_within_the_roving_set(dialog_page):
     )
 
 
+def test_enter_in_the_url_field_inserts(dialog_page):
+    # Spec: "Enter presses Insert from the URL field and the Link text field only ...
+    # without this rule Enter would do nothing anywhere." Nothing else exercises it.
+    _open(dialog_page)
+    dialog_page.locator("[data-tab='url']").click()
+    dialog_page.locator("[data-link-url]").fill("https://ok.test/a")
+    dialog_page.locator("[data-link-text]").fill("Ref")
+    dialog_page.locator("[data-link-url]").press("Enter")
+    assert dialog_page.evaluate("() => window.__result") == {
+        "href": "https://ok.test/a",
+        "text": "Ref",
+    }
+
+
 def test_insert_returns_href_and_text(dialog_page):
     _open(dialog_page)
     dialog_page.locator("[data-node='2']").click()
@@ -1715,12 +1834,22 @@ def test_url_is_normalised_in_the_field_before_insert(dialog_page):
     assert dialog_page.locator("[data-link-url]").input_value() == "https://example.com"
 
 
-def test_rejected_url_shows_its_own_message_and_disables_insert(dialog_page):
+@pytest.mark.parametrize(
+    "value,key",
+    [
+        ("javascript:alert(1)", "scheme"),
+        ("//evil.com/x", "protocol-relative"),
+        ("/path", "relative"),
+    ],
+)
+def test_rejected_url_shows_its_own_message_and_disables_insert(dialog_page, value, key):
+    # All THREE reject keys, because msg() no-ops silently when a key has no element:
+    # rename one and the author gets a disabled Insert with no explanation, suite green.
     _open(dialog_page)
     dialog_page.locator("[data-tab='url']").click()
-    dialog_page.locator("[data-link-url]").fill("javascript:alert(1)")
+    dialog_page.locator("[data-link-url]").fill(value)
     dialog_page.locator("[data-link-text]").fill("x")
-    assert dialog_page.locator("[data-msg='scheme']").is_visible()
+    assert dialog_page.locator(f"[data-msg='{key}']").is_visible()
     assert dialog_page.locator("[data-link-insert]").is_disabled()
 
 
@@ -1734,8 +1863,14 @@ def test_every_dismissal_path_fires_the_callback_exactly_once(dialog_page, how):
     else:
         # A modal <dialog> does NOT close on a backdrop click by itself; the content
         # lives in an inner card so e.target === dialog means the backdrop.
+        # Click demonstrably OUTSIDE the dialog's own box: bounding_box() returns the
+        # <dialog>, not the backdrop, and the card fills it (padding: 0), so a point
+        # just inside the corner hits the card and only "works" if the border-radius
+        # happens to reject that pixel -- a coincidence, not a contract.
         box = dialog_page.locator(".link-dialog").bounding_box()
-        dialog_page.mouse.click(box["x"] + 2, box["y"] + 2)
+        x, y = 10, 10
+        assert x < box["x"] or y < box["y"], (x, y, box)
+        dialog_page.mouse.click(x, y)
     assert dialog_page.evaluate("() => window.__calls") == 1
     assert dialog_page.evaluate("() => window.__result") is None
 
@@ -1793,6 +1928,18 @@ def test_no_match_hides_the_tree_and_says_so(dialog_page):
     _open(dialog_page)
     dialog_page.locator("[data-link-filter]").fill("zzz-nothing")
     assert dialog_page.locator("[data-msg='nomatch']").is_visible()
+    # The zero-match line must sit INSIDE the live region, or the state the debounce
+    # exists to convey is never announced.
+    assert dialog_page.locator("[data-link-status] [data-msg='nomatch']").count() == 1
+
+
+def test_the_live_region_announces_a_labelled_count(dialog_page):
+    _open(dialog_page)
+    dialog_page.locator("[data-link-filter]").fill("quad")
+    dialog_page.wait_for_timeout(600)          # past the 400ms debounce
+    text = dialog_page.locator("[data-link-count]").inner_text().strip()
+    assert text.startswith("1 ")
+    assert len(text) > 2, "a naked digit is not an announcement"
 
 
 def test_a_failed_fetch_is_not_cached_and_retries_on_the_next_open(page, db):
@@ -1802,7 +1949,7 @@ def test_a_failed_fetch_is_not_cached_and_retries_on_the_next_open(page, db):
     markup = render_to_string(
         "courses/manage/editor/_link_dialog.html", {"course": course}
     )
-    page.set_content(f"<main>{markup}</main>")
+    page.set_content(f"{BASE}<main>{markup}</main>")
     calls = {"n": 0}
 
     def handler(route):
@@ -1840,8 +1987,8 @@ def test_dismissing_mid_fetch_does_not_paint_a_fetch_error(page, db):
     markup = render_to_string(
         "courses/manage/editor/_link_dialog.html", {"course": course}
     )
-    page.set_content(f"<main>{markup}</main>")
-    page.route("**/link-picker/", lambda route: None)   # never resolves
+    page.set_content(f"{BASE}<main>{markup}</main>")
+    page.route("**/link-picker/", lambda route: None)  # never resolves
     page.add_script_tag(path=str(JS_DIR / "link_apply.js"))
     page.add_script_tag(path=str(JS_DIR / "link_dialog.js"))
     page.evaluate(
@@ -2008,7 +2155,14 @@ Create `courses/static/courses/js/link_dialog.js`:
     // Debounced: a polite region that changes every keystroke queues one utterance per
     // character and drowns the "No matches." case it exists for.
     clearTimeout(filterTimer);
-    filterTimer = setTimeout(function () { statusEl.textContent = shown + ""; }, 400);
+    filterTimer = setTimeout(function () {
+      // Announce a COUNT WITH A LABEL, never a naked digit. The zero-match line lives
+      // inside this same region, so entering and leaving that state is announced too.
+      var label = dialog.querySelector("[data-count-template]");
+      var countEl = dialog.querySelector("[data-link-count]");
+      countEl.hidden = false;
+      countEl.textContent = shown + " " + (label ? label.textContent.trim() : "");
+    }, 400);
   }
   filterEl.addEventListener("input", applyFilter);
 
@@ -2042,6 +2196,9 @@ Create `courses/static/courses/js/link_dialog.js`:
     clearMessages();
     msg("loading", true);
     if (treeHtml !== null) { paint(treeHtml); return; }
+    // NOTE: this only guards a re-entrant loadTree() from the Retry button. A second
+    // open() while one is pending is rejected in open() itself, and close() aborts and
+    // nulls `pending`, so there is no cross-open "reuse the in-flight request" path.
     if (pending) return;
     aborted = false;
     aborter = new AbortController();
@@ -2180,8 +2337,14 @@ Create `courses/static/courses/js/link_dialog.js`:
 
       var m = existing && PERMALINK.exec(existing.href || "");
       var tab = "node";
+      // The raw stored href goes into the URL field WHENEVER there is one, including
+      // for an internal permalink: if the pk turns out not to be in this course's
+      // tree, paint() shows the "not in this course" line and the author still needs
+      // to see and edit exactly what is stored. Setting it only on the else-branch
+      // would leave that field empty in precisely that case.
+      if (existing) urlEl.value = existing.href || "";
       if (m) { wantNode = m[1]; }
-      else if (existing) { urlEl.value = existing.href || ""; tab = "url"; }
+      else if (existing) { tab = "url"; }
 
       // showModal FIRST, then focus. A closed <dialog> is display:none, so a .focus()
       // before it is a no-op -- and showModal then autofocuses the first focusable
@@ -2215,11 +2378,27 @@ Move the `(tab === "node" ? filterEl : urlEl).focus();` line to *before* `dialog
 Delete the `if (callback) return;` line. Run the tests. Expected:
 `test_a_second_open_while_pending_is_rejected` FAILS. Restore.
 
-- [ ] **Step 8: Check it in the real page**
+- [ ] **Step 8: Screenshot the dialog in both themes**
+
+This is the largest new UI surface in the feature and the only one with no theme pass
+yet. Open it on a real editor page and capture, in **light and dark separately**:
+
+1. the *In this course* tab with the tree **scrolled** and a row **selected**;
+2. the same with a filter applied, so `aria-disabled` ancestor rows are visible;
+3. the *Web address* tab showing a rejection message.
+
+Judge dark on its own — do not infer it from light. `--surface-raised` /
+`--surface-sunken` / `--border-subtle` invert between themes, the `::backdrop` sits over
+different content, and `.link-picker__item[aria-disabled="true"] { opacity: .55 }` on
+`--text-secondary` is exactly the low-contrast shape this repo's `--text-tertiary`
+lesson warns about. If a recessed row is unreadable in either theme, raise the opacity
+or switch to a colour token rather than leaving it.
+
+- [ ] **Step 9: Check it in the real page**
 
 Start the server, open a unit editor, and confirm the console shows no error on page load. The toolbar link button still opens the **old `window.prompt`** at this point — Task 7 is what replaces it.
 
-- [ ] **Step 9: Commit**
+- [ ] **Step 10: Commit**
 
 ```bash
 git add courses/static/courses/js/link_dialog.js tests/test_link_dialog_behaviour.py
@@ -2366,7 +2545,7 @@ with:
 - [ ] **Step 4: Run to verify it passes**
 
 Run: `uv run pytest tests/test_link_toolbar_wiring.py -q`
-Expected: PASS (3 tests).
+Expected: PASS (4 tests).
 
 - [ ] **Step 5: Try it by hand**
 
@@ -2490,7 +2669,7 @@ Run: `uv run python manage.py makemessages -l pl -l en --no-obsolete`
 
 - [ ] **Step 2: Translate every new msgid into Polish**
 
-Open `locale/pl/LC_MESSAGES/django.po` and fill each new entry — *Insert link*, *In this course*, *Web address*, *Filter by title…*, *Course content*, *Loading…*, *This course has no content yet.*, *No matches.*, *This link's target is not in this course.*, *Could not load the course tree.*, *Retry*, *Link text*, *Remove link*, *Cancel*, *Insert*, and the three URL-rejection messages.
+Open `locale/pl/LC_MESSAGES/django.po` and fill each new entry — *Insert link*, *In this course*, *Web address*, *Filter*, *Filter by title…*, *Course content*, *Loading…*, *This course has no content yet.*, *No matches.*, *matches found*, *This link's target is not in this course.*, *Could not load the course tree.*, *Retry*, *Link text*, *Remove link*, *Cancel*, *Insert*, and the three URL-rejection messages.
 
 **Clear any fuzzy entry properly — that is TWO deletions:** the `#, fuzzy` line *and* the `#| msgid` comment above it. A fuzzy match arrives pre-filled from an unrelated msgid, so an un-cleared one ships a wrong translation that looks done.
 
@@ -2539,7 +2718,11 @@ Three selector facts, each verified against the templates, that the tests depend
 - the element list is `.element-list`, and a row's edit affordance is the button
   carrying `data-form-url` (it fetches `courses:manage_element_form`) — clicking the
   `<li data-element>` itself does nothing;
-- the save control is `form[data-op="element-save"] button[type="submit"]`.
+- the save control is `form[data-op="element-save"] button[type="submit"]`;
+- **click `[data-node='<pk>'] > .link-picker__row`, never the `<li>` itself.** A non-leaf
+  row's `<li>` contains its children's nested `<ol>`, so its bounding box spans the
+  descendants too and Playwright's centre-point click lands on a *child* row — which is
+  a legitimate element, so actionability passes and the wrong node is silently selected.
 
 Create `tests/test_e2e_link_dialog.py`:
 
@@ -2658,7 +2841,7 @@ def test_insert_internal_link_then_follow_it(page, live_server):
 
     dialog = _open_link_dialog(page)
     assert dialog.locator("[data-tab='node']").get_attribute("aria-selected") == "true"
-    dialog.locator(f"[data-node='{chapter.pk}']").click()
+    dialog.locator(f"[data-node='{chapter.pk}'] > .link-picker__row").click()
     # Prefill precedence: a non-empty selection beats the node title.
     assert dialog.locator("[data-link-text]").input_value() == "quadratics"
     dialog.locator("[data-link-insert]").click()
@@ -2693,7 +2876,7 @@ def test_collapsed_caret_defaults_link_text_to_the_node_title(page, live_server)
 
     page.locator(".rte-surface").click()
     dialog = _open_link_dialog(page)
-    dialog.locator(f"[data-node='{chapter.pk}']").click()
+    dialog.locator(f"[data-node='{chapter.pk}'] > .link-picker__row").click()
     assert dialog.locator("[data-link-text]").input_value() == chapter.title
 
 
@@ -2726,9 +2909,63 @@ def test_keyboard_only_insert(page, live_server):
     page.keyboard.press("Enter")
     assert dialog.locator("[aria-selected='true'][data-node]").count() == 1
 
+    # Finish without the mouse too -- Tab to the text field, type, Enter. A test that
+    # advertises itself as keyboard-only must not click Insert.
+    page.keyboard.press("Tab")
+    page.keyboard.press("Tab")
+    assert page.evaluate("() => document.activeElement.hasAttribute('data-link-text')")
+    page.keyboard.type("Chapter")
+    page.keyboard.press("Enter")
+    dialog.wait_for(state="hidden")
+
+
+@pytest.mark.django_db(transaction=True)
+def test_dismissing_restores_the_caret(page, live_server):
+    """The case the spec says would silently regress if the range were not cloned.
+
+    A source grep for "cloneRange()" passes for code that clones the wrong object,
+    clones after showModal(), or drops the restore entirely.
+    """
+    owner = _make_pa_user("pa")
+    course, _chapter, unit = _seed(owner)
+    _login(page, live_server, "pa")
+    _open_editor(page, live_server, course, unit)
+    _add_text_element(page)
+
+    page.locator(".rte-surface").click()
+    page.keyboard.type("See the chapter on quadratics")
+    page.keyboard.press("Control+Shift+ArrowLeft")
+    assert page.evaluate("() => window.getSelection().toString()") == "quadratics"
+
+    _open_link_dialog(page)
+    page.keyboard.press("Escape")
+    page.locator(".link-dialog").wait_for(state="hidden")
+    assert page.evaluate("() => window.getSelection().toString()") == "quadratics"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_detached_surface_discards_and_explains(page, live_server):
+    """A data-loss path: without this the author sees a successful insert and then
+    loses the link on save. Two source greps cannot tell dead code from live code."""
+    owner = _make_pa_user("pa")
+    course, chapter, unit = _seed(owner)
+    _login(page, live_server, "pa")
+    _open_editor(page, live_server, course, unit)
+    _add_text_element(page)
+
+    page.locator(".rte-surface").click()
+    page.keyboard.type("text")
+    dialog = _open_link_dialog(page)
+    # Simulate editor.js swapping the pane out from under the open dialog.
+    page.evaluate("() => document.querySelector('.rte-surface').remove()")
+    dialog.locator(f"[data-node='{chapter.pk}'] > .link-picker__row").click()
     dialog.locator("[data-link-text]").fill("Chapter")
     dialog.locator("[data-link-insert]").click()
     dialog.wait_for(state="hidden")
+
+    assert page.locator(".op-error").count() == 1
+    conflict = page.locator(".editor").get_attribute("data-msg-conflict")
+    assert page.locator(".op-error").inner_text().strip() == conflict.strip()
 
 
 @pytest.mark.django_db(transaction=True)
