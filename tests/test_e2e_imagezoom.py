@@ -316,3 +316,170 @@ def test_nothing_but_the_image_is_visible(page, live_server, zoom_lesson, tmp_pa
                 y,
                 px,
             )
+
+
+@pytest.fixture
+def tall_lesson(db, _isolated_media):
+    """zoom_lesson plus enough text that the page scrolls at 1280x800."""
+    from courses.models import TextElement
+
+    course = CourseFactory()
+    unit = _image_unit(course)
+    for i in range(12):
+        text = TextElement.objects.create(body=f"<p>Filler paragraph {i}.</p>")
+        add_element(unit, text)
+    user = _student("tallstudent")
+    EnrollmentFactory(course=course, student=user)
+    return unit, user
+
+
+def test_second_click_closes_and_restores_focus(page, live_server, zoom_lesson):
+    """Smoke test of the close path.
+
+    This case CANNOT falsify the explicit `trigger.focus()`, and no Chromium e2e can:
+    Chromium focuses the trigger on mousedown -- after any blur, before the delegated
+    handler runs showModal() -- so the recorded pre-open focus is the trigger and the
+    native restore satisfies this even with our line deleted. The source-level assertion
+    in tests/test_imagezoom_render.py is the sole guard on it.
+    """
+    unit, user = zoom_lesson
+    _goto(page, live_server, unit, user)
+    trigger = _trigger(page)
+    dialog = _open(page, trigger)
+    dialog.click()
+    page.wait_for_selector("dialog.imgzoom[open]", state="detached")
+    assert trigger.evaluate("el => el === document.activeElement")
+
+
+def test_escape_closes_the_overlay(page, live_server, zoom_lesson):
+    unit, user = zoom_lesson
+    _goto(page, live_server, unit, user)
+    _open(page, _trigger(page))
+    page.keyboard.press("Escape")
+    page.wait_for_selector("dialog.imgzoom[open]", state="detached")
+
+
+def test_escape_does_not_also_close_the_unit_drawer(page, live_server, zoom_lesson):
+    """The only guard on the stopImmediatePropagation decision.
+
+    The gesture is spelled out because the obvious one is impossible: an open drawer is
+    position:fixed; inset:0; z-index:50 with a full-viewport scrim carrying
+    data-unit-drawer-close, so a real click on the image lands on the scrim and closes
+    the drawer instead. Opening the overlay first is impossible too -- a modal <dialog>
+    makes the document inert. So: focus the trigger (sanctioned setup) and press Enter.
+    """
+    unit, user = zoom_lesson
+    page.set_viewport_size({"width": 390, "height": 844})  # drawer only exists <=640px
+    _login(page, live_server, user)
+    page.goto(_lesson_url(live_server, unit))
+
+    page.click("[data-unit-drawer-open]")
+    drawer = page.locator(".unit-drawer")
+    assert drawer.evaluate("el => !el.hidden")
+
+    _trigger(page).focus()
+    page.keyboard.press("Enter")
+    page.wait_for_selector("dialog.imgzoom[open]")
+
+    page.keyboard.press("Escape")
+    page.wait_for_selector("dialog.imgzoom[open]", state="detached")
+    assert drawer.evaluate("el => !el.hidden"), "one Escape closed the drawer too"
+
+
+def test_double_click_opens_then_closes(page, live_server, zoom_lesson):
+    """The accepted behaviour: the second click lands on the now-covering dialog."""
+    unit, user = zoom_lesson
+    _goto(page, live_server, unit, user)
+    trigger = _trigger(page)
+
+    # Positive control first, or this test cannot tell "opened then closed" from "never
+    # opened at all": a 404'd script, a bailed feature detect or a deleted click handler
+    # would all leave the count at 0 and read as GREEN.
+    box = _box(trigger)
+    point = (box["x"] + box["width"] / 2, box["y"] + box["height"] / 2)
+    trigger.click()
+    page.wait_for_selector("dialog.imgzoom[open]")  # proves the open really happens
+    page.keyboard.press("Escape")
+    page.wait_for_selector("dialog.imgzoom[open]", state="detached")
+
+    page.mouse.dblclick(*point)
+    assert page.locator("dialog.imgzoom[open]").count() == 0
+
+
+def test_enter_opens_from_the_keyboard(page, live_server, zoom_lesson):
+    unit, user = zoom_lesson
+    _goto(page, live_server, unit, user)
+    _trigger(page).focus()
+    page.keyboard.press("Enter")
+    page.wait_for_selector("dialog.imgzoom[open]")
+
+
+def test_accessible_names(page, live_server, zoom_lesson):
+    """Non-empty-alt branch here; the empty-alt branch is on the gallery fixture."""
+    unit, user = zoom_lesson
+    _goto(page, live_server, unit, user)
+    page.get_by_role("button", name="A labelled diagram").wait_for()
+    _open(page, _trigger(page))
+    # The dialog is named for the CONTROL, never with the image's alt -- naming both
+    # would make a screen reader read the description twice on entry.
+    dialog = page.locator("dialog.imgzoom")
+    assert dialog.get_attribute("aria-label") == "Enlarged image"
+
+
+def test_focus_stays_inside_the_open_overlay(page, live_server, zoom_lesson):
+    """UA focus trap. Non-obvious because the overlay contains no focusable element.
+
+    Nothing of ours to delete, so the positive control carries the weight: the same two
+    Tabs with the overlay CLOSED must move focus, proving the keypresses were dispatched
+    and that a pass is not "focus never entered the dialog".
+    """
+    unit, user = zoom_lesson
+    _goto(page, live_server, unit, user)
+
+    page.keyboard.press("Tab")
+    page.keyboard.press("Tab")
+    moved = page.evaluate("() => document.activeElement !== document.body")
+    assert moved, "positive control: Tab must move focus on the closed page"
+
+    _open(page, _trigger(page))
+    for _ in range(2):
+        page.keyboard.press("Tab")
+        inside = page.evaluate(
+            "() => document.querySelector('dialog.imgzoom')"
+            ".contains(document.activeElement)"
+        )
+        assert inside, "focus escaped the modal dialog"
+
+
+def test_close_removes_the_src_attribute(page, live_server, zoom_lesson):
+    """`img.src = ""` would resolve against the document URL and refetch the HTML page
+    as an image on every close."""
+    unit, user = zoom_lesson
+    _goto(page, live_server, unit, user)
+    dialog = _open(page, _trigger(page))
+    dialog.click()
+    page.wait_for_selector("dialog.imgzoom[open]", state="detached")
+    assert page.locator(".imgzoom__img").get_attribute("src") is None
+
+
+def test_the_page_behind_does_not_scroll(page, live_server, tall_lesson):
+    """Tests the platform claim rather than trusting it. The positive control IS the
+    falsification: there is no line of ours to delete."""
+    unit, user = tall_lesson
+    _goto(page, live_server, unit, user)
+    assert page.evaluate(
+        "() => document.documentElement.scrollHeight > window.innerHeight"
+    ), "fixture must be taller than the viewport or scrollY is 0 either way"
+
+    _open(page, _trigger(page))
+    before = page.evaluate("() => window.scrollY")
+    page.mouse.move(VIEWPORT["width"] / 2, VIEWPORT["height"] / 2)
+    page.mouse.wheel(0, 400)
+    page.wait_for_timeout(150)
+    assert page.evaluate("() => window.scrollY") == before
+
+    page.keyboard.press("Escape")
+    page.wait_for_selector("dialog.imgzoom[open]", state="detached")
+    page.mouse.wheel(0, 400)
+    page.wait_for_timeout(150)
+    assert page.evaluate("() => window.scrollY") > before, "positive control failed"
