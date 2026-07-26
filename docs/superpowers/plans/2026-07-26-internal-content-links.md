@@ -319,9 +319,14 @@ def test_outline_li_has_scroll_margin():
     # Scoped to the rule, not the file: a bare `"scroll-margin-top" in css` would pass
     # on any unrelated occurrence in a 3000-line stylesheet -- including before this
     # change was made at all.
+    # Anchored on a NEWLINE: the bare substring ".outline-node {" already matches the
+    # pre-existing `.outline-tree > ul > .outline-node {` rule (app.css:488), so an
+    # unanchored split lands on that block and the assertion fails even after the work
+    # is done correctly. Measured: "\n.outline-node {" is absent today and appears only
+    # once the new standalone rule is added -- so this still falsifies.
     css = APP_CSS.read_text(encoding="utf-8")
-    assert ".outline-node {" in css
-    block = css.split(".outline-node {", 1)[1].split("}", 1)[0]
+    assert "\n.outline-node {" in css
+    block = css.split("\n.outline-node {", 1)[1].split("}", 1)[0]
     assert "scroll-margin-top" in block
 ```
 
@@ -1250,8 +1255,14 @@ Expected: PASS. `-m e2e` is mandatory — without it pytest deselects everything
 
 - [ ] **Step 5: Lint this file now, not at the end**
 
-Run: `uv run ruff check tests/test_link_apply.py && uv run ruff format --check tests/test_link_apply.py`
-Expected: clean. `E501` (88 cols), `F401` (unused imports) and `I001` (isort, `force-single-line = true`) are all selected, so a grouped or over-long import block fails here rather than at Task 10.
+Run: `uv run ruff format tests/test_link_apply.py && uv run ruff check tests/test_link_apply.py`
+`ruff format` **first**, then `check`: the snippets in this plan are hand-wrapped and
+the formatter will re-wrap some of them (implicit string concatenation, blank lines,
+trailing-comment spacing). Running `--check` on unformatted code reports "would be
+reformatted" and stops you for no reason. After formatting, `check` must be clean —
+`E501` (88 cols), `F401` (unused imports) and `I001` (isort, `force-single-line = true`)
+are all selected, so a grouped or over-long import block fails here rather than at
+Task 10.
 
 - [ ] **Step 6: Falsify the rule-1 markup-preservation guard**
 
@@ -1300,10 +1311,6 @@ from tests.factories import CourseFactory
 from tests.factories import make_login
 
 pytestmark = pytest.mark.django_db
-
-TEMPLATES = Path(__file__).resolve().parent.parent / "templates"
-EDITOR_HTML = TEMPLATES / "courses" / "manage" / "editor" / "editor.html"
-
 
 def _editor(client):
     owner = make_login(client, "owner")
@@ -1688,7 +1695,11 @@ TREE_HTML = """
 
 @pytest.fixture
 def dialog_page(page, db):
-    """A blank page holding the rendered dialog partial plus both JS modules."""
+    """A blank page holding the rendered dialog partial plus both JS modules.
+
+    Yields (rather than returns) so the teardown can assert no uncaught JS error was
+    raised anywhere -- including inside a setTimeout or an event listener.
+    """
     from tests.factories import CourseFactory
 
     course = CourseFactory()
@@ -1705,8 +1716,15 @@ def dialog_page(page, db):
     page.route("**/link-picker/", _serve)
     page.add_script_tag(path=str(JS_DIR / "link_apply.js"))
     page.add_script_tag(path=str(JS_DIR / "link_dialog.js"))
-    page.__routed = routed          # so _open can prove the stub was really hit
-    return page
+    page.__routed = routed  # so _open can prove the stub was really hit
+    # Most of this module runs in listeners, timers and promise catches, where an
+    # exception never reaches page.evaluate -- so a broken build can leave assertions
+    # green while throwing on every keystroke. Fail loudly instead.
+    errors = []
+    page.on("pageerror", lambda e: errors.append(str(e)))
+    page.__errors = errors
+    yield page
+    assert not errors, f"uncaught JS errors: {errors}"
 
 
 def _open(page, **opts):
@@ -1842,7 +1860,9 @@ def test_url_is_normalised_in_the_field_before_insert(dialog_page):
         ("/path", "relative"),
     ],
 )
-def test_rejected_url_shows_its_own_message_and_disables_insert(dialog_page, value, key):
+def test_rejected_url_shows_its_own_message_and_disables_insert(
+    dialog_page, value, key
+):
     # All THREE reject keys, because msg() no-ops silently when a key has no element:
     # rename one and the author gets a disabled Insert with no explanation, suite green.
     _open(dialog_page)
@@ -2030,7 +2050,8 @@ Create `courses/static/courses/js/link_dialog.js`:
   var removeBtn = dialog.querySelector("[data-link-remove]");
   var cancelBtn = dialog.querySelector("[data-link-cancel]");
   var retryBtn = dialog.querySelector("[data-link-retry]");
-  var statusEl = dialog.querySelector("[data-link-status]");
+  var countEl = dialog.querySelector("[data-link-count]");
+  var countLabel = dialog.querySelector("[data-count-template]");
   var tabsEl = dialog.querySelector(".picker__tabs");
   var PERMALINK = /^\/courses\/n\/(\d+)\/$/;
 
@@ -2158,10 +2179,9 @@ Create `courses/static/courses/js/link_dialog.js`:
     filterTimer = setTimeout(function () {
       // Announce a COUNT WITH A LABEL, never a naked digit. The zero-match line lives
       // inside this same region, so entering and leaving that state is announced too.
-      var label = dialog.querySelector("[data-count-template]");
-      var countEl = dialog.querySelector("[data-link-count]");
       countEl.hidden = false;
-      countEl.textContent = shown + " " + (label ? label.textContent.trim() : "");
+      countEl.textContent =
+        shown + " " + (countLabel ? countLabel.textContent.trim() : "");
     }, 400);
   }
   filterEl.addEventListener("input", applyFilter);
@@ -2300,6 +2320,9 @@ Create `courses/static/courses/js/link_dialog.js`:
     callback = null;
     committed = null;
     if (aborter) { aborted = true; aborter.abort(); aborter = null; pending = null; }
+    clearTimeout(filterTimer);   // a timer armed by the last keystroke would otherwise
+                                 // fire up to 400ms later, repainting the count AFTER
+                                 // the next open()'s reset
     if (cb) cb(result || null);
   });
 
@@ -2322,7 +2345,12 @@ Create `courses/static/courses/js/link_dialog.js`:
         all[i].setAttribute("aria-disabled", "false");
       }
       clearMessages();
-      statusEl.textContent = "";
+      // NOT statusEl.textContent = "" -- that replaces ALL children, destroying the
+      // [data-msg="nomatch"] and [data-link-count] spans that live inside the region.
+      // They never come back, and the debounce then throws on a null element.
+      countEl.textContent = "";
+      countEl.hidden = true;
+      clearTimeout(filterTimer);
       wantNode = null;
 
       var existing = opts.existing;
@@ -2366,7 +2394,7 @@ Expected: PASS.
 
 - [ ] **Step 5: Lint**
 
-Run: `uv run ruff check tests/test_link_dialog_behaviour.py && uv run ruff format --check tests/test_link_dialog_behaviour.py`
+Run: `uv run ruff format tests/test_link_dialog_behaviour.py && uv run ruff check tests/test_link_dialog_behaviour.py`
 Expected: clean.
 
 - [ ] **Step 6: Falsify the focus ordering**
@@ -2449,7 +2477,7 @@ def test_guards_on_both_modules():
 
 def test_detached_surface_surfaces_the_conflict_message():
     # The spec's error table promises "the result is discarded with the existing
-    # conflict message". A bare  is the same data loss with no feedback.
+    # conflict message". A bare `return` is the same data loss with no feedback.
     src = TEXT_TOOLBAR.read_text(encoding="utf-8")
     assert "data-msg-conflict" in src
     assert "op-error" in src
@@ -2861,7 +2889,7 @@ def test_insert_internal_link_then_follow_it(page, live_server):
     row = page.locator(f"#node-{chapter.pk} > .outline-node__head")
     bg = row.evaluate("el => getComputedStyle(el).backgroundColor")
     # "Highlighted" is not otherwise assertable: a :target rule mis-scoped to the <li>,
-    # or written into a stylesheet the outline page does not load, passes a weaker check.
+    # or written into a stylesheet the outline page never loads, passes a weaker check.
     assert bg not in ("rgba(0, 0, 0, 0)", "transparent")
 
 
@@ -2909,11 +2937,19 @@ def test_keyboard_only_insert(page, live_server):
     page.keyboard.press("Enter")
     assert dialog.locator("[aria-selected='true'][data-node]").count() == 1
 
-    # Finish without the mouse too -- Tab to the text field, type, Enter. A test that
-    # advertises itself as keyboard-only must not click Insert.
-    page.keyboard.press("Tab")
-    page.keyboard.press("Tab")
-    assert page.evaluate("() => document.activeElement.hasAttribute('data-link-text')")
+    # Finish without the mouse too. A test that advertises itself as keyboard-only must
+    # not click Insert. Tab UNTIL the text field has focus rather than hard-coding a
+    # count: the intervening focusables depend on state (Remove link is disabled when
+    # touchedAnchors is 0; the retry button and URL input sit in hidden panels), so a
+    # fixed number silently breaks when that state changes.
+    for _ in range(6):
+        if page.evaluate(
+            "() => document.activeElement.hasAttribute('data-link-text')"
+        ):
+            break
+        page.keyboard.press("Tab")
+    else:
+        raise AssertionError("never reached the link-text field by tabbing")
     page.keyboard.type("Chapter")
     page.keyboard.press("Enter")
     dialog.wait_for(state="hidden")
@@ -3011,7 +3047,7 @@ Comment out the `keydown` listener on `mount` in `link_dialog.js`. Confirm
 
 - [ ] **Step 4: Lint the new file**
 
-Run: `uv run ruff check tests/test_e2e_link_dialog.py && uv run ruff format --check tests/test_e2e_link_dialog.py`
+Run: `uv run ruff format tests/test_e2e_link_dialog.py && uv run ruff check tests/test_e2e_link_dialog.py`
 
 - [ ] **Step 5: Full suite and lint**
 
