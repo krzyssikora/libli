@@ -231,7 +231,11 @@ caller list rather than any behaviour.
 
 ### 2b. Five comment corrections (four in `courses/views.py`, one in the lesson template), plus two new comments
 
-The new ones first. The atomic-block comment is the only edit in this diff that **no test can protect**:
+The new ones first. The atomic block's **re-fetch under lock** is the only piece of *code* in this
+diff that no test can protect — collapsing it back to `progress, _ = get_or_create(...)` is
+byte-identical in every sequential test — which is what makes its comment load-bearing rather than
+explanatory. (All seven comment edits are equally unguarded by automation; that is why the DoD lists
+them.)
 
 - **New, on §1's atomic block.** The snippet deliberately throws away `get_or_create`'s return value
   and re-reads the row under `select_for_update()`. That reads as redundant, and collapsing it back
@@ -327,7 +331,7 @@ telling that author so.
 ### 4. Also unchanged
 
 `progress_reset` (completion stays non-resettable), the quiz endpoints (`quiz_answer` /
-`quiz_submit` still `raise PermissionDenied` for non-enrolled viewers — a graded submission genuinely
+`quiz_finish` still `raise PermissionDenied` for non-enrolled viewers — a graded submission genuinely
 is a student record), `unit_done.js`, `progress.js`, `slideshow.js`, and every template.
 
 ## Data flow
@@ -429,6 +433,11 @@ change to existing data that no POST triggers, and it gets its own test (Testing
   no UPDATE at all) rather than pretending to reproduce the race.
 - **No row on GET** — the read path stays `.filter().first()`. A `None` `progress` is a valid,
   expected state that the template already handles.
+- **The gap between `get_or_create` and `select_for_update().get()`** — a `DoesNotExist` there is
+  possible in principle and is correctly left to 500. No code path deletes an individual
+  `UnitProgress` row: they disappear only by cascade from `Course`/`ContentNode`/`User` deletion, so
+  a miss would mean the unit was deleted mid-request, which is not a state worth a fallback.
+  `save_element_state` has the identical shape and the same reasoning applies to it.
 - **Method** — `complete` remains `@require_POST`; a GET cannot complete a unit.
 
 ## Testing
@@ -488,9 +497,15 @@ test.
    gates. But note it reddens the **pre-existing** assertions and would fire whether or not steps
    (2)–(3) were ever written.
    *Falsify (steps 2–3, the extension's own):* make the synthetic response echo the stored row —
-   e.g. return `_progress_json(UnitProgress.objects.filter(student=request.user, unit=node).first())`
-   instead of the literal — → step (3) goes RED while step (1) stays green. Without this second
-   recipe the extension is listed in the DoD as falsification-proven while only its old half is.
+   → step (3) goes RED while step (1) stays green. Without this second recipe the extension is listed
+   in the DoD as falsification-proven while only its old half is. **The mutation must be null-safe**,
+   or it reddens step 1 too and the recipe loses the very property it was added for: at step 1 the
+   previewer deliberately has **no** row, and `_progress_json` dereferences
+   `progress.seen_element_ids` unconditionally, so a bare
+   `_progress_json(UnitProgress.objects.filter(...).first())` raises `AttributeError` on `None` and
+   the test client re-raises it. Write it as
+   `row = UnitProgress.objects.filter(student=request.user, unit=node).first()` then
+   `return JsonResponse(_progress_json(row) if row else {"seen_element_ids": [], "completed": False, "completed_at": None})`.
 4. **No spurious row on GET — this guard already exists; do not duplicate it.**
    `courses/tests/test_markdone_render.py::test_passive_non_enrolled_viewer_gets_no_progress_row`
    already asserts that a non-enrolled viewer GETting the lesson creates no `UnitProgress` row, with
@@ -591,7 +606,7 @@ test.
    adds the header to imitate the real UI will get a confusing failure against behaviour this change
    does not touch. Covers `notes/views.py:194` by the exemption argued in §2.
    **Fixture:** copy an existing no-JS `check_answer` test rather than inventing one — seed a
-   `ShortTextElement`-style question and POST the field names `build_answer(request.POST)` expects.
+   `ShortTextQuestionElement` and POST the field names `build_answer(request.POST)` expects.
    Note the incidental write: on a `RESTORABLE_IN_LESSON` question type, `check_answer` calls
    `save_element_state` on the **same** pre-seeded `UnitProgress` row, which is harmless here but
    surprising if unexpected.
@@ -610,10 +625,14 @@ test.
    falls through to `reviewable_students`, which derives from `Enrollment` **only** on the PA/owner
    branch; for a group teacher it derives from `GroupMembership`. Pick a group teacher and enrolling
    the previewer adds them to neither queryset, so the "present after" assertion simply fails —
-   against correct behaviour. `build_progress_matrix`'s
-   `lesson_pks` come from `is_obligatory_lesson`, so the seeded unit must be an **obligatory lesson**
-   unit for the cell to move. Keep the row-survival assertion (`completed=True` still set after
-   enrollment) alongside. Label the test in a comment as documenting the "Enrollment transition"
+   against correct behaviour. Then **assert the matrix
+   too, explicitly** — otherwise building it is unmotivated and the fixture constraint below has
+   nothing to serve: before enrollment `build_progress_matrix(course, students_in_scope(...))` has no
+   row whose `student` is the viewer; after enrollment it has one whose `overall["percent"]` is
+   non-zero. That non-zero is achievable here (unlike test 10) precisely because the viewer *does*
+   hold the completion. `lesson_pks` come from `is_obligatory_lesson`, so the seeded unit must be an
+   **obligatory lesson** unit or that percent is `None`. Keep the row-survival assertion
+   (`completed=True` still set after enrollment) alongside. Label the test in a comment as documenting the "Enrollment transition"
    decision, so nobody mistakes it for a safety guard.
    *Falsify:* **exempt, in writing** — like test 12, and for a stated reason rather than a shrug.
    Every other recipe here removes code that exists; this one would require *inventing* code that
