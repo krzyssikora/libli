@@ -190,3 +190,119 @@ def test_harness_serves_the_real_fixture_image(page, live_server, zoom_lesson):
     trigger = _trigger(page)
     _await_decoded(page, trigger)
     assert _natural_width(trigger) == 1400
+
+
+def test_closed_dialog_is_not_rendered(page, live_server, zoom_lesson):
+    """Open, close, THEN assert -- the dialog is created lazily.
+
+    Asserting "absent or invisible" before the first open would be vacuous: it passes
+    even with `display: grid` unscoped, which is the very bug this case exists to catch.
+    """
+    unit, user = zoom_lesson
+    _goto(page, live_server, unit, user)
+    dialog = _open(page, _trigger(page))
+    dialog.click()
+    page.wait_for_selector("dialog.imgzoom[open]", state="detached")
+
+    assert dialog.evaluate("el => el.checkVisibility()") is False
+    assert dialog.bounding_box() is None  # display:none -> None, not a zero-area box
+
+
+def test_overlay_enlarges_without_upscaling_and_fits_the_viewport(
+    page, live_server, zoom_lesson
+):
+    unit, user = zoom_lesson
+    _goto(page, live_server, unit, user)
+    trigger = _trigger(page)
+    _await_decoded(page, trigger)  # or inline_width is measured pre-load and the
+    assert _natural_width(trigger) == 1400, "media route must serve the real image"
+    # "overlay is wider" would pass for the wrong reason if measured before decode.
+    inline_width = _box(trigger)["width"]
+
+    dialog = _open(page, trigger)
+    img = page.locator(".imgzoom__img")
+    box = _box(img)
+
+    assert box["width"] > inline_width, "the overlay must actually enlarge"
+    assert box["width"] <= _natural_width(img) + 0.5, "never upscaled past natural size"
+
+    # Half-pixel tolerance is not decoration: for this fixture the vertical axis sits
+    # EXACTLY at the 800px cap and the 0.888... scale factor rounds at device-pixel
+    # resolution. Only the horizontal axis has real slack.
+    assert box["x"] >= -0.5 and box["y"] >= -0.5
+    assert box["x"] + box["width"] <= VIEWPORT["width"] + 0.5
+    assert box["y"] + box["height"] <= VIEWPORT["height"] + 0.5
+
+    # The dialog itself must fill the scrollbar-EXCLUDED ICB. This, not the image box,
+    # is what a `100vw` regression violates: with width:100vw the dialog spans 1280
+    # while the ICB is ~1265, yet the height-capped image still centres inside it and
+    # every image-box assertion above stays green.
+    client_width = page.evaluate("() => document.documentElement.clientWidth")
+    assert abs(_box(dialog)["width"] - client_width) <= 0.5
+
+    # Centred in the VIEWPORT, not merely inside the dialog: an in-dialog check is
+    # invariant to a fit-content dialog (both of its internal bands are 0) sitting
+    # flush left.
+    right_band = client_width - box["x"] - box["width"]
+    assert abs(box["x"] - right_band) <= 1
+
+    # Aspect ratio survives, so a stretched image is caught however an engine treats
+    # grid stretching of a replaced element.
+    assert abs(box["width"] / box["height"] - 1400 / 900) < 0.01
+
+
+def test_nothing_but_the_image_is_visible(page, live_server, zoom_lesson, tmp_path):
+    """checkVisibility() cannot express this -- a modal <dialog> makes the rest of the
+    document inert, not unrendered, so the lesson article still reports visible. Assert
+    occlusion two independent ways instead.
+    """
+    from PIL import Image
+
+    unit, user = zoom_lesson
+    _goto(page, live_server, unit, user)
+    dialog = _open(page, _trigger(page))
+    img = page.locator(".imgzoom__img")
+    box = _box(img)
+
+    # (a) the resolved scrim colour, read from the token rather than hardcoded so a
+    # design-pass retune cannot turn this red.
+    token = page.evaluate(
+        "() => getComputedStyle(document.documentElement)"
+        ".getPropertyValue('--scrim-solid').trim()"
+    )
+    expected = [int(n) for n in token.split("(")[1].split(")")[0].split(",")[:3]]
+    alpha = float(token.split(",")[-1].strip(") "))
+    assert alpha >= 0.95, f"scrim must be near-opaque, got {token}"
+
+    resolved = dialog.evaluate("el => getComputedStyle(el).backgroundColor")
+    got = [int(n) for n in resolved.split("(")[1].split(")")[0].split(",")[:3]]
+    assert all(abs(a - b) <= 12 for a, b in zip(got, expected, strict=True)), (
+        resolved,
+        token,
+    )
+    # Relative luminance, the third spec invariant: it is what catches a retune to a
+    # LIGHT scrim that still matches its own token.
+    lum = (0.2126 * got[0] + 0.7152 * got[1] + 0.0722 * got[2]) / 255
+    assert lum < 0.05, f"scrim must be dark, luminance {lum:.3f}"
+    # Asserting alpha alone would be untestable: the UA gives dialog an OPAQUE
+    # `background-color: Canvas`, so deleting the author background leaves alpha at 1.0
+    # and renders an opaque WHITE panel. Hence the channel check.
+
+    # (b) pixel sampling in the letterbox bands beside the measured image box -- NOT
+    # where the article text sits, which at this viewport is entirely behind the image.
+    # Pin the assumption the coordinate mapping rests on rather than trusting a default.
+    assert page.evaluate("() => devicePixelRatio") == 1
+    assert box["x"] >= 6, f"letterbox band too narrow to sample: x={box['x']}"
+    shot = tmp_path / "imgzoom-occlusion.png"  # never the repo root
+    dialog.screenshot(path=str(shot))
+    frame = Image.open(shot).convert("RGB")
+    xs = [2, int(box["x"] / 2), int(box["x"]) - 3]
+    ys = [2, int(box["height"] / 2), int(box["height"]) - 3]
+    for x in xs:
+        for y in ys:
+            px = frame.getpixel((x, y))
+            assert all(abs(a - b) <= 12 for a, b in zip(px, expected, strict=True)), (
+                x,
+                y,
+                px,
+            )
