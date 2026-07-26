@@ -33,6 +33,12 @@
     // image's alt, which the contained <img> already carries. Naming both would make a
     // screen reader read the description twice on entry.
     dialog.setAttribute("aria-label", label("dialog", "Enlarged image"));
+    // The overlay's only content is a non-focusable <img>, so showModal() has zero
+    // focusable descendants to place focus on. Some engines then let Tab fall through
+    // to <body> (harmless -- the rest of the document is inert while the dialog is
+    // modal -- but implementation-defined). tabindex="-1" gives the dialog itself a
+    // defined, deliberate focus holder instead of leaving that to chance.
+    dialog.setAttribute("tabindex", "-1");
 
     dialogImg = document.createElement("img");
     dialogImg.className = "imgzoom__img";
