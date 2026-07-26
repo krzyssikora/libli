@@ -72,6 +72,7 @@ from courses.quiz import answer_to_json  # noqa: F401
 from courses.quiz import quiz_feedback_context
 from courses.quiz import rehydrate  # noqa: F401
 from courses.quiz import selected_ids
+from courses.rendering import unit_edit_context
 from courses.rollups import build_course_results
 from courses.rollups import build_outline
 from courses.rollups import build_unit_nav
@@ -444,9 +445,9 @@ def build_lesson_context(node, user):
 
 def full_lesson_render_context(node, user, *, notes_show=False, tags_panel=False):
     """Full context for rendering courses/lesson_unit.html: lesson context +
-    unit nav + feedback defaults + the author's notes + tag panel. Single-sourced so
-    every render site (lesson_unit GET, check_answer re-render, notes no-JS re-render)
-    stays consistent."""
+    unit nav + feedback defaults + the author's notes + tag panel + the
+    edit-unit link. Single-sourced so every render site (lesson_unit GET,
+    check_answer re-render, notes no-JS re-render) stays consistent."""
     from notes.rendering import lesson_notes_context  # lazy: avoid import cycle
     from tags.rendering import unit_tags_context
 
@@ -460,6 +461,7 @@ def full_lesson_render_context(node, user, *, notes_show=False, tags_panel=False
     )
     ctx.update(lesson_notes_context(user, node, show=notes_show))
     ctx.update(unit_tags_context(user, node, panel_open=tags_panel))
+    ctx.update(unit_edit_context(user, node))
     return ctx
 
 
@@ -1009,8 +1011,9 @@ def _stored_result(question, response):
 
 
 def build_quiz_context(node, user):
-    """Element/render context for a QUIZ unit. Parallels build_lesson_context but
-    threads per-question quiz state (responses, locked, attempts_left)."""
+    """Element/render context for a QUIZ unit. Parallels build_lesson_context
+    but threads per-question quiz state (responses, locked, attempts_left),
+    plus the edit-unit link context."""
     # RENDER: children render inside their tabs, not as top-level siblings.
     elements = list(
         node.elements.filter(parent__isnull=True)
@@ -1128,6 +1131,7 @@ def build_quiz_context(node, user):
     from tags.rendering import unit_tags_context
 
     ctx.update(unit_tags_context(user, node, panel_open=False))
+    ctx.update(unit_edit_context(user, node))
     return ctx
 
 
@@ -1341,6 +1345,7 @@ def quiz_results(request, slug, node_pk):
             request.user, node, panel_open=request.GET.get("panel") == "tags"
         )
     )
+    ctx.update(unit_edit_context(request.user, node))
     return render(request, "courses/quiz_results.html", ctx)
 
 

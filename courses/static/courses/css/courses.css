@@ -1529,3 +1529,46 @@ a.unit-crumbs__label:focus-visible { outline: 2px solid var(--primary); outline-
 .markdone-row { display: flex; align-items: center; gap: 0.5rem; }
 .markdone-row input[type="text"] { flex: 1; }
 .markdone-row__del { display: inline-flex; align-items: center; gap: 0.25rem; color: var(--text-secondary); white-space: nowrap; }
+
+/* Unit strip: the tag panel and the Edit-unit link on one row.
+   The strip owns the block rhythm; .unit-tags' own .5rem margin (from tags.css)
+   is zeroed inside it so both flex items align on the row's top edge, so no
+   hardcoded .5rem is duplicated onto the anchor, and so the .5rem below the
+   strip survives the wrapped narrow layout (where .btn has no block-end margin
+   and .unit-shell would otherwise start with 0px of separation).
+   NOTE: this override wins on SPECIFICITY, not source order — courses.css loads
+   BEFORE tags.css, so a bare `.unit-tags` selector here would lose. Keep both
+   classes.
+   `margin-block: .5rem` is a literal rather than var(--space-N) on purpose: it
+   TRACKS tags.css's `.unit-tags { margin: .5rem 0 }`, which this rule relocates,
+   and must stay numerically equal to it. If that value changes, change this one.
+   `gap: .5rem` is NOT related to it — that is the spacing between the panel and
+   the button, an independent choice that happens to share the number. Do not
+   change the gap because the tag panel's margin changed. */
+.unit-strip { display: flex; flex-wrap: wrap; gap: .5rem; align-items: flex-start;
+              margin-block: .5rem; }
+/* The basis is 0, NOT auto. An `auto` basis makes the panel's flex base size its
+   MAX-CONTENT width, and flex line-breaking uses the base size BEFORE any shrinking
+   — so once that max-content exceeds the line, `flex-wrap: wrap` drops the button to
+   a second row. It is not a narrow-viewport-only risk: .unit-tags__picker is a
+   wrapping fieldset listing every tag the author owns that is not yet on this unit,
+   so its max-content grows with the author's tag count and overflows the line at
+   1280px for a moderately prolific author. With the panel OPEN (the "Tags (n)"
+   summary, or any ?panel=tags URL — where tags/views.py redirects after a no-JS tag
+   add/remove) that is the normal state, not an edge case. A 0 basis makes the panel
+   take its share of the FREE space instead, keeping the button on the row and
+   right-pinned. Same idiom, same reason, as .twocolumn__column above.
+   min-width: 0 is load-bearing too, but only under a narrow combination: open panel
+   + narrow viewport + a long unbreakable tag or unit label. Wrapping the panel in a
+   flex container makes it a flex item for the first time — on master it is a plain
+   block child of .app-main with no automatic minimum — so without this the UA's
+   `min-inline-size: min-content` on <fieldset class="unit-tags__picker"> floors the
+   panel's border box at min-content. Measured at 400px with a 50-char tag label:
+   removing it grows the panel 250→396px and document.scrollWidth 400→412, i.e. real
+   horizontal overflow. With an ordinary label removing it changes NOTHING, so do not
+   read a no-op mutation as proof the declaration is dead. It RESTORES master's
+   rendering; it does not add a behaviour. See the spec's three-state table. */
+.unit-strip .unit-tags { flex: 1 1 0; min-width: 0; margin-block: 0; }
+
+/* An affordance for a second browser tab is noise on paper. */
+@media print { .unit-strip__edit { display: none; } }
