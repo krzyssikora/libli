@@ -117,18 +117,36 @@ indistinguishable from the bug being fixed.
 `seen_count` remains 0 for them. That is today's behaviour and is not user-visible on the lesson
 page; it is stated here so the asymmetry is deliberate rather than discovered.
 
-**`build_lesson_context` has two callers, not one.** Its own docstring records that it is shared by
-`lesson_unit` (GET) and `check_answer` (the POST re-render) "so the two cannot drift." This edit
-therefore also changes what a non-enrolled viewer sees after clicking **Check** on a question: the
-pill must stay "✓ Completed" across that re-render rather than reverting to the button. That is the
-correct outcome and it comes for free from editing the shared function — but it is a second render
-surface, so it gets its own test (Testing §7) rather than being assumed from the shared-function
-argument.
+**The lesson page has three render surfaces, not one — and the docstring that says "two" is itself
+wrong.** `build_lesson_context` is reached via `full_lesson_render_context`, which has three
+callers:
 
-### 2b. Three comments in `courses/views.py` that this change makes wrong
+- `courses/views.py:605` — `lesson_unit`, the GET;
+- `courses/views.py:846` — `check_answer`, but **only on its no-JS branch**;
+- `notes/views.py:194` — the no-JS note-create re-render on an invalid `NoteForm` (renders
+  `courses/lesson_unit.html` with status 422).
+
+All three now show "✓ Completed" to a previewer who has marked the unit, which is the correct
+outcome and comes for free from the single shared assignment.
+
+**`check_answer`'s JS path never re-renders the pill at all.** `full_lesson_render_context` is
+called only *after* the `if _wants_fragment(request):` early return (`views.py:825-845`), and
+`_wants_fragment` is `request.headers.get("X-Requested-With") == "fetch"` — the header
+`courses/static/courses/js/question.js:29` always sets. So in the real JS-enabled UI a Check click
+returns a bare question fragment and the pill is untouched. Only the no-JS fallback re-renders the
+whole lesson. Testing §7 must therefore drive a POST **without** that header (the Django test
+client's default); adding the header to "mimic the real UI" would test the fragment branch, which
+this change does not touch.
+
+`notes/views.py:194` is **exempt from its own test in writing**: it makes the identical
+`full_lesson_render_context(unit, user)` call that test 7 already drives, with no additional
+progress-related logic between the call and the template. A third near-duplicate test would pin the
+caller list rather than any behaviour.
+
+### 2b. Four comments in `courses/views.py` that this change makes wrong
 
 Comments in this codebase carry design contracts, so leaving them stale would ship a file arguing
-against its own behaviour. All three are corrections of fact, not new prose:
+against its own behaviour. All four are corrections of fact, not new prose:
 
 - **≈:784-788** (in `element_state_save`) states that persisting practice state for any accessing
   viewer "deliberately diverges from seen/quiz (which ignore previewers so authors don't pollute
@@ -138,9 +156,19 @@ against its own behaviour. All three are corrections of fact, not new prose:
 - **≈:396-398** (the `elif user.is_authenticated` branch in `build_lesson_context`) says the row is
   read "for their practice state". It now also feeds the completion pill; the comment must say so,
   and must keep stating why the read is `.filter().first()` rather than `get_or_create`.
-- **≈:273-275** (`build_lesson_context`'s docstring) says it "Performs the same
-  `UnitProgress.get_or_create` + seen-count as a normal view" — true only on the enrolled path. It
-  must name the non-enrolled path's read-only row lookup.
+- **≈:273-275** (`build_lesson_context`'s docstring) is wrong twice. It says the function is "Used
+  by **both** `lesson_unit` (GET) and `check_answer` (POST re-render) so **the two** cannot drift" —
+  already false today, since `notes/views.py:194` is a third caller via
+  `full_lesson_render_context`; and it says the function "Performs the same
+  `UnitProgress.get_or_create` + seen-count as a normal view", which is true only on the enrolled
+  path. Fix both clauses: name all three callers, and name the non-enrolled path's read-only row
+  lookup. Do not correct only the second sentence — the diff deliberately edits this docstring, so
+  leaving a known-false contract in it is worse than never having touched it.
+- **≈:652** (in `seen`) reads `# untracked preview: no write, synthetic canonical response`. After
+  this change a preview is no longer "untracked" in any general sense — the viewer's completion and
+  their practice state both persist; it is specifically the **scroll signal** that is dropped. This
+  comment sits exactly at the asymmetry the spec most wants legible, so it must name that asymmetry:
+  seen-tracking is not recorded for previewers, while completion via the explicit button is.
 
 ### 3. Deliberately unchanged — `courses/views.py::seen`
 
@@ -169,6 +197,14 @@ GET lesson  → progress = None                             → button renders (
 GET lesson  → build_lesson_context: state_row = None → progress = None → button renders
 POST complete → can_access ✓ → get_or_create + completed=True         → redirect
 GET lesson  → state_row = the row → progress = row (completed=True)   → "✓ Completed" pill
+```
+
+**Also after (the other two render surfaces, fed by the same one assignment):**
+
+```
+POST check_answer (no-JS, no X-Requested-With) → full_lesson_render_context → pill stays "Completed"
+POST check_answer (JS, X-Requested-With: fetch) → early return, question fragment only → pill untouched
+POST note create (invalid form, 422)            → full_lesson_render_context → pill stays "Completed"
 ```
 
 **Unchanged in both:**
@@ -204,7 +240,18 @@ change to existing data that no POST triggers, and it gets its own test (Testing
 - **Wrong node** — `get_node_or_404(..., require_unit=True, require_lesson=True)` still 404s a
   foreign or non-lesson node before the access check. Unchanged.
 - **Double POST** — `get_or_create` plus the `if not progress.completed` guard keeps the write
-  idempotent; `completed_at` is stamped once, in `UnitProgress.save()`.
+  idempotent; `completed_at` is stamped once, in `UnitProgress.save()`. `UnitProgress` carries a
+  `UniqueConstraint(student, unit)`, so concurrent `get_or_create` calls cannot produce a duplicate
+  row.
+- **Concurrent `element_state` write (known, pre-existing, deliberately not fixed here)** — the
+  `progress.save()` above has no `update_fields`, so it writes every column from the in-memory
+  instance, including `element_state` as it was at `get_or_create` time. A checklist tick landing
+  between the fetch and the save (AJAX, via `save_element_state`) is lost, last-write-wins. This
+  window exists today on the enrolled path and is not created by this change — but this change does
+  *extend* it to the previewer population, who sit on exactly the same page as the checklist, so it
+  is stated rather than left to be discovered. Introducing `update_fields` is deliberately out of
+  scope: it would change the enrolled path's write semantics too, which is a separate change with
+  its own regression surface.
 - **No row on GET** — the read path stays `.filter().first()`. A `None` `progress` is a valid,
   expected state that the template already handles.
 - **Method** — `complete` remains `@require_POST`; a GET cannot complete a unit.
@@ -248,37 +295,67 @@ test.
 4. **No spurious row on GET.** A non-enrolled viewer merely GETting the lesson creates no
    `UnitProgress` row.
    *Falsify:* change the non-enrolled read from `.filter().first()` to `get_or_create` → RED.
-5. **Access still enforced, across all three non-enrolled routes.** `can_access_course` is now the
-   sole guard on the write, and it admits three distinct routes — `is_staff`, course owner, and
-   teacher of a **non-archived** group. The repo's recorded lesson is that widening a gate requires
-   driving each newly-reachable role end to end, so cover:
+5. **Every access route driven, positively and negatively.** `can_access_course` is now the sole
+   guard on the write, and it admits three distinct non-enrolled routes — `is_staff`, course owner,
+   and teacher of a **non-archived** group. The repo's recorded lesson is that widening a write
+   requires driving each newly-reachable role end to end, so each positive route must reach a
+   successful write, not merely its negative twin:
    - **(a)** a non-staff **course owner** POSTs `complete` → row written, `completed=True`;
-   - **(b)** a user whose only link is an **archived** group they teach → 403 and **no** row (this
-     is the new boundary the change exposes: `accessible_courses` pins `groups__archived=False`);
+   - **(d)** a non-staff, non-owner **teacher of a non-archived group** attached to the course POSTs
+     `complete` → row written, `completed=True`. This is the most common real previewer in
+     production and the only positive route not otherwise covered (`is_staff` is covered by test 1);
+   - **(b)** a user whose only link is an **archived** group they teach → 403 and **no** row — the
+     negative twin of (d), making the `groups__archived=False` pin in `accessible_courses` visible
+     from both sides;
    - **(c)** a logged-in user with no relationship to the course → 403 and no row.
+   (b) and (c) are **regression guards on unchanged access behaviour**, not new boundaries: `complete`
+   already 403s both cases today at the `can_access_course` check, ahead of the `is_enrolled` branch.
+   What changes is that this gate becomes the *only* thing standing between them and a write, which
+   is what makes the guards load-bearing. Reserve "newly reachable" for the positive routes.
    *Falsify:* drop the `can_access_course` check in `complete` → (b) and (c) go RED.
 6. **Pre-existing `completed=True` row.** Seed a `completed=True` row for a user, ensure they are
    **not** enrolled but can access → a plain GET of the lesson (no POST at all) shows the
    "Completed" pill. Pins the Data-flow "Pre-existing rows" paragraph as intended behaviour rather
    than an accident.
    *Falsify:* revert `progress = state_row` → RED.
-7. **The second render surface: `check_answer`.** A non-enrolled viewer with a `completed=True` row
-   POSTs a Check on a question in that unit → the re-rendered response still shows the "Completed"
-   pill. Guards the shared-context path called out in Architecture §2.
+7. **The second render surface: `check_answer`'s no-JS path.** A non-enrolled viewer with a
+   `completed=True` row POSTs a Check on a question in that unit — **without** an
+   `X-Requested-With: fetch` header — → the re-rendered lesson still shows the "Completed" pill.
+   The header omission is load-bearing, not incidental: with it, `_wants_fragment` short-circuits to
+   a question fragment that never renders the pill (see Architecture §2), and an implementer who
+   adds the header to imitate the real UI will get a confusing failure against behaviour this change
+   does not touch. Covers `notes/views.py:194` by the exemption argued in §2.
    *Falsify:* revert `progress = state_row` → RED (both render paths share the one assignment,
    which is precisely why this test must name the POST path explicitly rather than trusting test 2
    to cover it).
 8. **Enrollment transition (pins an accepted decision, not a guard).** A non-enrolled viewer marks a
    unit done, is **then** enrolled → the row survives with `completed=True` and now counts as
-   learner progress in the roster-scoped query. This test documents the decision recorded under
-   "Enrollment transition"; label it as such in a comment so nobody mistakes it for a safety guard.
+   learner progress. Assert against a named roster-scoped consumer —
+   `courses/rollups.py::build_progress_matrix(course, [viewer])` — rather than "the roster-scoped
+   query", which is not singular. Its `lesson_pks` come from `is_obligatory_lesson`, so the seeded
+   unit must be an **obligatory lesson** unit for the cell to move. Label the test in a comment as
+   documenting the "Enrollment transition" decision, so nobody mistakes it for a safety guard.
    *Falsify:* add any enrollment-time clearing or preview-origin filtering of completions → RED.
 9. **Downstream chrome actually lights up** — the spec's whole rationale for fixing rather than
-   hiding. A non-enrolled `can_access` viewer POSTs `complete`, then GETs the course outline → the
-   ✓ badge renders for that unit, and the unit footer's `course_progress.done` is non-zero.
-   *Falsify:* break `build_outline`'s authenticated branch (`rollups.py`, the
-   `student=user, ..., completed=True` query) → RED. Without this test the justification for the
-   whole design could regress silently while every other test stayed green.
+   hiding. These are **two different pages** and must be two GETs:
+   - the **course outline** page (`course_outline` → `outline.html` → `_outline_node.html:8`) → the
+     ✓ badge renders for that unit. Holds regardless of the unit's `obligatory` flag —
+     `d["completed"]` is set for any completed lesson unit;
+   - the **lesson unit** page (`_unit_shell.html` → `_unit_footer.html:3-5`) → `unit_nav.course_progress.done`
+     is non-zero. This half **requires an obligatory lesson unit**: `course_progress.done` sums
+     `required_done`, which `rollups.py` sets only when `is_obligatory_lesson(node)`, and the footer
+     bar does not render at all unless `course_progress.total` is truthy. `ContentNode.obligatory`
+     defaults to `True`, so a default fixture works — but an implementer seeding a plausibly
+     "additional" unit would get a failure unrelated to this change. Asserting on
+     `build_unit_nav(...)["course_progress"]` directly is an acceptable alternative to parsing the
+     footer.
+   The two assertions exercise different rollup paths; do not collapse them into one response.
+   *Falsify (diff-local, the one that matters):* restore the `is_enrolled` branch in `complete` →
+   RED, proving the test is non-vacuous with respect to *this* change.
+   *Secondary (wiring check only):* break `build_outline`'s authenticated
+   `student=user, ..., completed=True` query → RED — but note this reddens much of the existing
+   outline/nav suite too, so it demonstrates the rationale is still wired, not that this test earns
+   its place.
 10. **Enrolled path unregressed.** The existing enrolled complete/auto-complete tests
     (`test_seen_merges_and_autocompletes`, `test_zero_element_unit_completes_only_via_fallback`)
     stay green.
