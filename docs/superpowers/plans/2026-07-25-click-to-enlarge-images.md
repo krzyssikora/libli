@@ -1271,7 +1271,7 @@ Expected: 4 passed.
 | Delete `max-height: 100%` from `.imgzoom__img` | the in-viewport assertion |
 | `width: 100vw` on `.imgzoom[open]` | the **dialog-width** assertion (not the image-box one) |
 | `place-items: start` instead of `center` | the centring assertion |
-| Drop `width: auto` (UA `fit-content` returns) | the centring assertion |
+| Drop `width: auto` (UA `fit-content` returns) | goes RED at the **dialog-width** assertion, one line earlier than the centring one — the dialog collapses flush-left so its width stops matching `clientWidth` before centring is ever evaluated. Verified in Task 7; still a valid break, just via a different path. |
 | Re-point `background` at `var(--surface-overlay)` | occlusion (a) |
 | Delete **both** the box `background` and the `::backdrop` rule (only `::backdrop` is individually unfalsifiable — the box background covers the sampled band, so deleting the box rule alone exposes the UA's opaque white `Canvas` and (b) goes red on its own) | occlusion (b) |
 
