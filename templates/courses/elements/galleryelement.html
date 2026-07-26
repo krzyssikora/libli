@@ -11,7 +11,7 @@ uniform height. No JS: figures show stacked; gallery.js enhances into a carousel
       {% if desc_pos == "above" %}
         <div class="gallery__desc">{{ f.desc|safe }}</div>
       {% endif %}
-      <div class="gallery__frame"><img src="{{ f.url }}" alt="{{ f.alt }}"></div>
+      <div class="gallery__frame"><img src="{{ f.url }}" alt="{{ f.alt }}" data-zoomable></div>
       {% if desc_pos == "below" %}
         <div class="gallery__desc">{{ f.desc|safe }}</div>
       {% endif %}
