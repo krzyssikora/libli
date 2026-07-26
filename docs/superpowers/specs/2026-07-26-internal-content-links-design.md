@@ -45,8 +45,9 @@ This replaces that button's behaviour with a real dialog covering both kinds of 
 | `courses/static/courses/js/link_apply.js` | **new** — anchor enumeration + insertion rules + removal, exported as `window.libliLinkApply` so it is testable (see §Testing) |
 | `courses/static/courses/js/link_dialog.js` | **new** — the dialog itself |
 | `courses/static/courses/js/text_toolbar.js` | `case "link":` — stash the range, call the dialog, hand the result to `libliLinkApply` |
-| `courses/static/courses/css/editor.css` | dialog + picker styling, duplicated `.tree__badge*` rules, and the preview-inert rule |
-| `courses/static/courses/css/courses.css` | `:target` highlight, internal/external link affordances |
+| `courses/static/courses/css/editor.css` | dialog + picker styling, duplicated `.tree__badge*` rules, and the preview click-inert rule |
+| `core/static/core/css/app.css` | outline `:target` highlight + `scroll-margin-top` — **not** `courses.css`; see §2 |
+| `courses/static/courses/css/courses.css` | internal/external link affordances only |
 
 **Out of scope, deliberately**
 
@@ -140,7 +141,7 @@ re-slugged, and the redirect target can change without touching a single stored 
 (§3) and the JS copies the attribute verbatim. The CSS selector in §5 is the one place the literal
 prefix is duplicated, and §Testing ties the two together.
 
-### 2. Outline anchors — `templates/courses/_outline_node.html`, `courses.css`
+### 2. Outline anchors — `templates/courses/_outline_node.html`, `app.css`
 
 The `<li>` gains `id="node-{{ item.node.pk }}"`, uniformly for every kind — the `<li>` is shared
 markup and a `{% if %}` around an `id` earns nothing.
@@ -161,8 +162,21 @@ in the normal `.app-main` flow, so nothing overlays the target row. If implement
 landing acceptable, dropping the declaration is fine; what must not survive is a false justification
 for keeping it.
 
+**Both declarations go in `core/static/core/css/app.css`, not `courses.css`.** `outline.html` never
+links `courses.css` — its `{% block extra_css %}` adds only `notes.css` and `tags.css` on top of
+base's `reset/tokens/app` — and every existing `.outline-node*` / `.outline-unit*` rule already lives
+in `app.css:487-549`. Put in `courses.css` these rules would be dead on the one page that can ever be
+a `:target`, shipping the feature with no landing cue and failing e2e step 6 for a reason unrelated
+to the code under test. The `.el a[href^=…]` marker rules in §5 stay in `courses.css`, which
+`lesson_unit.html` and `quiz_unit.html` do load.
+
 The highlight must be legible in both themes — judged separately, not inferred from the light
 screenshot.
+
+**The unit branch is defensive only.** §1 sends every unit permalink to `lesson_unit` / `quiz_unit`,
+never to the outline with a fragment, so no permalink can make a unit `<li>` the `:target`. The rule
+exists for a hand-typed `/courses/<slug>/#node-N` and is deliberately unreachable through the
+feature — which is why §Testing does not assert it.
 
 ### 3. Picker endpoint — `courses/views_manage.py`, `_link_picker.html`, `_link_picker_node.html`
 
@@ -190,11 +204,11 @@ the same hazard — omit it and you get infinite recursion on the same node, or 
 
 ```html
 {% load courses_manage_extras %}
-<li class="link-picker__item" role="none">
-  <button type="button" class="link-picker__row" role="treeitem"
-          aria-level="{{ level }}" aria-selected="false" tabindex="-1"
-          data-node="{{ n.pk }}" data-title="{{ n.title }}"
-          data-href="{% url 'courses:node_permalink' node_pk=n.pk %}">…badge… {{ n.title }}</button>
+<li class="link-picker__item" role="treeitem"
+    aria-level="{{ level }}" aria-selected="false" tabindex="-1"
+    data-node="{{ n.pk }}" data-title="{{ n.title }}"
+    data-href="{% url 'courses:node_permalink' node_pk=n.pk %}">
+  <span class="link-picker__row">…badge… {{ n.title }}</span>
   {% with children=children_map|get_item:n.pk %}
     {% if children %}
       <ol class="link-picker__scope" role="group">
@@ -207,17 +221,38 @@ the same hazard — omit it and you get infinite recursion on the same node, or 
 </li>
 ```
 
-A `<button>` rather than a `<div>` with a click handler: the picker is the primary control of the
-whole feature, and a div-with-listener is unreachable by keyboard.
+and the root, `_link_picker.html`, which must seed `level` — Django's `add` filter returns `""` for a
+non-numeric input, so a missing `level=1` would silently render *every* `aria-level` empty at every
+depth:
 
-**Tree semantics, not a list of buttons.** The root carries `role="tree"`, nested lists
-`role="group"`, and each row `role="treeitem"` with `aria-level` and `aria-selected`. This is not
-decoration: a roving-tabindex, arrow-key control that announces itself as a plain list of buttons
-gives a screen-reader user movement they have no reason to expect and conveys none of the nesting the
-indentation carries — "Quadratics" at depth 3 would be indistinguishable from a top-level part, which
-is exactly the disambiguation the L/Q chip decision says matters. `role="tree"` is also what makes
-the arrow-key model the *expected* contract rather than a surprise. Selection is `aria-selected`
-throughout — deliberately not `aria-pressed`, so the tabs (§4) and the tree never share a vocabulary.
+```html
+{% load courses_manage_extras %}
+<ol class="link-picker__scope" role="tree">
+  {% for node in top_nodes %}
+    {% include "courses/manage/editor/_link_picker_node.html" with n=node children_map=children_map level=1 %}
+  {% endfor %}
+</ol>
+```
+
+**Tree semantics, and the `<li>` must be the `treeitem`.** The root carries `role="tree"`, nested
+lists `role="group"`, and each **`<li>`** `role="treeitem"` with `aria-level` and `aria-selected`; the
+inner `<span>` is presentational. Putting `treeitem` on an inner element and `role="none"` on the
+`<li>` — the obvious shape — would remove the `<li>` from the accessibility tree and leave each
+`role="group"` a *sibling* of the item it belongs to rather than its owned subtree, so no item would
+own any children and the nesting would not be conveyed at all.
+
+The row is therefore not a `<button>`. That costs nothing: §3 already implements Enter/Space
+activation and roving `tabindex` by hand, which is what a `treeitem` needs anyway, and `role="treeitem"`
+on a `<button>` overrides the button semantics regardless. What matters — and what a bare `<div>` with
+a click handler would fail — is that the row is focusable and keyboard-operable, which `tabindex` plus
+the explicit key handling provides.
+
+This is not decoration: a roving-tabindex, arrow-key control that announces itself as a plain list of
+buttons gives a screen-reader user movement they have no reason to expect and conveys none of the
+nesting the indentation carries — "Quadratics" at depth 3 would be indistinguishable from a top-level
+part, which is exactly the disambiguation the L/Q chip decision says matters. Selection is
+`aria-selected` throughout — deliberately not `aria-pressed`, so the tabs (§4) and the tree never
+share a vocabulary.
 
 **The chip mirrors the builder's vocabulary, including the unit branch.** `_tree_node.html` does not
 render `get_kind_display` for units — it renders an `L` or `Q` chip
@@ -408,8 +443,10 @@ window.libliLinkApply.apply(surface, range, result);// -> performs rule 1/2/3 or
 
 `text_toolbar.js`'s `case "link":`:
 
-1. guards with `if (!window.libliLinkDialog) break;`, as the math command guards on
-   `window.libliMathInput`;
+1. guards with `if (!window.libliLinkDialog || !window.libliLinkApply) break;` — the same
+   capability-signal reasoning the dialog's export rests on, extended to the second module, so a
+   missing `<script>` tag or a collectstatic gap degrades to a no-op instead of opening the dialog
+   and throwing at step 3;
 2. stashes **`sel.getRangeAt(0).cloneRange()`** — see below;
 3. derives `existing` and `touchedAnchors` via `libliLinkApply`;
 4. calls `open()`;
@@ -455,6 +492,12 @@ points are within it — `A.contains(range.startContainer) && A.contains(range.e
 `contains` includes `A` itself. This covers both a caret inside a link and a selection exactly
 coextensive with the link's text. Anchors do not nest, so at most one anchor can enclose a range.
 `existing` is non-null exactly when rule 1 fires — one predicate, one wording.
+
+A caret at an anchor's **leading or trailing text boundary** counts as enclosed and deliberately takes
+rule 1: clicking just after a link's last character normally leaves the caret in the anchor's own text
+node at `offset === length`, so the author lands in "edit this link" rather than "start a new one".
+That matches how the browser treats typing at that position, and it is called out here so it is read
+as the specified behaviour rather than a bug to be fixed.
 
 **Insertion semantics** — an ordered decision, first match wins, total over ranges:
 
@@ -558,7 +601,10 @@ verbatim and then trip the §5 misclassification it exists to prevent.
 | 2 | absolute permalink whose origin equals `location.origin` exactly, matching `^/courses/n/(\d+)/$` after the origin | normalised to the relative `/courses/n/<pk>/` |
 | 3 | leading token matches a URI scheme (`[A-Za-z][A-Za-z0-9+.-]*:`) **and contains no dot** | accepted if the scheme is `http`/`https`/`mailto`, rejected otherwise |
 | 4 | looks like a bare host — first segment contains a dot, no whitespace, does not start with `/` or `.` | prefixed `https://`; the normalised value is shown before insert |
-| 5 | anything else relative (`/path`, `../foo`) | rejected, inline message |
+| 5 | **anything not matched above** — `/path`, `../foo`, `#section`, a dot-free bare word like `example` | rejected, inline message |
+
+Row 5 is an unconditional catch-all, so the table is **total** over input strings in the same sense
+the insertion rules are total over ranges: every string reaches exactly one row.
 
 Row 2 compares `location.origin` (scheme + host + port) exactly, so `http://` against an `https://`
 deployment, or a different port, is *not* treated as same-origin and falls through. Row 3's dot
@@ -619,14 +665,25 @@ The selector duplicates the route's literal path, which the route *name* does no
 marker off every internal link. §Testing ties them together, and the CSS carries a comment naming its
 twin.
 
-Two acknowledged misclassifications, both benign: a `mailto:` link matches neither selector and gets
-no marker; an absolute same-origin permalink would match the *outbound* rule, though the dialog
-normalises those away (row 2 above), so it only affects hand-typed HTML.
+Three acknowledged misclassifications, all benign:
+
+- a `mailto:` link matches neither selector and gets no marker;
+- an absolute same-origin **permalink** would match the *outbound* rule, though row 2 of the URL
+  contract normalises those away, so it only affects hand-typed HTML;
+- an absolute same-origin URL that is **not** a permalink — an outline or unit URL pasted from the
+  address bar, probably the most likely paste — is accepted verbatim by row 3 and renders with the
+  outbound marker. Normalising same-origin non-permalink URLs is deliberately out of scope: it would
+  mean teaching the dialog every internal route shape, for a marker glyph. Named here so it is not
+  later filed as a defect.
 
 **Editor-side — `editor.css`.** In the preview pane these are real links (`editor.html` loads
 `courses.css`), so clicking one navigates away and discards unsaved work.
-`[data-scope="preview"] .el a { pointer-events: none; }` makes them inert — no JS, nothing a fragment
-swap can defeat. The rule lives in `editor.css` because that stylesheet is loaded only by
+`[data-scope="preview"] .el a { pointer-events: none; }` makes them **click-inert** — no JS, nothing
+a fragment swap can defeat. It is not full inertness, and the gap is named rather than papered over:
+the anchors stay in the tab order and Enter still navigates, so a keyboard author tabbing through the
+preview can still leave the editor. Closing that would need the preview render to set `tabindex="-1"`
+on `.el a` — a template change not in the files table, and not worth it for a pane authors read
+rather than tab through. The rule lives in `editor.css` because that stylesheet is loaded only by
 `editor.html`. Note `data-scope` is **not** editor-only — `_scope.html:6` puts it on every builder
 tree scope — so the selector must stay pinned to `="preview"` and must not be "simplified" to a bare
 `[data-scope]`.
@@ -708,11 +765,15 @@ require RED.
 - **Resolver regression:** `resolve("/courses/n/12/")` → `node_permalink`, `resolve("/courses/n/")` →
   `course_outline`.
 - **Route-literal/CSS twin:** `reverse("courses:node_permalink", kwargs={"node_pk": 1})` starts with
-  the exact prefix `courses.css` selects on.
+  the exact prefix the `.el a[href^=…]` rule selects on — read from `courses.css`, which is where that
+  rule lives (the `:target` rules live in `app.css`; each assertion must read the file that actually
+  holds its selector).
 - Sanitiser passthrough: an internal-link anchor survives `sanitize_html` byte-identically.
 - `link_picker`: 200 + every node present for a manager; 403 for a non-manager; 404 for an unknown
   slug; a bare partial (no `<html>`). Each row's `data-href` equals `reverse(...)`; a quiz unit
-  renders the `Q` chip and a lesson unit the `L`; rows carry `role="treeitem"` and the right
+  renders the `Q` chip and a lesson unit the `L`; each `<li>` carries `role="treeitem"` and **contains**
+  its children's `<ol role="group">` (the ownership relation, not merely the role's presence — the
+  sibling-group shape would pass a presence check while conveying no nesting); rows carry the right
   `aria-level`. Query count pinned as a **concrete whole-request total**, with a comment naming which
   one is `_children_map` — `assertNumQueries(1)` would simply be wrong (the view also resolves the
   course and checks the perm), and the point is that one-query-per-row goes red.
@@ -727,7 +788,8 @@ require RED.
 - **Badge drift guard**, in the spirit of `tests/test_editor_twin_drift.py`: the duplicated
   `.tree__badge*` declarations in `editor.css` are compared against their originals in `builder.css`
   and must match. A class-name substring check cannot catch the failure this duplication risks.
-- `text_toolbar.js` no longer contains `window.prompt`, and guards on `window.libliLinkDialog`.
+- `text_toolbar.js` no longer contains `window.prompt`, and guards on **both** `window.libliLinkDialog`
+  and `window.libliLinkApply`.
   Script *order* gets no assertion: the guard makes it irrelevant, so such a test could never go red
   for a real defect.
 - `editor.css` defines every class the new markup uses — `.link-dialog*`, `.link-picker__*` — plus
@@ -736,10 +798,17 @@ require RED.
 **JS behaviour — Playwright-as-a-JS-runtime, following `tests/test_table_grid_algebra.py`.**
 There is no jsdom option: the repo has no `package.json`, no vitest/jest config, and no Node in CI.
 The one precedent loads a module with `page.add_script_tag` and calls its exports through
-`page.evaluate`. That is *why* the mutation logic lives in `link_apply.js` rather than inside
-`text_toolbar.js`'s IIFE — logic private to that closure would be reachable only through full `-m e2e`
-runs, which are excluded from the default suite. These cases mount a contenteditable fixture, build
-ranges, and call `window.libliLinkApply`:
+`page.evaluate`.
+
+The new file carries **`pytestmark = pytest.mark.e2e`**, exactly as its precedent does, because
+`pyproject.toml` sets `addopts = "-q -m 'not e2e'"`. Without the marker it would land in the unit job,
+where no browser is installed, and fail for an unrelated reason. So extraction into `link_apply.js`
+does **not** buy default-suite coverage — nothing browser-driven gets that here. What it buys is a
+cheap, targeted harness: `add_script_tag` + `evaluate` against a synthetic fixture, with no live
+server, no DB, and no full editor gesture, versus driving the whole editor for every DOM edge case.
+Logic private to `text_toolbar.js`'s IIFE would be reachable only the expensive way.
+
+These cases mount a contenteditable fixture, build ranges, and call `window.libliLinkApply`:
 
 - Insertion rules 1, 2 and 3, plus totality: a selection **coextensive** with a link's text takes
   rule 1 (the gesture a "strictly inside" reading would have left undefined).
@@ -791,10 +860,12 @@ Driving the real gesture, never `page.evaluate` shortcuts:
 4. **Keyboard-only pass:** Tab once into the tree, move with Up/Down, press the row with Enter, Tab to
    *Insert*, press Enter — no mouse at all. This is the exact sequence the Enter rules define.
 5. Save; assert the stored body holds `<a href="/courses/n/<pk>/">`.
-6. Visit the unit as a student and click the link. Assert the URL ends `#node-<pk>` **and** that the
-   row element inside `#node-<pk>` (`.outline-node__head`, or `.outline-unit` for a unit) has a
-   non-default computed background — a `:target` rule mis-scoped to the `<li>` would pass a weaker
-   check. Repeat for a unit target, asserting arrival on the unit page.
+6. Visit the unit as a student and click a **chapter** link. Assert the URL ends `#node-<pk>` **and**
+   that `.outline-node__head` inside `#node-<pk>` has a non-default computed background — a `:target`
+   rule mis-scoped to the `<li>`, or one written into a stylesheet the outline page does not load,
+   would pass a weaker check. Then click a **unit** link and assert arrival on the unit page; do not
+   assert a highlight there, since a unit permalink never reaches the outline (§2) and the assertion
+   would be vacuous.
 7. Re-open the editor, place the caret in the link, re-open the dialog; assert the tab and fields
    prefilled **and that the preselected row is scrolled into view**; click *Remove link*; assert the
    anchor is gone and the text remains.
