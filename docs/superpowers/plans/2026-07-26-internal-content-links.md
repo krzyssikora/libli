@@ -15,6 +15,12 @@
 - Run everything through `uv run` — bare `pytest`/`python`/`ruff` are not on PATH.
 - `uv run pytest` defaults to `-m 'not e2e'`. Browser tests **must** carry `pytestmark = pytest.mark.e2e` and are run with `uv run pytest -m e2e`.
 - Never hardcode a test password; use `tests.factories.TEST_PASSWORD`.
+- **Imports are one name per line.** `pyproject.toml` selects `["E","F","I","UP","B","S"]`
+  with `[tool.ruff.lint.isort] force-single-line = true`, so `from x import a, b` fails
+  `I001` and any unused import fails `F401`. Lines are capped at 88 (`E501`). Run
+  `uv run ruff check <file> && uv run ruff format --check <file>` **at the end of each
+  task**, not only at the end of the plan — otherwise the lint gate fails with a dozen
+  files to fix at once.
 - Django templates: `{# #}` comments must be single-line; use `{% comment %}` for multi-line.
 - All user-visible strings are `{% trans %}` in templates. Polish translations must be non-empty — `tests/test_i18n_po_health.py::test_pl_has_no_untranslated_msgid` fails on a blank msgstr.
 - No JS test runner exists (no `package.json`, no jsdom). JS unit tests load a module with `page.add_script_tag` and call it via `page.evaluate`, following `tests/test_table_grid_algebra.py`.
@@ -40,16 +46,14 @@ Create `tests/test_node_permalink.py`:
 
 ```python
 import pytest
-from django.urls import resolve, reverse
+from django.urls import resolve
+from django.urls import reverse
 
-from courses.models import ContentNode, Enrollment
-from tests.factories import (
-    ContentNodeFactory,
-    CourseFactory,
-    UserFactory,
-    make_login,
-    seed_roles,
-)
+from courses.models import Enrollment
+from tests.factories import ContentNodeFactory
+from tests.factories import CourseFactory
+from tests.factories import make_login
+from tests.factories import seed_roles
 
 pytestmark = pytest.mark.django_db
 
@@ -241,7 +245,9 @@ import pytest
 from django.urls import reverse
 
 from courses.models import Enrollment
-from tests.factories import ContentNodeFactory, CourseFactory, make_login
+from tests.factories import ContentNodeFactory
+from tests.factories import CourseFactory
+from tests.factories import make_login
 
 pytestmark = pytest.mark.django_db
 
@@ -352,7 +358,9 @@ git commit -m "feat(links): per-node outline anchors + :target highlight"
 
 **Interfaces:**
 - Consumes: `courses:node_permalink` (Task 1).
-- Produces: URL name `courses:manage_link_picker` taking `slug`. Response is a bare `<ol class="link-picker__scope" role="tree">` whose rows are `<li class="link-picker__item" role="treeitem">` carrying `data-node`, `data-title`, `data-href`, `aria-level`, `aria-selected="false"`, `tabindex="-1"`. Task 6 reads exactly these attributes.
+- Produces: URL name `courses:manage_link_picker` taking `slug`. Response is a bare `<ol class="link-picker__scope" role="none">` whose rows are `<li class="link-picker__item" role="treeitem">` carrying `data-node`, `data-title`, `data-href`, `aria-level`, `aria-selected="false"`, `tabindex="-1"`. Task 6 reads exactly these attributes.
+
+  **`role="tree"` is not on this root `<ol>`** — it belongs on the dialog's mount `<div>` (Task 5), which is the element carrying the translated `aria-label`. An `aria-label` on a role-less wrapper names *that wrapper*, not a `role="tree"` child injected inside it, so putting the role here would leave the tree announced nameless. The root `<ol>` is therefore `role="none"`, keeping the `<li role="treeitem">` rows owned by the labelled tree; nested `<ol>`s keep `role="group"`.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -362,7 +370,9 @@ Create `tests/test_link_picker.py`:
 import pytest
 from django.urls import reverse
 
-from tests.factories import ContentNodeFactory, CourseFactory, make_login
+from tests.factories import ContentNodeFactory
+from tests.factories import CourseFactory
+from tests.factories import make_login
 
 pytestmark = pytest.mark.django_db
 
@@ -422,7 +432,9 @@ def test_rows_are_treeitems_owning_their_children(client):
     html = client.get(
         reverse("courses:manage_link_picker", kwargs={"slug": course.slug})
     ).content.decode()
-    assert 'role="tree"' in html
+    # role="tree" lives on the dialog's mount div (which carries the aria-label);
+    # this root <ol> is presentational so the <li> treeitems remain owned by the tree.
+    assert 'role="none"' in html
     assert 'role="treeitem"' in html
     assert 'aria-level="1"' in html
     assert 'aria-level="2"' in html
@@ -467,9 +479,12 @@ def test_query_count_is_flat_in_tree_size(client, django_assert_num_queries):
         ContentNodeFactory(course=course, kind="part", parent=None, title=f"P{i}")
     url = reverse("courses:manage_link_picker", kwargs={"slug": course.slug})
     client.get(url)  # warm any session/auth caching
-    with django_assert_num_queries(4):
+    with django_assert_num_queries(4) as captured:
         # 1 session, 1 user, 1 course lookup (+perm), 1 _children_map
         client.get(url)
+    # The invariant that actually matters: the tree costs ONE query regardless of size.
+    node_queries = [q for q in captured.captured_queries if "courses_contentnode" in q["sql"]]
+    assert len(node_queries) == 1, node_queries
 ```
 
 - [ ] **Step 2: Run the tests to verify they fail**
@@ -517,7 +532,7 @@ def link_picker(request, slug):
 
 ```html
 {% load courses_manage_extras %}
-<ol class="link-picker__scope" role="tree">
+<ol class="link-picker__scope" role="none">
   {% for node in top_nodes %}
     {% include "courses/manage/editor/_link_picker_node.html" with n=node children_map=children_map level=1 %}
   {% endfor %}
@@ -567,7 +582,16 @@ focusable and keyboard-operable.{% endcomment %}
 - [ ] **Step 6: Run the tests to verify they pass**
 
 Run: `uv run pytest tests/test_link_picker.py -q`
-Expected: PASS (8 tests). If the query-count test fails with a different number, read the reported count, confirm each query is one of the four named in the comment, and update the number — do **not** simply record whatever the first run printed.
+Expected: PASS (8 tests).
+
+If the query-count test reports a different number, do **not** just record it. Read the
+captured queries (`django_assert_num_queries` prints them on failure) and apply this
+rule: **exactly one** must touch `courses_contentnode` — that is `_children_map`, and it
+is the one a per-row regression would multiply. Everything else is incidental
+auth/session/course overhead; allauth's `AccountMiddleware` reads `EmailAddress` on
+authenticated requests, for instance, which the comment does not list. Update the number
+*and* extend the comment to name what you actually found, so the next reader can do the
+same check.
 
 - [ ] **Step 7: Falsify the href guard**
 
@@ -598,9 +622,13 @@ git commit -m "feat(links): link-picker endpoint serving the course tree"
 
   Task 7 calls all four. `normalizeUrl`'s `reject` value is a message **key**, one of `"scheme"`, `"protocol-relative"`, `"relative"`.
 
+**Not in scope here: the raw-`>`-in-an-attribute hazard.** That is a *string-scanning* problem, and this module never scans HTML — it walks the live DOM, where the browser's parser has already resolved attribute boundaries correctly. `surface.querySelectorAll("a")` cannot be fooled by `title="a > b"`. The attribute-aware scanner belongs to part 2's `courses/richtext.py`, which does scan strings; a test for it here could never go red for a real defect.
+
 - [ ] **Step 1: Write the failing tests**
 
-Create `tests/test_link_apply.py`. This uses Playwright as a JS runtime, following `tests/test_table_grid_algebra.py` — there is no jsdom in this repo. The file **must** carry the e2e marker or it lands in the unit job where no browser is installed:
+Create `tests/test_link_apply.py`. This uses Playwright as a JS runtime, following `tests/test_table_grid_algebra.py` — there is no jsdom in this repo. The file **must** carry the e2e marker or it lands in the unit job where no browser is installed.
+
+Note the import style: `pyproject.toml` selects `I` with `force-single-line = true`, so every import is on its own line. Grouped imports fail `ruff check`.
 
 ```python
 """Unit tests for link_apply.js, run in a real browser.
@@ -627,6 +655,25 @@ MODULE = (
     / "link_apply.js"
 )
 
+SELECT_ALL = (
+    "(s) => { const r = document.createRange();"
+    " r.selectNodeContents(s); return r; }"
+)
+CARET_IN_FIRST_LINK = (
+    "(s) => { const a = s.querySelector('a');"
+    " const r = document.createRange();"
+    " r.setStart(a.firstChild, 1); r.collapse(true); return r; }"
+)
+SELECT_FIRST_LINK = (
+    "(s) => { const r = document.createRange();"
+    " r.selectNodeContents(s.querySelector('a')); return r; }"
+)
+CARET_AT_END = (
+    "(s) => { const r = document.createRange();"
+    " r.setStart(s.firstChild, s.firstChild.length);"
+    " r.collapse(true); return r; }"
+)
+
 
 @pytest.fixture
 def page_with_module(page):
@@ -646,6 +693,20 @@ def _apply(page, html, build_range_js, result):
             return s.innerHTML;
         }""",
         [html, build_range_js, result],
+    )
+
+
+def _apply_then(page, html, build_range_js, result, probe_js):
+    """Same, but return the value of probe_js evaluated against the surface after."""
+    return page.evaluate(
+        """([html, buildRange, result, probe]) => {
+            const s = document.getElementById('s');
+            s.innerHTML = html;
+            const range = (new Function('s', 'return (' + buildRange + ')(s)'))(s);
+            window.libliLinkApply.apply(s, range, result);
+            return (new Function('s', 'return (' + probe + ')(s)'))(s);
+        }""",
+        [html, build_range_js, result, probe_js],
     )
 
 
@@ -695,12 +756,6 @@ def test_permalink_with_query_suffix_is_an_ordinary_url(page_with_module):
 
 
 # ---- anchor enumeration ----------------------------------------------------
-
-SELECT_ALL = "(s) => { const r = document.createRange(); r.selectNodeContents(s); return r; }"
-CARET_IN_FIRST_LINK = """
-(s) => { const a = s.querySelector('a'); const r = document.createRange();
-         r.setStart(a.firstChild, 1); r.collapse(true); return r; }
-"""
 
 
 def test_touched_anchors_spans_links_wholly_inside_the_range(page_with_module):
@@ -756,7 +811,7 @@ def test_rule1_selection_coextensive_with_a_link_edits_it(page_with_module):
     out = _apply(
         page_with_module,
         '<a href="/old/">Word</a>',
-        "(s) => { const r = document.createRange(); r.selectNodeContents(s.querySelector('a')); return r; }",
+        SELECT_FIRST_LINK,
         {"href": "/courses/n/9/", "text": "Word"},
     )
     assert out.count("<a") == 1
@@ -785,18 +840,51 @@ def test_rule1_edited_text_replaces_contents(page_with_module):
     assert "new label" in out
 
 
+def test_partial_selection_inside_a_link_exposes_the_full_text(page_with_module):
+    # The prefill-precedence hazard: existing.text must be the anchor's WHOLE
+    # textContent, or an author shown "vertex" would silently lose "the ... form unit"
+    # when they edit the field. text_toolbar.js reads exactly this.
+    got = page_with_module.evaluate(
+        """() => {
+            const s = document.getElementById('s');
+            s.innerHTML = '<a href="/old/">the vertex form unit</a>';
+            const t = s.querySelector('a').firstChild;
+            const r = document.createRange();
+            r.setStart(t, 4); r.setEnd(t, 10);        // "vertex"
+            const enc = window.libliLinkApply.enclosing(s, r);
+            return [r.toString(), enc.textContent];
+        }"""
+    )
+    assert got == ["vertex", "the vertex form unit"]
+
+
 def test_rule2_selection_starting_at_an_anchors_first_character(page_with_module):
     # The marker-node ordering case: a boundary container that IS the anchor would be
     # detached by the unwrap, leaving the range pointing at nothing.
     out = _apply(
         page_with_module,
         '<a href="/a/">AB</a>CD',
-        """(s) => { const a = s.querySelector('a'); const r = document.createRange();
-                   r.setStart(a.firstChild, 0); r.setEnd(s.lastChild, 2); return r; }""",
+        (
+            "(s) => { const a = s.querySelector('a');"
+            " const r = document.createRange();"
+            " r.setStart(a.firstChild, 0); r.setEnd(s.lastChild, 2); return r; }"
+        ),
         {"href": "/courses/n/9/", "text": "linked"},
     )
     assert out.count("<a") == 1
     assert 'href="/courses/n/9/"' in out
+
+
+def test_rule2_leaves_no_marker_or_split_text_node(page_with_module):
+    # The stated point of the marker sequence: markers removed, text nodes merged.
+    kids = _apply_then(
+        page_with_module,
+        'before <a href="/a/">AB</a> after',
+        SELECT_ALL,
+        {"href": "/courses/n/9/", "text": "L"},
+        "(s) => Array.from(s.childNodes).map(n => n.nodeName)",
+    )
+    assert kids == ["A"], kids
 
 
 def test_rule2_overlap_unlinks_the_unselected_remainder(page_with_module):
@@ -806,23 +894,45 @@ def test_rule2_overlap_unlinks_the_unselected_remainder(page_with_module):
     out = _apply(
         page_with_module,
         '<a href="/a/">AAA</a> mid <a href="/b/">BBB</a>',
-        """(s) => { const as = s.querySelectorAll('a'); const r = document.createRange();
-                   r.setStart(as[0].firstChild, 2); r.setEnd(as[1].firstChild, 1); return r; }""",
+        (
+            "(s) => { const as = s.querySelectorAll('a');"
+            " const r = document.createRange();"
+            " r.setStart(as[0].firstChild, 2);"
+            " r.setEnd(as[1].firstChild, 1); return r; }"
+        ),
         {"href": "/courses/n/9/", "text": "L"},
     )
     assert out.count("<a") == 1
-    assert "/a/" not in out and "/b/" not in out
+    assert "/a/" not in out
+    assert "/b/" not in out
 
 
 def test_rule3_collapsed_caret_inserts_a_new_anchor(page_with_module):
     out = _apply(
         page_with_module,
         "plain",
-        "(s) => { const r = document.createRange(); r.setStart(s.firstChild, 5); r.collapse(true); return r; }",
+        CARET_AT_END,
         {"href": "/courses/n/9/", "text": "New"},
     )
     assert 'href="/courses/n/9/"' in out
     assert ">New<" in out
+
+
+def test_caret_after_an_insert_sits_outside_the_anchor(page_with_module):
+    # This is what makes collapseAfter load-bearing: without it the caret stays INSIDE
+    # the new link and every subsequent keystroke silently extends the link text.
+    inside = _apply_then(
+        page_with_module,
+        "plain",
+        CARET_AT_END,
+        {"href": "/courses/n/9/", "text": "New"},
+        (
+            "(s) => { const r = window.getSelection().getRangeAt(0);"
+            " const a = s.querySelector('a');"
+            " return a.contains(r.startContainer) && r.startContainer !== s; }"
+        ),
+    )
+    assert inside is False
 
 
 def test_remove_unwraps_all_touched_anchors(page_with_module):
@@ -833,7 +943,26 @@ def test_remove_unwraps_all_touched_anchors(page_with_module):
         {"remove": True},
     )
     assert "<a" not in out
-    assert "A" in out and "B" in out
+    assert "A" in out
+    assert "B" in out
+
+
+def test_remove_leaves_the_caret_at_the_end_of_the_recovered_text(page_with_module):
+    # Spec: "the caret is collapsed at the end of the recovered text". Also guards the
+    # normalize() hazard: merging text nodes DETACHES all but the first, so a caret
+    # anchored to a pre-normalise node would make setStartAfter throw.
+    got = _apply_then(
+        page_with_module,
+        'x <a href="/a/">AAA</a> y',
+        CARET_IN_FIRST_LINK,
+        {"remove": True},
+        (
+            "(s) => { const r = window.getSelection().getRangeAt(0);"
+            " return [r.collapsed, r.startContainer.textContent.slice(0, r.startOffset)]; }"
+        ),
+    )
+    assert got[0] is True
+    assert got[1].endswith("AAA")
 
 
 def test_link_text_is_written_as_a_text_node(page_with_module):
@@ -841,34 +970,11 @@ def test_link_text_is_written_as_a_text_node(page_with_module):
     out = _apply(
         page_with_module,
         "plain",
-        "(s) => { const r = document.createRange(); r.setStart(s.firstChild, 5); r.collapse(true); return r; }",
+        CARET_AT_END,
         {"href": "/courses/n/9/", "text": "<b>bold</b>"},
     )
     assert "&lt;b&gt;bold&lt;/b&gt;" in out
     assert "<b>bold</b>" not in out
-
-
-# ---- the attribute-aware scanner ------------------------------------------
-
-
-def test_raw_gt_inside_an_anchor_attribute_is_handled_correctly(page_with_module):
-    # MEASURED: nh3 does NOT escape > inside attribute values, and `title` is an
-    # allowed <a> attribute. A naive <a[^>]*> matches `<a title="a >` -- a
-    # syntactically CLEAN match of the wrong span -- so the href falls outside it and
-    # the link is silently neither rewritten nor counted. Assert the rewrite, not the
-    # absence of damage: a "byte-identical" assertion passes the broken version.
-    for html in (
-        '<a title="a > b" href="/old/">W</a>',
-        '<a href="/old/" title="a > b">W</a>',
-    ):
-        out = _apply(
-            page_with_module,
-            html,
-            "(s) => { const r = document.createRange(); r.selectNodeContents(s.querySelector('a')); return r; }",
-            {"href": "/courses/n/9/", "text": "W"},
-        )
-        assert 'href="/courses/n/9/"' in out, html
-        assert "/old/" not in out, html
 ```
 
 - [ ] **Step 2: Run the tests to verify they fail**
@@ -987,15 +1093,38 @@ Create `courses/static/courses/js/link_apply.js`:
     sel.addRange(r);
   }
 
+  // A marker is an empty text node used as a stable position handle across mutations
+  // that would otherwise detach the nodes we are holding.
+  function marker() { return textNode(""); }
+
+  function dropMarker(m) { if (m.parentNode) m.parentNode.removeChild(m); }
+
   function apply(surface, range, result) {
     var touched = anchorsFor(surface, range);
 
     if (result && result.remove) {
       // No deleteContents here: the recovered text is exactly what this preserves.
-      var last = null;
-      for (var i = 0; i < touched.length; i++) { last = touched[i].previousSibling || touched[i].parentNode; unwrap(touched[i]); }
-      surface.normalize();
-      if (last) collapseAfter(last);
+      // The caret is pinned with a MARKER, not with a neighbouring node: normalize()
+      // merges adjacent text nodes into the FIRST and removes the rest, so a caret
+      // anchored to one of the removed nodes would make setStartAfter throw
+      // InvalidNodeTypeError. Insert the marker after the last unwrapped anchor's
+      // content, normalise, then collapse to the marker's position and drop it.
+      var endMark = marker();
+      if (touched.length) {
+        var lastAnchor = touched[touched.length - 1];
+        lastAnchor.parentNode.insertBefore(endMark, lastAnchor.nextSibling);
+      }
+      for (var i = 0; i < touched.length; i++) unwrap(touched[i]);
+      if (endMark.parentNode) {
+        var sel = window.getSelection();
+        var r = document.createRange();
+        r.setStartBefore(endMark);
+        r.collapse(true);
+        sel.removeAllRanges();
+        sel.addRange(r);
+        dropMarker(endMark);
+      }
+      surface.normalize();   // AFTER the caret is set: normalize invalidates handles
       return;
     }
 
@@ -1017,11 +1146,11 @@ Create `courses/static/courses/js/link_apply.js`:
       // Rule 2. Marker nodes first: unwrapping removes the element a boundary
       // container may BE, leaving the range pointing at a detached node so the
       // following deleteContents()/insertNode() would misbehave or throw.
-      var startMark = textNode("");
-      var endMark = textNode("");
+      var startMark = marker();
+      var endMark2 = marker();
       var r2 = range.cloneRange();
       r2.collapse(false);
-      r2.insertNode(endMark);
+      r2.insertNode(endMark2);
       var r1 = range.cloneRange();
       r1.collapse(true);
       r1.insertNode(startMark);
@@ -1030,22 +1159,22 @@ Create `courses/static/courses/js/link_apply.js`:
 
       var work = document.createRange();
       work.setStartAfter(startMark);   // after/before, so removing the markers
-      work.setEndBefore(endMark);      // cannot shift the boundaries
+      work.setEndBefore(endMark2);     // cannot shift the boundaries
       work.deleteContents();
       var anchor = makeAnchor(result.href, result.text);
       work.insertNode(anchor);
-      if (startMark.parentNode) startMark.parentNode.removeChild(startMark);
-      if (endMark.parentNode) endMark.parentNode.removeChild(endMark);
-      surface.normalize();            // last: markers would block the merge
-      collapseAfter(anchor);
+      dropMarker(startMark);
+      dropMarker(endMark2);
+      collapseAfter(anchor);           // BEFORE normalize, which detaches handles
+      surface.normalize();
       return;
     }
 
     // Rule 3.
     var fresh = makeAnchor(result.href, result.text);
     range.insertNode(fresh);
-    surface.normalize();
     collapseAfter(fresh);
+    surface.normalize();
   }
 
   window.libliLinkApply = {
@@ -1057,20 +1186,36 @@ Create `courses/static/courses/js/link_apply.js`:
 })();
 ```
 
+**Note the ordering rule this module obeys throughout:** `surface.normalize()` runs
+**last**, after the selection has been set. Normalising merges adjacent text nodes into
+the first and removes the others, so any node handle taken before it may be detached
+afterwards — and `Range.setStartAfter` on a parentless node throws
+`InvalidNodeTypeError`. Collapsing the selection to a *live* node first, then
+normalising, keeps the caret valid because the selection is repaired by the browser
+rather than by a stale reference.
+
 - [ ] **Step 4: Run the tests to verify they pass**
 
 Run: `uv run pytest tests/test_link_apply.py -m e2e -q`
 Expected: PASS. `-m e2e` is mandatory — without it pytest deselects everything and exits 5.
 
-- [ ] **Step 5: Falsify the rule-1 markup-preservation guard**
+- [ ] **Step 5: Lint this file now, not at the end**
+
+Run: `uv run ruff check tests/test_link_apply.py && uv run ruff format --check tests/test_link_apply.py`
+Expected: clean. `E501` (88 cols), `F401` (unused imports) and `I001` (isort, `force-single-line = true`) are all selected, so a grouped or over-long import block fails here rather than at Task 10.
+
+- [ ] **Step 6: Falsify the rule-1 markup-preservation guard**
 
 Temporarily delete the `if (result.text !== enc.textContent)` condition so the contents are always replaced. Run the tests. Expected: `test_rule1_unmodified_text_preserves_inline_markup` FAILS. Restore it.
 
-- [ ] **Step 6: Falsify the attribute-aware claim**
+- [ ] **Step 7: Falsify the normalise-ordering guard**
 
-Temporarily reimplement `anchorsFor` using a naive `surface.innerHTML.match(/<a[^>]*>/g)`-style scan. Confirm `test_raw_gt_inside_an_anchor_attribute_is_handled_correctly` FAILS for the `title`-first case. Restore.
+Move `surface.normalize()` in the removal branch to *before* the caret is set (i.e. immediately after the unwrap loop) and anchor the caret to `touched[last].previousSibling` instead of the marker. Run the tests. Expected:
+`test_remove_leaves_the_caret_at_the_end_of_the_recovered_text` FAILS — with an
+`InvalidNodeTypeError` on a multi-anchor fixture, which is precisely the bug this
+ordering prevents. Restore.
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
 git add courses/static/courses/js/link_apply.js tests/test_link_apply.py
@@ -1101,7 +1246,9 @@ from pathlib import Path
 import pytest
 from django.urls import reverse
 
-from tests.factories import CourseFactory, ContentNodeFactory, make_login
+from tests.factories import ContentNodeFactory
+from tests.factories import CourseFactory
+from tests.factories import make_login
 
 pytestmark = pytest.mark.django_db
 
@@ -1126,15 +1273,26 @@ def test_dialog_is_rendered_with_the_picker_url(client):
     assert reverse("courses:manage_link_picker", kwargs={"slug": course.slug}) in html
 
 
-def test_dialog_include_is_outside_every_data_scope():
+def test_dialog_is_not_inside_any_data_scope(client):
     # editor.js REPLACES the [data-scope] panes and re-runs libliInitRte. Dropped
     # inside one, the <dialog> and every listener bound to it at load are destroyed on
     # the first save -- an intermittent dead toolbar button that is painful to
-    # attribute. Assert the invariant, not a line number.
-    src = EDITOR_HTML.read_text(encoding="utf-8")
-    include_at = src.index("_link_dialog.html")
-    scope_include_at = src.index("_editor_scope.html")
-    assert include_at > scope_include_at, "dialog must come after the swapped scope"
+    # attribute.
+    #
+    # Assert the DOM invariant, not source ordering: _editor_scope.html itself includes
+    # _preview.html, so a future edit that moves the include INTO a swapped pane would
+    # leave editor.html's tag order unchanged and keep a text-ordering check green
+    # while reintroducing exactly this bug.
+    from bs4 import BeautifulSoup
+
+    html, _course = _editor(client)
+    soup = BeautifulSoup(html, "html.parser")
+    node = soup.select_one(".link-dialog")
+    assert node is not None, "dialog partial is not rendered at all"
+    for parent in node.parents:
+        assert not (parent.has_attr and parent.get("data-scope")), (
+            "the dialog must not sit inside a [data-scope] pane"
+        )
 
 
 def test_editor_loads_both_js_modules(client):
@@ -1231,19 +1389,25 @@ nothing else -- see the dismissal handler in link_dialog.js.{% endcomment %}
     <h2 class="link-dialog__title" id="link-dialog-title">{% trans "Insert link" %}</h2>
 
     <div class="picker__tabs" role="tablist">
+      {% comment %}role="tab" implies the tablist keyboard contract: ONE tab stop, with
+    Left/Right moving between the tabs (link_dialog.js maintains the roving tabindex).
+    Shipping the roles without it would be worse than the media picker's role-free
+    tabs -- AT would announce a contract nothing implements.{% endcomment %}
       <button type="button" class="picker__tab is-on" role="tab" aria-selected="true"
-              id="link-tab-node" aria-controls="link-panel-node" data-tab="node">{% trans "In this course" %}</button>
+              tabindex="0" id="link-tab-node" aria-controls="link-panel-node"
+              data-tab="node">{% trans "In this course" %}</button>
       <button type="button" class="picker__tab" role="tab" aria-selected="false"
-              id="link-tab-url" aria-controls="link-panel-url" data-tab="url">{% trans "Web address" %}</button>
+              tabindex="-1" id="link-tab-url" aria-controls="link-panel-url"
+              data-tab="url">{% trans "Web address" %}</button>
     </div>
 
     <div class="picker__panel" role="tabpanel" id="link-panel-node"
          aria-labelledby="link-tab-node" data-panel="node">
-      <label class="search">
+      <label class="search">{% trans "Filter" %}
         <input type="search" class="input" data-link-filter
                placeholder="{% trans 'Filter by title…' %}">
       </label>
-      <div class="link-picker__mount" data-link-tree
+      <div class="link-picker__mount" data-link-tree role="tree"
            aria-label="{% trans 'Course content' %}"></div>
       <p class="link-dialog__msg" data-msg="loading">{% trans "Loading…" %}</p>
       <p class="link-dialog__msg" data-msg="empty" hidden>{% trans "This course has no content yet." %}</p>
@@ -1332,7 +1496,7 @@ Append to `courses/static/courses/css/editor.css`:
   border-radius: var(--radius-sm); cursor: pointer; }
 .link-picker__row:hover { background: var(--surface-sunken); }
 
-/* DUPLICATED from builder.css:35-37 -- twin. The editor page does not load builder.css
+/* DUPLICATED from builder.css .tree__badge block -- twin. The editor page does not load builder.css
    (tests/test_editor_styles.py asserts it), and pulling that stylesheet in would drag
    along .tree__title overrides that exist to win a specificity fight with app.css.
    tests/test_editor_styles.py::test_duplicated_badge_rules_match_their_twin keeps the
@@ -1374,14 +1538,328 @@ git commit -m "feat(links): link dialog partial, editor wiring, picker CSS"
 
 **Files:**
 - Create: `courses/static/courses/js/link_dialog.js`
+- Test: `tests/test_link_dialog_behaviour.py` (create, `pytestmark = pytest.mark.e2e`)
 
 **Interfaces:**
 - Consumes: `window.libliLinkApply.normalizeUrl` (Task 4); the markup from Task 5; `courses:manage_link_picker` via `data-link-picker-url`.
 - Produces: `window.libliLinkDialog.open(opts, cb)` where `opts = {existing, touchedAnchors, selectionText}` and `cb(result)` receives `{href, text}` | `{remove: true}` | `null`. **Defined only when `showModal` exists and `.link-dialog` is present** — the export is the capability signal.
 
-- [ ] **Step 1: Write the module**
+- [ ] **Step 1: Write the failing tests**
 
-There is no cheap unit harness for this one (it needs the real `<dialog>` and the real fetch), so its behaviour is covered by the e2e in Task 8. Create `courses/static/courses/js/link_dialog.js`:
+This module gets real coverage, not just a smoke check: it is ~300 lines with several
+invariants the spec names explicitly (one-dialog-at-a-time, the tab toggle contract,
+callback-fires-exactly-once, open-time reset). The harness mounts the **real rendered
+partial** into a blank page, so no live server or DB is needed; only the fetch is
+stubbed.
+
+Create `tests/test_link_dialog_behaviour.py`:
+
+```python
+"""Behaviour tests for link_dialog.js against the REAL rendered partial.
+
+Playwright as a JS runtime (see tests/test_table_grid_algebra.py). The picker fetch is
+stubbed with page.route so no server is needed; everything else -- <dialog>, focus,
+tabs, keyboard -- is the genuine browser.
+"""
+
+from pathlib import Path
+
+import pytest
+from django.template.loader import render_to_string
+
+pytestmark = pytest.mark.e2e
+
+JS_DIR = (
+    Path(__file__).resolve().parent.parent / "courses" / "static" / "courses" / "js"
+)
+
+TREE_HTML = """
+<ol class="link-picker__scope" role="none">
+  <li class="link-picker__item" role="treeitem" aria-level="1" aria-selected="false"
+      tabindex="-1" data-node="1" data-title="Algebra" data-href="/courses/n/1/">
+    <span class="link-picker__row">Algebra</span>
+    <ol class="link-picker__scope" role="group">
+      <li class="link-picker__item" role="treeitem" aria-level="2" aria-selected="false"
+          tabindex="-1" data-node="2" data-title="Quadratics" data-href="/courses/n/2/">
+        <span class="link-picker__row">Quadratics</span>
+      </li>
+    </ol>
+  </li>
+</ol>
+"""
+
+
+@pytest.fixture
+def dialog_page(page, db):
+    """A blank page holding the rendered dialog partial plus both JS modules."""
+    from tests.factories import CourseFactory
+
+    course = CourseFactory()
+    markup = render_to_string(
+        "courses/manage/editor/_link_dialog.html", {"course": course}
+    )
+    page.set_content(f"<main>{markup}</main>")
+    page.route(
+        "**/link-picker/", lambda route: route.fulfill(status=200, body=TREE_HTML)
+    )
+    page.add_script_tag(path=str(JS_DIR / "link_apply.js"))
+    page.add_script_tag(path=str(JS_DIR / "link_dialog.js"))
+    return page
+
+
+def _open(page, **opts):
+    page.evaluate(
+        """(opts) => {
+            window.__result = "PENDING";
+            window.__calls = 0;
+            window.libliLinkDialog.open(opts, (r) => {
+                window.__calls += 1;
+                window.__result = r;
+            });
+        }""",
+        {"existing": None, "touchedAnchors": 0, "selectionText": "", **opts},
+    )
+    page.locator(".link-picker__item").first.wait_for()
+
+
+def test_module_exports_when_markup_is_present(dialog_page):
+    assert dialog_page.evaluate("() => typeof window.libliLinkDialog") == "object"
+
+
+def test_initial_focus_is_the_filter_input(dialog_page):
+    # showModal() autofocuses the first focusable DESCENDANT -- which is the first tab
+    # button -- so the focus call must happen AFTER showModal, not before.
+    _open(dialog_page)
+    focused = dialog_page.evaluate(
+        "() => document.activeElement.getAttribute('data-link-filter') !== null"
+    )
+    assert focused is True
+
+
+def test_default_tab_is_in_this_course(dialog_page):
+    _open(dialog_page)
+    assert (
+        dialog_page.locator("[data-tab='node']").get_attribute("aria-selected")
+        == "true"
+    )
+
+
+def test_tab_toggle_sets_is_on_and_hidden(dialog_page):
+    # editor.css styles the active tab as .picker__tab.is-on and hides panels via
+    # .picker__panel[hidden]. Without BOTH, two panels render at once.
+    _open(dialog_page)
+    dialog_page.locator("[data-tab='url']").click()
+    assert dialog_page.locator("[data-tab='url']").evaluate(
+        "el => el.classList.contains('is-on')"
+    )
+    assert dialog_page.locator("[data-panel='node']").is_hidden()
+    assert dialog_page.locator("[data-panel='url']").is_visible()
+
+
+def test_tabs_are_a_single_tab_stop_with_arrow_keys(dialog_page):
+    # role="tab" implies the tablist keyboard contract. Half the pattern -- roles
+    # without roving tabindex and Left/Right -- is worse than no roles at all.
+    _open(dialog_page)
+    tabindexes = dialog_page.evaluate(
+        "() => Array.from(document.querySelectorAll('.picker__tab'))"
+        ".map(t => t.tabIndex)"
+    )
+    assert sorted(tabindexes) == [-1, 0]
+    dialog_page.locator("[data-tab='node']").focus()
+    dialog_page.keyboard.press("ArrowRight")
+    assert (
+        dialog_page.locator("[data-tab='url']").get_attribute("aria-selected") == "true"
+    )
+
+
+def test_enter_selects_a_row_and_never_inserts(dialog_page):
+    _open(dialog_page)
+    dialog_page.keyboard.press("Tab")          # filter -> the tree's single tab stop
+    dialog_page.keyboard.press("Enter")
+    assert dialog_page.locator("[aria-selected='true'][data-node]").count() == 1
+    assert dialog_page.evaluate("() => window.__result") == "PENDING"
+
+
+def test_arrow_down_moves_within_the_roving_set(dialog_page):
+    _open(dialog_page)
+    dialog_page.keyboard.press("Tab")
+    dialog_page.keyboard.press("ArrowDown")
+    dialog_page.keyboard.press("Enter")
+    assert (
+        dialog_page.locator("[aria-selected='true'][data-node]").get_attribute(
+            "data-node"
+        )
+        == "2"
+    )
+
+
+def test_insert_returns_href_and_text(dialog_page):
+    _open(dialog_page)
+    dialog_page.locator("[data-node='2']").click()
+    dialog_page.locator("[data-link-text]").fill("Quadratics")
+    dialog_page.locator("[data-link-insert]").click()
+    assert dialog_page.evaluate("() => window.__result") == {
+        "href": "/courses/n/2/",
+        "text": "Quadratics",
+    }
+
+
+def test_url_is_normalised_in_the_field_before_insert(dialog_page):
+    # The spec promises "the normalised value is shown before inserting". Normalising
+    # only inside the insert handler would close the dialog on the next statement, so
+    # the author would never see it.
+    _open(dialog_page)
+    dialog_page.locator("[data-tab='url']").click()
+    dialog_page.locator("[data-link-url]").fill("example.com")
+    dialog_page.locator("[data-link-url]").blur()
+    assert dialog_page.locator("[data-link-url]").input_value() == "https://example.com"
+
+
+def test_rejected_url_shows_its_own_message_and_disables_insert(dialog_page):
+    _open(dialog_page)
+    dialog_page.locator("[data-tab='url']").click()
+    dialog_page.locator("[data-link-url]").fill("javascript:alert(1)")
+    dialog_page.locator("[data-link-text]").fill("x")
+    assert dialog_page.locator("[data-msg='scheme']").is_visible()
+    assert dialog_page.locator("[data-link-insert]").is_disabled()
+
+
+@pytest.mark.parametrize("how", ["cancel", "escape", "backdrop"])
+def test_every_dismissal_path_fires_the_callback_exactly_once(dialog_page, how):
+    _open(dialog_page)
+    if how == "cancel":
+        dialog_page.locator("[data-link-cancel]").click()
+    elif how == "escape":
+        dialog_page.keyboard.press("Escape")
+    else:
+        # A modal <dialog> does NOT close on a backdrop click by itself; the content
+        # lives in an inner card so e.target === dialog means the backdrop.
+        box = dialog_page.locator(".link-dialog").bounding_box()
+        dialog_page.mouse.click(box["x"] + 2, box["y"] + 2)
+    assert dialog_page.evaluate("() => window.__calls") == 1
+    assert dialog_page.evaluate("() => window.__result") is None
+
+
+def test_a_second_open_while_pending_is_rejected(dialog_page):
+    _open(dialog_page)
+    dialog_page.evaluate(
+        "() => { window.__second = 0;"
+        " window.libliLinkDialog.open({existing: null, touchedAnchors: 0,"
+        " selectionText: ''}, () => { window.__second += 1; }); }"
+    )
+    dialog_page.locator("[data-link-cancel]").click()
+    # The FIRST callback stands and fires once; the second never registers.
+    assert dialog_page.evaluate("() => window.__calls") == 1
+    assert dialog_page.evaluate("() => window.__second") == 0
+
+
+def test_a_second_open_starts_clean(dialog_page):
+    _open(dialog_page)
+    dialog_page.locator("[data-node='2']").click()
+    dialog_page.locator("[data-link-filter]").fill("quad")
+    dialog_page.locator("[data-link-cancel]").click()
+    _open(dialog_page)
+    assert dialog_page.locator("[data-link-filter]").input_value() == ""
+    assert dialog_page.locator("[aria-selected='true'][data-node]").count() == 0
+    assert dialog_page.locator("[data-link-text]").input_value() == ""
+
+
+def test_existing_internal_link_preselects_its_row(dialog_page):
+    _open(
+        dialog_page,
+        existing={"href": "/courses/n/2/", "text": "Quadratics"},
+        touchedAnchors=1,
+    )
+    assert (
+        dialog_page.locator("[aria-selected='true'][data-node]").get_attribute(
+            "data-node"
+        )
+        == "2"
+    )
+    assert dialog_page.locator("[data-link-remove]").is_enabled()
+
+
+def test_target_not_in_this_course_explains_itself(dialog_page):
+    _open(
+        dialog_page,
+        existing={"href": "/courses/n/999/", "text": "gone"},
+        touchedAnchors=1,
+    )
+    assert dialog_page.locator("[data-msg='foreign']").is_visible()
+    assert dialog_page.locator("[data-link-url]").input_value() == "/courses/n/999/"
+
+
+def test_no_match_hides_the_tree_and_says_so(dialog_page):
+    _open(dialog_page)
+    dialog_page.locator("[data-link-filter]").fill("zzz-nothing")
+    assert dialog_page.locator("[data-msg='nomatch']").is_visible()
+
+
+def test_a_failed_fetch_is_not_cached_and_retries_on_the_next_open(page, db):
+    from tests.factories import CourseFactory
+
+    course = CourseFactory()
+    markup = render_to_string(
+        "courses/manage/editor/_link_dialog.html", {"course": course}
+    )
+    page.set_content(f"<main>{markup}</main>")
+    calls = {"n": 0}
+
+    def handler(route):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            route.fulfill(status=500, body="nope")
+        else:
+            route.fulfill(status=200, body=TREE_HTML)
+
+    page.route("**/link-picker/", handler)
+    page.add_script_tag(path=str(JS_DIR / "link_apply.js"))
+    page.add_script_tag(path=str(JS_DIR / "link_dialog.js"))
+
+    page.evaluate(
+        "() => window.libliLinkDialog.open("
+        "{existing: null, touchedAnchors: 0, selectionText: ''}, () => {})"
+    )
+    page.locator("[data-msg='fetch']").wait_for()
+    page.locator("[data-link-cancel]").click()
+
+    page.evaluate(
+        "() => window.libliLinkDialog.open("
+        "{existing: null, touchedAnchors: 0, selectionText: ''}, () => {})"
+    )
+    page.locator(".link-picker__item").first.wait_for()
+    assert calls["n"] == 2
+
+
+def test_dismissing_mid_fetch_does_not_paint_a_fetch_error(page, db):
+    # A deliberate abort must be distinguishable from a failure, or a clean dismissal
+    # toggles the error line on.
+    from tests.factories import CourseFactory
+
+    course = CourseFactory()
+    markup = render_to_string(
+        "courses/manage/editor/_link_dialog.html", {"course": course}
+    )
+    page.set_content(f"<main>{markup}</main>")
+    page.route("**/link-picker/", lambda route: None)   # never resolves
+    page.add_script_tag(path=str(JS_DIR / "link_apply.js"))
+    page.add_script_tag(path=str(JS_DIR / "link_dialog.js"))
+    page.evaluate(
+        "() => window.libliLinkDialog.open("
+        "{existing: null, touchedAnchors: 0, selectionText: ''}, () => {})"
+    )
+    page.locator("[data-link-cancel]").click()
+    assert page.locator("[data-msg='fetch']").is_hidden()
+```
+
+- [ ] **Step 2: Run the tests to verify they fail**
+
+Run: `uv run pytest tests/test_link_dialog_behaviour.py -m e2e -q`
+Expected: FAIL — `window.libliLinkDialog` is undefined because the module does not exist.
+
+- [ ] **Step 3: Write the module**
+
+Create `courses/static/courses/js/link_dialog.js`:
 
 ```js
 (function () {
@@ -1406,6 +1884,7 @@ There is no cheap unit harness for this one (it needs the real `<dialog>` and th
   var cancelBtn = dialog.querySelector("[data-link-cancel]");
   var retryBtn = dialog.querySelector("[data-link-retry]");
   var statusEl = dialog.querySelector("[data-link-status]");
+  var tabsEl = dialog.querySelector(".picker__tabs");
   var PERMALINK = /^\/courses\/n\/(\d+)\/$/;
 
   var callback = null;        // pending; a second open() is REJECTED, not superseding
@@ -1413,6 +1892,7 @@ There is no cheap unit harness for this one (it needs the real `<dialog>` and th
   var treeHtml = null;        // cached SUCCESSFUL response, for the life of the page
   var pending = null;         // in-flight fetch, reused by a second open()
   var aborter = null;
+  var aborted = false;        // distinguishes a deliberate abort from a real failure
   var wantNode = null;        // preselection requested before the payload arrived
   var filterTimer = null;
 
@@ -1428,24 +1908,33 @@ There is no cheap unit harness for this one (it needs the real `<dialog>` and th
   // ---- tabs ---------------------------------------------------------------
   // editor.css styles the active tab as .picker__tab.is-on and hides panels via
   // .picker__panel[hidden] -- the pair media_picker.js already toggles. Without both,
-  // two panels render at once.
-  function showTab(name) {
+  // two panels render at once. role="tab" also implies the tablist keyboard contract,
+  // so the tabs are ONE tab stop with Left/Right between them.
+  function showTab(name, focusField) {
     var tabs = dialog.querySelectorAll(".picker__tab");
     for (var i = 0; i < tabs.length; i++) {
       var on = tabs[i].getAttribute("data-tab") === name;
       tabs[i].classList.toggle("is-on", on);
       tabs[i].setAttribute("aria-selected", on ? "true" : "false");
+      tabs[i].tabIndex = on ? 0 : -1;
     }
     var panels = dialog.querySelectorAll(".picker__panel");
     for (var j = 0; j < panels.length; j++) {
       panels[j].hidden = panels[j].getAttribute("data-panel") !== name;
     }
-    (name === "node" ? filterEl : urlEl).focus();
+    if (focusField) (name === "node" ? filterEl : urlEl).focus();
     refresh();
   }
-  dialog.querySelector(".picker__tabs").addEventListener("click", function (e) {
+  tabsEl.addEventListener("click", function (e) {
     var t = e.target.closest(".picker__tab");
-    if (t) showTab(t.getAttribute("data-tab"));
+    if (t) showTab(t.getAttribute("data-tab"), true);
+  });
+  tabsEl.addEventListener("keydown", function (e) {
+    if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+    var next = activeTab() === "node" ? "url" : "node";
+    showTab(next, false);
+    dialog.querySelector('[data-tab="' + next + '"]').focus();
+    e.preventDefault();
   });
 
   function activeTab() {
@@ -1460,7 +1949,9 @@ There is no cheap unit harness for this one (it needs the real `<dialog>` and th
   function rovingSet() {
     var out = [], all = rows();
     for (var i = 0; i < all.length; i++) {
-      if (!all[i].hidden && all[i].getAttribute("aria-disabled") !== "true") out.push(all[i]);
+      if (!all[i].hidden && all[i].getAttribute("aria-disabled") !== "true") {
+        out.push(all[i]);
+      }
     }
     return out;
   }
@@ -1511,15 +2002,13 @@ There is no cheap unit harness for this one (it needs the real `<dialog>` and th
         }
       }
     }
-    msg("nomatch", q && shown === 0);
+    msg("nomatch", !!(q && shown === 0));
     mount.hidden = !!(q && shown === 0);
     setTabStop();
     // Debounced: a polite region that changes every keystroke queues one utterance per
     // character and drowns the "No matches." case it exists for.
     clearTimeout(filterTimer);
-    filterTimer = setTimeout(function () {
-      statusEl.textContent = shown + "";
-    }, 400);
+    filterTimer = setTimeout(function () { statusEl.textContent = shown + ""; }, 400);
   }
   filterEl.addEventListener("input", applyFilter);
 
@@ -1530,13 +2019,19 @@ There is no cheap unit harness for this one (it needs the real `<dialog>` and th
 
   mount.addEventListener("keydown", function (e) {
     var set = rovingSet();
-    var cur = document.activeElement.closest ? document.activeElement.closest(".link-picker__item") : null;
+    var cur = document.activeElement.closest
+      ? document.activeElement.closest(".link-picker__item")
+      : null;
     var i = set.indexOf(cur);
-    if (e.key === "ArrowDown" && i > -1 && set[i + 1]) { set[i + 1].focus(); e.preventDefault(); }
-    else if (e.key === "ArrowUp" && i > 0) { set[i - 1].focus(); e.preventDefault(); }
-    else if (e.key === "Home" && set[0]) { set[0].focus(); e.preventDefault(); }
-    else if (e.key === "End" && set.length) { set[set.length - 1].focus(); e.preventDefault(); }
-    else if ((e.key === "Enter" || e.key === " ") && cur) {
+    if (e.key === "ArrowDown" && i > -1 && set[i + 1]) {
+      set[i + 1].focus(); e.preventDefault();
+    } else if (e.key === "ArrowUp" && i > 0) {
+      set[i - 1].focus(); e.preventDefault();
+    } else if (e.key === "Home" && set[0]) {
+      set[0].focus(); e.preventDefault();
+    } else if (e.key === "End" && set.length) {
+      set[set.length - 1].focus(); e.preventDefault();
+    } else if ((e.key === "Enter" || e.key === " ") && cur) {
       // Enter SELECTS a row here; it never inserts. Otherwise arrowing to a new row
       // and pressing Enter would fire Insert against the previously selected node.
       selectRow(cur); e.preventDefault();
@@ -1548,6 +2043,7 @@ There is no cheap unit harness for this one (it needs the real `<dialog>` and th
     msg("loading", true);
     if (treeHtml !== null) { paint(treeHtml); return; }
     if (pending) return;
+    aborted = false;
     aborter = new AbortController();
     pending = fetch(pickerUrl, {
       headers: { "X-Requested-With": "fetch" },
@@ -1564,6 +2060,7 @@ There is no cheap unit harness for this one (it needs the real `<dialog>` and th
       paint(html);
     }).catch(function () {
       pending = null;
+      if (aborted) return;             // a deliberate abort is not a failure
       clearMessages();
       msg("fetch", true);              // not cached -> the next open() retries
     });
@@ -1596,8 +2093,7 @@ There is no cheap unit harness for this one (it needs the real `<dialog>` and th
   }
 
   function refresh() {
-    var ok = !!currentHref() && !!textEl.value.trim();
-    insertBtn.disabled = !ok;
+    insertBtn.disabled = !(currentHref() && textEl.value.trim());
   }
   urlEl.addEventListener("input", function () {
     clearMessages();
@@ -1605,14 +2101,20 @@ There is no cheap unit harness for this one (it needs the real `<dialog>` and th
     if (res.reject && urlEl.value.trim()) msg(res.reject, true);
     refresh();
   });
+  // Normalise IN THE FIELD on blur, not inside the insert handler: commit() closes the
+  // dialog on the next statement, so a value rewritten there is never seen. The author
+  // must be able to see (and reject) https:// being prepended.
+  urlEl.addEventListener("blur", function () {
+    var res = window.libliLinkApply.normalizeUrl(urlEl.value, window.location.origin);
+    if (res.href) urlEl.value = res.href;
+    refresh();
+  });
   textEl.addEventListener("input", refresh);
 
   function commit(result) { committed = result; dialog.close(); }
   insertBtn.addEventListener("click", function () {
     var href = currentHref();
-    if (!href) return;
-    if (activeTab() === "url") urlEl.value = href;   // show the normalised value
-    commit({ href: href, text: textEl.value });
+    if (href) commit({ href: href, text: textEl.value });
   });
   removeBtn.addEventListener("click", function () { commit({ remove: true }); });
   cancelBtn.addEventListener("click", function () { dialog.close(); });
@@ -1640,7 +2142,7 @@ There is no cheap unit harness for this one (it needs the real `<dialog>` and th
     var cb = callback, result = committed;
     callback = null;
     committed = null;
-    if (aborter) { aborter.abort(); aborter = null; pending = null; }
+    if (aborter) { aborted = true; aborter.abort(); aborter = null; pending = null; }
     if (cb) cb(result || null);
   });
 
@@ -1677,11 +2179,16 @@ There is no cheap unit harness for this one (it needs the real `<dialog>` and th
       else if (opts.selectionText) textEl.value = opts.selectionText;
 
       var m = existing && PERMALINK.exec(existing.href || "");
-      if (m) { wantNode = m[1]; showTab("node"); }
-      else if (existing) { urlEl.value = existing.href || ""; showTab("url"); }
-      else { showTab("node"); }
+      var tab = "node";
+      if (m) { wantNode = m[1]; }
+      else if (existing) { urlEl.value = existing.href || ""; tab = "url"; }
 
+      // showModal FIRST, then focus. A closed <dialog> is display:none, so a .focus()
+      // before it is a no-op -- and showModal then autofocuses the first focusable
+      // descendant, which is the first TAB BUTTON, not the field.
+      showTab(tab, false);
       dialog.showModal();
+      (tab === "node" ? filterEl : urlEl).focus();
       loadTree();
       refresh();
     }
@@ -1689,14 +2196,33 @@ There is no cheap unit harness for this one (it needs the real `<dialog>` and th
 })();
 ```
 
-- [ ] **Step 2: Sanity-check it loads**
+- [ ] **Step 4: Run the tests to verify they pass**
 
-Run: `uv run python manage.py collectstatic --noinput --dry-run 2>&1 | tail -3` — confirm no error. Then open a unit editor in the browser and confirm the toolbar link button still does nothing yet (Task 7 wires it) and the console shows no error on page load.
+Run: `uv run pytest tests/test_link_dialog_behaviour.py -m e2e -q`
+Expected: PASS.
 
-- [ ] **Step 3: Commit**
+- [ ] **Step 5: Lint**
+
+Run: `uv run ruff check tests/test_link_dialog_behaviour.py && uv run ruff format --check tests/test_link_dialog_behaviour.py`
+Expected: clean.
+
+- [ ] **Step 6: Falsify the focus ordering**
+
+Move the `(tab === "node" ? filterEl : urlEl).focus();` line to *before* `dialog.showModal()`. Run the tests. Expected: `test_initial_focus_is_the_filter_input` FAILS — focus lands on the first tab button instead. Restore.
+
+- [ ] **Step 7: Falsify the one-dialog-at-a-time guard**
+
+Delete the `if (callback) return;` line. Run the tests. Expected:
+`test_a_second_open_while_pending_is_rejected` FAILS. Restore.
+
+- [ ] **Step 8: Check it in the real page**
+
+Start the server, open a unit editor, and confirm the console shows no error on page load. The toolbar link button still opens the **old `window.prompt`** at this point — Task 7 is what replaces it.
+
+- [ ] **Step 9: Commit**
 
 ```bash
-git add courses/static/courses/js/link_dialog.js
+git add courses/static/courses/js/link_dialog.js tests/test_link_dialog_behaviour.py
 git commit -m "feat(links): link_dialog.js — tabs, picker, URL validation, dismissal"
 ```
 
@@ -1740,6 +2266,14 @@ def test_guards_on_both_modules():
     src = TEXT_TOOLBAR.read_text(encoding="utf-8")
     assert "window.libliLinkDialog" in src
     assert "window.libliLinkApply" in src
+
+
+def test_detached_surface_surfaces_the_conflict_message():
+    # The spec's error table promises "the result is discarded with the existing
+    # conflict message". A bare  is the same data loss with no feedback.
+    src = TEXT_TOOLBAR.read_text(encoding="utf-8")
+    assert "data-msg-conflict" in src
+    assert "op-error" in src
 
 
 def test_range_is_cloned():
@@ -1792,8 +2326,20 @@ with:
           // editor.js can replace the pane while the dialog is open (the page carries
           // data-msg-conflict, so a background reload path exists). Mutating an
           // orphaned node would look like a successful insert and then lose the link
-          // on save.
-          if (!surface.isConnected) return;
+          // on save -- so discard the result AND say so. A silent return is the same
+          // data loss with no feedback, which is what the message exists to prevent.
+          if (!surface.isConnected) {
+            var ed = document.querySelector(".editor");
+            var note = ed && ed.getAttribute("data-msg-conflict");
+            if (note) {
+              var bar = document.createElement("div");
+              bar.className = "op-error";
+              bar.textContent = note;
+              (ed || document.body).prepend(bar);
+              setTimeout(function () { bar.remove(); }, 6000);
+            }
+            return;
+          }
           var sel2 = window.getSelection();
           sel2.removeAllRanges();
           sel2.addRange(lrange);
@@ -1870,7 +2416,7 @@ def test_internal_and_external_markers_exist():
     assert '.el a[href^="http"]' in css
 
 
-def test_css_prefix_matches_the_route(db):
+def test_css_prefix_matches_the_route():
     # The selector duplicates the route's literal path, which the route NAME does not
     # protect: changing path("courses/n/<int:node_pk>/", ...) keeps every reverse-based
     # test green while silently stripping the marker off every internal link.
@@ -1974,16 +2520,33 @@ git commit -m "i18n(links): pl/en strings for the link dialog"
 **Interfaces:**
 - Consumes: everything from Tasks 1-9.
 
+Task 6 already covers the dialog's internals against the rendered partial. These tests
+cover only what that harness cannot: the real editor page, the real fetch, a real save,
+and the student-side round trip.
+
 - [ ] **Step 1: Write the e2e**
 
-Follow the repo's proven e2e idiom exactly — module-level `_make_pa_user` / `_login` helpers, the `DJANGO_ALLOW_ASYNC_UNSAFE` session fixture, and `@pytest.mark.django_db(transaction=True)` per test. Do **not** invent a new login fixture; `tests/test_e2e_builder.py` is the pattern to mirror. Every step drives the real gesture — a `page.evaluate` shortcut would ship broken UX green.
+Follow the repo's proven e2e idiom exactly — module-level `_make_pa_user` / `_login`
+helpers, the `DJANGO_ALLOW_ASYNC_UNSAFE` session fixture, and
+`@pytest.mark.django_db(transaction=True)` per test. Do **not** invent a login fixture;
+`tests/test_e2e_builder.py` is the pattern to mirror.
+
+Three selector facts, each verified against the templates, that the tests depend on:
+
+- the element type cards live in `<div class="typemenu" hidden data-type-menu>`, so
+  `[data-add-toggle]` must be clicked **first** or Playwright's actionability check
+  times out;
+- the element list is `.element-list`, and a row's edit affordance is the button
+  carrying `data-form-url` (it fetches `courses:manage_element_form`) — clicking the
+  `<li data-element>` itself does nothing;
+- the save control is `form[data-op="element-save"] button[type="submit"]`.
 
 Create `tests/test_e2e_link_dialog.py`:
 
 ```python
-"""Playwright e2e for the rich-text link dialog: insert an internal link, follow it,
-re-open and remove it, and complete an insert with the keyboard alone. Marked e2e
-(excluded from the default run)."""
+"""Playwright e2e for the rich-text link dialog on the REAL editor page: insert an
+internal link, save it, follow it as a student, and re-open it to remove it. The
+dialog's own internals are covered by tests/test_link_dialog_behaviour.py."""
 
 import os
 
@@ -2026,9 +2589,12 @@ def _login(page, live_server, username):
 
 
 def _seed(owner, *, with_link=False):
-    """A course with part > chapter > lesson unit. Optionally seed a text element whose
-    body already holds an internal link, for the re-open/remove path."""
-    from courses.models import ContentNode, Course, Element, TextElement
+    """A course with part > chapter > lesson unit, optionally holding a text element
+    whose body already contains an internal link (for the re-open/remove path)."""
+    from courses.models import ContentNode
+    from courses.models import Course
+    from courses.models import Element
+    from courses.models import TextElement
 
     course = Course.objects.create(title="Algebra", slug="algebra", owner=owner)
     part = ContentNode.objects.create(course=course, kind="part", title="Part A")
@@ -2053,38 +2619,53 @@ def _open_editor(page, live_server, course, unit):
     )
 
 
+def _add_text_element(page):
+    # The type cards sit inside `<div class="typemenu" hidden>`; without the toggle
+    # click Playwright waits for visibility and times out.
+    page.click("[data-add-toggle]")
+    page.click("[data-add-type='text']")
+    page.locator(".rte-surface").wait_for()
+
+
+def _open_link_dialog(page):
+    page.click("[data-cmd='link']")
+    dialog = page.locator(".link-dialog")
+    dialog.wait_for(state="visible")
+    # The tree arrives over fetch AFTER showModal, and setTabStop only runs once it has
+    # painted. Pressing keys before then lands them nowhere.
+    dialog.locator(".link-picker__item").first.wait_for()
+    return dialog
+
+
 @pytest.mark.django_db(transaction=True)
 def test_insert_internal_link_then_follow_it(page, live_server):
-    from courses.models import Enrollment, TextElement
+    from courses.models import Enrollment
+    from courses.models import TextElement
 
     owner = _make_pa_user("pa")
     course, chapter, unit = _seed(owner)
     _login(page, live_server, "pa")
     _open_editor(page, live_server, course, unit)
+    _add_text_element(page)
 
-    page.click("[data-add-type='text']")
     page.locator(".rte-surface").click()
-    page.keyboard.type("See the quadratics chapter")
-    page.dblclick(".rte-surface >> text=quadratics")
+    page.keyboard.type("See the chapter on quadratics")
+    # Select the LAST word deterministically. `text=` matches ELEMENTS, and the whole
+    # sentence is one text node, so `dblclick(".rte-surface >> text=quadratics")` would
+    # double-click the container's centre and select whatever word sits there.
+    page.keyboard.press("Control+Shift+ArrowLeft")
+    assert page.evaluate("() => window.getSelection().toString()") == "quadratics"
 
-    page.click("[data-cmd='link']")
-    dialog = page.locator(".link-dialog")
-    dialog.wait_for(state="visible")
-
-    # Default tab is "In this course" -- the feature's reason to exist.
+    dialog = _open_link_dialog(page)
     assert dialog.locator("[data-tab='node']").get_attribute("aria-selected") == "true"
-
-    dialog.locator("[data-link-filter]").fill("zzz-nothing-matches")
-    assert dialog.locator("[data-msg='nomatch']").is_visible()
-    dialog.locator("[data-link-filter]").fill("")
-
     dialog.locator(f"[data-node='{chapter.pk}']").click()
     # Prefill precedence: a non-empty selection beats the node title.
     assert dialog.locator("[data-link-text]").input_value() == "quadratics"
     dialog.locator("[data-link-insert]").click()
+    dialog.wait_for(state="hidden")
 
     page.click('form[data-op="element-save"] button[type="submit"]')
-    page.wait_for_selector(".editor-form", state="attached")
+    page.locator(".element-list [data-element]").first.wait_for()
 
     body = TextElement.objects.latest("pk").body
     assert f'href="/courses/n/{chapter.pk}/"' in body
@@ -2108,19 +2689,17 @@ def test_collapsed_caret_defaults_link_text_to_the_node_title(page, live_server)
     course, chapter, unit = _seed(owner)
     _login(page, live_server, "pa")
     _open_editor(page, live_server, course, unit)
+    _add_text_element(page)
 
-    page.click("[data-add-type='text']")
     page.locator(".rte-surface").click()
-    page.click("[data-cmd='link']")
-    dialog = page.locator(".link-dialog")
-    dialog.wait_for(state="visible")
+    dialog = _open_link_dialog(page)
     dialog.locator(f"[data-node='{chapter.pk}']").click()
     assert dialog.locator("[data-link-text]").input_value() == chapter.title
 
 
 @pytest.mark.django_db(transaction=True)
 def test_keyboard_only_insert(page, live_server):
-    """Tab once into the tree, move with arrows, press with Enter -- no mouse.
+    """Tab into the tree, move with arrows, press with Enter -- no mouse.
 
     This is what makes the roving-tabindex model real: with ~925 rows a Tab-only path
     to a deep row is not a realistic gesture, so a Tab-only test would prove nothing.
@@ -2129,18 +2708,24 @@ def test_keyboard_only_insert(page, live_server):
     course, _chapter, unit = _seed(owner)
     _login(page, live_server, "pa")
     _open_editor(page, live_server, course, unit)
+    _add_text_element(page)
 
-    page.click("[data-add-type='text']")
     page.locator(".rte-surface").click()
     page.keyboard.type("text")
-    page.click("[data-cmd='link']")
-    dialog = page.locator(".link-dialog")
-    dialog.wait_for(state="visible")
+    dialog = _open_link_dialog(page)
 
-    page.keyboard.press("Tab")          # filter -> the tree's single tab stop
+    # Focus starts in the filter (Task 6 pins that); one Tab reaches the tree.
+    assert page.evaluate(
+        "() => document.activeElement.hasAttribute('data-link-filter')"
+    )
+    page.keyboard.press("Tab")
+    assert page.evaluate(
+        "() => document.activeElement.classList.contains('link-picker__item')"
+    )
     page.keyboard.press("ArrowDown")
-    page.keyboard.press("Enter")        # Enter SELECTS a row; it never inserts
-    assert dialog.locator("[aria-selected='true']").count() == 1
+    page.keyboard.press("Enter")
+    assert dialog.locator("[aria-selected='true'][data-node]").count() == 1
+
     dialog.locator("[data-link-text]").fill("Chapter")
     dialog.locator("[data-link-insert]").click()
     dialog.wait_for(state="hidden")
@@ -2153,13 +2738,15 @@ def test_reopening_prefills_and_remove_unwraps(page, live_server):
     _login(page, live_server, "pa")
     _open_editor(page, live_server, course, unit)
 
-    page.click(".editor-list [data-element]")   # open the seeded text element
+    # The row's edit affordance is the button carrying data-form-url; clicking the
+    # <li data-element> itself does nothing.
+    page.click(".element-list [data-form-url]")
+    page.locator(".rte-surface").wait_for()
     page.click(".rte-surface a")                # caret inside the link
-    page.click("[data-cmd='link']")
-    dialog = page.locator(".link-dialog")
-    dialog.wait_for(state="visible")
+
+    dialog = _open_link_dialog(page)
     assert dialog.locator("[data-tab='node']").get_attribute("aria-selected") == "true"
-    selected = dialog.locator("[aria-selected='true']")
+    selected = dialog.locator("[aria-selected='true'][data-node]")
     assert selected.count() == 1
     # The preselected row must be scrolled into view, not merely marked.
     assert selected.is_visible()
@@ -2170,18 +2757,24 @@ def test_reopening_prefills_and_remove_unwraps(page, live_server):
     assert "quadratics" in page.locator(".rte-surface").inner_text()
 ```
 
-- [ ] **Step 2: Confirm the element-list selector**
-
-`test_reopening_prefills_and_remove_unwraps` clicks `.editor-list [data-element]` to open the seeded element. Open the editor in a browser, inspect the element row, and correct that selector to whatever the list actually renders before running the test. Every other selector in the file was verified against the templates.
-
-- [ ] **Step 3: Run the e2e**
+- [ ] **Step 2: Run the e2e**
 
 Run: `uv run pytest tests/test_e2e_link_dialog.py -m e2e -q`
-Expected: PASS. `-m e2e` is mandatory — without it pytest deselects everything and exits 5. Run it in the foreground; a backgrounded e2e run hides failures.
+Expected: PASS. `-m e2e` is mandatory — without it pytest deselects everything and
+exits 5. Run it in the foreground; a backgrounded e2e run hides failures.
 
-- [ ] **Step 4: Falsify the keyboard test**
+If a selector fails, fix it against the rendered page rather than weakening the
+assertion — every selector here was read off the templates, but the editor's fragment
+swaps can change what is attached at a given moment.
 
-Comment out the `keydown` listener in `link_dialog.js`. Confirm `test_keyboard_only_insert` FAILS (no row becomes selected). Restore it.
+- [ ] **Step 3: Falsify the keyboard test**
+
+Comment out the `keydown` listener on `mount` in `link_dialog.js`. Confirm
+`test_keyboard_only_insert` FAILS (ArrowDown/Enter select nothing). Restore it.
+
+- [ ] **Step 4: Lint the new file**
+
+Run: `uv run ruff check tests/test_e2e_link_dialog.py && uv run ruff format --check tests/test_e2e_link_dialog.py`
 
 - [ ] **Step 5: Full suite and lint**
 
@@ -2189,7 +2782,8 @@ Run: `uv run pytest -q`
 Run: `uv run pytest -m e2e -q`
 Run: `uv run ruff check . && uv run ruff format --check .`
 
-All green. If a failure appears that your diff cannot explain, do not fold a fix into this branch — an unrelated or flaky failure belongs in its own PR.
+All green. If a failure appears that your diff cannot explain, do not fold a fix into
+this branch — an unrelated or flaky failure belongs in its own PR.
 
 - [ ] **Step 6: Commit**
 
@@ -2205,5 +2799,9 @@ git commit -m "test(links): end-to-end coverage for the link dialog"
 **Spec coverage.** §1 permalink → Task 1. §2 outline anchors → Task 2. §3 picker endpoint, partials, roving tabindex, chip, fetch policy, filter states → Tasks 3, 6. §4 dialog markup, feature detection, tabs, ownership split, insertion rules, URL contract, dismissal, prefill precedence → Tasks 4, 5, 6, 7. §5 styling → Tasks 5 (preview-inert), 8 (student-side). §Testing → distributed, with the falsification steps called out per task. §i18n → Task 9.
 
 **Known gap, deliberate:** the spec's "wrong-surface case" is a *claim to be measured* — `applyCmd` calls `surface.focus()` before any branch reads the selection, which may make the mis-insert impossible. Task 7 ships the containment guard (cheap, correct either way) but no test asserts the mis-insert, because a test written before reproducing it would pass vacuously. Reproduce it against pre-change code during Task 7 and record the finding in the PR; add the test only if it is real.
+
+**Deliberately NOT tested in Task 4:** the raw-`>`-in-an-attribute hazard. `link_apply.js` walks the live DOM, where the browser's parser has already resolved attribute boundaries — `querySelectorAll("a")` cannot be fooled by `title="a > b"`. That hazard is a *string-scanning* problem and belongs to part 2's `courses/richtext.py`, which does scan strings. A test for it here could never go red for a real defect, which is exactly the vacuous guard the Global Constraints forbid.
+
+**Ordering invariant across Task 4:** `surface.normalize()` runs **last**, after the selection is set. Normalising merges adjacent text nodes into the first and detaches the rest, and `Range.setStartAfter` on a parentless node throws `InvalidNodeTypeError` — so a caret pinned to a pre-normalise node handle is a crash, not a cosmetic bug. The removal path uses a marker node for the same reason.
 
 **Type consistency.** `window.libliLinkApply` exposes `anchorsFor`, `enclosing`, `apply`, `normalizeUrl` — defined in Task 4 and called with those exact names in Tasks 6 and 7. `window.libliLinkDialog.open(opts, cb)` takes `{existing, touchedAnchors, selectionText}` in Task 6 and is called with exactly those keys in Task 7. `normalizeUrl`'s reject keys (`"scheme"`, `"protocol-relative"`, `"relative"`) match the `data-msg` attribute values in Task 5's partial.
