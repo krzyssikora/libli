@@ -215,8 +215,13 @@ indistinguishable from the bug being fixed.
   renders — also correct.
 
 `seen_ids` is *not* sourced from this branch and stays empty for a non-enrolled viewer, so
-`seen_count` remains 0 for them. That is today's behaviour and is not user-visible on the lesson
-page; it is stated here so the asymmetry is deliberate rather than discovered.
+`seen_count` remains 0 for them. That is today's behaviour and is not user-visible **anywhere** —
+state the closed form, not the weaker one, or a reader goes hunting for the surfaces it might leak
+on. `build_lesson_context` is the only producer of `seen_count`/`element_count` on this context
+(`views.py:441-442`), and **no template or view in the repo reads either**; the only other
+`element_count` in the codebase belongs to the unrelated transfer-preview context
+(`transfer/importer.py:444` → `manage/import_preview.html`). The asymmetry is therefore deliberate
+rather than discovered, and closed rather than merely bounded to one page.
 
 **The lesson page has three render surfaces, not one — and the docstring that says "two" is itself
 wrong.** `build_lesson_context` is reached via `full_lesson_render_context`, which has three
@@ -328,9 +333,11 @@ saying, because the change creates the contradiction: a previewer can now hold `
 while `views.py:653-655` still reports `{"seen_element_ids": [], "completed": false,
 "completed_at": null}` to them. That is **intended**. `seen`'s contract is narrow — *this endpoint
 reports scroll-tracking, and scroll-tracking is not recorded for previewers* — not "here is your
-progress row". Do not "fix" the response to echo the stored row: that would break
-`test_previewer_seen_no_write_synthetic` and quietly turn a write-free endpoint into a state
-reporter.
+progress row". Do not "fix" the response to echo the stored row: that would break the previewer
+`seen` test — `test_previewer_seen_no_write_synthetic` today, renamed to
+`test_previewer_seen_no_write_and_ignores_stored_completion` by Testing §3, so use the post-rename
+name anywhere this sentence is echoed (notably the §2b `seen` comment) — and quietly turn a
+write-free endpoint into a state reporter.
 
 It is also not user-visible, for a reason worth recording rather than rediscovering: `unitMarkDone`
 (`courses/static/courses/js/unit_done.js`) is **add-only** — it early-returns when `is-complete` is
@@ -426,6 +433,15 @@ right after setting `completed`. `complete` emits neither, and `UnitProgress` ca
 receiver — `courses/signals.py` registers only a `post_delete` on `MediaAsset`. So a previewer's
 mark sends no notification and fires no webhook.
 
+**Unguarded, and exempt in writing** — flagged because bullet 3 of "The decision, and why" leans on
+it and Testing §10 holds containment claims to "pinned, not argued". The exemption is the same shape
+as §3's `unitMarkDone` invariant: the claim is about code that **does not exist** (no `post_save`
+receiver, no `notify_*` / `emit_*` call in `complete`), so a test would assert the absence of code
+never written, and its falsification recipe would have to *invent* the receiver first — a recipe with
+no insertion point, which Testing §8 already rejects as "a wish". The enumeration above is the guard:
+if a later change adds a notification or webhook to `complete`, bullet 3 stops holding and needs
+re-argument, not a green test.
+
 **Pre-existing rows (a visible day-one change for one population).** The read edit does not only
 surface rows the viewer creates. Someone who *was* enrolled earlier — a teacher enrolled for a
 pilot, a Course Admin who took the course — still has `completed=True` rows from that time. Today
@@ -510,9 +526,19 @@ It must be rewritten, never left alongside a contradicting new test.
      never reaches `complete` at all (it POSTs `seen`), and `test_zero_element_unit_completes_only_via_fallback`
      POSTs once on a zero-element unit with no row. So the new re-fetch never runs on the enrolled
      path over a row that already exists — the shape this change most plausibly regresses. Same body
-     as 1(b) with an enrolled student.
-     *Falsify:* exempt for the same reason as 1(b)'s `element_state` half; this is regression cover,
-     not a guard.
+     as 1(b) with an enrolled student, **plus the column 1(b) cannot carry**: seed
+     `seen_element_ids=[<a real element pk>]` as well and assert it byte-identical after
+     `refresh_from_db()`. This is not symmetry for its own sake — §1's whole lost-update analysis is
+     about `progress.save()` writing *every* column from the in-memory instance, and the unhardened
+     writer it names is `seen`, whose field is `seen_element_ids`, not `element_state`. A previewer
+     never reaches `seen`'s write, so only the enrolled row realistically carries a non-empty
+     seen-set; leaving it unasserted would aim the regression net at every column except the one the
+     argument centres on. (`seen_element_ids` is a passthrough model kwarg on `UnitProgressFactory`,
+     which declares only `student`/`unit` — the same shape as `GroupFactory(archived=…)` in test 5.)
+     *Falsify:* exempt for the same reason as 1(b)'s `element_state` half — sequentially,
+     `get_or_create` re-reads the row, so both blobs survive even a lock-less implementation. This is
+     regression cover, not a guard, and the `seen_element_ids` assertion is claimed as neither more
+     nor less.
 2. **Read (the one that catches a write-only fix).** A **standalone** test — it issues its own
    `complete` POST and then a separate GET; it does **not** continue test 1 and must not be merged
    into it via `follow=True`, or "test 1 stays green" in the recipe below has no meaning. After its
@@ -522,8 +548,14 @@ It must be rewritten, never left alongside a contradicting new test.
    `is-complete` present. Two facts make `is-complete` safe as a body substring **today**:
    `_lesson_article.html:12` is its only template occurrence, and its other two occurrences
    (`courses.css`, `unit_done.js`) are external assets that never enter the response body. Neither
-   is guaranteed to hold forever, so scope the assertion to the `[data-unit-done]` element (parse it
-   out, or match `unit-done[^"]*is-complete`) rather than searching the whole body.
+   is guaranteed to hold forever, so scope the assertion to the `[data-unit-done]` element rather
+   than searching the whole body. **Parsing is the technique that satisfies both halves; the regex
+   shortcut satisfies only one.** `unit-done[^"]*is-complete` expresses the *class-list-present* half
+   and nothing else: an absence assertion (`unit-done__pill--btn` **not** present) and 6(b)'s
+   descendant assertion (a `button.unit-done__pill--btn` **exists** inside the subtree) cannot be
+   written as a body-wide regex without reintroducing exactly the whole-body substring check this
+   paragraph forbids. So parse the `[data-unit-done]` subtree out and assert within it; reach for the
+   regex only as the class-list half of that, never as the whole assertion.
 3. **Asymmetry guard (the deliberate non-edit).** A non-enrolled `can_access` viewer POSTs every
    element id to `courses:seen` → still no completion and no row. The existing
    `test_previewer_seen_no_write_synthetic` covers this; keep it adjacent to test 1 so the
@@ -692,6 +724,18 @@ It must be rewritten, never left alongside a contradicting new test.
    passes `HTTP_X_REQUESTED_WITH="fetch"` and therefore drives the *fragment* branch — the wrong
    template for this test. It also lives in `courses/tests/`, which has a module-level `pytestmark`,
    so the copied body needs its own `@pytest.mark.django_db` (see the file-placement rule).
+   **Copy the element/POST recipe only — never that file's `_login` helper.** This is the trap that
+   silently voids the test: `courses/tests/test_reset_controls.py:21-25` does
+   `Enrollment.objects.create(student=student, course=course)` *before* `force_login`, so a copied
+   `_login(client, course)` hands you an **enrolled** student. `build_lesson_context` then takes the
+   `is_enrolled` branch and assigns `progress` via `get_or_create`, the pill renders completed for a
+   reason that has nothing to do with the read edit, and the falsification recipe below stays
+   **GREEN** — a test that pins the enrolled path while claiming to pin the previewer one. Build the
+   viewer instead as the non-enrolled `can_access` shape this spec's other tests use (`make_login` +
+   `is_staff = True`), take access from that `is_staff` pin rather than from the copied fixture
+   (`make_course_with_unit()` mints an owner of its own, so the viewer is not it), and assert
+   `not Enrollment.objects.filter(student=viewer, course=course).exists()` exactly as §5's Trap 2
+   requires.
    Note the incidental write: on a `RESTORABLE_IN_LESSON` question type, `check_answer` calls
    `save_element_state` on the **same** pre-seeded `UnitProgress` row, which is harmless here but
    surprising if unexpected.
@@ -705,7 +749,16 @@ It must be rewritten, never left alongside a contradicting new test.
    roster logic of its own, so handing it `[viewer]` makes the cell non-zero *before* enrollment too
    and the test would assert nothing about the transition. Instead feed it from
    `grouping/scoping.py::students_in_scope(resolver, course, "all")`, and assert the viewer is
-   **absent** from that queryset before enrollment and **present** after. **The `resolver` must be
+   **absent** from it before enrollment and **present** after. **Re-resolve it on each side of the
+   enrollment — never reuse one queryset object across the transition.** `reviewable_students`
+   returns a lazy `User.objects.filter(pk__in=…)` (`grouping/scoping.py:72`), and a Django queryset
+   caches its rows on first evaluation; the "absent before" assertion *is* that first evaluation, and
+   `build_progress_matrix` additionally does `students = list(students)`. Binding it once and
+   re-checking the same object after `EnrollmentFactory` therefore re-reads the stale cache and the
+   "present after" assertion goes RED **against correct behaviour** — the same false-RED shape the
+   resolver-role pin above exists to pre-empt. Call `students_in_scope(...)` afresh for the
+   before-state, afresh for the after-state, and afresh for each `build_progress_matrix(...)` it
+   feeds. **The `resolver` must be
    the course owner or a Platform Admin — this is load-bearing.** `students_in_scope(..., "all")`
    falls through to `reviewable_students`, which derives from `Enrollment` **only** on the PA/owner
    branch; for a group teacher it derives from `GroupMembership`. Pick a group teacher and enrolling
@@ -732,8 +785,11 @@ It must be rewritten, never left alongside a contradicting new test.
    test enrolls via `EnrollmentFactory`, not through `grouping/services.py::add_students_to_group`).
    A recipe with no insertion point is not a falsification, it is a wish. This test documents a
    decision; it guards no code, and the spec says so rather than pretending otherwise.
-9. **Downstream chrome actually lights up** — the spec's whole rationale for fixing rather than
-   hiding. **Two pins first, both load-bearing** (§8 and §10 pin their actors; this test must too):
+9. **Downstream chrome actually lights up** (`test_previewer_mark_lights_outline_badge_and_footer_counter`)
+   — the spec's whole rationale for fixing rather than hiding. The name carries **both** GETs on
+   purpose: §1(a) argues that a name covering only one of a test's assertions invites a later reader
+   to delete "the assertion unrelated to the name", and this test is among the most exposed to that,
+   asserting across two pages and two rollup paths. **Two pins first, both load-bearing** (§8 and §10 pin their actors; this test must too):
    - **The acting user.** `build_outline(course, user)` and `build_unit_nav(course, user, node)`
      both key on the requesting user, so **both GETs must be issued as the previewer** — not as the
      owner or a teacher, which would fail for reasons unrelated to this change.
@@ -785,7 +841,10 @@ It must be rewritten, never left alongside a contradicting new test.
    `student=user, ..., completed=True` query → RED — but note this reddens much of the existing
    outline/nav suite too, so it demonstrates the rationale is still wired, not that this test earns
    its place.
-10. **Containment: an off-roster previewer is invisible to teacher-facing surfaces.** This is the
+10. **Containment: an off-roster previewer is invisible to teacher-facing surfaces**
+    (`test_off_roster_previewer_absent_from_matrix_and_drilldown`) — the name covers both mechanisms
+    for the §9 reason: they are separately falsifiable and a single-mechanism name invites deleting
+    the other. This is the
     claim the entire "fix rather than hide" decision rests on, and the spec itself flags its premise
     (GroupMembership ⊆ Enrollment) as maintained by services rather than enforced by the query — the
     exact shape the repo's access-widening doctrine says to drive end to end. A non-enrolled
@@ -831,6 +890,14 @@ It must be rewritten, never left alongside a contradicting new test.
     matrix assertion already drives, with no roster logic of its own between them. A third test would
     pin the call site rather than any behaviour.
 
+    **Pin the completion's provenance, exactly as §9 does.** Step (1)'s `completed=True` row must
+    come from **that previewer's own POST** to `courses:complete`, issued while logged in as them,
+    not from `UnitProgressFactory(completed=True)`. §10 opens by invoking the repo's access-widening
+    doctrine — drive each newly-reachable route end to end — and a seeded row tests containment
+    against a row the new write path never produced. The falsification recipe below cannot catch the
+    substitution: moving `EnrollmentFactory` ahead of step 2 reddens whether the row was POSTed or
+    seeded, so nothing but this sentence forces the end-to-end drive.
+
     **Sequence the test explicitly**, because the enrollment is part of the fixture, not an external
     mutation: (1) the previewer marks the unit done while off the roster; (2) assert the matrix is
     populated but omits them **and** the drill-down 404s; (3) enroll the previewer; (4) assert the
@@ -850,7 +917,11 @@ It must be rewritten, never left alongside a contradicting new test.
     the drill-down GET as the previewer.
     *Falsify:* move the `EnrollmentFactory` call ahead of step 2 → **both** step-2 assertions go
     RED, proving each discriminates.
-11. **Double POST is idempotent and writes nothing the second time.** A previewer POSTs `complete`
+11. **Double POST is idempotent and writes nothing the second time**
+    (`test_double_complete_post_is_idempotent_and_issues_no_second_update`) — the name names the
+    load-bearing third assertion, not just idempotence, for the §9/§1(a) reason: the query assertion
+    is the only one of the three that a guard deletion reddens, and a name saying only "idempotent"
+    reads as satisfied by the row-count assertion alone. A previewer POSTs `complete`
     twice, **issued directly by the test client** — after the first POST the pill replaces the form,
     so a second POST is not reachable through the UI at all. It is a real path nonetheless (double
     submit, back-button, a retried request), and that unreachability is precisely why there is no
@@ -916,8 +987,11 @@ route, and their two negative twins (archived group, unrelated logged-in user) o
   change);
 - **all seven comment edits present, and the atomic-block one stating the ordering rule** (not
   merely present — see §2b's "Required content"). No automated gate covers any of these, and the
-  re-fetch they document is the one piece of code in the diff no test can protect, so this needs a
-  checklist hook or it is the first thing to get dropped. Two new (`complete`'s atomic block;
+  re-fetch they document is the one piece of code in the diff no test can protect, so leaving the
+  risk as a noun phrase ("needs a checklist hook") is not actionable. **The concrete mechanism: the
+  PR description must quote all seven edited comment bodies verbatim, under a heading naming them as
+  the unguarded half of the diff** — a reviewer can then diff prose against prose, which is the only
+  gate available for text no test reaches. Two new (`complete`'s atomic block;
   `complete`'s access check) and five corrections (`views.py` ≈:273-275, ≈:396-398, ≈:652,
   ≈:784-788, and `_lesson_article.html:8-11`);
 - each **new, inverted or extended** test falsification-proven (guard removed → RED → restored) —
