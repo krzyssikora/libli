@@ -101,9 +101,9 @@ written so that adding a reset later requires no rework of anything it ships.
 
 ## Architecture / components
 
-Two behavioural edits in `courses/views.py`, four comment corrections plus two new comments in the
-same file, one behaviourally-unchanged function whose comment is corrected, one existing test
-inverted (§1) and one existing test extended (§3). No migration, no model change, no new URL, no
+Two behavioural edits in `courses/views.py`, plus four comment corrections (one of which lands in
+`seen`, a function this diff otherwise leaves behaviourally untouched) and two new comments in the
+same file; one existing test inverted (§1) and one existing test extended (§3). No migration, no model change, no new URL, no
 template change, no JS change, no new translatable strings.
 
 ### 1. The write — `courses/views.py::complete`
@@ -433,7 +433,8 @@ test.
    note this is a fixture change, not a bare extra assert: the existing test's viewer deliberately
    has **no** row and asserts so. Sequence it, don't overwrite it: (1) POST `seen` and keep the
    existing no-row + synthetic-response assertions; (2) *then* seed the `completed=True` row for
-   that same viewer (or use a second viewer); (3) POST `seen` again and assert the response is still
+   **that same viewer** — a second viewer would need its own `make_login` + `is_staff` setup plus a
+   mid-test re-login and buys nothing; (3) POST `seen` again and assert the response is still
    `{"seen_element_ids": [], "completed": false, "completed_at": null}` **and** that the seeded row
    is unchanged. Without this the decision that the synthetic response ignores stored state is
    incidental rather than recorded, and the next reader will "fix" it.
@@ -520,7 +521,10 @@ test.
      `SimpleNamespace(completed=bool(state_row))` in the non-enrolled branch → RED. (Do **not** claim
      the "merely truthy" recipe reddens it; it does not.)
 7. **The second render surface: `check_answer`'s no-JS path.** A non-enrolled viewer with a
-   `completed=True` row POSTs a Check on a question in that unit — **without** an
+   `completed=True` row — **seeded directly here** (`UnitProgressFactory(completed=True)`), unlike
+   test 9, because this test's falsification targets the *read* assignment and routing it through a
+   `complete` POST would couple it to the write edit it does not guard — POSTs a Check on a question
+   in that unit — **without** an
    `X-Requested-With: fetch` header — → the re-rendered lesson still shows the "Completed" pill.
    The header omission is load-bearing, not incidental: with it, `_wants_fragment` short-circuits to
    a question fragment that never renders the pill (see Architecture §2), and an implementer who
@@ -608,9 +612,17 @@ test.
       contain a genuinely **enrolled student**, and the test must assert that student **is** a row;
     - `all_lesson_pks` — an empty one does **not** empty `rows`; it flattens every cell to
       `_cell(None)`. It is unioned from `frontier_columns`, which collects only
-      `is_obligatory_lesson(n)` units, so the seeded unit must be an **obligatory lesson** unit or
-      the enrolled student's cell is `None`. This arm is caught by the **positive control** — assert
-      the enrolled student's cell is **non-zero**, not merely that they are present.
+      `is_obligatory_lesson(n)` units, so the seeded unit must be an **obligatory lesson** unit.
+      The **positive control is `percent is not None`, not "non-zero"** — this matters: the enrolled
+      student holds no completion in this fixture, so `_pct(0, total)` gives them a perfectly
+      legitimate `0`, and asserting non-zero would go RED against correct code. `None` is what an
+      empty `all_lesson_pks` produces, so `None` is the discriminator. (If you would rather assert
+      non-zero, the fixture must also give the enrolled student a `completed=True` row on that same
+      unit — extra setup buying nothing.)
+      Assert on the enrolled student's **`overall["percent"]`**, or on the cell of the column that
+      contains the seeded unit — not on `cells[0]` or on every cell. `frontier_columns` emits one
+      column per top-level node and any column with no obligatory lessons is `_cell(None)` **by
+      design**, so a blanket assertion fails for reasons unrelated to the guard being probed.
     Note `assert matrix["rows"]` alone discriminates neither arm properly: it catches an empty
     roster and is blind to an empty `all_lesson_pks`.
     Assert both halves: the matrix is populated **and still** omits the previewer — which is exactly
@@ -627,7 +639,10 @@ test.
     **Sequence the test explicitly**, because the enrollment is part of the fixture, not an external
     mutation: (1) the previewer marks the unit done while off the roster; (2) assert the matrix is
     populated but omits them **and** the drill-down 404s; (3) enroll the previewer; (4) assert the
-    drill-down now 200s.
+    drill-down now 200s. **Step 1 runs as the previewer; steps 2–4 run as the owner/PA resolver** —
+    switch the login between them (or use a second `Client()`). `tests.factories`' login helpers log
+    in on the shared client and silently replace the session, so forgetting this makes step 2 issue
+    the drill-down GET as the previewer.
     *Falsify:* move the `EnrollmentFactory` call ahead of step 2 → **both** step-2 assertions go
     RED, proving each discriminates.
 11. **Double POST is idempotent and writes nothing the second time.** A previewer POSTs `complete`
@@ -673,7 +688,8 @@ different package, and stays there.
 Use `tests.factories`' helpers and `TEST_PASSWORD`; never a hardcoded password. The existing
 previewer tests build their viewer as `is_staff = True`, which is the production-accurate shape for
 a Course Admin (`institution.roles.role_is_staff(COURSE_ADMIN)` is `True`) — keep that as the
-primary case, but test 5 deliberately adds the owner and archived-group-teacher routes on top of it.
+primary case, but test 5 deliberately adds the **owner** route, the **non-archived-group-teacher**
+route, and their two negative twins (archived group, unrelated logged-in user) on top of it.
 
 ### Definition of done
 
@@ -686,8 +702,9 @@ primary case, but test 5 deliberately adds the owner and archived-group-teacher 
 - `ruff check` and `ruff format --check` clean;
 - `manage.py makemigrations --check` and `manage.py check` clean (both expected trivially — no model
   change);
-- each new/inverted test falsification-proven (guard removed → RED → restored), except test 12,
-  exempted in writing above;
+- each new/inverted test falsification-proven (guard removed → RED → restored), except **tests 8 and
+  12**, both exempted in writing above (8: no insertion point exists for the mutation; 12:
+  pre-existing regression protection, not a new guard);
 - **existing e2e over the touched surface, run and green** — three suites, covering both surfaces
   this change feeds:
   - `tests/test_e2e_slideshow.py` (asserts `[data-unit-done]` gains `is-complete`) and
