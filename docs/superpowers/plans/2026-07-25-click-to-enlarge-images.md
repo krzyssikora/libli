@@ -202,7 +202,7 @@ git commit -m "feat(imagezoom): mark student content images data-zoomable"
 
 - [ ] **Step 1: Write the failing test**
 
-Append to `tests/test_imagezoom_render.py` (`re` is already imported at the top from Task 1 — ruff's E402 forbids adding it here):
+In `tests/test_imagezoom_render.py`, **first add `import re` to the existing import block at the top of the file**, then append the constants and tests below. Two ruff rules pull in opposite directions here: appending `import re` beside the new code trips E402 (import not at top), but Task 1 could not carry the import pre-emptively because nothing there used it and that trips F401 (unused). Editing the top-of-file import block satisfies both.
 
 ```python
 TOKENS_CSS = REPO / "core" / "static" / "core" / "css" / "tokens.css"
