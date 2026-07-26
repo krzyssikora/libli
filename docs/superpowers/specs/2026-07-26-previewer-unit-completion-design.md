@@ -48,8 +48,10 @@ not:
    dangerous than it already is for the population it was designed for; it stops making it *lie* to
    everyone else.
 3. **Consequence.** The mark lands only in the viewer's *own* progress chrome (see the roster-scoped
-   analysis below), so a stray click misinforms nobody but the person who made it. Testing §10 pins
-   this rather than leaving it as an argument.
+   analysis below), so a stray click misinforms nobody but the person who made it — with one
+   aggregate exception, `course_delete`'s "N progress records" count, which a checklist tick already
+   inflates today (see Accepted side effects). Testing §10 pins the containment rather than leaving
+   it as an argument.
 4. **A recovery route exists — but a narrow one, and the obvious reading of it is wrong.**
    `courses/admin.py` registers an editable `UnitProgressAdmin` with `completed` in `list_display`,
    which invites the conclusion that the dominant `is_staff` previewer can undo their own mis-click.
@@ -459,12 +461,27 @@ test.
    exists for them with `completed=True` and a stamped `completed_at`. **Keep the existing test's
    redirect assertion** (`status_code in (302, 200)`, "same redirect as the enrolled path") rather
    than dropping it with the old name: the inversion replaces the *write* assertion, and the
-   response-shape guarantee is orthogonal and still true.
+   response-shape guarantee is orthogonal and still true. Tighten it while you are there — `complete`
+   ends in `redirect(...)`, so assert `status_code == 302` **and** that `Location` is
+   `reverse("courses:lesson_unit", …)` for the same slug/node. The old `in (302, 200)` hedge made
+   sense when nothing was written; now a 200 would mean something went wrong.
+   **1(b) — the write over a checklist row, the actual production sequence.** Every other write test
+   starts from no row (1a, 5, 9, 10) or an already-`completed=True` one (11). But the commonest real
+   order is: previewer ticks a mark-done checklist (creating `completed=False` + `element_state`),
+   *then* clicks Mark as done. Drive it: seed that row, POST `complete`, assert `completed is True`,
+   `completed_at` stamped, **and `element_state` byte-identical after `refresh_from_db()`**.
+   *Falsify:* the `completed` half rides test 1(a)'s recipe (restore the `is_enrolled` branch → RED).
+   The `element_state` half is **exempt in writing**, on the §11 reasoning: sequentially,
+   `get_or_create` re-reads the row, so the blob survives even a lock-less implementation and no
+   mutation makes it RED. It is asserted anyway because it is the outcome §1's atomic re-fetch exists
+   to protect, and a cheap regression net beats no net — but it is not claimed as a guard.
    *(This **is** the inverted test named above, rewritten in place — not a second test alongside
    it.)*
    *Falsify:* restore the `is_enrolled` branch in `complete` → RED.
-2. **Read (the one that catches a write-only fix).** After that POST, the same viewer GETs the
-   lesson → the response shows the "Completed" pill and **not** the "Mark as done" submit button.
+2. **Read (the one that catches a write-only fix).** A **standalone** test — it issues its own
+   `complete` POST and then a separate GET; it does **not** continue test 1 and must not be merged
+   into it via `follow=True`, or "test 1 stays green" in the recipe below has no meaning. After its
+   POST, the same viewer GETs the lesson → the response shows the "Completed" pill and **not** the "Mark as done" submit button.
    *Falsify:* revert `progress = state_row` → RED while test 1 stays green.
    Assert on markers that cannot false-pass: `unit-done__pill--btn` (the button class) absent, and
    `is-complete` present. Two facts make `is-complete` safe as a body substring **today**:
@@ -519,7 +536,9 @@ test.
    guard on the write, and it admits three distinct non-enrolled routes — `is_staff`, course owner,
    and teacher of a **non-archived** group. The repo's recorded lesson is that widening a write
    requires driving each newly-reachable role end to end, so each positive route must reach a
-   successful write, not merely its negative twin:
+   successful write, not merely its negative twin. **The four labels are paired positive/negative,
+   not sequential** — they are presented (a), (d), (b), (c) so each positive route sits next to its
+   twin; the DoD's "5(a)–(d)" means all four, in any order:
    - **(a)** a non-staff **course owner** POSTs `complete` → row written, `completed=True`;
    - **(d)** a non-staff, non-owner **teacher of a non-archived group** attached to the course POSTs
      `complete` → row written, `completed=True`. It is the only positive route not otherwise covered
@@ -547,8 +566,11 @@ test.
      exist. (Only `make_course_with_unit` mints an owner of its own.) The non-staff pin below is
      about the *logged-in* user, not about any factory-created one.
    - **(b)** and **(d)**: `grouping.Group` has a `course` FK, a `teachers` M2M and an `archived`
-     boolean, so build `GroupFactory(course=course)` + `group.teachers.add(user)` +
-     `archived=True` (b) / `False` (d).
+     boolean. Build **`GroupFactory(course=course, archived=True)`** for (b) and
+     **`GroupFactory(course=course)`** for (d) (the model default is `archived=False`), then
+     `group.teachers.add(user)`. `archived` is a passthrough model kwarg, **not** a declared factory
+     field — writing `group.archived = True` without a `.save()` silently turns route (b) into
+     route (d), and the test then passes while proving the opposite of what it claims.
    Then the two traps:
    - **Trap 1 — `is_staff` short-circuit.** `accessible_courses` returns `Course.objects.all()` at
      `if user.is_staff:` *before* evaluating either `Q(owner=user)` or the group clause. So **(a),
@@ -629,7 +651,11 @@ test.
    too, explicitly** — otherwise building it is unmotivated and the fixture constraint below has
    nothing to serve: before enrollment `build_progress_matrix(course, students_in_scope(...))` has no
    row whose `student` is the viewer; after enrollment it has one whose `overall["percent"]` is
-   non-zero. That non-zero is achievable here (unlike test 10) precisely because the viewer *does*
+   non-zero. **Seed a separate, genuinely enrolled control student**, exactly as test 10 requires and
+   for the same reason: without one the pre-enrollment roster is empty, `rows == []`, and "the viewer
+   is absent" is true of an empty matrix rather than of any scoping. Assert the control student **is**
+   in `students_in_scope` and **is** a row in the *before* state, so the viewer's absence
+   discriminates. That non-zero is achievable here (unlike test 10) precisely because the viewer *does*
    hold the completion. `lesson_pks` come from `is_obligatory_lesson`, so the seeded unit must be an
    **obligatory lesson** unit or that percent is `None`. Keep the row-survival assertion
    (`completed=True` still set after enrollment) alongside. Label the test in a comment as documenting the "Enrollment transition"
