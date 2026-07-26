@@ -250,9 +250,11 @@ def test_overlay_image_can_only_shrink():
 - [ ] **Step 2: Run the tests and verify they fail**
 
 Run: `uv run pytest tests/test_imagezoom_render.py -v -k "scrim or dialog or overlay_image"`
-Expected: all three FAIL (token and rules do not exist yet). `test_overlay_image_can_only_shrink`
-fails with `ValueError: substring not found` from `source.index(".imgzoom-trigger")` rather
-than an assertion — that is a valid RED, not a malformed test.
+Expected: all three FAIL (token and rules do not exist yet). All three fail with plain
+`AssertionError`. (An earlier draft of this plan predicted `ValueError: substring not found`
+from `source.index(".imgzoom-trigger")` for `test_overlay_image_can_only_shrink`; that is wrong
+and was disproved when the run was actually performed — the exact-substring assertion is
+evaluated before the `.index()` call, so it fails first and short-circuits.)
 
 - [ ] **Step 3: Add the token**
 
@@ -333,7 +335,7 @@ Expected: 8 passed.
 - Move the declaration into the dark block → the position test goes RED. Restore.
 - Change `.imgzoom[open] {` to `.imgzoom {` → the open-scoping test goes RED. Restore.
 - Replace `max-width: 100%; max-height: 100%` in `.imgzoom__img` with `width: 100%; height: 100%` → the first assertion goes RED. Restore.
-- Change `.imgzoom__img`'s `max-width: 100%` to `max-width: 100vw` → the no-`100vw` assertion goes RED. Restore.
+- Change **`.imgzoom[open]`'s** `max-width: none` to `max-width: 100vw` → the no-`100vw` assertion goes RED, and only that one. Restore. Do **not** put the `100vw` on `.imgzoom__img`: its `max-width: 100%` is inside the test's exact-substring assertion, which would then fail first and short-circuit before the `100vw` scan is ever evaluated — leaving that assertion unfalsified while appearing to have been broken.
   (Editing `width: auto` → `width: 100%` is **not** a valid break here: the substring and the `100vw` scan both still hold, so the test stays green. That break belongs to Task 10's no-upscale e2e.)
 
 - [ ] **Step 7: Commit**
