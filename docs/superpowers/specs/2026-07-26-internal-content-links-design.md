@@ -306,7 +306,13 @@ worth re-checking against the real row markup. The media picker searches server-
 library is unbounded and its rows carry thumbnails; a course tree is neither.
 
 **Fetch policy.** The request sends `X-Requested-With: fetch`, matching `media_picker.js`; the view
-does not gate on it. Only a **successful** response is cached, for the life of the page. A failure is
+does not gate on it. Only a **successful** response is cached, for the life of the page — and
+"successful" means `r.ok` **and** `!r.redirected`. The second half is not pedantry: `link_picker` is
+`@login_required`, so an expired session yields 302 → login page → 200, `fetch` follows it, `r.ok` is
+true, and the login page's HTML would be cached and `innerHTML`'d into the tree mount *as the tree*.
+Anything failing either check routes to the fetch-error + retry line. (`media_picker.js` has the same
+latent shape, so this is not a regression introduced here — but "successful" is load-bearing in this
+design and so is defined rather than assumed.) A failure is
 retried on the next `open()` (the error line carries a retry control), so one transient blip cannot
 disable the feature for the rest of a long-lived session. A second `open()` while a fetch is in
 flight reuses the pending request; a fetch still in flight when the dialog closes is aborted.
@@ -394,7 +400,10 @@ link button does nothing — an accepted regression from `window.prompt` on brow
   contract nothing implements.
 - the **In this course** panel: a filter `<input type="search">`, the tree mount, and an
   `aria-live="polite"` message region holding the pre-rendered loading / empty / no-match /
-  fetch-error+retry / target-not-in-this-course lines;
+  fetch-error+retry / target-not-in-this-course lines. The tree mount carries a `{% trans %}`'d
+  `aria-label`, so the `role="tree"` the fetched partial supplies is not announced nameless — and
+  because the label is emitted **here**, in the dialog partial, rather than by the picker partials,
+  the "picker partials contribute no new msgids" claim in §i18n stays true;
 - the **Web address** panel: a URL `<input type="url">` and one pre-rendered message element per
   distinct rejection;
 - a shared **Link text** `<input type="text">`;
@@ -419,8 +428,9 @@ is assembled in JavaScript.
 
 **Ownership is split three ways.**
 
-- `link_dialog.js` owns its own dialog DOM — tabs, fetch, filter, validation — and never touches an
-  editing surface. It returns a decision.
+- `link_dialog.js` owns its own dialog DOM — tabs, fetch, filter, and *presenting* validation
+  results — and never touches an editing surface. It returns a decision. The URL contract's logic
+  itself lives in `link_apply.js` as a pure function, for the testability reason given below.
 - `link_apply.js` owns every surface mutation: anchor enumeration, insertion rules 1/2/3, and
   removal. It is a separate module **because it must be testable** — see §Testing; there is no jsdom
   in this repo, and the only way to unit-test JS here is to load a module in a real browser and call
@@ -430,16 +440,27 @@ is assembled in JavaScript.
 ```js
 // link_dialog.js — owns only its own dialog. Knows nothing about the surface or the Range.
 window.libliLinkDialog.open({ existing, touchedAnchors, selectionText }, cb);
-//   existing:       {href, text} | null   — set iff exactly one anchor ENCLOSES the range
+//   existing:       {href, text} | null   — set iff exactly one anchor ENCLOSES the range;
+//                   href is anchor.getAttribute("href"), text is anchor.textContent
 //   touchedAnchors: integer               — see enumeration below
 //   selectionText:  string                — "" when the range is collapsed
 //   cb(result):     {href, text} | {remove: true} | null      (null = dismissed)
 
-// link_apply.js — pure DOM, no dialog, no network. Testable in a real browser.
-window.libliLinkApply.anchorsFor(surface, range);   // -> [<a>, ...]
-window.libliLinkApply.enclosing(surface, range);    // -> <a> | null
-window.libliLinkApply.apply(surface, range, result);// -> performs rule 1/2/3 or removal
+// link_apply.js — pure, no dialog, no network. Testable in a real browser.
+window.libliLinkApply.anchorsFor(surface, range);    // -> [<a>, ...]
+window.libliLinkApply.enclosing(surface, range);     // -> <a> | null
+window.libliLinkApply.apply(surface, range, result); // -> performs rule 1/2/3 or removal
+window.libliLinkApply.normalizeUrl(input, origin);   // -> {href} | {reject: "<message-key>"}
 ```
+
+`normalizeUrl` implements the ordered URL contract below and lives here, not in `link_dialog.js`,
+even though the dialog is what calls it. Two reasons, both practical: it is pure, and
+`link_dialog.js` deliberately bails to `undefined` when `.link-dialog` is absent — which it always is
+in the blank page the JS harness mounts, so a contract implemented there would be untestable by the
+very harness §Testing assigns to it. Taking `origin` as a parameter rather than reading
+`location.origin` is what makes the "same path on a *different* origin → not normalised" case
+assertable without a live server. The dialog still owns *presenting* the rejection: `normalizeUrl`
+returns a key, and the dialog toggles the matching pre-rendered message element.
 
 `text_toolbar.js`'s `case "link":`:
 
@@ -529,7 +550,9 @@ sequence, with the API spelled out because this is where it silently goes wrong:
 2. unwrap every touched anchor (`replaceWith(...a.childNodes)`);
 3. re-derive the range: `setStartAfter(startMarker)` and `setEndBefore(endMarker)` — *after*/`before`,
    so the markers themselves are outside the range and removing them cannot shift the boundaries;
-4. `deleteContents()`, then insert the single anchor (rule 2) or leave the recovered text (removal);
+4. **rule 2 only:** `deleteContents()`, then insert the single anchor. **Removal runs no
+   `deleteContents()`** — the recovered text is exactly what the step exists to preserve, and
+   deleting it is the one destructive mistake this sequence must not compress into a shared clause;
 5. remove both markers, then call **`surface.normalize()`** to merge the text-node fragments the
    unwrap and markers created.
 
@@ -622,9 +645,16 @@ Three rows come from measurements against the real sanitiser, each a silent fail
 - `<a href="javascript:alert(1)">` comes back as `<a>` — the href dropped **at save**, after the
   author saw a working-looking link.
 
-**Opening on an existing link** prefills. The internal-link test is the anchored pattern
-`^/courses/n/(\d+)/$` — anything else, including a query or fragment suffix or a missing trailing
-slash, is an ordinary URL and opens *Web address*. If the pattern matches but the pk is **not in this
+**Opening on an existing link** prefills. `existing.href` is **`anchor.getAttribute("href")`** — the
+raw stored string — never the `.href` IDL property, which returns the *resolved absolute* URL
+(`https://host/courses/n/12/`). Against the anchored pattern below the IDL property would never
+match, so every re-open of an internal link would land on *Web address* showing an absolute URL; row
+2 of the contract would then normalise it back on Insert, hiding the defect from everything but the
+e2e. Only the read needs pinning: writing `a.href = "/courses/n/12/"` stores the relative string
+verbatim in the content attribute.
+
+The internal-link test is the anchored pattern `^/courses/n/(\d+)/$` — anything else, including a
+query or fragment suffix or a missing trailing slash, is an ordinary URL and opens *Web address*. If the pattern matches but the pk is **not in this
 course's tree**, the internal tab opens with no selection and the pre-rendered "This link's target is
 not in this course." line, while *Web address* shows the raw stored href.
 
@@ -824,7 +854,7 @@ These cases mount a contenteditable fixture, build ranges, and call `window.libl
   range spanning two anchors unwraps both and leaves the caret at the end of the recovered text.
 - The caret after an insert sits **outside** the anchor: typing appends unlinked text.
 - A node title containing `<b>` is inserted as literal text, not markup.
-- URL contract, one case per row **in order** — `//evil.com/x` → rejected; `https://<origin>/courses/n/12/`
+- `normalizeUrl(input, origin)`, one case per row **in order** — `//evil.com/x` → rejected; `https://<origin>/courses/n/12/`
   → `/courses/n/12/`; the same path on a *different* origin → not normalised;
   `javascript:alert(1)` → rejected; `example.com:8080/x` → `https://example.com:8080/x` (the dot-free
   scheme rule); `example.com` → `https://example.com`; `../foo` → rejected;
