@@ -175,9 +175,9 @@ lock-exclusion version there would ship a confident falsehood in the one place n
 
 **Cost:** the new shape is `get_or_create` (SELECT, sometimes INSERT) plus a second
 `SELECT … FOR UPDATE`, inside an atomic block, where the old shape was one SELECT and — when the
-unit was already complete — nothing further. **In production** that is +1 query and one
-`BEGIN`/`COMMIT` per `complete` POST (`ATOMIC_REQUESTS` is not set anywhere in `config/`, so this
-block is the outermost transaction) **on the enrolled path**.
+unit was already complete — nothing further. **In production** that is +1 query *within the write block* — before counting the
+`is_enrolled` EXISTS this diff deletes — and one `BEGIN`/`COMMIT` per `complete` POST
+(`ATOMIC_REQUESTS` is not set anywhere in `config/`, so this block is the outermost transaction).
 
 **Count it against what the diff actually removes.** `is_enrolled` is
 `Enrollment.objects.filter(...).exists()` — a query — and this change **deletes that call** from
@@ -456,8 +456,10 @@ change to existing data that no POST triggers, and it gets its own test (Testing
 - **No row on GET** — the read path stays `.filter().first()`. A `None` `progress` is a valid,
   expected state that the template already handles.
 - **The gap between `get_or_create` and `select_for_update().get()`** — a `DoesNotExist` there is
-  possible in principle and is correctly left to 500. No code path deletes an individual
-  `UnitProgress` row: they disappear only by cascade from `Course`/`ContentNode`/`User` deletion, so
+  possible in principle and is correctly left to 500. No *application* code path deletes an
+  individual `UnitProgress` row: they disappear only by cascade from `Course`/`ContentNode`/`User`
+  deletion. (The superuser admin of "The decision, and why" bullet 4 can delete one, but that is a
+  human action, not a concurrent request shape.) So
   a miss would mean the unit was deleted mid-request, which is not a state worth a fallback.
   `save_element_state` has the identical shape and the same reasoning applies to it.
 - **Method** — `complete` remains `@require_POST`; a GET cannot complete a unit.
@@ -670,8 +672,9 @@ It must be rewritten, never left alongside a contradicting new test.
      `SimpleNamespace(completed=bool(state_row))` in the non-enrolled branch → RED. (Do **not** claim
      the "merely truthy" recipe reddens it; it does not.)
 7. **The second render surface: `check_answer`'s no-JS path.** A non-enrolled viewer with a
-   `completed=True` row — **seeded directly here** (`UnitProgressFactory(completed=True)`), unlike
-   test 9, because this test's falsification targets the *read* assignment and routing it through a
+   `completed=True` row — **seeded directly here**
+   (`UnitProgressFactory(student=viewer, unit=unit, completed=True)`, both kwargs mandatory as in
+   1(b)/3/6(b)), unlike test 9, because this test's falsification targets the *read* assignment and routing it through a
    `complete` POST would couple it to the write edit it does not guard — POSTs a Check on a question
    in that unit — **without** an
    `X-Requested-With: fetch` header — → the re-rendered lesson still shows the completed pill,
@@ -682,8 +685,13 @@ It must be rewritten, never left alongside a contradicting new test.
    a question fragment that never renders the pill (see Architecture §2), and an implementer who
    adds the header to imitate the real UI will get a confusing failure against behaviour this change
    does not touch. Covers `notes/views.py:194` by the exemption argued in §2.
-   **Fixture:** copy an existing no-JS `check_answer` test rather than inventing one — seed a
-   `ShortTextQuestionElement` and POST the field names `build_answer(request.POST)` expects.
+   **Fixture:** copy the repo's *only* no-JS `check_answer` test rather than inventing one —
+   `courses/tests/test_reset_controls.py::test_reset_link_survives_the_no_js_check_answer_rerender`,
+   which seeds a `ShortTextQuestionElement` and POSTs `{"answer": "x"}` (it documents why the answer
+   must be non-empty). Naming it matters: every `check_answer` test in the top-level `tests/` package
+   passes `HTTP_X_REQUESTED_WITH="fetch"` and therefore drives the *fragment* branch — the wrong
+   template for this test. It also lives in `courses/tests/`, which has a module-level `pytestmark`,
+   so the copied body needs its own `@pytest.mark.django_db` (see the file-placement rule).
    Note the incidental write: on a `RESTORABLE_IN_LESSON` question type, `check_answer` calls
    `save_element_state` on the **same** pre-seeded `UnitProgress` row, which is harmless here but
    surprising if unexpected.
@@ -702,7 +710,10 @@ It must be rewritten, never left alongside a contradicting new test.
    falls through to `reviewable_students`, which derives from `Enrollment` **only** on the PA/owner
    branch; for a group teacher it derives from `GroupMembership`. Pick a group teacher and enrolling
    the previewer adds them to neither queryset, so the "present after" assertion simply fails —
-   against correct behaviour. Then **assert the matrix
+   against correct behaviour. **Pin the fixture as well as the role:** `CourseFactory(owner=resolver)`
+   or `make_pa(...)`. `CourseFactory` declares no `owner`, so a "resolver" never assigned as one is
+   neither PA nor owner and the control-student assertion fails for a reason the test text does not
+   explain. Then **assert the matrix
    too, explicitly** — otherwise building it is unmotivated and the fixture constraint below has
    nothing to serve: before enrollment `build_progress_matrix(course, students_in_scope(...))` has no
    row whose `student` is the viewer; after enrollment it has one whose `overall["percent"]` is
@@ -832,7 +843,8 @@ It must be rewritten, never left alongside a contradicting new test.
     owner (see test 5(a)), so "a separate owner" who is never assigned as one is neither PA nor
     owner; `can_review_course` then returns False and `analytics_student` 404s **unconditionally** —
     step 2 passes for a reason unrelated to the roster and step 4 fails against correct behaviour,
-    exactly the shape test 8's resolver pin exists to pre-empt. **Step 1 runs as the previewer; steps 2–4 run
+    exactly the shape test 8's resolver *role* pin exists to pre-empt (that pin is about
+    owner/PA vs group teacher; this is the fixture half of it, which §8 now carries too). **Step 1 runs as the previewer; steps 2–4 run
     as the resolver** — switch the login between them (or use a second `Client()`). `tests.factories`' login helpers log
     in on the shared client and silently replace the session, so forgetting this makes step 2 issue
     the drill-down GET as the previewer.
