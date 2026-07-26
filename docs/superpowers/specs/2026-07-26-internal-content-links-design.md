@@ -1,8 +1,15 @@
 # Internal content links — dialog and permalink
 
-Part 1 of two. Part 2 (`2026-07-26-internal-link-durability-design.md`) makes these links survive
-export→import and warns before a linked node is deleted. Part 1 is shippable on its own, with one
-named risk carried until part 2 lands (see §Error handling, "target now lives in another course").
+Part 1 of three.
+
+- **Part 1 (this)** — the link dialog and the `/courses/n/<pk>/` permalink.
+- Part 2, `2026-07-26-internal-link-durability-design.md` — the rich-text registry, links surviving
+  an uploaded-archive export→import, and a warning before a linked node is deleted.
+- Part 3, `2026-07-26-internal-link-cutover-design.md` — links surviving `migrate_course_content`,
+  the mat-pp production cutover. Depends on part 2.
+
+Part 1 is shippable on its own, with one named risk carried until part 2 lands (see §Error handling,
+"target now lives in another course").
 
 ## Purpose
 
