@@ -50,11 +50,17 @@ not:
 3. **Consequence.** The mark lands only in the viewer's *own* progress chrome (see the roster-scoped
    analysis below), so a stray click misinforms nobody but the person who made it. Testing §10 pins
    this rather than leaving it as an argument.
-4. **A recovery route exists, for exactly this population.** `courses/admin.py` registers an
-   editable `UnitProgressAdmin` with `completed` in `list_display` — and the dominant previewer is
-   `is_staff`, i.e. precisely who can reach it. It is a permission-gated admin action, not a product
-   affordance, so it does not make the button safe; it does mean a mis-click is recoverable by the
-   people most likely to make one.
+4. **A recovery route exists — but a narrow one, and the obvious reading of it is wrong.**
+   `courses/admin.py` registers an editable `UnitProgressAdmin` with `completed` in `list_display`,
+   which invites the conclusion that the dominant `is_staff` previewer can undo their own mis-click.
+   **They cannot.** `is_staff` grants admin-site *login* only; the changelist additionally needs
+   `courses.view_unitprogress` / `change_unitprogress`, and **no role group grants either** —
+   `institution/roles.py` seeds `PLATFORM_ADMIN_PERMS` (accounts / institution / `COURSE_PERMS` /
+   `SUBJECT_PERMS`) and the `GROUPING_*` lists, none of which contains a `unitprogress` codename, and
+   `UnitProgressAdmin` defines no `has_*_permission` overrides. So the route is **superuser-only**: a
+   Course Admin reaching `/admin/` cannot see the model. Weigh it accordingly — recovery exists, but
+   it requires escalating to whoever holds superuser, so this bullet supports the decision far more
+   weakly than bullets 1–3 and must not be read as "this population can fix it themselves."
 
 The file being edited argues the opposite doctrine for a neighbouring hazard, and that deserves a
 direct answer rather than silence: `progress_reset`'s docstring says reset is "the student's
@@ -112,7 +118,8 @@ translatable strings, and **no template markup change** — the single template 
 ### 1. The write — `courses/views.py::complete`
 
 Drop the `is_enrolled` branch so `can_access_course` (already checked immediately above) is the sole
-guard on the write, and take the same lock `save_element_state` takes two functions below:
+guard on the write, and take the same lock `save_element_state` (the very next function, `≈:688`)
+takes:
 
 ```python
 with transaction.atomic():
@@ -606,14 +613,18 @@ test.
      `data-unit="{{ item.node.pk }}"` on the `<li>` — **parse the `li[data-unit="<pk>"]` subtree**
      and assert inside it. A naive `data-unit="<pk>"[^>]*>` … `badge--done` regex does **not** work:
      `[^>]*>` stops at the `<li>`'s own closing `>`, so the match is unbounded on the right and runs
-     straight into a later unit's badge — the exact false-pass the scoping exists to prevent. If a
-     regex is preferred over parsing, bound it: `_outline_node.html:5` puts `outline-unit--done` on
-     the same unit's `<a>`, so match that non-greedily between `data-unit="<pk>"` and the next
-     **`(?:data-unit=|$)`** — the alternation is required, not decoration. `data-unit` is emitted
-     only under `{% if item.is_unit %}`, so "the next `data-unit=`" **does not exist** when the
-     seeded unit is the last unit in the outline (a completely natural fixture: two units, complete
-     the second), and a regex without the `$` arm fails against correct code — the same false-RED
-     class test 10's positive control already had to fix. Seed no other completed unit either way;
+     straight into a later unit's badge — the exact false-pass the scoping exists to prevent. **Parsing is the recommendation; a regex needs care.** Two
+     naive forms both false-pass in exactly the way this scoping exists to prevent, because a
+     terminator placed *after* the target token constrains nothing about where that token matched:
+     `data-unit="<pk>"[^>]*>` … `badge--done` and `data-unit="<pk>".*?outline-unit--done.*?(?:data-unit=|$)`
+     will each run the leading `.*?` straight across a *later* `<li data-unit="…">` and match that
+     unit's marker. Use a **tempered** pattern, which cannot cross the next unit's boundary:
+     `re.search(r'data-unit="<pk>"(?:(?!data-unit=)[\s\S])*?outline-unit--done', body)`
+     (`_outline_node.html:5` puts `outline-unit--done` on the unit's own `<a>`). Note `[\s\S]`, not
+     `.`: the two tokens sit on `_outline_node.html:3` and `:5`, so any `.`-based form needs `re.S`
+     or it matches nothing — a false RED against correct code — and `re.M` must **not** be set if a
+     `$` arm is used, or `$` degenerates to end-of-line. Seed no other completed unit as hygiene; with
+     the tempered pattern that is no longer what carries the bound;
    - the **lesson unit** page (`_unit_shell.html` → `_unit_footer.html:3-5`) → `unit_nav.course_progress.done`
      is non-zero. This half **requires an obligatory lesson unit**: `course_progress.done` sums
      `required_done`, which `rollups.py` sets only when `is_obligatory_lesson(node)`, and the footer
@@ -793,8 +804,11 @@ observable at the view/template layer by tests 1, 2 and 7.
     `quiz_finish` (enrolled-only), `review.py::force_submit` (acts on the *student's* row, never the
     teacher's) — plus the Django admin, which is neither: `courses/admin.py` registers a plain
     add/change-enabled `UnitProgressAdmin`, and `UnitProgress.save()`'s own comment pins the
-    completed⇒completed_at invariant "for EVERY write path (incl. admin)". So an admin can already
-    create or flip a `completed=True` row for any user, enrolled or not. That is a *second* existing
+    completed⇒completed_at invariant "for EVERY write path (incl. admin)". So a **superuser** can
+    already create or flip a `completed=True` row for any user, enrolled or not. (Superuser
+    specifically — no role group grants `unitprogress` model permissions; see "The decision, and
+    why", bullet 4. The narrowing does not weaken this "not new" argument, which needs only that the
+    route exists.) That is a *second* existing
     route to the shape, which strengthens the "not new" argument rather than weakening it (and it is
     the same admin named as the recovery route under "The decision, and why"). And nothing keeps a
     row and its enrollment together afterwards.
