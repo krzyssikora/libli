@@ -110,8 +110,9 @@ written so that adding a reset later requires no rework of anything it ships.
 
 Two behavioural edits in `courses/views.py`; two new comments there; five comment corrections — four
 in `courses/views.py` (one of them in `seen`, a function this diff otherwise leaves behaviourally
-untouched) and one in `templates/courses/_lesson_article.html`; one existing test inverted (§1) and
-one existing test extended (§3). No migration, no model change, no new URL, no JS change, no new
+untouched) and one in `templates/courses/_lesson_article.html`; one existing test inverted (§1), one
+existing test extended (§3), and roughly a dozen new tests in `tests/test_courses_progress.py` (see
+Testing — the test work is the bulk of this change, not the two-line edit). No migration, no model change, no new URL, no JS change, no new
 translatable strings, and **no template markup change** — the single template edit is a
 `{% comment %}` body, which is why it does not reopen the warning-affordance question.
 
@@ -170,12 +171,15 @@ the read**, not merely add one. This is the mechanism the §2b comment must enco
 lock-exclusion version there would ship a confident falsehood in the one place nothing tests.
 
 **Cost:** the new shape is `get_or_create` (SELECT, sometimes INSERT) plus a second
-`SELECT … FOR UPDATE`, inside a savepointed atomic block, where the old shape was one SELECT and —
-when the unit was already complete — nothing further. That is +1 query and a transaction per
-`complete` POST, on the enrolled path too. No `assertNumQueries` / `CaptureQueriesContext` test
-currently covers `complete` (verified), so nothing breaks; but Testing §11 wraps this very endpoint
-in `CaptureQueriesContext`, so its assertion must target `UPDATE` on `courses_unitprogress`
-specifically, never "no writes" — SELECT and SAVEPOINT traffic is expected and correct.
+`SELECT … FOR UPDATE`, inside an atomic block, where the old shape was one SELECT and — when the
+unit was already complete — nothing further. **In production** that is +1 query and one
+`BEGIN`/`COMMIT` per `complete` POST (`ATOMIC_REQUESTS` is not set anywhere in `config/`, so this
+block is the outermost transaction), on the enrolled path too. No `assertNumQueries` /
+`CaptureQueriesContext` test currently covers `complete` (verified), so nothing breaks. **Under
+pytest** it looks different: `django_db` already holds a transaction, so the same block emits
+`SAVEPOINT`/`RELEASE` — a harness artefact, not a production cost. Testing §11 wraps this endpoint in
+`CaptureQueriesContext`, so its assertion must target `UPDATE` on `courses_unitprogress`
+specifically, never "no writes": the SELECTs and that savepoint traffic are expected and correct.
 
 ### 2. The read — `courses/views.py::build_lesson_context`
 
@@ -473,11 +477,20 @@ test.
    **that same viewer** — a second viewer would need its own `make_login` + `is_staff` setup plus a
    mid-test re-login and buys nothing; (3) POST `seen` again and assert the response is still
    `{"seen_element_ids": [], "completed": false, "completed_at": null}` **and** that the seeded row
-   is unchanged. Without this the decision that the synthetic response ignores stored state is
+   is untouched — name the fields rather than comparing whole objects (`updated_at` is `auto_now`):
+   after `refresh_from_db()`, `seen_element_ids == []` (the POSTed ids were not merged),
+   `completed is True`, and `completed_at` equal to its pre-POST value. Without this the decision that the synthetic response ignores stored state is
    incidental rather than recorded, and the next reader will "fix" it.
-   *Falsify:* temporarily drop the `is_enrolled` gate in `seen` → RED. Note this guard is *outside*
-   the diff — the recipe removes code the change does not touch, which is exactly the point: the
-   test's job is to catch a future implementer "finishing the job" by lifting both gates.
+   **Two recipes, because one does not cover both halves.**
+   *Falsify (step 1, pre-existing):* temporarily drop the `is_enrolled` gate in `seen` → RED. This
+   guard is *outside* the diff — the recipe removes code the change does not touch, which is exactly
+   the point: the test's job is to catch a future implementer "finishing the job" by lifting both
+   gates. But note it reddens the **pre-existing** assertions and would fire whether or not steps
+   (2)–(3) were ever written.
+   *Falsify (steps 2–3, the extension's own):* make the synthetic response echo the stored row —
+   e.g. return `_progress_json(UnitProgress.objects.filter(student=request.user, unit=node).first())`
+   instead of the literal — → step (3) goes RED while step (1) stays green. Without this second
+   recipe the extension is listed in the DoD as falsification-proven while only its old half is.
 4. **No spurious row on GET — this guard already exists; do not duplicate it.**
    `courses/tests/test_markdone_render.py::test_passive_non_enrolled_viewer_gets_no_progress_row`
    already asserts that a non-enrolled viewer GETting the lesson creates no `UnitProgress` row, with
@@ -513,9 +526,11 @@ test.
    What changes is that this gate becomes the *only* thing standing between them and a write, which
    is what makes the guards load-bearing. Reserve "newly reachable" for the positive routes.
    **Fixture wiring, and two vacuity traps.** Wire each route explicitly:
-   - **(a)** the logged-in user must be the course's owner — `CourseFactory(owner=user)`. Asserting
-     that `CourseFactory`'s own auto-created owner is non-staff tests a user who never makes the
-     request.
+   - **(a)** the logged-in user must be the course's owner — `CourseFactory(owner=user)`, and the
+     kwarg is **mandatory**: `CourseFactory` declares no `owner` at all and `Course.owner` is
+     `null=True`, so a bare `CourseFactory()` yields `owner=None` and route (a) simply does not
+     exist. (Only `make_course_with_unit` mints an owner of its own.) The non-staff pin below is
+     about the *logged-in* user, not about any factory-created one.
    - **(b)** and **(d)**: `grouping.Group` has a `course` FK, a `teachers` M2M and an `archived`
      boolean, so build `GroupFactory(course=course)` + `group.teachers.add(user)` +
      `archived=True` (b) / `False` (d).
@@ -523,8 +538,7 @@ test.
    - **Trap 1 — `is_staff` short-circuit.** `accessible_courses` returns `Course.objects.all()` at
      `if user.is_staff:` *before* evaluating either `Q(owner=user)` or the group clause. So **(a),
      (b) and (d) must each assert their user is non-staff** — not just (b) and (d). A staff owner in
-     (a) passes via the wrong route and proves nothing about the owner clause; `CourseFactory`'s
-     owner comes from `UserFactory`, so this is fixture-dependent rather than guaranteed.
+     (a) passes via the wrong route and proves nothing about the owner clause.
      (`tests.factories`' `_make_role` never sets `is_staff`, so the role helpers are safe.)
    - **Trap 2 — enrollment.** (a) and (d) must assert
      `not Enrollment.objects.filter(student=user, course=course).exists()`. An enrolled owner or
@@ -535,8 +549,14 @@ test.
    *Falsify (diff-local):* restore the `is_enrolled` branch in `complete` → (a) and (d) go RED.
 6. **Pre-existing row, both directions.** One fixture shape, two cases that must not be collapsed:
    - **(a) `completed=True`.** Seed such a row for a user who is **not** enrolled but can access →
-     a plain GET of the lesson (no POST at all) shows the "Completed" pill. Pins the Data-flow
-     "Pre-existing rows" paragraph as intended behaviour rather than an accident.
+     a plain GET of the lesson (no POST at all) shows the completed pill. Pins the Data-flow
+     "Pre-existing rows" paragraph as intended behaviour rather than an accident. **Use test 2's
+     marker discipline, not the English phrasing**: scope to `[data-unit-done]` and assert
+     `is-complete` **present** / `unit-done__pill--btn` **absent**. A bare
+     `assert "Completed" in body` is **vacuous** — `_lesson_article.html:13` emits
+     `data-done-label="{% trans 'Completed' %}"` on that div *unconditionally*, outside the
+     `{% if progress.completed %}` branch, so the word is in every lesson response and the
+     falsification below would stay GREEN.
      *Falsify:* revert `progress = state_row` → RED.
    - **(b) `completed=False` — the row shape nothing else covers.** Seed a `completed=False` row
      carrying `element_state` for a non-enrolled `can_access` viewer → within the `[data-unit-done]`
@@ -562,11 +582,19 @@ test.
    test 9, because this test's falsification targets the *read* assignment and routing it through a
    `complete` POST would couple it to the write edit it does not guard — POSTs a Check on a question
    in that unit — **without** an
-   `X-Requested-With: fetch` header — → the re-rendered lesson still shows the "Completed" pill.
+   `X-Requested-With: fetch` header — → the re-rendered lesson still shows the completed pill,
+   asserted with **test 2's marker discipline** (`[data-unit-done]` carries `is-complete`, no
+   `unit-done__pill--btn`), never `assert "Completed" in body` — see 6(a) for why that substring is
+   always present and therefore vacuous.
    The header omission is load-bearing, not incidental: with it, `_wants_fragment` short-circuits to
    a question fragment that never renders the pill (see Architecture §2), and an implementer who
    adds the header to imitate the real UI will get a confusing failure against behaviour this change
    does not touch. Covers `notes/views.py:194` by the exemption argued in §2.
+   **Fixture:** copy an existing no-JS `check_answer` test rather than inventing one — seed a
+   `ShortTextElement`-style question and POST the field names `build_answer(request.POST)` expects.
+   Note the incidental write: on a `RESTORABLE_IN_LESSON` question type, `check_answer` calls
+   `save_element_state` on the **same** pre-seeded `UnitProgress` row, which is harmless here but
+   surprising if unexpected.
    *Falsify:* revert `progress = state_row` → RED (both render paths share the one assignment,
    which is precisely why this test must name the POST path explicitly rather than trusting test 2
    to cover it).
@@ -688,7 +716,12 @@ test.
     owner is itself one of test 5's non-enrolled `can_access` routes, so an implementer can
     accidentally cast one user as both, which silently makes the session switch below a no-op and
     the test's own warning self-contradictory while everything still passes. Natural wiring: test 1's
-    `is_staff` previewer plus a separate owner or PA. **Step 1 runs as the previewer; steps 2–4 run
+    `is_staff` previewer plus a separate owner or PA — and **pin the resolver's fixture, not just
+    their role**: either `CourseFactory(owner=resolver)` or `make_pa(...)`. `CourseFactory` sets no
+    owner (see test 5(a)), so "a separate owner" who is never assigned as one is neither PA nor
+    owner; `can_review_course` then returns False and `analytics_student` 404s **unconditionally** —
+    step 2 passes for a reason unrelated to the roster and step 4 fails against correct behaviour,
+    exactly the shape test 8's resolver pin exists to pre-empt. **Step 1 runs as the previewer; steps 2–4 run
     as the resolver** — switch the login between them (or use a second `Client()`). `tests.factories`' login helpers log
     in on the shared client and silently replace the session, so forgetting this makes step 2 issue
     the drill-down GET as the previewer.
