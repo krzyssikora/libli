@@ -48,7 +48,21 @@ not:
    dangerous than it already is for the population it was designed for; it stops making it *lie* to
    everyone else.
 3. **Consequence.** The mark lands only in the viewer's *own* progress chrome (see the roster-scoped
-   analysis below), so a stray click misinforms nobody but the person who made it.
+   analysis below), so a stray click misinforms nobody but the person who made it. Testing §10 pins
+   this rather than leaving it as an argument.
+4. **A recovery route exists, for exactly this population.** `courses/admin.py` registers an
+   editable `UnitProgressAdmin` with `completed` in `list_display` — and the dominant previewer is
+   `is_staff`, i.e. precisely who can reach it. It is a permission-gated admin action, not a product
+   affordance, so it does not make the button safe; it does mean a mis-click is recoverable by the
+   people most likely to make one.
+
+The file being edited argues the opposite doctrine for a neighbouring hazard, and that deserves a
+direct answer rather than silence: `progress_reset`'s docstring says reset is "the student's
+protection against automatic persistence — shipping it as a one-click no-undo form for no-JS
+students would make the safety valve the hazard." That reasoning is about **automatic** persistence
+and about the *reset* control specifically; the mark-done button is neither automatic nor a safety
+valve. Bullet 2 is the answer: this spec adds no new hazard shape, it extends an existing,
+deliberate one to a population the same product already exposes to it.
 
 The escape hatch — making `progress_reset` clear `completed`, or turning the pill into a toggle — is
 therefore **out of scope here and stays a non-goal**, but as a scoping decision rather than an
@@ -78,25 +92,41 @@ written so that adding a reset later requires no rework of anything it ships.
 
 ## Architecture / components
 
-Two behavioural edits in `courses/views.py`, three comment corrections in the same file, one
+Two behavioural edits in `courses/views.py`, four comment corrections in the same file, one
 deliberate non-edit, and one existing test inverted. No migration, no model change, no new URL, no
 template change, no JS change, no new translatable strings.
 
 ### 1. The write — `courses/views.py::complete`
 
 Drop the `is_enrolled` branch so `can_access_course` (already checked immediately above) is the sole
-guard on the write:
+guard on the write, and take the same lock `save_element_state` takes two functions below:
 
 ```python
-progress, _ = UnitProgress.objects.get_or_create(student=request.user, unit=node)
-if not progress.completed:
-    progress.completed = True
-    progress.save()  # completed_at stamped in save()
+with transaction.atomic():
+    UnitProgress.objects.get_or_create(student=request.user, unit=node)
+    progress = UnitProgress.objects.select_for_update().get(
+        student=request.user, unit=node
+    )
+    if not progress.completed:
+        progress.completed = True
+        progress.save()  # completed_at stamped in save()
 ```
 
-This is the same reversal PR #136 applied to `markdone_save`, for the same stated reason: the row is
-the viewer's own record, not course analytics. `get_or_create` here is correct and intended — a POST
-is an explicit act, so creating the row on it does not violate the "no spurious rows on a GET" rule.
+Lifting the gate is the same reversal PR #136 applied to `markdone_save`, for the same stated
+reason: the row is the viewer's own record, not course analytics. `get_or_create` is correct and
+intended here — a POST is an explicit act, so creating the row on it does not violate the "no
+spurious rows on a GET" rule.
+
+**Why the lock, when the old code had none.** `progress.save()` carries no `update_fields`, so it
+writes every column from the in-memory instance — including `element_state` as it was at fetch time.
+A checklist tick landing between the fetch and the save is silently lost. That window exists today
+on the enrolled path, but this change extends it to the previewer population, who sit on the very
+same page as the checklist. `courses/views.py::save_element_state` already solves exactly this with
+`transaction.atomic()` + `select_for_update()`, so this is the file's own house pattern rather than
+a new mechanism: same columns written, same semantics, no behaviour change for enrolled students —
+only a row lock on a low-frequency, explicitly-clicked endpoint. `update_fields` was the other
+candidate and is **rejected**: it would change which columns the enrolled path writes, a genuinely
+different change with its own regression surface.
 
 ### 2. The read — `courses/views.py::build_lesson_context`
 
@@ -150,22 +180,26 @@ caller list rather than any behaviour.
 Comments in this codebase carry design contracts, so leaving them stale would ship a file arguing
 against its own behaviour. All four are corrections of fact, not new prose:
 
-- **≈:784-788** (in `element_state_save`) states that persisting practice state for any accessing
-  viewer "deliberately diverges from seen/quiz (which ignore previewers so authors don't pollute
-  their own progress/analytics)". After this change `complete` joins the diverging side, so the
-  enumeration must narrow to `seen`/quiz-submission only, and the parenthetical rationale must stop
-  implying that *all* progress writes exclude previewers.
+- **≈:784-788** (in `element_state_save`) reads: persisting practice state for any accessing viewer
+  "deliberately diverges from seen/quiz (which ignore previewers so authors don't pollute their own
+  progress/analytics)". The **enumeration is already correct** — it names `seen`/quiz and never
+  mentions `complete`, so there is nothing to narrow; do not go hunting for a broader list. The
+  **parenthetical rationale** is the part this change falsifies: it must stop implying that progress
+  writes in general exclude previewers, since completion now does not.
 - **≈:396-398** (the `elif user.is_authenticated` branch in `build_lesson_context`) says the row is
   read "for their practice state". It now also feeds the completion pill; the comment must say so,
   and must keep stating why the read is `.filter().first()` rather than `get_or_create`.
 - **≈:273-275** (`build_lesson_context`'s docstring) is wrong twice. It says the function is "Used
   by **both** `lesson_unit` (GET) and `check_answer` (POST re-render) so **the two** cannot drift" —
-  already false today, since `notes/views.py:194` is a third caller via
-  `full_lesson_render_context`; and it says the function "Performs the same
-  `UnitProgress.get_or_create` + seen-count as a normal view", which is true only on the enrolled
-  path. Fix both clauses: name all three callers, and name the non-enrolled path's read-only row
-  lookup. Do not correct only the second sentence — the diff deliberately edits this docstring, so
-  leaving a known-false contract in it is worse than never having touched it.
+  already false today; and it says the function "Performs the same `UnitProgress.get_or_create` +
+  seen-count as a normal view", which is true only on the enrolled path. Fix both clauses. For the
+  first, do **not** re-enumerate the render sites: `build_lesson_context` has exactly one production
+  caller, `full_lesson_render_context`, whose own docstring (`views.py:449-450`) already lists all
+  three sites. Say it is reached through `full_lesson_render_context`, which serves every render site
+  (see its docstring) — copying the list here just creates a second copy to drift. For the second,
+  name the non-enrolled path's read-only row lookup. Do not correct only one sentence: the diff
+  deliberately edits this docstring, so leaving a known-false contract in it is worse than never
+  having touched it.
 - **≈:652** (in `seen`) reads `# untracked preview: no write, synthetic canonical response`. After
   this change a preview is no longer "untracked" in any general sense — the viewer's completion and
   their practice state both persist; it is specifically the **scroll signal** that is dropped. This
@@ -234,6 +268,12 @@ Enrollment — an invariant maintained by those services, not enforced by the qu
 is the roster filter, never any property of the row itself; see "Enrollment transition" below for
 what happens when that premise stops holding.
 
+**And the write is inert beyond that row.** Worth stating because the sibling completion write is
+not: `quiz_finish` calls `notify_needs_review` **and** `emit_result_finalized` (the SIS webhook)
+right after setting `completed`. `complete` emits neither, and `UnitProgress` carries no `post_save`
+receiver — `courses/signals.py` registers only a `post_delete` on `MediaAsset`. So a previewer's
+mark sends no notification and fires no webhook.
+
 **Pre-existing rows (a visible day-one change for one population).** The read edit does not only
 surface rows the viewer creates. Someone who *was* enrolled earlier — a teacher enrolled for a
 pilot, a Course Admin who took the course — still has `completed=True` rows from that time. Today
@@ -253,15 +293,13 @@ change to existing data that no POST triggers, and it gets its own test (Testing
   idempotent; `completed_at` is stamped once, in `UnitProgress.save()`. `UnitProgress` carries a
   `UniqueConstraint(student, unit)`, so concurrent `get_or_create` calls cannot produce a duplicate
   row.
-- **Concurrent `element_state` write (known, pre-existing, deliberately not fixed here)** — the
-  `progress.save()` above has no `update_fields`, so it writes every column from the in-memory
-  instance, including `element_state` as it was at `get_or_create` time. A checklist tick landing
-  between the fetch and the save (AJAX, via `save_element_state`) is lost, last-write-wins. This
-  window exists today on the enrolled path and is not created by this change — but this change does
-  *extend* it to the previewer population, who sit on exactly the same page as the checklist, so it
-  is stated rather than left to be discovered. Introducing `update_fields` is deliberately out of
-  scope: it would change the enrolled path's write semantics too, which is a separate change with
-  its own regression surface.
+- **Concurrent `element_state` write — closed, not documented.** The full-row `save()` would
+  otherwise clobber a checklist tick that landed between the fetch and the save; §1 closes that
+  window with `transaction.atomic()` + `select_for_update()`, the pattern `save_element_state`
+  already uses. See §1 for why that mitigation was chosen over `update_fields`. Note this is a
+  *concurrency* window — a write landing inside another request — so no sequential test can sample
+  it; Testing §11 pins the observable consequence (a second POST issues no UPDATE at all) rather
+  than pretending to reproduce the race.
 - **No row on GET** — the read path stays `.filter().first()`. A `None` `progress` is a valid,
   expected state that the template already handles.
 - **Method** — `complete` remains `@require_POST`; a GET cannot complete a unit.
@@ -336,13 +374,22 @@ test.
    already 403s both cases today at the `can_access_course` check, ahead of the `is_enrolled` branch.
    What changes is that this gate becomes the *only* thing standing between them and a write, which
    is what makes the guards load-bearing. Reserve "newly reachable" for the positive routes.
-   **Fixture wiring, and the vacuity trap:** `grouping.Group` has a `course` FK, a `teachers` M2M and
-   an `archived` boolean, so (b) and (d) are built with `GroupFactory(course=course)` +
-   `group.teachers.add(user)` + `archived=True` / `False`. Both users **must** be asserted non-staff
-   and non-owner — `tests.factories`' `_make_role` never sets `is_staff`, so the role helpers are
-   safe, but any user who *is* staff short-circuits `accessible_courses` before the group clause and
-   makes both tests vacuous: (d) would pass via the wrong route and (b) would not 403 at all.
-   *Falsify:* drop the `can_access_course` check in `complete` → (b) and (c) go RED.
+   **Fixture wiring, and two vacuity traps.** `grouping.Group` has a `course` FK, a `teachers` M2M
+   and an `archived` boolean, so (b) and (d) are built with `GroupFactory(course=course)` +
+   `group.teachers.add(user)` + `archived=True` / `False`. Then:
+   - **Trap 1 — `is_staff` short-circuit.** `accessible_courses` returns `Course.objects.all()` at
+     `if user.is_staff:` *before* evaluating either `Q(owner=user)` or the group clause. So **(a),
+     (b) and (d) must each assert their user is non-staff** — not just (b) and (d). A staff owner in
+     (a) passes via the wrong route and proves nothing about the owner clause; `CourseFactory`'s
+     owner comes from `UserFactory`, so this is fixture-dependent rather than guaranteed.
+     (`tests.factories`' `_make_role` never sets `is_staff`, so the role helpers are safe.)
+   - **Trap 2 — enrollment.** (a) and (d) must assert
+     `not Enrollment.objects.filter(student=user, course=course).exists()`. An enrolled owner or
+     group teacher writes on the **base** commit too, via the `is_enrolled` branch, so the test
+     would be green before and after the change — vacuous with respect to this diff, and the
+     `can_access_course` recipe below would never catch it.
+   *Falsify (gate):* drop the `can_access_course` check in `complete` → (b) and (c) go RED.
+   *Falsify (diff-local):* restore the `is_enrolled` branch in `complete` → (a) and (d) go RED.
 6. **Pre-existing `completed=True` row.** Seed a `completed=True` row for a user, ensure they are
    **not** enrolled but can access → a plain GET of the lesson (no POST at all) shows the
    "Completed" pill. Pins the Data-flow "Pre-existing rows" paragraph as intended behaviour rather
@@ -360,11 +407,16 @@ test.
    to cover it).
 8. **Enrollment transition (pins an accepted decision, not a guard).** A non-enrolled viewer marks a
    unit done, is **then** enrolled → the row survives with `completed=True` and now counts as
-   learner progress. Assert against a named roster-scoped consumer —
-   `courses/rollups.py::build_progress_matrix(course, [viewer])` — rather than "the roster-scoped
-   query", which is not singular. Its `lesson_pks` come from `is_obligatory_lesson`, so the seeded
-   unit must be an **obligatory lesson** unit for the cell to move. Label the test in a comment as
-   documenting the "Enrollment transition" decision, so nobody mistakes it for a safety guard.
+   learner progress. **Drive the roster derivation, do not bypass it.**
+   `build_progress_matrix(course, students, ...)` takes `students` as a parameter and applies no
+   roster logic of its own, so handing it `[viewer]` makes the cell non-zero *before* enrollment too
+   and the test would assert nothing about the transition. Instead feed it from
+   `grouping/scoping.py::students_in_scope(owner_or_teacher, course, "all")`, and assert the viewer
+   is **absent** from that queryset before enrollment and **present** after. `build_progress_matrix`'s
+   `lesson_pks` come from `is_obligatory_lesson`, so the seeded unit must be an **obligatory lesson**
+   unit for the cell to move. Keep the row-survival assertion (`completed=True` still set after
+   enrollment) alongside. Label the test in a comment as documenting the "Enrollment transition"
+   decision, so nobody mistakes it for a safety guard.
    *Falsify:* add any enrollment-time clearing or preview-origin filtering of completions → RED.
 9. **Downstream chrome actually lights up** — the spec's whole rationale for fixing rather than
    hiding. These are **two different pages** and must be two GETs:
@@ -392,17 +444,32 @@ test.
    `student=user, ..., completed=True` query → RED — but note this reddens much of the existing
    outline/nav suite too, so it demonstrates the rationale is still wired, not that this test earns
    its place.
-10. **Double POST is idempotent, and does not widen the clobber window.** A previewer POSTs
-    `complete` twice → exactly one row, `completed_at` identical across both responses, and — the
-    load-bearing half — an `element_state` key written between the two POSTs survives the second.
-    Error handling asserts this invariant; without a test it is a claim, not a guard. It is
-    specifically the `if not progress.completed:` conditional that carries it: `UnitProgress.save()`
-    only stamps `completed_at` when it is `None`, so dropping that conditional leaves the timestamp
-    correct while turning the second POST into a redundant full-row `save()` that overwrites
-    `element_state` from a stale in-memory instance. An implementer flattening the body to
-    `progress.completed = True; progress.save()` would otherwise break nothing visible.
-    *Falsify:* delete the `if not progress.completed:` guard → RED on the `element_state` assertion.
-11. **Enrolled path unregressed.** The existing enrolled complete/auto-complete tests
+10. **Containment: an off-roster previewer is invisible to teacher-facing surfaces.** This is the
+    claim the entire "fix rather than hide" decision rests on, and the spec itself flags its premise
+    (GroupMembership ⊆ Enrollment) as maintained by services rather than enforced by the query — the
+    exact shape the repo's access-widening doctrine says to drive end to end. A non-enrolled
+    `can_access` previewer marks a unit done; then, as the course owner or a teacher, resolve
+    `students_in_scope(teacher, course, "all")` and build the analytics matrix from it → the
+    previewer is **not** a row.
+    *Falsify:* enroll the previewer → RED (they appear), proving the assertion discriminates.
+11. **Double POST is idempotent and writes nothing the second time.** A previewer POSTs `complete`
+    twice → exactly one row, and `completed_at` **on the DB row** is unchanged after the second POST
+    (`complete` returns a bare 302 with no body, so there is no response field to compare — assert
+    against the row).
+    The load-bearing assertion is the third: **the second POST issues no `UPDATE` on
+    `courses_unitprogress`** — wrap it in `CaptureQueriesContext` and assert no captured statement
+    updates that table. Do **not** assert instead that an `element_state` key written between the
+    two POSTs survives: `get_or_create` re-reads the row on POST 2, so the in-memory instance
+    already carries that key and a guardless `save()` writes it straight back. That assertion stays
+    GREEN with the guard deleted — it is vacuous, and the clobber it appears to test is a
+    *concurrency* window that no sequential test can sample (see the repo's "tests that sample race
+    windows" lesson). Likewise `completed_at` alone cannot carry the test: `UnitProgress.save()`
+    only stamps when it is `None`, so the timestamp stays correct without the guard; and "exactly
+    one row" is guaranteed by `get_or_create` plus the unique constraint either way.
+    *Falsify:* delete the `if not progress.completed:` guard → the redundant UPDATE appears → RED on
+    the query assertion (and only on that one — which is precisely why it is the assertion that
+    matters).
+12. **Enrolled path unregressed.** The existing enrolled complete/auto-complete tests
     (`test_seen_merges_and_autocompletes`, `test_zero_element_unit_completes_only_via_fallback`)
     stay green.
     *Falsify:* exempt — these are pre-existing tests being protected from regression, not new
@@ -425,7 +492,7 @@ primary case, but test 5 deliberately adds the owner and archived-group-teacher 
 - `ruff check` and `ruff format --check` clean;
 - `manage.py makemigrations --check` and `manage.py check` clean (both expected trivially — no model
   change);
-- each new/inverted test falsification-proven (guard removed → RED → restored), except test 11,
+- each new/inverted test falsification-proven (guard removed → RED → restored), except test 12,
   exempted in writing above;
 - **existing e2e over the touched surface, run and green** — three suites, covering both surfaces
   this change feeds:
