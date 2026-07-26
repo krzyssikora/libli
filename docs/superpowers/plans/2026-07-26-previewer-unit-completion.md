@@ -14,7 +14,40 @@
 
 - **No migration, no model change, no new URL, no JS change, no new translatable strings, and no template markup change.** The only template edit is a `{% comment %}` body.
 - **Every command goes through `uv run`.** Bare `ruff`, `pytest` and `python` are not on PATH: `uv run pytest`, `uv run ruff check`, `uv run python manage.py check`.
-- **Test DB isolation:** this work happens in a git worktree. Concurrent pytest runs across worktrees collide on the shared Postgres `test_libli`, and `-n auto` widens that window. Use a worktree-unique `DATABASE_URL` and **never run two pytest invocations at once**. A collision produces failures unrelated to this diff.
+- **Test DB isolation — export this before any `Run:` line in this plan.** This work happens in a git worktree, and concurrent pytest runs across worktrees collide on the shared Postgres `test_libli` (`-n auto` widens the window). Every `Run:` line below assumes this is already exported in the shell:
+
+  ```bash
+  export DATABASE_URL='postgres://libli:libli@localhost:5432/libli_previewer'
+  ```
+
+  (Same pattern as `docs/superpowers/plans/2026-07-13-fill-in-table-2.md`; adjust the credentials to match your local `.env` if they differ.) **Never run two pytest invocations at once.** A collision produces failures unrelated to this diff.
+- **Lint before every commit.** Each task below ends in a `git commit`; immediately before it, run:
+
+  ```bash
+  uv run ruff check <the files that task touched>
+  uv run ruff format --check <the files that task touched>
+  ```
+
+  Expected: clean. This is stated once here rather than repeated in all twelve tasks, but it is **not** optional — ruff selects `["E", "F", "I", "UP", "B", "S"]`, so an unused import or a mis-sorted one fails, and catching it ten commits later means a fix-up touching eight earlier tasks' files. `uv run ruff check --fix` settles import ordering automatically.
+- **Import placement.** `tests/test_courses_progress.py` uses `force-single-line = true` isort with the default `order-by-type = true`, so CamelCase names sort before snake_case ones. Each task adds its imports **at module level at the point of first use** — never all up front, which would fail `F401` (unused import) in the task that added them early. The final block, once every task has run, is:
+
+  ```python
+  import json
+  import re
+
+  import pytest
+  from bs4 import BeautifulSoup
+  from django.urls import reverse
+
+  from tests.factories import ContentNodeFactory
+  from tests.factories import CourseFactory
+  from tests.factories import EnrollmentFactory
+  from tests.factories import GroupFactory
+  from tests.factories import UnitProgressFactory
+  from tests.factories import add_element
+  from tests.factories import make_login
+  from tests.factories import make_verified_user
+  ```
 - **Prose in `courses/views.py` must not match the write-route tripwire.** `tests/test_element_state_write_routes.py` regexes raw source text — comments *and* docstrings, no stripping — and asserts exactly 3 hits in `courses/views.py`. No comment or docstring this diff adds may match:
   `\.update\(\s*element_state=|element_state\.pop\(|element_state\[[^\]]*\]\s*=|\.element_state\s*=(?!=)`
   Refer to the field in prose ("the practice-state blob") instead. The template comment is exempt — the guard walks first-party `.py` roots only.
@@ -78,7 +111,7 @@ Expected: FAIL — `UnitProgress.DoesNotExist`, because `complete` still writes 
 
 - [ ] **Step 3: Lift the gate and lock the row**
 
-Replace `courses/views.py:671-685` (the body of `complete`, from the `def` line through the `return`) with:
+Replace `courses/views.py:671-685` — from the `@require_POST` decorator (line 671) through the `return redirect(...)` line, decorators included — with:
 
 ```python
 @require_POST
@@ -93,16 +126,16 @@ def complete(request, slug, node_pk):
     if not can_access_course(request.user, course):
         raise PermissionDenied
     with transaction.atomic():
-        # Re-read under the lock instead of keeping get_or_create's instance. FOR
-        # UPDATE serialises concurrent writers, but it CANNOT protect a writer whose
-        # READ happened before the lock -- that writer carries a stale row across the
-        # block and writes it back afterwards. (It is NOT the case that a lock "only
-        # excludes writers that also take it": on PostgreSQL a plain UPDATE does block
-        # on an existing FOR UPDATE. The rule is about ORDERING, not exclusion.) That
-        # is why save_element_state locks before it reads, and why seen -- which does
-        # not -- can still lose an update. Collapsing this back to
-        # `progress, _ = get_or_create(...)` is byte-identical in every sequential
-        # test, so this comment is the only thing protecting the re-fetch.
+        # Re-read under the lock instead of keeping get_or_create's instance. The rule
+        # here is ORDERING, not exclusion: on PostgreSQL a plain UPDATE already blocks
+        # on an existing FOR UPDATE, so the lock is not about which writers opt into
+        # it. What FOR UPDATE cannot do is protect a writer whose READ happened before
+        # the lock -- that writer carries a stale row across the block and writes it
+        # back afterwards, losing the update. That is why save_element_state locks
+        # BEFORE it reads, and why seen -- which does not -- can still lose one.
+        # Collapsing this back to `progress, _ = get_or_create(...)` is byte-identical
+        # in every sequential test, so this comment is the only thing protecting the
+        # re-fetch.
         UnitProgress.objects.get_or_create(student=request.user, unit=node)
         progress = UnitProgress.objects.select_for_update().get(
             student=request.user, unit=node
@@ -127,16 +160,16 @@ Expected: FAIL (`UnitProgress.DoesNotExist`). **Then restore the code from Step 
 
 - [ ] **Step 6: Correct the `element_state_save` comment**
 
-Replace `courses/views.py:784-788` (the comment block beginning `# Practice state is personal self-tracking`) with:
+Find the comment block beginning `# Practice state is personal self-tracking` inside `element_state_save` and replace all five of its lines. **Anchor on that text, not on a line number:** it sits at ≈:784-788 on the base commit, but Step 3 of this task replaced a 15-line block with a 30-line one, so by now it has shifted about +15 lines. Replace it with:
 
 ```python
     # Practice state is personal self-tracking (ungraded, absent from analytics), so
     # ANY viewer who can access the lesson persists their own -- not just enrolled
     # students. This deliberately diverges from seen/quiz, which ignore previewers so
-    # authors don't pollute their own SCROLL-tracking and quiz analytics. Note that is
-    # those two specifically, NOT progress writes in general: an explicit "Mark as
-    # done" click now persists for previewers too (see complete()). The
-    # can_access_course gate above is the only guard the write needs.
+    # authors don't pollute their own SCROLL-tracking and quiz analytics. It is those
+    # two specifically, NOT progress writes in general: an explicit "Mark as done"
+    # click now persists for previewers too (see complete()). The can_access_course
+    # gate above is the only guard the write needs.
 ```
 
 The enumeration (`seen`/quiz) was already correct and is unchanged — only the parenthetical rationale, which this change falsifies, is rewritten.
@@ -271,15 +304,19 @@ Spec Architecture §2 and Testing §2. This is the load-bearing half: without it
 **Interfaces:**
 - Produces: `progress` is non-`None` for a non-enrolled viewer holding a row. Tasks 4, 5 and 8 all depend on this.
 
-- [ ] **Step 1: Write the failing read test**
+- [ ] **Step 1: Hoist the BeautifulSoup import to module level, then write the failing read test**
 
-Append to `tests/test_courses_progress.py`:
+This is its first use, so add it at module level now (third-party block, alphabetically before `django`) rather than inside each test — five function-local copies of one import is exactly the "five siblings inventing five mechanisms" the spec argues against, and `tests/test_unit_nav_render.py` imports it at module level:
+
+```python
+from bs4 import BeautifulSoup
+```
+
+Tasks 4, 5 and 8 reuse it and must **not** re-import it locally. Then append to `tests/test_courses_progress.py`:
 
 ```python
 @pytest.mark.django_db
 def test_previewer_sees_completed_pill_after_marking(client):
-    from bs4 import BeautifulSoup
-
     from courses.models import UnitProgress
 
     staff = make_login(client, "staff3")
@@ -288,7 +325,9 @@ def test_previewer_sees_completed_pill_after_marking(client):
     course = CourseFactory(slug="prd")
     unit, ids = _make_unit_with_elements(course, 1)
     client.post(reverse("courses:complete", kwargs={"slug": "prd", "node_pk": unit.pk}))
-    assert UnitProgress.objects.filter(student=staff, unit=unit, completed=True).exists()
+    assert UnitProgress.objects.filter(
+        student=staff, unit=unit, completed=True
+    ).exists()
 
     # A SEPARATE GET -- deliberately not follow=True on the POST, or "test 1 stays
     # green while this goes RED" in the falsification below would mean nothing.
@@ -397,8 +436,6 @@ Spec Testing §6. Two cases that must not be collapsed: a `completed=True` row s
 ```python
 @pytest.mark.django_db
 def test_previewer_pre_existing_completed_row_shows_pill_without_posting(client):
-    from bs4 import BeautifulSoup
-
     staff = make_login(client, "staff6a")
     staff.is_staff = True
     staff.save()
@@ -424,8 +461,6 @@ Do **not** assert `"Completed" in r.content.decode()` — `_lesson_article.html:
 ```python
 @pytest.mark.django_db
 def test_previewer_incomplete_row_still_renders_the_button(client):
-    from bs4 import BeautifulSoup
-
     staff = make_login(client, "staff6b")
     staff.is_staff = True
     staff.save()
@@ -463,7 +498,7 @@ Expected: 6(a) FAILS. **Restore** and re-run.
 
 - [ ] **Step 5: Falsify 6(b) — and use the recipe that actually works**
 
-6(b) guards the `progress`-vs-`progress.completed` distinction, not mere truthiness. Temporarily change `_lesson_article.html:12` and `:14` from `{% if progress.completed %}` to `{% if progress %}`. Run:
+6(b) guards the `progress`-vs-`progress.completed` distinction, not mere truthiness. Temporarily change **both occurrences of `{% if progress.completed %}` inside the `unit-done` div** from `{% if progress.completed %}` to `{% if progress %}`. **Match on that text, not on line numbers:** they are lines 12 and 14 on the base commit, but Task 3 Step 7 grew the `{% comment %}` block above them from 4 lines to 8, so they now sit around 16 and 18 — editing 12/14 would corrupt the comment block instead. Run:
 `uv run pytest tests/test_courses_progress.py::test_previewer_incomplete_row_still_renders_the_button -v`
 Expected: FAIL. **Restore the template** and re-run.
 
@@ -496,8 +531,6 @@ from tests.factories import add_element
 ```python
 @pytest.mark.django_db
 def test_previewer_completed_pill_survives_no_js_check_answer_rerender(client):
-    from bs4 import BeautifulSoup
-
     from courses.models import Enrollment
     from courses.models import ShortTextQuestionElement
 
@@ -670,8 +703,8 @@ No `is_staff` pin needed here: the assertion is a 403, so a stray staff flag red
 
 - [ ] **Step 6: Run all four**
 
-Run: `uv run pytest tests/test_courses_progress.py -k "5a or 5b or 5c or 5d or owner_can_complete or live_group_can_complete or archived_group_is_denied or unrelated_logged_in" -v`
-Expected: 4 passed.
+Run: `uv run pytest tests/test_courses_progress.py -k "owner_can_complete or live_group_can_complete or archived_group_is_denied or unrelated_logged_in" -v`
+Expected: exactly 4 passed. (Selector tokens must be substrings of the *function names*; spec labels like "5a" match nothing.)
 
 - [ ] **Step 7: Two falsifications**
 
@@ -695,12 +728,12 @@ git commit -m "test(courses): drive every can_access_course route into complete(
 Spec Testing §3 and the §2b `seen` comment. `seen` is behaviourally untouched; this task renames and extends its test, and corrects the comment that now misdescribes the asymmetry.
 
 **Files:**
-- Modify: `tests/test_courses_progress.py:101-118` (rename + extend `test_previewer_seen_no_write_synthetic`)
-- Modify: `courses/views.py:652` (the `seen` comment)
+- Modify: `tests/test_courses_progress.py` (rename + extend `test_previewer_seen_no_write_synthetic`)
+- Modify: `courses/views.py` (the `seen` comment, ≈:652 on the base commit — anchor on its text)
 
 - [ ] **Step 1: Rename and extend the existing test — sequence it, do not overwrite it**
 
-Replace `tests/test_courses_progress.py:101-118` with:
+**Anchor on the function, not on a line range.** Locate `def test_previewer_seen_no_write_synthetic(client):` and replace **its `@pytest.mark.django_db` decorator line through the end of its body**. Two things make a numeric range wrong here: the decorator sits on the line *above* the `def` (so a range starting at the `def` would leave the old decorator stacked on the new one), and Tasks 2, 5 and 6 each inserted an import line above, shifting everything down. Replace that whole block — decorator included — with:
 
 ```python
 @pytest.mark.django_db
@@ -780,7 +813,7 @@ Expected: FAIL at step (3), while step (1) still passes. **Restore** the origina
 
 - [ ] **Step 5: Correct the `seen` comment**
 
-Replace `courses/views.py:652` (`# untracked preview: no write, synthetic canonical response`) with:
+Replace the single line `# untracked preview: no write, synthetic canonical response` inside `seen` (≈:652 on the base commit; anchor on the text) with:
 
 ```python
         # ASYMMETRY, deliberate: SCROLL-tracking is not recorded for a previewer, but
@@ -790,9 +823,11 @@ Replace `courses/views.py:652` (`# untracked preview: no write, synthetic canoni
         # even when a stored row says True: this endpoint's contract is "here is your
         # scroll-tracking", not "here is your progress row". Do not "fix" it to echo
         # the stored row -- that breaks
-        # tests/test_courses_progress.py::test_previewer_seen_no_write_and_ignores_stored_completion
+        # tests/test_courses_progress.py::test_previewer_seen_no_write_and_ignores_stored_completion  # noqa: E501
         # and quietly turns a write-free endpoint into a state reporter.
 ```
+
+**The `# noqa: E501` is required, not decorative.** Ruff runs at the default 88 columns (`pyproject.toml` sets no `line-length`) and that citation line is 100. The naive fix — wrapping the path across two lines — destroys the very property the citation exists for, since the spec requires a greppable `path::function` reference. `# noqa` on a comment-only line does suppress E501 (verified empirically), and `config/settings/base.py:135` is the in-repo precedent. Without it, this task's own "lint clean" gate cannot pass.
 
 - [ ] **Step 6: Check the tripwire and commit**
 
@@ -813,15 +848,19 @@ Spec Testing §9 — the payoff that justifies fixing rather than hiding the but
 **Files:**
 - Modify: `tests/test_courses_progress.py` (one new test)
 
-- [ ] **Step 1: Write the test**
+- [ ] **Step 1: Hoist the `re` import to module level, then write the test**
+
+First use of `re` in this module, so add it at module level in the stdlib block, after `import json`:
+
+```python
+import re
+```
+
+Task 10 reuses it and must not re-import it locally. `BeautifulSoup` is already at module level from Task 3. Then append:
 
 ```python
 @pytest.mark.django_db
 def test_previewer_mark_lights_outline_badge_and_footer_counter(client):
-    import re
-
-    from bs4 import BeautifulSoup
-
     staff = make_login(client, "staff9")
     staff.is_staff = True
     staff.save()
@@ -884,7 +923,15 @@ Spec Testing §10. This is the claim the whole "fix rather than hide" decision r
 **Files:**
 - Modify: `tests/test_courses_progress.py` (one new test)
 
-- [ ] **Step 1: Write the test**
+- [ ] **Step 1: Add the `make_verified_user` import**
+
+It is definitely absent — the module imports only `ContentNodeFactory`, `CourseFactory`, `EnrollmentFactory` and `make_login` on the base commit. Add at module level, **after** `make_login` (snake_case sorts alphabetically, and both follow the CamelCase factory names):
+
+```python
+from tests.factories import make_verified_user
+```
+
+- [ ] **Step 2: Write the test**
 
 ```python
 @pytest.mark.django_db
@@ -945,12 +992,6 @@ def test_off_roster_previewer_absent_from_matrix_and_drilldown(client):
     assert resolver_client.get(drill_url).status_code == 200
 ```
 
-- [ ] **Step 2: Add the `make_verified_user` import if absent**
-
-```python
-from tests.factories import make_verified_user
-```
-
 - [ ] **Step 3: Run it**
 
 Run: `uv run pytest tests/test_courses_progress.py::test_off_roster_previewer_absent_from_matrix_and_drilldown -v`
@@ -958,8 +999,12 @@ Expected: PASS. (`courses:manage_analytics_student` takes `slug` + `student_pk` 
 
 - [ ] **Step 4: Falsify**
 
-Temporarily move the `EnrollmentFactory(student=previewer, course=course)` call to just before step (2). Run the same command.
-Expected: **both** step-2 assertions go RED (the previewer becomes a matrix row, and the drill-down 200s), proving each discriminates. **Restore** the ordering and re-run.
+Temporarily move the `EnrollmentFactory(student=previewer, course=course)` call to just before step (2). This must be **two runs**, because pytest aborts at the first failing assertion and the two mechanisms are asserted in the same function — a single run can only ever demonstrate the first:
+
+1. Run the test as-is. Expected: RED on `assert previewer not in row_students` (the roster-argument mechanism).
+2. Comment out that one assertion and re-run. Expected: RED on the drill-down `assert … == 404` (the view-level mechanism).
+
+Each mechanism therefore discriminates on its own — which is the whole point, since the two are contained differently. **Restore both the assertion and the original `EnrollmentFactory` position**, then re-run to confirm green.
 
 Do **not** reach for "delete the `student__in=students` filter" as a falsification — that filter only narrows a lookup dict, so deleting it leaves the assertion green. The containment is the `students` **argument**.
 
@@ -986,8 +1031,6 @@ Spec Testing §11. The load-bearing assertion is the query one — it is the onl
 ```python
 @pytest.mark.django_db
 def test_double_complete_post_is_idempotent_and_issues_no_second_update(client):
-    import re
-
     from django.db import connection
     from django.test.utils import CaptureQueriesContext
 
@@ -1174,19 +1217,21 @@ Expected: green and unchanged. All three exercise the enrolled path, which this 
 
 No **new** e2e test is required: the change has no client-side component, and the full round trip is observable at the view/template layer by tasks 1, 3 and 5.
 
-- [ ] **Step 6: Assemble the comment-edit gate for the PR description**
+- [ ] **Step 6: Assemble the comment-edit gate into a real file**
 
-No automated gate covers the seven comment edits, and the atomic-block re-fetch they document is the one piece of code in this diff no test can protect. Collect all seven bodies verbatim into the PR description under a heading naming them as the unguarded half of the diff:
+No automated gate covers the seven comment edits, and the atomic-block re-fetch they document is the one piece of code in this diff no test can protect. This plan opens no PR itself, so the assembled text needs a destination rather than a wish: **write it to `docs/superpowers/plans/2026-07-26-previewer-unit-completion-pr-notes.md`** and commit it in Step 8. Whoever opens the PR pastes that file into the body (`gh pr create --body-file docs/superpowers/plans/2026-07-26-previewer-unit-completion-pr-notes.md`, or copies it into an existing body).
 
-1. **New** — `complete`'s atomic block (Task 1). Verify it states the **ordering** rule: the row is re-fetched *under* the lock because `FOR UPDATE` serialises concurrent writers but cannot protect a writer whose read preceded the lock. It must **not** say a lock "only excludes writers that also take it" — that is false on PostgreSQL and would plant a confident falsehood where nothing tests.
+Under a heading naming them as the unguarded half of the diff, quote all seven comment bodies verbatim:
+
+1. **New** — `complete`'s atomic block (Task 1). Verify it **asserts the ordering rule**: the row is re-fetched *under* the lock because `FOR UPDATE` cannot protect a writer whose read preceded the lock. Verify it does **not endorse** the lock-exclusion framing — the false claim that a lock only excludes writers that also take it, which on PostgreSQL is untrue (a plain `UPDATE` blocks on an existing `FOR UPDATE`). Task 1's prescribed comment states the ordering rule positively and never asserts the false framing, so it passes this gate as written; the gate is about what the shipped comment *claims*, not about which words appear in it.
 2. **New** — `complete`'s access check (Task 1).
 3. **Correction** — `element_state_save`, `courses/views.py` ≈:784-788 (Task 1).
 4. **Correction** — `build_lesson_context`'s docstring, ≈:273-275 (Task 3).
 5. **Correction** — the `elif user.is_authenticated` branch, ≈:396-398 (Task 3).
 6. **Correction** — `seen`, ≈:652 (Task 7).
-7. **Correction** — `templates/courses/_lesson_article.html:8-11` (Task 3).
+7. **Correction** — the `{% comment %}` block in `templates/courses/_lesson_article.html` (≈:8-15 after Task 3 Step 7 grew it from four lines to eight; :8-11 on the base commit).
 
-- [ ] **Step 7: Record the falsification roster in the PR description**
+- [ ] **Step 7: Record the falsification roster in the same file**
 
 Confirm each of these was driven RED and restored: **1(a), 1(b), 2, 3 (step 1), 3 (steps 2–3), 5(a)–(d), 6(a), 6(b), 7, 9, 10, 11**.
 
@@ -1194,11 +1239,13 @@ Exempt in writing, with reasons already stated: **8** (no insertion point for th
 
 Include the spec-label → test-function mapping, since the roster is written in spec labels and the DoD is checked against them.
 
-- [ ] **Step 8: Final commit if anything changed**
+- [ ] **Step 8: Commit the notes file and any fixes**
 
 ```bash
-git add -A
-git commit -m "chore(courses): DoD sweep for previewer unit completion"
+uv run ruff check
+uv run ruff format --check
+git add docs/superpowers/plans/2026-07-26-previewer-unit-completion-pr-notes.md
+git commit -m "docs(courses): record the unguarded comment edits and falsification roster"
 ```
 
-If nothing changed, skip the commit — do not create an empty one.
+If the DoD runs surfaced code fixes, stage those files explicitly in the same commit (never `git add -A` in a repo whose worktree may hold untracked build output such as `.venv/`).
