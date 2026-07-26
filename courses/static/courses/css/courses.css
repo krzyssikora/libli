@@ -1539,6 +1539,12 @@ a.unit-crumbs__label:focus-visible { outline: 2px solid var(--primary); outline-
 .imgzoom-trigger { cursor: zoom-in; }
 .imgzoom-trigger:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 
+/* Explicit scroll lock, not belt-and-braces: a modal <dialog> does not block wheel
+   propagation to the page behind it on its own -- measured, a wheel event over the open
+   overlay moved window.scrollY from 0 to 400 with no lock in place. imagezoom.js toggles
+   this class in openOverlay()/the close handler. */
+html.imgzoom-open { overflow: hidden; }
+
 /* Every box declaration below is scoped to [open]: an unscoped author-origin
    `display` would beat the UA's `dialog:not([open]) { display: none }` and leave the
    dialog permanently covering the page — the same trap as `[hidden]` vs `display:grid`

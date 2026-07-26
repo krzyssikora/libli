@@ -50,6 +50,7 @@
       // and makes the browser refetch the current HTML page as an image every close.
       dialogImg.removeAttribute("src");
       if (trigger) trigger.focus();
+      document.documentElement.classList.remove("imgzoom-open");
     });
 
     document.body.appendChild(dialog);
@@ -62,6 +63,11 @@
     dialogImg.src = img.currentSrc || img.src; // already fetched: served from cache
     dialogImg.alt = trimmedAlt(img); // whitespace-only alt must not read as content
     dialog.showModal();
+    // Explicit lock, not belt-and-braces: showModal() does NOT block wheel input over
+    // the backdrop from scrolling the page behind it (measured: window.scrollY moved
+    // 0 -> 400 under a wheel event with the overlay open and no lock). courses.css pairs
+    // this class with `overflow: hidden` on <html>.
+    document.documentElement.classList.add("imgzoom-open");
   }
 
   function armOne(img) {
