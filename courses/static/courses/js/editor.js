@@ -95,6 +95,7 @@
     if (preview) renderPreviewMath(preview);  // inline math in stems/choices
     if (preview && window.libliEnhanceDnd) window.libliEnhanceDnd(preview);  // re-inject drag chips/slots
     if (preview && window.libliInitGallery) window.libliInitGallery(preview);  // re-enhance galleries into carousels
+    if (preview && window.libliInitImageZoom) window.libliInitImageZoom(preview);  // re-arm zoomable images
     if (preview && window.libliInitTabs) window.libliInitTabs(preview);  // re-enhance tabs
     if (preview && window.libliInitRevealGates) window.libliInitRevealGates(preview);  // un-hide reveal-gate buttons
     if (preview && window.libliInitFillGates) window.libliInitFillGates(preview);  // re-arm fill-gates

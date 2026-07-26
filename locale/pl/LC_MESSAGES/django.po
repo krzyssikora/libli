@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-26 02:58+0200\n"
+"POT-Creation-Date: 2026-07-26 17:43+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -967,10 +967,10 @@ msgid "Gallery"
 msgstr "Galeria"
 
 #: .\courses\templatetags\courses_manage_extras.py:38
-#: .\courses\views_manage.py:794 .\templates\courses\lesson_unit.html:75
+#: .\courses\views_manage.py:794 .\templates\courses\lesson_unit.html:77
 #: .\templates\courses\manage\editor\_add_menu.html:24
-#: .\templates\courses\manage\editor\editor.html:165
-#: .\templates\courses\quiz_unit.html:29
+#: .\templates\courses\manage\editor\editor.html:173
+#: .\templates\courses\quiz_unit.html:31
 msgid "Tabs"
 msgstr "Zakładki"
 
@@ -4135,14 +4135,26 @@ msgid "Image {n} of {total}"
 msgstr "Obraz {n} z {total}"
 
 #: .\templates\courses\lesson_unit.html:75
-#: .\templates\courses\manage\editor\editor.html:165
+#: .\templates\courses\manage\editor\editor.html:166
 #: .\templates\courses\quiz_unit.html:29
+msgid "Enlarge image"
+msgstr "Powiększ obraz"
+
+#: .\templates\courses\lesson_unit.html:75
+#: .\templates\courses\manage\editor\editor.html:166
+#: .\templates\courses\quiz_unit.html:29
+msgid "Enlarged image"
+msgstr "Powiększony obraz"
+
+#: .\templates\courses\lesson_unit.html:77
+#: .\templates\courses\manage\editor\editor.html:173
+#: .\templates\courses\quiz_unit.html:31
 msgid "Scroll tabs left"
 msgstr "Przewiń zakładki w lewo"
 
-#: .\templates\courses\lesson_unit.html:75
-#: .\templates\courses\manage\editor\editor.html:165
-#: .\templates\courses\quiz_unit.html:29
+#: .\templates\courses\lesson_unit.html:77
+#: .\templates\courses\manage\editor\editor.html:173
+#: .\templates\courses\quiz_unit.html:31
 msgid "Scroll tabs right"
 msgstr "Przewiń zakładki w prawo"
 

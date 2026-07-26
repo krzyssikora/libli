@@ -142,17 +142,25 @@ def make_course_with_unit(owner=None, **kw):
     return course, unit
 
 
-def make_image_asset(course, filename="x.png", **kw):
-    """A MediaAsset(kind="image") backed by a real tiny in-memory PNG, so any
+def make_image_asset(course, filename="x.png", size=(1, 1), color="black", **kw):
+    """A MediaAsset(kind="image") backed by a real in-memory PNG, so any
     file-content/extension validation would pass if invoked. Mirrors the PNG
-    built in test_image_file_extension_allowlist (tests/test_courses_elements.py)."""
+    built in test_image_file_extension_allowlist (tests/test_courses_elements.py).
+
+    `size` and `color` are explicit named parameters, NOT part of **kw: kw is splatted
+    into MediaAsset.objects.create() and an unknown key would raise on a model field.
+    Defaults reproduce the previous behaviour (1x1 black) exactly, so existing callers
+    are unaffected. A non-default `color` matters for the zoom e2e: the default black
+    is indistinguishable from the near-black overlay scrim, which would let an
+    occlusion assertion pass for the wrong reason.
+    """
     from io import BytesIO
 
     from django.core.files.uploadedfile import SimpleUploadedFile
     from PIL import Image
 
     buf = BytesIO()
-    Image.new("RGB", (1, 1)).save(buf, "PNG")
+    Image.new("RGB", size, color).save(buf, "PNG")
     kw.setdefault("kind", "image")
     kw.setdefault("original_filename", filename)
     kw.setdefault("file", SimpleUploadedFile(filename, buf.getvalue()))

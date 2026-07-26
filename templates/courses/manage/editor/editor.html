@@ -150,6 +150,13 @@
   {% endcomment %}
   <script>window.GALLERY_I18N = { prev: "{% trans 'Previous image' %}", next: "{% trans 'Next image' %}", nav: "{% trans 'Gallery' %}", go: "{% trans 'Go to image {n}' %}", pos: "{% trans 'Image {n} of {total}' %}" };</script>
   <script src="{% static 'courses/js/gallery.js' %}" defer></script>
+  {% comment %}The live-preview pane renders the student image/gallery/fill-table
+  templates, whose images carry data-zoomable; imagezoom.js is what makes them
+  clickable there too. editor.js re-runs window.libliInitImageZoom over the pane after
+  each fragment swap.
+  {% endcomment %}
+  <script>window.IMAGEZOOM_I18N = { enlarge: "{% trans 'Enlarge image' %}", dialog: "{% trans 'Enlarged image' %}" };</script>
+  <script src="{% static 'courses/js/imagezoom.js' %}" defer></script>
   {% comment %}The live-preview pane also renders the student tabs template, whose
   no-JS form is every panel visible; tabs.js is what makes it an actual tab strip there
   too. editor.js re-runs window.libliInitTabs over the pane after each fragment swap.
