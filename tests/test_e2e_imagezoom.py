@@ -492,3 +492,331 @@ def test_the_page_behind_does_not_scroll(page, live_server, tall_lesson):
     page.mouse.wheel(0, 400)
     page.wait_for_timeout(150)
     assert page.evaluate("() => window.scrollY") > before, "positive control failed"
+
+
+@pytest.fixture
+def gallery_lesson(db, _isolated_media):
+    """Anchor link, then a 3-figure gallery.
+
+    Figure 1 is active on load and carries an EMPTY description -> empty alt: that is
+    the decorative branch, and it must be the ACTIVE figure because inactive figures are
+    aria-hidden and Playwright's role engine cannot see them at all.
+
+    Gallery alt is NOT authorable: GalleryElement stores {media, desc} and render()
+    derives alt = desc_to_alt(desc), substituting a generic "Image n of m" when a
+    non-empty desc strips to nothing. So an empty alt requires an EMPTY desc, and a
+    math-only desc must be avoided.
+
+    No <a href> in any description: GalleryElement.save() sanitises each desc through
+    sanitize_cell, whose allowlist is CELL_TAGS = {strong, b, em, i, u, br} with
+    attributes={} (courses/sanitize.py:62) -- a link would be silently stripped to bare
+    text, so a fixture "carrying a link" would document a case it does not have.
+    """
+    from courses.models import GalleryElement
+    from courses.models import TextElement
+
+    course = CourseFactory()
+    unit = ContentNodeFactory(course=course, kind="unit", unit_type="lesson")
+    add_element(
+        unit, TextElement.objects.create(body='<p><a href="#">Anchor link</a></p>')
+    )
+    descs = ["", "Second figure", "Third figure"]
+    colors = ["#FF00FF", "#00FF00", "#0000FF"]
+    images = [
+        {
+            "media": make_image_asset(
+                course, filename=f"gal{i}.png", size=(800, 600), color=colors[i]
+            ).pk,
+            "desc": desc,
+        }
+        for i, desc in enumerate(descs)
+    ]
+    add_element(
+        unit,
+        GalleryElement.objects.create(data={"images": images, "desc_pos": "below"}),
+    )
+    user = _student("gallerystudent")
+    EnrollmentFactory(course=course, student=user)
+    return unit, user
+
+
+@pytest.fixture
+def hidden_lesson(db, _isolated_media):
+    """DOM order is LOAD-BEARING and fixed: anchor, tabs, spoiler, then the reveal gate
+    with the gated image LAST.
+
+    The gate's rule is
+    `.slide > .lesson-block:has(...) ~ .lesson-block:not(.reveal-shown)
+    { display: none }` -- a GENERAL SIBLING combinator over blocks that
+    _lesson_article.html wraps in `.slide > .lesson-block`. So the gate hides
+    EVERY later block in the unit, not just its own answer: anything placed
+    after it would be display:none and its positive control would fail for a
+    reason unrelated to this feature, while its negative half passed vacuously.
+
+    NO STEPPER IMAGE, deliberately. StepperStep.content is a CharField of
+    plain text + KaTeX (courses/models.py:503-508) -- a stepper step cannot
+    contain an element at all, so no image can ever be hidden by the stepper
+    mechanism and there is nothing for this feature to test there. The
+    stepper row of the spec's hiding table stays true (it does hide steps)
+    but is unreachable by an image, which is why no stepper case follows.
+    """
+    from courses.models import Element
+    from courses.models import ImageElement
+    from courses.models import RevealGateElement
+    from courses.models import SpoilerElement
+    from courses.models import TabsElement
+    from courses.models import TextElement
+
+    course = CourseFactory()
+    unit = ContentNodeFactory(course=course, kind="unit", unit_type="lesson")
+
+    def img(name):
+        asset = make_image_asset(
+            course, filename=name, size=(400, 300), color="#00FFFF"
+        )
+        return ImageElement.objects.create(media=asset, alt=f"Hidden {name}")
+
+    add_element(
+        unit, TextElement.objects.create(body='<p><a href="#">Anchor link</a></p>')
+    )
+
+    # Tabs: default_data() MINTS its own tab ids (new_tab_id -> "t" + 6 hex), so
+    # read them back rather than assuming literals, and key the child to the
+    # SECOND tab so it lands in the panel that ships [hidden]. Nesting pattern:
+    # tests/test_e2e_tabs.py:110.
+    tabs_obj = TabsElement.objects.create(data=TabsElement.default_data())
+    tabs_join = add_element(unit, tabs_obj)
+    second_tab_id = tabs_obj.data["tabs"][1]["id"]
+    Element.objects.create(
+        unit=unit,
+        content_object=img("tabbed.png"),
+        parent=tabs_join,
+        tab_id=second_tab_id,
+    )
+
+    # Spoiler: `label`, not `summary` (courses/models.py:397-408), and its single child
+    # slot id is SpoilerElement.SLOT_ID == "only".
+    spoiler_join = add_element(unit, SpoilerElement.objects.create(label="Show"))
+    Element.objects.create(
+        unit=unit,
+        content_object=img("spoilered.png"),
+        parent=spoiler_join,
+        tab_id=SpoilerElement.SLOT_ID,
+    )
+
+    # The gate hides every FOLLOWING sibling, so it goes second-to-last and its answer
+    # image last.
+    add_element(unit, RevealGateElement.objects.create(label="Show answer"))
+    add_element(unit, img("gated.png"))
+
+    # Ordering comes from creation sequence: Element.order is
+    # OrderField(for_fields=["unit"]) with Meta.ordering = ["order", "pk"], and
+    # nested child rows consume numbers from the same per-unit counter -- which
+    # is why each container's child is created immediately after the container
+    # above, keeping the top-level sequence monotonic.
+    user = _student("hiddenstudent")
+    EnrollmentFactory(course=course, student=user)
+    return unit, user
+
+
+def _tab_walk(page, n=24):
+    """Press Tab up to n times from the current focus, recording each activeElement.
+
+    A single <body>/null observation is a WRAP, not an exit (Chromium passes
+    through it), so continue; only two consecutive such observations terminate.
+
+    `cls` reads getAttribute('class') rather than a.className, because on an
+    SVG element className is an SVGAnimatedString and would not serialise as
+    a string. It is only used for debugging output, but a silently-empty
+    field is worse than none.
+    """
+    seen = []
+    blanks = 0
+    for _ in range(n):
+        page.keyboard.press("Tab")
+        info = page.evaluate(
+            "() => { const a = document.activeElement;"
+            " if (!a || a === document.body) return null;"
+            " const item = a.closest('.gallery__item');"
+            " return { tag: a.tagName, cls: a.getAttribute('class') || '',"
+            "   alt: a.getAttribute('alt') || '',"
+            "   inInactiveFigure: !!(item && !item.classList.contains('is-active')),"
+            "   isTrigger: a.classList.contains('imgzoom-trigger'),"
+            "   inHiddenPanel: !!a.closest('[hidden]') }; }"
+        )
+        if info is None:
+            blanks += 1
+            if blanks >= 2:
+                break
+            continue
+        blanks = 0
+        seen.append(info)
+    return seen
+
+
+def test_only_the_active_gallery_figure_is_a_tab_stop(
+    page, live_server, gallery_lesson
+):
+    """A get_by_role("button") COUNT is not a valid test here: inactive figures already
+    carry aria-hidden today and Playwright's role engine excludes ARIA-hidden elements,
+    so that assertion is already green with `inert` removed. Real Tab traversal, with a
+    positive control.
+
+    The anchor precedes the gallery deliberately: the "Previous image" button
+    is disabled at rest (idx 0), so it can be neither clicked nor focused, and
+    gallery.js appends the bar AFTER the stage, so forward Tab from a bar
+    control would only reach the figures after wrapping past the end of the
+    document.
+    """
+    unit, user = gallery_lesson
+    _goto(page, live_server, unit, user)
+    page.wait_for_selector(".gallery__item.is-active")
+    page.get_by_role("link", name="Anchor link").click()
+
+    seen = _tab_walk(page)
+    assert any(s["isTrigger"] for s in seen), "traversal never reached a zoom trigger"
+    assert not any(s["inInactiveFigure"] for s in seen), (
+        "focus entered an inactive figure"
+    )
+
+
+def test_arrow_key_navigation_survives_inerting(page, live_server, gallery_lesson):
+    """Focus a zoom trigger, ArrowRight twice, assert the carousel advanced twice.
+
+    Without the focus rescue, inerting the outgoing figure blurs focus to <body>, the
+    arrow handler's `container.contains(t)` guard then fails, and navigation dies after
+    exactly one step.
+    """
+    unit, user = gallery_lesson
+    _goto(page, live_server, unit, user)
+    page.wait_for_selector(".gallery__item.is-active")
+    page.locator(".gallery__item.is-active .imgzoom-trigger").focus()
+
+    def active_index():
+        return page.evaluate(
+            "() => Array.from(document.querySelectorAll('.gallery__item'))"
+            ".findIndex(el => el.classList.contains('is-active'))"
+        )
+
+    assert active_index() == 0
+    page.keyboard.press("ArrowRight")
+    page.wait_for_timeout(400)  # 320ms fade + slack
+    assert active_index() == 1
+    page.keyboard.press("ArrowRight")
+    page.wait_for_timeout(400)
+    assert active_index() == 2, "second ArrowRight ignored -- focus was lost to <body>"
+    assert page.evaluate(
+        "() => document.querySelector('[data-gallery]')"
+        ".contains(document.activeElement)"
+    )
+
+
+def test_clicking_the_active_gallery_figure_opens_the_overlay(
+    page, live_server, gallery_lesson
+):
+    """The gallery is the surface with all the pointer complications and the only one
+    whose click-to-open path nothing else exercises."""
+    unit, user = gallery_lesson
+    _goto(page, live_server, unit, user)
+    page.wait_for_selector(".gallery__item.is-active")
+    trigger = page.locator(".gallery__item.is-active .imgzoom-trigger")
+    _open(page, trigger)
+
+
+def test_decorative_gallery_figure_is_named_for_the_control(
+    page, live_server, gallery_lesson
+):
+    """The empty-alt branch: figure 1 has an empty description, so its alt is empty and
+    arming must give it an aria-label instead of leaving a nameless button."""
+    unit, user = gallery_lesson
+    _goto(page, live_server, unit, user)
+    page.wait_for_selector(".gallery__item.is-active")
+    page.get_by_role("button", name="Enlarge image").first.wait_for()
+
+
+def test_inactive_tab_panel_keeps_its_image_out_of_the_tab_order(
+    page, live_server, hidden_lesson
+):
+    unit, user = hidden_lesson
+    _goto(page, live_server, unit, user)
+    page.get_by_role("link", name="Anchor link").click()
+    seen = _tab_walk(page, n=30)
+    assert not any(s["inHiddenPanel"] for s in seen)
+
+    # Positive control, and it must be able to fail: activate the second tab, walk
+    # again, and require a trigger inside the now-visible panel to be REACHED.
+    # `.tabs__tab`, NOT `[data-tab-btn]` -- that attribute exists nowhere in the repo.
+    # tabselement.html emits only [data-tab-label] headings and [data-tab-panel] panels;
+    # tabs.js:66-73 builds the strip buttons itself as button.tabs__tab[role=tab].
+    # Walk order to expect: active tab button -> active panel (tabs.js:77 sets
+    # panel.tabIndex = 0) -> the trigger inside it, with a roving tabindex on the
+    # inactive tab buttons (tabs.js:94).
+    page.get_by_role("tab").nth(1).click()
+    page.wait_for_selector("[data-tab-panel]:not([hidden]) .imgzoom-trigger")
+    page.get_by_role("link", name="Anchor link").click()
+    seen_after = _tab_walk(page, n=30)
+    assert any(s["isTrigger"] for s in seen_after), (
+        "tab image unreachable once revealed"
+    )
+
+    # Falsify with `[data-tab-panel][hidden] { display: block }` in
+    # courses.css -- that keeps the attribute while making the image
+    # focusable. REMOVING the hidden attribute is not a valid break: this
+    # assertion keys on closest('[hidden]'), which would then return null
+    # and leave inHiddenPanel false, and tabs.js:96-99 re-applies it anyway.
+
+
+def test_closed_spoiler_keeps_its_image_out_of_the_tab_order(
+    page, live_server, hidden_lesson
+):
+    """UNFALSIFIABLE SMOKE CHECK, stated as such: a closed <details> skips its contents
+    via content-visibility and skipped contents are not focusable, so an author
+    `display: block` on a child cannot restore focusability -- there is no break
+    available. Its value is the positive control below.
+    """
+    unit, user = hidden_lesson
+    _goto(page, live_server, unit, user)
+    # `details.spoiler`, scoped: the lesson page also renders other native
+    # <details> disclosures unrelated to this feature (a per-unit Tags panel
+    # and a per-block Notes panel), so an unscoped "details > summary" would
+    # toggle one of those instead of the spoiler under test.
+    spoiler_img = page.locator("details .imgzoom-trigger")
+    assert spoiler_img.evaluate_all("els => els.every(el => !el.checkVisibility())")
+    page.locator("details.spoiler > summary").first.click()
+    assert spoiler_img.first.evaluate("el => el.checkVisibility()")
+
+
+def test_gated_image_stays_out_of_the_tab_order(page, live_server, hidden_lesson):
+    """The highest-stakes row of the hiding table: a leaked tab stop would let
+    a keyboard user open a gated ANSWER image before passing the gate.
+
+    Gate only, no stepper half: StepperStep.content is a CharField of plain
+    text + KaTeX (courses/models.py:503-508), so a stepper step cannot
+    contain an element and no image can ever be hidden by that mechanism.
+    The stepper row of the spec's hiding table stays true but is unreachable
+    by this feature -- so there is deliberately no stepper assertion here,
+    and no stepper falsification either.
+    """
+    unit, user = hidden_lesson
+    _goto(page, live_server, unit, user)
+    page.get_by_role("link", name="Anchor link").click()
+    seen = _tab_walk(page, n=30)
+    gated_reachable = page.evaluate(
+        "() => Array.from(document.querySelectorAll('.imgzoom-trigger'))"
+        ".some(el => el.checkVisibility() && el.alt.includes('gated'))"
+    )
+    assert not gated_reachable, (
+        "gated answer image is rendered before the gate is passed"
+    )
+    # No inInactiveFigure assertion here: hidden_lesson has no gallery, so that
+    # flag is False for every observation by construction and the check could
+    # never fail. What the walk is for is this -- the gated trigger must never
+    # be reached before the gate:
+    assert not any(s["isTrigger"] and "gated" in (s.get("alt") or "") for s in seen)
+    # Positive control: pass the gate, the image becomes reachable.
+    page.locator("[data-reveal-gate]").click()
+    page.wait_for_timeout(200)
+    assert page.evaluate(
+        "() => Array.from(document.querySelectorAll('.imgzoom-trigger'))"
+        ".some(el => el.checkVisibility() && el.alt.includes('gated'))"
+    )
