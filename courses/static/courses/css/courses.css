@@ -1576,8 +1576,11 @@ dialog.imgzoom:not([open]) { display: none; }
    Full-bleed by design: a gutter must come as max-height: calc(100% - 2 * gutter)
    here, never as padding on the dialog, which this max-height would overflow. */
 /* min-*: 0 is not optional. This is a grid item (see .imgzoom[open] above), so its
-   min-width/min-height:auto resolve to the CONTENT-based minimum -- the image's own
-   intrinsic size -- which outranks max-width/max-height:100% and makes a 1400x900 image
-   render 900 tall inside an 800px-tall dialog, overflowing the viewport instead of being
-   height-capped and letterboxed. Found by measurement in Task 7, not by inspection. */
+   min-width/min-height:auto resolve to the CONTENT-based minimum -- for a replaced
+   element this is min(intrinsic size, the size transferred through the aspect ratio
+   from the other axis's constraint), i.e. min(900, 1280 / (1400/900)) = 822.86 for this
+   1400x900 image in the 1280-wide viewport -- which outranks max-width/max-height:100%
+   and makes the image overflow the height-capped dialog instead of being letterboxed.
+   Measured pre-fix height was 822.84, matching the formula. Found by measurement in
+   Task 7, not by inspection. */
 .imgzoom__img { max-width: 100%; max-height: 100%; min-width: 0; min-height: 0; width: auto; height: auto; display: block; }

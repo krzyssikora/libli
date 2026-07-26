@@ -293,12 +293,22 @@ def test_nothing_but_the_image_is_visible(page, live_server, zoom_lesson, tmp_pa
     # Pin the assumption the coordinate mapping rests on rather than trusting a default.
     assert page.evaluate("() => devicePixelRatio") == 1
     assert box["x"] >= 6, f"letterbox band too narrow to sample: x={box['x']}"
+    client_width = page.evaluate("() => document.documentElement.clientWidth")
+    right_start = box["x"] + box["width"] + 2
+    assert right_start <= client_width - 2, (
+        f"right letterbox band too narrow to sample: {right_start} vs {client_width}"
+    )
     shot = tmp_path / "imgzoom-occlusion.png"  # never the repo root
     dialog.screenshot(path=str(shot))
     frame = Image.open(shot).convert("RGB")
-    xs = [2, int(box["x"] / 2), int(box["x"]) - 3]
+    left_xs = [2, int(box["x"] / 2), int(box["x"]) - 3]
+    right_xs = [
+        int(right_start),
+        int((right_start + client_width - 2) / 2),
+        int(client_width) - 3,
+    ]
     ys = [2, int(box["height"] / 2), int(box["height"]) - 3]
-    for x in xs:
+    for x in left_xs + right_xs:
         for y in ys:
             px = frame.getpixel((x, y))
             assert all(abs(a - b) <= 12 for a, b in zip(px, expected, strict=True)), (
