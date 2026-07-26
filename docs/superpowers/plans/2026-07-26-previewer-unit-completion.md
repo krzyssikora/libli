@@ -14,13 +14,9 @@
 
 - **No migration, no model change, no new URL, no JS change, no new translatable strings, and no template markup change.** The only template edit is a `{% comment %}` body.
 - **Every command goes through `uv run`.** Bare `ruff`, `pytest` and `python` are not on PATH: `uv run pytest`, `uv run ruff check`, `uv run python manage.py check`.
-- **Test DB isolation — export this before any `Run:` line in this plan.** This work happens in a git worktree, and concurrent pytest runs across worktrees collide on the shared Postgres `test_libli` (`-n auto` widens the window). Every `Run:` line below assumes this is already exported in the shell:
+- **Test DB isolation — confirm it before the first `Run:` line; do not hard-code a name.** This work happens in a git worktree, and concurrent pytest runs across worktrees collide on the shared Postgres test database (`-n auto` widens the window). **This worktree's `.env` already satisfies the requirement** — it pins `DATABASE_URL=postgres://libli:libli@localhost:5432/libli_prevcomplete`, so pytest builds `test_libli_prevcomplete`, unique to this worktree. Verify that with `grep DATABASE_URL .env` and leave it alone.
 
-  ```bash
-  export DATABASE_URL='postgres://libli:libli@localhost:5432/libli_previewer'
-  ```
-
-  (Same pattern as `docs/superpowers/plans/2026-07-13-fill-in-table-2.md`; adjust the credentials to match your local `.env` if they differ.) **Never run two pytest invocations at once.** A collision produces failures unrelated to this diff.
+  Do **not** copy a literal database name out of this plan into another worktree: the name must be derived per-worktree, or two pipeline runs following the same template collide on the very database this constraint exists to keep separate. **Never run two pytest invocations at once.**
 - **Lint before every commit.** Each task below ends in a `git commit`; immediately before it, run:
 
   ```bash
@@ -121,8 +117,9 @@ def complete(request, slug, node_pk):
     course = node.course
     # can_access_course is DELIBERATELY the sole guard on this write: the row is the
     # viewer's OWN record, not course analytics, so any viewer who can open the lesson
-    # may mark it done -- the same reversal PR #136 applied to markdone_save. Do not
-    # "restore" an enrollment check here; tests 5(a)-(d) pin both directions.
+    # may mark it done -- the same reversal PR #136 applied to element_state_save.
+    # Do not "restore" an enrollment check here; both directions are pinned by
+    # tests/test_courses_progress.py (see test_unrelated_logged_in_user_is_denied).
     if not can_access_course(request.user, course):
         raise PermissionDenied
     with transaction.atomic():
@@ -411,8 +408,10 @@ Comment body only — no markup, no attributes, no strings change. Keep it a `{%
 
 - [ ] **Step 8: Verify nothing rendered changed, check the tripwire, commit**
 
-Run: `uv run pytest tests/test_courses_progress.py tests/test_element_state_write_routes.py -v`
+Run: `uv run pytest tests/test_courses_progress.py tests/test_element_state_write_routes.py courses/tests/test_markdone_render.py courses/tests/test_element_state_endpoint.py -v`
 Expected: all pass.
+
+`courses/tests/test_markdone_render.py` is included **here**, not deferred to Task 12: it is the module that guards the exact branch this task edits — `test_passive_non_enrolled_viewer_gets_no_progress_row` (`:69`) catches an implementer "tidying" the read into a `get_or_create`, and `test_non_enrolled_author_sees_own_checked_items` (`:50`) and `test_drifted_element_state_row_renders_the_lesson_fresh` (`:132`) exercise the same non-enrolled path. Discovering a regression there nine tasks later would mean a fix-up touching eight intervening commits.
 
 Run: `uv run ruff check courses/views.py tests/test_courses_progress.py` and `uv run ruff format --check courses/views.py tests/test_courses_progress.py`
 Expected: clean.
@@ -827,7 +826,7 @@ Replace the single line `# untracked preview: no write, synthetic canonical resp
         # and quietly turns a write-free endpoint into a state reporter.
 ```
 
-**The `# noqa: E501` is required, not decorative.** Ruff runs at the default 88 columns (`pyproject.toml` sets no `line-length`) and that citation line is 100. The naive fix — wrapping the path across two lines — destroys the very property the citation exists for, since the spec requires a greppable `path::function` reference. `# noqa` on a comment-only line does suppress E501 (verified empirically), and `config/settings/base.py:135` is the in-repo precedent. Without it, this task's own "lint clean" gate cannot pass.
+**The `# noqa: E501` is required, not decorative.** Ruff runs at the default 88 columns (`pyproject.toml` sets no `line-length`) and that citation line is 100. The naive fix — wrapping the path across two lines — destroys the very property the citation exists for, since the spec requires a greppable `path::function` reference. `# noqa` on a comment-only line does suppress E501 — verified empirically against this repo's ruff (`uv run ruff check --isolated --select E501` passes the noqa'd comment line and flags the identical line without it). `# noqa: E501` is used elsewhere in the repo (`config/settings/base.py:135`), though that instance is a long *string literal* rather than a comment-only line, so treat it as precedent for the directive's use here generally, not for the comment-only case specifically — that rests on the empirical check. Without the noqa, this task's own "lint clean" gate cannot pass.
 
 - [ ] **Step 6: Check the tripwire and commit**
 
@@ -904,8 +903,12 @@ Expected: PASS. (`courses:course_outline` takes only `slug` — `courses/urls.py
 
 - [ ] **Step 3: Falsify (the one that matters)**
 
-Temporarily re-wrap the write in `complete` in `if is_enrolled(request.user, course):`. Run the same command.
-Expected: FAIL — proving the test is non-vacuous with respect to *this* change. **Restore** and re-run.
+Temporarily re-wrap the write in `complete` in `if is_enrolled(request.user, course):`. This needs **two runs**, for the same reason as Task 9 Step 4: both assertions live in one function, pytest aborts at the first, and the spec is explicit that "the two assertions exercise different rollup paths; do not collapse them into one response". A single run would let you tick spec test 9 as falsification-proven when only its outline half had been demonstrated.
+
+1. Run as-is. Expected: RED on the outline regex (`assert re.search(...)` → `assert None`).
+2. Comment out that one assertion and re-run. Expected: RED on `assert r_lesson.context["unit_nav"]["course_progress"]["done"] > 0` (it evaluates `0 > 0`).
+
+**Restore both the assertion and the `complete` gate**, then re-run to confirm green.
 
 - [ ] **Step 4: Commit**
 
@@ -1177,7 +1180,8 @@ git commit -m "test(courses): document the enrollment-transition boundary"
 Everything the DoD requires that is not a single test: the pre-existing guards, the full suite, lint, migrations, the e2e trio, and the comment-edit gate.
 
 **Files:**
-- No new edits expected. Fix whatever the runs surface.
+- Create: `docs/superpowers/plans/2026-07-26-previewer-unit-completion-pr-notes.md` (Steps 6–7, committed in Step 8)
+- Otherwise no new edits expected — fix whatever the runs surface.
 
 - [ ] **Step 1: Confirm the pre-existing no-spurious-row guard is still green**
 
@@ -1198,7 +1202,17 @@ These are pre-existing regression protection, **exempt from falsification in wri
 Run: `uv run pytest -n auto`
 Expected: green, no new failures against the base.
 
-**One caveat:** `tests/test_html_element.py::test_lesson_html_render_query_count_invariant` is recorded as already failing **in isolation** on master. Since this change touches `build_lesson_context`, it is the test an implementer will wrongly blame. `progress = state_row` is a bare assignment of an already-fetched row and issues **zero** additional queries — so reproduce any failure there **on the base commit** before attributing it to this diff. Likewise, rule out a cross-worktree test-DB collision before blaming the diff.
+**One caveat:** `tests/test_html_element.py::test_lesson_html_render_query_count_invariant` is recorded as already failing **in isolation** on master. Since this change touches `build_lesson_context`, it is the test an implementer will wrongly blame. `progress = state_row` is a bare assignment of an already-fetched row and issues **zero** additional queries — so reproduce any failure there **on the base commit** before attributing it to this diff.
+
+Concretely, from eleven commits deep on this branch (do not reach for `git stash` — the working tree is clean and the difference you need is *committed*):
+
+```bash
+git checkout 87c7a44b                                    # the base commit
+uv run pytest tests/test_html_element.py::test_lesson_html_render_query_count_invariant -v
+git checkout -                                           # back to the pipeline branch
+```
+
+If it fails on base too, it is pre-existing and not this diff's. `DATABASE_URL` still comes from this worktree's `.env`, so isolation holds across the checkout — but still do not run a second pytest concurrently. Rule out a cross-worktree collision before blaming the diff either way.
 
 - [ ] **Step 4: Lint and migrations**
 
@@ -1225,10 +1239,12 @@ Under a heading naming them as the unguarded half of the diff, quote all seven c
 
 1. **New** — `complete`'s atomic block (Task 1). Verify it **asserts the ordering rule**: the row is re-fetched *under* the lock because `FOR UPDATE` cannot protect a writer whose read preceded the lock. Verify it does **not endorse** the lock-exclusion framing — the false claim that a lock only excludes writers that also take it, which on PostgreSQL is untrue (a plain `UPDATE` blocks on an existing `FOR UPDATE`). Task 1's prescribed comment states the ordering rule positively and never asserts the false framing, so it passes this gate as written; the gate is about what the shipped comment *claims*, not about which words appear in it.
 2. **New** — `complete`'s access check (Task 1).
-3. **Correction** — `element_state_save`, `courses/views.py` ≈:784-788 (Task 1).
-4. **Correction** — `build_lesson_context`'s docstring, ≈:273-275 (Task 3).
-5. **Correction** — the `elif user.is_authenticated` branch, ≈:396-398 (Task 3).
-6. **Correction** — `seen`, ≈:652 (Task 7).
+**All line numbers below are base-commit anchors** — the plan's own edits shift every one of them (the `element_state_save` comment by ~+15, `seen`'s by ~+6, and the docstring grows in place). Locate each by its enclosing function, which is stable:
+
+3. **Correction** — in `element_state_save` (`courses/views.py` ≈:784-788 on base) (Task 1).
+4. **Correction** — `build_lesson_context`'s docstring (≈:273-275 on base) (Task 3).
+5. **Correction** — the `elif user.is_authenticated` branch in `build_lesson_context` (≈:396-398 on base) (Task 3).
+6. **Correction** — in `seen` (≈:652 on base) (Task 7).
 7. **Correction** — the `{% comment %}` block in `templates/courses/_lesson_article.html` (≈:8-15 after Task 3 Step 7 grew it from four lines to eight; :8-11 on the base commit).
 
 - [ ] **Step 7: Record the falsification roster in the same file**
@@ -1237,7 +1253,30 @@ Confirm each of these was driven RED and restored: **1(a), 1(b), 2, 3 (step 1), 
 
 Exempt in writing, with reasons already stated: **8** (no insertion point for the mutation), **12** (pre-existing regression protection), **1(c)** entirely, and **1(b)'s blob assertions**. Test **4** is pre-existing and unchanged.
 
-Include the spec-label → test-function mapping, since the roster is written in spec labels and the DoD is checked against them.
+Include this mapping verbatim — the roster is written in spec labels, the DoD is checked against them, and the correspondence is deliberately **not** parallel (spec §7 is Task 5, §8 is Task 11, §9 is Task 8, §10 is Task 9, §11 is Task 10), which is an error-magnet if reconstructed from scratch eleven tasks later:
+
+| Spec label | Task | Test function |
+|---|---|---|
+| §1(a) | 1 | `test_previewer_complete_persists_and_redirects` |
+| §1(b) | 2 | `test_previewer_complete_over_checklist_row_preserves_practice_state` |
+| §1(c) | 2 | `test_enrolled_complete_over_existing_row_preserves_state_and_seen_ids` |
+| §2 | 3 | `test_previewer_sees_completed_pill_after_marking` |
+| §3 | 7 | `test_previewer_seen_no_write_and_ignores_stored_completion` |
+| §4 | 12 | `courses/tests/test_markdone_render.py::test_passive_non_enrolled_viewer_gets_no_progress_row` (pre-existing) |
+| §5(a) | 6 | `test_non_staff_course_owner_can_complete` |
+| §5(b) | 6 | `test_teacher_of_archived_group_is_denied` |
+| §5(c) | 6 | `test_unrelated_logged_in_user_is_denied` |
+| §5(d) | 6 | `test_non_staff_teacher_of_live_group_can_complete` |
+| §6(a) | 4 | `test_previewer_pre_existing_completed_row_shows_pill_without_posting` |
+| §6(b) | 4 | `test_previewer_incomplete_row_still_renders_the_button` |
+| §7 | 5 | `test_previewer_completed_pill_survives_no_js_check_answer_rerender` |
+| §8 | 11 | `test_previewer_completion_becomes_learner_progress_on_enrollment` |
+| §9 | 8 | `test_previewer_mark_lights_outline_badge_and_footer_counter` |
+| §10 | 9 | `test_off_roster_previewer_absent_from_matrix_and_drilldown` |
+| §11 | 10 | `test_double_complete_post_is_idempotent_and_issues_no_second_update` |
+| §12 | 12 | `test_seen_merges_and_autocompletes`, `test_zero_element_unit_completes_only_via_fallback` (pre-existing) |
+
+Split entry **9** into "9 (outline)" and "9 (footer)" in the roster, as entry 3 is split — Task 8 Step 3 proves them in two separate runs.
 
 - [ ] **Step 8: Commit the notes file and any fixes**
 
