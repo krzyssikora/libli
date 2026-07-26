@@ -210,7 +210,7 @@ def test_gallery_rescues_focus_before_inerting_the_outgoing_item():
     assert ".imgzoom-trigger" in source
     # Must skip disabled controls: prev/next are disabled at the boundary slides and
     # focus() on a disabled button drops focus to <body>.
-    assert 'button:not([disabled])' in source
+    assert "button:not([disabled])" in source
     # The rescue must run BEFORE the outgoing item is inerted -- and the comparison
     # must anchor on the CALL, not the definition: rescueFocus is defined next to
     # settleHidden, i.e. earlier in the file than show(), so str.index would find the
