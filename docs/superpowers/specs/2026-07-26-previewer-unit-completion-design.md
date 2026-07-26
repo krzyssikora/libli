@@ -71,7 +71,8 @@ click's *effect* is legible at the moment it lands; its *permanence* is not). It
 parity: enrolled students get no such warning today, and adding one only for previewers would tell
 the population at less risk what the population at more risk is not told. Adding it for everyone is
 a change to the student experience and belongs with the toggle/reset question below. This is why the
-spec commits to "no template change" — a conclusion, not a premise.
+spec commits to **no template markup change** — a conclusion, not a premise. (§2b does correct one
+`{% comment %}` in that template; a comment body changes nothing rendered and is not an affordance.)
 
 The escape hatch — making `progress_reset` clear `completed`, or turning the pill into a toggle — is
 therefore **out of scope here and stays a non-goal**, but as a scoping decision rather than an
@@ -101,10 +102,12 @@ written so that adding a reset later requires no rework of anything it ships.
 
 ## Architecture / components
 
-Two behavioural edits in `courses/views.py`, plus four comment corrections (one of which lands in
-`seen`, a function this diff otherwise leaves behaviourally untouched) and two new comments in the
-same file; one existing test inverted (§1) and one existing test extended (§3). No migration, no model change, no new URL, no
-template change, no JS change, no new translatable strings.
+Two behavioural edits in `courses/views.py`; two new comments there; five comment corrections — four
+in `courses/views.py` (one of them in `seen`, a function this diff otherwise leaves behaviourally
+untouched) and one in `templates/courses/_lesson_article.html`; one existing test inverted (§1) and
+one existing test extended (§3). No migration, no model change, no new URL, no JS change, no new
+translatable strings, and **no template markup change** — the single template edit is a
+`{% comment %}` body, which is why it does not reopen the warning-affordance question.
 
 ### 1. The write — `courses/views.py::complete`
 
@@ -215,7 +218,7 @@ extra kwarg touching only the notes panel, leaving the progress path byte-identi
 additional progress-related logic between the call and the template. A third near-duplicate test would pin the
 caller list rather than any behaviour.
 
-### 2b. Four comment corrections in `courses/views.py`, plus two new comments
+### 2b. Five comment corrections (four in `courses/views.py`, one in the lesson template), plus two new comments
 
 The new ones first. The atomic-block comment is the only edit in this diff that **no test can protect**:
 
@@ -235,10 +238,10 @@ The new ones first. The atomic-block comment is the only edit in this diff that 
   previewer-exclusion as the house rule, and the gate-lift is the edit most likely to be
   "restored" by a later reader tidying up.
 
-And the four corrections:
+And the five corrections:
 
 Comments in this codebase carry design contracts, so leaving them stale would ship a file arguing
-against its own behaviour. All four below are corrections of fact:
+against its own behaviour. All five below are corrections of fact:
 
 - **≈:784-788** (in `element_state_save`) reads: persisting practice state for any accessing viewer
   "deliberately diverges from seen/quiz (which ignore previewers so authors don't pollute their own
@@ -265,6 +268,14 @@ against its own behaviour. All four below are corrections of fact:
   their practice state both persist; it is specifically the **scroll signal** that is dropped. This
   comment sits exactly at the asymmetry the spec most wants legible, so it must name that asymmetry:
   seen-tracking is not recorded for previewers, while completion via the explicit button is.
+- **`templates/courses/_lesson_article.html:8-11`** — the one correction outside `views.py`, and the
+  same doctrine applies to it. It opens "Completion is auto-tracked: progress.js auto-completes the
+  unit once every element has been seen … This pill is the no-JS fallback + manual override". For
+  the population this change admits, completion is **never** auto-tracked (`seen` stays
+  enrolled-only), so the pill is not a fallback — it is their only route. Say so. This is a
+  `{% comment %}` edit only: no markup, no attributes, no strings, so it does not reopen the
+  warning-affordance question argued under "The decision, and why", and the block must stay a
+  `{% comment %}` (`{# #}` cannot span lines in Django).
 
 ### 3. Behaviourally unchanged (comment corrected) — `courses/views.py::seen`
 
@@ -287,7 +298,20 @@ reporter.
 It is also not user-visible, for a reason worth recording rather than rediscovering: `unitMarkDone`
 (`courses/static/courses/js/unit_done.js`) is **add-only** — it early-returns when `is-complete` is
 already present and never removes the class — so neither `progress.js` nor `slideshow.js` can
-un-flip a server-rendered "✓ Completed" pill on receiving `completed: false`. Testing §3 pins this.
+un-flip a server-rendered "✓ Completed" pill on receiving `completed: false`.
+
+**That property is recorded here, not guarded — deliberately, and the distinction matters.** Testing
+§3 is a Django-test-client test of `seen`'s JSON; it pins the *server* contract and cannot observe
+`unit_done.js` at all, and none of the three e2e suites in the DoD drives a previewer (all are
+enrolled-path). So the only thing standing between a previewer and a pill that reverts to "Mark as
+done" mid-session, when progress.js's 500 ms flush returns `completed: false`, is this JS invariant.
+It is accepted unguarded because of its *shape*: the risk would require some code path to **remove**
+`is-complete`, and no such path exists — `markDone` is called only when the server reports
+`completed`, and its body exclusively adds. A test would have to assert the absence of code that was
+never written. If a future change ever makes the pill two-directional, that is the moment this needs
+a previewer-scoped e2e (load a marked-done lesson as a previewer, let the flush return
+`completed:false`, assert `[data-unit-done]` keeps `is-complete`) — and this paragraph is the note
+telling that author so.
 
 ### 4. Also unchanged
 
@@ -412,7 +436,10 @@ test.
 ### New / adjusted
 
 1. **Write.** A non-enrolled `can_access` viewer POSTs `courses:complete` → a `UnitProgress` row
-   exists for them with `completed=True` and a stamped `completed_at`.
+   exists for them with `completed=True` and a stamped `completed_at`. **Keep the existing test's
+   redirect assertion** (`status_code in (302, 200)`, "same redirect as the enrolled path") rather
+   than dropping it with the old name: the inversion replaces the *write* assertion, and the
+   response-shape guarantee is orthogonal and still true.
    *(This **is** the inverted test named above, rewritten in place — not a second test alongside
    it.)*
    *Falsify:* restore the `is_enrolled` branch in `complete` → RED.
@@ -428,8 +455,11 @@ test.
 3. **Asymmetry guard (the deliberate non-edit).** A non-enrolled `can_access` viewer POSTs every
    element id to `courses:seen` → still no completion and no row. The existing
    `test_previewer_seen_no_write_synthetic` covers this; keep it adjacent to test 1 so the
-   deliberate split between the two paths is legible on one screen. **Extend it to pin the §3
-   contract** — a previewer holding a `completed=True` row still gets `{"completed": false}` — but
+   deliberate split between the two paths is legible on one screen. **Extend it to pin §3's
+   *server* contract** — a previewer holding a `completed=True` row still gets
+   `{"completed": false}`. (§3's client-side half — `unitMarkDone`'s add-only shape — is recorded
+   there as accepted-unguarded; a Django-test-client test cannot observe it and this one does not
+   pretend to.) But
    note this is a fixture change, not a bare extra assert: the existing test's viewer deliberately
    has **no** row and asserts so. Sequence it, don't overwrite it: (1) POST `seen` and keep the
    existing no-row + synthetic-response assertions; (2) *then* seed the `completed=True` row for
@@ -578,8 +608,12 @@ test.
      `[^>]*>` stops at the `<li>`'s own closing `>`, so the match is unbounded on the right and runs
      straight into a later unit's badge — the exact false-pass the scoping exists to prevent. If a
      regex is preferred over parsing, bound it: `_outline_node.html:5` puts `outline-unit--done` on
-     the same unit's `<a>`, so matching that non-greedily between `data-unit="<pk>"` and the next
-     `data-unit=` is one correctly-bounded check. Seed no other completed unit either way;
+     the same unit's `<a>`, so match that non-greedily between `data-unit="<pk>"` and the next
+     **`(?:data-unit=|$)`** — the alternation is required, not decoration. `data-unit` is emitted
+     only under `{% if item.is_unit %}`, so "the next `data-unit=`" **does not exist** when the
+     seeded unit is the last unit in the outline (a completely natural fixture: two units, complete
+     the second), and a regex without the `$` arm fails against correct code — the same false-RED
+     class test 10's positive control already had to fix. Seed no other completed unit either way;
    - the **lesson unit** page (`_unit_shell.html` → `_unit_footer.html:3-5`) → `unit_nav.course_progress.done`
      is non-zero. This half **requires an obligatory lesson unit**: `course_progress.done` sums
      `required_done`, which `rollups.py` sets only when `is_obligatory_lesson(node)`, and the footer
@@ -639,8 +673,12 @@ test.
     **Sequence the test explicitly**, because the enrollment is part of the fixture, not an external
     mutation: (1) the previewer marks the unit done while off the roster; (2) assert the matrix is
     populated but omits them **and** the drill-down 404s; (3) enroll the previewer; (4) assert the
-    drill-down now 200s. **Step 1 runs as the previewer; steps 2–4 run as the owner/PA resolver** —
-    switch the login between them (or use a second `Client()`). `tests.factories`' login helpers log
+    drill-down now 200s. **The previewer and the resolver must be two distinct users** — the course
+    owner is itself one of test 5's non-enrolled `can_access` routes, so an implementer can
+    accidentally cast one user as both, which silently makes the session switch below a no-op and
+    the test's own warning self-contradictory while everything still passes. Natural wiring: test 1's
+    `is_staff` previewer plus a separate owner or PA. **Step 1 runs as the previewer; steps 2–4 run
+    as the resolver** — switch the login between them (or use a second `Client()`). `tests.factories`' login helpers log
     in on the shared client and silently replace the session, so forgetting this makes step 2 issue
     the drill-down GET as the previewer.
     *Falsify:* move the `EnrollmentFactory` call ahead of step 2 → **both** step-2 assertions go
@@ -702,9 +740,16 @@ route, and their two negative twins (archived group, unrelated logged-in user) o
 - `ruff check` and `ruff format --check` clean;
 - `manage.py makemigrations --check` and `manage.py check` clean (both expected trivially — no model
   change);
-- each new/inverted test falsification-proven (guard removed → RED → restored), except **tests 8 and
-  12**, both exempted in writing above (8: no insertion point exists for the mutation; 12:
-  pre-existing regression protection, not a new guard);
+- **all seven comment edits present** — no automated gate covers these, and §2b argues the
+  atomic-block one is the single edit in the diff that no test can protect, so it needs a checklist
+  hook or it is the first thing to get dropped. Two new (`complete`'s atomic block; `complete`'s
+  access check) and five corrections (`views.py` ≈:273-275, ≈:396-398, ≈:652, ≈:784-788, and
+  `_lesson_article.html:8-11`);
+- each **new, inverted or extended** test falsification-proven (guard removed → RED → restored) —
+  concretely tests **1, 2, 3, 5(a)–(d), 6(a), 6(b), 7, 9, 10, 11**. Exempt in writing: **8** (no
+  insertion point exists for the mutation) and **12** (pre-existing regression protection, not a new
+  guard). Test **4** is pre-existing and unchanged, so running its recipe is optional — it is listed
+  to stop an implementer duplicating it, not as new work;
 - **existing e2e over the touched surface, run and green** — three suites, covering both surfaces
   this change feeds:
   - `tests/test_e2e_slideshow.py` (asserts `[data-unit-done]` gains `is-complete`) and
