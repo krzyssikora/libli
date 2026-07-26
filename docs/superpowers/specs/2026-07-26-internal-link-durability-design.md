@@ -32,6 +32,7 @@ one registry rather than two overlapping guesses.
 | `courses/transfer/importer.py` | `_create_elements` returns what it created; `on_missing` + `report` threaded through the three entry points; the rewrite post-pass |
 | `courses/builder.py` | *unchanged* — `materialize_duplicate` defaults to `on_missing="keep"`, so `duplicate_unit` calls it exactly as it does today |
 | `courses/views_transfer.py` | a second, separate `messages.warning` on both import paths when links were flattened |
+| `courses/management/commands/migrate_course_content.py` | bundle-level `link_nodes` at export; `on_missing="keep"` + accumulated old→new state at import; final rewrite pass and stdout counts — **the cutover path**, see §3 |
 | `courses/views_manage.py` | `counts["inbound_links"]` in `node_delete`'s GET branch |
 | `templates/courses/manage/node_confirm_delete.html` | the warning sentence |
 | `tests/test_tabs_transfer.py`, `tests/test_transfer_schema.py` | the two hard-coded `FORMAT_VERSION == 5` assertions (one is also a test *name*) |
@@ -211,18 +212,47 @@ An earlier draft allowlisted three files. That was wrong twice over: it missed
 `courses/switchgrid.py` already establishes that helper modules do sanitising work. A package-wide
 grep is what makes the guard self-maintaining, which is the only reason it is worth having.
 
-It records a set of **`(file, enclosing def, assignment target)` triples**, not `(file, def)` pairs
-and certainly not a bare count. The finer unit is load-bearing: `QuestionElement.save()` already
-contains *two* `sanitize_html` calls, so a pair-valued set would be byte-identical after someone adds
-a third sanitised field to an existing `save()` — the cheapest possible way to add a link-bearing
-field, and precisely the one the guard must not miss.
+It records a **multiset of `(file, qualname, assignment target)` entries** — `qualname` being the
+dotted `Class.method`, and the structure counting multiplicity rather than deduplicating.
+
+Both refinements are load-bearing, and an earlier draft got the unit wrong twice. A `(file, def)`
+pair would be byte-identical after a third sanitised field is added to `QuestionElement.save()`,
+which already holds two calls. But `(file, def, target)` is *also* too coarse — measured, the 14
+sites collapse to just **8 distinct triples**, because def names and targets repeat across classes:
+
+```text
+(models.py, save, self.body)              <- TextElement, SpoilerElement, CalloutElement   (3)
+(element_forms.py, clean_stem, clean)     <- FillGate, GuessNumber, FillBlank, DragFillBlank (4)
+(element_forms.py, clean, clean_stem)     <- SwitchGate, SwitchGrid                          (2)
+```
+
+So adding a new element type the cheapest way — copy `TextElement`: a `body` field plus
+`def save: self.body = sanitize_html(self.body)` — yields a triple **already in the set**, and the
+guard stays GREEN for exactly the case it was introduced to catch. Including the class disambiguates
+those; counting multiplicity means *deleting* one of the four `clean_stem` sites also moves the
+structure, which a set would miss and which the spec's own "add a throwaway site, assert RED"
+falsification would otherwise fail to exercise reliably.
+
+The baseline is therefore stated as **14 entries over 14 distinct keys**, and the test asserts the
+whole structure, not its length.
+
+**The third component is defined for non-assignment sites**, so the baseline is reproducible rather
+than implementation-dependent: it is the assignment target when the call's result is assigned
+(`self.body`), and `None` otherwise. `courses_extras.py:117` is `return mark_safe(sanitize_html(v))`
+— no target, so `None`. `importer.py:767` passes the call as a keyword argument inside
+`GuessNumberElement.objects.create(...)`; a call nested in an expression records `None` too, never
+the enclosing statement's target, since `obj` is a different notion from an attribute target.
 
 The guard classifies a new site to choose its message, and the discriminator is **not** the file —
 `element_forms.py` holds both kinds. It resolves the enclosing form class's `Meta.model` and tests
 membership in `CONCRETE_QUESTION_MODELS`:
 
-- in it (e.g. `FillBlankQuestionElementForm.clean_stem`) → covered automatically by the comprehension;
-  update the expected set, leave `RICH_TEXT_FIELDS` alone;
+- in it **and** the sanitised field resolves to `stem` or `explanation` (e.g.
+  `FillBlankQuestionElementForm.clean_stem`) → covered automatically by the comprehension; update the
+  expected structure, leave `RICH_TEXT_FIELDS` alone. Both halves are required: the comprehension
+  covers only those two field names, so a new sanitised `hint` on an existing question model would
+  pass a model-only test and be told "covered automatically" while remaining invisible to the
+  registry — the same wrong-advice failure the non-question branch is careful to avoid;
 - not in it, or unresolvable (e.g. `FillGateElementForm.clean_stem`, `SwitchGateElementForm.clean`)
   → `RICH_TEXT_FIELDS` needs an entry **or a documented exclusion**. The softer wording is required,
   not politeness: `SwitchGridElementForm.clean` is exactly such a site today, and §1 spends a page
@@ -255,7 +285,10 @@ Scanning instances is not a stylistic preference — it is the only option consi
 registry. Element dicts are `{"type": type_key, "data": {…payload keys…}}`, and the registry speaks
 `(model, field)`; applying one to the other would need both a `type_key → model` map and a
 `field → payload key` map, i.e. exactly the second vocabulary §3 rejects. The pass-2 export loop
-already holds `join.content_object`, so `iter_rich_text(instance)` applies directly.
+already holds `join.content_object`, so `iter_rich_text(instance)` applies directly — placed **after**
+the existing `if join.content_object is None: … continue` guard (`export.py:545`, the tolerant-export
+path for a concrete row that has gone). A broken join contributes no link targets, and
+`iter_rich_text(None)` would raise there.
 
 Element bodies in the archive are left **byte-identical**.
 
@@ -318,8 +351,40 @@ the correct answer differs:
 
 | entry point | `on_missing` | why |
 |---|---|---|
-| `import_course` / `import_subtree` (uploaded archive) | `unwrap` | the pk means nothing here, and leaving it risks silently linking to an unrelated node that happens to occupy that pk |
+| `import_course` / `import_subtree` (uploaded archive, via the views) | `unwrap` | the pk means nothing here, and leaving it risks silently linking to an unrelated node that happens to occupy that pk |
 | `materialize_duplicate` (same install, via `duplicate_unit`) | `keep` | those pks still resolve; flattening a working link would be a regression |
+| `migrate_course_content` (the management command) | `keep`, then a bundle-level pass | the target may arrive in a *later* archive — see below |
+
+**The management command is the cutover, and the naive default breaks it.** There is a fourth caller
+of `import_subtree`: `courses/management/commands/migrate_course_content.py:481`. That command *is*
+the `mat-pp` production cutover this spec's preamble names as its reason to exist, and its module
+docstring is explicit: *"Content moves ONE TOP-LEVEL PART AT A TIME. That is not incidental"* — whole
+-course archives would breach `TRANSFER_MAX_ELEMENTS`.
+
+Because each archive is built with `build_export(course, node=part)`, its `node_ids` — and therefore
+its `link_nodes`, restricted to "targets inside the exported set" — can never contain a node from
+another part. Under a plain `unwrap` default, **every cross-part link in a 21-part course would be
+silently turned into plain text**, and silently is exact: the command has no `messages` framework, so
+a discarded `report` count would never reach the operator. The feature would fail precisely the
+migration it was written for, for the most likely link shape in a large course.
+
+The command already has the structure to do this correctly — three phases (`export` / `import` /
+`verify`) with a bundle directory, a `bundle-manifest.json` written once after a complete export, and
+`--start-at K` resume. So:
+
+- **Export phase** additionally writes a **bundle-level** `link_nodes` covering every node in the
+  source course, not just the current part — keyed old pk → `(archive, export id)`. The manifest is
+  written once, after all parts export, which is exactly when the whole mapping is known.
+- **Import phase** passes `on_missing="keep"` per part, so nothing is destroyed while later parts are
+  still pending, and accumulates `old_pk → new_pk` into a bundle-level state file. It must be a file,
+  not memory: `--start-at` resumes across process invocations.
+- **After the last part commits**, a final rewrite pass over the grafted content applies the
+  accumulated map, with `unwrap` for anything still unresolved, and **prints the counts** —
+  rewritten and flattened, per part — to stdout. `verify` reports the same totals so a resumed or
+  interrupted run can be reconciled.
+
+This is the one place the design pays for the two-phase architecture, and it is not optional: without
+it the spec's headline claim about the cutover is false.
 
 **Threading the policy and the count without breaking callers.** The three entry points take two new
 **keyword** arguments: `on_missing` and an optional `report` dict, which — when supplied — receives
@@ -332,11 +397,13 @@ because the policy is a property of the entry point, not of the call site, and a
 would put the decision where it could drift.
 
 The `report` out-parameter exists specifically to avoid changing the return types. `import_course`
-returns a `Course` and `import_subtree` a `ContentNode`, and **eight test modules** consume those
-returns directly (`test_gallery_transfer`, `test_reveal_gate_transfer`, `test_slideshow_transfer`,
-`test_table_transfer`, `test_tabs_transfer`, `test_transfer_import`, `test_transfer_subtree`,
-`test_transfer_views`), several through shared local helpers whose own contracts would change in
-turn. Returning a tuple would redden all of them for no gain; an ignorable keyword costs nothing.
+returns a `Course` and `import_subtree` a `ContentNode`, and **nine test modules** consume those
+returns directly — eight under `tests/` (`test_gallery_transfer`, `test_reveal_gate_transfer`,
+`test_slideshow_transfer`, `test_table_transfer`, `test_tabs_transfer`, `test_transfer_import`,
+`test_transfer_subtree`, `test_transfer_views`) plus `courses/tests/test_spoiler_transfer.py`, which
+lives in the other test location — several through shared local helpers whose own contracts would
+change in turn. Add the management command as a tenth caller. Returning a tuple would redden all of
+them for no gain; an ignorable keyword costs nothing.
 
 **Reporting the flattened count.** `views_transfer.py` emits a **second, separate**
 `messages.warning` after the existing success message, on *both* import paths — there are two
@@ -522,6 +589,17 @@ Falsified before trusted — delete the behaviour, require RED — per house rul
   `test_tabs_transfer.py::test_format_version_is_5` renamed), and the round-trip suite is otherwise
   untouched.
 
+**The cutover path** — the case the naive `unwrap` default silently breaks, so it gets end-to-end
+coverage rather than a note:
+
+- A two-part fixture course where a lesson in part A links to a unit in part B. Run the command's
+  `export` → `import` cycle over both parts and assert the link resolves to part B's **new** pk. With
+  per-part `unwrap` this test goes red with the link flattened, which is the falsification.
+- The same, with the import **interrupted after part A and resumed with `--start-at`**: the
+  accumulated old→new state must survive across process invocations, so the final pass still
+  resolves the cross-part link. This is what pins the state to a file rather than memory.
+- A link whose target is in no part at all → flattened, counted, and the count printed to stdout.
+
 **Delete warning**
 
 - Count is 0 with no links; counts **elements**, not anchors — two anchors in one body pointing at two
@@ -532,7 +610,11 @@ Falsified before trusted — delete the behaviour, require RED — per house rul
   derived rather than recorded from the first run: **one query per registry model (16)**, plus one
   per descendant depth level from `ContentNode._subtree_node_ids()` **plus one** for the terminating
   empty frontier (its breadth-first loop always runs a final query that returns nothing, so a leaf
-  costs 1), plus the pre-existing per-node `_descendant_count` / `_element_count` walks.
+  costs 1), plus the pre-existing per-node `_descendant_count` / `_element_count` walks, plus the
+  view's own fixed queries — auth/session, the course resolve and permission check in
+  `_require_manage`, and `get_node_or_404`. Without that last group the enumeration cannot be summed
+  to the pinned number, which pushes the implementer straight back to recording the first run; part 1
+  names the same fixed group for `link_picker`.
 - The fixture must hold **at least two link-bearing elements of the same registry model OUTSIDE the
   doomed subtree** — among the rows the scan actually reads. Putting them *inside* would make the
   guard vacuous: the scan excludes the subtree, so those rows are never queried per-model at all and
