@@ -35,10 +35,15 @@
     var stage = document.createElement("div");
     stage.className = "gallery__stage";
     items[0].parentNode.insertBefore(stage, items[0]);
-    // At rest every item is aria-hidden; show(0) reveals the first. Items stay
-    // laid out (CSS: absolute, height auto) so measure() can read their natural
-    // height even while invisible.
-    items.forEach(function (it) { stage.appendChild(it); it.setAttribute("aria-hidden", "true"); });
+    // At rest every item is aria-hidden AND inert; show(0) reveals the first. Items
+    // stay laid out (CSS: absolute, height auto) so measure() can read their natural
+    // height even while invisible. `inert` is what keeps their now-focusable zoom
+    // triggers out of the tab order (aria-hidden alone does not).
+    items.forEach(function (it) {
+      stage.appendChild(it);
+      it.setAttribute("aria-hidden", "true");
+      it.setAttribute("inert", "");
+    });
 
     var prev = iconBtn("gallery__prev", "M15 6l-6 6 6 6", i18n.prev);
     var next = iconBtn("gallery__next", "M9 6l6 6-6 6", i18n.next);
@@ -95,6 +100,29 @@
       it.classList.remove("is-active");
       it.style.opacity = "";
       it.setAttribute("aria-hidden", "true");
+      it.setAttribute("inert", "");  // re-assert: show() already inerted it at the fade start
+    }
+
+    // Inerting a subtree blurs any focus inside it to <body>, and the arrow-key handler
+    // below bails when focus is outside `container` -- so without this, keyboard
+    // carousel navigation dies after exactly one step. This is the ONLY site that needs
+    // it: rest-init runs before anything inside a figure is focused, and settleHidden
+    // re-asserts inert on an item show() already inerted 320ms earlier.
+    function rescueFocus(out, inn) {
+      if (!out.contains(document.activeElement)) return; // focus is on a bar control
+      // The incoming item's inert was already cleared above, which is why focus can
+      // land there. Prefer its ARMED trigger; a bare [data-zoomable] has no tabindex
+      // when imagezoom.js is absent, and focus() on it would be a silent no-op.
+      var target =
+        inn.querySelector(".imgzoom-trigger") ||
+        bar.querySelector("button:not([disabled])");
+      if (!target) {
+        // Defensive only, and unreachable by construction: initOne returns early for
+        // items.length < 2, so prev and next can never both be disabled.
+        container.setAttribute("tabindex", "-1");
+        target = container;
+      }
+      target.focus();
     }
     function finalizePending() {
       if (!pending) return;
@@ -117,12 +145,15 @@
       next.disabled = idx === items.length - 1;
       next.setAttribute("aria-disabled", idx === items.length - 1 ? "true" : "false");
       inn.removeAttribute("aria-hidden");
+      inn.removeAttribute("inert");  // must precede any focus move into this subtree
       if (!out) {
         inn.style.opacity = "";
         inn.classList.add("is-active");
         return;
       }
+      rescueFocus(out, inn);
       out.setAttribute("aria-hidden", "true");  // AT sees only the incoming slide during the fade
+      out.setAttribute("inert", "");
       inn.style.opacity = "0";
       void inn.offsetWidth;
       inn.classList.add("is-active");

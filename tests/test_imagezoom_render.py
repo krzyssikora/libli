@@ -186,3 +186,36 @@ def test_escape_guard_is_capture_phase_and_uses_stop_immediate():
     assert re.search(
         r"stopImmediatePropagation\(\);?[\s\S]{0,120}?\},\s*true\s*\)", code
     ), "Escape listener must be registered capture-phase"
+
+
+def test_gallery_pairs_inert_with_every_item_level_aria_hidden():
+    # Routed through _js_code_only: Task 3 had a nearly identical assertion pass
+    # against a comment rather than real code (see its docstring), so every new
+    # gallery.js source assertion here is checked against comment-stripped code.
+    source = _js_code_only((JS / "gallery.js").read_text(encoding="utf-8"))
+    # Per-site, not a total count: gallery.js also sets aria-hidden on the indicator
+    # and inside an SVG string, neither of which takes inert.
+    assert source.count('it.setAttribute("inert", "")') == 2, "rest-init + settleHidden"
+    assert 'out.setAttribute("inert", "")' in source, "outgoing item at fade start"
+    assert 'inn.removeAttribute("inert")' in source, "incoming item's clear"
+
+
+def test_gallery_rescues_focus_before_inerting_the_outgoing_item():
+    source = _js_code_only((JS / "gallery.js").read_text(encoding="utf-8"))
+    assert "function rescueFocus(" in source
+    # Must target the ARMED trigger: tabindex comes from imagezoom.js, not the
+    # template, so focus() on a bare [data-zoomable] is a no-op when that script is
+    # absent -- and gallery descriptions permit <a href>, so focus CAN sit in an
+    # outgoing figure even then.
+    assert ".imgzoom-trigger" in source
+    # Must skip disabled controls: prev/next are disabled at the boundary slides and
+    # focus() on a disabled button drops focus to <body>.
+    assert 'button:not([disabled])' in source
+    # The rescue must run BEFORE the outgoing item is inerted -- and the comparison
+    # must anchor on the CALL, not the definition: rescueFocus is defined next to
+    # settleHidden, i.e. earlier in the file than show(), so str.index would find the
+    # definition and be true no matter where the call sits.
+    show_at = source.index("function show(")
+    call_at = source.index("rescueFocus(out, inn);", show_at)
+    inert_at = source.index('out.setAttribute("inert", "")', show_at)
+    assert call_at < inert_at
