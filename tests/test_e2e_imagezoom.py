@@ -820,3 +820,148 @@ def test_gated_image_stays_out_of_the_tab_order(page, live_server, hidden_lesson
         "() => Array.from(document.querySelectorAll('.imgzoom-trigger'))"
         ".some(el => el.checkVisibility() && el.alt.includes('gated'))"
     )
+
+
+@pytest.fixture
+def filltable_lesson(db, _isolated_media):
+    """A fill-in table whose one cell is an image cell."""
+    from courses.models import FillTableElement
+
+    course = CourseFactory()
+    unit = ContentNodeFactory(course=course, kind="unit", unit_type="lesson")
+    asset = make_image_asset(
+        course, filename="cell.png", size=(800, 600), color="#FFAA00"
+    )
+    # Verified schema (courses/models.py:1007-1017): an image cell is
+    # {"kind": "image", "media": <int pk>, "alt": str, "halign": ..., "valign": ...}.
+    # `media` MUST be a real int -- normalize_data silently downgrades a non-int (or a
+    # bool) to an empty STATIC cell, which renders no <img> at all and would make this
+    # test fail for a reason unrelated to the feature.
+    add_element(
+        unit,
+        FillTableElement.objects.create(
+            data={
+                "cells": [[{"kind": "image", "media": asset.pk, "alt": "Table image"}]],
+                "header_row": False,
+                "header_col": False,
+                "border": "all",
+            }
+        ),
+    )
+    user = _student("filltablestudent")
+    EnrollmentFactory(course=course, student=user)
+    return unit, user
+
+
+@pytest.fixture
+def tiny_lesson(db, _isolated_media):
+    course = CourseFactory()
+    unit = _image_unit(course, size=(1, 1), color="black", alt="Tiny", name="tiny.png")
+    user = _student("tinystudent")
+    EnrollmentFactory(course=course, student=user)
+    return unit, user
+
+
+def test_filltable_image_cell_opens_the_overlay(page, live_server, filltable_lesson):
+    unit, user = filltable_lesson
+    _goto(page, live_server, unit, user)
+    _open(page, page.locator(".filltable__img"))
+
+
+def test_tiny_image_opens_and_is_not_upscaled(page, live_server, tiny_lesson):
+    unit, user = tiny_lesson
+    _goto(page, live_server, unit, user)
+    trigger = _trigger(page)
+    _await_decoded(page, trigger)
+    # Precondition: a mis-mapped media route must not hand this the 1400px fixture.
+    assert _natural_width(trigger) == 1
+    _open(page, trigger)
+    box = _box(page.locator(".imgzoom__img"))
+    assert box["width"] <= 1.5, f"1x1 image was upscaled to {box['width']}"
+
+
+def _make_pa_user(username):
+    """A Platform Admin, which is what actually opens the editor.
+
+    NOT an is_staff user. `can_manage_course` is "the course owner, OR anyone
+    holding the courses.change_course model perm (the Platform Admin group)" and
+    its own docstring says it "Deliberately does NOT key on is_staff"
+    (courses/access.py:36-42). is_staff widens accessible_courses -- STUDENT
+    access -- which is a different gate entirely. And make_verified_user takes
+    only (username, email, password): there is no is_staff parameter to pass it.
+    Mirrors tests/test_e2e_editor.py:24-36.
+    """
+    from django.contrib.auth.models import Group
+
+    from institution.roles import PLATFORM_ADMIN
+    from institution.roles import seed_roles
+
+    seed_roles()
+    user = make_verified_user(
+        username=username, email=f"{username}@t.example.com", password=TEST_PASSWORD
+    )
+    user.groups.add(Group.objects.get(name=PLATFORM_ADMIN))
+    return user
+
+
+def test_editor_preview_rearms_after_a_real_save(
+    page, live_server, db, _isolated_media
+):
+    """A source grep proves the string exists in editor.js; it cannot prove the name
+    matches what imagezoom.js exports or that arming survives a real fragment swap
+    (applyFragments replaces the whole [data-scope="preview"] node).
+
+    There is no per-element edit PAGE in this app -- `courses:element_edit` does not
+    exist and `reverse` would raise NoReverseMatch. Element editing happens inside the
+    unit editor (`courses:manage_editor`, manage/courses/<slug>/build/unit/<pk>/edit/)
+    via fetched fragments that mount in [data-edit-slot]; the save gesture is that
+    fragment's own submit button, exactly as tests/test_e2e_editor.py:99-107 drives it.
+    """
+    from django.urls import reverse
+
+    from courses.models import ImageElement
+
+    owner = _make_pa_user("zoompa")
+    course = CourseFactory(owner=owner)
+    unit = ContentNodeFactory(course=course, kind="unit", unit_type="lesson")
+    asset = make_image_asset(course, filename="ed.png", size=BIG, color=MAGENTA)
+    add_element(unit, ImageElement.objects.create(media=asset, alt="Editor image"))
+
+    page.set_viewport_size(VIEWPORT)
+    _login(page, live_server, owner)
+    editor_url = reverse(
+        "courses:manage_editor", kwargs={"slug": course.slug, "pk": unit.pk}
+    )
+    page.goto(f"{live_server.url}{editor_url}")
+
+    # Open the existing element's edit fragment, change its alt, submit. The contract is
+    # "a real save swaps [data-scope=preview] and the swapped-in image is armed".
+    # [data-edit-slot] renders EMPTY on load: _element_row.html:42 only injects
+    # open_form when open_form_pk == el.pk. So the fragment must be opened first,
+    # via the row's edit button (_element_row.html:33 --
+    # `button.iconbtn.el-select.el-act-edit` carrying data-element-id and
+    # data-form-url). Note that tests/test_e2e_editor.py never does this: every
+    # case there ADDS a new element via [data-add-toggle], so it is not a usable
+    # reference for editing an existing one.
+    page.locator(".el-act-edit").first.click()
+    page.wait_for_selector("[data-edit-slot] form[data-op='element-save']")
+    page.locator("[data-edit-slot] input[name='alt']").fill("Editor image v2")
+    page.locator("[data-edit-slot] button[type='submit']").click()
+    page.wait_for_selector('[data-scope="preview"] [data-zoomable]')
+
+    # Assert ARMING, not just that a click opens something. The click path is
+    # delegated on document and matches e.target.closest("[data-zoomable]") by
+    # design, so an UNARMED swapped-in image opens the overlay just the same --
+    # meaning _open() alone stays green with the editor.js re-arm line deleted,
+    # and would prove only that delegation survives a fragment swap. These four
+    # attributes are what the re-arm line actually produces, so removing it
+    # breaks this and nothing else does.
+    swapped = page.locator('[data-scope="preview"] [data-zoomable]').first
+    page.wait_for_function(
+        "el => el.dataset.imgzoomReady === '1'", arg=swapped.element_handle()
+    )
+    assert swapped.get_attribute("role") == "button"
+    assert swapped.get_attribute("tabindex") == "0"
+    assert "imgzoom-trigger" in (swapped.get_attribute("class") or "")
+
+    _open(page, swapped)  # smoke check on top of the arming assertions
