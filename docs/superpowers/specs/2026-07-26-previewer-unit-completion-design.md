@@ -37,7 +37,7 @@ intentional act; an IntersectionObserver firing is not.
 **The button's own irreversibility is accepted, deliberately — and the asymmetry with scroll is the
 point.** A fair objection is that this change makes a permanent, unrecoverable mark reachable by one
 click from a population that has spent the product's whole life learning the button is a no-op, so
-the first click is plausibly exploratory. Three things make that acceptable where the scroll path is
+the first click is plausibly exploratory. Four things make that acceptable where the scroll path is
 not:
 
 1. **Blast radius.** A misclick marks exactly the one unit the viewer is looking at, and the pill
@@ -63,6 +63,15 @@ students would make the safety valve the hazard." That reasoning is about **auto
 and about the *reset* control specifically; the mark-done button is neither automatic nor a safety
 valve. Bullet 2 is the answer: this spec adds no new hazard shape, it extends an existing,
 deliberate one to a population the same product already exposes to it.
+
+**The cheap end of the mitigation space was considered too, and rejected on the same ground.** A
+warning affordance costing nothing downstream — a `title`/`aria-description` on the button saying the
+mark is permanent, or a confirm interstitial — would address the gap bullet 1 leaves open (the
+click's *effect* is legible at the moment it lands; its *permanence* is not). It is rejected for
+parity: enrolled students get no such warning today, and adding one only for previewers would tell
+the population at less risk what the population at more risk is not told. Adding it for everyone is
+a change to the student experience and belongs with the toggle/reset question below. This is why the
+spec commits to "no template change" — a conclusion, not a premise.
 
 The escape hatch — making `progress_reset` clear `completed`, or turning the pill into a toggle — is
 therefore **out of scope here and stays a non-goal**, but as a scoping decision rather than an
@@ -92,8 +101,8 @@ written so that adding a reset later requires no rework of anything it ships.
 
 ## Architecture / components
 
-Two behavioural edits in `courses/views.py`, four comment corrections in the same file, one
-deliberate non-edit, and one existing test inverted. No migration, no model change, no new URL, no
+Two behavioural edits in `courses/views.py`, four comment corrections plus one new comment in the
+same file, one deliberate non-edit, and one existing test inverted. No migration, no model change, no new URL, no
 template change, no JS change, no new translatable strings.
 
 ### 1. The write — `courses/views.py::complete`
@@ -194,10 +203,23 @@ this change does not touch.
 progress-related logic between the call and the template. A third near-duplicate test would pin the
 caller list rather than any behaviour.
 
-### 2b. Four comments in `courses/views.py` that this change makes wrong
+### 2b. Four comment corrections in `courses/views.py`, plus one new comment
+
+The new one first, because it is the only edit in this diff that **no test can protect**:
+
+- **New, on §1's atomic block.** The snippet deliberately throws away `get_or_create`'s return value
+  and re-reads the row under `select_for_update()`. That reads as redundant, and collapsing it back
+  to `progress, _ = UnitProgress.objects.get_or_create(...)` is byte-identical in every sequential
+  test — the spec argues elsewhere that no test can sample the concurrency window this exists for.
+  So the mitigation would otherwise ship with zero protection: no test, no comment. Require a
+  comment pinning *why* the row is re-fetched under lock rather than reused, in the same register as
+  `save_element_state`'s own docstring. This is the file's stated doctrine — comments carry design
+  contracts — applied to the one line whose deletion nothing else would catch.
+
+And the four corrections:
 
 Comments in this codebase carry design contracts, so leaving them stale would ship a file arguing
-against its own behaviour. All four are corrections of fact, not new prose:
+against its own behaviour. All four below are corrections of fact:
 
 - **≈:784-788** (in `element_state_save`) reads: persisting practice state for any accessing viewer
   "deliberately diverges from seen/quiz (which ignore previewers so authors don't pollute their own
@@ -229,6 +251,20 @@ against its own behaviour. All four are corrections of fact, not new prose:
 
 `seen` keeps its `is_enrolled` gate and its synthetic response. This is a specified non-goal, not an
 oversight; see "The decision, and why" above. The existing test asserting it must stay green.
+
+**And its synthetic response keeps `"completed": false` regardless of stored state.** This needs
+saying, because the change creates the contradiction: a previewer can now hold `completed=True`
+while `views.py:653-655` still reports `{"seen_element_ids": [], "completed": false,
+"completed_at": null}` to them. That is **intended**. `seen`'s contract is narrow — *this endpoint
+reports scroll-tracking, and scroll-tracking is not recorded for previewers* — not "here is your
+progress row". Do not "fix" the response to echo the stored row: that would break
+`test_previewer_seen_no_write_synthetic` and quietly turn a write-free endpoint into a state
+reporter.
+
+It is also not user-visible, for a reason worth recording rather than rediscovering: `unitMarkDone`
+(`courses/static/courses/js/unit_done.js`) is **add-only** — it early-returns when `is-complete` is
+already present and never removes the class — so neither `progress.js` nor `slideshow.js` can
+un-flip a server-rendered "✓ Completed" pill on receiving `completed: false`. Testing §3 pins this.
 
 ### 4. Also unchanged
 
@@ -286,6 +322,17 @@ agree rests on `add_students_to_group` / `remove_students_from_group` keeping Gr
 Enrollment — an invariant maintained by those services, not enforced by the query. The containment
 is the roster filter, never any property of the row itself; see "Enrollment transition" below for
 what happens when that premise stops holding.
+
+**A second teacher-facing reader is contained by a different mechanism — say so, don't generalise.**
+`courses/views_analytics.py::analytics_student` → `rollups.py::build_student_breakdown(course,
+student)` → `build_outline(course, student)` runs the *same* `student=user, completed=True` query
+that gives the previewer their own payoff, only with another user's identity — and it carries **no**
+`student__in` roster filter at all. Its containment is a view-level resolution:
+`scoping.reviewable_students(request.user, course).filter(pk=student_pk).first()`, which 404s an
+off-roster pk before the breakdown is ever built. So "the containment is the roster filter" is true
+of the matrix (`views_analytics.py:53`) and the gradebook export (`views_export.py:44`), both of
+which go through `students_in_scope`, but it is **not** the mechanism protecting the per-student
+drill-down. Testing §10 drives both mechanisms rather than assuming one covers the other.
 
 **And the write is inert beyond that row.** Worth stating because the sibling completion write is
 not: `quiz_finish` calls `notify_needs_review` **and** `emit_result_finalized` (the SIS webhook)
@@ -356,7 +403,10 @@ test.
 3. **Asymmetry guard (the deliberate non-edit).** A non-enrolled `can_access` viewer POSTs every
    element id to `courses:seen` → still no completion and no row. The existing
    `test_previewer_seen_no_write_synthetic` covers this; keep it adjacent to test 1 so the
-   deliberate split between the two paths is legible on one screen.
+   deliberate split between the two paths is legible on one screen. **Add one assertion** pinning
+   the §3 contract: a previewer who already holds a `completed=True` row still gets
+   `{"completed": false}` from `seen`. Without it, the decision that the synthetic response ignores
+   stored state is incidental rather than recorded, and the next reader will "fix" it.
    *Falsify:* temporarily drop the `is_enrolled` gate in `seen` → RED. Note this guard is *outside*
    the diff — the recipe removes code the change does not touch, which is exactly the point: the
    test's job is to catch a future implementer "finishing the job" by lifting both gates.
@@ -394,9 +444,14 @@ test.
    already 403s both cases today at the `can_access_course` check, ahead of the `is_enrolled` branch.
    What changes is that this gate becomes the *only* thing standing between them and a write, which
    is what makes the guards load-bearing. Reserve "newly reachable" for the positive routes.
-   **Fixture wiring, and two vacuity traps.** `grouping.Group` has a `course` FK, a `teachers` M2M
-   and an `archived` boolean, so (b) and (d) are built with `GroupFactory(course=course)` +
-   `group.teachers.add(user)` + `archived=True` / `False`. Then:
+   **Fixture wiring, and two vacuity traps.** Wire each route explicitly:
+   - **(a)** the logged-in user must be the course's owner — `CourseFactory(owner=user)`. Asserting
+     that `CourseFactory`'s own auto-created owner is non-staff tests a user who never makes the
+     request.
+   - **(b)** and **(d)**: `grouping.Group` has a `course` FK, a `teachers` M2M and an `archived`
+     boolean, so build `GroupFactory(course=course)` + `group.teachers.add(user)` +
+     `archived=True` (b) / `False` (d).
+   Then the two traps:
    - **Trap 1 — `is_staff` short-circuit.** `accessible_courses` returns `Course.objects.all()` at
      `if user.is_staff:` *before* evaluating either `Q(owner=user)` or the group clause. So **(a),
      (b) and (d) must each assert their user is non-staff** — not just (b) and (d). A staff owner in
@@ -490,14 +545,26 @@ test.
     `if all_lesson_pks and students:` and returns `rows == []` — "the previewer is not a row" would
     then hold for a reason that has nothing to do with the roster filter. The claim the containment
     argument needs is "the matrix is populated **and still** omits them".
-    *Falsify:* enroll the previewer → RED (they appear), proving the assertion discriminates.
+    **Both containment mechanisms must be driven, because they are not the same** (see Data flow):
+    - the **query filter** — the matrix assertion above;
+    - the **view-level resolution** — a teacher GETs `courses:manage_analytics_student` for the
+      previewer's pk → **404** while they are off the roster, **200** once enrolled.
+      `analytics_student` reaches `build_outline` with no `student__in` filter at all, so the matrix
+      assertion says nothing whatever about this surface.
+    *Falsify:* enroll the previewer → RED on both halves (they appear in the matrix; the drill-down
+    returns 200), proving each assertion discriminates.
 11. **Double POST is idempotent and writes nothing the second time.** A previewer POSTs `complete`
     twice → exactly one row, and `completed_at` **on the DB row** is unchanged after the second POST
     (`complete` returns a bare 302 with no body, so there is no response field to compare — assert
     against the row).
     The load-bearing assertion is the third: **the second POST issues no `UPDATE` on
     `courses_unitprogress`** — wrap it in `CaptureQueriesContext` and assert no captured statement
-    updates that table. Do **not** assert instead that an `element_state` key written between the
+    updates that table. **Pin the match**, or the assertion passes vacuously: Postgres captures
+    `UPDATE "courses_unitprogress" SET …` with a *quoted* identifier, so a naive
+    `'UPDATE courses_unitprogress' in sql` never matches. Use
+    `re.search(r'update\s+"?courses_unitprogress"?', q["sql"], re.I)` over `ctx.captured_queries`.
+    Expect SAVEPOINT/RELEASE and both SELECTs in the capture — the assertion targets `UPDATE` on
+    that one table, never "no writes". Do **not** assert instead that an `element_state` key written between the
     two POSTs survives: `get_or_create` re-reads the row on POST 2, so the in-memory instance
     already carries that key and a guardless `save()` writes it straight back. That assertion stays
     GREEN with the guard deleted — it is vacuous, and the clobber it appears to test is a
