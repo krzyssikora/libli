@@ -102,7 +102,8 @@ written so that adding a reset later requires no rework of anything it ships.
 ## Architecture / components
 
 Two behavioural edits in `courses/views.py`, four comment corrections plus two new comments in the
-same file, one deliberate non-edit, and one existing test inverted. No migration, no model change, no new URL, no
+same file, one behaviourally-unchanged function whose comment is corrected, one existing test
+inverted (§1) and one existing test extended (§3). No migration, no model change, no new URL, no
 template change, no JS change, no new translatable strings.
 
 ### 1. The write — `courses/views.py::complete`
@@ -208,9 +209,10 @@ whole lesson. Testing §7 must therefore drive a POST **without** that header (t
 client's default); adding the header to "mimic the real UI" would test the fragment branch, which
 this change does not touch.
 
-`notes/views.py:194` is **exempt from its own test in writing**: it makes the identical
-`full_lesson_render_context(unit, user)` call that test 7 already drives, with no additional
-progress-related logic between the call and the template. A third near-duplicate test would pin the
+`notes/views.py:194` is **exempt from its own test in writing**: it calls
+`full_lesson_render_context(unit, request.user, notes_show=True)` — the same call test 7 drives, the
+extra kwarg touching only the notes panel, leaving the progress path byte-identical — with no
+additional progress-related logic between the call and the template. A third near-duplicate test would pin the
 caller list rather than any behaviour.
 
 ### 2b. Four comment corrections in `courses/views.py`, plus two new comments
@@ -264,7 +266,11 @@ against its own behaviour. All four below are corrections of fact:
   comment sits exactly at the asymmetry the spec most wants legible, so it must name that asymmetry:
   seen-tracking is not recorded for previewers, while completion via the explicit button is.
 
-### 3. Deliberately unchanged — `courses/views.py::seen`
+### 3. Behaviourally unchanged (comment corrected) — `courses/views.py::seen`
+
+`seen` *is* touched by this diff — its comment at `:652` changes, per §2b. Nothing else about it
+does, and the heading says "behaviourally unchanged" rather than "unchanged" so an audit of "which
+functions does this diff touch" gets the right answer.
 
 `seen` keeps its `is_enrolled` gate and its synthetic response. This is a specified non-goal, not an
 oversight; see "The decision, and why" above. The existing test asserting it must stay green.
@@ -330,8 +336,10 @@ pages — `quiz_unit.html:11` includes the same `_unit_shell.html`, and the quiz
 counters there too. No separate test: it is the same call, on the same data.
 
 **Downstream, roster-scoped (contained, with a stated boundary):** the teacher-facing
-frontier/matrix query in `courses/rollups.py` filters `student__in=students`, where `students` comes
-from `grouping/scoping.py::students_in_scope` — an **Enrollment- or GroupMembership-derived**
+frontier/matrix builder takes a `students` **argument** and builds one row per member of it; the
+`student__in=students` filter inside it merely narrows a lookup dict and is not itself the
+containment. **The containment is the roster argument** — `students` comes from
+`grouping/scoping.py::students_in_scope`, an **Enrollment- or GroupMembership-derived**
 roster (Enrollment on the PA/owner fallback; GroupMembership for the group-teacher fallback and both
 explicit `group:<pk>` / `collection:<pk>` scopes). So a non-enrolled viewer's row cannot appear in
 teacher analytics or the gradebook **while that viewer is off the roster**. That the two derivations
@@ -493,8 +501,10 @@ test.
      "Pre-existing rows" paragraph as intended behaviour rather than an accident.
      *Falsify:* revert `progress = state_row` → RED.
    - **(b) `completed=False` — the row shape nothing else covers.** Seed a `completed=False` row
-     carrying `element_state` for a non-enrolled `can_access` viewer → the GET shows
-     `unit-done__pill--btn` **present** and `is-complete` **absent** on `[data-unit-done]`. This is
+     carrying `element_state` for a non-enrolled `can_access` viewer → within the `[data-unit-done]`
+     subtree, that div's own class list lacks `is-complete` (`_lesson_article.html:12`) **and** a
+     descendant `button.unit-done__pill--btn` exists (`:20`) — two different elements, not two
+     attributes of one; test 2's assertion needs the same phrasing. This is
      not hypothetical: since PR #136 a previewer who ticks a checklist gets exactly this row, making
      it the *most common* previewer row in production once this ships, and no other test covers it —
      test 4 asserts only that no row is created, tests 2 and 6(a) only the `True` direction.
@@ -543,7 +553,15 @@ test.
    A recipe with no insertion point is not a falsification, it is a wish. This test documents a
    decision; it guards no code, and the spec says so rather than pretending otherwise.
 9. **Downstream chrome actually lights up** — the spec's whole rationale for fixing rather than
-   hiding. These are **two different pages** and must be two GETs:
+   hiding. **Two pins first, both load-bearing** (§8 and §10 pin their actors; this test must too):
+   - **The acting user.** `build_outline(course, user)` and `build_unit_nav(course, user, node)`
+     both key on the requesting user, so **both GETs must be issued as the previewer** — not as the
+     owner or a teacher, which would fail for reasons unrelated to this change.
+   - **The row's provenance.** The `completed=True` row must come from **that previewer's own POST**
+     to `courses:complete`. Seeding it with `UnitProgressFactory(completed=True)` — the pattern
+     `tests/test_e2e_unit_nav.py` uses — yields a green test whose diff-local falsification below
+     **cannot redden**, because the row exists whether or not the write path works.
+   These are **two different pages** and must be two GETs:
    - the **course outline** page (`course_outline` → `outline.html` → `_outline_node.html:8`) → the
      ✓ badge renders for that unit. Holds regardless of the unit's `obligatory` flag —
      `rollups.py` sets `"completed": is_unit and node.pk in completed`, i.e. for any completed
@@ -581,24 +599,37 @@ test.
     (same load-bearing reason as test 8 — only that branch of `reviewable_students` derives from
     `Enrollment`, and `analytics_student`'s `can_review_course` gate resolves the same way), resolve
     `students_in_scope(resolver, course, "all")` and build the analytics matrix from it.
-    **The fixture must defeat both arms of the short-circuit.** `build_progress_matrix` bails at
-    `if all_lesson_pks and students:` and returns `rows == []` if *either* is empty, and then "the
-    previewer is not a row" holds for a reason unrelated to the roster filter:
-    - `students` — the fixture must contain a genuinely **enrolled student**, and the test must
-      assert that student **is** a row with a non-zero cell, not merely that the previewer is not;
-    - `all_lesson_pks` — it is unioned from `frontier_columns`, which collects only
-      `is_obligatory_lesson(n)` units, so the seeded unit must be an **obligatory lesson** unit. A
-      quiz or non-obligatory unit empties this arm silently.
+    **Two distinct fixture requirements — and be accurate about what each protects.**
+    `build_progress_matrix` builds `rows` from the `students` argument **unconditionally**
+    (`for s in students: … rows.append(…)`); the `if all_lesson_pks and students:` guard gates only
+    the population of the `completed` lookup dict. So:
+    - `students` — an empty roster is the *only* thing that yields `rows == []`, which would make
+      "the previewer is not a row" true for a reason unrelated to any scoping. The fixture must
+      contain a genuinely **enrolled student**, and the test must assert that student **is** a row;
+    - `all_lesson_pks` — an empty one does **not** empty `rows`; it flattens every cell to
+      `_cell(None)`. It is unioned from `frontier_columns`, which collects only
+      `is_obligatory_lesson(n)` units, so the seeded unit must be an **obligatory lesson** unit or
+      the enrolled student's cell is `None`. This arm is caught by the **positive control** — assert
+      the enrolled student's cell is **non-zero**, not merely that they are present.
+    Note `assert matrix["rows"]` alone discriminates neither arm properly: it catches an empty
+    roster and is blind to an empty `all_lesson_pks`.
     Assert both halves: the matrix is populated **and still** omits the previewer — which is exactly
     the claim the containment argument needs.
     **Both containment mechanisms must be driven, because they are not the same** (see Data flow):
-    - the **query filter** — the matrix assertion above;
-    - the **view-level resolution** — a teacher GETs `courses:manage_analytics_student` for the
-      previewer's pk → **404** while they are off the roster, **200** once enrolled.
-      `analytics_student` reaches `build_outline` with no `student__in` filter at all, so the matrix
-      assertion says nothing whatever about this surface.
-    *Falsify:* enroll the previewer → RED on both halves (they appear in the matrix; the drill-down
-    returns 200), proving each assertion discriminates.
+    - **roster-argument scoping** — the matrix assertion above. Note the mechanism is the `students`
+      argument, **not** the `student__in=students` filter: deleting that filter leaves this
+      assertion green (it only widens a lookup dict), so do not reach for it as a falsification.
+    - **view-level resolution** — the **same course-owner/PA resolver** (never a group teacher — see
+      the pin above) GETs `courses:manage_analytics_student` for the previewer's pk → **404** while
+      they are off the roster, **200** once enrolled. `analytics_student` reaches `build_outline`
+      with no roster filter at all, so the matrix assertion says nothing whatever about this surface.
+
+    **Sequence the test explicitly**, because the enrollment is part of the fixture, not an external
+    mutation: (1) the previewer marks the unit done while off the roster; (2) assert the matrix is
+    populated but omits them **and** the drill-down 404s; (3) enroll the previewer; (4) assert the
+    drill-down now 200s.
+    *Falsify:* move the `EnrollmentFactory` call ahead of step 2 → **both** step-2 assertions go
+    RED, proving each discriminates.
 11. **Double POST is idempotent and writes nothing the second time.** A previewer POSTs `complete`
     twice, **issued directly by the test client** — after the first POST the pill replaces the form,
     so a second POST is not reachable through the UI at all. It is a real path nonetheless (double
@@ -679,6 +710,12 @@ observable at the view/template layer by tests 1, 2 and 7.
 - Letting non-enrolled viewers submit quizzes or accumulate quiz analytics.
 - Suppressing progress chrome (outline badges, tree counters, footer bar) for non-learners.
 - Any change to how teacher-facing analytics scope their students.
+- **Help-content updates — deferred, not overlooked.** `docs/help/course-admin/content-editors.md`
+  tells Course Admins to "Preview the unit as a student would see it before publishing a course" —
+  addressed at exactly the population this change newly exposes to a permanent mark. Nothing in that
+  guidance becomes *wrong* (previewing is still correct advice; only the button now does something),
+  so no edit ships here. It is named so the decision is recorded, and so a later toggle/reset spec
+  knows where the user-facing wording lives.
 
 ## Accepted side effects
 
