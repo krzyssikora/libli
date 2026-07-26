@@ -173,6 +173,33 @@ scope**: it would change the hot path. Anyone who does harden it later must move
 the read**, not merely add one. This is the mechanism the §2b comment must encode; stating the
 lock-exclusion version there would ship a confident falsehood in the one place nothing tests.
 
+**But the enrolled-path exposure is not purely inherited — the lock shifts one sub-window against
+the student, and this spec accepts that rather than hiding it behind "pre-existing".** The hazard
+*shape* predates the change; the odds do not. Take a `seen` flush whose UPDATE is issued *between*
+`complete`'s `SELECT … FOR UPDATE` and `complete`'s COMMIT. On the base commit `complete` holds no
+lock and runs in autocommit, so that UPDATE lands **first** and `complete`'s write then overwrites
+it — benign. With the lock, the same UPDATE **blocks** until `complete` commits (a plain `UPDATE`
+does block on an existing `FOR UPDATE`, per the mechanism established just above) and *then* writes
+its stale row — `completed=False` — back over the click. An interleaving that used to resolve in the
+student's favour now resolves against them. The new losing set is the old one plus this
+two-statement sliver: a strict superset, small but not empty.
+
+**Accepted, with the reasoning recorded.** What bounds it: the sliver is two statements wide, not a
+whole request, and it requires a `seen` flush already in flight at the instant of the click — a
+500 ms debounce that only runs while scrolling. What does **not** bound it is the consequence, so
+state that plainly: the next flush re-sets `completed=True` only when
+`current.issubset(merged)` (`views.py:664`), so a student who clicks the pill **before** scrolling
+through every element loses the click for good, while `unitMarkDone`'s add-only shape leaves their
+pill reading "✓ Completed" until the page reloads. Narrowing the mitigation is not on the table:
+`complete` is one code path for both populations, and taking the lock only on a previewer branch
+would reinstate the `is_enrolled` query this change deletes. Hardening `seen` remains the real fix
+and stays out of scope per the paragraph above — this is the note telling that author the **enrolled**
+path, not the previewer one, is where the residual exposure now sits. Note also what Testing §12
+does and does not buy here: it pins that the enrolled tests stay green, which they do, because they
+are sequential; no sequential test can sample this window at all (the same reasoning §11 applies to
+the `element_state` clobber), so "enrolled path unregressed" is a claim about behaviour under test,
+not about this interleaving.
+
 **Cost:** the new shape is `get_or_create` (SELECT, sometimes INSERT) plus a second
 `SELECT … FOR UPDATE`, inside an atomic block, where the old shape was one SELECT and — when the
 unit was already complete — nothing further. **In production** that is +1 query *within the write block* — before counting the
@@ -218,9 +245,12 @@ indistinguishable from the bug being fixed.
 `seen_count` remains 0 for them. That is today's behaviour and is not user-visible **anywhere** —
 state the closed form, not the weaker one, or a reader goes hunting for the surfaces it might leak
 on. `build_lesson_context` is the only producer of `seen_count`/`element_count` on this context
-(`views.py:441-442`), and **no template or view in the repo reads either**; the only other
-`element_count` in the codebase belongs to the unrelated transfer-preview context
-(`transfer/importer.py:444` → `manage/import_preview.html`). The asymmetry is therefore deliberate
+(`views.py:441-442`), and **no template or view in the repo reads either**. Be precise about the
+grep, or a verifier hits an unrelated match and cannot tell whether this claim missed it: there is
+no other **context key** named `element_count` outside the transfer-preview context
+(`transfer/importer.py:444` → `manage/import_preview.html`); `courses/views_manage.py::_element_count`
+(defined `:542`, called `:434`) is an unrelated helper whose value lands under the key `"elements"`.
+The asymmetry is therefore deliberate
 rather than discovered, and closed rather than merely bounded to one page.
 
 **The lesson page has three render surfaces, not one — and the docstring that says "two" is itself
@@ -251,6 +281,22 @@ additional progress-related logic between the call and the template. A third nea
 caller list rather than any behaviour.
 
 ### 2b. Five comment corrections (four in `courses/views.py`, one in the lesson template), plus two new comments
+
+**Before writing any of them: a whole-repo tripwire scans these comment bodies as text.**
+`tests/test_element_state_write_routes.py` regexes the **raw source** of every first-party `.py`
+file — `path.read_text()`, with no comment or string stripping — for
+`\.update\(\s*element_state=`, `element_state\.pop\(`, `element_state\[…\]\s*=` and
+`\.element_state\s*=(?!=)`, and asserts exactly `EXPECTED_WRITE_COUNT = 3` hits in
+`courses/views.py`. Several comments below must *discuss* the `element_state` clobber, and the
+natural phrasing for that ("a save that writes `progress.element_state = …` back",
+"`row.element_state[pk] = blob`") matches the regex and pushes the count to 4. The suite then fails
+with a message about new write routes and an unresettable state-bearing type — a diagnosis with
+nothing to do with this diff, and exactly the confusing-failure shape the query-count caveat and
+the §7 `_login` trap exist to pre-empt. **So: none of the seven comment bodies may contain the
+literal tokens `.element_state =`, `element_state[`, `element_state.pop(` or
+`.update(element_state=`.** Refer to the field in prose ("the practice-state blob", "`element_state`
+as it stood at fetch time") instead. If the guard does go red on a comments-only diff, it is a prose
+problem, not a code one.
 
 The new ones first. The atomic block's **re-fetch under lock** is the only piece of *code* in this
 diff that no test can protect — collapsing it back to `progress, _ = get_or_create(...)` is
@@ -560,8 +606,11 @@ It must be rewritten, never left alongside a contradicting new test.
    element id to `courses:seen` → still no completion and no row. The existing
    `test_previewer_seen_no_write_synthetic` covers this; keep it adjacent to test 1 so the
    deliberate split between the two paths is legible on one screen. **Rename it** to something that
-   covers what it now asserts — e.g. `test_previewer_seen_no_write_and_ignores_stored_completion` —
-   the same discipline the §1(a) inversion follows; a name that says only "no write synthetic" will
+   covers what it now asserts. **The name is pinned, not suggested:**
+   `test_previewer_seen_no_write_and_ignores_stored_completion`. Architecture §3 requires the §2b
+   `seen` comment to quote it, so latitude here would ship a code comment naming a test that does
+   not exist — the stale-reference failure the comment doctrine exists to prevent. Same discipline
+   as the §1(a) inversion; a name that says only "no write synthetic" will
    read as unrelated to the stored-row half. **Extend it to pin §3's
    *server* contract** — a previewer holding a `completed=True` row still gets
    `{"completed": false}`. (§3's client-side half — `unitMarkDone`'s add-only shape — is recorded
@@ -956,6 +1005,16 @@ It must be rewritten, never left alongside a contradicting new test.
     guards. Per the falsifiability doctrine, a test whose behaviour the diff does not change has no
     honest RED recipe, and claiming one would be theatre.
 
+**Parsing technique (one rule, since five tests need it).** Tests 2, 6(a), 6(b), 7 and 9 are each
+told to scope an assertion to a subtree — `[data-unit-done]`, or `li[data-unit="<pk>"]` — and the
+spec forbids both the body-wide substring and the naive regexes. Name the tool once so five siblings
+in one file do not invent five mechanisms: use **BeautifulSoup**, already a test dependency and
+already used for exactly this in `tests/test_unit_nav_render.py` and
+`courses/tests/test_reveal_gate_render.py` — copy that idiom. The tempered regex offered in test 9
+stays a documented fallback, not the recommendation. One recorded gotcha if any comparison ever
+reaches for a subtree's *text*: `str(Tag)` re-escapes entities while `str(NavigableString)` decodes
+them, so use `decode_contents()` for a body string.
+
 **File placement (one rule, since placement is load-bearing here).** Every new test in this list
 lands in `tests/test_courses_progress.py`, beside the inverted test — including tests 9 and 10, which
 have plausible homes in `tests/test_courses_rollups.py` and the analytics-scoping tests but belong
@@ -976,15 +1035,19 @@ route, and their two negative twins (archived group, unrelated logged-in user) o
 
 ### Definition of done
 
-- Full non-e2e suite green (`-n auto`), no new failures against the base. One caveat: the repo
+**Invocation: every command below goes through `uv run`.** Bare `ruff`, `pytest` and `python` are
+not on PATH in this repo's shell, and the spec is otherwise exact about invocation (the `-m e2e`
+exit-5 trap), so spelling them bare here would cost an implementer a command-not-found round.
+
+- Full non-e2e suite green (`uv run pytest -n auto`), no new failures against the base. One caveat: the repo
   records `tests/test_html_element.py::test_lesson_html_render_query_count_invariant` as already
   failing **in isolation** on master. Since this change touches `build_lesson_context`, that test is
   the one an implementer will wrongly blame. `progress = state_row` is a bare assignment of an
   already-fetched row and issues **zero** additional queries, so a failure there must be reproduced
   on the base commit before it is attributed to this diff.
-- `ruff check` and `ruff format --check` clean;
-- `manage.py makemigrations --check` and `manage.py check` clean (both expected trivially — no model
-  change);
+- `uv run ruff check` and `uv run ruff format --check` clean;
+- `uv run python manage.py makemigrations --check` and `uv run python manage.py check` clean (both
+  expected trivially — no model change);
 - **all seven comment edits present, and the atomic-block one stating the ordering rule** (not
   merely present — see §2b's "Required content"). No automated gate covers any of these, and the
   re-fetch they document is the one piece of code in the diff no test can protect, so leaving the
@@ -1007,8 +1070,8 @@ route, and their two negative twins (archived group, unrelated logged-in user) o
   - `tests/test_e2e_unit_nav.py` (seeds `UnitProgressFactory(..., completed=True)` and drives the
     unit-tree and footer counters) — the second-largest surface the change lights up.
 
-  Run them **with `-m e2e`** — without that marker the entire e2e set is silently deselected and
-  pytest exits 5, which reads like a pass. Expected result: green and unchanged; all three exercise
+  Run them as `uv run pytest -m e2e <files>` — **the marker is mandatory**: without it the entire
+  e2e set is silently deselected and pytest exits 5, which reads like a pass. Expected result: green and unchanged; all three exercise
   the enrolled path, which this change does not alter.
 
 No **new** e2e test is required: the change has no client-side component, and the full round trip is
@@ -1033,9 +1096,14 @@ observable at the view/template layer by tests 1, 2 and 7.
 
 - A non-enrolled viewer's own outline ✓ badges, unit-tree counters and footer progress bar begin
   reflecting their manual marks. This is the intended payoff, not a regression.
-- `courses/views_manage.py::course_delete`'s "N progress records" count may include such rows. That
-  specific count is already inflated today, since a checklist tick creates a `UnitProgress` row for
-  a non-enrolled viewer.
+- `courses/views_manage.py::course_delete`'s "N progress records" count may include such rows — and
+  say the closed form, not just the number: `views_manage.py:121` derives
+  `counts["has_learner_state"] = enrollments > 0 or progress > 0`, and
+  `templates/courses/manage/course_confirm_delete.html:8` branches an entire "this course holds
+  learner state" warning block on it. So a previewer's mark on a student-free draft course flips a
+  *warning*, not merely a count. Both are already inflated today, by the same route: a checklist
+  tick creates a `UnitProgress` row for a non-enrolled viewer. This extends an accepted effect
+  rather than introducing one.
 - **What is new is the *creation*, not the existence, of a `completed=True` row for a non-roster
   user.** State this precisely, because the two are easy to conflate:
   - *Not new:* such rows already exist. Every write that can set `completed=True` is enrolled-gated
