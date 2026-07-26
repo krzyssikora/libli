@@ -28,17 +28,17 @@ one registry rather than two overlapping guesses.
 |---|---|
 | `courses/richtext.py` | **new** — the registry, the scan/rewrite helpers, `count_inbound_links` |
 | `courses/transfer/schema.py` | `FORMAT_VERSION` 5→6; `link_nodes` admitted to `validate_document`'s key list and shape-checked |
-| `courses/transfer/export.py` | emit `document["link_nodes"]`; **also return `node_ids`** from `build_export`, which the bundle-level map needs (§3) |
+| `courses/transfer/export.py` | emit `document["link_nodes"]`; hand `node_ids` back through an optional `report` keyword on `build_export` — **not** a fifth return value (§3) |
 | `courses/transfer/importer.py` | `_create_elements` returns what it created; `on_missing` (incl. the new `defer`) + `report` threaded through the entry points; `report` also carries `node_map` as `{export_id: new_pk}`; the rewrite post-pass |
 | `courses/builder.py` | *unchanged* — `materialize_duplicate` defaults to `on_missing="keep"`, so `duplicate_unit` calls it exactly as it does today |
 | `courses/views_transfer.py` | a second, separate `messages.warning` on both import paths when links were flattened |
-| `courses/management/commands/migrate_course_content.py` | bundle-level `link_nodes` at export; `on_missing="keep"` + accumulated old→new state at import; final rewrite pass and stdout counts — **the cutover path**, see §3 |
+| `courses/management/commands/migrate_course_content.py` | bundle-level `link_nodes` at export; `on_missing="defer"` per part + an accumulated `LINK_STATE_NAME` state file; one final rewrite pass and stdout counts — **the cutover path**, see §3 |
 | `courses/views_manage.py` | `counts["inbound_links"]` in `node_delete`'s GET branch |
 | `templates/courses/manage/node_confirm_delete.html` | the warning sentence |
 | `tests/test_tabs_transfer.py`, `tests/test_transfer_schema.py` | the two hard-coded `FORMAT_VERSION == 5` assertions (one is also a test *name*) |
 | `tests/test_table_transfer.py` | line 265's comment "(4 <= FORMAT_VERSION=5)" goes stale — comment-only fix, the test itself still passes |
 | `tests/test_richtext.py` | **new** — registry, scanner and rewrite cases |
-| `tests/test_migrate_course_content.py` | the three cutover cases in §Testing |
+| `tests/test_migrate_course_content.py` | the five cutover cases in §Testing |
 | `locale/*/LC_MESSAGES/django.po` + `.mo` | two new strings, both catalogs, regenerated |
 
 **Out of scope**
@@ -145,9 +145,15 @@ instance and hands back the `update_fields` list, so no caller has to know the r
 
 **The href predicate is part 1's, exactly.** `find_link_targets` matches only `href` *values*, and
 matches them against the same anchored pattern part 1 pins for prefill: `^/courses/n/(\d+)/$`. The
-two must agree — a prefix match here would make the delete count and the rewrite disagree with the
-dialog and the CSS marker about what an internal link even is. `/courses/n/12/?x=1` is therefore not
-an internal link anywhere in this feature.
+two must agree — a prefix match here would make the delete count and the rewrite disagree with **the
+dialog** about what an internal link even is. `/courses/n/12/?x=1` is therefore not an internal link
+to the dialog, to the rewrite, or to the delete count.
+
+Part 1's CSS marker is deliberately *not* cited as agreeing: it ships as the prefix selector
+`.el a[href^="/courses/n/"]`, so `/courses/n/12/?x=1` does render with the internal-link glyph while
+being an ordinary URL everywhere else. That is a benign over-match — a marker on a link that still
+works — and belongs in part 1's acknowledged-misclassification list rather than being smoothed over
+here.
 
 **Only `<a>` `href` attributes are touched — never text content.** The mechanism is a targeted
 regex over anchor tags, not a parse-and-reserialise:
@@ -391,39 +397,81 @@ That needs a third `on_missing` value, used only here:
 | **`defer`** | **skip the rewrite post-pass entirely** — every href still holds a source pk afterwards |
 
 - **Export phase** additionally writes a **bundle-level** `link_nodes` into `bundle-manifest.json`,
-  covering every node in the source course rather than only the current part: old pk → `(archive,
-  export id)`. The manifest is written once, after all parts export, which is exactly when the whole
-  mapping is known. This requires plumbing the exporter does not have today: `node_ids` is a local in
-  `build_export` and `_node_dict` never emits the source pk, so **`build_export` must also return
-  `node_ids`** (see the `export.py` row in §Scope). The per-part `document["link_nodes"]` cannot
-  substitute — it holds only targets referenced from inside that part, so a node linked to *only*
-  from another part appears in no archive's map at all.
-- **Import phase** passes `on_missing="defer"` per part and accumulates `old_pk → new_pk` in a
-  bundle-level state file, `LINK_STATE_NAME` (a module constant beside `MANIFEST_NAME` and
-  `BASELINE_NAME`). Building that map needs `export_id → new_pk`, which `import_subtree` does not
-  return today — it hands back only the grafted root — so **`report` also receives `node_map`** as
-  `{export_id: new_pk}` alongside `flattened_links`.
+  covering every node in the source course rather than only the current part:
+  old pk → `(part order, export id)`. The join key is the **integer part order** — the value
+  `part.order` supplies at export and `_archive_order(p.name)` parses back at import — never the
+  filename. Export ids restart at `n1` in every archive, so if the two phases keyed this differently
+  every lookup would miss and the whole course's links would flatten, silently. The manifest is
+  written once, after all parts export, which is exactly when the whole mapping is known.
+
+  This needs plumbing the exporter lacks: `node_ids` is a local in `build_export` and `_node_dict`
+  never emits the source pk. It is handed back through an **optional `report` keyword**, not a fifth
+  return value — `build_export` returns a 4-tuple that is unpacked positionally at **29 sites across
+  10 files**, including `courses/builder.py`, which §Scope declares unchanged. Widening the arity
+  would break every one of them, and would contradict the reasoning that already made `report` an
+  out-param on the importer. Only `migrate_course_content._export` passes it.
+
+  The per-part `document["link_nodes"]` cannot substitute — it holds only targets referenced from
+  inside that part, so a node linked to *only* from another part appears in no archive's map at all.
+
+- **Import phase** passes `on_missing="defer"` per part and accumulates the map in a bundle-level
+  state file, `LINK_STATE_NAME` (a module constant beside `MANIFEST_NAME` and `BASELINE_NAME`).
+  Building it needs `export_id → new_pk`, which `import_subtree` does not return today — it hands
+  back only the grafted root — so **`report` also receives `node_map`** as `{export_id: new_pk}`
+  alongside `flattened_links`.
+
+  Entries are **keyed by part order** and the file is written **immediately after each part commits**,
+  not once after the loop. Both halves matter. Writing once would lose every committed part's
+  `export_id → new_pk` on a mid-loop failure, and those are unrecoverable afterwards — export ids
+  exist only in the returned `node_map`. Keying by part order is what lets the final pass attribute
+  its counts per part, and lets a resume detect a short file: if `--start-at K` exceeds
+  `max(recorded part order) + 1`, the map is incomplete and the command raises `CommandError` rather
+  than proceeding to flatten every link into the missing part. (The existing `--start-at` invariant
+  only counts top-level nodes, so it cannot catch this.)
+
   Lifecycle mirrors `BASELINE_NAME`: written fresh when `start_at is None`, read and extended on
-  resume, and removed by `export --clean` (which today deletes only `*.zip` and the manifest). Without
-  the reset rule, a fresh migration through a reused bundle directory would inherit `old_pk → new_pk`
-  entries from an abandoned run and rewrite links to its nodes.
+  resume, removed by `export --clean` (which today deletes only `*.zip` and the manifest), and —
+  like `_capture_baseline`'s own write — **neither written nor reset under `--dry-run`**, so a dry
+  run cannot wipe a real migration's accumulated map.
+
 - **The final pass is triggered by bundle state, not by the loop.** It runs whenever every archive is
-  committed *and* the state file does not yet record the pass as applied — then marks it applied. The
-  loop-completion reading has a hole precisely where the state file exists to help: a process that
-  dies after the last part commits resumes with `--start-at part_count`, hits the "this migration is
-  already complete" early return, and never rewrites anything. Skipped entirely under `--dry-run`.
-- **Its scope is the grafted content only** — the `Element` rows under the top-level nodes this
-  migration created, identifiable from the baseline's `top_nodes` plus the committed part orders —
-  **not** the whole target course. `--force` allows grafting into a course that already holds content,
-  and those pre-existing bodies carry *target* pks; sweeping them with an old-pk-keyed map would
-  flatten or, on a numeric coincidence, mis-point them.
-- It runs inside a single `transaction.atomic()`, so a failure leaves nothing half-rewritten and the
-  applied-marker is never written; a re-run repeats it cleanly.
-- It **prints per-part rewritten and flattened counts** to stdout and records them in the state file.
-  `verify` prints them from there — it cannot recompute them, since it reads only the manifest,
-  baseline and archives, none of which carry the counts. A committed bundle whose state file lacks
-  the applied marker is a **`CommandError`** in `verify`, like every other reconciliation failure: it
-  is the one signal that the skipped-pass case above actually happened.
+  committed *and* the state file does not record the pass as applied. The loop-completion reading has
+  a hole precisely where the state file exists to help: a process that dies after the last part
+  commits resumes with `--start-at part_count`, hits the "this migration is already complete" early
+  return, and never rewrites anything. Skipped entirely under `--dry-run`.
+
+- **Its scope is the `Element` rows whose `unit_id` appears among the state file's recorded new pks**
+  — not the whole target course, and not a baseline-derived guess. An earlier draft said "the
+  top-level nodes this migration created, identifiable from the baseline's `top_nodes` plus the
+  committed part orders"; that does not work, because `_capture_baseline` records `top_nodes` as an
+  integer **count** (`nodes.filter(parent__isnull=True).count()`) and the part orders are *source*-side.
+  Neither yields a target pk. The state file already holds the exact answer: `report["node_map"]`
+  values are the new pks of every node each part created. Nested elements come for free, since a child
+  `Element` keeps its own `unit` FK (§4 relies on the same property).
+
+  Scoping matters most under `--force`, which permits grafting into a course that already holds
+  content: those pre-existing bodies carry *target* pks, and sweeping them with an old-pk-keyed map
+  would flatten them or, on a numeric coincidence, mis-point them.
+
+- It calls `rewrite_instance(..., on_missing="unwrap")`. The bundle map covers the whole source
+  course, so anything still unresolved genuinely has no target anywhere in the migration.
+
+- **Crash-safe marking, in two steps around one transaction.** The rewrite runs inside a single
+  `transaction.atomic()`, but the marker lives in a JSON file, so "atomic + write the marker after"
+  leaves a window: a crash between the DB commit and the file write yields fully rewritten content
+  with no marker, and the state-driven trigger would then re-apply an old-pk-keyed map to hrefs that
+  now hold *target* pks — the silent mis-point case this design exists to prevent, and the one the
+  test harness cannot reach. So: write an **`in_progress`** marker *before* the transaction, flip it
+  to **`applied`** after commit, and treat a state file found `in_progress` as a **`CommandError`** in
+  both `import` and `verify`, never a silent re-run.
+
+- It **prints per-part rewritten and flattened counts** to stdout and records them in the state file;
+  the per-part grouping is what the part-order keying above provides. `verify` prints them from there
+  — it cannot recompute them, since it reads only the manifest, baseline and archives, none of which
+  carry the counts. In `verify`, a committed bundle whose state file lacks the `applied` marker is a
+  `CommandError` (the skipped-pass case), and a **missing** state file is likewise a `CommandError`
+  telling the operator to run `import` first — mirroring what `verify` already does for a missing
+  `BASELINE_NAME`.
 
 **The map is applied exactly once, to hrefs that still hold source pks** — which `defer` guarantees.
 This invariant has to be argued rather than tested, and the reason is worth recording: source and

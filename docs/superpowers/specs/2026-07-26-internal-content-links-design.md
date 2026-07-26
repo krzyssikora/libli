@@ -695,9 +695,13 @@ The selector duplicates the route's literal path, which the route *name* does no
 marker off every internal link. §Testing ties them together, and the CSS carries a comment naming its
 twin.
 
-Three acknowledged misclassifications, all benign:
+Four acknowledged misclassifications, all benign:
 
 - a `mailto:` link matches neither selector and gets no marker;
+- a permalink carrying a query or fragment suffix (`/courses/n/12/?x=1`) **does** match this prefix
+  selector and gets the internal glyph, while the dialog's anchored `^/courses/n/(\d+)/$` treats it
+  as an ordinary URL — as do part 2's rewrite and its delete count. A marker on a link that still
+  works; tightening the selector to the anchored form is not worth the CSS;
 - an absolute same-origin **permalink** would match the *outbound* rule, though row 2 of the URL
   contract normalises those away, so it only affects hand-typed HTML;
 - an absolute same-origin URL that is **not** a permalink — an outline or unit URL pasted from the
