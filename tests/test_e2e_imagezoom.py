@@ -176,6 +176,27 @@ def _await_decoded(page, locator):
     )
 
 
+def _await_closed(page):
+    """Wait until the dialog's `close` HANDLER has finished, not merely until it shut.
+
+    `dialog.close()` removes the `open` attribute SYNCHRONOUSLY but only QUEUES the
+    `close` event as a task, so `wait_for_selector("dialog.imgzoom[open]",
+    state="detached")` returns while the handler may not have run yet. Anything the
+    handler produces — the `src` removal, the focus restore, dropping the
+    `imgzoom-open` class — is therefore racy to assert right after that wait.
+
+    CI caught this that the serial local runs did not: under `-n 2` on a loaded runner,
+    `test_close_removes_the_src_attribute` read the still-present src.
+
+    `imgzoom-open` is removed LAST in the handler, so its absence proves every earlier
+    step already ran. Wait on that.
+    """
+    page.wait_for_selector("dialog.imgzoom[open]", state="detached")
+    page.wait_for_function(
+        "() => !document.documentElement.classList.contains('imgzoom-open')"
+    )
+
+
 def _box(locator):
     box = locator.bounding_box()
     assert box is not None, "expected a laid-out box"
@@ -357,7 +378,7 @@ def test_second_click_closes_and_restores_focus(page, live_server, zoom_lesson):
     trigger = _trigger(page)
     dialog = _open(page, trigger)
     dialog.click()
-    page.wait_for_selector("dialog.imgzoom[open]", state="detached")
+    _await_closed(page)
     assert trigger.evaluate("el => el === document.activeElement")
 
 
@@ -477,7 +498,7 @@ def test_close_removes_the_src_attribute(page, live_server, zoom_lesson):
     _goto(page, live_server, unit, user)
     dialog = _open(page, _trigger(page))
     dialog.click()
-    page.wait_for_selector("dialog.imgzoom[open]", state="detached")
+    _await_closed(page)
     assert page.locator(".imgzoom__img").get_attribute("src") is None
 
 
@@ -498,7 +519,9 @@ def test_the_page_behind_does_not_scroll(page, live_server, tall_lesson):
     assert page.evaluate("() => window.scrollY") == before
 
     page.keyboard.press("Escape")
-    page.wait_for_selector("dialog.imgzoom[open]", state="detached")
+    _await_closed(
+        page
+    )  # the lock is dropped in the close handler; settle before scrolling
     page.mouse.wheel(0, 400)
     page.wait_for_timeout(150)
     assert page.evaluate("() => window.scrollY") > before, "positive control failed"
