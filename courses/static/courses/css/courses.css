@@ -1529,3 +1529,50 @@ a.unit-crumbs__label:focus-visible { outline: 2px solid var(--primary); outline-
 .markdone-row { display: flex; align-items: center; gap: 0.5rem; }
 .markdone-row input[type="text"] { flex: 1; }
 .markdone-row__del { display: inline-flex; align-items: center; gap: 0.25rem; color: var(--text-secondary); white-space: nowrap; }
+
+/* ---------------------------------------------------------------------------
+   Click-to-enlarge images. imagezoom.js arms [data-zoomable] images as buttons
+   and opens one reused modal <dialog> holding a copy of the image. All sizing is
+   here: max-width/max-height only ever SHRINK a replaced element, so the rendered
+   size is exactly min(natural, viewport-fit) with no JS measurement.
+   --------------------------------------------------------------------------- */
+.imgzoom-trigger { cursor: zoom-in; }
+.imgzoom-trigger:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+
+/* Every box declaration below is scoped to [open]: an unscoped author-origin
+   `display` would beat the UA's `dialog:not([open]) { display: none }` and leave the
+   dialog permanently covering the page — the same trap as `[hidden]` vs `display:grid`
+   at courses.css:353. This rule makes that explicit and guards a future edit that
+   forgets the scoping; at (0,2,1) it also outranks an unscoped `.imgzoom` at (0,1,0),
+   so it — not the UA rule — is what governs the closed state. */
+dialog.imgzoom:not([open]) { display: none; }
+
+.imgzoom[open] {
+  /* One viewport metric per axis, deliberately: horizontal from the initial
+     containing block (top/left/right), which EXCLUDES a classic scrollbar; vertical
+     from 100dvh, which tracks a mobile collapsing toolbar. `inset: 0` plus an explicit
+     height would over-constrain the vertical axis and mix two metrics on one axis. */
+  position: fixed; top: 0; left: 0; right: 0; height: 100dvh;
+  /* The UA gives dialog `max-width/max-height: calc(100% - 6px - 2em)` and
+     `width/height: fit-content`; all four must be overridden. `width: auto` is NOT
+     optional: leaving `fit-content` with left:0/right:0/margin:0 over-constrains the
+     axis, CSS drops `right`, and the dialog collapses to a fit-content box flush LEFT —
+     `place-items: center` then centres the image inside a box only as wide as the
+     image, so it renders left-aligned. `margin: 0` is only safe because
+     left/right/width:auto resolve the horizontal axis between them. */
+  width: auto; max-width: none; max-height: none;
+  margin: 0; padding: 0; border: 0; overflow: hidden;
+  background: var(--scrim-solid);
+  display: grid; place-items: center;
+  cursor: zoom-out;
+}
+/* Belt-and-braces for any engine where the box does not fill the viewport. Note that
+   ::backdrop only inherits custom properties from its originating element in newer
+   engines (Chromium 122+); before that var(--scrim-solid) resolves to nothing here and
+   the declaration is simply inert. Harmless either way, because .imgzoom[open] already
+   covers the viewport -- so this rule buys less than it appears to. */
+.imgzoom::backdrop { background: var(--scrim-solid); }
+/* 100% of the dialog's content box — which IS the fitted viewport, per above.
+   Full-bleed by design: a gutter must come as max-height: calc(100% - 2 * gutter)
+   here, never as padding on the dialog, which this max-height would overflow. */
+.imgzoom__img { max-width: 100%; max-height: 100%; width: auto; height: auto; display: block; }

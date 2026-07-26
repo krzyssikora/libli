@@ -39,6 +39,14 @@
      own backgrounds vary (raised card, sunken header tint, zebra rows), so any
      opaque fade colour would be wrong against at least one of them. */
   --scroll-edge: rgba(30,28,24,0.16);
+  /* Lightbox scrim for the click-to-enlarge overlay. Declared ONCE, here, and
+     deliberately NOT repeated in the [data-theme="dark"] block below: that absence is
+     the mechanism by which the overlay is identical in both themes (image viewers are
+     conventionally dark). A source-level test enforces it, because every neighbouring
+     surface token IS defined twice and the next routine edit here is the one that would
+     silently break it. Near-opaque, unlike --surface-overlay: nothing of the page may
+     show through. */
+  --scrim-solid: rgba(12,11,10,0.97);
   --text-primary: #1E1C18; --text-secondary: #5A544A; --text-tertiary: #8A8477;
   --text-inverse: #FBF9F4;
   --border-subtle: #EDE8DE; --border-default: #E7E1D6; --border-strong: #D6CFC1;
