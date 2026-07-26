@@ -186,11 +186,24 @@ two-statement sliver: a strict superset, small but not empty.
 
 **Accepted, with the reasoning recorded.** What bounds it: the sliver is two statements wide, not a
 whole request, and it requires a `seen` flush already in flight at the instant of the click — a
-500 ms debounce that only runs while scrolling. What does **not** bound it is the consequence, so
-state that plainly: the next flush re-sets `completed=True` only when
-`current.issubset(merged)` (`views.py:664`), so a student who clicks the pill **before** scrolling
-through every element loses the click for good, while `unitMarkDone`'s add-only shape leaves their
-pill reading "✓ Completed" until the page reloads. Narrowing the mitigation is not on the table:
+500 ms debounce that only runs while scrolling. **State the consequence through the redirect, not
+through the JS** — the obvious framing is wrong, and this is the paragraph that least of all can
+afford a false mechanism. `complete` ends in `redirect(...)`, so every click is followed by a fresh
+server-rendered GET, and *that* is what paints the pill. `unitMarkDone` is not what paints it: that
+function fires only when a flush reports `completed: true`, and the flush in this scenario is the
+very one that just wrote `False`. Two interleavings follow:
+
+- the stale UPDATE lands **before** the redirect GET's read → the GET renders the button again, the
+  loss is visible at once, and one more click fixes it;
+- it lands **after** → the GET renders "✓ Completed" over a row that now says `False`, and the pill
+  lies for the rest of the session. (Here — and only here — `unitMarkDone`'s add-only shape is what
+  matters: it explains why a later flush reporting `completed: false` cannot un-flip the stale pill.
+  That property is about un-flipping a server-rendered pill, never about the click's own outcome.)
+
+So the loss is **recoverable but potentially silent**, not permanent: nothing re-sets the row by
+itself unless a later flush completes the element set (`current.issubset(merged)`, `views.py:664`),
+yet any re-click after any reload restores it. "Lost for good" overstates it; "harmless"
+understates it. Narrowing the mitigation is not on the table:
 `complete` is one code path for both populations, and taking the lock only on a previewer branch
 would reinstate the `is_enrolled` query this change deletes. Hardening `seen` remains the real fix
 and stays out of scope per the paragraph above — this is the note telling that author the **enrolled**
@@ -216,8 +229,14 @@ unit was already complete — nothing further. **In production** that is +1 quer
   branch was skipped. The new shape is `BEGIN`/`COMMIT` + two SELECTs + the writes — and on a
   **first** POST that is an INSERT *and* an UPDATE, not "one or the other": `get_or_create` carries
   no `defaults`, so it inserts `completed=False`, the re-fetch runs, and `save()` then updates. A
-  repeat POST is two SELECTs and no write (Testing §11). Adding `defaults={"completed": True}` is
-  **not** the intended optimisation — it would collapse the re-fetch §2b exists to protect. No `assertNumQueries` /
+  repeat POST is two SELECTs and no write (Testing §11). `defaults={"completed": True}` would trim
+  that first-POST UPDATE — `get_or_create` creates through `save()`, which stamps `completed_at`
+  (`models.py`'s completed⇒completed_at invariant) — and it is **not** taken here. **Be accurate
+  about why, because the tempting reason is false:** it does *not* collapse the re-fetch. `defaults`
+  affects only the create path; a following `select_for_update().get(...)` is untouched by it, and
+  the two are independent edits. The real reason to skip it is that it buys one UPDATE on a first
+  POST only, at the cost of a second way to spell the same write. The re-fetch's justification rests
+  solely on lock-before-read ordering (§2b) and must not be propped up by this. No `assertNumQueries` /
 `CaptureQueriesContext` test currently covers `complete` (verified), so nothing breaks. **Under
 pytest** it looks different: `django_db` already holds a transaction, so the same block emits
 `SAVEPOINT`/`RELEASE` — a harness artefact, not a production cost. Testing §11 wraps this endpoint in
@@ -292,11 +311,19 @@ natural phrasing for that ("a save that writes `progress.element_state = …` ba
 "`row.element_state[pk] = blob`") matches the regex and pushes the count to 4. The suite then fails
 with a message about new write routes and an unresettable state-bearing type — a diagnosis with
 nothing to do with this diff, and exactly the confusing-failure shape the query-count caveat and
-the §7 `_login` trap exist to pre-empt. **So: none of the seven comment bodies may contain the
-literal tokens `.element_state =`, `element_state[`, `element_state.pop(` or
-`.update(element_state=`.** Refer to the field in prose ("the practice-state blob", "`element_state`
-as it stood at fetch time") instead. If the guard does go red on a comments-only diff, it is a prose
-problem, not a code one.
+the §7 `_login` trap exist to pre-empt. **State the ban against the regex, not against a list of
+literals** — a literal list is both leaky and over-broad, since `row.element_state= blob` matches the
+pattern while evading any literal, and `element_state[pk]` with no following `=` matches neither. So:
+**no comment body in `courses/views.py` may match**
+
+```
+\.update\(\s*element_state=|element_state\.pop\(|element_state\[[^\]]*\]\s*=|\.element_state\s*=(?!=)
+```
+
+Refer to the field in prose ("the practice-state blob", "`element_state` as it stood at fetch time")
+instead. The `_lesson_article.html` comment — one of the seven — is **exempt**: the guard walks
+first-party `.py` roots only and skips `tests/`, so no template is ever scanned. If the guard does go
+red on a comments-only diff, it is a prose problem, not a code one.
 
 The new ones first. The atomic block's **re-fetch under lock** is the only piece of *code* in this
 diff that no test can protect — collapsing it back to `progress, _ = get_or_create(...)` is
@@ -356,6 +383,13 @@ against its own behaviour. All five below are corrections of fact:
   their practice state both persist; it is specifically the **scroll signal** that is dropped. This
   comment sits exactly at the asymmetry the spec most wants legible, so it must name that asymmetry:
   seen-tracking is not recorded for previewers, while completion via the explicit button is.
+  **It must also cite the guard by name — `test_previewer_seen_no_write_and_ignores_stored_completion`
+  (the post-rename name Testing §3 pins).** This bullet is the *binding* statement of that
+  requirement; Architecture §3 and Testing §3 both defer to it, so there is one place to change if it
+  is ever revisited. Citing a test from a comment is house style here, not an innovation —
+  `UnitProgress.element_state`'s own comment cites `tests/test_element_state_write_routes.py` the
+  same way — and it is what makes the DoD's "quote all seven comment bodies" gate able to catch a
+  drifted reference.
 - **`templates/courses/_lesson_article.html:8-11`** — the one correction outside `views.py`, and the
   same doctrine applies to it. It opens "Completion is auto-tracked: progress.js auto-completes the
   unit once every element has been seen … This pill is the no-JS fallback + manual override". For
@@ -381,9 +415,9 @@ while `views.py:653-655` still reports `{"seen_element_ids": [], "completed": fa
 reports scroll-tracking, and scroll-tracking is not recorded for previewers* — not "here is your
 progress row". Do not "fix" the response to echo the stored row: that would break the previewer
 `seen` test — `test_previewer_seen_no_write_synthetic` today, renamed to
-`test_previewer_seen_no_write_and_ignores_stored_completion` by Testing §3, so use the post-rename
-name anywhere this sentence is echoed (notably the §2b `seen` comment) — and quietly turn a
-write-free endpoint into a state reporter.
+`test_previewer_seen_no_write_and_ignores_stored_completion` by Testing §3, which is the name the
+§2b `seen` comment is required to cite (§2b states that requirement; this section and Testing §3
+defer to it) — and quietly turn a write-free endpoint into a state reporter.
 
 It is also not user-visible, for a reason worth recording rather than rediscovering: `unitMarkDone`
 (`courses/static/courses/js/unit_done.js`) is **add-only** — it early-returns when `is-complete` is
@@ -512,7 +546,13 @@ change to existing data that no POST triggers, and it gets its own test (Testing
   save; §1 closes that window with `transaction.atomic()` + `select_for_update()`, the pattern
   `save_element_state` already uses. See §1 for why that mitigation was chosen over `update_fields`,
   and — importantly — for what it does **not** close: `seen` remains an unlocked full-row writer on
-  the enrolled path. This is a *concurrency* window — a write landing inside another request — so no
+  the enrolled path. **Two further unlocked full-row writers exist and are named here so an audit of
+  "which writers are unhardened" does not surface them as omissions:** `quiz_finish`
+  (`views.py:1287`) and `review.py::force_submit` (`:90`) both do `get_or_create` → mutate → bare
+  `save()` on a `UnitProgress` row (`force_submit`'s atomic block locks the `QuizSubmission`, not the
+  progress row). Neither can contend with anything in this diff: the row is keyed `(student, unit)`,
+  those two write a **quiz** unit's row, and `complete` is `require_lesson=True`, so the key sets are
+  disjoint. They share the shape, never the row. This is a *concurrency* window — a write landing inside another request — so no
   sequential test can sample it; Testing §11 pins the observable consequence (a second POST issues
   no UPDATE at all) rather than pretending to reproduce the race.
 - **No row on GET** — the read path stays `.filter().first()`. A `None` `progress` is a valid,
@@ -591,9 +631,11 @@ It must be rewritten, never left alongside a contradicting new test.
    POST, the same viewer GETs the lesson → the response shows the "Completed" pill and **not** the "Mark as done" submit button.
    *Falsify:* revert `progress = state_row` → RED while test 1 stays green.
    Assert on markers that cannot false-pass: `unit-done__pill--btn` (the button class) absent, and
-   `is-complete` present. Two facts make `is-complete` safe as a body substring **today**:
-   `_lesson_article.html:12` is its only template occurrence, and its other two occurrences
-   (`courses.css`, `unit_done.js`) are external assets that never enter the response body. Neither
+   `is-complete` present. What makes `is-complete` safe as a body substring **today** is a closed
+   form, so state it as one rather than as a count a verifier's grep will contradict:
+   `_lesson_article.html:12` is its only *template* occurrence, and **every** other occurrence in the
+   repo is either a static asset (`courses.css`, `unit_done.js`) or a test module
+   (`tests/test_e2e_slideshow.py`) — none of which can appear in a rendered response body. Neither
    is guaranteed to hold forever, so scope the assertion to the `[data-unit-done]` element rather
    than searching the whole body. **Parsing is the technique that satisfies both halves; the regex
    shortcut satisfies only one.** `unit-done[^"]*is-complete` expresses the *class-list-present* half
@@ -979,7 +1021,10 @@ It must be rewritten, never left alongside a contradicting new test.
     against the row).
     The load-bearing assertion is the third: **the second POST issues no `UPDATE` on
     `courses_unitprogress`** — wrap it in `CaptureQueriesContext` and assert no captured statement
-    updates that table. **Pin the match**, or the assertion passes vacuously: Postgres captures
+    updates that table. Spell the invocation out, as the parsing-technique paragraph does for bs4:
+    `from django.db import connection` and `from django.test.utils import CaptureQueriesContext`,
+    then `with CaptureQueriesContext(connection) as ctx:` — it is constructed *with* the connection,
+    not used as a bare context manager. **Pin the match**, or the assertion passes vacuously: Postgres captures
     `UPDATE "courses_unitprogress" SET …` with a *quoted* identifier, so a naive
     `'UPDATE courses_unitprogress' in sql` never matches. Use
     `re.search(r'update\s+"?courses_unitprogress"?', q["sql"], re.I)` over `ctx.captured_queries`.
@@ -1004,6 +1049,17 @@ It must be rewritten, never left alongside a contradicting new test.
     *Falsify:* exempt — these are pre-existing tests being protected from regression, not new
     guards. Per the falsifiability doctrine, a test whose behaviour the diff does not change has no
     honest RED recipe, and claiming one would be theatre.
+
+**Test naming (the rule, since the discipline is stated but not uniformly applied).** Five tests are
+named outright — 1(a), 3, 9, 10, 11 — and the rest are not. That asymmetry is deliberate and this is
+the rule behind it: **a name is pinned here whenever another artifact must refer to it** (a shipped
+code comment, as with §3's `seen` test; or a spec section that argues about the name, as with 9/10/11
+and their multi-assertion shape). Everywhere else the implementer names the test, subject to the
+discipline §1(a) states: **the name must cover every assertion the test makes**, so a later reader
+cannot justify deleting one as "unrelated to the name". Tests 1(c) (two blob columns), 6(b) (two
+elements) and 5(a)/(d) (a write *plus* a non-enrollment pin) are the shapes most exposed to that, so
+name them accordingly. The DoD's falsification roster is checked against these **spec labels**, not
+against function names — the PR description carries the label→function mapping.
 
 **Parsing technique (one rule, since five tests need it).** Tests 2, 6(a), 6(b), 7 and 9 are each
 told to scope an assertion to a subtree — `[data-unit-done]`, or `li[data-unit="<pk>"]` — and the
@@ -1058,7 +1114,11 @@ exit-5 trap), so spelling them bare here would cost an implementer a command-not
   `complete`'s access check) and five corrections (`views.py` ≈:273-275, ≈:396-398, ≈:652,
   ≈:784-788, and `_lesson_article.html:8-11`);
 - each **new, inverted or extended** test falsification-proven (guard removed → RED → restored) —
-  concretely tests **1(a), 1(b), 2, 3, 5(a)–(d), 6(a), 6(b), 7, 9, 10, 11**. Exempt in writing:
+  concretely tests **1(a), 1(b), 2, 3 (step 1), 3 (steps 2–3), 5(a)–(d), 6(a), 6(b), 7, 9, 10, 11**.
+  Test 3 is deliberately **two** checklist entries, not one: §3 argues that its two halves need
+  separate recipes and predicts exactly this failure — running only the `is_enrolled`-gate recipe and
+  ticking a single box, leaving the extension listed as falsification-proven when only its
+  pre-existing half is. Exempt in writing:
   **8** (no insertion point exists for the mutation), **12** (pre-existing regression protection),
   **1(c)** entirely, and **1(b)'s `element_state` assertion** (both regression cover, not guards —
   see Testing §1). Test **4** is pre-existing and unchanged, so running its recipe is optional — it
