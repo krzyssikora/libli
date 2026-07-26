@@ -28,8 +28,8 @@ one registry rather than two overlapping guesses.
 |---|---|
 | `courses/richtext.py` | **new** — the registry, the scan/rewrite helpers, `count_inbound_links` |
 | `courses/transfer/schema.py` | `FORMAT_VERSION` 5→6; `link_nodes` admitted to `validate_document`'s key list and shape-checked |
-| `courses/transfer/export.py` | emit `document["link_nodes"]` |
-| `courses/transfer/importer.py` | `_create_elements` returns what it created; `on_missing` + `report` threaded through the three entry points; the rewrite post-pass |
+| `courses/transfer/export.py` | emit `document["link_nodes"]`; **also return `node_ids`** from `build_export`, which the bundle-level map needs (§3) |
+| `courses/transfer/importer.py` | `_create_elements` returns what it created; `on_missing` (incl. the new `defer`) + `report` threaded through the entry points; `report` also carries `node_map` as `{export_id: new_pk}`; the rewrite post-pass |
 | `courses/builder.py` | *unchanged* — `materialize_duplicate` defaults to `on_missing="keep"`, so `duplicate_unit` calls it exactly as it does today |
 | `courses/views_transfer.py` | a second, separate `messages.warning` on both import paths when links were flattened |
 | `courses/management/commands/migrate_course_content.py` | bundle-level `link_nodes` at export; `on_missing="keep"` + accumulated old→new state at import; final rewrite pass and stdout counts — **the cutover path**, see §3 |
@@ -37,6 +37,8 @@ one registry rather than two overlapping guesses.
 | `templates/courses/manage/node_confirm_delete.html` | the warning sentence |
 | `tests/test_tabs_transfer.py`, `tests/test_transfer_schema.py` | the two hard-coded `FORMAT_VERSION == 5` assertions (one is also a test *name*) |
 | `tests/test_table_transfer.py` | line 265's comment "(4 <= FORMAT_VERSION=5)" goes stale — comment-only fix, the test itself still passes |
+| `tests/test_richtext.py` | **new** — registry, scanner and rewrite cases |
+| `tests/test_migrate_course_content.py` | the three cutover cases in §Testing |
 | `locale/*/LC_MESSAGES/django.po` + `.mo` | two new strings, both catalogs, regenerated |
 
 **Out of scope**
@@ -229,9 +231,9 @@ sites collapse to just **8 distinct triples**, because def names and targets rep
 So adding a new element type the cheapest way — copy `TextElement`: a `body` field plus
 `def save: self.body = sanitize_html(self.body)` — yields a triple **already in the set**, and the
 guard stays GREEN for exactly the case it was introduced to catch. Including the class disambiguates
-those; counting multiplicity means *deleting* one of the four `clean_stem` sites also moves the
-structure, which a set would miss and which the spec's own "add a throwaway site, assert RED"
-falsification would otherwise fail to exercise reliably.
+those. Multiplicity is kept for the narrower case the qualname does not separate: two `sanitize_html`
+calls sharing one qualname *and* one target inside a single method — as a second
+`self.body = sanitize_html(self.body)` in the same `save()` would be.
 
 The baseline is therefore stated as **14 entries over 14 distinct keys**, and the test asserts the
 whole structure, not its length.
@@ -353,7 +355,7 @@ the correct answer differs:
 |---|---|---|
 | `import_course` / `import_subtree` (uploaded archive, via the views) | `unwrap` | the pk means nothing here, and leaving it risks silently linking to an unrelated node that happens to occupy that pk |
 | `materialize_duplicate` (same install, via `duplicate_unit`) | `keep` | those pks still resolve; flattening a working link would be a regression |
-| `migrate_course_content` (the management command) | `keep`, then a bundle-level pass | the target may arrive in a *later* archive — see below |
+| `migrate_course_content` (the management command) | `defer`, then one bundle-level pass | the target may arrive in a *later* archive — see below |
 
 **The management command is the cutover, and the naive default breaks it.** There is a fourth caller
 of `import_subtree`: `courses/management/commands/migrate_course_content.py:481`. That command *is*
@@ -370,18 +372,65 @@ migration it was written for, for the most likely link shape in a large course.
 
 The command already has the structure to do this correctly — three phases (`export` / `import` /
 `verify`) with a bundle directory, a `bundle-manifest.json` written once after a complete export, and
-`--start-at K` resume. So:
+`--start-at K` resume.
 
-- **Export phase** additionally writes a **bundle-level** `link_nodes` covering every node in the
-  source course, not just the current part — keyed old pk → `(archive, export id)`. The manifest is
-  written once, after all parts export, which is exactly when the whole mapping is known.
-- **Import phase** passes `on_missing="keep"` per part, so nothing is destroyed while later parts are
-  still pending, and accumulates `old_pk → new_pk` into a bundle-level state file. It must be a file,
-  not memory: `--start-at` resumes across process invocations.
-- **After the last part commits**, a final rewrite pass over the grafted content applies the
-  accumulated map, with `unwrap` for anything still unresolved, and **prints the counts** —
-  rewritten and flattened, per part — to stdout. `verify` reports the same totals so a resumed or
-  interrupted run can be reconciled.
+**The governing rule: no href is rewritten until the whole map exists.** Rewriting per part and then
+"finishing up" at the end cannot work, and the reason is worth stating because it is the trap this
+design fell into once already. If each part's import rewrote its own intra-part links to *new* pks,
+the final pass — whose map is keyed by **old source** pks — would find those hrefs unresolvable and,
+under `unwrap`, flatten every within-part link in the entire course. That is a far worse outcome than
+the cross-part loss it was meant to fix. So the per-part imports rewrite **nothing**, and exactly one
+pass rewrites everything, once, when the complete map is known.
+
+That needs a third `on_missing` value, used only here:
+
+| value | behaviour |
+|---|---|
+| `unwrap` | rewrite what maps; flatten the rest (uploaded archives) |
+| `keep` | rewrite what maps; leave the rest (same-install duplicate) |
+| **`defer`** | **skip the rewrite post-pass entirely** — every href still holds a source pk afterwards |
+
+- **Export phase** additionally writes a **bundle-level** `link_nodes` into `bundle-manifest.json`,
+  covering every node in the source course rather than only the current part: old pk → `(archive,
+  export id)`. The manifest is written once, after all parts export, which is exactly when the whole
+  mapping is known. This requires plumbing the exporter does not have today: `node_ids` is a local in
+  `build_export` and `_node_dict` never emits the source pk, so **`build_export` must also return
+  `node_ids`** (see the `export.py` row in §Scope). The per-part `document["link_nodes"]` cannot
+  substitute — it holds only targets referenced from inside that part, so a node linked to *only*
+  from another part appears in no archive's map at all.
+- **Import phase** passes `on_missing="defer"` per part and accumulates `old_pk → new_pk` in a
+  bundle-level state file, `LINK_STATE_NAME` (a module constant beside `MANIFEST_NAME` and
+  `BASELINE_NAME`). Building that map needs `export_id → new_pk`, which `import_subtree` does not
+  return today — it hands back only the grafted root — so **`report` also receives `node_map`** as
+  `{export_id: new_pk}` alongside `flattened_links`.
+  Lifecycle mirrors `BASELINE_NAME`: written fresh when `start_at is None`, read and extended on
+  resume, and removed by `export --clean` (which today deletes only `*.zip` and the manifest). Without
+  the reset rule, a fresh migration through a reused bundle directory would inherit `old_pk → new_pk`
+  entries from an abandoned run and rewrite links to its nodes.
+- **The final pass is triggered by bundle state, not by the loop.** It runs whenever every archive is
+  committed *and* the state file does not yet record the pass as applied — then marks it applied. The
+  loop-completion reading has a hole precisely where the state file exists to help: a process that
+  dies after the last part commits resumes with `--start-at part_count`, hits the "this migration is
+  already complete" early return, and never rewrites anything. Skipped entirely under `--dry-run`.
+- **Its scope is the grafted content only** — the `Element` rows under the top-level nodes this
+  migration created, identifiable from the baseline's `top_nodes` plus the committed part orders —
+  **not** the whole target course. `--force` allows grafting into a course that already holds content,
+  and those pre-existing bodies carry *target* pks; sweeping them with an old-pk-keyed map would
+  flatten or, on a numeric coincidence, mis-point them.
+- It runs inside a single `transaction.atomic()`, so a failure leaves nothing half-rewritten and the
+  applied-marker is never written; a re-run repeats it cleanly.
+- It **prints per-part rewritten and flattened counts** to stdout and records them in the state file.
+  `verify` prints them from there — it cannot recompute them, since it reads only the manifest,
+  baseline and archives, none of which carry the counts. A committed bundle whose state file lacks
+  the applied marker is a **`CommandError`** in `verify`, like every other reconciliation failure: it
+  is the one signal that the skipped-pass case above actually happened.
+
+**The map is applied exactly once, to hrefs that still hold source pks** — which `defer` guarantees.
+This invariant has to be argued rather than tested, and the reason is worth recording: source and
+target live in *different databases*, so a new target pk can equal an old source pk. Any design that
+re-applies the map over already-rewritten content can therefore silently re-point a correct link at
+an unrelated node. `tests/test_migrate_course_content.py` creates both courses in one test database,
+where new pks always exceed source pks, so the collision is not reachable from the harness.
 
 This is the one place the design pays for the two-phase architecture, and it is not optional: without
 it the spec's headline claim about the cutover is false.
@@ -449,7 +498,9 @@ counts["inbound_links"] = count_inbound_links(course, node)
 
 **What the number counts, exactly:** the number of distinct `Element` join rows **elsewhere in this
 course** — outside the subtree being deleted — whose registry text contains at least one link to the
-node or any of its descendants. Elements, not anchors: two anchors in one body pointing at two doomed
+node or any of its descendants. The query returns *concrete* rows (`TextElement`, …), and counting
+those is the same number because each concrete element row carries exactly one `Element` join (the
+GFK is effectively 1:1, which is why `SpoilerElement.join_row()` can take `.first()`). Elements, not anchors: two anchors in one body pointing at two doomed
 nodes count once, because the author's unit of repair is "this element needs editing". And outside
 the subtree, because a link *inside* the doomed subtree dies together with its target; counting those
 would report a large number for a self-contained part whose lessons cross-link each other, which is
@@ -524,6 +575,10 @@ DELETE (GET confirm)
 - **A `link_nodes` *value* that is not an export id present in `node_map`** → that entry is
   unresolvable, same as absent. Should not occur; handled rather than asserted, since an import must
   never 500 on a bad archive.
+- **A bundle exported before this change**, whose `bundle-manifest.json` has no `link_nodes` key →
+  read with `manifest.get("link_nodes", {})`, so no part rewrites and the operator gets the flattened
+  count rather than a raw `KeyError`. `_read_bundle_manifest` validates only `part_count`, so such a
+  bundle passes the gate and must not traceback afterwards.
 - **A body meeting one of the three fail-closed conditions** (unterminated quoted value; `<a` with no
   unquoted `>`; unwrap with no matching `</a>`) → returned byte-identical, nothing counted. Fail
   closed; never emit mangled markup.
@@ -592,13 +647,20 @@ Falsified before trusted — delete the behaviour, require RED — per house rul
 **The cutover path** — the case the naive `unwrap` default silently breaks, so it gets end-to-end
 coverage rather than a note:
 
-- A two-part fixture course where a lesson in part A links to a unit in part B. Run the command's
-  `export` → `import` cycle over both parts and assert the link resolves to part B's **new** pk. With
-  per-part `unwrap` this test goes red with the link flattened, which is the falsification.
+- A two-part fixture course where a lesson in part A links to a unit in part B **and** another lesson
+  in part A links within part A. Run `export` → `import` over both parts and assert **both** resolve
+  to their **new** pks. The intra-part link is not padding: it is the assertion that catches the
+  rewrite-per-part-then-finish design, under which the final old-pk-keyed pass would flatten every
+  within-part link in the course. A cross-part-only fixture passes that broken design.
 - The same, with the import **interrupted after part A and resumed with `--start-at`**: the
   accumulated old→new state must survive across process invocations, so the final pass still
   resolves the cross-part link. This is what pins the state to a file rather than memory.
 - A link whose target is in no part at all → flattened, counted, and the count printed to stdout.
+- **The skipped-pass window:** a run interrupted *after* the last part commits but before the rewrite
+  pass, then resumed with `--start-at part_count`, still applies the pass — and `verify` raises
+  `CommandError` on a committed bundle whose state file lacks the applied marker.
+- `--force` grafting into a target that already holds linked content: the pre-existing bodies are
+  **untouched**, since the pass is scoped to the grafted top-level nodes.
 
 **Delete warning**
 
