@@ -1,7 +1,8 @@
 # Internal content links — dialog and permalink
 
 Part 1 of two. Part 2 (`2026-07-26-internal-link-durability-design.md`) makes these links survive
-export→import and warns before a linked node is deleted. Part 1 is shippable on its own.
+export→import and warns before a linked node is deleted. Part 1 is shippable on its own, with one
+named risk carried until part 2 lands (see §Error handling, "target now lives in another course").
 
 ## Purpose
 
@@ -24,9 +25,27 @@ This replaces that button's behaviour with a real dialog covering both kinds of 
 
 - A slug-free permalink route + view resolving a `ContentNode` to its reader-facing page.
 - Per-node anchors on the course outline, so non-unit nodes are linkable at all.
-- The link dialog (`link_dialog.js`) and the `text_toolbar.js` change that opens it.
+- The link dialog: a server-rendered partial plus `link_dialog.js`, and the `text_toolbar.js`
+  change that opens it.
 - A picker endpoint serving the course tree to the dialog.
 - Student-side styling distinguishing internal from external links.
+
+**Files touched.** No toolbar template changes — but the editor page itself does change, and the
+list is enumerated here rather than left implicit:
+
+| file | change |
+|---|---|
+| `courses/urls.py` | two routes: `node_permalink`, `manage_link_picker` |
+| `courses/views.py` | `node_permalink` |
+| `courses/views_manage.py` | `link_picker` |
+| `templates/courses/manage/editor/editor.html` | `data-link-picker-url` on `section.editor`; `{% include %}` of the dialog partial; `<script src="link_dialog.js" defer>` **before** `text_toolbar.js` |
+| `templates/courses/manage/editor/_link_dialog.html` | **new** — the dialog markup, all strings `{% trans %}` |
+| `templates/courses/manage/editor/_link_picker.html` | **new** — the tree rows |
+| `templates/courses/_outline_node.html` | per-node `id` |
+| `courses/static/courses/js/link_dialog.js` | **new** |
+| `courses/static/courses/js/text_toolbar.js` | `case "link":` only |
+| `courses/static/courses/css/editor.css` | dialog styling + duplicated `.tree__badge*` rules |
+| `courses/static/courses/css/courses.css` | `:target` highlight, internal/external link affordances |
 
 **Out of scope, deliberately**
 
@@ -45,17 +64,27 @@ This replaces that button's behaviour with a real dialog covering both kinds of 
   why it *must* be — a custom scheme, a marker attribute, or a marker class would all need the
   sanitiser widened, and none of them buy anything the href prefix does not already give us.
 
+- **An "open in a new tab" control.** `ALLOWED_ATTRIBUTES = {"a": {"href", "title", "rel"}}` — the
+  sanitiser strips `target`, so such a checkbox would silently do nothing. Stated here so nobody
+  helpfully adds one.
+
 - **Table and fill-table cells.** `sanitize_cell` allows `CELL_TAGS = {strong, b, em, i, u, br}` —
   no `<a>` at all. A link authored into a cell would be silently stripped on save. Making cells
   link-bearing is a sanitiser change with its own blast radius; it is not part of this.
 
 - **Cross-course links.** The picker shows one tree: the course being edited. A link to another
-  course would land any student not enrolled there on a 403, and — see part 2 — could not be
+  course would land any student not enrolled there on a 404, and — see part 2 — could not be
   rewritten on export anyway, since the archive only knows about the exported course. Pasting an
   absolute URL in the *Web address* tab remains possible for an author who really wants this.
 
 - **A link audit page.** Listing every internal link in a course and flagging the broken ones is a
   reasonable follow-up; it is not needed to ship the feature.
+
+- **`core.help` role manuals.** This adds a visible authoring affordance that the Course Admin
+  manual's toolbar description will eventually want a sentence about, but that is bilingual
+  documentation work with its own review. Follow-up, matching how the unit-editor-link change
+  handled the same question. No committed help screenshot covers the editor toolbar, so none needs
+  regenerating.
 
 ## Architecture / components
 
@@ -70,14 +99,14 @@ path("courses/n/<int:node_pk>/", views.node_permalink, name="node_permalink"),
 Verified free: `resolve("/courses/n/12/")` raises `Resolver404` against the current URLconf. No
 collision with `courses/<slug:slug>/`, which matches two path segments where this matches three.
 (`/courses/n/` — a course whose slug is literally `n` — still resolves to `course_outline`, as it
-does today.)
+does today. Both facts get a resolver test; see §Testing.)
 
 ```python
 @login_required
 def node_permalink(request, node_pk):
     node = get_object_or_404(ContentNode.objects.select_related("course"), pk=node_pk)
     if not can_access_course(request.user, node.course):
-        raise PermissionDenied
+        raise Http404("node is not accessible")     # NOT PermissionDenied — see below
     if node.kind == ContentNode.Kind.UNIT:
         name = ("courses:quiz_unit" if node.unit_type == ContentNode.UnitType.QUIZ
                 else "courses:lesson_unit")
@@ -87,6 +116,13 @@ def node_permalink(request, node_pk):
         + f"#node-{node.pk}"
     )
 ```
+
+**404, not 403, for an inaccessible node.** This follows the convention `get_node_or_404` states in
+its own docstring: *"Access (403) is checked by the caller AFTER this returns, so a foreign node
+always 404s before any 403."* Every other node-addressed view scopes by slug first, so a node in a
+course you cannot see 404s. The permalink carries no slug to scope against, so returning 403 here
+would make it the one route in the app that answers "does node 4711 exist?" for any logged-in user
+— a node and course enumeration oracle. Returning 404 keeps the existing indistinguishability.
 
 The quiz branch is explicit rather than delegated. `lesson_unit` does redirect a quiz unit onward to
 `quiz_unit`, so delegating would work — but it would cost a second redirect hop on every quiz link,
@@ -103,10 +139,17 @@ markup and a `{% if %}` around an `id` earns nothing. Units already link to thei
 not normally be reached by fragment, but the attribute is harmless and keeps the rule "every node
 has an anchor" true.
 
-CSS adds `scroll-margin-top` (the outline sits under sticky chrome, so a raw fragment jump would
-park the target row underneath it) and a `:target` highlight so the reader can see which row they
-were sent to. The highlight must be legible in both themes — judged separately, per house rule, not
-inferred from the light screenshot.
+CSS adds a `:target` highlight so the reader can see which row they were sent to, plus
+`scroll-margin-top`. **The reason for `scroll-margin-top` is breathing room, not sticky chrome** —
+measured: `.app-header` is `position: relative` (`core/static/core/css/app.css:22`) and `outline.html`
+renders `.outline` in the normal `.app-main` flow, so nothing overlays the target row. Without the
+declaration the row lands flush against the viewport top with no context above it; a
+`var(--space-4)`-ish offset restores a line of context. If implementation finds the flush landing
+acceptable, dropping the declaration is fine — what must not survive is a false justification for
+keeping it.
+
+The highlight must be legible in both themes — judged separately, per house rule, not inferred from
+the light screenshot.
 
 ### 3. Picker endpoint — `courses/views_manage.py`, `templates/courses/manage/editor/_link_picker.html`
 
@@ -117,67 +160,149 @@ path("manage/courses/<slug:slug>/link-picker/", views_manage.link_picker,
 
 `@login_required`, `can_manage_course` or `PermissionDenied`, then renders the whole course tree
 from the existing `_children_map(course)` helper — one query, `parent_id -> [children]`, already
-used by the builder view. The partial mirrors `_move_picker.html`: one row per node carrying
-`data-node="{{ n.pk }}"` and `data-title`, a `tree__badge tree__badge--{{ n.kind }}` chip, indented
-by depth.
+used by the builder view. The view renders the **partial standalone** (no `base.html` extension),
+because the dialog fetches it and injects the markup directly.
+
+The structural precedent is `templates/courses/manage/_tree_node.html` — the recursive,
+depth-indented tree — **not** `_move_picker.html`, which renders a flat candidate list with a
+one-level child preview. Like `_tree_node.html`, the partial `{% load courses_manage_extras %}` for
+the `get_item` filter (there is no way to index a dict by variable key in a Django template
+otherwise) and `{% include %}`s itself for each child, passing an incremented `depth`.
+
+Each row carries `data-node="{{ n.pk }}"`, `data-title="{{ n.title }}"`, and a
+`tree__badge tree__badge--{{ n.kind }}` chip. The partial lives under `editor/` rather than beside
+`_move_picker.html` in `manage/` because it is only ever fetched by the editor page's dialog.
+
+**The badge styles must be duplicated into `editor.css`.** `.tree__badge` and its four kind
+modifiers live in `builder.css:35-37`, and the editor page loads only `courses.css`, `editor.css`
+and KaTeX — never `builder.css`. Simply adding `builder.css` to the editor page was considered and
+rejected: it also carries `.tree__title` overrides for the inline-rename `<input>` that exist to win
+a specificity fight with `app.css`, and importing that fight into a different page is a worse risk
+than three duplicated static declarations. The duplicate carries a comment naming `builder.css` as
+its twin.
 
 Whole-tree-in-one-response is a deliberate choice over server-side search. The largest real course
-(`mat-pp`) is ~925 nodes, which is roughly 110 KB of markup — one fetch per editor page, cached in
-the dialog module after the first open, filtered client-side thereafter. The media picker searches
-server-side because a media library is unbounded and its rows carry thumbnails; a course tree is
-neither.
+(`mat-pp`) is ~925 nodes; at roughly 150–200 bytes per row that is on the order of 150–200 KB —
+an order-of-magnitude estimate, not a measurement, and worth re-checking against the real row markup
+during implementation. One fetch per editor page, cached in the dialog module after the first open,
+filtered client-side thereafter. The media picker searches server-side because a media library is
+unbounded and its rows carry thumbnails; a course tree is neither.
 
-### 4. The dialog — `courses/static/courses/js/link_dialog.js` (new), `text_toolbar.js` (changed)
+**Cache lifetime is the page load, and staleness is accepted.** A node renamed or added in another
+tab will not appear until the editor page is reloaded. The tree is fetched once because the editor
+page is long-lived and `editor.js` swaps element fragments repeatedly; re-fetching per open would
+cost a ~200 KB round trip for a tree that changes rarely during an editing session.
 
-The module exposes one entry point, deliberately shaped like the `window.libliMathInput.open(cb)`
-that `text_toolbar.js` already calls for the ∑ button:
+**The unit being edited is included** in the tree, and selectable. A self-link is odd but harmless,
+and excluding it would need the picker to know which unit hosts the element — context it otherwise
+does not need.
+
+### 4. The dialog — partial + `link_dialog.js` (new), `text_toolbar.js` (changed)
+
+**The dialog markup is server-rendered**, as `_link_dialog.html`, included once by `editor.html`.
+This is not a stylistic choice: the repo has **no** `JavaScriptCatalog` / `jsi18n` route (grepped:
+zero hits), so `makemessages` cannot extract a string that exists only inside a `.js` file. Every
+other JS-driven UI here works around that by rendering strings into `data-msg-*` attributes
+(`math_input.js` reads `data-msg-insert` / `-cancel` / `-math` off `.editor`). A dialog with eight
+or so strings would turn that workaround into a sprawl, so the markup — tabs, labels, buttons,
+placeholder — is a `{% trans %}` template and the JS only wires behaviour to it. No new
+`data-msg-*` attributes are needed.
+
+**Markup** (`<dialog class="link-dialog">`, in the page from first paint, closed):
+
+- two tab buttons reusing the existing `.picker__tabs` / `.picker__tab` / `.picker__panel` classes
+  (verified: unnested top-level rules in `editor.css`, so they are reusable inside a `<dialog>`);
+- the **In this course** panel: a filter `<input type="search">` and an empty mount point the tree
+  is injected into;
+- the **Web address** panel: a URL `<input type="url">` and an inline error slot;
+- a shared **Link text** `<input type="text">`;
+- **Remove link** / **Cancel** / **Insert** buttons.
+
+`showModal()` genuinely traps focus here because the dialog has focusable children — the caveat
+recorded from the image-zoom work (a dialog with *no* focusable child does not trap) does not apply.
+
+**Filtering** matches a case-insensitive substring of the node title only (not the kind label, which
+is a translated word and would match half the tree in Polish). A matching row keeps its ancestors
+visible, greyed and non-selectable if they do not themselves match, so the indentation still reads
+as a path rather than a flat list.
+
+**Ownership is split, and the split is the interface.** `link_dialog.js` never touches the editing
+surface; it collects a decision and returns it. `text_toolbar.js` owns every DOM mutation. This
+mirrors `window.libliMathInput.open(cb)`, which `text_toolbar.js` already calls for the ∑ button.
 
 ```js
+// link_dialog.js — DOM-agnostic. Knows nothing about the surface or the Range.
 window.libliLinkDialog.open({ pickerUrl, existing, selectionText }, function (result) { ... });
-// result: {href, text} | {remove: true} | null (cancelled)
+//   existing:      {href, text} | null
+//   selectionText: string ("" when the caret is collapsed)
+//   result:        {href, text} | {remove: true} | null   (null = dismissed)
 ```
 
-`text_toolbar.js` changes in exactly one place — `case "link":` in `applyCmd` — from
-`window.prompt` to this call. **No template changes.** All four toolbars (`_rte_toolbar.html` plus
-the inlined copies in `_edit_text.html`, `_edit_spoiler.html`, `_edit_callout.html`) already carry
-`data-cmd="link"`, and the command is dispatched centrally, so the feature reaches every rich-text
-surface without touching a single one of them. This is the rare change that does *not* widen the
-editor twin-drift surface guarded by #169.
+`text_toolbar.js`'s `case "link":` — the only place it changes — does all of the following:
 
-**Markup.** A modal `<dialog>` appended to `document.body` — never inside the contenteditable
-surface, which would put dialog markup into the saved body. Two tab buttons reusing the existing
-`.picker__tabs` / `.picker__panel` pattern, the tree panel, a URL input, a shared *Link text* field,
-and *Remove link* / *Cancel* / *Insert* buttons. `showModal()` genuinely traps focus here because
-the dialog has focusable children — the caveat recorded from the image-zoom work (a dialog with *no*
-focusable child does not trap) does not apply.
+1. stashes the current `Range` **before** `showModal()` moves focus (the discipline the math
+   command already uses);
+2. derives `existing` by walking up from `Selection.getRangeAt(0).startContainer` via
+   `closest("a")`, bounded by `surface` (an anchor outside the surface is not ours);
+3. calls `open()`;
+4. on a non-null result, re-focuses the surface, restores the `Range`, performs the mutation below,
+   and dispatches `new Event("input")` on the surface — which is what drives `sync()` into the
+   hidden textarea.
 
-The picker URL reaches the module from `data-link-picker-url` on `section.editor`, alongside the
-`data-picker-url` and `data-msg-*` attributes that element already carries.
+**Insertion semantics.** An ordered decision, first match wins — the conditions overlap, so
+ordering is part of the specification:
 
-**Selection.** The caret must be captured *before* `showModal()` moves focus: `open()` stashes the
-current `Range`, and the callback re-focuses the surface and restores it before mutating the DOM —
-the same discipline the math command already uses.
+| # | state | on Insert |
+|---|---|---|
+| 1 | the range is collapsed **and** inside an existing `<a>` | that anchor's `href` is updated and its contents replaced by the link text |
+| 2 | the range is non-empty | every anchor wholly or partly inside the range is unwrapped first, then the range is replaced by **one** anchor holding the link text |
+| 3 | the range is collapsed | a new anchor is inserted at the caret |
 
-**Insertion semantics**, stated explicitly because "insert a link" has several defensible readings:
-
-| caret / selection state | on Insert |
-|---|---|
-| inside an existing `<a>` | that anchor's `href` is updated and its contents replaced by the link text |
-| non-empty selection | the selected range is replaced by **one** anchor holding the link text |
-| collapsed caret | a new anchor is inserted at the caret |
+Rule 2's unwrap clause is what makes "one anchor, always" true for a selection that starts inside a
+link and ends outside it, or spans two links — cases where rules 1 and 2 would otherwise both apply
+with different results.
 
 One anchor, always — not `execCommand("createLink")`, which splits a multi-block selection into
 several anchors and leaves the link text uneditable. A selection spanning block boundaries therefore
 collapses to a single link; the selection's text content is offered as the default link text, so the
 author sees what they are about to flatten before confirming.
 
-Opening with the caret inside an existing anchor prefills: the *Web address* tab for an ordinary
-URL, the *In this course* tab with that node preselected when the href matches
-`/courses/n/<pk>/`. *Remove link* is enabled only in that state, and unwraps the anchor, keeping its
-text.
+**The anchor's text is written as a text node** (`document.createTextNode` / `textContent`), never
+`innerHTML`, and the *Link text* field is populated with `.value` from `data-title`. Node titles are
+author-supplied and may contain `<`, `&` or a stray quote; routing them through `innerHTML` would
+interpret them as markup on the way into a surface whose `innerHTML` is then saved.
 
-After any mutation the module dispatches `new Event("input")` on the surface, which is what drives
-`text_toolbar.js`'s `sync()` into the hidden textarea.
+**Accepted cost: native undo.** Direct `Range` mutation is invisible to the contenteditable undo
+stack, so Ctrl+Z will not undo an inserted link. The math command already behaves this way, so this
+is consistent rather than novel — recorded here so it is not later filed as a bug of unknown origin.
+
+**Empty fields.** *Insert* is disabled while the *Link text* field is blank, and while the active
+tab's target is unset (no node selected / empty URL). An anchor with empty text is invisible in the
+surface and cannot be clicked into, which would make *Remove link* unreachable — an unrecoverable
+state. Clearing *Link text* on the internal tab re-seeds it from the selected node's title.
+
+**URL contract on the Web address tab.** The field mirrors `ALLOWED_URL_SCHEMES`
+(`http`, `https`, `mailto`) — anything else is rejected in the dialog with an inline message. Two
+measured failure modes make this non-optional:
+
+- `<a href="www.example.com">` survives the sanitiser **untouched**, becoming a *relative* href that
+  resolves under the current unit URL and 404s. So a scheme-less value that looks like a host is
+  auto-prefixed with `https://` before insertion, and the author sees the normalised value.
+- `<a href="javascript:alert(1)">` comes back from the sanitiser as `<a>` — the href is dropped
+  **at save**, after the author saw a working-looking link in the editing surface. Rejecting it in
+  the dialog turns a silent post-save surprise into an immediate message.
+
+A pasted absolute same-origin permalink (`https://host/courses/n/12/`) is normalised back to its
+relative form, so it stores and styles as the internal link it is.
+
+**Dismissal.** Cancel, the Escape key, and a backdrop click all dismiss; all three route through a
+single `close` event handler, which invokes the callback **exactly once** — with `null` unless a
+result was committed by *Insert* or *Remove link*. Stating this pins the classic double-fire, where
+a button handler and a `close` handler both call back.
+
+**Opening on an existing link** prefills: the *Web address* tab for an ordinary URL, the *In this
+course* tab with that node preselected when the href matches `/courses/n/<pk>/`. *Remove link* is
+enabled only when `existing` is non-null, and unwraps the anchor, keeping its text.
 
 **Link text does not track the node title.** Renaming a node later leaves existing link text alone.
 The text is authored prose — it may be inflected, abbreviated, or mid-sentence ("as shown in *the
@@ -189,14 +314,26 @@ dialog is progressive enhancement, like the rest of the RTE.
 
 ### 5. Student-side styling — `courses/static/courses/css/courses.css`
 
-```css
-.el a[href^="/courses/n/"] { /* internal-link affordance */ }
-.el a[href^="http"]        { /* outbound marker */ }
-```
+Two concrete treatments, scoped to `.el` — the wrapper every rendered element carries
+(`el el--text`, `el el--question`, and the callout/spoiler bodies) — so site chrome and navigation
+are untouched:
 
-Scoped to `.el`, the wrapper every rendered element carries (`el el--text`, `el el--question`, and
-the callout/spoiler bodies), so site chrome and navigation are untouched. Keying off the href prefix
-is what lets this work with no sanitiser change — recall that a `class` on `<a>` would be stripped.
+- `.el a[href^="/courses/n/"]` — an internal link reads as part of the course: the body link colour
+  with a solid underline, and a small leading corner-arrow glyph via `::before`, `aria-hidden`
+  through `content` (a CSS-generated glyph is not copied with the text and is not announced, which
+  is what we want — the link text alone must carry the meaning).
+- `.el a[href^="http"]` — an outbound marker via `::after`, same rationale.
+
+Keying off the href prefix is what lets this work with no sanitiser change — recall that a `class`
+on `<a>` would be stripped. Both rules are judged in light **and** dark separately, per house rule,
+like the `:target` highlight.
+
+Two acknowledged misclassifications, both benign and both cheaper to accept than to fix:
+
+- A `mailto:` link matches neither selector and gets no marker. Acceptable — it is rare in course
+  prose, and the alternative is a third rule for a case authors barely use.
+- An absolute same-origin permalink would match the *outbound* rule. The dialog normalises those to
+  relative form (§4), so this only affects hand-typed HTML.
 
 This assumes the app is served from the domain root; a `SCRIPT_NAME` prefix would break the prefix
 match. That is true of the deployment today and is stated here as an assumption rather than
@@ -206,29 +343,49 @@ discovered later.
 
 ```text
 author clicks 🔗
-  -> text_toolbar.js applyCmd("link") stashes Range, calls libliLinkDialog.open()
-  -> dialog fetches /manage/courses/<slug>/link-picker/ (once, then cached)
-  -> author picks a node  =>  href = "/courses/n/1234/", text = node title (editable)
-     or types a URL       =>  href = as typed
-  -> callback restores the Range, writes one <a> into the surface, fires "input"
+  -> text_toolbar.js stashes the Range, derives existing = {href,text}|null via closest("a")
+  -> libliLinkDialog.open({pickerUrl, existing, selectionText}, cb)
+  -> dialog fetches /manage/courses/<slug>/link-picker/ (once per page, then cached)
+  -> author picks a node  =>  {href: "/courses/n/1234/", text: node title (editable)}
+     or types a URL       =>  scheme-checked, https:// auto-prefixed, permalink normalised
+     or dismisses         =>  null   (Cancel / Escape / backdrop, callback fires exactly once)
+  -> text_toolbar.js restores the Range, applies insertion rule 1/2/3, fires "input"
   -> sync() copies surface.innerHTML into the hidden textarea
   -> POST -> sanitize_html keeps <a href> verbatim -> stored
 
 student clicks the link
   -> GET /courses/n/1234/
-  -> 403 if the course is not accessible; 404 if the node is gone
+  -> 404 if the node is gone OR the course is not accessible (no existence oracle)
   -> 302 to lesson_unit / quiz_unit, or to the outline + #node-1234
 ```
 
 ## Error handling
 
-- **Target deleted** → `get_object_or_404` → the illustrated 404 page (#167). Accepted and
-  deliberate: part 2 adds a warning at delete time so this is rare rather than routine.
-- **No access to the target's course** → `PermissionDenied` → illustrated 403. Cannot normally
-  happen for same-course links, which is precisely why the picker is same-course only.
-- **Picker fetch fails** → the *In this course* tab shows an inline error and the *Web address* tab
-  still works. The dialog never becomes a dead end.
-- **Author cancels** → callback receives `null`; the surface is untouched and the caret restored.
+| condition | behaviour |
+|---|---|
+| target node deleted | `get_object_or_404` → illustrated 404 (#167). Part 2 adds a delete-time warning so this is rare rather than routine. |
+| target's course not accessible | 404, **not** 403 — see §1. Cannot normally happen for same-course links, which is why the picker is same-course only. |
+| **target now lives in another course** | See below — the one risk part 1 carries. |
+| URL with a disallowed scheme | rejected in the dialog with an inline message, before it can be silently stripped at save. |
+| scheme-less URL that looks like a host | auto-prefixed `https://`; the author sees the normalised value before inserting. |
+| picker fetch fails | the *In this course* tab shows an inline error; the *Web address* tab still works. The dialog never becomes a dead end. |
+| author dismisses | callback receives `null` once; the surface is untouched and the caret restored. |
+
+**Target now lives in another course.** A stored href is a bare global pk, so any operation that
+copies an element body without rewriting it leaves the copy pointing at the *original* node. Two
+such operations exist: the export→import round trip (exactly what part 2 fixes) and "Duplicate a
+unit" (#160), which deep-copies bodies verbatim — harmless within one course, since the original
+target is still the right one, but not if the duplicate is later moved elsewhere.
+
+The failure is silent in a specific way worth naming: the reader is not blocked. If they can access
+the other course — a Platform Admin, a teacher, a student enrolled in both — they simply land on
+unrelated content, with no 404 and no 403 to signal it. It cannot be fixed inside the permalink
+view, which has no way to know which course the *link* was authored in.
+
+This is an accepted, stated risk for part 1 shipping alone, on the grounds that no stored internal
+links exist yet (nothing to have gone stale) and that the only same-install producer of stale links
+is duplicate-unit within one course, where the target remains correct. Part 2 is what closes it, and
+should not lag far behind.
 
 ## Testing
 
@@ -237,28 +394,48 @@ require RED. A test that has never failed is not evidence.
 
 **Python**
 
-- `node_permalink`: lesson unit → `lesson_unit` URL; quiz unit → `quiz_unit` URL (asserting *one*
-  redirect, which is the whole reason the branch is explicit); chapter/section/part → outline URL
-  ending `#node-<pk>`; unknown pk → 404; course not accessible → 403; anonymous → login redirect.
+- `node_permalink`: lesson unit → `lesson_unit` URL; quiz unit → `quiz_unit` URL;
+  chapter/section/part → outline URL ending `#node-<pk>`; unknown pk → 404; course not accessible →
+  **404** (asserting the absence of the enumeration oracle, so a later "helpful" switch to 403 is
+  caught); anonymous → login redirect.
+- The quiz assertion is on the **first hop's `Location`**, with the fixture pinned to *no
+  submission*. `views.quiz_unit` itself 302s to `quiz_results` when the student's submission is
+  `SUBMITTED`, so a followed redirect chain — or a submitted fixture — would fail for a reason
+  unrelated to the branch under test.
+- **Resolver regression:** `resolve("/courses/n/12/")` → `node_permalink` and `resolve("/courses/n/")`
+  → `course_outline`. The no-collision claim is one urls.py reordering away from silently breaking a
+  course slugged `n`, and prose is not a guard.
 - Sanitiser passthrough: an internal-link anchor survives `sanitize_html` byte-identically. This
   pins the assumption the whole design rests on, so a future sanitiser tightening fails loudly here
   instead of silently voiding every stored link.
 - `link_picker`: 200 + every node present for a manager; 403 for a non-manager; 404 for an unknown
-  slug. Query count asserted — `_children_map` is one query and must stay one.
+  slug; the response is a bare partial (no `<html>`). Query count asserted — `_children_map` is one
+  query and must stay one.
 - `_outline_node.html` renders `id="node-<pk>"` for each kind.
 
 **Static/asset**
 
-- `link_dialog.js` is loaded by the editor page, and `text_toolbar.js` no longer contains
-  `window.prompt` (the concrete thing being replaced).
+- `editor.html` loads `link_dialog.js` **before** `text_toolbar.js`, and includes the dialog partial.
+- `text_toolbar.js` no longer contains `window.prompt` (the concrete thing being replaced).
+- `editor.css` defines `.tree__badge` (the duplicate that keeps the picker from shipping unstyled).
+
+**JS behaviour** (jsdom-level or e2e, whichever the repo's existing habit favours)
+
+- URL contract: `example.com` → `https://example.com`; `javascript:alert(1)` → rejected, no
+  insertion; `https://host/courses/n/12/` → normalised to `/courses/n/12/`.
+- Insertion rules 1, 2 and 3, with rule 2 exercised by a selection that starts inside an anchor and
+  ends outside it — asserting exactly one anchor afterwards.
+- A node title containing `<b>` is inserted as literal text, not markup.
+- The callback fires exactly once per dismissal path (Cancel, Escape, backdrop).
 
 **e2e (`-m e2e`, real browser, mandatory marker)**
 
 Driving the real gesture, never `page.evaluate` shortcuts:
 
 1. Open a unit editor, add a text element, type prose, select a word.
-2. Click the toolbar link button; the dialog opens; switch to *In this course*; filter; click a
-   chapter row; confirm the link-text field prefilled; Insert.
+2. Click the toolbar link button; the dialog opens; switch to *In this course*; type in the filter
+   and assert matching rows keep their ancestors visible; click a chapter row; confirm the link-text
+   field prefilled; Insert.
 3. Save; assert the stored body holds `<a href="/courses/n/<pk>/">`.
 4. Visit the unit as a student, click the link, assert arrival on the outline with the target row
    highlighted; repeat for a unit target asserting arrival on the unit page.
@@ -267,12 +444,14 @@ Driving the real gesture, never `page.evaluate` shortcuts:
 
 **Visual**
 
-Playwright screenshots, light and dark, of the dialog and of a rendered internal link, judged
-separately per theme.
+Playwright screenshots, light and dark, of the dialog and of a rendered internal link (and an
+external one, for the outbound marker), judged separately per theme.
 
 ## i18n
 
-New UI strings (tab labels, *Link text*, *Remove link*, search placeholder, the picker error) are
-translatable and added to both catalogs via `makemessages -l pl -l en --no-obsolete`. Fuzzy entries
-must be cleared properly — both the `#, fuzzy` line and the `#| msgid` comment — since a fuzzy match
-arrives pre-filled from an unrelated msgid.
+Every new string lives in `_link_dialog.html` and `_link_picker.html` as `{% trans %}` — tab labels,
+*Link text*, *Remove link*, *Insert*, *Cancel*, the filter placeholder, the URL-rejection message,
+the picker-fetch error. Because they are template strings, `makemessages -l pl -l en --no-obsolete`
+extracts them normally; no `JavaScriptCatalog` route is introduced, and none is needed. Fuzzy
+entries must be cleared properly — both the `#, fuzzy` line and the `#| msgid` comment — since a
+fuzzy match arrives pre-filled from an unrelated msgid.
