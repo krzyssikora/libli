@@ -42,6 +42,7 @@ def _login(page, live_server, username):
 def _seed(username, slug):
     from courses.models import Element
     from courses.models import Enrollment
+    from courses.models import MarkDoneElement
     from courses.models import TextElement
     from tests.factories import ContentNodeFactory
     from tests.factories import CourseFactory
@@ -57,6 +58,15 @@ def _seed(username, slug):
     Element.objects.create(
         unit=unit, content_object=TextElement.objects.create(body="<p>Treść.</p>")
     )
+    # KEEPS THE "Start fresh" LINK RENDERED. The link is gated on the unit containing a
+    # state-bearing element type; without this row the head row drops to two
+    # children and this module silently stops guarding the crowded three-item case
+    # it exists for. MarkDone over a question: no child rows, no answer setup, and
+    # markdone.js's boot pass is read-only (it POSTs only on click), so it adds no
+    # network traffic to a layout test.
+    Element.objects.create(
+        unit=unit, content_object=MarkDoneElement.objects.create(prompt="P")
+    )
     return course, unit
 
 
@@ -65,14 +75,19 @@ MEASURE = """
   const head = document.querySelector('.lesson-unit__head');
   const title = head.querySelector('.lesson-unit__title');
   const done = head.querySelector('.unit-done');
+  const reset = head.querySelector('.lesson-unit__reset');
   const t = title.getBoundingClientRect();
   const d = done.getBoundingClientRect();
+  const r = reset ? reset.getBoundingClientRect() : null;
   return {
     text_overflow: title.scrollWidth - title.clientWidth,
     title_bottom: Math.round(t.bottom),
     title_width: Math.round(t.width),
     done_top: Math.round(d.top),
     done_left: Math.round(d.left),
+    has_reset: !!reset,
+    reset_top: r ? Math.round(r.top) : null,
+    reset_left: r ? Math.round(r.left) : null,
   };
 }
 """
@@ -99,6 +114,13 @@ def test_long_title_does_not_overflow_under_the_action_buttons(page, live_server
         f"actions still share the title's line at {PHONE['width']}px "
         f"(title bottom {m['title_bottom']}, actions top {m['done_top']})"
     )
+    assert m["has_reset"], (
+        "the reset link vanished -- _seed's MarkDoneElement is what keeps it"
+    )
+    assert m["reset_top"] >= m["title_bottom"] - 1, (
+        f"the reset link still shares the title's line at {PHONE['width']}px "
+        f"(title bottom {m['title_bottom']}, reset top {m['reset_top']})"
+    )
 
 
 @pytest.mark.django_db(transaction=True)
@@ -114,4 +136,10 @@ def test_desktop_keeps_the_actions_beside_the_title(page, live_server):
     assert m["text_overflow"] <= 1
     assert m["done_top"] < m["title_bottom"], (
         "on desktop the actions should still sit on the title's line"
+    )
+    assert m["has_reset"], (
+        "the reset link vanished -- _seed's MarkDoneElement is what keeps it"
+    )
+    assert m["reset_top"] < m["title_bottom"], (
+        "on desktop the reset link should still sit on the title's line"
     )

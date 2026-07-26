@@ -1,0 +1,13 @@
+{% load i18n %}
+<div class="unit-strip">
+  {% include "tags/_unit_tag_panel.html" %}
+  {% if can_edit_unit %}
+    <a class="btn btn--ghost btn--small unit-strip__edit"
+       href="{{ unit_editor_url }}" target="_blank" rel="noopener">
+      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M4 20h4L18.5 9.5a2.1 2.1 0 0 0-3-3L5 17v3z"/><path d="M14.5 5.5l4 4"/>
+      </svg>
+      {% trans "Edit unit" %}<span class="visually-hidden">&nbsp;{% trans "(opens in a new tab)" %}</span>
+    </a>
+  {% endif %}
+</div>

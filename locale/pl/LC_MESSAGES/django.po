@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-26 10:35+0200\n"
+"POT-Creation-Date: 2026-07-26 17:43+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -859,12 +859,12 @@ msgstr "Strefa musi mieć dodatni rozmiar."
 msgid "Zone must not extend past the image."
 msgstr "Strefa nie może wykraczać poza obraz."
 
-#: .\courses\models.py:2364
+#: .\courses\models.py:2370
 #: .\templates\courses\manage\review_submission.html:45
 msgid "In progress"
 msgstr "W toku"
 
-#: .\courses\models.py:2365
+#: .\courses\models.py:2371
 msgid "Submitted"
 msgstr "Przesłano"
 
@@ -2175,11 +2175,11 @@ msgstr ""
 "To wygląda na link %(provider)s, ale nie znaleźliśmy w nim pojedynczego "
 "filmu — wklej link do jednego filmu."
 
-#: .\courses\views.py:1146
+#: .\courses\views.py:1166
 msgid "This quiz has already been submitted."
 msgstr "Ten quiz został już przesłany."
 
-#: .\courses\views.py:1477
+#: .\courses\views.py:1498
 #, python-format
 msgid "You're now enrolled in %(course)s."
 msgstr "Zapisano Cię na kurs %(course)s."
@@ -3802,7 +3802,7 @@ msgstr "Ukończono"
 msgid "Mark as done"
 msgstr "Oznacz jako ukończone"
 
-#: .\templates\courses\_lesson_article.html:27
+#: .\templates\courses\_lesson_article.html:28
 #: .\templates\courses\_outline_node.html:24
 #: .\templates\courses\_outline_node.html:25
 #: .\templates\courses\outline.html:11
@@ -3872,6 +3872,14 @@ msgstr "Spis treści kursu"
 #: .\templates\courses\_unit_shell.html:20 .\templates\courses\catalog.html:60
 msgid "Close"
 msgstr "Zamknij"
+
+#: .\templates\courses\_unit_strip.html:10
+msgid "Edit unit"
+msgstr "Edytuj jednostkę"
+
+#: .\templates\courses\_unit_strip.html:10
+msgid "(opens in a new tab)"
+msgstr "(otwiera się w nowej karcie)"
 
 #: .\templates\courses\_unit_tree.html:6 .\templates\courses\_unit_tree.html:7
 msgid "Collapse contents"

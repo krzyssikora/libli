@@ -179,3 +179,62 @@ def test_val_stepper_single_step_never_restores():
 
 def test_stepper_registered():
     assert state.VALIDATORS["stepperelement"] is state._val_stepper
+
+
+# The 18 element types that can persist practice state, written out literally.
+# DELIBERATELY hard-coded rather than re-derived: re-implementing state.py's
+# comprehension here would be green by construction and could never go RED
+# (spec §Testing, test 8). Derive in production, pin literally in the test.
+STATEFUL_MODEL_NAMES = {
+    # the state.VALIDATORS half -- self-checks and gates
+    "markdoneelement",
+    "revealgateelement",
+    "fillgateelement",
+    "switchgateelement",
+    "switchgridelement",
+    "filltableelement",
+    "guessnumberelement",
+    "stepperelement",
+    # the RESTORABLE_IN_LESSON half -- lesson-mode question answers
+    "choicequestionelement",
+    "shorttextquestionelement",
+    "extendedresponsequestionelement",
+    "shortnumericquestionelement",
+    "fillblankquestionelement",
+    "dragfillblankquestionelement",
+    "matchpairquestionelement",
+    "dragtoimagequestionelement",
+    "choicegridquestionelement",
+    "multigridquestionelement",
+}
+
+
+def test_stateful_element_model_names_is_the_expected_18():
+    from courses.models import ELEMENT_MODELS
+
+    names = state.stateful_element_model_names()
+
+    assert set(names) == STATEFUL_MODEL_NAMES
+    # Sortedness: compare against a TUPLE, not a list. `list(names) == sorted(names)`
+    # would let a raw set pass whenever its hash order happened to be sorted, making
+    # the RED hash-seed dependent; a set never equals a tuple (spec §Testing, test 8).
+    assert names == tuple(sorted(names))
+    # Known-inert types stay out (shares the equality guard's falsification).
+    assert "textelement" not in names
+    assert "videoelement" not in names
+    # The registry contract the `& known` intersection relies on. Falsified TEST-SIDE
+    # only (monkeypatching in a bogus key) -- no production edit fires this one.
+    assert set(state.VALIDATORS) <= set(ELEMENT_MODELS)
+
+
+def test_a_bogus_validator_key_is_dropped_from_the_derived_names(monkeypatch):
+    """The `& known` intersection itself, which nothing else can falsify.
+
+    The real VALIDATORS is clean by construction, so deleting `& known` from
+    state.py leaves the whole suite green. Only a bogus key surfaces it.
+    """
+    monkeypatch.setitem(state.VALIDATORS, "nosuchelement", lambda *a: None)
+
+    # Equality, not `"nosuchelement" not in ...`: a widened result must be caught as
+    # a value change, since the names feed a content_type__model__in filter.
+    assert set(state.stateful_element_model_names()) == STATEFUL_MODEL_NAMES
