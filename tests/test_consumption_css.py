@@ -76,7 +76,7 @@ def test_unit_strip_rules_are_present_and_load_bearing():
 
     On .unit-strip:
     - display: flex — without it there is no row at all: the panel and the button
-      stack vertically and `flex: 1 1 auto` below becomes inert. Every other
+      stack vertically and `flex: 1 1 0` below becomes inert. Every other
       assertion here can pass while this one's absence undoes the feature.
     - flex-wrap: wrap — without it the narrow layout overflows horizontally
       instead of dropping the button onto its own line.
@@ -91,9 +91,16 @@ def test_unit_strip_rules_are_present_and_load_bearing():
       Without this, the UA's `min-inline-size: min-content` on
       <fieldset class="unit-tags__picker"> floors the panel's border box at
       min-content and inflates its chrome. This RESTORES master's rendering.
+      It only BINDS under a narrow combination — open panel + narrow viewport +
+      a long unbreakable label (measured at 400px with a 50-char tag name:
+      removing it grows the panel 250→396px and document.scrollWidth 400→412,
+      i.e. real horizontal overflow). With an ordinary label, removing it changes
+      nothing on screen, so a no-op mutation is NOT evidence the rule is dead.
     - margin-block: 0 — deleting it reintroduces the ~8px top-edge misalignment
       between the two flex items.
-    - flex: 1 1 auto — what pins the button to the row's far right edge.
+    - flex: 1 1 0 — the basis must be 0, not auto. See the inline comment on the
+      assertion below; `auto` keeps the button on the row only while the panel is
+      CLOSED.
     """
     import re
 
@@ -124,8 +131,15 @@ def test_unit_strip_rules_are_present_and_load_bearing():
     block = inner.group(1)
     assert "min-width: 0" in block, f"min-width: 0 missing (fieldset hazard): {block!r}"
     assert "margin-block: 0" in block, f"margin-block: 0 missing: {block!r}"
-    # flex: 1 1 auto is what makes the panel absorb the remaining width, which is
-    # what pins the button to the row's FAR RIGHT edge — the single criterion the
-    # desktop screenshots exist to judge. Delete it and the panel shrink-wraps its
-    # summary, the button lands beside "Tags (n)", and nothing else in CI notices.
-    assert "flex: 1 1 auto" in block, f"flex: 1 1 auto missing (right-pin): {block!r}"
+    # The panel must absorb the remaining width so the button is pinned to the row's
+    # FAR RIGHT edge. Delete the declaration and the panel shrink-wraps, the button
+    # lands beside "Tags (n)", and nothing else in CI notices.
+    # The BASIS is load-bearing on its own, and `auto` is wrong: an auto basis makes
+    # the flex base size the panel's MAX-CONTENT width, and flex line-breaking uses
+    # the base size before shrinking — so with the panel OPEN, .unit-tags__picker
+    # (a wrapping fieldset listing every tag the author owns that is not on this
+    # unit) overflows the line and flex-wrap drops the button to a second row, at
+    # 1280px and not only when narrow. Measured with 12 addable tags: `1 1 auto`
+    # wrapped in all of {1280, 900, 600, 400}; `1 1 0` stayed same-row and
+    # right-pinned in all of them. So do NOT weaken this to a bare "flex:" check.
+    assert "flex: 1 1 0" in block, f"flex: 1 1 0 missing (right-pin): {block!r}"
