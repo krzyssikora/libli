@@ -116,3 +116,62 @@ def test_overlay_image_can_only_shrink():
     # No 100vw anywhere in the overlay block: vw includes the classic scrollbar.
     block = source[source.index(".imgzoom-trigger") :]
     assert "100vw" not in block
+
+
+JS = REPO / "courses" / "static" / "courses" / "js"
+
+PAGES_THAT_ARM = [
+    "courses/lesson_unit.html",
+    "courses/quiz_unit.html",
+    "courses/manage/editor/editor.html",
+]
+
+
+def test_every_arming_page_ships_the_script_and_its_i18n_after_gallery():
+    for rel in PAGES_THAT_ARM:
+        source = (TEMPLATES / rel).read_text(encoding="utf-8")
+        # A script tag without its i18n blob is a live failure mode, so both together.
+        assert "IMAGEZOOM_I18N" in source, rel
+        assert "courses/js/imagezoom.js" in source, rel
+        assert source.index("courses/js/imagezoom.js") > source.index(
+            "courses/js/gallery.js"
+        ), f"{rel}: imagezoom.js must load after gallery.js"
+
+
+def test_editor_rearms_the_preview_with_the_same_literal_the_module_exports():
+    # A grep of the call site alone cannot catch a typo'd export, so pin both sides.
+    editor = (JS / "editor.js").read_text(encoding="utf-8")
+    module = (JS / "imagezoom.js").read_text(encoding="utf-8")
+    assert "window.libliInitImageZoom(preview)" in editor
+    assert "window.libliInitImageZoom = " in module
+
+
+def test_close_handler_focuses_the_trigger():
+    # The SOLE guard on this line: Chromium focuses the trigger on mousedown, so
+    # <dialog>'s native restore satisfies every e2e assertion even with it deleted.
+    # The line exists for WebKit, where a click does not focus a non-form element.
+    module = (JS / "imagezoom.js").read_text(encoding="utf-8")
+    assert "if (trigger) trigger.focus();" in module
+
+
+def test_close_handler_removes_src_rather_than_emptying_it():
+    module = (JS / "imagezoom.js").read_text(encoding="utf-8")
+    assert 'removeAttribute("src")' in module
+    # `img.src = ""` resolves against the document URL and refetches the HTML page as
+    # an image on every close.
+    assert re.search(r"\.src\s*=\s*([\"'])\1", module) is None
+
+
+def test_escape_guard_is_capture_phase_and_uses_stop_immediate():
+    # unit_nav.js registers its drawer handler as a CAPTURE listener on document, so a
+    # bubble-phase listener on the dialog could never stop it, and stopPropagation
+    # cannot stop a same-node/same-phase peer.
+    module = (JS / "imagezoom.js").read_text(encoding="utf-8")
+    assert "stopImmediatePropagation()" in module
+    # Regex, not a `"true);"` substring: the registration is formatted across lines,
+    # so `true` is followed by a newline and `);` -- a substring test would fail
+    # forever.
+    assert re.search(r",\s*true\s*\)", module), (
+        "listener must be registered capture-phase"
+    )
+    assert "dialog && dialog.open" in module  # lazily created: null before first open
