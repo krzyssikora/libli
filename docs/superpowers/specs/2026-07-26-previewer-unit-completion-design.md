@@ -177,10 +177,20 @@ lock-exclusion version there would ship a confident falsehood in the one place n
 `SELECT … FOR UPDATE`, inside an atomic block, where the old shape was one SELECT and — when the
 unit was already complete — nothing further. **In production** that is +1 query and one
 `BEGIN`/`COMMIT` per `complete` POST (`ATOMIC_REQUESTS` is not set anywhere in `config/`, so this
-block is the outermost transaction) **on the enrolled path**. For the **previewer** path — the one
-this spec creates — the baseline is not "one SELECT" but *nothing*: the `is_enrolled` branch was
-skipped entirely, so their delta is 0 → one `BEGIN`/`COMMIT`, two SELECTs and one INSERT or UPDATE.
-Do not read the "+1" as covering both populations. No `assertNumQueries` /
+block is the outermost transaction) **on the enrolled path**.
+
+**Count it against what the diff actually removes.** `is_enrolled` is
+`Enrollment.objects.filter(...).exists()` — a query — and this change **deletes that call** from
+`complete`. So:
+
+- **Enrolled path: net zero additional queries.** One `EXISTS` (`is_enrolled`) is traded for one
+  `SELECT … FOR UPDATE`. The real cost is the `BEGIN`/`COMMIT`, not a query.
+- **Previewer path: baseline was one query, not none.** The `is_enrolled` `EXISTS` ran *before* the
+  branch was skipped. The new shape is `BEGIN`/`COMMIT` + two SELECTs + the writes — and on a
+  **first** POST that is an INSERT *and* an UPDATE, not "one or the other": `get_or_create` carries
+  no `defaults`, so it inserts `completed=False`, the re-fetch runs, and `save()` then updates. A
+  repeat POST is two SELECTs and no write (Testing §11). Adding `defaults={"completed": True}` is
+  **not** the intended optimisation — it would collapse the re-fetch §2b exists to protect. No `assertNumQueries` /
 `CaptureQueriesContext` test currently covers `complete` (verified), so nothing breaks. **Under
 pytest** it looks different: `django_db` already holds a transaction, so the same block emits
 `SAVEPOINT`/`RELEASE` — a harness artefact, not a production cost. Testing §11 wraps this endpoint in
@@ -462,14 +472,16 @@ repo's recorded scar is that a passing test proves nothing.
 `tests/test_courses_progress.py::test_previewer_complete_redirects_without_write` asserts today's
 no-op (`assert not UnitProgress.objects.filter(student=staff, unit=unit).exists()`). It is a
 deliberate reversal of a shipped guarantee, exactly as PR #136 reversed markdone's, and becomes
-`test_previewer_complete_persists`. It must be rewritten, never left alongside a contradicting new
-test.
+`test_previewer_complete_persists_and_redirects` — named for **both** halves, since §1(a) keeps and
+strengthens the redirect assertion; a persistence-only name is an invitation for a later reader to
+delete "the assertion unrelated to the name", which is exactly the discipline §3's rename applies.
+It must be rewritten, never left alongside a contradicting new test.
 
 ### New / adjusted
 
 1. **Write.** Two separate test functions — 1(a) is the rewrite, 1(b) is genuinely new; they cannot
    be one function, since 1(a) starts from no row and 1(b) from a seeded one.
-   - **1(a) — `test_previewer_complete_persists`.** *This is the inverted test named above, rewritten
+   - **1(a) — `test_previewer_complete_persists_and_redirects`.** *This is the inverted test named above, rewritten
      in place, not a second test beside it.* A non-enrolled `can_access` viewer POSTs
      `courses:complete` → a `UnitProgress` row exists for them with `completed=True` and a stamped
      `completed_at`. **Keep the existing test's redirect assertion** rather than dropping it with the
@@ -525,7 +537,14 @@ test.
    has **no** row and asserts so. Sequence it, don't overwrite it: (1) POST `seen` and keep the
    existing no-row + synthetic-response assertions; (2) *then* seed the `completed=True` row for
    **that same viewer** — a second viewer would need its own `make_login` + `is_staff` setup plus a
-   mid-test re-login and buys nothing; (3) POST `seen` again and assert the response is still
+   mid-test re-login and buys nothing. **Pass `student=viewer` AND `unit=unit` explicitly**:
+   `UnitProgressFactory` declares both as `SubFactory`s, and this is the one seed in the roster whose
+   mis-scoping fails *silently*. Every step-(3) assertion is negative, so a row minted against an
+   unrelated node leaves them all green — and so does the extension's own falsification recipe, which
+   finds no row for `(viewer, node)` and returns the synthetic dict anyway. The extension would then
+   be listed in the DoD as falsification-proven when only its pre-existing half is. (Tests 6(a) and 7
+   assert positively, so the same mistake fails loudly there.) Then (3) POST `seen` again and assert
+   the response is still
    `{"seen_element_ids": [], "completed": false, "completed_at": null}` **and** that the seeded row
    is untouched — name the fields rather than comparing whole objects (`updated_at` is `auto_now`):
    after `refresh_from_db()`, `seen_element_ids == []` (the POSTed ids were not merged),
@@ -599,9 +618,11 @@ test.
    - **Trap 1 — `is_staff` short-circuit.** `accessible_courses` returns `Course.objects.all()` at
      `if user.is_staff:` *before* evaluating either `Q(owner=user)` or the group clause. So **(a),
      (b) and (d) must each assert their user is non-staff** — not just (b) and (d). A staff owner in
-     (a) passes via the wrong route and proves nothing about the owner clause. Route **(c)** is
-     excluded from the requirement for a reason, not by oversight: it asserts a **403**, so a stray
-     staff flag would redden it loudly rather than pass it silently.
+     (a) passes via the wrong route and proves nothing about the owner clause. Routes **(b)** and
+     **(c)** both assert a **403**, so a stray staff flag reddens them loudly rather than passing
+     silently — (c) therefore needs no pin at all, and (b) keeps one for a different reason: its
+     whole claim is about the `groups__archived=False` predicate, and that is only legible if the
+     fixture shows the user reaching the group clause in the first place.
      (`tests.factories`' `_make_role` never sets `is_staff`, so the role helpers are safe.)
    - **Trap 2 — enrollment.** (a) and (d) must assert
      `not Enrollment.objects.filter(student=user, course=course).exists()`. An enrolled owner or
@@ -628,7 +649,8 @@ test.
      The viewer then has no row at all, `progress` is `None`, the button renders, the assertion
      passes — and *both* falsification recipes below stay green too. A mis-scoped seed makes this
      test assert nothing about the shape it exists for. (Same trap as `CourseFactory(owner=…)` in
-     test 5 and `GroupFactory(archived=…)`; §7's seed needs the same kwargs.)
+     test 5 and `GroupFactory(archived=…)`; §3's and §7's seeds need the same kwargs — §3's is the one
+     where getting it wrong fails silently.)
      Then → within the `[data-unit-done]`
      subtree, that div's own class list lacks `is-complete` (`_lesson_article.html:12`) **and** a
      descendant `button.unit-done__pill--btn` exists (`:20`) — two different elements, not two
@@ -737,10 +759,14 @@ test.
      bar does not render at all unless `course_progress.total` is truthy. `ContentNode.obligatory`
      defaults to `True`, so a default fixture works — but an implementer seeding a plausibly
      "additional" unit would get a failure unrelated to this change. Asserting on
-     `build_unit_nav(...)["course_progress"]` directly substitutes for **parsing the footer HTML
-     only** — the lesson-unit GET must still be issued, as the previewer. `build_unit_nav` is a pure
-     function, so calling it *instead of* the GET would skip the view-level wiring this test's whole
-     claim is about, and would quietly dissolve the "two GETs" rule it sits inside.
+     **`response.context["unit_nav"]["course_progress"]["done"]`** from the previewer's lesson GET
+     is the recommended assertion: `full_lesson_render_context` sets `ctx["unit_nav"] =
+     build_unit_nav(...)`, so this reaches the value through the real view without parsing HTML.
+     Calling `build_unit_nav(...)` standalone is a fallback only if the test client's context is
+     unavailable — and even then the lesson-unit GET must still be issued as the previewer.
+     `build_unit_nav` is a pure function, so calling it *instead of* the GET would skip the
+     view-level wiring this test's whole claim is about and quietly dissolve the "two GETs" rule it
+     sits inside, leaving a GET that asserts nothing beyond not-500-ing.
    The two assertions exercise different rollup paths; do not collapse them into one response.
    *Falsify (diff-local, the one that matters):* restore the `is_enrolled` branch in `complete` →
    RED, proving the test is non-vacuous with respect to *this* change.
