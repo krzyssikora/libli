@@ -429,6 +429,7 @@ def test_escape_guard_is_capture_phase_and_uses_stop_immediate():
     assert re.search(
         r"stopImmediatePropagation\(\);?[\s\S]{0,120}?\},\s*true\s*\)", code
     ), "Escape listener must be registered capture-phase"
+```
 
 Add this helper beside the other module-level helpers:
 
@@ -437,7 +438,6 @@ def _js_code_only(source):
     """JS source with comments stripped, so a source assertion cannot be satisfied by prose."""
     no_block = re.sub(r"/\*[\s\S]*?\*/", "", source)
     return re.sub(r"(?m)//.*$", "", no_block)
-```
 ```
 
 - [ ] **Step 2: Run the tests and verify they fail**
@@ -849,9 +849,9 @@ git commit -m "i18n: Enlarge image / Enlarged image in en and pl"
 
 **Interfaces:**
 - Consumes: everything from Tasks 1–4.
-- Produces: `make_image_asset(course, filename="x.png", size=(1, 1), color="black", **kw)`; and in the new test module: `_isolated_media` (autouse), `media_route(page)`, `zoom_lesson`, `tall_lesson`, `gallery_lesson`, `hidden_lesson`, `filltable_lesson`, `tiny_lesson`, `editor_unit`, `_open(page, trigger)`, `_box(locator)`, `_natural_width(locator)`.
+- Produces: `make_image_asset(course, filename="x.png", size=(1, 1), color="black", **kw)`; and in the new test module: `_isolated_media` (autouse), `zoom_lesson`, `tall_lesson`, `gallery_lesson`, `hidden_lesson`, `filltable_lesson`, `tiny_lesson`, `editor_unit`, `_open(page, trigger)`, `_box(locator)`, `_natural_width(locator)`.
 
-**Why this task exists at all:** `config/settings/test.py` sets `DEBUG = False` and `config/urls.py` routes `/media/` only inside `if settings.DEBUG:`, so under `live_server` every fixture image 404s and every geometry assertion would silently measure a broken image (`naturalWidth == 0`). `live_server` wraps the handler in `StaticFilesHandler`, which serves `/static/` regardless of `DEBUG` — so the CSS and JS under test *do* load. Only `/media/` needs intercepting.
+**Why this task exists:** Tasks 7-10 all measure real pixel geometry, so they need fixture images that genuinely load, at known sizes, without polluting the developer's media tree — and a decode wait, because an `<img>` has a layout box from its alt text before its bytes arrive. Note what this task does **not** need: media interception. Django's `live_server` serves `/media/` itself from `settings.MEDIA_ROOT` (`django/test/testcases.py:1755`), regardless of `DEBUG` and regardless of `config/urls.py` gating its own route — so pointing `MEDIA_ROOT` at `tmp_path` via `_isolated_media` is the whole mechanism.
 
 - [ ] **Step 1: Extend the factory (test-first via the harness smoke test below)**
 
@@ -890,13 +890,18 @@ Create `tests/test_e2e_imagezoom.py`:
 ```python
 """Playwright e2e for click-to-enlarge images.
 
-Media is NOT served under the test settings: config/settings/test.py sets DEBUG = False
-and config/urls.py routes /media/ only inside `if settings.DEBUG:`. So every fixture
-image would 404 and every geometry assertion would silently measure a broken image
-(naturalWidth == 0). `media_route` fulfils each /media/ request from MEDIA_ROOT with the
-real bytes, per request, and every geometry case asserts the natural size it expects
-BEFORE measuring anything. (live_server's StaticFilesHandler serves /static/ regardless
-of DEBUG, so the CSS and JS under test load normally -- only media needs intercepting.)
+Media IS served here, and nothing needs to intercept it. Django's LiveServerThread wraps
+the WSGI app as `self.static_handler(_MediaFilesHandler(WSGIHandler()))` --
+django/test/testcases.py:1755, unconditional, no DEBUG check -- and _MediaFilesHandler
+(:1716-1726) resolves each request against settings.MEDIA_ROOT / settings.MEDIA_URL. So
+/static/ and /media/ both load under live_server even though config/settings/test.py sets
+DEBUG = False and config/urls.py gates its own /media/ route behind DEBUG.
+
+That is why `_isolated_media` is doubly load-bearing: it keeps fixture PNGs out of the
+developer's real media/ tree AND, because _MediaFilesHandler reads settings.MEDIA_ROOT per
+request, it is what makes the fixture images resolve at all. Every geometry case still
+asserts the natural size it expects BEFORE measuring anything -- that precondition now
+catches a MEDIA_ROOT misconfiguration or a mis-sized fixture.
 
 Focus placement via locator.focus()/blur() is sanctioned SETUP here: several cases need a
 trigger focused but not activated, and a real click on an armed image opens the overlay.
@@ -950,33 +955,6 @@ def _isolated_media(settings, tmp_path):
     return tmp_path
 
 
-@pytest.fixture
-def media_route(settings):
-    """Install a per-request /media/ resolver on a page.
-
-    Per-request resolution, not one canned response: a handler that always returned the
-    1400x900 bytes would serve them for the 1x1 asset too, and the no-upscale case would
-    measure naturalWidth == 1400 while appearing to pass.
-    """
-
-    def install(page):
-        def handler(route, request):
-            rel = urllib.parse.urlparse(request.url).path.split("/media/", 1)[-1]
-            path = Path(settings.MEDIA_ROOT) / urllib.parse.unquote(rel)
-            if path.is_file():
-                route.fulfill(path=str(path))  # path=, so the MIME type is inferred
-            else:
-                route.fulfill(status=404)
-
-        page.route("**/media/**", handler)
-
-    return install
-
-
-# _student / _lesson_url / _login are defined here rather than imported from
-# tests/test_e2e_gallery.py: this module needs a user OBJECT (for EnrollmentFactory), not
-# a username, and every e2e module in this repo is deliberately self-contained. The login
-# helper is the same scoped-form version that module uses.
 def _student(username="zoomstudent"):
     return make_verified_user(
         username=username, email=f"{username}@t.example.com", password=TEST_PASSWORD
@@ -1029,9 +1007,8 @@ def zoom_lesson(db, _isolated_media):
     return unit, user
 
 
-def _goto(page, live_server, unit, user, media_route):
+def _goto(page, live_server, unit, user):
     page.set_viewport_size(VIEWPORT)
-    media_route(page)
     _login(page, live_server, user)
     page.goto(_lesson_url(live_server, unit))
 
@@ -1044,7 +1021,7 @@ def _open(page, trigger):
     trigger.click()
     page.wait_for_selector("dialog.imgzoom[open]")
     # The [open] attribute is set synchronously, but the overlay <img> re-requests
-    # through page.route (Chromium disables the HTTP cache for routed requests), so
+    # from the network rather than a warm cache, so
     # measuring immediately can read naturalWidth == 0 and a zero-area box. Wait for the
     # decode before any geometry is taken.
     page.wait_for_function(
@@ -1060,8 +1037,8 @@ def _await_decoded(page, locator):
     locator.wait_for() defaults to state="visible", which only needs a non-empty box --
     and an <img> whose bytes have not arrived still gets one from its alt text, so
     naturalWidth can legitimately read 0. Every fixture image is served through
-    page.route, and Chromium disables the HTTP cache for routed requests, so this race
-    is real for the inline trigger exactly as it is for the overlay image.
+    the live server rather than a warm cache, so this race is real for the inline trigger
+    exactly as it is for the overlay image.
     """
     locator.wait_for()
     page.wait_for_function(
@@ -1079,14 +1056,14 @@ def _natural_width(locator):
     return locator.evaluate("el => el.naturalWidth")
 
 
-def test_harness_serves_the_real_fixture_image(page, live_server, zoom_lesson, media_route):
+def test_harness_serves_the_real_fixture_image(page, live_server, zoom_lesson):
     """The precondition every geometry case depends on.
 
     Without the media route this fails with naturalWidth == 0, which is exactly the
     silent failure the route exists to prevent.
     """
     unit, user = zoom_lesson
-    _goto(page, live_server, unit, user, media_route)
+    _goto(page, live_server, unit, user)
     trigger = _trigger(page)
     _await_decoded(page, trigger)
     assert _natural_width(trigger) == 1400
@@ -1099,8 +1076,16 @@ Expected: PASS.
 
 - [ ] **Step 4: Falsify the harness**
 
-Comment out the `media_route(page)` call inside `_goto`, re-run.
-Expected: RED with `assert 0 == 1400` — proving the route is load-bearing and that a 404 would otherwise be measured as a valid image. Restore.
+The guard here is `_isolated_media`, not an interception. Point `MEDIA_ROOT` somewhere with no
+fixture file in it — e.g. temporarily set `settings.MEDIA_ROOT = str(tmp_path / "empty")` in
+`_isolated_media` — and re-run.
+Expected: RED. Django's `_MediaFilesHandler` then 404s the image, `naturalWidth` reads 0, and the
+smoke test's `== 1400` precondition fails — proving that precondition is load-bearing and that a
+missing image cannot be silently measured as a valid one. Restore.
+
+(An earlier draft prescribed "comment out the `media_route(page)` call and expect `assert 0 == 1400`".
+That break provably could not go RED, because Django serves the media itself — see the module
+docstring. Verified twice in Task 6: from `django/test/testcases.py:1755`, and empirically.)
 
 - [ ] **Step 5: Confirm the factory change broke nothing and left no files behind**
 
@@ -1114,7 +1099,7 @@ Run: `git status --porcelain --ignored media/` — expected: **empty**. `--ignor
 ```bash
 git branch --show-current
 git add tests/factories.py tests/test_e2e_imagezoom.py
-git commit -m "test(imagezoom): e2e harness with per-request media fulfilment"
+git commit -m "test(imagezoom): e2e harness with isolated MEDIA_ROOT and decode waits"
 ```
 
 ---
@@ -1125,7 +1110,7 @@ git commit -m "test(imagezoom): e2e harness with per-request media fulfilment"
 - Modify: `tests/test_e2e_imagezoom.py`
 
 **Interfaces:**
-- Consumes: `zoom_lesson`, `media_route`, `_goto`, `_open`, `_box`, `_natural_width`, `_trigger` (Task 6).
+- Consumes: `zoom_lesson`, `_goto`, `_open`, `_box`, `_natural_width`, `_trigger`, `_await_decoded` (Task 6).
 - Produces: nothing downstream.
 
 - [ ] **Step 1: Write the tests**
@@ -1133,14 +1118,14 @@ git commit -m "test(imagezoom): e2e harness with per-request media fulfilment"
 Append to `tests/test_e2e_imagezoom.py`:
 
 ```python
-def test_closed_dialog_is_not_rendered(page, live_server, zoom_lesson, media_route):
+def test_closed_dialog_is_not_rendered(page, live_server, zoom_lesson):
     """Open, close, THEN assert -- the dialog is created lazily.
 
     Asserting "absent or invisible" before the first open would be vacuous: it passes
     even with `display: grid` unscoped, which is the very bug this case exists to catch.
     """
     unit, user = zoom_lesson
-    _goto(page, live_server, unit, user, media_route)
+    _goto(page, live_server, unit, user)
     dialog = _open(page, _trigger(page))
     dialog.click()
     page.wait_for_selector("dialog.imgzoom[open]", state="detached")
@@ -1150,10 +1135,10 @@ def test_closed_dialog_is_not_rendered(page, live_server, zoom_lesson, media_rou
 
 
 def test_overlay_enlarges_without_upscaling_and_fits_the_viewport(
-    page, live_server, zoom_lesson, media_route
+    page, live_server, zoom_lesson
 ):
     unit, user = zoom_lesson
-    _goto(page, live_server, unit, user, media_route)
+    _goto(page, live_server, unit, user)
     trigger = _trigger(page)
     _await_decoded(page, trigger)  # or inline_width is measured pre-load and the
     assert _natural_width(trigger) == 1400, "media route must serve the real image"
@@ -1192,7 +1177,7 @@ def test_overlay_enlarges_without_upscaling_and_fits_the_viewport(
 
 
 def test_nothing_but_the_image_is_visible(
-    page, live_server, zoom_lesson, media_route, tmp_path
+    page, live_server, zoom_lesson, tmp_path
 ):
     """checkVisibility() cannot express this -- a modal <dialog> makes the rest of the
     document inert, not unrendered, so the lesson article still reports visible. Assert
@@ -1201,7 +1186,7 @@ def test_nothing_but_the_image_is_visible(
     from PIL import Image
 
     unit, user = zoom_lesson
-    _goto(page, live_server, unit, user, media_route)
+    _goto(page, live_server, unit, user)
     dialog = _open(page, _trigger(page))
     img = page.locator(".imgzoom__img")
     box = _box(img)
@@ -1302,7 +1287,7 @@ def tall_lesson(db, _isolated_media):
     return unit, user
 
 
-def test_second_click_closes_and_restores_focus(page, live_server, zoom_lesson, media_route):
+def test_second_click_closes_and_restores_focus(page, live_server, zoom_lesson):
     """Smoke test of the close path.
 
     This case CANNOT falsify the explicit `trigger.focus()`, and no Chromium e2e can:
@@ -1312,7 +1297,7 @@ def test_second_click_closes_and_restores_focus(page, live_server, zoom_lesson, 
     in tests/test_imagezoom_render.py is the sole guard on it.
     """
     unit, user = zoom_lesson
-    _goto(page, live_server, unit, user, media_route)
+    _goto(page, live_server, unit, user)
     trigger = _trigger(page)
     dialog = _open(page, trigger)
     dialog.click()
@@ -1320,15 +1305,15 @@ def test_second_click_closes_and_restores_focus(page, live_server, zoom_lesson, 
     assert trigger.evaluate("el => el === document.activeElement")
 
 
-def test_escape_closes_the_overlay(page, live_server, zoom_lesson, media_route):
+def test_escape_closes_the_overlay(page, live_server, zoom_lesson):
     unit, user = zoom_lesson
-    _goto(page, live_server, unit, user, media_route)
+    _goto(page, live_server, unit, user)
     _open(page, _trigger(page))
     page.keyboard.press("Escape")
     page.wait_for_selector("dialog.imgzoom[open]", state="detached")
 
 
-def test_escape_does_not_also_close_the_unit_drawer(page, live_server, zoom_lesson, media_route):
+def test_escape_does_not_also_close_the_unit_drawer(page, live_server, zoom_lesson):
     """The only guard on the stopImmediatePropagation decision.
 
     The gesture is spelled out because the obvious one is impossible: an open drawer is
@@ -1339,7 +1324,6 @@ def test_escape_does_not_also_close_the_unit_drawer(page, live_server, zoom_less
     """
     unit, user = zoom_lesson
     page.set_viewport_size({"width": 390, "height": 844})  # drawer only exists <=640px
-    media_route(page)
     _login(page, live_server, user)
     page.goto(_lesson_url(live_server, unit))
 
@@ -1356,10 +1340,10 @@ def test_escape_does_not_also_close_the_unit_drawer(page, live_server, zoom_less
     assert drawer.evaluate("el => !el.hidden"), "one Escape closed the drawer too"
 
 
-def test_double_click_opens_then_closes(page, live_server, zoom_lesson, media_route):
+def test_double_click_opens_then_closes(page, live_server, zoom_lesson):
     """The accepted behaviour: the second click lands on the now-covering dialog."""
     unit, user = zoom_lesson
-    _goto(page, live_server, unit, user, media_route)
+    _goto(page, live_server, unit, user)
     trigger = _trigger(page)
 
     # Positive control first, or this test cannot tell "opened then closed" from "never
@@ -1376,18 +1360,18 @@ def test_double_click_opens_then_closes(page, live_server, zoom_lesson, media_ro
     assert page.locator("dialog.imgzoom[open]").count() == 0
 
 
-def test_enter_opens_from_the_keyboard(page, live_server, zoom_lesson, media_route):
+def test_enter_opens_from_the_keyboard(page, live_server, zoom_lesson):
     unit, user = zoom_lesson
-    _goto(page, live_server, unit, user, media_route)
+    _goto(page, live_server, unit, user)
     _trigger(page).focus()
     page.keyboard.press("Enter")
     page.wait_for_selector("dialog.imgzoom[open]")
 
 
-def test_accessible_names(page, live_server, zoom_lesson, media_route):
+def test_accessible_names(page, live_server, zoom_lesson):
     """Non-empty-alt branch here; the empty-alt branch is on the gallery fixture."""
     unit, user = zoom_lesson
-    _goto(page, live_server, unit, user, media_route)
+    _goto(page, live_server, unit, user)
     page.get_by_role("button", name="A labelled diagram").wait_for()
     _open(page, _trigger(page))
     # The dialog is named for the CONTROL, never with the image's alt -- naming both
@@ -1396,7 +1380,7 @@ def test_accessible_names(page, live_server, zoom_lesson, media_route):
     assert dialog.get_attribute("aria-label") == "Enlarged image"
 
 
-def test_focus_stays_inside_the_open_overlay(page, live_server, zoom_lesson, media_route):
+def test_focus_stays_inside_the_open_overlay(page, live_server, zoom_lesson):
     """UA focus trap. Non-obvious because the overlay contains no focusable element.
 
     Nothing of ours to delete, so the positive control carries the weight: the same two
@@ -1404,7 +1388,7 @@ def test_focus_stays_inside_the_open_overlay(page, live_server, zoom_lesson, med
     and that a pass is not "focus never entered the dialog".
     """
     unit, user = zoom_lesson
-    _goto(page, live_server, unit, user, media_route)
+    _goto(page, live_server, unit, user)
 
     page.keyboard.press("Tab")
     page.keyboard.press("Tab")
@@ -1421,22 +1405,22 @@ def test_focus_stays_inside_the_open_overlay(page, live_server, zoom_lesson, med
         assert inside, "focus escaped the modal dialog"
 
 
-def test_close_removes_the_src_attribute(page, live_server, zoom_lesson, media_route):
+def test_close_removes_the_src_attribute(page, live_server, zoom_lesson):
     """`img.src = ""` would resolve against the document URL and refetch the HTML page
     as an image on every close."""
     unit, user = zoom_lesson
-    _goto(page, live_server, unit, user, media_route)
+    _goto(page, live_server, unit, user)
     dialog = _open(page, _trigger(page))
     dialog.click()
     page.wait_for_selector("dialog.imgzoom[open]", state="detached")
     assert page.locator(".imgzoom__img").get_attribute("src") is None
 
 
-def test_the_page_behind_does_not_scroll(page, live_server, tall_lesson, media_route):
+def test_the_page_behind_does_not_scroll(page, live_server, tall_lesson):
     """Tests the platform claim rather than trusting it. The positive control IS the
     falsification: there is no line of ours to delete."""
     unit, user = tall_lesson
-    _goto(page, live_server, unit, user, media_route)
+    _goto(page, live_server, unit, user)
     assert page.evaluate(
         "() => document.documentElement.scrollHeight > window.innerHeight"
     ), "fixture must be taller than the viewport or scrollY is 0 either way"
@@ -1647,7 +1631,7 @@ def _tab_walk(page, n=24):
 
 
 def test_only_the_active_gallery_figure_is_a_tab_stop(
-    page, live_server, gallery_lesson, media_route
+    page, live_server, gallery_lesson
 ):
     """A get_by_role("button") COUNT is not a valid test here: inactive figures already
     carry aria-hidden today and Playwright's role engine excludes ARIA-hidden elements,
@@ -1660,7 +1644,7 @@ def test_only_the_active_gallery_figure_is_a_tab_stop(
     after wrapping past the end of the document.
     """
     unit, user = gallery_lesson
-    _goto(page, live_server, unit, user, media_route)
+    _goto(page, live_server, unit, user)
     page.wait_for_selector(".gallery__item.is-active")
     page.get_by_role("link", name="Anchor link").click()
 
@@ -1670,7 +1654,7 @@ def test_only_the_active_gallery_figure_is_a_tab_stop(
 
 
 def test_arrow_key_navigation_survives_inerting(
-    page, live_server, gallery_lesson, media_route
+    page, live_server, gallery_lesson
 ):
     """Focus a zoom trigger, ArrowRight twice, assert the carousel advanced twice.
 
@@ -1679,7 +1663,7 @@ def test_arrow_key_navigation_survives_inerting(
     exactly one step.
     """
     unit, user = gallery_lesson
-    _goto(page, live_server, unit, user, media_route)
+    _goto(page, live_server, unit, user)
     page.wait_for_selector(".gallery__item.is-active")
     page.locator(".gallery__item.is-active .imgzoom-trigger").focus()
 
@@ -1703,33 +1687,33 @@ def test_arrow_key_navigation_survives_inerting(
 
 
 def test_clicking_the_active_gallery_figure_opens_the_overlay(
-    page, live_server, gallery_lesson, media_route
+    page, live_server, gallery_lesson
 ):
     """The gallery is the surface with all the pointer complications and the only one
     whose click-to-open path nothing else exercises."""
     unit, user = gallery_lesson
-    _goto(page, live_server, unit, user, media_route)
+    _goto(page, live_server, unit, user)
     page.wait_for_selector(".gallery__item.is-active")
     trigger = page.locator(".gallery__item.is-active .imgzoom-trigger")
     _open(page, trigger)
 
 
 def test_decorative_gallery_figure_is_named_for_the_control(
-    page, live_server, gallery_lesson, media_route
+    page, live_server, gallery_lesson
 ):
     """The empty-alt branch: figure 1 has an empty description, so its alt is empty and
     arming must give it an aria-label instead of leaving a nameless button."""
     unit, user = gallery_lesson
-    _goto(page, live_server, unit, user, media_route)
+    _goto(page, live_server, unit, user)
     page.wait_for_selector(".gallery__item.is-active")
     page.get_by_role("button", name="Enlarge image").first.wait_for()
 
 
 def test_inactive_tab_panel_keeps_its_image_out_of_the_tab_order(
-    page, live_server, hidden_lesson, media_route
+    page, live_server, hidden_lesson
 ):
     unit, user = hidden_lesson
-    _goto(page, live_server, unit, user, media_route)
+    _goto(page, live_server, unit, user)
     page.get_by_role("link", name="Anchor link").click()
     seen = _tab_walk(page, n=30)
     assert not any(s["inHiddenPanel"] for s in seen)
@@ -1755,7 +1739,7 @@ def test_inactive_tab_panel_keeps_its_image_out_of_the_tab_order(
 
 
 def test_closed_spoiler_keeps_its_image_out_of_the_tab_order(
-    page, live_server, hidden_lesson, media_route
+    page, live_server, hidden_lesson
 ):
     """UNFALSIFIABLE SMOKE CHECK, stated as such: a closed <details> skips its contents
     via content-visibility and skipped contents are not focusable, so an author
@@ -1763,7 +1747,7 @@ def test_closed_spoiler_keeps_its_image_out_of_the_tab_order(
     available. Its value is the positive control below.
     """
     unit, user = hidden_lesson
-    _goto(page, live_server, unit, user, media_route)
+    _goto(page, live_server, unit, user)
     spoiler_img = page.locator("details .imgzoom-trigger")
     assert spoiler_img.evaluate_all("els => els.every(el => !el.checkVisibility())")
     page.locator("details > summary").first.click()
@@ -1771,7 +1755,7 @@ def test_closed_spoiler_keeps_its_image_out_of_the_tab_order(
 
 
 def test_gated_image_stays_out_of_the_tab_order(
-    page, live_server, hidden_lesson, media_route
+    page, live_server, hidden_lesson
 ):
     """The highest-stakes row of the hiding table: a leaked tab stop would let a keyboard
     user open a gated ANSWER image before passing the gate.
@@ -1783,7 +1767,7 @@ def test_gated_image_stays_out_of_the_tab_order(
     assertion here, and no stepper falsification either.
     """
     unit, user = hidden_lesson
-    _goto(page, live_server, unit, user, media_route)
+    _goto(page, live_server, unit, user)
     page.get_by_role("link", name="Anchor link").click()
     seen = _tab_walk(page, n=30)
     gated_reachable = page.evaluate(
@@ -1887,16 +1871,16 @@ def tiny_lesson(db, _isolated_media):
 
 
 def test_filltable_image_cell_opens_the_overlay(
-    page, live_server, filltable_lesson, media_route
+    page, live_server, filltable_lesson
 ):
     unit, user = filltable_lesson
-    _goto(page, live_server, unit, user, media_route)
+    _goto(page, live_server, unit, user)
     _open(page, page.locator(".filltable__img"))
 
 
-def test_tiny_image_opens_and_is_not_upscaled(page, live_server, tiny_lesson, media_route):
+def test_tiny_image_opens_and_is_not_upscaled(page, live_server, tiny_lesson):
     unit, user = tiny_lesson
-    _goto(page, live_server, unit, user, media_route)
+    _goto(page, live_server, unit, user)
     trigger = _trigger(page)
     _await_decoded(page, trigger)
     # Precondition: a mis-mapped media route must not hand this the 1400px fixture.
@@ -1930,7 +1914,7 @@ def _make_pa_user(username):
 
 
 def test_editor_preview_rearms_after_a_real_save(
-    page, live_server, db, _isolated_media, media_route
+    page, live_server, db, _isolated_media
 ):
     """A source grep proves the string exists in editor.js; it cannot prove the name
     matches what imagezoom.js exports or that arming survives a real fragment swap
@@ -1953,7 +1937,6 @@ def test_editor_preview_rearms_after_a_real_save(
     add_element(unit, ImageElement.objects.create(media=asset, alt="Editor image"))
 
     page.set_viewport_size(VIEWPORT)
-    media_route(page)
     _login(page, live_server, owner)
     page.goto(
         f"{live_server.url}"
@@ -2035,8 +2018,7 @@ student logs in.
 
 Instead add a **temporary pytest module** in the scratchpad (or a temporary
 `tests/test_zz_imgzoom_shots.py` deleted before the final commit), marked
-`pytestmark = pytest.mark.e2e`, which reuses the real harness — `_isolated_media`,
-`media_route`, `_login`, `_goto` — so `MEDIA_ROOT` isolation, the `live_server`, the test
+`pytestmark = pytest.mark.e2e`, which reuses the real harness — `_isolated_media`, `_login`, `_goto` — so `MEDIA_ROOT` isolation, the `live_server`, the test
 database and authentication all come for free. Set the theme with
 `page.evaluate("document.documentElement.dataset.theme = 'dark'")`, and loop explicitly
 over **2 viewports × 2 themes × 2 orientations = 8 shots**, writing them to the scratchpad
