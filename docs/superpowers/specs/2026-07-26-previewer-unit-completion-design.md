@@ -123,10 +123,29 @@ A checklist tick landing between the fetch and the save is silently lost. That w
 on the enrolled path, but this change extends it to the previewer population, who sit on the very
 same page as the checklist. `courses/views.py::save_element_state` already solves exactly this with
 `transaction.atomic()` + `select_for_update()`, so this is the file's own house pattern rather than
-a new mechanism: same columns written, same semantics, no behaviour change for enrolled students —
-only a row lock on a low-frequency, explicitly-clicked endpoint. `update_fields` was the other
-candidate and is **rejected**: it would change which columns the enrolled path writes, a genuinely
-different change with its own regression surface.
+a new mechanism: same columns written, same semantics. `update_fields` was the other candidate and
+is **rejected**: it would change which columns the enrolled path writes, a genuinely different
+change with its own regression surface.
+
+**Be precise about what the lock does and does not close.** A row lock only excludes writers that
+also take it. It therefore closes the window against `save_element_state`'s callers (`check_answer`
+and `element_state_save`) — which is the *only* concurrent writer the previewer population can
+reach, so for the population this change admits, the window really is shut. It does **not** close
+the window against `seen` (≈:662-667), which is still `get_or_create` → mutate → bare
+`progress.save()` with no atomic block and no lock, writing every column from its own fetch. A
+`seen` flush that began before a `complete` commit can therefore write `completed=False` back over
+it, and can clobber an `element_state` key the same way. That is pre-existing, enrolled-only (a
+previewer never reaches `seen`'s write at all), and on the highest-frequency writer in the file —
+a 500 ms debounce during scroll — so hardening it is **out of scope**: it would change the hot path.
+Do not read "closed" as "the row is now lock-protected in general."
+
+**Cost:** the new shape is `get_or_create` (SELECT, sometimes INSERT) plus a second
+`SELECT … FOR UPDATE`, inside a savepointed atomic block, where the old shape was one SELECT and —
+when the unit was already complete — nothing further. That is +1 query and a transaction per
+`complete` POST, on the enrolled path too. No `assertNumQueries` / `CaptureQueriesContext` test
+currently covers `complete` (verified), so nothing breaks; but Testing §11 wraps this very endpoint
+in `CaptureQueriesContext`, so its assertion must target `UPDATE` on `courses_unitprogress`
+specifically, never "no writes" — SELECT and SAVEPOINT traffic is expected and correct.
 
 ### 2. The read — `courses/views.py::build_lesson_context`
 
@@ -293,13 +312,14 @@ change to existing data that no POST triggers, and it gets its own test (Testing
   idempotent; `completed_at` is stamped once, in `UnitProgress.save()`. `UnitProgress` carries a
   `UniqueConstraint(student, unit)`, so concurrent `get_or_create` calls cannot produce a duplicate
   row.
-- **Concurrent `element_state` write — closed, not documented.** The full-row `save()` would
-  otherwise clobber a checklist tick that landed between the fetch and the save; §1 closes that
-  window with `transaction.atomic()` + `select_for_update()`, the pattern `save_element_state`
-  already uses. See §1 for why that mitigation was chosen over `update_fields`. Note this is a
-  *concurrency* window — a write landing inside another request — so no sequential test can sample
-  it; Testing §11 pins the observable consequence (a second POST issues no UPDATE at all) rather
-  than pretending to reproduce the race.
+- **Concurrent `element_state` write — closed against every writer the previewer can reach.** The
+  full-row `save()` would otherwise clobber a checklist tick that landed between the fetch and the
+  save; §1 closes that window with `transaction.atomic()` + `select_for_update()`, the pattern
+  `save_element_state` already uses. See §1 for why that mitigation was chosen over `update_fields`,
+  and — importantly — for what it does **not** close: `seen` remains an unlocked full-row writer on
+  the enrolled path. This is a *concurrency* window — a write landing inside another request — so no
+  sequential test can sample it; Testing §11 pins the observable consequence (a second POST issues
+  no UPDATE at all) rather than pretending to reproduce the race.
 - **No row on GET** — the read path stays `.filter().first()`. A `None` `progress` is a valid,
   expected state that the template already handles.
 - **Method** — `complete` remains `@require_POST`; a GET cannot complete a unit.
@@ -390,11 +410,21 @@ test.
      `can_access_course` recipe below would never catch it.
    *Falsify (gate):* drop the `can_access_course` check in `complete` → (b) and (c) go RED.
    *Falsify (diff-local):* restore the `is_enrolled` branch in `complete` → (a) and (d) go RED.
-6. **Pre-existing `completed=True` row.** Seed a `completed=True` row for a user, ensure they are
-   **not** enrolled but can access → a plain GET of the lesson (no POST at all) shows the
-   "Completed" pill. Pins the Data-flow "Pre-existing rows" paragraph as intended behaviour rather
-   than an accident.
-   *Falsify:* revert `progress = state_row` → RED.
+6. **Pre-existing row, both directions.** One fixture shape, two cases that must not be collapsed:
+   - **(a) `completed=True`.** Seed such a row for a user who is **not** enrolled but can access →
+     a plain GET of the lesson (no POST at all) shows the "Completed" pill. Pins the Data-flow
+     "Pre-existing rows" paragraph as intended behaviour rather than an accident.
+     *Falsify:* revert `progress = state_row` → RED.
+   - **(b) `completed=False` — the case that catches a wrong assignment.** Seed a
+     `completed=False` row carrying `element_state` for a non-enrolled `can_access` viewer → the GET
+     shows `unit-done__pill--btn` **present** and `is-complete` **absent** on `[data-unit-done]`.
+     This is not hypothetical: since PR #136 a previewer who ticks a checklist gets exactly this
+     row, making it the *most common* previewer row in production once this ships. It is also the
+     only shape where the read edit can produce a visibly wrong answer — assign anything merely
+     truthy (`progress = state_row or UnitProgress()`, a sentinel, a fresh unsaved instance) and a
+     viewer who never clicked is told "✓ Completed", while every other test in this list stays
+     green. Test 4 only asserts no row is created; test 2 and 6(a) only cover the `True` direction.
+     *Falsify:* assign any truthy non-row value to `progress` in the non-enrolled branch → RED.
 7. **The second render surface: `check_answer`'s no-JS path.** A non-enrolled viewer with a
    `completed=True` row POSTs a Check on a question in that unit — **without** an
    `X-Requested-With: fetch` header — → the re-rendered lesson still shows the "Completed" pill.
@@ -426,9 +456,13 @@ test.
      unit's own row**: `outline.html` renders the whole course tree and `_outline_node.html:8` emits
      an identical bare `badge--done` span for *every* completed unit, so a body-wide substring check
      false-passes the moment any other unit is complete. `_outline_node.html:3` puts
-     `data-unit="{{ item.node.pk }}"` on the `<li>` — parse that node (or match
-     `data-unit="<pk>"[^>]*>` through to `badge--done`), and seed no other completed unit in the
-     fixture;
+     `data-unit="{{ item.node.pk }}"` on the `<li>` — **parse the `li[data-unit="<pk>"]` subtree**
+     and assert inside it. A naive `data-unit="<pk>"[^>]*>` … `badge--done` regex does **not** work:
+     `[^>]*>` stops at the `<li>`'s own closing `>`, so the match is unbounded on the right and runs
+     straight into a later unit's badge — the exact false-pass the scoping exists to prevent. If a
+     regex is preferred over parsing, bound it: `_outline_node.html:5` puts `outline-unit--done` on
+     the same unit's `<a>`, so matching that non-greedily between `data-unit="<pk>"` and the next
+     `data-unit=` is one correctly-bounded check. Seed no other completed unit either way;
    - the **lesson unit** page (`_unit_shell.html` → `_unit_footer.html:3-5`) → `unit_nav.course_progress.done`
      is non-zero. This half **requires an obligatory lesson unit**: `course_progress.done` sums
      `required_done`, which `rollups.py` sets only when `is_obligatory_lesson(node)`, and the footer
@@ -449,8 +483,13 @@ test.
     (GroupMembership ⊆ Enrollment) as maintained by services rather than enforced by the query — the
     exact shape the repo's access-widening doctrine says to drive end to end. A non-enrolled
     `can_access` previewer marks a unit done; then, as the course owner or a teacher, resolve
-    `students_in_scope(teacher, course, "all")` and build the analytics matrix from it → the
-    previewer is **not** a row.
+    `students_in_scope(teacher, course, "all")` and build the analytics matrix from it.
+    **The fixture must contain a genuinely enrolled student, and both halves must be asserted:**
+    that student **is** a row, and the previewer **is not**. With nobody enrolled,
+    `students_in_scope` returns empty, `build_progress_matrix` short-circuits at
+    `if all_lesson_pks and students:` and returns `rows == []` — "the previewer is not a row" would
+    then hold for a reason that has nothing to do with the roster filter. The claim the containment
+    argument needs is "the matrix is populated **and still** omits them".
     *Falsify:* enroll the previewer → RED (they appear), proving the assertion discriminates.
 11. **Double POST is idempotent and writes nothing the second time.** A previewer POSTs `complete`
     twice → exactly one row, and `completed_at` **on the DB row** is unchanged after the second POST
@@ -475,6 +514,14 @@ test.
     *Falsify:* exempt — these are pre-existing tests being protected from regression, not new
     guards. Per the falsifiability doctrine, a test whose behaviour the diff does not change has no
     honest RED recipe, and claiming one would be theatre.
+
+**File placement (one rule, since placement is load-bearing here).** Every new test in this list
+lands in `tests/test_courses_progress.py`, beside the inverted test — including tests 9 and 10, which
+have plausible homes in `tests/test_courses_rollups.py` and the analytics-scoping tests but belong
+here, because their whole point is what *this* change does to those surfaces and the co-location is
+the signal. The sole exception is test 4, which is not new: it already exists as
+`courses/tests/test_markdone_render.py::test_passive_non_enrolled_viewer_gets_no_progress_row`, in a
+different package, and stays there.
 
 Use `tests.factories`' helpers and `TEST_PASSWORD`; never a hardcoded password. The existing
 previewer tests build their viewer as `is_staff = True`, which is the production-accurate shape for
@@ -529,7 +576,13 @@ observable at the view/template layer by tests 1, 2 and 7.
   - *Not new:* such rows already exist. Every write that can set `completed=True` is enrolled-gated
     or student-scoped at the time of writing — `seen` and `complete` (both `is_enrolled`),
     `quiz_finish` (enrolled-only), `review.py::force_submit` (acts on the *student's* row, never the
-    teacher's) — but nothing keeps the row and the enrollment together afterwards.
+    teacher's) — plus the Django admin, which is neither: `courses/admin.py` registers a plain
+    add/change-enabled `UnitProgressAdmin`, and `UnitProgress.save()`'s own comment pins the
+    completed⇒completed_at invariant "for EVERY write path (incl. admin)". So an admin can already
+    create or flip a `completed=True` row for any user, enrolled or not. That is a *second* existing
+    route to the shape, which strengthens the "not new" argument rather than weakening it (and it is
+    the same admin named as the recovery route under "The decision, and why"). And nothing keeps a
+    row and its enrollment together afterwards.
     `grouping/services.py::remove_students_from_group` drops the `Enrollment` and deliberately
     preserves the progress row (pinned by
     `tests/test_grouping_recompute.py::test_progress_preserved_across_drop_and_readd`), so a former
