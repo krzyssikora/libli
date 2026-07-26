@@ -26,6 +26,18 @@ def _media(url="/media/x.png"):
     return SimpleNamespace(file=SimpleNamespace(url=url))
 
 
+def _js_code_only(source):
+    """JS source with comments stripped.
+
+    A source assertion must not be satisfiable by prose. imagezoom.js's comments quote
+    unit_nav.js's own `document.addEventListener("keydown", onKeydown, true)` -- so a
+    bare `, true)` regex matched the comment and the capture-phase guard passed even
+    with capture removed from the real call. Proven by mutation during review.
+    """
+    no_block = re.sub(r"/\*[\s\S]*?\*/", "", source)
+    return re.sub(r"(?m)//.*$", "", no_block)
+
+
 def test_fragment_anchor_survives_sanitisation():
     """The e2e Tab-traversal cases anchor on a seeded <a href="#">, and four of them
     would fail for an unrelated reason if the sanitiser dropped a bare fragment href.
@@ -166,12 +178,11 @@ def test_escape_guard_is_capture_phase_and_uses_stop_immediate():
     # unit_nav.js registers its drawer handler as a CAPTURE listener on document, so a
     # bubble-phase listener on the dialog could never stop it, and stopPropagation
     # cannot stop a same-node/same-phase peer.
-    module = (JS / "imagezoom.js").read_text(encoding="utf-8")
-    assert "stopImmediatePropagation()" in module
-    # Regex, not a `"true);"` substring: the registration is formatted across lines,
-    # so `true` is followed by a newline and `);` -- a substring test would fail
-    # forever.
-    assert re.search(r",\s*true\s*\)", module), (
-        "listener must be registered capture-phase"
-    )
-    assert "dialog && dialog.open" in module  # lazily created: null before first open
+    code = _js_code_only((JS / "imagezoom.js").read_text(encoding="utf-8"))
+    assert "stopImmediatePropagation()" in code
+    assert "dialog && dialog.open" in code  # lazily created: null before the first open
+    # The capture flag must be the third argument of the SAME call that stops the event,
+    # in code rather than in a comment.
+    assert re.search(
+        r"stopImmediatePropagation\(\);?[\s\S]{0,120}?\},\s*true\s*\)", code
+    ), "Escape listener must be registered capture-phase"
