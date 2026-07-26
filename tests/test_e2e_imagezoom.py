@@ -35,6 +35,7 @@ from tests.factories import CourseFactory
 from tests.factories import EnrollmentFactory
 from tests.factories import add_element
 from tests.factories import make_image_asset
+from tests.factories import make_quiz_unit
 from tests.factories import make_verified_user
 
 pytestmark = pytest.mark.e2e
@@ -83,6 +84,15 @@ def _lesson_url(live_server, unit):
 
     path = reverse(
         "courses:lesson_unit", kwargs={"slug": unit.course.slug, "node_pk": unit.pk}
+    )
+    return f"{live_server.url}{path}"
+
+
+def _quiz_url(live_server, unit):
+    from django.urls import reverse
+
+    path = reverse(
+        "courses:quiz_unit", kwargs={"slug": unit.course.slug, "node_pk": unit.pk}
     )
     return f"{live_server.url}{path}"
 
@@ -751,7 +761,11 @@ def test_inactive_tab_panel_keeps_its_image_out_of_the_tab_order(
     # Walk order to expect: active tab button -> active panel (tabs.js:77 sets
     # panel.tabIndex = 0) -> the trigger inside it, with a roving tabindex on the
     # inactive tab buttons (tabs.js:94).
-    page.get_by_role("tab").nth(1).click()
+    # Selected by accessible NAME, not position: TabsElement.default_data() labels its
+    # second tab "Tab 2" (courses/models.py), but `nth(1)` would silently target
+    # whatever tab happens to be second if that default ever changed, rather than
+    # failing loudly.
+    page.get_by_role("tab", name="Tab 2").click()
     page.wait_for_selector("[data-tab-panel]:not([hidden]) .imgzoom-trigger")
     page.get_by_role("link", name="Anchor link").click()
     seen_after = _tab_walk(page, n=30)
@@ -878,6 +892,39 @@ def test_tiny_image_opens_and_is_not_upscaled(page, live_server, tiny_lesson):
     _open(page, trigger)
     box = _box(page.locator(".imgzoom__img"))
     assert box["width"] <= 1.5, f"1x1 image was upscaled to {box['width']}"
+
+
+@pytest.fixture
+def quiz_zoom_lesson(db, _isolated_media):
+    """A QUIZ unit (unit_type="quiz", make_quiz_unit), not a lesson -- every other
+    fixture in this module runs on a lesson page or the editor. quiz_unit.html
+    renders elements through build_quiz_context rather than build_lesson_context, and
+    this repo has a recorded lesson that a shared element template can render
+    differently -- and has actually broken -- between the two consumption paths. This
+    is a surface-level smoke check, not a re-test of geometry (that is covered
+    exhaustively on lesson pages above)."""
+    from courses.models import ImageElement
+
+    course = CourseFactory()
+    unit = make_quiz_unit(course=course)
+    asset = make_image_asset(course, filename="quiz.png", size=BIG, color=MAGENTA)
+    add_element(unit, ImageElement.objects.create(media=asset, alt="Quiz diagram"))
+    user = _student("quizstudent")
+    EnrollmentFactory(course=course, student=user)
+    return unit, user
+
+
+def test_quiz_page_opens_and_closes_the_overlay(page, live_server, quiz_zoom_lesson):
+    unit, user = quiz_zoom_lesson
+    page.set_viewport_size(VIEWPORT)
+    _login(page, live_server, user)
+    page.goto(_quiz_url(live_server, unit))
+    trigger = _trigger(page)
+    _await_decoded(page, trigger)
+    dialog = _open(page, trigger)
+    assert dialog.evaluate("el => el.open") is True
+    page.keyboard.press("Escape")
+    page.wait_for_selector("dialog.imgzoom[open]", state="detached")
 
 
 def _make_pa_user(username):

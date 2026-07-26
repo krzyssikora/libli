@@ -532,28 +532,24 @@ interaction **under test** (the click, the keypress, the wheel), which stays rea
 is arranged. Case 9's traversal is the exception that must use real `Tab` presses, because the tab order
 *is* what it tests.
 
-#### The media-serving problem — solve this first, or every geometry assertion is fiction
+#### The media-serving problem — verify this first, or every geometry assertion is fiction
 
 `config/settings/test.py` sets `DEBUG = False`, and `config/urls.py` routes `/media/` **only** inside
-`if settings.DEBUG:`. So under `live_server` a fixture asset's `MEDIA_URL` 404s: the trigger renders as
-a broken image with `naturalWidth === 0`, and every width/geometry/pixel assertion below would "pass"
-while measuring nothing. No existing e2e contradicts this — `test_e2e_gallery.py` asserts carousel
-structure only, never that an image loaded.
+`if settings.DEBUG:`. That DEBUG-gated route, however, only matters for a real dev/prod server.
 
-Note the asymmetry, so the scope of the fix is self-evident: pytest-django's `live_server` wraps the
-handler in `StaticFilesHandler`, which serves `/static/` regardless of `DEBUG` — so the CSS and JS under
-test *do* load. Only `/media/` is unserved, so only `/media/` needs intercepting.
-
-Mechanism: **`page.route("**/media/**", …)` resolves each requested path to its file under `MEDIA_ROOT`
-(which these tests point at `tmp_path`, so the real bytes are on disk) and fulfils with **`route.fulfill(path=<resolved file>)`** —
-`path=` rather than `body=`, so the content type is inferred from the extension instead of defaulting to
-`text/plain` — and `route.fulfill(status=404)` for any path that does not map.** Per-request resolution, not one canned response: a single handler
-that always returned the 1400×900 fixture's bytes would silently serve them for the 1×1 asset, the
-portrait asset and the structured visual-review asset too — case 17 would measure `naturalWidth == 1400`
-for a 1×1 image and the visual review would judge the wrong picture, both while appearing to pass. No app
-config is touched, no URLConf is mutated, and the `<img>`, its `src`, and every gesture stay real — the
-interception replaces only the unserved transport. This does not weaken the "e2e must drive real UI"
-rule, which is about driving real gestures rather than stubbing them.
+**Corrected during execution:** this section originally claimed that, as a consequence, a fixture
+asset's `MEDIA_URL` 404s under `live_server` — the trigger rendering as a broken image with
+`naturalWidth === 0` and every width/geometry/pixel assertion below "passing" while measuring
+nothing — and prescribed a `page.route("**/media/**", …)` interception to resolve each request against
+`MEDIA_ROOT` and fulfil it with the real bytes. Execution proved that claim false:
+`django.test.testcases.LiveServerThread.run()` unconditionally builds
+`self.static_handler(_MediaFilesHandler(WSGIHandler()))` (`django/test/testcases.py:1755` — no DEBUG
+check anywhere in that chain), and `_MediaFilesHandler.get_base_dir()`/`get_base_url()` (`:1716-1726`)
+resolve `settings.MEDIA_ROOT`/`MEDIA_URL` per request, entirely bypassing this project's own
+DEBUG-gated `config/urls.py` route. `/media/<path>` is therefore served under test settings exactly as
+it would be under `DEBUG = True`; no Playwright-level route interception is needed or present.
+`_isolated_media` pointing `MEDIA_ROOT` at `tmp_path` — already required so a freshly created fixture
+does not land in the developer's real `media/` tree — is therefore the *whole* mechanism.
 
 Guard against silent regress: **every case that measures geometry first asserts the natural size it
 expects** — `naturalWidth == 1400` for the large fixture, `naturalWidth == 1` for the tiny one — so a

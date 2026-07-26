@@ -56,6 +56,11 @@
       // and makes the browser refetch the current HTML page as an image every close.
       dialogImg.removeAttribute("src");
       if (trigger) trigger.focus();
+      // Drop the reference once restored: otherwise the module would hold the last
+      // zoomed <img> for the page's lifetime, and on the editor page that node is
+      // detached by the next preview fragment swap -- a later close would then call
+      // focus() on a detached element (a silent no-op, but pointless retention).
+      trigger = null;
       document.documentElement.classList.remove("imgzoom-open");
     });
 
@@ -102,9 +107,15 @@
   document.addEventListener("click", function (e) {
     var img = e.target.closest && e.target.closest("[data-zoomable]");
     if (!img) return;
-    // Defence in depth for a future container that nests an image in a <summary> or
-    // <label>. It does NOT suppress image drag or text selection -- those start at
-    // mousedown, long before click -- and no such suppression is wanted.
+    // A click on an <img> has no default action, so this is a no-op today: none of the
+    // three armed templates nests an image in a <summary>, <label> or <a>, and
+    // sanitisation prevents authored HTML from doing so. It is kept as a deliberate
+    // behaviour choice for any future container that DOES nest a trigger inside an
+    // activating control -- there, preventDefault() would suppress that control's own
+    // action (the label's target activating, the <details> toggling), which is the
+    // intended precedence, not protection for THIS click. It does NOT suppress image
+    // drag or text selection -- those start at mousedown, long before click -- and no
+    // such suppression is wanted.
     e.preventDefault();
     openOverlay(img);
   });
