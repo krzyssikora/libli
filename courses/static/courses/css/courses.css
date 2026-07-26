@@ -1588,5 +1588,17 @@ dialog.imgzoom:not([open]) { display: none; }
    1400x900 image in the 1280-wide viewport -- which outranks max-width/max-height:100%
    and makes the image overflow the height-capped dialog instead of being letterboxed.
    Measured pre-fix height was 822.84, matching the formula. Found by measurement in
+   Task 7, not by inspection -- seven spec rounds and four plan rounds read this rule as
+   correct.
+
+   What is PROVEN vs PRECAUTIONARY, so nobody deletes the wrong half: `min-height: 0` is
+   load-bearing and demonstrably so (remove it and the geometry e2e goes red with that
+   822.84 overflow). `min-width: 0` is precautionary symmetry only -- it was tested by
+   removing it and re-capturing all 8 visual-review configurations (2 viewports x 2
+   themes x landscape+portrait) and every screenshot came back byte-identical, including
+   the width-capped narrow-viewport cases where it was expected to matter. The width
+   axis is evidently already clamped by `max-width: 100%`. Kept as cheap defence for
+   aspect-ratio/viewport combinations outside those eight, but do not describe it as
+   verified.
    Task 7, not by inspection. */
 .imgzoom__img { max-width: 100%; max-height: 100%; min-width: 0; min-height: 0; width: auto; height: auto; display: block; }
