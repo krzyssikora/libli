@@ -418,11 +418,26 @@ def test_escape_guard_is_capture_phase_and_uses_stop_immediate():
     # bubble-phase listener on the dialog could never stop it, and stopPropagation
     # cannot stop a same-node/same-phase peer.
     module = (JS / "imagezoom.js").read_text(encoding="utf-8")
-    assert "stopImmediatePropagation()" in module
-    # Regex, not a `"true);"` substring: the registration is formatted across lines,
-    # so `true` is followed by a newline and `);` -- a substring test would fail forever.
-    assert re.search(r",\s*true\s*\)", module), "listener must be registered capture-phase"
-    assert "dialog && dialog.open" in module  # lazily created: null before first open
+    # Comments MUST be stripped first. imagezoom.js's own comment quotes unit_nav.js's
+    # `document.addEventListener("keydown", onKeydown, true)`, so a bare `, true)` regex
+    # is satisfied by that prose and the guard passes even with capture removed from the
+    # real call -- proven by mutation during Task 3's review. Strip comments, then require
+    # the flag to be the third argument of the SAME call that stops the event.
+    code = _js_code_only(module)
+    assert "stopImmediatePropagation()" in code
+    assert "dialog && dialog.open" in code  # lazily created: null before first open
+    assert re.search(
+        r"stopImmediatePropagation\(\);?[\s\S]{0,120}?\},\s*true\s*\)", code
+    ), "Escape listener must be registered capture-phase"
+
+Add this helper beside the other module-level helpers:
+
+```python
+def _js_code_only(source):
+    """JS source with comments stripped, so a source assertion cannot be satisfied by prose."""
+    no_block = re.sub(r"/\*[\s\S]*?\*/", "", source)
+    return re.sub(r"(?m)//.*$", "", no_block)
+```
 ```
 
 - [ ] **Step 2: Run the tests and verify they fail**
@@ -601,6 +616,7 @@ Expected: 13 passed.
 - Rename the export to `window.libliInitImageZoomer` → the literal test goes RED. Restore.
 - Delete `if (trigger) trigger.focus();` → its test goes RED. Restore.
 - Change `stopImmediatePropagation()` to `stopPropagation()` → the Escape test goes RED. Restore.
+- **Delete the third `true` argument** from the real `document.addEventListener("keydown", …, true)` registration, leaving every comment intact → the Escape test must go RED. This is the break that matters: with an unstripped source the comment's quoted `onKeydown, true)` rescues the assertion and a genuine bubble-phase regression ships green. Restore.
 
 - [ ] **Step 8: Commit**
 
