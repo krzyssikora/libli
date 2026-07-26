@@ -765,11 +765,22 @@ Expected: all pass.
 Then, in the **foreground**, the tests that actually execute `gallery.js`:
 
 Run: `uv run pytest tests/test_e2e_gallery.py -m e2e -v`
-Expected: all pass. This step is not optional — `test_gallery_render.py` and
-`test_gallery_model.py` are template/model tests that never run the JS, so on their own
-they cannot detect an `inert` or `rescueFocus` regression at all. This task ships a live
-behaviour change to the student carousel; verifying it only by source grep and deferring
-the real check to Task 11 would mean committing it unverified.
+Expected: all pass. This step is not optional, but be precise about what it proves and what it
+does not. It proves this change did not break the **existing** carousel: mouse/click navigation,
+math rendering, and two galleries staying independent. `test_gallery_render.py` and
+`test_gallery_model.py` are template/model tests that never execute the JS, so they cannot detect
+an `inert` regression at all — this run can.
+
+It does **not** verify the focus rescue. `tests/test_e2e_gallery.py` contains no `ArrowRight`, no
+`keyboard.press` and no `.focus()`: it advances the carousel by clicking the "Next image" button,
+which leaves `document.activeElement` on that button — outside the outgoing item — so
+`rescueFocus`'s `if (!out.contains(document.activeElement)) return;` bails immediately and the
+meaningful branch never runs. The suite would pass with `rescueFocus` deleted entirely.
+
+The rescue's behavioural verification is owed to **Task 9's `test_arrow_key_navigation_survives_inerting`**,
+which focuses a gallery `.imgzoom-trigger`, presses ArrowRight twice, and asserts the carousel
+advanced twice with focus still inside the container. Until that test is green, the rescue is
+verified by source inspection only. Do not mark Task 9 complete without it passing.
 
 - [ ] **Step 6: Falsify**
 
