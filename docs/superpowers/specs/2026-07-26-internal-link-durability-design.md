@@ -30,11 +30,12 @@ one registry rather than two overlapping guesses.
 | `courses/transfer/schema.py` | `FORMAT_VERSION` 5→6; `link_nodes` admitted to `validate_document`'s key list and shape-checked |
 | `courses/transfer/export.py` | emit `document["link_nodes"]` |
 | `courses/transfer/importer.py` | `_create_elements` returns what it created; `on_missing` + `report` threaded through the three entry points; the rewrite post-pass |
-| `courses/builder.py` | pass `on_missing="keep"` from `duplicate_unit` |
+| `courses/builder.py` | *unchanged* — `materialize_duplicate` defaults to `on_missing="keep"`, so `duplicate_unit` calls it exactly as it does today |
 | `courses/views_transfer.py` | a second, separate `messages.warning` on both import paths when links were flattened |
 | `courses/views_manage.py` | `counts["inbound_links"]` in `node_delete`'s GET branch |
 | `templates/courses/manage/node_confirm_delete.html` | the warning sentence |
-| `tests/test_tabs_transfer.py`, `tests/test_transfer_schema.py` | the two hard-coded `FORMAT_VERSION == 5` assertions |
+| `tests/test_tabs_transfer.py`, `tests/test_transfer_schema.py` | the two hard-coded `FORMAT_VERSION == 5` assertions (one is also a test *name*) |
+| `tests/test_table_transfer.py` | line 265's comment "(4 <= FORMAT_VERSION=5)" goes stale — comment-only fix, the test itself still passes |
 | `locale/*/LC_MESSAGES/django.po` + `.mo` | two new strings, both catalogs, regenerated |
 
 **Out of scope**
@@ -159,17 +160,56 @@ drop the open tag and its matching `</a>` — safe without a parser because anch
 sanitiser's output does not, and no browser produces nested `<a>`). Everything outside anchor tags is
 returned byte-identical.
 
-That relies on one property worth stating: all stored rich text is `nh3.clean` output, which
-entity-escapes `>` inside attribute values, so a `title="a > b"` cannot truncate an `<a[^>]*>` match.
-The property is weakest for `FillGateElement.stem` and `SwitchGateElement.stem`, which
-`_build_fill_gate` / `_build_switch_gate` do **not** re-sanitise on the import path — a hand-crafted
-archive could therefore carry a raw `>` in an attribute. The regex must **fail closed** on a body it
-cannot match cleanly: leave it byte-identical and count nothing, never emit mangled markup.
+**The open-tag scanner must be attribute-aware — `<a[^>]*>` is not safe.** An earlier draft of this
+spec asserted that `nh3.clean` entity-escapes `>` inside attribute values, so a `title="a > b"` could
+not truncate the match, and confined the risk to two unsanitised stems in a hand-crafted archive.
+**That is false.** Measured against the real sanitiser:
+
+```text
+sanitize_html('<a title="a > b" href="/courses/n/1/">x</a>')
+  -> '<a title="a > b" href="/courses/n/1/">x</a>'      # unchanged; > NOT escaped
+re.findall(r'<a[^>]*>', …)  ->  ['<a title="a >']       # the href falls OUTSIDE the match
+sanitize_html('<a href="/courses/n/1/?q=a>b">y</a>')
+  -> '<a href="/courses/n/1/?q=a>b">y</a>'              # also unchanged
+```
+
+`title` is an allowed `<a>` attribute, so this is reachable from ordinary sanitised rich text — a
+paste into the RTE, or part 1's explicitly supported no-JS hand-typed HTML — on *every* registry
+field. It is not a hand-crafted-archive edge case, and the exposure is an order of magnitude wider
+than that framing suggested.
+
+The scanner therefore consumes attribute values properly: for each `<a`, alternate over
+`"…"` / `'…'` / bare values until an unquoted `>`, so a `>` inside a quoted value can never terminate
+the tag. Only then is the `href` value located and rewritten.
+
+**Fail-closed, with the triggering conditions named** — "cannot match cleanly" has to be a decidable
+condition, not a disposition. The whole *body* is returned byte-identical and contributes 0 to the
+count when the scanner meets any of:
+
+- an unterminated quoted attribute value;
+- an `<a` with no unquoted `>` before end of input;
+- on the unwrap path, an open tag with no matching `</a>`. This is reachable: `_build_fill_gate` and
+  `_build_switch_gate` do not re-sanitise their stems on the import path, so a hand-crafted archive
+  can carry unbalanced markup.
+
+Note the naive scanner does **not** hit any of these on the `title="a > b"` case — it produces a
+syntactically clean match of the wrong span and silently gets the answer wrong. That is exactly why
+the scanner has to be attribute-aware rather than merely defensive, and why §Testing exercises both
+attribute orders.
 
 **Drift guard.** A new element type with a rich-text body that nobody adds here would silently
-escape both features. The guard greps for `sanitize_html(` call sites across `courses/models.py`,
-`courses/element_forms.py` and `courses/transfer/importer.py` (a third *file*, with one call site, at
-`_build_guess_number`) — 13 sites today, 6 / 6 / 1.
+escape both features. The guard greps the **whole `courses/` package** — not a hand-maintained file
+list — excluding `courses/tests/` and `sanitize.py`'s own definition. The repo-wide baseline today is
+**14 call sites across 4 files**: `models.py` ×6, `element_forms.py` ×6, `transfer/importer.py` ×1
+(`_build_guess_number`), and `templatetags/courses_extras.py` ×1 — the `|sanitize` filter, which is a
+**render-time** re-sanitise, not a storage location, and is recorded as such rather than omitted.
+(`fillblank.py:3` mentions `sanitize_html(` in a docstring and must not be counted; the grep excludes
+comment and docstring lines.)
+
+An earlier draft allowlisted three files. That was wrong twice over: it missed
+`courses_extras.py` outright, and a fixed list cannot see a call site added in any other module —
+`courses/switchgrid.py` already establishes that helper modules do sanitising work. A package-wide
+grep is what makes the guard self-maintaining, which is the only reason it is worth having.
 
 It records a set of **`(file, enclosing def, assignment target)` triples**, not `(file, def)` pairs
 and certainly not a bare count. The finer unit is load-bearing: `QuestionElement.save()` already
@@ -184,7 +224,10 @@ membership in `CONCRETE_QUESTION_MODELS`:
 - in it (e.g. `FillBlankQuestionElementForm.clean_stem`) → covered automatically by the comprehension;
   update the expected set, leave `RICH_TEXT_FIELDS` alone;
 - not in it, or unresolvable (e.g. `FillGateElementForm.clean_stem`, `SwitchGateElementForm.clean`)
-  → `RICH_TEXT_FIELDS` genuinely needs an entry.
+  → `RICH_TEXT_FIELDS` needs an entry **or a documented exclusion**. The softer wording is required,
+  not politeness: `SwitchGridElementForm.clean` is exactly such a site today, and §1 spends a page
+  arguing it must *not* get an entry. A message promising "add it to the registry" would give the
+  next JSON-nested rich-text field precisely the wrong advice.
 
 Note two of those share the def name `clean_stem`, which is why the class's model — not the def name
 — is the discriminator.
@@ -279,8 +322,14 @@ the correct answer differs:
 | `materialize_duplicate` (same install, via `duplicate_unit`) | `keep` | those pks still resolve; flattening a working link would be a regression |
 
 **Threading the policy and the count without breaking callers.** The three entry points take two new
-**keyword** arguments: `on_missing` (defaulting per the table) and an optional `report` dict, which —
-when supplied — receives `{"flattened_links": n}`. `builder.duplicate_unit` passes `on_missing="keep"`.
+**keyword** arguments: `on_missing` and an optional `report` dict, which — when supplied — receives
+`{"flattened_links": n}`.
+
+The table above is the **default** on each entry point: `import_course` and `import_subtree` default
+to `unwrap`, `materialize_duplicate` to `keep`. No caller passes it explicitly — `duplicate_unit`
+simply calls `materialize_duplicate` as it does today. Defaults rather than required arguments,
+because the policy is a property of the entry point, not of the call site, and a required argument
+would put the decision where it could drift.
 
 The `report` out-parameter exists specifically to avoid changing the return types. `import_course`
 returns a `Course` and `import_subtree` a `ContentNode`, and **eight test modules** consume those
@@ -408,7 +457,8 @@ DELETE (GET confirm)
 - **A `link_nodes` *value* that is not an export id present in `node_map`** → that entry is
   unresolvable, same as absent. Should not occur; handled rather than asserted, since an import must
   never 500 on a bad archive.
-- **A body the anchor regex cannot match cleanly** → returned byte-identical, nothing counted. Fail
+- **A body meeting one of the three fail-closed conditions** (unterminated quoted value; `<a` with no
+  unquoted `>`; unwrap with no matching `</a>`) → returned byte-identical, nothing counted. Fail
   closed; never emit mangled markup.
 
 ## Testing
@@ -426,8 +476,16 @@ Falsified before trusted — delete the behaviour, require RED — per house rul
 - **Byte-identity outside anchors:** a body containing an inline `\(…\)` math span *and* a literal
   `/courses/n/12/` in visible text comes back unchanged apart from the intended `href` — the case
   that fails under both a bs4 round trip and a naive whole-document regex.
-- **Fail-closed:** a body with a raw `>` inside an anchor attribute is returned byte-identical rather
-  than mangled.
+- **Raw `>` inside an anchor attribute is rewritten *correctly*** — not merely "not mangled". Both
+  attribute orders are exercised: `<a title="a > b" href="/courses/n/1/">` and
+  `<a href="/courses/n/1/" title="a > b">`. The first is the one a naive `<a[^>]*>` gets silently
+  wrong (it matches `<a title="a >`, leaving the href outside the match, so the link is neither
+  rewritten nor counted), and it passes any test phrased as "returned byte-identical" — which is why
+  the assertion must be on the rewritten href, not on the absence of damage. An `href` containing a
+  raw `>` (`/courses/n/1/?q=a>b`) is covered too; it survives the sanitiser unescaped.
+- **Fail-closed** applies to the three named conditions only — an unterminated quoted value, an `<a`
+  with no unquoted `>`, and (unwrap path) an open tag with no matching `</a>`. Each returns the body
+  byte-identical and contributes 0.
 - **Route-literal tie:** `richtext`'s pattern and the delete scan's SQL constant both agree with
   `reverse("courses:node_permalink", kwargs={"node_pk": 1})`, mirroring part 1's CSS-selector guard.
 - The drift guard itself: add a throwaway `sanitize_html` call site and assert RED. Assert
@@ -472,10 +530,14 @@ Falsified before trusted — delete the behaviour, require RED — per house rul
 - The confirm page shows the sentence only when the count is non-zero.
 - Query count pinned as a concrete whole-request total. The expected shape is stated so the number is
   derived rather than recorded from the first run: **one query per registry model (16)**, plus one
-  per subtree depth level from `ContentNode._subtree_node_ids()`, plus the pre-existing per-node
-  `_descendant_count` / `_element_count` walks. The fixture must hold **at least two link-bearing
-  elements of the same model** in the subtree — otherwise a regression to one query per element is
-  invisible and the assertion only measures tree size.
+  per descendant depth level from `ContentNode._subtree_node_ids()` **plus one** for the terminating
+  empty frontier (its breadth-first loop always runs a final query that returns nothing, so a leaf
+  costs 1), plus the pre-existing per-node `_descendant_count` / `_element_count` walks.
+- The fixture must hold **at least two link-bearing elements of the same registry model OUTSIDE the
+  doomed subtree** — among the rows the scan actually reads. Putting them *inside* would make the
+  guard vacuous: the scan excludes the subtree, so those rows are never queried per-model at all and
+  could not distinguish one-query-per-model from one-query-per-element. The subtree side needs only
+  the link targets.
 
 ## i18n
 
