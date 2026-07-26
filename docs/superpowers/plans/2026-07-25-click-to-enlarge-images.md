@@ -320,8 +320,21 @@ dialog.imgzoom:not([open]) { display: none; }
 .imgzoom::backdrop { background: var(--scrim-solid); }
 /* 100% of the dialog's content box — which IS the fitted viewport, per above.
    Full-bleed by design: a gutter must come as max-height: calc(100% - 2 * gutter)
-   here, never as padding on the dialog, which this max-height would overflow. */
-.imgzoom__img { max-width: 100%; max-height: 100%; width: auto; height: auto; display: block; }
+   here, never as padding on the dialog, which this max-height would overflow.
+
+   `min-width: 0; min-height: 0` is NOT optional. This is a grid item (the dialog is
+   `display: grid`), so min-width/min-height default to `auto`, which resolves to the
+   CONTENT-based minimum — the image's own intrinsic size — and that OUTRANKS
+   max-width/max-height: 100%. Without it a 1400x900 image renders 900 tall inside an
+   800px-tall dialog: it scales by width only, overflows the viewport vertically, and
+   there is no letterbox band at all. The CSS Grid automatic-minimum-size trap.
+
+   This was NOT caught by any amount of source review — seven spec rounds, four plan
+   rounds and six task reviews all read this rule as correct. It was caught the first
+   time a test measured the rendered box (Task 7: y+height = 822.84 > 800.5, box.x =
+   0.016 with no band). Keep the `max-width: 100%; max-height: 100%;` prefix byte-intact:
+   Task 2's source assertion matches it as an exact substring. */
+.imgzoom__img { max-width: 100%; max-height: 100%; min-width: 0; min-height: 0; width: auto; height: auto; display: block; }
 ```
 
 - [ ] **Step 5: Run the tests and verify they pass**
@@ -1254,6 +1267,7 @@ Expected: 4 passed.
 | Break (in `courses.css`) | Must go RED |
 |---|---|
 | Unscope `display: grid` **and** delete the `dialog.imgzoom:not([open])` rule (both — the guard at (0,2,1) outranks `.imgzoom` at (0,1,0), so unscoping alone stays green) | `test_closed_dialog_is_not_rendered` |
+| Delete `min-height: 0` from `.imgzoom__img` | the in-viewport assertion — the grid automatic-minimum-size bug returns and `y + height` exceeds the viewport (observed 822.84 vs the 800.5 bound) |
 | Delete `max-height: 100%` from `.imgzoom__img` | the in-viewport assertion |
 | `width: 100vw` on `.imgzoom[open]` | the **dialog-width** assertion (not the image-box one) |
 | `place-items: start` instead of `center` | the centring assertion |
