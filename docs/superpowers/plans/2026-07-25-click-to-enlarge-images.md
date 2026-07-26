@@ -1076,12 +1076,26 @@ Expected: PASS.
 
 - [ ] **Step 4: Falsify the harness**
 
-The guard here is `_isolated_media`, not an interception. Point `MEDIA_ROOT` somewhere with no
-fixture file in it — e.g. temporarily set `settings.MEDIA_ROOT = str(tmp_path / "empty")` in
-`_isolated_media` — and re-run.
-Expected: RED. Django's `_MediaFilesHandler` then 404s the image, `naturalWidth` reads 0, and the
-smoke test's `== 1400` precondition fails — proving that precondition is load-bearing and that a
-missing image cannot be silently measured as a valid one. Restore.
+Two breaks, both **verified to go RED** during execution. Run at least the first:
+
+**A — mis-size the fixture** (fast, and the clearer failure). Build the asset at `size=(700, 450)`
+instead of `BIG` and re-run.
+Observed: `AssertionError: assert 700 == 1400`. This proves the precondition guards the fixture's
+size. Note it read 700, not 0 — the image still *loaded*, which is itself a standing re-confirmation
+that Django serves the media. Restore.
+
+**B — delete the written bytes** so the image cannot load at all: in the smoke test, `unlink()` every
+`*.png` under `settings.MEDIA_ROOT` before `_goto`.
+Observed: RED via `playwright._impl._errors.TimeoutError: Page.wait_for_function: Timeout 30000ms
+exceeded` — `_await_decoded` is what catches a non-loading image, and it does so by timing out rather
+than by a clean assertion. Valid but slow (30s) and the message is less self-explanatory, so prefer A
+for routine falsification and keep B in mind as the "image genuinely 404s" case. Restore.
+
+**Do NOT use "point `MEDIA_ROOT` at an empty directory".** An earlier draft of this plan prescribed
+exactly that, and it does **not** go RED: `_isolated_media` sets `MEDIA_ROOT` *before* the asset is
+created, so `make_image_asset` writes into the same directory the handler then serves from — they
+still match and the test passes. That was the second wrong break this step has carried (the first
+assumed media was not served at all); both were caught only by actually running them.
 
 (An earlier draft prescribed "comment out the `media_route(page)` call and expect `assert 0 == 1400`".
 That break provably could not go RED, because Django serves the media itself — see the module
