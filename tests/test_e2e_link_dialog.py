@@ -91,6 +91,27 @@ def _open_link_dialog(page):
     return dialog
 
 
+def _await_effect(page, predicate_js):
+    """Wait for a JS boolean predicate instead of reading state right after
+    `dialog.wait_for(state="hidden")`.
+
+    `dialog.close()` clears the `open` attribute SYNCHRONOUSLY but only QUEUES the
+    `close` event as a task (HTML spec: "queue an element task"), and
+    link_dialog.js's own close listener -- which performs every real effect this file
+    asserts on (restoring the caret, writing the .op-error banner, inserting or
+    unwrapping the <a> via libliLinkApply.apply(), all done from the callback
+    text_toolbar.js passed to open()) -- runs inside that queued task
+    (link_dialog.js:287-296). So `dialog.wait_for(state="hidden")` proves only that
+    the attribute is gone, not that the callback has run; a one-shot read right after
+    it is a genuine race under load (this repo hit the identical class of bug in
+    imagezoom.js: commit b1ec23f3, "wait for the close HANDLER, not just for the
+    dialog to shut"). A retrying `wait_for_function` on the effect itself -- the
+    selection text, or a DOM node the callback creates/removes -- waits out exactly
+    that gap instead of sampling it.
+    """
+    page.wait_for_function(predicate_js)
+
+
 @pytest.mark.django_db(transaction=True)
 def test_insert_internal_link_then_follow_it(page, live_server):
     from courses.models import Enrollment
@@ -117,6 +138,10 @@ def test_insert_internal_link_then_follow_it(page, live_server):
     assert dialog.locator("[data-link-text]").input_value() == "quadratics"
     dialog.locator("[data-link-insert]").click()
     dialog.wait_for(state="hidden")
+    # Lower risk than the other sites (the save click + wait_for below give the
+    # queued close handler far more time), but make it explicit rather than
+    # incidental: the insert only lands once the callback has actually run.
+    _await_effect(page, "() => !!document.querySelector('.rte-surface a')")
 
     page.click('form[data-op="element-save"] button[type="submit"]')
     page.locator(".element-list [data-element]").first.wait_for()
@@ -217,6 +242,9 @@ def test_dismissing_restores_the_caret(page, live_server):
     _open_link_dialog(page)
     page.keyboard.press("Escape")
     page.locator(".link-dialog").wait_for(state="hidden")
+    # The restore itself is the queued callback's effect (see _await_effect); wait
+    # for the selection to actually settle rather than sampling it once.
+    _await_effect(page, "() => window.getSelection().toString() === 'quadratics'")
     assert page.evaluate("() => window.getSelection().toString()") == "quadratics"
 
 
@@ -239,6 +267,9 @@ def test_detached_surface_discards_and_explains(page, live_server):
     dialog.locator("[data-link-text]").fill("Chapter")
     dialog.locator("[data-link-insert]").click()
     dialog.wait_for(state="hidden")
+    # The .op-error banner is created BY the queued close-handler callback; wait for
+    # it to actually exist rather than sampling right after the dialog hides.
+    _await_effect(page, "() => !!document.querySelector('.op-error')")
 
     assert page.locator(".op-error").count() == 1
     conflict = page.locator(".editor").get_attribute("data-msg-conflict")
@@ -267,5 +298,8 @@ def test_reopening_prefills_and_remove_unwraps(page, live_server):
 
     dialog.locator("[data-link-remove]").click()
     dialog.wait_for(state="hidden")
+    # The unwrap is performed BY the queued close-handler callback; wait for the
+    # anchor to actually be gone rather than sampling right after the dialog hides.
+    _await_effect(page, "() => !document.querySelector('.rte-surface a')")
     assert page.locator(".rte-surface a").count() == 0
     assert "quadratics" in page.locator(".rte-surface").inner_text()
