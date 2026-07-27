@@ -1475,3 +1475,378 @@ def test_a_regraft_replaces_the_entry_rather_than_duplicating(tmp_path):
     second = _read_state_raw(bundle)
     assert [e["order"] for e in second["parts"]] == [0, 1, 2]  # not 0,1,2,1,2
     assert second["parts"][1]["node_map"] != first["parts"][1]["node_map"]
+
+
+# --- import: the ordered branch and the five resume gates -----------------
+
+
+def _seed_state(bundle, target, orders, *, status="collecting", rewritten=False):
+    """Hand-write a state file AND the world it describes.
+
+    Three things must line up or the test measures the wrong gate:
+
+    1. `BASELINE_NAME` must exist. Without it the resume path re-captures the
+       baseline NOW (`:419-427`), so `baseline["top_nodes"] == existing` and
+       `:433` raises for EVERY `--start-at K > 0` -- before any gate under test.
+       Seeded here as an all-zero baseline, matching an empty target.
+    2. The target must hold exactly `len(orders)` top-level nodes, or `:433`
+       raises anyway.
+    3. `node_map` values must be REAL live pks in `target`. Synthetic pks make
+       `_build_mapping`'s `skipped_dead` non-empty, so any seeded test that
+       reaches the pass dies on the fatal-skip CommandError instead.
+
+    Every seeded test must also pass `match=` to `pytest.raises`, or it can pass
+    on `:433`'s message and prove nothing.
+    """
+    index = _read_manifest(bundle)["node_index"]
+    (bundle / BASELINE_NAME).write_text(
+        json.dumps(
+            {
+                "top_nodes": 0,
+                "all_nodes": 0,
+                "kind_counts": {},
+                "elements": 0,
+                "media": 0,
+            }
+        ),
+        encoding="utf-8",
+    )
+    state = _fresh_state(target)
+    state["status"] = status
+    for o in orders:
+        src = _invert_node_index(index, o)
+        # One real node per export id, so _live_pks finds every recorded pk.
+        top = ContentNode.objects.create(course=target, kind="part", title=f"S{o}")
+        node_map = {}
+        for i, eid in enumerate(src):
+            node_map[eid] = (
+                top.pk
+                if i == 0
+                else ContentNode.objects.create(
+                    course=target, kind="chapter", title=f"S{o}c{i}", parent=top
+                ).pk
+            )
+        state["parts"].append(
+            {
+                "order": o,
+                "node_map": node_map,
+                "src": src,
+                "rewritten": rewritten,
+            }
+        )
+    _write_state(bundle, state)
+    return state
+
+
+def test_resume_refuses_a_state_file_missing_target_pk(tmp_path):
+    """The gate that stops a wrong-target resume writing itself a matching
+    identity. Adopting the resolved target instead would defeat it."""
+    bundle = _export_bundle(tmp_path)
+    target = _mk_target()
+    _user()
+    st = _seed_state(bundle, target, [0])
+    del st["target_pk"]
+    _write_state(bundle, st)
+    with pytest.raises(CommandError, match="pre-feature import"):
+        call_command(
+            "migrate_course_content",
+            "import",
+            "--target-slug",
+            "dst",
+            "--bundle-dir",
+            str(bundle),
+            "--as-user",
+            "mig@example.com",
+            "--start-at",
+            "1",
+        )
+
+
+def test_resume_refuses_a_state_file_for_a_different_target(tmp_path):
+    bundle = _export_bundle(tmp_path)
+    target = _mk_target()
+    other = Course.objects.create(title="Other", slug="other", uses_parts=True)
+    _user()
+    st = _seed_state(bundle, target, [0])
+    st["target_pk"] = other.pk
+    _write_state(bundle, st)
+    # match= is mandatory: :433's own message contains "target", so a bare
+    # pytest.raises(CommandError) would pass on the wrong gate.
+    with pytest.raises(CommandError, match="Refusing to mix targets"):
+        call_command(
+            "migrate_course_content",
+            "import",
+            "--target-slug",
+            "dst",
+            "--bundle-dir",
+            str(bundle),
+            "--as-user",
+            "mig@example.com",
+            "--start-at",
+            "1",
+        )
+
+
+def test_a_renamed_course_is_a_note_not_an_error(tmp_path, capsys):
+    bundle = _export_bundle(tmp_path)
+    target = _mk_target()
+    _user()
+    call_command(
+        "migrate_course_content",
+        "import",
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+        "--start-at",
+        "0",
+    )
+    target.slug = "dst-renamed"
+    target.save(update_fields=["slug"])
+    call_command(
+        "migrate_course_content",
+        "import",
+        "--target-slug",
+        "dst-renamed",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+        "--start-at",
+        "3",
+    )
+    assert "renamed" in capsys.readouterr().out
+
+
+def test_resume_refuses_when_a_committed_order_is_missing_from_the_state(tmp_path):
+    bundle = _export_bundle(tmp_path)
+    target = _mk_target()
+    _user()
+    # Two orders' worth of nodes, but only order 0 recorded.
+    _seed_state(bundle, target, [0])
+    ContentNode.objects.create(course=target, kind="part", title="extra")
+    with pytest.raises(CommandError, match="does not record them"):
+        call_command(
+            "migrate_course_content",
+            "import",
+            "--target-slug",
+            "dst",
+            "--bundle-dir",
+            str(bundle),
+            "--as-user",
+            "mig@example.com",
+            "--start-at",
+            "2",
+        )
+
+
+def test_the_subset_guard_is_not_lexicographic(tmp_path):
+    """JSON coerces int object keys to strings and max() over them is
+    lexicographic: max(['0','9','10']) == '9'. With mat-pp's 21 parts a
+    max()-based guard is wrong from part 10 onward. Hand-write the state and
+    seed the nodes rather than running a real ten-part import."""
+    bundle = _export_bundle(tmp_path, parts=tuple(f"P{i}" for i in range(11)))
+    target = _mk_target()
+    _user()
+    # rewritten=True: this test asserts the GUARD accepts. After the loop grafts
+    # part 10, recorded == on_disk == {0..10} and site 2 DOES fire -- seeding the
+    # orders as already-rewritten keeps the pass's scope to order 10 alone,
+    # rather than dragging ten seeded parts into it as a second subject.
+    _seed_state(bundle, target, list(range(10)), rewritten=True)
+    # Accepted: every archive order below 10 is recorded. A lexicographic-max
+    # implementation computes max(["0".."9"]) == "9" and rejects this.
+    call_command(
+        "migrate_course_content",
+        "import",
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+        "--start-at",
+        "10",
+    )
+    assert ContentNode.objects.filter(course=target, title="P10").exists()
+
+
+def test_resume_refuses_when_the_state_records_orders_no_longer_on_disk(tmp_path):
+    """recorded > on_disk. Without this the trigger's set equality is merely
+    False and `import` exits 0 having rewritten nothing."""
+    bundle = _export_bundle(tmp_path)
+    target = _mk_target()
+    _user()
+    _seed_state(bundle, target, [0, 1, 2], rewritten=True)
+    (sorted(bundle.glob("*.zip"))[-1]).unlink()
+    manifest = _read_manifest(bundle)
+    manifest["part_count"] = 2
+    (bundle / MANIFEST_NAME).write_text(json.dumps(manifest), encoding="utf-8")
+    with pytest.raises(CommandError, match="no longer holds their archive"):
+        call_command(
+            "migrate_course_content",
+            "import",
+            "--target-slug",
+            "dst",
+            "--bundle-dir",
+            str(bundle),
+            "--as-user",
+            "mig@example.com",
+            "--start-at",
+            "3",
+        )
+
+
+def test_a_missing_state_file_with_start_at_above_zero_refuses(tmp_path):
+    bundle = _export_bundle(tmp_path)
+    target = _mk_target()
+    _user()
+    # A baseline plus one committed part, but NO state file -- the pre-feature
+    # import shape. Without the baseline, :433 would raise first.
+    (bundle / BASELINE_NAME).write_text(
+        json.dumps(
+            {
+                "top_nodes": 0,
+                "all_nodes": 0,
+                "kind_counts": {},
+                "elements": 0,
+                "media": 0,
+            }
+        ),
+        encoding="utf-8",
+    )
+    ContentNode.objects.create(course=target, kind="part", title="P0")
+    with pytest.raises(CommandError, match="cannot be reconstructed"):
+        call_command(
+            "migrate_course_content",
+            "import",
+            "--target-slug",
+            "dst",
+            "--bundle-dir",
+            str(bundle),
+            "--as-user",
+            "mig@example.com",
+            "--start-at",
+            "1",
+        )
+
+
+def test_a_torn_state_file_is_tolerated_on_the_discard_branch(tmp_path):
+    bundle = _export_bundle(tmp_path)
+    _mk_target()
+    _user()
+    (bundle / LINK_STATE_NAME).write_text('{"version": 1, "par', encoding="utf-8")
+    call_command(  # no --start-at: discards it
+        "migrate_course_content",
+        "import",
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+    )
+    assert _read_state_raw(bundle)["version"] == 1
+
+
+def test_a_torn_state_file_refuses_on_the_resume_branch(tmp_path):
+    bundle = _export_bundle(tmp_path)
+    target = _mk_target()
+    _user()
+    _seed_state(bundle, target, [0])  # baseline + one committed part
+    (bundle / LINK_STATE_NAME).write_text('{"version": 1, "par', encoding="utf-8")
+    with pytest.raises(CommandError, match="not valid JSON"):
+        call_command(
+            "migrate_course_content",
+            "import",
+            "--target-slug",
+            "dst",
+            "--bundle-dir",
+            str(bundle),
+            "--as-user",
+            "mig@example.com",
+            "--start-at",
+            "1",
+        )
+
+
+def test_src_drift_refuses_after_a_re_export_from_an_edited_source(tmp_path):
+    """A sibling REORDER inside an ALREADY-RECORDED part. Export ids are
+    per-archive positional, so editing an ungrafted part leaves every recorded
+    part's src byte-identical and the guard correctly does not fire -- which
+    would make this test vacuous. Reordering top-level parts changes archive
+    names, not intra-part export ids, so that would be vacuous too."""
+    bundle = _export_bundle(tmp_path)
+    _mk_target()
+    _user()
+    call_command(
+        "migrate_course_content",
+        "import",
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+        "--start-at",
+        "0",
+    )
+    src = Course.objects.get(slug="src")
+    p0 = ContentNode.objects.get(course=src, title="P0")
+    ContentNode.objects.create(course=src, kind="chapter", title="extra", parent=p0)
+    call_command(
+        "migrate_course_content",
+        "export",
+        "--source-slug",
+        "src",
+        "--bundle-dir",
+        str(bundle),
+        "--clean",
+    )
+    with pytest.raises(CommandError, match="re-exported"):
+        call_command(
+            "migrate_course_content",
+            "import",
+            "--target-slug",
+            "dst",
+            "--bundle-dir",
+            str(bundle),
+            "--as-user",
+            "mig@example.com",
+            "--start-at",
+            "3",
+        )
+
+
+def test_dry_run_leaves_an_existing_state_file_byte_identical(tmp_path):
+    """--force names step 3's write path. A bare `import --dry-run` over a
+    bundle whose parts are committed hits :401 first (which fires regardless of
+    dry_run, since :408's gate is downstream) and would pass on the wrong error."""
+    bundle = _export_bundle(tmp_path)
+    _mk_target()
+    _user()
+    call_command(
+        "migrate_course_content",
+        "import",
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+    )
+    before = (bundle / LINK_STATE_NAME).read_bytes()
+    call_command(
+        "migrate_course_content",
+        "import",
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+        "--dry-run",
+        "--force",
+    )
+    assert (bundle / LINK_STATE_NAME).read_bytes() == before

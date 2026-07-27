@@ -351,6 +351,67 @@ class Command(BaseCommand):
             "media": MediaAsset.objects.filter(course=target).count(),
         }
 
+    def _check_identity(self, state, target):
+        """Which target database these pks belong to. Without it a resume
+        against the wrong course is not refused -- the pass's course=target
+        liveness filter simply finds nothing live, and (but for the fatal skip
+        rule) that is a whole-scope flatten. target_pk is authoritative;
+        target_slug only names the course in messages, so a rename is a note."""
+        if "target_pk" not in state:
+            raise CommandError(
+                f"{LINK_STATE_NAME} in this bundle has no 'target_pk': it was "
+                f"written by a pre-feature import. Re-run `import` from the "
+                f"start against a clean target."
+            )
+        if state["target_pk"] != target.pk:
+            raise CommandError(
+                f"{LINK_STATE_NAME} records target pk {state['target_pk']} "
+                f"({state.get('target_slug')!r}), but --target-slug resolved to "
+                f"{target.slug!r} (pk {target.pk}). Refusing to mix targets."
+            )
+        if state.get("target_slug") != target.slug:
+            self.stdout.write(
+                f"note: this course was renamed from "
+                f"{state.get('target_slug')!r} to {target.slug!r} since the "
+                f"import began; continuing on the recorded pk"
+            )
+
+    def _check_src_drift(self, state, node_index):
+        """Runs BEFORE anything is grafted, not inside the pass. Inside the
+        pass it is a post-mortem: the remaining parts are all committed from
+        the NEW archives first, and only then does it raise.
+
+        Compares SOURCE PKS, not export-id sets. Export ids are positional and
+        _create_nodes keys node_map by every document node, so both sides are
+        always exactly {n1..nK} for a part of K nodes -- a set comparison
+        returns True no matter what those ids now denote, and a sibling reorder
+        re-labels both nodes while preserving the set.
+        """
+        for entry in state["parts"]:
+            order = int(entry["order"])
+            expected = _invert_node_index(node_index, order)
+            recorded = {eid: int(pk) for eid, pk in entry.get("src", {}).items()}
+            if recorded != expected:
+                raise CommandError(
+                    f"{LINK_STATE_NAME} disagrees with {MANIFEST_NAME} about "
+                    f"part {order}: the bundle was re-exported from a changed "
+                    f"source after that part was grafted, so the recorded "
+                    f"export-id map no longer describes it. Re-run `import` "
+                    f"from the start against a clean target."
+                )
+
+    def _in_progress_message(self, bundle, state, target):
+        """STUB: Task 10 replaces this with a message that runs the fail-closed
+        probe (`_scan_links`, added there) and reports its reading. Task 6
+        only needs the refusal to exist and to be reachable; no test in this
+        task exercises this method's text (see
+        `test_the_in_progress_refusal_prints_a_probe_reading`, Task 11)."""
+        return (
+            f"{LINK_STATE_NAME} in {bundle} is 'in_progress': a previous "
+            f"invocation crashed mid-rewrite. Resolve it with "
+            f"--resolve-rewrite before resuming with --start-at."
+        )
+
     # --- export ----------------------------------------------------------
 
     def _export(self, o):
@@ -505,15 +566,29 @@ class Command(BaseCommand):
         node_index = bundle_manifest["node_index"]
         ordered = [(self._archive_order(p.name), p) for p in archives]
 
-        # PLACEHOLDER -- superseded by Task 6's ordered branch. Deliberately
-        # over-strict: it validates on the `start_at is None` path, which spec
-        # step 1 exempts, so a torn state file would make a from-scratch import
-        # raise. That is acceptable only because no test exercises it until
-        # Task 6, which replaces this line. Do not ship it.
-        state = _read_state(bundle, validate=True) or _fresh_state(target)
-
         start_at = o.get("start_at")
+        resolve = o.get("resolve_rewrite")  # Task 9 adds the flag
         baseline_path = bundle / BASELINE_NAME
+
+        # STEP 1. Validate unless this invocation discards the file wholesale.
+        # --start-at is fatal alongside --resolve-rewrite, so `start_at is
+        # None` is ALWAYS true on a resolve invocation -- a naive exemption
+        # would skip validation on every one of them, and step 2 returns
+        # before step 3 ever discards anything.
+        state = _read_state(bundle, validate=not (start_at is None and resolve is None))
+
+        # STEP 2. --resolve-rewrite is terminal. Identity FIRST, so a wrong
+        # --target-slug cannot flip the file and destroy the only record of
+        # whether the real target's rewrite ran. (Task 9 implements the
+        # terminal action itself; this task only wires the guard.)
+        if resolve is not None:
+            if state is None:
+                raise CommandError(
+                    f"{LINK_STATE_NAME} is missing from {bundle}; there is no "
+                    f"rewrite state to resolve"
+                )
+            self._check_identity(state, target)
+            return self._resolve_rewrite(o, bundle, state, node_index, target)
 
         if start_at is None:
             # A fresh start -- always re-captures the baseline now,
@@ -534,6 +609,17 @@ class Command(BaseCommand):
                 baseline_path.write_text(
                     json.dumps(baseline, ensure_ascii=False), encoding="utf-8"
                 )
+                # STEP 3. Behind the :401-equivalent guard above AND behind
+                # the dry-run gate. Before that guard, a plain re-run after a
+                # crash would wipe `parts` to [] and THEN raise "target
+                # already has N top-level node(s)" -- consuming an
+                # unrecoverable map on an invocation that does nothing else.
+                # No status check applies on this path: a leftover
+                # `in_progress`/`applied` file from an earlier migration
+                # through this bundle must not block a legitimate fresh
+                # re-import.
+                state = _fresh_state(target)
+                _write_state(bundle, state)
         else:
             # A resume, including the degenerate K=0 case. Reuse the
             # baseline the run that began this migration recorded, if any;
@@ -562,6 +648,55 @@ class Command(BaseCommand):
                     f"({baseline['top_nodes']} pre-existing + {start_at} "
                     f"committed part(s)), but it holds {existing}"
                 )
+
+            # STEP 4. All five gates, in this order, AFTER the invariant
+            # above and BEFORE `todo` is computed.
+            if state is None or not state.get("parts"):
+                if start_at == 0:
+                    state = _fresh_state(target)
+                    if not o.get("dry_run"):
+                        _write_state(bundle, state)
+                else:
+                    where = (
+                        f"is missing from {bundle}"
+                        if state is None
+                        else f"in {bundle} records no committed parts"
+                    )
+                    raise CommandError(
+                        f"{LINK_STATE_NAME} {where}, but "
+                        f"--start-at {start_at} says {start_at} part(s) are "
+                        f"already committed. That import began before "
+                        f"internal-link support, so its export_id -> new_pk "
+                        f"map cannot be reconstructed -- export ids exist "
+                        f"nowhere else. Re-run `import` from the start "
+                        f"against a clean target."
+                    )
+            else:
+                self._check_identity(state, target)  # 1. identity
+                if state["status"] == "in_progress":  # 2. in_progress refusal
+                    raise CommandError(self._in_progress_message(bundle, state, target))
+                recorded = {int(e["order"]) for e in state["parts"]}
+                on_disk = {order for order, _p in ordered}
+                missing = {  # 3. resume subset guard
+                    x for x in on_disk if x < start_at
+                } - recorded
+                if missing:
+                    raise CommandError(
+                        f"--start-at {start_at} expects part(s) "
+                        f"{sorted(missing)} to be committed, but "
+                        f"{LINK_STATE_NAME} does not record them. Proceeding "
+                        f"would flatten every link into them."
+                    )
+                extra = recorded - on_disk  # 4. recorded - on_disk refusal
+                if extra:
+                    raise CommandError(
+                        f"{LINK_STATE_NAME} records part(s) {sorted(extra)} "
+                        f"as grafted, but {bundle} no longer holds their "
+                        f"archive(s). The bundle was re-exported with parts "
+                        f"removed; re-run `import` from the start."
+                    )
+                self._check_src_drift(state, node_index)  # 5. src drift
+
             todo = [(order, path) for order, path in ordered if order >= start_at]
             if not o.get("dry_run") and not baseline_path.exists():
                 baseline_path.write_text(
