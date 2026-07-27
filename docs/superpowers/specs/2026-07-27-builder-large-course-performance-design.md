@@ -506,7 +506,10 @@ def _filtered_map(course, cmap, q) -> tuple[dict, set[int], int, int]:
 ```
 
 `_render_scope` calls it; `builder()` and `_builder_with_notice()` obtain their restricted map
-**and their `top_nodes`** from the same call. Without a named owner, the match selection, the
+from the same call. **`top_nodes` is derived, not returned** — it is
+`restricted_cmap.get(None, [])`, exactly as `builder()` already derives it from the unrestricted
+map today, which is also why `extra_open`'s effect 2 needs no separate `top_nodes` step: a
+top-level node is inserted under key `None`. Without a named owner, the match selection, the
 ancestor walk, the 100-cap and the `top_nodes` restriction would be re-implemented in two or
 three places — the drift the three-call-sites rule exists to prevent.
 
@@ -567,7 +570,7 @@ shrink**. On a 150-node course (~30 containers → a ~150-byte enumeration) it i
 | JS — any fragment request | `open` appended to the `FormData` / query by the collector in §5. Nothing in the markup is involved. |
 | JS — surviving a reload | `history.replaceState` writes the recomputed `open` into the address bar on every toggle (§5). Without it, F5 discards the author's expansions. |
 | No-JS — expanding | The toggle's own `href`, the **only** markup that carries an enumeration: one per container row, not one per URL per row. |
-| No-JS — mutations | No `open` on the form. `builder()` persists the open set to `session["builder_open"][slug]` **only when it came from an explicit `open`** (precedence steps 1–2 — see the persistence rule below; a derived set must never be written back); the post-mutation redirect becomes `manage_builder?open=session`, and only that explicit sentinel reads it back. |
+| No-JS — mutations | No `open` on the form (**except the delete confirm form** — see §4's delete chain). `builder()` persists the open set to `session["builder_open"][slug]` **only when it came from an explicit `open`** (precedence steps 1–2 — see the persistence rule below; a derived set must never be written back); the post-mutation redirect becomes `manage_builder?open=session`, and only that explicit sentinel reads it back. |
 
 **Form actions — rename, add, reorder, duplicate, delete, move — carry no `open` at all.**
 This matters beyond bytes: `rename_url` (`_scope.html:5`) and the add form's action
@@ -918,8 +921,9 @@ Emit the bare `all` when the resulting set is the full container set.
 recursively from `builder.html:22` *and* rendered directly by `_render_scope`, so the
 precomputed structures must be added to **both** context dicts or the tag silently sees
 nothing on fragment renders. `builder()`, `_builder_with_notice()` and `_render_scope()` each
-supply: `open_joined` (the joined string), `open_descendants` (pk → set), `builder_url`, and
-**`q`** — omitting `q` from this list would make every toggle href drop the filter, which is
+supply: `open_joined` (the joined string), `open_descendants` (pk → set), `builder_url`,
+`open_ids`, `data-container-count`'s value (§10 needs it on `.builder`, which both page
+renderers emit), and **`q`** — omitting `q` from this list would make every toggle href drop the filter, which is
 the same "toggles fight the filter" defect resolved above, in the opposite direction.
 
 `open_joined` is **always the enumeration, never the literal `all`**; the `all` shorthand is
@@ -1484,7 +1488,8 @@ deliberately *not* used as the guard:
 - `open` round-trips through a mutation: expand a scope, perform a reparent, assert the
   returned fragment still has that scope open
 - absent-vs-empty `open`: absent seeds from session, `open=` does not
-- session seed opens exactly the ancestor chain and nothing else
+- session seed opens exactly the ancestor chain **plus the node itself when it is a
+  container** (§3 — this is why the ceiling is 4, not 3) and nothing else
 - sanitisation: foreign pks, unit pks, junk and a stale (deleted) session pk are discarded
 - POST-before-GET precedence: an `open` in the body wins over one in the action's query
   string
