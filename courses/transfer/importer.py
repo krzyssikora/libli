@@ -922,15 +922,27 @@ def _rewrite_links(document, node_map, created_joins, *, on_missing, report):
     node_map -- never the key, which is a source pk that node_map has never seen.
 
     A v5 archive (pre-Task-3, no link_nodes at all) is importable NOT because of the
-    `.get(...) or {}` below -- every path that reaches this function calls
-    validate_document first, and validate_document does `doc.setdefault("link_nodes",
-    {})` IN PLACE (courses/transfer/schema.py), so `document["link_nodes"]` is always
-    already populated by the time we get here. FALSIFIED: swapping this line for the
-    bare-index form leaves test_v5_archive_import_course_still_succeeds green. The
-    `.get(...) or {}` is deliberate belt-and-braces only -- it costs nothing and means
-    a future caller that skips validate_document degrades to "no links resolved"
-    instead of a KeyError/500, matching this function's fail-safe posture everywhere
-    else (see the "never a 500" comment below).
+    `.get(...) or {}` below. `document["link_nodes"]` is already populated by the time
+    ANY current caller reaches this function, for two DIFFERENT reasons depending on
+    the caller family:
+      - import_course/import_subtree (both real views, migrate_course_content, and
+        this module's own test helpers) always run validate_document first, and
+        validate_document does `doc.setdefault("link_nodes", {})` IN PLACE
+        (courses/transfer/schema.py) -- so a v5 archive's document gets the key filled
+        in there, before it ever reaches here.
+      - materialize_duplicate (duplicate_unit and its direct tests) never calls
+        validate_document at all -- its `document` comes straight from build_export in
+        the same process, which emits "link_nodes" unconditionally as a literal dict
+        key (courses/transfer/export.py), not behind any branch, so it is simply
+        always present.
+    FALSIFIED: swapping this line for the bare-index form
+    (`document["link_nodes"].items()`) leaves
+    test_v5_archive_import_course_still_succeeds green. The `.get(...) or {}` is
+    deliberate belt-and-braces only -- it costs nothing
+    and means a future caller that reaches this function via neither of the two paths
+    above (skips validate_document AND doesn't come from build_export) degrades to "no
+    links resolved" instead of a KeyError/500, matching this function's fail-safe
+    posture everywhere else (see the "never a 500" comment below).
     """
     mapping = {}
     for old_pk, export_id in (document.get("link_nodes") or {}).items():
