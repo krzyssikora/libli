@@ -463,12 +463,16 @@ def test_import_grafts_every_part_at_top_level_in_source_order(tmp_path):
     assert tops == ["P0", "P1", "P2"]
 
 
-def test_import_reports_flattened_cross_part_links(tmp_path):
-    # I2: this command moves content ONE TOP-LEVEL PART AT A TIME, so
-    # build_export(course, node=part) only ever emits link_nodes for targets
-    # INSIDE that part. A cross-part link is unmappable on import and, under
-    # the inherited on_missing="unwrap" default, is silently flattened to
-    # plain text. This must be surfaced on stdout, not lost.
+def test_import_no_longer_flattens_cross_part_links_but_defers_them(tmp_path):
+    # SUPERSEDES part 2's behaviour: this command moves content ONE TOP-LEVEL
+    # PART AT A TIME, so build_export(course, node=part) only ever emits
+    # link_nodes for targets INSIDE that part -- a cross-part link is
+    # unmappable from any single part's own node_map. Part 2's command called
+    # import_subtree with the on_missing="unwrap" default, so such a link was
+    # flattened to plain text immediately. Part 3's graft loop now passes
+    # on_missing="defer" (Task 5), which skips _rewrite_links entirely --
+    # nothing is flattened, and the link is left pending for the final
+    # deferred rewrite pass (not yet wired in as of this task; see Task 8).
     course = _mk_source(parts=("P0", "P1"))
     unit0 = ContentNode.objects.get(course=course, kind="unit", title="U0")
     unit1 = ContentNode.objects.get(course=course, kind="unit", title="U1")
@@ -502,8 +506,11 @@ def test_import_reports_flattened_cross_part_links(tmp_path):
     )
     out = buf.getvalue()
     assert "00-src.zip" in out
-    assert "1 internal link" in out
-    assert "flattened to plain text" in out
+    assert "flattened" not in out
+    # Deferred, not lost: both parts are recorded, still pending rewrite.
+    state = _read_state_raw(bundle)
+    assert [e["order"] for e in state["parts"]] == [0, 1]
+    assert all(e["rewritten"] is False for e in state["parts"])
 
 
 def test_import_reports_nothing_when_every_link_resolves_within_its_part(tmp_path):
@@ -1384,3 +1391,87 @@ def test_live_pks_filters_to_rows_in_the_given_course():
     b = ContentNode.objects.create(course=other, kind="part", title="B")
     entries = [{"order": 0, "node_map": {"n1": a.pk, "n2": b.pk, "n3": 10**9}}]
     assert _live_pks(entries, target) == {a.pk}
+
+
+# --- import: graft under an outer atomic, record the link state -----------
+
+
+def test_import_refuses_a_bundle_with_no_node_index(tmp_path):
+    """A pre-feature bundle: fatal BEFORE anything is grafted. The tolerant
+    fall-through would not mean 'no rewrites' -- with an empty map and
+    on_missing='unwrap' it means every internal link in the course is destroyed
+    inside a committed transaction, with the count arriving afterwards."""
+    bundle = _export_bundle(tmp_path)
+    target = _mk_target()
+    _user()
+    manifest = _read_manifest(bundle)
+    del manifest["node_index"]
+    (bundle / MANIFEST_NAME).write_text(json.dumps(manifest), encoding="utf-8")
+    with pytest.raises(CommandError, match="predates internal-link support"):
+        call_command(
+            "migrate_course_content",
+            "import",
+            "--target-slug",
+            "dst",
+            "--bundle-dir",
+            str(bundle),
+            "--as-user",
+            "mig@example.com",
+        )
+    assert ContentNode.objects.filter(course=target).count() == 0
+
+
+def test_import_records_one_state_entry_per_grafted_part(tmp_path):
+    bundle = _export_bundle(tmp_path)
+    target = _mk_target()
+    _user()
+    call_command(
+        "migrate_course_content",
+        "import",
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+    )
+    state = _read_state_raw(bundle)
+    assert state["version"] == 1
+    assert state["target_pk"] == target.pk
+    assert [e["order"] for e in state["parts"]] == [0, 1, 2]
+    index = _read_manifest(bundle)["node_index"]
+    for entry in state["parts"]:
+        # node_map values are real pks in the target.
+        assert all(
+            ContentNode.objects.filter(pk=pk, course=target).exists()
+            for pk in entry["node_map"].values()
+        )
+        # src is the manifest's inversion for that order -- int-valued.
+        assert entry["src"] == _invert_node_index(index, entry["order"])
+        # NOTE FOR TASK 8: once site 2 is wired, this full import also runs the
+        # pass, which flips every flag. Change this line to `is True` then --
+        # Task 8 Step 4 names it.
+        assert entry["rewritten"] is False
+
+
+def test_a_regraft_replaces_the_entry_rather_than_duplicating(tmp_path):
+    bundle = _export_bundle(tmp_path)
+    _mk_target()
+    _user()
+    args = (
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+    )
+    call_command("migrate_course_content", "import", *args, "--start-at", "0")
+    first = _read_state_raw(bundle)
+    ContentNode.objects.filter(
+        course=Course.objects.get(slug="dst"), parent__isnull=True
+    ).exclude(title="P0").delete()
+    call_command("migrate_course_content", "import", *args, "--start-at", "1")
+    second = _read_state_raw(bundle)
+    assert [e["order"] for e in second["parts"]] == [0, 1, 2]  # not 0,1,2,1,2
+    assert second["parts"][1]["node_map"] != first["parts"][1]["node_map"]

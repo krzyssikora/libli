@@ -18,6 +18,7 @@ from pathlib import Path
 from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand
 from django.core.management.base import CommandError
+from django.db import transaction
 from django.db.models import Count
 
 from courses.models import ContentNode
@@ -487,8 +488,29 @@ class Command(BaseCommand):
 
         bundle = Path(o["bundle_dir"])
         archives = self._bundle_archives(bundle)
-        self._read_bundle_manifest(bundle, archives)  # completeness gate
+        # NOT `manifest`: the graft loop binds that name below via
+        # `with open_archive(...) as (zf, manifest, ...)`, and a `with ... as`
+        # target binds in the ENCLOSING FUNCTION SCOPE and survives the block.
+        # After the loop `manifest` is the LAST ARCHIVE's manifest, so the
+        # post-loop trigger would read the wrong dict and raise KeyError.
+        bundle_manifest = self._read_bundle_manifest(
+            bundle, archives
+        )  # completeness gate
+        if "node_index" not in bundle_manifest:
+            raise CommandError(
+                f"{MANIFEST_NAME} in {bundle} has no 'node_index': this bundle "
+                f"predates internal-link support. Re-export it -- importing it "
+                f"as-is would flatten every internal link in the course."
+            )
+        node_index = bundle_manifest["node_index"]
         ordered = [(self._archive_order(p.name), p) for p in archives]
+
+        # PLACEHOLDER -- superseded by Task 6's ordered branch. Deliberately
+        # over-strict: it validates on the `start_at is None` path, which spec
+        # step 1 exempts, so a torn state file would make a from-scratch import
+        # raise. That is acceptable only because no test exercises it until
+        # Task 6, which replaces this line. Do not ship it.
+        state = _read_state(bundle, validate=True) or _fresh_state(target)
 
         start_at = o.get("start_at")
         baseline_path = bundle / BASELINE_NAME
@@ -588,17 +610,65 @@ class Command(BaseCommand):
                         # under the default on_missing="unwrap", is silently
                         # flattened to plain text -- this is the only place that
                         # loss is ever surfaced.
-                        report = {}
-                        import_subtree(
-                            zf,
-                            manifest,
-                            document,
-                            media_entries,
-                            target,
-                            None,
-                            user,
-                            report=report,
-                        )
+                        #
+                        # OUTER atomic, opened here and NOT around the archive
+                        # open: _run_import's own atomic becomes a savepoint, so
+                        # the real commit happens when THIS block exits -- after
+                        # the state write below. That inverts the crash window
+                        # from a MISSING entry (unrecoverable: export ids exist
+                        # nowhere else) to a STALE one (detectable, and replaced
+                        # by the re-graft).
+                        try:
+                            with transaction.atomic():
+                                report = {}
+                                import_subtree(
+                                    zf,
+                                    manifest,
+                                    document,
+                                    media_entries,
+                                    target,
+                                    None,
+                                    user,
+                                    on_missing="defer",
+                                    report=report,
+                                )
+                                state["parts"] = [
+                                    e
+                                    for e in state["parts"]
+                                    if int(e["order"]) != order
+                                ]
+                                state["parts"].append(
+                                    {
+                                        "order": order,
+                                        "node_map": report["node_map"],
+                                        "src": _invert_node_index(node_index, order),
+                                        "rewritten": False,
+                                    }
+                                )
+                                # A RE-graft after "applied" must re-arm the pass.
+                                state["status"] = "collecting"
+                                _write_state(bundle, state)
+                        except OSError as exc:
+                            # NOT `except Exception`: import_subtree runs inside
+                            # this block and TransferError is a plain Exception
+                            # subclass, so a broad catch would report an
+                            # IntegrityError as a state-file failure and leave
+                            # this method's TransferError handler reachable
+                            # only for open_archive failures.
+                            if committed is None:
+                                hint = (
+                                    "no parts committed; re-run import from the start"
+                                )
+                            else:
+                                hint = (
+                                    f"last part committed: {committed}; "
+                                    f"resume with --start-at {committed + 1}"
+                                )
+                            raise CommandError(
+                                f"could not write {LINK_STATE_NAME} while "
+                                f"grafting part {order}: {exc}. Part {order}'s "
+                                f"media files may be orphaned on disk.\n{hint}"
+                            ) from exc
                         if report.get("flattened_links"):
                             self.stdout.write(
                                 self.style.WARNING(
