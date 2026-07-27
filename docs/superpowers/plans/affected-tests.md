@@ -151,3 +151,27 @@ with a fully-collapsed `open_ids = frozenset()`.
 See `.superpowers/sdd/task-0b-report.md` for the full command output. Summary: unit suite
 green, e2e suite green, both run sequentially against the shared dev/test database per the
 worktree's `.env`.
+
+## Baseline (recorded before any behaviour change)
+
+Measured on this worktree's **isolated** database `libli_blcp` (test DB
+`test_libli_blcp`). The first attempt used the shared `libli`, and every e2e test
+ERRORed on `CREATE DATABASE "test_libli"` — DuplicateDatabase, then ObjectInUse
+with "2 inne sesje uzywaja bazy danych": another Claude session in a parallel
+worktree held it. That is the contention `test-db-contention-across-worktrees`
+warns about, reproduced.
+
+| Suite | Command | Result |
+| --- | --- | --- |
+| unit (targeted) | `uv run pytest tests/test_manage_builder.py -q -p no:randomly` | exit 0 |
+| e2e (builder-affected files) | `uv run pytest tests/test_e2e_builder.py tests/test_e2e_builder_ws2.py tests/test_e2e_builder_authoring.py tests/test_e2e_builder_reorder.py tests/test_e2e_builder_tree_layout.py tests/test_e2e_inline_rename.py -q -m e2e -p no:randomly` | **exit 0, green** |
+
+**The full e2e suite was NOT baselined end to end.** It exceeds the 10-minute
+ceiling on a single tool invocation; two attempts were killed mid-run (the second
+showing passes, not errors, at 17%). The six builder-affected files above are the
+ones this change can plausibly break, and they are green. Tasks 3–10 gate against
+**those**, not against the whole e2e suite. Anything else going red during those
+tasks is a regression, not migration noise.
+
+Note: pytest's verdict line does not survive a Bash pipe in this repo — trust the
+exit code and a `FAILED`/`ERROR` grep, not a "N passed" string.
