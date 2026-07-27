@@ -603,13 +603,15 @@ class Command(BaseCommand):
                             )
                             continue
                         # insertion_node=None -> top level. All positional.
-                        # report collects flattened-link counts: this command moves
-                        # content ONE PART AT A TIME, so build_export(course,
-                        # node=part) only ever emits link_nodes for targets INSIDE
-                        # that part. A cross-part link is unmappable on import and,
-                        # under the default on_missing="unwrap", is silently
-                        # flattened to plain text -- this is the only place that
-                        # loss is ever surfaced.
+                        # on_missing="defer" (below) means import_subtree never
+                        # calls _rewrite_links here, so `report["flattened_links"]`
+                        # is unconditionally 0 for every part (importer.py sets it
+                        # via `report.setdefault("flattened_links", 0)` only,
+                        # never increments it under `defer`) -- this call site
+                        # surfaces NO flattening. Internal links are left exactly
+                        # as exported, recorded pending in the state file below,
+                        # and resolved (or reported flattened) only by the final
+                        # deferred rewrite pass over the WHOLE bundle.
                         #
                         # OUTER atomic, opened here and NOT around the archive
                         # open: _run_import's own atomic becomes a savepoint, so
@@ -669,15 +671,6 @@ class Command(BaseCommand):
                                 f"grafting part {order}: {exc}. Part {order}'s "
                                 f"media files may be orphaned on disk.\n{hint}"
                             ) from exc
-                        if report.get("flattened_links"):
-                            self.stdout.write(
-                                self.style.WARNING(
-                                    f"{archive.name}: "
-                                    f"{report['flattened_links']} internal "
-                                    f"link(s) had no target in this part and "
-                                    f"were flattened to plain text"
-                                )
-                            )
             except TransferError as exc:
                 # Recovery guidance belongs HERE, on the failure path -- a
                 # trailing "no parts committed" line after the loop would be
