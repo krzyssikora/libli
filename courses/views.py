@@ -270,9 +270,12 @@ def _twocolumn_has_math(el):
 
 
 def build_lesson_context(node, user):
-    """Shared element/has_*/progress context for a LESSON unit. Used by both
-    lesson_unit (GET) and check_answer (POST re-render) so the two cannot drift.
-    Performs the same UnitProgress.get_or_create + seen-count as a normal view."""
+    """Shared element/has_*/progress context for a LESSON unit. Reached through
+    full_lesson_render_context, which serves every render site (see its docstring --
+    do not re-enumerate them here, or the list drifts in two places).
+    Enrolled: UnitProgress.get_or_create + seen-count, as a normal view. Non-enrolled
+    but authorised: a read-only .filter().first() lookup that feeds practice state and
+    the completion pill without creating a row on a GET."""
     # RENDER: children render inside their tabs, not as top-level siblings.
     elements = list(
         node.elements.filter(parent__isnull=True)
@@ -394,9 +397,12 @@ def build_lesson_context(node, user):
         state_row = progress
     elif user.is_authenticated:
         # Non-enrolled but can view (author/teacher): read an EXISTING row for their
-        # practice state (it persists too — see element_state_save) WITHOUT creating
-        # one on GET, so passive viewers never get a spurious progress row.
+        # practice state AND the completion pill -- an explicit "Mark as done" click
+        # persists for them too (see complete()), and without this assignment the
+        # write would land but never re-render. Still .filter().first(), never
+        # get_or_create: a passive GET must not mint a row for a previewer.
         state_row = UnitProgress.objects.filter(student=user, unit=node).first()
+        progress = state_row
     if state_row:
         # int-keyed {Element.pk: blob} — the render seam looks up by the join-row pk.
         # Read-side fail-open: drop any non-int-coercible key and any non-dict value
@@ -649,7 +655,15 @@ def seen(request, slug, node_pk):
     if not isinstance(data, list):
         return HttpResponseBadRequest("expected a JSON array")
     if not is_enrolled(request.user, course):
-        # untracked preview: no write, synthetic canonical response
+        # ASYMMETRY, deliberate: SCROLL-tracking is not recorded for a previewer, but
+        # completion via the explicit button IS (see complete()). So "untracked" is
+        # narrow -- their practice state and their completion both persist; only this
+        # signal is dropped. The synthetic response therefore reports completed=False
+        # even when a stored row says True: this endpoint's contract is "here is your
+        # scroll-tracking", not "here is your progress row". Do not "fix" it to echo
+        # the stored row -- that breaks
+        # tests/test_courses_progress.py::test_previewer_seen_no_write_and_ignores_stored_completion  # noqa: E501
+        # and quietly turns a write-free endpoint into a state reporter.
         return JsonResponse(
             {"seen_element_ids": [], "completed": False, "completed_at": None}
         )
@@ -673,15 +687,31 @@ def seen(request, slug, node_pk):
 def complete(request, slug, node_pk):
     node = get_node_or_404(node_pk, slug, require_unit=True, require_lesson=True)
     course = node.course
+    # can_access_course is DELIBERATELY the sole guard on this write: the row is the
+    # viewer's OWN record, not course analytics, so any viewer who can open the lesson
+    # may mark it done -- the same reversal PR #136 applied to element_state_save.
+    # Do not "restore" an enrollment check here; both directions are pinned by
+    # tests/test_courses_progress.py (see test_unrelated_logged_in_user_is_denied).
     if not can_access_course(request.user, course):
         raise PermissionDenied
-    if is_enrolled(request.user, course):
-        progress, _ = UnitProgress.objects.get_or_create(
+    with transaction.atomic():
+        # Re-read under the lock instead of keeping get_or_create's instance. The rule
+        # here is ORDERING, not exclusion: on PostgreSQL a plain UPDATE already blocks
+        # on an existing FOR UPDATE, so the lock is not about which writers opt into
+        # it. What FOR UPDATE cannot do is protect a writer whose READ happened before
+        # the lock -- that writer carries a stale row across the block and writes it
+        # back afterwards, losing the update. That is why save_element_state locks
+        # BEFORE it reads, and why seen -- which does not -- can still lose one.
+        # Collapsing this back to `progress, _ = get_or_create(...)` is byte-identical
+        # in every sequential test, so this comment is the only thing protecting the
+        # re-fetch.
+        UnitProgress.objects.get_or_create(student=request.user, unit=node)
+        progress = UnitProgress.objects.select_for_update().get(
             student=request.user, unit=node
         )
         if not progress.completed:
             progress.completed = True
-            progress.save()
+            progress.save()  # completed_at stamped in save()
     return redirect("courses:lesson_unit", slug=slug, node_pk=node_pk)
 
 
@@ -783,9 +813,11 @@ def element_state_save(request, slug, node_pk):
 
     # Practice state is personal self-tracking (ungraded, absent from analytics), so
     # ANY viewer who can access the lesson persists their own -- not just enrolled
-    # students. This deliberately diverges from seen/quiz (which ignore previewers so
-    # authors don't pollute their own progress/analytics); the can_access_course gate
-    # above is the only guard the write needs.
+    # students. This deliberately diverges from seen/quiz, which ignore previewers so
+    # authors don't pollute their own SCROLL-tracking and quiz analytics. It is those
+    # two specifically, NOT progress writes in general: an explicit "Mark as done"
+    # click now persists for previewers too (see complete()). The can_access_course
+    # gate above is the only guard the write needs.
     if result is state_svc.EMPTY:
         save_element_state(request.user, node, element.pk, None)
         blob = {}
