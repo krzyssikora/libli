@@ -101,10 +101,35 @@ def test_stepper_state_survives_reload(live_server, page):
     """Walk two steps -> state POST -> reload -> first 3 steps restored, 4th still
     hidden, button still visible (the mid-walk restore branch)."""
 
+    from courses.models import UnitProgress
+
     def _is_state_post(r):
         return "/state/" in r.url and r.request.method == "POST"
 
+    # DIAGNOSTICS, not behaviour. This test failed once in CI (2026-07-27) with a bare
+    # `assert False` on the nth(2) line and passed on a re-run of the same commit, so
+    # there was nothing to diagnose from. It has resisted local reproduction (6/6
+    # isolated, 7/7 under -n 2), and static analysis ruled out the obvious causes:
+    # initOne() fires no POST on boot and each click fires exactly one (so the two
+    # expect_response blocks cannot mis-match a stale response), and _val_stepper never
+    # rejects {shown: 3}. The trail below exists so the NEXT occurrence carries
+    # evidence instead of needing another guess. It is built eagerly but only rendered
+    # on failure, so a green run pays one extra query and nothing else.
+    state_posts = []
+
+    def _record(response):
+        if not _is_state_post(response):
+            return
+        try:
+            body = response.text()
+        except Exception as exc:  # body already discarded (navigation, keepalive)
+            body = f"<unreadable: {exc!r}>"
+        state_posts.append(
+            {"sent": response.request.post_data, "status": response.status, "got": body}
+        )
+
     course, unit = _seed_stepper_n("stpreload", "stepper-reload", 5)
+    page.on("response", _record)
     _login(page, live_server, "stpreload")
     url = reverse(
         "courses:lesson_unit", kwargs={"slug": course.slug, "node_pk": unit.pk}
@@ -119,13 +144,35 @@ def test_stepper_state_survives_reload(live_server, page):
         btn.click()  # reveal step 1 (shown=2); await its POST
     with page.expect_response(_is_state_post):
         btn.click()  # reveal step 2 (shown=3); await its POST before reloading
+    # Read the settled row BEFORE reloading. Both POSTs have already been awaited, so
+    # this samples a committed outcome, not an in-flight request.
+    stored = list(UnitProgress.objects.filter(unit=unit).values("element_state"))
     page.reload()
+
+    def _diag():
+        root = page.locator("[data-stepper]")
+        lines = [
+            "",
+            "stepper reload diagnostics:",
+            f"  /state/ POSTs observed: {len(state_posts)} (expected 2)",
+        ]
+        lines += [f"    {i}: {p}" for i, p in enumerate(state_posts, 1)]
+        lines += [
+            f"  element_state stored before reload: {stored}",
+            f"  data-state rendered after reload: {root.get_attribute('data-state')!r}",
+            f"  stepper booted (data-stepper-ready): "
+            f"{root.get_attribute('data-stepper-ready')!r}",
+            f"  step classes after reload: "
+            f"{[steps.nth(i).get_attribute('class') for i in range(steps.count())]}",
+        ]
+        return "\n".join(lines)
+
     # After reload: first three steps visible, 4th hidden, button still visible.
-    assert steps.nth(0).is_visible()
-    assert steps.nth(1).is_visible()
-    assert steps.nth(2).is_visible()
-    assert not steps.nth(3).is_visible()
-    assert btn.is_visible()
+    assert steps.nth(0).is_visible(), _diag()
+    assert steps.nth(1).is_visible(), _diag()
+    assert steps.nth(2).is_visible(), _diag()
+    assert not steps.nth(3).is_visible(), _diag()
+    assert btn.is_visible(), _diag()
 
 
 def _make_pa_user(username):

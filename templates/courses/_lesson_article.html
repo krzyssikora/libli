@@ -5,10 +5,14 @@
   {% include "courses/_unit_crumbs.html" %}
   <div class="lesson-unit__head">
     <h1 class="lesson-unit__title">{{ unit.title }}</h1>
-    {% comment %}Completion is auto-tracked: progress.js auto-completes the unit once every
-       element has been seen (Phase-1a). This pill is the no-JS fallback + manual override
-       and the live status indicator — progress.js flips it to "✓ Completed" the moment
-       auto-complete fires. The form keeps class="unit-progress" (e2e + no-JS POST).{% endcomment %}
+    {% comment %}Completion is auto-tracked FOR ENROLLED STUDENTS ONLY: progress.js
+       auto-completes the unit once every element has been seen (Phase-1a). For a
+       non-enrolled viewer who can access the course, seen-tracking is never recorded,
+       so this pill is not a fallback — it is their ONLY route to completion, and an
+       explicit click persists for them (see courses/views.py::complete). For enrolled
+       students it remains the no-JS fallback + manual override and the live status
+       indicator — progress.js flips it to "✓ Completed" the moment auto-complete
+       fires. The form keeps class="unit-progress" (e2e + no-JS POST).{% endcomment %}
     <div class="unit-done{% if progress.completed %} is-complete{% endif %}"
          data-unit-done data-done-label="{% trans 'Completed' %}">
       {% if progress.completed %}
