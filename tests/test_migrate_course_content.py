@@ -1577,8 +1577,11 @@ def test_run_link_pass_rewrites_maps_and_flattens_and_records_fail_closed(
     """Direct call, bypassing the (not-yet-wired) trigger sites -- this is
     what Task 7 actually delivers. Exercises, in one real `import`ed target:
     a cross-part link that resolves to a live pk (rewritten, counted), a link
-    to nowhere (flattened, counted), and a FillGateElement fail-closed fixture
-    built target-side (recorded, but its OTHER field still gets rewritten)."""
+    to nowhere (flattened, counted), a SECOND cross-part link in the OTHER
+    direction so the counts genuinely split across two parts (not just two
+    elements in one part -- see the per-part attribution note below), and a
+    FillGateElement fail-closed fixture built target-side (recorded, but its
+    OTHER field still gets rewritten)."""
     from courses.models import FillGateElement
 
     course = _mk_source(parts=("P0", "P1"))
@@ -1593,6 +1596,20 @@ def test_run_link_pass_rewrites_maps_and_flattens_and_records_fail_closed(
         title="L",
         content_object=TextElement.objects.create(
             body='<p><a href="/courses/n/999999/">gone</a></p>'
+        ),
+    )
+    # A link the OTHER way (part 1 -> part 0), so a rewritten element exists
+    # under BOTH parts. `order_by_new_pk` is per-caller keyed by unit pk, not
+    # by which side of the fixture happened to be touched first -- without
+    # this second, cross-part-in-the-opposite-direction element, every
+    # rewritten/flattened element in this test lives under part 0, so
+    # misattributing every count to a single (recorded, pending) order would
+    # leave rw["elements_touched"]/rw["flattened"] unchanged and ship green.
+    Element.objects.create(
+        unit=unit1,
+        title="L2",
+        content_object=TextElement.objects.create(
+            body=f'<p><a href="/courses/n/{unit0.pk}/">y</a></p>'
         ),
     )
 
@@ -1647,7 +1664,8 @@ def test_run_link_pass_rewrites_maps_and_flattens_and_records_fail_closed(
             "body", flat=True
         )
     )
-    assert any(f"/courses/n/{new_u1.pk}/" in b for b in bodies)  # rewritten
+    assert any(f"/courses/n/{new_u1.pk}/" in b for b in bodies)  # rewritten (P0->P1)
+    assert any(f"/courses/n/{new_u0.pk}/" in b for b in bodies)  # rewritten (P1->P0)
     assert not any("/courses/n/999999/" in b for b in bodies)  # flattened
     assert any("gone" in b for b in bodies)  # unwrapped to plain text
 
@@ -1655,12 +1673,23 @@ def test_run_link_pass_rewrites_maps_and_flattens_and_records_fail_closed(
     assert fixture.stem == '<p><a href="/courses/n/999999/">torn</p>'  # untouched
 
     rw = state["rewrite"]
-    # Exactly two rewritten elements (el0's cross-part link, the flattened
-    # "gone" link) and one flatten. Everything else in scope -- both
-    # ImageElements, unit1's plain-text element, and the fail-closed fixture
-    # -- contributes neither.
+    # Exactly three rewritten elements (el0's cross-part link, the flattened
+    # "gone" link, and L2's cross-part link back the other way) and one
+    # flatten. Everything else in scope -- both ImageElements, unit1's
+    # original plain-text element, and the fail-closed fixture -- contributes
+    # neither.
     assert rw["flattened"] == 1
-    assert rw["elements_touched"] == 2
+    assert rw["elements_touched"] == 3
+    # PER-PART attribution, not just the totals: el0 and L live under part 0
+    # (order 0), L2 lives under part 1 (order 1). A bug that attributes every
+    # element to a single order -- e.g. `order_by_new_pk[join.unit_id]`
+    # replaced by a constant -- leaves the totals above unchanged (3 touched,
+    # 1 flattened, summed over whichever bucket) but reports the wrong split
+    # here, which is exactly what `verify`'s per-part table would print.
+    assert rw["parts"] == [
+        {"order": 0, "elements_touched": 2, "flattened": 1},
+        {"order": 1, "elements_touched": 1, "flattened": 0},
+    ]
     fixture_el = Element.objects.get(content_type__model="fillgateelement")
     assert rw["fail_closed_elements"] == [fixture_el.pk]
 
