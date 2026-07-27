@@ -8,6 +8,7 @@ from tests.factories import ContentNodeFactory
 from tests.factories import CourseFactory
 from tests.factories import EnrollmentFactory
 from tests.factories import UnitProgressFactory
+from tests.factories import add_element
 from tests.factories import make_login
 
 
@@ -273,3 +274,41 @@ def test_previewer_incomplete_row_still_renders_the_button(client):
     # Two DIFFERENT elements: the div's own class list, and a descendant button.
     assert "is-complete" not in pill.get("class", [])
     assert pill.select_one("button.unit-done__pill--btn") is not None
+
+
+@pytest.mark.django_db
+def test_previewer_completed_pill_survives_no_js_check_answer_rerender(client):
+    from courses.models import Enrollment
+    from courses.models import ShortTextQuestionElement
+
+    staff = make_login(client, "staff7")
+    staff.is_staff = True
+    staff.save()
+    course = CourseFactory(slug="p7")
+    unit = ContentNodeFactory(course=course, kind="unit", unit_type="lesson")
+    # Field names and URL shape copied from the repo's ONLY no-JS check_answer test
+    # (courses/tests/test_reset_controls.py:156-177): ShortTextQuestionElement takes
+    # stem/accepted, and add_element returns the JOIN ROW whose pk is the third URL
+    # argument. Copy that recipe only -- never that file's _login helper, which calls
+    # Enrollment.objects.create() before force_login and would silently make this an
+    # ENROLLED-path test whose falsification recipe stays GREEN.
+    q_row = add_element(
+        unit, ShortTextQuestionElement.objects.create(stem="Q", accepted="x")
+    )
+    # Seeded directly, NOT via a complete() POST: this test's falsification targets the
+    # READ assignment, and routing it through the write would couple it to an edit it
+    # does not guard.
+    UnitProgressFactory(student=staff, unit=unit, completed=True)
+    # Access comes from the is_staff pin above, not from any fixture.
+    assert not Enrollment.objects.filter(student=staff, course=course).exists()
+
+    r = client.post(
+        reverse("courses:check_answer", args=[course.slug, unit.pk, q_row.pk]),
+        {"answer": "x"},  # NON-EMPTY: an empty answer takes the clear branch instead
+    )  # NO HTTP_X_REQUESTED_WITH: the header would take the fragment branch instead
+
+    assert r.status_code == 200
+    pill = BeautifulSoup(r.content, "html.parser").select_one("[data-unit-done]")
+    assert pill is not None
+    assert "is-complete" in pill.get("class", [])
+    assert pill.select_one("button.unit-done__pill--btn") is None
