@@ -525,8 +525,10 @@ def test_query_count_is_flat_in_tree_size(client, django_assert_num_queries):
         ContentNodeFactory(course=course, kind="part", parent=None, title=f"P{i}")
     url = reverse("courses:manage_link_picker", kwargs={"slug": course.slug})
     client.get(url)  # warm any session/auth caching
-    with django_assert_num_queries(4) as captured:
-        # 1 session, 1 user, 1 course lookup (+perm), 1 _children_map
+    with django_assert_num_queries(9) as captured:
+        # Measured: session, user, allauth's EmailAddress read, the course lookup, the
+        # permission/group reads behind can_manage_course, and one _children_map. The
+        # exact total is incidental; the assertion below is the invariant that matters.
         client.get(url)
     # The invariant that actually matters: the tree costs ONE query regardless of size.
     node_queries = [
@@ -592,8 +594,10 @@ def link_picker(request, slug):
 `templates/courses/manage/editor/_link_picker_node.html`. Note it includes **itself**, rebinding `n=child` and re-passing `children_map` — omit the rebind and you get infinite recursion on the same node:
 
 ```html
-{% load i18n courses_manage_extras %}
-{% comment %}One picker row. The <li> IS the treeitem so that its children's
+{% load courses_manage_extras %}
+{% comment %}One picker row. No translatable text here -- the only strings are the node
+title and the model's own get_kind_display / get_unit_type_display, which is why §i18n
+can say the picker partials contribute no new msgids. The <li> IS the treeitem so that its children's
 <ol role="group"> sits INSIDE it -- with role="none" on the li, each group would be a
 sibling of the item it belongs to and no item would own a subtree. The row is not a
 <button>: role="treeitem" overrides button semantics anyway, and link_dialog.js
@@ -631,8 +635,10 @@ focusable and keyboard-operable.{% endcomment %}
 
 Run: `uv run pytest tests/test_link_picker.py -q`
 
-Expected: 7 pass, and `test_query_count_is_flat_in_tree_size` **probably fails** with the
-real number — 4 is a lower bound, not a measurement. `can_manage_course` runs
+Expected: 7 pass, and `test_query_count_is_flat_in_tree_size` **fails** with the real
+number. Measured on this repo at the time of writing: **9**, with exactly one query
+touching `courses_contentnode`. Treat 9 as a starting point rather than gospel — it will
+drift with middleware and auth changes — and re-derive it with the rule below. `can_manage_course` runs
 `user.has_perm(...)` (a group/permission query on a cold cache) and allauth's
 `AccountMiddleware` reads `EmailAddress` on every authenticated request, neither of which
 the comment lists. Record the real number, then apply the rule below.
@@ -648,7 +654,17 @@ same check.
 
 - [ ] **Step 7: Falsify the href guard**
 
-Temporarily change `data-href="{% url 'courses:node_permalink' node_pk=n.pk %}"` to a hand-built `data-href="/courses/n/{{ n.pk }}/"`. The test still passes (the strings match), which is expected — now rename the route in `urls.py` to `node_permalink2` and confirm `test_row_href_equals_reverse` FAILS for the `{% url %}` version but PASSES for the hardcoded one. Restore both.
+Change the route's **path** — not its name. Temporarily set it to
+`path("courses/node/<int:node_pk>/", views.node_permalink, name="node_permalink")`, then:
+
+- with the partial's `data-href="{% url 'courses:node_permalink' node_pk=n.pk %}"`:
+  `test_row_href_equals_reverse` still **PASSES** (both sides moved together);
+- with it hand-built as `data-href="/courses/n/{{ n.pk }}/"`: it **FAILS**.
+
+Restore both. Renaming the *route* instead would redden both variants — the test body
+calls `reverse("courses:node_permalink", …)` itself, so it dies with `NoReverseMatch`
+before it can tell you anything about the template. This is the same recipe Task 8
+Step 5 uses, for the same reason.
 
 - [ ] **Step 8: Commit**
 
@@ -693,11 +709,24 @@ link_apply.js rather than inside text_toolbar.js's IIFE -- logic private to that
 would only be reachable by driving the whole editor.
 """
 
+import os
 from pathlib import Path
 
 import pytest
 
 pytestmark = pytest.mark.e2e
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _allow_sync_orm_under_playwright():
+    # tests/conftest.py makes `db` autouse for EVERY test, and _django_db_helper
+    # touches the ORM while Playwright's sync-API event loop is running. Without this
+    # the whole file ERRORs at setup with SynchronousOnlyOperation -- even though these
+    # tests never use the database themselves. Every e2e file in the repo carries it,
+    # including the cited precedent tests/test_table_grid_algebra.py.
+    os.environ.setdefault("DJANGO_ALLOW_ASYNC_UNSAFE", "true")
+    yield
+
 
 MODULE = (
     Path(__file__).resolve().parent.parent
@@ -1301,8 +1330,6 @@ git commit -m "feat(links): link_apply.js — anchor rules + total URL contract"
 Create `tests/test_link_dialog_markup.py`:
 
 ```python
-from pathlib import Path
-
 import pytest
 from django.urls import reverse
 
@@ -1417,6 +1444,7 @@ def test_editor_css_defines_every_class_the_link_ui_uses():
         ".link-picker__scope",
         ".link-picker__item",
         ".link-picker__row",
+        ".link-picker__title",
         ".tree__badge",
         # Exact substring: data-scope is NOT editor-only (the builder puts it on every
         # tree scope), so a "simplification" to [data-scope] .el a would break the
@@ -1584,6 +1612,9 @@ Append to `courses/static/courses/css/editor.css`:
 .link-picker__row { display: flex; align-items: center; gap: var(--space-2); padding: 3px 4px;
   border-radius: var(--radius-sm); cursor: pointer; }
 .link-picker__row:hover { background: var(--surface-sunken); }
+/* min-width: 0 is what lets a long title actually truncate inside the 34rem dialog --
+   a flex item's default min-width is auto, so without it the row overflows instead. */
+.link-picker__title { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* DUPLICATED from builder.css .tree__badge block -- twin. The editor page does not load builder.css
    (tests/test_editor_styles.py asserts it), and pulling that stylesheet in would drag
@@ -1614,7 +1645,12 @@ Change `.tree__badge` in `editor.css` to `padding: 0 8px`. Run
 `uv run pytest tests/test_editor_styles.py -q`. Expected:
 `test_duplicated_badge_rules_match_their_twin` FAILS. Restore.
 
-- [ ] **Step 8: Commit**
+- [ ] **Step 8: Lint this task's files**
+
+Run: `uv run ruff format tests/test_link_dialog_markup.py tests/test_editor_styles.py && uv run ruff check tests/test_link_dialog_markup.py tests/test_editor_styles.py`
+Expected: clean.
+
+- [ ] **Step 9: Commit**
 
 ```bash
 git add templates/courses/manage/editor/_link_dialog.html templates/courses/manage/editor/editor.html courses/static/courses/css/editor.css tests/test_link_dialog_markup.py tests/test_editor_styles.py
@@ -2699,7 +2735,17 @@ Run: `uv run python manage.py makemessages -l pl -l en --no-obsolete`
 
 Open `locale/pl/LC_MESSAGES/django.po` and fill each new entry — *Insert link*, *In this course*, *Web address*, *Filter*, *Filter by title…*, *Course content*, *Loading…*, *This course has no content yet.*, *No matches.*, *matches found*, *This link's target is not in this course.*, *Could not load the course tree.*, *Retry*, *Link text*, *Remove link*, *Cancel*, *Insert*, and the three URL-rejection messages.
 
-**Clear any fuzzy entry properly — that is TWO deletions:** the `#, fuzzy` line *and* the `#| msgid` comment above it. A fuzzy match arrives pre-filled from an unrelated msgid, so an un-cleared one ships a wrong translation that looks done.
+**Clear any fuzzy entry properly — that is TWO deletions:** the `#, fuzzy` line *and* the `#| msgid` comment above it. A fuzzy match arrives pre-filled from an *unrelated* msgid, so an un-cleared one ships a wrong translation that looks finished.
+
+This is not hypothetical here. Measured on this repo: `makemessages` produces **17
+entries needing work, 8 of them fuzzy with actively wrong pre-fills** — including
+*Insert link* → `Wstaw`, *No matches.* → `Brak pasujących plików multimedialnych`
+("no matching media files"), and *Remove link* → `Usuń wiersz` ("delete row"). Every one
+of those would ship as a plausible-looking mistranslation. Read each fuzzy entry against
+its real msgid rather than accepting the pre-fill.
+
+Note also that *Filter*, *Cancel* and *Insert* already exist in the catalog and will come
+back translated — only the genuinely new strings need writing.
 
 - [ ] **Step 3: Verify catalogue health**
 
@@ -2730,6 +2776,13 @@ git commit -m "i18n(links): pl/en strings for the link dialog"
 Task 6 already covers the dialog's internals against the rendered partial. These tests
 cover only what that harness cannot: the real editor page, the real fetch, a real save,
 and the student-side round trip.
+
+**Deliberately not covered here:** following a link to a *unit* in the browser. The
+chapter hop is the one worth driving end to end, because it is the only one that
+exercises the outline `:target` highlight; the unit hop is a plain redirect already
+pinned by Task 1's `test_lesson_unit_redirects_to_lesson_page` and
+`test_quiz_unit_redirects_straight_to_quiz_in_one_hop`. Adding a browser round trip for
+it would re-test a `302` through a much slower harness.
 
 - [ ] **Step 1: Write the e2e**
 
