@@ -17,6 +17,8 @@ from django.views.decorators.http import require_POST
 from courses import builder as builder_svc
 from courses.access import can_manage_course
 from courses.access import get_node_or_404  # reuse 1a's IDOR-safe resolver
+from courses.builder_open import LAST_NODE_KEY
+from courses.builder_open import SESSION_SLUG_LIMIT
 from courses.forms import CourseForm
 from courses.forms import SubjectForm
 from courses.models import ChoiceQuestionElement
@@ -134,6 +136,26 @@ def _children_map(course):
     return cmap
 
 
+def remember_node(request, slug, pk, key=LAST_NODE_KEY):
+    """Store a per-course pk (or pk list) in the session, most-recent last.
+
+    Skips the write when the value is unchanged: with a DB-backed session an
+    unconditional write means a session save on EVERY row focus.
+    """
+    store = request.session.get(key) or {}
+    if store.get(slug) == pk:
+        return
+    # pop before re-inserting: a dict preserves INSERTION order and
+    # re-assigning an existing key does not move it to the end, so without
+    # this the eviction below drops recently-used slugs first.
+    store.pop(slug, None)
+    store[slug] = pk
+    while len(store) > SESSION_SLUG_LIMIT:
+        store.pop(next(iter(store)))
+    request.session[key] = store
+    request.session.modified = True
+
+
 @login_required
 def builder(request, slug):
     course = get_object_or_404(Course, slug=slug)
@@ -156,6 +178,7 @@ def node_panel(request, slug, pk):
     node = get_node_or_404(pk, slug)  # 404 on missing / slug-mismatch, BEFORE access
     if not can_manage_course(request.user, node.course):
         raise PermissionDenied
+    remember_node(request, node.course.slug, node.pk)
     if node.kind == ContentNode.Kind.UNIT:
         elements = list(
             node.elements.filter(parent__isnull=True)

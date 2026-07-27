@@ -1,12 +1,17 @@
 import pytest
+from django.urls import reverse
 
 from courses.builder_open import CEILING
+from courses.builder_open import LAST_NODE_KEY
+from courses.builder_open import SESSION_SLUG_LIMIT
 from courses.builder_open import _finalize
 from courses.builder_open import container_pks
 from courses.builder_open import open_ids
 from courses.views_manage import _children_map
+from courses.views_manage import remember_node
 from tests.factories import ContentNodeFactory
 from tests.factories import CourseFactory
+from tests.factories import make_login
 
 
 def _req(rf, query="", post=None, session=None):
@@ -215,3 +220,53 @@ def test_stale_session_pk_is_discarded(rf, big_tree):
     sess = {"builder_last_node": {"c2big": 9_999_999}}
     got = open_ids(_req(rf, "", session=sess), course, cmap, mode="page")
     assert got.ids == frozenset()  # step 6, not a crash and not the size rule
+
+
+class FakeSession(dict):
+    """A dict that also carries `modified`, like SessionBase.
+
+    A plain dict cannot: `dict` forbids attribute assignment, so
+    `request.session.modified = True` raises AttributeError.
+    """
+
+    modified = False
+
+
+class FakeRequest:
+    def __init__(self):
+        self.session = FakeSession()
+
+
+@pytest.mark.django_db
+def test_node_panel_records_the_focused_node(client, tree):
+    course, part, _c, _u, _e = tree
+    course.owner = make_login(client, "owner")
+    course.save(update_fields=["owner"])
+    client.get(
+        reverse("courses:manage_node_panel", kwargs={"slug": "c1", "pk": part.pk})
+    )
+    assert client.session[LAST_NODE_KEY]["c1"] == part.pk
+
+
+def test_remember_node_bounds_slugs_and_moves_recent_to_the_end():
+    r = FakeRequest()
+    for i in range(SESSION_SLUG_LIMIT + 5):
+        remember_node(r, f"s{i}", i)
+    assert len(r.session[LAST_NODE_KEY]) == SESSION_SLUG_LIMIT
+    # Re-writing an OLD slug must move it to the end, or "most recent" is a
+    # lie: dicts keep INSERTION order and re-assigning a key does not re-order.
+    oldest = next(iter(r.session[LAST_NODE_KEY]))
+    remember_node(r, oldest, 999)
+    assert next(iter(r.session[LAST_NODE_KEY])) != oldest
+    assert list(r.session[LAST_NODE_KEY])[-1] == oldest
+
+
+def test_remember_node_skips_an_unchanged_write():
+    r = FakeRequest()
+    remember_node(r, "s", 1)
+    assert r.session.modified is True
+    r.session.modified = False
+    remember_node(r, "s", 1)  # same value -> no write
+    assert r.session.modified is False
+    remember_node(r, "s", 2)  # changed -> writes
+    assert r.session.modified is True
