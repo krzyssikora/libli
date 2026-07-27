@@ -13,6 +13,7 @@ from courses.models import ContentNode
 CEILING = 500  # max open scopes after resolution; also bounds `open=all`
 SIZE_THRESHOLD = 150  # courses at or under this open fully on a bare page load
 SESSION_SLUG_LIMIT = 20  # per-key slug bound for the session dicts
+SESSION_OPEN_LIMIT = 60  # per-slug pk budget for the no-JS carrier
 
 LAST_NODE_KEY = "builder_last_node"
 OPEN_KEY = "builder_open"

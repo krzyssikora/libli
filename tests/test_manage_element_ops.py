@@ -145,6 +145,48 @@ def test_element_delete_cascades_concrete_and_joinrow(client):
 
 
 @pytest.mark.django_db
+def test_no_js_element_reorder_redirects_with_open_session(client):
+    """Task 6: element_move fires from the builder's own unit panel, so its
+    no-JS redirect must carry open=session too, or a no-JS reorder collapses
+    the author's expanded tree."""
+    owner = make_login(client, "owner")
+    course = CourseFactory(slug="c1", owner=owner)
+    unit, els = _unit_with_elements(course, 2)
+    e0, e1 = els
+    resp = client.post(  # no FETCH header
+        reverse("courses:manage_element_move", kwargs={"slug": "c1"}),
+        {
+            "element": e1.pk,
+            "unit": unit.pk,
+            "direction": "up",
+            "unit_token": unit.updated.isoformat(),
+        },
+    )
+    assert resp.status_code == 302
+    assert resp.url == (
+        reverse("courses:manage_builder", kwargs={"slug": "c1"}) + "?open=session"
+    )
+
+
+@pytest.mark.django_db
+def test_no_js_element_delete_redirects_with_open_session(client):
+    """Task 6: same as element_move -- element_delete's no-JS redirect must
+    also carry open=session."""
+    owner = make_login(client, "owner")
+    course = CourseFactory(slug="c1", owner=owner)
+    unit, els = _unit_with_elements(course, 1)
+    target = els[0]
+    resp = client.post(  # no FETCH header
+        reverse("courses:manage_element_delete", kwargs={"slug": "c1"}),
+        {"element": target.pk, "unit": unit.pk, "unit_token": unit.updated.isoformat()},
+    )
+    assert resp.status_code == 302
+    assert resp.url == (
+        reverse("courses:manage_builder", kwargs={"slug": "c1"}) + "?open=session"
+    )
+
+
+@pytest.mark.django_db
 def test_element_op_vanished_row_409(client):
     owner = make_login(client, "owner")
     course = CourseFactory(slug="c1", owner=owner)
