@@ -10,6 +10,7 @@ from django.shortcuts import get_object_or_404
 from django.shortcuts import redirect
 from django.shortcuts import render
 from django.urls import reverse
+from django.utils.http import urlencode
 from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy
 from django.views.decorators.http import require_POST
@@ -625,7 +626,12 @@ def node_delete(request, slug):
         return render(
             request,
             "courses/manage/node_confirm_delete.html",
-            {"course": course, "node": node, "counts": counts},
+            {
+                "course": course,
+                "node": node,
+                "counts": counts,
+                "open": request.GET.get("open", ""),
+            },
         )
     try:
         parent_id = builder_svc.delete_node(
@@ -641,7 +647,10 @@ def node_delete(request, slug):
             )
         return _render_tree(request, course, status=409)
     if not _wants_fragment(request):
-        return redirect("courses:manage_builder", slug=course.slug)
+        if "open" in request.POST:
+            url = reverse("courses:manage_builder", kwargs={"slug": course.slug})
+            return redirect(f"{url}?{urlencode({'open': request.POST['open']})}")
+        return _redirect_to_builder(course)
     if parent_id is None:
         return _render_tree(request, course)
     return _render_scope(request, course, _scope_ref(parent_id))

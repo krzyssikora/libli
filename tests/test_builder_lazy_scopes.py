@@ -464,3 +464,39 @@ def test_open_session_falling_through_does_not_persist_the_derived_set(client):
     assert OPEN_KEY not in client.session or "big" not in client.session.get(
         OPEN_KEY, {}
     )
+
+
+@pytest.mark.django_db
+def test_delete_confirm_round_trips_the_open_set(client):
+    owner = make_login(client, "owner")
+    course, part, chapters = _big_course(owner)
+    victim = chapters[0][1][0]
+    confirm = client.get(
+        reverse("courses:manage_node_delete", kwargs={"slug": "big"})
+        + f"?node={victim.pk}&open={part.pk},{chapters[0][0].pk}"
+    )
+    assert f'value="{part.pk},{chapters[0][0].pk}"' in confirm.content.decode()
+    resp = client.post(
+        reverse("courses:manage_node_delete", kwargs={"slug": "big"}),
+        {
+            "node": victim.pk,
+            "token": victim.updated.isoformat(),
+            "open": f"{part.pk},{chapters[0][0].pk}",
+        },
+    )
+    assert f"open={part.pk}" in resp["Location"]
+    assert "open=session" not in resp["Location"]
+
+
+@pytest.mark.django_db
+def test_delete_without_an_open_param_falls_back_to_the_session_sentinel(client):
+    """No-JS: there is no href rewrite, so `open` is absent -- and emitting
+    `open=` would blank the tree instead of degrading."""
+    owner = make_login(client, "owner")
+    course, part, chapters = _big_course(owner)
+    victim = chapters[0][1][0]
+    resp = client.post(
+        reverse("courses:manage_node_delete", kwargs={"slug": "big"}),
+        {"node": victim.pk, "token": victim.updated.isoformat()},
+    )
+    assert "open=session" in resp["Location"]
