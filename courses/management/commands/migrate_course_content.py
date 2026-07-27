@@ -543,6 +543,28 @@ class Command(BaseCommand):
             f"--resolve-rewrite before resuming with --start-at."
         )
 
+    def _should_run_pass(self, state, ordered, *, todo=None):
+        """`todo` is passed ONLY at site 1. Site 2 must not carry it: `todo` is
+        a list the graft loop iterates but never empties, so `not todo` is False
+        after any run that grafted anything -- and the `start_at is None` branch
+        has no other trigger site, which would make the whole feature inert on
+        the primary invocation.
+
+        At site 1 the conjunct is required for the opposite reason: without it
+        the pass fires while parts are still ungrafted (the stale-entry window
+        at the last part), aborting on skipped_dead and stalling the migration.
+        """
+        if todo is not None and todo:
+            return False
+        recorded = {int(e["order"]) for e in state["parts"]}
+        on_disk = {order for order, _p in ordered}
+        pending_orders = {int(e["order"]) for e in state["parts"] if not e["rewritten"]}
+        return (
+            recorded == on_disk
+            and state["status"] == "collecting"
+            and bool(pending_orders)
+        )
+
     def _run_link_pass(self, bundle, state, node_index, target):
         self._check_src_drift(state, node_index)  # redundant assertion here
         mapping, scope_pks, order_by_new_pk, scanned_orders = _build_mapping(
@@ -911,12 +933,22 @@ class Command(BaseCommand):
                 baseline_path.write_text(
                     json.dumps(baseline, ensure_ascii=False), encoding="utf-8"
                 )
-            if not todo:
+            fired_here = False
+            if not o.get("dry_run") and self._should_run_pass(
+                state, ordered, todo=todo
+            ):
                 self.stdout.write(
-                    f"nothing to do: --start-at {start_at} is at or beyond "
-                    f"the bundle's {len(archives)} part(s); this migration "
-                    f"is already complete"
+                    "no parts left to graft; applying the deferred link rewrite"
                 )
+                self._run_link_pass(bundle, state, node_index, target)
+                fired_here = True
+            if not todo:
+                if not fired_here:
+                    self.stdout.write(
+                        f"nothing to do: --start-at {start_at} is at or beyond "
+                        f"the bundle's {len(archives)} part(s); this migration "
+                        f"is already complete"
+                    )
                 return
 
         committed = None
@@ -1029,6 +1061,15 @@ class Command(BaseCommand):
                 raise CommandError(f"{archive.name}: {exc}\n{hint}") from exc
             committed = order
             self.stdout.write(f"grafted part {order} from {archive.name}")
+
+        if not o.get("dry_run") and self._should_run_pass(state, ordered):
+            self._run_link_pass(bundle, state, node_index, target)
+        elif not o.get("dry_run") and state["status"] != "applied":
+            # Backstop: never end `import` silently without the pass having run.
+            self.stdout.write(
+                f"note: the deferred link rewrite did not run "
+                f"(status={state['status']!r}); run `verify` to see why"
+            )
 
         if o.get("dry_run"):
             self.stdout.write("[dry-run] validated; nothing written")

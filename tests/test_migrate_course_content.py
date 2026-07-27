@@ -473,9 +473,10 @@ def test_import_no_longer_flattens_cross_part_links_but_defers_them(tmp_path):
     # unmappable from any single part's own node_map. Part 2's command called
     # import_subtree with the on_missing="unwrap" default, so such a link was
     # flattened to plain text immediately. Part 3's graft loop now passes
-    # on_missing="defer" (Task 5), which skips _rewrite_links entirely --
-    # nothing is flattened, and the link is left pending for the final
-    # deferred rewrite pass (not yet wired in as of this task; see Task 8).
+    # on_missing="defer" (Task 5), which skips _rewrite_links entirely -- the
+    # link is left pending until both parts are grafted, and Task 8's site 2
+    # then runs the deferred pass automatically at the end of THIS `import`
+    # invocation, resolving it to the target's new pk rather than flattening it.
     course = _mk_source(parts=("P0", "P1"))
     unit0 = ContentNode.objects.get(course=course, kind="unit", title="U0")
     unit1 = ContentNode.objects.get(course=course, kind="unit", title="U1")
@@ -493,7 +494,7 @@ def test_import_no_longer_flattens_cross_part_links_but_defers_them(tmp_path):
         "--bundle-dir",
         str(bundle),
     )
-    _mk_target()
+    target = _mk_target()
     _user()
     buf = io.StringIO()
     call_command(
@@ -509,17 +510,29 @@ def test_import_no_longer_flattens_cross_part_links_but_defers_them(tmp_path):
     )
     out = buf.getvalue()
     assert "00-src.zip" in out
-    assert "flattened" not in out
-    # Deferred, not lost: both parts are recorded, still pending rewrite.
+    # Resolved by the deferred pass, not flattened: the rewrite summary's own
+    # "0 link(s) flattened" line contains the substring "flattened", so the
+    # actual claim is the count, not the word.
     state = _read_state_raw(bundle)
+    assert state["rewrite"]["flattened"] == 0
+    # Both parts committed, and the pass has now run over both.
     assert [e["order"] for e in state["parts"]] == [0, 1]
-    assert all(e["rewritten"] is False for e in state["parts"])
+    assert all(e["rewritten"] is True for e in state["parts"])
+    # End-to-end: the href now names the target's NEW pk, not the source pk.
+    new_unit1 = ContentNode.objects.get(course=target, title="U1")
+    body = TextElement.objects.get(
+        elements__unit__course=target, elements__unit__title="U0"
+    ).body
+    assert f"/courses/n/{new_unit1.pk}/" in body
 
 
 def test_import_reports_nothing_when_every_link_resolves_within_its_part(tmp_path):
     # The counterpart to the flattened-link warning: an in-part link is now
-    # correctly remapped (this branch's improvement), so it must NOT be
-    # reported as flattened.
+    # correctly remapped by Task 8's deferred pass (which fires automatically
+    # at the end of this `import`), so it must not be COUNTED as flattened.
+    # The rewrite summary line always contains the literal word "flattened"
+    # (e.g. "0 link(s) flattened"), so the claim under test is the count, not
+    # the word's presence in stdout.
     course = _mk_source(parts=("P0", "P1"))
     unit0 = ContentNode.objects.get(course=course, kind="unit", title="U0")
     el = Element.objects.get(unit=unit0, title="T")
@@ -536,7 +549,7 @@ def test_import_reports_nothing_when_every_link_resolves_within_its_part(tmp_pat
         "--bundle-dir",
         str(bundle),
     )
-    _mk_target()
+    target = _mk_target()
     _user()
     buf = io.StringIO()
     call_command(
@@ -550,7 +563,13 @@ def test_import_reports_nothing_when_every_link_resolves_within_its_part(tmp_pat
         "mig@example.com",
         stdout=buf,
     )
-    assert "flattened" not in buf.getvalue()
+    state = _read_state_raw(bundle)
+    assert state["rewrite"]["flattened"] == 0
+    new_unit0 = ContentNode.objects.get(course=target, title="U0")
+    body = TextElement.objects.get(
+        elements__unit__course=target, elements__unit__title="U0"
+    ).body
+    assert f"/courses/n/{new_unit0.pk}/" in body
 
 
 def test_import_carries_placeholder_titles_verbatim(tmp_path):
@@ -1572,16 +1591,20 @@ def test_merge_rewrite_drops_fail_closed_pks_whose_element_row_is_gone():
 
 
 def test_run_link_pass_rewrites_maps_and_flattens_and_records_fail_closed(
-    tmp_path,
+    tmp_path, monkeypatch
 ):
-    """Direct call, bypassing the (not-yet-wired) trigger sites -- this is
-    what Task 7 actually delivers. Exercises, in one real `import`ed target:
-    a cross-part link that resolves to a live pk (rewritten, counted), a link
-    to nowhere (flattened, counted), a SECOND cross-part link in the OTHER
-    direction so the counts genuinely split across two parts (not just two
-    elements in one part -- see the per-part attribution note below), and a
-    FillGateElement fail-closed fixture built target-side (recorded, but its
-    OTHER field still gets rewritten)."""
+    """Direct call. The trigger sites now fire the pass automatically at the
+    end of `import` (Task 8), so the setup `import` below suppresses it via
+    monkeypatch to keep exact control over timing: a FillGateElement fixture
+    is added target-side, AFTER the import but BEFORE the pass runs, and it
+    must be in scope for the same pass that resolves the pre-import links --
+    something an already-`applied` state would foreclose. Exercises, in one
+    real `import`ed target: a cross-part link that resolves to a live pk
+    (rewritten, counted), a link to nowhere (flattened, counted), a SECOND
+    cross-part link in the OTHER direction so the counts genuinely split
+    across two parts (not just two elements in one part -- see the per-part
+    attribution note below), and the FillGateElement fail-closed fixture
+    (recorded, but its OTHER field still gets rewritten)."""
     from courses.models import FillGateElement
 
     course = _mk_source(parts=("P0", "P1"))
@@ -1624,6 +1647,7 @@ def test_run_link_pass_rewrites_maps_and_flattens_and_records_fail_closed(
     )
     target = _mk_target()
     _user()
+    monkeypatch.setattr(Command, "_run_link_pass", lambda *a, **k: None)
     call_command(
         "migrate_course_content",
         "import",
@@ -1634,6 +1658,7 @@ def test_run_link_pass_rewrites_maps_and_flattens_and_records_fail_closed(
         "--as-user",
         "mig@example.com",
     )
+    monkeypatch.undo()  # this test drives the real pass by hand, below
     node_index = _read_manifest(bundle)["node_index"]
     state = _read_state_raw(bundle)
     assert state["status"] == "collecting"  # the pass has not fired yet
@@ -1758,10 +1783,264 @@ def test_import_records_one_state_entry_per_grafted_part(tmp_path):
         )
         # src is the manifest's inversion for that order -- int-valued.
         assert entry["src"] == _invert_node_index(index, entry["order"])
-        # NOTE FOR TASK 8: once site 2 is wired, this full import also runs the
-        # pass, which flips every flag. Change this line to `is True` then --
-        # Task 8 Step 4 names it.
-        assert entry["rewritten"] is False
+        # Site 2 fires on this full import, and the pass flips every flag.
+        assert entry["rewritten"] is True
+
+
+# --- import: the deferred link rewrite fires automatically ----------------
+
+
+def _link_between(course, from_title, to_title):
+    """Give the unit under `from_title` a text element linking to `to_title`'s
+    unit. Returns the target node's pk."""
+    src_unit = ContentNode.objects.get(course=course, title=f"U{from_title[-1]}")
+    dst_unit = ContentNode.objects.get(course=course, title=f"U{to_title[-1]}")
+    Element.objects.create(
+        unit=src_unit,
+        title="L",
+        content_object=TextElement.objects.create(
+            body=f'<p><a href="/courses/n/{dst_unit.pk}/">go</a></p>'
+        ),
+    )
+    return dst_unit.pk
+
+
+def test_a_full_import_rewrites_cross_part_and_intra_part_links(tmp_path):
+    """The headline case. The intra-part link is NOT padding: it is what catches
+    a rewrite-per-part-then-finish design, under which the final old-pk-keyed
+    pass would flatten every within-part link in the course. A cross-part-only
+    fixture passes that broken design.
+
+    This is also site 2's falsification: add `not todo` to site 2 and this goes
+    RED, because the loop never empties `todo`."""
+    course = _mk_source(parts=("P0", "P1"))
+    _link_between(course, "P0", "P1")  # cross-part
+    _link_between(course, "P0", "P0")  # intra-part
+    bundle = tmp_path / "bundle"
+    call_command(
+        "migrate_course_content",
+        "export",
+        "--source-slug",
+        "src",
+        "--bundle-dir",
+        str(bundle),
+    )
+    target = _mk_target()
+    _user()
+    call_command(
+        "migrate_course_content",
+        "import",
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+    )
+
+    new_u0 = ContentNode.objects.get(course=target, title="U0")
+    new_u1 = ContentNode.objects.get(course=target, title="U1")
+    bodies = " ".join(
+        TextElement.objects.filter(elements__unit__course=target).values_list(
+            "body", flat=True
+        )
+    )
+    assert f"/courses/n/{new_u1.pk}/" in bodies  # cross-part -> NEW pk
+    assert f"/courses/n/{new_u0.pk}/" in bodies  # intra-part -> NEW pk
+    assert _read_state_raw(bundle)["status"] == "applied"
+
+
+def test_the_pass_survives_an_interrupted_import_resumed_with_start_at(tmp_path):
+    """What pins the state to a file rather than memory."""
+    course = _mk_source(parts=("P0", "P1"))
+    _link_between(course, "P0", "P1")
+    bundle = tmp_path / "bundle"
+    call_command(
+        "migrate_course_content",
+        "export",
+        "--source-slug",
+        "src",
+        "--bundle-dir",
+        str(bundle),
+    )
+    target = _mk_target()
+    _user()
+    args = (
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+    )
+    # A GENUINE interruption -- do NOT graft everything and wind the state back
+    # by hand. `--start-at 0` grafts BOTH parts and site 2 applies the pass, so
+    # P0's href already holds a TARGET pk; re-running the pass over it with a
+    # SOURCE-keyed mapping unwrap-FLATTENS it (measured), which is the exact
+    # double-apply the per-order `rewritten` flags exist to prevent.
+    archives = sorted(bundle.glob("*.zip"))
+    good = archives[1].read_bytes()
+    archives[1].write_bytes(b"corrupt")
+    with pytest.raises(CommandError):
+        call_command("migrate_course_content", "import", *args)
+    assert _read_state_raw(bundle)["status"] == "collecting"  # pass never fired
+    archives[1].write_bytes(good)
+    # A second process. The map for part 0 must have survived on disk.
+    call_command("migrate_course_content", "import", *args, "--start-at", "1")
+    new_u1 = ContentNode.objects.get(course=target, title="U1")
+    bodies = " ".join(
+        TextElement.objects.filter(elements__unit__course=target).values_list(
+            "body", flat=True
+        )
+    )
+    assert f"/courses/n/{new_u1.pk}/" in bodies
+
+
+def test_the_skipped_pass_window_still_applies_on_a_start_at_resume(
+    tmp_path, monkeypatch
+):
+    """A run that dies after the last part commits, resumed with
+    --start-at part_count, must still rewrite. Site 1 is the only place that
+    can fire here, because the loop body never runs."""
+    course = _mk_source(parts=("P0", "P1"))
+    _link_between(course, "P0", "P1")
+    bundle = tmp_path / "bundle"
+    call_command(
+        "migrate_course_content",
+        "export",
+        "--source-slug",
+        "src",
+        "--bundle-dir",
+        str(bundle),
+    )
+    target = _mk_target()
+    _user()
+    args = (
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+    )
+    # Genuine "parts committed, pass never ran": suppress the pass for the
+    # setup invocation. Winding an APPLIED state back by hand would leave the
+    # bodies holding TARGET pks, and the re-run's SOURCE-keyed mapping would
+    # unwrap-flatten them -- a status-only assertion cannot tell that apart from
+    # a correct rewrite.
+    import courses.management.commands.migrate_course_content as mod
+
+    monkeypatch.setattr(mod.Command, "_run_link_pass", lambda *a, **k: None)
+    call_command("migrate_course_content", "import", *args, "--start-at", "0")
+    monkeypatch.undo()
+    assert _read_state_raw(bundle)["status"] == "collecting"
+
+    call_command("migrate_course_content", "import", *args, "--start-at", "2")
+    assert _read_state_raw(bundle)["status"] == "applied"
+    # Site 1's ONLY firing-and-rewriting coverage -- assert the rewrite, not
+    # just the marker.
+    new_u1 = ContentNode.objects.get(course=target, title="U1")
+    bodies = " ".join(
+        TextElement.objects.filter(elements__unit__course=target).values_list(
+            "body", flat=True
+        )
+    )
+    assert f"/courses/n/{new_u1.pk}/" in bodies
+
+
+def test_a_completed_migration_re_invoked_does_not_re_run_the_pass(tmp_path):
+    """The once-only guard, and the existing 'nothing to do' line must survive."""
+    course = _mk_source(parts=("P0", "P1"))
+    _link_between(course, "P0", "P1")  # so the body half is not vacuous
+    bundle = tmp_path / "bundle"
+    call_command(
+        "migrate_course_content",
+        "export",
+        "--source-slug",
+        "src",
+        "--bundle-dir",
+        str(bundle),
+    )
+    target = _mk_target()
+    _user()
+    args = (
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+    )
+    call_command("migrate_course_content", "import", *args)
+    before = _read_state_raw(bundle)["rewrite"]
+    bodies_before = sorted(
+        TextElement.objects.filter(elements__unit__course=target).values_list(
+            "body", flat=True
+        )
+    )
+    out = io.StringIO()
+    # --start-at must equal the PART COUNT of this fixture (2), not 3: the
+    # invariant is `baseline["top_nodes"] + start_at == existing`, so
+    # --start-at 3 against a two-part source raises "expects the target to
+    # hold exactly 3 top-level node(s) ... but it holds 2" and never reaches
+    # any assertion below.
+    call_command(
+        "migrate_course_content", "import", *args, "--start-at", "2", stdout=out
+    )
+    assert _read_state_raw(bundle)["rewrite"] == before
+    assert (
+        sorted(
+            TextElement.objects.filter(elements__unit__course=target).values_list(
+                "body", flat=True
+            )
+        )
+        == bodies_before
+    )  # and no body was re-edited
+    assert "already complete" in out.getvalue()
+
+
+def test_a_link_with_no_target_in_any_part_is_flattened_and_counted(tmp_path):
+    course = _mk_source(parts=("P0",))
+    unit = ContentNode.objects.get(course=course, title="U0")
+    Element.objects.create(
+        unit=unit,
+        title="L",
+        content_object=TextElement.objects.create(
+            body='<p><a href="/courses/n/999999/">gone</a></p>'
+        ),
+    )
+    bundle = tmp_path / "bundle"
+    call_command(
+        "migrate_course_content",
+        "export",
+        "--source-slug",
+        "src",
+        "--bundle-dir",
+        str(bundle),
+    )
+    target = _mk_target()
+    _user()
+    out = io.StringIO()
+    call_command(
+        "migrate_course_content",
+        "import",
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+        stdout=out,
+    )
+    bodies = " ".join(
+        TextElement.objects.filter(elements__unit__course=target).values_list(
+            "body", flat=True
+        )
+    )
+    assert "/courses/n/999999/" not in bodies
+    assert "gone" in bodies  # unwrapped to plain text
+    assert _read_state_raw(bundle)["rewrite"]["flattened"] >= 1
+    assert "flattened" in out.getvalue()
 
 
 def test_a_regraft_replaces_the_entry_rather_than_duplicating(tmp_path):
