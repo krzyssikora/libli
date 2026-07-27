@@ -417,8 +417,8 @@ Two separate reasons fix the ceiling at 500 rather than something larger:
   force a full-tree render.
 
 **Genuine call sites.** `_open_ids` is called in exactly three places: `builder()` and
-`_builder_with_notice()` (both `seed=True`, both passing `course`), and `_render_scope()`
-(`seed=False`).
+`_builder_with_notice()` (`mode="page"` and `mode="notice"` respectively, both passing
+`course`), and `_render_scope()` (`mode="fragment"`).
 `_render_tree()` and `_conflict_scope()` both delegate to `_render_scope()` and inherit it —
 computing it in them too would evaluate the set twice per request and give the rules two
 places to drift apart.
