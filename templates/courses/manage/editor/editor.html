@@ -115,6 +115,7 @@
       } catch (e) { /* leave the server-rendered split default */ }
     })();
   </script>
+  {% include "courses/manage/editor/_link_dialog.html" %}
 </section>
 {% endblock %}
 {% block extra_js %}
@@ -135,6 +136,8 @@
   <script src="{% static 'courses/vendor/katex/contrib/auto-render.min.js' %}" defer></script>
   <script src="{% static 'courses/js/math.js' %}" defer></script>
   <script src="{% static 'courses/js/media_picker.js' %}" defer></script>
+  <script src="{% static 'courses/js/link_apply.js' %}" defer></script>
+  <script src="{% static 'courses/js/link_dialog.js' %}" defer></script>
   <script src="{% static 'courses/js/text_toolbar.js' %}" defer></script>
   {% comment %}Shared span-aware grid algebra. MUST be a defer script like the two
   editors below it: source order only guarantees execution order among defer
