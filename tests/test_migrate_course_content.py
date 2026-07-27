@@ -1359,6 +1359,52 @@ def test_verify_refuses_an_in_progress_state_file(tmp_path):
     assert "in the pending scope" in str(exc.value)
 
 
+def test_the_in_progress_probe_reports_unavailable_when_the_pending_scope_is_empty(
+    tmp_path,
+):
+    """This fixture's status is hand-flipped to in_progress WITHOUT clearing
+    any part's `rewritten` flag, so the pending scope is empty (`total == 0`).
+    The two threshold lines the populated case prints -- "near {total} means
+    the rewrite did NOT run" and "near 0 means it DID commit" -- would BOTH
+    read "near 0" here, handing the operator two opposite instructions for
+    the one decision this message exists to disambiguate. The message must
+    report the reading as unavailable instead of rendering that contradiction.
+    """
+    bundle = _export_bundle(tmp_path)
+    _mk_target()
+    _user()
+    call_command(
+        "migrate_course_content",
+        "import",
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+    )
+    st = _read_state_raw(bundle)
+    st["status"] = "in_progress"  # every part's "rewritten" is left True
+    _write_state(bundle, st)
+    with pytest.raises(CommandError, match="in_progress") as exc:
+        call_command(
+            "migrate_course_content",
+            "verify",
+            "--target-slug",
+            "dst",
+            "--bundle-dir",
+            str(bundle),
+        )
+    msg = str(exc.value)
+    assert "in the pending scope" in msg
+    assert "unavailable" in msg.lower()
+    # The two contradictory "near 0" lines must never both appear.
+    assert not (
+        "near 0 means the rewrite did NOT run" in msg
+        and "near 0 means it DID commit" in msg
+    )
+
+
 def test_verify_refuses_the_wrong_target_rather_than_passing_trivially(tmp_path):
     """Without the identity check the scope is empty, so total_elements == 0
     and the reconciliation succeeds having checked nothing."""
@@ -1458,6 +1504,12 @@ def test_verify_passes_on_a_clean_migration(tmp_path):
         stdout=out,
     )
     assert "OK" in out.getvalue()
+    # The per-part table (Task 7's recorded rows, rendered by `verify`): the
+    # element carrying the link lives in part 0, so part 0 shows one rewrite
+    # and part 1 shows none -- not just that a table exists, but that its
+    # content is the actual per-order split, not a placeholder.
+    assert "  part 0: 1 rewritten, 0 flattened" in out.getvalue()
+    assert "  part 1: 0 rewritten, 0 flattened" in out.getvalue()
 
 
 def test_shared_media_duplicates_and_is_accounted_for(tmp_path):

@@ -602,10 +602,38 @@ class Command(BaseCommand):
         migration_total = Element.objects.filter(
             unit_id__in=_live_pks(state["parts"], target)
         ).count()
-        return (
+        header = (
             f"{LINK_STATE_NAME} in {bundle} is in_progress: a crash left the "
             f"deferred link rewrite in an unknown state.\n"
-            f"  probe: {len(dangling_elements - fail_closed)} element(s) hold a "
+        )
+        if total == 0:
+            # DEGENERATE: no order is pending (every recorded part already has
+            # rewritten=True), so there is nothing left to probe. This is not
+            # hypothetical -- a status hand-flipped to in_progress on an
+            # otherwise-fully-applied state file reaches exactly this shape,
+            # and so would a partially corrupted one, since _read_state does
+            # not cross-check status against the per-part rewritten flags.
+            # The two threshold lines below both read "near 0" when total is
+            # 0, which would hand the operator two OPPOSITE instructions for
+            # the one decision this message exists to disambiguate -- an
+            # ambiguous reading is worse than none, so report unavailability
+            # explicitly instead of rendering a broken threshold.
+            return (
+                header + f"  probe: 0 element(s) recorded in the pending scope -- "
+                f"there is nothing to check for a dangling internal link "
+                f"(every recorded part's 'rewritten' flag already reads "
+                f"true; the whole migration holds {migration_total}).\n"
+                f"  the reading is UNAVAILABLE here, not a signal: inspect "
+                f"{LINK_STATE_NAME} by hand to determine whether the "
+                f"deferred link rewrite actually committed, then re-run with "
+                f"--resolve-rewrite applied or --resolve-rewrite not-applied "
+                f"accordingly.\n"
+                f"The command will not guess: a wrong answer silently "
+                f"re-points correct links at unrelated nodes."
+            )
+        return (
+            header
+            + f"  probe: {len(dangling_elements - fail_closed)} element(s) hold a "
             f"dangling internal link, of {total} in the pending scope "
             f"({len(fail_closed)} more are malformed and were never "
             f"rewritable; the whole migration holds {migration_total}).\n"
