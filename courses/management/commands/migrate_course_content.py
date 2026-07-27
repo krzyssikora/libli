@@ -540,16 +540,81 @@ class Command(BaseCommand):
                     f"from the start against a clean target."
                 )
 
+    def _scan_links(self, state, target):
+        """(dangling, dangling_elements, total_elements) over ALL recorded
+        orders. Composed from part 2's read-only exports -- none of them returns
+        an href, so a reported href is RECONSTRUCTED as /courses/n/<pk>/ from
+        the dangling pk, not captured."""
+        qs = (
+            Element.objects.filter(unit_id__in=_live_pks(state["parts"], target))
+            .order_by("pk")
+            .prefetch_related("content_object")
+        )
+        referenced = {}
+        total_elements = 0
+        for join in qs.iterator(chunk_size=500):
+            total_elements += 1
+            obj = join.content_object
+            if obj is None:
+                continue
+            for _field, value in iter_rich_text(obj):
+                for pk in find_link_targets(value):
+                    referenced.setdefault(pk, []).append((join.unit_id, join.pk))
+
+        live_targets = set(  # NOT `live`: a different set
+            ContentNode.objects.filter(course=target, pk__in=referenced).values_list(
+                "pk", flat=True
+            )
+        )
+        dangling = {
+            pk: sites for pk, sites in referenced.items() if pk not in live_targets
+        }
+        dangling_elements = {epk for sites in dangling.values() for _u, epk in sites}
+        return dangling, dangling_elements, total_elements
+
     def _in_progress_message(self, bundle, state, target):
-        """STUB: Task 10 replaces this with a message that runs the fail-closed
-        probe (`_scan_links`, added there) and reports its reading. Task 6
-        only needs the refusal to exist and to be reachable; no test in this
-        task exercises this method's text (see
-        `test_the_in_progress_refusal_prints_a_probe_reading`, Task 11)."""
+        """The discriminator. After a committed pass no in-scope element holds
+        a dangling internal href; before it, essentially every one does. The
+        command reports and refuses -- an automatic guess that lands wrong
+        produces exactly the silent mis-point this design exists to prevent.
+
+        Both numbers are over the PENDING scope, because only pending orders
+        would be rewritten. Over all entries, one re-grafted part of ~1,000
+        elements inside a 20,054-element scope reads as ~5% -- neither near zero
+        nor near total -- and 5% pushes the operator toward `applied`, stranding
+        the re-grafted part's hrefs on source pks.
+        """
+        pending = [e for e in state["parts"] if not e["rewritten"]]
+        probe = dict(state)
+        probe["parts"] = pending
+        _dangling, dangling_elements, total = self._scan_links(probe, target)
+        fail_closed = {
+            join.pk
+            for join in Element.objects.filter(
+                pk__in=dangling_elements
+            ).prefetch_related("content_object")
+            if join.content_object is not None and _is_fail_closed(join.content_object)
+        }
+        # Context only: how big the pending scope is relative to the whole
+        # migration. Without it, "N of M in scope" on a repair resume hides that
+        # M is one part of twenty-one -- the ~5%-vs-~100% misreading the spec
+        # warns about.
+        migration_total = Element.objects.filter(
+            unit_id__in=_live_pks(state["parts"], target)
+        ).count()
         return (
-            f"{LINK_STATE_NAME} in {bundle} is 'in_progress': a previous "
-            f"invocation crashed mid-rewrite. Resolve it with "
-            f"--resolve-rewrite before resuming with --start-at."
+            f"{LINK_STATE_NAME} in {bundle} is in_progress: a crash left the "
+            f"deferred link rewrite in an unknown state.\n"
+            f"  probe: {len(dangling_elements - fail_closed)} element(s) hold a "
+            f"dangling internal link, of {total} in the pending scope "
+            f"({len(fail_closed)} more are malformed and were never "
+            f"rewritable; the whole migration holds {migration_total}).\n"
+            f"  near {total} means the rewrite did NOT run  -> re-run with "
+            f"--resolve-rewrite not-applied\n"
+            f"  near 0 means it DID commit                  -> re-run with "
+            f"--resolve-rewrite applied\n"
+            f"The command will not guess: a wrong answer silently re-points "
+            f"correct links at unrelated nodes."
         )
 
     def _resolve_rewrite(self, o, bundle, state, node_index, target):
@@ -1174,6 +1239,40 @@ class Command(BaseCommand):
                 f"{BASELINE_NAME} in {bundle} is not valid JSON: {exc}"
             ) from exc
 
+        state = _read_state(bundle, validate=True)
+        if state is None:
+            raise CommandError(
+                f"{LINK_STATE_NAME} is missing from {bundle}; run `import` "
+                f"before `verify` so the link rewrite is on record"
+            )
+        self._check_identity(state, target)
+        # A stale entry REPORTS here rather than raising -- unlike in the pass,
+        # because `verify` never mutates.
+        stale = {
+            pk for e in state["parts"] for pk in e["node_map"].values()
+        } - _live_pks(state["parts"], target)
+        if stale:
+            orders = sorted(
+                int(e["order"])
+                for e in state["parts"]
+                if set(e["node_map"].values()) & stale
+            )
+            self.stdout.write(
+                f"note: {LINK_STATE_NAME} records {len(stale)} node(s) in "
+                f"part(s) {orders} that no longer exist in {target.slug!r}"
+            )
+        if state["status"] == "in_progress":
+            # The SAME probe reading `import` gives. The spec makes the reading
+            # the decisive discriminator, and an operator who reaches the
+            # deadlock through `verify` needs it just as much.
+            raise CommandError(self._in_progress_message(bundle, state, target))
+        if state["status"] != "applied":
+            raise CommandError(
+                f"{LINK_STATE_NAME} in {bundle} is {state['status']!r}: the "
+                f"deferred link rewrite never ran, so internal links still "
+                f"hold source pks. Re-run `import`."
+            )
+
         # Cross-check the archives themselves still agree with what the
         # manifest recorded -- corruption or a hand-edited bundle after
         # export would otherwise slip past a manifest-only check. Any
@@ -1246,6 +1345,63 @@ class Command(BaseCommand):
                 f"the bundle, accounting for cross-part sharing), target "
                 f"{target.slug!r} holds {actual_media}"
             )
+
+        rewrite = state.get("rewrite") or {}
+        if rewrite.get("resolved_by_operator"):
+            self.stdout.write(
+                "link rewrite: marked applied by the operator; counts unavailable"
+            )
+        for row in rewrite.get("parts", []):
+            et = row["elements_touched"]
+            fl = row["flattened"]
+            self.stdout.write(
+                f"  part {row['order']}: "
+                f"{et if et is not None else 'unknown'} rewritten, "
+                f"{fl if fl is not None else 'unknown'} flattened"
+            )
+
+        dangling, dangling_elements, total_elements = self._scan_links(state, target)
+        if "fail_closed_elements" in rewrite:
+            fail_closed = set(rewrite["fail_closed_elements"])
+        else:
+            # Absent, NOT empty. The resolved_by_operator shape has no such key
+            # by construction, and treating it as empty would read every
+            # fail-closed body as an ordinary dangling element -- with status
+            # already applied and --resolve-rewrite refusing a non-in_progress
+            # file, verify would then fail forever with no remedy.
+            fail_closed = {
+                join.pk
+                for join in Element.objects.filter(
+                    pk__in=dangling_elements
+                ).prefetch_related("content_object")
+                if join.content_object is not None
+                and _is_fail_closed(join.content_object)
+            }
+        real = dangling_elements - fail_closed
+        reported = dangling_elements & fail_closed
+
+        if reported:
+            self.stdout.write(
+                f"note: {len(reported)} element(s) hold links the scanner "
+                f"declines to touch (malformed anchor markup); they keep their "
+                f"source pks and need a manual fix"
+            )
+        if real:
+            examples = []
+            for pk, sites in sorted(dangling.items()):
+                for unit_id, epk in sites:
+                    if epk in real:
+                        examples.append((unit_id, epk, f"/courses/n/{pk}/"))
+                if len(examples) >= 10:
+                    break
+            raise CommandError(
+                f"{len(real)} migrated element(s) hold a dangling internal "
+                f"link (of {total_elements} in scope). First {len(examples)}: "
+                f"{examples}"
+            )
+        self.stdout.write(
+            f"internal links OK: {total_elements} element(s) in scope, none dangling"
+        )
 
         shared = {k: v for k, v in table.items() if len(v) > 1}
         self.stdout.write(

@@ -1275,6 +1275,191 @@ def test_verify_fails_when_an_imported_media_asset_is_deleted(tmp_path):
         )
 
 
+def test_verify_refuses_when_the_link_state_is_missing(tmp_path):
+    bundle = _export_bundle(tmp_path)
+    _mk_target()
+    _user()
+    call_command(
+        "migrate_course_content",
+        "import",
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+    )
+    (bundle / LINK_STATE_NAME).unlink()
+    with pytest.raises(CommandError, match=LINK_STATE_NAME):
+        call_command(
+            "migrate_course_content",
+            "verify",
+            "--target-slug",
+            "dst",
+            "--bundle-dir",
+            str(bundle),
+        )
+
+
+def test_verify_refuses_a_state_file_that_is_not_applied(tmp_path):
+    bundle = _export_bundle(tmp_path)
+    _mk_target()
+    _user()
+    call_command(
+        "migrate_course_content",
+        "import",
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+    )
+    st = _read_state_raw(bundle)
+    st["status"] = "collecting"
+    _write_state(bundle, st)
+    with pytest.raises(CommandError, match="deferred link rewrite never ran"):
+        call_command(
+            "migrate_course_content",
+            "verify",
+            "--target-slug",
+            "dst",
+            "--bundle-dir",
+            str(bundle),
+        )
+
+
+def test_verify_refuses_an_in_progress_state_file(tmp_path):
+    bundle = _export_bundle(tmp_path)
+    _mk_target()
+    _user()
+    call_command(
+        "migrate_course_content",
+        "import",
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+    )
+    st = _read_state_raw(bundle)
+    st["status"] = "in_progress"
+    _write_state(bundle, st)
+    with pytest.raises(CommandError, match="in_progress") as exc:
+        call_command(
+            "migrate_course_content",
+            "verify",
+            "--target-slug",
+            "dst",
+            "--bundle-dir",
+            str(bundle),
+        )
+    # The probe reading, not a bare refusal (Task 11 supplies it).
+    assert "in the pending scope" in str(exc.value)
+
+
+def test_verify_refuses_the_wrong_target_rather_than_passing_trivially(tmp_path):
+    """Without the identity check the scope is empty, so total_elements == 0
+    and the reconciliation succeeds having checked nothing."""
+    bundle = _export_bundle(tmp_path)
+    _mk_target()
+    Course.objects.create(title="Other", slug="other", uses_parts=True)
+    _user()
+    call_command(
+        "migrate_course_content",
+        "import",
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+    )
+    # match= is mandatory: verifying "other" also trips the pre-existing node
+    # tally ("node count mismatch"), so a bare raises() passes with the identity
+    # check deleted and the falsification below could never go RED.
+    with pytest.raises(CommandError, match="Refusing to mix targets"):
+        call_command(
+            "migrate_course_content",
+            "verify",
+            "--target-slug",
+            "other",
+            "--bundle-dir",
+            str(bundle),
+        )
+
+
+def test_verify_raises_on_a_dangling_internal_href(tmp_path):
+    bundle = _export_bundle(tmp_path)
+    target = _mk_target()
+    _user()
+    call_command(
+        "migrate_course_content",
+        "import",
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+    )
+    # MUTATE an existing body -- do NOT add an Element. The pinned gate order
+    # puts the four tally checks before the reconciliation, so an extra join
+    # raises "element count mismatch: expected 6, target 'dst' holds 7" and the
+    # match= never fires. (Measured: sanitize_html leaves this markup
+    # byte-identical, so .update() and .save() both work.)
+    TextElement.objects.filter(elements__unit__course=target).update(
+        body='<p><a href="/courses/n/999999/">x</a></p>'
+    )
+    with pytest.raises(CommandError, match="dangling"):
+        call_command(
+            "migrate_course_content",
+            "verify",
+            "--target-slug",
+            "dst",
+            "--bundle-dir",
+            str(bundle),
+        )
+
+
+def test_verify_passes_on_a_clean_migration(tmp_path):
+    course = _mk_source(parts=("P0", "P1"))
+    _link_between(course, "P0", "P1")
+    bundle = tmp_path / "bundle"
+    call_command(
+        "migrate_course_content",
+        "export",
+        "--source-slug",
+        "src",
+        "--bundle-dir",
+        str(bundle),
+    )
+    _mk_target()
+    _user()
+    call_command(
+        "migrate_course_content",
+        "import",
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+    )
+    out = io.StringIO()
+    call_command(
+        "migrate_course_content",
+        "verify",
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        stdout=out,
+    )
+    assert "OK" in out.getvalue()
+
+
 def test_shared_media_duplicates_and_is_accounted_for(tmp_path):
     """An asset referenced from two parts is exported into both archives and
     re-materialised twice, so the target's media count legitimately EXCEEDS the
