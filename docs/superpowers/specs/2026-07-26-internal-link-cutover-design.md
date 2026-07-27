@@ -810,16 +810,41 @@ Under an empty map with `on_missing="unwrap"`, every target in a well-formed bod
 that holds targets and yet comes back byte-identical with `flattened == 0` is exactly part 2's
 fail-closed path (`2026-07-26-internal-link-durability-design.md:200-206`).
 
-**The probe may over-report relative to the real pass, and that is accepted.** Part 2's third
-condition is *"on the unwrap path,* an open tag with no matching `</a>`" — under the probe's empty map
-every anchor is an unwrap candidate, whereas under the real mapping only unmapped ones are. So a body
-holding both an unterminated anchor and a well-formed **mappable** link probes `True` while the real
-pass may rewrite it normally. Part 3 reads part 2's condition as evaluated over the **body as a
-whole** — the scanner bails on the body, not on one anchor, which is what "the whole *body* is
-returned byte-identical" says — so in the common case probe and pass agree. Where they do not, the
-over-report is harmless in one direction only: `verify` subtracts an element it did not need to,
-losing a *detection*, never corrupting data. It is recorded here rather than engineered away because
-removing it would require part 2 to expose a fail-closed flag, which §Scope forbids.
+**Which bodies this can actually detect — measured, because an earlier draft of this spec got it
+wrong.** Part 2's three fail-closed conditions do not behave alike, and the difference decides what a
+fixture must look like. Measured against part 2's own `rewrite_links`:
+
+| condition | detectable by `_is_fail_closed`? | why |
+|---|---|---|
+| unterminated quoted attribute value | **no** | `_scan_anchors` raises `_Unscannable`, and `find_link_targets` catches it and returns `set()`, so the probe's `if not find_link_targets(value): continue` skips the body |
+| `<a` with no unquoted `>` | **no** | same path |
+| unwrap path, open tag with no matching `</a>` | **yes**, conditionally | the only one `find_link_targets` still reports a pk for |
+
+The first two being invisible is **safe, not a hole**: `_scan_links` (§Verify) composes the *same*
+`find_link_targets`, so those bodies are never reported as dangling either. Undetectable and never
+falsely failing. Nothing in this spec tries to cover them.
+
+The third condition carries two traps, both measured:
+
+- **Its trigger is per-anchor, not per-body.** Part 2 does
+  `close = re.compile(r"</a\s*>", re.I).search(html, end)` starting from *that* anchor's end, so a
+  **later** anchor's `</a>` satisfies an earlier torn one. The *effect* of the bail is whole-body
+  (it returns byte-identical), which is what misled the earlier draft — but the *trigger* is not.
+  Measured:
+  `rewrite_links('<p><a href="/courses/n/3/">torn<a href="/courses/n/6/">ok</a></p>', {}, on_missing="unwrap")`
+  → `('<p>tornok</p>', 2)`. **Not** fail-closed. A fixture must be a **single** torn anchor with no
+  `</a>` anywhere after it.
+- **The bail lives on the `elif on_missing == "unwrap"` branch**, so a **mappable** pk is rewritten
+  and never reaches it. A fixture's torn anchor must therefore target an **unmappable** pk:
+  `rewrite_links('<p><a href="/courses/n/999999/">torn</p>', {3: 103}, on_missing="unwrap")`
+  → unchanged, `0`.
+
+**The probe still over-reports relative to the real pass, and that is accepted.** The probe passes an
+**empty** map, so every anchor is an unwrap candidate; the pass passes the real map, so only unmapped
+ones are. A body whose torn anchor targets a *mappable* pk therefore probes `True` while the pass
+rewrites it normally. The over-report is harmless in one direction only: `verify` subtracts an element
+it did not need to, losing a *detection*, never corrupting data. It is recorded rather than engineered
+away because removing it would require part 2 to expose a fail-closed flag, which §Scope forbids.
 
 The same function serves
 the `in_progress` probe, which **computes it live** — it cannot read `rewrite["fail_closed_elements"]`,
@@ -857,12 +882,16 @@ the same as "no target anywhere":
   only, so a hand-typed link to a node in a *different* course on the source install is unresolvable
   here and `unwrap` destroys it. This is correct for the cutover — the other course is not moving —
   but it is a real content change, so it lands in the `flattened` count rather than passing silently.
-- **Bodies part 2 fail-closes keep their source pks.** An unterminated quoted attribute value, an `<a`
-  with no unquoted `>`, or (on the unwrap path) an open tag with no matching `</a>` makes part 2
+- **Bodies part 2 fail-closes keep their source pks.** Any of part 2's three conditions makes it
   return the whole body byte-identical — so *every* internal href in that body survives unrewritten,
-  not just the malformed one. Reachable here because `_build_fill_gate` / `_build_switch_gate`
-  (`importer.py:549-561`) store `stem` unsanitised. The pass records these element pks and §Verify
-  reports them separately rather than failing on them.
+  not just the malformed one. Reachable here because `_build_fill_gate` (`importer.py:549-552`) and
+  `_build_switch_gate` (`:555-562`) store `stem` unsanitised.
+
+  Only the third condition (unwrap path, no matching `</a>`, unmappable target) is **observable**;
+  the other two are invisible to `_is_fail_closed` *and* to §Verify's scan, because both compose
+  `find_link_targets`, which returns `set()` on an unscannable body — see §mechanics' table. For the
+  observable one the pass records the element pk and §Verify reports it separately rather than
+  failing on it. For the other two, the body simply passes through unremarked in both directions.
 - **A repair resume strands *inbound* cross-part links, loudly.** The pass is scoped to pending
   orders, so it fixes links *out of* a re-grafted part but never rescans the parts that link *into*
   it. Concretely: part 0 links into part 2; the first pass rewrites part 0's href to part 2's new pk
@@ -1162,13 +1191,16 @@ and everything unmapped was unwrapped to plain text — but **not unconditionall
 draft of this spec claimed it was. Part 2's converged fail-closed rule
 (`2026-07-26-internal-link-durability-design.md:200-206`, restated at `:524-525` and `:550-552`)
 returns the whole *body* byte-identical, contributing 0 to the count, when the scanner meets any of
-three conditions — including, on the unwrap path, an open `<a` tag with no matching `</a>`. That path
-never unwraps, so `find_link_targets` still reports the pk. Such a body therefore keeps its **source**
-pk *and* leaves every other, mappable internal href in the same body unrewritten. Part 2 names this
-reachable through exactly the import path this cutover uses, and it checks out: `_build_fill_gate` and
-`_build_switch_gate` (`courses/transfer/importer.py:549-561`) create `stem` raw, with no
-`sanitize_html` — part 2's own drift-guard census records `importer.py` as having a single sanitise
-call site, `_build_guess_number`.
+three conditions. The one that matters here is the third — on the unwrap path, an open `<a` tag with
+no matching `</a>`, targeting a pk the mapping does not carry. That path never unwraps, so
+`find_link_targets` still reports the pk, and such a body keeps its **source** pk *and* leaves every
+other, mappable internal href in the same body unrewritten. (The other two conditions are invisible
+to this scan for the reason §mechanics tabulates — `find_link_targets` returns `set()` on an
+unscannable body — so they neither inflate nor escape this count.) Part 2 names this reachable
+through exactly the import path this cutover uses, and it checks out: `_build_fill_gate`
+(`courses/transfer/importer.py:549-552`) and `_build_switch_gate` (`:555-562`) create `stem` raw,
+with no `sanitize_html` — part 2's own drift-guard census records `importer.py` as having a single
+sanitise call site, `_build_guess_number`.
 
 So the threshold is graded rather than absolute:
 
@@ -1357,12 +1389,23 @@ coverage rather than a note:
 - `--force` grafting into a target that already holds linked content: the pre-existing bodies are
   **untouched**, since the pass is scoped to the nodes the state file records as created by this
   migration.
-- **A fail-closed body** — an element whose `stem` holds an unmatched `<a>` and a second, well-formed
-  internal link — survives the pass byte-identical, is recorded in `rewrite["fail_closed_elements"]`,
-  and makes `verify` report it **without** raising. Falsify by dropping the subtraction: `verify`
-  then raises with no remedy available. Assert also that an element with **no** internal links at all
-  is *not* recorded as fail-closed — the naive `not changed` rule would record nearly all 20,054
-  elements and make the reconciliation vacuous, and that failure is invisible without this assertion.
+- **A fail-closed body** — a `FillGateElement` whose `stem` is a **single** unterminated `<a>` at an
+  **unmappable** target and nothing after it, e.g. `<p><a href="/courses/n/999999/">torn</p>` —
+  survives the pass byte-identical, is recorded in `rewrite["fail_closed_elements"]`, and makes
+  `verify` report it **without** raising. Falsify by dropping the subtraction: `verify` then raises
+  with no remedy available.
+
+  **All three properties of that fixture are load-bearing, and an earlier draft of this spec got
+  every one of them wrong** (see §mechanics' table): a second anchor supplies the `</a>` the torn one
+  searches for, so the body is not fail-closed at all; a *mappable* target never reaches the branch
+  the bail lives on; and `TextElement.save()` runs `sanitize_html`, which **closes** the torn anchor
+  — measured, `'<p><a href="/courses/n/7/">torn</p>'` → `'<p><a href="/courses/n/7/">torn</a></p>'`.
+  `FillGateElement` has no `save()` override and `_build_fill_gate` stores `stem` raw, which is what
+  makes it the only end-to-end vehicle.
+
+  Assert also that an element with **no** internal links at all is *not* recorded as fail-closed —
+  the naive `not changed` rule would record nearly all 20,054 elements and make the reconciliation
+  vacuous, and that failure is invisible without this assertion.
 - **A cross-part link from a re-grafted part into an already-rewritten one** resolves to the
   already-rewritten part's **new** pk. This is the scope/mapping separation: falsify by building the
   mapping's liveness set from the pending orders only, and the link is silently `unwrap`-flattened
@@ -1382,10 +1425,22 @@ coverage rather than a note:
   committed; re-run import from the start" hint — **not** `TypeError`. Falsify by using only the
   `:497-500` arm: `committed` is `None` there, so `None + 1` raises a raw traceback. A second case on
   a later part asserts the `--start-at <committed + 1>` hint and the orphaned-media log line.
-- **A mixed body** — one unterminated anchor plus one well-formed *mappable* internal link — has the
-  well-formed link rewritten to its new pk. Falsify by adding a `continue` after the
-  `fail_closed_elements.append`: the mappable link then keeps its source pk and `verify` stays silent
-  because the element was subtracted.
+- **A fail-closed *instance* still gets its other fields rewritten** — the guard for the deliberate
+  absence of `continue` after `fail_closed_elements.append`. Falsify by adding the `continue`: the
+  mappable link keeps its source pk and `verify` stays silent, because the element was subtracted.
+
+  **This needs two registry fields on one instance, not two anchors in one body** — an earlier draft
+  of this spec asked for the latter, which §mechanics' table shows is not fail-closed at all. Part 2's
+  registry offers exactly two such models: `GuessNumberElement` (`stem` + `success_message`) and the
+  question models (`stem` + `explanation`). Put the single torn unmappable anchor in `stem` and a
+  well-formed **mappable** link in the other field.
+
+  It must be built **target-side, after the graft**: an import cannot carry a torn stem in, because
+  `_build_guess_number` (`importer.py:767`) sanitises it — the one sanitise call site part 2's
+  drift-guard census records in that module. Created directly on a grafted unit it survives, because
+  `GuessNumberElement.save()` sanitises only `success_message` (`models.py:779`), and a well-formed
+  anchor is byte-identical through the sanitiser. Note `GuessNumberElement.target` is a required
+  `DecimalField` with no default.
 - **`verify --target-slug <other-course>`** raises on the identity check rather than passing
   trivially. Falsify by removing that gate: the scope is empty, so `total_elements == 0` and the
   reconciliation succeeds having checked nothing.

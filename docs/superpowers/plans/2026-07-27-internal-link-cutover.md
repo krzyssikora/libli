@@ -10,12 +10,17 @@
 
 **Spec:** `docs/superpowers/specs/2026-07-26-internal-link-cutover-design.md` (converged, 10 review rounds, 139 catches). Where this plan and the spec disagree, **the spec wins** — report the discrepancy rather than guessing.
 
-## MEASURED DIVERGENCE FROM THE SPEC — read before Task 7 or 12
+## FAIL-CLOSED FIXTURES — read before Task 7 or 12
 
-The spec's §mechanics says part 2's third fail-closed condition is "evaluated over the **body as a
-whole** — the scanner bails on the body, not on one anchor". **Measured against part 2's own planned
-implementation, that is half true, and the difference makes two of the spec's §Testing cases
-unbuildable.** Part 2's `rewrite_links` does:
+**This was a spec defect; the spec has since been corrected and now agrees with everything below**
+(§mechanics carries the same table, §Accepted gaps and §Verify were re-derived, and both §Testing
+cases were rewritten). It is repeated here because it is the single most expensive thing to get
+wrong in Tasks 7 and 12, and because an implementer reading only the plan needs it.
+
+The original defect: the spec said part 2's third fail-closed condition is "evaluated over the body
+as a whole — the scanner bails on the body, not on one anchor". Measured against part 2's own
+planned implementation, that is half true, and the difference made two of its §Testing cases
+unbuildable. Part 2's `rewrite_links` does:
 
 ```python
 elif on_missing == "unwrap":
@@ -34,10 +39,10 @@ rewrite_links('<p><a href="/courses/n/999999/">torn</p>', {3: 103},
               on_missing="unwrap")   ->  (unchanged, 0)            # fail-closed
 ```
 
-Three consequences the tasks below encode:
+Three consequences the tasks below encode, and the corrected spec now states:
 
 1. **A fail-closed fixture must be a single torn anchor with no `</a>` anywhere after it.** The
-   spec's "one unterminated anchor plus one well-formed link" shape does not fail-close.
+   original "one unterminated anchor plus one well-formed link" shape does not fail-close.
 2. **Its target must be *unmappable*.** The bail lives on the `elif on_missing == "unwrap"` branch,
    so a mappable pk is simply rewritten and never reaches it — the probe (empty map) would say
    `True` while the real pass rewrites normally. That is the spec's accepted over-report, and a test
@@ -48,8 +53,11 @@ Three consequences the tasks below encode:
    so those bodies are never reported as dangling either. Undetectable *and* never falsely failing.
    No task tries to cover them.
 
-This is a spec defect, not a plan liberty. Report it upstream; do not "fix" the plan back toward the
-spec's wording.
+A fourth consequence, measured while correcting the spec: **`TextElement` cannot carry a fail-closed
+fixture at all** — `save()` runs `sanitize_html`, which *closes* the torn anchor. `FillGateElement`
+(no `save()` override, `_build_fill_gate` stores `stem` raw) is the only end-to-end vehicle, and the
+two-field per-instance guard must be built target-side because `_build_guess_number` sanitises on
+import.
 
 ---
 
