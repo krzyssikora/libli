@@ -724,8 +724,8 @@ Two sites are easy to miss:
   inside it; passing it explicitly in the `with` arguments is a consistency choice matching
   `rename_url`, not a correctness requirement.
 - **`manage_node_panel`** (`_tree_node.html:24`) is read only by JS (`builder.js:301`), so
-  hoist it to the root with the `__PK__` placeholder described in §5 and have the JS
-  substitute — another ~944 reversals. (`builder.html:8` carries a `pk=0` form of this URL
+  hoist it to the root and have the JS substitute via the `pk=0` + `$`-anchored replacement
+  rule in §5 — another ~944 reversals. (`builder.html:8` carries a `pk=0` form of this URL
   today, but it is **unused**, so it is a starting point, not a working precedent.) Only
   `manage_node_export` must stay per-node, because it is a link a no-JS author follows.
 
