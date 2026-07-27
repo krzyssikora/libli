@@ -294,8 +294,10 @@ small-course default need not ship an enumeration. `_open_ids` resolves it to a 
 `set[int]` before returning, so no template ever has to understand the sentinel and the
 template condition stays a plain membership test.
 
-The server **emits** `all` whenever the effective open set is exactly the full container
-set, and an enumeration otherwise. There is deliberately **no `closed=` exclusion list**: an
+`all` is primarily an accepted **input** sentinel. As an *output* it appears only where a
+toggle href's **resulting** set is the full container set — which is why a fully expanded
+course emits enumerations everywhere (every one of its toggles is a collapse; see the
+Transport budget). There is deliberately **no `closed=` exclusion list**: an
 earlier draft paired `all` with `closed` so the sentinel could survive a collapse, but that
 required a client-side carrier for a flag `applyFragment` would destroy, and it contradicted
 the JS collector, which can only ever produce an enumeration. Collapsing one scope under
@@ -317,11 +319,20 @@ def _open_ids(request, course, cmap, *, mode="fragment", q_chain=None) -> OpenSe
 behaviours for an absent `open` and a two-valued flag cannot express them — `builder()` and
 `_builder_with_notice()` would both be `seed=True` while needing *different* answers:
 
-| `mode` | Caller | `open` absent |
-| --- | --- | --- |
-| `"page"` | `builder()` | precedence steps 3–6 |
-| `"notice"` | `_builder_with_notice()` | read `builder_open` directly, then fall through to 3–6 |
-| `"fragment"` | `_render_scope()` | empty set — never reads the session |
+| `mode` | Caller | Steps it runs | `open` absent |
+| --- | --- | --- | --- |
+| `"page"` | `builder()` | 1, 2, 3, 4, 5, 6 | precedence steps 3–6 |
+| `"notice"` | `_builder_with_notice()` | 2, 3, 4, 5, 6 + a direct `builder_open` read | read `builder_open`, then fall through to 3–6 |
+| `"fragment"` | `_render_scope()` | **2, 3, 6 only** | empty set — never reads the session |
+
+**`"fragment"` deliberately skips steps 1, 4 and 5.** Steps 1 and 5 are session reads, which a
+fragment must never do. **Step 4 (≤150 nodes) is skipped too**, and that is easy to get wrong:
+an implementer writing one precedence chain with mode guards only on the session steps would
+apply step 4 in fragment mode, so on any small course every `open`-less fragment response
+would render the whole tree open — contradicting the "empty set" cell and making the pinned
+"a fragment POST with no `open` renders an empty open set" test unpassable on exactly the
+small fixtures the Testing section says most fixtures are. The size default is a *landing*
+rule for a page, not a rule about what a fragment re-render should contain.
 
 **It must not return a bare `set`.** Truncation is detected *inside* this helper — it owns
 the 500-pk ceiling — so a bare set gives no caller any way to learn it happened, and every
@@ -334,7 +345,7 @@ and a `parent_id -> [nodes]` map carries no slug — recovering it via `node.cou
 a query and is impossible on an empty course, which is exactly the first-visit case §3a
 exists for. `q_chain` is the filter's ancestor-chain set (§9); **slice 1 always passes
 `None`**, and it exists in the signature from the start so slice 2 does not have to retrofit
-a precedence step across a function boundary. `seed` selects the row of the table above. It:
+a precedence step across a function boundary. `mode` selects the row of the table above. It:
 
 - tests **presence** with `"open" in request.POST` / `in request.GET`, not `.get()`.
   `.get()` returns `""` for both absent and explicitly-empty and `""` is falsy, so the
@@ -362,7 +373,16 @@ that `applyFragment` consumes via `firstElementChild`, and a multi-element respo
 deliberately avoided (see Known traps).
 
 - **Page render:** `builder()` gains an `info` context variable rendered into a **dedicated
-  slot above the tree**, distinct from the existing `notice`. `notice` renders as
+  slot above the tree**, distinct from the existing `notice`. **Each server-rendered entry
+  carries its key in the markup (`data-info-key="filter"` / `"truncation"`), and the JS reads
+  the existing slot on init** so replace-and-clear operate on server-rendered entries too.
+  Without this the registry only knows about entries it inserted itself, and the path is
+  routine rather than hypothetical: `history.replaceState` puts `q` in the address bar, so any
+  reload while filtered is a page GET that renders a server-side "showing first 100 of M"
+  entry; the next toggle re-asserts `filtered;…`, the JS finds nothing under key `filter` in
+  its own registry, and appends a **second** copy. The pinned "two successive filter responses
+  leave one entry" test must therefore start from a `?q=` page load, or it passes vacuously
+  against exactly this bug. `notice` renders as
   `<div class="op-error" role="alert">` (`builder.html:6`) — wrong on both counts here, since
   "we opened only the first 500 scopes" is informational rather than an error, and
   `role="alert"` interrupts screen readers. The new slot uses a neutral style and
@@ -400,7 +420,16 @@ deliberately avoided (see Known traps).
 **Slot lifecycle.** Each entry has a **key** (`truncation`, `filter`). **`_render_scope` sets
 `X-Builder-Info` on every fragment response** — carrying the currently-applicable codes, or
 absent when none apply — and an incoming header replaces the entry with the same key rather
-than stacking. **A response with no header clears ALL keys.** ("Clears the keys it owns" would
+than stacking. **A response with no header clears ALL keys — but only tree-pane responses
+participate at all.**
+
+The carve-out is the same one §8 makes for the busy counter, and for the same two fetches:
+`loadPanel` (`builder.js:277`) and the `[data-move]` picker fetch (`builder.js:247`) never
+touch `_render_scope`, so they never carry the header. Wiring header handling into a shared
+response helper without this exclusion would clear the `filter` entry on the very next row
+focus — within a second of filtering — silently removing the only signal that the view is
+capped, which is the failure the clearing rule exists to prevent. Participating responses are:
+toggle, submit, drop, `manage_tree`, `manage_node_scope` and conflict scopes. ("Clears the keys it owns" would
 be vacuous — a response with no header owns none — and under the opposite reading any
 rename/add/reorder/drop issued while a filter is active would wipe the "showing first 100 of
 M" entry while the tree on screen is still filtered and capped, silently removing the only
@@ -475,12 +504,29 @@ silently fails the add-under-filter test in §9:
 
 1. **Union into the open-id set**, after the ceiling is applied, so a forced-open destination
    can never be the thing truncated away — producing a **new local set**, never mutating the
-   returned object.
+   returned object. **This effect applies the same kind filter `_open_ids` applies: unit pks
+   are dropped.** Effect 1 bypasses `_open_ids`'s pipeline (it runs after the ceiling), so
+   without restating the rule here a unit pk would leak into the emitted open set.
 2. **When `q` is active, re-insert those pks' node objects into the restricted `cmap`** —
    resolved from the full `cmap` that `_render_scope` already holds — and into `top_nodes`
-   when the node is top-level, since §9 restricts that separately. Force-included rows **do
-   not** count toward the 100-match cap or the `shown`/`total` figures, or the
-   `X-Builder-Info` notice would stop matching the cap it describes. (`ids` is a `frozenset` for exactly this reason:
+   when the node is top-level, since §9 restricts that separately. **This effect applies to
+   every pk regardless of kind**, units included. Force-included rows **do not** count toward
+   the 100-match cap or the `shown`/`total` figures, or the `X-Builder-Info` notice would stop
+   matching the cap it describes.
+
+**Three views pass it**, not two: `node_add`, `node_move` (reparent) and **`node_duplicate`**
+— §9's force-inclusion rule and its "an add **or duplicate** under an active filter returns its
+own new row visible" test both reach the duplicate path, and an implementer wiring only the
+first two leaves duplicate-under-filter broken.
+
+**Callers pass `extra_open` for EVERY created or moved pk, whatever its kind** — the two
+effects then diverge on kind by themselves. Coupling the *caller's* decision to kind (an
+earlier draft's "when the created node is a container") made two pinned tests mutually
+unsatisfiable: a unit added under an active filter needs effect 2 or the row the author just
+created does not come back (a nested add returns `_render_scope(…, _scope_ref(node.parent_id))`,
+`views_manage.py:286`, and the new unit is absent from the restricted map), while passing that
+same pk must not put a unit into the open set. Splitting the kind test across the two effects,
+rather than at the call site, satisfies both. (`ids` is a `frozenset` for exactly this reason:
 `frozen=True` blocks attribute rebinding but not mutation of a mutable field, so a plain
 `set` would let `open_set.ids |= extra_open` silently mutate a supposedly frozen result, and
 would also make the generated `__hash__` raise on an unhashable field.) This is an addition
@@ -493,13 +539,15 @@ one place.
 | --- | --- |
 | 1 `open=session`, 2 `open` present, 5 session seed, 6 empty | `_open_ids` |
 | 3 `q` chains | `_filtered_map`, called by `_render_scope` / the page views; result reaches `_open_ids` as `q_chain` |
-| 4 ≤150-node rule | `_open_ids`, from `len` of the all-nodes index it already builds |
+| 4 ≤150-node rule | `_open_ids`, from `len` of the all-nodes index it already builds — **in `"page"` and `"notice"` modes only** |
 
 **Transport — and why form actions carry nothing.** An earlier draft put the `open` query
 string on every form action and href. Hoisting removes the *reversal* cost but not the
 *byte* cost: the string is emitted into ~6 URLs per row, so on `mat-pp` under expand-all
 that is 6 × 944 × ~685 bytes ≈ **3.9 MB of query strings added to a page this spec exists to
-shrink**, and ~675 KB on a 150-node course. The transport is therefore:
+shrink**. On a 150-node course (~30 containers → a ~150-byte enumeration) it is 6 × 150 ×
+~150 B ≈ **135 KB** — computed on that course's own container count, not by carrying
+`mat-pp`'s 137-pk set onto it, which would inflate the figure ~5×. The transport is therefore:
 
 | Path | Carrier |
 | --- | --- |
@@ -601,6 +649,15 @@ affordance that exists *precisely* for moves the author cannot see both ends of 
 vanish the node, on the exact path this rule was written to protect. Tested as a no-JS picker
 case, not only a drag case.
 
+**The picker must carry `q` too, by the delete-style chain.** It is a separate page rendered
+by `_move_picker`, not one of the in-tree forms, so §4's "every tree form carries a hidden `q`"
+does not reach it — and the session write above propagates only `open`. Left as is, a no-JS
+author who filters and then moves a matched row via the picker lands on the unfiltered tree:
+the same "same gesture, two different trees" divergence closed for rename and for delete. So:
+`node_move`'s GET puts the submitted `q` into the picker context, the picker's reparent form
+carries it as a hidden input, its back/cancel link carries it, and the `:411` redirect emits
+`open=session` **plus `q`**. The existing no-JS picker test asserts `q` survives.
+
 Because the parameter round-trips through mutations, a reparent's `_render_tree` response
 re-renders only the rows that were actually visible. Estimated ~60 rows / ~200 ms in place
 of 3.0 MB / 4.5 s. **No narrowing of the reparent response to two scopes is needed** — the
@@ -659,7 +716,7 @@ would be empty, and a 6-node course with two chapters would arrive collapsed to 
 That is a regression for the overwhelming majority of courses, which are nothing like
 `mat-pp`.
 
-**Rule: if the course has at most 150 nodes, open everything (the server emits `open=all`);
+**Rule: if the course has at most 150 nodes, the effective open set is every container;
 otherwise fall back to the §3 session seed, and to nothing if that yields nothing.**
 `cmap` is already loaded, so the node count is free.
 
@@ -1249,7 +1306,15 @@ sees the filter's chains, and `history.replaceState` has already overwritten the
 with them. So the filter handler **stashes the pre-filter open enumeration in a module-scoped
 variable before its first filter fetch**, and clearing the filter issues a `manage_tree`
 request carrying that stashed `open` and no `q`. The stash is discarded once consumed, and
-also whenever a mutation happens while filtered (the tree has changed underneath it). The §10
+also whenever a mutation happens while filtered (the tree has changed underneath it).
+
+**If the stash is absent, the clear request carries the collector's current enumeration — it
+never omits `open`.** Filter → mutate → clear is a normal authoring sequence, and it reaches
+the clear with no stash. Omitting `open` there would put the request on the `mode="fragment"`
+absent path, i.e. the **empty set**, collapsing a large course to its 21 top rows and
+destroying every expansion the author had. Falling back to the collector is merely lossy (it
+returns the filter's chains rather than the pre-filter set), which is the right trade. Tested:
+filter, mutate, clear, assert the tree is not empty. The §10
 expand-all control reads the container count from a `data-container-count` attribute the
 server puts on `.builder`, which is how it knows to render itself disabled above the 500
 ceiling.
