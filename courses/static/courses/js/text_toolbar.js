@@ -101,10 +101,60 @@
       case "ol": exec("insertOrderedList"); break;
       case "code":
         exec("formatBlock", "<" + (currentBlock(surface) === "pre" ? "p" : "pre") + ">"); break;
-      case "link":
-        var url = window.prompt("URL");
-        if (url) exec("createLink", url);
+      case "link": {
+        if (!window.libliLinkDialog || !window.libliLinkApply) break;
+        var lsel = window.getSelection();
+        if (!lsel || !lsel.rangeCount) break;
+        // CLONE: getRangeAt(0) hands back the live Range, and showModal() moves focus
+        // out of the contenteditable, which collapses/replaces the document selection
+        // and would mutate the object steps below depend on.
+        var lrange = lsel.getRangeAt(0).cloneRange();
+        var touched = window.libliLinkApply.anchorsFor(surface, lrange);
+        var enc = window.libliLinkApply.enclosing(surface, lrange);
+        window.libliLinkDialog.open({
+          existing: enc
+            ? { href: enc.getAttribute("href"), text: enc.textContent }
+            : null,
+          touchedAnchors: touched.length,
+          selectionText: lrange.toString()
+        }, function (result) {
+          surface.focus();
+          // editor.js can replace the pane while the dialog is open (the page carries
+          // data-msg-conflict, so a background reload path exists). Mutating an
+          // orphaned node would look like a successful insert and then lose the link
+          // on save -- so discard the result AND say so. A silent return is the same
+          // data loss with no feedback, which is what the message exists to prevent.
+          if (!surface.isConnected) {
+            var ed = document.querySelector(".editor");
+            var note = ed && ed.getAttribute("data-msg-conflict");
+            if (note) {
+              var bar = document.createElement("div");
+              bar.className = "op-error";
+              bar.textContent = note;
+              (ed || document.body).prepend(bar);
+              setTimeout(function () { bar.remove(); }, 6000);
+            }
+            return;
+          }
+          var sel2 = window.getSelection();
+          sel2.removeAllRanges();
+          sel2.addRange(lrange);
+          if (!result) return;                      // dismissed: caret restored above
+          // Should belong to the invoking surface; several RTE surfaces are live at
+          // once (a question mounts one textarea for the stem and another for the
+          // explanation). Fall back to appending, as the math command does.
+          if (!surface.contains(lrange.commonAncestorContainer)) {
+            var end = document.createRange();
+            end.selectNodeContents(surface);
+            end.collapse(false);
+            window.libliLinkApply.apply(surface, end, result);
+          } else {
+            window.libliLinkApply.apply(surface, lrange, result);
+          }
+          surface.dispatchEvent(new Event("input"));
+        });
         break;
+      }
       case "math":
         if (!window.libliMathInput) break;
         var sel = window.getSelection();
