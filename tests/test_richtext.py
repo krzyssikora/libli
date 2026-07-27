@@ -51,6 +51,23 @@ def test_malformed_pk_ignored():
     assert find_link_targets('<a href="/courses/n/abc/">x</a>') == set()
 
 
+def test_unbounded_digit_run_does_not_raise():
+    # I1: CPython's int() raises ValueError past its 4300-digit conversion limit.
+    # sanitize_html allows a relative <a href>, so a body carrying a hostile digit
+    # run this long survives the editor's HTML source view untouched -- this must
+    # never reach int(). Mirrors transfer/schema.py's 12-char link_nodes key cap.
+    html = '<a href="/courses/n/' + "9" * 5000 + '/">x</a>'
+    assert find_link_targets(html) == set()
+
+
+def test_unbounded_digit_run_rewrite_does_not_raise():
+    html = '<a href="/courses/n/' + "9" * 5000 + '/">x</a>'
+    out, flat = rewrite_links(html, {}, on_missing="unwrap")
+    # Not an internal link (digit run exceeds the cap) -- untouched, not flattened.
+    assert out == html
+    assert flat == 0
+
+
 def test_query_suffix_is_not_an_internal_link():
     # Part 1 pins the internal-link test as the ANCHORED ^/courses/n/(\d+)/$ -- the
     # dialog, this rewrite and the delete count must all agree. A prefix match here
@@ -110,6 +127,18 @@ def test_spoofed_data_href_attribute_does_not_displace_the_real_href(html):
     out, flat = rewrite_links(html, {12: 99}, on_missing="unwrap")
     assert "/courses/n/99/" in out
     assert "/courses/n/999/" in out  # the fake data-href is untouched, not rewritten
+    assert flat == 0
+
+
+def test_duplicate_href_attribute_fails_closed():
+    # M1: browsers use the FIRST href on a tag with two. Overwriting with the
+    # second (the old behaviour) would rewrite -- or count -- a target the
+    # browser never navigates to. Reachable only via a hand-crafted archive
+    # (nh3 de-duplicates), so fail closed rather than guess.
+    html = '<a href="/courses/n/1/" href="/courses/n/2/">x</a>'
+    assert find_link_targets(html) == set()
+    out, flat = rewrite_links(html, {1: 9, 2: 9}, on_missing="unwrap")
+    assert out == html
     assert flat == 0
 
 

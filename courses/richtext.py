@@ -18,9 +18,11 @@ from courses.models import SwitchGateElement
 from courses.models import TextElement
 
 # Introspected, and safe ONLY here: every concrete question type inherits the same two
-# fields from the same abstract QuestionElement.save(), so a new question type is
-# covered automatically. No such uniformity exists among the other element types, which
-# are listed by hand below.
+# fields from the same abstract QuestionElement.save(), so a new question type that
+# subclasses QuestionElement DIRECTLY is covered automatically. __subclasses__() is
+# NOT recursive -- a model subclassing a concrete question type (rather than
+# QuestionElement itself) would be silently uncovered here. No such uniformity exists
+# among the other element types, which are listed by hand below.
 CONCRETE_QUESTION_MODELS = [
     m for m in QuestionElement.__subclasses__() if not m._meta.abstract
 ]
@@ -49,8 +51,15 @@ for _model, _field in RICH_TEXT_FIELDS:
 
 # Anchored, matching part 1's dialog exactly. A prefix match would make the delete
 # count and the rewrite disagree with the dialog about what an internal link is.
+#
+# Digit run capped at 12, mirroring transfer/schema.py's link_nodes key cap: CPython's
+# int() raises ValueError past its 4300-digit conversion limit, and a stored body
+# reaches this regex UNVALIDATED (sanitize_html allows a relative <a href>, so an
+# author can store an arbitrarily long digit run through the editor's HTML source
+# view). 10**12 exceeds any plausible pk, so real links are unaffected; a >12-digit
+# href simply stops being treated as an internal link.
 PERMALINK_PREFIX = "/courses/n/"
-_PERMALINK = re.compile(r"^/courses/n/(\d+)/$")
+_PERMALINK = re.compile(r"^/courses/n/(\d{1,12})/$")
 
 
 class _Unscannable(Exception):
@@ -111,6 +120,13 @@ def _scan_anchors(html):
                 k = html.find(quote, vs + 1)
                 if k == -1:
                     raise _Unscannable("unterminated quoted attribute value")
+                if href is not None:
+                    # A second href on one tag is reachable only via a hand-crafted
+                    # archive (nh3 de-duplicates on the way in). Browsers keep the
+                    # FIRST href; silently overwriting with the second would rewrite
+                    # (or count) a target the browser never navigates to -- fail
+                    # closed instead of guessing.
+                    raise _Unscannable("duplicate href")
                 href = (html[vs + 1 : k], vs, k + 1)
                 j = k + 1
                 continue
@@ -227,6 +243,12 @@ def count_inbound_links(course, node):
     term per (pk x field) -- hundreds across 16 models for a big part. Instead: one
     course-scoped query per model on the CONSTANT substring, then intersect in Python
     on the few rows that hold any internal link at all.
+
+    The `.exclude(elements__unit_id__in=subtree)` above is correct only because a
+    content row has exactly one owning Element: if a row were reachable from more
+    than one Element join, one join inside the subtree would exclude the whole row
+    even when another join OUTSIDE the subtree also links to `node` -- silently
+    undercounting.
     """
     subtree = set(node._subtree_node_ids())
     total = 0
