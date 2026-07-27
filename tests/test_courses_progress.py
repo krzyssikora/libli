@@ -7,6 +7,7 @@ from django.urls import reverse
 from tests.factories import ContentNodeFactory
 from tests.factories import CourseFactory
 from tests.factories import EnrollmentFactory
+from tests.factories import GroupFactory
 from tests.factories import UnitProgressFactory
 from tests.factories import add_element
 from tests.factories import make_login
@@ -312,3 +313,83 @@ def test_previewer_completed_pill_survives_no_js_check_answer_rerender(client):
     assert pill is not None
     assert "is-complete" in pill.get("class", [])
     assert pill.select_one("button.unit-done__pill--btn") is None
+
+
+@pytest.mark.django_db
+def test_non_staff_course_owner_can_complete(client):
+    from courses.models import Enrollment
+    from courses.models import UnitProgress
+
+    owner = make_login(client, "owner5a")
+    # owner= is MANDATORY: CourseFactory declares no owner and Course.owner is
+    # null=True, so a bare CourseFactory() leaves route (a) non-existent.
+    course = CourseFactory(slug="p5a", owner=owner)
+    unit, ids = _make_unit_with_elements(course, 1)
+    # Trap 1: accessible_courses returns Course.objects.all() at `if user.is_staff:`
+    # BEFORE evaluating Q(owner=user), so a staff owner would pass via the wrong route.
+    assert owner.is_staff is False
+    # Trap 2: an enrolled owner writes on the BASE commit too, making this vacuous.
+    assert not Enrollment.objects.filter(student=owner, course=course).exists()
+
+    client.post(reverse("courses:complete", kwargs={"slug": "p5a", "node_pk": unit.pk}))
+
+    assert UnitProgress.objects.get(student=owner, unit=unit).completed is True
+
+
+@pytest.mark.django_db
+def test_non_staff_teacher_of_live_group_can_complete(client):
+    from courses.models import Enrollment
+    from courses.models import UnitProgress
+
+    teacher = make_login(client, "teach5d")
+    course = CourseFactory(slug="p5d")
+    unit, ids = _make_unit_with_elements(course, 1)
+    # archived defaults to False on the model; GroupFactory declares no such field.
+    group = GroupFactory(course=course)
+    group.teachers.add(teacher)
+    assert teacher.is_staff is False
+    assert not Enrollment.objects.filter(student=teacher, course=course).exists()
+
+    client.post(reverse("courses:complete", kwargs={"slug": "p5d", "node_pk": unit.pk}))
+
+    assert UnitProgress.objects.get(student=teacher, unit=unit).completed is True
+
+
+@pytest.mark.django_db
+def test_teacher_of_archived_group_is_denied(client):
+    from courses.models import UnitProgress
+
+    teacher = make_login(client, "teach5b")
+    course = CourseFactory(slug="p5b")
+    unit, ids = _make_unit_with_elements(course, 1)
+    # archived=True is a PASSTHROUGH model kwarg, not a declared factory field.
+    # Setting group.archived = True without a .save() would silently turn this into
+    # route (d) and the test would pass while proving the opposite of its claim.
+    group = GroupFactory(course=course, archived=True)
+    group.teachers.add(teacher)
+    # Kept because this test's whole claim is about the groups__archived=False pin,
+    # which is only legible if the fixture shows the user reaching the group clause.
+    assert teacher.is_staff is False
+
+    r = client.post(
+        reverse("courses:complete", kwargs={"slug": "p5b", "node_pk": unit.pk})
+    )
+
+    assert r.status_code == 403
+    assert not UnitProgress.objects.filter(student=teacher, unit=unit).exists()
+
+
+@pytest.mark.django_db
+def test_unrelated_logged_in_user_is_denied(client):
+    from courses.models import UnitProgress
+
+    stranger = make_login(client, "stranger5c")
+    course = CourseFactory(slug="p5c")
+    unit, ids = _make_unit_with_elements(course, 1)
+
+    r = client.post(
+        reverse("courses:complete", kwargs={"slug": "p5c", "node_pk": unit.pk})
+    )
+
+    assert r.status_code == 403
+    assert not UnitProgress.objects.filter(student=stranger, unit=unit).exists()
