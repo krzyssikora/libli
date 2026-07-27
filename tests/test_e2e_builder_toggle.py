@@ -431,6 +431,74 @@ def test_a_mutation_landing_mid_toggle_leaves_no_detached_scope(page, live_serve
     )
 
 
+def test_drag_with_a_single_dragover_still_drops(page, live_server):
+    """Covers the drop-flushes-the-pending-frame case.
+
+    ONE dragover then an immediate drop is the worst case for the rAF
+    throttle: targetScope and the dataset.drop* values are set in the
+    DEFERRED part, so a cancel-only rule leaves them unset and the gesture is
+    silently discarded after preventDefault already promised it was legal.
+    """
+    owner = _make_pa_user("pa")
+    course = CourseFactory(slug="drag", owner=owner)
+    part = ContentNodeFactory(course=course, kind="part", parent=None, title="P")
+    a = ContentNodeFactory(course=course, kind="chapter", parent=part, title="A")
+    b = ContentNodeFactory(course=course, kind="chapter", parent=part, title="B")
+    unit = ContentNodeFactory(
+        course=course, kind="unit", unit_type="lesson", parent=a, title="Movable"
+    )
+    for i in range(160):
+        ContentNodeFactory(
+            course=course, kind="unit", unit_type="lesson", parent=b, title=f"F{i}"
+        )
+    _login(page, live_server, "pa")
+    url = reverse("courses:manage_builder", kwargs={"slug": "drag"})
+    page.goto(f"{live_server.url}{url}?open={part.pk},{a.pk},{b.pk}")
+    page.wait_for_selector(f'ol[data-scope="{b.pk}"]')
+    _simulate_drag(
+        page,
+        f'[data-node="{unit.pk}"] .ica--grip',
+        f'ol[data-scope="{b.pk}"]',
+        moves=1,
+    )
+    page.wait_for_selector(f'ol[data-scope="{b.pk}"] [data-node="{unit.pk}"]')
+    unit.refresh_from_db()
+    assert unit.parent_id == b.pk
+
+
+def test_drag_across_two_separately_opened_branches(page, live_server):
+    """The reporter's actual gesture: open two chapters, drag between them."""
+    owner = _make_pa_user("pa")
+    course = CourseFactory(slug="drag2", owner=owner)
+    part = ContentNodeFactory(course=course, kind="part", parent=None, title="P")
+    a = ContentNodeFactory(course=course, kind="chapter", parent=part, title="A")
+    b = ContentNodeFactory(course=course, kind="chapter", parent=part, title="B")
+    unit = ContentNodeFactory(
+        course=course, kind="unit", unit_type="lesson", parent=a, title="Movable"
+    )
+    for i in range(160):
+        ContentNodeFactory(
+            course=course, kind="unit", unit_type="lesson", parent=b, title=f"F{i}"
+        )
+    _login(page, live_server, "pa")
+    url = reverse("courses:manage_builder", kwargs={"slug": "drag2"})
+    page.goto(f"{live_server.url}{url}?open={part.pk}")
+    # Open BOTH branches through the real toggles, not by URL.
+    page.click(f'[data-toggle="{a.pk}"]')
+    page.wait_for_selector(f'ol[data-scope="{a.pk}"]')
+    page.click(f'[data-toggle="{b.pk}"]')
+    page.wait_for_selector(f'ol[data-scope="{b.pk}"]')
+    _simulate_drag(
+        page,
+        f'[data-node="{unit.pk}"] .ica--grip',
+        f'ol[data-scope="{b.pk}"]',
+        moves=3,
+    )
+    page.wait_for_selector(f'ol[data-scope="{b.pk}"] [data-node="{unit.pk}"]')
+    unit.refresh_from_db()
+    assert unit.parent_id == b.pk
+
+
 def test_pk_substitution_survives_a_slug_containing_a_zero(page, live_server):
     """Guards the $-anchored replacement in scopeUrlFor and the panel URL."""
     owner = _make_pa_user("pa")

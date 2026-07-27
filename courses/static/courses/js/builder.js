@@ -549,9 +549,30 @@
   function legal(parentKind) {
     return RANK[drag.kind] > (parentKind == null ? -1 : RANK[parentKind]);
   }
+  var markedScope = null, markedLine = null;   // tracked, not re-queried
   function clearDropMarks() {
-    root.querySelectorAll(".drop-target").forEach(function (n){ n.classList.remove("drop-target"); });
-    root.querySelectorAll(".drop-line").forEach(function (n){ n.remove(); });
+    if (markedScope) { markedScope.classList.remove("drop-target"); markedScope = null; }
+    if (markedLine) { markedLine.remove(); markedLine = null; }
+  }
+  var pendingFrame = null, lastY = 0, lastScope = null;
+  function cancelFrame() {
+    if (pendingFrame !== null) { cancelAnimationFrame(pendingFrame); pendingFrame = null; }
+  }
+  function paintDropMarks() {
+    pendingFrame = null;
+    if (!drag || !lastScope) return;           // outlived drop/dragend
+    clearDropMarks();
+    lastScope.classList.add("drop-target");
+    markedScope = lastScope;
+    var t = targetFor(lastY, lastScope);
+    var line = document.createElement("li");
+    line.className = "drop-line";
+    if (t.before) lastScope.insertBefore(line, t.before); else lastScope.appendChild(line);
+    markedLine = line;
+    lastScope.dataset.dropIndex = t.index;
+    lastScope.dataset.dropParent = lastScope.getAttribute("data-scope");
+    lastScope.dataset.dropToken = lastScope.getAttribute("data-updated");
+    drag.targetScope = lastScope;
   }
   root.addEventListener("dragover", function (e) {
     if (!drag) return;
@@ -570,27 +591,33 @@
       }
     }
     if (!scope) scope = e.target.closest(".tree__scope");
-    if (!scope) return;
-    var destPk = scope.getAttribute("data-scope");          // "top" or pk
+    // Both rejecting branches cancel: a frame scheduled by the PREVIOUS legal
+    // dragover would otherwise re-mark a target just rejected and re-set
+    // targetScope, so a drop there would post an illegal move.
+    if (!scope) { cancelFrame(); return; }
     var destRow = scope.closest(".tree__row");               // the container row (null for top)
     var parentKind = destRow ? destRow.getAttribute("data-kind") : null;
     // forbid dropping into self/descendant: scope must not be inside the dragged row
     var draggedRow = root.querySelector('.tree__row[data-node="' + drag.pk + '"]');
-    if (!legal(parentKind) || (draggedRow && draggedRow.contains(scope))) { clearDropMarks(); drag.targetScope = null; return; }
+    if (!legal(parentKind) || (draggedRow && draggedRow.contains(scope))) {
+      cancelFrame(); clearDropMarks(); drag.targetScope = null; return;
+    }
+    // Legality costs no layout, so it stays synchronous -- and preventDefault
+    // stays conditional on it, or every illegal spot advertises as droppable.
     e.preventDefault();
-    clearDropMarks();
-    scope.classList.add("drop-target");
-    var t = targetFor(e.clientY, scope);
-    var line = document.createElement("li");
-    line.className = "drop-line";
-    if (t.before) scope.insertBefore(line, t.before); else scope.appendChild(line);
-    scope.dataset.dropIndex = t.index;
-    scope.dataset.dropParent = destPk;
-    scope.dataset.dropToken = scope.getAttribute("data-updated");
-    drag.targetScope = scope;
+    lastY = e.clientY;                        // the LATEST event, not the one
+    lastScope = scope;                        // that scheduled the frame
+    if (pendingFrame === null) pendingFrame = requestAnimationFrame(paintDropMarks);
   });
   root.addEventListener("drop", function (e) {
     if (!drag) return;
+    // FLUSH, don't cancel. Capture the id FIRST: paintDropMarks() nulls
+    // pendingFrame on its first line, so a following cancelFrame() would see
+    // null and never call cancelAnimationFrame.
+    if (pendingFrame !== null) {
+      var _id = pendingFrame; pendingFrame = null;
+      cancelAnimationFrame(_id); paintDropMarks();
+    }
     var scope = drag.targetScope;
     if (!scope || !scope.classList.contains("drop-target")) { clearDropMarks(); drag = null; return; }
     e.preventDefault();
@@ -618,7 +645,9 @@
       } else if (r.status === 422) { notice(msg("illegal", "That move isn't allowed here.")); }
     }); }).catch(function () { notice(msg("network", "Network error — please try again.")); }).then(function () { busyEnd(); });
   });
-  root.addEventListener("dragend", function () { clearDropMarks(); drag = null; pointerFocus = false; });
+  root.addEventListener("dragend", function () {
+    cancelFrame(); clearDropMarks(); drag = null; pointerFocus = false;
+  });
   // --- end WS2 drag-and-drop ------------------------------------------------
 
   // Reveal the unit_type select only when kind === 'unit' on add forms.
