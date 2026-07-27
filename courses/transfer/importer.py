@@ -68,6 +68,7 @@ from courses.models import TextElement
 from courses.models import TwoColumnElement
 from courses.models import VideoElement
 from courses.ordering import legal_child_kinds
+from courses.richtext import rewrite_instance
 from courses.sanitize import sanitize_html
 from courses.transfer.schema import FORMAT_VERSION
 from courses.transfer.schema import KIND_COURSE
@@ -907,6 +908,40 @@ def _create_elements(document, node_map, assets):
         join.tab_id = el.get("tab") or ""
         join.save(update_fields=["parent", "tab_id"])  # never `order`
 
+    return list(joins.values())
+
+
+def _rewrite_links(document, node_map, created_joins, *, on_missing, report):
+    """Remap internal links onto the newly created nodes.
+
+    Runs over the created INSTANCES rather than the payload dicts: payload keys are a
+    second vocabulary that would have to be kept in step with the model fields, and the
+    registry already describes the models.
+
+    link_nodes maps old pk -> export id, so the inversion looks up each VALUE ("n7") in
+    node_map -- never the key, which is a source pk that node_map has never seen.
+    """
+    mapping = {}
+    for old_pk, export_id in (document.get("link_nodes") or {}).items():
+        node = node_map.get(export_id)
+        if node is None:
+            continue  # unresolvable, same as absent -- never a 500
+        try:
+            mapping[int(old_pk)] = node.pk
+        except (TypeError, ValueError):
+            continue
+    flattened = 0
+    for join in created_joins:
+        obj = join.content_object
+        if obj is None:
+            continue
+        changed, flat = rewrite_instance(obj, mapping, on_missing=on_missing)
+        flattened += flat
+        if changed:
+            obj.save(update_fields=changed)
+    if report is not None:
+        report["flattened_links"] = report.get("flattened_links", 0) + flattened
+
 
 def _cleanup_files(created_files):
     from django.core.files.storage import default_storage
@@ -951,7 +986,9 @@ def _run_import(work, created_files):
         ) from exc
 
 
-def import_course(zf, manifest, document, media_entries, user):
+def import_course(
+    zf, manifest, document, media_entries, user, *, on_missing="unwrap", report=None
+):
     created_files = []
 
     def work():
@@ -975,14 +1012,26 @@ def import_course(zf, manifest, document, media_entries, user):
         course.subjects.set(matched)
         assets = _create_media(zf, document, media_entries, course, user, created_files)
         node_map = _create_nodes(document, course)
-        _create_elements(document, node_map, assets)
+        created = _create_elements(document, node_map, assets)
+        _rewrite_links(
+            document, node_map, created, on_missing=on_missing, report=report
+        )
         return course
 
     return _run_import(work, created_files)
 
 
 def import_subtree(
-    zf, manifest, document, media_entries, target_course, insertion_node, user
+    zf,
+    manifest,
+    document,
+    media_entries,
+    target_course,
+    insertion_node,
+    user,
+    *,
+    on_missing="unwrap",
+    report=None,
 ):
     """Graft an exported content subtree into `target_course`, rooted under
     `insertion_node` (a ContentNode of that course, or None for top level).
@@ -999,13 +1048,24 @@ def import_subtree(
             zf, document, media_entries, target_course, user, created_files
         )
         node_map = _create_nodes(document, target_course, root_parent=insertion_node)
-        _create_elements(document, node_map, assets)
+        created = _create_elements(document, node_map, assets)
+        _rewrite_links(
+            document, node_map, created, on_missing=on_missing, report=report
+        )
         return node_map[document["nodes"][0]["id"]]
 
     return _run_import(work, created_files)
 
 
-def materialize_duplicate(document, media_map, target_course, insertion_node):
+def materialize_duplicate(
+    document,
+    media_map,
+    target_course,
+    insertion_node,
+    *,
+    on_missing="keep",
+    report=None,
+):
     """In-process graft of an exported subtree into `target_course`, sharing the
     existing MediaAsset rows in `media_map` ({mid: MediaAsset}) instead of
     re-creating them. Mirrors `import_subtree`'s work() but skips `_create_media`
@@ -1017,7 +1077,10 @@ def materialize_duplicate(document, media_map, target_course, insertion_node):
 
     def work():
         node_map = _create_nodes(document, target_course, root_parent=insertion_node)
-        _create_elements(document, node_map, media_map)
+        created = _create_elements(document, node_map, media_map)
+        _rewrite_links(
+            document, node_map, created, on_missing=on_missing, report=report
+        )
         return node_map[document["nodes"][0]["id"]]
 
     return _run_import(work, created_files=[])
