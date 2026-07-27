@@ -1655,8 +1655,12 @@ def test_run_link_pass_rewrites_maps_and_flattens_and_records_fail_closed(
     assert fixture.stem == '<p><a href="/courses/n/999999/">torn</p>'  # untouched
 
     rw = state["rewrite"]
-    assert rw["flattened"] >= 1
-    assert rw["elements_touched"] >= 1
+    # Exactly two rewritten elements (el0's cross-part link, the flattened
+    # "gone" link) and one flatten. Everything else in scope -- both
+    # ImageElements, unit1's plain-text element, and the fail-closed fixture
+    # -- contributes neither.
+    assert rw["flattened"] == 1
+    assert rw["elements_touched"] == 2
     fixture_el = Element.objects.get(content_type__model="fillgateelement")
     assert rw["fail_closed_elements"] == [fixture_el.pk]
 
