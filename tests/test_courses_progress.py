@@ -226,3 +226,50 @@ def test_previewer_sees_completed_pill_after_marking(client):
     assert pill is not None
     assert "is-complete" in pill.get("class", [])
     assert pill.select_one("button.unit-done__pill--btn") is None
+
+
+@pytest.mark.django_db
+def test_previewer_pre_existing_completed_row_shows_pill_without_posting(client):
+    staff = make_login(client, "staff6a")
+    staff.is_staff = True
+    staff.save()
+    course = CourseFactory(slug="p6a")
+    unit, ids = _make_unit_with_elements(course, 1)
+    # The "was enrolled earlier" population: a row survives the enrollment going away.
+    UnitProgressFactory(student=staff, unit=unit, completed=True)
+
+    r = client.get(
+        reverse("courses:lesson_unit", kwargs={"slug": "p6a", "node_pk": unit.pk})
+    )
+
+    assert r.status_code == 200
+    pill = BeautifulSoup(r.content, "html.parser").select_one("[data-unit-done]")
+    assert "is-complete" in pill.get("class", [])
+    assert pill.select_one("button.unit-done__pill--btn") is None
+
+
+@pytest.mark.django_db
+def test_previewer_incomplete_row_still_renders_the_button(client):
+    staff = make_login(client, "staff6b")
+    staff.is_staff = True
+    staff.save()
+    course = CourseFactory(slug="p6b")
+    unit, ids = _make_unit_with_elements(course, 1)
+    # The most common previewer row in production once this ships: a checklist tick
+    # creates exactly this shape. Both kwargs mandatory (SubFactory fields).
+    UnitProgressFactory(
+        student=staff,
+        unit=unit,
+        completed=False,
+        element_state={str(ids[0]): {"checked": True}},
+    )
+
+    r = client.get(
+        reverse("courses:lesson_unit", kwargs={"slug": "p6b", "node_pk": unit.pk})
+    )
+
+    assert r.status_code == 200
+    pill = BeautifulSoup(r.content, "html.parser").select_one("[data-unit-done]")
+    # Two DIFFERENT elements: the div's own class list, and a descendant button.
+    assert "is-complete" not in pill.get("class", [])
+    assert pill.select_one("button.unit-done__pill--btn") is not None
