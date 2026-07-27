@@ -1,5 +1,5 @@
 {% load i18n courses_manage_extras %}
-<li class="tree__row" data-node="{{ node.pk }}" data-updated="{{ node.updated.isoformat }}"
+<li class="tree__row" id="node-{{ node.pk }}" data-node="{{ node.pk }}" data-updated="{{ node.updated.isoformat }}"
     data-kind="{{ node.kind }}" data-parent="{{ node.parent_id|default:'top' }}">
   <div class="tree__rowhead">
     {% if node.kind != "unit" %}

@@ -139,6 +139,49 @@ def _children_map(course):
     return cmap
 
 
+def _open_descendants(cmap, ids):
+    """pk -> the OPEN container pks beneath it, in one bottom-up pass.
+
+    Per row this would be a subtree walk; computed once per render it is a
+    single pass, which is what keeps toggle_href off the render's critical
+    path under a fully expanded tree.
+    """
+    out = {}
+
+    def walk(pk):
+        if pk in out:
+            return out[pk]
+        acc = set()
+        for child in cmap.get(pk, []):
+            if child.kind == ContentNode.Kind.UNIT:
+                continue
+            if child.pk in ids:
+                acc.add(child.pk)
+            acc |= walk(child.pk)
+        out[pk] = acc
+        return acc
+
+    # Only OPEN containers need an entry: a collapsed row's toggle is an
+    # EXPAND href, which uses the open_joined fast path and never consults
+    # this map. Walking every container instead would add a full-cmap pass to
+    # the toggle endpoint, whose budget is < 300 ms.
+    for pk in ids:
+        walk(pk)
+    return out
+
+
+def _tree_context(course, cmap, ids):
+    """Keys every renderer of tree markup must supply, or toggle_href silently
+    sees nothing on fragment renders. Takes no `request`: everything it needs
+    is already resolved."""
+    return {
+        "open_ids": ids,
+        "open_joined": ",".join(str(p) for p in sorted(ids)),
+        "open_descendants": _open_descendants(cmap, ids),
+        "builder_url": reverse("courses:manage_builder", kwargs={"slug": course.slug}),
+    }
+
+
 def remember_node(request, slug, pk, key=LAST_NODE_KEY):
     """Store a per-course pk (or pk list) in the session, most-recent last.
 
@@ -170,9 +213,9 @@ def builder(request, slug):
         "course": course,
         "children_map": cmap,
         "top_nodes": cmap.get(None, []),
-        "open_ids": opened.ids,
         "info": _info_entries(opened),
     }
+    context.update(_tree_context(course, cmap, opened.ids))
     return render(request, "courses/manage/builder.html", context)
 
 
@@ -232,8 +275,8 @@ def _render_scope(request, course, scope_ref, *, extra_open=()):
         "nodes": nodes,
         "children_map": cmap,
         "course": course,
-        "open_ids": ids,
     }
+    context.update(_tree_context(course, cmap, ids))
     return render(request, "courses/manage/_scope.html", context)
 
 
@@ -567,9 +610,9 @@ def _builder_with_notice(request, course, message, status):
         "children_map": cmap,
         "top_nodes": cmap.get(None, []),
         "notice": message,
-        "open_ids": opened.ids,
         "info": _info_entries(opened),
     }
+    context.update(_tree_context(course, cmap, opened.ids))
     return render(request, "courses/manage/builder.html", context, status=status)
 
 

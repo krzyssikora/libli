@@ -6,6 +6,7 @@ from urllib.parse import urlsplit
 
 from django import template
 from django.utils.html import strip_tags
+from django.utils.http import urlencode
 from django.utils.text import Truncator
 from django.utils.translation import gettext_lazy as _
 from django.utils.translation import ngettext
@@ -218,3 +219,27 @@ def in_set(value, container):
         return value in (container or ())
     except TypeError:
         return False
+
+
+@register.simple_tag(takes_context=True)
+def toggle_href(context, node, is_open):
+    """The no-JS expand/collapse link for one container row.
+
+    takes_context because open_descendants is a pk-keyed dict, which a
+    template cannot index by a variable -- the lookup has to happen here.
+    """
+    ids = set(context.get("open_ids") or ())
+    if is_open:
+        # Subtract on the ID SET, never by string replacement: comma-joined
+        # pks are prefix-colliding ("1,120,12".replace(",12","") corrupts it).
+        # Descendants go too, so a collapse forgets them exactly as the JS
+        # path does by removing the subtree.
+        drop = {node.pk} | set((context.get("open_descendants") or {}).get(node.pk, ()))
+        ids -= drop
+        joined = ",".join(str(p) for p in sorted(ids))
+    else:
+        # Fast path: the precomputed join plus one pk.
+        base = context.get("open_joined") or ""
+        joined = f"{base},{node.pk}" if base else str(node.pk)
+    query = urlencode({"open": joined})
+    return f"{context.get('builder_url', '')}?{query}#node-{node.pk}"

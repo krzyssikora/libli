@@ -1,4 +1,6 @@
 import re
+from urllib.parse import parse_qs
+from urllib.parse import urlparse
 
 import pytest
 from django.http import Http404
@@ -193,3 +195,58 @@ def test_expanded_container_pairs_aria_controls_with_the_scope_id(client):
     assert f'aria-controls="tree-scope-{part.pk}"' in html
     assert f'id="tree-scope-{part.pk}"' in html
     assert 'aria-expanded="true"' in html
+
+
+def _toggle_open_pks(html, pk):
+    """The `open` pks in the toggle href for `pk`, as a set of ints.
+
+    Parses rather than substring-matching: comma-joined pks are
+    prefix-colliding, so `str(31) not in "1,131"` is both wrong and the exact
+    trap toggle_href itself is written to avoid. The regex is anchored on the
+    emitted attribute ORDER (class, href, data-toggle) -- reversing it makes
+    the match silently fail, and an `assert m is None or ...` would then pass
+    on the miss.
+    """
+    m = re.search(
+        rf'<a class="tree__toggle" href="([^"]+)"[^>]*data-toggle="{pk}"', html
+    )
+    assert m, f"no toggle href found for pk={pk}"
+    qs = parse_qs(urlparse(m.group(1)).query)
+    raw = (qs.get("open") or [""])[0]
+    return {int(t) for t in raw.split(",") if t.strip().isdigit()}
+
+
+@pytest.mark.django_db
+def test_expand_href_adds_this_pk_to_the_open_set(client):
+    owner = make_login(client, "owner")
+    course, part, chapters = _big_course(owner)
+    html = client.get(
+        reverse("courses:manage_builder", kwargs={"slug": "big"})
+    ).content.decode()
+    assert _toggle_open_pks(html, part.pk) == {part.pk}
+
+
+@pytest.mark.django_db
+def test_collapse_href_drops_this_pk_AND_its_open_descendants(client):
+    """Collapse must forget descendants, or the no-JS path diverges from the
+    JS path (which forgets them automatically by removing the subtree)."""
+    owner = make_login(client, "owner")
+    course, part, chapters = _big_course(owner)
+    ch = chapters[0][0]
+    url = reverse("courses:manage_builder", kwargs={"slug": "big"})
+    html = client.get(f"{url}?open={part.pk},{ch.pk}").content.decode()
+    # the part is expanded, so its toggle is a COLLAPSE href
+    assert _toggle_open_pks(html, part.pk) == set()
+    # and the chapter's own toggle (also expanded) only drops itself
+    assert _toggle_open_pks(html, ch.pk) == {part.pk}
+
+
+@pytest.mark.django_db
+def test_toggle_href_carries_a_row_anchor(client):
+    owner = make_login(client, "owner")
+    course, part, _c = _big_course(owner)
+    html = client.get(
+        reverse("courses:manage_builder", kwargs={"slug": "big"})
+    ).content.decode()
+    assert f"#node-{part.pk}" in html
+    assert f'id="node-{part.pk}"' in html
