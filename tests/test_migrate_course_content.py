@@ -11,8 +11,14 @@ from django.core.management import CommandError
 from django.core.management import call_command
 
 from courses.management.commands.migrate_course_content import BASELINE_NAME
+from courses.management.commands.migrate_course_content import LINK_STATE_NAME
 from courses.management.commands.migrate_course_content import MANIFEST_NAME
 from courses.management.commands.migrate_course_content import Command
+from courses.management.commands.migrate_course_content import _fresh_state
+from courses.management.commands.migrate_course_content import _invert_node_index
+from courses.management.commands.migrate_course_content import _live_pks
+from courses.management.commands.migrate_course_content import _read_state
+from courses.management.commands.migrate_course_content import _write_state
 from courses.models import ContentNode
 from courses.models import Course
 from courses.models import Element
@@ -1182,3 +1188,79 @@ def test_bundle_archives_rejects_a_misnamed_archive(tmp_path):
     (bundle / "notes.zip").write_bytes(b"")
     with pytest.raises(CommandError, match="notes.zip"):
         Command()._bundle_archives(bundle)
+
+
+# --- link-state file: constants and pure helpers --------------------------
+
+
+def _read_state_raw(bundle):
+    return json.loads((bundle / LINK_STATE_NAME).read_text(encoding="utf-8"))
+
+
+def test_invert_node_index_parses_string_pks_to_ints():
+    """The `src` guard is a fatal equality test and node_index keys are decimal
+    STRINGS. Without int() the comparison is False on every part of every run."""
+    ni = {"1234": [0, "n1"], "1235": [0, "n2"], "9001": [1, "n1"]}
+    assert _invert_node_index(ni, 0) == {"n1": 1234, "n2": 1235}
+    assert _invert_node_index(ni, 1) == {"n1": 9001}
+    assert _invert_node_index(ni, 7) == {}
+
+
+def test_invert_node_index_survives_a_json_round_trip():
+    """JSON has no tuple type: [order, export_id] comes back as a 2-element list."""
+    ni = json.loads(json.dumps({"1234": (0, "n1")}))
+    assert _invert_node_index(ni, 0) == {"n1": 1234}
+
+
+def test_write_state_is_atomic_and_leaves_no_tmp_file(tmp_path):
+    bundle = tmp_path / "b"
+    bundle.mkdir()
+    _write_state(bundle, {"version": 1, "parts": []})
+    assert _read_state_raw(bundle) == {"version": 1, "parts": []}
+    assert not (bundle / (LINK_STATE_NAME + ".tmp")).exists()
+
+
+def test_read_state_validating_rejects_torn_json_and_a_wrong_version(tmp_path):
+    bundle = tmp_path / "b"
+    bundle.mkdir()
+    (bundle / LINK_STATE_NAME).write_text('{"version": 1, "par', encoding="utf-8")
+    with pytest.raises(CommandError, match="not valid JSON"):
+        _read_state(bundle, validate=True)
+    (bundle / LINK_STATE_NAME).write_text('{"version": 2}', encoding="utf-8")
+    with pytest.raises(CommandError, match="version"):
+        _read_state(bundle, validate=True)
+
+
+def test_read_state_non_validating_swallows_a_torn_file(tmp_path):
+    """The `start_at is None` branch discards the file wholesale, so validating
+    it there could only manufacture a dead end with no documented remedy."""
+    bundle = tmp_path / "b"
+    bundle.mkdir()
+    (bundle / LINK_STATE_NAME).write_text('{"version": 1, "par', encoding="utf-8")
+    assert _read_state(bundle, validate=False) is None
+
+
+def test_read_state_returns_none_when_absent(tmp_path):
+    bundle = tmp_path / "b"
+    bundle.mkdir()
+    assert _read_state(bundle, validate=True) is None
+
+
+def test_fresh_state_carries_all_five_top_level_keys():
+    target = _mk_target()
+    st = _fresh_state(target)
+    assert set(st) == {"version", "status", "target_slug", "target_pk", "parts"}
+    assert st["status"] == "collecting"
+    assert st["target_pk"] == target.pk
+    assert st["parts"] == []
+
+
+def test_live_pks_filters_to_rows_in_the_given_course():
+    """course=target is not decoration: a bare pk__in would call a node in some
+    OTHER course 'resolved', which is the mis-point this design guards against."""
+    target = _mk_target()
+    other = Course.objects.create(title="Other", slug="other")
+    a = ContentNode.objects.create(course=target, kind="part", title="A")
+    b = ContentNode.objects.create(course=other, kind="part", title="B")
+    entries = [{"order": 0, "node_map": {"n1": a.pk, "n2": b.pk, "n3": 10**9}}]
+    assert _live_pks(entries, target) == {a.pk}

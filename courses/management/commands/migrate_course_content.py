@@ -11,6 +11,7 @@ which a whole-course archive of a large course would breach outright.
 """
 
 import json
+import os
 import re
 from pathlib import Path
 
@@ -52,6 +53,95 @@ MANIFEST_NAME = "bundle-manifest.json"
 #   - `verify` can tell this migration's own contribution apart from
 #     anything the target already owned (also relevant after `--force`).
 BASELINE_NAME = "import-baseline.json"
+
+# Written by `import`, accumulated one entry per part, and read by the deferred
+# link rewrite. It is the ONLY record of export_id -> new_pk: export ids exist
+# nowhere else once an archive has been grafted, so losing this file loses the
+# ability to rewrite anything. Lifecycle mirrors BASELINE_NAME -- never unlinked
+# by `export --clean`, overwritten fresh when `start_at is None`.
+LINK_STATE_NAME = "import-link-state.json"
+LINK_STATE_VERSION = 1
+
+
+def _write_state(bundle, state):
+    """Serialise to <name>.tmp then os.replace onto the real name.
+
+    NEVER truncate-in-place. Path.write_text opens mode="w", which truncates
+    before writing a byte; this file is rewritten once per part (21 times for
+    mat-pp) inside an open transaction, so a crash or ENOSPC in any of those
+    windows would leave truncated JSON -- and a torn state file discards every
+    committed part's export_id -> new_pk map, which is unrecoverable.
+    """
+    tmp = bundle / (LINK_STATE_NAME + ".tmp")
+    tmp.write_text(json.dumps(state, ensure_ascii=False), encoding="utf-8")
+    os.replace(tmp, bundle / LINK_STATE_NAME)
+
+
+def _read_state(bundle, *, validate):
+    """`validate=False` is for the one branch that discards the file wholesale
+    (`start_at is None`, no --resolve-rewrite). Validating there could only turn
+    a torn file into a permanent dead end: `export --clean` deliberately does not
+    unlink this file, so the operator's only remedy would be a manual rm."""
+    path = bundle / LINK_STATE_NAME
+    if not path.exists():
+        return None
+    try:
+        state = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        if not validate:
+            return None
+        raise CommandError(
+            f"{LINK_STATE_NAME} in {bundle} is not valid JSON: {exc}"
+        ) from exc
+    if not validate:
+        return state
+    if state.get("version") != LINK_STATE_VERSION:
+        raise CommandError(
+            f"{LINK_STATE_NAME} in {bundle} has version "
+            f"{state.get('version')!r}; this command writes and reads version "
+            f"{LINK_STATE_VERSION}"
+        )
+    return state
+
+
+def _fresh_state(target):
+    return {
+        "version": LINK_STATE_VERSION,
+        "status": "collecting",
+        "target_slug": target.slug,
+        "target_pk": target.pk,
+        "parts": [],
+    }
+
+
+def _invert_node_index(node_index, order):
+    """{export_id: source_pk} for one part order.
+
+    int(pk) is REQUIRED: node_index keys are decimal STRINGS and the `src` guard
+    is a fatal equality test, so a missing int() makes it False on every part of
+    every run and blocks the feature behind a spurious re-export error. This is
+    THE shared helper -- called at the graft-time write and at the guard, never
+    inlined at either.
+    """
+    return {
+        eid: int(pk)
+        for pk, (o, eid) in ((k, tuple(v)) for k, v in node_index.items())
+        if int(o) == int(order)
+    }
+
+
+def _live_pks(entries, target):
+    """Recorded pks of `entries`, filtered to rows that actually exist in
+    `target`. Callers differ only in which entries they pass: the rewrite scope
+    passes PENDING entries, the mapping's liveness filter and `verify` pass ALL
+    of them."""
+    recorded = {pk for e in entries for pk in e["node_map"].values()}
+    return set(
+        ContentNode.objects.filter(pk__in=recorded, course=target).values_list(
+            "pk", flat=True
+        )
+    )
+
 
 # Archive filenames are "<order>-<slug>.zip"; `order` is NOT zero-padded to a
 # fixed width (`{order:02d}` is a MINIMUM width), so at >=100 parts a
