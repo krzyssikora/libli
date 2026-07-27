@@ -524,7 +524,18 @@ Expected: PASS.
 
 - [ ] **Step 5: Falsify the attribute-aware scanner**
 
-Temporarily replace `_scan_anchors` with a naive `re.finditer(r"<a[^>]*>", html)`-based version. Run the tests. Expected: both `test_raw_gt_inside_an_attribute` cases FAIL. Restore.
+Temporarily replace `_scan_anchors` with a naive `re.finditer(r"<a[^>]*>", html)`-based
+version. Run the tests. Expected, measured:
+
+- `test_raw_gt_inside_an_attribute[<a title="a > b" href=…>]` **FAILS** — the truncated
+  match `<a title="a >` stops before the href, so the link is silently missed;
+- the `href`-first ordering still **passes**: its truncated match happens to contain the
+  href, so extraction succeeds by luck. That asymmetry is the point — the naive scanner is
+  not reliably wrong, which is exactly why "it worked on my example" is no evidence;
+- `test_fail_closed_conditions_return_the_body_untouched[unterminated quote]` also
+  **FAILS**, since a naive scanner has no notion of an unterminated value.
+
+Restore.
 
 - [ ] **Step 6: Falsify the registry comprehension**
 
@@ -778,10 +789,14 @@ Create `tests/test_link_transfer.py` (the import half arrives in Task 4):
 ```python
 import pytest
 
-from courses.transfer.export import build_export
-from courses.transfer.schema import FORMAT_VERSION, TransferError, validate_document
 from courses.models import TextElement
-from tests.factories import ContentNodeFactory, CourseFactory, add_element
+from courses.transfer.export import build_export
+from courses.transfer.schema import FORMAT_VERSION
+from courses.transfer.schema import TransferError
+from courses.transfer.schema import validate_document
+from tests.factories import ContentNodeFactory
+from tests.factories import CourseFactory
+from tests.factories import add_element
 
 
 def _text(body):
@@ -830,7 +845,13 @@ def test_subtree_documents_carry_link_nodes_too():
     course, chapter, _unit = _course_with_link()
     _m, document, _a, _p = build_export(course, node=chapter)
     assert "link_nodes" in document
-    validate_document(document, kind="subtree")
+    # target_allowed_kinds is REQUIRED for kind="subtree": validate_document computes
+    # `allowed = list(target_allowed_kinds or [])`, so omitting it rejects every node
+    # ("The archive contains a 'chapter' node, which this structure does not allow").
+    # Matches how importer.py:392 and tests/test_transfer_validation.py:63 call it.
+    validate_document(
+        document, kind="subtree", target_allowed_kinds=["chapter", "unit"]
+    )
 
 
 def test_v5_document_without_link_nodes_still_validates():
@@ -968,9 +989,15 @@ Expected: PASS.
 
 Remove the `doc.setdefault("link_nodes", {})` line. Run
 `uv run pytest tests/test_link_transfer.py -q`. Expected:
-`test_v5_archive_without_link_nodes_still_validates` FAILS with "missing the key". Restore.
+`test_v5_document_without_link_nodes_still_validates` FAILS with "missing the key". Restore.
 
-- [ ] **Step 8: Commit**
+- [ ] **Step 8: Lint**
+
+Run: `uv run ruff format courses/transfer/schema.py courses/transfer/export.py tests/test_link_transfer.py && uv run ruff check courses/transfer/schema.py courses/transfer/export.py tests/test_link_transfer.py`
+Expected: clean. Note `ruff format` does **not** rewrap comments, so an over-long comment
+line is yours to fix.
+
+- [ ] **Step 9: Commit**
 
 ```bash
 git add courses/transfer/schema.py courses/transfer/export.py tests/
@@ -1209,7 +1236,8 @@ from django.utils.translation import ngettext
 ```
 
 The two call sites, with their **real** bound names — `zf, manifest, document,
-media_entries`, not the test helper's `mani, doc, media` — and `_warn_flattened` placed
+media_entries`, and `insertion` (not `insertion_node`) on the subtree path, none of them
+the test helper's `mani, doc, media` — and `_warn_flattened` placed
 between the success message and the redirect, or it is dead code:
 
 ```python
@@ -1231,7 +1259,7 @@ and on the subtree path, which does **not** bind the return value:
             report = {}
             import_subtree(
                 zf, manifest, document, media_entries, target_course,
-                insertion_node, request.user, report=report,
+                insertion, request.user, report=report,
             )
             messages.success(request, _("Content imported."))
             _warn_flattened(request, report)
@@ -1279,31 +1307,43 @@ def test_the_confirm_view_warns_about_flattened_links(client):
     assert any("plain text" in t for t in texts), texts
 ```
 
-Write `_upload_and_confirm` in this module by copying the upload→confirm sequence from
-`tests/test_transfer_views.py` — read that file first, the staging flow has its own
-session plumbing — with a hook that empties `link_nodes` before the archive is written.
+Write `_upload_and_confirm` by copying the upload→confirm sequence from
+`tests/test_transfer_views.py`. Three things that file supplies and this step would
+otherwise leave you to discover:
+
+- the **autouse fixture overriding `settings.TRANSFER_STAGING_DIR`** — it defaults to
+  `BASE_DIR / "transfer_staging"` (`config/settings/base.py:182`), so without the override
+  the test writes into the repo;
+- the logged-in user needs **`courses.add_course`**;
+- build the archive with **`build_export` + `write_archive_from`**, not `write_archive` —
+  only the split pair gives you a hook to empty `link_nodes` before writing.
+
+There is no session plumbing: the confirm step posts a `token` read from
+`preview.context["token"]`.
 
 - [ ] **Step 8: Run**
 
 Run: `uv run pytest tests/test_link_transfer.py -q`
 Expected: PASS.
 
-- [ ] **Step 8: Run the whole transfer suite**
+- [ ] **Step 9: Run every caller's tests**
 
 Run: `uv run pytest tests/ courses/tests/ -k "transfer or migrate_course_content" -q`
 Expected: PASS. `-k transfer` alone would **not** select
 `tests/test_migrate_course_content.py`, and that is the one caller whose behaviour changes
 as a side effect of this task — so it must be in the selection, not assumed.
 
-- [ ] **Step 9: Falsify the keep/unwrap split**
+- [ ] **Step 10: Falsify the keep/unwrap split**
 
 Change `materialize_duplicate`'s default to `"unwrap"`. Run
 `uv run pytest tests/test_link_transfer.py -q`. Expected:
 `test_duplicate_unit_keeps_an_out_of_scope_link` FAILS. Restore.
 
-- [ ] **Step 10: Commit**
+- [ ] **Step 11: Lint and commit**
 
 ```bash
+uv run ruff format courses/transfer/importer.py courses/views_transfer.py tests/test_link_transfer.py
+uv run ruff check courses/transfer/importer.py courses/views_transfer.py tests/test_link_transfer.py
 git add courses/transfer/importer.py courses/views_transfer.py tests/test_link_transfer.py
 git commit -m "feat(links): rewrite internal links on import; warn on flattened ones"
 ```
@@ -1533,11 +1573,16 @@ In `templates/courses/manage/node_confirm_delete.html`, after the existing `<p>`
 
 ```html
   {% if counts.inbound_links %}
-    <p class="op-warning">
+    <p class="alert alert--warning">
       {% blocktrans count n=counts.inbound_links %}{{ n }} other element in this course links here.{% plural %}{{ n }} other elements in this course link here.{% endblocktrans %}
     </p>
   {% endif %}
 ```
+
+`alert alert--warning` rather than a new class name: `app.css:214` already defines the
+pair and `base.html` loads it globally, so the sentence reads as a warning instead of as
+body text indistinguishable from the line above it. An invented `op-warning` would be an
+undefined class — the shape the repo's "every view ships styled" rule exists to catch.
 
 Leave the existing `This removes {{ d }} descendant node(s) and {{ e }} element(s).` line **exactly as it is** — correcting its `(s)` suffixes is an unrelated i18n fix and would put an unrelated msgid change in this diff.
 
