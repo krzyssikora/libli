@@ -391,19 +391,30 @@ class Command(BaseCommand):
         # pk -> [part order, ...]. Accumulated across ALL parts and folded
         # into the manifest once, only on full success -- see MANIFEST_NAME.
         side = {}
+        # source pk -> [part order, export id], same lifecycle as `side`. Covers
+        # EVERY node in the course, because every node descends from some
+        # top-level part -- unlike document["link_nodes"], which holds only
+        # targets referenced from inside one part, so a node linked to ONLY from
+        # another part would appear in no archive's map at all.
+        node_index = {}
         total_nodes = 0
         total_elements = 0
         node_kind_counts = {}
         written = set()
 
         for part in parts:
-            manifest, document, media_assets, problems = build_export(course, node=part)
+            report = {}
+            manifest, document, media_assets, problems = build_export(
+                course, node=part, report=report
+            )
             if problems and not o.get("allow_problems"):
                 raise CommandError(
                     f"part {part.order} ({part.title!r}) exported with "
                     f"{len(problems)} problem(s): {problems}. "
                     f"Re-run with --allow-problems to accept them."
                 )
+            for pk, nid in report["node_ids"].items():
+                node_index[str(pk)] = [part.order, nid]
             for _mid, asset, _is_placeholder in media_assets:
                 side.setdefault(str(asset.pk), []).append(part.order)
             total_nodes += len(document["nodes"])
@@ -444,13 +455,15 @@ class Command(BaseCommand):
                 "media_count": len(side),
             },
             "media_parts": side,
+            "node_index": node_index,
         }
         (bundle / MANIFEST_NAME).write_text(
             json.dumps(bundle_manifest, ensure_ascii=False), encoding="utf-8"
         )
         self.stdout.write(
             f"wrote {MANIFEST_NAME} ({total_nodes} nodes, {total_elements} "
-            f"elements, {len(side)} distinct media asset(s))"
+            f"elements, {len(side)} distinct media asset(s), "
+            f"{len(node_index)} node(s) indexed for internal links)"
         )
 
     # --- import ------------------------------------------------------------

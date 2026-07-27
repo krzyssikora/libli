@@ -152,6 +152,126 @@ def test_export_writes_the_media_side_table_keyed_by_source_pk(tmp_path):
         assert parts and all(isinstance(i, int) for i in parts)
 
 
+def test_export_writes_a_node_index_covering_every_node(tmp_path):
+    course = _mk_source(parts=("Alpha", "Beta"))
+    bundle = tmp_path / "bundle"
+    call_command(
+        "migrate_course_content",
+        "export",
+        "--source-slug",
+        "src",
+        "--bundle-dir",
+        str(bundle),
+    )
+    index = _read_manifest(bundle)["node_index"]
+    # Every node in the COURSE, not just link targets and not just one part.
+    all_pks = set(
+        ContentNode.objects.filter(course=course).values_list("pk", flat=True)
+    )
+    assert {int(k) for k in index} == all_pks
+    # Shape: {"<pk>": [order, "nN"]}, the pair in that order. JSON has no tuple
+    # type, so it round-trips as a 2-element list.
+    order, export_id = index[str(sorted(all_pks)[0])]
+    assert isinstance(order, int)
+    assert export_id.startswith("n")
+    # Export ids restart at n1 in EVERY archive -- the part order is what
+    # disambiguates them, and keying the two phases differently would make
+    # every lookup miss silently.
+    per_order = {}
+    for o, eid in index.values():
+        per_order.setdefault(o, set()).add(eid)
+    assert all("n1" in ids for ids in per_order.values())
+
+
+def test_export_node_index_round_trips_through_invert_node_index(tmp_path):
+    """The format-level proof: what `_export` writes is exactly what
+    `_invert_node_index` (Task 3's reader) expects to read back, per part
+    order, for a genuinely multi-part course exported through the real,
+    un-mocked `build_export` path."""
+    course = _mk_source(parts=("Alpha", "Beta", "Gamma"))
+    bundle = tmp_path / "bundle"
+    call_command(
+        "migrate_course_content",
+        "export",
+        "--source-slug",
+        "src",
+        "--bundle-dir",
+        str(bundle),
+    )
+    node_index = _read_manifest(bundle)["node_index"]
+
+    parts = list(
+        ContentNode.objects.filter(course=course, parent__isnull=True).order_by(
+            "order", "pk"
+        )
+    )
+    assert len(parts) == 3  # a genuine multi-part fixture, not a single-part one
+
+    def _subtree_pks(root):
+        pks = {root.pk}
+        frontier = [root.pk]
+        while frontier:
+            children = list(
+                ContentNode.objects.filter(parent_id__in=frontier).values_list(
+                    "pk", flat=True
+                )
+            )
+            pks.update(children)
+            frontier = children
+        return pks
+
+    seen_pks = []  # a list, not a set: duplicates across parts must be caught
+    for part in parts:
+        inverted = _invert_node_index(node_index, part.order)
+        # Every export id in this part's own inversion resolves back to a
+        # source pk that both exists and belongs to THIS part's own subtree
+        # (never a sibling part's), and export ids restart at n1 per part, so
+        # this could only line up if the (order, export_id) pair round-trips
+        # exactly as written.
+        assert inverted, f"part {part.order} inverted to nothing"
+        subtree = _subtree_pks(part)
+        for eid, pk in inverted.items():
+            assert eid.startswith("n")
+            assert isinstance(pk, int)
+            assert pk in subtree, (
+                f"part {part.order}'s inversion resolved {eid!r} to pk {pk}, "
+                f"which is not in that part's own subtree"
+            )
+        seen_pks.extend(inverted.values())
+    # The union across all per-order inversions recovers the whole course
+    # exactly once per node -- no loss, no cross-part duplication.
+    all_pks = set(
+        ContentNode.objects.filter(course=course).values_list("pk", flat=True)
+    )
+    assert len(seen_pks) == len(set(seen_pks)) == len(all_pks)
+    assert set(seen_pks) == all_pks
+
+
+def test_export_node_index_survives_allow_problems(tmp_path, monkeypatch):
+    """--allow-problems must not cost the operator the node index."""
+    from courses.management.commands import migrate_course_content as mod
+
+    _mk_source(parts=("Alpha",))
+    bundle = tmp_path / "bundle"
+    real = mod.build_export
+
+    def fake(course, node=None, **kw):
+        manifest, document, media, _p = real(course, node=node, **kw)
+        return manifest, document, media, ["synthetic problem"]
+
+    monkeypatch.setattr(mod, "build_export", fake)
+    call_command(
+        "migrate_course_content",
+        "export",
+        "--source-slug",
+        "src",
+        "--bundle-dir",
+        str(bundle),
+        "--allow-problems",
+    )
+    assert _read_manifest(bundle)["node_index"]
+
+
 def test_export_rejects_an_unknown_source_slug(tmp_path):
     with pytest.raises(CommandError, match="no course with slug"):
         call_command(
