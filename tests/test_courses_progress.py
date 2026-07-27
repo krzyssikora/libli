@@ -1,4 +1,5 @@
 import json
+import re
 
 import pytest
 from bs4 import BeautifulSoup
@@ -524,3 +525,43 @@ def test_off_roster_previewer_absent_from_matrix_and_drilldown(client):
 
     # (4) The drill-down now resolves.
     assert resolver_client.get(drill_url).status_code == 200
+
+
+@pytest.mark.django_db
+def test_double_complete_post_is_idempotent_and_issues_no_second_update(client):
+    from django.db import connection
+    from django.test.utils import CaptureQueriesContext
+
+    from courses.models import UnitProgress
+
+    staff = make_login(client, "staff11")
+    staff.is_staff = True
+    staff.save()
+    course = CourseFactory(slug="p11")
+    unit, ids = _make_unit_with_elements(course, 1)
+    url = reverse("courses:complete", kwargs={"slug": "p11", "node_pk": unit.pk})
+
+    # Issued directly by the test client: after the first POST the pill replaces the
+    # form, so a second POST is not reachable through the UI -- but a double submit,
+    # a back-button or a retried request all produce it.
+    client.post(url)
+    first = UnitProgress.objects.get(student=staff, unit=unit)
+    stamped_at = first.completed_at
+
+    with CaptureQueriesContext(connection) as ctx:
+        client.post(url)
+
+    assert UnitProgress.objects.filter(student=staff, unit=unit).count() == 1
+    row = UnitProgress.objects.get(student=staff, unit=unit)
+    assert row.completed_at == stamped_at  # assert on the DB row: the 302 has no body
+    # THE load-bearing assertion. Pin the match: Postgres captures
+    # `UPDATE "courses_unitprogress" SET ...` with a QUOTED identifier, so a naive
+    # `'UPDATE courses_unitprogress' in sql` never matches and passes vacuously.
+    # Target UPDATE on this one table, never "no writes": the SELECTs and the
+    # SAVEPOINT/RELEASE traffic (a pytest artefact of django_db's open transaction)
+    # are expected and correct.
+    assert not [
+        q
+        for q in ctx.captured_queries
+        if re.search(r'update\s+"?courses_unitprogress"?', q["sql"], re.I)
+    ]
