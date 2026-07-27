@@ -258,7 +258,8 @@ def test_non_unit_empty_string_unit_type_exports_as_null(course):
 
 def test_build_export_subtree_context(course):
     part, chap, unit = _mk_tree(course)
-    manifest, doc, _media, _problems = build_export(course, node=chap)
+    report = {}
+    manifest, doc, _media, _problems = build_export(course, node=chap, report=report)
     assert manifest["kind"] == "subtree"
     assert manifest["node"] == {"title": "C1", "kind": "chapter"}
     assert doc["context"]["root_kind"] == "chapter"
@@ -266,6 +267,14 @@ def test_build_export_subtree_context(course):
     assert "course" not in doc
     assert doc["nodes"][0]["parent"] is None  # root's parent nulled
     assert [n["kind"] for n in doc["nodes"]] == ["chapter", "unit"]
+    # `report["node_ids"]` must be exactly the subtree (chapter + unit), 1:1
+    # with doc["nodes"] -- NOT the whole course (the sibling `part` node is
+    # excluded). This is the invariant Task 4's node_index build depends on:
+    # build_export(course, node=part) is the ONLY call shape the production
+    # cutover uses, one part at a time.
+    assert set(report["node_ids"].values()) == {nd["id"] for nd in doc["nodes"]}
+    assert len(report["node_ids"]) == len(doc["nodes"]) == 2
+    assert part.pk not in report["node_ids"]
 
 
 def test_write_archive_roundtrips_zip(course, image_asset):

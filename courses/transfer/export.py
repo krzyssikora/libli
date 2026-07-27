@@ -519,10 +519,12 @@ def build_export(
             node_dicts.append(_node_dict(n, nid, parent_internal))
 
         # Out-param, NOT a fifth return value: build_export's 4-tuple is unpacked
-        # positionally at ~28 sites across ~10 files, so widening the arity would
-        # break every one. Filled here, before any return, so the tolerant-export
-        # `problems` path keeps it too -- --allow-problems must not cost the
-        # caller the node index.
+        # positionally at dozens of sites across a dozen-odd files (measured 37
+        # across 12 on 2026-07-27 via `grep -rn "build_export(" --include=*.py`,
+        # excluding the def/comments/docstrings), so widening the arity would
+        # break every one. Filled here, before any return, so the
+        # tolerant-export `problems` path keeps it too -- --allow-problems must
+        # not cost the caller the node index.
         if report is not None:
             report["node_ids"] = dict(node_ids)
 
