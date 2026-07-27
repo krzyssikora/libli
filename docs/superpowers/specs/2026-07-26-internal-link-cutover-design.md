@@ -317,7 +317,9 @@ truncated JSON, which §Error handling turns into a hard `CommandError` — disc
 part's `export_id → new_pk` and reintroducing at the filesystem layer exactly the unrecoverable loss
 the outer atomic was added to prevent. So: serialise to `LINK_STATE_NAME + ".tmp"` in the bundle
 directory and `os.replace` it onto the real name. The `except OSError` handler below already covers
-the failure of either step. (`os` is not currently imported in `migrate_course_content.py`.)
+the failure of either step. (Neither `os` nor `django.db.transaction` is currently imported in
+`migrate_course_content.py` — measured over its import block at `:13-32` — and the outer atomic and
+the pass both need the latter.)
 
 **This rule is global — every write of `LINK_STATE_NAME` goes through the same helper**, not just the
 per-part one: the `status = "in_progress"` write before the transaction, the `status = "applied"` +
@@ -586,16 +588,25 @@ This is **one ordered branch, not a list of independent gates** — an earlier d
 4. **Otherwise** (a resume — this branch also owns the degenerate `--start-at 0` case). First, if
    there is **no state file**: with `--start-at 0`, create a fresh one carrying all five top-level
    keys, behind the `--dry-run` gate, and skip the remaining gates (there is nothing yet to check);
-   with `--start-at K > 0`, `CommandError`. Otherwise apply, in this order: **the `target_pk` identity
-   check first** — matching step 2 and §Verify, and for the same reason: the `in_progress` refusal
-   prints the probe reading, and against the wrong `--target-slug` that scope is empty, so the
-   operator would be shown `0` dangling of `0` in-scope and read it as "near zero → `applied`" on a
-   decision §Verify calls irreversible. Then the `in_progress` refusal of §Crash-safe marking;
-   the `target_pk` identity check; the resume subset guard; the **`recorded - on_disk` non-empty**
-   refusal; and the **`src` re-export drift comparison** over every recorded entry. The last two are
-   fatal gates that must run *before* anything is grafted — see §Import phase for why placing the
-   drift check inside the pass makes it a post-mortem. (Both are inert on the other two branches:
-   step 3 rewrites `parts` to `[]`, and step 2 has already returned.)
+   with `--start-at K > 0`, `CommandError`. Otherwise apply these five gates, **in exactly this
+   order**, all of them *after* the pre-existing top-node invariant at `:429-439` and before `todo` is
+   computed at `:440`:
+
+   1. the **`target_pk` identity check**;
+   2. the **`in_progress` refusal** of §Crash-safe marking;
+   3. the **resume subset guard**;
+   4. the **`recorded - on_disk` non-empty** refusal;
+   5. the **`src` re-export drift comparison** over every recorded entry.
+
+   Identity comes first — matching step 2 and §Verify's pinned order — for a stated reason: the
+   `in_progress` refusal prints the probe reading, and against the wrong `--target-slug` that scope is
+   empty, so the operator would be shown `0` dangling of `0` in-scope and read it as "near zero →
+   `applied`" on a decision §Verify calls irreversible. Gates 4 and 5 are fatal and must run *before*
+   anything is grafted — see §Import phase for why placing the drift check inside the pass makes it a
+   post-mortem. All five are inert on the other two branches: step 3 rewrites `parts` to `[]`, and
+   step 2 has already returned. Running them after `:429-439` is what §Testing's cases assume (the
+   missing-state-file case and the `--start-at 10` fixture are both written against `:433` firing
+   first).
 5. Compute `todo` (`:440` on this branch; on the `start_at is None` branch it was already computed at
    `:407`, ahead of step 3's write).
 6. The trigger is then evaluated at exactly two sites: **immediately before the `if not todo:` at
@@ -1053,8 +1064,8 @@ ordinary dangling element, and raises with `status == "applied"` and no remedy r
 of that sequence is a §Testing case. The top-level
 `elements_touched` / `flattened` are the sums over the merged rows **only when every row has a number**;
 if any row is `null` they are `null` too. Without that rule a pass over one of 21 orders would present
-its own count as a whole-migration total, and `verify` — still seeing `resolved_by_operator` — would
-print "counts unavailable" instead of the table it had just computed.
+its own count as a whole-migration total — a number the operator would read as "the cutover rewrote 12
+elements" when 20 of the 21 parts were never scanned.
 
 The three skip counters are **not** persisted here. §mechanics makes any nonzero value fatal before
 the `rewrite` object is ever written, so a persisted `skipped_*: 0` could only ever be zero — recording
@@ -1122,10 +1133,12 @@ for join in qs.iterator(chunk_size=500):
         for pk in find_link_targets(value):
             referenced.setdefault(pk, []).append((join.unit_id, join.pk))
 
-live = set(
-    ContentNode.objects.filter(course=target, pk__in=referenced).values_list("pk", flat=True)
+live_targets = set(                              # NOT `live` -- §mechanics binds that name to a
+    ContentNode.objects                          # different set (live recorded NODE pks)
+    .filter(course=target, pk__in=referenced)
+    .values_list("pk", flat=True)
 )
-dangling = {pk: sites for pk, sites in referenced.items() if pk not in live}
+dangling = {pk: sites for pk, sites in referenced.items() if pk not in live_targets}
 
 # The two numbers that are actually reported. `dangling` is keyed by TARGET pk, so
 # len(dangling) counts dangling targets, not elements -- one element with three bad
@@ -1436,6 +1449,10 @@ written; if a condition is added there, a case is added here:
   latter is acceptable here, since the guard under test reads the file rather than the graft.
 - `--target-slug` pointing at a different course than the state file's `target_pk` → `CommandError`;
   and the same course after a rename (pk matches, slug does not) → **no** error, just the note.
+- A hand-written state file with **no `target_pk` key** → `CommandError` on resume. This is the gate
+  that stops a wrong-target resume from writing itself a matching identity, so falsify it by having
+  the missing key adopt the resolved target instead: the resume then succeeds against the wrong
+  course.
 - A bundle re-exported with one grafted part deleted, so `recorded ⊃ on_disk` → `CommandError` naming
   the orders no longer on disk. Falsify it by removing the superset check: the run then exits 0 with
   "this migration is already complete" and no rewrite, which is the silent failure the check exists
@@ -1558,6 +1575,9 @@ href pointing at a pk that is not a `ContentNode` of the target course → `veri
 - **`verify` on a state file whose `status` is not `applied`** (including `collecting`, and including
   a `parts: []` file) → `CommandError`: the skipped-pass case. `in_progress` gets its own message,
   above.
+- **A state file with no `target_pk` key at all** → `CommandError` ("written by a pre-feature import;
+  re-run from the start"), never a silently-adopted value — adopting would let a wrong-target resume
+  write itself a matching identity.
 - **A state file whose `target_pk` does not match the resolved target course** → `CommandError`. The
   recorded pks belong to one target course; nothing else in the file says which. A `target_slug`
   mismatch with a matching `target_pk` is a renamed course — a printed note, not an error.
