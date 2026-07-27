@@ -565,3 +565,61 @@ def test_double_complete_post_is_idempotent_and_issues_no_second_update(client):
         for q in ctx.captured_queries
         if re.search(r'update\s+"?courses_unitprogress"?', q["sql"], re.I)
     ]
+
+
+@pytest.mark.django_db
+def test_previewer_completion_becomes_learner_progress_on_enrollment(client):
+    """DOCUMENTS the 'Enrollment transition' decision (spec: Accepted side effects).
+
+    This is not a safety guard -- it guards no code, and it is exempt from the
+    falsification rule in writing, because the mutation would have to INVENT an
+    enrollment hook that does not exist (Enrollment has no post_save receiver, and
+    this test enrolls via EnrollmentFactory, not through add_students_to_group).
+    A recipe with no insertion point is a wish, not a falsification.
+    """
+    from django.test import Client
+
+    from courses.models import UnitProgress
+    from courses.rollups import build_progress_matrix
+    from grouping.scoping import students_in_scope
+
+    previewer = make_login(client, "prev8")
+    previewer.is_staff = True
+    previewer.save()
+    resolver_client = Client()
+    resolver = make_login(resolver_client, "owner8")
+    # The resolver must be the course OWNER or a PA: students_in_scope(..., "all")
+    # falls through to reviewable_students, which derives from Enrollment only on
+    # that branch -- for a group teacher it derives from GroupMembership, and
+    # enrolling the previewer would add them to neither queryset.
+    course = CourseFactory(slug="p8", owner=resolver)
+    unit, ids = _make_unit_with_elements(course, 1)  # obligatory lesson
+
+    control = make_verified_user(username="control8", email="c8@test.example.com")
+    EnrollmentFactory(student=control, course=course)
+
+    client.post(reverse("courses:complete", kwargs={"slug": "p8", "node_pk": unit.pk}))
+
+    # BEFORE: absent from the roster and from the matrix; the control discriminates.
+    before_roster = list(students_in_scope(resolver, course, "all"))
+    assert previewer not in before_roster
+    assert control in before_roster
+    before_rows = build_progress_matrix(course, list(before_roster))["rows"]
+    assert previewer not in [r["student"] for r in before_rows]
+    assert control in [r["student"] for r in before_rows]
+
+    EnrollmentFactory(student=previewer, course=course)
+
+    # AFTER: re-resolve freshly. A queryset caches its rows on first evaluation, so
+    # reusing before_roster here would read the stale cache and fail against CORRECT
+    # behaviour.
+    after_roster = list(students_in_scope(resolver, course, "all"))
+    assert previewer in after_roster
+    after_rows = build_progress_matrix(course, list(after_roster))["rows"]
+    previewer_row = next(r for r in after_rows if r["student"] == previewer)
+    # Non-zero is achievable here (unlike test 10) precisely because the previewer
+    # DOES hold the completion.
+    assert previewer_row["overall"]["percent"] > 0
+
+    # The row survived the transition unchanged.
+    assert UnitProgress.objects.get(student=previewer, unit=unit).completed is True
