@@ -168,6 +168,15 @@ is open, `_render_tree` is inherently small.
 
 ## Design
 
+> **Reading note.** The rules are what you implement; the *"an earlier draft…"* passages
+> scattered through §2–§9 record designs that were tried and disproved, several of them
+> empirically. They are kept because re-deriving them costs review rounds — but they are
+> rationale, not requirements. If you are implementing, read the tables, the numbered
+> precedence list, the helper contracts and the bolded rules; skip the rest on a first pass.
+> Two stale sentences survived several rounds precisely because surrounding rationale buried
+> them, so treat any conflict between a table and a paragraph as a bug worth reporting: the
+> **table wins**.
+
 ### Slice 1 — the performance fix (PR 1)
 
 #### 1. Render only open scopes
@@ -459,9 +468,19 @@ def _filtered_map(course, cmap, q) -> tuple[dict, set[int], int, int]:
 ancestor walk, the 100-cap and the `top_nodes` restriction would be re-implemented in two or
 three places — the drift the three-call-sites rule exists to prevent.
 
-`_render_scope` unions `extra_open` **after** the ceiling is applied, so a forced-open
-destination can never be the thing that gets truncated away — producing a **new local set**,
-never mutating the returned object. (`ids` is a `frozenset` for exactly this reason:
+**`extra_open` has TWO effects, not one.** Opening a scope does not make a row appear if the
+restricted `cmap` that `_scope.html` renders from does not list that node among its parent's
+children — so an implementer who wires only the first effect satisfies the reparent test and
+silently fails the add-under-filter test in §9:
+
+1. **Union into the open-id set**, after the ceiling is applied, so a forced-open destination
+   can never be the thing truncated away — producing a **new local set**, never mutating the
+   returned object.
+2. **When `q` is active, re-insert those pks' node objects into the restricted `cmap`** —
+   resolved from the full `cmap` that `_render_scope` already holds — and into `top_nodes`
+   when the node is top-level, since §9 restricts that separately. Force-included rows **do
+   not** count toward the 100-match cap or the `shown`/`total` figures, or the
+   `X-Builder-Info` notice would stop matching the cap it describes. (`ids` is a `frozenset` for exactly this reason:
 `frozen=True` blocks attribute rebinding but not mutation of a mutable field, so a plain
 `set` would let `open_set.ids |= extra_open` silently mutate a supposedly frozen result, and
 would also make the generated `__hash__` raise on an unhashable field.) This is an addition
@@ -487,7 +506,7 @@ shrink**, and ~675 KB on a 150-node course. The transport is therefore:
 | JS — any fragment request | `open` appended to the `FormData` / query by the collector in §5. Nothing in the markup is involved. |
 | JS — surviving a reload | `history.replaceState` writes the recomputed `open` into the address bar on every toggle (§5). Without it, F5 discards the author's expansions. |
 | No-JS — expanding | The toggle's own `href`, the **only** markup that carries an enumeration: one per container row, not one per URL per row. |
-| No-JS — mutations | Nothing on the form. `builder()` persists the effective open set to `session["builder_open"][slug]` on each page GET; the post-mutation redirect becomes `manage_builder?open=session`, and only that explicit sentinel reads it back. |
+| No-JS — mutations | No `open` on the form. `builder()` persists the open set to `session["builder_open"][slug]` **only when it came from an explicit `open`** (precedence steps 1–2 — see the persistence rule below; a derived set must never be written back); the post-mutation redirect becomes `manage_builder?open=session`, and only that explicit sentinel reads it back. |
 
 **Form actions — rename, add, reorder, duplicate, delete, move — carry no `open` at all.**
 This matters beyond bytes: `rename_url` (`_scope.html:5`) and the add form's action
@@ -658,9 +677,9 @@ size. The single authority for all of this is the precedence list in §2; this s
 only the rule, not the ordering.
 
 150 is chosen from the measured baseline: render cost is linear in rows, and 944 rows cost
-3.14 s of template time, so 150 rows is ~500 ms of server render and ~6,100 elements (150 ×
-44, the POST-change browser basis — the pre-change 40.7 would say ~6,100 and the offline,
-CSRF-less basis ~5,600; mixing bases invites a false failure at review time). Note
+3.14 s of template time, so 150 rows is ~500 ms of server render and **~6,600 elements**
+(150 × 44, the post-change browser basis — the pre-change 40.7 would say ~6,100 and the
+offline, CSRF-less basis ~5,600; mixing bases invites a false failure at review time). Note
 that this **exceeds even the "< 3,800 elements" row below** (the `mat-pp` §3-seed worst
 case), which is why the element criteria are scoped to `mat-pp` and the threshold course gets
 its own row: a 150-node
@@ -676,8 +695,11 @@ The builder's existing no-JS discipline is preserved:
   `{% toggle_href %}` template tag
 - the href ends with `#node-<pk>`, and rows gain a matching `id`. Without it, expanding a
   scope 300 rows down is a full page load that returns to the top of the document.
-- the no-JS mutation **forms** are unchanged — no hidden input, no query string on the
-  action. Their **redirect targets** do change: each becomes
+- the no-JS mutation **forms** carry no hidden **`open`** and no query string on the action.
+  Two deliberate exceptions, both named so the rule is not read as absolute: every tree form
+  carries a hidden **`q`** (a handful of bytes, unlike the open enumeration), and the delete
+  confirm form carries a hidden **`open`** (see the delete rule below). Their **redirect
+  targets** do change: each becomes
   `manage_builder?open=session`, **plus `q` when the mutation carried one** — otherwise a
   no-JS author who filters and then renames a matched row lands on the unfiltered tree, the
   same "same gesture, two different trees" divergence rejected for `_builder_with_notice`
@@ -709,10 +731,25 @@ The builder's existing no-JS discipline is preserved:
   UI. For a JS author `builder_open` then holds whatever was persisted at the *last page GET*,
   not the toggles made since (which live only in the DOM and the address bar), so deleting
   would snap the tree back to load-time state. Therefore: `builder.js` rewrites the
-  `[data-delete]` href with the live `open` at click time (no `preventDefault` — it is still a
-  navigation), `node_delete`'s GET puts that value in the confirm page, the confirm form
-  carries it as a **hidden input** (one form on the page, so the §2 byte argument does not
-  apply), and the POST's redirect emits it instead of `open=session`.
+  `[data-delete]` href with the live `open` **and `q`** at click time (no `preventDefault` — it
+  is still a navigation), `node_delete`'s GET puts both values in the confirm page, the confirm
+  form carries them as **hidden inputs** (one form on the page, so the §2 byte argument does
+  not apply), and the POST's redirect emits them instead of `open=session`. `q` must ride the
+  whole chain, and so must the **Cancel** link: otherwise an author who filters and then
+  deletes a matched row lands on the unfiltered tree — the same divergence rejected for rename
+  one paragraph above.
+
+  **Without JS there is no rewrite, so the chain must degrade rather than blank the tree.**
+  `_tree_node.html:40` emits the delete href with no `open`, and §4 forbids adding one to the
+  markup — so for a no-JS author every step of the chain sees nothing, and a naive "emit the
+  hidden value instead of `open=session`" would send `open=` and collapse the tree to nothing,
+  destroying the expansions of exactly the users the session carrier exists to protect. Rule:
+  `node_delete`'s GET tests **presence** of `open` (the same presence-not-`.get()` rule as §2).
+  Absent → the confirm template omits the hidden input and the POST redirects with
+  `open=session`, which is accurate for a no-JS author because `builder_open` was populated
+  from their toggle hrefs via step 2. Present (including empty) → round-trip the value. So
+  `node_delete` is on the six-site table **for its no-JS branch only**; with JS it emits the
+  round-tripped value. A no-JS delete gets its own test row — there is none today.
 
 **Every other route back to the builder falls through to the §3/§3a seed — deliberately.**
 None of these is a mutation redirect, so none emits `open=session` and none reads
@@ -778,10 +815,14 @@ supply: `open_joined` (the joined string), `open_descendants` (pk → set), `bui
 **`q`** — omitting `q` from this list would make every toggle href drop the filter, which is
 the same "toggles fight the filter" defect resolved above, in the opposite direction.
 
-`open_joined` is **always the enumeration, never the literal `all`**: the collapse href is
-defined as "`open_joined` minus a set", which is string surgery that only works on an
-enumeration. The `all` shorthand is applied by the tag to the *resulting* set, after
-subtraction.
+`open_joined` is **always the enumeration, never the literal `all`**; the `all` shorthand is
+applied by the tag to the *resulting* set, after subtraction.
+
+**Subtract on the id set, never by string replacement.** Comma-joined pks are
+prefix-colliding: `"1,120,12".replace(",12", "")` corrupts the list. The tag already receives
+the open-id set, so the collapse href subtracts there (or splits `open_joined` on commas and
+filters token-wise) and re-joins. `open_joined` is a precomputed fast path for the **expand**
+case only, where a single pk is appended.
 
 Both `open_joined` and `open_descendants` are computed from the **post-`extra_open`** set, so
 the hrefs a response emits describe the same open set as the markup they sit in. Building them
@@ -877,6 +918,15 @@ The `aria-controls` add/remove is not optional bookkeeping: §1 makes "emitted o
 expanded" load-bearing, so a handler that touches only `aria-expanded` violates the invariant
 after every toggle, in one direction or the other. The toggle test asserts both attributes.
 The `aria-label` is re-rendered too, since it says "Expand"/"Collapse".
+
+**The count inside that label goes stale after an add, duplicate or delete in the row's own
+scope, and that is accepted.** The count lives on the parent's row, in the parent's scope,
+while those mutations return only the affected `<ol>` — so a chapter's toggle keeps announcing
+the old number until the next full render. (Reparent is unaffected: `_render_tree` re-renders
+everything visible.) Accepted because the count is not visible text, so the impact is confined
+to assistive tech and is a stale number rather than a wrong action; fixing it would mean the JS
+recomputing a pluralised string, which §1 establishes it cannot do. Recorded here so it is a
+decision rather than an oversight, and deliberately **not** covered by a test.
 
 **A foreign fragment swap can land mid-fetch, and the response must not resurrect a dead
 row.** This file is written around exactly this hazard — `applyRename` guards
@@ -1134,12 +1184,14 @@ A `q` parameter on the builder view. There is **one** mechanism, not two: `q` re
 - the open set is the consequence: the union of the matches' ancestor chains, so every
   match is actually visible. Toggles still work on top of it (§4) — `q` seeds, a supplied
   `open` wins.
-- **`q` travels with EVERY fragment request, not just the toggle.** `manage_node_scope` is
+- **`q` travels with EVERY fragment request, not just the toggle** — **set**, not appended,
+  per §5's rule (a mutation form already carries a hidden `q`, so appending would put two
+  values in the `FormData` and the collector would win only by accident of ordering). `manage_node_scope` is
   only one caller of `_render_scope`: under an active filter, a rename 409 (`_conflict_scope`),
   an add, a duplicate, a reorder and a drop (`_render_tree`) all return the same markup, and
   none of them would receive `q` — so the failure diagnosed for the toggle (unfiltered
   children arriving inside a filtered tree; a drop replacing the whole filtered pane with the
-  unfiltered tree) would still happen on every mutation. Therefore: the §5 collector appends
+  unfiltered tree) would still happen on every mutation. Therefore: the §5 collector sets
   **`q` alongside `open`** on every fragment request; `_render_scope` and `_render_tree`
   honour `q` on **all** paths; and `history.replaceState` preserves `q` as well as `open`.
 - **Which `cmap` `_open_ids` receives under a filter:** always the **full** map. Its
@@ -1156,7 +1208,7 @@ notice makes it clear the view is filtered.
 Without JS it is a plain GET form posting to `manage_builder`.
 
 **A filter-initiated request must OMIT `open`, or the filter cannot work on the JS path.**
-§5's collector appends `open=<current DOM enumeration>` to every fragment request, and
+§5's collector sets `open=<current DOM enumeration>` on every fragment request, and
 precedence step 2 (`open` present) outranks step 3 (`q`) — so a filter fetch carrying `open`
 would return only the scopes that happened to already be open, and a match three levels down
 inside a collapsed branch would never appear. The no-JS path (a plain GET form with no
@@ -1183,9 +1235,21 @@ traps).
 **Filter UI, pinned.** The control sits in `.builder__tree`'s header row, after the title.
 The JS path debounces at **300 ms** after the last keystroke — undebounced it would issue a
 full-tree render per keystroke, the exact cost profile this spec exists to remove. `q` is
-stripped of leading/trailing whitespace; a query shorter than **2 characters** after
-stripping issues **no request** and restores the unfiltered tree (rendered from the current
-`open`), so a single letter cannot rebuild the whole tree 944 rows at a time. The §10
+stripped of leading/trailing whitespace, and a query shorter than **2 characters** after
+stripping is treated as blank — **by `_filtered_map`, on the server**, so a no-JS `?q=a` or a
+hand-typed URL cannot filter either. On `mat-pp` one letter matches hundreds of titles → 100
+capped matches → up to 400 open pks → a several-hundred-row render, i.e. exactly the cost
+profile the debounce exists to avoid, reached by the one path that has no debounce. The JS
+floor is then purely an optimisation that saves a round trip.
+
+**Clearing the filter needs a request and a stash.** "Restores the unfiltered tree" cannot be
+done client-side: the pane holds *filtered* markup with the non-matching rows absent, and the
+author's pre-filter expansion no longer exists anywhere on the client — the DOM collector now
+sees the filter's chains, and `history.replaceState` has already overwritten the address bar
+with them. So the filter handler **stashes the pre-filter open enumeration in a module-scoped
+variable before its first filter fetch**, and clearing the filter issues a `manage_tree`
+request carrying that stashed `open` and no `q`. The stash is discarded once consumed, and
+also whenever a mutation happens while filtered (the tree has changed underneath it). The §10
 expand-all control reads the container count from a `data-container-count` attribute the
 server puts on `.builder`, which is how it knows to render itself disabled above the 500
 ceiling.
@@ -1339,8 +1403,12 @@ deliberately *not* used as the guard:
   visible (the session-write half of the rule, not just the rendered half)
 - **a no-JS add with the session cleared between the page GET and the POST** still shows the
   new container — i.e. the write carried the ancestor chain, not a bare pk
-- **`builder()` does not persist a derived set**: filter, then clear the filter, and assert the
-  pre-filter expansion is still there
+- **`builder()` does not persist a derived set** — asserted on the session, not the render,
+  because clearing a filter is an `open`-less GET that reaches step 4/5/6 and never reads
+  `builder_open`, so a render-level assertion would pass vacuously (and doubly so on a
+  ≤150-node fixture where everything is open anyway). On a fixture **above** the 150 threshold:
+  expand A and B via explicit `open` (persisted), filter, clear the filter, then perform a
+  no-JS mutation so the redirect carries `open=session` — and assert A and B come back.
 - **a filtered mutation re-asserts `X-Builder-Info: filtered;…`** so the cap notice survives a
   rename performed under an active filter
 - filter then expand: with `q` active, a toggle still expands (the `q`-seeds/`open`-wins
