@@ -337,6 +337,86 @@ def test_import_grafts_every_part_at_top_level_in_source_order(tmp_path):
     assert tops == ["P0", "P1", "P2"]
 
 
+def test_import_reports_flattened_cross_part_links(tmp_path):
+    # I2: this command moves content ONE TOP-LEVEL PART AT A TIME, so
+    # build_export(course, node=part) only ever emits link_nodes for targets
+    # INSIDE that part. A cross-part link is unmappable on import and, under
+    # the inherited on_missing="unwrap" default, is silently flattened to
+    # plain text. This must be surfaced on stdout, not lost.
+    course = _mk_source(parts=("P0", "P1"))
+    unit0 = ContentNode.objects.get(course=course, kind="unit", title="U0")
+    unit1 = ContentNode.objects.get(course=course, kind="unit", title="U1")
+    el = Element.objects.get(unit=unit0, title="T")
+    text = el.content_object
+    text.body = f'<p><a href="/courses/n/{unit1.pk}/">x</a></p>'
+    text.save(update_fields=["body"])
+
+    bundle = tmp_path / "bundle"
+    call_command(
+        "migrate_course_content",
+        "export",
+        "--source-slug",
+        "src",
+        "--bundle-dir",
+        str(bundle),
+    )
+    _mk_target()
+    _user()
+    buf = io.StringIO()
+    call_command(
+        "migrate_course_content",
+        "import",
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+        stdout=buf,
+    )
+    out = buf.getvalue()
+    assert "00-src.zip" in out
+    assert "1 internal link" in out
+    assert "flattened to plain text" in out
+
+
+def test_import_reports_nothing_when_every_link_resolves_within_its_part(tmp_path):
+    # The counterpart to the flattened-link warning: an in-part link is now
+    # correctly remapped (this branch's improvement), so it must NOT be
+    # reported as flattened.
+    course = _mk_source(parts=("P0", "P1"))
+    unit0 = ContentNode.objects.get(course=course, kind="unit", title="U0")
+    el = Element.objects.get(unit=unit0, title="T")
+    text = el.content_object
+    text.body = f'<p><a href="/courses/n/{unit0.pk}/">x</a></p>'
+    text.save(update_fields=["body"])
+
+    bundle = tmp_path / "bundle"
+    call_command(
+        "migrate_course_content",
+        "export",
+        "--source-slug",
+        "src",
+        "--bundle-dir",
+        str(bundle),
+    )
+    _mk_target()
+    _user()
+    buf = io.StringIO()
+    call_command(
+        "migrate_course_content",
+        "import",
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+        stdout=buf,
+    )
+    assert "flattened" not in buf.getvalue()
+
+
 def test_import_carries_placeholder_titles_verbatim(tmp_path):
     bundle = _export_bundle(tmp_path, parts=("Only",))
     target = _mk_target()

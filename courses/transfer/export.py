@@ -40,6 +40,8 @@ from courses.models import TabsElement
 from courses.models import TextElement
 from courses.models import TwoColumnElement
 from courses.models import VideoElement
+from courses.richtext import find_link_targets
+from courses.richtext import iter_rich_text
 from courses.transfer.schema import FORMAT_VERSION
 from courses.transfer.schema import KIND_COURSE
 from courses.transfer.schema import KIND_SUBTREE
@@ -501,6 +503,7 @@ def walk_unit_joins(unit_pk, joins_by_unit):
 def build_export(course, node=None, source_host="", *, drop_missing_media=True):
     with transaction.atomic():
         nodes = _ordered_nodes(course, root=node)
+        referenced = set()
         node_ids = {}
         node_dicts = []
         for i, n in enumerate(nodes, start=1):
@@ -545,6 +548,8 @@ def build_export(course, node=None, source_host="", *, drop_missing_media=True):
                 if join.content_object is None:  # dangling GFK: concrete row gone
                     broken.append((walk_index, n.title))
                     continue
+                for _field, value in iter_rich_text(join.content_object):
+                    referenced |= find_link_targets(value)
                 type_key, data = serialize_element_data(join.content_object, media_ids)
                 # all mids this element references, routed by type_key (a scalar
                 # `media`-bearing type yields a 0/1-element list; a gallery yields
@@ -722,6 +727,19 @@ def build_export(course, node=None, source_host="", *, drop_missing_media=True):
             "nodes": node_dicts,
             "elements": element_dicts,
             "media": media_dicts,
+            # Only targets INSIDE the exported set. Scanning the concrete instances
+            # (not the payload dicts) is the only option consistent with the
+            # registry: element dicts are {"type": ..., "data": {payload keys}},
+            # and applying a (model, field) registry to those would need both a
+            # type_key->model map and a field->payload-key map -- a second
+            # vocabulary the importer deliberately avoids. Accepted
+            # over-inclusion: the scan runs in pass 2, before pass 4 drops
+            # elements whose media went missing, so link_nodes can name a target
+            # no surviving element references. Harmless -- the extra keys map
+            # real exported nodes, and nothing looks them up.
+            "link_nodes": {
+                str(pk): node_ids[pk] for pk in sorted(referenced) if pk in node_ids
+            },
         }
         manifest = {
             "format_version": FORMAT_VERSION,

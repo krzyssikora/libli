@@ -15,6 +15,7 @@ from django.shortcuts import render
 from django.utils import timezone
 from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy
+from django.utils.translation import ngettext
 from django.views.decorators.http import require_GET
 from django.views.decorators.http import require_POST
 
@@ -180,6 +181,28 @@ def _handle_upload(request, *, slot, expected_kind, target_course=None):
     )
 
 
+def _warn_flattened(request, report):
+    """Second message, so the two existing success msgids are untouched.
+
+    ngettext, not {% blocktrans count %}: this is Python, not a template. Precedent:
+    courses/views_review.py:208.
+    """
+    n = report.get("flattened_links", 0)
+    if not n:
+        return
+    messages.warning(
+        request,
+        ngettext(
+            "%(n)s internal link had no target in this archive and was turned into "
+            "plain text.",
+            "%(n)s internal links had no target in this archive and were turned into "
+            "plain text.",
+            n,
+        )
+        % {"n": n},
+    )
+
+
 def _handle_confirm(request, *, slot, expected_kind, target_course=None):
     course_pk = target_course.pk if target_course else None
     claimed = staging.claim(
@@ -210,13 +233,15 @@ def _handle_confirm(request, *, slot, expected_kind, target_course=None):
                 target_course=target_course,
             )
             if expected_kind == KIND_COURSE:
+                report = {}
                 new_course = import_course(
-                    zf, manifest, document, media_entries, request.user
+                    zf, manifest, document, media_entries, request.user, report=report
                 )
                 messages.success(
                     request,
                     _("Course “%(title)s” imported.") % {"title": new_course.title},
                 )
+                _warn_flattened(request, report)
                 return redirect("courses:manage_builder", slug=new_course.slug)
             insertion = None
             raw = request.POST.get("insertion", "")
@@ -237,6 +262,7 @@ def _handle_confirm(request, *, slot, expected_kind, target_course=None):
                 raise TransferError(
                     _("A '%(kind)s' cannot be placed there.") % {"kind": root_kind}
                 )
+            report = {}
             import_subtree(
                 zf,
                 manifest,
@@ -245,8 +271,10 @@ def _handle_confirm(request, *, slot, expected_kind, target_course=None):
                 target_course,
                 insertion,
                 request.user,
+                report=report,
             )
             messages.success(request, _("Content imported."))
+            _warn_flattened(request, report)
             return redirect("courses:manage_builder", slug=target_course.slug)
     except TransferError as exc:
         return _render_upload(

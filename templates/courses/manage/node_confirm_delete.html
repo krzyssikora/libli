@@ -4,6 +4,11 @@
 <section class="manage">
   <h1>{% blocktrans with title=node.title %}Delete "{{ title }}"?{% endblocktrans %}</h1>
   <p>{% blocktrans with d=counts.descendants e=counts.elements %}This removes {{ d }} descendant node(s) and {{ e }} element(s).{% endblocktrans %}</p>
+  {% if counts.inbound_links %}
+    <p class="alert alert--warning">
+      {% blocktrans count n=counts.inbound_links %}{{ n }} other element in this course links here.{% plural %}{{ n }} other elements in this course link here.{% endblocktrans %}
+    </p>
+  {% endif %}
   <form method="post" action="{% url 'courses:manage_node_delete' slug=course.slug %}">
     {% csrf_token %}
     <input type="hidden" name="node" value="{{ node.pk }}">

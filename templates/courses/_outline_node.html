@@ -1,5 +1,5 @@
 {% load i18n notes_extras %}
-<li class="outline-node outline-node--{{ item.node.kind }}"{% if item.tag_hidden %} hidden{% endif %}
+<li class="outline-node outline-node--{{ item.node.kind }}" id="node-{{ item.node.pk }}"{% if item.tag_hidden %} hidden{% endif %}
     {% if item.is_unit %}data-unit="{{ item.node.pk }}" data-tags="{% for t in item.tags %}{{ t.pk }} {% endfor %}"{% endif %}>
   {% if item.is_unit %}
     <a class="outline-unit{% if item.completed %} outline-unit--done{% endif %}" lang="{{ course.language }}"
