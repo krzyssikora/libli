@@ -133,9 +133,9 @@ def _descendants(cmap, ids):
 
 
 def _run():
+    course = Course.objects.get(slug=SLUG)   # outside the measured window
     settings.DEBUG = True
     reset_queries()
-    course = Course.objects.get(slug=SLUG)
     cmap = _children_map(course)
     containers = _containers(cmap)
     ids = (
@@ -190,8 +190,8 @@ PREREQUISITES -- none of these are automatic:
   2. `uv run python manage.py runserver` on 127.0.0.1:8000.
   3. A session cookie for a user who can manage that course. Mint one with:
 
-       uv run python manage.py shell -c \
-         "exec(open('scripts/perf/probe_browser.py').read())" -- --mint-session
+       MINT=1 uv run python manage.py shell -c \
+         "exec(open('scripts/perf/probe_browser.py').read())"
 
 Usage:
     SESSION=<key> uv run python scripts/perf/probe_browser.py
@@ -227,7 +227,7 @@ def measure():
     from playwright.sync_api import sync_playwright
 
     if not SESSION:
-        sys.exit("set SESSION=<key> (see --mint-session in this file's docstring)")
+        sys.exit("set SESSION=<key> (mint one with MINT=1, see the docstring)")
     url = f"{BASE}/manage/courses/{SLUG}/build/"
     with sync_playwright() as p:
         browser = p.chromium.launch()
@@ -257,7 +257,11 @@ def measure():
         browser.close()
 
 
-if "--mint-session" in sys.argv:
+# `manage.py shell -c "..." -- --flag` is REJECTED: BaseCommand.run_from_argv
+# uses parse_args (not parse_known_args) and shell declares no positionals, so
+# argparse errors with "unrecognized arguments". Use an env var, matching the
+# SLUG=/OPEN= convention of the sibling probe.
+if os.environ.get("MINT"):
     mint_session()
 elif __name__ == "__main__":
     measure()
@@ -269,6 +273,40 @@ Create `scripts/perf/README.md` recording: which database the probes expect, tha
 must exist in it, that `probe_browser.py` needs `runserver` plus a minted session key, and
 that the two probes report on **different bases** (the offline render has no CSRF inputs;
 the browser count does) so post-change numbers must be compared like for like.
+
+- [ ] **Step 3b: Confirm `mat-pp` exists, or establish a fallback**
+
+Every performance gate in this plan targets it, and it comes from a one-off
+`import_lal_content` run — not from any seeding command a fresh checkout would have.
+
+```bash
+uv run python manage.py shell -c "
+from courses.models import Course
+c = Course.objects.filter(slug='mat-pp').first()
+print('mat-pp nodes:', c.nodes.count() if c else 'MISSING')"
+```
+
+Expected: ~944. **If it prints MISSING**, do not skip the gates — seed a synthetic
+equivalent and re-baseline against it:
+
+```bash
+uv run python manage.py shell -c "
+from courses.models import Course, ContentNode
+from django.utils.text import slugify
+c, _ = Course.objects.get_or_create(slug='perf-synth', defaults={'title': 'Perf synth'})
+if c.nodes.count() < 900:
+    for p in range(21):
+        part = ContentNode.objects.create(course=c, kind='part', parent=None, title=f'P{p}')
+        for ch in range(5):
+            chap = ContentNode.objects.create(course=c, kind='chapter', parent=part, title=f'C{p}-{ch}')
+            for u in range(8):
+                ContentNode.objects.create(course=c, kind='unit', unit_type='lesson',
+                                           parent=chap, title=f'U{p}-{ch}-{u}')
+print('perf-synth nodes:', c.nodes.count())"
+```
+
+Then use `SLUG=perf-synth` everywhere `mat-pp` appears, and record in the PR that the
+baseline is synthetic.
 
 - [ ] **Step 4: Capture the BEFORE numbers**
 
@@ -316,8 +354,7 @@ least: `test_manage_builder.py`, `test_manage_node_ops.py`, `test_manage_afforda
 `test_manage_node_duplicate.py`, `test_manage_duplicate_button.py`, `test_tree_badge.py`,
 `test_seed_demo_course.py`, `test_e2e_builder.py`, `test_e2e_builder_ws2.py`,
 `test_e2e_builder_authoring.py`, `test_e2e_builder_reorder.py`,
-`test_e2e_builder_tree_layout.py`, `test_e2e_inline_rename.py`, `test_e2e_transfer.py`,
-`test_builder_styles.py`, `test_builder_js_invariants.py`.
+`test_e2e_builder_tree_layout.py`, `test_e2e_inline_rename.py`, `test_e2e_transfer.py`.
 
 - [ ] **Step 2: Record the baseline and classify each file**
 
@@ -333,6 +370,18 @@ count, whether that is above or below `SIZE_THRESHOLD` (150), and the expected t
 Flag every file under the threshold explicitly. Those keep passing untouched, which is a
 **trap**: such a test no longer exercises the lazy path at all. At least one test per
 behaviour must seed above the threshold.
+
+Two files are **not** grep-discoverable but are touched anyway — list them separately:
+`tests/test_builder_styles.py` (reads `builder.css` from disk) and
+`tests/test_builder_js_invariants.py` (regexes raw `builder.js` source, comments included).
+
+Also record the **three `_render_tree` call sites outside the builder flow**:
+`_element_conflict` (`views_manage.py:675`) and `element_save` (`:1076`, `:1087`). Those
+POSTs originate from the editor's element forms, which never send `open`, so after Task 3
+they resolve to the empty set and swap in a **fully collapsed** tree. Decide explicitly and
+write the decision down: either pass `extra_open=_ancestor_chain(unit)` there, or accept a
+collapsed recovery tree (defensible — they fire only when the unit itself has vanished) and
+add a test asserting it. Do not leave it undecided; it is a live regression either way.
 
 - [ ] **Step 3: Commit**
 
@@ -362,9 +411,7 @@ Create `tests/test_builder_open_ids.py`:
 
 ```python
 import pytest
-from django.test import RequestFactory
 
-from courses.builder_open import CEILING
 from courses.builder_open import container_pks
 from courses.builder_open import open_ids
 from courses.views_manage import _children_map
@@ -574,7 +621,6 @@ SESSION_SLUG_LIMIT = 20  # per-key slug bound for the session dicts
 
 LAST_NODE_KEY = "builder_last_node"
 OPEN_KEY = "builder_open"
-FORCE_KEY = "builder_force"
 
 
 @dataclass(frozen=True)
@@ -691,7 +737,7 @@ def open_ids(request, course, cmap, *, mode="fragment", q_chain=None):
     `open=session`.
     """
     index = nodes_by_pk(cmap)
-    containers = {pk for pk, n in index.items() if n.kind != ContentNode.Kind.UNIT}
+    containers = container_pks(cmap)   # one copy of the "a unit owns no scope" rule
     raw, present = _raw_open(request)
 
     # Step 1 -- the no-JS post-mutation sentinel, page mode only.
@@ -771,7 +817,7 @@ git commit -m "feat(builder): add the open-scope precedence helper"
 
 **Interfaces:**
 - Consumes: `courses.builder_open.LAST_NODE_KEY`, `SESSION_SLUG_LIMIT`.
-- Produces: `courses.views_manage.remember_node(request, slug, pk)` — also reused by Task 6 for `builder_open`/`builder_force`.
+- Produces: `courses.views_manage.remember_node(request, slug, value, key=LAST_NODE_KEY)` — reused by Task 6 for `builder_open`.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -928,8 +974,6 @@ Create `tests/test_builder_lazy_scopes.py`:
 
 ```python
 import re
-from urllib.parse import parse_qs
-from urllib.parse import urlparse
 
 import pytest
 from django.http import Http404
@@ -941,7 +985,7 @@ from tests.factories import CourseFactory
 from tests.factories import make_login
 
 
-def _big_course(owner, n_chapters=5, units_each=4):
+def _big_course(owner, units_each=4):
     """Deliberately OVER SIZE_THRESHOLD, so the lazy path is exercised.
 
     A fixture under the threshold opens fully (spec section 3a) and would make
@@ -1227,14 +1271,16 @@ In `courses/views_manage.py` add the imports (one per line — isort here is
 `force-single-line`) and update three functions:
 
 ```python
-from courses.builder_open import CEILING
+from courses import builder_open          # for builder_open.CEILING -- see below
 from courses.builder_open import container_pks
 from courses.builder_open import open_ids as _open_ids
 ```
 
 `gettext as _` is already imported in this module; `CEILING` and `container_pks` are not.
 
-`builder()`:
+`builder()` — note it builds a **named `context` local**, not an inline dict literal: Task 4
+adds `context.update(...)` to all three renderers, which would be a `NameError` against a
+literal.
 
 ```python
 @login_required
@@ -1244,37 +1290,30 @@ def builder(request, slug):
         raise PermissionDenied
     cmap = _children_map(course)
     opened = _open_ids(request, course, cmap, mode="page")
-    return render(
-        request,
-        "courses/manage/builder.html",
-        {
-            "course": course,
-            "children_map": cmap,
-            "top_nodes": cmap.get(None, []),
-            "open_ids": opened.ids,
-            "info": _info_entries(opened),
-        },
-    )
+    context = {
+        "course": course,
+        "children_map": cmap,
+        "top_nodes": cmap.get(None, []),
+        "open_ids": opened.ids,
+        "info": _info_entries(opened),
+    }
+    return render(request, "courses/manage/builder.html", context)
 ```
 
-`_builder_with_notice()` — same two keys, `mode="notice"`:
+`_builder_with_notice()` — same shape, `mode="notice"`:
 
 ```python
     cmap = _children_map(course)
     opened = _open_ids(request, course, cmap, mode="notice")
-    return render(
-        request,
-        "courses/manage/builder.html",
-        {
-            "course": course,
-            "children_map": cmap,
-            "top_nodes": cmap.get(None, []),
-            "notice": message,
-            "open_ids": opened.ids,
-            "info": _info_entries(opened),
-        },
-        status=status,
-    )
+    context = {
+        "course": course,
+        "children_map": cmap,
+        "top_nodes": cmap.get(None, []),
+        "notice": message,
+        "open_ids": opened.ids,
+        "info": _info_entries(opened),
+    }
+    return render(request, "courses/manage/builder.html", context, status=status)
 ```
 
 `_render_scope()`:
@@ -1305,8 +1344,12 @@ def _info_entries(opened):
     return [
         {
             "key": "truncation",
+            # Read through the MODULE, not a value imported at import time:
+            # tests monkeypatch courses.builder_open.CEILING, and a by-value
+            # import would make the notice claim 500 while _finalize truncated
+            # at the patched number.
             "text": _("Only the first %(limit)s sections were opened.")
-            % {"limit": CEILING},
+            % {"limit": builder_open.CEILING},
         }
     ]
 
@@ -1430,7 +1473,15 @@ git commit -m "feat(builder): render only open tree scopes"
 
 - [ ] **Step 1: Write the failing test**
 
-Add `from urllib.parse import parse_qs, urlparse` to the file's import block, then:
+Add these to the file's top import block (isort here is `force-single-line`, so one per
+line — and they belong to Task 4, not Task 3, because nothing before now uses them):
+
+```python
+from urllib.parse import parse_qs
+from urllib.parse import urlparse
+```
+
+Then:
 
 ```python
 def _toggle_open_pks(html, pk):
@@ -1764,10 +1815,10 @@ git commit -m "feat(builder): add the single-scope read endpoint"
 
 - [ ] **Step 1: Write the failing test**
 
+Add `from courses.builder_open import OPEN_KEY` to the file's **top** import block, then
+append:
+
 ```python
-from courses.builder_open import OPEN_KEY
-
-
 @pytest.mark.django_db
 def test_reparent_into_a_collapsed_destination_returns_the_moved_node(client):
     owner = make_login(client, "owner")
@@ -1969,8 +2020,25 @@ def _remember_open(request, course, opened):
     """
     if not opened.explicit:
         return
-    remember_node(request, course.slug, sorted(opened.ids), key=OPEN_KEY)
+    # Bound the PAYLOAD, not just the slug count. Without this an author who
+    # opens 20 large courses with ?open=all stores up to 20 x CEILING = 10,000
+    # integers in a DB-backed session that is decoded on every subsequent
+    # request -- a new per-request cost, on a PR whose premise is request cost.
+    remember_node(
+        request, course.slug, sorted(opened.ids)[:SESSION_OPEN_LIMIT], key=OPEN_KEY
+    )
 ```
+
+Add the constant to `courses/builder_open.py` beside the others:
+
+```python
+SESSION_OPEN_LIMIT = 60  # per-slug pk budget for the no-JS carrier
+```
+
+60 is chosen from the measured shape: `mat-pp` has 137 containers, and the §3 seed opens at
+most 4 — so 60 comfortably covers any hand-expanded working set while capping the worst case
+at 20 × 60 = 1,200 integers (~8 KB encoded) instead of 10,000. Record the worst-case session
+row size in Task 12's verdict table.
 
 In `builder()`, after computing `opened`:
 
@@ -2047,6 +2115,11 @@ def _persist_chain(request, course, node):
     author just created.
     """
     cmap = _children_map(course)
+    # `or []` is fine HERE and nowhere else: we are about to union a chain in,
+    # so a stored-empty and a missing key both mean "start from nothing". The
+    # deliberate consequence is that a mutation re-opens the chain over an
+    # author's fully-collapsed state -- correct, since the node they just
+    # created must be visible.
     stored = request.session.get(OPEN_KEY, {}).get(course.slug) or []
     merged = set(stored) | (_ancestor_chain(node) & container_pks(cmap))
     remember_node(request, course.slug, sorted(merged), key=OPEN_KEY)
@@ -2109,8 +2182,11 @@ git commit -m "feat(builder): force-open mutation destinations and carry open th
 Delete is a full-page navigation for **every** author: `node_confirm_delete.html`'s form has no `data-op` and `builder.js` has no `[data-delete]` handler, so `node_delete`'s fragment branch is unreachable from the UI.
 
 **Files:**
-- Modify: `courses/views_manage.py` (`node_delete`), `templates/courses/manage/node_confirm_delete.html`, `courses/static/courses/js/builder.js`
-- Test: `tests/test_builder_lazy_scopes.py` (append), `tests/test_e2e_builder_toggle.py` (append)
+- Modify: `courses/views_manage.py` (`node_delete`), `templates/courses/manage/node_confirm_delete.html`
+- Test: `tests/test_builder_lazy_scopes.py` (append)
+
+> **The JS half of this chain lands in Task 8 Step 3b**, because it needs `collectOpen()`
+> and the e2e helpers that Task 8 creates. Task 7 is server-only.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -2193,10 +2269,20 @@ and extend the Cancel link (`:12`), which now has the value for free:
     <a class="btn btn--ghost" href="{% url 'courses:manage_builder' slug=course.slug %}{% if open %}?open={{ open|urlencode }}{% endif %}">{% trans "Cancel" %}</a>
 ```
 
-- [ ] **Step 5: Implement the JS half — without it, EVERY JS author still loses the tree**
+- [ ] **Step 5: STOP — the JS half is deferred to Task 8 Step 3b**
 
 The server half above only helps if `open` reaches the confirm GET, and the delete link
-(`_tree_node.html:40`) carries none. Add to `builder.js`, near the `[data-move]` handler:
+(`_tree_node.html:40`) carries none. That fix needs `collectOpen()` and the
+`tests/test_e2e_builder_toggle.py` helpers, **both of which Task 8 creates** — putting it
+here would mean a `ReferenceError` on the first delete click, and because the handler
+deliberately does not `preventDefault`, the failure would be *silent*: the navigation
+proceeds with the un-rewritten href and the whole chain is inert.
+
+So Task 7 ships the server half only. Its own view tests pass now (they pass `open`
+explicitly). Task 8 Step 3b adds the JS and the end-to-end test.
+
+<details>
+<summary>The JS, for reference — do not add it until Task 8 Step 3b</summary>
 
 ```js
   // The delete link is a plain navigation for everyone -- node_confirm_delete's
@@ -2212,44 +2298,24 @@ The server half above only helps if `open` reaches the confirm GET, and the dele
   });
 ```
 
-> No change to `_tree_node.html` is needed — the handler rewrites the existing href in
-> place. (Task 7's Files list is corrected accordingly.)
+No change to `_tree_node.html` is needed — the handler rewrites the existing href in place.
 
-- [ ] **Step 6: Test the JS half end to end**
+</details>
 
-Append to `tests/test_e2e_builder_toggle.py`:
-
-```python
-def test_deleting_a_node_preserves_the_expanded_tree(page, live_server):
-    owner = _make_pa_user("pa")
-    course, part, ch, unit = _seed(owner, slug="del")
-    _login(page, live_server, "pa")
-    url = reverse("courses:manage_builder", kwargs={"slug": "del"})
-    page.goto(f"{live_server.url}{url}?open={part.pk}")
-    page.click(f'[data-toggle="{ch.pk}"]')            # expand a second level
-    page.wait_for_selector(f'ol[data-scope="{ch.pk}"]')
-    page.click(f'[data-node="{unit.pk}"] a[data-delete]')
-    page.wait_for_selector("form[action*='delete']")
-    page.click("form[action*='delete'] button[type='submit']")
-    # back on the builder: BOTH scopes still open
-    page.wait_for_selector(f'ol[data-scope="{ch.pk}"]')
-```
-
-- [ ] **Step 7: Run to verify pass**
+- [ ] **Step 6: Run to verify pass**
 
 ```bash
 uv run pytest tests/test_builder_lazy_scopes.py -q -k delete ; echo "exit=$?"
-uv run pytest tests/test_e2e_builder_toggle.py -q -m e2e -k delet ; echo "exit=$?"
 ```
-Expected: exit=0 for both.
+Expected: exit=0.
 
-- [ ] **Step 8: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
 git branch --show-current
 uv run ruff format . && uv run ruff check .
 git add courses/views_manage.py templates/courses/manage/node_confirm_delete.html \
-        courses/static/courses/js/builder.js tests/
+        tests/test_builder_lazy_scopes.py
 git commit -m "feat(builder): carry the open set through the delete confirmation"
 ```
 
@@ -2357,9 +2423,17 @@ def _simulate_drag(page, src_selector, dst_selector, moves=1):
 
 
 def _seed(owner, slug="e2e"):
+    """part > [chap A, chap B] ; chap A > unit + 160 filler units.
+
+    TWO chapters on purpose: with a single child, _scope.html passes
+    is_first=is_last=True and _move_buttons.html renders BOTH reorder buttons
+    `disabled` -- Playwright then waits for an enabled element and times out,
+    and the tab order shifts by two stops.
+    """
     course = CourseFactory(slug=slug, owner=owner)
     part = ContentNodeFactory(course=course, kind="part", parent=None, title="Part A")
     ch = ContentNodeFactory(course=course, kind="chapter", parent=part, title="Chap A")
+    ch_b = ContentNodeFactory(course=course, kind="chapter", parent=part, title="Chap B")
     unit = ContentNodeFactory(
         course=course, kind="unit", unit_type="lesson", parent=ch, title="Unit A"
     )
@@ -2369,17 +2443,32 @@ def _seed(owner, slug="e2e"):
         ContentNodeFactory(
             course=course, kind="unit", unit_type="lesson", parent=ch, title=f"U{i}"
         )
-    return course, part, ch, unit
+    return course, part, ch, unit, ch_b
+
+
+def assert_no_navigation(page):
+    """Pin a test to the JS path.
+
+    Task 4 gives every toggle a REAL href (`?open=…#node-N`), so before any JS
+    exists a click performs a full page load that expands the scope, sets
+    aria-expanded, and survives a reload. Without this guard the whole toggle
+    suite passes with zero JS -- Step 2's red gate is green and none of the
+    tests distinguishes the fetch path from a navigation.
+    """
+    assert (
+        page.evaluate("() => performance.getEntriesByType('navigation').length") == 1
+    ), "the page navigated; this test must exercise the JS fetch path"
 
 
 def test_toggle_expands_and_collapses(page, live_server):
     owner = _make_pa_user("pa")
-    course, part, ch, _unit = _seed(owner)
+    course, part, ch, _unit, _chb = _seed(owner)
     _login(page, live_server, "pa")
     page.goto(f"{live_server.url}{reverse('courses:manage_builder', kwargs={'slug': 'e2e'})}")
     assert page.locator(f'[data-node="{ch.pk}"]').count() == 0
     page.click(f'[data-toggle="{part.pk}"]')          # the REAL gesture
     page.wait_for_selector(f'[data-node="{ch.pk}"]')
+    assert_no_navigation(page)          # must be the fetch path, not the href
     toggle = page.locator(f'[data-toggle="{part.pk}"]')
     assert toggle.get_attribute("aria-expanded") == "true"
     assert toggle.get_attribute("aria-controls") == f"tree-scope-{part.pk}"
@@ -2391,17 +2480,18 @@ def test_toggle_expands_and_collapses(page, live_server):
 
 def test_double_click_yields_exactly_one_scope(page, live_server):
     owner = _make_pa_user("pa")
-    course, part, ch, _u = _seed(owner)
+    course, part, ch, _u, _chb = _seed(owner)
     _login(page, live_server, "pa")
     page.goto(f"{live_server.url}{reverse('courses:manage_builder', kwargs={'slug': 'e2e'})}")
     page.dblclick(f'[data-toggle="{part.pk}"]')
     page.wait_for_selector(f'[data-node="{ch.pk}"]')
+    assert_no_navigation(page)
     assert page.locator(f'ol[data-scope="{part.pk}"]').count() == 1
 
 
 def test_expansion_survives_a_reload(page, live_server):
     owner = _make_pa_user("pa")
-    course, part, ch, _u = _seed(owner)
+    course, part, ch, _u, _chb = _seed(owner)
     _login(page, live_server, "pa")
     page.goto(f"{live_server.url}{reverse('courses:manage_builder', kwargs={'slug': 'e2e'})}")
     page.click(f'[data-toggle="{part.pk}"]')
@@ -2414,7 +2504,7 @@ def test_collapsing_the_last_scope_survives_a_reload(page, live_server):
     """The empty set must be written as `open=` (present, empty), not omitted,
     or the reload re-seeds from the session and springs the tree back open."""
     owner = _make_pa_user("pa")
-    course, part, ch, _u = _seed(owner)
+    course, part, ch, _u, _chb = _seed(owner)
     _login(page, live_server, "pa")
     url = reverse("courses:manage_builder", kwargs={"slug": "e2e"})
     page.goto(f"{live_server.url}{url}?open={part.pk}")
@@ -2429,7 +2519,11 @@ def test_collapsing_the_last_scope_survives_a_reload(page, live_server):
 ```bash
 uv run pytest tests/test_e2e_builder_toggle.py -q -m e2e ; echo "exit=$?"
 ```
-Expected: FAIL — clicking the toggle navigates to `#…` and nothing expands.
+
+Expected: FAIL — **on `assert_no_navigation`, not on a missing scope.** Task 4 already gave
+the toggle a working `href`, so without JS the click performs a full page load that *does*
+expand the scope. `assert_no_navigation` is what makes this gate red; if a test in this file
+lacks it, that test is not exercising the JS at all.
 
 - [ ] **Step 3: Implement the JS**
 
@@ -2577,6 +2671,41 @@ the spec cares about (the 4.47 s drop):
 that skips it leaves the pane stuck busy forever. Add `syncUrl();` inside both `.then` blocks
 after `applyFragment(text);`.
 
+- [ ] **Step 3b: The delete-link href rewrite (deferred from Task 7)**
+
+Now that `collectOpen()` exists, add near the `[data-move]` handler:
+
+```js
+  // The delete link is a plain navigation for everyone -- node_confirm_delete's
+  // form has no data-op and there is no [data-delete] fetch handler. So stamp
+  // the LIVE open set onto the href at click time and let the navigation
+  // proceed: no preventDefault.
+  root.addEventListener("click", function (e) {
+    var del = e.target.closest("[data-delete]");
+    if (!del) return;
+    var u = new URL(del.getAttribute("href"), window.location.origin);
+    u.searchParams.set("open", collectOpen());
+    del.setAttribute("href", u.pathname + u.search);
+  });
+```
+
+and its e2e, appended to `tests/test_e2e_builder_toggle.py`:
+
+```python
+def test_deleting_a_node_preserves_the_expanded_tree(page, live_server):
+    owner = _make_pa_user("pa")
+    course, part, ch, unit, _chb = _seed(owner, slug="del")
+    _login(page, live_server, "pa")
+    url = reverse("courses:manage_builder", kwargs={"slug": "del"})
+    page.goto(f"{live_server.url}{url}?open={part.pk}")
+    page.click(f'[data-toggle="{ch.pk}"]')            # expand a second level
+    page.wait_for_selector(f'ol[data-scope="{ch.pk}"]')
+    page.click(f'[data-node="{unit.pk}"] a[data-delete]')
+    page.wait_for_selector("form[action*='delete']")
+    page.click("form[action*='delete'] button[type='submit']")
+    page.wait_for_selector(f'ol[data-scope="{ch.pk}"]')   # BOTH scopes still open
+```
+
 Add the per-toggle pending state the spec requires ("it is obvious *which* row is loading"),
 in `builder.css`:
 
@@ -2605,7 +2734,7 @@ Append to `tests/test_e2e_builder_toggle.py`:
 def test_a_failed_scope_fetch_leaves_the_row_usable(page, live_server):
     """The in-flight guard clears on BOTH paths, or the row wedges forever."""
     owner = _make_pa_user("pa")
-    course, part, ch, _u = _seed(owner, slug="fail")
+    course, part, ch, _u, _chb = _seed(owner, slug="fail")
     _login(page, live_server, "pa")
     page.route("**/scope/**", lambda route: route.fulfill(status=500, body=""))
     page.goto(f"{live_server.url}{reverse('courses:manage_builder', kwargs={'slug': 'fail'})}")
@@ -2621,7 +2750,7 @@ def test_an_unrelated_toggle_click_still_commits_a_pending_rename(page, live_ser
     """The converse of the dirty-rename guard: arming `swapping` for ANY
     toggle would silently discard this edit."""
     owner = _make_pa_user("pa")
-    course, part, ch, _u = _seed(owner, slug="ren")
+    course, part, ch, _u, _chb = _seed(owner, slug="ren")
     other = ContentNodeFactory(
         course=course, kind="part", parent=None, title="Other part"
     )
@@ -2647,7 +2776,7 @@ def test_collapsing_over_a_dirty_rename_posts_nothing(page, live_server):
     """Driven by a real MOUSE click: focusout fires at mousedown, so a
     keyboard-only test would exercise the path that was already correct."""
     owner = _make_pa_user("pa")
-    course, part, ch, _u = _seed(owner, slug="dirty")
+    course, part, ch, _u, _chb = _seed(owner, slug="dirty")
     _login(page, live_server, "pa")
     url = reverse("courses:manage_builder", kwargs={"slug": "dirty"})
     page.goto(f"{live_server.url}{url}?open={part.pk}")
@@ -2663,7 +2792,7 @@ def test_collapsing_over_a_dirty_rename_posts_nothing(page, live_server):
 def test_keyboard_traversal_still_issues_one_panel_fetch(page, live_server):
     """The toggle adds a focus stop before every container title."""
     owner = _make_pa_user("pa")
-    course, part, ch, _u = _seed(owner, slug="kbd")
+    course, part, ch, _u, _chb = _seed(owner, slug="kbd")
     _login(page, live_server, "pa")
     url = reverse("courses:manage_builder", kwargs={"slug": "kbd"})
     page.goto(f"{live_server.url}{url}?open={part.pk}")
@@ -2681,8 +2810,16 @@ def test_keyboard_traversal_still_issues_one_panel_fetch(page, live_server):
         if "/build/node/" in r.url and r.url.rstrip("/").split("/")[-1].isdigit()
         else None,
     )
-    for _ in range(9):                             # title -> toggle -> ~6 cluster -> next title
+    # Stop count, measured against THIS fixture (part has 2 chapters, so its
+    # reorder buttons are enabled and focusable): from part's title the stops
+    # are grip, up, down, Move, Export, Delete (6), then ch's toggle (7), then
+    # ch's title (8). Landing anywhere but a title yields ZERO fetches, because
+    # focusin clears the timer for every target.
+    for _ in range(8):
         page.keyboard.press("Tab")
+    assert page.evaluate(
+        "() => !!document.activeElement.closest('.tree__title')"
+    ), "traversal must END on a title, or the debounce is never exercised"
     page.wait_for_timeout(400)                     # longer than the 150ms debounce
     assert len(calls) == 1                         # exactly one, not "at most"
 
@@ -2690,7 +2827,7 @@ def test_keyboard_traversal_still_issues_one_panel_fetch(page, live_server):
 def test_two_overlapping_tree_fetches_stay_busy_until_both_settle(page, live_server):
     """The whole reason §8 specifies a COUNTER rather than a boolean."""
     owner = _make_pa_user("pa")
-    course, part, ch, _u = _seed(owner, slug="busy")
+    course, part, ch, _u, _chb = _seed(owner, slug="busy")
     other = ContentNodeFactory(
         course=course, kind="part", parent=None, title="Second part"
     )
@@ -2709,7 +2846,7 @@ def test_two_overlapping_tree_fetches_stay_busy_until_both_settle(page, live_ser
 def test_a_panel_fetch_never_sets_the_busy_state(page, live_server):
     """It fires on mere keyboard traversal; counting it would flicker the tree."""
     owner = _make_pa_user("pa")
-    course, part, ch, _u = _seed(owner, slug="nobusy")
+    course, part, ch, _u, _chb = _seed(owner, slug="nobusy")
     _login(page, live_server, "pa")
     url = reverse("courses:manage_builder", kwargs={"slug": "nobusy"})
     page.goto(f"{live_server.url}{url}?open={part.pk}")
@@ -2726,7 +2863,7 @@ def test_collapse_forgets_descendants_through_the_JS_toggle(page, live_server):
     mechanism here is different (subtree removal + collectOpen re-derivation),
     which is where a bug would actually live."""
     owner = _make_pa_user("pa")
-    course, part, ch, _u = _seed(owner, slug="forget")
+    course, part, ch, _u, _chb = _seed(owner, slug="forget")
     _login(page, live_server, "pa")
     url = reverse("courses:manage_builder", kwargs={"slug": "forget"})
     page.goto(f"{live_server.url}{url}?open={part.pk}")
@@ -2742,26 +2879,35 @@ def test_collapse_forgets_descendants_through_the_JS_toggle(page, live_server):
 def test_a_mutation_landing_mid_toggle_leaves_no_detached_scope(page, live_server):
     """Exercises the re-resolve-and-bail guard in the toggle's .then."""
     owner = _make_pa_user("pa")
-    course, part, ch, _u = _seed(owner, slug="midflight")
+    course, part, ch, _u, _chb = _seed(owner, slug="midflight")
     _login(page, live_server, "pa")
     url = reverse("courses:manage_builder", kwargs={"slug": "midflight"})
     page.goto(f"{live_server.url}{url}?open={part.pk}")
+    # `ch` has a sibling (Chap B), so its "down" button is ENABLED -- with a
+    # lone child _move_buttons renders both disabled and page.click() would
+    # block until timeout.
+    down = page.locator(f'[data-node="{ch.pk}"] button[name="direction"][value="down"]')
+    assert down.is_enabled(), "fixture must give ch a sibling"
     page.route("**/scope/**", lambda route: page.wait_for_timeout(600) or route.continue_())
     page.click(f'[data-toggle="{ch.pk}"]')                    # slow scope fetch
-    # a reorder returns _render_scope and replaces the ancestor scope under it
-    page.click(f'[data-node="{ch.pk}"] button[name="direction"][value="down"]')
+    handle = page.evaluate_handle(
+        f"() => document.querySelector('li[data-node=\\"{ch.pk}\\"]')"
+    )
+    down.click()          # a reorder returns _render_scope, replacing the row
     page.wait_for_timeout(1200)
     assert page.locator(f'ol[data-scope="{ch.pk}"]').count() <= 1
+    # The pre-mutation row must be detached AND must not have gained a scope.
+    # (`querySelectorAll(...).every(o => o.isConnected)` is vacuous -- that API
+    # only ever returns attached nodes.)
     assert page.evaluate(
-        """() => [...document.querySelectorAll('ol.tree__scope')]
-                  .every(o => o.isConnected && o.closest('.builder'))"""
+        "(el) => !el.isConnected && !el.querySelector('ol.tree__scope')", handle
     )
 
 
 def test_pk_substitution_survives_a_slug_containing_a_zero(page, live_server):
     """Guards the $-anchored replacement in scopeUrlFor and the panel URL."""
     owner = _make_pa_user("pa")
-    course, part, ch, _u = _seed(owner, slug="mat-0-pp")
+    course, part, ch, _u, _chb = _seed(owner, slug="mat-0-pp")
     _login(page, live_server, "pa")
     page.goto(
         f"{live_server.url}{reverse('courses:manage_builder', kwargs={'slug': 'mat-0-pp'})}"
@@ -2965,7 +3111,13 @@ Replace `clearDropMarks` and the `dragover`/`drop`/`dragend` handlers:
 and in `drop`, before reading `drag.targetScope`:
 
 ```js
-    if (pendingFrame !== null) { paintDropMarks(); cancelFrame(); }  // FLUSH, don't cancel
+    // FLUSH, don't cancel. Capture the id FIRST: paintDropMarks() nulls
+    // pendingFrame on its first line, so a following cancelFrame() would see
+    // null and never call cancelAnimationFrame.
+    if (pendingFrame !== null) {
+      var _id = pendingFrame; pendingFrame = null;
+      cancelAnimationFrame(_id); paintDropMarks();
+    }
     var scope = drag.targetScope;
 ```
 
@@ -3002,10 +3154,9 @@ git commit -m "perf(builder): throttle dragover to one forced layout per frame"
 
 - [ ] **Step 1: Write the failing test**
 
+Add `from unittest import mock` to the file's **top** import block, then append:
+
 ```python
-from unittest import mock
-
-
 @pytest.mark.django_db
 def test_per_row_url_reversals_are_hoisted(client):
     """Guards section 7. Without this, reintroducing {% url %} in a row
@@ -3180,6 +3331,10 @@ def expand_to(page, *nodes):
     """
     for node in nodes:
         toggle = page.locator(f'[data-toggle="{node.pk}"]')
+        # Units render a <span class="tree__toggle--leaf"> with NO data-toggle,
+        # so reading an attribute would block until the locator times out
+        # instead of failing fast.
+        assert toggle.count() == 1, f"node {node.pk} ({node.kind}) has no toggle"
         if toggle.get_attribute("aria-expanded") == "true":
             continue
         toggle.click()
@@ -3254,11 +3409,16 @@ catalog *health*, not the rendered string. Append to `tests/test_builder_lazy_sc
 ```python
 @pytest.mark.django_db
 def test_polish_toggle_labels_use_all_three_plural_forms(client):
-    from django.utils import translation
-
     owner = make_login(client, "owner")
     course = CourseFactory(slug="pl", owner=owner)
     part = ContentNodeFactory(course=course, kind="part", parent=None, title="Cz")
+    # The repo's established pattern (tests/test_i18n_catalog.py:15).
+    # translation.override does NOT work here: SessionLocaleMiddleware calls
+    # translation.activate() on every request, so the response renders in the
+    # request language and the override is discarded.
+    session = client.session
+    session["_language"] = "pl"
+    session.save()
     labels = {}
     for n in (1, 2, 5):
         while course.nodes.filter(parent=part).count() < n:
@@ -3268,15 +3428,20 @@ def test_polish_toggle_labels_use_all_three_plural_forms(client):
                 parent=part,
                 title=f"R{course.nodes.filter(parent=part).count()}",
             )
-        with translation.override("pl"):
-            html = client.get(
-                reverse("courses:manage_builder", kwargs={"slug": "pl"})
-                + "?open="
-            ).content.decode()
+        html = client.get(
+            reverse("courses:manage_builder", kwargs={"slug": "pl"}) + "?open=",
+            HTTP_ACCEPT_LANGUAGE="pl",
+        ).content.decode()
         labels[n] = re.search(
             r'data-toggle="%d"[\s\S]*?aria-label="([^"]+)"' % part.pk, html
         ).group(1)
-    assert len({labels[1], labels[2], labels[5]}) == 3, labels
+    # Compare with the NUMBER stripped. The label interpolates {{ counter }},
+    # so "…, 1 …" / "…, 2 …" / "…, 5 …" are three distinct strings whichever
+    # plural form gettext picked -- the naive set-of-three assertion holds even
+    # in English, and even if all three msgstr[n] were identical.
+    stems = {n: re.sub(r"\d+", "N", v) for n, v in labels.items()}
+    assert len(set(stems.values())) == 3, stems
+    assert "Rozwiń" in labels[1], labels          # not silently falling back to en
 ```
 
 - [ ] **Step 2: Compile and verify catalog health**
@@ -3316,7 +3481,7 @@ SLUG=mat-pp OPEN="" uv run python manage.py shell -c "exec(open('scripts/perf/pr
 
 # real page in Chromium (CSRF inputs included) -- needs runserver + a session key
 uv run python manage.py runserver &          # or a second terminal
-uv run python manage.py shell -c "exec(open('scripts/perf/probe_browser.py').read())" -- --mint-session
+MINT=1 uv run python manage.py shell -c "exec(open('scripts/perf/probe_browser.py').read())"
 SESSION=<key printed above> uv run python scripts/perf/probe_browser.py
 ```
 
