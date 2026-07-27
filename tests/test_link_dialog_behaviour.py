@@ -100,8 +100,77 @@ def _open(page, **opts):
     assert page.__routed["n"] >= 1
 
 
+def _await_dismissed(page, n=1):
+    """Wait until the close HANDLER has actually invoked its callback, not merely
+    until dialog.close() has run.
+
+    dialog.close() clears the `open` attribute SYNCHRONOUSLY but only QUEUES the
+    `close` event as a task (HTML spec: "queue an element task"), so a
+    .click()/.press() that triggers it can return before link_dialog.js's own close
+    listener -- and therefore the caller's callback, the LAST thing that listener
+    does -- has actually run. Reading window.__result, or issuing a second open()
+    right after a dismissal, is a genuine race: open()'s `if (callback) return;`
+    guard (link_dialog.js) only clears once the handler resets `callback` to null,
+    which happens in the SAME queued task as the callback invocation.
+
+    This repo hit the identical class of bug in imagezoom.js (commit b1ec23f3, "wait
+    for the close HANDLER, not just for the dialog to shut") and this file
+    reproduced it directly under load: a diagnostic that timed dialog.close() against
+    its own 'close' event observed the order
+    ['after-close-call', 'callback', 'close-event'] (see task-6-report.md).
+
+    window.__calls is incremented INSIDE that same callback by _open()'s wrapper (and
+    by the two standalone tests below, which track it the same way), so waiting for
+    it to reach `n` proves the handler has fully completed.
+    """
+    page.wait_for_function(f"() => window.__calls === {n}")
+
+
 def test_module_exports_when_markup_is_present(dialog_page):
     assert dialog_page.evaluate("() => typeof window.libliLinkDialog") == "object"
+
+
+def test_module_is_undefined_when_showmodal_is_absent(page, db):
+    # The capability gate IS the cross-task contract Task 7 depends on: the export's
+    # mere presence is what text_toolbar.js checks before wiring the toolbar button,
+    # so a browser lacking <dialog>.showModal must see it absent, not a stub that
+    # would throw on first use. Delete the prototype method BEFORE the module runs,
+    # on a page that otherwise has the real partial mounted.
+    from tests.factories import CourseFactory
+
+    course = CourseFactory()
+    markup = render_to_string(
+        "courses/manage/editor/_link_dialog.html", {"course": course}
+    )
+    page.set_content(f"{BASE}<main>{markup}</main>")
+    page.evaluate("() => { delete HTMLDialogElement.prototype.showModal; }")
+    page.add_script_tag(path=str(JS_DIR / "link_apply.js"))
+    page.add_script_tag(path=str(JS_DIR / "link_dialog.js"))
+    assert (
+        page.evaluate("() => typeof document.createElement('dialog').showModal")
+        == "undefined"
+    )
+    assert page.evaluate("() => typeof window.libliLinkDialog") == "undefined"
+
+
+def test_module_is_undefined_when_markup_is_absent(page):
+    # The other half of the same gate: a page that loads this script without Task 5's
+    # partial mounted must not export either, or text_toolbar.js's capability check
+    # would pass and then throw on a null query.
+    #
+    # The uncaught-error assertion is load-bearing, not decoration: the guard this
+    # covers is `if (!dialog) return;` (link_dialog.js), and removing JUST that line
+    # still leaves `typeof window.libliLinkDialog` "undefined" -- the very next
+    # statement dereferences the null `dialog` and throws, which ALSO stops the
+    # export from being reached. Without checking for that thrown error, this test
+    # cannot tell a graceful early-return from an accidental crash.
+    errors = []
+    page.on("pageerror", lambda e: errors.append(str(e)))
+    page.set_content(f"{BASE}<main><p>no dialog here</p></main>")
+    page.add_script_tag(path=str(JS_DIR / "link_apply.js"))
+    page.add_script_tag(path=str(JS_DIR / "link_dialog.js"))
+    assert page.evaluate("() => typeof window.libliLinkDialog") == "undefined"
+    assert not errors, f"uncaught JS errors: {errors}"
 
 
 def test_initial_focus_is_the_filter_input(dialog_page):
@@ -179,6 +248,7 @@ def test_enter_in_the_url_field_inserts(dialog_page):
     dialog_page.locator("[data-link-url]").fill("https://ok.test/a")
     dialog_page.locator("[data-link-text]").fill("Ref")
     dialog_page.locator("[data-link-url]").press("Enter")
+    _await_dismissed(dialog_page)
     assert dialog_page.evaluate("() => window.__result") == {
         "href": "https://ok.test/a",
         "text": "Ref",
@@ -190,6 +260,7 @@ def test_insert_returns_href_and_text(dialog_page):
     dialog_page.locator("[data-node='2']").click()
     dialog_page.locator("[data-link-text]").fill("Quadratics")
     dialog_page.locator("[data-link-insert]").click()
+    _await_dismissed(dialog_page)
     assert dialog_page.evaluate("() => window.__result") == {
         "href": "/courses/n/2/",
         "text": "Quadratics",
@@ -246,6 +317,7 @@ def test_every_dismissal_path_fires_the_callback_exactly_once(dialog_page, how):
         x, y = 10, 10
         assert x < box["x"] or y < box["y"], (x, y, box)
         dialog_page.mouse.click(x, y)
+    _await_dismissed(dialog_page)
     assert dialog_page.evaluate("() => window.__calls") == 1
     assert dialog_page.evaluate("() => window.__result") is None
 
@@ -258,6 +330,7 @@ def test_a_second_open_while_pending_is_rejected(dialog_page):
         " selectionText: ''}, () => { window.__second += 1; }); }"
     )
     dialog_page.locator("[data-link-cancel]").click()
+    _await_dismissed(dialog_page)
     # The FIRST callback stands and fires once; the second never registers.
     assert dialog_page.evaluate("() => window.__calls") == 1
     assert dialog_page.evaluate("() => window.__second") == 0
@@ -268,6 +341,10 @@ def test_a_second_open_starts_clean(dialog_page):
     dialog_page.locator("[data-node='2']").click()
     dialog_page.locator("[data-link-filter]").fill("quad")
     dialog_page.locator("[data-link-cancel]").click()
+    # Without this wait, open()'s `if (callback) return;` guard (link_dialog.js:300)
+    # can still see the FIRST session's callback -- reset only once the close
+    # handler's queued task runs -- and silently no-op this second open() entirely.
+    _await_dismissed(dialog_page)
     _open(dialog_page)
     assert dialog_page.locator("[data-link-filter]").input_value() == ""
     assert dialog_page.locator("[aria-selected='true'][data-node]").count() == 0
@@ -287,6 +364,20 @@ def test_existing_internal_link_preselects_its_row(dialog_page):
         == "2"
     )
     assert dialog_page.locator("[data-link-remove]").is_enabled()
+
+
+def test_remove_returns_remove_true(dialog_page):
+    # Task 4's test_link_apply.py proves link_apply.js correctly consumes an
+    # already-formed {remove: true}; nothing proved link_dialog.js's own Remove
+    # button (link_dialog.js:265, commit({remove: true})) actually EMITS it.
+    _open(
+        dialog_page,
+        existing={"href": "/courses/n/2/", "text": "Quadratics"},
+        touchedAnchors=1,
+    )
+    dialog_page.locator("[data-link-remove]").click()
+    _await_dismissed(dialog_page)
+    assert dialog_page.evaluate("() => window.__result") == {"remove": True}
 
 
 def test_target_not_in_this_course_explains_itself(dialog_page):
@@ -388,12 +479,24 @@ def test_a_failed_fetch_is_not_cached_and_retries_on_the_next_open(page, db):
     page.add_script_tag(path=str(JS_DIR / "link_apply.js"))
     page.add_script_tag(path=str(JS_DIR / "link_dialog.js"))
 
+    # window.__calls, tracked the same way _open() tracks it, lets this standalone
+    # test reuse _await_dismissed below rather than a bespoke wait.
     page.evaluate(
-        "() => window.libliLinkDialog.open("
-        "{existing: null, touchedAnchors: 0, selectionText: ''}, () => {})"
+        """() => {
+            window.__calls = 0;
+            window.libliLinkDialog.open(
+                {existing: null, touchedAnchors: 0, selectionText: ''},
+                () => { window.__calls += 1; }
+            );
+        }"""
     )
     page.locator("[data-msg='fetch']").wait_for()
     page.locator("[data-link-cancel]").click()
+    # This is the exact race this test reproduced under load (see task-6-report.md):
+    # without waiting for the close handler's queued task, the second open() below
+    # can arrive while `callback` is still non-null and get silently rejected --
+    # which then hangs the .link-picker__item wait_for for its full 30s timeout.
+    _await_dismissed(page)
 
     page.evaluate(
         "() => window.libliLinkDialog.open("
