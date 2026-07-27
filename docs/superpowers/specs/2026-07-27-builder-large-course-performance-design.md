@@ -323,7 +323,7 @@ behaviours for an absent `open` and a two-valued flag cannot express them — `b
 | --- | --- | --- | --- |
 | `"page"` | `builder()` | 1, 2, 3, 4, 5, 6 | precedence steps 3–6 |
 | `"notice"` | `_builder_with_notice()` | 2, 3, 4, 5, 6 + a direct `builder_open` read | read `builder_open`, then fall through to 3–6 |
-| `"fragment"` | `_render_scope()` | **2, 3, 6 only** | empty set — never reads the session |
+| `"fragment"` | `_render_scope()` | **2, 3, 6 only** | step 3's `q` chains when `q` is present, otherwise the empty set — never reads the session |
 
 **`"fragment"` deliberately skips steps 1, 4 and 5.** Steps 1 and 5 are session reads, which a
 fragment must never do. **Step 4 (≤150 nodes) is skipped too**, and that is easy to get wrong:
@@ -428,8 +428,21 @@ The carve-out is the same one §8 makes for the busy counter, and for the same t
 touch `_render_scope`, so they never carry the header. Wiring header handling into a shared
 response helper without this exclusion would clear the `filter` entry on the very next row
 focus — within a second of filtering — silently removing the only signal that the view is
-capped, which is the failure the clearing rule exists to prevent. Participating responses are:
-toggle, submit, drop, `manage_tree`, `manage_node_scope` and conflict scopes. ("Clears the keys it owns" would
+capped, which is the failure the clearing rule exists to prevent.
+
+**Participation is defined by the response, not the gesture: only responses that return tree
+markup through `_render_scope`/`_render_tree` participate** — the toggle, drop, `manage_tree`,
+`manage_node_scope`, conflict scopes, and those mutations that re-render a scope (add,
+reorder, duplicate, delete). Saying "submit" instead would be wrong, because three common
+submit responses never reach `_render_scope`: a successful rename returns
+`_rename_result.html` (`views_manage.py:349`), a 422 returns `_op_error.html` (`:283`, `:345`,
+`:407`, `:490`), and a unit-settings rename returns `_render_unit_panel` (`:346`). Under a
+gesture-based rule those would arrive header-less and **clear all keys** — deleting the filter
+notice on the single most common authoring action. They neither set nor clear.
+
+Consequently the "a filtered mutation re-asserts `filtered;…`" test must use a mutation that
+actually re-renders a scope — add, reorder, duplicate or drop — **not** a rename, which has no
+`_render_scope` call to re-assert it. ("Clears the keys it owns" would
 be vacuous — a response with no header owns none — and under the opposite reading any
 rename/add/reorder/drop issued while a filter is active would wipe the "showing first 100 of
 M" entry while the tree on screen is still filtered and capped, silently removing the only
@@ -595,9 +608,18 @@ bound.
 back: on a no-JS filter GET the effective set *is* the `q` chains, so persisting it would
 overwrite the author's real expansion with the filter's, and clearing the filter (an
 `open`-less GET → step 4/5) would then lose that expansion permanently. The same applies to
-the §3a ≤150 default, the §3 seed, and any truncated resolution. Rule: `builder()` writes
-`builder_open` **only when the set came from an explicit `open`** (steps 1–2), and skips the
-write otherwise.
+the §3a ≤150 default, the §3 seed, and any truncated resolution.
+
+**Rule: `builder()` writes `builder_open` only when the set came from an explicit `open`
+(steps 1–2) AND `q` is absent from the request.** The `q` clause is not redundant — without it
+the invariant is broken by this design's own transport. A no-JS author filters (step 3 → the
+`q` chains), then clicks any toggle; that href carries `open = q-chains ± pk`, which arrives
+via **step 2** and would be persisted, overwriting their real pre-filter expansion with the
+filter's chains. The JS path has §9's stash to recover from that; no-JS has nothing, so the
+loss is permanent. Since any set computed while `q` is active is filter-derived by
+construction, skipping the write whenever `q` is present closes it. The "does not persist a
+derived set" test must therefore include a **toggle under an active filter**, not only an
+un-toggled filter GET.
 
 **It is stored as a sorted `list[int]`, not a `set`.** No `SESSION_SERIALIZER` is configured,
 so Django 5.2 uses `JSONSerializer`, and a `set` is not JSON-serializable — measured:
@@ -653,10 +675,26 @@ case, not only a drag case.
 by `_move_picker`, not one of the in-tree forms, so §4's "every tree form carries a hidden `q`"
 does not reach it — and the session write above propagates only `open`. Left as is, a no-JS
 author who filters and then moves a matched row via the picker lands on the unfiltered tree:
-the same "same gesture, two different trees" divergence closed for rename and for delete. So:
-`node_move`'s GET puts the submitted `q` into the picker context, the picker's reparent form
-carries it as a hidden input, its back/cancel link carries it, and the `:411` redirect emits
-`open=session` **plus `q`**. The existing no-JS picker test asserts `q` survives.
+the same "same gesture, two different trees" divergence closed for rename and for delete.
+
+**The chain needs a first hop, and neither existing path supplies one.** The Move affordance is
+a *link* (`_tree_node.html:30`), so §4's "every tree **form** carries a hidden `q`" does not
+reach it; and §2/§8 both deliberately carve the `[data-move]` fetch (`builder.js:247`) out of
+`_render_scope` handling, so the collector does not touch it either. Written without this, an
+implementer's `request.GET.get("q")` is always `""` and the whole rule is a silent no-op. So,
+explicitly:
+
+1. **no-JS:** the Move link's `href` carries `&q=` in markup — permitted, like the hidden `q`
+   on forms, because it is a handful of bytes rather than the open enumeration
+2. **JS:** the `[data-move]` fetch appends the live `q`
+
+Then `node_move`'s GET puts it into the picker context, the picker's reparent form carries it
+as a hidden input, and the `:411` redirect emits `open=session` **plus `q`**. The no-JS picker
+test asserts `q` survives the round trip.
+
+`_move_picker.html` today is a bare `<form>` with no chrome — no back or cancel control — so
+there is no existing link to thread `q` through. Adding one is **out of scope**; if a Cancel
+affordance is ever added it points at `manage_builder` with `q` and `open=session`.
 
 Because the parameter round-trips through mutations, a reparent's `_render_tree` response
 re-renders only the rows that were actually visible. Estimated ~60 rows / ~200 ms in place
@@ -806,7 +844,13 @@ The builder's existing no-JS discipline is preserved:
   `open=session`, which is accurate for a no-JS author because `builder_open` was populated
   from their toggle hrefs via step 2. Present (including empty) → round-trip the value. So
   `node_delete` is on the six-site table **for its no-JS branch only**; with JS it emits the
-  round-tripped value. A no-JS delete gets its own test row — there is none today.
+  round-tripped value.
+
+  **`q` does not degrade — it is emitted in the markup.** `_tree_node.html:40`'s delete href
+  carries `&q=`, symmetric with the Move link and with the hidden `q` on every tree form. `q`
+  is not subject to the byte argument that bars `open` from markup, so there is no reason to
+  let a filtered no-JS delete land on an unfiltered tree when the fix costs a few bytes. A
+  no-JS delete gets its own test row — there is none today — covering both `open` and `q`.
 
 **Every other route back to the builder falls through to the §3/§3a seed — deliberately.**
 None of these is a mutation redirect, so none emits `open=session` and none reads
@@ -1308,8 +1352,14 @@ variable before its first filter fetch**, and clearing the filter issues a `mana
 request carrying that stashed `open` and no `q`. The stash is discarded once consumed, and
 also whenever a mutation happens while filtered (the tree has changed underneath it).
 
-**If the stash is absent, the clear request carries the collector's current enumeration — it
-never omits `open`.** Filter → mutate → clear is a normal authoring sequence, and it reaches
+**The stash is initialised to `null`, and the fallback tests `stash === null`, not
+falsiness** — a legitimately empty pre-filter set stashes as `""`, and an `if (!stash)` would
+misread it as absent, so an author who had everything collapsed, filtered, then cleared would
+get the filter's chains open instead of the empty tree they started from. This is the same
+empty-vs-absent trap §2 pins for the `open` parameter itself.
+
+**If the stash really is absent, the clear request carries the collector's current enumeration
+— it never omits `open`.** Filter → mutate → clear is a normal authoring sequence, and it reaches
 the clear with no stash. Omitting `open` there would put the request on the `mode="fragment"`
 absent path, i.e. the **empty set**, collapsing a large course to its 21 top rows and
 destroying every expansion the author had. Falling back to the collector is merely lossy (it
@@ -1474,8 +1524,11 @@ deliberately *not* used as the guard:
   ≤150-node fixture where everything is open anyway). On a fixture **above** the 150 threshold:
   expand A and B via explicit `open` (persisted), filter, clear the filter, then perform a
   no-JS mutation so the redirect carries `open=session` — and assert A and B come back.
-- **a filtered mutation re-asserts `X-Builder-Info: filtered;…`** so the cap notice survives a
-  rename performed under an active filter
+- **a filtered mutation re-asserts `X-Builder-Info: filtered;…`** so the cap notice survives —
+  driven by an **add, reorder, duplicate or drop**, never a rename (whose success response is
+  `_rename_result.html` and never reaches `_render_scope`)
+- **a rename, a 422 and a panel fetch under an active filter leave the notice untouched** —
+  they neither set nor clear
 - filter then expand: with `q` active, a toggle still expands (the `q`-seeds/`open`-wins
   rule), and the filtered count is what the toggle shows
 - adding a container returns it already open; adding a unit does not change the open set
