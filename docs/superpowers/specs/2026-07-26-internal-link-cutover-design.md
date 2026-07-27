@@ -174,8 +174,9 @@ Its schema, in full:
   "target_slug": "mat-pp",
   "target_pk": 42,
   "parts": [
-    {"order": 0, "node_map": {"n1": 4711, "n2": 4712}, "src": {"n1": 1234, "n2": 1235}},
-    {"order": 1, "node_map": {"n1": 4790}, "src": {"n1": 9001}}
+    {"order": 0, "node_map": {"n1": 4711, "n2": 4712}, "src": {"n1": 1234, "n2": 1235},
+     "rewritten": false},
+    {"order": 1, "node_map": {"n1": 4790}, "src": {"n1": 9001}, "rewritten": false}
   ]
 }
 ```
@@ -200,9 +201,25 @@ Its schema, in full:
   producing an empty `mapping` and, but for the fatal rule in §mechanics, a whole-scope flatten. The
   bundle-scoped `BASELINE_NAME` gets away without this only because the `:433` count invariant
   catches a wrong target indirectly; the state file has no such backstop.
-- `status` is one of `collecting` (parts accumulating, rewrite not started), `in_progress` (the
-  rewrite transaction has been entered), `applied` (the rewrite committed). A `rewrite` object is
-  added when the pass completes — see §Counts.
+- `status` is one of `collecting` (at least one recorded order is un-rewritten), `in_progress` (the
+  rewrite transaction has been entered), `applied` (every recorded order has been rewritten). A
+  `rewrite` object is added when the pass completes — see §Counts.
+- **`rewritten` is per part order, and this is not bookkeeping — it is what makes a repair resume
+  correct.** A single top-level `applied` flag is wrong, because a part can be re-grafted *after* the
+  pass has run: full import → pass applies → the operator deletes one bad part → `import --start-at K`
+  re-grafts it. `:433` accepts that resume, so the part is committed again with its hrefs holding
+  **source** pks, and a top-level-`applied` trigger would never fire again — leaving them silently
+  pointing at whatever target rows occupy those pks, which is the exact failure this spec exists to
+  prevent, with no command able to reach the pass afterwards. This is not hypothetical: the existing
+  green `test_start_at_grafts_only_the_remainder`
+  (`tests/test_migrate_course_content.py:432`) performs precisely that sequence.
+
+  So **grafting an order always writes `rewritten: false` for it and resets top-level `status` to
+  `collecting`**, whether it is a first graft or a re-graft, and the pass is scoped to the *pending*
+  orders only (§mechanics). The once-only invariant is preserved per order rather than per migration:
+  each order's elements are rewritten exactly once per graft, and orders already rewritten are
+  excluded from the scope, so the old-pk-keyed map is never re-applied to hrefs that already hold
+  target pks.
 
 Entries are appended **immediately after each part commits**, not once after the loop. Writing once
 would lose every committed part's `export_id → new_pk` on a mid-loop failure, and those are
@@ -270,6 +287,18 @@ of `committed`** — i.e. *both* arms, including the `committed is None` → "no
 import from the start" case. Not just the `else` arm: `committed` is initialised to `None` at `:453`
 and first assigned at `:502`, so an `OSError` on the **first** part would evaluate `None + 1` and
 raise `TypeError` — a raw traceback, exactly the outcome this handler exists to prevent.
+
+**The write must be atomic on the filesystem, too.** Inverting the DB/file ordering is pointless if
+the file write itself can be torn. The three existing writes this one mirrors are plain
+`Path.write_text` (`migrate_course_content.py:358`, `:409`, `:442`), which opens `mode="w"` and
+**truncates before writing a byte** — tolerable for `BASELINE_NAME`, which is written at most once,
+but `LINK_STATE_NAME` is rewritten **once per part** (21 times for mat-pp) and inside an open
+transaction. A crash, `ENOSPC` or a kill in any of those 21 truncate-then-write windows leaves
+truncated JSON, which §Error handling turns into a hard `CommandError` — discarding every committed
+part's `export_id → new_pk` and reintroducing at the filesystem layer exactly the unrecoverable loss
+the outer atomic was added to prevent. So: serialise to `LINK_STATE_NAME + ".tmp"` in the bundle
+directory and `os.replace` it onto the real name. The `except OSError` handler below already covers
+the failure of either step.
 
 **Placement, exactly.** The outer `transaction.atomic()` opens immediately before the `import_subtree`
 call at `:481` and closes after the state write — i.e. *inside* the `with open_archive(...)` body and
@@ -353,9 +382,16 @@ used, which the command can build at graft time because the manifest's `node_ind
 {"order": 0, "node_map": {"n7": 4711, "n8": 4712}, "src": {"n7": 1234, "n8": 1235}}
 ```
 
-Before the final pass runs, for every recorded part order, **`entry["src"]` must equal the
-`{export_id: source_pk}` inversion of the current manifest's `node_index` for that order**. A mismatch
-is a `CommandError` naming the cause — *the bundle was re-exported from a changed source after part K
+**The comparison runs in step 4 of §trigger's ordered branch — before `todo` is computed and before
+anything is grafted** — not inside the pass. Placing it inside the pass makes it a post-mortem: graft
+part 0, re-export `--clean` from an edited source, `import --start-at 1`; the subset guard passes
+(`{0} ⊆ {0}`), `:433` passes, parts 1..N-1 are all grafted and committed from the *new* archives, and
+only then does the comparison raise — leaving the full course committed, every link unrewritten, and
+entry 0 unrepairable (`--resolve-rewrite` needs `in_progress`). It costs one dict comparison per
+recorded part, so running it early is free. It stays inside the pass as a redundant assertion.
+
+For every recorded part order, **`entry["src"]` must equal the `{export_id: source_pk}` inversion of
+the current manifest's `node_index` for that order**. A mismatch is a `CommandError` naming the cause — *the bundle was re-exported from a changed source after part K
 was grafted; the recorded map no longer describes it*. This is still cheap (one dict comparison per
 part) and, unlike the set form, it actually identifies the nodes.
 
@@ -380,14 +416,17 @@ above:
 one direction or destroys data in the other:
 
 ```
+pending = {int(e["order"]) for e in state["parts"] if not e["rewritten"]}
+
 site 1, immediately before the `if not todo:` at :445 (resume branch only):
-    not todo  and  recorded == on_disk  and  state["status"] == "collecting"
+    not todo  and  recorded == on_disk  and  state["status"] == "collecting"  and  pending
 
 site 2, after the graft loop finishes (both branches):
-    recorded == on_disk  and  state["status"] == "collecting"
+    recorded == on_disk  and  state["status"] == "collecting"  and  pending
 ```
 
-where both sets are as defined in §Import phase.
+where `recorded` and `on_disk` are as defined in §Import phase. `pending` is what lets a re-grafted
+order reach the pass again; grafting resets both it and `status` (§Import phase).
 
 **Site 2 must not carry `not todo`.** An earlier draft of this spec used the site-1 predicate at both
 sites, which makes the whole feature inert on its primary invocation: `todo` is a list that
@@ -480,11 +519,17 @@ This is **one ordered branch, not a list of independent gates** — an earlier d
    primary invocation and the resume path's identity check reads the two `target_*` fields.
 
    **No status check applies on this path.** A leftover `in_progress` or `applied` file from an
-   earlier migration through this bundle must not block a legitimate fresh re-import. Then skip to
+   earlier migration through this bundle must not block a legitimate fresh re-import. Step 5 has
+   already happened on this branch (`todo = ordered` at `:407`, ahead of the write); continue at
    step 6.
-4. **Otherwise** (a resume) apply the `in_progress` refusal of §Crash-safe marking, the target-identity
-   check, and the resume subset guard, in that order.
-5. Compute `todo`.
+4. **Otherwise** (a resume) apply, in this order: the `in_progress` refusal of §Crash-safe marking;
+   the `target_pk` identity check; the resume subset guard; the **`recorded - on_disk` non-empty**
+   refusal; and the **`src` re-export drift comparison** over every recorded entry. The last two are
+   fatal gates that must run *before* anything is grafted — see §Import phase for why placing the
+   drift check inside the pass makes it a post-mortem. (Both are inert on the other two branches:
+   step 3 rewrites `parts` to `[]`, and step 2 has already returned.)
+5. Compute `todo` (`:440` on this branch; on the `start_at is None` branch it was already computed at
+   `:407`, ahead of step 3's write).
 6. The trigger is then evaluated at exactly two sites: **immediately before the `if not todo:` at
    `migrate_course_content.py:445`** — i.e. on the `--start-at` branch only — and **after the graft
    loop finishes**, on both branches. Naming the site matters: `todo` is assigned in two mutually
@@ -506,7 +551,16 @@ Skipped entirely under `--dry-run`.
 
 ### The final pass — scope and mechanics
 
-**Its scope is the `Element` rows whose `unit_id` appears among the state file's recorded new pks** —
+**Its scope is the `Element` rows whose `unit_id` appears among the *pending* orders' new pks** —
+that is, the orders whose `rewritten` flag is `false`. On a first full migration that is every
+recorded order and the distinction is invisible; on a repair resume it is the one re-grafted order,
+and scoping to it is what keeps the old-pk-keyed map away from parts that already hold target pks.
+The `mapping` itself is always built from the **whole** `node_index`, since a pending part's links may
+point anywhere in the course. Concretely: `new_pks` below is drawn from pending entries only, while
+`by_order` and `mapping` cover all of them.
+
+Equivalently stated for the common case, **its scope is the `Element` rows whose `unit_id` appears
+among the state file's recorded new pks** —
 not the whole target course, and not a baseline-derived guess. An earlier draft said "the top-level
 nodes this migration created, identifiable from the baseline's `top_nodes` plus the committed part
 orders"; that does not work, because `_capture_baseline` records `top_nodes` as an integer **count**
@@ -522,7 +576,9 @@ them or, on a numeric coincidence, mis-point them.
 The map is the three-way join of the two files:
 
 ```python
-recorded_pks = {pk for e in state["parts"] for pk in e["node_map"].values()}
+# SCOPE: pending orders only. MAPPING: every order, since links may point anywhere.
+pending = [e for e in state["parts"] if not e["rewritten"]]
+recorded_pks = {pk for e in pending for pk in e["node_map"].values()}
 # Drop anything a stale (rolled-back) entry recorded: those rows do not exist.
 new_pks = set(
     ContentNode.objects.filter(pk__in=recorded_pks, course=target).values_list("pk", flat=True)
@@ -625,6 +681,12 @@ the same as "no target anywhere":
   only, so a hand-typed link to a node in a *different* course on the source install is unresolvable
   here and `unwrap` destroys it. This is correct for the cutover — the other course is not moving —
   but it is a real content change, so it lands in the `flattened` count rather than passing silently.
+- **Bodies part 2 fail-closes keep their source pks.** An unterminated quoted attribute value, an `<a`
+  with no unquoted `>`, or (on the unwrap path) an open tag with no matching `</a>` makes part 2
+  return the whole body byte-identical — so *every* internal href in that body survives unrewritten,
+  not just the malformed one. Reachable here because `_build_fill_gate` / `_build_switch_gate`
+  (`importer.py:549-561`) store `stem` unsanitised. The pass records these element pks and §Verify
+  reports them separately rather than failing on them.
 - **Absolute same-origin permalinks pass through untouched and unreported.** `find_link_targets` sees
   relative hrefs only (part 2 §Accepted gaps), so `https://host/courses/n/12/` is neither rewritten by
   the pass nor flagged by §Verify's reconciliation. It will still point at the *source* install's node
@@ -673,7 +735,15 @@ complete or nearly-complete import, so the natural invocation
 `--force` is worse: `todo = ordered` and the command re-grafts all N parts. So the flag is handled
 **at the top of `_import`, after the bundle/manifest/archive gates and after the state file is
 loaded, but before the baseline capture and the double-run guard**; it mutates only the state file,
-prints what it changed, and returns. It requires no `--start-at`, no `--force`, and grafts nothing.
+prints what it changed, and returns. It requires no `--start-at` and no `--force`, and grafts nothing
+— but it **does** require `--target-slug` and `--as-user`, because the pinned handling point sits
+after the required-argument gates at `:369-383`, where `--as-user` is checked unconditionally.
+Measured: `call_command('migrate_course_content', 'import', '--bundle-dir', 'x', '--target-slug', 't')`
+→ `CommandError: import requires --as-user`. `--target-slug` is genuinely needed (it resolves the
+`target` that the pass and its liveness filter are scoped to). `--as-user` is not — nothing is
+stamped, since no media is re-materialised — but it is demanded anyway rather than hoisting the
+handling above `:371`, because a per-action exemption carved into a shared required-argument block is
+the kind of special case that rots. §Testing's invocation shows all three flags.
 
 - `applied` flips `status` to `applied` and writes `"rewrite": {"resolved_by_operator": true}` — that
   literal shape, with **no count keys at all**, because the counts genuinely are not known. `verify`
@@ -682,6 +752,14 @@ prints what it changed, and returns. It requires no `--start-at`, no `--force`, 
   object for equality, so it works for both shapes.
 - `not-applied` flips `status` back to `collecting` **and runs the final pass in the same
   invocation**, then returns. It grafts nothing.
+
+  **The `collecting` flip is not persisted before the pass runs.** The file stays `in_progress` on
+  disk until the pass itself writes it. Persisting `collecting` first would be symmetric with the
+  `applied` arm but destroys the escape hatch: the pass's first two gates (the `src` drift check and
+  the fatal `skipped_*` check) both raise *before* `status = "in_progress"; write`, so a file already
+  flipped to `collecting` would leave `--resolve-rewrite` refused ever after — and the `--start-at`
+  fallback provably has no working value under non-contiguous orders. Leaving it `in_progress` until
+  success makes the action **re-runnable**, which is what a recovery command has to be.
 
   **This is one invocation, not two, because no two-invocation form exists.** An earlier draft told
   the operator to flip the marker and then re-run with a `--start-at`; there is no value of
@@ -724,9 +802,11 @@ over up to 21 `node_map` dicts for each of 20,054 elements.
 
 ```json
 "rewrite": {
-  "parts": [{"order": 0, "elements_touched": 12, "flattened": 1}],
+  "parts": [{"order": 0, "elements_touched": 12, "flattened": 1},
+            {"order": 1, "elements_touched": 0, "flattened": 0}],
   "elements_touched": 12,
-  "flattened": 1
+  "flattened": 1,
+  "fail_closed_elements": []
 }
 ```
 
@@ -739,6 +819,11 @@ edit occurred (0 rewrites, 1 flatten). Obtaining a true rewritten count would me
 return types, which this spec explicitly does not do. `elements_touched` — the number of in-scope
 elements for which `changed` was non-empty — is the operator-facing signal instead, and `flattened` is
 exact.
+
+`parts` carries **one row per recorded order, including all-zero rows, in ascending order**. The
+once-only case asserts whole-object equality on `rewrite`, and `verify` prints the rows as a table, so
+omitting empty parts would both change the fixture and silently drop parts from the report.
+`fail_closed_elements` is the list of element pks §Verify subtracts from its dangling count.
 
 The three skip counters are **not** persisted here. §mechanics makes any nonzero value fatal before
 the `rewrite` object is ever written, so a persisted `skipped_*: 0` could only ever be zero — recording
@@ -809,13 +894,35 @@ elements holding at least one dangling href. The `in_progress` probe reports tha
 `not-applied` (near total). Since that ratio drives an irreversible decision, neither number may be
 left to inference.
 
-After a correct pass that count is **zero**: every mapped href points at a target node, and everything
-unmapped was unwrapped to plain text. So the threshold is not a tuning knob —
+After a correct pass that count is **almost always zero** — every mapped href points at a target node
+and everything unmapped was unwrapped to plain text — but **not unconditionally zero**, and an earlier
+draft of this spec claimed it was. Part 2's converged fail-closed rule
+(`2026-07-26-internal-link-durability-design.md:200-206`, restated at `:524-525` and `:550-552`)
+returns the whole *body* byte-identical, contributing 0 to the count, when the scanner meets any of
+three conditions — including, on the unwrap path, an open `<a` tag with no matching `</a>`. That path
+never unwraps, so `find_link_targets` still reports the pk. Such a body therefore keeps its **source**
+pk *and* leaves every other, mappable internal href in the same body unrewritten. Part 2 names this
+reachable through exactly the import path this cutover uses, and it checks out: `_build_fill_gate` and
+`_build_switch_gate` (`courses/transfer/importer.py:549-561`) create `stem` raw, with no
+`sanitize_html` — part 2's own drift-guard census records `importer.py` as having a single sanitise
+call site, `_build_guess_number`.
 
-- nonzero → `CommandError`, reporting the count and up to ten example `(unit_id, element pk, href)`
-  triples. It catches a skipped pass (every href still holds a source pk) and a double-apply against
-  nonexistent pks.
-- zero → a printed confirmation line alongside the recorded counts.
+So the threshold is graded rather than absolute:
+
+- Elements whose bodies the pass observed to be fail-closed are **recorded by element pk** in the
+  `rewrite` object, and `verify` subtracts them. This is the only way to distinguish "part 2 declined
+  to touch this body" from "the pass never ran".
+- Any *other* dangling element → `CommandError`, reporting the count and up to ten example
+  `(unit_id, element pk, href)` triples. It catches a skipped pass (every href still holds a source
+  pk) and a double-apply against nonexistent pks.
+- Fail-closed elements → a **reported, non-fatal count** with the same example triples. Fatal would be
+  wrong: `status` is already `applied`, `--resolve-rewrite` needs `in_progress`, so `verify` would
+  fail forever with no remedy. The operator repairs the body by hand and re-runs.
+- Zero of both → a printed confirmation line alongside the recorded counts.
+
+The same correction applies to the `in_progress` probe: fail-closed elements inflate its numerator and
+would push the operator toward `not-applied` and the double-apply the design calls undetectable, so
+the probe reports them as a separate third number rather than folding them into the dangling count.
 
 It does **not** catch the pk-collision double-apply, where a re-applied map lands on a pk that happens
 to exist in the target. Nothing can, from the target side alone; that case is prevented by the
@@ -864,12 +971,15 @@ IMPORT (per part; inside `with open_archive(...)`, after the --dry-run `continue
   with transaction.atomic():                              # OUTER: commits after the write below
       report = {}
       import_subtree(..., on_missing="defer", report=report)   # rewrites nothing
-      src = {eid: int(pk) for pk, (o, eid) in node_index.items() if o == order}  # {"n7": 1234}
-      # int(pk) is REQUIRED: node_index keys are decimal STRINGS. Omit it and the
-      # `src` guard -- a fatal equality test -- is False on every part of every run.
+      src = _invert_node_index(node_index, order)  # {"n7": 1234} -- THE shared helper
+      # Never inline this comprehension: node_index keys are decimal STRINGS, and the
+      # `src` guard is a fatal equality test. One spelling at both sites, or the
+      # feature is permanently blocked by a spurious re-export error.
       state["parts"] = [e for e in state["parts"] if int(e["order"]) != order]
-      state["parts"].append({"order": order, "node_map": report["node_map"], "src": src})
-      write LINK_STATE_NAME                               # status stays "collecting"
+      state["parts"].append({"order": order, "node_map": report["node_map"],
+                             "src": src, "rewritten": False})
+      state["status"] = "collecting"   # a RE-graft after "applied" must re-arm the pass
+      write LINK_STATE_NAME            # via <name>.tmp + os.replace, never truncate-in-place
   # wrapped in its own `except OSError` -> log + CommandError with the resume hint
 
 TRIGGER -- TWO SITES, TWO PREDICATES (see §trigger; conflating them is fatal either way)
@@ -894,7 +1004,9 @@ FINAL PASS (once)
           if join.content_object is None: continue  #   order_by("pk"); abbreviated here
           changed, flattened = rewrite_instance(join.content_object, mapping, on_missing="unwrap")
           if changed: join.content_object.save(update_fields=changed)
-  state["status"] = "applied"; state["rewrite"] = {...}; write   # AFTER the commit
+  mark every pending order "rewritten": true
+  state["status"] = "applied" if no order is still pending else "collecting"
+  state["rewrite"] = {...}; write                   # AFTER the commit
 
 RESOLVE (terminal, top of _import, before the baseline/double-run guards; grafts nothing)
   --resolve-rewrite applied      -> status="applied", rewrite={"resolved_by_operator": true}; return
@@ -933,9 +1045,21 @@ coverage rather than a note:
   unchanged and no body was re-edited), and still prints the existing "nothing to do … already
   complete" line that `test_start_at_beyond_all_parts_reports_nothing_to_do`
   (`tests/test_migrate_course_content.py:572`) asserts.
+- **The repair resume — a part re-grafted after the pass already applied.** Run a full `export` →
+  `import` (pass applies, `status == "applied"`), delete one part's top-level node from the target,
+  then `import --start-at K`. The re-grafted part's links must resolve to their new pks, and the
+  already-rewritten parts' bodies must be **byte-identical to before** — the second half is what
+  catches a fix that simply re-runs the whole pass and re-applies an old-pk map over rewritten hrefs.
+  Falsify by making `rewritten` a single top-level flag: the re-grafted part's hrefs then keep source
+  pks and the test goes RED. Note this sequence is exactly `test_start_at_grafts_only_the_remainder`
+  (`tests/test_migrate_course_content.py:432`), which is green today and must stay green.
 - `--force` grafting into a target that already holds linked content: the pre-existing bodies are
   **untouched**, since the pass is scoped to the nodes the state file records as created by this
   migration.
+- **A fail-closed body** — an element whose `stem` holds an unmatched `<a>` and a second, well-formed
+  internal link — survives the pass byte-identical, is recorded in `rewrite["fail_closed_elements"]`,
+  and makes `verify` report it **without** raising. Falsify by dropping the subtraction: `verify`
+  then raises with no remedy available.
 
 **The export side**, which nothing above touches:
 
@@ -955,10 +1079,12 @@ written; if a condition is added there, a case is added here:
 - A state file marked `in_progress` → `CommandError` from `verify`, and from `import` **on the resume
   path** (name the branch: pass `--start-at`; a plain `start_at is None` re-run overwrites the file
   instead, per step 3, and must be asserted separately). The probe reading appears in the message.
-  Recovery is **one `call_command` invocation**: `--resolve-rewrite not-applied` with no `--start-at`
-  and no `--force` — it must not trip the `:401` double-run guard, and after it returns the pass has
-  run and the links resolve. Assert there is no second invocation, since the two-step form is
-  unreachable (§Crash-safe). Separately, `--resolve-rewrite applied` on a `collecting` file is itself a
+  Recovery is **one `call_command` invocation**: `--resolve-rewrite not-applied` **with
+  `--target-slug` and `--as-user`** (both required by `:369-383`) but no `--start-at` and no
+  `--force` — it must not trip the `:401` double-run guard, and after it returns the pass has run and
+  the links resolve. Assert there is no second invocation, since the two-step form is unreachable
+  (§Crash-safe). Assert too that omitting `--as-user` raises, so the documented invocation is pinned
+  against the real required-argument gate rather than the spec's prose. Separately, `--resolve-rewrite applied` on a `collecting` file is itself a
   `CommandError`, and `export --resolve-rewrite applied` is rejected by the flag matrix — extend the
   existing `test_export_refuses_import_only_flags` (`tests/test_migrate_course_content.py:284`), which
   exercises `_reject_foreign_flags` at `migrate_course_content.py:180-190`, rather than writing a new
@@ -1006,7 +1132,18 @@ written; if a condition is added there, a case is added here:
   transaction" ordering is untested.
 - `--resolve-rewrite` with `--start-at`, with `--force`, and with `--dry-run` → `CommandError` in each
   case; `--dry-run` additionally must leave the state file byte-identical.
-- `--dry-run` over a bundle with an existing state file leaves that file byte-identical.
+- `--dry-run` leaves an existing state file byte-identical, in **both** write paths, and the flag each
+  case needs must be named — a bare `import --dry-run` over a bundle whose parts are already committed
+  hits `:401` first (which fires regardless of `dry_run`, since `:408`'s gate is downstream) and would
+  pass vacuously on the wrong error. So: `--dry-run --force` falsifies step 3's gate, and
+  `--dry-run --start-at K` falsifies step 4's path.
+- The state file is written via a temp file plus `os.replace`, not truncate-in-place: falsify by
+  pointing the write at the real name and killing it mid-write, which must not be able to leave
+  truncated JSON that the next invocation rejects.
+- `--resolve-rewrite not-applied` whose pass then fails the `src` guard leaves the file **still
+  `in_progress`**, so the same command can be run again after the operator repairs the bundle.
+  Falsify by persisting `collecting` before the pass: the second invocation is then refused and the
+  migration is stuck.
 
 **Verify's link reconciliation:** a target whose migrated scope is hand-mutated to hold an internal
 href pointing at a pk that is not a `ContentNode` of the target course → `verify` raises
