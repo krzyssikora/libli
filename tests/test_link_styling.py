@@ -12,10 +12,32 @@ COURSES_CSS = (
 )
 
 
-def test_internal_and_external_markers_exist():
+# Each literal below is anchored to a rule OPENING (leading "\n", trailing "{\n"), not
+# just a selector fragment. A bare '.el a[href^="/courses/n/"]' is a substring of BOTH
+# the base rule and its "::before" compound selector -- the same vacuous-match trap the
+# plan calls out elsewhere ('.outline-node {' also matching
+# '.outline-tree > ul > .outline-node {'). The space before "{" in INTERNAL_BASE_RULE is
+# what excludes the "::before" variant, which has no space there.
+INTERNAL_BASE_RULE = '\n.el a[href^="/courses/n/"] {\n'
+INTERNAL_GLYPH_RULE = '\n.el a[href^="/courses/n/"]::before {\n'
+EXTERNAL_GLYPH_RULE = '\n.el a[href^="http"]::after {\n'
+
+
+def test_internal_link_base_rule_exists():
+    # The colour/underline affordance. Deleting only this rule (leaving the ::before
+    # glyph rule intact) must fail this test -- see falsification in the task report.
     css = COURSES_CSS.read_text(encoding="utf-8")
-    assert '.el a[href^="/courses/n/"]' in css
-    assert '.el a[href^="http"]' in css
+    assert INTERNAL_BASE_RULE in css
+
+
+def test_internal_link_glyph_rule_exists():
+    css = COURSES_CSS.read_text(encoding="utf-8")
+    assert INTERNAL_GLYPH_RULE in css
+
+
+def test_external_link_glyph_rule_exists():
+    css = COURSES_CSS.read_text(encoding="utf-8")
+    assert EXTERNAL_GLYPH_RULE in css
 
 
 def test_css_prefix_matches_the_route():
@@ -24,4 +46,4 @@ def test_css_prefix_matches_the_route():
     # test green while silently stripping the marker off every internal link.
     prefix = "/courses/n/"
     assert reverse("courses:node_permalink", kwargs={"node_pk": 1}).startswith(prefix)
-    assert '.el a[href^="' + prefix + '"]' in COURSES_CSS.read_text(encoding="utf-8")
+    assert INTERNAL_BASE_RULE in COURSES_CSS.read_text(encoding="utf-8")
