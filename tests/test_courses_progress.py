@@ -11,6 +11,7 @@ from tests.factories import GroupFactory
 from tests.factories import UnitProgressFactory
 from tests.factories import add_element
 from tests.factories import make_login
+from tests.factories import make_verified_user
 
 
 def _seen_url(slug, pk):
@@ -457,3 +458,69 @@ def test_previewer_mark_lights_outline_badge_and_footer_counter(client):
     # Read it through the real view's context rather than parsing HTML:
     # full_lesson_render_context sets ctx["unit_nav"] = build_unit_nav(...).
     assert r_lesson.context["unit_nav"]["course_progress"]["done"] > 0
+
+
+@pytest.mark.django_db
+def test_off_roster_previewer_absent_from_matrix_and_drilldown(client):
+    from django.test import Client
+
+    from courses.models import UnitProgress
+    from courses.rollups import build_progress_matrix
+    from grouping.scoping import students_in_scope
+
+    # Two DISTINCT users: the course owner is itself one of test 5's can_access
+    # routes, so casting one user as both silently makes the session switch a no-op.
+    previewer = make_login(client, "prev10")
+    previewer.is_staff = True
+    previewer.save()
+    resolver_client = Client()
+    resolver = make_login(resolver_client, "owner10")
+    # PIN THE FIXTURE, not just the role: CourseFactory sets no owner, so a "resolver"
+    # never assigned as one is neither PA nor owner, can_review_course returns False,
+    # and the drill-down 404s UNCONDITIONALLY -- step 2 would pass for the wrong
+    # reason and step 4 would fail against correct behaviour.
+    course = CourseFactory(slug="p10", owner=resolver)
+    unit, ids = _make_unit_with_elements(course, 1)  # obligatory lesson by default
+
+    # A genuinely enrolled control student: without one the roster is empty, rows ==
+    # [], and "the previewer is not a row" is true of an empty matrix rather than of
+    # any scoping.
+    control = make_verified_user(username="control10", email="c10@test.example.com")
+    EnrollmentFactory(student=control, course=course)
+
+    # (1) The previewer marks the unit done, via their OWN POST, while off-roster.
+    client.post(reverse("courses:complete", kwargs={"slug": "p10", "node_pk": unit.pk}))
+    # Pin that the POST actually WROTE. Without this, every assertion below is
+    # satisfied by the roster mechanism alone and holds whether or not the write
+    # landed -- so if complete() ever regains an enrollment gate, this test stays
+    # green while its claim silently degrades to "a previewer holding nothing is
+    # invisible", which is not the containment claim the spec rests on.
+    assert UnitProgress.objects.get(student=previewer, unit=unit).completed is True
+
+    # (2) Matrix: populated, but omits the previewer. students_in_scope is resolved
+    # inline at each call site here, so no stale cache can exist -- see Task 11 for
+    # the two-sided case where re-resolving across the enrollment is load-bearing.
+    matrix = build_progress_matrix(
+        course, list(students_in_scope(resolver, course, "all"))
+    )
+    row_students = [row["student"] for row in matrix["rows"]]
+    assert control in row_students
+    assert previewer not in row_students
+    # The control's percent must be NOT-NONE rather than non-zero: they hold no
+    # completion, so _pct(0, total) gives a legitimate 0. None is what an empty
+    # all_lesson_pks would produce, so None is the discriminator.
+    control_row = next(r for r in matrix["rows"] if r["student"] == control)
+    assert control_row["overall"]["percent"] is not None
+
+    #     Drill-down: a different mechanism (view-level resolution, no roster filter).
+    drill_url = reverse(
+        "courses:manage_analytics_student",
+        kwargs={"slug": "p10", "student_pk": previewer.pk},
+    )
+    assert resolver_client.get(drill_url).status_code == 404
+
+    # (3) Enroll the previewer.
+    EnrollmentFactory(student=previewer, course=course)
+
+    # (4) The drill-down now resolves.
+    assert resolver_client.get(drill_url).status_code == 200
