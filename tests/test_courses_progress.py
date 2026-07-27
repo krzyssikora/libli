@@ -418,3 +418,42 @@ def test_unrelated_logged_in_user_is_denied(client):
 
     assert r.status_code == 403
     assert not UnitProgress.objects.filter(student=stranger, unit=unit).exists()
+
+
+@pytest.mark.django_db
+def test_previewer_mark_lights_outline_badge_and_footer_counter(client):
+    staff = make_login(client, "staff9")
+    staff.is_staff = True
+    staff.save()
+    course = CourseFactory(slug="p9")
+    # ContentNode.obligatory defaults to True, which the footer half REQUIRES:
+    # course_progress.done sums required_done, set only when is_obligatory_lesson(node).
+    unit, ids = _make_unit_with_elements(course, 1)
+
+    # PROVENANCE: the row must come from the previewer's OWN POST. Seeding it with
+    # UnitProgressFactory(completed=True) yields a green test whose diff-local
+    # falsification below cannot redden.
+    client.post(reverse("courses:complete", kwargs={"slug": "p9", "node_pk": unit.pk}))
+
+    # (1) The course outline page -> the unit's own row carries the done marker.
+    r_outline = client.get(reverse("courses:course_outline", kwargs={"slug": "p9"}))
+    assert r_outline.status_code == 200
+    # Parse the subtree, same as the four sibling tests. outline.html renders the
+    # WHOLE course tree and _outline_node.html emits an identical marker for every
+    # completed unit, so a body-wide check false-passes the moment any other unit is
+    # complete. _outline_node.html:3 puts data-unit on the <li>; :5 puts
+    # outline-unit--done on that unit's own <a>.
+    li = BeautifulSoup(r_outline.content, "html.parser").select_one(
+        f'li[data-unit="{unit.pk}"]'
+    )
+    assert li is not None
+    assert li.select_one("a.outline-unit--done") is not None
+
+    # (2) The lesson unit page -> the footer's course-progress counter is non-zero.
+    r_lesson = client.get(
+        reverse("courses:lesson_unit", kwargs={"slug": "p9", "node_pk": unit.pk})
+    )
+    assert r_lesson.status_code == 200
+    # Read it through the real view's context rather than parsing HTML:
+    # full_lesson_render_context sets ctx["unit_nav"] = build_unit_nav(...).
+    assert r_lesson.context["unit_nav"]["course_progress"]["done"] > 0
