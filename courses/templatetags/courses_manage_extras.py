@@ -203,3 +203,18 @@ def kind_label(kind):
     Example: 'chapter' -> 'Chapter' (en) / 'Rozdział' (pl).
     """
     return ContentNode.Kind(kind).label
+
+
+@register.filter
+def in_set(value, container):
+    """`{% include ... with is_open=node.pk|in_set:open_ids %}`.
+
+    A filter, because an {% include %} `with` argument cannot contain an `in`
+    expression. Django's smartif swallows errors in `{% if x in y %}`, so a
+    missing container renders silently-collapsed rather than loudly -- this
+    filter fails the same way by design, matching the template's behaviour.
+    """
+    try:
+        return value in (container or ())
+    except TypeError:
+        return False

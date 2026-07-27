@@ -19,7 +19,8 @@
     </header>
     {% include "courses/manage/_structure_legend.html" with course=course %}
     <p class="helptext">{% trans "Add a slide break to split this unit into a slideshow." %}</p>
-    {% include "courses/manage/_scope.html" with scope_id="top" scope_updated=course.updated.isoformat nodes=top_nodes children_map=children_map parent_kind=None %}
+    {% if info %}<ul class="builder__info" role="status">{% for entry in info %}<li data-info-key="{{ entry.key }}">{{ entry.text }}</li>{% endfor %}</ul>{% endif %}
+    {% include "courses/manage/_scope.html" with scope_id="top" scope_updated=course.updated.isoformat nodes=top_nodes children_map=children_map parent_kind=None open_ids=open_ids %}
   </div>
   <div class="builder__panel" data-panel>
     {% include "courses/manage/_course_panel.html" with course=course %}

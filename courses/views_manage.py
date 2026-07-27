@@ -15,10 +15,13 @@ from django.utils.translation import gettext_lazy
 from django.views.decorators.http import require_POST
 
 from courses import builder as builder_svc
+from courses import builder_open  # for builder_open.CEILING -- see below
 from courses.access import can_manage_course
 from courses.access import get_node_or_404  # reuse 1a's IDOR-safe resolver
 from courses.builder_open import LAST_NODE_KEY
 from courses.builder_open import SESSION_SLUG_LIMIT
+from courses.builder_open import container_pks
+from courses.builder_open import open_ids as _open_ids
 from courses.forms import CourseForm
 from courses.forms import SubjectForm
 from courses.models import ChoiceQuestionElement
@@ -162,15 +165,15 @@ def builder(request, slug):
     if not can_manage_course(request.user, course):
         raise PermissionDenied
     cmap = _children_map(course)
-    return render(
-        request,
-        "courses/manage/builder.html",
-        {
-            "course": course,
-            "children_map": cmap,
-            "top_nodes": cmap.get(None, []),
-        },
-    )
+    opened = _open_ids(request, course, cmap, mode="page")
+    context = {
+        "course": course,
+        "children_map": cmap,
+        "top_nodes": cmap.get(None, []),
+        "open_ids": opened.ids,
+        "info": _info_entries(opened),
+    }
+    return render(request, "courses/manage/builder.html", context)
 
 
 @login_required
@@ -205,10 +208,12 @@ def _require_manage(request, slug):
     return course
 
 
-def _render_scope(request, course, scope_ref):
+def _render_scope(request, course, scope_ref, *, extra_open=()):
     """Re-render a single scope <ol> (root carries data-scope). scope_ref is a parent
     pk or 'top'. Used for 200 success and 409 fresh-fragment on single-scope ops."""
     cmap = _children_map(course)
+    opened = _open_ids(request, course, cmap, mode="fragment")
+    ids = set(opened.ids) | _extra_container_pks(extra_open, cmap)
     if scope_ref == "top":
         nodes, updated, parent_kind = (
             cmap.get(None, []),
@@ -220,18 +225,46 @@ def _render_scope(request, course, scope_ref):
         nodes = cmap.get(int(scope_ref), [])
         updated = parent.updated.isoformat() if parent else course.updated.isoformat()
         parent_kind = parent.kind if parent else None
-    return render(
-        request,
-        "courses/manage/_scope.html",
+    context = {
+        "scope_id": scope_ref,
+        "scope_updated": updated,
+        "parent_kind": parent_kind,
+        "nodes": nodes,
+        "children_map": cmap,
+        "course": course,
+        "open_ids": ids,
+    }
+    return render(request, "courses/manage/_scope.html", context)
+
+
+def _info_entries(opened):
+    """Keyed, so an incoming entry REPLACES rather than stacks."""
+    if not opened.truncated:
+        return []
+    return [
         {
-            "scope_id": scope_ref,
-            "scope_updated": updated,
-            "parent_kind": parent_kind,
-            "nodes": nodes,
-            "children_map": cmap,
-            "course": course,
-        },
-    )
+            "key": "truncation",
+            # Read through the MODULE, not a value imported at import time:
+            # tests monkeypatch courses.builder_open.CEILING, and a by-value
+            # import would make the notice claim 500 while _finalize truncated
+            # at the patched number.
+            # "scopes", not "sections": `section` is a real ContentNode.Kind here,
+            # and a truncated set is mostly parts and chapters. Getting this
+            # wrong costs a second catalog round after Task 12's makemessages.
+            "text": _("Only the first %(limit)s scopes were opened.")
+            % {"limit": builder_open.CEILING},
+        }
+    ]
+
+
+def _extra_container_pks(extra_open, cmap):
+    """Effect 1 of extra_open: union into the open set, unit pks dropped.
+
+    Effect 2 (re-inserting into a filtered map) is slice 2 -- see spec
+    section 9. Callers pass EVERY created/moved pk whatever its kind; the kind
+    filter lives here, not at the call site.
+    """
+    return set(extra_open) & container_pks(cmap)
 
 
 def _render_tree(request, course, status=200):
@@ -528,17 +561,16 @@ def _builder_with_notice(request, course, message, status):
     """No-JS error response: re-render the WHOLE builder page with a notice (spec
     §No-JS fallback: 'stale token re-renders the full builder page with the notice')."""
     cmap = _children_map(course)
-    return render(
-        request,
-        "courses/manage/builder.html",
-        {
-            "course": course,
-            "children_map": cmap,
-            "top_nodes": cmap.get(None, []),
-            "notice": message,
-        },
-        status=status,
-    )
+    opened = _open_ids(request, course, cmap, mode="notice")
+    context = {
+        "course": course,
+        "children_map": cmap,
+        "top_nodes": cmap.get(None, []),
+        "notice": message,
+        "open_ids": opened.ids,
+        "info": _info_entries(opened),
+    }
+    return render(request, "courses/manage/builder.html", context, status=status)
 
 
 def _conflict_scope(request, course, node_pk):

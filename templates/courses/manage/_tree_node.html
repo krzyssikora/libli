@@ -2,6 +2,11 @@
 <li class="tree__row" data-node="{{ node.pk }}" data-updated="{{ node.updated.isoformat }}"
     data-kind="{{ node.kind }}" data-parent="{{ node.parent_id|default:'top' }}">
   <div class="tree__rowhead">
+    {% if node.kind != "unit" %}
+      {% include "courses/manage/_tree_toggle.html" with node=node is_open=node.pk|in_set:open_ids kids=children_map|get_item:node.pk %}
+    {% else %}
+      <span class="tree__toggle tree__toggle--leaf" aria-hidden="true"></span>
+    {% endif %}
     {% if node.kind == "unit" and node.unit_type == "lesson" %}
     <span class="tree__badge tree__badge--unit tree__badge--lesson" title="{{ node.get_unit_type_display }}">L</span>
     {% elif node.kind == "unit" and node.unit_type == "quiz" %}
@@ -41,6 +46,8 @@
     </span>
   </div>
   {% if node.kind != "unit" %}
-    {% include "courses/manage/_scope.html" with scope_id=node.pk scope_updated=node.updated.isoformat nodes=children_map|get_item:node.pk children_map=children_map parent_kind=node.kind %}
+    {% if node.pk in open_ids %}
+      {% include "courses/manage/_scope.html" with scope_id=node.pk scope_updated=node.updated.isoformat nodes=children_map|get_item:node.pk children_map=children_map parent_kind=node.kind open_ids=open_ids %}
+    {% endif %}
   {% endif %}
 </li>
