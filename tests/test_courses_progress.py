@@ -6,6 +6,7 @@ from django.urls import reverse
 from tests.factories import ContentNodeFactory
 from tests.factories import CourseFactory
 from tests.factories import EnrollmentFactory
+from tests.factories import UnitProgressFactory
 from tests.factories import make_login
 
 
@@ -142,3 +143,56 @@ def test_previewer_complete_persists_and_redirects(client):
     row = UnitProgress.objects.get(student=staff, unit=unit)
     assert row.completed is True
     assert row.completed_at is not None
+
+
+@pytest.mark.django_db
+def test_previewer_complete_over_checklist_row_preserves_practice_state(client):
+    from courses.models import UnitProgress
+
+    staff = make_login(client, "staff1b")
+    staff.is_staff = True
+    staff.save()
+    course = CourseFactory(slug="pcb")
+    unit, ids = _make_unit_with_elements(course, 1)
+    # STRING keys: element_state is a JSONField, so an int-keyed seed round-trips as
+    # {"<pk>": ...} and comparing to the in-memory literal would fail against CORRECT
+    # code. This is production shape -- save_element_state stores str(element_pk).
+    seeded = {str(ids[0]): {"checked": True}}
+    # Both student= and unit= are mandatory: they are SubFactory fields, and omitting
+    # them mints a row for an unrelated user on an unrelated node.
+    UnitProgressFactory(student=staff, unit=unit, completed=False, element_state=seeded)
+
+    client.post(reverse("courses:complete", kwargs={"slug": "pcb", "node_pk": unit.pk}))
+
+    row = UnitProgress.objects.get(student=staff, unit=unit)
+    assert row.completed is True
+    assert row.completed_at is not None
+    assert row.element_state == seeded
+
+
+@pytest.mark.django_db
+def test_enrolled_complete_over_existing_row_preserves_state_and_seen_ids(client):
+    from courses.models import UnitProgress
+
+    student = make_login(client, "enr1c")
+    course = CourseFactory(slug="pcc")
+    EnrollmentFactory(student=student, course=course)
+    unit, ids = _make_unit_with_elements(course, 1)
+    seeded_state = {str(ids[0]): {"checked": True}}
+    # seen_element_ids is the column the lost-update argument actually centres on:
+    # `seen` is the unhardened full-row writer, and only an ENROLLED row realistically
+    # carries a non-empty seen-set (a previewer never reaches seen's write).
+    UnitProgressFactory(
+        student=student,
+        unit=unit,
+        completed=False,
+        element_state=seeded_state,
+        seen_element_ids=[ids[0]],
+    )
+
+    client.post(reverse("courses:complete", kwargs={"slug": "pcc", "node_pk": unit.pk}))
+
+    row = UnitProgress.objects.get(student=student, unit=unit)
+    assert row.completed is True
+    assert row.element_state == seeded_state
+    assert row.seen_element_ids == [ids[0]]
