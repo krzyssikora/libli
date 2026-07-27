@@ -54,13 +54,21 @@ nothing else -- see the dismissal handler in link_dialog.js.{% endcomment %}
     <div class="picker__panel" role="tabpanel" id="link-panel-url"
          aria-labelledby="link-tab-url" data-panel="url" hidden>
       <label class="field">{% trans "Web address" %}
-        <input type="url" class="input" data-link-url>
+        <input type="url" class="input" data-link-url aria-invalid="false"
+               aria-describedby="link-msg-scheme link-msg-protocol-relative link-msg-relative">
       </label>
-      <p class="link-dialog__msg link-dialog__msg--error" data-msg="scheme" hidden>
+      {% comment %}role="alert" makes each paragraph its own live region, announced the
+      moment link_dialog.js unhides it -- the node panel's aria-live region has no url-tab
+      counterpart otherwise, and insertBtn is disabled (so unreachable by Tab) when one of
+      these is showing, leaving nothing else to announce the rejection.{% endcomment %}
+      <p class="link-dialog__msg link-dialog__msg--error" id="link-msg-scheme"
+         role="alert" data-msg="scheme" hidden>
         {% trans "Only http, https and mailto addresses are allowed." %}</p>
-      <p class="link-dialog__msg link-dialog__msg--error" data-msg="protocol-relative" hidden>
+      <p class="link-dialog__msg link-dialog__msg--error" id="link-msg-protocol-relative"
+         role="alert" data-msg="protocol-relative" hidden>
         {% trans "Add https:// to the front of this address." %}</p>
-      <p class="link-dialog__msg link-dialog__msg--error" data-msg="relative" hidden>
+      <p class="link-dialog__msg link-dialog__msg--error" id="link-msg-relative"
+         role="alert" data-msg="relative" hidden>
         {% trans "That is not a web address. Use the other tab to link inside this course." %}</p>
     </div>
 

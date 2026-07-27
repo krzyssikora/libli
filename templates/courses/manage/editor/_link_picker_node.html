@@ -7,8 +7,10 @@ would be a sibling of the item it belongs to and no item would own a subtree. Th
 not a <button>: role="treeitem" overrides button semantics anyway, and link_dialog.js
 implements Enter/Space and roving tabindex by hand. What matters is that it is focusable
 and keyboard-operable.{% endcomment %}
+{% with children=children_map|get_item:n.pk %}
 <li class="link-picker__item" role="treeitem"
     aria-level="{{ level }}" aria-selected="false" tabindex="-1"
+    {% if children %}aria-expanded="true"{% endif %}
     data-node="{{ n.pk }}" data-title="{{ n.title }}"
     data-href="{% url 'courses:node_permalink' node_pk=n.pk %}">
   <span class="link-picker__row">
@@ -23,13 +25,12 @@ and keyboard-operable.{% endcomment %}
     {% endif %}
     <span class="link-picker__title">{{ n.title }}</span>
   </span>
-  {% with children=children_map|get_item:n.pk %}
-    {% if children %}
-      <ol class="link-picker__scope" role="group">
-        {% for child in children %}
-          {% include "courses/manage/editor/_link_picker_node.html" with n=child children_map=children_map level=level|add:1 %}
-        {% endfor %}
-      </ol>
-    {% endif %}
-  {% endwith %}
+  {% if children %}
+    <ol class="link-picker__scope" role="group">
+      {% for child in children %}
+        {% include "courses/manage/editor/_link_picker_node.html" with n=child children_map=children_map level=level|add:1 %}
+      {% endfor %}
+    </ol>
+  {% endif %}
 </li>
+{% endwith %}

@@ -37,8 +37,13 @@
     var el = dialog.querySelector('[data-msg="' + key + '"]');
     if (el) el.hidden = !on;
   }
-  function clearMessages() {
-    var all = dialog.querySelectorAll("[data-msg]");
+  // scope defaults to the whole dialog (a full reset -- loadTree/paint/open all want
+  // that). urlEl's own input handler passes ITS panel only: every [data-msg] element
+  // lives inside exactly one panel, and the node panel's "fetch" message holds the
+  // Retry button -- an unscoped clear from a keystroke on the OTHER tab hides that
+  // button with no way to bring it back except closing and reopening the dialog.
+  function clearMessages(scope) {
+    var all = (scope || dialog).querySelectorAll("[data-msg]");
     for (var i = 0; i < all.length; i++) all[i].hidden = true;
   }
 
@@ -145,6 +150,15 @@
     // Debounced: a polite region that changes every keystroke queues one utterance per
     // character and drowns the "No matches." case it exists for.
     clearTimeout(filterTimer);
+    if (!q) {
+      // No filter, nothing to announce -- an empty query means "every row shown",
+      // which nobody asked a screen reader about. Without this, ~400ms after EVERY
+      // open() (applyFilter runs once from paint(), always with q === "") the live
+      // region reads out the whole tree's row count unprompted.
+      countEl.hidden = true;
+      countEl.textContent = "";
+      return;
+    }
     filterTimer = setTimeout(function () {
       // Announce a COUNT WITH A LABEL, never a naked digit. The zero-match line lives
       // inside this same region, so entering and leaving that state is announced too.
@@ -242,9 +256,11 @@
     insertBtn.disabled = !(currentHref() && textEl.value.trim());
   }
   urlEl.addEventListener("input", function () {
-    clearMessages();
+    clearMessages(urlEl.closest(".picker__panel"));
     var res = window.libliLinkApply.normalizeUrl(urlEl.value, window.location.origin);
-    if (res.reject && urlEl.value.trim()) msg(res.reject, true);
+    var bad = !!(res.reject && urlEl.value.trim());
+    if (bad) msg(res.reject, true);
+    urlEl.setAttribute("aria-invalid", bad ? "true" : "false");
     refresh();
   });
   // Normalise IN THE FIELD on blur, not inside the insert handler: commit() closes the
@@ -277,8 +293,19 @@
   // e.target === dialog means the backdrop and never the card's own padding. (Note
   // imagezoom.js closes on EVERY click inside it -- copying that here would make this
   // dialog unusable.)
+  //
+  // click's target is the nearest common ancestor of mousedown and mouseup, NOT
+  // wherever the mouse went down -- so selecting text in the URL field and dragging
+  // the mouse up past the card's edge fires a click whose target IS the dialog, even
+  // though the gesture started inside the input. MEASURED in Chromium. Requiring the
+  // mousedown to have ALSO landed on the backdrop confines this to an actual backdrop
+  // click.
+  var backdropMousedown = false;
+  dialog.addEventListener("mousedown", function (e) {
+    backdropMousedown = e.target === dialog;
+  });
   dialog.addEventListener("click", function (e) {
-    if (e.target === dialog) dialog.close();
+    if (e.target === dialog && backdropMousedown) dialog.close();
   });
 
   // Every dismissal path routes through ONE close handler, which fires the callback
@@ -306,6 +333,7 @@
       // the previous session's target and filter.
       filterEl.value = "";
       urlEl.value = "";
+      urlEl.setAttribute("aria-invalid", "false");
       textEl.value = "";
       var all = rows();
       for (var i = 0; i < all.length; i++) {

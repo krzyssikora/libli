@@ -47,12 +47,26 @@ def test_row_href_equals_reverse(client):
 def test_unit_rows_distinguish_lesson_from_quiz(client):
     # The permalink sends a lesson and a quiz to DIFFERENT pages, so an author
     # choosing a target must be able to tell them apart. Mirrors _tree_node.html.
-    course, _part, _chapter, _lesson, _quiz = _tree(client)
+    #
+    # tree__badge--quiz/--lesson carry no CSS rule anywhere (editor.css nor
+    # builder.css) -- the only distinction an author actually SEES is the L/Q letter.
+    # A class-only assertion stays green even if both badges rendered the same
+    # letter, so check the visible text too.
+    from bs4 import BeautifulSoup
+
+    course, _part, _chapter, lesson, quiz = _tree(client)
     html = client.get(
         reverse("courses:manage_link_picker", kwargs={"slug": course.slug})
     ).content.decode()
     assert "tree__badge--lesson" in html
     assert "tree__badge--quiz" in html
+
+    soup = BeautifulSoup(html, "html.parser")
+    row = ".link-picker__row .tree__badge"
+    lesson_badge = soup.select_one(f'[data-node="{lesson.pk}"] > {row}')
+    quiz_badge = soup.select_one(f'[data-node="{quiz.pk}"] > {row}')
+    assert lesson_badge.get_text(strip=True) == "L"
+    assert quiz_badge.get_text(strip=True) == "Q"
 
 
 def test_rows_are_treeitems_owning_their_children(client):
@@ -74,6 +88,27 @@ def test_rows_are_treeitems_owning_their_children(client):
     item_start = html.index('role="treeitem"')
     group_start = html.index('role="group"')
     assert group_start > item_start
+
+
+def test_parent_treeitems_expose_aria_expanded_true(client):
+    # A treeitem owning a group should expose expanded state; the tree is permanently
+    # expanded so aria-expanded="true" on rows that HAVE children is the whole fix.
+    # Leaf rows (no group) must not claim an expanded/collapsed state they don't have.
+    from bs4 import BeautifulSoup
+
+    course, part, chapter, lesson, quiz = _tree(client)
+    html = client.get(
+        reverse("courses:manage_link_picker", kwargs={"slug": course.slug})
+    ).content.decode()
+    soup = BeautifulSoup(html, "html.parser")
+
+    for node in (part, chapter):
+        row = soup.select_one(f'[data-node="{node.pk}"]')
+        assert row.get("aria-expanded") == "true", node.title
+
+    for node in (lesson, quiz):
+        row = soup.select_one(f'[data-node="{node.pk}"]')
+        assert row.get("aria-expanded") is None, node.title
 
 
 def test_response_is_a_bare_partial(client):

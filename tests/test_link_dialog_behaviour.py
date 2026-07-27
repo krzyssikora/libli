@@ -322,6 +322,35 @@ def test_every_dismissal_path_fires_the_callback_exactly_once(dialog_page, how):
     assert dialog_page.evaluate("() => window.__result") is None
 
 
+def test_dragging_a_selection_out_of_the_url_field_does_not_close_the_dialog(
+    dialog_page,
+):
+    # click's target is the nearest common ancestor of mousedown and mouseup, not
+    # e.target of either alone. Selecting text in the URL field and dragging the
+    # mouse up past the card's edge -- mousedown INSIDE the input, mouseup on the
+    # backdrop -- fires a click whose target IS the dialog, even though the gesture
+    # never touched the backdrop on the way down. MEASURED in Chromium. This is a
+    # real drag gesture (mouse.move -> down -> move -> up), not a synthetic click.
+    _open(dialog_page)
+    dialog_page.locator("[data-tab='url']").click()
+    url_input = dialog_page.locator("[data-link-url]")
+    url_input.fill("https://example.com/kept")
+
+    box = url_input.bounding_box()
+    dialog_box = dialog_page.locator(".link-dialog").bounding_box()
+    x, y = 10, 10
+    assert x < dialog_box["x"] or y < dialog_box["y"], (x, y, dialog_box)
+
+    dialog_page.mouse.move(box["x"] + box["width"] / 2, box["y"] + box["height"] / 2)
+    dialog_page.mouse.down()
+    dialog_page.mouse.move(x, y)
+    dialog_page.mouse.up()
+
+    assert dialog_page.evaluate("() => window.__calls") == 0
+    assert dialog_page.locator(".link-dialog").is_visible()
+    assert url_input.input_value() == "https://example.com/kept"
+
+
 def test_a_second_open_while_pending_is_rejected(dialog_page):
     _open(dialog_page)
     dialog_page.evaluate(
@@ -402,10 +431,28 @@ def test_no_match_hides_the_tree_and_says_so(dialog_page):
 def test_the_live_region_announces_a_labelled_count(dialog_page):
     _open(dialog_page)
     dialog_page.locator("[data-link-filter]").fill("quad")
-    dialog_page.wait_for_timeout(600)  # past the 400ms debounce
+    # A retrying predicate on the observable result, not a fixed sleep sampling a
+    # 400ms debounce -- this file runs under xdist and every other wait here is a
+    # predicate for exactly that reason.
+    dialog_page.wait_for_function(
+        "() => (document.querySelector('[data-link-count]').textContent || '')"
+        ".trim().indexOf('1 ') === 0"
+    )
     text = dialog_page.locator("[data-link-count]").inner_text().strip()
     assert text.startswith("1 ")
     assert len(text) > 2, "a naked digit is not an announcement"
+
+
+def test_the_live_region_stays_silent_when_the_filter_is_empty(dialog_page):
+    # applyFilter() runs once from paint() on every open(), with q === "" -- without
+    # the empty-filter guard, ~400ms after every open the region announces e.g.
+    # "2 matches found" for a course nobody searched.
+    _open(dialog_page)
+    dialog_page.wait_for_timeout(600)  # past the 400ms debounce; proving a NEGATIVE,
+    # so a slow CI cannot produce a false pass here the way it could a false wait.
+    count_el = dialog_page.locator("[data-link-count]")
+    assert count_el.is_hidden()
+    assert count_el.inner_text().strip() == ""
 
 
 def test_filter_keeps_ancestor_context_and_hides_dead_branches(dialog_page):
@@ -525,3 +572,34 @@ def test_dismissing_mid_fetch_does_not_paint_a_fetch_error(page, db):
     )
     page.locator("[data-link-cancel]").click()
     assert page.locator("[data-msg='fetch']").is_hidden()
+
+
+def test_switching_tabs_after_a_failed_fetch_does_not_strand_retry(page, db):
+    # The Retry button lives INSIDE <p data-msg="fetch"> (the node panel), so an
+    # unscoped clearMessages() hides that whole paragraph -- button included. Repro:
+    # tree fetch fails -> author switches to the URL tab -> types one character (which
+    # used to call the unscoped clearMessages()) -> switching back to the node tab
+    # shows an empty bordered box with no error and no way to retry.
+    from tests.factories import CourseFactory
+
+    course = CourseFactory()
+    markup = render_to_string(
+        "courses/manage/editor/_link_dialog.html", {"course": course}
+    )
+    page.set_content(f"{BASE}<main>{markup}</main>")
+    page.route("**/link-picker/", lambda route: route.fulfill(status=500, body="nope"))
+    page.add_script_tag(path=str(JS_DIR / "link_apply.js"))
+    page.add_script_tag(path=str(JS_DIR / "link_dialog.js"))
+    page.evaluate(
+        "() => window.libliLinkDialog.open("
+        "{existing: null, touchedAnchors: 0, selectionText: ''}, () => {})"
+    )
+    page.locator("[data-msg='fetch']").wait_for()
+    assert page.locator("[data-link-retry]").is_visible()
+
+    page.locator("[data-tab='url']").click()
+    page.locator("[data-link-url]").fill("h")
+    page.locator("[data-tab='node']").click()
+
+    assert page.locator("[data-msg='fetch']").is_visible()
+    assert page.locator("[data-link-retry]").is_visible()

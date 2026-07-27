@@ -66,6 +66,28 @@ def test_tree_mount_is_a_named_tree(client):
     assert (mount.get("aria-label") or "").strip()
 
 
+def test_url_tab_errors_are_announced_and_wired_to_the_field(client):
+    # The node panel has a careful aria-live region; the URL panel's three error
+    # paragraphs used to be plain hidden-toggled <p>s with no live region, no
+    # aria-describedby from the field, and no aria-invalid -- a screen-reader user
+    # typing a rejected address hit a dead end with nothing announced (insertBtn stays
+    # disabled, so it's not even reachable by Tab).
+    from bs4 import BeautifulSoup
+
+    html, _course = _editor(client)
+    soup = BeautifulSoup(html, "html.parser")
+    url_input = soup.select_one("[data-link-url]")
+    assert url_input.get("aria-invalid") == "false"
+    described = (url_input.get("aria-describedby") or "").split()
+    assert described, "data-link-url must be aria-describedby the error paragraphs"
+
+    for key in ("scheme", "protocol-relative", "relative"):
+        p = soup.select_one(f'[data-msg="{key}"]')
+        assert p is not None, key
+        assert p.get("role") == "alert", key
+        assert p.get("id") in described, key
+
+
 def test_dialog_buttons_are_type_button(client):
     # editor.html is full of forms; a form-associated bare <button> defaults to
     # type="submit", so Insert would POST the element form.

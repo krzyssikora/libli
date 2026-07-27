@@ -74,7 +74,9 @@ def test_editor_css_defines_every_class_the_link_ui_uses():
 
 def test_duplicated_badge_rules_match_their_twin():
     # A class-name substring check cannot catch what this duplication actually risks:
-    # the two copies drifting. Compare declarations.
+    # the two copies drifting. Compare declarations. All THREE duplicated rules, not
+    # just the base one -- editor.css:920-921 duplicates the --part/--chapter/--section
+    # and --unit modifiers too, and each can drift independently of the others.
     import re
 
     def decls(text, selector):
@@ -84,4 +86,9 @@ def test_duplicated_badge_rules_match_their_twin():
 
     editor = EDITOR_CSS.read_text(encoding="utf-8")
     builder = BUILDER_CSS.read_text(encoding="utf-8")
-    assert decls(editor, ".tree__badge") == decls(builder, ".tree__badge")
+    for selector in (
+        ".tree__badge",
+        ".tree__badge--part, .tree__badge--chapter, .tree__badge--section",
+        ".tree__badge--unit",
+    ):
+        assert decls(editor, selector) == decls(builder, selector), selector
