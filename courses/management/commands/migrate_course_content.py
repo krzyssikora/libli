@@ -297,7 +297,7 @@ _ARCHIVE_NAME_RE = re.compile(r"^(\d+)-")
 # single-owner model would not add safety.
 _ACTION_FLAGS = {
     "export": {"allow_problems", "clean"},
-    "import": {"as_user", "dry_run", "force", "start_at"},
+    "import": {"as_user", "dry_run", "force", "start_at", "resolve_rewrite"},
     "verify": set(),
 }
 
@@ -311,6 +311,7 @@ _FLAG_UNSET = {
     "force": False,
     "as_user": None,
     "start_at": None,
+    "resolve_rewrite": None,
 }
 
 
@@ -387,6 +388,14 @@ class Command(BaseCommand):
             "(pre-migration top-level nodes + K) top-level nodes -- an "
             "operator-supplied index that is CHECKED against that recorded "
             "baseline, never trusted outright.",
+        )
+        parser.add_argument(
+            "--resolve-rewrite",
+            choices=("applied", "not-applied"),
+            help="import only: break the in_progress deadlock left by a crash "
+            "during the deferred link rewrite. 'applied' records that the "
+            "rewrite committed; 'not-applied' runs it now. The command prints "
+            "a probe reading to inform the choice; it never guesses.",
         )
 
     def handle(self, *args, **o):
@@ -542,6 +551,68 @@ class Command(BaseCommand):
             f"invocation crashed mid-rewrite. Resolve it with "
             f"--resolve-rewrite before resuming with --start-at."
         )
+
+    def _resolve_rewrite(self, o, bundle, state, node_index, target):
+        """Terminal: mutates only the state file, grafts nothing, returns.
+
+        Handled before the baseline capture and the :401 double-run guard --
+        an in_progress file only exists after a complete or nearly-complete
+        import, so the natural invocation would otherwise hit :401 and the
+        operator would never reach the state file. Following that error's advice
+        and adding --force is worse: it re-grafts every part.
+        """
+        answer = o["resolve_rewrite"]
+        for flag, label in (
+            ("start_at", "--start-at"),
+            ("force", "--force"),
+            ("dry_run", "--dry-run"),
+        ):
+            if o.get(flag) is not _FLAG_UNSET[flag]:
+                raise CommandError(
+                    f"--resolve-rewrite cannot be combined with {label}: it is "
+                    f"a terminal action that grafts nothing, so {label} would "
+                    f"be silently ignored."
+                )
+
+        recorded = {int(e["order"]) for e in state["parts"]}
+        on_disk = {self._archive_order(p.name) for p in self._bundle_archives(bundle)}
+        status = state["status"]
+        if answer == "applied":
+            if status != "in_progress":
+                raise CommandError(
+                    f"--resolve-rewrite applied is only meaningful on an "
+                    f"in_progress {LINK_STATE_NAME}; this one is {status!r}."
+                )
+            for entry in state["parts"]:
+                entry["rewritten"] = True
+            state["status"] = "applied"
+            rewrite = dict(state.get("rewrite") or {})
+            rewrite["resolved_by_operator"] = True
+            state["rewrite"] = rewrite
+            _write_state(bundle, state)
+            self.stdout.write(
+                "recorded the deferred link rewrite as applied on the "
+                "operator's word; counts for the resolved parts are unknown"
+            )
+            return
+
+        if not (
+            status == "in_progress" or (status == "collecting" and recorded == on_disk)
+        ):
+            raise CommandError(
+                f"--resolve-rewrite not-applied needs an in_progress "
+                f"{LINK_STATE_NAME}, or a collecting one whose recorded parts "
+                f"match the archives on disk; this one is {status!r} with "
+                f"recorded={sorted(recorded)} on_disk={sorted(on_disk)}."
+            )
+        # The `collecting` flip is NOT persisted first: the pass's own gates
+        # raise before it writes in_progress, and a persisted `collecting` would
+        # leave --resolve-rewrite refused ever after. Leaving the file as-is
+        # until the pass succeeds keeps this action re-runnable.
+        for entry in state["parts"]:
+            entry["rewritten"] = False
+        state["status"] = "collecting"
+        self._run_link_pass(bundle, state, node_index, target)
 
     def _should_run_pass(self, state, ordered, *, todo=None):
         """`todo` is passed ONLY at site 1. Site 2 must not carry it: `todo` is

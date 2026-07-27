@@ -410,18 +410,28 @@ def test_export_aborts_on_a_top_level_order_collision(tmp_path):
         )
 
 
-def test_export_refuses_import_only_flags(tmp_path):
+@pytest.mark.parametrize(
+    "flag, value",
+    [("--force", None), ("--resolve-rewrite", "applied")],
+)
+def test_export_refuses_import_only_flags(tmp_path, flag, value):
+    """Extended (not duplicated) for --resolve-rewrite per the flag-matrix
+    trap: omitting the flag from _ACTION_FLAGS would let this slip through
+    silently, so the same refusal test must cover it too."""
     _mk_source()
+    args = [
+        "migrate_course_content",
+        "export",
+        "--source-slug",
+        "src",
+        "--bundle-dir",
+        str(tmp_path / "b"),
+        flag,
+    ]
+    if value is not None:
+        args.append(value)
     with pytest.raises(CommandError, match="not valid for"):
-        call_command(
-            "migrate_course_content",
-            "export",
-            "--source-slug",
-            "src",
-            "--bundle-dir",
-            str(tmp_path / "b"),
-            "--force",
-        )
+        call_command(*args)
 
 
 def _export_bundle(tmp_path, parts=("P0", "P1", "P2"), source_slug="src"):
@@ -2439,3 +2449,384 @@ def test_dry_run_leaves_an_existing_state_file_byte_identical(tmp_path):
         "--force",
     )
     assert (bundle / LINK_STATE_NAME).read_bytes() == before
+
+
+# --- --resolve-rewrite: the operator's manual exit from an in_progress ----
+
+
+def test_resolve_rewrite_not_applied_runs_the_pass_in_one_invocation(
+    tmp_path, monkeypatch
+):
+    """ONE invocation, not two: no --start-at value both clears :433 and empties
+    todo under non-contiguous orders, so a flip-then-resume form has no working
+    argument."""
+    course = _mk_source(parts=("P0", "P1"))
+    _link_between(course, "P0", "P1")
+    bundle = tmp_path / "bundle"
+    call_command(
+        "migrate_course_content",
+        "export",
+        "--source-slug",
+        "src",
+        "--bundle-dir",
+        str(bundle),
+    )
+    target = _mk_target()
+    _user()
+    # Suppress the pass for the first invocation so the bodies still hold SOURCE
+    # pks, then forge the crash window on top of that genuine pre-pass state.
+    import courses.management.commands.migrate_course_content as mod
+
+    monkeypatch.setattr(mod.Command, "_run_link_pass", lambda *a, **k: None)
+    call_command(
+        "migrate_course_content",
+        "import",
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+    )
+    monkeypatch.undo()
+    st = _read_state_raw(bundle)
+    st["status"] = "in_progress"  # marker set, pass never committed
+    _write_state(bundle, st)
+
+    call_command(
+        "migrate_course_content",
+        "import",
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+        "--resolve-rewrite",
+        "not-applied",
+    )
+    assert _read_state_raw(bundle)["status"] == "applied"
+    # i5: the pass really rewrote, not merely flipped the marker.
+    new_u1 = ContentNode.objects.get(course=target, title="U1")
+    bodies = " ".join(
+        TextElement.objects.filter(elements__unit__course=target).values_list(
+            "body", flat=True
+        )
+    )
+    assert f"/courses/n/{new_u1.pk}/" in bodies
+
+
+def test_resolve_rewrite_applied_sets_every_per_entry_flag(tmp_path):
+    """status == 'applied' <=> no entry has rewritten == false. Flipping only
+    status leaves every entry false, and the documented repair resume then makes
+    pending == every order, re-applying an old-source-pk map over hrefs that
+    already hold target pks."""
+    bundle = _export_bundle(tmp_path)
+    _mk_target()
+    _user()
+    call_command(
+        "migrate_course_content",
+        "import",
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+    )
+    st = _read_state_raw(bundle)
+    st["status"] = "in_progress"
+    # The completed pass already set every flag True, so leaving them would make
+    # the assertion below hold whether or not the `applied` arm sets them --
+    # i.e. the falsification could not go RED. The spec's scenario is precisely
+    # "flipping only status leaves every entry FALSE".
+    for e in st["parts"]:
+        e["rewritten"] = False
+    _write_state(bundle, st)
+    call_command(
+        "migrate_course_content",
+        "import",
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+        "--resolve-rewrite",
+        "applied",
+    )
+    after = _read_state_raw(bundle)
+    assert after["status"] == "applied"
+    assert all(e["rewritten"] for e in after["parts"])
+    assert after["rewrite"]["resolved_by_operator"] is True
+
+
+def test_resolve_rewrite_applied_then_a_repair_resume_leaves_bodies_alone(tmp_path):
+    """The consequence the per-entry flags exist to prevent: with only `status`
+    flipped, a repair resume makes pending == every order and the pass re-applies
+    an old-SOURCE-pk map over hrefs that already hold TARGET pks."""
+    course = _mk_source(parts=("P0", "P1"))
+    _link_between(course, "P0", "P0")
+    bundle = tmp_path / "bundle"
+    call_command(
+        "migrate_course_content",
+        "export",
+        "--source-slug",
+        "src",
+        "--bundle-dir",
+        str(bundle),
+    )
+    target = _mk_target()
+    _user()
+    args = (
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+    )
+    call_command("migrate_course_content", "import", *args)
+    st = _read_state_raw(bundle)
+    st["status"] = "in_progress"
+    for e in st["parts"]:
+        e["rewritten"] = False
+    _write_state(bundle, st)
+    call_command(
+        "migrate_course_content", "import", *args, "--resolve-rewrite", "applied"
+    )
+    p0_before = sorted(
+        TextElement.objects.filter(
+            elements__unit__parent__parent__title="P0",
+            elements__unit__course=target,
+        ).values_list("body", flat=True)
+    )
+    ContentNode.objects.filter(course=target, parent__isnull=True, title="P1").delete()
+    call_command("migrate_course_content", "import", *args, "--start-at", "1")
+    assert (
+        sorted(
+            TextElement.objects.filter(
+                elements__unit__parent__parent__title="P0",
+                elements__unit__course=target,
+            ).values_list("body", flat=True)
+        )
+        == p0_before
+    )
+
+
+def test_resolve_rewrite_refuses_a_wrong_target_before_mutating(tmp_path):
+    bundle = _export_bundle(tmp_path)
+    _mk_target()
+    Course.objects.create(title="Other", slug="other", uses_parts=True)
+    _user()
+    call_command(
+        "migrate_course_content",
+        "import",
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+    )
+    st = _read_state_raw(bundle)
+    st["status"] = "in_progress"
+    _write_state(bundle, st)
+    before = (bundle / LINK_STATE_NAME).read_bytes()
+    with pytest.raises(CommandError, match="Refusing to mix targets"):
+        call_command(
+            "migrate_course_content",
+            "import",
+            "--target-slug",
+            "other",
+            "--bundle-dir",
+            str(bundle),
+            "--as-user",
+            "mig@example.com",
+            "--resolve-rewrite",
+            "applied",
+        )
+    assert (bundle / LINK_STATE_NAME).read_bytes() == before
+
+
+def test_resolve_rewrite_applied_refuses_a_collecting_file(tmp_path):
+    bundle = _export_bundle(tmp_path)
+    target = _mk_target()
+    _user()
+    _seed_state(bundle, target, [0, 1, 2])
+    with pytest.raises(CommandError, match="only meaningful on an in_progress"):
+        call_command(
+            "migrate_course_content",
+            "import",
+            "--target-slug",
+            "dst",
+            "--bundle-dir",
+            str(bundle),
+            "--as-user",
+            "mig@example.com",
+            "--resolve-rewrite",
+            "applied",
+        )
+
+
+def test_resolve_rewrite_requires_as_user(tmp_path):
+    """Pins the documented invocation against the real required-argument gate
+    rather than the spec's prose: --as-user is checked unconditionally at :371,
+    before the pinned handling point."""
+    bundle = _export_bundle(tmp_path)
+    _mk_target()
+    with pytest.raises(CommandError, match="requires --as-user"):
+        call_command(
+            "migrate_course_content",
+            "import",
+            "--target-slug",
+            "dst",
+            "--bundle-dir",
+            str(bundle),
+            "--resolve-rewrite",
+            "not-applied",
+        )
+
+
+@pytest.mark.parametrize("extra", [("--start-at", "0"), ("--force",), ("--dry-run",)])
+def test_resolve_rewrite_refuses_conflicting_flags(tmp_path, extra):
+    bundle = _export_bundle(tmp_path)
+    target = _mk_target()
+    _user()
+    _seed_state(bundle, target, [0, 1, 2], status="in_progress")
+    with pytest.raises(CommandError, match="cannot be combined with"):
+        call_command(
+            "migrate_course_content",
+            "import",
+            "--target-slug",
+            "dst",
+            "--bundle-dir",
+            str(bundle),
+            "--as-user",
+            "mig@example.com",
+            "--resolve-rewrite",
+            "not-applied",
+            *extra,
+        )
+
+
+def test_resolve_rewrite_not_applied_accepts_a_complete_collecting_file(
+    tmp_path, monkeypatch
+):
+    """The second disjunct of the acceptance rule, and the ONLY test of it.
+
+    It exists because site 1 is provably unreachable under non-contiguous orders
+    -- there is no --start-at value that both clears :433 and empties todo -- so
+    without this arm such a bundle can never reach the pass. Falsify by deleting
+    the `collecting` disjunct: this goes RED while every other test stays green.
+    """
+    course = _mk_source(parts=("P0", "P1"))
+    _link_between(course, "P0", "P1")
+    bundle = tmp_path / "bundle"
+    call_command(
+        "migrate_course_content",
+        "export",
+        "--source-slug",
+        "src",
+        "--bundle-dir",
+        str(bundle),
+    )
+    target = _mk_target()
+    _user()
+    args = (
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+    )
+    # Produce the genuine "all parts committed, pass never ran" shape by
+    # suppressing the pass for the first invocation only. Winding an APPLIED
+    # state back by hand would leave the bodies already rewritten to target pks,
+    # and the re-run would flatten them (measured) -- the test would assert a
+    # link the code under test destroys.
+    import courses.management.commands.migrate_course_content as mod
+
+    monkeypatch.setattr(mod.Command, "_run_link_pass", lambda *a, **k: None)
+    call_command("migrate_course_content", "import", *args)
+    monkeypatch.undo()
+    assert _read_state_raw(bundle)["status"] == "collecting"
+
+    call_command(
+        "migrate_course_content", "import", *args, "--resolve-rewrite", "not-applied"
+    )
+    assert _read_state_raw(bundle)["status"] == "applied"
+    new_u1 = ContentNode.objects.get(course=target, title="U1")
+    bodies = " ".join(
+        TextElement.objects.filter(elements__unit__course=target).values_list(
+            "body", flat=True
+        )
+    )
+    assert f"/courses/n/{new_u1.pk}/" in bodies
+
+
+@pytest.mark.parametrize("arm", ["applied", "not-applied"])
+@pytest.mark.parametrize(
+    "raw, match",
+    [('{"version": 1, "par', "not valid JSON"), ('{"version": 2}', "version")],
+)
+def test_resolve_rewrite_validates_the_state_file(tmp_path, arm, raw, match):
+    """Step 1's validate expression is `not (start_at is None and resolve is
+    None)`, not a plain `start_at is None`. --start-at is fatal alongside
+    --resolve-rewrite, so start_at is ALWAYS None here -- a naive exemption
+    would skip validation on every resolve invocation, and step 2 returns before
+    step 3 ever discards anything. Falsify by simplifying the expression: all
+    four of these go RED."""
+    bundle = _export_bundle(tmp_path)
+    _mk_target()
+    _user()
+    call_command(
+        "migrate_course_content",
+        "import",
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+    )
+    (bundle / LINK_STATE_NAME).write_text(raw, encoding="utf-8")
+    with pytest.raises(CommandError, match=match):
+        call_command(
+            "migrate_course_content",
+            "import",
+            "--target-slug",
+            "dst",
+            "--bundle-dir",
+            str(bundle),
+            "--as-user",
+            "mig@example.com",
+            "--resolve-rewrite",
+            arm,
+        )
+
+
+def test_verify_does_not_keyerror_on_the_new_flag(tmp_path):
+    """_FLAG_UNSET lookup happens for EVERY foreign flag on every action."""
+    bundle = _export_bundle(tmp_path)
+    _mk_target()
+    _user()
+    call_command(
+        "migrate_course_content",
+        "import",
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+    )
+    call_command(
+        "migrate_course_content",
+        "verify",
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+    )
