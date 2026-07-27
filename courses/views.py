@@ -270,9 +270,12 @@ def _twocolumn_has_math(el):
 
 
 def build_lesson_context(node, user):
-    """Shared element/has_*/progress context for a LESSON unit. Used by both
-    lesson_unit (GET) and check_answer (POST re-render) so the two cannot drift.
-    Performs the same UnitProgress.get_or_create + seen-count as a normal view."""
+    """Shared element/has_*/progress context for a LESSON unit. Reached through
+    full_lesson_render_context, which serves every render site (see its docstring --
+    do not re-enumerate them here, or the list drifts in two places).
+    Enrolled: UnitProgress.get_or_create + seen-count, as a normal view. Non-enrolled
+    but authorised: a read-only .filter().first() lookup that feeds practice state and
+    the completion pill without creating a row on a GET."""
     # RENDER: children render inside their tabs, not as top-level siblings.
     elements = list(
         node.elements.filter(parent__isnull=True)
@@ -394,9 +397,12 @@ def build_lesson_context(node, user):
         state_row = progress
     elif user.is_authenticated:
         # Non-enrolled but can view (author/teacher): read an EXISTING row for their
-        # practice state (it persists too — see element_state_save) WITHOUT creating
-        # one on GET, so passive viewers never get a spurious progress row.
+        # practice state AND the completion pill -- an explicit "Mark as done" click
+        # persists for them too (see complete()), and without this assignment the
+        # write would land but never re-render. Still .filter().first(), never
+        # get_or_create: a passive GET must not mint a row for a previewer.
         state_row = UnitProgress.objects.filter(student=user, unit=node).first()
+        progress = state_row
     if state_row:
         # int-keyed {Element.pk: blob} — the render seam looks up by the join-row pk.
         # Read-side fail-open: drop any non-int-coercible key and any non-dict value

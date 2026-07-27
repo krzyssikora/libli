@@ -1,6 +1,7 @@
 import json
 
 import pytest
+from bs4 import BeautifulSoup
 from django.urls import reverse
 
 from tests.factories import ContentNodeFactory
@@ -196,3 +197,32 @@ def test_enrolled_complete_over_existing_row_preserves_state_and_seen_ids(client
     assert row.completed is True
     assert row.element_state == seeded_state
     assert row.seen_element_ids == [ids[0]]
+
+
+@pytest.mark.django_db
+def test_previewer_sees_completed_pill_after_marking(client):
+    from courses.models import UnitProgress
+
+    staff = make_login(client, "staff3")
+    staff.is_staff = True
+    staff.save()
+    course = CourseFactory(slug="prd")
+    unit, ids = _make_unit_with_elements(course, 1)
+    client.post(reverse("courses:complete", kwargs={"slug": "prd", "node_pk": unit.pk}))
+    assert UnitProgress.objects.filter(
+        student=staff, unit=unit, completed=True
+    ).exists()
+
+    # A SEPARATE GET -- deliberately not follow=True on the POST, or "test 1 stays
+    # green while this goes RED" in the falsification below would mean nothing.
+    r = client.get(
+        reverse("courses:lesson_unit", kwargs={"slug": "prd", "node_pk": unit.pk})
+    )
+
+    assert r.status_code == 200
+    # Scope to the [data-unit-done] subtree: is-complete is safe as a body substring
+    # only by accident today, and "Completed" is always present via data-done-label.
+    pill = BeautifulSoup(r.content, "html.parser").select_one("[data-unit-done]")
+    assert pill is not None
+    assert "is-complete" in pill.get("class", [])
+    assert pill.select_one("button.unit-done__pill--btn") is None
