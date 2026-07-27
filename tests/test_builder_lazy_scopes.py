@@ -1,4 +1,5 @@
 import re
+from unittest import mock
 from urllib.parse import parse_qs
 from urllib.parse import urlparse
 
@@ -553,3 +554,53 @@ def test_delete_confirm_get_omits_hidden_input_when_open_is_absent(client):
     ).content.decode()
     assert 'name="open"' not in confirm
     assert "?open=" not in confirm
+
+
+@pytest.mark.django_db
+def test_per_row_url_reversals_are_hoisted(client):
+    """Guards section 7. Without this, reintroducing {% url %} in a row
+    template is invisible to the suite -- section 7's only justification is
+    wall-clock time, which CI deliberately does not assert on."""
+    owner = make_login(client, "owner")
+    course, part, chapters = _big_course(owner)
+    url = reverse("courses:manage_builder", kwargs={"slug": "big"})
+    seen = []
+    import django.urls as django_urls
+
+    real = django_urls.reverse
+
+    def spy(*a, **kw):
+        seen.append(a[0] if a else kw.get("viewname"))
+        return real(*a, **kw)
+
+    # django.urls.reverse -- NOT django.urls.base.reverse and NOT
+    # defaulttags.reverse: URLNode.render imports it from django.urls at call
+    # time, so only this binding is observed.
+    with mock.patch.object(django_urls, "reverse", spy):
+        client.get(f"{url}?open=all")
+
+    rows = course.nodes.count()
+    units = course.nodes.filter(kind="unit").count()
+    scopes = course.nodes.exclude(kind="unit").count() + 1  # +1 for "top"
+    assert units > scopes, "fixture must have more units than scopes"
+    # Compare each name against what it would be if STILL per-row. `< rows` is
+    # too loose for manage_node_duplicate: _tree_node.html renders that form
+    # only inside {% if node.kind == "unit" %}, so an un-hoisted version
+    # reverses `units` times -- already < rows, so the guard could never redden
+    # for the one URL whose regression it is meant to catch.
+    #
+    # manage_node_move gets `scopes + 1`, not `scopes`: builder.html's root
+    # carries a pre-existing, unrelated `data-node-move-url` (used by the JS
+    # drag/drop reorder fetch) that reverses the same name once per PAGE. That
+    # one extra call is legitimate and constant -- a real per-row regression
+    # would push the count toward `rows`, far past this bound.
+    bounds = {
+        "courses:manage_node_move": scopes + 1,
+        "courses:manage_node_delete": scopes,
+        "courses:manage_node_duplicate": scopes,
+        "courses:manage_node_panel": scopes,
+    }
+    for name, bound in bounds.items():
+        assert seen.count(name) <= bound, f"{name} still reversed per row"
+    # export is a real <a href> a no-JS author follows, so it stays per node
+    assert seen.count("courses:manage_node_export") == rows

@@ -318,20 +318,25 @@
   }
 
   root.addEventListener("focusin", function (e) {
-    // Mark consumption and timer clearing run for EVERY focusin, whatever the target,
-    // BEFORE the .tree__title test. Tab goes title -> ~6 cluster controls -> next
-    // title, and those stops can span more than 150ms; if only titles cleared the
-    // timer, row A's fetch would fire while the author was still inside A's cluster.
+    // Mark consumption and timer clearing run for EVERY focusin, whatever the
+    // target, BEFORE the .tree__title test. Tab now goes toggle -> title ->
+    // ~6 cluster controls -> next title, and those stops can span more than
+    // 150ms; if only titles cleared the timer, row A's fetch would fire while
+    // the author was still inside A's cluster.
     var byPointer = pointerFocus;
     pointerFocus = false;
     if (panelTimer) { clearTimeout(panelTimer); panelTimer = null; }
     var t = e.target.closest(".tree__title");
     if (!t) return;
-    var url = t.getAttribute("data-panel-url");
-    if (!url) return;
+    var row = t.closest("li.tree__row");
+    if (!row) return;
+    var tpl = root.getAttribute("data-panel-url") || "";
+    if (!tpl) return;
+    // $-anchored: a `0` inside the course slug must not match.
+    var url = tpl.replace(/\/0\/$/, "/" + row.getAttribute("data-node") + "/");
     clearMoving();
-    // A deliberate click must not gain 150ms of latency; only keyboard traversal is
-    // debounced, so tabbing across ten rows issues one fetch rather than ten.
+    // A deliberate click must not gain 150ms of latency; only keyboard
+    // traversal is debounced, so tabbing across ten rows issues one fetch.
     if (byPointer) loadPanel(url);
     else panelTimer = setTimeout(function () { panelTimer = null; loadPanel(url); }, 150);
   });

@@ -3,9 +3,12 @@
    scope and pass it down instead of paying a reversal on every row (an 840-node
    course reversed it 840 times, ~64us each).{% endcomment %}
 {% url 'courses:manage_node_rename' slug=course.slug as rename_url %}
+{% url 'courses:manage_node_move' slug=course.slug as move_url %}
+{% url 'courses:manage_node_delete' slug=course.slug as delete_url %}
+{% url 'courses:manage_node_duplicate' slug=course.slug as duplicate_url %}
 <ol class="tree__scope" id="tree-scope-{{ scope_id }}" data-scope="{{ scope_id }}" data-updated="{{ scope_updated }}">
   {% for node in nodes %}
-    {% include "courses/manage/_tree_node.html" with node=node children_map=children_map is_first=forloop.first is_last=forloop.last rename_url=rename_url open_ids=open_ids %}
+    {% include "courses/manage/_tree_node.html" with node=node children_map=children_map is_first=forloop.first is_last=forloop.last rename_url=rename_url move_url=move_url delete_url=delete_url duplicate_url=duplicate_url open_ids=open_ids %}
   {% empty %}
     <li class="tree__empty">{% trans "No children yet." %}</li>
   {% endfor %}
