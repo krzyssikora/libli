@@ -623,3 +623,52 @@ def test_previewer_completion_becomes_learner_progress_on_enrollment(client):
 
     # The row survived the transition unchanged.
     assert UnitProgress.objects.get(student=previewer, unit=unit).completed is True
+
+
+@pytest.mark.django_db
+def test_seen_locks_the_row_before_reading_it(client):
+    """seen() must take the row lock BEFORE the read that feeds its full-row save.
+
+    This pins the MECHANISM, not an outcome, and the distinction is the point.
+    seen() writes every column from an in-memory instance, so a read taken without
+    the lock lets a concurrent complete() commit `completed=True` in between and be
+    silently overwritten on save -- a lost update, not a lock-exclusion failure. The
+    fix is ordering: lock, then read. `save_element_state` and `complete` already do
+    this; seen() did not.
+
+    A behavioural test would need two DB connections and an orchestrated interleave,
+    because `select_for_update()` never blocks the connection that holds it -- so in
+    a single-connection test the locked and unlocked versions are indistinguishable
+    by outcome. Asserting on the emitted SQL is what makes this falsifiable at all;
+    it is deliberately white-box. It does NOT prove no update can be lost -- it
+    proves the read is under the lock, which is the property the fix establishes.
+    """
+    import re
+
+    from django.db import connection
+    from django.test.utils import CaptureQueriesContext
+
+    student = make_login(client, "seenlock")
+    course = CourseFactory(slug="seenlock")
+    EnrollmentFactory(student=student, course=course)
+    unit, ids = _make_unit_with_elements(course, 2)
+
+    with CaptureQueriesContext(connection) as ctx:
+        r = client.post(
+            _seen_url("seenlock", unit.pk),
+            data=json.dumps(ids[:1]),
+            content_type="application/json",
+        )
+
+    assert r.status_code == 200
+    selects = [
+        q["sql"]
+        for q in ctx.captured_queries
+        if re.search(r"select\b.*\bcourses_unitprogress\b", q["sql"], re.I | re.S)
+    ]
+    assert selects, "expected a SELECT on courses_unitprogress"
+    # The row-feeding read must carry FOR UPDATE. Match on that one table's SELECTs
+    # so an unrelated locked read elsewhere could not satisfy this.
+    assert any(re.search(r"for update", s, re.I) for s in selects), (
+        f"no SELECT ... FOR UPDATE on courses_unitprogress; got: {selects}"
+    )

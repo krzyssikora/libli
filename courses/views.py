@@ -673,12 +673,27 @@ def seen(request, slug, node_pk):
         for x in data
         if isinstance(x, int) and not isinstance(x, bool) and x in current
     }
-    progress, _ = UnitProgress.objects.get_or_create(student=request.user, unit=node)
-    merged = set(progress.seen_element_ids) | incoming
-    progress.seen_element_ids = sorted(merged)
-    if not progress.completed and current and current.issubset(merged):
-        progress.completed = True  # completed_at stamped in save()
-    progress.save()
+    with transaction.atomic():
+        # Lock BEFORE the read that feeds this save. The save writes every column
+        # from the in-memory instance, so a read taken without the lock lets a
+        # concurrent complete() commit its completed=True in between and then be
+        # silently overwritten here -- a LOST UPDATE, not a lock-exclusion failure.
+        # FOR UPDATE cannot protect a writer whose READ preceded it; the rule is
+        # ORDERING, not exclusion (on PostgreSQL a plain UPDATE already blocks on an
+        # existing FOR UPDATE). save_element_state and complete both lock first for
+        # the same reason; this endpoint was the one that did not.
+        # Guarded by test_seen_locks_the_row_before_reading_it, which asserts on the
+        # emitted SQL because a single-connection test cannot tell locked from
+        # unlocked by outcome.
+        UnitProgress.objects.get_or_create(student=request.user, unit=node)
+        progress = UnitProgress.objects.select_for_update().get(
+            student=request.user, unit=node
+        )
+        merged = set(progress.seen_element_ids) | incoming
+        progress.seen_element_ids = sorted(merged)
+        if not progress.completed and current and current.issubset(merged):
+            progress.completed = True  # completed_at stamped in save()
+        progress.save()
     return JsonResponse(_progress_json(progress))
 
 
