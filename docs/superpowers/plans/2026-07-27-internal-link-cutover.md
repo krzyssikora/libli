@@ -184,10 +184,11 @@ def test_report_node_ids_survives_the_problems_path(course, image_asset):
 
     `problems` is produced only for an asset reached THROUGH an element in the
     exported tree, so the tree and the ImageElement both have to exist first --
-    copy the exact setup from the test at tests/test_transfer_export.py:396-410
+    copy the exact setup from
+    `test_missing_image_becomes_placeholder_with_problem` (tests/test_transfer_export.py:345-348)
     rather than the two lines below if they drift.
     """
-    unit = _mk_tree(course)
+    _part, _chap, unit = _mk_tree(course)     # returns a 3-TUPLE (:200-208)
     _attach(unit, ImageElement.objects.create(media=image_asset, alt="a"))
     _delete_asset_file(image_asset)              # the file's own problems recipe
     report = {}
@@ -1541,8 +1542,9 @@ Then restructure `_import`'s branch. Replace the Task 5 placeholder with the rea
             ...  # baseline write and the `not todo` early return -- Task 8 edits this
 ```
 
-`_in_progress_message` is a stub returning a plain string for now; **Task 11** gives it the probe
-reading.
+`_in_progress_message` is a stub returning a plain string for now; **Task 10** implements it
+(it needs `_scan_links`, which Task 10 adds). Task 6's own `in_progress` test therefore asserts only
+the refusal, not the reading.
 
 Note the subset guard is a **set** operation against archive orders on disk. Never
 `max(recorded) + 1`: `recorded` can be empty and `max(())` raises a bare `ValueError`, not a
@@ -1643,7 +1645,9 @@ def test_build_mapping_is_fatal_when_a_recorded_pk_is_not_live():
     state["parts"] = [
         {"order": 0, "node_map": {"n1": 10**9}, "src": {}, "rewritten": False}
     ]
-    with pytest.raises(CommandError, match="skipped_dead"):
+    # Match the VALUE, not the label: the message interpolates all three labels
+    # unconditionally, so match="skipped_dead" is satisfied by any of the three.
+    with pytest.raises(CommandError, match=r"skipped_dead=\[1000000000\]"):
         _build_mapping(state, {"1": [0, "n1"]}, target)
 
 
@@ -1654,9 +1658,9 @@ def test_build_mapping_is_fatal_on_an_unrecorded_order_or_export_id():
     state["parts"] = [
         {"order": 0, "node_map": {"n1": node.pk}, "src": {}, "rewritten": False}
     ]
-    with pytest.raises(CommandError, match="skipped_parts"):
+    with pytest.raises(CommandError, match=r"skipped_parts=\[5\]"):
         _build_mapping(state, {"1": [5, "n1"]}, target)
-    with pytest.raises(CommandError, match="skipped_ids"):
+    with pytest.raises(CommandError, match=r"skipped_ids=\[\(0, 'nZZ'\)\]"):
         _build_mapping(state, {"1": [0, "nZZ"]}, target)
 ```
 
@@ -2030,7 +2034,7 @@ def test_the_pass_survives_an_interrupted_import_resumed_with_start_at(tmp_path)
     assert f"/courses/n/{new_u1.pk}/" in bodies
 
 
-def test_the_skipped_pass_window_still_applies_on_a_start_at_resume(tmp_path):
+def test_the_skipped_pass_window_still_applies_on_a_start_at_resume(tmp_path, monkeypatch):
     """A run that dies after the last part commits, resumed with
     --start-at part_count, must still rewrite. Site 1 is the only place that
     can fire here, because the loop body never runs."""
@@ -2043,16 +2047,29 @@ def test_the_skipped_pass_window_still_applies_on_a_start_at_resume(tmp_path):
     _user()
     args = ("--target-slug", "dst", "--bundle-dir", str(bundle),
             "--as-user", "mig@example.com")
+    # Genuine "parts committed, pass never ran": suppress the pass for the
+    # setup invocation. Winding an APPLIED state back by hand would leave the
+    # bodies holding TARGET pks, and the re-run's SOURCE-keyed mapping would
+    # unwrap-flatten them -- a status-only assertion cannot tell that apart from
+    # a correct rewrite.
+    import courses.management.commands.migrate_course_content as mod
+
+    monkeypatch.setattr(mod.Command, "_run_link_pass", lambda *a, **k: None)
     call_command("migrate_course_content", "import", *args, "--start-at", "0")
-    # Simulate the crash: parts committed, pass never ran.
-    st = _read_state_raw(bundle)
-    st["status"] = "collecting"
-    for e in st["parts"]:
-        e["rewritten"] = False
-    st.pop("rewrite", None)
-    _write_state(bundle, st)
+    monkeypatch.undo()
+    assert _read_state_raw(bundle)["status"] == "collecting"
+
     call_command("migrate_course_content", "import", *args, "--start-at", "2")
     assert _read_state_raw(bundle)["status"] == "applied"
+    # Site 1's ONLY firing-and-rewriting coverage -- assert the rewrite, not
+    # just the marker.
+    new_u1 = ContentNode.objects.get(course=target, title="U1")
+    bodies = " ".join(
+        TextElement.objects.filter(elements__unit__course=target).values_list(
+            "body", flat=True
+        )
+    )
+    assert f"/courses/n/{new_u1.pk}/" in bodies
 
 
 def test_a_completed_migration_re_invoked_does_not_re_run_the_pass(tmp_path):
@@ -2074,8 +2091,12 @@ def test_a_completed_migration_re_invoked_does_not_re_run_the_pass(tmp_path):
         )
     )
     out = io.StringIO()
+    # --start-at must equal the PART COUNT of this fixture (2), not 3: :433 is
+    # `baseline["top_nodes"] + start_at == existing`, so --start-at 3 against a
+    # two-part source raises "expects the target to hold exactly 3 top-level
+    # node(s) ... but it holds 2" and never reaches any assertion below.
     call_command("migrate_course_content", "import", *args,
-                 "--start-at", "3", stdout=out)
+                 "--start-at", "2", stdout=out)
     assert _read_state_raw(bundle)["rewrite"] == before
     assert sorted(
         TextElement.objects.filter(elements__unit__course=target).values_list(
@@ -2775,7 +2796,8 @@ Expected: FAIL.
 
 - [ ] **Step 3: Implement**
 
-Add the scan helper:
+Add the scan helper and the probe message (the probe consumes `_scan_links`, so both belong
+here — Task 11 only falsifies its scoping):
 
 ```python
     def _scan_links(self, state, target):
@@ -2811,6 +2833,54 @@ Add the scan helper:
         return dangling, dangling_elements, total_elements
 ```
 
+```python
+    def _in_progress_message(self, bundle, state, target):
+        """The discriminator. After a committed pass no in-scope element holds
+        a dangling internal href; before it, essentially every one does. The
+        command reports and refuses -- an automatic guess that lands wrong
+        produces exactly the silent mis-point this design exists to prevent.
+
+        Both numbers are over the PENDING scope, because only pending orders
+        would be rewritten. Over all entries, one re-grafted part of ~1,000
+        elements inside a 20,054-element scope reads as ~5% -- neither near zero
+        nor near total -- and 5% pushes the operator toward `applied`, stranding
+        the re-grafted part's hrefs on source pks.
+        """
+        pending = [e for e in state["parts"] if not e["rewritten"]]
+        probe = dict(state)
+        probe["parts"] = pending
+        _dangling, dangling_elements, total = self._scan_links(probe, target)
+        fail_closed = {
+            join.pk
+            for join in Element.objects.filter(
+                pk__in=dangling_elements
+            ).prefetch_related("content_object")
+            if join.content_object is not None
+            and _is_fail_closed(join.content_object)
+        }
+        # Context only: how big the pending scope is relative to the whole
+        # migration. Without it, "N of M in scope" on a repair resume hides that
+        # M is one part of twenty-one -- the ~5%-vs-~100% misreading the spec
+        # warns about.
+        migration_total = Element.objects.filter(
+            unit_id__in=_live_pks(state["parts"], target)
+        ).count()
+        return (
+            f"{LINK_STATE_NAME} in {bundle} is in_progress: a crash left the "
+            f"deferred link rewrite in an unknown state.\n"
+            f"  probe: {len(dangling_elements - fail_closed)} element(s) hold a "
+            f"dangling internal link, of {total} in the pending scope "
+            f"({len(fail_closed)} more are malformed and were never "
+            f"rewritable; the whole migration holds {migration_total}).\n"
+            f"  near {total} means the rewrite did NOT run  -> re-run with "
+            f"--resolve-rewrite not-applied\n"
+            f"  near 0 means it DID commit                  -> re-run with "
+            f"--resolve-rewrite applied\n"
+            f"The command will not guess: a wrong answer silently re-points "
+            f"correct links at unrelated nodes."
+        )
+```
+
 In `_verify`, after the existing `BASELINE_NAME` block and **before** the archive re-read:
 
 ```python
@@ -2842,8 +2912,6 @@ In `_verify`, after the existing `BASELINE_NAME` block and **before** the archiv
             # The SAME probe reading `import` gives. The spec makes the reading
             # the decisive discriminator, and an operator who reaches the
             # deadlock through `verify` needs it just as much.
-            # (_in_progress_message is built in Task 11; until then this raises
-            # the Task 6 stub string.)
             raise CommandError(self._in_progress_message(bundle, state, target))
         if state["status"] != "applied":
             raise CommandError(
@@ -2957,7 +3025,7 @@ git commit -m "feat(migrate): reconcile internal links in verify"
 
 ---
 
-### Task 11: The `in_progress` probe reading
+### Task 11: Pin the probe's denominator to the pending scope
 
 **Files:**
 - Modify: `courses/management/commands/migrate_course_content.py`
@@ -2965,7 +3033,8 @@ git commit -m "feat(migrate): reconcile internal links in verify"
 
 **Interfaces:**
 - Consumes: Task 10's `_scan_links`, `_is_fail_closed`.
-- Produces: `Command._in_progress_message(bundle, state, target) -> str` (replaces Task 6's stub).
+- Produces: no new production code. Task 10 implements `_in_progress_message`; this task
+  proves its denominator is the **pending** scope, which no Task 10 test distinguishes.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -2998,59 +3067,13 @@ def test_the_in_progress_refusal_prints_a_probe_reading(tmp_path):
 - [ ] **Step 2: Run to verify failure**
 
 ```bash
-uv run pytest tests/test_migrate_course_content.py -k "probe_reading" -q
+uv run pytest tests/test_migrate_course_content.py -k "probe_denominator" -q
 ```
-Expected: FAIL — the stub message has no numbers.
+Expected: PASS if Task 10 scoped the probe to `pending_entries` as specified. If it FAILS, Task 10
+used the whole recorded set — fix it there, not here.
 
 - [ ] **Step 3: Implement**
 
-```python
-    def _in_progress_message(self, bundle, state, target):
-        """The discriminator. After a committed pass no in-scope element holds
-        a dangling internal href; before it, essentially every one does. The
-        command reports and refuses -- an automatic guess that lands wrong
-        produces exactly the silent mis-point this design exists to prevent.
-
-        Both numbers are over the PENDING scope, because only pending orders
-        would be rewritten. Over all entries, one re-grafted part of ~1,000
-        elements inside a 20,054-element scope reads as ~5% -- neither near zero
-        nor near total -- and 5% pushes the operator toward `applied`, stranding
-        the re-grafted part's hrefs on source pks.
-        """
-        pending = [e for e in state["parts"] if not e["rewritten"]]
-        probe = dict(state)
-        probe["parts"] = pending
-        _dangling, dangling_elements, total = self._scan_links(probe, target)
-        fail_closed = {
-            join.pk
-            for join in Element.objects.filter(
-                pk__in=dangling_elements
-            ).prefetch_related("content_object")
-            if join.content_object is not None
-            and _is_fail_closed(join.content_object)
-        }
-        # Context only: how big the pending scope is relative to the whole
-        # migration. Without it, "N of M in scope" on a repair resume hides that
-        # M is one part of twenty-one -- the ~5%-vs-~100% misreading the spec
-        # warns about.
-        migration_total = Element.objects.filter(
-            unit_id__in=_live_pks(state["parts"], target)
-        ).count()
-        return (
-            f"{LINK_STATE_NAME} in {bundle} is in_progress: a crash left the "
-            f"deferred link rewrite in an unknown state.\n"
-            f"  probe: {len(dangling_elements - fail_closed)} element(s) hold a "
-            f"dangling internal link, of {total} in the pending scope "
-            f"({len(fail_closed)} more are malformed and were never "
-            f"rewritable; the whole migration holds {migration_total}).\n"
-            f"  near {total} means the rewrite did NOT run  -> re-run with "
-            f"--resolve-rewrite not-applied\n"
-            f"  near 0 means it DID commit                  -> re-run with "
-            f"--resolve-rewrite applied\n"
-            f"The command will not guess: a wrong answer silently re-points "
-            f"correct links at unrelated nodes."
-        )
-```
 
 - [ ] **Step 4: Run to verify pass**
 
@@ -3249,9 +3272,10 @@ def test_a_fail_closed_instance_still_gets_its_other_fields_rewritten():
     (stem + explanation). Built UNSAVED so no save() sanitiser closes the torn
     anchor, the same trick Task 7's _is_fail_closed unit test uses.
 
-    Falsify by adding `continue` after the append in Task 7's rewrite loop: the
-    mappable link in success_message then keeps its source pk, and verify stays
-    silent because the element was subtracted from the dangling count.
+    This test documents part 2's per-field behaviour; it does NOT falsify Task
+    7's loop, because it never calls `_run_link_pass`. The reachable guard is
+    `test_a_fail_closed_instance_in_the_target_keeps_rewriting_its_other_field`
+    below — adding `continue` after the append turns THAT one red, not this one.
     """
     from courses.models import GuessNumberElement
 
@@ -3264,6 +3288,57 @@ def test_a_fail_closed_instance_still_gets_its_other_fields_rewritten():
     assert "success_message" in changed
     assert "/courses/n/900/" in obj.success_message
     assert obj.stem == '<p><a href="/courses/n/999999/">torn</p>'   # untouched
+
+
+def test_a_fail_closed_instance_in_the_target_keeps_rewriting_its_other_field(
+    tmp_path, monkeypatch
+):
+    """THE reachable falsification for the missing `continue` in Task 7's loop.
+
+    It has to be built target-side, after the graft: an import cannot carry a
+    torn stem in, because `_build_guess_number` (importer.py:767) does
+    `stem=sanitize_html(data["stem"])`. Created directly on a grafted unit it
+    survives, because GuessNumberElement.save() sanitises only `success_message`
+    (models.py:779) -- and a well-formed anchor is byte-identical through the
+    sanitiser, so the mappable link survives that too.
+
+    Falsify by adding `continue` after `fail_closed_elements.append(join.pk)`:
+    success_message keeps its SOURCE pk, and verify stays silent because the
+    element was subtracted from the dangling count.
+    """
+    from courses.models import GuessNumberElement
+
+    course = _mk_source(parts=("P0", "P1"))
+    bundle = tmp_path / "bundle"
+    call_command("migrate_course_content", "export",
+                 "--source-slug", "src", "--bundle-dir", str(bundle))
+    target = _mk_target()
+    _user()
+    args = ("--target-slug", "dst", "--bundle-dir", str(bundle),
+            "--as-user", "mig@example.com")
+    import courses.management.commands.migrate_course_content as mod
+
+    monkeypatch.setattr(mod.Command, "_run_link_pass", lambda *a, **k: None)
+    call_command("migrate_course_content", "import", *args)
+    monkeypatch.undo()
+
+    src_u1 = ContentNode.objects.get(course=course, title="U1")
+    tgt_u0 = ContentNode.objects.get(course=target, title="U0")
+    Element.objects.create(
+        unit=tgt_u0, title="two-field",
+        content_object=GuessNumberElement.objects.create(
+            stem='<p><a href="/courses/n/999999/">torn</p>',        # fail-closed
+            success_message=f'<p><a href="/courses/n/{src_u1.pk}/">ok</a></p>',
+        ),
+    )
+    call_command("migrate_course_content", "import", *args,
+                 "--resolve-rewrite", "not-applied")
+
+    obj = GuessNumberElement.objects.get(elements__unit=tgt_u0)
+    new_u1 = ContentNode.objects.get(course=target, title="U1")
+    assert f"/courses/n/{new_u1.pk}/" in obj.success_message   # rewritten
+    assert obj.stem == '<p><a href="/courses/n/999999/">torn</p>'  # untouched
+    assert _read_state_raw(bundle)["rewrite"]["fail_closed_elements"]
 
 
 def test_an_element_with_no_links_is_not_recorded_as_fail_closed(tmp_path):
