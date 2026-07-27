@@ -1,5 +1,7 @@
 import pytest
 
+from courses.builder_open import CEILING
+from courses.builder_open import _finalize
 from courses.builder_open import container_pks
 from courses.builder_open import open_ids
 from courses.views_manage import _children_map
@@ -169,6 +171,36 @@ def test_ceiling_keeps_the_lowest_pks_and_flags_truncation(rf, db, monkeypatch):
     assert got.truncated is True
     assert len(got.ids) == 4
     assert got.ids == frozenset(sorted(p.pk for p in parts)[:4])
+
+
+def test_finalize_truncation_is_reproducible_not_set_order(monkeypatch):
+    """`sorted(kept)[:CEILING]` is load-bearing: a set has no defined
+    iteration order, so truncating without sorting is non-reproducible.
+
+    These values were chosen because their CPython set-iteration order is
+    NOT ascending (verified: `list(set(values)) != sorted(values)`), so this
+    test goes RED if `sorted(kept)` is replaced with `list(kept)` -- unlike
+    the database-pk ceiling test, whose small sequential pks happen to
+    iterate in ascending order regardless.
+    """
+    small_ceiling = 3
+    assert small_ceiling < CEILING  # sanity: we are actually shrinking it
+    monkeypatch.setattr("courses.builder_open.CEILING", small_ceiling)
+    values = {
+        10_000_003,
+        50_000_017,
+        999_999_999,
+        123_456_789,
+        2_000_000_011,
+        777_777_773,
+        314_159_265,
+    }
+    assert list(values) != sorted(values)  # the property this test relies on
+
+    result = _finalize(values, values)
+
+    assert result.truncated is True
+    assert result.ids == frozenset(sorted(values)[:small_ceiling])
 
 
 @pytest.mark.django_db
