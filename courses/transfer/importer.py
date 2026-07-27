@@ -920,6 +920,17 @@ def _rewrite_links(document, node_map, created_joins, *, on_missing, report):
 
     link_nodes maps old pk -> export id, so the inversion looks up each VALUE ("n7") in
     node_map -- never the key, which is a source pk that node_map has never seen.
+
+    A v5 archive (pre-Task-3, no link_nodes at all) is importable NOT because of the
+    `.get(...) or {}` below -- every path that reaches this function calls
+    validate_document first, and validate_document does `doc.setdefault("link_nodes",
+    {})` IN PLACE (courses/transfer/schema.py), so `document["link_nodes"]` is always
+    already populated by the time we get here. FALSIFIED: swapping this line for the
+    bare-index form leaves test_v5_archive_import_course_still_succeeds green. The
+    `.get(...) or {}` is deliberate belt-and-braces only -- it costs nothing and means
+    a future caller that skips validate_document degrades to "no links resolved"
+    instead of a KeyError/500, matching this function's fail-safe posture everywhere
+    else (see the "never a 500" comment below).
     """
     mapping = {}
     for old_pk, export_id in (document.get("link_nodes") or {}).items():

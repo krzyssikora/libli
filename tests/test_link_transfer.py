@@ -155,9 +155,14 @@ def test_unmapped_link_is_flattened_and_counted():
 
 
 def test_v5_archive_import_course_still_succeeds():
-    # A v5 archive predates link_nodes entirely -- document.get("link_nodes") or {}
-    # in _rewrite_links (not document["link_nodes"]) is what keeps this importable
-    # rather than a KeyError.
+    # A v5 archive predates link_nodes entirely. It stays importable because
+    # validate_document does doc.setdefault("link_nodes", {}) IN PLACE (Task 3,
+    # courses/transfer/schema.py) and _round_trip always calls validate_archive_document
+    # before import_course -- so document["link_nodes"] is already populated by the
+    # time _rewrite_links runs. (_rewrite_links's own `.get(...) or {}` is only
+    # belt-and-braces for a caller that skips validation; it is not what makes THIS
+    # test pass -- falsified by temporarily bare-indexing document["link_nodes"] there
+    # and confirming this test stayed green.)
     course, _chapter, _unit = _course_with_link()
     report = {}
     new_course = _round_trip(
