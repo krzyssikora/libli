@@ -1644,3 +1644,23 @@ dialog.imgzoom:not([open]) { display: none; }
 
 /* An affordance for a second browser tab is noise on paper. */
 @media print { .unit-strip__edit { display: none; } }
+
+/* ---- Content link affordances ---------------------------------------------
+   Scoped to .el (the wrapper every rendered element carries) so site chrome and
+   navigation are untouched. Keying off the href PREFIX is what lets this work with no
+   sanitiser change -- a class on <a> would be stripped by nh3.
+   TWIN: the "/courses/n/" literal below duplicates the node_permalink route path. The
+   route NAME does not protect it; tests/test_link_styling.py ties the two together.
+   The glyphs are ::before/::after content, so they are not copied with the text and
+   are not announced -- the link text alone must carry the meaning. */
+.el a[href^="/courses/n/"] {
+  color: var(--primary); text-decoration: underline;
+}
+.el a[href^="/courses/n/"]::before {
+  content: "\21B3\00A0"; /* downwards arrow with tip rightwards */
+  text-decoration: none; display: inline-block;
+}
+.el a[href^="http"]::after {
+  content: "\00A0\2197"; /* north-east arrow */
+  text-decoration: none; display: inline-block;
+}
