@@ -92,6 +92,63 @@ def test_href_containing_a_raw_gt():
     assert find_link_targets(html) == set()
 
 
+@pytest.mark.parametrize(
+    "html",
+    [
+        '<a data-href="/courses/n/999/" href="/courses/n/12/">x</a>',
+        '<a href="/courses/n/12/" data-href="/courses/n/999/">x</a>',
+    ],
+)
+def test_spoofed_data_href_attribute_does_not_displace_the_real_href(html):
+    # Reachable: FillGateElement/SwitchGateElement.stem never go through
+    # sanitize_html (see the RICH_TEXT_FIELDS comment), so a hand-crafted transfer
+    # archive controls this content directly. Without an attribute-name boundary,
+    # the href-matching regex fires on the "href" SUBSTRING inside any longer
+    # attribute name -- e.g. data-href -- and scan order decides which value wins.
+    # Reversing the two attributes must not change the answer.
+    assert find_link_targets(html) == {12}
+    out, flat = rewrite_links(html, {12: 99}, on_missing="unwrap")
+    assert "/courses/n/99/" in out
+    assert "/courses/n/999/" in out  # the fake data-href is untouched, not rewritten
+    assert flat == 0
+
+
+def test_unquoted_href_value_fails_closed():
+    # Not a silent miss: nh3's own output always quotes attribute values, so an
+    # unquoted href is reachable only via a hand-crafted archive that bypassed
+    # sanitize_html (same reachability as the spoofed-attribute case above).
+    # Fail-closed means the WHOLE body comes back untouched -- a well-formed
+    # internal link elsewhere in the SAME body must not be found or rewritten
+    # either. (A version that merely treats the malformed href as "no href" and
+    # keeps scanning would still find and rewrite the second anchor below -- that
+    # is the silent-miss failure class this module exists to prevent, and the
+    # scenario a single malformed anchor with nothing after it cannot distinguish
+    # from a genuine fail-closed implementation.)
+    html = '<a href=/courses/n/12/>bad</a> <a href="/courses/n/34/">good</a>'
+    assert find_link_targets(html) == set()
+    out, flat = rewrite_links(html, {34: 999}, on_missing="unwrap")
+    assert out == html
+    assert flat == 0
+
+
+def test_href_inside_html_comment_is_still_matched_known_limitation():
+    # KNOWN LIMITATION, pinned not fixed: the scanner is a deliberate non-parser --
+    # a regex-based scan for <a ...> open tags -- with no notion of an HTML comment.
+    # A literal "<a href=...>" that happens to sit inside <!-- ... --> is
+    # indistinguishable from a real anchor and IS matched. This is the documented
+    # tradeoff of avoiding a full HTML parser (see the module docstring); this test
+    # records current behaviour, it does not assert the behaviour is desirable.
+    html = '<!-- <a href="/courses/n/12/">note</a> -->'
+    assert find_link_targets(html) == {12}
+
+
+def test_href_inside_code_block_is_still_matched_known_limitation():
+    # Same known limitation for literal (unescaped) anchor markup sitting inside a
+    # <code> block's text content -- the scanner cannot tell it isn't a real anchor.
+    html = '<code><a href="/courses/n/12/">sample</a></code>'
+    assert find_link_targets(html) == {12}
+
+
 # ---- rewrite_links --------------------------------------------------------
 
 

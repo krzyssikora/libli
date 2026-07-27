@@ -55,6 +55,16 @@ class _Unscannable(Exception):
     """The body met a fail-closed condition; return it byte-identical."""
 
 
+_TAG_OPEN = re.compile(r"<a(?=[\s>])", re.I)
+# (?<![\w-]) is the attribute-NAME boundary: without it, "href" matches as a
+# substring of any longer attribute name ending in it (e.g. data-href="..."),
+# so a hand-crafted attribute can spoof or displace the real href depending on
+# scan order. Word/hyphen chars are exactly the characters an HTML attribute
+# name is made of, so this is a name boundary, not a value boundary.
+_HREF_ATTR = re.compile(r"(?<![\w-])href\s*=\s*", re.I)
+_CLOSE_TAG = re.compile(r"</a\s*>", re.I)
+
+
 def _scan_anchors(html):
     """Yield (tag_start, tag_end, href_span) for every <a> open tag.
 
@@ -63,11 +73,18 @@ def _scan_anchors(html):
     is ordinary sanitised content. A naive `<a[^>]*>` matches `<a title="a >` -- a
     syntactically CLEAN match of the wrong span, which silently misses the href
     instead of failing. So consume quoted values until an UNQUOTED '>'.
+
+    An unquoted href value (`<a href=/courses/n/12/>`) is also a fail-closed
+    condition, not a silent miss: nh3's own output always quotes attribute
+    values, so an unquoted href is reachable only via a hand-crafted archive
+    that bypassed sanitize_html (see the FillGate/SwitchGate stem note on
+    RICH_TEXT_FIELDS above) -- exactly the adversarial-input case this scanner
+    exists to fail safely on, not to parse.
     """
     i = 0
     n = len(html)
     while True:
-        m = re.compile(r"<a(?=[\s>])", re.I).search(html, i)
+        m = _TAG_OPEN.search(html, i)
         if not m:
             return
         j = m.end()
@@ -83,14 +100,17 @@ def _scan_anchors(html):
                     raise _Unscannable("unterminated quoted attribute value")
                 j = k + 1
                 continue
-            am = re.compile(r"href\s*=\s*(\"([^\"]*)\"|'([^']*)')", re.I).match(html, j)
+            am = _HREF_ATTR.match(html, j)
             if am:
-                href = (
-                    am.group(2) if am.group(2) is not None else am.group(3),
-                    am.start(1),
-                    am.end(1),
-                )
-                j = am.end()
+                vs = am.end()
+                if vs >= n or html[vs] not in "\"'":
+                    raise _Unscannable("unquoted href attribute value")
+                quote = html[vs]
+                k = html.find(quote, vs + 1)
+                if k == -1:
+                    raise _Unscannable("unterminated quoted attribute value")
+                href = (html[vs + 1 : k], vs, k + 1)
+                j = k + 1
                 continue
             j += 1
         else:
@@ -150,7 +170,7 @@ def rewrite_links(html, mapping, *, on_missing):
             new = f"{PERMALINK_PREFIX}{mapping[pk]}/"
             edits.append((href[1], href[2], f'"{new}"'))
         elif on_missing == "unwrap":
-            close = re.compile(r"</a\s*>", re.I).search(html, end)
+            close = _CLOSE_TAG.search(html, end)
             if close is None:
                 return html, 0  # fail closed: no matching </a>
             edits.append((start, end, ""))
