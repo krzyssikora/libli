@@ -41,7 +41,8 @@
 | `courses/builder_open.py` *(new)* | `OpenSet`, `_open_ids`, chain/ceiling/sanitisation helpers. Pure, no view imports — keeps the precedence rules in one testable place. |
 | `courses/views_manage.py` | Wires `_open_ids` into `builder()`, `_builder_with_notice()`, `_render_scope()`; adds `extra_open`; adds `manage_node_scope`; session writes. |
 | `courses/templatetags/courses_manage_extras.py` | Adds `{% toggle_href %}`. |
-| `templates/courses/manage/_tree_node.html` | Conditional recursion + toggle markup. |
+| `templates/courses/manage/_tree_node.html` | Conditional recursion; delegates the toggle to a partial. |
+| `templates/courses/manage/_tree_toggle.html` *(new)* | One toggle control; each blocktrans msgid appears once. |
 | `templates/courses/manage/_scope.html` | Scope `id`, hoisted URLs, passes `open_ids` down. |
 | `templates/courses/manage/_move_buttons.html` | Stops reversing `manage_node_move` itself. |
 | `templates/courses/manage/builder.html` | Root data attributes; `info` slot. |
@@ -975,7 +976,8 @@ git commit -m "feat(builder): remember the last node an author focused"
 This is the behaviour change. After it the builder is fast but has no toggle affordance yet (Task 4 adds the link, Task 8 the JS), so the tree is navigable only via `?open=`.
 
 **Files:**
-- Modify: `templates/courses/manage/_tree_node.html`, `templates/courses/manage/_scope.html`, `templates/courses/manage/_icon_sprite.html`, `courses/static/courses/css/builder.css`, `courses/views_manage.py` (`builder`, `_builder_with_notice`, `_render_scope`)
+- Create: `templates/courses/manage/_tree_toggle.html`
+- Modify: `templates/courses/manage/_tree_node.html`, `templates/courses/manage/_scope.html`, `templates/courses/manage/_icon_sprite.html`, `courses/templatetags/courses_manage_extras.py`, `courses/static/courses/css/builder.css`, `courses/views_manage.py` (`builder`, `_builder_with_notice`, `_render_scope`)
 - Test: `tests/test_builder_lazy_scopes.py` *(new)*
 
 **Interfaces:**
@@ -1218,27 +1220,55 @@ and insert the toggle as the FIRST child of `.tree__rowhead`, immediately after 
 
 ```html
     {% if node.kind != "unit" %}
-      {% with kids=children_map|get_item:node.pk %}
-      {% if node.pk in open_ids %}
-      <a class="tree__toggle" href="#" data-toggle="{{ node.pk }}"
-         aria-expanded="true" aria-controls="tree-scope-{{ node.pk }}"
-         aria-label="{% blocktrans count counter=kids|length with title=node.title %}Collapse {{ title }}, {{ counter }} item{% plural %}Collapse {{ title }}, {{ counter }} items{% endblocktrans %}"
-         data-label-expand="{% blocktrans count counter=kids|length with title=node.title %}Expand {{ title }}, {{ counter }} item{% plural %}Expand {{ title }}, {{ counter }} items{% endblocktrans %}"
-         data-label-collapse="{% blocktrans count counter=kids|length with title=node.title %}Collapse {{ title }}, {{ counter }} item{% plural %}Collapse {{ title }}, {{ counter }} items{% endblocktrans %}"
-      ><svg class="ic"><use href="#bi-chevron"/></svg></a>
-      {% else %}
-      <a class="tree__toggle" href="#" data-toggle="{{ node.pk }}"
-         aria-expanded="false"
-         aria-label="{% blocktrans count counter=kids|length with title=node.title %}Expand {{ title }}, {{ counter }} item{% plural %}Expand {{ title }}, {{ counter }} items{% endblocktrans %}"
-         data-label-expand="{% blocktrans count counter=kids|length with title=node.title %}Expand {{ title }}, {{ counter }} item{% plural %}Expand {{ title }}, {{ counter }} items{% endblocktrans %}"
-         data-label-collapse="{% blocktrans count counter=kids|length with title=node.title %}Collapse {{ title }}, {{ counter }} item{% plural %}Collapse {{ title }}, {{ counter }} items{% endblocktrans %}"
-      ><svg class="ic"><use href="#bi-chevron"/></svg></a>
-      {% endif %}
-      {% endwith %}
+      {% include "courses/manage/_tree_toggle.html" with node=node is_open=node.pk|in_set:open_ids kids=children_map|get_item:node.pk %}
     {% else %}
       <span class="tree__toggle tree__toggle--leaf" aria-hidden="true"></span>
     {% endif %}
 ```
+
+**Create `templates/courses/manage/_tree_toggle.html`** — each `{% blocktrans %}` appears
+**once**, so `makemessages` extracts one msgid per label and three copies cannot drift:
+
+```html
+{% load i18n %}
+{% comment %}One toggle. `is_open` decides aria-*; both labels are rendered
+   server-side because JS cannot select a Polish plural form. aria-controls is
+   emitted ONLY when expanded -- pointing it at a missing id is invalid ARIA
+   that screen readers treat as no relationship.{% endcomment %}
+{% blocktrans count counter=kids|length with title=node.title asvar label_expand %}Expand {{ title }}, {{ counter }} item{% plural %}Expand {{ title }}, {{ counter }} items{% endblocktrans %}
+{% blocktrans count counter=kids|length with title=node.title asvar label_collapse %}Collapse {{ title }}, {{ counter }} item{% plural %}Collapse {{ title }}, {{ counter }} items{% endblocktrans %}
+<a class="tree__toggle" href="#" data-toggle="{{ node.pk }}"
+   aria-expanded="{% if is_open %}true{% else %}false{% endif %}"
+   {% if is_open %}aria-controls="tree-scope-{{ node.pk }}"{% endif %}
+   aria-label="{% if is_open %}{{ label_collapse }}{% else %}{{ label_expand }}{% endif %}"
+   data-label-expand="{{ label_expand }}"
+   data-label-collapse="{{ label_collapse }}"
+><svg class="ic"><use href="#bi-chevron"/></svg></a>
+```
+
+**Add the `in_set` filter** to `courses/templatetags/courses_manage_extras.py` (append only —
+do **not** re-bind `register`, which is already defined at line 23):
+
+```python
+@register.filter
+def in_set(value, container):
+    """`{% include ... with is_open=node.pk|in_set:open_ids %}`.
+
+    A filter, because an {% include %} `with` argument cannot contain an `in`
+    expression. Django's smartif swallows errors in `{% if x in y %}`, so a
+    missing container renders silently-collapsed rather than loudly -- this
+    filter fails the same way by design, matching the template's behaviour.
+    """
+    try:
+        return value in (container or ())
+    except TypeError:
+        return False
+```
+
+> The extra `{% include %}` fires for **container rows only** (137 on `mat-pp`, 21 in the
+> collapsed default). `_move_buttons.html` is already included for *every* row (944), so this
+> adds ~15% to an include load the page already carries. Task 3 Step 11's `OPEN=all` run
+> prices it — if the delta is material, inline the markup and accept the duplication.
 
 > The `href="#"` is a placeholder replaced in Task 4 by `{% toggle_href %}`. Both labels are
 > rendered server-side because JS cannot select a Polish plural form.
