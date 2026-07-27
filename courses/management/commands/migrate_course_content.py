@@ -478,6 +478,14 @@ class Command(BaseCommand):
                             )
                             continue
                         # insertion_node=None -> top level. All positional.
+                        # report collects flattened-link counts: this command moves
+                        # content ONE PART AT A TIME, so build_export(course,
+                        # node=part) only ever emits link_nodes for targets INSIDE
+                        # that part. A cross-part link is unmappable on import and,
+                        # under the default on_missing="unwrap", is silently
+                        # flattened to plain text -- this is the only place that
+                        # loss is ever surfaced.
+                        report = {}
                         import_subtree(
                             zf,
                             manifest,
@@ -486,7 +494,17 @@ class Command(BaseCommand):
                             target,
                             None,
                             user,
+                            report=report,
                         )
+                        if report.get("flattened_links"):
+                            self.stdout.write(
+                                self.style.WARNING(
+                                    f"{archive.name}: "
+                                    f"{report['flattened_links']} internal "
+                                    f"link(s) had no target in this part and "
+                                    f"were flattened to plain text"
+                                )
+                            )
             except TransferError as exc:
                 # Recovery guidance belongs HERE, on the failure path -- a
                 # trailing "no parts committed" line after the loop would be

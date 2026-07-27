@@ -22,7 +22,12 @@
   var countEl = dialog.querySelector("[data-link-count]");
   var countLabel = dialog.querySelector("[data-count-template]");
   var tabsEl = dialog.querySelector(".picker__tabs");
-  var PERMALINK = /^\/courses\/n\/(\d+)\/$/;
+  // Digit run capped at 12, mirroring courses/richtext.py's _PERMALINK (I1: CPython's
+  // int() raises past a 4300-digit conversion; the Python side now caps at 12 to match
+  // transfer/schema.py's link_nodes key cap). JS's parseInt never throws, so nothing
+  // here crashes without the cap -- this keeps the two definitions of "internal link"
+  // honest with each other rather than letting them silently diverge.
+  var PERMALINK = /^\/courses\/n\/(\d{1,12})\/$/;
 
   var callback = null;        // pending; a second open() is REJECTED, not superseding
   var committed = null;       // set by Insert/Remove; the close handler reads it
