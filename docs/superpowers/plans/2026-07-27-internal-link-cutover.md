@@ -90,7 +90,7 @@ If that fails, **stop** and report that part 2 has not landed. Do not stub it.
 Everything new lives in the command module rather than a new file: the spec pins
 `LINK_STATE_NAME` as "a module constant beside `MANIFEST_NAME` and `BASELINE_NAME`", and every
 helper is command-private. The module grows by roughly 300 lines; that is in keeping with its
-existing shape (616 lines, three phase methods plus shared helpers).
+existing shape (615 lines, three phase methods plus shared helpers).
 
 ---
 
@@ -108,11 +108,15 @@ existing shape (616 lines, three phase methods plus shared helpers).
 
 - [ ] **Step 1: Write the failing tests**
 
-Append to `tests/test_transfer_export.py`:
+**Use this file's real fixtures.** `tests/test_transfer_export.py` has `pytestmark =
+pytest.mark.django_db` at `:43` (so no `db` fixture is needed) and defines two pytest **fixtures** —
+`course` (`:46`) and `image_asset` (`:52`) — plus module helpers `_mk_tree`, `_attach`,
+`_delete_asset_file` and `_make_broken_join`. There is no `_course_with_two_units` or
+`_course_with_a_broken_media_ref`; the problems path at `:405`/`:429` is produced by
+`_delete_asset_file(image_asset)`. Append:
 
 ```python
-def test_build_export_fills_report_node_ids_when_asked():
-    course = _course_with_two_units()          # any existing fixture in this file
+def test_build_export_fills_report_node_ids_when_asked(course):
     report = {}
     _m, doc, _ma, _p = build_export(course, report=report)
     ids = report["node_ids"]
@@ -122,25 +126,23 @@ def test_build_export_fills_report_node_ids_when_asked():
     assert len(ids) == len(doc["nodes"])
 
 
-def test_build_export_without_report_is_unchanged():
-    course = _course_with_two_units()
+def test_build_export_without_report_is_unchanged(course):
     # The 4-tuple contract every other call site relies on.
     result = build_export(course)
     assert len(result) == 4
 
 
-def test_report_node_ids_survives_the_problems_path():
+def test_report_node_ids_survives_the_problems_path(course, image_asset):
     """--allow-problems must not cost the operator the node index."""
-    course = _course_with_a_broken_media_ref()   # existing fixture producing `problems`
+    _delete_asset_file(image_asset)              # the file's own problems recipe
     report = {}
     _m, _doc, _ma, problems = build_export(course, report=report)
     assert problems                              # precondition: this path was taken
     assert report["node_ids"]                    # and the index still arrived
 ```
 
-Read the file first and reuse whichever fixtures it already defines for a course and for a
-problems-producing course — do not invent new ones. `tests/test_transfer_export.py:405` and `:429`
-already exercise the problems path; model the third test on whichever of those is closest.
+If `image_asset` needs to be attached to the tree for `problems` to be non-empty, copy the exact
+setup from the test at `:405` rather than inventing one.
 
 - [ ] **Step 2: Run the tests to verify they fail**
 
@@ -232,36 +234,76 @@ git commit -m "feat(transfer): hand node_ids back through an optional report out
 
 - [ ] **Step 1: Write the failing tests**
 
+**These must drive `import_subtree`, not `import_course`.** Part 2's `_round_trip` helper
+(`…-internal-link-durability.md:1029-1051`) calls `import_course`, which this task does **not**
+teach `defer` — routing a `defer` test through it would reach `rewrite_links` and raise
+`ValueError: unknown on_missing`. So add a subtree sibling first. Model its archive-buffer plumbing
+on `tests/test_transfer_subtree.py`'s own buffer helper — the one ending in `return buf` just above
+`:115`. **Not** `:121`, which is `_assert_subtree_graphs_equal(source_course, source_root,
+target_course, target_root)`, a graph comparator with nothing to do with archive construction.
+
 Append to `tests/test_link_transfer.py`:
 
 ```python
+def _round_trip_subtree(course, root, target_course, user, report, *, on_missing):
+    """Export `root` as a subtree and graft it into `target_course`.
+
+    import_subtree is the ONLY entry point that learns `defer`, so every test
+    below goes through here rather than part 2's import_course-based _round_trip.
+    """
+    import io
+
+    from courses.transfer.export import build_export, write_archive_from
+    from courses.transfer.importer import (
+        import_subtree,
+        open_archive,
+        validate_archive_document,
+    )
+
+    manifest, document, assets, _problems = build_export(course, node=root)
+    buf = io.BytesIO()
+    write_archive_from(manifest, document, assets, buf)
+    buf.seek(0)
+    with open_archive(buf, expected_kind="subtree") as (zf, mani, doc, media):
+        validate_archive_document(zf, mani, doc, media, kind="subtree",
+                                  target_course=target_course)
+        return import_subtree(
+            zf, mani, doc, media, target_course, None, user,
+            on_missing=on_missing, report=report,
+        )
+
+
 def test_defer_skips_the_rewrite_and_reports_node_map():
     """The cutover's contract: rewrite NOTHING, but hand back the map."""
     course, chapter, _unit = _course_with_link()
+    target = Course.objects.create(title="T", slug="t-defer", uses_chapters=True)
     report = {}
-    new_course = _round_trip(course, course.owner, report, on_missing="defer")
+    _round_trip_subtree(course, chapter, target, course.owner, report,
+                        on_missing="defer")
 
-    from courses.models import ContentNode, TextElement
+    from courses.models import TextElement
 
-    body = TextElement.objects.filter(elements__unit__course=new_course).first().body
+    body = TextElement.objects.filter(elements__unit__course=target).first().body
     # Untouched: the href still holds the SOURCE pk.
     assert f"/courses/n/{chapter.pk}/" in body
     # And the map came back anyway.
     assert report["node_map"]
     assert all(isinstance(v, int) for v in report["node_map"].values())
-    new_chapter = ContentNode.objects.get(course=new_course, title="Ch")
-    assert new_chapter.pk in report["node_map"].values()
     # Present-and-zero, not absent -- callers read it without a .get.
     assert report["flattened_links"] == 0
 
 
-def test_node_map_is_populated_for_every_on_missing_value():
-    for policy in ("keep", "unwrap", "defer"):
-        course, _chapter, _unit = _course_with_link()
-        report = {}
-        _round_trip(course, course.owner, report, on_missing=policy)
-        assert report["node_map"], policy
-        assert "flattened_links" in report, policy
+@pytest.mark.parametrize("policy", ["keep", "unwrap", "defer"])
+def test_node_map_is_populated_for_every_on_missing_value(policy):
+    course, chapter, _unit = _course_with_link()
+    target = Course.objects.create(
+        title="T", slug=f"t-{policy}", uses_chapters=True
+    )
+    report = {}
+    _round_trip_subtree(course, chapter, target, course.owner, report,
+                        on_missing=policy)
+    assert report["node_map"], policy
+    assert "flattened_links" in report, policy
 
 
 def test_rewrite_links_still_rejects_defer():
@@ -272,11 +314,9 @@ def test_rewrite_links_still_rejects_defer():
         rewrite_links('<a href="/courses/n/1/">x</a>', {}, on_missing="defer")
 ```
 
-`_round_trip` is part 2's helper (`tests/test_link_transfer.py`); it calls `import_course`. Extend
-it with an `on_missing` passthrough if it does not have one, or add a subtree-flavoured sibling —
-read the file and follow whatever shape part 2 left. If `_round_trip` only covers `import_course`,
-add `_round_trip_subtree` modelled on `tests/test_transfer_subtree.py:121`, since `defer` is only
-ever requested on `import_subtree`.
+`_course_with_link()` is part 2's fixture; read it and adjust the `chapter` argument if its return
+shape differs. If `validate_archive_document`'s subtree kwargs differ from the above, copy them
+verbatim from `tests/test_transfer_subtree.py` rather than guessing.
 
 - [ ] **Step 2: Run to verify failure**
 
@@ -302,7 +342,12 @@ def import_subtree(
             zf, document, media_entries, target_course, user, created_files
         )
         node_map = _create_nodes(document, target_course, root_parent=insertion_node)
-        _create_elements(document, node_map, assets)
+        # Part 2 changes _create_elements to `return list(joins.values())` and
+        # threads the result into _rewrite_links. Keep BOTH -- dropping `created`
+        # silently makes the post-pass iterate nothing, so the Studio
+        # subtree-upload path stops rewriting links with only
+        # report["flattened_links"] == 0 to show for it.
+        created = _create_elements(document, node_map, assets)
 
         # Bookkeeping is UNCONDITIONAL -- `defer` skips the rewrite, not this.
         # migrate_course_content needs export_id -> new_pk from every part, and
@@ -313,19 +358,25 @@ def import_subtree(
             report.setdefault("flattened_links", 0)
 
         if on_missing != "defer":
-            _rewrite_imported_links(          # part 2's post-pass; name per part 2
-                document, node_map, on_missing=on_missing, report=report
+            _rewrite_links(
+                document, node_map, created, on_missing=on_missing, report=report
             )
         return node_map[document["nodes"][0]["id"]]
 
     return _run_import(work, created_files)
 ```
 
-Read part 2's actual post-pass first — it may be inline rather than extracted. If inline, wrap it
-in `if on_missing != "defer":` rather than extracting it; extracting is out of scope.
+`_rewrite_links(document, node_map, created_joins, *, on_missing, report)` is part 2's real
+signature (`docs/superpowers/plans/2026-07-26-internal-link-durability.md:1150`), and
+`import_subtree` calls it at `:1203-1204` exactly as above. Do **not** invent a name for it, and do
+**not** drop the `created` argument.
 
-Also add `"defer"` to whatever validation part 2 put on `import_subtree`'s `on_missing` (part 2
-raises `ValueError` on unknown values). **Do not** touch `rewrite_links`' own validation.
+**Do not add an `on_missing` guard anywhere.** Measured: part 2 validates in exactly one place,
+`rewrite_links` (`…-internal-link-durability.md:451`, `if on_missing not in ("keep", "unwrap")`);
+`import_subtree` has no validation at all. So there is nothing to extend — `defer` simply never
+reaches `rewrite_links`, because the `if on_missing != "defer":` gate above short-circuits it.
+Touching `rewrite_links`' tuple would turn part 2's `test_an_unknown_on_missing_raises` red, which
+the Global Constraints forbid.
 
 - [ ] **Step 4: Run to verify pass**
 
@@ -369,7 +420,11 @@ git commit -m "feat(transfer): add on_missing='defer' and report['node_map'] to 
 
 - [ ] **Step 1: Write the failing tests**
 
-Append to `tests/test_migrate_course_content.py`:
+**The six new imports go into the existing top-of-file import block** (`tests/test_migrate_course_content.py:13-21`),
+alphabetised in place beside the existing `BASELINE_NAME` / `MANIFEST_NAME` / `Command` imports —
+**not** appended at the bottom. `pyproject.toml:36` selects `["E", "F", "I", "UP", "B", "S"]`, so a
+mid-file import is `E402 Module level import not at top of file` and every task's lint step would
+fail. isort is `force-single-line = true`, so one `from … import X` per line:
 
 ```python
 from courses.management.commands.migrate_course_content import LINK_STATE_NAME
@@ -378,8 +433,11 @@ from courses.management.commands.migrate_course_content import _invert_node_inde
 from courses.management.commands.migrate_course_content import _live_pks
 from courses.management.commands.migrate_course_content import _read_state
 from courses.management.commands.migrate_course_content import _write_state
+```
 
+Then append the helper and tests to the body of the file:
 
+```python
 def _read_state_raw(bundle):
     return json.loads((bundle / LINK_STATE_NAME).read_text(encoding="utf-8"))
 
@@ -622,7 +680,6 @@ def test_export_node_index_survives_allow_problems(tmp_path):
     """--allow-problems must not cost the operator the node index."""
     _mk_source(parts=("Alpha",))
     bundle = tmp_path / "bundle"
-    monkey = {}
 
     def fake(course, node=None, **kw):
         manifest, document, media, _p = _real_build_export(course, node=node, **kw)
@@ -674,7 +731,15 @@ already — see `:301-303`) and fold it into the manifest:
         # another part would appear in no archive's map at all.
         node_index = {}
         total_nodes = 0
+        total_elements = 0
+        node_kind_counts = {}
+        written = set()
 ```
+
+**Insert `node_index = {}` between the existing `side = {}` and `total_nodes = 0`** — do not
+replace the block wholesale. The real `:301-307` initialises six names (`side`, `total_nodes`,
+`total_elements`, `node_kind_counts`, `written`), all still needed by the loop and the manifest;
+they are reproduced above so a wholesale replacement cannot silently drop three of them.
 
 Inside the loop, pass the out-param and merge:
 
@@ -913,6 +978,11 @@ handler exists to prevent.
 after the `node_index` hoist, add a placeholder that Task 6 replaces:
 
 ```python
+        # PLACEHOLDER -- superseded by Task 6's ordered branch. Deliberately
+        # over-strict: it validates on the `start_at is None` path, which spec
+        # step 1 exempts, so a torn state file would make a from-scratch import
+        # raise. That is acceptable only because no test exercises it until
+        # Task 6, which replaces this line. Do not ship it.
         state = _read_state(bundle, validate=True) or _fresh_state(target)
 ```
 
@@ -972,16 +1042,49 @@ git commit -m "feat(migrate): graft each part under an outer atomic and record i
 
 ```python
 def _seed_state(bundle, target, orders, *, status="collecting", rewritten=False):
-    """Hand-write a state file. Cheaper than a real ten-part import, and the
-    guards under test read the file rather than the graft."""
+    """Hand-write a state file AND the world it describes.
+
+    Three things must line up or the test measures the wrong gate:
+
+    1. `BASELINE_NAME` must exist. Without it the resume path re-captures the
+       baseline NOW (`:419-427`), so `baseline["top_nodes"] == existing` and
+       `:433` raises for EVERY `--start-at K > 0` -- before any gate under test.
+       Seeded here as an all-zero baseline, matching an empty target.
+    2. The target must hold exactly `len(orders)` top-level nodes, or `:433`
+       raises anyway.
+    3. `node_map` values must be REAL live pks in `target`. Synthetic pks make
+       `_build_mapping`'s `skipped_dead` non-empty, so any seeded test that
+       reaches the pass dies on the fatal-skip CommandError instead.
+
+    Every seeded test must also pass `match=` to `pytest.raises`, or it can pass
+    on `:433`'s message and prove nothing.
+    """
     index = _read_manifest(bundle)["node_index"]
+    (bundle / BASELINE_NAME).write_text(
+        json.dumps({
+            "top_nodes": 0, "all_nodes": 0, "kind_counts": {},
+            "elements": 0, "media": 0,
+        }),
+        encoding="utf-8",
+    )
     state = _fresh_state(target)
     state["status"] = status
     for o in orders:
         src = _invert_node_index(index, o)
+        # One real node per export id, so _live_pks finds every recorded pk.
+        top = ContentNode.objects.create(course=target, kind="part", title=f"S{o}")
+        node_map = {}
+        for i, eid in enumerate(src):
+            node_map[eid] = (
+                top.pk
+                if i == 0
+                else ContentNode.objects.create(
+                    course=target, kind="chapter", title=f"S{o}c{i}", parent=top
+                ).pk
+            )
         state["parts"].append({
             "order": o,
-            "node_map": {eid: 10**6 + i for i, eid in enumerate(src)},
+            "node_map": node_map,
             "src": src,
             "rewritten": rewritten,
         })
@@ -1014,7 +1117,9 @@ def test_resume_refuses_a_state_file_for_a_different_target(tmp_path):
     st = _seed_state(bundle, target, [0])
     st["target_pk"] = other.pk
     _write_state(bundle, st)
-    with pytest.raises(CommandError, match="target"):
+    # match= is mandatory: :433's own message contains "target", so a bare
+    # pytest.raises(CommandError) would pass on the wrong gate.
+    with pytest.raises(CommandError, match="Refusing to mix targets"):
         call_command(
             "migrate_course_content", "import",
             "--target-slug", "dst", "--bundle-dir", str(bundle),
@@ -1045,10 +1150,10 @@ def test_resume_refuses_when_a_committed_order_is_missing_from_the_state(tmp_pat
     bundle = _export_bundle(tmp_path)
     target = _mk_target()
     _user()
-    _seed_state(bundle, target, [0])          # order 1 absent
-    for t in ("P0", "P1"):
-        ContentNode.objects.create(course=target, kind="part", title=t)
-    with pytest.raises(CommandError):
+    # Two orders' worth of nodes, but only order 0 recorded.
+    _seed_state(bundle, target, [0])
+    ContentNode.objects.create(course=target, kind="part", title="extra")
+    with pytest.raises(CommandError, match="does not record them"):
         call_command(
             "migrate_course_content", "import",
             "--target-slug", "dst", "--bundle-dir", str(bundle),
@@ -1064,15 +1169,19 @@ def test_the_subset_guard_is_not_lexicographic(tmp_path):
     bundle = _export_bundle(tmp_path, parts=tuple(f"P{i}" for i in range(11)))
     target = _mk_target()
     _user()
-    _seed_state(bundle, target, list(range(10)))
-    for i in range(10):
-        ContentNode.objects.create(course=target, kind="part", title=f"P{i}")
-    # Accepted: every archive order below 10 is recorded.
+    # rewritten=True: this test asserts the GUARD accepts, and the seeded pks
+    # are real but hold no links, so leaving them pending would drag the whole
+    # deferred pass in as a second subject. `recorded != on_disk` here (10 of 11)
+    # so neither trigger site fires either way.
+    _seed_state(bundle, target, list(range(10)), rewritten=True)
+    # Accepted: every archive order below 10 is recorded. A lexicographic-max
+    # implementation computes max(["0".."9"]) == "9" and rejects this.
     call_command(
         "migrate_course_content", "import",
         "--target-slug", "dst", "--bundle-dir", str(bundle),
         "--as-user", "mig@example.com", "--start-at", "10",
     )
+    assert ContentNode.objects.filter(course=target, title="P10").exists()
 
 
 def test_resume_refuses_when_the_state_records_orders_no_longer_on_disk(tmp_path):
@@ -1081,9 +1190,7 @@ def test_resume_refuses_when_the_state_records_orders_no_longer_on_disk(tmp_path
     bundle = _export_bundle(tmp_path)
     target = _mk_target()
     _user()
-    _seed_state(bundle, target, [0, 1, 2])
-    for t in ("P0", "P1", "P2"):
-        ContentNode.objects.create(course=target, kind="part", title=t)
+    _seed_state(bundle, target, [0, 1, 2], rewritten=True)
     (sorted(bundle.glob("*.zip"))[-1]).unlink()
     manifest = _read_manifest(bundle)
     manifest["part_count"] = 2
@@ -1100,6 +1207,13 @@ def test_a_missing_state_file_with_start_at_above_zero_refuses(tmp_path):
     bundle = _export_bundle(tmp_path)
     target = _mk_target()
     _user()
+    # A baseline plus one committed part, but NO state file -- the pre-feature
+    # import shape. Without the baseline, :433 would raise first.
+    (bundle / BASELINE_NAME).write_text(
+        json.dumps({"top_nodes": 0, "all_nodes": 0, "kind_counts": {},
+                    "elements": 0, "media": 0}),
+        encoding="utf-8",
+    )
     ContentNode.objects.create(course=target, kind="part", title="P0")
     with pytest.raises(CommandError, match="cannot be reconstructed"):
         call_command(
@@ -1126,7 +1240,7 @@ def test_a_torn_state_file_refuses_on_the_resume_branch(tmp_path):
     bundle = _export_bundle(tmp_path)
     target = _mk_target()
     _user()
-    ContentNode.objects.create(course=target, kind="part", title="P0")
+    _seed_state(bundle, target, [0])          # baseline + one committed part
     (bundle / LINK_STATE_NAME).write_text('{"version": 1, "par', encoding="utf-8")
     with pytest.raises(CommandError, match="not valid JSON"):
         call_command(
@@ -1344,7 +1458,7 @@ Then restructure `_import`'s branch. Replace the Task 5 placeholder with the rea
             ...  # baseline write and the `not todo` early return -- Task 8 edits this
 ```
 
-`_in_progress_message` is a stub returning a plain string for now; Task 7 gives it the probe
+`_in_progress_message` is a stub returning a plain string for now; **Task 11** gives it the probe
 reading.
 
 Note the subset guard is a **set** operation against archive orders on disk. Never
@@ -1564,6 +1678,9 @@ def _merge_rewrite(prior, per_order, fail_closed, all_orders):
     fail_closed_elements of orders it did not scan, and verify would then read
     a previously-recorded fail-closed element as an ordinary dangling one and
     raise with no remedy reachable."""
+    # Capture emptiness BEFORE the pop: a {"resolved_by_operator": True} object
+    # is NOT a first pass, and popping first would make it look like one.
+    first_pass = not prior
     prior = dict(prior or {})
     prior.pop("resolved_by_operator", None)
     rows = {int(r["order"]): r for r in prior.get("parts", [])}
@@ -1582,14 +1699,20 @@ def _merge_rewrite(prior, per_order, fail_closed, all_orders):
     else:
         merged["elements_touched"] = None
         merged["flattened"] = None
-    # Unioned ONLY when the prior object actually had the key. An incomplete
-    # list is worse than an absent one: verify recomputes live on absence but
-    # TRUSTS a present list.
+    # Unioned ONLY when the prior object actually had the key; OMITTED entirely
+    # when it did not. An incomplete list is worse than an absent one, because
+    # verify recomputes live on absence but TRUSTS a present list -- so emitting
+    # this pass's findings alone after a --resolve-rewrite applied (which writes
+    # no such key) would drop a previously-recorded element and make verify raise
+    # with status == "applied" and no remedy reachable.
+    #
+    # `first_pass` is the genuinely-first pass: nothing has been recorded yet, so
+    # this pass's findings ARE complete and the key is safe to write.
     if "fail_closed_elements" in prior:
         merged["fail_closed_elements"] = sorted(
             set(prior["fail_closed_elements"]) | set(fail_closed)
         )
-    else:
+    elif first_pass:
         merged["fail_closed_elements"] = sorted(set(fail_closed))
     return merged
 ```
@@ -1781,7 +1904,20 @@ def test_the_pass_survives_an_interrupted_import_resumed_with_start_at(tmp_path)
     args = ("--target-slug", "dst", "--bundle-dir", str(bundle),
             "--as-user", "mig@example.com")
     call_command("migrate_course_content", "import", *args, "--start-at", "0")
-    # A second process. The map must have survived on disk.
+    # `--start-at 0` grafts BOTH parts, so simulate the interruption by removing
+    # the second one. Resuming at 1 with 2 top-level nodes present would fail
+    # :433 (expected baseline + 1, holds 2) before reaching anything under test.
+    ContentNode.objects.filter(
+        course=target, parent__isnull=True, title="P1"
+    ).delete()
+    st = _read_state_raw(bundle)
+    st["parts"] = [e for e in st["parts"] if int(e["order"]) != 1]
+    st["status"] = "collecting"
+    for e in st["parts"]:
+        e["rewritten"] = False
+    st.pop("rewrite", None)
+    _write_state(bundle, st)
+    # A second process. The map for part 0 must have survived on disk.
     call_command("migrate_course_content", "import", *args, "--start-at", "1")
     new_u1 = ContentNode.objects.get(course=target, title="U1")
     bodies = " ".join(
@@ -2018,6 +2154,12 @@ def test_resolve_rewrite_applied_sets_every_per_entry_flag(tmp_path):
                  "--as-user", "mig@example.com")
     st = _read_state_raw(bundle)
     st["status"] = "in_progress"
+    # The completed pass already set every flag True, so leaving them would make
+    # the assertion below hold whether or not the `applied` arm sets them --
+    # i.e. the falsification could not go RED. The spec's scenario is precisely
+    # "flipping only status leaves every entry FALSE".
+    for e in st["parts"]:
+        e["rewritten"] = False
     _write_state(bundle, st)
     call_command("migrate_course_content", "import",
                  "--target-slug", "dst", "--bundle-dir", str(bundle),
@@ -2027,6 +2169,45 @@ def test_resolve_rewrite_applied_sets_every_per_entry_flag(tmp_path):
     assert after["status"] == "applied"
     assert all(e["rewritten"] for e in after["parts"])
     assert after["rewrite"]["resolved_by_operator"] is True
+
+
+def test_resolve_rewrite_applied_then_a_repair_resume_leaves_bodies_alone(tmp_path):
+    """The consequence the per-entry flags exist to prevent: with only `status`
+    flipped, a repair resume makes pending == every order and the pass re-applies
+    an old-SOURCE-pk map over hrefs that already hold TARGET pks."""
+    course = _mk_source(parts=("P0", "P1"))
+    _link_between(course, "P0", "P0")
+    bundle = tmp_path / "bundle"
+    call_command("migrate_course_content", "export",
+                 "--source-slug", "src", "--bundle-dir", str(bundle))
+    target = _mk_target()
+    _user()
+    args = ("--target-slug", "dst", "--bundle-dir", str(bundle),
+            "--as-user", "mig@example.com")
+    call_command("migrate_course_content", "import", *args)
+    st = _read_state_raw(bundle)
+    st["status"] = "in_progress"
+    for e in st["parts"]:
+        e["rewritten"] = False
+    _write_state(bundle, st)
+    call_command("migrate_course_content", "import", *args,
+                 "--resolve-rewrite", "applied")
+    p0_before = sorted(
+        TextElement.objects.filter(
+            elements__unit__parent__parent__title="P0",
+            elements__unit__course=target,
+        ).values_list("body", flat=True)
+    )
+    ContentNode.objects.filter(
+        course=target, parent__isnull=True, title="P1"
+    ).delete()
+    call_command("migrate_course_content", "import", *args, "--start-at", "1")
+    assert sorted(
+        TextElement.objects.filter(
+            elements__unit__parent__parent__title="P0",
+            elements__unit__course=target,
+        ).values_list("body", flat=True)
+    ) == p0_before
 
 
 def test_resolve_rewrite_refuses_a_wrong_target_before_mutating(tmp_path):
@@ -2084,6 +2265,70 @@ def test_resolve_rewrite_refuses_conflicting_flags(tmp_path, extra):
                      "--target-slug", "dst", "--bundle-dir", str(bundle),
                      "--as-user", "mig@example.com",
                      "--resolve-rewrite", "not-applied", *extra)
+
+
+def test_resolve_rewrite_not_applied_accepts_a_complete_collecting_file(tmp_path):
+    """The second disjunct of the acceptance rule, and the ONLY test of it.
+
+    It exists because site 1 is provably unreachable under non-contiguous orders
+    -- there is no --start-at value that both clears :433 and empties todo -- so
+    without this arm such a bundle can never reach the pass. Falsify by deleting
+    the `collecting` disjunct: this goes RED while every other test stays green.
+    """
+    course = _mk_source(parts=("P0", "P1"))
+    _link_between(course, "P0", "P1")
+    bundle = tmp_path / "bundle"
+    call_command("migrate_course_content", "export",
+                 "--source-slug", "src", "--bundle-dir", str(bundle))
+    target = _mk_target()
+    _user()
+    args = ("--target-slug", "dst", "--bundle-dir", str(bundle),
+            "--as-user", "mig@example.com")
+    call_command("migrate_course_content", "import", *args)
+    # Wind back to collecting-with-everything-recorded: the skipped-pass shape.
+    st = _read_state_raw(bundle)
+    st["status"] = "collecting"
+    for e in st["parts"]:
+        e["rewritten"] = False
+    st.pop("rewrite", None)
+    _write_state(bundle, st)
+
+    call_command("migrate_course_content", "import", *args,
+                 "--resolve-rewrite", "not-applied")
+    assert _read_state_raw(bundle)["status"] == "applied"
+    new_u1 = ContentNode.objects.get(course=target, title="U1")
+    bodies = " ".join(
+        TextElement.objects.filter(elements__unit__course=target).values_list(
+            "body", flat=True
+        )
+    )
+    assert f"/courses/n/{new_u1.pk}/" in bodies
+
+
+@pytest.mark.parametrize("arm", ["applied", "not-applied"])
+@pytest.mark.parametrize(
+    "raw, match",
+    [('{"version": 1, "par', "not valid JSON"), ('{"version": 2}', "version")],
+)
+def test_resolve_rewrite_validates_the_state_file(tmp_path, arm, raw, match):
+    """Step 1's validate expression is `not (start_at is None and resolve is
+    None)`, not a plain `start_at is None`. --start-at is fatal alongside
+    --resolve-rewrite, so start_at is ALWAYS None here -- a naive exemption would
+    skip validation on every resolve invocation, and step 2 returns before step 3
+    ever discards anything. Falsify by simplifying the expression: all four of
+    these go RED."""
+    bundle = _export_bundle(tmp_path)
+    _mk_target()
+    _user()
+    call_command("migrate_course_content", "import",
+                 "--target-slug", "dst", "--bundle-dir", str(bundle),
+                 "--as-user", "mig@example.com")
+    (bundle / LINK_STATE_NAME).write_text(raw, encoding="utf-8")
+    with pytest.raises(CommandError, match=match):
+        call_command("migrate_course_content", "import",
+                     "--target-slug", "dst", "--bundle-dir", str(bundle),
+                     "--as-user", "mig@example.com",
+                     "--resolve-rewrite", arm)
 
 
 def test_export_rejects_resolve_rewrite(tmp_path):
@@ -2251,7 +2496,7 @@ git commit -m "feat(migrate): add --resolve-rewrite to break the in_progress dea
 ### Task 10: `verify` — state gates, identity, and the link reconciliation
 
 **Files:**
-- Modify: `courses/management/commands/migrate_course_content.py:512-616`
+- Modify: `courses/management/commands/migrate_course_content.py:512-615`
 - Test: `tests/test_migrate_course_content.py`
 
 **Interfaces:**
@@ -2320,7 +2565,10 @@ def test_verify_refuses_the_wrong_target_rather_than_passing_trivially(tmp_path)
     call_command("migrate_course_content", "import",
                  "--target-slug", "dst", "--bundle-dir", str(bundle),
                  "--as-user", "mig@example.com")
-    with pytest.raises(CommandError):
+    # match= is mandatory: verifying "other" also trips the pre-existing node
+    # tally ("node count mismatch"), so a bare raises() passes with the identity
+    # check deleted and the falsification below could never go RED.
+    with pytest.raises(CommandError, match="Refusing to mix targets"):
         call_command("migrate_course_content", "verify",
                      "--target-slug", "other", "--bundle-dir", str(bundle))
 
@@ -2416,6 +2664,23 @@ In `_verify`, after the existing `BASELINE_NAME` block and **before** the archiv
                 f"before `verify` so the link rewrite is on record"
             )
         self._check_identity(state, target)
+        # A stale entry REPORTS here rather than raising -- unlike in the pass,
+        # because `verify` never mutates.
+        stale = {
+            pk
+            for e in state["parts"]
+            for pk in e["node_map"].values()
+        } - _live_pks(state["parts"], target)
+        if stale:
+            orders = sorted(
+                int(e["order"])
+                for e in state["parts"]
+                if set(e["node_map"].values()) & stale
+            )
+            self.stdout.write(
+                f"note: {LINK_STATE_NAME} records {len(stale)} node(s) in "
+                f"part(s) {orders} that no longer exist in {target.slug!r}"
+            )
         if state["status"] == "in_progress":
             raise CommandError(
                 f"{LINK_STATE_NAME} in {bundle} is in_progress: a crash left "
@@ -2502,11 +2767,17 @@ Expected: PASS, whole file. `test_verify_refuses_when_import_was_never_run` (ass
 - [ ] **Step 5: Falsify**
 
 - Delete the `self._check_identity(state, target)` line from `_verify`;
-  `test_verify_refuses_the_wrong_target_rather_than_passing_trivially` must go RED.
-- Replace the `fail_closed_elements` absence branch with `fail_closed = set()`; the Task 11
-  fail-closed case must go RED.
-- Move the link reconciliation above the node tally; `test_verify_fails_when_a_part_is_missing`
-  must go RED on the wrong message.
+  `test_verify_refuses_the_wrong_target_rather_than_passing_trivially` must go RED. (It only can
+  because of the `match="Refusing to mix targets"` above — without it the pre-existing node tally
+  satisfies a bare `raises()`.)
+- Replace the `fail_closed_elements` absence branch with `fail_closed = set()`;
+  `test_resolve_rewrite_applied_then_verify_recomputes_fail_closed` (Task 12) must go RED. Note the
+  **present**-key case cannot falsify this branch — only the resolve-applied path reaches it.
+- Move the link reconciliation above the node tally and re-run
+  `test_verify_reports_a_structural_failure_before_a_link_one` (Task 12). Do **not** use
+  `test_verify_fails_when_a_part_is_missing` for this: its `_export_bundle` fixture carries no
+  internal links at all, so the hoisted scan finds nothing, the node tally still raises, and the
+  falsification is silent.
 
 Restore all three.
 
@@ -2593,13 +2864,20 @@ Expected: FAIL — the stub message has no numbers.
             if join.content_object is not None
             and _is_fail_closed(join.content_object)
         }
+        # Context only: how big the pending scope is relative to the whole
+        # migration. Without it, "N of M in scope" on a repair resume hides that
+        # M is one part of twenty-one -- the ~5%-vs-~100% misreading the spec
+        # warns about.
+        migration_total = Element.objects.filter(
+            unit_id__in=_live_pks(state["parts"], target)
+        ).count()
         return (
             f"{LINK_STATE_NAME} in {bundle} is in_progress: a crash left the "
             f"deferred link rewrite in an unknown state.\n"
             f"  probe: {len(dangling_elements - fail_closed)} element(s) hold a "
-            f"dangling internal link, of {total} in scope "
+            f"dangling internal link, of {total} in the pending scope "
             f"({len(fail_closed)} more are malformed and were never "
-            f"rewritable).\n"
+            f"rewritable; the whole migration holds {migration_total}).\n"
             f"  near {total} means the rewrite did NOT run  -> re-run with "
             f"--resolve-rewrite not-applied\n"
             f"  near 0 means it DID commit                  -> re-run with "
@@ -2618,10 +2896,34 @@ Expected: PASS.
 
 - [ ] **Step 5: Falsify**
 
-Change `probe["parts"] = pending` to `probe["parts"] = state["parts"]`. The test still passes
-(both numbers are present), so instead assert the scoping directly: add to the test that after
-marking only *one* entry pending, `total` in the message is smaller than the whole-migration
-element count. Then the substitution goes RED. Restore.
+Extend the test so the scoping is observable, then falsify it:
+
+```python
+def test_the_probe_denominator_is_the_pending_scope(tmp_path):
+    bundle = _export_bundle(tmp_path)
+    target = _mk_target()
+    _user()
+    call_command("migrate_course_content", "import",
+                 "--target-slug", "dst", "--bundle-dir", str(bundle),
+                 "--as-user", "mig@example.com")
+    st = _read_state_raw(bundle)
+    st["status"] = "in_progress"
+    for e in st["parts"]:                      # only ONE order pending
+        e["rewritten"] = int(e["order"]) != 1
+    _write_state(bundle, st)
+    with pytest.raises(CommandError) as exc:
+        call_command("migrate_course_content", "import",
+                     "--target-slug", "dst", "--bundle-dir", str(bundle),
+                     "--as-user", "mig@example.com", "--start-at", "3")
+    msg = str(exc.value)
+    pending_n = int(re.search(r"of (\d+) in the pending scope", msg).group(1))
+    whole_n = int(re.search(r"migration holds (\d+)", msg).group(1))
+    assert pending_n < whole_n
+```
+
+(`import re` belongs in the top-of-file import block, per Task 3's note.) Now change
+`probe["parts"] = pending` to `probe["parts"] = state["parts"]` — `pending_n == whole_n` and the
+test goes RED. Restore.
 
 - [ ] **Step 6: Commit**
 
@@ -2729,28 +3031,88 @@ def test_force_leaves_pre_existing_linked_content_untouched(tmp_path):
 
 
 def test_a_fail_closed_body_is_recorded_and_reported_not_fatal(tmp_path):
+    """MUST use FillGateElement, not TextElement.
+
+    Measured: TextElement.save() runs sanitize_html (courses/models.py:393), and
+        sanitize_html('<p><a href="/courses/n/7/">torn</p>')
+        -> '<p><a href="/courses/n/7/">torn</a></p>'
+    i.e. the sanitiser CLOSES the anchor, so a TextElement fixture can never be
+    fail-closed and the test would assert an empty list. FillGateElement has no
+    save() override and _build_fill_gate (importer.py:549-561) stores `stem`
+    raw on the import side too -- the spec names it as the only reachable
+    vehicle. The stem carries BOTH a torn anchor and a well-formed mappable one,
+    which is also the I8 mixed-body case.
+    """
+    from courses.models import FillGateElement
+
     course = _mk_source(parts=("P0", "P1"))
     u0 = ContentNode.objects.get(course=course, title="U0")
     u1 = ContentNode.objects.get(course=course, title="U1")
     Element.objects.create(
         unit=u0, title="mixed",
-        content_object=TextElement.objects.create(
-            body=f'<p><a href="/courses/n/{u1.pk}/">torn</p>'   # no </a>
+        content_object=FillGateElement.objects.create(
+            stem=(
+                f'<p><a href="/courses/n/{u0.pk}/">torn'          # no </a>
+                f'<a href="/courses/n/{u1.pk}/">ok</a></p>'       # well-formed
+            ),
+            answers=[["x"]],   # list[list[str]], per the model docstring
         ),
     )
     bundle = tmp_path / "bundle"
     call_command("migrate_course_content", "export",
                  "--source-slug", "src", "--bundle-dir", str(bundle))
-    _mk_target()
+    target = _mk_target()
     _user()
     call_command("migrate_course_content", "import",
                  "--target-slug", "dst", "--bundle-dir", str(bundle),
                  "--as-user", "mig@example.com")
+
     assert _read_state_raw(bundle)["rewrite"]["fail_closed_elements"]
     out = io.StringIO()
     call_command("migrate_course_content", "verify",     # reports, does not raise
                  "--target-slug", "dst", "--bundle-dir", str(bundle), stdout=out)
     assert "malformed" in out.getvalue()
+
+
+def test_a_mixed_body_still_gets_its_mappable_link_rewritten(tmp_path):
+    """I8 / the deliberate absence of `continue` after fail_closed_elements.append.
+
+    _is_fail_closed is per-INSTANCE, so recording it must not skip the rewrite:
+    the same body's well-formed link is mappable and still needs the new pk.
+    Falsify by adding `continue` after the append -- the mappable link then keeps
+    its source pk, and verify stays silent because the element was subtracted.
+    """
+    from courses.models import FillGateElement
+
+    course = _mk_source(parts=("P0", "P1"))
+    u0 = ContentNode.objects.get(course=course, title="U0")
+    u1 = ContentNode.objects.get(course=course, title="U1")
+    Element.objects.create(
+        unit=u0, title="mixed",
+        content_object=FillGateElement.objects.create(
+            stem=(
+                f'<p><a href="/courses/n/{u0.pk}/">torn'
+                f'<a href="/courses/n/{u1.pk}/">ok</a></p>'
+            ),
+            answers=[["x"]],   # list[list[str]], per the model docstring
+        ),
+    )
+    bundle = tmp_path / "bundle"
+    call_command("migrate_course_content", "export",
+                 "--source-slug", "src", "--bundle-dir", str(bundle))
+    target = _mk_target()
+    _user()
+    call_command("migrate_course_content", "import",
+                 "--target-slug", "dst", "--bundle-dir", str(bundle),
+                 "--as-user", "mig@example.com")
+    new_u1 = ContentNode.objects.get(course=target, title="U1")
+    stems = " ".join(
+        FillGateElement.objects.filter(
+            elements__unit__course=target
+        ).values_list("stem", flat=True)
+    )
+    assert f"/courses/n/{new_u1.pk}/" in stems       # the mappable one moved
+    assert _read_state_raw(bundle)["rewrite"]["fail_closed_elements"]
 
 
 def test_an_element_with_no_links_is_not_recorded_as_fail_closed(tmp_path):
@@ -2779,20 +3141,28 @@ def test_the_stale_entry_resume_grafts_first_and_rewrites_after(tmp_path):
     args = ("--target-slug", "dst", "--bundle-dir", str(bundle),
             "--as-user", "mig@example.com")
     call_command("migrate_course_content", "import", *args, "--start-at", "0")
-    # Forge the stale entry: part 1 recorded, its nodes never committed.
+    # `--start-at 0` grafted BOTH parts and applied the pass. Wind the world
+    # back to the state this test names: part 0 committed, part 1 NOT, but part
+    # 1 recorded -- the outer atomic's designed stale-entry window.
+    ContentNode.objects.filter(
+        course=target, parent__isnull=True, title="P1"
+    ).delete()
     st = _read_state_raw(bundle)
-    index = _read_manifest(bundle)["node_index"]
-    src1 = _invert_node_index(index, 1)
-    st["parts"].append({
-        "order": 1,
-        "node_map": {eid: 10**6 + i for i, eid in enumerate(src1)},
-        "src": src1,
-        "rewritten": False,
-    })
+    st["status"] = "collecting"
+    for e in st["parts"]:
+        e["rewritten"] = False
+    st.pop("rewrite", None)
+    # Part 1's recorded pks now point at rows the delete removed -> stale.
     _write_state(bundle, st)
+    assert ContentNode.objects.filter(
+        course=target, parent__isnull=True
+    ).count() == 1                                   # :433 will expect baseline+1
+
     call_command("migrate_course_content", "import", *args, "--start-at", "1")
     assert ContentNode.objects.filter(course=target, title="P1").exists()
     assert _read_state_raw(bundle)["status"] == "applied"
+    # And the re-graft replaced the stale entry rather than duplicating it.
+    assert [e["order"] for e in _read_state_raw(bundle)["parts"]] == [0, 1]
 
 
 def test_the_state_file_survives_a_re_export_of_an_unchanged_source(tmp_path):
@@ -2823,6 +3193,144 @@ def test_dry_run_start_at_zero_creates_no_state_file(tmp_path):
     assert not (bundle / LINK_STATE_NAME).exists()
 
 
+def test_resolve_rewrite_applied_then_verify_recomputes_fail_closed(tmp_path):
+    """The `fail_closed_elements`-ABSENT branch, which no other test reaches.
+
+    --resolve-rewrite applied writes no such key by construction, so verify must
+    recompute it live. Treating the missing key as [] makes every fail-closed
+    body read as ordinary dangling -- and with status already applied and
+    --resolve-rewrite refusing a non-in_progress file, verify fails forever with
+    no remedy."""
+    from courses.models import FillGateElement
+
+    course = _mk_source(parts=("P0", "P1"))
+    u0 = ContentNode.objects.get(course=course, title="U0")
+    Element.objects.create(
+        unit=u0, title="torn",
+        content_object=FillGateElement.objects.create(
+            stem=f'<p><a href="/courses/n/{u0.pk}/">torn</p>',
+            answers=[["x"]],
+        ),
+    )
+    bundle = tmp_path / "bundle"
+    call_command("migrate_course_content", "export",
+                 "--source-slug", "src", "--bundle-dir", str(bundle))
+    _mk_target()
+    _user()
+    args = ("--target-slug", "dst", "--bundle-dir", str(bundle),
+            "--as-user", "mig@example.com")
+    call_command("migrate_course_content", "import", *args)
+    # Force the resolved_by_operator shape: no counts, no fail_closed key.
+    st = _read_state_raw(bundle)
+    st["status"] = "in_progress"
+    st.pop("rewrite", None)
+    for e in st["parts"]:
+        e["rewritten"] = False
+    _write_state(bundle, st)
+    call_command("migrate_course_content", "import", *args,
+                 "--resolve-rewrite", "applied")
+    assert "fail_closed_elements" not in _read_state_raw(bundle)["rewrite"]
+
+    out = io.StringIO()
+    call_command("migrate_course_content", "verify",   # reports, does NOT raise
+                 "--target-slug", "dst", "--bundle-dir", str(bundle), stdout=out)
+    assert "malformed" in out.getvalue()
+
+
+def test_a_repair_resume_keeps_a_fail_closed_element_from_another_part(tmp_path):
+    """The merge rule. Falsify by replacing the `rewrite` object wholesale: the
+    earlier part's element vanishes from the list, verify TRUSTS the shortened
+    list, counts it as ordinary dangling, and raises with no remedy."""
+    from courses.models import FillGateElement
+
+    course = _mk_source(parts=("P0", "P1"))
+    u0 = ContentNode.objects.get(course=course, title="U0")
+    Element.objects.create(
+        unit=u0, title="torn",
+        content_object=FillGateElement.objects.create(
+            stem=f'<p><a href="/courses/n/{u0.pk}/">torn</p>',
+            answers=[["x"]],
+        ),
+    )
+    bundle = tmp_path / "bundle"
+    call_command("migrate_course_content", "export",
+                 "--source-slug", "src", "--bundle-dir", str(bundle))
+    target = _mk_target()
+    _user()
+    args = ("--target-slug", "dst", "--bundle-dir", str(bundle),
+            "--as-user", "mig@example.com")
+    call_command("migrate_course_content", "import", *args)
+    recorded = set(_read_state_raw(bundle)["rewrite"]["fail_closed_elements"])
+    assert recorded
+    ContentNode.objects.filter(
+        course=target, parent__isnull=True, title="P1"
+    ).delete()
+    call_command("migrate_course_content", "import", *args, "--start-at", "1")
+    after = set(_read_state_raw(bundle)["rewrite"]["fail_closed_elements"])
+    assert recorded <= after          # part 0's finding carried forward
+
+
+def test_verify_reports_a_structural_failure_before_a_link_one(tmp_path):
+    """Gate ordering: a missing part is the more actionable report, so the node
+    tally must pre-empt the link reconciliation. Needs a fixture that would trip
+    BOTH -- _export_bundle alone has no internal links, so it cannot falsify
+    the ordering."""
+    course = _mk_source(parts=("P0", "P1"))
+    _link_between(course, "P0", "P1")
+    bundle = tmp_path / "bundle"
+    call_command("migrate_course_content", "export",
+                 "--source-slug", "src", "--bundle-dir", str(bundle))
+    target = _mk_target()
+    _user()
+    call_command("migrate_course_content", "import",
+                 "--target-slug", "dst", "--bundle-dir", str(bundle),
+                 "--as-user", "mig@example.com")
+    # Deleting P1 removes the link's target too, so both gates would fire.
+    ContentNode.objects.filter(
+        course=target, parent__isnull=True, title="P1"
+    ).delete()
+    with pytest.raises(CommandError, match="node count mismatch"):
+        call_command("migrate_course_content", "verify",
+                     "--target-slug", "dst", "--bundle-dir", str(bundle))
+
+
+def test_skipped_dead_raises_before_the_transaction(tmp_path):
+    """The unit test in Task 7 cannot observe either half of this: the status
+    flip and the transaction both live in _run_link_pass. Moving the raise after
+    `status = "in_progress"; write` would leave the unit test green."""
+    course = _mk_source(parts=("P0", "P1"))
+    _link_between(course, "P0", "P1")
+    bundle = tmp_path / "bundle"
+    call_command("migrate_course_content", "export",
+                 "--source-slug", "src", "--bundle-dir", str(bundle))
+    target = _mk_target()
+    _user()
+    args = ("--target-slug", "dst", "--bundle-dir", str(bundle),
+            "--as-user", "mig@example.com")
+    call_command("migrate_course_content", "import", *args, "--start-at", "0")
+    st = _read_state_raw(bundle)
+    st["status"] = "collecting"
+    for e in st["parts"]:
+        e["rewritten"] = False
+    st.pop("rewrite", None)
+    # Point one recorded pk at a row that does not exist.
+    st["parts"][0]["node_map"][sorted(st["parts"][0]["node_map"])[0]] = 10**9
+    _write_state(bundle, st)
+    bodies_before = sorted(
+        TextElement.objects.filter(elements__unit__course=target).values_list(
+            "body", flat=True
+        )
+    )
+    with pytest.raises(CommandError, match="skipped_dead"):
+        call_command("migrate_course_content", "import", *args, "--start-at", "2")
+    assert _read_state_raw(bundle)["status"] == "collecting"    # never flipped
+    assert sorted(
+        TextElement.objects.filter(elements__unit__course=target).values_list(
+            "body", flat=True
+        )
+    ) == bodies_before                                          # nothing touched
+
+
 def test_a_state_write_oserror_on_part_zero_names_the_right_recovery(tmp_path, monkeypatch):
     """committed is None on the first part, so an else-arm-only hint evaluates
     None + 1 and raises TypeError -- a raw traceback, exactly what the handler
@@ -2833,7 +3341,17 @@ def test_a_state_write_oserror_on_part_zero_names_the_right_recovery(tmp_path, m
     _mk_target()
     _user()
 
-    def boom(_bundle, _state):
+    # The step-4 branch writes a fresh state file BEFORE the graft loop, outside
+    # the try/except OSError under test. Blowing up on call 1 would raise a bare
+    # OSError out of handle() -- a different bug, and the test would pass on the
+    # wrong exception type. Let that first write through.
+    real = mod._write_state
+    calls = {"n": 0}
+
+    def boom(bundle_, state_):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            return real(bundle_, state_)
         raise OSError("disk full")
 
     monkeypatch.setattr(mod, "_write_state", boom)
@@ -2841,6 +3359,7 @@ def test_a_state_write_oserror_on_part_zero_names_the_right_recovery(tmp_path, m
         call_command("migrate_course_content", "import",
                      "--target-slug", "dst", "--bundle-dir", str(bundle),
                      "--as-user", "mig@example.com", "--start-at", "0")
+    assert calls["n"] >= 2       # the loop's write really was reached
 ```
 
 - [ ] **Step 2: Run the new cases**
@@ -2910,12 +3429,17 @@ git commit -m "test(migrate): cover the cutover, repair resume, and every error-
 | §Testing's remaining cases | 12 |
 
 **Known gaps, deliberate:**
-- The **inbound cross-part stranding** on a repair resume is an accepted gap (spec §Accepted gaps),
-  not implemented. `verify` detects it and raises; the remedy is manual.
-- The **pk-collision double-apply** is unreachable from the harness (both courses share one test
-  database, so new pks always exceed source pks). It is prevented by the once-only invariant, not
-  tested.
-- **Absolute permalinks** and **cross-course links** are accepted gaps.
+The spec's **four accepted gaps**, none of them implemented:
+- **Cross-course links** inside migrated bodies are flattened.
+- **Bodies part 2 fail-closes** keep their source pks; the pass records them and `verify` reports
+  them non-fatally (Tasks 7, 10, 12).
+- **A repair resume strands inbound cross-part links.** `verify` detects it and raises; the remedy
+  is manual.
+- **Absolute same-origin permalinks** pass through untouched and unreported.
+
+Separately — **prevented, not accepted, and untestable from this harness:** the pk-collision
+double-apply. Both courses live in one test database, so new pks always exceed source pks. It is
+prevented by the once-only invariant (per-order `rewritten` flags), not detected.
 
 **Type consistency check:** `report["node_ids"]` is int-keyed (Task 1) and consumed as
 `str(pk)` when written into `node_index` (Task 4). `report["node_map"]` is
