@@ -630,6 +630,7 @@ def node_delete(request, slug):
                 "course": course,
                 "node": node,
                 "counts": counts,
+                "open_present": "open" in request.GET,
                 "open": request.GET.get("open", ""),
             },
         )

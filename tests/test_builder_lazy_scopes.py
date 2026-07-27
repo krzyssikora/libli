@@ -518,3 +518,38 @@ def test_delete_round_trips_an_explicitly_empty_open(client):
     )
     assert resp["Location"].endswith("?open=")
     assert "open=session" not in resp["Location"]
+
+
+@pytest.mark.django_db
+def test_delete_confirm_get_emits_hidden_input_for_an_explicitly_empty_open(client):
+    """The GET/render hop must make the same presence-vs-absence distinction
+    as the POST branch. `?open=` is PRESENT (the author deliberately
+    collapsed everything); gating the hidden input / Cancel link on
+    `{% if open %}` (truthiness) drops it for an empty string, so submitting
+    the form omits `open` entirely -- and the POST branch, reading that as
+    ABSENT, springs the tree back open with `open=session`."""
+    owner = make_login(client, "owner")
+    course, part, chapters = _big_course(owner)
+    victim = chapters[0][1][0]
+    confirm = client.get(
+        reverse("courses:manage_node_delete", kwargs={"slug": "big"})
+        + f"?node={victim.pk}&open="
+    ).content.decode()
+    assert '<input type="hidden" name="open" value="">' in confirm
+    assert "?open=" in confirm  # Cancel link carries the explicit empty value
+
+
+@pytest.mark.django_db
+def test_delete_confirm_get_omits_hidden_input_when_open_is_absent(client):
+    """Sibling of the above: with no `open` param at all, the confirm page
+    must NOT emit a hidden `open` input (and the Cancel link must not carry
+    `open=`) -- absent stays absent through the GET hop too."""
+    owner = make_login(client, "owner")
+    course, part, chapters = _big_course(owner)
+    victim = chapters[0][1][0]
+    confirm = client.get(
+        reverse("courses:manage_node_delete", kwargs={"slug": "big"})
+        + f"?node={victim.pk}"
+    ).content.decode()
+    assert 'name="open"' not in confirm
+    assert "?open=" not in confirm
