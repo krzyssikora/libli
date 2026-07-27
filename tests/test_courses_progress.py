@@ -119,17 +119,26 @@ def test_previewer_seen_no_write_synthetic(client):
 
 
 @pytest.mark.django_db
-def test_previewer_complete_redirects_without_write(client):
+def test_previewer_complete_persists_and_redirects(client):
     from courses.models import UnitProgress
 
     staff = make_login(client, "staff2")
     staff.is_staff = True
     staff.save()
-    course = CourseFactory(slug="pcx")  # staff not enrolled -> untracked preview
+    course = CourseFactory(slug="pcx")  # staff not enrolled -> previewer
     unit, ids = _make_unit_with_elements(course, 1)
+
     r = client.post(
         reverse("courses:complete", kwargs={"slug": "pcx", "node_pk": unit.pk})
     )
-    assert r.status_code in (302, 200)  # same redirect as the enrolled path
-    # no write for previewer
-    assert not UnitProgress.objects.filter(student=staff, unit=unit).exists()
+
+    # The redirect assertion is KEPT from the old test (the inversion replaces the
+    # WRITE assertion, not the response-shape one) and tightened: complete() ends in
+    # redirect(), so a 200 would now mean something went wrong.
+    assert r.status_code == 302
+    assert r["Location"] == reverse(
+        "courses:lesson_unit", kwargs={"slug": "pcx", "node_pk": unit.pk}
+    )
+    row = UnitProgress.objects.get(student=staff, unit=unit)
+    assert row.completed is True
+    assert row.completed_at is not None

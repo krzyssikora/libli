@@ -673,15 +673,31 @@ def seen(request, slug, node_pk):
 def complete(request, slug, node_pk):
     node = get_node_or_404(node_pk, slug, require_unit=True, require_lesson=True)
     course = node.course
+    # can_access_course is DELIBERATELY the sole guard on this write: the row is the
+    # viewer's OWN record, not course analytics, so any viewer who can open the lesson
+    # may mark it done -- the same reversal PR #136 applied to element_state_save.
+    # Do not "restore" an enrollment check here; both directions are pinned by
+    # tests/test_courses_progress.py (see test_unrelated_logged_in_user_is_denied).
     if not can_access_course(request.user, course):
         raise PermissionDenied
-    if is_enrolled(request.user, course):
-        progress, _ = UnitProgress.objects.get_or_create(
+    with transaction.atomic():
+        # Re-read under the lock instead of keeping get_or_create's instance. The rule
+        # here is ORDERING, not exclusion: on PostgreSQL a plain UPDATE already blocks
+        # on an existing FOR UPDATE, so the lock is not about which writers opt into
+        # it. What FOR UPDATE cannot do is protect a writer whose READ happened before
+        # the lock -- that writer carries a stale row across the block and writes it
+        # back afterwards, losing the update. That is why save_element_state locks
+        # BEFORE it reads, and why seen -- which does not -- can still lose one.
+        # Collapsing this back to `progress, _ = get_or_create(...)` is byte-identical
+        # in every sequential test, so this comment is the only thing protecting the
+        # re-fetch.
+        UnitProgress.objects.get_or_create(student=request.user, unit=node)
+        progress = UnitProgress.objects.select_for_update().get(
             student=request.user, unit=node
         )
         if not progress.completed:
             progress.completed = True
-            progress.save()
+            progress.save()  # completed_at stamped in save()
     return redirect("courses:lesson_unit", slug=slug, node_pk=node_pk)
 
 
@@ -783,9 +799,11 @@ def element_state_save(request, slug, node_pk):
 
     # Practice state is personal self-tracking (ungraded, absent from analytics), so
     # ANY viewer who can access the lesson persists their own -- not just enrolled
-    # students. This deliberately diverges from seen/quiz (which ignore previewers so
-    # authors don't pollute their own progress/analytics); the can_access_course gate
-    # above is the only guard the write needs.
+    # students. This deliberately diverges from seen/quiz, which ignore previewers so
+    # authors don't pollute their own SCROLL-tracking and quiz analytics. It is those
+    # two specifically, NOT progress writes in general: an explicit "Mark as done"
+    # click now persists for previewers too (see complete()). The can_access_course
+    # gate above is the only guard the write needs.
     if result is state_svc.EMPTY:
         save_element_state(request.user, node, element.pk, None)
         blob = {}
