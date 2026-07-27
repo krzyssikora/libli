@@ -7,6 +7,8 @@ fields hold rich text" would drift.
 
 import re
 
+from django.db.models import Q
+
 from courses.models import CalloutElement
 from courses.models import FillGateElement
 from courses.models import GuessNumberElement
@@ -210,3 +212,39 @@ def rewrite_instance(instance, mapping, *, on_missing):
             setattr(instance, field, new)
             changed.append(field)
     return changed, flattened
+
+
+def count_inbound_links(course, node):
+    """Distinct Element join rows ELSEWHERE in `course` linking into `node`'s subtree.
+
+    Elements, not anchors: two anchors in one body pointing at two doomed nodes count
+    once, because the author's unit of repair is "this element needs editing". And
+    outside the subtree, because a link INSIDE the doomed subtree dies with its target
+    -- counting those would report a large number for a self-contained part whose
+    lessons cross-link each other, the opposite of the warning's purpose.
+
+    Query shape matters. Matching each subtree pk as its own LIKE would build one OR
+    term per (pk x field) -- hundreds across 16 models for a big part. Instead: one
+    course-scoped query per model on the CONSTANT substring, then intersect in Python
+    on the few rows that hold any internal link at all.
+    """
+    subtree = set(node._subtree_node_ids())
+    total = 0
+    for model, fields in _FIELDS_BY_MODEL.items():
+        predicate = Q()
+        for field in fields:
+            predicate |= Q(**{f"{field}__contains": PERMALINK_PREFIX})
+        rows = (
+            model.objects.filter(predicate)
+            .filter(elements__unit__course=course)
+            .exclude(elements__unit_id__in=subtree)
+            .only(*fields)  # question models carry large blobs we never read
+            .distinct()
+        )
+        for row in rows:
+            targets = set()
+            for _field, value in iter_rich_text(row):
+                targets |= find_link_targets(value)
+            if targets & subtree:
+                total += 1
+    return total

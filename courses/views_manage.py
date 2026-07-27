@@ -27,6 +27,7 @@ from courses.models import Enrollment
 from courses.models import QuestionElement
 from courses.models import Subject
 from courses.models import UnitProgress
+from courses.richtext import count_inbound_links
 from courses.transfer.schema import TransferError
 
 
@@ -451,6 +452,7 @@ def node_delete(request, slug):
         counts = {
             "descendants": _descendant_count(node),
             "elements": _element_count(node),
+            "inbound_links": count_inbound_links(course, node),
         }
         return render(
             request,
