@@ -1,0 +1,85 @@
+{% load i18n %}
+{% comment %}Server-rendered so makemessages can see every string. The JS only wires
+behaviour to this markup. The content lives in an inner wrapper and the <dialog>
+carries no padding, so a click whose target IS the dialog means the backdrop and
+nothing else -- see the dismissal handler in link_dialog.js.{% endcomment %}
+<dialog class="link-dialog" aria-labelledby="link-dialog-title"
+        data-link-picker-url="{% url 'courses:manage_link_picker' slug=course.slug %}">
+  <div class="link-dialog__card">
+    <h2 class="link-dialog__title" id="link-dialog-title">{% trans "Insert link" %}</h2>
+
+    <div class="picker__tabs" role="tablist">
+      {% comment %}role="tab" implies the tablist keyboard contract: ONE tab stop, with
+    Left/Right moving between the tabs (link_dialog.js maintains the roving tabindex).
+    Shipping the roles without it would be worse than the media picker's role-free
+    tabs -- AT would announce a contract nothing implements.{% endcomment %}
+      <button type="button" class="picker__tab is-on" role="tab" aria-selected="true"
+              tabindex="0" id="link-tab-node" aria-controls="link-panel-node"
+              data-tab="node">{% trans "In this course" %}</button>
+      <button type="button" class="picker__tab" role="tab" aria-selected="false"
+              tabindex="-1" id="link-tab-url" aria-controls="link-panel-url"
+              data-tab="url">{% trans "Web address" %}</button>
+    </div>
+
+    <div class="picker__panel" role="tabpanel" id="link-panel-node"
+         aria-labelledby="link-tab-node" data-panel="node">
+      <label class="search">{% trans "Filter" %}
+        <input type="search" class="input" data-link-filter
+               placeholder="{% trans 'Filter by title…' %}">
+      </label>
+      <div class="link-picker__mount" data-link-tree role="tree"
+           aria-label="{% trans 'Course content' %}"></div>
+      <p class="link-dialog__msg" data-msg="loading">{% trans "Loading…" %}</p>
+      <p class="link-dialog__msg" data-msg="empty" hidden>{% trans "This course has no content yet." %}</p>
+
+      <p class="link-dialog__msg" data-msg="foreign" hidden>{% trans "This link's target is not in this course." %}</p>
+      <p class="link-dialog__msg link-dialog__msg--error" data-msg="fetch" hidden>
+        {% trans "Could not load the course tree." %}
+        <button type="button" class="btn btn--small" data-link-retry>{% trans "Retry" %}</button>
+      </p>
+      {% comment %}The live region owns BOTH the count and the zero-match line, so the
+      state the debounce exists to convey is actually announced. A bare digit outside
+      it would be announced with no context and in no language.{% endcomment %}
+      <p class="link-dialog__status" aria-live="polite" data-link-status>
+        <span data-msg="nomatch" hidden>{% trans "No matches." %}</span>
+        <span data-link-count hidden></span>
+      </p>
+      {% comment %}The count's noun, carried as translatable text the JS reads. A fully
+      inflected count would need ngettext, which this dialog has no request cycle for --
+      an accepted simplification, stated so it is not mistaken for an oversight.
+      {% endcomment %}
+      <span data-count-template hidden>{% trans "matches found" %}</span>
+    </div>
+
+    <div class="picker__panel" role="tabpanel" id="link-panel-url"
+         aria-labelledby="link-tab-url" data-panel="url" hidden>
+      <label class="field">{% trans "Web address" %}
+        <input type="url" class="input" data-link-url aria-invalid="false"
+               aria-describedby="link-msg-scheme link-msg-protocol-relative link-msg-relative">
+      </label>
+      {% comment %}role="alert" makes each paragraph its own live region, announced the
+      moment link_dialog.js unhides it -- the node panel's aria-live region has no url-tab
+      counterpart otherwise, and insertBtn is disabled (so unreachable by Tab) when one of
+      these is showing, leaving nothing else to announce the rejection.{% endcomment %}
+      <p class="link-dialog__msg link-dialog__msg--error" id="link-msg-scheme"
+         role="alert" data-msg="scheme" hidden>
+        {% trans "Only http, https and mailto addresses are allowed." %}</p>
+      <p class="link-dialog__msg link-dialog__msg--error" id="link-msg-protocol-relative"
+         role="alert" data-msg="protocol-relative" hidden>
+        {% trans "Add https:// to the front of this address." %}</p>
+      <p class="link-dialog__msg link-dialog__msg--error" id="link-msg-relative"
+         role="alert" data-msg="relative" hidden>
+        {% trans "That is not a web address. Use the other tab to link inside this course." %}</p>
+    </div>
+
+    <label class="field">{% trans "Link text" %}
+      <input type="text" class="input" data-link-text>
+    </label>
+
+    <div class="link-dialog__actions">
+      <button type="button" class="btn btn--ghost" data-link-remove disabled>{% trans "Remove link" %}</button>
+      <button type="button" class="btn btn--ghost" data-link-cancel>{% trans "Cancel" %}</button>
+      <button type="button" class="btn" data-link-insert disabled>{% trans "Insert" %}</button>
+    </div>
+  </div>
+</dialog>

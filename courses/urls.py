@@ -25,6 +25,7 @@ urlpatterns = [
         name="progress_reset",
     ),
     path("courses/<slug:slug>/u/<int:node_pk>/", views.lesson_unit, name="lesson_unit"),
+    path("courses/n/<int:node_pk>/", views.node_permalink, name="node_permalink"),
     path("courses/<slug:slug>/u/<int:node_pk>/seen/", views.seen, name="seen"),
     path(
         "courses/<slug:slug>/u/<int:node_pk>/complete/",
@@ -163,6 +164,11 @@ urlpatterns = [
         "manage/courses/<slug:slug>/build/node/<int:pk>/",
         views_manage.node_panel,
         name="manage_node_panel",
+    ),
+    path(
+        "manage/courses/<slug:slug>/link-picker/",
+        views_manage.link_picker,
+        name="manage_link_picker",
     ),
     path(
         "manage/courses/<slug:slug>/build/node/<int:pk>/export/",

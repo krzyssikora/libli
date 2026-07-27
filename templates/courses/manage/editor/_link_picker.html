@@ -1,0 +1,6 @@
+{# get_item is needed only in the ROW partial; this one just loops top_nodes. #}
+<ol class="link-picker__scope" role="none">
+  {% for node in top_nodes %}
+    {% include "courses/manage/editor/_link_picker_node.html" with n=node children_map=children_map level=1 %}
+  {% endfor %}
+</ol>
