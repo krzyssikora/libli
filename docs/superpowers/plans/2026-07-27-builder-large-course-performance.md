@@ -22,7 +22,15 @@
 - **Icons are monochrome `currentColor` SVGs** referenced from `_icon_sprite.html`. Never emoji.
 - **`q` is slice 2.** `_open_ids` reserves a `q_chain=None` parameter but slice 1 always passes `None`, and no template emits `q`. Do not implement the filter.
 - **Verify `git branch --show-current` immediately before every commit** — a parallel session has switched branches under this worktree before.
-- Constants, exact values from the spec: ceiling **500** pks, size threshold **150** nodes, session slug bound **20**, seed chain ceiling **4** scopes.
+- Constants, exact values from the spec: ceiling **500** pks, size threshold **150** nodes,
+  session slug bound **20**. The "seed chain is at most 4 scopes" figure is **not** a
+  constant to implement — it is an emergent property of `ContentNode.RANK` having four
+  levels, so `_chain` walks the chain unbounded and the 4 follows.
+- **Every code block in this plan is meant to be pasted verbatim, then formatted.** End each
+  task by running `uv run ruff format .` and `uv run ruff check .` *before* the commit step;
+  several snippets here are hand-wrapped and `ruff format` will re-flow them. Appended
+  imports go at the **top** of the file with the existing import block — ruff selects `E`,
+  so `E402` rejects a mid-file import, and isort is `force-single-line`.
 
 ---
 
@@ -45,6 +53,250 @@
 | `tests/test_builder_lazy_scopes.py` *(new)* | Render/structural guards + reversal-count guard. |
 | `tests/test_e2e_builder_toggle.py` *(new)* | Expand/collapse/drag e2e. |
 | `tests/helpers_builder.py` *(new)* | `expand_to()` + `open_all_param()` migration helpers. |
+
+---
+
+### Task 0: Commit the measurement harness
+
+The plan's only performance gate is a pair of probe scripts. They must live in the repo,
+not in a session scratchpad, and one of them breaks the moment Task 3 lands.
+
+**Files:**
+- Create: `scripts/perf/probe_tree_render.py`, `scripts/perf/probe_browser.py`, `scripts/perf/README.md`
+
+- [ ] **Step 1: Write the server-side probe**
+
+Create `scripts/perf/probe_tree_render.py`:
+
+```python
+"""Time the builder tree render for one course. Usage:
+
+    uv run python manage.py shell -c \
+      "exec(open('scripts/perf/probe_tree_render.py').read())" -- mat-pp
+
+Prints warm render time, byte size, element count and query count. `OPEN` may
+be set to "all" (default), "" or a comma-separated pk list.
+"""
+
+import os
+import re
+import time
+from collections import Counter
+
+from django.conf import settings
+from django.db import connection
+from django.db import reset_queries
+from django.template.loader import render_to_string
+
+from courses.builder_open import container_pks
+from courses.models import Course
+from courses.views_manage import _children_map
+from courses.views_manage import _open_descendants
+
+SLUG = os.environ.get("SLUG", "mat-pp")
+OPEN = os.environ.get("OPEN", "all")
+
+
+def _run():
+    course = Course.objects.get(slug=SLUG)
+    cmap = _children_map(course)
+    containers = container_pks(cmap)
+    ids = containers if OPEN == "all" else {
+        int(t) for t in OPEN.split(",") if t.strip().isdigit()
+    }
+    # open_ids is REQUIRED by the template after Task 3 -- omitting it makes
+    # `{% if node.pk in open_ids %}` evaluate `pk in None` and raise.
+    ctx = {
+        "scope_id": "top",
+        "scope_updated": course.updated.isoformat(),
+        "parent_kind": None,
+        "nodes": cmap.get(None, []),
+        "children_map": cmap,
+        "course": course,
+        "open_ids": ids,
+        "open_joined": ",".join(str(p) for p in sorted(ids)),
+        "open_descendants": _open_descendants(cmap, ids),
+        "builder_url": f"/manage/courses/{course.slug}/build/",
+    }
+    render_to_string("courses/manage/_scope.html", ctx)  # warm the template
+    settings.DEBUG = True
+    reset_queries()
+    t0 = time.perf_counter()
+    html = render_to_string("courses/manage/_scope.html", ctx)
+    dt = (time.perf_counter() - t0) * 1000
+    tags = Counter(t.lower() for t in re.findall(r"<([a-zA-Z][a-zA-Z0-9-]*)", html))
+    print(f"slug={SLUG} open={OPEN}")
+    print(f"  nodes in course : {sum(len(v) for v in cmap.values())}")
+    print(f"  open scopes     : {len(ids)}")
+    print(f"  warm render     : {dt:.1f} ms")
+    print(f"  bytes           : {len(html)} ({len(html) / 1048576:.2f} MB)")
+    print(f"  open tags       : {sum(tags.values())}")
+    print(f"  rows            : {tags.get('li', 0)}")
+    print(f"  queries         : {len(connection.queries)}")
+
+
+_run()
+```
+
+- [ ] **Step 2: Write the browser probe**
+
+Create `scripts/perf/probe_browser.py`:
+
+```python
+"""Measure the real builder page in Chromium.
+
+PREREQUISITES -- none of these are automatic:
+  1. A dev database containing the course (default slug: mat-pp).
+  2. `uv run python manage.py runserver` on 127.0.0.1:8000.
+  3. A session cookie for a user who can manage that course. Mint one with:
+
+       uv run python manage.py shell -c \
+         "exec(open('scripts/perf/probe_browser.py').read())" -- --mint-session
+
+Usage:
+    SESSION=<key> uv run python scripts/perf/probe_browser.py
+"""
+
+import json
+import os
+import sys
+import time
+
+BASE = os.environ.get("BASE", "http://127.0.0.1:8000")
+SLUG = os.environ.get("SLUG", "mat-pp")
+SESSION = os.environ.get("SESSION", "")
+
+
+def mint_session():
+    """Run INSIDE `manage.py shell`. Prints a session key for the first
+    superuser."""
+    from django.conf import settings
+    from django.contrib.auth import get_user_model
+    from django.contrib.sessions.backends.db import SessionStore
+
+    user = get_user_model().objects.filter(is_superuser=True).order_by("pk").first()
+    store = SessionStore()
+    store["_auth_user_id"] = str(user.pk)
+    store["_auth_user_backend"] = settings.AUTHENTICATION_BACKENDS[0]
+    store["_auth_user_hash"] = user.get_session_auth_hash()
+    store.create()
+    print("SESSION", store.session_key)
+
+
+def measure():
+    from playwright.sync_api import sync_playwright
+
+    if not SESSION:
+        sys.exit("set SESSION=<key> (see --mint-session in this file's docstring)")
+    url = f"{BASE}/manage/courses/{SLUG}/build/"
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        ctx = browser.new_context(viewport={"width": 1400, "height": 900})
+        ctx.add_cookies(
+            [{"name": "sessionid", "value": SESSION, "domain": "127.0.0.1", "path": "/"}]
+        )
+        page = ctx.new_page()
+        t0 = time.perf_counter()
+        resp = page.goto(url, wait_until="load", timeout=180000)
+        wall = time.perf_counter() - t0
+        stats = page.evaluate(
+            """() => {
+              const nav = performance.getEntriesByType('navigation')[0] || {};
+              const els = document.getElementsByTagName('*').length;
+              const rows = document.querySelectorAll('.tree__row').length;
+              return {elements: els, rows: rows,
+                      per_row: rows ? +(els / rows).toFixed(1) : null,
+                      ttfb_ms: Math.round(nav.responseStart - nav.requestStart),
+                      domInteractive_ms: Math.round(nav.domInteractive),
+                      transferKB: Math.round((nav.transferSize || 0) / 1024)};
+            }"""
+        )
+        stats["http"] = resp.status
+        stats["wall_s"] = round(wall, 2)
+        print(json.dumps(stats, indent=2))
+        browser.close()
+
+
+if "--mint-session" in sys.argv:
+    mint_session()
+elif __name__ == "__main__":
+    measure()
+```
+
+- [ ] **Step 3: Document the prerequisites**
+
+Create `scripts/perf/README.md` recording: which database the probes expect, that `mat-pp`
+must exist in it, that `probe_browser.py` needs `runserver` plus a minted session key, and
+that the two probes report on **different bases** (the offline render has no CSRF inputs;
+the browser count does) so post-change numbers must be compared like for like.
+
+- [ ] **Step 4: Capture the BEFORE numbers**
+
+```bash
+SLUG=mat-pp OPEN=all uv run python manage.py shell -c "exec(open('scripts/perf/probe_tree_render.py').read())"
+```
+Expected (matching the spec's baseline): ~3.1 s warm, ~2.6 MB, 1 query. Record the output —
+every later comparison is against this run, on this machine.
+
+> `open_ids` is in the context from the start, so this probe keeps working after Task 3.
+> Before Task 3 the template ignores the key; after it, the key is required.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git branch --show-current
+git add scripts/perf/
+git commit -m "chore(perf): commit the builder measurement probes"
+```
+
+---
+
+### Task 0b: Enumerate the affected tests BEFORE changing behaviour
+
+The spec calls the suite migration "a first-class work item, not cleanup" that must be
+"enumerated file by file **before implementation starts**". Doing it after Task 3 means
+Tasks 6–10 each commit against a knowingly red suite, where a real regression is
+indistinguishable from expected fixture breakage.
+
+**Files:**
+- Create: `docs/superpowers/plans/affected-tests.md`
+
+- [ ] **Step 1: Sweep**
+
+```bash
+grep -rln "manage_builder\|/build/\|data-scope\|tree__row\|data-panel-url\|data-node-move-url" tests/ | sort
+```
+
+A file-name prefix is not a reliable filter — four files were missed that way. Expect at
+least: `test_manage_builder.py`, `test_manage_node_ops.py`, `test_manage_affordance.py`,
+`test_manage_node_duplicate.py`, `test_manage_duplicate_button.py`, `test_tree_badge.py`,
+`test_seed_demo_course.py`, `test_e2e_builder.py`, `test_e2e_builder_ws2.py`,
+`test_e2e_builder_authoring.py`, `test_e2e_builder_reorder.py`,
+`test_e2e_builder_tree_layout.py`, `test_e2e_inline_rename.py`, `test_e2e_transfer.py`,
+`test_builder_styles.py`, `test_builder_js_invariants.py`.
+
+- [ ] **Step 2: Record the baseline and classify each file**
+
+```bash
+uv run pytest tests/ -q ; echo "unit exit=$?"
+uv run pytest tests/ -q -m e2e ; echo "e2e exit=$?"
+```
+
+Both must be **green now**. Write `affected-tests.md` with one row per file: its seeded node
+count, whether that is above or below `SIZE_THRESHOLD` (150), and the expected treatment —
+`open=all` param, `expand_to()`, re-measure, or *encodes a behaviour change*.
+
+Flag every file under the threshold explicitly. Those keep passing untouched, which is a
+**trap**: such a test no longer exercises the lazy path at all. At least one test per
+behaviour must seed above the threshold.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git branch --show-current
+git add docs/superpowers/plans/affected-tests.md
+git commit -m "docs(builder): enumerate the tests the lazy-tree change will touch"
+```
 
 ---
 
@@ -84,8 +336,32 @@ def _req(rf, query="", post=None, session=None):
 
 @pytest.fixture
 def tree(db):
-    """part > chapter > unit, plus a childless chapter (the `pk in cmap` trap)."""
+    """part > chapter > unit, plus a childless chapter (the `pk in cmap` trap).
+
+    4 nodes, i.e. UNDER SIZE_THRESHOLD -- so on a page load this course takes
+    precedence step 4 and opens fully. Use `big_tree` for anything that must
+    reach step 5.
+    """
     course = CourseFactory(slug="c1")
+    part = ContentNodeFactory(course=course, kind="part", parent=None, title="P")
+    chapter = ContentNodeFactory(course=course, kind="chapter", parent=part, title="C")
+    unit = ContentNodeFactory(
+        course=course, kind="unit", unit_type="lesson", parent=chapter, title="U"
+    )
+    empty = ContentNodeFactory(course=course, kind="chapter", parent=part, title="E")
+    return course, part, chapter, unit, empty
+
+
+@pytest.fixture
+def big_tree(db, monkeypatch):
+    """The same shape, but forced OVER the threshold so steps 5/6 are reachable.
+
+    Monkeypatching the constant beats seeding 151 rows: the rule under test is
+    "len(index) <= SIZE_THRESHOLD", and a 4-node fixture with a threshold of 2
+    exercises it identically at a fraction of the cost.
+    """
+    monkeypatch.setattr("courses.builder_open.SIZE_THRESHOLD", 2)
+    course = CourseFactory(slug="c2big")
     part = ContentNodeFactory(course=course, kind="part", parent=None, title="P")
     chapter = ContentNodeFactory(course=course, kind="chapter", parent=part, title="C")
     unit = ContentNodeFactory(
@@ -115,11 +391,15 @@ def test_unit_pk_and_junk_and_foreign_pk_are_discarded(rf, tree):
 
 
 @pytest.mark.django_db
-def test_absent_vs_empty_on_a_page_load(rf, tree):
-    """Absent seeds from the session; empty means 'I collapsed everything'."""
-    course, part, chapter, unit, _e = tree
+def test_absent_vs_empty_on_a_page_load(rf, big_tree):
+    """Absent seeds from the session; empty means 'I collapsed everything'.
+
+    big_tree, not tree: under the threshold step 4 fires first and this would
+    assert the size rule while claiming to test the seed.
+    """
+    course, part, chapter, unit, _e = big_tree
     cmap = _children_map(course)
-    sess = {"builder_last_node": {"c1": unit.pk}}
+    sess = {"builder_last_node": {"c2big": unit.pk}}
     absent = open_ids(_req(rf, "", session=sess), course, cmap, mode="page")
     assert absent.ids == frozenset({part.pk, chapter.pk})
     empty = open_ids(_req(rf, "open=", session=sess), course, cmap, mode="page")
@@ -127,17 +407,20 @@ def test_absent_vs_empty_on_a_page_load(rf, tree):
 
 
 @pytest.mark.django_db
-def test_seed_includes_the_node_itself_when_it_is_a_container(rf, tree):
-    course, part, chapter, _u, _e = tree
+def test_seed_includes_the_node_itself_when_it_is_a_container(rf, big_tree):
+    course, part, chapter, _u, _e = big_tree
     cmap = _children_map(course)
-    sess = {"builder_last_node": {"c1": chapter.pk}}
+    sess = {"builder_last_node": {"c2big": chapter.pk}}
     got = open_ids(_req(rf, "", session=sess), course, cmap, mode="page")
+    # the chapter ITSELF, not just its ancestors -- otherwise the author
+    # returns with the very chapter they were working in closed
     assert got.ids == frozenset({part.pk, chapter.pk})
 
 
 @pytest.mark.django_db
 def test_fragment_mode_never_seeds_and_skips_the_size_rule(rf, tree):
-    """A 4-node course is under the threshold; a fragment must still be empty."""
+    """`tree` deliberately: 4 nodes IS under the threshold, and a fragment
+    must still come back empty -- step 4 is a landing rule for a page."""
     course, _p, _c, unit, _e = tree
     cmap = _children_map(course)
     sess = {"builder_last_node": {"c1": unit.pk}}
@@ -156,18 +439,29 @@ def test_small_course_opens_everything_before_consulting_the_seed(rf, tree):
 
 @pytest.mark.django_db
 def test_open_session_sentinel_reads_then_falls_through_when_missing(rf, tree):
-    course, part, chapter, _u, _e = tree
+    course, part, chapter, _u, empty = tree
     cmap = _children_map(course)
     stored = {"builder_open": {"c1": [chapter.pk]}}
     got = open_ids(_req(rf, "open=session", session=stored), course, cmap, mode="page")
     assert got.ids == frozenset({chapter.pk})
-    # missing key -> fall through to steps 3-6, NOT an empty tree
+    # MISSING key -> fall through to steps 3-6 (here: the size rule)
     got2 = open_ids(_req(rf, "open=session", session={}), course, cmap, mode="page")
-    assert got2.ids == frozenset({part.pk, chapter.pk, _e_pk(tree)})
+    assert got2.ids == frozenset({part.pk, chapter.pk, empty.pk})
 
 
-def _e_pk(tree):
-    return tree[4].pk
+@pytest.mark.django_db
+def test_open_session_honours_a_stored_EMPTY_list(rf, tree):
+    """Stored-empty is 'I collapsed everything' and must NOT fall through.
+
+    `.get(slug) or []` conflates missing with empty: the author's collapsed
+    state would spring back open on the next no-JS mutation, and the derived
+    set would then be persisted over it -- permanently.
+    """
+    course, _p, _c, _u, _e = tree
+    cmap = _children_map(course)
+    stored = {"builder_open": {"c1": []}}
+    got = open_ids(_req(rf, "open=session", session=stored), course, cmap, mode="page")
+    assert got.ids == frozenset()
 
 
 @pytest.mark.django_db
@@ -180,17 +474,20 @@ def test_post_open_beats_get_open(rf, tree):
 
 
 @pytest.mark.django_db
-def test_ceiling_keeps_the_lowest_pks_and_flags_truncation(rf, db):
-    course = CourseFactory(slug="big")
+def test_ceiling_keeps_the_lowest_pks_and_flags_truncation(rf, db, monkeypatch):
+    """Monkeypatch the ceiling rather than seeding 505 rows: the rule under
+    test is `len(kept) > CEILING`, and 6 rows exercise it identically."""
+    monkeypatch.setattr("courses.builder_open.CEILING", 4)
+    course = CourseFactory(slug="ceil")
     parts = [
         ContentNodeFactory(course=course, kind="part", parent=None, title=f"p{i}")
-        for i in range(CEILING + 5)
+        for i in range(6)
     ]
     cmap = _children_map(course)
     got = open_ids(_req(rf, "open=all"), course, cmap, mode="page")
     assert got.truncated is True
-    assert len(got.ids) == CEILING
-    assert got.ids == frozenset(sorted(p.pk for p in parts)[:CEILING])
+    assert len(got.ids) == 4
+    assert got.ids == frozenset(sorted(p.pk for p in parts)[:4])
 
 
 @pytest.mark.django_db
@@ -244,6 +541,7 @@ class OpenSet:
 
     ids: frozenset
     truncated: bool = False
+    explicit: bool = False  # resolved by step 1 or 2 -> safe to persist
 
 
 def nodes_by_pk(cmap):
@@ -264,7 +562,7 @@ def container_pks(cmap):
     }
 
 
-def _finalize(ids, containers):
+def _finalize(ids, containers, *, explicit=False):
     """Sanitise against this course's containers, then apply the one ceiling.
 
     Truncation keeps the LOWEST pks: a set has no truncation order, and the
@@ -273,8 +571,8 @@ def _finalize(ids, containers):
     """
     kept = set(ids) & containers
     if len(kept) > CEILING:
-        return OpenSet(frozenset(sorted(kept)[:CEILING]), True)
-    return OpenSet(frozenset(kept), False)
+        return OpenSet(frozenset(sorted(kept)[:CEILING]), True, explicit)
+    return OpenSet(frozenset(kept), False, explicit)
 
 
 def _parse(raw, containers):
@@ -319,8 +617,19 @@ def _raw_open(request):
     return "", False
 
 
+_MISSING = object()
+
+
 def _stored_open(request, slug):
-    return request.session.get(OPEN_KEY, {}).get(slug) or []
+    """Returns _MISSING when the key is absent, the (possibly EMPTY) list
+    otherwise.
+
+    `.get(slug) or []` would conflate the two, and stored-empty is meaningful:
+    it is how "I collapsed everything" survives a no-JS mutation. Conflated,
+    the tree springs back open and _remember_open then writes that derived set
+    over the author's real one.
+    """
+    return request.session.get(OPEN_KEY, {}).get(slug, _MISSING)
 
 
 def open_ids(request, course, cmap, *, mode="fragment", q_chain=None):
@@ -331,31 +640,34 @@ def open_ids(request, course, cmap, *, mode="fragment", q_chain=None):
       notice   -> 2, 3, 4, 5, 6 + a direct builder_open read
       fragment -> 2, 3, 6 only  (never touches the session; the size rule is a
                   LANDING rule for a page, not a rule about a re-render)
+
+    `.explicit` on the result records whether step 1 or 2 resolved it, so
+    _remember_open can persist ONLY author-chosen sets. Keying that off the
+    raw presence of the parameter would persist the derived fall-through of
+    `open=session`.
     """
     index = nodes_by_pk(cmap)
-    containers = {
-        pk for pk, n in index.items() if n.kind != ContentNode.Kind.UNIT
-    }
+    containers = {pk for pk, n in index.items() if n.kind != ContentNode.Kind.UNIT}
     raw, present = _raw_open(request)
 
     # Step 1 -- the no-JS post-mutation sentinel, page mode only.
     if present and raw == "session" and mode == "page":
         stored = _stored_open(request, course.slug)
-        if stored:
-            return _finalize(stored, containers)
+        if stored is not _MISSING:
+            return _finalize(stored, containers, explicit=True)
         present = False  # missing/flushed -> fall through to 3-6
 
     # Step 2 -- an explicit value wins, including the empty string.
     if present:
-        return _finalize(_parse(raw, containers), containers)
+        return _finalize(_parse(raw, containers), containers, explicit=True)
 
     # A no-JS conflict/validation re-render is the same author, same tab,
     # mid-loop -- it cannot be a bookmark, so reading the carrier is safe and
     # keeps a FAILED mutation showing the same tree as a successful one.
     if mode == "notice":
         stored = _stored_open(request, course.slug)
-        if stored:
-            return _finalize(stored, containers)
+        if stored is not _MISSING:
+            return _finalize(stored, containers, explicit=True)
 
     # Step 3 -- the filter's chains (slice 2; always None here).
     if q_chain is not None:
@@ -415,14 +727,35 @@ git commit -m "feat(builder): add the open-scope precedence helper"
 
 - [ ] **Step 1: Write the failing test**
 
-Append to `tests/test_builder_open_ids.py`:
+Add the four imports **to the top of `tests/test_builder_open_ids.py`** with the existing
+import block (ruff selects `E`, so `E402` rejects a mid-file import; isort here is
+`force-single-line`, one per line):
 
 ```python
 from django.urls import reverse
 
 from courses.builder_open import LAST_NODE_KEY
 from courses.builder_open import SESSION_SLUG_LIMIT
+from courses.views_manage import remember_node
 from tests.factories import make_login
+```
+
+Then append the tests:
+
+```python
+class FakeSession(dict):
+    """A dict that also carries `modified`, like SessionBase.
+
+    A plain dict cannot: `dict` forbids attribute assignment, so
+    `request.session.modified = True` raises AttributeError.
+    """
+
+    modified = False
+
+
+class FakeRequest:
+    def __init__(self):
+        self.session = FakeSession()
 
 
 @pytest.mark.django_db
@@ -436,39 +769,33 @@ def test_node_panel_records_the_focused_node(client, tree):
     assert client.session[LAST_NODE_KEY]["c1"] == part.pk
 
 
-@pytest.mark.django_db
 def test_remember_node_bounds_slugs_and_moves_recent_to_the_end():
-    from courses.views_manage import remember_node
-
-    class R:
-        session = {}
-
-    r = R()
+    r = FakeRequest()
     for i in range(SESSION_SLUG_LIMIT + 5):
         remember_node(r, f"s{i}", i)
     assert len(r.session[LAST_NODE_KEY]) == SESSION_SLUG_LIMIT
-    # re-writing an OLD slug must move it to the end, or "most recent" is a lie:
-    # dicts keep INSERTION order, and re-assigning a key does not re-order it.
+    # Re-writing an OLD slug must move it to the end, or "most recent" is a
+    # lie: dicts keep INSERTION order and re-assigning a key does not re-order.
     oldest = next(iter(r.session[LAST_NODE_KEY]))
     remember_node(r, oldest, 999)
     assert next(iter(r.session[LAST_NODE_KEY])) != oldest
     assert list(r.session[LAST_NODE_KEY])[-1] == oldest
 
 
-@pytest.mark.django_db
 def test_remember_node_skips_an_unchanged_write():
-    from courses.views_manage import remember_node
-
-    class R:
-        session = {}
-        modified = False
-
-    r = R()
+    r = FakeRequest()
     remember_node(r, "s", 1)
-    r.modified = False
-    remember_node(r, "s", 1)
-    assert r.modified is False  # no session save for a re-focus
+    assert r.session.modified is True
+    r.session.modified = False
+    remember_node(r, "s", 1)      # same value -> no write
+    assert r.session.modified is False
+    remember_node(r, "s", 2)      # changed -> writes
+    assert r.session.modified is True
 ```
+
+> The assertions are on `r.session.modified`, **not** `r.modified`: the implementation
+> writes the flag on the session, so asserting on the request object would inspect
+> something nothing under test touches and could never go red.
 
 - [ ] **Step 2: Run to verify failure**
 
@@ -517,9 +844,15 @@ In `node_panel`, immediately after the `can_manage_course` check:
 ```bash
 uv run pytest tests/test_builder_open_ids.py -q
 ```
-Expected: 13 passed.
+Expected: 15 passed.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 5: Falsify the skip-when-unchanged rule**
+
+Delete the `if store.get(slug) == pk: return` early exit and re-run.
+Expected: `test_remember_node_skips_an_unchanged_write` goes **RED**. Restore it. If it
+stays green, the assertion is inspecting the wrong object — fix that before continuing.
+
+- [ ] **Step 6: Commit**
 
 ```bash
 git branch --show-current
@@ -547,8 +880,11 @@ Create `tests/test_builder_lazy_scopes.py`:
 
 ```python
 import re
+from urllib.parse import parse_qs
+from urllib.parse import urlparse
 
 import pytest
+from django.http import Http404
 from django.urls import reverse
 
 from courses.builder_open import SIZE_THRESHOLD
@@ -610,17 +946,25 @@ def test_open_param_renders_exactly_that_scope(client):
 
 
 @pytest.mark.django_db
-def test_builder_tree_stays_one_query(client, django_assert_num_queries):
+def test_builder_tree_query_count_does_not_grow_with_open_scopes(client):
+    """The spec's query-count invariant. Compare the SAME page collapsed vs
+    fully expanded: the tree path is one query either way, so any delta means
+    an N+1 crept into _open_descendants, _extra_container_pks or the toggle."""
+    from django.test.utils import CaptureQueriesContext
+    from django.db import connection
+
     owner = make_login(client, "owner")
     _big_course(owner)
     url = reverse("courses:manage_builder", kwargs={"slug": "big"})
-    resp = client.get(f"{url}?open=all")
-    assert resp.status_code == 200
-    # The tree itself must stay a single query regardless of how much is open.
-    # (Auth/session queries are not part of this assertion; count the tree by
-    # asserting the rendered row count instead of a raw total.)
-    rows = len(re.findall(r'class="tree__row"', resp.content.decode()))
-    assert rows > SIZE_THRESHOLD / 2
+    client.get(url)  # warm sessions/auth so the two counts are comparable
+    with CaptureQueriesContext(connection) as collapsed:
+        client.get(f"{url}?open=")
+    with CaptureQueriesContext(connection) as expanded:
+        client.get(f"{url}?open=all")
+    assert len(expanded) == len(collapsed), (
+        f"expanded={len(expanded)} collapsed={len(collapsed)}; "
+        "an N+1 was introduced in the tree path"
+    )
 
 
 @pytest.mark.django_db
@@ -646,13 +990,83 @@ def test_collapsed_container_renders_a_toggle_with_its_direct_child_count(client
     html = client.get(
         reverse("courses:manage_builder", kwargs={"slug": "big"})
     ).content.decode()
-    row = re.search(
-        r'data-node="%d".*?</div>' % part.pk, html, re.S
-    ).group(0)
+    row = re.search(r'data-node="%d".*?</div>' % part.pk, html, re.S).group(0)
     assert f'data-toggle="{part.pk}"' in row
     assert 'aria-expanded="false"' in row
     assert "aria-controls" not in row          # invalid ARIA while collapsed
-    assert str(len(chapters)) in row           # DIRECT children only
+    # Assert the WHOLE label. `str(len(chapters)) in row` is vacuous: with 30
+    # chapters, "30" also appears inside data-updated timestamps, maxlength
+    # and pks, so it can never fail.
+    assert f'aria-label="Expand P0, {len(chapters)} items"' in row
+
+
+@pytest.mark.django_db
+def test_truncation_renders_a_keyed_info_entry(client, monkeypatch):
+    """The ceiling is slice 1, so its user-visible consequence must be too."""
+    monkeypatch.setattr("courses.builder_open.CEILING", 2)
+    owner = make_login(client, "owner")
+    course, part, chapters = _big_course(owner)
+    html = client.get(
+        reverse("courses:manage_builder", kwargs={"slug": "big"}) + "?open=all"
+    ).content.decode()
+    assert 'data-info-key="truncation"' in html
+    assert 'role="status"' in html
+
+
+@pytest.mark.django_db
+def test_a_collapsed_container_with_zero_children_still_toggles(client):
+    owner = make_login(client, "owner")
+    course, part, chapters = _big_course(owner)
+    empty = ContentNodeFactory(
+        course=course, kind="chapter", parent=part, title="Empty"
+    )
+    url = reverse("courses:manage_builder", kwargs={"slug": "big"})
+    html = client.get(f"{url}?open={part.pk}").content.decode()
+    assert f'data-toggle="{empty.pk}"' in html
+    opened = client.get(f"{url}?open={part.pk},{empty.pk}").content.decode()
+    assert f'data-scope="{empty.pk}"' in opened
+    # the add affordance lives INSIDE the scope, so it appears only when open
+    assert f'data-add-scope="{empty.pk}"' in opened
+
+
+@pytest.mark.django_db
+def test_adding_a_unit_does_not_change_the_open_set(client):
+    """extra_open's effect 1 drops unit pks; effect 2 (slice 2) keeps them."""
+    owner = make_login(client, "owner")
+    course, part, chapters = _big_course(owner)
+    ch = chapters[0][0]
+    resp = client.post(
+        reverse("courses:manage_node_add", kwargs={"slug": "big"}),
+        {
+            "parent": ch.pk,
+            "parent_token": ch.updated.isoformat(),
+            "unit_type": "lesson",
+            "title": "New unit",
+            "open": f"{part.pk},{ch.pk}",
+        },
+        HTTP_X_REQUESTED_WITH="fetch",
+    )
+    assert resp.status_code == 200
+    new = course.nodes.get(title="New unit")
+    html = resp.content.decode()
+    assert f'data-node="{new.pk}"' in html        # the row is there
+    assert f'data-scope="{new.pk}"' not in html   # a unit owns no scope
+
+
+@pytest.mark.django_db
+def test_render_scope_rejects_a_non_numeric_scope_ref():
+    """The real hazard the routing-level 404 test does NOT cover: <int:pk>
+    stops a bad pk at the resolver, but _render_scope is also called
+    internally, where int(scope_ref) would raise a 500."""
+    from django.test import RequestFactory
+
+    from courses.views_manage import _render_scope
+
+    course = CourseFactory(slug="rs")
+    r = RequestFactory().get("/")
+    r.session = {}
+    with pytest.raises((ValueError, Http404)):
+        _render_scope(r, course, "not-a-pk")
 
 
 @pytest.mark.django_db
@@ -720,7 +1134,16 @@ and insert the toggle as the FIRST child of `.tree__rowhead`, immediately after 
     {% endif %}
 ```
 
-> The `href="#"` is a placeholder replaced in Task 4 by `{% toggle_href %}`. Both labels are rendered server-side because JS cannot select a Polish plural form.
+> The `href="#"` is a placeholder replaced in Task 4 by `{% toggle_href %}`. Both labels are
+> rendered server-side because JS cannot select a Polish plural form.
+>
+> **Byte cost, accepted:** each container row now carries the title three extra times
+> (`aria-label` plus both `data-label-*`), and on the expanded branch `data-label-collapse`
+> duplicates `aria-label` exactly. On `mat-pp` that is 137 containers × up to ~200 chars ×
+> 3 ≈ 80 KB *only when everything is open* — the collapsed default renders 21 rows, so the
+> "< 300 KB" target is unaffected. Task 3 Step 11's `OPEN=all` run measures the real figure;
+> if it is worse than this estimate, drop `aria-label` and have the JS set it from
+> `data-label-*` on init instead.
 
 - [ ] **Step 5: Give the scope an id and thread `open_ids`**
 
@@ -752,11 +1175,16 @@ Append to `courses/static/courses/css/builder.css`:
 
 - [ ] **Step 7: Wire the views**
 
-In `courses/views_manage.py` add the import and update three functions:
+In `courses/views_manage.py` add the imports (one per line — isort here is
+`force-single-line`) and update three functions:
 
 ```python
+from courses.builder_open import CEILING
+from courses.builder_open import container_pks
 from courses.builder_open import open_ids as _open_ids
 ```
+
+`gettext as _` is already imported in this module; `CEILING` and `container_pks` are not.
 
 `builder()`:
 
@@ -845,7 +1273,42 @@ def _extra_container_pks(extra_open, cmap):
     return set(extra_open) & container_pks(cmap)
 ```
 
-with `from courses.builder_open import CEILING`, `container_pks`, and `from django.utils.translation import gettext as _` already present.
+- [ ] **Step 7b: Show the complete `_render_scope`**
+
+`_render_scope` has a `top`-vs-pk branch, so paste the whole post-edit function rather than
+patching around an ellipsis — and note it computes `cmap` **once**:
+
+```python
+def _render_scope(request, course, scope_ref, *, extra_open=()):
+    """Re-render a single scope <ol> (root carries data-scope). scope_ref is a parent
+    pk or 'top'. Used for 200 success and 409 fresh-fragment on single-scope ops."""
+    cmap = _children_map(course)
+    opened = _open_ids(request, course, cmap, mode="fragment")
+    ids = set(opened.ids) | _extra_container_pks(extra_open, cmap)
+    if scope_ref == "top":
+        nodes, updated, parent_kind = (
+            cmap.get(None, []),
+            course.updated.isoformat(),
+            None,
+        )
+    else:
+        parent = ContentNode.objects.filter(pk=scope_ref, course=course).first()
+        nodes = cmap.get(int(scope_ref), [])
+        updated = parent.updated.isoformat() if parent else course.updated.isoformat()
+        parent_kind = parent.kind if parent else None
+    context = {
+        "scope_id": scope_ref,
+        "scope_updated": updated,
+        "parent_kind": parent_kind,
+        "nodes": nodes,
+        "children_map": cmap,
+        "course": course,
+    }
+    context.update(_tree_context(course, cmap, ids))   # added in Task 4
+    return render(request, "courses/manage/_scope.html", context)
+```
+
+> Until Task 4 exists, use `context["open_ids"] = ids` in place of the `_tree_context` line.
 
 - [ ] **Step 8: Render the info slot**
 
@@ -860,8 +1323,10 @@ and in `builder.css`:
 ```css
 .builder__info { list-style: none; margin: 0 0 var(--space-3); padding: var(--space-2) var(--space-3);
   background: var(--surface-sunken); border-radius: var(--radius-sm); color: var(--text-secondary); font-size: .875rem; }
-.builder__info:empty { display: none; }
 ```
+
+> No `:empty` rule: the `{% if info %}` means an empty `<ul>` is never emitted server-side,
+> and slice 1 has no JS that empties the list. Slice 2's `info` renderer adds it.
 
 - [ ] **Step 9: Run the tests to verify they pass**
 
@@ -874,12 +1339,20 @@ Expected: 6 passed.
 
 Delete the `{% if node.pk in open_ids %}` wrapper in `_tree_node.html`, re-run, and confirm `test_collapsed_scope_emits_no_descendant_rows` goes **RED**. Restore it.
 
-- [ ] **Step 11: Measure the real win**
+- [ ] **Step 11: Measure the real win, and the cost of the new context work**
 
 ```bash
-uv run python manage.py shell -c "exec(open(r'C:/Users/krzys/AppData/Local/Temp/claude/C--Users-krzys-Documents-Python-own-libli/ab99b211-6983-4656-811e-9bc1c2971df5/scratchpad/probe1.py').read())"
+# The seeded worst case: top level plus one 4-deep chain.
+SLUG=mat-pp OPEN="" uv run python manage.py shell -c "exec(open('scripts/perf/probe_tree_render.py').read())"
+# And the fully-expanded case, to bound expand-all and price _open_descendants.
+SLUG=mat-pp OPEN=all uv run python manage.py shell -c "exec(open('scripts/perf/probe_tree_render.py').read())"
 ```
-Expected: the `mat-pp` scope render drops from ~3.1 s / 2.58 MB to well under 500 ms. Record the numbers — they go in the PR body against the spec's baseline table.
+
+Expected: with `OPEN=""` the render drops from ~3.1 s / 2.58 MB (Task 0 Step 4) to well
+under 500 ms. Record **both** runs. The `OPEN=all` figure is the one that prices
+`_open_descendants` + `open_joined` — if the gap between it and the Task 0 baseline is
+larger than the reversal hoist will recover (~24%, Task 10), say so now rather than
+discovering it at Task 12.
 
 - [ ] **Step 12: Commit**
 
@@ -906,24 +1379,38 @@ git commit -m "feat(builder): render only open tree scopes"
 
 - [ ] **Step 1: Write the failing test**
 
+Add `from urllib.parse import parse_qs, urlparse` to the file's import block, then:
+
 ```python
+def _toggle_open_pks(html, pk):
+    """The `open` pks in the toggle href for `pk`, as a set of ints.
+
+    Parses rather than substring-matching: comma-joined pks are
+    prefix-colliding, so `str(31) not in "1,131"` is both wrong and the exact
+    trap toggle_href itself is written to avoid. The regex is anchored on the
+    emitted attribute ORDER (class, href, data-toggle) -- reversing it makes
+    the match silently fail, and an `assert m is None or ...` would then pass
+    on the miss.
+    """
+    m = re.search(r'<a class="tree__toggle" href="([^"]+)"[^>]*data-toggle="%d"' % pk, html)
+    assert m, f"no toggle href found for pk={pk}"
+    qs = parse_qs(urlparse(m.group(1)).query)
+    raw = (qs.get("open") or [""])[0]
+    return {int(t) for t in raw.split(",") if t.strip().isdigit()}
+
+
 @pytest.mark.django_db
-def test_toggle_href_expands_and_collapses_without_js(client):
+def test_expand_href_adds_this_pk_to_the_open_set(client):
     owner = make_login(client, "owner")
     course, part, chapters = _big_course(owner)
-    ch = chapters[0][0]
-    url = reverse("courses:manage_builder", kwargs={"slug": "big"})
-    html = client.get(url).content.decode()
-    m = re.search(r'data-toggle="%d"[^>]*href="([^"]+)"' % part.pk, html)
-    assert m is None or "open=" in m.group(1)
-    # collapsed -> its href opens it
-    html = client.get(url).content.decode()
-    href = re.search(r'href="([^"]*)"[^>]*data-toggle="%d"' % part.pk, html)
-    assert href, "toggle must carry a real href for the no-JS path"
+    html = client.get(
+        reverse("courses:manage_builder", kwargs={"slug": "big"})
+    ).content.decode()
+    assert _toggle_open_pks(html, part.pk) == {part.pk}
 
 
 @pytest.mark.django_db
-def test_collapse_href_drops_descendant_pks_too(client):
+def test_collapse_href_drops_this_pk_AND_its_open_descendants(client):
     """Collapse must forget descendants, or the no-JS path diverges from the
     JS path (which forgets them automatically by removing the subtree)."""
     owner = make_login(client, "owner")
@@ -931,12 +1418,10 @@ def test_collapse_href_drops_descendant_pks_too(client):
     ch = chapters[0][0]
     url = reverse("courses:manage_builder", kwargs={"slug": "big"})
     html = client.get(f"{url}?open={part.pk},{ch.pk}").content.decode()
-    href = re.search(
-        r'data-toggle="%d"[^>]*?href="([^"]+)"' % part.pk, html, re.S
-    ) or re.search(r'href="([^"]+)"[^>]*?data-toggle="%d"' % part.pk, html, re.S)
-    assert href
-    value = href.group(1)
-    assert str(ch.pk) not in value.split("open=")[-1].split("&")[0].split("#")[0]
+    # the part is expanded, so its toggle is a COLLAPSE href
+    assert _toggle_open_pks(html, part.pk) == set()
+    # and the chapter's own toggle (also expanded) only drops itself
+    assert _toggle_open_pks(html, ch.pk) == {part.pk}
 
 
 @pytest.mark.django_db
@@ -953,9 +1438,11 @@ def test_toggle_href_carries_a_row_anchor(client):
 - [ ] **Step 2: Run to verify failure**
 
 ```bash
-uv run pytest tests/test_builder_lazy_scopes.py -q -k toggle_href
+uv run pytest tests/test_builder_lazy_scopes.py -q -k "href or anchor"
 ```
-Expected: FAIL — the toggle's `href` is still the literal `#`.
+Expected: **all three FAIL**. `_toggle_open_pks` asserts the match is found and then parses
+the query string, so `href="#"` fails on the empty `open` set rather than passing on a
+missed regex; `test_toggle_href_carries_a_row_anchor` fails on the missing `id`.
 
 - [ ] **Step 3: Implement the tag**
 
@@ -1026,9 +1513,10 @@ def _open_descendants(cmap, ids):
     return out
 
 
-def _tree_context(request, course, cmap, ids):
+def _tree_context(course, cmap, ids):
     """Keys every renderer of tree markup must supply, or toggle_href silently
-    sees nothing on fragment renders."""
+    sees nothing on fragment renders. Takes no `request`: everything it needs
+    is already resolved."""
     return {
         "open_ids": ids,
         "open_joined": ",".join(str(p) for p in sorted(ids)),
@@ -1039,7 +1527,20 @@ def _tree_context(request, course, cmap, ids):
     }
 ```
 
-and merge `_tree_context(...)` into the context dict of `builder()`, `_builder_with_notice()` and `_render_scope()` (replacing the bare `"open_ids"` key added in Task 3).
+and merge `_tree_context(course, cmap, ids)` into the context dict of `builder()`,
+`_builder_with_notice()` and `_render_scope()` (replacing the bare `"open_ids"` key added in
+Task 3).
+
+**`_open_descendants` runs on every fragment, including the toggle endpoint whose budget is
+< 300 ms.** It is a full-`cmap` pass on top of the `cmap` rebuild the plan already prices at
+89 ms. Two mitigations, in order:
+
+1. It only needs entries for containers that are **currently open** — a collapsed row's
+   toggle is an *expand* href, which uses the `open_joined` fast path and never consults the
+   map. Restrict the walk accordingly: `for pk in ids: walk(pk)`.
+2. Measure it. Task 3 Step 11's `OPEN=all` run is the upper bound; if the delta against the
+   Task 0 baseline exceeds what Task 10 recovers, narrow `_render_scope`'s `cmap` rebuild —
+   the mitigation the spec already sanctions.
 
 - [ ] **Step 5: Use the tag and add the row anchor**
 
@@ -1325,7 +1826,10 @@ In `builder()`, after computing `opened`:
     _remember_open(request, course, opened, "open" in request.GET)
 ```
 
-Change the six no-JS redirects (`views_manage.py:282`, `:344`, `:376`, `:411`, `:455`, `:494`) from
+Change **five** of the six no-JS redirects — `views_manage.py:282`, `:344`, `:376`, `:411`,
+`:494`. **Leave `:455` (`node_delete`) alone**: Task 7 rewrites that one into a branch that
+round-trips an explicit `open`, and changing it here only to supersede it two tasks later
+invites keeping the wrong version through a conflict. Change them from
 
 ```python
         return redirect("courses:manage_builder", slug=course.slug)
@@ -1378,21 +1882,47 @@ Pass `extra_open` from the three mutating views:
 
 > `_ancestor_chain` is passed **whatever the node's kind**. The kind filter lives in `_extra_container_pks` (Task 3), so a unit's pk is harmlessly dropped from the open set while slice 2's filtered re-insertion can still use it.
 
-For the no-JS branches of the same three views, persist the chain before redirecting:
+For the no-JS branches, persist the chain **before** redirecting. Add `from
+courses.builder_open import OPEN_KEY` to the import block, then one helper:
 
 ```python
+def _persist_chain(request, course, node):
+    """Union a created/moved node's chain into the no-JS carrier.
+
+    The CHAIN, not the bare pk: if builder_open happens to be missing, a bare
+    [new_pk] is non-empty, so the open=session read would NOT fall through and
+    the tree would render with every ancestor collapsed -- hiding the node the
+    author just created.
+    """
+    cmap = _children_map(course)
+    stored = request.session.get(OPEN_KEY, {}).get(course.slug) or []
+    merged = set(stored) | (_ancestor_chain(node) & container_pks(cmap))
+    remember_node(request, course.slug, sorted(merged), key=OPEN_KEY)
+```
+
+Then call it with **each view's own local name** — they differ, and pasting one snippet
+into all three either raises `NameError` or silently persists the wrong chain:
+
+```python
+# node_add            -- the created node is `node`
     if not _wants_fragment(request):
-        store = set(request.session.get(OPEN_KEY, {}).get(course.slug) or [])
-        remember_node(
-            request,
-            course.slug,
-            sorted(store | (_ancestor_chain(node) & container_pks(_children_map(course)))),
-            key=OPEN_KEY,
-        )
+        _persist_chain(request, course, node)
+        return _redirect_to_builder(course)
+
+# node_duplicate      -- the created node is `new_node`; `node` is the SOURCE
+    if not _wants_fragment(request):
+        _persist_chain(request, course, new_node)
+        return _redirect_to_builder(course)
+
+# node_move, reparent -- requires the capture edit above; today this branch
+#                        discards reparent_node's return entirely
+    if not _wants_fragment(request):
+        _persist_chain(request, course, node)
         return _redirect_to_builder(course)
 ```
 
-> The chain, not the bare pk: if `builder_open` happens to be missing, a bare `[new_pk]` is non-empty so the `open=session` read would *not* fall through, and the tree would render with every ancestor collapsed — hiding the node just created.
+> **Ordering:** in `node_move` the "capture the node returned by `reparent_node`" edit is a
+> prerequisite of this one. Apply it first, or `node` is undefined in that branch.
 
 - [ ] **Step 4: Run to verify pass**
 
@@ -1401,12 +1931,16 @@ uv run pytest tests/test_builder_lazy_scopes.py -q
 ```
 Expected: 16 passed.
 
-- [ ] **Step 5: Run the whole non-e2e builder suite for regressions**
+- [ ] **Step 5: Check against the Task 0b enumeration — the gate is bounded**
 
 ```bash
-uv run pytest tests/ -q -k "builder or node_ops or affordance or tree_badge" ; echo "exit=$?"
+uv run pytest tests/ -q ; echo "exit=$?"
 ```
-Expected: failures in the *existing* suite are expected here and are fixed in Task 11. Record which files fail — that list drives Task 11.
+
+Expected: **only files listed in `docs/superpowers/plans/affected-tests.md` (Task 0b) may
+fail.** Anything else failing is a regression introduced by this task, not expected fixture
+breakage — stop and fix it before committing. Without this bound, a real defect introduced
+in Task 6, 8, 9 or 10 is indistinguishable from migration noise until Task 11.
 
 - [ ] **Step 6: Commit**
 
@@ -1531,19 +2065,87 @@ from django.urls import reverse
 from tests.factories import ContentNodeFactory
 from tests.factories import CourseFactory
 from tests.factories import TEST_PASSWORD
-from tests.factories import UserFactory
+from tests.factories import make_verified_user
 
 pytestmark = [pytest.mark.e2e, pytest.mark.django_db(transaction=True)]
 
 
-def _seed(owner):
-    course = CourseFactory(slug="e2e", owner=owner)
+def _make_pa_user(username):
+    """Copied from tests/test_e2e_builder.py -- do NOT hand-roll this.
+
+    UserFactory sets the password to "password123", not TEST_PASSWORD, and
+    creates no verified email, so allauth's AccountMiddleware bounces the
+    session to verify-email and the login silently never takes.
+    """
+    from django.contrib.auth.models import Group
+
+    from institution.roles import PLATFORM_ADMIN
+    from institution.roles import seed_roles
+
+    seed_roles()
+    user = make_verified_user(
+        username=username, email=f"{username}@t.example.com", password=TEST_PASSWORD
+    )
+    user.groups.add(Group.objects.get(name=PLATFORM_ADMIN))
+    return user
+
+
+def _login(page, live_server, username):
+    """allauth's field is name="login", not "username", and there is no
+    `accounts:login` URL name -- the path is literal. The submit button is
+    form-scoped because a bare button[type=submit] hits the shell header's
+    language/logout buttons first."""
+    page.goto(f"{live_server.url}/accounts/login/")
+    form = page.locator("form[action*='login']")
+    form.locator("input[name='login']").fill(username)
+    form.locator("input[name='password']").fill(TEST_PASSWORD)
+    form.locator("button[type='submit']").click()
+
+
+def _simulate_drag(page, src_selector, dst_selector, moves=1):
+    """Dispatch native HTML5 DnD events.
+
+    Playwright's pointer input (mouse.down/hover/up) and drag_to do NOT fire
+    dragstart/dragover/drop in Chromium -- this repo measured that and ships
+    this helper in tests/test_e2e_builder_ws2.py for exactly that reason.
+    `moves` controls how many dragover events precede the drop: 1 exercises
+    the drop-flushes-the-pending-frame path.
+    """
+    page.evaluate(
+        """([srcSel, dstSel, moves]) => {
+            const src = document.querySelector(srcSel);
+            const dst = document.querySelector(dstSel);
+            if (!src || !dst)
+                throw new Error('selector not found: ' + srcSel + ' | ' + dstSel);
+            const dt = new DataTransfer();
+            const s = src.getBoundingClientRect(), d = dst.getBoundingClientRect();
+            src.dispatchEvent(new DragEvent('dragstart', {bubbles: true,
+                cancelable: true, dataTransfer: dt,
+                clientX: s.x + s.width / 2, clientY: s.y + s.height / 2}));
+            for (let i = 0; i < moves; i++) {
+                dst.dispatchEvent(new DragEvent('dragover', {bubbles: true,
+                    cancelable: true, dataTransfer: dt,
+                    clientX: d.x + d.width / 2, clientY: d.y + d.height / 2}));
+            }
+            dst.dispatchEvent(new DragEvent('drop', {bubbles: true,
+                cancelable: true, dataTransfer: dt,
+                clientX: d.x + d.width / 2, clientY: d.y + d.height / 2}));
+            src.dispatchEvent(new DragEvent('dragend', {bubbles: true,
+                cancelable: true, dataTransfer: dt}));
+        }""",
+        [src_selector, dst_selector, moves],
+    )
+
+
+def _seed(owner, slug="e2e"):
+    course = CourseFactory(slug=slug, owner=owner)
     part = ContentNodeFactory(course=course, kind="part", parent=None, title="Part A")
     ch = ContentNodeFactory(course=course, kind="chapter", parent=part, title="Chap A")
     unit = ContentNodeFactory(
         course=course, kind="unit", unit_type="lesson", parent=ch, title="Unit A"
     )
-    # push the course over SIZE_THRESHOLD so it does NOT auto-expand
+    # push the course over SIZE_THRESHOLD so it does NOT auto-expand -- under
+    # the threshold every assertion below would pass vacuously
     for i in range(160):
         ContentNodeFactory(
             course=course, kind="unit", unit_type="lesson", parent=ch, title=f"U{i}"
@@ -1551,17 +2153,10 @@ def _seed(owner):
     return course, part, ch, unit
 
 
-def _login(page, live_server, user):
-    page.goto(f"{live_server.url}{reverse('accounts:login')}")
-    page.fill("input[name=username]", user.username)
-    page.fill("input[name=password]", TEST_PASSWORD)
-    page.click("button[type=submit]")
-
-
 def test_toggle_expands_and_collapses(page, live_server):
-    owner = UserFactory(is_staff=True)
+    owner = _make_pa_user("pa")
     course, part, ch, _unit = _seed(owner)
-    _login(page, live_server, owner)
+    _login(page, live_server, "pa")
     page.goto(f"{live_server.url}{reverse('courses:manage_builder', kwargs={'slug': 'e2e'})}")
     assert page.locator(f'[data-node="{ch.pk}"]').count() == 0
     page.click(f'[data-toggle="{part.pk}"]')          # the REAL gesture
@@ -1576,9 +2171,9 @@ def test_toggle_expands_and_collapses(page, live_server):
 
 
 def test_double_click_yields_exactly_one_scope(page, live_server):
-    owner = UserFactory(is_staff=True)
+    owner = _make_pa_user("pa")
     course, part, ch, _u = _seed(owner)
-    _login(page, live_server, owner)
+    _login(page, live_server, "pa")
     page.goto(f"{live_server.url}{reverse('courses:manage_builder', kwargs={'slug': 'e2e'})}")
     page.dblclick(f'[data-toggle="{part.pk}"]')
     page.wait_for_selector(f'[data-node="{ch.pk}"]')
@@ -1586,9 +2181,9 @@ def test_double_click_yields_exactly_one_scope(page, live_server):
 
 
 def test_expansion_survives_a_reload(page, live_server):
-    owner = UserFactory(is_staff=True)
+    owner = _make_pa_user("pa")
     course, part, ch, _u = _seed(owner)
-    _login(page, live_server, owner)
+    _login(page, live_server, "pa")
     page.goto(f"{live_server.url}{reverse('courses:manage_builder', kwargs={'slug': 'e2e'})}")
     page.click(f'[data-toggle="{part.pk}"]')
     page.wait_for_selector(f'[data-node="{ch.pk}"]')
@@ -1599,9 +2194,9 @@ def test_expansion_survives_a_reload(page, live_server):
 def test_collapsing_the_last_scope_survives_a_reload(page, live_server):
     """The empty set must be written as `open=` (present, empty), not omitted,
     or the reload re-seeds from the session and springs the tree back open."""
-    owner = UserFactory(is_staff=True)
+    owner = _make_pa_user("pa")
     course, part, ch, _u = _seed(owner)
-    _login(page, live_server, owner)
+    _login(page, live_server, "pa")
     url = reverse("courses:manage_builder", kwargs={"slug": "e2e"})
     page.goto(f"{live_server.url}{url}?open={part.pk}")
     page.click(f'[data-toggle="{part.pk}"]')
@@ -1663,10 +2258,23 @@ Add the toggle handler before the drag section:
   }
 
   root.addEventListener("pointerdown", function (e) {
-    // Armed HERE, not around the removal: a click moves focus at mousedown, so
-    // a dirty title's focusout fires BEFORE this handler's click would -- and
-    // the rename guard reads `swapping`, which would still be false.
-    if (e.target.closest("[data-toggle]")) swapping = true;
+    // Armed HERE, not around the <ol> removal: a click moves focus at
+    // mousedown, so a dirty title's focusout fires BEFORE this handler's click
+    // would -- and the rename guard reads `swapping`, which would still be
+    // false, so the rename would commit on mouse-collapse but abandon on
+    // keyboard-collapse.
+    //
+    // NARROW to the subtree actually being torn out. Arming for ANY toggle
+    // click would swallow an unrelated pending rename: edit row A's title,
+    // click row B's toggle, and A's focusout is suppressed while focus has
+    // already left it -- the edit is lost silently, with no further commit
+    // opportunity.
+    var t = e.target.closest("[data-toggle]");
+    if (!t) return;
+    var row = t.closest("li.tree__row");
+    var scope = row && row.querySelector(":scope > ol.tree__scope");
+    var active = document.activeElement;
+    if (scope && active && scope.contains(active)) swapping = true;
   });
   document.addEventListener("pointerup", function () { swapping = false; });
   document.addEventListener("pointercancel", function () { swapping = false; });
@@ -1737,12 +2345,120 @@ Append to `builder.css`:
 .builder[data-busy] .builder__tree { opacity: .6; transition: opacity .1s ease; cursor: progress; }
 ```
 
+- [ ] **Step 4b: Add the coverage the spec pins for this task**
+
+Append to `tests/test_e2e_builder_toggle.py`:
+
+```python
+def test_a_failed_scope_fetch_leaves_the_row_usable(page, live_server):
+    """The in-flight guard clears on BOTH paths, or the row wedges forever."""
+    owner = _make_pa_user("pa")
+    course, part, ch, _u = _seed(owner, slug="fail")
+    _login(page, live_server, "pa")
+    page.route("**/scope/**", lambda route: route.fulfill(status=500, body=""))
+    page.goto(f"{live_server.url}{reverse('courses:manage_builder', kwargs={'slug': 'fail'})}")
+    page.click(f'[data-toggle="{part.pk}"]')
+    page.wait_for_selector(".op-error")
+    assert page.locator(".builder[data-busy]").count() == 0   # counter unwound
+    page.unroute("**/scope/**")
+    page.click(f'[data-toggle="{part.pk}"]')                  # still works
+    page.wait_for_selector(f'[data-node="{ch.pk}"]')
+
+
+def test_an_unrelated_toggle_click_still_commits_a_pending_rename(page, live_server):
+    """The converse of the dirty-rename guard: arming `swapping` for ANY
+    toggle would silently discard this edit."""
+    owner = _make_pa_user("pa")
+    course, part, ch, _u = _seed(owner, slug="ren")
+    other = ContentNodeFactory(
+        course=course, kind="part", parent=None, title="Other part"
+    )
+    _login(page, live_server, "pa")
+    url = reverse("courses:manage_builder", kwargs={"slug": "ren"})
+    page.goto(f"{live_server.url}{url}?open=")
+    field = page.locator(f'[data-node="{other.pk}"] input.tree__title')
+    field.click()
+    field.fill("Renamed elsewhere")
+    page.click(f'[data-toggle="{part.pk}"]')       # a DIFFERENT row's toggle
+    page.wait_for_selector(f'[data-node="{ch.pk}"]')
+    other.refresh_from_db()
+    assert other.title == "Renamed elsewhere"
+
+
+def test_collapsing_over_a_dirty_rename_posts_nothing(page, live_server):
+    """Driven by a real MOUSE click: focusout fires at mousedown, so a
+    keyboard-only test would exercise the path that was already correct."""
+    owner = _make_pa_user("pa")
+    course, part, ch, _u = _seed(owner, slug="dirty")
+    _login(page, live_server, "pa")
+    url = reverse("courses:manage_builder", kwargs={"slug": "dirty"})
+    page.goto(f"{live_server.url}{url}?open={part.pk}")
+    field = page.locator(f'[data-node="{ch.pk}"] input.tree__title')
+    field.click()
+    field.fill("Half typed")
+    page.click(f'[data-toggle="{part.pk}"]')       # collapses ch's own subtree
+    page.wait_for_selector(f'[data-node="{ch.pk}"]', state="detached")
+    ch.refresh_from_db()
+    assert ch.title == "Chap A"                    # abandoned, not committed
+
+
+def test_keyboard_traversal_still_issues_one_panel_fetch(page, live_server):
+    """The toggle adds a focus stop before every container title."""
+    owner = _make_pa_user("pa")
+    course, part, ch, _u = _seed(owner, slug="kbd")
+    _login(page, live_server, "pa")
+    url = reverse("courses:manage_builder", kwargs={"slug": "kbd"})
+    page.goto(f"{live_server.url}{url}?open={part.pk}")
+    calls = []
+    page.on("request", lambda r: calls.append(r.url) if "/build/node/" in r.url
+            and r.url.rstrip("/").split("/")[-1].isdigit() else None)
+    page.keyboard.press("Tab")
+    for _ in range(10):
+        page.keyboard.press("Tab")
+    page.wait_for_timeout(400)                     # longer than the 150ms debounce
+    assert len(calls) <= 1
+
+
+def test_pk_substitution_survives_a_slug_containing_a_zero(page, live_server):
+    """Guards the $-anchored replacement in scopeUrlFor and the panel URL."""
+    owner = _make_pa_user("pa")
+    course, part, ch, _u = _seed(owner, slug="mat-0-pp")
+    _login(page, live_server, "pa")
+    page.goto(
+        f"{live_server.url}{reverse('courses:manage_builder', kwargs={'slug': 'mat-0-pp'})}"
+    )
+    page.click(f'[data-toggle="{part.pk}"]')
+    page.wait_for_selector(f'[data-node="{ch.pk}"]')   # a naive replace() 404s
+```
+
+Add `from tests.factories import ContentNodeFactory` to the file's import block if the
+sweep above did not already.
+
+- [ ] **Step 4c: Guard the busy state's CSS shape**
+
+Append to `tests/test_builder_styles.py`:
+
+```python
+def test_busy_state_does_not_block_pointer_events():
+    """If it did, the per-toggle in-flight guard would be dead code and
+    test_double_click_yields_exactly_one_scope would pass vacuously."""
+    css = (
+        Path(settings.BASE_DIR) / "courses/static/courses/css/builder.css"
+    ).read_text(encoding="utf-8")
+    block = re.search(r"\.builder\[data-busy\][^{]*\{([^}]*)\}", css)
+    assert block, "no [data-busy] rule found"
+    assert "pointer-events" not in block.group(1)
+```
+
+Match the file's existing import style for `Path`/`settings`/`re`.
+
 - [ ] **Step 5: Run to verify pass**
 
 ```bash
 uv run pytest tests/test_e2e_builder_toggle.py -q -m e2e ; echo "exit=$?"
+uv run pytest tests/test_builder_styles.py -q ; echo "exit=$?"
 ```
-Expected: exit=0, 4 passed.
+Expected: exit=0 for both; 9 e2e passed.
 
 - [ ] **Step 6: Verify the JS invariants test still passes**
 
@@ -1771,10 +2487,15 @@ git commit -m "feat(builder): expand/collapse scopes without a page load"
 - [ ] **Step 1: Write the failing e2e**
 
 ```python
-def test_drag_and_release_within_one_pointer_move(page, live_server):
-    """Covers the drop-flushes-the-frame case. A cancel-only rule silently
-    drops this gesture: targetScope is set in the DEFERRED part."""
-    owner = UserFactory(is_staff=True)
+def test_drag_with_a_single_dragover_still_drops(page, live_server):
+    """Covers the drop-flushes-the-pending-frame case.
+
+    ONE dragover then an immediate drop is the worst case for the rAF
+    throttle: targetScope and the dataset.drop* values are set in the
+    DEFERRED part, so a cancel-only rule leaves them unset and the gesture is
+    silently discarded after preventDefault already promised it was legal.
+    """
+    owner = _make_pa_user("pa")
     course = CourseFactory(slug="drag", owner=owner)
     part = ContentNodeFactory(course=course, kind="part", parent=None, title="P")
     a = ContentNodeFactory(course=course, kind="chapter", parent=part, title="A")
@@ -1786,26 +2507,62 @@ def test_drag_and_release_within_one_pointer_move(page, live_server):
         ContentNodeFactory(
             course=course, kind="unit", unit_type="lesson", parent=b, title=f"F{i}"
         )
-    _login(page, live_server, owner)
+    _login(page, live_server, "pa")
     url = reverse("courses:manage_builder", kwargs={"slug": "drag"})
     page.goto(f"{live_server.url}{url}?open={part.pk},{a.pk},{b.pk}")
-    src = page.locator(f'[data-node="{unit.pk}"] .ica--grip')
-    dst = page.locator(f'ol[data-scope="{b.pk}"]')
-    src.hover()
-    page.mouse.down()
-    dst.hover()                       # a SINGLE move, then release
-    page.mouse.up()
+    page.wait_for_selector(f'ol[data-scope="{b.pk}"]')
+    _simulate_drag(
+        page,
+        f'[data-node="{unit.pk}"] .ica--grip',
+        f'ol[data-scope="{b.pk}"]',
+        moves=1,
+    )
+    page.wait_for_selector(f'ol[data-scope="{b.pk}"] [data-node="{unit.pk}"]')
+    unit.refresh_from_db()
+    assert unit.parent_id == b.pk
+
+
+def test_drag_across_two_separately_opened_branches(page, live_server):
+    """The reporter's actual gesture: open two chapters, drag between them."""
+    owner = _make_pa_user("pa")
+    course = CourseFactory(slug="drag2", owner=owner)
+    part = ContentNodeFactory(course=course, kind="part", parent=None, title="P")
+    a = ContentNodeFactory(course=course, kind="chapter", parent=part, title="A")
+    b = ContentNodeFactory(course=course, kind="chapter", parent=part, title="B")
+    unit = ContentNodeFactory(
+        course=course, kind="unit", unit_type="lesson", parent=a, title="Movable"
+    )
+    for i in range(160):
+        ContentNodeFactory(
+            course=course, kind="unit", unit_type="lesson", parent=b, title=f"F{i}"
+        )
+    _login(page, live_server, "pa")
+    url = reverse("courses:manage_builder", kwargs={"slug": "drag2"})
+    page.goto(f"{live_server.url}{url}?open={part.pk}")
+    # Open BOTH branches through the real toggles, not by URL.
+    page.click(f'[data-toggle="{a.pk}"]')
+    page.wait_for_selector(f'ol[data-scope="{a.pk}"]')
+    page.click(f'[data-toggle="{b.pk}"]')
+    page.wait_for_selector(f'ol[data-scope="{b.pk}"]')
+    _simulate_drag(
+        page,
+        f'[data-node="{unit.pk}"] .ica--grip',
+        f'ol[data-scope="{b.pk}"]',
+        moves=3,
+    )
     page.wait_for_selector(f'ol[data-scope="{b.pk}"] [data-node="{unit.pk}"]')
     unit.refresh_from_db()
     assert unit.parent_id == b.pk
 ```
 
-- [ ] **Step 2: Run to verify failure**
+- [ ] **Step 2: Record the pre-change baseline — these must pass NOW and after**
 
 ```bash
-uv run pytest tests/test_e2e_builder_toggle.py -q -m e2e -k drag_and_release ; echo "exit=$?"
+uv run pytest tests/test_e2e_builder_toggle.py -q -m e2e -k drag ; echo "exit=$?"
 ```
-Expected: this passes *before* the throttle exists (today's handler is synchronous). It is the regression guard for Step 3 — note the pass, then confirm it still passes after.
+Expected: exit=0, 2 passed. This is **not** a failing-test gate — today's `dragover` is
+synchronous, so both drag tests already pass. They exist to catch the regression Step 3
+could introduce; if either is red here, fix that before touching the handler.
 
 - [ ] **Step 3: Implement the throttle**
 
@@ -2025,15 +2782,17 @@ git commit -m "perf(builder): hoist per-course URL reversals out of the row loop
 - Create: `tests/helpers_builder.py`
 - Modify: every test file the sweep identifies
 
-- [ ] **Step 1: Regenerate the affected-file list**
+- [ ] **Step 1: Reconcile against the Task 0b enumeration**
+
+Re-run the sweep and diff it against `docs/superpowers/plans/affected-tests.md`:
 
 ```bash
-cd "$(git rev-parse --show-toplevel)"
 grep -rln "manage_builder\|/build/\|data-scope\|tree__row\|data-panel-url\|data-node-move-url" tests/ | sort
+uv run pytest tests/ -q ; echo "exit=$?"
 ```
-Expected: at least `test_manage_builder.py`, `test_manage_node_ops.py`, `test_manage_affordance.py`, `test_manage_node_duplicate.py`, `test_manage_duplicate_button.py`, `test_tree_badge.py`, `test_seed_demo_course.py`, `test_e2e_builder.py`, `test_e2e_builder_ws2.py`, `test_e2e_builder_authoring.py`, `test_e2e_builder_reorder.py`, `test_e2e_builder_tree_layout.py`, `test_e2e_inline_rename.py`, `test_e2e_transfer.py`, `test_builder_styles.py`.
 
-Do **not** work from the file-name prefix — four of these were missed that way.
+Any file failing that is **not** in the enumeration is a regression from Tasks 3–10, not a
+migration item. Fix it as a defect before proceeding.
 
 - [ ] **Step 2: Write the shared helpers**
 
@@ -2156,12 +2915,21 @@ Expected: both clean.
 
 - [ ] **Step 5: Measure against the spec's baseline**
 
-Re-run the exact probes that produced the baseline, both ways (browser and offline) so the numbers are comparable:
+Re-run the committed probes from Task 0, both ways, so the numbers are comparable:
 
 ```bash
-uv run python manage.py shell -c "exec(open(r'C:/Users/krzys/AppData/Local/Temp/claude/C--Users-krzys-Documents-Python-own-libli/ab99b211-6983-4656-811e-9bc1c2971df5/scratchpad/probe1.py').read())"
-uv run python "C:/Users/krzys/AppData/Local/Temp/claude/C--Users-krzys-Documents-Python-own-libli/ab99b211-6983-4656-811e-9bc1c2971df5/scratchpad/measure_browser.py"
+# offline render (no CSRF inputs in the count)
+SLUG=mat-pp OPEN="" uv run python manage.py shell -c "exec(open('scripts/perf/probe_tree_render.py').read())"
+
+# real page in Chromium (CSRF inputs included) -- needs runserver + a session key
+uv run python manage.py runserver &          # or a second terminal
+uv run python manage.py shell -c "exec(open('scripts/perf/probe_browser.py').read())" -- --mint-session
+SESSION=<key printed above> uv run python scripts/perf/probe_browser.py
 ```
+
+The browser probe reports `per_row`, which is the post-change elements-per-row basis the
+spec's targets depend on — the ~44 figure is an estimate and must be replaced with the
+measured value.
 
 Fill in this table for the PR body. Targets from the spec:
 
@@ -2196,7 +2964,26 @@ git commit -m "chore(builder): refresh catalogs and help screenshots for lazy sc
 
 **Spec coverage.** §1 lazy render → T3. §2 `open` transport, precedence, helper contract, `extra_open`, session carrier → T1/T3/T6. §3+§3a session seed and size default → T1/T2. §4 no-JS parity, toggle hrefs, redirect sites, delete chain → T4/T6/T7. §5 scope endpoint, JS toggle, insertion point, in-flight guard, `replaceState`, rename guard → T5/T8. §6 drag handler → T9. §7 reversal hoist + its guard → T10. §8 busy affordance → T8. Testing/migration → T11. Catalogs, screenshots, measurement → T12. **§9 and §10 are slice 2 and deliberately absent.**
 
-**Known gap, deliberate:** the spec's `q`/filter rules (`_filtered_map`, `q` on hrefs and forms, `X-Builder-Info`'s `filtered` code, the `q_chain` precedence step) are reserved but not implemented — `open_ids` accepts `q_chain=None` so slice 2 does not have to retrofit a precedence step across a function boundary, and `_info_entries` already emits keyed entries so slice 2 only adds a second key.
+**Known gaps, deliberate — each is a decision, not an omission:**
+
+- The spec's `q`/filter rules (`_filtered_map`, `q` on hrefs and forms, `X-Builder-Info`'s
+  `filtered` code, the `q_chain` precedence step) are reserved but not implemented.
+  `open_ids` accepts `q_chain=None` so slice 2 does not retrofit a precedence step across a
+  function boundary, and `_info_entries` emits **keyed** entries so slice 2 adds a key
+  rather than a mechanism.
+- **`X-Builder-Info` is not implemented in slice 1**, so a `_render_scope` response that
+  truncates at the 500-pk ceiling is silently un-noticed. This is reachable in slice 1
+  (`CEILING` ships here), and it is accepted because the ceiling can only be crossed by a
+  page-level action — expand-all is slice 2, and a hand-edited URL lands on a page render,
+  which *does* show the `info` entry (tested). Slice 2 adds the header and its JS renderer
+  for both codes at once.
+- The spec's `_builder_with_notice`-renders-the-same-tree test is **not** in slice 1: with
+  no filter there is no divergence to detect yet beyond what
+  `test_open_session_honours_a_stored_EMPTY_list` already covers. Slice 2 adds it.
+- "`open=all` survives a collapse" is covered structurally by
+  `test_collapse_href_drops_this_pk_AND_its_open_descendants` plus
+  `test_toggle_expands_and_collapses`; the encoding-switches-to-an-enumeration half is a
+  slice-2 concern because only expand-all emits `all` from the UI.
 
 **Type consistency.** `open_ids()` is the module function throughout (the spec's `_open_ids`; imported as `_open_ids` in `views_manage.py`). `OpenSet.ids` is a `frozenset` everywhere; `_extra_container_pks` and `_render_scope` build plain sets locally rather than mutating it. `remember_node(request, slug, value, key=...)` is used for all three session dicts. `container_pks(cmap)` is used by both `builder_open.py` and `views_manage.py`.
 
