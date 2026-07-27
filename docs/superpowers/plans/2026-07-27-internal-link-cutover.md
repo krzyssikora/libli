@@ -55,7 +55,8 @@ Three consequences the tasks below encode, and the corrected spec now states:
 
 A fourth consequence, measured while correcting the spec: **`TextElement` cannot carry a fail-closed
 fixture at all** — `save()` runs `sanitize_html`, which *closes* the torn anchor. `FillGateElement`
-(no `save()` override, `_build_fill_gate` stores `stem` raw) is the only end-to-end vehicle, and the
+(no `save()` override, `_build_fill_gate` stores `stem` raw) is one of the two end-to-end vehicles
+-- `SwitchGateElement` is the other, and its `save()` sanitises `options` only -- and the
 two-field per-instance guard must be built target-side because `_build_guess_number` sanitises on
 import.
 
@@ -3241,22 +3242,25 @@ def test_a_fail_closed_body_is_recorded_and_reported_not_fatal(tmp_path):
     i.e. the sanitiser CLOSES the anchor, so a TextElement fixture can never be
     fail-closed and the test would assert an empty list. FillGateElement has no
     save() override and _build_fill_gate (importer.py:549-552) stores `stem`
-    raw on the import side too -- the spec names it as the only reachable
-    vehicle. The stem carries BOTH a torn anchor and a well-formed mappable one,
-    which is also the I8 mixed-body case.
+    raw on the import side too. (SwitchGateElement works identically; the spec
+    standardises on FillGateElement.) The stem is a SINGLE torn anchor at an
+    UNMAPPABLE target: a second anchor
+    would supply the `</a>` this one's search finds, and a mappable pk never
+    reaches the branch the bail lives on -- either shape probes False.
     """
     from courses.models import FillGateElement
 
     course = _mk_source(parts=("P0", "P1"))
     u0 = ContentNode.objects.get(course=course, title="U0")
-    u1 = ContentNode.objects.get(course=course, title="U1")
+    # NB no `u1`: the torn anchor targets an unmappable pk, so nothing here
+    # references part 1. Binding it would be F841 under this repo's ruff config.
     Element.objects.create(
-        unit=u0, title="mixed",
+        unit=u0, title="torn",
         content_object=FillGateElement.objects.create(
             # SINGLE torn anchor, UNMAPPABLE target, no </a> anywhere after it.
             # A second well-formed anchor would supply the </a> this one's search
             # finds, and a mappable pk never reaches the unwrap branch at all --
-            # see MEASURED DIVERGENCE above.
+            # see the FAIL-CLOSED FIXTURES note above.
             stem='<p><a href="/courses/n/999999/">torn</p>',
             answers=[["x"]],   # list[list[str]], per the model docstring
         ),

@@ -1401,7 +1401,9 @@ coverage rather than a note:
   the bail lives on; and `TextElement.save()` runs `sanitize_html`, which **closes** the torn anchor
   — measured, `'<p><a href="/courses/n/7/">torn</p>'` → `'<p><a href="/courses/n/7/">torn</a></p>'`.
   `FillGateElement` has no `save()` override and `_build_fill_gate` stores `stem` raw, which is what
-  makes it the only end-to-end vehicle.
+  makes it a usable end-to-end vehicle. `SwitchGateElement` is the other one — `_build_switch_gate`
+  is equally unsanitised and its `save()` touches `options` only — so either works; the cases below
+  standardise on `FillGateElement`.
 
   Assert also that an element with **no** internal links at all is *not* recorded as fail-closed —
   the naive `not changed` rule would record nearly all 20,054 elements and make the reconciliation
