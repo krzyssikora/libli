@@ -1378,7 +1378,7 @@ def test_dry_run_leaves_an_existing_state_file_byte_identical(tmp_path):
 - [ ] **Step 2: Run to verify failure**
 
 ```bash
-uv run pytest tests/test_migrate_course_content.py -k "target_pk or renamed or subset_guard or no_longer_on_disk or torn_state or src_drift or byte_identical or reconstructed" -q
+uv run pytest tests/test_migrate_course_content.py -k "target_pk or renamed or subset_guard or no_longer_on_disk or torn_state or src_drift or byte_identical or above_zero_refuses" -q
 ```
 Expected: FAIL.
 
@@ -1543,8 +1543,9 @@ Then restructure `_import`'s branch. Replace the Task 5 placeholder with the rea
 ```
 
 `_in_progress_message` is a stub returning a plain string for now; **Task 10** implements it
-(it needs `_scan_links`, which Task 10 adds). Task 6's own `in_progress` test therefore asserts only
-the refusal, not the reading.
+(it needs `_scan_links`, which Task 10 adds). Task 6 wires the gate but does not test it — the
+`status == "in_progress"` path's first coverage on the import side is Task 11's
+`test_the_in_progress_refusal_prints_a_probe_reading`.
 
 Note the subset guard is a **set** operation against archive orders on disk. Never
 `max(recorded) + 1`: `recorded` can be empty and `max(())` raises a bare `ValueError`, not a
@@ -3067,10 +3068,15 @@ def test_the_in_progress_refusal_prints_a_probe_reading(tmp_path):
 - [ ] **Step 2: Run to verify failure**
 
 ```bash
-uv run pytest tests/test_migrate_course_content.py -k "probe_denominator" -q
+uv run pytest tests/test_migrate_course_content.py -k "in_progress_refusal_prints_a_probe_reading" -q
 ```
 Expected: PASS if Task 10 scoped the probe to `pending_entries` as specified. If it FAILS, Task 10
 used the whole recorded set — fix it there, not here.
+
+**Check the selector matched.** `pytest -k` on a name that matches nothing exits **5** with a bare
+"no tests ran", which under `-q` looks like success to anything grepping for `FAILED`. Confirm the
+run reports `1 passed`, not `no tests ran` — the same exit-5 trap this repo has been bitten by
+before.
 
 - [ ] **Step 3: Implement**
 
@@ -3329,6 +3335,11 @@ def test_a_fail_closed_instance_in_the_target_keeps_rewriting_its_other_field(
         content_object=GuessNumberElement.objects.create(
             stem='<p><a href="/courses/n/999999/">torn</p>',        # fail-closed
             success_message=f'<p><a href="/courses/n/{src_u1.pk}/">ok</a></p>',
+            # REQUIRED: target is a DecimalField with no default and no null
+            # (models.py:757). Omitting it raises IntegrityError in setup, and
+            # Task 12 Step 2 would send you hunting production code for it.
+            # `tolerance` defaults, so it needs nothing.
+            target=1,
         ),
     )
     call_command("migrate_course_content", "import", *args,
