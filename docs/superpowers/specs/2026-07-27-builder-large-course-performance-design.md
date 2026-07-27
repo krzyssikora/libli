@@ -642,9 +642,15 @@ the small-course default costs |containers|² × ~5 bytes, not 3 bytes: for a 15
 with ~30 containers that is ~4.5 KB, which is why the conclusion holds anyway. The 500-pk
 ceiling below bounds the worst case.
 
-**A newly added container opens itself.** `node_add` adds the new node's pk to the open set
-it renders with when the created node is a container. Otherwise an author who adds a chapter
-would have to expand it before they could add anything into it. **On the no-JS path there is
+**A newly added container opens itself.** `node_add` passes the new node's pk (and its
+ancestor chain) as `extra_open` **whatever its kind** — the kind test belongs to effect 1, not
+to the call site (see the two-effects rule below), so only a container ends up in the emitted
+open set while a unit still gets effect 2's force-inclusion. Writing the condition here as
+"when the created node is a container" is the rejected earlier draft: it reads as a call-site
+guard, and `extra_open=(pk,) if node.kind != "unit" else ()` silently breaks the
+add-under-filter case, because `views_manage.py:286` then returns the restricted parent scope
+without the new row. Without effect 1, an author who adds a chapter would have to expand it
+before they could add anything into it. **On the no-JS path there is
 nothing to render** — `node_add` ends in a redirect (`views_manage.py:282`) — so it must write
 into `session["builder_open"][slug]` before redirecting, or the rule would fail for exactly
 the users who cannot expand cheaply. It writes the new pk **and the node's ancestor chain**,
@@ -1285,6 +1291,16 @@ A `q` parameter on the builder view. There is **one** mechanism, not two: `q` re
 - the open set is the consequence: the union of the matches' ancestor chains, so every
   match is actually visible. Toggles still work on top of it (§4) — `q` seeds, a supplied
   `open` wins.
+- **The no-JS path needs its own force-include channel**, because `extra_open` exists only on
+  fragment renders. A no-JS add, duplicate or reparent redirects; the following page GET
+  re-derives the restricted map from `q` alone, knows nothing of the created or moved pk, and
+  that node's title will rarely match `q` — so the author lands on a filtered tree with their
+  new node **absent**, indistinguishable from failure, on the path with the least feedback. (A
+  rename that moves a title out of the match set is the same case.) Rule: `node_add`,
+  `node_duplicate` and `node_move` stash the created/moved pk in
+  `session["builder_force"][slug]` beside `builder_open`, and `builder()` unions it into the
+  restricted map for **exactly that next render**, then clears it. Tested: filter, add a
+  non-matching title without JS, assert the new row is present.
 - **`q` travels with EVERY fragment request, not just the toggle** — **set**, not appended,
   per §5's rule (a mutation form already carries a hidden `q`, so appending would put two
   values in the `FormData` and the collector would win only by accident of ordering). `manage_node_scope` is
@@ -1324,7 +1340,11 @@ branch; `manage_node_scope` is declared `<int:pk>` so it cannot serve the top sc
 fragment branch to `builder()` would silently change its contract for every existing test that
 sends `X-Requested-With: fetch`. So: **a new `manage_tree` GET** (`…/build/tree/`) returning
 `_render_tree(request, course)`, carrying `q`, `open` and the `X-Builder-Info` header, behind
-`@login_required` + `_require_manage`. It gets the same access-control test row as
+`@login_required` + `_require_manage`. **Its URL reaches the JS as `data-tree-url` on
+`.builder`**, emitted by `builder.html` — named here because slice 2 may be implemented from
+§9/§10 alone, and every other JS-reachable endpoint and constant in this design has an
+explicitly named attribute (`data-node-move-url`, `data-node-scope-url`, `data-msg-truncated`,
+`data-msg-filtered`, `data-container-count`). It gets the same access-control test row as
 `manage_node_scope`: anonymous → login redirect, non-manager → 403, foreign slug → 404,
 manager → 200 with `data-scope="top"`. Expand-all (§10) uses it too.
 
@@ -1340,8 +1360,15 @@ stripped of leading/trailing whitespace, and a query shorter than **2 characters
 stripping is treated as blank — **by `_filtered_map`, on the server**, so a no-JS `?q=a` or a
 hand-typed URL cannot filter either. On `mat-pp` one letter matches hundreds of titles → 100
 capped matches → up to 400 open pks → a several-hundred-row render, i.e. exactly the cost
-profile the debounce exists to avoid, reached by the one path that has no debounce. The JS
-floor is then purely an optimisation that saves a round trip.
+profile the debounce exists to avoid, reached by the one path that has no debounce.
+
+**The JS treats a below-floor query exactly like an empty one — it takes the clear path**
+(stashed `open`, no `q`, stash consumed). The floor therefore only ever saves a round trip on
+the way *into* a filter, never on the way out. Reading it as "just don't fetch below 2
+characters" would leave filtered markup on screen while the collector then sets `q=a` on the
+next toggle or mutation; the server treats that as blank and returns **unfiltered** children
+into a **filtered** pane — the precise defect the "`q` rides every fragment request" rule
+exists to prevent.
 
 **Clearing the filter needs a request and a stash.** "Restores the unfiltered tree" cannot be
 done client-side: the pane holds *filtered* markup with the non-matching rows absent, and the
