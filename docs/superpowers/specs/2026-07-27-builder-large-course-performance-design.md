@@ -50,7 +50,8 @@ once per **unit** row only (807, not 944 — `_tree_node.html:32` guards it with
 `{% if node.kind == "unit" %}`). `manage_node_panel`
 does vary by pk, but it is read only by JS (`builder.js:301`) and `builder.html:8` already
 carries a `pk=0` template of the same URL on the `.builder` root — so it is hoistable by a
-precedent already in the file. That leaves roughly **4,800** redundant reversals of 5,803.
+precedent already in the file. That leaves **4,583** redundant reversals of 5,803 (79%) —
+move ×2 (1,888) + delete (944) + panel (944) + duplicate (807).
 `_scope.html` already hoists `manage_node_rename` this way and records the reason in a
 comment.
 
