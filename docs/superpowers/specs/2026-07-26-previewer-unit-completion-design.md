@@ -136,7 +136,7 @@ with transaction.atomic():
         progress.save()  # completed_at stamped in save()
 ```
 
-Lifting the gate is the same reversal PR #136 applied to `markdone_save`, for the same stated
+Lifting the gate is the same reversal PR #136 applied to `element_state_save`, for the same stated
 reason: the row is the viewer's own record, not course analytics. `get_or_create` is correct and
 intended here — a POST is an explicit act, so creating the row on it does not violate the "no
 spurious rows on a GET" rule.
