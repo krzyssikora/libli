@@ -1998,6 +1998,54 @@ def test_the_live_region_announces_a_labelled_count(dialog_page):
     assert len(text) > 2, "a naked digit is not an announcement"
 
 
+def test_filter_keeps_ancestor_context_and_hides_dead_branches(dialog_page):
+    """The two behaviours the ancestor loop exists for.
+
+    Deleting that loop wholesale leaves every other test green: they all read `shown`,
+    which is computed BEFORE it runs. So this is the only guard on it.
+    """
+    _open(dialog_page)
+    # "quad" matches the child only. Its parent must stay VISIBLE as path context, but
+    # aria-disabled so it cannot be selected.
+    dialog_page.locator("[data-link-filter]").fill("quad")
+    parent = dialog_page.locator("[data-node='1']")
+    assert parent.is_visible()
+    assert parent.get_attribute("aria-disabled") == "true"
+    assert dialog_page.locator("[data-node='2']").get_attribute("aria-disabled") == "false"
+
+    # "algebra" matches the parent only. The child has no matching descendant, so it is
+    # hidden outright rather than left as dead context.
+    dialog_page.locator("[data-link-filter]").fill("algebra")
+    assert dialog_page.locator("[data-node='1']").is_visible()
+    assert dialog_page.locator("[data-node='2']").is_hidden()
+
+
+def test_the_tree_keeps_exactly_one_tab_stop_when_the_filter_hides_the_selection(
+    dialog_page,
+):
+    """The stranding hazard setTabStop's comment names, in the only state that reaches it.
+
+    Every other test runs with an empty filter, where nothing is hidden or
+    aria-disabled -- so rovingSet's two exclusions and setTabStop's
+    `set.indexOf(sel) !== -1` guard are never exercised at all.
+    """
+    _open(dialog_page)
+    dialog_page.locator("[data-node='2'] > .link-picker__row").click()
+    dialog_page.locator("[data-link-filter]").fill("algebra")   # hides the selection
+
+    stops = dialog_page.evaluate(
+        "() => Array.from("
+        "document.querySelectorAll('[data-link-tree] .link-picker__item')"
+        ").filter(r => r.tabIndex === 0).map(r => r.dataset.node)"
+    )
+    assert stops == ["1"], stops
+    # The selection itself SURVIVES being filtered out -- it is the tab's target
+    # regardless of visibility.
+    assert (
+        dialog_page.locator("[data-node='2']").get_attribute("aria-selected") == "true"
+    )
+
+
 def test_a_failed_fetch_is_not_cached_and_retries_on_the_next_open(page, db):
     from tests.factories import CourseFactory
 
@@ -2441,6 +2489,16 @@ Move the `(tab === "node" ? filterEl : urlEl).focus();` line to *before* `dialog
 
 Delete the `if (callback) return;` line. Run the tests. Expected:
 `test_a_second_open_while_pending_is_rejected` FAILS. Restore.
+
+- [ ] **Step 7b: Falsify the filter and roving-tabindex guards**
+
+Delete the whole `if (q) { ... }` ancestor-context block in `applyFilter`. Expected:
+`test_filter_keeps_ancestor_context_and_hides_dead_branches` FAILS. Restore.
+
+Then drop the `!all[i].hidden && ...aria-disabled...` conditions from `rovingSet()`.
+Expected: `test_the_tree_keeps_exactly_one_tab_stop_when_the_filter_hides_the_selection`
+FAILS. Restore. Both were previously unreachable from any test — every other case runs
+with an empty filter, where neither condition is ever true.
 
 - [ ] **Step 8: Screenshot the dialog in both themes**
 
