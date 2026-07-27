@@ -589,3 +589,47 @@ def test_element_mids_fill_table_yields_image_local_ids():
         ]
     }
     assert list(_element_mids("fill_table", data)) == ["m3"]
+
+
+# --- Task 1 (internal-link-cutover part 3): report["node_ids"] out-param ---
+
+
+def test_build_export_fills_report_node_ids_when_asked(course):
+    # _mk_tree is MANDATORY: the `course` fixture is a bare
+    # Course.objects.create(...) with ZERO nodes, so without it every assertion
+    # below is set()==set() / 0==0 and the falsification cannot go RED.
+    _mk_tree(course)
+    report = {}
+    _m, doc, _ma, _p = build_export(course, report=report)
+    ids = report["node_ids"]
+    assert len(ids) >= 3  # a real tree, not an empty one
+    # int keys (source pks), values are the document's own export ids.
+    assert all(isinstance(k, int) for k in ids)
+    assert set(ids.values()) == {nd["id"] for nd in doc["nodes"]}
+    assert len(ids) == len(doc["nodes"])
+
+
+def test_build_export_without_report_is_unchanged(course):
+    _mk_tree(course)
+    # The 4-tuple contract every other call site relies on.
+    result = build_export(course)
+    assert len(result) == 4
+
+
+def test_report_node_ids_survives_the_problems_path(course, image_asset):
+    """--allow-problems must not cost the operator the node index.
+
+    `problems` is produced only for an asset reached THROUGH an element in the
+    exported tree, so the tree and the ImageElement both have to exist first --
+    copy the exact setup from
+    `test_missing_image_becomes_placeholder_with_problem`
+    (tests/test_transfer_export.py:345-348) rather than the two lines below if
+    they drift.
+    """
+    _part, _chap, unit = _mk_tree(course)  # returns a 3-TUPLE (:200-208)
+    _attach(unit, ImageElement.objects.create(media=image_asset, alt="a"))
+    _delete_asset_file(image_asset)  # the file's own problems recipe
+    report = {}
+    _m, _doc, _ma, problems = build_export(course, report=report)
+    assert problems  # precondition: this path was taken
+    assert report["node_ids"]  # and the index still arrived

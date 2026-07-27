@@ -500,7 +500,9 @@ def walk_unit_joins(unit_pk, joins_by_unit):
                 yield child, join, SpoilerElement.SLOT_ID
 
 
-def build_export(course, node=None, source_host="", *, drop_missing_media=True):
+def build_export(
+    course, node=None, source_host="", *, drop_missing_media=True, report=None
+):
     with transaction.atomic():
         nodes = _ordered_nodes(course, root=node)
         referenced = set()
@@ -515,6 +517,14 @@ def build_export(course, node=None, source_host="", *, drop_missing_media=True):
                 else node_ids.get(n.parent_id)
             )
             node_dicts.append(_node_dict(n, nid, parent_internal))
+
+        # Out-param, NOT a fifth return value: build_export's 4-tuple is unpacked
+        # positionally at ~28 sites across ~10 files, so widening the arity would
+        # break every one. Filled here, before any return, so the tolerant-export
+        # `problems` path keeps it too -- --allow-problems must not cost the
+        # caller the node index.
+        if report is not None:
+            report["node_ids"] = dict(node_ids)
 
         media_ids = MediaIdMap()
         unit_pks = [n.pk for n in nodes if n.kind == "unit"]
