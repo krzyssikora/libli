@@ -152,6 +152,25 @@ def builder(request, slug):
 
 
 @login_required
+def link_picker(request, slug):
+    """The course tree, as a bare partial, for the rich-text link dialog.
+
+    Rendered standalone (no base.html) because the dialog fetches it and injects the
+    markup directly. Like `builder`, passes children_map PLUS top_nodes: _children_map
+    keys roots under None, which a template cannot index.
+    """
+    course = get_object_or_404(Course, slug=slug)
+    if not can_manage_course(request.user, course):
+        raise PermissionDenied
+    cmap = _children_map(course)
+    return render(
+        request,
+        "courses/manage/editor/_link_picker.html",
+        {"course": course, "children_map": cmap, "top_nodes": cmap.get(None, [])},
+    )
+
+
+@login_required
 def node_panel(request, slug, pk):
     node = get_node_or_404(pk, slug)  # 404 on missing / slug-mismatch, BEFORE access
     if not can_manage_course(request.user, node.course):

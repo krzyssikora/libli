@@ -166,6 +166,11 @@ urlpatterns = [
         name="manage_node_panel",
     ),
     path(
+        "manage/courses/<slug:slug>/link-picker/",
+        views_manage.link_picker,
+        name="manage_link_picker",
+    ),
+    path(
         "manage/courses/<slug:slug>/build/node/<int:pk>/export/",
         views_transfer.export_subtree,
         name="manage_node_export",
