@@ -14,9 +14,12 @@ from courses.management.commands.migrate_course_content import BASELINE_NAME
 from courses.management.commands.migrate_course_content import LINK_STATE_NAME
 from courses.management.commands.migrate_course_content import MANIFEST_NAME
 from courses.management.commands.migrate_course_content import Command
+from courses.management.commands.migrate_course_content import _build_mapping
 from courses.management.commands.migrate_course_content import _fresh_state
 from courses.management.commands.migrate_course_content import _invert_node_index
+from courses.management.commands.migrate_course_content import _is_fail_closed
 from courses.management.commands.migrate_course_content import _live_pks
+from courses.management.commands.migrate_course_content import _merge_rewrite
 from courses.management.commands.migrate_course_content import _read_state
 from courses.management.commands.migrate_course_content import _write_state
 from courses.models import ContentNode
@@ -1391,6 +1394,280 @@ def test_live_pks_filters_to_rows_in_the_given_course():
     b = ContentNode.objects.create(course=other, kind="part", title="B")
     entries = [{"order": 0, "node_map": {"n1": a.pk, "n2": b.pk, "n3": 10**9}}]
     assert _live_pks(entries, target) == {a.pk}
+
+
+# --- the deferred pass: mapping, fatal skips, fail-closed probe -----------
+
+
+def test_is_fail_closed_separates_the_three_cases():
+    """The naive `not changed` rule is catastrophically wrong: a body with NO
+    links returns exactly the same signal as a fail-closed one, so it would
+    record nearly every element and make verify's reconciliation vacuous."""
+    plain = TextElement(body="<p>no links here</p>")
+    good = TextElement(body='<p><a href="/courses/n/7/">x</a></p>')
+    torn = TextElement(body='<p><a href="/courses/n/7/">x</p>')  # no </a>
+    assert _is_fail_closed(plain) is False
+    assert _is_fail_closed(good) is False
+    assert _is_fail_closed(torn) is True
+
+
+def test_is_fail_closed_recognizes_a_saved_fill_gate_fixture():
+    """FillGateElement -- unlike TextElement -- has no save() override, so a
+    torn anchor stored in `stem` is not closed by sanitize_html. Measured
+    through a real save()+reload, not just an in-memory instance: this is one
+    of the two end-to-end vehicles the FAIL-CLOSED FIXTURES preamble names for
+    Tasks 7 and 12 (SwitchGateElement is the other; TextElement can never
+    carry one at all, since its save() closes the anchor)."""
+    from courses.models import FillGateElement
+
+    fixture = FillGateElement.objects.create(
+        # SINGLE torn anchor, UNMAPPABLE target, no </a> anywhere after it.
+        stem='<p><a href="/courses/n/999999/">torn</p>',
+        answers=[["x"]],
+    )
+    fixture.refresh_from_db()
+    assert fixture.stem == '<p><a href="/courses/n/999999/">torn</p>'
+    assert _is_fail_closed(fixture) is True
+
+
+def test_build_mapping_covers_every_order_but_scopes_to_pending():
+    """Two sets, never one. The rewrite's SCOPE is pending-only; the mapping's
+    LIVENESS filter is every recorded order, because a pending part's links may
+    point into an already-rewritten one."""
+    target = _mk_target()
+    nodes = [
+        ContentNode.objects.create(course=target, kind="part", title=f"N{i}")
+        for i in range(3)
+    ]
+    state = _fresh_state(target)
+    state["parts"] = [
+        {
+            "order": 0,
+            "node_map": {"n1": nodes[0].pk, "n2": nodes[1].pk},
+            "src": {},
+            "rewritten": True,
+        },
+        {"order": 1, "node_map": {"n1": nodes[2].pk}, "src": {}, "rewritten": False},
+    ]
+    node_index = {"1234": [0, "n1"], "1235": [0, "n2"], "9001": [1, "n1"]}
+    mapping, scope_pks, _attr, scanned = _build_mapping(state, node_index, target)
+    assert mapping == {1234: nodes[0].pk, 1235: nodes[1].pk, 9001: nodes[2].pk}
+    assert scope_pks == {nodes[2].pk}  # pending only
+    assert scanned == {1}
+
+
+def test_build_mapping_is_fatal_when_a_recorded_pk_is_not_live():
+    """Not a warning. Under on_missing='unwrap' an entry that contributes no
+    mapping is not inert -- every href to it is flattened irreversibly."""
+    target = _mk_target()
+    state = _fresh_state(target)
+    state["parts"] = [
+        {"order": 0, "node_map": {"n1": 10**9}, "src": {}, "rewritten": False}
+    ]
+    # Match the VALUE, not the label: the message interpolates all three labels
+    # unconditionally, so match="skipped_dead" is satisfied by any of the three.
+    with pytest.raises(CommandError, match=r"skipped_dead=\[1000000000\]"):
+        _build_mapping(state, {"1": [0, "n1"]}, target)
+
+
+def test_build_mapping_is_fatal_on_an_unrecorded_order_or_export_id():
+    target = _mk_target()
+    node = ContentNode.objects.create(course=target, kind="part", title="N")
+    state = _fresh_state(target)
+    state["parts"] = [
+        {"order": 0, "node_map": {"n1": node.pk}, "src": {}, "rewritten": False}
+    ]
+    with pytest.raises(CommandError, match=r"skipped_parts=\[5\]"):
+        _build_mapping(state, {"1": [5, "n1"]}, target)
+    with pytest.raises(CommandError, match=r"skipped_ids=\[\(0, 'nZZ'\)\]"):
+        _build_mapping(state, {"1": [0, "nZZ"]}, target)
+
+
+# --- _merge_rewrite: accumulation across passes ----------------------------
+
+
+def test_merge_rewrite_first_pass_writes_full_rows_and_a_summed_total():
+    per_order = {0: {"elements_touched": 3, "flattened": 1}}
+    merged = _merge_rewrite(None, per_order, [], {0})
+    assert merged == {
+        "parts": [{"order": 0, "elements_touched": 3, "flattened": 1}],
+        "elements_touched": 3,
+        "flattened": 1,
+        "fail_closed_elements": [],
+    }
+
+
+def test_merge_rewrite_carries_forward_unscanned_orders_with_null_counts():
+    """A pass scanning only order 1 must not clobber order 0's earlier row, and
+    must not claim a whole-migration total it never measured."""
+    prior = {
+        "parts": [{"order": 0, "elements_touched": 5, "flattened": 0}],
+        "elements_touched": 5,
+        "flattened": 0,
+        "fail_closed_elements": [],
+    }
+    per_order = {1: {"elements_touched": 2, "flattened": 0}}
+    merged = _merge_rewrite(prior, per_order, [], {0, 1})
+    assert merged["parts"] == [
+        {"order": 0, "elements_touched": 5, "flattened": 0},
+        {"order": 1, "elements_touched": 2, "flattened": 0},
+    ]
+    # Order 0 was carried forward with a known count, order 1 is freshly
+    # measured -- both known, so the total IS summed here. Nullness is only
+    # forced when a carried-forward row's count was never known (see below).
+    assert merged["elements_touched"] == 7
+    assert merged["flattened"] == 0
+
+
+def test_merge_rewrite_nulls_totals_when_a_carried_forward_row_is_unknown():
+    """`resolved_by_operator` carries no per-order counts, so a later pass's
+    carried-forward row for the resolved order is {elements_touched: None,
+    flattened: None} -- and the top-level totals must not silently sum None."""
+    prior = {"resolved_by_operator": True, "parts": []}
+    per_order = {1: {"elements_touched": 2, "flattened": 0}}
+    merged = _merge_rewrite(prior, per_order, [], {0, 1})
+    rows = {r["order"]: r for r in merged["parts"]}
+    assert rows[0] == {"order": 0, "elements_touched": None, "flattened": None}
+    assert rows[1] == {"order": 1, "elements_touched": 2, "flattened": 0}
+    assert merged["elements_touched"] is None
+    assert merged["flattened"] is None
+
+
+def _mk_bare_element(target):
+    """One real Element join row on a throwaway unit -- _merge_rewrite queries
+    Element.objects.filter(pk__in=...) to drop dead pks, so these tests need a
+    genuine row, not a synthetic pk."""
+    unit = ContentNode.objects.create(
+        course=target, kind="unit", title="U", unit_type="lesson"
+    )
+    return Element.objects.create(
+        unit=unit, title="", content_object=TextElement.objects.create(body="<p>x</p>")
+    )
+
+
+def test_merge_rewrite_unions_fail_closed_only_when_the_key_was_present():
+    """An incomplete list is worse than an absent one: verify RECOMPUTES on
+    absence but TRUSTS a present list, so a pass that has no fail_closed_elements
+    to carry forward must not fabricate one from just its own findings."""
+    target = _mk_target()
+    el = _mk_bare_element(target)
+    prior_with_key = {"parts": [], "fail_closed_elements": [el.pk]}
+    merged = _merge_rewrite(prior_with_key, {}, [999999], {0})
+    assert merged["fail_closed_elements"] == sorted({el.pk})  # 999999 not live
+
+    prior_without_key = {"resolved_by_operator": True, "parts": []}
+    merged2 = _merge_rewrite(prior_without_key, {}, [el.pk], {0})
+    assert "fail_closed_elements" not in merged2  # NOT just [el.pk]
+
+
+def test_merge_rewrite_drops_fail_closed_pks_whose_element_row_is_gone():
+    target = _mk_target()
+    el = _mk_bare_element(target)
+    dead_pk = el.pk + 10**6
+    merged = _merge_rewrite(None, {}, [el.pk, dead_pk], {0})
+    assert merged["fail_closed_elements"] == [el.pk]
+
+
+# --- Command._run_link_pass: the single rewrite pass, end to end ----------
+
+
+def test_run_link_pass_rewrites_maps_and_flattens_and_records_fail_closed(
+    tmp_path,
+):
+    """Direct call, bypassing the (not-yet-wired) trigger sites -- this is
+    what Task 7 actually delivers. Exercises, in one real `import`ed target:
+    a cross-part link that resolves to a live pk (rewritten, counted), a link
+    to nowhere (flattened, counted), and a FillGateElement fail-closed fixture
+    built target-side (recorded, but its OTHER field still gets rewritten)."""
+    from courses.models import FillGateElement
+
+    course = _mk_source(parts=("P0", "P1"))
+    unit0 = ContentNode.objects.get(course=course, kind="unit", title="U0")
+    unit1 = ContentNode.objects.get(course=course, kind="unit", title="U1")
+    el0 = Element.objects.get(unit=unit0, title="T")
+    text0 = el0.content_object
+    text0.body = f'<p><a href="/courses/n/{unit1.pk}/">x</a></p>'
+    text0.save(update_fields=["body"])
+    Element.objects.create(
+        unit=unit0,
+        title="L",
+        content_object=TextElement.objects.create(
+            body='<p><a href="/courses/n/999999/">gone</a></p>'
+        ),
+    )
+
+    bundle = tmp_path / "bundle"
+    call_command(
+        "migrate_course_content",
+        "export",
+        "--source-slug",
+        "src",
+        "--bundle-dir",
+        str(bundle),
+    )
+    target = _mk_target()
+    _user()
+    call_command(
+        "migrate_course_content",
+        "import",
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+    )
+    node_index = _read_manifest(bundle)["node_index"]
+    state = _read_state_raw(bundle)
+    assert state["status"] == "collecting"  # the pass has not fired yet
+
+    # A fail-closed fixture, built target-side (its unmappable target is never
+    # in the map, so it needs no import round trip either way).
+    new_u0 = ContentNode.objects.get(course=target, title="U0")
+    Element.objects.create(
+        unit=new_u0,
+        title="torn",
+        content_object=FillGateElement.objects.create(
+            stem='<p><a href="/courses/n/999999/">torn</p>',
+            answers=[["x"]],
+        ),
+    )
+
+    buf = io.StringIO()
+    cmd = Command()
+    cmd.stdout = buf
+    cmd._run_link_pass(bundle, state, node_index, target)
+
+    assert state["status"] == "applied"
+    assert all(e["rewritten"] is True for e in state["parts"])
+
+    new_u1 = ContentNode.objects.get(course=target, title="U1")
+    bodies = list(
+        TextElement.objects.filter(elements__unit__course=target).values_list(
+            "body", flat=True
+        )
+    )
+    assert any(f"/courses/n/{new_u1.pk}/" in b for b in bodies)  # rewritten
+    assert not any("/courses/n/999999/" in b for b in bodies)  # flattened
+    assert any("gone" in b for b in bodies)  # unwrapped to plain text
+
+    fixture = FillGateElement.objects.get()
+    assert fixture.stem == '<p><a href="/courses/n/999999/">torn</p>'  # untouched
+
+    rw = state["rewrite"]
+    assert rw["flattened"] >= 1
+    assert rw["elements_touched"] >= 1
+    fixture_el = Element.objects.get(content_type__model="fillgateelement")
+    assert rw["fail_closed_elements"] == [fixture_el.pk]
+
+    out = buf.getvalue()
+    assert "deferred link rewrite applied" in out
+    assert "flattened" in out
+
+    # Persisted, not just mutated in memory.
+    on_disk = _read_state_raw(bundle)
+    assert on_disk["status"] == "applied"
+    assert on_disk["rewrite"]["fail_closed_elements"] == [fixture_el.pk]
 
 
 # --- import: graft under an outer atomic, record the link state -----------

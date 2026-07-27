@@ -25,6 +25,10 @@ from courses.models import ContentNode
 from courses.models import Course
 from courses.models import Element
 from courses.models import MediaAsset
+from courses.richtext import find_link_targets
+from courses.richtext import iter_rich_text
+from courses.richtext import rewrite_instance
+from courses.richtext import rewrite_links
 from courses.transfer.export import build_export
 from courses.transfer.export import write_archive_from
 from courses.transfer.importer import import_subtree
@@ -142,6 +146,133 @@ def _live_pks(entries, target):
             "pk", flat=True
         )
     )
+
+
+def _is_fail_closed(instance):
+    """True iff part 2 declines to touch a body that demonstrably holds link
+    targets.
+
+    Part 2's return types carry no fail-closed flag and part 3 does not widen
+    them, so this is a decidable probe rather than an observation. `not changed`
+    is NOT a substitute: a body with no internal links returns exactly the same
+    signal, so that rule would record most of the 20,054 elements and make
+    verify's reconciliation permanently vacuous.
+
+    Under an empty map with on_missing="unwrap" every target in a well-formed
+    body is flattened; a body that holds targets and still comes back
+    byte-identical with flattened == 0 is exactly part 2's fail-closed path.
+    """
+    for _field, value in iter_rich_text(instance):
+        if not find_link_targets(value):
+            continue
+        probed, flattened = rewrite_links(value, {}, on_missing="unwrap")
+        if probed == value and flattened == 0:
+            return True
+    return False
+
+
+def _build_mapping(state, node_index, target):
+    """(mapping, scope_pks, order_by_new_pk, scanned_orders).
+
+    TWO pk sets, never one. Conflating them drops every node in an
+    already-rewritten order from the mapping, so a link from a re-grafted part
+    into an earlier one is unmapped and unwrap flattens it -- and the drop is a
+    bare `continue`, so all three counters report 0 and the fatal gate below
+    never fires.
+    """
+    pending_entries = [e for e in state["parts"] if not e["rewritten"]]
+    scanned_orders = {int(e["order"]) for e in pending_entries}
+
+    # LIVENESS for the MAPPING: every recorded order.
+    live = _live_pks(state["parts"], target)
+    all_recorded = {pk for e in state["parts"] for pk in e["node_map"].values()}
+    skipped_dead = sorted(all_recorded - live)
+    # SCOPE of the rewrite: pending orders only. _live_pks already filters, and
+    # pending is a subset of all, so no further intersection is needed.
+    scope_pks = _live_pks(pending_entries, target)
+
+    by_order = {int(e["order"]): e["node_map"] for e in state["parts"]}
+    order_by_new_pk = {pk: o for o, nm in by_order.items() for pk in nm.values()}
+
+    skipped_parts, skipped_ids, mapping = [], [], {}
+    for old_pk_str, pair in node_index.items():
+        order, export_id = tuple(pair)
+        part = by_order.get(int(order))
+        if part is None:
+            skipped_parts.append(int(order))
+            continue
+        new_pk = part.get(export_id)
+        if new_pk is None:
+            skipped_ids.append((int(order), export_id))
+            continue
+        if new_pk not in live:  # already counted in skipped_dead
+            continue
+        mapping[int(old_pk_str)] = new_pk
+
+    if skipped_parts or skipped_ids or skipped_dead:
+        # FATAL, before the transaction and before status flips to in_progress.
+        # None of the three is reachable on a healthy migration, and each one
+        # means hrefs would be unwrap-flattened irreversibly. Counted in full so
+        # the message can name every offender rather than failing on the first.
+        raise CommandError(
+            f"refusing to run the deferred link rewrite: the bundle and "
+            f"{LINK_STATE_NAME} disagree. "
+            f"skipped_parts={sorted(set(skipped_parts))} "
+            f"skipped_ids={sorted(set(skipped_ids))} "
+            f"skipped_dead={skipped_dead}. Every one of these would flatten "
+            f"links irreversibly; nothing has been changed."
+        )
+    return mapping, scope_pks, order_by_new_pk, scanned_orders
+
+
+def _merge_rewrite(prior, per_order, fail_closed, all_orders):
+    """A pass scans only the pending orders, so it REPLACES their rows and
+    CARRIES the rest forward. Overwriting the whole object would discard the
+    fail_closed_elements of orders it did not scan, and verify would then read
+    a previously-recorded fail-closed element as an ordinary dangling one and
+    raise with no remedy reachable."""
+    # Capture emptiness BEFORE the pop: a {"resolved_by_operator": True} object
+    # is NOT a first pass, and popping first would make it look like one.
+    first_pass = not prior
+    prior = dict(prior or {})
+    prior.pop("resolved_by_operator", None)
+    rows = {int(r["order"]): r for r in prior.get("parts", [])}
+    for order, counts in per_order.items():
+        rows[order] = {"order": order, **counts}
+    for order in all_orders:
+        rows.setdefault(
+            order, {"order": order, "elements_touched": None, "flattened": None}
+        )
+    parts = [rows[o] for o in sorted(rows)]
+
+    merged = {"parts": parts}
+    if all(r["elements_touched"] is not None for r in parts):
+        merged["elements_touched"] = sum(r["elements_touched"] for r in parts)
+        merged["flattened"] = sum(r["flattened"] for r in parts)
+    else:
+        merged["elements_touched"] = None
+        merged["flattened"] = None
+    # Unioned ONLY when the prior object actually had the key; OMITTED entirely
+    # when it did not. An incomplete list is worse than an absent one, because
+    # verify recomputes live on absence but TRUSTS a present list -- so emitting
+    # this pass's findings alone after a --resolve-rewrite applied (which writes
+    # no such key) would drop a previously-recorded element and make verify raise
+    # with status == "applied" and no remedy reachable.
+    #
+    # `first_pass` is the genuinely-first pass: nothing has been recorded yet, so
+    # this pass's findings ARE complete and the key is safe to write.
+    if "fail_closed_elements" in prior:
+        union = set(prior["fail_closed_elements"]) | set(fail_closed)
+    elif first_pass:
+        union = set(fail_closed)
+    else:
+        return merged  # key stays ABSENT -> verify recomputes
+    # Drop entries whose Element rows no longer exist, or a delete-and-re-graft
+    # cycle accumulates dead pks in this list forever (spec Counts).
+    merged["fail_closed_elements"] = sorted(
+        Element.objects.filter(pk__in=union).values_list("pk", flat=True)
+    )
+    return merged
 
 
 # Archive filenames are "<order>-<slug>.zip"; `order` is NOT zero-padded to a
@@ -410,6 +541,84 @@ class Command(BaseCommand):
             f"{LINK_STATE_NAME} in {bundle} is 'in_progress': a previous "
             f"invocation crashed mid-rewrite. Resolve it with "
             f"--resolve-rewrite before resuming with --start-at."
+        )
+
+    def _run_link_pass(self, bundle, state, node_index, target):
+        self._check_src_drift(state, node_index)  # redundant assertion here
+        mapping, scope_pks, order_by_new_pk, scanned_orders = _build_mapping(
+            state, node_index, target
+        )
+        per_order = {o: {"elements_touched": 0, "flattened": 0} for o in scanned_orders}
+        fail_closed = []
+
+        # Marker BEFORE the transaction: a crash between the DB commit and the
+        # file write would otherwise leave fully rewritten content with no
+        # marker, and the trigger would re-apply an old-source-pk map over hrefs
+        # that now hold target pks -- the silent mis-point nothing can detect.
+        state["status"] = "in_progress"
+        _write_state(bundle, state)
+
+        with transaction.atomic():
+            qs = (
+                Element.objects.filter(unit_id__in=scope_pks)
+                .order_by("pk")
+                .prefetch_related("content_object")
+            )
+            # chunk_size is MANDATORY after prefetch_related on Django 5.2:
+            # iterator() raises ValueError without it. The value is a tuning
+            # constant; passing one at all is not.
+            for join in qs.iterator(chunk_size=500):
+                obj = join.content_object
+                if obj is None:  # dangling GFK
+                    continue
+                if _is_fail_closed(obj):
+                    # Record, AND STILL REWRITE: the probe is per-instance, and
+                    # the instance's other fields may hold mappable hrefs. Part 2
+                    # returns the fail-closed field byte-identical on its own.
+                    fail_closed.append(join.pk)
+                changed, flattened = rewrite_instance(obj, mapping, on_missing="unwrap")
+                if changed:
+                    obj.save(update_fields=changed)
+                order = order_by_new_pk[join.unit_id]
+                if changed:
+                    per_order[order]["elements_touched"] += 1
+                per_order[order]["flattened"] += flattened
+
+        for entry in state["parts"]:
+            entry["rewritten"] = True
+        state["status"] = "applied"
+        state["rewrite"] = _merge_rewrite(
+            state.get("rewrite"),
+            per_order,
+            fail_closed,
+            {int(e["order"]) for e in state["parts"]},
+        )
+        _write_state(bundle, state)
+
+        for row in state["rewrite"]["parts"]:
+            # Carried-forward rows hold None; render them the same way the
+            # summary line does rather than printing "None element(s)".
+            et = row["elements_touched"]
+            fl = row["flattened"]
+            self.stdout.write(
+                f"part {row['order']}: "
+                f"{et if et is not None else 'unknown'} element(s) rewritten, "
+                f"{fl if fl is not None else 'unknown'} link(s) flattened"
+            )
+        # BOTH lookups must tolerate absence: _merge_rewrite omits
+        # fail_closed_elements when the prior object lacked it, and nulls the
+        # totals when any carried-forward row has unknown counts. Reached by the
+        # resolve-applied-then-repair-resume path.
+        rw = state["rewrite"]
+        fc = rw.get("fail_closed_elements")
+        et = rw["elements_touched"]
+        fl = rw["flattened"]
+        self.stdout.write(
+            f"deferred link rewrite applied: "
+            f"{et if et is not None else 'unknown'} element(s) touched, "
+            f"{fl if fl is not None else 'unknown'} link(s) flattened, "
+            f"{len(fc) if fc is not None else 'unknown'} body(ies) left "
+            f"untouched by the scanner"
         )
 
     # --- export ----------------------------------------------------------
