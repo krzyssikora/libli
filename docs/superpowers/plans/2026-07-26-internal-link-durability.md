@@ -74,7 +74,6 @@ from courses.richtext import iter_rich_text
 from courses.richtext import rewrite_instance
 from courses.richtext import rewrite_links
 
-
 # ---- the literal is tied to the route --------------------------------------
 
 
@@ -589,9 +588,9 @@ COURSES = Path(__file__).resolve().parent.parent / "courses"
 
 # (file, qualname, assignment target) -- one entry per call site, MEASURED by running
 # this walk against the repo. Three refinements, each load-bearing:
-#   - qualname (Class.method), not the bare def name: def names and targets repeat across
-#     classes, so a coarser key stays byte-identical when someone adds a new element type
-#     the cheapest way (copy TextElement: a `body` field plus
+#   - qualname (Class.method), not the bare def name: def names and targets repeat
+#     across classes, so a coarser key stays byte-identical when someone adds a new
+#     element type the cheapest way (copy TextElement: a `body` field plus
 #     `save: self.body = sanitize_html(self.body)`) -- the exact case this exists for.
 #   - the assignment target, because QuestionElement.save() already holds TWO calls.
 #   - compared as a sorted whole, so a DELETED site moves it too.
@@ -1035,12 +1034,11 @@ def _round_trip(course, user, report, *, document_hook=None):
     """
     import io
 
-    from courses.transfer.export import build_export, write_archive_from
-    from courses.transfer.importer import (
-        import_course,
-        open_archive,
-        validate_archive_document,
-    )
+    from courses.transfer.export import build_export
+    from courses.transfer.export import write_archive_from
+    from courses.transfer.importer import import_course
+    from courses.transfer.importer import open_archive
+    from courses.transfer.importer import validate_archive_document
 
     manifest, document, assets, _problems = build_export(course)
     if document_hook:
@@ -1058,7 +1056,8 @@ def test_round_trip_rewrites_to_the_new_pk():
     report = {}
     new_course = _round_trip(course, course.owner, report)
 
-    from courses.models import ContentNode, TextElement
+    from courses.models import ContentNode
+    from courses.models import TextElement
 
     new_chapter = ContentNode.objects.get(course=new_course, title="Ch")
     body = TextElement.objects.filter(
@@ -1298,11 +1297,25 @@ message and the `ngettext` plural — ships with zero coverage, while the spec r
 "…and the warning message is emitted". Append to `tests/test_link_transfer.py`:
 
 ```python
-def test_the_confirm_view_warns_about_flattened_links(client):
+def test_the_course_confirm_view_warns_about_flattened_links(client):
     from django.contrib.messages import get_messages
 
     course, _chapter, _unit = _course_with_link()
     resp = _upload_and_confirm(client, course, drop_link_nodes=True)
+    texts = [m.message for m in get_messages(resp.wsgi_request)]
+    assert any("plain text" in t for t in texts), texts
+
+
+def test_the_subtree_confirm_view_warns_too(client):
+    # BOTH branches, not one. Step 6 flags that _warn_flattened placed after the
+    # redirect is dead code -- and that hazard is per-branch, so a test covering only
+    # the course path leaves half the new view code unguarded.
+    from django.contrib.messages import get_messages
+
+    course, chapter, _unit = _course_with_link()
+    resp = _upload_and_confirm_subtree(
+        client, course, node=chapter, drop_link_nodes=True
+    )
     texts = [m.message for m in get_messages(resp.wsgi_request)]
     assert any("plain text" in t for t in texts), texts
 ```
@@ -1320,6 +1333,11 @@ otherwise leave you to discover:
 
 There is no session plumbing: the confirm step posts a `token` read from
 `preview.context["token"]`.
+
+`_upload_and_confirm_subtree` is the same shape against `manage_import_content` /
+`manage_import_content_confirm`, exporting a *subtree* (`build_export(course, node=…)`)
+and posting an `insertion` choice. `tests/test_transfer_views.py::test_subtree_confirm_top_level`
+is the sequence to copy.
 
 - [ ] **Step 8: Run**
 
@@ -1373,14 +1391,12 @@ Create `tests/test_inbound_link_warning.py`:
 import pytest
 from django.urls import reverse
 
-from courses.richtext import count_inbound_links
 from courses.models import TextElement
-from tests.factories import (
-    ContentNodeFactory,
-    CourseFactory,
-    add_element,
-    make_login,
-)
+from courses.richtext import count_inbound_links
+from tests.factories import ContentNodeFactory
+from tests.factories import CourseFactory
+from tests.factories import add_element
+from tests.factories import make_login
 
 
 def _text(body):
