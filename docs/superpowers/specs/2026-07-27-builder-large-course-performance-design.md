@@ -46,7 +46,7 @@ hoisted: `manage_node_export`, which is a real `<a href>` a no-JS author can fol
 `manage_node_move` (reversed **twice** per row — the `Move…` link in `_tree_node.html:30`
 and the reorder form action in `_move_buttons.html:2`) and `manage_node_delete` are
 per-course constants reversed once per row; `manage_node_duplicate` is the same but reversed
-once per **unit** row only (807, not 944 — `_tree_node.html:33` guards it with
+once per **unit** row only (807, not 944 — `_tree_node.html:32` guards it with
 `{% if node.kind == "unit" %}`). `manage_node_panel`
 does vary by pk, but it is read only by JS (`builder.js:301`) and `builder.html:8` already
 carries a `pk=0` template of the same URL on the `.builder` root — so it is hoistable by a
@@ -62,8 +62,13 @@ CSRF inputs included). The per-tag table is from an offline render of the same t
 **excludes the 2,833 CSRF hidden inputs**. Re-measure the same two ways after the change or
 the numbers will not be comparable.
 
-- Browser, real response: **38,418 elements**
-- Offline render, no CSRF: **35,388 open tags**
+- Browser, real response: **38,418 elements** → **40.7 elements per row**
+- Offline render, no CSRF: **35,388 open tags** → **37.5 per row**
+
+**Scope widths** (needed to bound what the §3 seed can open): the widest scope is the top
+level at **21**, then two chapters at **19**; the mean container holds **6.7** children. A
+worst-case 4-deep seeded chain is therefore 21 + 19 + 19 + 19 = **78 rows**, and `mat-pp` has
+only 5 sections so depth-4 chains are rare; the common case is 21 + 19 + 19 ≈ 59 rows.
 
 | Tag (offline, no CSRF) | Count | Reconciles as |
 | --- | --- | --- |
@@ -171,9 +176,16 @@ the counts, so no new queries are introduced.
 **The count is of DIRECT children only** — what `cmap` already holds. A chapter with 3
 sections and 100 units below them reads "3", because that is what expanding it will
 reveal, and because a descendant count would need the `_descendant_count` walk this spec
-explicitly defers (see Out of scope). The label must use `{% blocktrans count %}`, not a
-`{% trans %}` with an interpolated number: Polish has three plural forms and this is the
-single most-repeated new string on the page.
+explicitly defers (see Out of scope).
+
+**The count is NOT visible text; it lives in the toggle's accessible name.** A visible count
+would make the toggle's width vary with the number, defeating the fixed-width alignment column
+described below, and a chevron plus a bare "3" gives a screen reader a link named "3" with no
+subject. So the toggle renders the chevron only, in a fixed-width column, and carries
+`aria-label` built with `{% blocktrans count %}` including the node title — "Expand Chapter 4,
+3 items" / "Collapse Chapter 4, 3 items". `{% blocktrans count %}` rather than a `{% trans %}`
+with an interpolated number because Polish has three plural forms and this is the single
+most-repeated new string on the page.
 
 **Toggle markup, placement and styling.** The toggle is the first child of
 `.tree__rowhead`, before the kind badge, so the disclosure column lines up down the tree at
@@ -235,8 +247,18 @@ screen:
 
 | Caller | `open` absent | `open=` (empty) | `open=<pks>` | `open=all` |
 | --- | --- | --- | --- | --- |
-| `builder()`, `_builder_with_notice()` | seed from session (§3) | empty set | that set | all containers |
+| `builder()` | seed from session (§3) | empty set | that set | all containers |
+| `_builder_with_notice()` | **reads `builder_open` directly** (see below) | empty set | that set | all containers |
 | `_render_scope()` (all fragment paths) | **empty set — never seeds** | empty set | that set | all containers |
+
+**`_builder_with_notice()` is the one exception, and it needs to be.** It answers a *POST* —
+a no-JS conflict or validation error — where `open` is absent from both POST and GET (forms
+carry nothing) and `open=session` cannot appear (that sentinel is a GET-redirect marker). Left
+to the §3 seed, a failed mutation would collapse the tree to the ≤4-scope chain while the
+*successful* version of the same gesture restored the full set: same page, same gesture, two
+different trees depending on outcome. Reading `builder_open` directly is safe here precisely
+because it cannot be a bookmark — it is the same author, same tab, mid-loop. It also renders
+`builder.html`, so it must be given the `info` variable alongside `notice`.
 
 The absent-vs-empty distinction on the page views is load-bearing: `open=` is how "I
 collapsed the last open scope" is expressed, and without it the next navigation would
@@ -255,11 +277,29 @@ the JS collector, which can only ever produce an enumeration. Collapsing one sco
 `all` simply switches the encoding to an enumeration. On `mat-pp` that is 136 pks ≈ 680
 bytes — see the transport budget below for why that is affordable.
 
-**Helper contract.** `_open_ids(request, course, cmap, *, seed=False) -> set[int]`. `course`
-is required, not redundant: the seed path looks the session entry up by **slug**, and a
-`parent_id -> [nodes]` map carries no slug — recovering it via `node.course.slug` costs a
-query and is impossible on an empty course, which is exactly the first-visit case §3a
-exists for. `seed` selects the row of the table above. It:
+**Helper contract.**
+
+```python
+@dataclass(frozen=True)
+class OpenSet:
+    ids: set[int]          # resolved, sanitised, ceiling-applied
+    truncated: bool        # the ceiling bit; drives the notice
+
+def _open_ids(request, course, cmap, *, seed=False, q_chain=None) -> OpenSet: ...
+```
+
+**It must not return a bare `set`.** Truncation is detected *inside* this helper — it owns
+the 500-pk ceiling — so a bare set gives no caller any way to learn it happened, and every
+caller would have to re-parse the raw parameter to re-derive the flag, duplicating the parse
+the helper exists to own. A pinned bare-set return would have made the truncation notice
+silently unreachable.
+
+`course` is required, not redundant: the seed path looks the session entry up by **slug**,
+and a `parent_id -> [nodes]` map carries no slug — recovering it via `node.course.slug` costs
+a query and is impossible on an empty course, which is exactly the first-visit case §3a
+exists for. `q_chain` is the filter's ancestor-chain set (§9); **slice 1 always passes
+`None`**, and it exists in the signature from the start so slice 2 does not have to retrofit
+a precedence step across a function boundary. `seed` selects the row of the table above. It:
 
 - tests **presence** with `"open" in request.POST` / `in request.GET`, not `.get()`.
   `.get()` returns `""` for both absent and explicitly-empty and `""` is falsy, so the
@@ -293,8 +333,30 @@ deliberately avoided (see Known traps).
   `role="alert"` interrupts screen readers. The new slot uses a neutral style and
   `role="status"`, and holds a *list*, so a truncation notice and a filter notice can coexist
   rather than one silently replacing the other.
-- **Fragment responses:** the message rides in an `X-Builder-Info` response header, which the
-  JS turns into an entry in the same slot. This keeps the fragment body single-element.
+- **Fragment responses:** a **machine-readable** `X-Builder-Info` header — `truncated;limit=500`
+  or `filtered;shown=100;total=940` — which the JS renders into the same slot using the
+  `data-msg-*` strings already on the `.builder` root (`builder.html:10-12`), substituting the
+  counts. This keeps the fragment body single-element.
+
+  **The header must not carry the human string**, and this was measured rather than assumed.
+  Django encodes response header values as latin-1 with `mime_encode=True`, so on this repo's
+  Django 5.2.15:
+
+  ```
+  r['X-Builder-Info'] = 'Wyświetlono pierwsze 100 z 940 — widok jest niepełny'
+  r['X-Builder-Info'] → '=?utf-8?q?Wy=C5=9Bwietlono_pierwsze_100_z_940_=E2=80=94_widok_jest_niepe=C5=82ny?='
+  ```
+
+  The JS would paste that literal token into a `role="status"` region. Every Polish message
+  hits this, and so does any English one containing an em dash — i.e. it would fail exactly
+  the users the notice exists for. Keeping the human strings in `data-msg-*` also matches the
+  convention the file already uses for every other message.
+
+**Slot lifecycle.** Each entry has a **key** (`truncation`, `filter`). An incoming entry
+replaces the entry with the same key rather than stacking; a fragment response carrying no
+`X-Builder-Info` **clears the keys it owns**; the slot is hidden when empty. Without this,
+§9's filter would pile up a growing stack of contradictory counts as the author types, and
+clearing the filter would leave the last one standing over an unfiltered tree.
 
 Truncation on a fragment is therefore reported, not silent — which matters because §9's filter
 swaps the tree pane via a fragment, and the cap notice is the only signal that the view is
@@ -317,6 +379,30 @@ Two separate reasons fix the ceiling at 500 rather than something larger:
 `_render_tree()` and `_conflict_scope()` both delegate to `_render_scope()` and inherit it —
 computing it in them too would evaluate the set twice per request and give the rules two
 places to drift apart.
+
+**Views inject extra pks through a parameter, not by computing their own set.** Two rules
+below require a view to force a scope open — a reparent must open its destination chain, and
+`node_add` must open a newly created container. Neither view can do that through the request,
+because the open set is computed inside `_render_scope`. So the fragment renderers grow one
+keyword argument:
+
+```python
+def _render_scope(request, course, scope_ref, *, extra_open=()): ...
+def _render_tree(request, course, status=200, *, extra_open=()): ...   # threads it through
+```
+
+`_render_scope` unions `extra_open` into the set **after** the ceiling is applied, so a
+forced-open destination can never be the thing that gets truncated away. This is an addition
+to the three-call-sites rule, not an exception to it: the set is still computed in exactly
+one place.
+
+**Which function owns which precedence step**, so the boundary is not left to be discovered:
+
+| Step | Owner |
+| --- | --- |
+| 1 `open=session`, 2 `open` present, 5 session seed, 6 empty | `_open_ids` |
+| 3 `q` chains | computed in the view (it needs the match set), passed in as `q_chain` |
+| 4 ≤150-node rule | `_open_ids`, from `len` of the all-nodes index it already builds |
 
 **Transport — and why form actions carry nothing.** An earlier draft put the `open` query
 string on every form action and href. Hoisting removes the *reversal* cost but not the
@@ -362,6 +448,12 @@ unchanged** — without that it would be an unconditional DB-session save on eve
 load, carrying a payload up to two orders of magnitude larger than the pk dict §3 bothered to
 bound.
 
+**It is stored as a sorted `list[int]`, not a `set`.** No `SESSION_SERIALIZER` is configured,
+so Django 5.2 uses `JSONSerializer`, and a `set` is not JSON-serializable — measured:
+`TypeError: Object of type set is not JSON serializable`. Storing the resolved set directly
+would raise on **every** builder page load. The unchanged-check compares the stored list to
+`sorted(open_set.ids)`, so it is neither accidentally always-true nor always-false.
+
 The session write for no-JS is a **fallback, not the model**: the JS path never emits
 `open=session`, so two JS tabs still cannot fight. Two *no-JS* tabs on one course share
 `builder_open` and will; that is accepted for the fallback path and stated here rather than
@@ -405,6 +497,15 @@ explicitly since it mutates a nested dict.
 unconditional write means a session save on every row focus, on an endpoint measured at
 0.21 s. Comparing first makes the common case (re-focusing the same row, or a debounced
 keyboard traversal settling back) free.
+
+**A no-JS author never writes this key — stated, and accepted.** `node_panel`'s URL exists
+only in `data-panel-url` and is fetched only by `builder.js:301`; §7 hoists it to the root,
+making it *exclusively* a JS endpoint. So for a no-JS author on a >150-node course the §3 seed
+never has a value, and every non-mutation return to the builder (step 6 of the precedence
+list) lands on a fully collapsed tree. This is accepted rather than fixed: the no-JS path
+already has the toggle hrefs and `open=session` for the mutation loop, and seeding
+`builder_last_node` from the `#node-<pk>` fragment is impossible server-side — a URL fragment
+is never sent to the server.
 
 **Bound the dict.** One entry accumulates per course slug the author ever focuses a row in.
 Keep the most recent 20 slugs, evicting oldest-first, so a platform admin browsing many
@@ -456,7 +557,9 @@ size. The single authority for all of this is the precedence list in §2; this s
 only the rule, not the ordering.
 
 150 is chosen from the measured baseline: render cost is linear in rows, and 944 rows cost
-3.14 s of template time, so 150 rows is ~500 ms of server render and ~5,600 elements. Note
+3.14 s of template time, so 150 rows is ~500 ms of server render and ~6,100 elements (150 ×
+40.7, the browser basis — the offline, CSRF-less basis of 37.5 would say ~5,600, and mixing
+the two invites a false failure at review time). Note
 that this **exceeds the "< 3,000 elements" success criterion below**, which is why that
 criterion is scoped to `mat-pp` and a separate threshold-course row is stated: a 150-node
 course is ~16% of `mat-pp`'s weight, an improvement on nothing but a large improvement on
@@ -471,25 +574,34 @@ The builder's existing no-JS discipline is preserved:
   `{% toggle_href %}` template tag
 - the href ends with `#node-<pk>`, and rows gain a matching `id`. Without it, expanding a
   scope 300 rows down is a full page load that returns to the top of the document.
-- the no-JS mutation paths keep their existing `redirect("courses:manage_builder", …)` and
-  are **not** modified. The session carrier from §2 restores the tree on arrival.
+- the no-JS mutation **forms** are unchanged — no hidden input, no query string on the
+  action. Their **redirect targets** do change: each becomes
+  `manage_builder?open=session`. Per §2's sentinel rule these six sites are the *only*
+  places allowed to emit it:
 
-**Every other route back to the builder is covered by the same carrier — deliberately.**
-There are more of them than the obvious two, and requiring each to propagate an `open`
-parameter would have been an unstated dependency on several unrelated subsystems:
+  | Site | `views_manage.py` |
+  | --- | --- |
+  | `node_add` | `:281` |
+  | `node_rename` | `:343` |
+  | `node_move` (reorder) | `:375` |
+  | `node_move` (reparent) | `:410` |
+  | `node_delete` | `:454` |
+  | `node_duplicate` | `:493` |
 
-| Return route | Template |
-| --- | --- |
-| editor back-link (the core authoring loop: open a unit, edit, return) | `editor/editor.html:60` |
-| delete confirmation Cancel | `node_confirm_delete.html:12` |
-| Move… picker | `_tree_node.html:30` → `_move_picker` |
-| export preview, import, media manager | `export_preview.html:25`, `import_course.html:31`, `media/manager.html:12` |
-| builder header `Import content` / `Export` | `builder.html:17-18` |
+**Every other route back to the builder falls through to the §3/§3a seed — deliberately.**
+None of these is a mutation redirect, so none emits `open=session` and none reads
+`builder_open`. Requiring each to propagate an `open` parameter would have been an unstated
+dependency on several unrelated subsystems, so the trade is accepted explicitly:
 
-None of these templates or views changes. For a JS author the editor back-link is better
-than covered: `builder()` receives no `open`, falls to the §3 seed, and the seed is the pk
-`node_panel` stored when the author selected that very unit — so they land with its chain
-open.
+| Return route | Template | What the author gets |
+| --- | --- | --- |
+| editor back-link (the core authoring loop: open a unit, edit, return) | `editor/editor.html:60` | **Better than the carrier**: the §3 seed is the pk `node_panel` stored when they selected that very unit, so they land with its chain open |
+| delete confirmation Cancel | `node_confirm_delete.html:12` | the ≤4-scope seed chain, not the prior expansion — accepted; Cancel is rare and the seed lands near where they were |
+| Move… picker | `_tree_node.html:30` → `_move_picker` | same as above (JS authors never leave the page) |
+| export preview, import, media manager | `export_preview.html:25`, `import_course.html:31`, `media/manager.html:12` | seed chain; these are excursions, not part of the tree-editing loop |
+| builder header `Import content` / `Export` | `builder.html:17-18` | seed chain |
+
+None of these templates or views changes.
 
 **`q` and toggles must not contradict each other.** An earlier draft had `{% toggle_href %}`
 preserve `q` while §9 declared `open` ignored under a filter, which would have made every
@@ -514,11 +626,27 @@ it rebuilds the whole comma-joined open set per row — at the 500-pk ceiling th
   descendant pk** (per the rule above). This is *not* a single-pk splice, and under expand-all
   every one of `mat-pp`'s 137 container rows is in this case — so "splice one pk" alone would
   be wrong and a naive per-row subtree walk would reintroduce the per-row cost. Compute each
-  container's open-descendant pk set **once per render, in a single bottom-up pass over
-  `cmap`** (each node's set is the union of its children's sets plus its open children), then
-  emit `open_joined` minus that set.
+  container's open-descendant pk set **once per render, in a single bottom-up pass over the
+  FULL `cmap`** (each node's set is the union of its children's sets plus its open children),
+  then emit `open_joined` minus that set. The full map, not §9's restricted one: over the
+  restricted map a collapse href would fail to drop open descendants the filter excluded, so
+  they would persist in the open set and reappear on clearing the filter — breaking the
+  "collapse forgets descendants, identically in both paths" invariant this rule exists to
+  hold. This matches the map `_open_ids` receives (§9).
 
 Emit the bare `all` when the resulting set is the full container set.
+
+**Context keys, supplied by all three page/fragment renderers.** `_scope.html` is included
+recursively from `builder.html:22` *and* rendered directly by `_render_scope`, so the
+precomputed structures must be added to **both** context dicts or the tag silently sees
+nothing on fragment renders. `builder()`, `_builder_with_notice()` and `_render_scope()` each
+supply: `open_joined` (the joined string), `open_descendants` (pk → set), and `builder_url`.
+
+**`builder_url` exists so `{% toggle_href %}` does not reintroduce the very defect §7
+removes.** The tag needs `courses:manage_builder`, which is a per-course constant; reversing it
+inside the tag would be one reversal per container row — 137 under expand-all, the same
+mistake this spec is fixing. Reverse it once per render and pass it in, so the tag only
+concatenates.
 
 #### 5. Expanding a scope
 
@@ -589,6 +717,19 @@ full page navigation (every other delegated link handler in the file does this; 
 The `aria-controls` add/remove is not optional bookkeeping: §1 makes "emitted only when
 expanded" load-bearing, so a handler that touches only `aria-expanded` violates the invariant
 after every toggle, in one direction or the other. The toggle test asserts both attributes.
+The `aria-label` is re-rendered too, since it says "Expand"/"Collapse".
+
+**A foreign fragment swap can land mid-fetch, and the response must not resurrect a dead
+row.** This file is written around exactly this hazard — `applyRename` guards
+`!form.isConnected`, the rename `focusout` guards `swapping`, `loadPanel` uses a
+last-request-wins id — because a rename commit, a reorder or a drop returning
+`_render_scope`/`_render_tree` can `replaceWith` the ancestor scope while a toggle is in
+flight. The fresh server markup renders the toggled node **collapsed** (the collector on
+*that* request could not yet see the pending pk), and the toggle's late response would then
+insert its `<ol>` into a detached `<li>`, so the author sees the row snap back to collapsed
+with no error. **Rule: when the response lands, re-resolve the row by `[data-node]` from
+`root` and bail if it is gone or no longer marked in-flight.** Tested by firing a
+scope-returning mutation between the toggle request and its response.
 
 **The in-flight mark is required, and the insert must replace.** Unlike `applyFragment` —
 which is idempotent because it *swaps* the element matching `data-scope` — this handler
@@ -599,10 +740,14 @@ activations while in flight (reuse the `dataset.submitting` convention already i
 and have the insert replace any existing `:scope > ol.tree__scope` rather than append
 blindly.
 
-**Every toggle calls `history.replaceState`** with the recomputed `open` (and `q`, if
-active), so a reload or a Back navigation re-enters `builder()` with the author's expansions
-intact instead of falling back to the seed. It also means the JS path keeps `open` in the
-URL, which is what makes the "two tabs do not fight" claim in §2 true for JS authors.
+**`history.replaceState` fires after ANY successful tree-fragment application**, not only
+after a toggle — recomputing `open` (and `q`, if active) from the DOM collector, which already
+exists. Toggle-only would break the rules in §2 that open a scope *server*-side: an author who
+drags a unit into a chapter and then reloads would re-enter `builder()` with the *pre-drop*
+`open`, the destination collapsed and the moved node invisible again — the exact failure §2
+calls "the more dangerous case". With it, a reload or Back navigation re-enters with the
+author's expansions intact instead of falling back to the seed, and it is what makes the "two
+tabs do not fight" claim in §2 true for JS authors.
 
 **The empty set is written as `open=`, present-but-empty — never omitted.** This applies to
 both `replaceState` and the collector. Dropping the parameter when the author collapses the
@@ -679,7 +824,7 @@ Two changes, both small, both independent of the above:
   `.drop-line` into a tree `applyFragment` has just swapped — a stray marker with no drag in
   progress. Store the pending frame id module-scoped.
 
-  **The rejecting branches must cancel too.** `builder.js:454` handles an illegal target
+  **The rejecting branches must cancel too.** `builder.js:455` handles an illegal target
   synchronously with `clearDropMarks(); drag.targetScope = null; return;`, and there is an
   earlier `if (!scope) return;`. Under throttling a frame scheduled by the *previous, legal*
   `dragover` still runs after that return — re-adding `.drop-target` and a `.drop-line` on a
@@ -711,8 +856,9 @@ issues a network request mid-gesture.
 `manage_node_move`, `manage_node_delete` and `manage_node_duplicate` are identical for
 every row that carries them (`manage_node_duplicate` on unit rows only — 807 of 944).
 Reverse them once per scope and pass them down, exactly as `_scope.html`
-already does for `rename_url` (and keep the same explanatory comment style). ~30% of
-render time for a mechanical change, and it benefits every scope render including
+already does for `rename_url` (and keep the same explanatory comment style). Reversals are
+~30% of render time and this removes ~83% of them (4,800 of 5,803), so the expected saving is
+**~25% of render time** for a mechanical change, and it benefits every scope render including
 expand-all.
 
 Two sites are easy to miss:
@@ -742,6 +888,11 @@ would clear the busy state while a second request is still running, or leave it 
 one rejects. Use a **counter**: increment when a request is issued, decrement in a
 `finally`-equivalent on both the success and the failure path, and treat the pane as busy
 while the counter is above zero.
+
+**The busy state is visual only — it must not block pointer events.** §5 relies on a
+per-toggle in-flight mark to prevent double-activation, and that guard is dead code if the
+pane sets `pointer-events: none`; the "two rapid clicks" test would then pass vacuously.
+Gesture-level guarding is per-control; the pane-level state only communicates.
 
 `builder.js` issues two GETs into the detail panel, and **neither counts** toward the tree
 pane's busy state: `loadPanel` (`builder.js:277`, the debounced focus fetch — it fires on
@@ -795,7 +946,24 @@ A `q` parameter on the builder view. There is **one** mechanism, not two: `q` re
 are rendered from, so a toggle never promises children the filtered view will not show. The
 notice makes it clear the view is filtered.
 
-Without JS it is a plain GET form. With JS it swaps the tree pane.
+Without JS it is a plain GET form posting to `manage_builder`.
+
+**With JS it needs an endpoint that returns the whole tree pane, and none exists today.**
+`builder()` returns a full page and is the only builder view with no `_wants_fragment`
+branch; `manage_node_scope` is declared `<int:pk>` so it cannot serve the top scope. Adding a
+fragment branch to `builder()` would silently change its contract for every existing test that
+sends `X-Requested-With: fetch`. So: **a new `manage_tree` GET** (`…/build/tree/`) returning
+`_render_tree(request, course)`, carrying `q`, `open` and the `X-Builder-Info` header, behind
+`@login_required` + `_require_manage`. It gets the same access-control test row as
+`manage_node_scope`: anonymous → login redirect, non-manager → 403, foreign slug → 404,
+manager → 200 with `data-scope="top"`. Expand-all (§10) uses it too.
+
+**A mutation under an active filter must not make its own result vanish.** The new node's
+title will rarely match `q`, so an add or duplicate rendered through the restricted map would
+return a scope *without* the row the author just created — indistinguishable from failure, and
+the same shape of bug §2's reparent rule exists to prevent. **Rule: a mutation's own
+created/moved pk, and its ancestor chain, are force-included in the restricted map for that
+response**, via the same `extra_open` channel. Tested alongside the reparent-visibility test.
 
 #### 10. Expand-all
 
@@ -904,6 +1072,18 @@ deliberately *not* used as the guard:
 - **`q` rides on every fragment request**: with a filter active, a rename 409, an add, a
   reorder, a duplicate and a drop each return filtered markup
 - **keyboard traversal still issues exactly one panel fetch** despite the new focus stop
+- **`manage_tree` access control**, the same five rows as `manage_node_scope`
+- **an add or duplicate under an active filter returns its own new row visible**, via
+  `extra_open` — the filtered twin of the reparent-visibility test
+- **a scope-returning mutation landing mid-toggle** leaves no detached `<ol>` and no row
+  stuck marked in-flight
+- **`builder_open` round-trips as a sorted list** and the unchanged-check actually suppresses
+  the second write
+- **`_builder_with_notice` renders the same tree as the success path** for the same gesture
+- **the `X-Builder-Info` header is machine-readable** — assert it never contains a non-ASCII
+  byte or an RFC-2047 `=?utf-8?` prefix, in a Polish-locale test
+- **the `info` slot replaces by key**: two successive filter responses leave one entry, and a
+  response without the header clears it
 - filter then expand: with `q` active, a toggle still expands (the `q`-seeds/`open`-wins
   rule), and the filtered count is what the toggle shows
 - adding a container returns it already open; adding a unit does not change the open set
@@ -938,11 +1118,12 @@ alternative would be to collapse small courses, which §3a rejects.
 | --- | --- | --- | --- |
 | 1 | builder `domInteractive` on `mat-pp` | 8.37 s | < 1.5 s |
 | 1 | builder response size on `mat-pp` | 3.0 MB | < 300 KB |
-| 1 | DOM elements on load, `mat-pp` | 38,418 | < 3,000 |
+| 1 | DOM elements on load, `mat-pp`, empty open set | 38,418 | < 1,200 |
+| 1 | DOM elements on load, `mat-pp`, §3 seed worst case | 38,418 | < 3,500 (78 rows × 40.7 ≈ 3,175 — see Scope widths) |
 | 1 | reparent round trip | 4.47 s | < 500 ms |
 | 1 | forced layout per `dragover` | 14.4 ms | ≤ 1 per frame |
 | 1 | toggle (expand one scope) round trip | n/a — new primary interaction | < 300 ms |
-| 1 | a 150-node course (the §3a threshold) | unchanged today | still fully expanded; `domInteractive` < 1.5 s; ~5,600 elements accepted |
+| 1 | a 150-node course (the §3a threshold) | unchanged today | still fully expanded; `domInteractive` < 1.5 s; ~6,100 elements accepted (150 × 40.7, browser basis) |
 | 2 | filter round trip on `mat-pp` | n/a | < 1 s to first result |
 | 2 | expand-all on `mat-pp` | n/a | busy state visible for its whole duration; no "Page unresponsive" |
 
