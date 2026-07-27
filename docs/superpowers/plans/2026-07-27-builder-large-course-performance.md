@@ -1362,7 +1362,10 @@ def _info_entries(opened):
             # tests monkeypatch courses.builder_open.CEILING, and a by-value
             # import would make the notice claim 500 while _finalize truncated
             # at the patched number.
-            "text": _("Only the first %(limit)s sections were opened.")
+            # "scopes", not "sections": `section` is a real ContentNode.Kind here,
+            # and a truncated set is mostly parts and chapters. Getting this
+            # wrong costs a second catalog round after Task 12's makemessages.
+            "text": _("Only the first %(limit)s scopes were opened.")
             % {"limit": builder_open.CEILING},
         }
     ]
@@ -2822,6 +2825,11 @@ def test_keyboard_traversal_still_issues_one_panel_fetch(page, live_server):
     assert page.evaluate(
         "() => !!document.activeElement.closest('.tree__title')"
     ), "traversal must start inside the tree"
+    # Press the FIRST Tab before attaching the listener: .focus() arms the
+    # 150ms panel debounce for this title, and on a loaded runner the gap
+    # before the first press could exceed it, landing an extra fetch and
+    # making len(calls) == 2.
+    page.keyboard.press("Tab")
     calls = []
     page.on(
         "request",
