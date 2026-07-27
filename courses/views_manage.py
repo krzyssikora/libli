@@ -243,6 +243,21 @@ def node_panel(request, slug, pk):
     )
 
 
+@login_required
+def node_scope(request, slug, pk):
+    """One scope <ol>, for the JS expand path.
+
+    _require_manage alone is NOT enough: it validates the COURSE, and
+    _render_scope resolves a missing/foreign pk to parent=None and returns 200
+    with an empty scope. Resolve the node first, mirroring node_panel.
+    """
+    node = get_node_or_404(pk, slug)
+    if node.kind == ContentNode.Kind.UNIT:
+        raise Http404("Units own no scope.")
+    course = _require_manage(request, slug)
+    return _render_scope(request, course, node.pk)
+
+
 # --- node-op endpoints (Task 7) ---
 def _require_manage(request, slug):
     course = get_object_or_404(Course, slug=slug)

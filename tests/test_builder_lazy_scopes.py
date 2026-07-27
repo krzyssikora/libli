@@ -250,3 +250,49 @@ def test_toggle_href_carries_a_row_anchor(client):
     ).content.decode()
     assert f"#node-{part.pk}" in html
     assert f'id="node-{part.pk}"' in html
+
+
+@pytest.mark.django_db
+def test_scope_endpoint_returns_one_scope_for_a_manager(client):
+    owner = make_login(client, "owner")
+    course, part, chapters = _big_course(owner)
+    resp = client.get(
+        reverse("courses:manage_node_scope", kwargs={"slug": "big", "pk": part.pk})
+    )
+    assert resp.status_code == 200
+    assert f'data-scope="{part.pk}"' in resp.content.decode()
+
+
+@pytest.mark.django_db
+def test_scope_endpoint_404s_on_a_unit_and_on_a_foreign_pk(client):
+    owner = make_login(client, "owner")
+    course, part, chapters = _big_course(owner)
+    unit = chapters[0][1][0]
+    assert (
+        client.get(
+            reverse("courses:manage_node_scope", kwargs={"slug": "big", "pk": unit.pk})
+        ).status_code
+        == 404
+    )
+    foreign = ContentNodeFactory(
+        course=CourseFactory(slug="other"), kind="part", parent=None
+    )
+    assert (
+        client.get(
+            reverse(
+                "courses:manage_node_scope", kwargs={"slug": "big", "pk": foreign.pk}
+            )
+        ).status_code
+        == 404
+    )
+
+
+@pytest.mark.django_db
+def test_scope_endpoint_403s_a_non_manager_and_redirects_anonymous(client):
+    owner = make_login(client, "owner")
+    course, part, _c = _big_course(owner)
+    url = reverse("courses:manage_node_scope", kwargs={"slug": "big", "pk": part.pk})
+    make_login(client, "stranger")
+    assert client.get(url).status_code == 403
+    client.logout()
+    assert client.get(url).status_code == 302
