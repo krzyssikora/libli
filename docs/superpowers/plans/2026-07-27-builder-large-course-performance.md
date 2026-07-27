@@ -375,6 +375,16 @@ Two files are **not** grep-discoverable but are touched anyway — list them sep
 `tests/test_builder_styles.py` (reads `builder.css` from disk) and
 `tests/test_builder_js_invariants.py` (regexes raw `builder.js` source, comments included).
 
+Record the **two element-op redirects** as well: `element_move` (`views_manage.py:636`) and
+`element_delete` (`:652`) both `redirect("courses:manage_builder", …)` on the no-JS path, and
+unlike the `_render_tree` sites below they fire from the *builder's own* unit panel (they are
+skipped only when `ctx=editor`). After Task 3 they land on a page-mode render with no `open`,
+so a no-JS author who reorders or deletes an element is thrown back to a collapsed tree —
+exactly what `open=session` exists to prevent. **Default decision: route both through
+`_redirect_to_builder(course)`** in Task 6; they need no chain persistence, since the unit
+still exists and the carrier already holds the author's set. If you decide otherwise, write
+the reason in `affected-tests.md` and pin it with a test.
+
 Also record the **three `_render_tree` call sites outside the builder flow**:
 `_element_conflict` (`views_manage.py:675`) and `element_save` (`:1076`, `:1087`). Those
 POSTs originate from the editor's element forms, which never send `open`, so after Task 3
@@ -582,13 +592,17 @@ def test_ceiling_keeps_the_lowest_pks_and_flags_truncation(rf, db, monkeypatch):
 
 
 @pytest.mark.django_db
-def test_stale_session_pk_is_discarded(rf, tree):
-    course, _p, _c, _u, _e = tree
+def test_stale_session_pk_is_discarded(rf, big_tree):
+    """big_tree, so step 4 does not answer before step 5 is ever reached.
+
+    With `tree` the size rule returns every container without calling _chain
+    at all, so deleting _chain's None-guard would leave this green.
+    """
+    course, _p, _c, _u, _e = big_tree
     cmap = _children_map(course)
-    sess = {"builder_last_node": {"c1": 9_999_999}}
+    sess = {"builder_last_node": {"c2big": 9_999_999}}
     got = open_ids(_req(rf, "", session=sess), course, cmap, mode="page")
-    # falls through to the size rule, not to a crash
-    assert got.ids == container_pks(cmap)
+    assert got.ids == frozenset()      # step 6, not a crash and not the size rule
 ```
 
 - [ ] **Step 2: Run the tests to verify they fail**
@@ -1815,8 +1829,8 @@ git commit -m "feat(builder): add the single-scope read endpoint"
 
 - [ ] **Step 1: Write the failing test**
 
-Add `from courses.builder_open import OPEN_KEY` to the file's **top** import block, then
-append:
+Add `from courses.builder_open import OPEN_KEY` to the test file's **top** import block,
+then append:
 
 ```python
 @pytest.mark.django_db
@@ -2025,7 +2039,10 @@ def _remember_open(request, course, opened):
     # integers in a DB-backed session that is decoded on every subsequent
     # request -- a new per-request cost, on a PR whose premise is request cost.
     remember_node(
-        request, course.slug, sorted(opened.ids)[:SESSION_OPEN_LIMIT], key=OPEN_KEY
+        request,
+        course.slug,
+        sorted(opened.ids)[: builder_open.SESSION_OPEN_LIMIT],
+        key=OPEN_KEY,
     )
 ```
 
@@ -2046,8 +2063,9 @@ In `builder()`, after computing `opened`:
     _remember_open(request, course, opened)
 ```
 
-Change **five** of the six no-JS redirects — `views_manage.py:282`, `:344`, `:376`, `:411`,
-`:494`. **Leave `:455` (`node_delete`) alone**: Task 7 rewrites that one into a branch that
+Change **five** of the six no-JS builder redirects — `views_manage.py:282`, `:344`, `:376`,
+`:411`, `:494` — **plus the two element-op redirects** `element_move` (`:636`) and
+`element_delete` (`:652`), which fire from the builder's own unit panel (see Task 0b). **Leave `:455` (`node_delete`) alone**: Task 7 rewrites that one into a branch that
 round-trips an explicit `open`, and changing it here only to supersede it two tasks later
 invites keeping the wrong version through a conflict. Change them from
 
@@ -2121,8 +2139,16 @@ def _persist_chain(request, course, node):
     # author's fully-collapsed state -- correct, since the node they just
     # created must be visible.
     stored = request.session.get(OPEN_KEY, {}).get(course.slug) or []
-    merged = set(stored) | (_ancestor_chain(node) & container_pks(cmap))
-    remember_node(request, course.slug, sorted(merged), key=OPEN_KEY)
+    chain = _ancestor_chain(node) & container_pks(cmap)
+    merged = set(stored) | chain
+    # Same payload cap as _remember_open -- this writer unions and never
+    # trims, so without it repeated no-JS adds/moves push one slug's list well
+    # past the budget. Keep the NEW chain preferentially.
+    capped = sorted(chain) + sorted(merged - chain)
+    remember_node(
+        request, course.slug, sorted(capped[: builder_open.SESSION_OPEN_LIMIT]),
+        key=OPEN_KEY,
+    )
 ```
 
 Then call it with **each view's own local name** — they differ, and pasting one snippet
@@ -2171,7 +2197,7 @@ in Task 6, 8, 9 or 10 is indistinguishable from migration noise until Task 11.
 
 ```bash
 git branch --show-current
-git add courses/views_manage.py tests/test_builder_lazy_scopes.py
+git add courses/views_manage.py courses/builder_open.py tests/test_builder_lazy_scopes.py
 git commit -m "feat(builder): force-open mutation destinations and carry open through no-JS"
 ```
 
@@ -2281,26 +2307,7 @@ proceeds with the un-rewritten href and the whole chain is inert.
 So Task 7 ships the server half only. Its own view tests pass now (they pass `open`
 explicitly). Task 8 Step 3b adds the JS and the end-to-end test.
 
-<details>
-<summary>The JS, for reference — do not add it until Task 8 Step 3b</summary>
-
-```js
-  // The delete link is a plain navigation for everyone -- node_confirm_delete's
-  // form has no data-op and there is no [data-delete] fetch handler. So stamp
-  // the LIVE open set onto the href at click time and let the navigation
-  // proceed: no preventDefault.
-  root.addEventListener("click", function (e) {
-    var del = e.target.closest("[data-delete]");
-    if (!del) return;
-    var u = new URL(del.getAttribute("href"), window.location.origin);
-    u.searchParams.set("open", collectOpen());
-    del.setAttribute("href", u.pathname + u.search);
-  });
-```
-
-No change to `_tree_node.html` is needed — the handler rewrites the existing href in place.
-
-</details>
+See **Task 8 Step 3b** for the handler; it is written once there so the two copies cannot drift.
 
 - [ ] **Step 6: Run to verify pass**
 
@@ -2446,6 +2453,11 @@ def _seed(owner, slug="e2e"):
     return course, part, ch, unit, ch_b
 
 
+def stamp(page):
+    """Mark the current document so a navigation can be detected."""
+    page.evaluate("() => { window.__samedoc = 1; }")
+
+
 def assert_no_navigation(page):
     """Pin a test to the JS path.
 
@@ -2454,9 +2466,14 @@ def assert_no_navigation(page):
     aria-expanded, and survives a reload. Without this guard the whole toggle
     suite passes with zero JS -- Step 2's red gate is green and none of the
     tests distinguishes the fetch path from a navigation.
+
+    Detected with a window sentinel, NOT with performance navigation entries:
+    a cross-document navigation creates a fresh Window with a fresh timeline
+    that again holds exactly ONE navigation entry, so counting them is always
+    1 and can never fail. A new document destroys `window.__samedoc`.
     """
-    assert (
-        page.evaluate("() => performance.getEntriesByType('navigation').length") == 1
+    assert page.evaluate(
+        "() => window.__samedoc === 1"
     ), "the page navigated; this test must exercise the JS fetch path"
 
 
@@ -2466,6 +2483,7 @@ def test_toggle_expands_and_collapses(page, live_server):
     _login(page, live_server, "pa")
     page.goto(f"{live_server.url}{reverse('courses:manage_builder', kwargs={'slug': 'e2e'})}")
     assert page.locator(f'[data-node="{ch.pk}"]').count() == 0
+    stamp(page)                                       # detect a navigation
     page.click(f'[data-toggle="{part.pk}"]')          # the REAL gesture
     page.wait_for_selector(f'[data-node="{ch.pk}"]')
     assert_no_navigation(page)          # must be the fetch path, not the href
@@ -2483,6 +2501,7 @@ def test_double_click_yields_exactly_one_scope(page, live_server):
     course, part, ch, _u, _chb = _seed(owner)
     _login(page, live_server, "pa")
     page.goto(f"{live_server.url}{reverse('courses:manage_builder', kwargs={'slug': 'e2e'})}")
+    stamp(page)
     page.dblclick(f'[data-toggle="{part.pk}"]')
     page.wait_for_selector(f'[data-node="{ch.pk}"]')
     assert_no_navigation(page)
@@ -2736,7 +2755,7 @@ def test_a_failed_scope_fetch_leaves_the_row_usable(page, live_server):
     owner = _make_pa_user("pa")
     course, part, ch, _u, _chb = _seed(owner, slug="fail")
     _login(page, live_server, "pa")
-    page.route("**/scope/**", lambda route: route.fulfill(status=500, body=""))
+    page.route("**/scope/**", lambda route: route.fulfill(status=500, body=""))  # deterministic
     page.goto(f"{live_server.url}{reverse('courses:manage_builder', kwargs={'slug': 'fail'})}")
     page.click(f'[data-toggle="{part.pk}"]')
     page.wait_for_selector(".op-error")
@@ -2810,16 +2829,18 @@ def test_keyboard_traversal_still_issues_one_panel_fetch(page, live_server):
         if "/build/node/" in r.url and r.url.rstrip("/").split("/")[-1].isdigit()
         else None,
     )
-    # Stop count, measured against THIS fixture (part has 2 chapters, so its
-    # reorder buttons are enabled and focusable): from part's title the stops
-    # are grip, up, down, Move, Export, Delete (6), then ch's toggle (7), then
-    # ch's title (8). Landing anywhere but a title yields ZERO fetches, because
-    # focusin clears the timer for every target.
-    for _ in range(8):
+    # Tab until the NEXT title, bounded. Do not hard-code a stop count: the
+    # reorder buttons are disabled (and so unfocusable) from is_first/is_last,
+    # which _scope.html derives from forloop position among SIBLINGS -- not
+    # from the node's child count -- so the count shifts with the fixture and
+    # any hard-coded number silently lands on a non-title, where focusin
+    # clears the timer and ZERO fetches fire.
+    for _ in range(15):
         page.keyboard.press("Tab")
-    assert page.evaluate(
-        "() => !!document.activeElement.closest('.tree__title')"
-    ), "traversal must END on a title, or the debounce is never exercised"
+        if page.evaluate("() => !!document.activeElement.closest('.tree__title')"):
+            break
+    else:
+        raise AssertionError("never reached a second title within 15 tab stops")
     page.wait_for_timeout(400)                     # longer than the 150ms debounce
     assert len(calls) == 1                         # exactly one, not "at most"
 
@@ -2834,11 +2855,19 @@ def test_two_overlapping_tree_fetches_stay_busy_until_both_settle(page, live_ser
     _login(page, live_server, "pa")
     url = reverse("courses:manage_builder", kwargs={"slug": "busy"})
     page.goto(f"{live_server.url}{url}?open=")
-    page.route("**/scope/**", lambda route: page.wait_for_timeout(300) or route.continue_())
+    # Capture-and-release, the pattern this suite already uses
+    # (tests/test_e2e_inline_rename.py:326). Sleeping inside a sync route
+    # handler serialises the driver and makes the overlap a wall-clock guess.
+    held = []
+    page.route("**/scope/**", lambda route: held.append(route))
     page.click(f'[data-toggle="{part.pk}"]')
     page.click(f'[data-toggle="{other.pk}"]')
+    page.wait_for_function("() => document.querySelectorAll('[data-submitting]').length === 2")
     assert page.locator(".builder[data-busy]").count() == 1
+    held[0].continue_()
     page.wait_for_selector(f'ol[data-scope="{part.pk}"]')
+    assert page.locator(".builder[data-busy]").count() == 1   # still one in flight
+    held[1].continue_()
     page.wait_for_selector(f'ol[data-scope="{other.pk}"]')
     assert page.locator(".builder[data-busy]").count() == 0   # counter unwound
 
@@ -2888,13 +2917,17 @@ def test_a_mutation_landing_mid_toggle_leaves_no_detached_scope(page, live_serve
     # block until timeout.
     down = page.locator(f'[data-node="{ch.pk}"] button[name="direction"][value="down"]')
     assert down.is_enabled(), "fixture must give ch a sibling"
-    page.route("**/scope/**", lambda route: page.wait_for_timeout(600) or route.continue_())
-    page.click(f'[data-toggle="{ch.pk}"]')                    # slow scope fetch
+    held = []
+    page.route("**/scope/**", lambda route: held.append(route))
+    page.click(f'[data-toggle="{ch.pk}"]')                    # held scope fetch
+    page.wait_for_function("() => !!document.querySelector('[data-submitting]')")
     handle = page.evaluate_handle(
         f"() => document.querySelector('li[data-node=\\"{ch.pk}\\"]')"
     )
     down.click()          # a reorder returns _render_scope, replacing the row
-    page.wait_for_timeout(1200)
+    page.wait_for_selector(f'li[data-node="{ch.pk}"]')        # the fresh row
+    held[0].continue_()                                       # now let it land
+    page.wait_for_timeout(300)
     assert page.locator(f'ol[data-scope="{ch.pk}"]').count() <= 1
     # The pre-mutation row must be detached AND must not have gained a scope.
     # (`querySelectorAll(...).every(o => o.isConnected)` is vacuous -- that API
@@ -3181,10 +3214,21 @@ def test_per_row_url_reversals_are_hoisted(client):
         client.get(f"{url}?open=all")
 
     rows = course.nodes.count()
-    per_row = ["courses:manage_node_move", "courses:manage_node_delete",
-               "courses:manage_node_duplicate", "courses:manage_node_panel"]
-    for name in per_row:
-        assert seen.count(name) < rows, f"{name} still reversed per row"
+    units = course.nodes.filter(kind="unit").count()
+    scopes = course.nodes.exclude(kind="unit").count() + 1   # +1 for "top"
+    assert units > scopes, "fixture must have more units than scopes"
+    # Compare each name against what it would be if STILL per-row. `< rows` is
+    # too loose for manage_node_duplicate: _tree_node.html renders that form
+    # only inside {% if node.kind == "unit" %}, so an un-hoisted version
+    # reverses `units` times -- already < rows, so the guard could never redden
+    # for the one URL whose regression it is meant to catch.
+    for name in (
+        "courses:manage_node_move",
+        "courses:manage_node_delete",
+        "courses:manage_node_duplicate",
+        "courses:manage_node_panel",
+    ):
+        assert seen.count(name) <= scopes, f"{name} still reversed per row"
     # export is a real <a href> a no-JS author follows, so it stays per node
     assert seen.count("courses:manage_node_export") == rows
 ```
@@ -3512,8 +3556,10 @@ Take Playwright screenshots of the builder in light **and** dark, at a collapsed
 
 ```bash
 git branch --show-current
-git add locale/ core/static/core/img/help/
+git add locale/ core/static/core/img/help/ tests/test_builder_lazy_scopes.py
 git commit -m "chore(builder): refresh catalogs and help screenshots for lazy scopes"
+# nothing tracked may be left behind:
+test -z "$(git status --porcelain)" || { git status --porcelain; echo "UNSTAGED EDITS"; }
 ```
 
 ---
