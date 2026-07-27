@@ -655,7 +655,15 @@ def seen(request, slug, node_pk):
     if not isinstance(data, list):
         return HttpResponseBadRequest("expected a JSON array")
     if not is_enrolled(request.user, course):
-        # untracked preview: no write, synthetic canonical response
+        # ASYMMETRY, deliberate: SCROLL-tracking is not recorded for a previewer, but
+        # completion via the explicit button IS (see complete()). So "untracked" is
+        # narrow -- their practice state and their completion both persist; only this
+        # signal is dropped. The synthetic response therefore reports completed=False
+        # even when a stored row says True: this endpoint's contract is "here is your
+        # scroll-tracking", not "here is your progress row". Do not "fix" it to echo
+        # the stored row -- that breaks
+        # tests/test_courses_progress.py::test_previewer_seen_no_write_and_ignores_stored_completion  # noqa: E501
+        # and quietly turns a write-free endpoint into a state reporter.
         return JsonResponse(
             {"seen_element_ids": [], "completed": False, "completed_at": None}
         )

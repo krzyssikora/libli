@@ -102,7 +102,7 @@ def test_quiz_seen_returns_404(client):
 
 
 @pytest.mark.django_db
-def test_previewer_seen_no_write_synthetic(client):
+def test_previewer_seen_no_write_and_ignores_stored_completion(client):
     from courses.models import UnitProgress
 
     staff = make_login(client, "staff1")
@@ -110,6 +110,9 @@ def test_previewer_seen_no_write_synthetic(client):
     staff.save()
     course = CourseFactory(slug="pp")  # staff not enrolled
     unit, ids = _make_unit_with_elements(course, 1)
+
+    # (1) The pre-existing half, unchanged: no row exists, so no write and a synthetic
+    # response.
     r = client.post(
         _seen_url("pp", unit.pk), data=json.dumps(ids), content_type="application/json"
     )
@@ -120,6 +123,28 @@ def test_previewer_seen_no_write_synthetic(client):
         "completed_at": None,
     }
     assert not UnitProgress.objects.filter(student=staff, unit=unit).exists()
+
+    # (2) NOW seed a completed row for THAT SAME viewer. student= and unit= are
+    # mandatory here above all: every step-(3) assertion is negative, so a row minted
+    # against an unrelated node leaves them all green -- and so does this extension's
+    # own falsification recipe.
+    row = UnitProgressFactory(student=staff, unit=unit, completed=True)
+    stamped_at = UnitProgress.objects.get(pk=row.pk).completed_at
+
+    # (3) seen STILL reports the synthetic response and STILL writes nothing.
+    r2 = client.post(
+        _seen_url("pp", unit.pk), data=json.dumps(ids), content_type="application/json"
+    )
+    assert r2.json() == {
+        "seen_element_ids": [],
+        "completed": False,
+        "completed_at": None,
+    }
+    row.refresh_from_db()
+    # Name the fields; do not compare whole objects (updated_at is auto_now).
+    assert row.seen_element_ids == []  # the POSTed ids were not merged
+    assert row.completed is True
+    assert row.completed_at == stamped_at
 
 
 @pytest.mark.django_db
