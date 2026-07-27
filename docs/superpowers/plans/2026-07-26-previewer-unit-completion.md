@@ -847,15 +847,9 @@ Spec Testing §9 — the payoff that justifies fixing rather than hiding the but
 **Files:**
 - Modify: `tests/test_courses_progress.py` (one new test)
 
-- [ ] **Step 1: Hoist the `re` import to module level, then write the test**
+- [ ] **Step 1: Write the test**
 
-First use of `re` in this module, so add it at module level in the stdlib block, after `import json`:
-
-```python
-import re
-```
-
-Task 10 reuses it and must not re-import it locally. `BeautifulSoup` is already at module level from Task 3. Then append:
+No new imports: `BeautifulSoup` is already at module level from Task 3, and this test needs nothing else. It parses a subtree rather than regexing the response body — which is why the spec's parsing rule names test 9 alongside 2, 6(a), 6(b) and 7 ("so five siblings in one file do not invent five mechanisms"); the tempered regex the spec documents stays a fallback, not the recommendation. (`re` is hoisted in Task 10, its first actual use — adding it here would be an unused import and fail this task's own lint gate.) Append:
 
 ```python
 @pytest.mark.django_db
@@ -876,13 +870,16 @@ def test_previewer_mark_lights_outline_badge_and_footer_counter(client):
     # (1) The course outline page -> the unit's own row carries the done marker.
     r_outline = client.get(reverse("courses:course_outline", kwargs={"slug": "p9"}))
     assert r_outline.status_code == 200
-    body = r_outline.content.decode()
-    # TEMPERED pattern: it cannot cross into a later <li data-unit="...">, which a
-    # naive `data-unit="pk"[^>]*>` or `.*?` form would do, matching another unit's
-    # marker. [\s\S] (not .) because the two tokens sit on different lines.
-    assert re.search(
-        rf'data-unit="{unit.pk}"(?:(?!data-unit=)[\s\S])*?outline-unit--done', body
+    # Parse the subtree, same as the four sibling tests. outline.html renders the
+    # WHOLE course tree and _outline_node.html emits an identical marker for every
+    # completed unit, so a body-wide check false-passes the moment any other unit is
+    # complete. _outline_node.html:3 puts data-unit on the <li>; :5 puts
+    # outline-unit--done on that unit's own <a>.
+    li = BeautifulSoup(r_outline.content, "html.parser").select_one(
+        f'li[data-unit="{unit.pk}"]'
     )
+    assert li is not None
+    assert li.select_one("a.outline-unit--done") is not None
 
     # (2) The lesson unit page -> the footer's course-progress counter is non-zero.
     r_lesson = client.get(
@@ -905,7 +902,7 @@ Expected: PASS. (`courses:course_outline` takes only `slug` — `courses/urls.py
 
 Temporarily re-wrap the write in `complete` in `if is_enrolled(request.user, course):`. This needs **two runs**, for the same reason as Task 9 Step 4: both assertions live in one function, pytest aborts at the first, and the spec is explicit that "the two assertions exercise different rollup paths; do not collapse them into one response". A single run would let you tick spec test 9 as falsification-proven when only its outline half had been demonstrated.
 
-1. Run as-is. Expected: RED on the outline regex (`assert re.search(...)` → `assert None`).
+1. Run as-is. Expected: RED on the outline subtree assertion (`assert li.select_one("a.outline-unit--done") is not None` → `assert None is not None`).
 2. Comment out that one assertion and re-run. Expected: RED on `assert r_lesson.context["unit_nav"]["course_progress"]["done"] > 0` (it evaluates `0 > 0`).
 
 **Restore both the assertion and the `complete` gate**, then re-run to confirm green.
@@ -941,6 +938,7 @@ from tests.factories import make_verified_user
 def test_off_roster_previewer_absent_from_matrix_and_drilldown(client):
     from django.test import Client
 
+    from courses.models import UnitProgress
     from courses.rollups import build_progress_matrix
     from grouping.scoping import students_in_scope
 
@@ -966,9 +964,16 @@ def test_off_roster_previewer_absent_from_matrix_and_drilldown(client):
 
     # (1) The previewer marks the unit done, via their OWN POST, while off-roster.
     client.post(reverse("courses:complete", kwargs={"slug": "p10", "node_pk": unit.pk}))
+    # Pin that the POST actually WROTE. Without this, every assertion below is
+    # satisfied by the roster mechanism alone and holds whether or not the write
+    # landed -- so if complete() ever regains an enrollment gate, this test stays
+    # green while its claim silently degrades to "a previewer holding nothing is
+    # invisible", which is not the containment claim the spec rests on.
+    assert UnitProgress.objects.get(student=previewer, unit=unit).completed is True
 
-    # (2) Matrix: populated, but omits the previewer. Re-resolve students_in_scope
-    # freshly for each use -- it returns a lazy queryset that caches on evaluation.
+    # (2) Matrix: populated, but omits the previewer. students_in_scope is resolved
+    # inline at each call site here, so no stale cache can exist -- see Task 11 for
+    # the two-sided case where re-resolving across the enrollment is load-bearing.
     matrix = build_progress_matrix(
         course, list(students_in_scope(resolver, course, "all"))
     )
@@ -1029,7 +1034,15 @@ Spec Testing §11. The load-bearing assertion is the query one — it is the onl
 **Files:**
 - Modify: `tests/test_courses_progress.py` (one new test)
 
-- [ ] **Step 1: Write the test**
+- [ ] **Step 1: Hoist the `re` import to module level, then write the test**
+
+First actual use of `re` in this module. Add it at module level in the stdlib block, after `import json`:
+
+```python
+import re
+```
+
+Then append:
 
 ```python
 @pytest.mark.django_db
@@ -1239,7 +1252,7 @@ Under a heading naming them as the unguarded half of the diff, quote all seven c
 
 1. **New** — `complete`'s atomic block (Task 1). Verify it **asserts the ordering rule**: the row is re-fetched *under* the lock because `FOR UPDATE` cannot protect a writer whose read preceded the lock. Verify it does **not endorse** the lock-exclusion framing — the false claim that a lock only excludes writers that also take it, which on PostgreSQL is untrue (a plain `UPDATE` blocks on an existing `FOR UPDATE`). Task 1's prescribed comment states the ordering rule positively and never asserts the false framing, so it passes this gate as written; the gate is about what the shipped comment *claims*, not about which words appear in it.
 2. **New** — `complete`'s access check (Task 1).
-**All line numbers below are base-commit anchors** — the plan's own edits shift every one of them (the `element_state_save` comment by ~+15, `seen`'s by ~+6, and the docstring grows in place). Locate each by its enclosing function, which is stable:
+**All line numbers below are base-commit anchors** — the plan's own edits shift every one of them by an amount that depends on how many earlier tasks have run, so the numbers are not worth recomputing. Locate each by its enclosing function, which is stable:
 
 3. **Correction** — in `element_state_save` (`courses/views.py` ≈:784-788 on base) (Task 1).
 4. **Correction** — `build_lesson_context`'s docstring (≈:273-275 on base) (Task 3).
