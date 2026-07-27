@@ -180,8 +180,10 @@ def test_expansion_survives_a_reload(page, live_server):
     page.goto(
         f"{live_server.url}{reverse('courses:manage_builder', kwargs={'slug': 'e2e'})}"
     )
+    stamp(page)  # detect a navigation
     page.click(f'[data-toggle="{part.pk}"]')
     page.wait_for_selector(f'[data-node="{ch.pk}"]')
+    assert_no_navigation(page)  # must be the fetch path, not the href
     page.reload()
     page.wait_for_selector(f'[data-node="{ch.pk}"]')  # replaceState carried it
 
@@ -194,8 +196,10 @@ def test_collapsing_the_last_scope_survives_a_reload(page, live_server):
     _login(page, live_server, "pa")
     url = reverse("courses:manage_builder", kwargs={"slug": "e2e"})
     page.goto(f"{live_server.url}{url}?open={part.pk}")
+    stamp(page)  # detect a navigation
     page.click(f'[data-toggle="{part.pk}"]')
     page.wait_for_selector(f'[data-node="{ch.pk}"]', state="detached")
+    assert_no_navigation(page)  # must be the fetch path, not the href
     page.reload()
     assert page.locator(f'[data-node="{ch.pk}"]').count() == 0
 
@@ -273,8 +277,10 @@ def test_collapsing_over_a_dirty_rename_posts_nothing(page, live_server):
     field = page.locator(f'[data-node="{ch.pk}"] input.tree__title')
     field.click()
     field.fill("Half typed")
+    stamp(page)  # detect a navigation
     page.click(f'[data-toggle="{part.pk}"]')  # collapses ch's own subtree
     page.wait_for_selector(f'[data-node="{ch.pk}"]', state="detached")
+    assert_no_navigation(page)  # must be the fetch path, not the href
     ch.refresh_from_db()
     assert ch.title == "Chap A"  # abandoned, not committed
 
@@ -334,7 +340,7 @@ def test_two_overlapping_tree_fetches_stay_busy_until_both_settle(page, live_ser
     owner = _make_pa_user("pa")
     course, part, ch, _u, _chb = _seed(owner, slug="busy")
     other = ContentNodeFactory(
-        course=course, kind="part", parent=None, title="Second part"
+        course=course, kind="part", unit_type=None, parent=None, title="Second part"
     )
     _login(page, live_server, "pa")
     url = reverse("courses:manage_builder", kwargs={"slug": "busy"})
@@ -382,12 +388,14 @@ def test_collapse_forgets_descendants_through_the_JS_toggle(page, live_server):
     _login(page, live_server, "pa")
     url = reverse("courses:manage_builder", kwargs={"slug": "forget"})
     page.goto(f"{live_server.url}{url}?open={part.pk}")
+    stamp(page)  # detect a navigation across the whole click sequence below
     page.click(f'[data-toggle="{ch.pk}"]')
     page.wait_for_selector(f'ol[data-scope="{ch.pk}"]')
     page.click(f'[data-toggle="{part.pk}"]')  # collapse the parent
     page.wait_for_selector(f'ol[data-scope="{part.pk}"]', state="detached")
     page.click(f'[data-toggle="{part.pk}"]')  # re-expand it
     page.wait_for_selector(f'ol[data-scope="{part.pk}"]')
+    assert_no_navigation(page)  # must be the fetch path throughout, not the href
     assert page.locator(f'ol[data-scope="{ch.pk}"]').count() == 0
 
 
@@ -430,5 +438,7 @@ def test_pk_substitution_survives_a_slug_containing_a_zero(page, live_server):
     _login(page, live_server, "pa")
     url = reverse("courses:manage_builder", kwargs={"slug": "mat-0-pp"})
     page.goto(f"{live_server.url}{url}")
+    stamp(page)  # detect a navigation
     page.click(f'[data-toggle="{part.pk}"]')
     page.wait_for_selector(f'[data-node="{ch.pk}"]')  # a naive replace() 404s
+    assert_no_navigation(page)  # must be the fetch path, not the href
