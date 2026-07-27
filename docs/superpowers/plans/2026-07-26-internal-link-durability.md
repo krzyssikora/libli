@@ -17,13 +17,22 @@
 - Run everything through `uv run`.
 - `uv run pytest` defaults to `-m 'not e2e'`; nothing in this plan needs a browser.
 - Use `tests.factories.TEST_PASSWORD`; never hardcode a password.
+- **Imports are one name per line.** ruff selects `["E","F","I","UP","B","S"]` with
+  `force-single-line = true`, so grouped imports fail `I001`, unused ones `F401`, and
+  closures over loop variables `B023`. Run **`uv run ruff format <file> && uv run ruff
+  check <file>` at the end of each task** — format first; these snippets are hand-wrapped.
+- **`ContentNodeFactory` defaults `unit_type="lesson"`.** Every non-unit node in a fixture
+  must pass `unit_type=None`, or `ContentNode.clean()` rejects it downstream
+  (`TransferError: Only units may have a unit_type.`). The factory skips `full_clean`, so
+  the row is created and the failure surfaces later, inside the importer. Repo idiom:
+  `tests/test_analytics_views.py:19`.
 - All new user-visible strings are translatable, with **non-empty** Polish msgstrs (`tests/test_i18n_po_health.py::test_pl_has_no_untranslated_msgid`).
 - Falsify every guard: delete the behaviour, confirm RED, restore.
 - The registry is the single source of "where can a link live". Nothing else may enumerate rich-text fields.
 
 ---
 
-### Task 1: `courses/richtext.py` — the registry and helpers
+### Task 1: `courses/richtext.py` — the registry, scanner and rewrite helpers
 
 **Files:**
 - Create: `courses/richtext.py`
@@ -37,9 +46,11 @@
   - `rewrite_links(html, mapping, *, on_missing) -> tuple[str, int]` where `on_missing` is `"keep"` or `"unwrap"`, and the int is the flattened count.
   - `iter_rich_text(instance) -> Iterator[tuple[str, str]]` yielding `(field_name, value)`.
   - `rewrite_instance(instance, mapping, *, on_missing) -> tuple[list[str], int]` yielding `(changed field names, flattened)`.
-  - `count_inbound_links(course, node) -> int`
+  - `PERMALINK_PREFIX: str` — `"/courses/n/"`.
 
-  Tasks 2, 3 and 4 use these names exactly.
+  Tasks 2, 3 and 4 use these names exactly. **`count_inbound_links` deliberately lives in
+  Task 5**, with its tests: written here, six of Task 5's eight tests would pass the moment
+  this file existed, so that task would have no real RED gate.
 
 - [ ] **Step 1: Write the failing tests for the scanner**
 
@@ -47,12 +58,33 @@ Create `tests/test_richtext.py`:
 
 ```python
 import pytest
+from django.urls import reverse
 
-from courses.richtext import (
-    RICH_TEXT_FIELDS,
-    find_link_targets,
-    rewrite_links,
-)
+from courses.models import CalloutElement
+from courses.models import FillGateElement
+from courses.models import GuessNumberElement
+from courses.models import SpoilerElement
+from courses.models import SwitchGateElement
+from courses.models import TextElement
+from courses.richtext import CONCRETE_QUESTION_MODELS
+from courses.richtext import PERMALINK_PREFIX
+from courses.richtext import RICH_TEXT_FIELDS
+from courses.richtext import find_link_targets
+from courses.richtext import iter_rich_text
+from courses.richtext import rewrite_instance
+from courses.richtext import rewrite_links
+
+
+# ---- the literal is tied to the route --------------------------------------
+
+
+def test_prefix_matches_the_route(db):
+    # Part 1 identified "/courses/n/" as a drift hazard the route NAME does not
+    # protect. This part adds two more copies of the literal; this is the tie the
+    # spec asks for.
+    assert reverse("courses:node_permalink", kwargs={"node_pk": 1}) == "/courses/n/1/"
+    assert PERMALINK_PREFIX == "/courses/n/"
+    assert find_link_targets('<a href="/courses/n/1/">x</a>') == {1}
 
 
 # ---- find_link_targets ----------------------------------------------------
@@ -204,18 +236,79 @@ def test_unwrap_without_a_closing_tag_fails_closed():
 # ---- the registry ---------------------------------------------------------
 
 
+def test_an_unknown_on_missing_raises():
+    with pytest.raises(ValueError):
+        rewrite_links('<a href="/courses/n/1/">x</a>', {}, on_missing="defer")
+
+
 def test_registry_shape():
     assert len(RICH_TEXT_FIELDS) == 27
     assert len({m for m, _f in RICH_TEXT_FIELDS}) == 16
+    assert len(CONCRETE_QUESTION_MODELS) == 10
 
 
-def test_registry_excludes_switchgrid():
-    # No authoring surface (data-stem, not data-rte-source, so part 1's dialog can
-    # never put a link there) AND sanitize_cell strips any anchor on import. Machinery
-    # with nothing to do.
+def test_every_question_model_contributes_both_fields():
+    # These 20 entries arrive via a comprehension rather than hand-written lines, so a
+    # typo in the ("stem", "explanation") tuple would silently halve the coverage.
+    for model in CONCRETE_QUESTION_MODELS:
+        assert (model, "stem") in RICH_TEXT_FIELDS
+        assert (model, "explanation") in RICH_TEXT_FIELDS
+
+
+@pytest.mark.parametrize(
+    "model,field",
+    [
+        (TextElement, "body"),
+        (SpoilerElement, "body"),
+        (CalloutElement, "body"),
+        (FillGateElement, "stem"),
+        (GuessNumberElement, "stem"),
+        (GuessNumberElement, "success_message"),
+        (SwitchGateElement, "stem"),
+    ],
+)
+def test_iter_rich_text_reaches_every_hand_listed_field(db, model, field):
+    # The spec's completeness spot-check. Store a link in each hand-listed location and
+    # assert the registry sees it -- these are exactly the fields a widget-derived
+    # registry would have missed.
+    obj = model(**{field: '<a href="/courses/n/77/">x</a>'})
+    found = dict(iter_rich_text(obj))
+    assert field in found
+    assert find_link_targets(found[field]) == {77}
+
+
+def test_iter_rich_text_yields_nothing_for_a_non_registry_model(db):
+    from courses.models import StepperElement
+
+    assert list(iter_rich_text(StepperElement(prompt="plain"))) == []
+
+
+def test_rewrite_instance_returns_only_the_changed_fields(db):
+    obj = GuessNumberElement(
+        stem='<a href="/courses/n/1/">s</a>',
+        success_message="<p>no links here</p>",
+    )
+    changed, flattened = rewrite_instance(obj, {1: 900}, on_missing="unwrap")
+    assert changed == ["stem"]      # success_message untouched -> not in update_fields
+    assert flattened == 0
+    assert "/courses/n/900/" in obj.stem
+
+
+def test_registry_excludes_switchgrid_and_the_exclusion_is_behavioural(db):
+    # Not a list-membership tautology: assert the two facts that JUSTIFY the exclusion.
+    from courses import switchgrid
     from courses.models import SwitchGridElement
+    from courses.sanitize import sanitize_html
 
     assert all(m is not SwitchGridElement for m, _f in RICH_TEXT_FIELDS)
+
+    # (a) an anchor SURVIVES the form's sanitize_html on the way in ...
+    anchor = '<a href="/courses/n/5/">x</a>'
+    assert sanitize_html(anchor) == anchor
+    # (b) ... and is then STRIPPED by the import path, because sanitize_stem_segments
+    # applies sanitize_cell, whose CELL_TAGS has no <a>. If that inconsistency is ever
+    # fixed, this assertion flips and the exclusion must be revisited.
+    assert "<a" not in switchgrid.sanitize_stem_segments(anchor)
 ```
 
 - [ ] **Step 2: Run to verify they fail**
@@ -237,18 +330,13 @@ fields hold rich text" would drift.
 
 import re
 
-from django.db.models import Q
-
-from courses.models import (
-    CalloutElement,
-    Element,
-    FillGateElement,
-    GuessNumberElement,
-    QuestionElement,
-    SpoilerElement,
-    SwitchGateElement,
-    TextElement,
-)
+from courses.models import CalloutElement
+from courses.models import FillGateElement
+from courses.models import GuessNumberElement
+from courses.models import QuestionElement
+from courses.models import SpoilerElement
+from courses.models import SwitchGateElement
+from courses.models import TextElement
 
 # Introspected, and safe ONLY here: every concrete question type inherits the same two
 # fields from the same abstract QuestionElement.save(), so a new question type is
@@ -361,6 +449,10 @@ def rewrite_links(html, mapping, *, on_missing):
     prose. On any fail-closed condition the WHOLE body comes back byte-identical and
     contributes 0 -- never mangled markup.
     """
+    if on_missing not in ("keep", "unwrap"):
+        # Part 3 adds a third value ("defer"). A silent fall-through to keep-behaviour
+        # on a typo is the wrong default when the vocabulary is about to grow.
+        raise ValueError(f"unknown on_missing: {on_missing!r}")
     if not html:
         return html, 0
     try:
@@ -423,39 +515,6 @@ def rewrite_instance(instance, mapping, *, on_missing):
     return changed, flattened
 
 
-def count_inbound_links(course, node):
-    """Distinct Element join rows ELSEWHERE in `course` linking into `node`'s subtree.
-
-    Elements, not anchors: two anchors in one body pointing at two doomed nodes count
-    once, because the author's unit of repair is "this element needs editing". And
-    outside the subtree, because a link INSIDE the doomed subtree dies with its target
-    -- counting those would report a large number for a self-contained part whose
-    lessons cross-link each other, the opposite of the warning's purpose.
-
-    Query shape matters. Matching each subtree pk as its own LIKE would build one OR
-    term per (pk x field) -- hundreds across 16 models for a big part. Instead: one
-    course-scoped query per model on the CONSTANT substring, then intersect in Python
-    on the few rows that hold any internal link at all.
-    """
-    subtree = set(node._subtree_node_ids())
-    total = 0
-    for model, fields in _FIELDS_BY_MODEL.items():
-        predicate = Q()
-        for field in fields:
-            predicate |= Q(**{f"{field}__contains": PERMALINK_PREFIX})
-        rows = (
-            model.objects.filter(predicate)
-            .filter(elements__unit__course=course)
-            .exclude(elements__unit_id__in=subtree)
-            .distinct()
-        )
-        for row in rows:
-            targets = set()
-            for _field, value in iter_rich_text(row):
-                targets |= find_link_targets(value)
-            if targets & subtree:
-                total += 1
-    return total
 ```
 
 - [ ] **Step 4: Run to verify they pass**
@@ -467,7 +526,18 @@ Expected: PASS.
 
 Temporarily replace `_scan_anchors` with a naive `re.finditer(r"<a[^>]*>", html)`-based version. Run the tests. Expected: both `test_raw_gt_inside_an_attribute` cases FAIL. Restore.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 6: Falsify the registry comprehension**
+
+Temporarily change the comprehension's tuple to `("stem",)`. Expected:
+`test_registry_shape` and `test_every_question_model_contributes_both_fields` FAIL.
+Restore.
+
+- [ ] **Step 7: Lint**
+
+Run: `uv run ruff format courses/richtext.py tests/test_richtext.py && uv run ruff check courses/richtext.py tests/test_richtext.py`
+Expected: clean.
+
+- [ ] **Step 8: Commit**
 
 ```bash
 git add courses/richtext.py tests/test_richtext.py
@@ -506,34 +576,86 @@ from courses.richtext import CONCRETE_QUESTION_MODELS
 
 COURSES = Path(__file__).resolve().parent.parent / "courses"
 
-# (file, qualname, assignment target) MULTISET. Three refinements, each load-bearing:
-#   - qualname (not def) because def names and targets repeat across classes: the 14
-#     sites collapse to just 8 distinct (file, def, target) triples, so copying
-#     TextElement -- a `body` field plus `save: self.body = sanitize_html(self.body)` --
-#     would produce a triple ALREADY in the set and the guard would stay green for the
-#     exact case it exists to catch.
-#   - the target, because QuestionElement.save() already holds two calls.
-#   - a multiset, for two calls sharing one qualname AND one target in one method.
-# Third element is None when the call's result is not assigned (a bare return, or a
-# call nested in an expression such as a keyword argument).
+# (file, qualname, assignment target) -- one entry per call site, MEASURED by running
+# this walk against the repo. Three refinements, each load-bearing:
+#   - qualname (Class.method), not the bare def name: def names and targets repeat across
+#     classes, so a coarser key stays byte-identical when someone adds a new element type
+#     the cheapest way (copy TextElement: a `body` field plus
+#     `save: self.body = sanitize_html(self.body)`) -- the exact case this exists for.
+#   - the assignment target, because QuestionElement.save() already holds TWO calls.
+#   - compared as a sorted whole, so a DELETED site moves it too.
+# The third element is the target ONLY when the call is the entire right-hand side of an
+# assignment. A call nested in an expression -- inside strip_sentinel(...), inside
+# mark_safe(...), or as a keyword argument to objects.create(...) -- records None.
 EXPECTED = [
-    ("models.py", "TextElement.save", "self.body"),
-    ("models.py", "SpoilerElement.save", "self.body"),
+    ("element_forms.py", "DragFillBlankQuestionElementForm.clean_stem", None),
+    ("element_forms.py", "FillBlankQuestionElementForm.clean_stem", None),
+    ("element_forms.py", "FillGateElementForm.clean_stem", None),
+    ("element_forms.py", "GuessNumberElementForm.clean_stem", None),
+    ("element_forms.py", "SwitchGateElementForm.clean", None),
+    ("element_forms.py", "SwitchGridElementForm.clean", None),
     ("models.py", "CalloutElement.save", "self.body"),
     ("models.py", "GuessNumberElement.save", "self.success_message"),
-    ("models.py", "QuestionElement.save", "self.stem"),
     ("models.py", "QuestionElement.save", "self.explanation"),
-    ("element_forms.py", "FillGateElementForm.clean_stem", "clean"),
-    ("element_forms.py", "GuessNumberElementForm.clean_stem", "clean"),
-    ("element_forms.py", "SwitchGateElementForm.clean", "clean_stem"),
-    ("element_forms.py", "SwitchGridElementForm.clean", "clean_stem"),
-    ("element_forms.py", "FillBlankQuestionElementForm.clean_stem", "clean"),
-    ("element_forms.py", "DragFillBlankQuestionElementForm.clean_stem", "clean"),
-    ("transfer/importer.py", "_build_guess_number", None),
+    ("models.py", "QuestionElement.save", "self.stem"),
+    ("models.py", "SpoilerElement.save", "self.body"),
+    ("models.py", "TextElement.save", "self.body"),
     # Render-time re-sanitise (the |sanitize filter), NOT a storage location. Recorded
     # rather than omitted, so the baseline is the whole truth.
     ("templatetags/courses_extras.py", "sanitize", None),
+    ("transfer/importer.py", "_build_guess_number", None),
 ]
+
+QUESTION_FORM_MODELS = {m.__name__ for m in CONCRETE_QUESTION_MODELS}
+
+
+def _is_sanitize(node):
+    if not isinstance(node, ast.Call):
+        return False
+    func = node.func
+    if isinstance(func, ast.Name):
+        return func.id == "sanitize_html"
+    # Also catches `sanitize.sanitize_html(...)`. An `as`-aliased import stays a known
+    # blind spot; nothing in the repo does that today.
+    return isinstance(func, ast.Attribute) and func.attr == "sanitize_html"
+
+
+def _target(assign):
+    t = assign.targets[0]
+    if isinstance(t, ast.Attribute):
+        return f"{getattr(t.value, 'id', '?')}.{t.attr}"
+    if isinstance(t, ast.Name):
+        return t.id
+    return None
+
+
+def _sites_in(tree, rel):
+    """Every sanitize_html call in one module, each recorded EXACTLY once.
+
+    `rel` is a parameter, not a closed-over loop variable -- ruff's B023 flags the
+    latter, and the earlier draft tripped it seven times.
+    """
+    target_of = {}
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Assign) and _is_sanitize(node.value):
+            target_of[id(node.value)] = _target(node)
+
+    found = []
+
+    def visit(node, stack):
+        # iter_child_nodes + explicit recursion visits every node once. An earlier draft
+        # used ast.walk inside the loop AND recursed, recording each non-assignment call
+        # once per nesting level -- courses_extras.py appeared three times.
+        for child in ast.iter_child_nodes(node):
+            if isinstance(child, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
+                visit(child, stack + [child.name])
+                continue
+            if _is_sanitize(child):
+                found.append((rel, ".".join(stack), target_of.get(id(child))))
+            visit(child, stack)
+
+    visit(tree, [])
+    return found
 
 
 def _sites():
@@ -542,86 +664,43 @@ def _sites():
         rel = path.relative_to(COURSES).as_posix()
         if rel.startswith("tests/") or rel == "sanitize.py":
             continue
-        tree = ast.parse(path.read_text(encoding="utf-8"))
-        stack = []
-
-        class V(ast.NodeVisitor):
-            def _named(self, node):
-                stack.append(node.name)
-                self.generic_visit(node)
-                stack.pop()
-
-            visit_ClassDef = visit_FunctionDef = _named
-
-            def visit_Assign(self, node):
-                for call in ast.walk(node.value):
-                    if _is_sanitize(call):
-                        found.append((rel, ".".join(stack), _target(node)))
-                self.generic_visit(node)
-
-            def generic_visit(self, node):
-                # Calls not on an Assign RHS record target None.
-                if isinstance(node, ast.Call) and _is_sanitize(node):
-                    parents = getattr(node, "_seen", False)
-                    if not parents:
-                        pass
-                super().generic_visit(node)
-
-        def _is_sanitize(node):
-            return (
-                isinstance(node, ast.Call)
-                and isinstance(node.func, ast.Name)
-                and node.func.id == "sanitize_html"
-            )
-
-        def _target(assign):
-            t = assign.targets[0]
-            if isinstance(t, ast.Attribute):
-                return f"{getattr(t.value, 'id', '?')}.{t.attr}"
-            if isinstance(t, ast.Name):
-                return t.id
-            return None
-
-        assigned = set()
-        for node in ast.walk(tree):
-            if isinstance(node, ast.Assign):
-                for sub in ast.walk(node.value):
-                    if _is_sanitize(sub):
-                        assigned.add(id(sub))
-
-        # Walk once with a qualname stack, recording every call.
-        def walk(node, stack):
-            for child in ast.iter_child_nodes(node):
-                if isinstance(child, (ast.ClassDef, ast.FunctionDef)):
-                    walk(child, stack + [child.name])
-                    continue
-                if isinstance(child, ast.Assign):
-                    tgt = _target(child)
-                    for sub in ast.walk(child.value):
-                        if _is_sanitize(sub):
-                            found.append((rel, ".".join(stack), tgt))
-                    continue
-                for sub in ast.walk(child):
-                    if _is_sanitize(sub) and id(sub) not in assigned:
-                        found.append((rel, ".".join(stack), None))
-                        break
-                walk(child, stack)
-
-        walk(tree, [])
+        found.extend(_sites_in(ast.parse(path.read_text(encoding="utf-8")), rel))
     return found
+
+
+def _classify(qualname):
+    """Which message a NEW site should get.
+
+    The discriminator is the enclosing class's model, not the file: element_forms.py
+    holds both kinds, and two of them even share the def name `clean_stem`.
+    """
+    cls = qualname.split(".")[0]
+    covered = cls.endswith("Form") and cls[: -len("Form")] in QUESTION_FORM_MODELS
+    return "covered" if covered else "needs-entry"
 
 
 def test_sanitize_html_call_sites_match_the_registry_baseline():
     got = sorted(_sites())
     expected = sorted(EXPECTED)
-    assert got == expected, (
-        "The set of sanitize_html() call sites changed.\n"
-        "If the new site is on a form whose Meta.model is in CONCRETE_QUESTION_MODELS "
-        "AND its field is stem/explanation, it is covered automatically -- just update "
-        "EXPECTED.\n"
-        "Otherwise courses/richtext.py::RICH_TEXT_FIELDS needs an entry OR a documented "
-        "exclusion (see the switch-grid precedent in the spec).\n"
-        f"got:      {got}\nexpected: {expected}"
+    if got == expected:
+        return
+    lines = []
+    for site in [s for s in got if s not in expected]:
+        if _classify(site[1]) == "covered":
+            lines.append(
+                f"  + {site}: a question-model form -- stem/explanation are covered "
+                f"automatically by CONCRETE_QUESTION_MODELS. Update EXPECTED only."
+            )
+        else:
+            lines.append(
+                f"  + {site}: NOT a question form -- courses/richtext.py "
+                f"RICH_TEXT_FIELDS needs an entry OR a documented exclusion (see the "
+                f"switch-grid precedent)."
+            )
+    for site in [s for s in expected if s not in got]:
+        lines.append(f"  - {site}: removed; drop it from EXPECTED and the registry.")
+    raise AssertionError(
+        "The set of sanitize_html() call sites changed.\n" + "\n".join(lines)
     )
 
 
@@ -649,7 +728,27 @@ and in its `save()`, above `super().save(...)`:
 ```
 
 Run: `uv run pytest tests/test_richtext_drift.py -q`
-Expected: FAIL — the multiset gains `("models.py", "TextElement.save", "self.subtitle")`. **This is the case a `(file, def, target)` triple would have missed.** Now revert both edits (no migration needed since you never ran `makemigrations`).
+Expected: FAIL, with `+ ('models.py', 'TextElement.save', 'self.subtitle')` and the
+**"needs an entry"** message. Revert both edits (no migration needed — you never ran
+`makemigrations`).
+
+- [ ] **Step 3b: Falsify the other branch**
+
+Add a `clean_hint` method to `ChoiceQuestionElementForm` in `courses/element_forms.py`
+containing `return sanitize_html(self.cleaned_data["hint"])`. Run the test. Expected:
+FAIL with the **"covered automatically"** message, since that form's model is in
+`CONCRETE_QUESTION_MODELS`. Revert.
+
+(The classifier keys on the model, not the field, so a genuinely new *field* on a question
+model also reads as "covered". That is a stated limitation of a one-line heuristic;
+`test_every_question_model_contributes_both_fields` in Task 1 is what pins the field pair
+itself.)
+
+- [ ] **Step 3c: Lint**
+
+Run: `uv run ruff format tests/test_richtext_drift.py && uv run ruff check tests/test_richtext_drift.py`
+Expected: clean. Watch for `B023` — `visit()` is nested inside `_sites_in`, which takes
+`rel` as a parameter rather than closing over the loop variable, precisely to avoid it.
 
 - [ ] **Step 4: Commit**
 
@@ -665,7 +764,7 @@ git commit -m "test(links): drift guard over every sanitize_html call site"
 **Files:**
 - Modify: `courses/transfer/schema.py` (`FORMAT_VERSION`, `validate_document`)
 - Modify: `courses/transfer/export.py`
-- Modify: `tests/test_transfer_schema.py:57`, `tests/test_tabs_transfer.py` (rename + bump), `tests/test_table_transfer.py:265` (stale comment)
+- Modify: `tests/test_transfer_schema.py`, `tests/test_tabs_transfer.py`, `tests/test_transfer_export.py`, `tests/test_table_transfer.py`
 - Test: `tests/test_link_transfer.py` (create)
 
 **Interfaces:**
@@ -698,7 +797,9 @@ pytestmark = pytest.mark.django_db
 
 def _course_with_link():
     course = CourseFactory()
-    chapter = ContentNodeFactory(course=course, kind="chapter", parent=None, title="Ch")
+    chapter = ContentNodeFactory(
+        course=course, kind="chapter", unit_type=None, parent=None, title="Ch"
+    )
     unit = ContentNodeFactory(
         course=course, kind="unit", unit_type="lesson", parent=chapter, title="U"
     )
@@ -725,7 +826,14 @@ def test_format_version_is_6():
     assert FORMAT_VERSION == 6
 
 
-def test_v5_archive_without_link_nodes_still_validates():
+def test_subtree_documents_carry_link_nodes_too():
+    course, chapter, _unit = _course_with_link()
+    _m, document, _a, _p = build_export(course, node=chapter)
+    assert "link_nodes" in document
+    validate_document(document, kind="subtree")
+
+
+def test_v5_document_without_link_nodes_still_validates():
     # setdefault BEFORE _exact_keys is what makes the key optional in both directions:
     # without it a v5 doc fails "missing the key", and a new doc fails "unknown key".
     course, _chapter, _unit = _course_with_link()
@@ -798,7 +906,15 @@ Add `"link_nodes"` to the key list in that `_exact_keys` call, then validate its
 
 - [ ] **Step 4: Emit the map at export**
 
-In `courses/transfer/export.py`, in the pass that walks joins and builds `element_dicts`, accumulate targets. Place the scan **after** the existing `if join.content_object is None: ... continue` guard — a broken join contributes no link targets, and `iter_rich_text(None)` would raise:
+In `courses/transfer/export.py`, inside `build_export`'s `with transaction.atomic():`
+block, immediately after `nodes = _ordered_nodes(course, root=node)` (eight-space
+indent), add `referenced = set()`. Then in **pass 2** — the loop that walks joins, not
+pass 4 where `element_dicts` is built — after the existing
+`if join.content_object is None: … continue` guard, accumulate targets.
+
+Placing it after that guard is not about avoiding an exception: `iter_rich_text(None)`
+yields nothing, because `type(None)` is simply absent from the registry. It is that a
+dangling join has no concrete row and so no link targets to contribute.
 
 ```python
     referenced = set()
@@ -816,6 +932,10 @@ Then, where `document` is assembled:
         # dicts are {"type": ..., "data": {payload keys}}, and applying a (model, field)
         # registry to those would need both a type_key->model map and a
         # field->payload-key map -- a second vocabulary the importer deliberately avoids.
+        # Accepted over-inclusion: the scan runs in pass 2, before pass 4 drops elements
+        # whose media went missing, so link_nodes can name a target no surviving element
+        # references. Harmless -- the extra keys map real exported nodes, and nothing
+        # looks them up.
         "link_nodes": {
             str(pk): node_ids[pk] for pk in sorted(referenced) if pk in node_ids
         },
@@ -830,13 +950,18 @@ from courses.richtext import iter_rich_text
 
 - [ ] **Step 5: Update the two version assertions**
 
-In `tests/test_transfer_schema.py:57`, change `assert FORMAT_VERSION == 5` to `== 6`.
-In `tests/test_tabs_transfer.py`, rename `test_format_version_is_5` to `test_format_version_is_6` and bump its assertion.
-In `tests/test_table_transfer.py:265`, update the stale comment `(4 <= FORMAT_VERSION=5)` to `=6`.
+There are **three** assertions, not two — the third only surfaces at a full-suite run
+otherwise, three tasks later:
+
+- `tests/test_transfer_schema.py:57` — `assert FORMAT_VERSION == 5` → `== 6`.
+- `tests/test_tabs_transfer.py` — rename `test_format_version_is_5` →
+  `test_format_version_is_6` and bump its assertion.
+- `tests/test_transfer_export.py:220` — `assert manifest["format_version"] == 5` → `== 6`.
+- `tests/test_table_transfer.py:265` — comment only: `(4 <= FORMAT_VERSION=5)` → `=6`.
 
 - [ ] **Step 6: Run**
 
-Run: `uv run pytest tests/test_link_transfer.py tests/test_transfer_schema.py tests/test_tabs_transfer.py tests/test_table_transfer.py -q`
+Run: `uv run pytest tests/test_link_transfer.py tests/test_transfer_schema.py tests/test_tabs_transfer.py tests/test_transfer_export.py tests/test_table_transfer.py -q`
 Expected: PASS.
 
 - [ ] **Step 7: Falsify the setdefault**
@@ -940,12 +1065,11 @@ def test_duplicate_unit_keeps_an_out_of_scope_link():
     from courses import builder as builder_svc
 
     course, chapter, unit = _course_with_link()
-    copy_pk = builder_svc.duplicate_unit(
+    # duplicate_unit returns a ContentNode, NOT a pk (courses/builder.py:352).
+    copy_node = builder_svc.duplicate_unit(
         course, unit.pk, token=unit.updated.isoformat()
     )
-    from courses.models import Element, TextElement
-
-    copied = TextElement.objects.filter(elements__unit_id=copy_pk).first()
+    copied = TextElement.objects.filter(elements__unit_id=copy_node.pk).first()
     assert f"/courses/n/{chapter.pk}/" in copied.body   # unchanged
 
 
@@ -953,19 +1077,17 @@ def test_duplicate_unit_rewrites_a_self_link():
     # The only in-scope rewrite this path can exercise: duplicate_unit raises for
     # anything that is not a unit, so the exported document always holds one node.
     from courses import builder as builder_svc
-    from courses.models import TextElement
 
     course = CourseFactory()
     unit = ContentNodeFactory(
         course=course, kind="unit", unit_type="lesson", parent=None, title="U"
     )
-    el = _text(f'<a href="/courses/n/{unit.pk}/">self</a>')
-    add_element(unit, el)
-    copy_pk = builder_svc.duplicate_unit(
+    add_element(unit, _text(f'<a href="/courses/n/{unit.pk}/">self</a>'))
+    copy_node = builder_svc.duplicate_unit(
         course, unit.pk, token=unit.updated.isoformat()
     )
-    copied = TextElement.objects.filter(elements__unit_id=copy_pk).first()
-    assert f"/courses/n/{copy_pk}/" in copied.body
+    copied = TextElement.objects.filter(elements__unit_id=copy_node.pk).first()
+    assert f"/courses/n/{copy_node.pk}/" in copied.body
 ```
 
 - [ ] **Step 2: Run to verify they fail**
@@ -975,22 +1097,18 @@ Expected: FAIL — the imported body still holds the original pk.
 
 - [ ] **Step 3: Have `_create_elements` return what it created**
 
-In `courses/transfer/importer.py`, `_create_elements` currently keeps its created join rows in a local and returns `None`. Return them:
+`_create_elements` (`importer.py:871-908`) keeps its created join rows in a **dict**
+`joins = {}` keyed by `el["id"]`, because pass 2 needs it to resolve `parent`. Each row is
+built as `Element(...)` → `join.full_clean(exclude=["order"])` → `join.save()` inside a
+`try/except ValidationError` that maps to a `TransferError`. **Leave all of that alone** —
+swapping in `Element.objects.create(...)` would silently drop the per-element validation
+and its error mapping. The change is one line at the end of the function:
 
 ```python
-def _create_elements(document, node_map, assets):
-    ...
-    created = []
-    ...
-        join = Element.objects.create(
-            unit=node_map[el["unit"]], title=el["title"], content_object=concrete
-        )
-        created.append(join)
-    ...
-    return created
+    return list(joins.values())
 ```
 
-Update the three internal call sites to capture the return.
+Update the three internal call sites to capture the return value.
 
 - [ ] **Step 4: Add the rewrite post-pass**
 
@@ -1040,7 +1158,9 @@ def _rewrite_links(document, node_map, created_joins, *, on_missing, report):
 Give each entry point two **keyword** arguments with the policy as a *default* — the policy is a property of the entry point, not of the call site, and a required argument would put the decision where it can drift. `report` is an out-param specifically so the **return types do not change**: nine test modules consume those returns directly (eight under `tests/`, plus `courses/tests/test_spoiler_transfer.py`), several through shared helpers whose own contracts would change in turn.
 
 ```python
-def import_course(zf, manifest, document, media_entries, user, *, on_missing="unwrap", report=None):
+def import_course(
+    zf, manifest, document, media_entries, user, *, on_missing="unwrap", report=None
+):
     ...
         node_map = _create_nodes(document, course)
         created = _create_elements(document, node_map, assets)
@@ -1071,7 +1191,14 @@ def materialize_duplicate(
         return node_map[document["nodes"][0]["id"]]
 ```
 
-`courses/builder.py` needs **no change** — `duplicate_unit` calls `materialize_duplicate`, which now defaults to `keep`.
+`courses/builder.py` needs **no change** — `duplicate_unit` calls `materialize_duplicate`,
+which now defaults to `keep`.
+
+**`migrate_course_content.py:481` is a fourth caller** and inherits `unwrap`. That is wrong
+for the cutover — one part per archive means a cross-part target is in no archive — but
+fixing it is **part 3**, which introduces the `defer` value and the bundle-level map. Part
+2 leaves the command on the default; the step below runs its test module to prove nothing
+else broke.
 
 - [ ] **Step 6: Report the count in the UI**
 
@@ -1081,17 +1208,37 @@ In `courses/views_transfer.py`, add the import and pass a `report` dict on **bot
 from django.utils.translation import ngettext
 ```
 
+The two call sites, with their **real** bound names — `zf, manifest, document,
+media_entries`, not the test helper's `mani, doc, media` — and `_warn_flattened` placed
+between the success message and the redirect, or it is dead code:
+
 ```python
                 report = {}
-                new_course = import_course(zf, mani, doc, media, request.user, report=report)
+                new_course = import_course(
+                    zf, manifest, document, media_entries, request.user, report=report
+                )
                 messages.success(
                     request,
                     _("Course “%(title)s” imported.") % {"title": new_course.title},
                 )
                 _warn_flattened(request, report)
+                return redirect("courses:manage_builder", slug=new_course.slug)
 ```
 
-and a module-level helper:
+and on the subtree path, which does **not** bind the return value:
+
+```python
+            report = {}
+            import_subtree(
+                zf, manifest, document, media_entries, target_course,
+                insertion_node, request.user, report=report,
+            )
+            messages.success(request, _("Content imported."))
+            _warn_flattened(request, report)
+            return redirect("courses:manage_builder", slug=target_course.slug)
+```
+
+The helper:
 
 ```python
 def _warn_flattened(request, report):
@@ -1116,17 +1263,37 @@ def _warn_flattened(request, report):
     )
 ```
 
-Apply the same three lines on the `import_subtree` path around `_("Content imported.")`.
+- [ ] **Step 7: Test the view-level warning**
 
-- [ ] **Step 7: Run**
+Without this, `views_transfer.py` — the `report={}` plumbing on both branches, the second
+message and the `ngettext` plural — ships with zero coverage, while the spec requires
+"…and the warning message is emitted". Append to `tests/test_link_transfer.py`:
+
+```python
+def test_the_confirm_view_warns_about_flattened_links(client):
+    from django.contrib.messages import get_messages
+
+    course, _chapter, _unit = _course_with_link()
+    resp = _upload_and_confirm(client, course, drop_link_nodes=True)
+    texts = [m.message for m in get_messages(resp.wsgi_request)]
+    assert any("plain text" in t for t in texts), texts
+```
+
+Write `_upload_and_confirm` in this module by copying the upload→confirm sequence from
+`tests/test_transfer_views.py` — read that file first, the staging flow has its own
+session plumbing — with a hook that empties `link_nodes` before the archive is written.
+
+- [ ] **Step 8: Run**
 
 Run: `uv run pytest tests/test_link_transfer.py -q`
 Expected: PASS.
 
 - [ ] **Step 8: Run the whole transfer suite**
 
-Run: `uv run pytest tests/ courses/tests/ -k transfer -q`
-Expected: PASS — no call site broke, which is the point of the out-param.
+Run: `uv run pytest tests/ courses/tests/ -k "transfer or migrate_course_content" -q`
+Expected: PASS. `-k transfer` alone would **not** select
+`tests/test_migrate_course_content.py`, and that is the one caller whose behaviour changes
+as a side effect of this task — so it must be in the selection, not assumed.
 
 - [ ] **Step 9: Falsify the keep/unwrap split**
 
@@ -1146,13 +1313,17 @@ git commit -m "feat(links): rewrite internal links on import; warn on flattened 
 ### Task 5: Delete-time inbound-link warning
 
 **Files:**
+- Modify: `courses/richtext.py` (add `count_inbound_links`)
 - Modify: `courses/views_manage.py` (`node_delete`'s GET branch)
 - Modify: `templates/courses/manage/node_confirm_delete.html`
 - Test: `tests/test_inbound_link_warning.py` (create)
 
 **Interfaces:**
-- Consumes: `count_inbound_links` (Task 1).
-- Produces: `counts["inbound_links"]` in the confirm-page context.
+- Consumes: `find_link_targets`, `iter_rich_text`, `RICH_TEXT_FIELDS`, `PERMALINK_PREFIX` (Task 1).
+- Produces: `count_inbound_links(course, node) -> int` in `courses/richtext.py`, and `counts["inbound_links"]` in the confirm-page context.
+
+`count_inbound_links` lives **here**, not in Task 1, so this task has a real RED gate:
+written earlier, six of the eight tests below would pass the moment `richtext.py` existed.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -1184,7 +1355,9 @@ pytestmark = pytest.mark.django_db
 def _scene(client=None):
     owner = make_login(client, "owner") if client else None
     course = CourseFactory(owner=owner) if owner else CourseFactory()
-    chapter = ContentNodeFactory(course=course, kind="chapter", parent=None, title="Ch")
+    chapter = ContentNodeFactory(
+        course=course, kind="chapter", unit_type=None, parent=None, title="Ch"
+    )
     inner = ContentNodeFactory(
         course=course, kind="unit", unit_type="lesson", parent=chapter, title="Inner"
     )
@@ -1246,14 +1419,14 @@ def test_confirm_page_shows_the_sentence_only_when_non_zero(client):
     course, chapter, _inner, outside = _scene(client)
     url = reverse("courses:manage_node_delete", kwargs={"slug": course.slug})
     html = client.get(url, {"node": chapter.pk}).content.decode()
-    assert "link" not in html.lower() or "links here" not in html.lower()
+    assert "links here" not in html.lower()
 
     add_element(outside, _text(f'<a href="/courses/n/{chapter.pk}/">c</a>'))
     html = client.get(url, {"node": chapter.pk}).content.decode()
     assert "links here" in html.lower() or "link here" in html.lower()
 
 
-def test_scan_is_one_query_per_model_not_per_element(
+def test_the_scan_is_one_query_per_model_with_a_constant_predicate(
     client, django_assert_num_queries
 ):
     # The fixture must hold at least TWO link-bearing elements of the SAME model
@@ -1267,21 +1440,78 @@ def test_scan_is_one_query_per_model_not_per_element(
         )
     url = reverse("courses:manage_node_delete", kwargs={"slug": course.slug})
     client.get(url, {"node": chapter.pk})           # warm caches
-    # Shape: 16 registry-model queries + _subtree_node_ids' per-depth queries PLUS one
-    # for the terminating empty frontier + the pre-existing per-node _descendant_count
-    # and _element_count walks + the view's fixed queries (session, user, course+perm,
-    # get_node_or_404). Derive the number from that shape; if the run disagrees, read
-    # the query log and find out which group changed before touching the number.
-    with django_assert_num_queries(27):
+
+    # MEASURED on this repo: 32. Shape: 16 registry-model queries + 2 from
+    # ContentNode._subtree_node_ids (one per descendant depth level PLUS one for the
+    # terminating empty frontier) + the pre-existing per-node _descendant_count and
+    # _element_count walks + the view's fixed queries (session, user, course+perm,
+    # get_node_or_404) + the FIVE custom context processors registered in
+    # config/settings/base.py:66-75. Re-derive rather than record if it drifts.
+    with django_assert_num_queries(32) as captured:
         client.get(url, {"node": chapter.pk})
+
+    # The COMPLEXITY invariant, which a bare count cannot see: a per-pk-OR
+    # implementation would still issue exactly 16 queries. Each scan query must carry a
+    # CONSTANT predicate -- no node pk in the SQL.
+    scan = [q for q in captured.captured_queries if "/courses/n/" in q["sql"]]
+    assert scan, "no scan query used the constant substring"
+    for q in scan:
+        assert f"/courses/n/{chapter.pk}/" not in q["sql"], q["sql"]
 ```
 
 - [ ] **Step 2: Run to verify they fail**
 
 Run: `uv run pytest tests/test_inbound_link_warning.py -q`
-Expected: FAIL — `count_inbound_links` returns 0 for the counted cases (or the template lacks the sentence).
+Expected: FAIL — `ImportError: cannot import name 'count_inbound_links'`. Every test in
+the file fails at collection, which is the RED gate this task is entitled to.
 
-- [ ] **Step 3: Wire the count into the view**
+- [ ] **Step 3: Add the function**
+
+Append to `courses/richtext.py`, adding `from django.db.models import Q` to its imports:
+
+```python
+def count_inbound_links(course, node):
+    """Distinct Element join rows ELSEWHERE in `course` linking into `node`'s subtree.
+
+    Elements, not anchors: two anchors in one body pointing at two doomed nodes count
+    once, because the author's unit of repair is "this element needs editing". And
+    outside the subtree, because a link INSIDE the doomed subtree dies with its target
+    -- counting those would report a large number for a self-contained part whose
+    lessons cross-link each other, the opposite of the warning's purpose.
+
+    Query shape matters. Matching each subtree pk as its own LIKE would build one OR
+    term per (pk x field) -- hundreds across 16 models for a big part. Instead: one
+    course-scoped query per model on the CONSTANT substring, then intersect in Python
+    on the few rows that hold any internal link at all.
+    """
+    subtree = set(node._subtree_node_ids())
+    total = 0
+    for model, fields in _FIELDS_BY_MODEL.items():
+        predicate = Q()
+        for field in fields:
+            predicate |= Q(**{f"{field}__contains": PERMALINK_PREFIX})
+        rows = (
+            model.objects.filter(predicate)
+            .filter(elements__unit__course=course)
+            .exclude(elements__unit_id__in=subtree)
+            .only(*fields)          # question models carry large blobs we never read
+            .distinct()
+        )
+        for row in rows:
+            targets = set()
+            for _field, value in iter_rich_text(row):
+                targets |= find_link_targets(value)
+            if targets & subtree:
+                total += 1
+    return total
+```
+
+Course scoping is the reverse `GenericRelation` filter and needs no `content_type` pin —
+filtering backwards through a `GenericRelation` has no `content_type` column to pin,
+because Django supplies it. Nested elements (tabs, two-column, spoiler children) are
+covered for free, since a child `Element` keeps its own `unit` FK.
+
+- [ ] **Step 4: Wire the count into the view**
 
 In `courses/views_manage.py`, add the import and extend the existing `counts` dict in `node_delete`'s GET branch:
 
@@ -1297,7 +1527,7 @@ from courses.richtext import count_inbound_links
         }
 ```
 
-- [ ] **Step 4: Add the sentence**
+- [ ] **Step 5: Add the sentence**
 
 In `templates/courses/manage/node_confirm_delete.html`, after the existing `<p>`:
 
@@ -1311,19 +1541,28 @@ In `templates/courses/manage/node_confirm_delete.html`, after the existing `<p>`
 
 Leave the existing `This removes {{ d }} descendant node(s) and {{ e }} element(s).` line **exactly as it is** — correcting its `(s)` suffixes is an unrelated i18n fix and would put an unrelated msgid change in this diff.
 
-- [ ] **Step 5: Run**
+- [ ] **Step 6: Run**
 
 Run: `uv run pytest tests/test_inbound_link_warning.py -q`
 Expected: PASS. If the query count differs, read the reported number against the shape in the comment before changing it.
 
-- [ ] **Step 6: Falsify the subtree exclusion**
+- [ ] **Step 7: Falsify the subtree exclusion**
 
 Remove the `.exclude(elements__unit_id__in=subtree)` clause from `count_inbound_links`. Run the tests. Expected: `test_ignores_links_originating_inside_the_doomed_subtree` FAILS. Restore.
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 8: Falsify the constant-predicate guard**
+
+Temporarily build the predicate per subtree pk
+(`for pk in subtree: predicate |= Q(**{f"{field}__contains": f"/courses/n/{pk}/"})`).
+The count assertion still passes — 16 queries either way — but the constant-predicate
+assertion FAILS. That is exactly why both are there. Restore.
+
+- [ ] **Step 9: Lint and commit**
 
 ```bash
-git add courses/views_manage.py courses/richtext.py templates/courses/manage/node_confirm_delete.html tests/test_inbound_link_warning.py
+uv run ruff format courses/richtext.py courses/views_manage.py tests/test_inbound_link_warning.py
+uv run ruff check courses/richtext.py courses/views_manage.py tests/test_inbound_link_warning.py
+git add courses/richtext.py courses/views_manage.py templates/courses/manage/node_confirm_delete.html tests/test_inbound_link_warning.py
 git commit -m "feat(links): warn before deleting a node other content links to"
 ```
 
@@ -1338,11 +1577,26 @@ git commit -m "feat(links): warn before deleting a node other content links to"
 
 Run: `uv run python manage.py makemessages -l pl -l en --no-obsolete`
 
-Expect **two** new msgids (each with plural forms): the delete-confirm sentence and the flattened-links warning. The two existing import success strings must be **unchanged** — if `makemessages` shows them as removed/added, the warning was folded in rather than added separately; go back and fix that.
+Expect **six** new msgids, not two:
+
+- two **plural** entries — the delete-confirm sentence (`blocktrans count`) and the
+  flattened-links warning (`ngettext`);
+- four **singular** `TransferError` strings added to `validate_document` in Task 3:
+  *course.json: link_nodes must be an object.*, *…lists more than %(n)d entries.*,
+  *…has an invalid node id.*, *…has an invalid archive reference.* — `schema.py` imports
+  `gettext as _`, and these reach the user through `messages.error(request, exc.message)`,
+  so `test_pl_has_no_untranslated_msgid` will demand Polish for each.
+
+The two existing import success strings must be **unchanged**. If `makemessages` shows
+them as removed/added, the warning was folded in rather than added separately; go back and
+fix that.
 
 - [ ] **Step 2: Translate**
 
-Fill the Polish forms. Polish has **three** plural forms — every one must be non-empty. Clear any fuzzy entry properly: both the `#, fuzzy` line *and* the `#| msgid` comment.
+Fill the Polish forms for all six. Polish has **three** plural forms — every one must be
+non-empty for the two plural entries. Clear any fuzzy entry properly: both the
+`#, fuzzy` line *and* the `#| msgid` comment. A fuzzy match arrives pre-filled from an
+*unrelated* msgid, so an un-cleared one ships a wrong translation that looks finished.
 
 - [ ] **Step 3: Verify and compile**
 
@@ -1370,6 +1624,13 @@ git commit -m "i18n(links): pl/en strings for the durability warnings"
 **Spec coverage.** §1 registry, accessor protocol, href predicate, scanner, drift guard → Tasks 1, 2. §2 export + schema + version bump → Task 3. §3 import post-pass, `on_missing` table, `report` out-param, the separate warning → Task 4. §4 delete warning, count definition, query shape → Task 5. §i18n → Task 6. §Error handling is covered by the malformed-`link_nodes` parametrisation (Task 3), the unresolvable-value skip (Task 4), and the fail-closed cases (Task 1).
 
 **Deliberately not here:** the `migrate_course_content` cutover. It is part 3, has its own spec, and has not yet been through review. Task 4's `on_missing` gains its third value (`defer`) there, not here.
+
+**Numbers that were measured, not guessed:** the drift-guard baseline (14 sites, each
+recorded once, with `None` targets wherever the call is nested rather than a whole RHS)
+and the delete-page query count (32, including the five custom context processors). Both
+were produced by running the code in this repo. Treat them as starting points that will
+drift, and re-derive with the stated rules rather than recording whatever a future run
+prints.
 
 **Placeholder scan.** No TBDs. Every step carries the actual code. The one number an implementer must verify rather than copy is the query count in Task 5 Step 1 — its derivation is spelled out in the comment, and the step says to read the query log rather than record the first run.
 
