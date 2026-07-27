@@ -22,6 +22,13 @@
 - **Icons are monochrome `currentColor` SVGs** referenced from `_icon_sprite.html`. Never emoji.
 - **`q` is slice 2.** `_open_ids` reserves a `q_chain=None` parameter but slice 1 always passes `None`, and no template emits `q`. Do not implement the filter.
 - **Verify `git branch --show-current` immediately before every commit** — a parallel session has switched branches under this worktree before.
+- **Two databases, deliberately.** This worktree's git-ignored `.env` points `DATABASE_URL`
+  at `libli_blcp` — an isolated database, so pytest's `test_libli_blcp` cannot collide with
+  other worktrees (a shared `test_libli` was measured in use by 2 other sessions and made
+  every e2e test ERROR). The perf probes need the real `mat-pp`, which lives in the shared
+  dev database, so **every probe command carries an explicit
+  `DATABASE_URL=postgres://libli:libli@localhost:5432/libli` prefix**. Tests never need
+  `mat-pp`; probes never need the test DB.
 - Constants, exact values from the spec: ceiling **500** pks, size threshold **150** nodes,
   session slug bound **20**. The "seed chain is at most 4 scopes" figure is **not** a
   constant to implement — it is an emergent property of `ContentNode.RANK` having four
@@ -72,7 +79,7 @@ Create `scripts/perf/probe_tree_render.py`:
 ```python
 """Time the builder tree render for one course. Usage:
 
-    SLUG=mat-pp OPEN=all uv run python manage.py shell -c \
+    DATABASE_URL=postgres://libli:libli@localhost:5432/libli SLUG=mat-pp OPEN=all uv run python manage.py shell -c \
       "exec(open('scripts/perf/probe_tree_render.py').read())"
 
 Prints warm render time, byte size, element count and query count. `OPEN` may
@@ -191,7 +198,7 @@ PREREQUISITES -- none of these are automatic:
   2. `uv run python manage.py runserver` on 127.0.0.1:8000.
   3. A session cookie for a user who can manage that course. Mint one with:
 
-       MINT=1 uv run python manage.py shell -c \
+       DATABASE_URL=postgres://libli:libli@localhost:5432/libli MINT=1 uv run python manage.py shell -c \
          "exec(open('scripts/perf/probe_browser.py').read())"
 
 Usage:
@@ -281,7 +288,7 @@ Every performance gate in this plan targets it, and it comes from a one-off
 `import_lal_content` run — not from any seeding command a fresh checkout would have.
 
 ```bash
-uv run python manage.py shell -c "
+DATABASE_URL=postgres://libli:libli@localhost:5432/libli uv run python manage.py shell -c "
 from courses.models import Course
 c = Course.objects.filter(slug='mat-pp').first()
 print('mat-pp nodes:', c.nodes.count() if c else 'MISSING')"
@@ -312,7 +319,7 @@ baseline is synthetic.
 - [ ] **Step 4: Capture the BEFORE numbers**
 
 ```bash
-SLUG=mat-pp OPEN=all uv run python manage.py shell -c "exec(open('scripts/perf/probe_tree_render.py').read())"
+DATABASE_URL=postgres://libli:libli@localhost:5432/libli SLUG=mat-pp OPEN=all uv run python manage.py shell -c "exec(open('scripts/perf/probe_tree_render.py').read())"
 ```
 Expected (matching the spec's baseline): ~3.1 s warm, ~2.6 MB, and **1 query**
 (`_children_map` runs after `reset_queries()`; `course.nodes.all()` populates
@@ -1484,9 +1491,9 @@ Delete the `{% if node.pk in open_ids %}` wrapper in `_tree_node.html`, re-run, 
 
 ```bash
 # The seeded worst case: top level plus one 4-deep chain.
-SLUG=mat-pp OPEN="" uv run python manage.py shell -c "exec(open('scripts/perf/probe_tree_render.py').read())"
+DATABASE_URL=postgres://libli:libli@localhost:5432/libli SLUG=mat-pp OPEN="" uv run python manage.py shell -c "exec(open('scripts/perf/probe_tree_render.py').read())"
 # And the fully-expanded case, to bound expand-all and price _open_descendants.
-SLUG=mat-pp OPEN=all uv run python manage.py shell -c "exec(open('scripts/perf/probe_tree_render.py').read())"
+DATABASE_URL=postgres://libli:libli@localhost:5432/libli SLUG=mat-pp OPEN=all uv run python manage.py shell -c "exec(open('scripts/perf/probe_tree_render.py').read())"
 ```
 
 Expected: with `OPEN=""` the render drops from ~3.1 s / 2.58 MB (Task 0 Step 4) to well
@@ -3538,7 +3545,7 @@ Expected: exit=0.
 
 ```bash
 uv run pytest tests/capture_help_screenshots.py -q -m e2e ; echo "exit=$?"
-uv run python manage.py shell -c "
+DATABASE_URL=postgres://libli:libli@localhost:5432/libli uv run python manage.py shell -c "
 from courses.models import Course
 c = Course.objects.filter(slug='demo-course').first()
 print('demo-course nodes:', c.nodes.count() if c else 'MISSING')"
@@ -3559,11 +3566,11 @@ Re-run the committed probes from Task 0, both ways, so the numbers are comparabl
 
 ```bash
 # offline render (no CSRF inputs in the count)
-SLUG=mat-pp OPEN="" uv run python manage.py shell -c "exec(open('scripts/perf/probe_tree_render.py').read())"
+DATABASE_URL=postgres://libli:libli@localhost:5432/libli SLUG=mat-pp OPEN="" uv run python manage.py shell -c "exec(open('scripts/perf/probe_tree_render.py').read())"
 
 # real page in Chromium (CSRF inputs included) -- needs runserver + a session key
 uv run python manage.py runserver &          # or a second terminal
-MINT=1 uv run python manage.py shell -c "exec(open('scripts/perf/probe_browser.py').read())"
+DATABASE_URL=postgres://libli:libli@localhost:5432/libli MINT=1 uv run python manage.py shell -c "exec(open('scripts/perf/probe_browser.py').read())"
 SESSION=<key printed above> uv run python scripts/perf/probe_browser.py
 ```
 
