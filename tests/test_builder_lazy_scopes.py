@@ -500,3 +500,21 @@ def test_delete_without_an_open_param_falls_back_to_the_session_sentinel(client)
         {"node": victim.pk, "token": victim.updated.isoformat()},
     )
     assert "open=session" in resp["Location"]
+
+
+@pytest.mark.django_db
+def test_delete_round_trips_an_explicitly_empty_open(client):
+    """`open=""` is PRESENT, not absent: the author deliberately collapsed
+    everything. A truthiness check (`if request.POST.get("open"):`) treats
+    that empty string the same as missing and falls back to `open=session`,
+    springing the author's collapsed tree back open. Presence, not
+    truthiness, must decide the branch."""
+    owner = make_login(client, "owner")
+    course, part, chapters = _big_course(owner)
+    victim = chapters[0][1][0]
+    resp = client.post(
+        reverse("courses:manage_node_delete", kwargs={"slug": "big"}),
+        {"node": victim.pk, "token": victim.updated.isoformat(), "open": ""},
+    )
+    assert resp["Location"].endswith("?open=")
+    assert "open=session" not in resp["Location"]
