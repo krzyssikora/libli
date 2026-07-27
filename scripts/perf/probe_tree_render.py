@@ -1,7 +1,7 @@
 """Time the builder tree render for one course. Usage:
 
-    uv run python manage.py shell -c \
-      "exec(open('scripts/perf/probe_tree_render.py').read())" -- mat-pp
+    SLUG=mat-pp OPEN=all uv run python manage.py shell -c \
+      "exec(open('scripts/perf/probe_tree_render.py').read())"
 
 Prints warm render time, byte size, element count and query count. `OPEN` may
 be set to "all" (default), "" or a comma-separated pk list.
