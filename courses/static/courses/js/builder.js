@@ -94,6 +94,33 @@
     return m ? m[1] : "";
   }
 
+  // ---- open-set collector + busy counter -------------------------------------
+  // The collector observes the DOM, so it can only ever emit an enumeration;
+  // `all` originates from the server, never from here.
+  function collectOpen() {
+    var out = [];
+    root.querySelectorAll("ol.tree__scope[data-scope]").forEach(function (ol) {
+      var s = ol.getAttribute("data-scope");
+      if (s && s !== "top") out.push(s);
+    });
+    return out.join(",");
+  }
+  // SET, never append: mutation forms may already carry the value, and
+  // QueryDict.get returns the LAST, so appending would win only by accident.
+  function withOpen(body) { body.set("open", collectOpen()); return body; }
+
+  function syncUrl() {
+    // Present-but-empty, never omitted: dropping the parameter makes the next
+    // page GET see `open` as ABSENT and re-seed from the session.
+    var u = new URL(window.location.href);
+    u.searchParams.set("open", collectOpen());
+    history.replaceState(null, "", u.toString());
+  }
+
+  var busy = 0;
+  function busyStart() { busy++; root.setAttribute("data-busy", "1"); }
+  function busyEnd() { if (--busy <= 0) { busy = 0; root.removeAttribute("data-busy"); } }
+
   // True only for the synchronous duration of the scope swap in applyFragment. Chromium
   // DOES dispatch focusout for a focused input inside the subtree being removed, and it
   // dispatches it from INSIDE replaceWith() -- at a point where the input and its form
@@ -206,10 +233,11 @@
         }
       }
     }
+    busyStart();
     fetch(form.action, {
       method: "POST",
       headers: { "X-CSRFToken": csrf(), "X-Requested-With": "fetch" },
-      body: body,
+      body: withOpen(body),
     }).then(function (r) {
       return r.text().then(function (text) {
         if (r.status === 200 || r.status === 409) {
@@ -220,6 +248,7 @@
             applyRename(form, text);
           } else {
             applyFragment(text);
+            syncUrl();
           }
           if (r.status === 409) notice(msg("conflict", "This changed elsewhere — reloaded to the latest."));
           // Only the Move picker remains as a panel form with data-op; it resets the
@@ -235,7 +264,7 @@
     }).catch(function () {
       notice(msg("network", "Network error — please try again."));
       releaseForm(form);
-    });
+    }).then(function () { busyEnd(); });
   });
 
   // Node selection -> load the detail panel fragment.
@@ -399,6 +428,101 @@
     if (input) input.title = input.value;
   });
 
+  // ---- expand / collapse -----------------------------------------------------
+  function scopeUrlFor(pk) {
+    // pk=0 sentinel, replaced with an $-ANCHORED match so a `0` inside the
+    // course slug can never be hit. A string placeholder is impossible: the
+    // route is <int:pk> and reverse() rejects a non-numeric pk.
+    var tpl = root.getAttribute("data-node-scope-url") || "";
+    return tpl.replace(/\/0\/scope\/$/, "/" + pk + "/scope/");
+  }
+
+  root.addEventListener("pointerdown", function (e) {
+    // Armed HERE, not around the <ol> removal: a click moves focus at
+    // mousedown, so a dirty title's focusout fires BEFORE this handler's click
+    // would -- and the rename guard reads `swapping`, which would still be
+    // false, so the rename would commit on mouse-collapse but abandon on
+    // keyboard-collapse.
+    //
+    // NARROW to the subtree actually being torn out. Arming for ANY toggle
+    // click would swallow an unrelated pending rename: edit row A's title,
+    // click row B's toggle, and A's focusout is suppressed while focus has
+    // already left it -- the edit is lost silently, with no further commit
+    // opportunity.
+    var t = e.target.closest("[data-toggle]");
+    if (!t) return;
+    var row = t.closest("li.tree__row");
+    var scope = row && row.querySelector(":scope > ol.tree__scope");
+    var active = document.activeElement;
+    if (scope && active && scope.contains(active)) swapping = true;
+  });
+  document.addEventListener("pointerup", function () { swapping = false; });
+  document.addEventListener("pointercancel", function () { swapping = false; });
+
+  root.addEventListener("click", function (e) {
+    var t = e.target.closest("[data-toggle]");
+    if (!t) return;
+    e.preventDefault();                       // it is an <a href>; do not navigate
+    if (t.dataset.submitting) return;         // ignore repeat activations
+    var pk = t.getAttribute("data-toggle");
+    var row = t.closest("li.tree__row");
+    if (!row) return;
+    var existing = row.querySelector(":scope > ol.tree__scope");
+    if (existing) {
+      swapping = true;
+      try { existing.remove(); } finally { swapping = false; }
+      t.setAttribute("aria-expanded", "false");
+      t.removeAttribute("aria-controls");
+      if (t.dataset.labelExpand) t.setAttribute("aria-label", t.dataset.labelExpand);
+      syncUrl();
+      return;
+    }
+    t.dataset.submitting = "1";
+    busyStart();
+    var body = new URLSearchParams();
+    body.set("open", collectOpen() ? collectOpen() + "," + pk : pk);
+    fetch(scopeUrlFor(pk) + "?" + body.toString(), {
+      headers: { "X-Requested-With": "fetch" },
+    }).then(function (r) {
+      if (!r.status || r.status !== 200) throw new Error("bad status");
+      return r.text();
+    }).then(function (html) {
+      // A foreign applyFragment may have replaced this row while we waited.
+      var live = root.querySelector('li.tree__row[data-node="' + pk + '"]');
+      var ctl = live && live.querySelector(':scope > .tree__rowhead [data-toggle]');
+      if (!live || !ctl || !ctl.dataset.submitting) return;
+      var incoming = parseFragment(html).firstElementChild;
+      if (!incoming) return;
+      // Replace, never blind-append: two responses would leave two sibling
+      // <ol data-scope> and `:scope > ol.tree__scope` would pick one at random.
+      var dup = live.querySelector(":scope > ol.tree__scope");
+      if (dup) dup.remove();
+      live.appendChild(incoming);             // direct child, after .tree__rowhead
+      ctl.setAttribute("aria-expanded", "true");
+      ctl.setAttribute("aria-controls", "tree-scope-" + pk);
+      if (ctl.dataset.labelCollapse) ctl.setAttribute("aria-label", ctl.dataset.labelCollapse);
+      syncUrl();
+    }).catch(function () {
+      notice(msg("network", "Network error — please try again."));
+    }).then(function () {
+      var ctl2 = root.querySelector('[data-toggle="' + pk + '"]');
+      if (ctl2) delete ctl2.dataset.submitting;   // clear on BOTH paths, or the row wedges
+      busyEnd();
+    });
+  });
+
+  // The delete link is a plain navigation for everyone -- node_confirm_delete's
+  // form has no data-op and there is no [data-delete] fetch handler. So stamp
+  // the LIVE open set onto the href at click time and let the navigation
+  // proceed: no preventDefault.
+  root.addEventListener("click", function (e) {
+    var del = e.target.closest("[data-delete]");
+    if (!del) return;
+    var u = new URL(del.getAttribute("href"), window.location.origin);
+    u.searchParams.set("open", collectOpen());
+    del.setAttribute("href", u.pathname + u.search);
+  });
+
   // --- WS2 drag-and-drop ----------------------------------------------------
   var RANK = { part: 0, chapter: 1, section: 2, unit: 3 };
   var drag = null;  // { pk, kind, token }
@@ -478,18 +602,21 @@
     body.append("position", scope.dataset.dropIndex);
     body.append("parent_token", scope.dataset.dropToken);
     clearDropMarks(); drag = null; clearMoving();
+    withOpen(body);
+    busyStart();
     fetch(root.getAttribute("data-node-move-url"), {
       method: "POST", headers: { "X-CSRFToken": csrf(), "X-Requested-With": "fetch" }, body: body,
     }).then(function (r) { return r.text().then(function (text) {
       if (r.status === 200 || r.status === 409) {
         applyFragment(text);
+        syncUrl();
         if (r.status === 409) notice(msg("conflict", "This changed elsewhere — reloaded to the latest."));
         // A drag bypasses the submit handler's panel-refresh. If the panel holds a token-bearing
         // form (e.g. the dragged node's Move picker / rename), it is now stale — clear it so
         // reusing it can't spuriously 409.
         if (panel.querySelector("form[data-op]")) setPanel("");
       } else if (r.status === 422) { notice(msg("illegal", "That move isn't allowed here.")); }
-    }); }).catch(function () { notice(msg("network", "Network error — please try again.")); });
+    }); }).catch(function () { notice(msg("network", "Network error — please try again.")); }).then(function () { busyEnd(); });
   });
   root.addEventListener("dragend", function () { clearDropMarks(); drag = null; pointerFocus = false; });
   // --- end WS2 drag-and-drop ------------------------------------------------

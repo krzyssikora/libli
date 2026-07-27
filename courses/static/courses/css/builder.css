@@ -183,3 +183,13 @@ input.tree__title:focus { outline: 2px solid var(--primary); outline-offset: 1px
 
 .builder__info { list-style: none; margin: 0 0 var(--space-3); padding: var(--space-2) var(--space-3);
   background: var(--surface-sunken); border-radius: var(--radius-sm); color: var(--text-secondary); font-size: .875rem; }
+
+/* Task 8: per-toggle in-flight state, so it is obvious WHICH row is loading. */
+.tree__toggle[data-submitting] { opacity: .45; }
+.tree__toggle[data-submitting] .ic { animation: builder-spin .7s linear infinite; }
+@keyframes builder-spin { to { transform: rotate(360deg); } }
+
+/* Visual only. It must NOT set pointer-events:none -- the per-toggle
+   in-flight guard is what prevents double activation, and blocking pointer
+   events here would make that guard dead code. */
+.builder[data-busy] .builder__tree { opacity: .6; transition: opacity .1s ease; cursor: progress; }
