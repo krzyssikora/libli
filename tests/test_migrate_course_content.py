@@ -319,7 +319,7 @@ def test_export_aborts_on_problems_and_allow_problems_overrides(tmp_path, monkey
             "--bundle-dir",
             str(bundle),
         )
-    assert not list(bundle.glob("*.zip")) if bundle.exists() else True
+    assert not list(bundle.glob("*.zip"))
 
     # The override lets the same export through.
     call_command(
@@ -1557,6 +1557,50 @@ def test_verify_raises_on_a_dangling_internal_href(tmp_path):
             "--bundle-dir",
             str(bundle),
         )
+
+
+def test_verify_caps_dangling_examples_at_ten_even_when_one_target_has_many_sites(
+    tmp_path,
+):
+    """Fix 2 (final review): the `if len(examples) >= 10: break` sat OUTSIDE
+    the inner per-site loop, so one target pk cited from many elements
+    appended ALL of its sites before the outer per-pk loop ever re-checked the
+    bound -- a hub node linked from hundreds of units would yield a
+    CommandError hundreds of tuples long. 12 parts here, each contributing one
+    TextElement, all pointed at the SAME dangling pk -- one target cited from
+    12 sites, one more than the cap.
+    """
+    bundle = _export_bundle(tmp_path, parts=tuple(f"P{i}" for i in range(12)))
+    target = _mk_target()
+    _user()
+    call_command(
+        "migrate_course_content",
+        "import",
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+    )
+    n_texts = TextElement.objects.filter(elements__unit__course=target).count()
+    assert n_texts == 12  # sanity: really more sites than the cap
+    TextElement.objects.filter(elements__unit__course=target).update(
+        body='<p><a href="/courses/n/999999/">x</a></p>'
+    )
+    with pytest.raises(CommandError, match="dangling") as exc:
+        call_command(
+            "migrate_course_content",
+            "verify",
+            "--target-slug",
+            "dst",
+            "--bundle-dir",
+            str(bundle),
+        )
+    msg = str(exc.value)
+    assert "First 10:" in msg
+    triples = re.findall(r"\(\d+, \d+, '/courses/n/\d+/'\)", msg)
+    assert len(triples) == 10
 
 
 def test_verify_passes_on_a_clean_migration(tmp_path):
@@ -3134,29 +3178,32 @@ def test_resolve_rewrite_validates_the_state_file(tmp_path, arm, raw, match):
         )
 
 
-def test_verify_does_not_keyerror_on_the_new_flag(tmp_path):
-    """_FLAG_UNSET lookup happens for EVERY foreign flag on every action."""
-    bundle = _export_bundle(tmp_path)
-    _mk_target()
-    _user()
-    call_command(
-        "migrate_course_content",
-        "import",
-        "--target-slug",
-        "dst",
-        "--bundle-dir",
-        str(bundle),
-        "--as-user",
-        "mig@example.com",
-    )
-    call_command(
-        "migrate_course_content",
-        "verify",
-        "--target-slug",
-        "dst",
-        "--bundle-dir",
-        str(bundle),
-    )
+def test_verify_rejects_resolve_rewrite_as_a_foreign_flag(tmp_path):
+    """_reject_foreign_flags's `_FLAG_UNSET["resolve_rewrite"]` lookup is
+    evaluated for EVERY foreign flag on every action -- resolve_rewrite must
+    be present in that dict or `verify` KeyErrors before it can even report
+    the rejection.
+
+    Fix 6 (final review): the previous version of this test only ran a plain
+    `verify` and asserted nothing -- it merely didn't crash, which is already
+    exercised by every other `verify` test in this file and proves nothing
+    about this flag specifically (deleting the `_FLAG_UNSET` entry would
+    redden ~20 other tests, not reveal itself here). Asserting the REJECTION
+    directly, by passing the flag to the one action it does not belong to, is
+    non-vacuous: it fails both if the KeyError regresses and if the guard
+    stops rejecting the flag.
+    """
+    with pytest.raises(CommandError, match="--resolve-rewrite is not valid"):
+        call_command(
+            "migrate_course_content",
+            "verify",
+            "--target-slug",
+            "dst",
+            "--bundle-dir",
+            str(tmp_path / "bundle"),
+            "--resolve-rewrite",
+            "applied",
+        )
 
 
 # --- Task 12: the remaining spec cases -------------------------------------
@@ -3337,7 +3384,10 @@ def test_a_fail_closed_body_is_recorded_and_reported_not_fatal(tmp_path):
         "mig@example.com",
     )
 
-    assert _read_state_raw(bundle)["rewrite"]["fail_closed_elements"]
+    fail_closed_pks = _read_state_raw(bundle)["rewrite"]["fail_closed_elements"]
+    assert fail_closed_pks
+    torn_epk = fail_closed_pks[0]
+    torn_unit_id = Element.objects.get(pk=torn_epk).unit_id
     out = io.StringIO()
     call_command(
         "migrate_course_content",
@@ -3348,7 +3398,14 @@ def test_a_fail_closed_body_is_recorded_and_reported_not_fatal(tmp_path):
         str(bundle),
         stdout=out,
     )
-    assert "malformed" in out.getvalue()
+    result = out.getvalue()
+    assert "malformed" in result
+    # Fix 1 (final review): the spec requires "a reported, non-fatal count
+    # WITH THE SAME EXAMPLE TRIPLES" -- a count alone across a 20,054-element
+    # course gives no way to FIND the element. `"malformed" in result` alone
+    # would NOT catch the omission of examples; assert a REAL
+    # (unit_id, element pk, href) triple is present.
+    assert f"({torn_unit_id}, {torn_epk}, '/courses/n/999999/')" in result
 
 
 def test_a_fail_closed_instance_still_gets_its_other_fields_rewritten():
@@ -3850,7 +3907,10 @@ def test_skipped_dead_raises_before_the_transaction(tmp_path):
             "body", flat=True
         )
     )
-    with pytest.raises(CommandError, match="skipped_dead"):
+    # Match the VALUE, not the label (see the unit twin's comment at :1823-1824
+    # above): the message interpolates all three labels unconditionally, so
+    # match="skipped_dead" is satisfied even if the WRONG counter fired.
+    with pytest.raises(CommandError, match=r"skipped_dead=\[1000000000\]"):
         call_command("migrate_course_content", "import", *args, "--start-at", "2")
     assert _read_state_raw(bundle)["status"] == "collecting"  # never flipped
     assert (
@@ -4008,6 +4068,61 @@ def test_a_state_write_oserror_on_a_later_part_names_the_resume_hint(
     assert "orphaned" in msg
 
 
+def test_a_database_error_at_commit_still_gets_the_resume_hint(tmp_path, monkeypatch):
+    """Fix 9 (final review): a DatabaseError surfacing at the outer atomic's
+    COMMIT -- possible AFTER `_write_state` has already returned successfully
+    -- matches neither `except OSError` nor `except TransferError`, so before
+    this fix it escaped `_import` as a raw traceback, losing the --start-at
+    recovery hint exactly when the state file and the DB may have diverged.
+
+    Verified real exception type by reading django/db/utils.py's
+    DatabaseErrorWrapper directly (not guessing): a failed backend commit is
+    wrapped into one of DataError / OperationalError / IntegrityError /
+    InternalError / ProgrammingError / NotSupportedError / DatabaseError --
+    every one of those IS a `django.db.DatabaseError` subclass -- so catching
+    `DatabaseError` is the correct, verified choice.
+
+    Same technique as the sibling OSError test above: `_write_state` is the
+    LAST statement inside the per-part `with transaction.atomic():` block, so
+    a real call followed by a raised DatabaseError faithfully simulates
+    "commit failed right after the write succeeded" for the purposes of
+    exercising the except-clause at that scope.
+    """
+    from django.db import DatabaseError
+
+    import courses.management.commands.migrate_course_content as mod
+
+    bundle = _export_bundle(tmp_path)
+    _mk_target()
+    _user()
+    real = mod._write_state
+    calls = {"n": 0}
+
+    def boom(bundle_, state_):
+        calls["n"] += 1
+        if calls["n"] <= 2:  # fresh-state write + part 0's write
+            return real(bundle_, state_)
+        raise DatabaseError("connection reset during commit")
+
+    monkeypatch.setattr(mod, "_write_state", boom)
+    with pytest.raises(CommandError) as exc:
+        call_command(
+            "migrate_course_content",
+            "import",
+            "--target-slug",
+            "dst",
+            "--bundle-dir",
+            str(bundle),
+            "--as-user",
+            "mig@example.com",
+            "--start-at",
+            "0",
+        )
+    msg = str(exc.value)
+    assert "last part committed: 0" in msg
+    assert "--start-at 1" in msg
+
+
 def test_write_state_really_goes_through_os_replace(tmp_path, monkeypatch):
     """I6. The presence/absence assertions alone are green for a plain
     truncate-in-place write, which is exactly what the spec forbids -- so assert
@@ -4056,7 +4171,7 @@ def test_a_state_write_oserror_on_part_zero_names_the_right_recovery(
         raise OSError("disk full")
 
     monkeypatch.setattr(mod, "_write_state", boom)
-    with pytest.raises(CommandError, match="no parts committed"):
+    with pytest.raises(CommandError) as exc:
         call_command(
             "migrate_course_content",
             "import",
@@ -4069,4 +4184,11 @@ def test_a_state_write_oserror_on_part_zero_names_the_right_recovery(
             "--start-at",
             "0",
         )
-    assert calls["n"] >= 2  # the loop's write really was reached
+    msg = str(exc.value)
+    assert "no parts committed" in msg
+    # "could not write" is unique to the `except OSError` handler -- the
+    # sibling `except TransferError` handler raises f"{archive.name}: {exc}"
+    # with no such phrase, and both handlers emit "no parts committed" when
+    # `committed is None`, so that assertion alone cannot tell which fired.
+    assert "could not write" in msg
+    assert calls["n"] == 2  # the loop's write was reached, and only once

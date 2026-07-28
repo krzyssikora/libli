@@ -18,6 +18,7 @@ from pathlib import Path
 from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand
 from django.core.management.base import CommandError
+from django.db import DatabaseError
 from django.db import transaction
 from django.db.models import Count
 
@@ -169,6 +170,33 @@ def _is_fail_closed(instance):
         if probed == value and flattened == 0:
             return True
     return False
+
+
+def _resume_hint(committed):
+    """The recovery line every mid-loop failure in `_import`'s per-part graft
+    needs -- OSError, DatabaseError and TransferError all reach this same
+    decision, and it was duplicated at each site until this fix."""
+    if committed is None:
+        return "no parts committed; re-run import from the start"
+    return f"last part committed: {committed}; resume with --start-at {committed + 1}"
+
+
+def _dangling_examples(dangling, target_pks, cap=10):
+    """(unit_id, element pk, href) triples for elements in `target_pks`,
+    capped at `cap` regardless of how many sites cite the same target pk.
+
+    The cap must be enforced INSIDE the inner per-site loop -- a hub node
+    referenced from hundreds of elements would otherwise append every one of
+    its sites before the outer per-pk loop ever re-checks the bound.
+    """
+    examples = []
+    for pk, sites in sorted(dangling.items()):
+        for unit_id, epk in sites:
+            if epk in target_pks:
+                examples.append((unit_id, epk, f"/courses/n/{pk}/"))
+                if len(examples) >= cap:
+                    return examples
+    return examples
 
 
 def _build_mapping(state, node_index, target):
@@ -607,22 +635,31 @@ class Command(BaseCommand):
             f"deferred link rewrite in an unknown state.\n"
         )
         if total == 0:
-            # DEGENERATE: no order is pending (every recorded part already has
-            # rewritten=True), so there is nothing left to probe. This is not
+            # DEGENERATE: total == 0 does NOT mean "every part is rewritten"
+            # -- it also arises from pending parts that hold zero elements, or
+            # whose in-scope units no longer exist (all-dead nodes). Derive
+            # the explanation from the ACTUAL condition (`not pending`) rather
+            # than asserting the common case unconditionally. This is not
             # hypothetical -- a status hand-flipped to in_progress on an
-            # otherwise-fully-applied state file reaches exactly this shape,
-            # and so would a partially corrupted one, since _read_state does
-            # not cross-check status against the per-part rewritten flags.
+            # otherwise-fully-applied state file reaches the `not pending`
+            # shape, and so would a partially corrupted one, since _read_state
+            # does not cross-check status against the per-part rewritten
+            # flags.
             # The two threshold lines below both read "near 0" when total is
             # 0, which would hand the operator two OPPOSITE instructions for
             # the one decision this message exists to disambiguate -- an
             # ambiguous reading is worse than none, so report unavailability
             # explicitly instead of rendering a broken threshold.
+            if not pending:
+                reason = "every recorded part's 'rewritten' flag already reads true"
+            else:
+                reason = (
+                    f"{len(pending)} part(s) are pending but hold no elements in scope"
+                )
             return (
                 header + f"  probe: 0 element(s) recorded in the pending scope -- "
                 f"there is nothing to check for a dangling internal link "
-                f"(every recorded part's 'rewritten' flag already reads "
-                f"true; the whole migration holds {migration_total}).\n"
+                f"({reason}; the whole migration holds {migration_total}).\n"
                 f"  the reading is UNAVAILABLE here, not a signal: inspect "
                 f"{LINK_STATE_NAME} by hand to determine whether the "
                 f"deferred link rewrite actually committed, then re-run with "
@@ -1197,31 +1234,41 @@ class Command(BaseCommand):
                             # IntegrityError as a state-file failure and leave
                             # this method's TransferError handler reachable
                             # only for open_archive failures.
-                            if committed is None:
-                                hint = (
-                                    "no parts committed; re-run import from the start"
-                                )
-                            else:
-                                hint = (
-                                    f"last part committed: {committed}; "
-                                    f"resume with --start-at {committed + 1}"
-                                )
+                            hint = _resume_hint(committed)
                             raise CommandError(
                                 f"could not write {LINK_STATE_NAME} while "
                                 f"grafting part {order}: {exc}. Part {order}'s "
                                 f"media files may be orphaned on disk.\n{hint}"
                             ) from exc
+                        except DatabaseError as exc:
+                            # The outer atomic's own COMMIT (or SAVEPOINT
+                            # COMMIT, under a test's outer transaction) can
+                            # fail AFTER `_write_state` above has already
+                            # returned successfully -- e.g. the connection
+                            # drops between the file write and COMMIT. Neither
+                            # `except OSError` above nor `except TransferError`
+                            # below matches DatabaseError (verified against
+                            # django/db/utils.py: a failed commit is wrapped by
+                            # DatabaseErrorWrapper into one of DataError /
+                            # OperationalError / IntegrityError / InternalError
+                            # / ProgrammingError / NotSupportedError /
+                            # DatabaseError -- every one a DatabaseError
+                            # subclass), so without this clause the operator
+                            # loses the --start-at recovery hint exactly when
+                            # the state file and the DB may have diverged.
+                            hint = _resume_hint(committed)
+                            raise CommandError(
+                                f"database error while committing part "
+                                f"{order}: {exc}. {LINK_STATE_NAME} may "
+                                f"already reflect this part even though the "
+                                f"database transaction did not confirm "
+                                f"committing it.\n{hint}"
+                            ) from exc
             except TransferError as exc:
                 # Recovery guidance belongs HERE, on the failure path -- a
                 # trailing "no parts committed" line after the loop would be
                 # unreachable, because this CommandError propagates out of it.
-                if committed is None:
-                    hint = "no parts committed; re-run import from the start"
-                else:
-                    hint = (
-                        f"last part committed: {committed}; "
-                        f"resume with --start-at {committed + 1}"
-                    )
+                hint = _resume_hint(committed)
                 raise CommandError(f"{archive.name}: {exc}\n{hint}") from exc
             committed = order
             self.stdout.write(f"grafted part {order} from {archive.name}")
@@ -1238,7 +1285,10 @@ class Command(BaseCommand):
         if o.get("dry_run"):
             self.stdout.write("[dry-run] validated; nothing written")
         else:
-            self.stdout.write(f"last part committed: {committed}")
+            self.stdout.write(
+                f"last part committed: {committed}; run `verify` to confirm "
+                f"internal links are consistent"
+            )
 
     # --- verify --------------------------------------------------------
 
@@ -1409,23 +1459,23 @@ class Command(BaseCommand):
         reported = dangling_elements & fail_closed
 
         if reported:
+            # Non-fatal, but the count alone gives no way to FIND the
+            # elements among (potentially) 20,054 -- the same (unit_id,
+            # element pk, href) triples the fatal branch below reports,
+            # capped identically.
+            reported_examples = _dangling_examples(dangling, reported)
             self.stdout.write(
                 f"note: {len(reported)} element(s) hold links the scanner "
                 f"declines to touch (malformed anchor markup); they keep their "
-                f"source pks and need a manual fix"
+                f"source pks and need a manual fix. First "
+                f"{len(reported_examples)}: {reported_examples}"
             )
         if real:
-            examples = []
-            for pk, sites in sorted(dangling.items()):
-                for unit_id, epk in sites:
-                    if epk in real:
-                        examples.append((unit_id, epk, f"/courses/n/{pk}/"))
-                if len(examples) >= 10:
-                    break
+            real_examples = _dangling_examples(dangling, real)
             raise CommandError(
                 f"{len(real)} migrated element(s) hold a dangling internal "
-                f"link (of {total_elements} in scope). First {len(examples)}: "
-                f"{examples}"
+                f"link (of {total_elements} in scope). First "
+                f"{len(real_examples)}: {real_examples}"
             )
         self.stdout.write(
             f"internal links OK: {total_elements} element(s) in scope, none dangling"
