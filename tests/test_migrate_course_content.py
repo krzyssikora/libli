@@ -3,6 +3,7 @@ bundle, graft the bundle into an existing target course, verify the result."""
 
 import io
 import json
+import re
 
 import pytest
 from django.contrib.auth import get_user_model
@@ -1403,6 +1404,94 @@ def test_the_in_progress_probe_reports_unavailable_when_the_pending_scope_is_emp
         "near 0 means the rewrite did NOT run" in msg
         and "near 0 means it DID commit" in msg
     )
+
+
+def test_the_in_progress_refusal_prints_a_probe_reading(tmp_path):
+    """The reading is the sole discriminator for an irreversible operator
+    decision, so both numbers must be present and both must be over the PENDING
+    scope -- over all entries the ratio is meaningless on a repair resume.
+
+    This drives a plain `--start-at` resume with NO --resolve-rewrite flag, so
+    it reaches gate 2 (`state["status"] == "in_progress"`) directly -- unlike
+    every --resolve-rewrite test, which dispatches before gate 2 is reached.
+    """
+    bundle = _export_bundle(tmp_path)
+    _mk_target()
+    _user()
+    call_command(
+        "migrate_course_content",
+        "import",
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+    )
+    st = _read_state_raw(bundle)
+    st["status"] = "in_progress"
+    for e in st["parts"]:
+        e["rewritten"] = False
+    _write_state(bundle, st)
+    with pytest.raises(CommandError) as exc:
+        call_command(
+            "migrate_course_content",
+            "import",
+            "--target-slug",
+            "dst",
+            "--bundle-dir",
+            str(bundle),
+            "--as-user",
+            "mig@example.com",
+            "--start-at",
+            "3",
+        )
+    msg = str(exc.value)
+    assert "--resolve-rewrite" in msg
+    assert "dangling" in msg
+    assert "in the pending scope" in msg
+
+
+def test_the_probe_denominator_is_the_pending_scope(tmp_path):
+    """Only ONE order (1) is left pending; the other two are already
+    rewritten. The pending-scope count in the message must therefore be
+    strictly smaller than the whole-migration count -- proving the probe
+    scans `pending`, not `state["parts"]`."""
+    bundle = _export_bundle(tmp_path)
+    _mk_target()
+    _user()
+    call_command(
+        "migrate_course_content",
+        "import",
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+    )
+    st = _read_state_raw(bundle)
+    st["status"] = "in_progress"
+    for e in st["parts"]:  # only ONE order pending
+        e["rewritten"] = int(e["order"]) != 1
+    _write_state(bundle, st)
+    with pytest.raises(CommandError) as exc:
+        call_command(
+            "migrate_course_content",
+            "import",
+            "--target-slug",
+            "dst",
+            "--bundle-dir",
+            str(bundle),
+            "--as-user",
+            "mig@example.com",
+            "--start-at",
+            "3",
+        )
+    msg = str(exc.value)
+    pending_n = int(re.search(r"of (\d+) in the pending scope", msg).group(1))
+    whole_n = int(re.search(r"migration holds (\d+)", msg).group(1))
+    assert pending_n < whole_n
 
 
 def test_verify_refuses_the_wrong_target_rather_than_passing_trivially(tmp_path):
