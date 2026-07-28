@@ -723,6 +723,15 @@ re-hide it. **Rule: the `<ul>` and its `{% for %}` emit no whitespace inside the
 `builder.html:23` already does today on one line. §8 asserts the computed style, not mere
 presence.
 
+**The rule binds the JS equally, because the JS is the element's other writer.** Any insertion
+that leaves a text node — a multi-line `insertAdjacentHTML` string, a `join("\n")` — survives
+the later `<li>` removals, so a subsequent `none` header can never re-hide the slot and the
+sunken bar becomes permanent from the author's first filter onward. **The JS inserts and
+removes only element nodes and never leaves a text node inside `.builder__info`.** Every
+server-side `:empty` assertion is taken at page load, before the JS has written anything, so
+this half needs its own falsification: after a filter → clear cycle, the slot must still match
+`:empty`.
+
 **Accepted limitation: the first fragment-borne notice may not be announced.** `display: none`
 keeps the region out of the accessibility tree just as `hidden` does, so inserting a child and
 rendering the region in the same task is not a reliable live-region trigger. An earlier draft
@@ -1006,8 +1015,17 @@ code:
 **Rule: while `q_active`, drag-and-drop is disabled and the up/down arrows render `disabled`.**
 
 **Both are carried by the `filtered` context flag, server-side, in the markup** — `filtered`
-suppresses the `draggable` attribute on the grip button (`_tree_node.html:32`) and adds
-`disabled` to both buttons in `_move_buttons.html`. §3k's `filtered` row lists these two
+adds `disabled` to both buttons in `_move_buttons.html`, and on the grip button
+(`_tree_node.html:32`) it both drops `draggable` **and** adds `disabled`.
+
+**Dropping `draggable` alone would reintroduce the lying affordance this section condemns.**
+The arrows get a real disabled treatment for free (`builder.css:60`,
+`.ica:disabled { opacity: .35; cursor: default; }`), but the grip keeps
+`.ica--grip { cursor: grab; }` (`:62`) and `.ica--grip:active { cursor: grabbing; }` (`:155`)
+— so an author would see a grab cursor, press, see a grabbing cursor, and get nothing, with no
+visual difference from an unfiltered row. `disabled` fixes both: the grip is a `<button>`, so
+it picks up the opacity and `cursor: default`, and `:active` never matches a disabled control.
+It carries a `title` naming the reason, reusing the reorder refusal's string (§9). §3k's `filtered` row lists these two
 templates alongside `_scope.html`'s `{% empty %}` branch.
 
 **Not from `data-applied-q` in a `dragstart` bail.** That attribute is defined by §5z as the
@@ -1035,11 +1053,19 @@ designates for moving under a filter. The picker's slot indices are computed aga
 **full** child list (§3k), so they are correct by construction and need no guard. Stated here so
 it is not "made consistent" later.
 
-**The refusal's contract: HTTP 422 rendering `_op_error.html`**, the shape this codebase already
-uses for a rejected mutation. Both paths then work without new plumbing: `builder.js`'s submit
-handler already acts on 422 (`:243-261`), and the no-JS path gets a styled page rather than the
-bare-text `HttpResponseBadRequest` that "every view ships styled" forbids. It carries one
-translatable string — *"Clear the filter to reorder."* — which is counted in §9.
+**The refusal's contract: HTTP 422, branching on `_wants_fragment` exactly as every other 422
+in this file does** — `_op_error.html` on the fragment path, **`_builder_with_notice(...,
+status=422)` on the no-JS path** (`node_add:480-486`, `node_rename:540-549`, `node_move`'s
+reparent `:612-618`, `node_duplicate:706-712` all have this shape).
+
+**`_op_error.html` is NOT a page**, and an earlier draft of this spec said it was: it is two
+lines — `{% load i18n %}` plus one `<div class="op-error" role="alert">` — with no `base.html`,
+no stylesheet, no navigation and no way back to the builder. Returning it unconditionally
+would ship a no-JS author a bare unstyled string, which is what "every view ships styled"
+forbids and what the branch above exists to prevent. `builder.js`'s submit handler already acts
+on 422 (`:243-261`), so the fragment path needs no new plumbing.
+
+It carries one translatable string — *"Clear the filter to reorder."* — counted in §9.
 
 **Consequently the mutations available under a filter are: rename, add, duplicate, delete and
 the Move picker.** Reorder and drop are not, so §8's "`q` rides every fragment request" row and
@@ -1055,7 +1081,8 @@ Sits in `.builder__tree`'s header row, after the title, beside the expand/collap
   <label class="visually-hidden" for="builder-q">{% trans "Filter by title" %}</label>
   <input id="builder-q" type="search" name="q" value="{{ q }}">
   <button type="submit">{% trans "Filter" %}</button>
-  {% if q %}<a href="{{ builder_url }}">{% trans "Clear" %}</a>{% endif %}
+  <a class="btn btn--ghost btn--small" href="{{ builder_url }}"
+     data-filter-clear{% if not q %} hidden{% endif %}>{% trans "Clear" %}</a>
 </form>
 ```
 
@@ -1076,8 +1103,21 @@ is not a reliable accessible name.
   clear a Firefox author has, and it must work on both paths. The explicit Clear link is
   rendered **whenever the input has any text — `{% if q %}`, on the raw value, not on
   `q_active`**.
-- **The JS owns the Clear control's visibility, because the server cannot.** `{% if q %}` is
-  evaluated only on a **page** render, and the filter control sits in `.builder__tree`'s header
+- **The anchor is rendered UNCONDITIONALLY and carries `hidden` when `q` is blank.** An
+  earlier draft wrapped it in `{% if q %}`, which puts nothing in the DOM on an unfiltered page
+  — so the JS rule below has no element to show, and the natural spelling
+  (`clear.hidden = !box.value` on a `querySelector` that returned `null`) **throws inside the
+  `input` handler** on the most common entry point there is, aborting it before the debounce is
+  scheduled and leaving filtering permanently dead. That is the same "silently inert" shape
+  §3k pins for `data-applied-q`. Rendering it always keeps the server correct for a no-JS
+  author *and* gives the JS something that exists.
+- **The hide mechanism is the `hidden` attribute on a `.btn`-classed anchor**, which is safe
+  only because `app.css:42` already ships `.btn[hidden] { display: none; }` with a comment
+  naming this exact trap. A new component class would re-open it — §3i makes the same call for
+  `.builder__info` and reaches the opposite answer for its own reasons; both are stated rather
+  than left to the implementer.
+- **The JS owns the Clear control's visibility, because the server cannot.** `{% if q %}` would
+  be evaluated only on a **page** render, and the filter control sits in `.builder__tree`'s header
   — outside every `[data-scope]` element `applyFragment` swaps, and outside what `manage_tree`
   returns at all (§3g: the top `<ol>` and nothing else). So on the overwhelmingly common
   gesture — load an unfiltered builder, type a query — a server-only rule renders **no Clear
@@ -1550,7 +1590,18 @@ correct.
 
 **Both hrefs carry `q`** — the active kind, so a no-JS bulk expand or collapse stays inside the
 filter, and the present-but-inactive kind (a below-floor `?q=a`), so the author's half-typed
-text is still in the box when the page comes back. One rule ("tree hrefs carry `q`") beats a
+text is still in the box when the page comes back.
+
+**And both handlers rewrite their own href's `q` from the tracker when a filter or clear
+response is applied.** §3j item 1's reason for never rewriting an href at click time — "every
+filter transition re-renders the whole top scope" — holds for the delete and Move hrefs, which
+live *inside* the swapped `<ol data-scope="top">`. These two do not: they sit in
+`.builder__tree`'s header beside the filter, outside every fragment `applyFragment` swaps and
+outside what `manage_tree` returns (§3g). The same fact forced §4 to hand the Clear control's
+visibility to the JS and §3m to reject `data-applied-q` as a drag carrier. Left stale, a
+middle-click or ctrl-click on "Expand all" over a filtered tree opens an **unfiltered**
+`open=all` — the 944-row, ~2.5 s render this work exists to avoid, with the filter silently
+dropped. One rule ("tree hrefs carry `q`") beats a
 carve-out, and it keeps these two consistent with the toggle, delete and Move hrefs in §3j.
 
 The `data-label-expand` / `data-label-collapse` pair already exists on every toggle
@@ -1706,12 +1757,17 @@ until this was done.
   exactly **one** `<li data-node=…>` for it
 - **a force-included row does not move `shown`/`total`** in the emitted header
 - **counts under a filter are the filtered counts**
-- **the up/down arrows render `disabled` under an active filter, and enabled without one**
-  (§3m) — asserted on the rendered markup. Falsified by restoring the `is_first`/`is_last`
+- **the up/down arrows AND the grip render `disabled` under an active filter, and enabled
+  without one** (§3m) — asserted on the rendered markup. The grip half is separate from its
+  `draggable` removal: dropping `draggable` alone leaves `cursor: grab` / `grabbing` intact
+  (`builder.css:62`, `:155`), so the row would still look draggable. Falsified by restoring the `is_first`/`is_last`
   gating alone, which leaves the arrows live at non-edge positions and lets a click mutate the
   full sibling order invisibly.
-- **a reorder POST submitted under an active filter is refused** — 422 rendering
-  `_op_error.html` (§3m), asserting the full sibling order is unchanged. The server cannot rely
+- **a reorder POST submitted under an active filter is refused** — 422 on **both branches**
+  (§3m): with `X-Requested-With: fetch` it renders `_op_error.html`; without it, a full builder
+  page via `_builder_with_notice`. Assert the full sibling order is unchanged in both. The
+  no-JS half is the one that catches an unconditional `_op_error.html`, which is a bare
+  unstyled fragment. The server cannot rely
   on the markup alone, since the form is trivially replayable.
 - **…but a positioned REPARENT under an active filter still succeeds** — the Move picker's
   route (§3m). Both post to `node_move` and are indistinguishable server-side, so this row is
@@ -1789,7 +1845,10 @@ until this was done.
 - **both bulk controls stay enabled under an active filter** (§6z), and **expand-all under a
   filter returns only filtered rows** — `open=all` + `q` renders the restricted map, never the
   944-row tree
-- **both bulk-control hrefs carry `q`**, both the active kind and a present-but-inactive `?q=a`
+- **both bulk-control hrefs carry `q`**, both the active kind and a present-but-inactive
+  `?q=a` — and, in an e2e, **still carry the right `q` after a JS filter apply** (§6b), since
+  they sit outside every swapped fragment and would otherwise open an unfiltered `open=all` on
+  a middle-click
 - **`data-applied-q` holds the raw submitted `q`** — on a filtered render *and* on a
   below-floor `?q=a` (where it is `a`, not empty), and **present-and-empty** with no `q` at
   all. **The empty case is asserted as *present*** because a conditionally-emitted attribute
@@ -1901,7 +1960,10 @@ not a pass):**
   author's half-typed text on the JS path only
 - collapse-all sets `aria-expanded="false"` and removes `aria-controls` on every toggle
 - **the empty info slot is not rendered** — `document.querySelector(".builder__info").matches(":empty")`
-  is true and its computed `display` is `none`, on an unfiltered untruncated page (§3i)
+  is true and its computed `display` is `none`, **both on an unfiltered untruncated page at
+  load AND after a filter → clear cycle** (§3i). The second is the half that catches the JS
+  leaving a whitespace text node behind, which makes the sunken bar permanent; every
+  server-side `:empty` row is taken before the JS has written anything.
 - **a fragment-borne notice lands on a page that had none** — load an unfiltered, untruncated
   builder, type a query, and assert a `[data-info-key="filter"]` entry appears. Without §3i's
   always-present slot the JS has nowhere to insert, and the resulting throw is swallowed by the
