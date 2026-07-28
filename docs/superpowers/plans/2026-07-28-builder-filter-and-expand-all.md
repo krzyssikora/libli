@@ -1049,7 +1049,44 @@ def _expand_all_disabled(cmap):
     return render(request, "courses/manage/builder.html", context)
 ```
 
-`_builder_with_notice()` takes the identical shape with `mode="notice"`.
+`_builder_with_notice()` (`views_manage.py:730-743`) is **not** the identical
+shape — it carries `notice`, passes `status=` to `render`, and must call
+neither `_remember_open` nor `_take_builder_force` (a *failed* mutation has
+nothing to persist and nothing created to force-include). Written out, because
+pasting `builder()`'s body here silently drops the notice:
+
+```python
+    cmap = _children_map(course)
+    fc = _filter_context(request, course, cmap, mode="notice")
+    context = {
+        "course": course,
+        "children_map": fc.cmap,
+        "top_nodes": fc.cmap.get(None, []),
+        "notice": message,
+        "info": _info_entries(
+            fc.opened, q_active=fc.q_active, shown=fc.shown, total=fc.total
+        ),
+    }
+    context.update(
+        _tree_context(
+            course,
+            cmap,                       # the FULL map, always
+            fc.open_ids,
+            q=fc.q_raw,
+            filtered=fc.q_active,
+            expand_all_disabled=_expand_all_disabled(cmap),
+            q_min=builder_filter.MIN_QUERY,
+        )
+    )
+    return render(request, "courses/manage/builder.html", context, status=status)
+```
+
+**Its `_info_entries(opened)` call at `:740` is the one most easily missed**,
+and the cost is delayed: Task 5 Step 3 makes `q_active`/`shown`/`total`
+keyword-**required**, so a call site left positional becomes a `TypeError` on
+every no-JS 409/422 render — a path nothing exercises until Task 6 Step 9 adds
+`test_builder_with_notice_under_a_filter_returns_the_chains_open`, one whole
+task after the breakage lands.
 
 **All three callers must be rewired in this step.** `_tree_context`'s four new
 arguments are keyword-only and defaultless, so `_render_scope`
@@ -1228,6 +1265,18 @@ Then falsify:
    `children_map` back at `cmap` instead → it must fail on the **`miss`**
    assertion. Two separate mutations, two different assertions: that is what
    proves Step 6's "both keys, not one" rather than assuming it.
+3. **The `_remember_open` `q_active` gate**, which is the slice's only
+   silent-data-loss guard and is falsified nowhere else — Task 2 Step 6
+   mutates the `q_chain` ordering, not the gate. Two mutations, two rows:
+   - Drop `q_active or` from `_remember_open`'s early return →
+     `test_remember_open_does_NOT_write_while_a_filter_is_active` must fail;
+     the filter's derived chains get written over the author's real expansion,
+     permanently, since the no-JS path has no stash.
+   - Restore, then change the gate to
+     `if "q" in request.GET or not opened.explicit:` →
+     `test_remember_open_DOES_write_under_a_below_floor_q` must fail. A
+     presence gate is strictly stricter, so it passes the first row too; only
+     this second mutation catches it, and the loss it prevents is invisible.
 
 Restore each. Confirm the exact route name against `courses/urls.py:169`
 before running — the row is worthless if it 404s.
@@ -1458,32 +1507,6 @@ def test_the_header_is_machine_readable_under_the_polish_locale(
     assert "=?utf-8?" not in value
 
 
-def test_one_msgid_per_notice(filtered_course):
-    """The page route and the fragment route render the SAME literal, so
-    makemessages collapses them into one catalog entry. Two entries would let
-    them be translated differently and disagree about what the tree shows.
-
-    They are not directly comparable -- the server interpolates while the
-    attribute keeps its placeholders -- so a literal equality assertion fails
-    on a CORRECT implementation. Substitute, then compare.
-    """
-    client, course, *_ = filtered_course
-    url = reverse("courses:manage_builder", kwargs={"slug": course.slug})
-    # Same seed as the row above, and for the same reason -- the login signal
-    # has already pinned session["_language"] to "en", so Accept-Language is
-    # never consulted. Without it this row still passes, but vacuously: it
-    # would compare an English template against an English render and could
-    # not detect the two literals drifting apart in Polish.
-    session = client.session
-    session["_language"] = "pl"
-    session.save()
-    body = client.get(url, {"q": "trygo"}, HTTP_ACCEPT_LANGUAGE="pl").content.decode()
-    assert "Filtrowane" in body, "the Polish catalog is not active; the row is vacuous"
-    template = body.split('data-msg-filter="')[1].split('"')[0]
-    rendered = body.split('data-info-key="filter">')[1].split("<")[0]
-    assert template % {"shown": 1, "total": 1} == rendered
-
-
 def test_a_rename_and_a_422_carry_no_header_at_all(filtered_course):
     """They never reach _render_scope, so they neither set nor clear."""
     client, course, part, chap, hit, miss = filtered_course
@@ -1540,12 +1563,24 @@ No `override` import is needed — the locale is driven through the request.
 - [ ] **Step 2: Run to verify failure**
 
 ```bash
-uv run pytest tests/test_builder_filter_views.py -q -k "header or info_slot or notice_is_visible"
+uv run pytest tests/test_builder_filter_views.py -q -k \
+  "always_sets_the_header or machine_readable or info_slot_is_present or notice_is_visible"
 ```
 
-Expected: FAIL — `KeyError: 'X-Builder-Info'`.
+Expected: a **mixed** run. RED: the three rows above (`KeyError:
+'X-Builder-Info'` for the first two, no `data-info-key` for the third and
+fourth). `test_a_rename_and_a_422_carry_no_header_at_all` is deliberately
+**not** selected — it asserts the header is *absent*, so it is already green
+before Steps 3-4 exist and would blur the gate, exactly as in Tasks 6, 8 and 9.
 
 - [ ] **Step 3: Rewrite `_info_entries`**
+
+**Dropping Task 3's defaults makes the three keywords required, so confirm all
+three call sites already pass them before you do it** — `builder()`,
+`_builder_with_notice()` (`:740`) and `_render_scope` (Step 4 below). Task 3
+Step 6 rewires the first two; a positional survivor becomes a `TypeError` on
+the path it serves, and only `_builder_with_notice`'s is covered by a test in
+this plan.
 
 ```python
 def _info_entries(opened, *, q_active, shown, total):
@@ -1692,10 +1727,25 @@ git commit -m "feat(builder): X-Builder-Info header + always-present info slot"
 
 ```python
 def test_toggle_hrefs_preserve_q(filtered_course):
+    """Sliced to the TOGGLE anchor specifically.
+
+    A bare `assert "q=trygo" in body` is vacuous: Step 5 puts `&q=trygo` into
+    the delete and Move href of every rendered row (and Task 9 adds two bulk
+    hrefs), so it passes with the toggle_href edit reverted entirely. Nothing
+    else in this plan can go red against that, which is how an unguarded edit
+    ships.
+    """
     client, course, part, chap, hit, miss = filtered_course
     url = reverse("courses:manage_builder", kwargs={"slug": course.slug})
     body = client.get(url, {"q": "trygo"}).content.decode()
-    assert "q=trygo" in body
+    # The toggle is an <a> whose href toggle_href builds and which ends
+    # `#node-<pk>`; slice backwards from its data-toggle hook to that anchor's
+    # own `href="`.
+    marker = f'data-toggle="{chap.pk}"'
+    assert marker in body, "the chapter toggle did not render; the row proves nothing"
+    tag = body[body.rindex("<a", 0, body.index(marker)) : body.index(marker)]
+    assert "q=trygo" in tag, tag
+    assert f"#node-{chap.pk}" in tag, "not the toggle anchor -- re-derive the slice"
 
 
 def test_markup_hrefs_percent_encode_q(filtered_course):
@@ -1801,6 +1851,58 @@ def test_the_no_js_move_picker_round_trip_stays_filtered(filtered_course):
     assert 'value="trygo"' in body
 
 
+def test_every_tree_form_carries_a_hidden_q(filtered_course):
+    """Step 4's edit is the most-repeated one in this task and the whole no-JS
+    story rests on it, yet nothing else can observe it: every other row POSTs
+    `q` in the payload BY HAND, so all four forms could ship without the input
+    and the suite would stay green while a no-JS author loses the filter on
+    every rename, add, reorder and duplicate.
+
+    Asserted per FORM, not once over the body -- a single hidden input
+    anywhere would otherwise satisfy all four.
+    """
+    client, course, part, chap, hit, miss = filtered_course
+    url = reverse("courses:manage_builder", kwargs={"slug": course.slug})
+    body = client.get(url, {"q": "trygo", "open": "all"}).content.decode()
+    forms = {
+        "rename": 'class="tree__rename"',
+        "add": 'class="tree__add"',
+        "reorder": 'data-op="reorder"',
+        "duplicate": 'data-op="duplicate"',
+    }
+    for label, marker in forms.items():
+        assert marker in body, f"{label}: form absent; the row proves nothing"
+        frag = body.split(marker, 1)[1].split("</form>", 1)[0]
+        assert 'name="q"' in frag and 'value="trygo"' in frag, label
+
+
+def test_the_delete_confirm_round_trip_stays_filtered(filtered_course):
+    """The GET nothing else reaches. Both other delete rows POST straight to
+    manage_node_delete, so `node_confirm_delete.html`'s hidden input, its
+    Cancel href and node_delete's GET context key are all unguarded -- and if
+    the context key is forgotten, `{{ q }}` renders empty, the {% if q %}
+    input disappears, and the confirm POST silently drops the filter.
+    """
+    client, course, part, chap, hit, miss = filtered_course
+    confirm = reverse("courses:manage_node_delete", kwargs={"slug": course.slug})
+    body = client.get(confirm, {"node": miss.pk, "q": "trygo"}).content.decode()
+
+    # 1. the hidden input the confirm POST will carry
+    form = body.split("<form", 1)[1].split("</form>", 1)[0]
+    assert 'name="q"' in form and 'value="trygo"' in form
+
+    # 2. the Cancel href. No `open` in the GET, so the template takes its
+    #    `{% else %}?open=session{% endif %}` arm and `q` appends with `&`.
+    assert "?open=session&amp;q=trygo" in body
+
+    # 3. the POST that form makes -- the filter must survive the redirect
+    resp = client.post(
+        confirm, {"node": miss.pk, "token": miss.updated.isoformat(), "q": "trygo"}
+    )
+    assert resp.status_code == 302
+    assert "q=trygo" in resp["Location"]
+
+
 def test_an_empty_filtered_scope_says_no_matching_titles(filtered_course):
     client, course, part, chap, hit, miss = filtered_course
     url = reverse("courses:manage_builder", kwargs={"slug": course.slug})
@@ -1822,10 +1924,11 @@ indistinguishable from "regression":
 ```bash
 uv run pytest tests/test_builder_filter_views.py -q -k \
   "preserve_q or percent_encode_q or redirect_sites or bespoke_redirect \
-   or move_picker_round_trip or no_matching_titles"
+   or move_picker_round_trip or no_matching_titles \
+   or every_tree_form or delete_confirm_round_trip"
 ```
 
-Expected: all six FAIL — no `q=trygo` anywhere in the markup.
+Expected: all eight FAIL — no `q=trygo` anywhere in the markup.
 
 - [ ] **Step 3: `toggle_href` preserves `q`**
 
@@ -1864,7 +1967,16 @@ In `_tree_node.html`, the delete and Move links:
 
 `{{ q|urlencode }}`, never bare `{{ q }}`: these are hand-built hrefs rather than `urlencode` dicts, and Django autoescapes HTML but does not percent-encode.
 
-**`builder.js:524-530`'s click-time rewrite deliberately does NOT touch `q`** — the markup value is already correct, because every filter transition re-renders the whole top scope through `manage_tree`. Setting it at click time would add a sixth `q`-writing client path on the one gesture that is a full-page navigation.
+**`builder.js:524-530`'s click-time rewrite deliberately does NOT touch `q`.**
+On every transition where `q` ends up **active**, the whole top scope is
+re-rendered through `manage_tree`, so the markup value is current by
+construction. The one path that skips the fetch — Task 11's
+`if (eff === effectiveQ(pendingQ))` branch, e.g. typing `a` into an unfiltered
+box, or clearing a `?q=a` — leaves these hrefs holding the previous value, but
+that value is **below the floor and therefore inert**: the server renders
+unfiltered either way. Setting `q` at click time would add a sixth
+`q`-writing client path on the one gesture that is a full-page navigation, to
+fix nothing.
 
 - [ ] **Step 6: The filter-aware empty message**
 
@@ -2064,8 +2176,20 @@ Expected: PASS. `test_manage_node_ops` may need its expected redirect URLs updat
    reaches — → `test_the_six_redirect_sites_carry_q` must fail on the `add`
    label. This is what proves the row covers six sites rather than standing on
    the rename one.
+3. Revert `toggle_href` to `urlencode({"open": joined})` (Step 3 undone) →
+   `test_toggle_hrefs_preserve_q` must fail. Before the slice-to-the-anchor
+   fix this mutation left the row green, because the delete and Move hrefs
+   carry `q=trygo` too.
+4. Remove the hidden input from **`_tree_node.html`'s rename form only** →
+   `test_every_tree_form_carries_a_hidden_q` must fail on the `rename` label
+   and on that label alone. Per-form assertions are what make a single missed
+   form visible.
+5. Drop the `"q": _raw_q(request)` key from `node_delete`'s GET context
+   (`:645-656`) → `test_the_delete_confirm_round_trip_stays_filtered` must
+   fail on the hidden-input assertion, because `{% if q %}` then takes its
+   falsy arm.
 
-Restore both.
+Restore each.
 
 - [ ] **Step 12: Lint and commit**
 
@@ -4081,6 +4205,17 @@ Under a filter this renders from the **restricted** map — ~226 rows on `mat-pp
 
 **Accepted cost:** a half-typed rename in a nested row is discarded rather than committed. Under collapse-all the row is removed either way, so the choice is between losing the uncommitted text and shipping a database/tree divergence the author is never told about.
 
+**Second accepted cost, recorded so it is a decision and not a surprise:**
+neither bulk control discards `preFilterOpen`. Filter → Expand all → Clear
+restores the *pre-filter* enumeration, undoing that expand-all; filter →
+Collapse all → Clear re-opens what was just collapsed. This is deliberate and
+**consistent with the toggle**, which does not discard the stash either — the
+stash means "what the tree looked like before the filter", and every open-set
+gesture made *inside* a filter is scoped to that filter. Only a MUTATION
+discards it (Task 11 Step 7), because a mutation changes the tree the stashed
+enumeration refers to. Do not add `preFilterOpen = null` here without also
+adding it to the toggle, or the two gestures start disagreeing.
+
 - [ ] **Step 5: Keep the hrefs current**
 
 **First delete Task 11 Step 3's other stub line** — `function rewriteBulkHrefs() {}`
@@ -4388,13 +4523,71 @@ grep -rc "#, fuzzy" locale/pl/LC_MESSAGES/django.po locale/en/LC_MESSAGES/django
 pre-filled from an unrelated msgid, so it ships a wrong string that reads as
 deliberate. Checking only `pl` lets that through both gates.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 5: Pin the one-msgid rule — the row that had to wait for the catalog**
+
+**This row belongs here, not in Task 5.** It asserts the Polish render, and
+`"Filtered: %(shown)s / %(total)s"` does not exist in `locale/pl` until Step 1
+of this task creates it and Step 4 compiles it — I checked: neither "Filtered"
+nor "Filtrowane" appears in the catalog today. Placed in Task 5 it would be RED
+from Task 5 through Task 14, reddening the whole-file gate at the end of Tasks
+5, 6, 7, 8 and 9 for a reason that is not a regression.
+
+(Its sibling, `test_the_header_is_machine_readable_under_the_polish_locale`,
+correctly stays in Task 5: the only Polish string it depends on is the
+truncation notice, which slice 1 already shipped at `django.po:2237`.)
+
+Append to `tests/test_builder_filter_views.py`:
+
+```python
+def test_one_msgid_per_notice(filtered_course):
+    """The page route and the fragment route render the SAME literal, so
+    makemessages collapses them into one catalog entry. Two entries would let
+    them be translated differently and disagree about what the tree shows.
+
+    They are not directly comparable -- the server interpolates while the
+    attribute keeps its placeholders -- so a literal equality assertion fails
+    on a CORRECT implementation. Substitute, then compare.
+    """
+    client, course, *_ = filtered_course
+    url = reverse("courses:manage_builder", kwargs={"slug": course.slug})
+    # The login signal has already pinned session["_language"] to "en", so
+    # Accept-Language is never consulted. Without this seed the row still
+    # passes, but vacuously: it would compare an English template against an
+    # English render and could not detect the two literals drifting apart.
+    session = client.session
+    session["_language"] = "pl"
+    session.save()
+    body = client.get(url, {"q": "trygo"}, HTTP_ACCEPT_LANGUAGE="pl").content.decode()
+    assert "Filtrowane" in body, "the Polish catalog is not active; the row is vacuous"
+    template = body.split('data-msg-filter="')[1].split('"')[0]
+    rendered = body.split('data-info-key="filter">')[1].split("<")[0]
+    assert template % {"shown": 1, "total": 1} == rendered
+```
 
 ```bash
+uv run pytest tests/test_builder_filter_views.py -q -k one_msgid_per_notice
+```
+
+Expected: PASS. If it fails on the `"Filtrowane"` guard, `compilemessages` did
+not run or the msgstr is still empty — fix the catalog, not the test.
+
+**Falsify:** give `data-msg-filter` a *different* msgid from the Python
+literal — e.g. change the template to `{% trans 'Filtered: %(shown)s of %(total)s' %}`,
+re-run `makemessages`, translate the new entry differently — and this row must
+fail. Restore, and re-run `makemessages`/`compilemessages` so the stray entry
+does not ship.
+
+- [ ] **Step 6: Commit**
+
+```bash
+uv run ruff format . && uv run ruff check .
 git branch --show-current
-git add locale/
+git add locale/ tests/test_builder_filter_views.py
 git commit -m "i18n(builder): eight new msgids for the filter and bulk controls"
 ```
+
+`tests/` is in the `git add` because Step 5 adds a row to it; `locale/` alone
+would leave that test uncommitted.
 
 ---
 
