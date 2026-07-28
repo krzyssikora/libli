@@ -1,1 +1,6 @@
-*.svg -text
+# The generated favicon SVG is byte-compared against a fresh render by
+# tests/test_favicon_build.py, so it must round-trip through git unmodified --
+# CRLF normalisation on a checkout would redden that test on a platform change.
+# Scoped to this one path: no other .svg in the tree is byte-compared, and a
+# repo-wide *.svg rule silently opts every future SVG out of normalisation too.
+core/static/core/img/favicon/favicon.svg -text
