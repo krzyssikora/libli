@@ -506,7 +506,9 @@ git commit -m "feat(builder): filter derivation module — fold, floor, match, w
 - Test: `tests/test_builder_open_ids.py`
 
 **Interfaces:**
-- Consumes: `courses.builder_filter.is_active` (Task 1).
+- Consumes: **nothing from Task 1.** The restructure only reorders `open_ids`'s
+  branches, and `_remember_open` receives `q_active` as an argument — Task 8's
+  reorder guard is the first real consumer of `is_active`.
 - Produces: `open_ids(request, course, cmap, *, mode, q_chain=None)` with `q` outranking both session reads; `_remember_open(request, course, opened, *, q_active)`.
 
 - [ ] **Step 1: Write the failing tests**
@@ -2162,8 +2164,14 @@ not the behaviour under test.
 - [ ] **Step 10: Run the tests**
 
 ```bash
-uv run pytest tests/test_builder_filter_views.py tests/test_manage_node_ops.py tests/test_manage_move_picker.py -q
+uv run pytest tests/test_builder_filter_views.py tests/test_manage_node_ops.py \n  tests/test_manage_move_picker.py tests/test_tree_badge.py \n  tests/test_manage_affordance.py tests/test_manage_duplicate_button.py \n  tests/test_builder_duplicate_unit.py tests/test_manage_node_duplicate.py -q
 ```
+
+The last five are the suites Task 0 baselined as at-risk from **this** task:
+`_tree_node.html` (badge), `_add_affordance.html` (affordance), the duplicate
+form, and `node_duplicate`'s redirect. Run them in the commit that can break
+them — deferring to Task 16 puts the breakage seven commits from its cause,
+the same argument Task 9 Step 5 and Task 14 Step 5 already make.
 
 Expected: PASS. `test_manage_node_ops` may need its expected redirect URLs updated — that is the behaviour change Task 0 predicted, not a regression.
 
@@ -2375,10 +2383,30 @@ def test_force_inclusion_is_idempotent(filtered_course):
 - [ ] **Step 2: Run to verify failure**
 
 ```bash
-uv run pytest tests/test_builder_filter_views.py -q -k "force or EMPTY"
+uv run pytest tests/test_builder_filter_views.py -q -k \
+  "no_js_unit_add or NON_MATCHING_destination or consumed_exactly_once"
 ```
 
-Expected: FAIL — the new row is absent after the redirect; the empty-scope case raises `KeyError`.
+Expected: a **mixed** run, and the naive selector gets it exactly backwards.
+
+- RED: `test_a_no_js_unit_add_under_a_filter_shows_the_new_row` and
+  `test_a_no_js_reparent_into_a_NON_MATCHING_destination_shows_the_node`. Both
+  follow a **redirect**, where the next page GET re-derives the restricted map
+  from `q` alone and knows nothing of the new pk. These are the only two rows
+  this task makes pass, and **neither contains "force" or "EMPTY"**.
+- GREEN already: `test_builder_force_is_consumed_exactly_once` — it asserts a
+  title is *absent* on the second render, which is trivially true with no
+  stash at all. It turns red only if Step 3's `store.pop` clear is omitted,
+  which is what Step 7's falsification 2 checks.
+
+`-k "force or EMPTY"` would select **only already-green rows**:
+`test_an_add_into_an_EMPTY_filtered_scope_does_not_500`,
+`test_a_forced_row_does_not_move_shown_or_total` and
+`test_force_inclusion_is_idempotent` all drive the **fragment** add path, where
+`extra_open` already flows through `_filter_context` → `_apply_effect_two` —
+shipped in Task 3, `setdefault` included — so the `KeyError` is unreachable
+here and the shown/total rule already holds. Run them at Step 6 as
+carry-forwards; do not expect them red now.
 
 - [ ] **Step 3: Add the stash helpers**
 
@@ -2713,8 +2741,11 @@ Step 1's copy list — it is what makes this rule observable at all.
 - [ ] **Step 6: Run the tests**
 
 ```bash
-uv run pytest tests/test_builder_filter_views.py tests/test_manage_node_ops.py -q
+uv run pytest tests/test_builder_filter_views.py tests/test_manage_node_ops.py \n  tests/test_tree_badge.py tests/test_manage_affordance.py -q
 ```
+
+`test_tree_badge.py` renders `_tree_node.html` directly and this task edits the
+grip inside it; `_move_buttons.html` sits in the same rows.
 
 Expected: PASS. The drag e2e runs in Task 10 once its file exists — invoking it
 here exits 4 (file not found), which is not a pass.
@@ -2870,6 +2901,13 @@ Expected: FAIL — no `data-filter-clear` in the markup.
 `test_the_info_slot_is_present_and_empty_on_an_unfiltered_page`, green since
 Task 5, turning a red gate into a mixed run where "expected red" and
 "regression" look the same — the problem already fixed for Task 6 Step 2.
+
+**One row the selector does still drag in:**
+`test_expand_all_under_a_filter_returns_only_filtered_rows` matches
+`expand_all` but is **green already** — it only GETs `manage_tree` with
+`open=all&q=trygo` and asserts the restricted map renders, and both the route
+(Task 4) and the restricted map (Task 3) shipped earlier. Expect it green;
+everything else in the expression is red.
 `test_the_info_slot_hides_when_empty_via_empty_not_hidden` is in the same
 position: it guards the `.builder__info:empty` rule that **shipped in Task 5**,
 so it is a carry-forward regression guard, not a red gate for this task. Run it
@@ -2948,7 +2986,7 @@ Append to `courses/static/courses/css/builder.css`:
 - [ ] **Step 5: Run the tests, then screenshot**
 
 ```bash
-uv run pytest tests/test_builder_filter_views.py tests/test_builder_styles.py -q
+uv run pytest tests/test_builder_filter_views.py tests/test_builder_styles.py \n  tests/test_manage_builder.py -q
 uv run pytest tests/test_e2e_builder_tree_layout.py -m e2e -q
 ```
 
@@ -3263,8 +3301,28 @@ Then update the four remaining senders to use it:
       });
   ```
 - the drop and the submit handler: already covered through `withOpen`
-- the Move-picker fetch (`:276`): parse the href into a `URL` and set **only
-  `q`** — `u.searchParams.set("q", appliedQ)` — **not** `setTreeParams(u)`.
+- the Move-picker fetch (`:276`), written out because the surrounding lines
+  decide what `fetch` receives:
+
+  ```js
+        var u = new URL(mv.getAttribute("href"), window.location.origin);
+        u.searchParams.set("q", appliedQ);
+        fetch(u.pathname + u.search, { headers: { "X-Requested-With": "fetch" } })
+  ```
+
+  `u.pathname + u.search`, matching the click-time delete-href rewrite at
+  `:528-530`; `u.toString()` would work too but would spell an absolute URL
+  where the file consistently uses relative ones.
+
+  **Deliberately unguarded**, and recorded as such rather than left to look
+  like an oversight: no row in this plan asserts `q` on the picker request,
+  because the edit is belt-and-braces — every transition that makes `q` active
+  re-renders the whole top scope, so the href it parses already carries the
+  current `q`. This line matters only for the window between a filter
+  response landing and the next re-render. If you would rather guard it, the
+  cheap version is a Playwright `page.on("request")` row in Task 10.
+
+  Set **only `q`** — **not** `setTreeParams(u)`.
   Sets, does not append: the href already carries a rendered `q`, so appending
   yields `?node=5&q=X&q=X` and works only because `QueryDict.get` takes the
   last. And `setTreeParams` would additionally stamp `open`, which
@@ -3605,7 +3663,7 @@ line is part of those steps.
       .then(function (r) {
         return r.text().then(function (text) {
           if (gen !== treeGen) return;          // stale: touch NOTHING
-          if (r.status !== 200) { notice(msg("network", "Network error")); return; }
+          if (r.status !== 200) { notice(msg("network", "Network error — please try again.")); return; }
           applyFragment(text);
           applyInfo(r);                          // Task 12
           appliedQ = live;                       // BEFORE syncUrl and the rewrite
@@ -3614,7 +3672,7 @@ line is part of those steps.
           syncUrl();
         });
       })
-      .catch(function () { notice(msg("network", "Network error")); })
+      .catch(function () { notice(msg("network", "Network error — please try again.")); })
       .then(function () { busyEnd(); });
   }
 ```
@@ -3797,10 +3855,25 @@ def test_the_empty_info_slot_is_not_rendered(page, live_server):
 - [ ] **Step 2: Run to verify failure**
 
 ```bash
-uv run pytest tests/test_e2e_builder_filter.py -m e2e -q -k "info or slot"
+uv run pytest tests/test_e2e_builder_filter.py -m e2e -q -k \
+  "fragment_borne or replaces_by_key or absent_header \
+   or removes_the_filter_entry or empty_info_slot"
 ```
 
-Expected: FAIL — no entry ever appears from a fragment.
+Expected: a **mixed** run. `-k "info or slot"` would be worse than useless
+here — it selects neither row the stated expectation describes.
+
+- RED: `test_a_fragment_borne_notice_lands_on_a_page_that_had_none` (no entry
+  ever appears from a fragment), `test_clearing_the_filter_removes_the_filter_entry`
+  (the stub never removes one) and `test_the_empty_info_slot_is_not_rendered`
+  (times out waiting for `[data-info-key="filter"]`). **None of the first two
+  contains "info" or "slot".**
+- GREEN already, against Task 11's `function applyInfo() {}` stub:
+  `test_the_info_slot_replaces_by_key` and
+  `test_an_absent_header_does_NOT_clear_the_slot`. Both load `?q=trygo`, get
+  one server-rendered `<li>`, and the stub adds nothing — so `count() == 1`
+  holds for the wrong reason. They are Step 6's falsification targets, not red
+  gates.
 
 - [ ] **Step 3: Add the registry**
 
@@ -3853,9 +3926,8 @@ The registry operates on **server-rendered** entries too, because it queries the
 
 - [ ] **Step 4: Call it from every tree-pane response**
 
-Add `applyInfo(r)` to the submit handler, the drop handler and
-`applyFilterState` — all three already use the nested `r.text().then(…)` form,
-so `r` is in scope.
+Add `applyInfo(r)` to the submit handler and the drop handler — both already
+use the nested `r.text().then(…)` form, so `r` is in scope.
 
 **In the submit handler it goes at the TOP of the `r.text().then(function
 (text) {…})` body, before the status branches — NOT beside `applyFragment`.**
@@ -3876,8 +3948,14 @@ unable to go red:
         if (r.status === 200 || r.status === 409) {
 ```
 
-The drop handler and `applyFilterState` have no such split; there the call sits
-beside `applyFragment` as described.
+**The drop handler has a status split too** (`builder.js:642-651`: 200/409 →
+`applyFragment`, else 422 → `notice`), but there it does not matter: a 422 drop
+returns `_op_error.html`, which never reaches `_render_scope` and so carries no
+header at all. Placing the call beside `applyFragment` in the 200/409 arm is
+sufficient there.
+
+`applyFilterState` (Task 11 Step 5) and expand-all (Task 13 Step 3) **already
+carry `applyInfo(r)`** in their ordered chains — do not add a second call.
 
 **The toggle handler needs its whole chain reshaped**, because it does
 `.then(function (r) { if (r.status !== 200) throw …; return r.text(); })` —
@@ -4081,6 +4159,16 @@ def test_an_over_ceiling_expand_all_never_grows_an_href(page, live_server, monke
 
     Collapse-all is the control group: it always has an href, so it proves the
     rewrite still ran and this row is not passing because nothing happened.
+
+    BARRIER NOTE, measured rather than copied. Do NOT reuse the neighbouring
+    row's `li[data-node=miss]` + state="detached" wait: under CEILING=0
+    `_finalize` truncates the resolved set to EMPTY, so the page loads with the
+    chapter COLLAPSED and that <li> is never in the DOM. `state="detached"`
+    resolves instantly on a selector that never existed, and the assertions
+    would then run inside the 300 ms debounce, before any fetch — reading the
+    server-rendered href and failing. Wait on the `filter` info entry instead:
+    at load the slot holds only a `truncation` entry (no `q` in the URL), so
+    the `filter` entry is a true happens-after signal for the response.
     """
     monkeypatch.setattr("courses.builder_open.CEILING", 0)
     owner = _make_pa_user("pa")
@@ -4091,8 +4179,9 @@ def test_an_over_ceiling_expand_all_never_grows_an_href(page, live_server, monke
     assert expand.get_attribute("href") is None, (
         "the server rendered an href over the ceiling; the row proves nothing"
     )
+    assert page.locator('[data-info-key="filter"]').count() == 0
     page.fill("#builder-q", "trygo")
-    page.wait_for_selector(f'li[data-node="{miss.pk}"]', state="detached")
+    page.wait_for_selector('[data-info-key="filter"]')   # the response landed
     assert expand.get_attribute("href") is None
     assert "q=trygo" in page.locator("[data-collapse-all]").get_attribute("href")
 
@@ -4148,14 +4237,14 @@ Expected: FAIL — the clicks navigate.
       .then(function (r) {
         return r.text().then(function (text) {
           if (gen !== treeGen) return;
-          if (r.status !== 200) { notice(msg("network", "Network error")); return; }
+          if (r.status !== 200) { notice(msg("network", "Network error — please try again.")); return; }
           applyFragment(text);
           applyInfo(r);
           rewriteBulkHrefs();
           syncUrl();          // writes the resulting ENUMERATION: the
         });                   // collector can only ever emit one
       })
-      .catch(function () { notice(msg("network", "Network error")); })
+      .catch(function () { notice(msg("network", "Network error — please try again.")); })
       .then(function () { busyEnd(); });
   });
 ```
@@ -4384,7 +4473,9 @@ handler, and the two fetches this slice added — `applyFilterState`
 fetches and rewrite the toggle's whole chain, so every numeral in the shipped
 file has moved by the time this task runs. The criterion is the one already
 used below to exclude the other two: a site qualifies iff it pairs
-`busyStart()` with a trailing `.then(function () { busyEnd(); })`.
+`busyStart()` with a trailing `.then(…)` **whose body calls `busyEnd()`**.
+(Not "whose body *is* `busyEnd()`" — the toggle's trailing handler also clears
+`ctl2.dataset.submitting`, and it is one of the five.)
 
 **Do NOT touch `loadPanel` or the Move-picker fetch.**
 Neither has a `busyStart`/`busyEnd` pair, so the snippet's trailing
@@ -4638,15 +4729,22 @@ no view imports beyond `_children_map`, so it ships its own `_descendants`
 and `context`:
 
 ```python
-# with the other imports at the top (:20-22)
-from courses.builder_filter import filtered_map
-
 # beside SLUG/OPEN (:24-25)
 Q = os.environ.get("Q", "")
 
 # after `ids` is resolved (:67), before ctx is built (:77)
 render_map = cmap
 if Q:
+    # Imported HERE, not at the top. `_containers` (:28-33) and `_descendants`
+    # (:39) are deliberate local copies so the probe RUNS ON TODAY'S CODE --
+    # their docstrings say so in as many words ("so this probe runs BEFORE
+    # courses.builder_open exists"). A module-level import executes
+    # unconditionally and would destroy exactly that property, making the
+    # BEFORE half of every comparison impossible on a clean checkout. Inside
+    # the `if Q:` block the import only runs when the caller asked for a
+    # filtered measurement, which by definition is an AFTER run.
+    from courses.builder_filter import filtered_map
+
     restricted, chains, shown, total, _active = filtered_map(cmap, Q)
     render_map = restricted
     ids = chains
