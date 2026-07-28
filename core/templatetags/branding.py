@@ -91,14 +91,17 @@ def favicon_links():
             # That held with sizes="any" on the SVG, on the ICO, on both, and on
             # neither: the `sizes` attribute made no difference in any pairing.
             # DOCUMENT ORDER is what decides -- Chromium prefers the LAST
-            # <link rel="icon"> among equals. sizes="any" stays on the ICO because
-            # that is the canonical recipe, not because it drives the choice.
+            # <link rel="icon"> among equals.
+            #
+            # Since `sizes` is inert for selection, each link declares the TRUTH about
+            # its own file: the ICO really does hold 16/32/48 frames, and the vector
+            # really does scale to any size.
             format_html(
-                '<link rel="icon" href="{}" sizes="any">',
+                '<link rel="icon" href="{}" sizes="16x16 32x32 48x48">',
                 static(FAVICON_DIR + "favicon.ico"),
             ),
             format_html(
-                '<link rel="icon" href="{}" type="image/svg+xml">',
+                '<link rel="icon" href="{}" type="image/svg+xml" sizes="any">',
                 static(FAVICON_DIR + "favicon.svg"),
             ),
             format_html(

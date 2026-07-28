@@ -243,7 +243,10 @@ def test_ico_link_precedes_the_svg_link_so_the_vector_wins(client):
     made NO difference in any pairing (tested on the SVG, on the ICO, on both, on
     neither), so the original guard's `'sizes="any"' in body` was doubly useless: it
     is true wherever the attribute sits, AND the attribute is not what decides.
-    Assert the INDEXES for order, and the ELEMENTS for attribute placement.
+
+    Ordering is therefore the load-bearing assertion. Because `sizes` is inert for
+    selection, it is free to be TRUTHFUL, and that is asserted per ELEMENT: the ICO
+    holds 16/32/48 frames, the vector scales to any size.
     """
     body = client.get("/").content.decode()
 
@@ -255,9 +258,9 @@ def test_ico_link_precedes_the_svg_link_so_the_vector_wins(client):
     ico_link = _link_element(body, "favicon.ico")
 
     assert 'type="image/svg+xml"' in svg_link, svg_link
-    assert 'sizes="any"' in ico_link, f"the ICO link must carry sizes=any: {ico_link}"
-    assert "sizes=" not in svg_link, (
-        f"the SVG link must declare NO sizes at all: {svg_link}"
+    assert 'sizes="any"' in svg_link, f"a vector scales to any size: {svg_link}"
+    assert 'sizes="16x16 32x32 48x48"' in ico_link, (
+        f"the ICO link must declare the frames it really holds: {ico_link}"
     )
 
 

@@ -110,8 +110,13 @@ def test_pa_uploads_then_clears_the_favicon(page, live_server, tmp_path, setting
 
     page.locator('[data-file-field="favicon"] [data-file-remove]').check()
     _save_branding(page)
-    icon_href = page.locator('link[rel="icon"]').first.get_attribute("href")
-    assert "favicon.svg" in icon_href
+    # Scoped by href, not by position: clearing restores TWO icon links (ICO first,
+    # SVG last -- the order is what makes the browser pick the vector). `.first` would
+    # be the ICO and `.last` would silently pass again if the order were flipped back,
+    # so assert on the element that actually carries the SVG.
+    svg_link = page.locator('link[rel="icon"][href*="favicon.svg"]')
+    assert svg_link.count() == 1
+    assert "favicon.svg" in svg_link.get_attribute("href")
 
 
 @pytest.mark.django_db(transaction=True)

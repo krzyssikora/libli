@@ -420,9 +420,10 @@ No new cache plumbing: the bundle is already invalidated on `Institution` `post_
 (alongside `brand_vars`; both are branding-head emitters). It reads `get_site_config()` and returns
 the head block:
 
-- *No override:* `<link rel="icon" href="…/favicon.svg" type="image/svg+xml" sizes="any">` **first**,
-  then `<link rel="icon" href="…/favicon.ico" sizes="16x16 32x32 48x48">` (declaring what that file
-  actually contains, since this spec argues elsewhere for accurate `sizes`),
+- *No override:* `<link rel="icon" href="…/favicon.ico" sizes="16x16 32x32 48x48">` **first**
+  (declaring what that file actually contains, since this spec argues elsewhere for accurate `sizes`),
+  then `<link rel="icon" href="…/favicon.svg" type="image/svg+xml" sizes="any">` **last** — the SVG
+  must come last or the browser never fetches it; see the ordering paragraph below,
   `<link rel="apple-touch-icon" href="…/apple-touch-icon.png">`,
   `<link rel="manifest" href="{% url 'core:webmanifest' %}">`,
   `<meta name="theme-color" content="<effective primary>">`.
@@ -443,13 +444,21 @@ as an attribute value, which is exactly the property needed. Static URLs come fr
 `django.templatetags.static.static()` so WhiteNoise's `CompressedManifestStaticFilesStorage` hashing
 applies in production.
 
-**Which icon link wins matters, and the two default links compete.** Two `rel="icon"` links are
-selected between partly by declared `sizes`, and a vector link with *no* `sizes` against an ICO
-declaring exactly the 16/32 a tab wants is the combination that has historically made Chromium ignore
-the SVG entirely — which would make the vector dead weight. Hence `sizes="any"` on the SVG link (the
-accurate declaration for a vector) and SVG-first ordering. **Expected outcome: a modern browser renders
-the SVG; the ICO is the legacy fallback.** That is a checkable claim, so the visual-verification step
-checks it rather than assuming it.
+**Which icon link wins matters, and the two default links compete.** **Expected outcome: a modern
+browser renders the SVG; the ICO is the legacy fallback.** That is a checkable claim, so the
+visual-verification step checks it rather than assuming it.
+
+> **Corrected in build (Task 13) — this section's original mechanism was false.** It claimed
+> selection turns on declared `sizes`, and prescribed `sizes="any"` on the SVG plus **SVG-first**
+> ordering. Measured against a real server with headed Chromium 148 and real Google Chrome (verdict
+> read from the server access log — a favicon is fetched by the browser *process* for the tab chrome,
+> so headless `page.on("request")` sees nothing, and Playwright route interception skews the result):
+> **`sizes` is inert for selection.** It changed nothing when placed on the SVG, on the ICO, on both,
+> or on neither. **Document order decides — Chromium prefers the *last* `<link rel="icon">` among
+> equals.** SVG-first + ICO-second meant the ICO was fetched and the SVG *never* was, i.e. the
+> prescribed arrangement produced exactly the dead-weight vector it was meant to prevent.
+> Hence the shipped order is **ICO first, SVG last**. `sizes` is kept accurate on both links because
+> it is truthful metadata, not because it drives the choice.
 
 **`theme-color` is always emitted**; its value is `cfg["primary"]` when that passes
 `is_valid_css_color()`, else `PRIMARY_DEFAULT`. (The meta tag is never omitted — an earlier phrasing
@@ -894,11 +903,14 @@ before any Pillow access. That pair is the regression test for the 500 described
 
 **Head render**
 - `base.html` with no override contains the SVG/ICO/apple-touch/manifest links and a `theme-color`.
-- **Link order and `sizes="any"` are asserted, not left to the manual check.** The SVG `<link>`'s
-  index in the response body precedes the ICO `<link>`'s, and the SVG link carries `sizes="any"`.
-  Swapping the emission order must turn this RED — otherwise the exact configuration §6 says makes
-  Chromium ignore the SVG could be reintroduced and ship green, since a containment assertion passes
-  regardless of order.
+- **Link order is asserted, not left to the manual check.** The ICO `<link>`'s index in the response
+  body precedes the SVG `<link>`'s (order is what decides selection — see §6), and each link's
+  `sizes` is asserted **per element**: `16x16 32x32 48x48` on the ICO, `any` on the SVG. Swapping the
+  emission order must turn this RED — otherwise the exact configuration that makes Chromium ignore
+  the SVG could be reintroduced and ship green.
+  A whole-body `'sizes="any"' in body` containment assertion is **not** sufficient: it is true
+  wherever the attribute sits, and it shipped green on the broken markup. Resolve the individual
+  `<link>` element and assert on that.
 - With an override, the icon links point at the media URL and the static default icons are *absent*
   (not merely present-alongside).
 - A media filename containing HTML-special characters is escaped in the `href` — the falsification for
@@ -972,7 +984,8 @@ screenshot alone cannot settle, checked explicitly:
   `aria-label` produced an accessible name;
 - picking a file on an **empty** favicon field shows a preview (the `<div>`→`<img>` swap in §4 item 4);
 - the browser renders the **SVG**, not the ICO, in a modern engine — the expected outcome of the
-  `sizes="any"` + link-order choice in §6.
+  ICO-first / SVG-last link ordering in §6. Measure it from a **server access log** with a **headed**
+  browser: headless fetches no favicon at all, and Playwright route interception skews the result.
 
 ## Docs
 
