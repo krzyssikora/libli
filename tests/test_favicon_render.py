@@ -2,6 +2,7 @@
 
 import io
 import json
+import re
 from pathlib import Path
 
 import pytest
@@ -216,16 +217,48 @@ def test_head_has_the_default_icon_links(client):
     assert 'name="theme-color"' in body
 
 
-def test_svg_link_precedes_the_ico_link_and_declares_sizes_any(client):
-    """Order and sizes="any" are load-bearing: a vector link with no sizes, against
-    an ICO declaring exactly the 16/32 a tab wants, is the combination that makes
-    Chromium ignore the SVG. A containment assertion passes regardless of order,
-    so assert the INDEXES."""
+def _link_element(body, filename):
+    """The whole <link ...> element whose href names `filename`.
+
+    Per-ELEMENT, because `'sizes="any"' in body` is true anywhere in the document:
+    that is what let the attribute sit on the wrong link and still pass.
+    """
+    matches = re.findall(r"<link\b[^>]*>", body)
+    owning = [tag for tag in matches if filename in tag]
+    assert len(owning) == 1, f"expected exactly one <link> for {filename}, got {owning}"
+    return owning[0]
+
+
+def test_ico_link_precedes_the_svg_link_so_the_vector_wins(client):
+    """The SVG must come LAST. This is the whole point of shipping a vector icon.
+
+    Measured, not reasoned (headed Chromium 148 and real Chrome against a real
+    server, verdict read from the server's access log -- a favicon is fetched by the
+    browser process for the tab chrome, so headless page.on("request") sees nothing):
+
+        SVG first + ICO second  -> ICO fetched, SVG NEVER fetched
+        ICO first + SVG last    -> SVG fetched FIRST (preferred), ICO second
+
+    Chromium prefers the LAST <link rel="icon"> among equals. The `sizes` attribute
+    made NO difference in any pairing (tested on the SVG, on the ICO, on both, on
+    neither), so the original guard's `'sizes="any"' in body` was doubly useless: it
+    is true wherever the attribute sits, AND the attribute is not what decides.
+    Assert the INDEXES for order, and the ELEMENTS for attribute placement.
+    """
     body = client.get("/").content.decode()
-    svg_at = body.index("favicon.svg")
+
     ico_at = body.index("favicon.ico")
-    assert svg_at < ico_at
-    assert 'sizes="any"' in body
+    svg_at = body.index("favicon.svg")
+    assert ico_at < svg_at, "the ICO must come FIRST or the browser ignores the SVG"
+
+    svg_link = _link_element(body, "favicon.svg")
+    ico_link = _link_element(body, "favicon.ico")
+
+    assert 'type="image/svg+xml"' in svg_link, svg_link
+    assert 'sizes="any"' in ico_link, f"the ICO link must carry sizes=any: {ico_link}"
+    assert "sizes=" not in svg_link, (
+        f"the SVG link must declare NO sizes at all: {svg_link}"
+    )
 
 
 def test_override_replaces_the_static_icons(client, settings, tmp_path):

@@ -76,14 +76,30 @@ def favicon_links():
         parts = [icon, format_html('<link rel="apple-touch-icon" href="{}">', url)]
     else:
         parts = [
-            # SVG first, with sizes="any" -- see the ordering test.
+            # Intent: a modern browser renders the SVG; the ICO is the legacy
+            # fallback. That REQUIRES the ICO first and the SVG LAST. Do not reorder.
+            #
+            # The spec's stated mechanism ("SVG first, with sizes=any on the SVG") was
+            # measured and is FALSE. Measured with headed Chromium 148 and real Chrome
+            # against a real server, reading the server's access log -- the only place
+            # a favicon fetch is visible, because the browser PROCESS fetches it for
+            # the tab chrome, so headless page.on("request") sees nothing at all:
+            #
+            #   SVG first + ICO second  -> ICO fetched, SVG NEVER fetched
+            #   ICO first + SVG last    -> SVG fetched FIRST (preferred), ICO second
+            #
+            # That held with sizes="any" on the SVG, on the ICO, on both, and on
+            # neither: the `sizes` attribute made no difference in any pairing.
+            # DOCUMENT ORDER is what decides -- Chromium prefers the LAST
+            # <link rel="icon"> among equals. sizes="any" stays on the ICO because
+            # that is the canonical recipe, not because it drives the choice.
             format_html(
-                '<link rel="icon" href="{}" type="image/svg+xml" sizes="any">',
-                static(FAVICON_DIR + "favicon.svg"),
+                '<link rel="icon" href="{}" sizes="any">',
+                static(FAVICON_DIR + "favicon.ico"),
             ),
             format_html(
-                '<link rel="icon" href="{}" sizes="16x16 32x32 48x48">',
-                static(FAVICON_DIR + "favicon.ico"),
+                '<link rel="icon" href="{}" type="image/svg+xml">',
+                static(FAVICON_DIR + "favicon.svg"),
             ),
             format_html(
                 '<link rel="apple-touch-icon" href="{}">',
