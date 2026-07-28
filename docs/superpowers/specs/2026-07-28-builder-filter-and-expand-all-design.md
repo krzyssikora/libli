@@ -45,18 +45,30 @@ MIN_QUERY = 2      # chars of the FOLDED query, after stripping -- see 1a
 MATCH_CAP = 100    # matches kept, in (order, pk) order
 
 def fold(s: str) -> str: ...
+def is_active(q) -> bool: ...      # the floor test, alone -- needs no cmap
 def filtered_map(cmap, q) -> tuple[dict, set[int], int, int, bool]: ...
 ```
+
+**`is_active` exists because one consumer needs the activity test WITHOUT a tree.** §3m's
+server-side reorder guard runs in `node_move`'s `mode == "reorder"` branch
+(`views_manage.py:567`), which fires before `builder_svc.reorder_node` and therefore before any
+`cmap` is loaded or any `FilterContext` exists — so it can call neither `filtered_map` nor
+`_filter_context`. Without a named helper the only spellings left are the one §1 forbids
+(re-testing `len(fold(q.strip())) >= MIN_QUERY` in a view) and the one that is wrong
+(`if request.POST.get("q")`, which refuses a reorder under a below-floor `?q=a`, where the tree
+renders unfiltered and the arrows render **enabled** — so the author clicks a live control and
+gets a 422). `filtered_map` calls `is_active` too, so the floor still has exactly one copy.
 
 `filtered_map` returns `(restricted_cmap, chain_ids, shown, total, q_active)` and owns **all**
 filter derivation: the fold, the match selection, the ancestor walk, the 100-cap and the
 `(order, pk)` sort. `views_manage` imports it as `_filtered_map`, exactly as slice 1 aliased
 `open_ids` → `_open_ids`.
 
-**`q_active` is the fifth element, and nothing outside this module may re-derive it.** Four
+**`q_active` is the fifth element, and nothing outside this module may re-derive it.** Five
 consumers need to know whether the filter is on: §3b's `q_chain` decision, §3h's `filtered`
-flag, §3i's `filter` entry (emitted even when `shown == total == 0`) and §3l's
-`_remember_open` gate. **§4's Clear link is deliberately NOT one of them** — it reads the raw
+flag, §3i's `filter` entry (emitted even when `shown == total == 0`), §3l's `_remember_open`
+gate, and §3m's reorder guard — which takes it from `is_active(q)` rather than the tuple,
+being the one consumer that runs without a tree. **§4's Clear link is deliberately NOT one of them** — it reads the raw
 `q`, so a below-floor `?q=a` still offers a way to empty the box. The first four elements
 cannot express it — `chains=set(), shown=0, total=0` is returned both for
 "below the floor, unfiltered" and for "active, matched nothing". The only alternative is to
@@ -332,12 +344,15 @@ them are easy to leave out and expensive to leave out:
   take it from here. It is `q_raw`, not the normalized form, because the author's half-typed
   `?q=a` must survive into the input's value and every href (§1).
 
-  **Eight non-rendering sites do need their own read, so the resolution rule itself lives in a
+  **Nine non-rendering sites do need their own read, so the resolution rule itself lives in a
   named helper**, `_raw_q(request)` (POST then GET), which `_filter_context` calls too. They
   are the six `_redirect_to_builder` mutation sites (§3j), plus `node_delete`'s GET (for the
-  confirm form's hidden input and its Cancel link) and `node_move`'s GET (for the picker
-  context) — none of which render tree markup, so none can be served by `FilterContext`.
-  Without the named helper the POST-then-GET rule really would be re-expressed nine times.
+  confirm form's hidden input and its Cancel link), `node_move`'s GET (for the picker context),
+  and **`node_move`'s `mode == "reorder"` POST branch** (§3m's guard) — none of which render
+  tree markup, so none can be served by `FilterContext`. Without the named helper the
+  POST-then-GET rule really would be re-expressed ten times. The reorder guard is the only one
+  that needs the *activity* test on top of the raw read; it gets that from
+  `builder_filter.is_active` (§1), never by re-testing the floor itself.
 - **Both the pre-union and the post-union set**, because two consumers need different ones.
   `_render_scope` today keeps the force-union in a plain local
   (`ids = set(opened.ids) | _extra_container_pks(...)`), deliberately *outside* the frozen
@@ -1101,8 +1116,10 @@ is not a reliable accessible name.
 - `type="search"` gives Chromium a native clear affordance that fires `input`, so the JS path
   gets clearing for free — **but Firefox renders none**, so the link below is the only one-click
   clear a Firefox author has, and it must work on both paths. The explicit Clear link is
-  rendered **whenever the input has any text — `{% if q %}`, on the raw value, not on
-  `q_active`**.
+  **shown whenever the input has any text**, keyed on the raw `q`, never on `q_active` — a
+  below-floor `?q=a` renders an unfiltered tree with `a` still in the box, and the author needs
+  a way to empty it. *Shown*, not *rendered*: the anchor itself is always in the DOM, per the
+  next bullet.
 - **The anchor is rendered UNCONDITIONALLY and carries `hidden` when `q` is blank.** An
   earlier draft wrapped it in `{% if q %}`, which puts nothing in the DOM on an unfiltered page
   — so the JS rule below has no element to show, and the natural spelling
@@ -1127,8 +1144,15 @@ is not a reliable accessible name.
   `input` handler that drives the debounce.
 - **The JS intercepts the Clear control**: `preventDefault`, **cancel any pending debounce
   timer** (the same rule §5b gives the form's submit listener, and for the same reason — the
-  timer would otherwise fire afterwards and issue a *second* clear), empty the input, and run
-  §5d's clear path. Left un-intercepted it is a full-page navigation to a bare builder URL — precedence
+  timer would otherwise fire afterwards and issue a *second* clear), empty the input,
+  **call the visibility update explicitly**, and run §5d's clear path.
+- **The visibility update is a named function, called from both entry points — not a side
+  effect of the `input` handler.** Assigning `box.value = ""` fires **no** `input` event, so a
+  rule that lives only in that handler never runs on the Clear click, and the control stays
+  visible over an empty box: exactly the lingering state the bullet above says the server-only
+  rule would produce. The below-floor case compounds it, since §5c also *skips* the request, so
+  no response handler runs either. §8's e2e must therefore empty the box **via the Clear
+  control**, not by typing — typing fires `input` and passes regardless. Left un-intercepted it is a full-page navigation to a bare builder URL — precedence
   steps 4–6, the module-scoped stash discarded, every expansion lost — which is exactly what
   §5d's stash exists to prevent, on the control *labelled* "Clear". The route is routine, not
   theoretical: the link is server-rendered, so it appears on any reload of a `?q=` URL, which
@@ -1208,7 +1232,7 @@ deleted. Since the effective query did not change, no re-render is needed and th
 free: the pane stays correct either way, and the URL now tracks the box on both below-floor
 paths instead of only one of them.
 
-### 5a. `q` rides EIGHT request paths — six with the applied value — and `withOpen` reaches two
+### 5a. `q` rides EIGHT request paths — six carry it, five with the applied value — and `withOpen` reaches two
 
 **Set, never append**: mutation forms already carry a hidden `q`, so appending would put two
 values in the `FormData` and `QueryDict.get` returns the last — the collector would win only by
@@ -1593,7 +1617,11 @@ filter, and the present-but-inactive kind (a below-floor `?q=a`), so the author'
 text is still in the box when the page comes back.
 
 **And both handlers rewrite their own href's `q` from the tracker when a filter or clear
-response is applied.** §3j item 1's reason for never rewriting an href at click time — "every
+response is applied — skipping any control that has no `href`.** Over the ceiling expand-all is
+rendered href-less on purpose (§6a calls that the authoritative guard), and the natural rewrite
+would run `new URL(el.getAttribute("href"), origin)` on `null`, which yields `/null` (verified)
+and writes `href="/null?open=all&q=…"` onto the disabled control — a middle-click then lands on
+a 404. The rewrite never *adds* an `href`, only updates one that exists. §3j item 1's reason for never rewriting an href at click time — "every
 filter transition re-renders the whole top scope" — holds for the delete and Move hrefs, which
 live *inside* the swapped `<ol data-scope="top">`. These two do not: they sit in
 `.builder__tree`'s header beside the filter, outside every fragment `applyFragment` swaps and
@@ -1769,6 +1797,12 @@ until this was done.
   no-JS half is the one that catches an unconditional `_op_error.html`, which is a bare
   unstyled fragment. The server cannot rely
   on the markup alone, since the form is trivially replayable.
+- **…but a reorder under a BELOW-FLOOR `?q=a` succeeds** and mutates the sibling order,
+  asserted on the full order. The refusal row above passes under a truthiness gate
+  (`request.POST.get("q")`) or a presence gate, both of which wrongly refuse here — while the
+  arrows are rendered **enabled**, because `filtered` is `False` (§3k). Same deliberate pair as
+  §3l's "…but DOES write under a below-floor `?q=a`", and the guard's only correct source is
+  `builder_filter.is_active` (§1).
 - **…but a positioned REPARENT under an active filter still succeeds** — the Move picker's
   route (§3m). Both post to `node_move` and are indistinguishable server-side, so this row is
   what stops the guard being widened to "any positioned move" and silently breaking the only
@@ -1902,8 +1936,10 @@ not a pass):**
 - **a below-floor query takes the clear path** — type `tryg`, then delete down to `t`, and
   assert the unfiltered tree is back rather than stale filtered markup
 - **the Clear control appears after typing a query into an UNFILTERED page** (§4) — the
-  server never rendered it, so only the JS visibility rule can produce it; and it disappears
-  again when the box is emptied. This is the row that catches a server-only `{% if q %}`, which
+  server rendered it `hidden`, so only the JS visibility rule can reveal it; and it hides again
+  when the box is emptied **via the Clear control itself**, not by typing. Typing fires `input`
+  and passes whatever happens; clicking Clear does not (§4), so only that spelling catches a
+  visibility rule that lives solely in the `input` handler. This is the row that catches a server-only `{% if q %}`, which
   leaves the Firefox author the control exists for with no one-click clear at all.
 - **clicking the Clear LINK with JS on does not navigate** (§4) — asserted with the
   no-navigation guard, and the pre-filter expansion is restored. Falsified by removing the
