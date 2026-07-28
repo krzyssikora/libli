@@ -881,7 +881,20 @@ button.asset-cell:hover { border-color: var(--primary); }
    are deliberately NOT reused: they live in builder.css, which this page does not load
    (asserted in tests/test_editor_styles.py), so borrowing the names would ship an
    unindented, unstyled list. */
-.link-dialog { padding: 0; border: 0; border-radius: var(--radius-md); max-width: 34rem; width: 92vw; }
+/* color/background are NOT inherited from the page: the UA styles <dialog> as
+   `color: CanvasText; background-color: Canvas`, and this app themes off a data-theme
+   ATTRIBUTE rather than color-scheme, so Canvas stays LIGHT under the dark theme.
+   Without these two declarations every descendant that does not state its own colour --
+   the picker tree titles and the heading -- inherits near-black on the dark card, and
+   the white Canvas shows through at the rounded corners. The card paints the real
+   surface, so the dialog box itself is transparent.
+   tests/test_e2e_link_dialog.py::test_dialog_text_follows_the_dark_theme measures this.
+   `margin: auto` is what CENTRES the modal against the UA's all-round `inset: 0`; it has
+   to be restated because core/static/core/css/reset.css's `* { margin: 0 }` outranks the
+   UA rule, which otherwise pins the dialog to the viewport's top-left corner.
+   tests/test_e2e_link_dialog.py::test_modal_is_centred_in_the_viewport measures that. */
+.link-dialog { padding: 0; border: 0; border-radius: var(--radius-md); max-width: 34rem; width: 92vw;
+  margin: auto; color: var(--text-primary); background: transparent; }
 .link-dialog::backdrop { background: rgb(0 0 0 / .45); }
 .link-dialog__card { padding: var(--space-5); background: var(--surface-raised); border-radius: var(--radius-md); }
 .link-dialog__title { margin: 0 0 var(--space-4); font-size: 1.05rem; }
