@@ -1,7 +1,11 @@
 """Phase 5e — first-run setup wizard: flag, gate, steps, finish, gating."""
 
+import io
+
 import pytest
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
+from PIL import Image
 
 
 @pytest.mark.django_db
@@ -218,6 +222,62 @@ def test_access_next_saves_signup_policy_and_advances_to_team(client):
     assert resp.status_code == 302
     assert resp.url == reverse("institution:setup_step", kwargs={"step": "team"})
     assert Institution.load().signup_policy == "open"
+
+
+@pytest.mark.django_db
+def test_identity_step_renders_the_favicon_field(client):
+    """The wizard's Identity step includes _branding_fields.html, so the field
+    appears there too."""
+    from tests.factories import make_pa
+
+    make_pa(client)
+    resp = client.get(reverse("institution:setup_step", kwargs={"step": "identity"}))
+    body = resp.content.decode()
+    assert 'data-file-field="favicon"' in body
+    # The icon variant's markup fork, asserted rather than left to a manual check:
+    # the spec calls role="img" "not optional" (aria-label alone on a div produces
+    # no accessible name), and a manual snapshot will not survive a refactor.
+    assert "branding-file__thumb--icon" in body
+    assert 'role="img"' in body
+
+
+def _favicon_upload(name="mark.png", size=(256, 256)):
+    """A valid square PNG upload for the wizard's Identity step."""
+    buf = io.BytesIO()
+    Image.new("RGB", size).save(buf, "PNG")
+    return SimpleUploadedFile(name, buf.getvalue(), content_type="image/png")
+
+
+@pytest.mark.django_db
+def test_identity_step_saves_an_uploaded_favicon(client, settings, tmp_path):
+    """Rendering is not saving. _modelform_step forwards request.FILES
+    (institution/views_setup.py), but that is a claim worth exercising rather than
+    asserting -- the spec requires the wizard path to persist an upload.
+
+    The payload is the exact field set from
+    test_identity_next_saves_and_advances_to_access; a missing required field turns
+    the 302 into a 200 re-render and the assertion would fail for the wrong reason.
+    """
+    from institution.models import Institution
+    from tests.factories import make_pa
+
+    settings.MEDIA_ROOT = tmp_path
+    make_pa(client)
+    resp = client.post(
+        reverse("institution:setup_step", kwargs={"step": "identity"}),
+        {
+            "action": "next",
+            "name": "Acme Academy",
+            "enabled_languages": ["en", "pl"],
+            "default_language": "en",
+            "default_theme": "auto",
+            "primary": "#147e78",
+            "accent": "#c77b2a",
+            "favicon": _favicon_upload(),
+        },
+    )
+    assert resp.status_code == 302
+    assert Institution.load().favicon
 
 
 # Task 6 — Team step (invite + pending list + Next-advances + error/domain warning)

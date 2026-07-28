@@ -33,12 +33,38 @@ _DEFAULTS = {
     "max_image_mib": MAX_IMAGE_MIB_CEILING,
     "max_video_mib": MAX_VIDEO_MIB_CEILING,
     "onboarded": False,
+    "favicon_url": None,
+    "favicon_size": None,
 }
 
 
 def _safe_color(value):
     """Return the stored color iff it passes validation, else None (absent)."""
     return value if (value and is_valid_css_color(value)) else None
+
+
+def _favicon_fields(field):
+    """(url, "<W>x<H>") for a readable stored image, else (None, None).
+
+    Opens the stored file, so it runs here -- once per cache rebuild -- never per
+    render. Two distinct failure modes: a missing file RAISES (OSError), while an
+    unreadable image header makes get_image_dimensions return (None, None)
+    WITHOUT raising, which would otherwise stringify to "NonexNone".
+
+    Resolves both keys from the SAME existence check so they cannot drift apart:
+    a missing file must fail favicon_url closed too, or {% favicon_links %} takes
+    the override branch on a dead URL and suppresses the default SVG/ICO links
+    entirely, leaving the site with no favicon at all instead of falling back.
+    """
+    if not field:
+        return None, None
+    try:
+        width, height = field.width, field.height
+    except (OSError, ValueError):
+        return None, None
+    if not width or not height:
+        return None, None
+    return field.url, f"{width}x{height}"
 
 
 def _build():
@@ -48,6 +74,7 @@ def _build():
     if inst is None:
         return dict(_DEFAULTS)
     colors = {c.key: c.value for c in inst.brand_colors.all()}
+    favicon_url, favicon_size = _favicon_fields(inst.favicon)
     return {
         "name": inst.name or _DEFAULTS["name"],
         # Guard: dereferencing .url on an empty ImageField raises ValueError.
@@ -67,6 +94,8 @@ def _build():
         "max_image_mib": inst.max_image_mib or _DEFAULTS["max_image_mib"],
         "max_video_mib": inst.max_video_mib or _DEFAULTS["max_video_mib"],
         "onboarded": inst.onboarded,
+        "favicon_url": favicon_url,
+        "favicon_size": favicon_size,
     }
 
 
@@ -93,3 +122,18 @@ def mark_onboarded():
     if not inst.onboarded:
         inst.onboarded = True
         inst.save(update_fields=["onboarded"])
+
+
+FAVICON_DIR = "core/img/favicon/"
+
+
+def effective_primary(cfg=None):
+    """The brand primary if it is present and valid, else PRIMARY_DEFAULT."""
+    cfg = cfg or get_site_config()
+    value = cfg.get("primary")
+    return value if (value and is_valid_css_color(value)) else PRIMARY_DEFAULT
+
+
+def default_name():
+    """The fallback institution name, for callers that must not import _DEFAULTS."""
+    return _DEFAULTS["name"]

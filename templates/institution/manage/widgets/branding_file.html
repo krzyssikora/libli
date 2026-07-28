@@ -1,0 +1,48 @@
+{% load i18n %}
+{% comment %}
+Styled clearable file input for an Institution branding image (logo, favicon),
+laid out as a media row: a thumbnail on the left, actions on the right.
+
+Copy comes from the widget's constructor kwargs (see BrandingFileInput), so a
+second field does not read "Upload logo".
+
+data-file-* hooks are scoped inside the data-file-field wrapper; the branding
+tab's inline script loops over the wrappers rather than querying globally.
+data-file-current-label carries the alt text for the <img> that script injects
+when a file is picked on an empty field (the script has no access to widget
+kwargs).
+
+icon_variant switches BOTH the 48px square thumb box and the empty state: an
+icon tile has no room for a wrapped label, so it renders no inner text and
+carries role="img" + aria-label instead. The role is not optional -- aria-label
+is ignored on a bare div's implicit generic role.
+
+Note: attrs are inlined (not via {% include "django/forms/widgets/attrs.html" %})
+because the TemplatesSetting renderer uses the project template engine, which does
+not include Django's built-in forms template directory.
+{% endcomment %}
+<div class="branding-file" data-file-field="{{ widget.name }}"
+     data-file-current-label="{{ widget.current_label }}">
+  {% if widget.is_initial %}
+  <img class="branding-file__thumb{% if widget.icon_variant %} branding-file__thumb--icon{% endif %}"
+       src="{{ widget.value.url }}" alt="{{ widget.current_label }}" data-file-thumb>
+  {% elif widget.icon_variant %}
+  <div class="branding-file__thumb branding-file__thumb--empty branding-file__thumb--icon"
+       role="img" aria-label="{{ widget.empty_label }}" data-file-thumb></div>
+  {% else %}
+  <div class="branding-file__thumb branding-file__thumb--empty" data-file-thumb>{{ widget.empty_label }}</div>
+  {% endif %}
+  <div class="branding-file__actions">
+    <label class="branding-file__choose btn btn--ghost btn--small">
+      {% if widget.is_initial %}{{ widget.replace_label }}{% else %}{{ widget.upload_label }}{% endif %}
+      <input class="branding-file__input" type="{{ widget.type }}" name="{{ widget.name }}"{% for k, v in widget.attrs.items %}{% if v is not False %} {{ k }}{% if v is not True %}="{{ v|stringformat:'s' }}"{% endif %}{% endif %}{% endfor %} data-file-input>
+    </label>
+    <span class="branding-file__filename" data-file-filename hidden></span>
+    {% if widget.is_initial and not widget.required %}
+    <label class="branding-file__remove" for="{{ widget.checkbox_id }}">
+      <input type="checkbox" name="{{ widget.checkbox_name }}" id="{{ widget.checkbox_id }}"{% if widget.attrs.disabled %} disabled{% endif %}{% if widget.attrs.checked %} checked{% endif %} data-file-remove>
+      {{ widget.remove_label }}
+    </label>
+    {% endif %}
+  </div>
+</div>

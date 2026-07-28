@@ -21,7 +21,20 @@ class Institution(models.Model):
     THEME_CHOICES = [("light", _("Light")), ("dark", _("Dark")), ("auto", _("Auto"))]
 
     name = models.CharField(max_length=200, default="My Institution")
-    logo = models.ImageField(upload_to="branding/", blank=True, null=True)
+    logo = models.ImageField(
+        upload_to="branding/", blank=True, null=True, verbose_name=_("Logo")
+    )
+    favicon = models.ImageField(
+        upload_to="branding/",
+        blank=True,
+        null=True,
+        verbose_name=_("Favicon"),
+        help_text=_(
+            "Square PNG, 192-512 px, up to 256 KB. Replaces the libli icon in "
+            "browser tabs and on home screens. Transparent areas show as black on "
+            "iOS home screens - use a solid background for best results."
+        ),
+    )
     signup_policy = models.CharField(
         max_length=10, choices=SIGNUP_CHOICES, default="invite"
     )

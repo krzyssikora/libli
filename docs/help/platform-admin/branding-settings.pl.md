@@ -8,13 +8,15 @@ Powiadomienia i Integracje mają swoje własne tematy.
 
 ![Zakładka ustawień wyglądu](static:core/img/help/branding.pl.png)
 
-Ustaw **nazwę** instytucji i **logo** (maks. 2 MB), kolory **główny** i
-**akcentu** używane w całym interfejsie (jako 6-cyfrowe kody hex, np.
-`#147E78`), **domyślny motyw** (**Jasny**, **Ciemny** lub **Automatyczny**
-— domyślnie Automatyczny) oraz to, które **języki** są
-włączone dla interfejsu platformy, wraz z wyborem jednego z nich jako
-**domyślnego**. Co najmniej jeden język musi pozostać włączony, a domyślny
-musi być jednym z włączonych.
+Ustaw **nazwę** instytucji i **logo** (maks. 2 MB), **favicon** widoczny na
+karcie przeglądarki i używany jako ikona na ekranie głównym urządzeń
+mobilnych (kwadratowy plik PNG, 192-512 px, maks. 256 KB — zastępuje
+domyślną ikonę libli), kolory **główny** i **akcentu** używane w całym
+interfejsie (jako 6-cyfrowe kody hex, np. `#147E78`), **domyślny motyw**
+(**Jasny**, **Ciemny** lub **Automatyczny** — domyślnie Automatyczny) oraz
+to, które **języki** są włączone dla interfejsu platformy, wraz z wyborem
+jednego z nich jako **domyślnego**. Co najmniej jeden język musi pozostać
+włączony, a domyślny musi być jednym z włączonych.
 
 ## Dostęp
 
