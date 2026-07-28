@@ -1201,7 +1201,7 @@ and §3k, §5a and §5c point at this definition rather than restating it.
 | **type** | a **string** — the *raw* query, never a boolean and never the folded form |
 | **initial value** | `data-applied-q` verbatim (§3k), which is `q_raw` — so a below-floor `?q=a` initialises it to `"a"`, not `""` |
 | **written by** | the filter fetch, to the value it sent; the clear fetch, to the **live raw box value** (see below); a skipped request, to the live raw box value |
-| **read by** | the five applied-`q` senders (§5a), `syncUrl` (§5a), and the skip-comparison (§5c) |
+| **read by** | the five applied-`q` senders (§5a), `syncUrl` (§5a), the skip-comparison (§5c), and the bulk-href rewrite (§6b) |
 
 **The floor is applied in the COMPARISON, never in the tracker.** The skip test is
 
@@ -1337,8 +1337,8 @@ the two are done together rather than twice.
   last repaints **filtered** markup, re-asserts `filter;…`, writes the tracker back to `tryg`
   and restores `?q=tryg` — filtered capped markup over an empty input, the exact state §5c
   exists to prevent. **A stale response is dropped before `applyFragment`, before the header
-  handling, before the tracker write and before `syncUrl`** — all four, or the discarded
-  response still moves state.
+  handling, before the tracker write, before the bulk-href rewrite and before `syncUrl`** — all
+  five, or the discarded response still moves state.
 - The request goes to **`data-tree-url` with `q` and NO `open`.** Precedence step 2 outranks
   step 3, so a filter fetch carrying `open` would return only the scopes that happened to be
   open already, and a match three levels down inside a collapsed branch would never appear. The
