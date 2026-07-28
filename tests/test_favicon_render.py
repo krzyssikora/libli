@@ -205,3 +205,115 @@ def test_favicon_ico_redirects_to_the_override(client, settings, tmp_path):
     response = client.get(reverse("core:favicon_ico"))
     assert response.status_code == 302
     assert "/media/branding/" in response["Location"]
+
+
+def test_head_has_the_default_icon_links(client):
+    body = client.get("/").content.decode()
+    assert 'type="image/svg+xml"' in body
+    assert "favicon.ico" in body
+    assert "apple-touch-icon" in body
+    assert 'rel="manifest"' in body
+    assert 'name="theme-color"' in body
+
+
+def test_svg_link_precedes_the_ico_link_and_declares_sizes_any(client):
+    """Order and sizes="any" are load-bearing: a vector link with no sizes, against
+    an ICO declaring exactly the 16/32 a tab wants, is the combination that makes
+    Chromium ignore the SVG. A containment assertion passes regardless of order,
+    so assert the INDEXES."""
+    body = client.get("/").content.decode()
+    svg_at = body.index("favicon.svg")
+    ico_at = body.index("favicon.ico")
+    assert svg_at < ico_at
+    assert 'sizes="any"' in body
+
+
+def test_override_replaces_the_static_icons(client, settings, tmp_path):
+    settings.MEDIA_ROOT = tmp_path
+    inst = Institution.load()
+    inst.favicon.save("mark.png", png_upload(), save=True)
+    body = client.get("/").content.decode()
+    assert "/media/branding/" in body
+    assert "favicon.svg" not in body
+    assert "favicon.ico" not in body
+    assert 'sizes="256x256"' in body
+
+
+def test_override_without_a_known_size_omits_the_sizes_attribute(client, monkeypatch):
+    from core.templatetags import branding
+
+    monkeypatch.setattr(
+        branding,
+        "get_site_config",
+        lambda: {
+            **get_site_config(),
+            "favicon_url": "/media/branding/m.png",
+            "favicon_size": None,
+        },
+    )
+    body = client.get("/").content.decode()
+    # Assert the WHOLE element. A prefix slice is vacuous here: the tag emits
+    # sizes AFTER href, so everything before the URL is always ' rel="icon"
+    # href="' -- measured identical with and without the omission.
+    assert '<link rel="icon" href="/media/branding/m.png" type="image/png">' in body
+
+
+def test_media_url_is_escaped_as_an_attribute(client, monkeypatch):
+    """The falsification for choosing format_html over mark_safe.
+
+    It must be CONSTRUCTED this way: an upload cannot reach it (get_valid_filename
+    strips these characters) and neither can setting .name directly
+    (FileSystemStorage.url percent-encodes them) -- under either, format_html and
+    mark_safe produce byte-identical output and the test is vacuous.
+    """
+    from core.templatetags import branding
+
+    monkeypatch.setattr(
+        branding,
+        "get_site_config",
+        lambda: {
+            **get_site_config(),
+            "favicon_url": '/media/x"y<z>&.png',
+            "favicon_size": None,
+        },
+    )
+    body = client.get("/").content.decode()
+    # Assert the escaped href as ONE string: bare "&quot;"/"&lt;" occur all over a
+    # full page render, so on their own they prove nothing about this element.
+    assert 'href="/media/x&quot;y&lt;z&gt;&amp;.png"' in body
+    assert '"y<z>&' not in body
+
+
+def test_theme_color_falls_back_when_the_primary_is_absent_or_malformed(
+    client, monkeypatch
+):
+    from core.templatetags import branding
+
+    for bad in (None, "javascript:alert(1)"):
+        monkeypatch.setattr(
+            branding,
+            "get_site_config",
+            lambda bad=bad: {**get_site_config(), "primary": bad},
+        )
+        body = client.get("/").content.decode()
+        assert f'content="{PRIMARY_DEFAULT}"' in body
+
+
+def test_404_page_carries_the_icon_links(client):
+    """403/404 extend base.html, but they render through Django's error handlers
+    rather than a normal view -- worth measuring rather than inferring."""
+    response = client.get("/definitely-not-a-real-url/")
+    assert response.status_code == 404
+    assert 'rel="icon"' in response.content.decode()
+
+
+def test_500_template_takes_no_static_or_config_dependency():
+    """500.html renders with an empty Context() when the DB may be down. Its own
+    comment forbids depending on collected static, which can itself cause a 500."""
+    source = (Path(__file__).resolve().parent.parent / "templates/500.html").read_text(
+        encoding="utf-8"
+    )
+    assert "favicon" not in source
+    assert "/static/" not in source
+    assert "{% static" not in source
+    assert "favicon_links" not in source
