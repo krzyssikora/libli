@@ -497,8 +497,19 @@ single clear site undefined, with a 409 able to consume a stash `builder()` was 
 `builder()` is the sole reader and the sole clearer.
 
 After the restricted map is built, each `extra_open` pk's node — resolved from the **full**
-cmap — is re-inserted into `restricted[node.parent_id]`, re-sorted by `(order, pk)`, and
-therefore into `top_nodes` when `parent_id is None`.
+cmap — is re-inserted into **`restricted.setdefault(node.parent_id, [])`**, re-sorted by
+`(order, pk)`, and therefore into `top_nodes` when `parent_id is None`.
+
+**`setdefault`, not `restricted[...]`, and this is a 500 rather than a nicety.**
+`_children_map` only creates a key for a parent that **has** children
+(`views_manage.py:139-141`), and the restricted map is built by regrouping the kept nodes — so
+a matched container with no matching descendants has **no key of its own**, and a filter that
+matched nothing has no `None` key either. §1d makes both routine, and `_add_affordance.html`
+renders unconditionally after `_scope.html`'s `{% empty %}` branch, so the author is *offered*
+an add form inside exactly those empty scopes. "Filter for a chapter title, add a unit inside
+it" and "filter matches nothing, add a top-level node" therefore both reach a missing key →
+`KeyError` → 500. Every read site in this spec is already careful (`restricted.get(None, [])`,
+`restricted.get(<scope key>, [])`); this is the one write site, and it needs the same care.
 
 - **Effect 2 applies to every pk regardless of kind**, units included. Effect 1 (the open-set
   union) keeps its container-only filter. Splitting the kind test **across the two effects
@@ -830,7 +841,7 @@ needs is already resolved". This slice needs five more context values in every r
 | key | consumer | source |
 | --- | --- | --- |
 | `q` | `toggle_href`, the hidden inputs, the delete/Move hrefs, the filter input's value | the **raw** submitted `q`, not the normalized one |
-| `filtered` | `_scope.html`'s `{% empty %}` branch (§3h) | `q_active` |
+| `filtered` | `_scope.html`'s `{% empty %}` branch (§3h); the grip's `draggable` in `_tree_node.html` and both buttons' `disabled` in `_move_buttons.html` (§3m) | `q_active` |
 | `expand_all_disabled` | whether `builder.html` emits expand-all's `href`, **and** `data-expand-all-disabled` on `.builder` for the JS bail (§6a) | `len(container_pks(full_cmap)) > builder_open.CEILING` |
 | `applied_q` | `data-applied-q` on `.builder` — initialises §5z's tracker | **`fc.q_raw`**, emitted **unconditionally** (empty string when there is no `q`) — never the `q_active` bool |
 | `q_min` | `data-q-min` on `.builder` — the client floor (§5c) | `builder_filter.MIN_QUERY`, read **through the module** so §8's monkeypatch bites |
@@ -994,6 +1005,17 @@ code:
 
 **Rule: while `q_active`, drag-and-drop is disabled and the up/down arrows render `disabled`.**
 
+**Both are carried by the `filtered` context flag, server-side, in the markup** — `filtered`
+suppresses the `draggable` attribute on the grip button (`_tree_node.html:32`) and adds
+`disabled` to both buttons in `_move_buttons.html`. §3k's `filtered` row lists these two
+templates alongside `_scope.html`'s `{% empty %}` branch.
+
+**Not from `data-applied-q` in a `dragstart` bail.** That attribute is defined by §5z as the
+*initial* value of a JS variable, and no fragment render updates it (§3g returns the top `<ol>`
+only) — so a client-side check would leave drag live for the whole type-a-query path and
+wrongly dead after a JS clear on a `?q=` page load. The server re-renders the whole top scope
+on every filter transition, so markup is the carrier that is always current.
+
 This is the honest reading of what a filtered view is *for*. "Move down" past siblings the
 author cannot see is not a well-defined gesture, so there is no correct index to compute — the
 choice is between suppressing the operation and inventing a semantics for it. The alternative
@@ -1004,6 +1026,20 @@ gesture that means nothing in the view that needs it.
 **Moving things while filtered still works — through the Move picker**, whose destination and
 slot lists §3k already keeps **full** for exactly this reason. That is the one surface where a
 position under a filter is unambiguous, and it is now the documented route.
+
+**The server guard is scoped to `mode=reorder`, and a positioned REPARENT is not refused.**
+A drop posts `mode=reparent` with a `position` (`builder.js:630-636`) to the same endpoint the
+Move picker's reparent form uses, and the two are indistinguishable server-side — so a guard
+written symmetrically over "any positioned move" would break the one route this section
+designates for moving under a filter. The picker's slot indices are computed against the
+**full** child list (§3k), so they are correct by construction and need no guard. Stated here so
+it is not "made consistent" later.
+
+**The refusal's contract: HTTP 422 rendering `_op_error.html`**, the shape this codebase already
+uses for a rejected mutation. Both paths then work without new plumbing: `builder.js`'s submit
+handler already acts on 422 (`:243-261`), and the no-JS path gets a styled page rather than the
+bare-text `HttpResponseBadRequest` that "every view ships styled" forbids. It carries one
+translatable string — *"Clear the filter to reorder."* — which is counted in §9.
 
 **Consequently the mutations available under a filter are: rename, add, duplicate, delete and
 the Move picker.** Reorder and drop are not, so §8's "`q` rides every fragment request" row and
@@ -1040,8 +1076,19 @@ is not a reliable accessible name.
   clear a Firefox author has, and it must work on both paths. The explicit Clear link is
   rendered **whenever the input has any text — `{% if q %}`, on the raw value, not on
   `q_active`**.
-- **The JS intercepts the Clear link**: `preventDefault`, empty the input, and run §5d's clear
-  path. Left un-intercepted it is a full-page navigation to a bare builder URL — precedence
+- **The JS owns the Clear control's visibility, because the server cannot.** `{% if q %}` is
+  evaluated only on a **page** render, and the filter control sits in `.builder__tree`'s header
+  — outside every `[data-scope]` element `applyFragment` swaps, and outside what `manage_tree`
+  returns at all (§3g: the top `<ol>` and nothing else). So on the overwhelmingly common
+  gesture — load an unfiltered builder, type a query — a server-only rule renders **no Clear
+  control at all**, for precisely the Firefox author the bullet above says it exists for; and
+  after a JS clear on a `?q=` page load it would linger over an empty box. **Rule: the JS shows
+  the Clear control whenever the box is non-empty and hides it when empty**, on the same
+  `input` handler that drives the debounce.
+- **The JS intercepts the Clear control**: `preventDefault`, **cancel any pending debounce
+  timer** (the same rule §5b gives the form's submit listener, and for the same reason — the
+  timer would otherwise fire afterwards and issue a *second* clear), empty the input, and run
+  §5d's clear path. Left un-intercepted it is a full-page navigation to a bare builder URL — precedence
   steps 4–6, the module-scoped stash discarded, every expansion lost — which is exactly what
   §5d's stash exists to prevent, on the control *labelled* "Clear". The route is routine, not
   theoretical: the link is server-rendered, so it appears on any reload of a `?q=` URL, which
@@ -1214,13 +1261,28 @@ the two are done together rather than twice.
   prevent overlap: a slow request for `tr` can land after a fast one for `tryg`, leaving the
   pane showing results for a query the author has moved past. Debounce alone is a common and
   wrong answer here.
+- **ONE generation counter covers every `data-tree-url` request — filter, clear and
+  expand-all — not one per path.** They all `applyFragment` the same pane, and the ordinary
+  sequence "type `tryg`, then immediately hit the native ✕ or the Clear control" issues a
+  filter fetch followed by a clear fetch. With separate counters, a filter response landing
+  last repaints **filtered** markup, re-asserts `filter;…`, writes the tracker back to `tryg`
+  and restores `?q=tryg` — filtered capped markup over an empty input, the exact state §5c
+  exists to prevent. **A stale response is dropped before `applyFragment`, before the header
+  handling, before the tracker write and before `syncUrl`** — all four, or the discarded
+  response still moves state.
 - The request goes to **`data-tree-url` with `q` and NO `open`.** Precedence step 2 outranks
   step 3, so a filter fetch carrying `open` would return only the scopes that happened to be
   open already, and a match three levels down inside a collapsed branch would never appear. The
   no-JS form (which carries no `open`) would work correctly, so the two paths would silently
   diverge on this slice's central promise.
-- Wrapped in the parent §8 busy counter; `applyFragment` on the response; then the header handling of
-  §3i and `syncUrl`.
+- Ordered steps on the response: the parent §8 busy counter → `applyFragment` → §3i's header
+  handling → **the tracker write (§5z), to the value this fetch sent** → `syncUrl`. **The order
+  is load-bearing, exactly as in §5d**, and for the mirror-image reason: `syncUrl` reads the
+  tracker (§5a), which starts at `""` on an unfiltered page — so writing it *after* `syncUrl`
+  puts `open=…` and **no `q`** into the address bar when a filter is applied. The reload path
+  §3i and §5c both call routine then silently loses the filter, and because the tracker never
+  advanced, the author's next clear compares `""` to `""`, skips, and leaves filtered capped
+  markup over an empty box.
 - **Failure clears busy and surfaces `msg("network", …)`**, like every other fetch in the file.
 
 ### 5c. Below the floor takes the CLEAR path — but only if a filter is actually applied
@@ -1342,6 +1404,11 @@ stashed `open` and no `q`.
   would get the filter's chains open instead of the empty tree they started from. Same
   empty-vs-absent trap as `open` itself.
 - **Refining a filter does not re-stash.** Only the transition unfiltered → filtered does.
+- **The stash is consumed when a clear response is APPLIED, not when the request is issued.**
+  Consuming at issue would let a superseded clear (§5b's shared generation counter drops it)
+  take the stash with it, so the surviving clear falls back to the collector — which still
+  reflects the *filtered* tree — and the author's pre-filter expansion is replaced by the
+  filter's chains, defeating the point of the stash.
 - **The stash is discarded once consumed, and whenever a mutation happens while filtered** —
   the tree has changed underneath it. **The two discard sites are the submit handler
   (`builder.js:215`) and the drop handler (`:618`)**, neither of which otherwise knows the
@@ -1617,6 +1684,12 @@ until this was done.
   only — `node_duplicate` raises `Http404("Only units can be duplicated.")` for any other kind,
   so a duplicated container is not a case that exists). The unit cases are the ones that fail
   when the kind test is put at the call site.
+- **an add into an EMPTY filtered scope** — filter for a container title whose descendants do
+  not match, then add inside it via the add affordance §1d ships into that scope. The
+  destination has **no key** in the restricted map, so a `restricted[parent_id]` write raises
+  `KeyError` → **500** (§3e). Nothing in the matrix row above requires an empty destination, so
+  this needs its own row. The mirror case — filter matches nothing, add a top-level node,
+  missing `None` key — is the same defect and the same row.
 - **a no-JS add of a UNIT under a filter** shows the new row after the redirect (the
   `builder_force` channel, §3f), **and a second builder GET no longer force-includes it** — the
   half with no visible symptom when the clear is missing. The unit kind is load-bearing: a
@@ -1637,9 +1710,13 @@ until this was done.
   (§3m) — asserted on the rendered markup. Falsified by restoring the `is_first`/`is_last`
   gating alone, which leaves the arrows live at non-edge positions and lets a click mutate the
   full sibling order invisibly.
-- **a reorder POST submitted under an active filter is refused** — the server does not rely on
-  the markup alone, since the form is trivially replayable. Assert the full sibling order is
-  unchanged.
+- **a reorder POST submitted under an active filter is refused** — 422 rendering
+  `_op_error.html` (§3m), asserting the full sibling order is unchanged. The server cannot rely
+  on the markup alone, since the form is trivially replayable.
+- **…but a positioned REPARENT under an active filter still succeeds** — the Move picker's
+  route (§3m). Both post to `node_move` and are indistinguishable server-side, so this row is
+  what stops the guard being widened to "any positioned move" and silently breaking the only
+  sanctioned way to move something while filtered.
 - **a matched container renders OPEN over an empty scope** (§1d) — `aria-expanded="true"`,
   `aria-controls` present, and "No matching titles." inside, not a collapsed row
 - **BOTH §3c session paths, each with `builder_open` populated and holding a set that is not
@@ -1758,10 +1835,17 @@ not a pass):**
   already open in the stash and the created row is present either way, which is exactly the
   vacuity this row's "assert on the created row, not on non-emptiness" wording was meant to
   avoid.
+- **a superseded clear does not consume the stash** (§5d) — issue two clears in flight, drop
+  the first by the generation counter, and assert the surviving one still restores the
+  pre-filter expansion rather than falling back to the collector's filtered chains
 - **collapse everything, filter, clear** — the tree comes back **empty**, not filled with the
   filter's chains (the `stash === null` rule; falsified by changing it to `if (!stash)`)
 - **a below-floor query takes the clear path** — type `tryg`, then delete down to `t`, and
   assert the unfiltered tree is back rather than stale filtered markup
+- **the Clear control appears after typing a query into an UNFILTERED page** (§4) — the
+  server never rendered it, so only the JS visibility rule can produce it; and it disappears
+  again when the box is emptied. This is the row that catches a server-only `{% if q %}`, which
+  leaves the Firefox author the control exists for with no one-click clear at all.
 - **clicking the Clear LINK with JS on does not navigate** (§4) — asserted with the
   no-navigation guard, and the pre-filter expansion is restored. Falsified by removing the
   interception: the page still ends up unfiltered, so only the navigation guard and the
@@ -1782,6 +1866,11 @@ not a pass):**
 - **pressing Enter in the filter field applies the filter without navigating** (§5b) —
   asserted with the no-navigation guard slice 1 already uses, since a full-page load would also
   *look* filtered while silently discarding the stash
+- **a clear is not overwritten by an in-flight FILTER response** — hold a filter response with
+  `page.route` until a subsequent clear has landed, then release it, and assert the tree is
+  unfiltered, the `filter` entry is gone and the URL has no `q`. This is the row that requires
+  **one** generation counter across all `data-tree-url` requests (§5b); with a counter per path
+  the released filter response repaints filtered markup over an empty input.
 - **an out-of-order filter response is discarded** (the last-wins id). **The row must force
   the reversal** — hold the first `manage_tree` response with `page.route` until the second has
   landed, then release it — and assert the pane shows the *later* query's rows. "Two rapid
@@ -1798,6 +1887,10 @@ not a pass):**
   the toggle is slow. That is this repo's recorded "assert on requests, not on a sampled race
   window" trap. A rendered-children check may follow as a secondary, timing-tolerant assertion.
 - **expand-all then collapse-all** returns to the top rows, and the address bar holds `open=`
+- **the address bar after APPLYING a filter** — type `tryg` into an unfiltered builder and
+  assert the URL holds `?q=tryg`. Nothing else covers this: every other address-bar row asserts
+  a *clear* outcome, and the `?q=<match>` rows start from a server-rendered URL. Falsified by
+  moving §5b's tracker write after `syncUrl`, which is the natural order to write it in.
 - **the address bar after a clear** — clearing an applied `tryg` leaves no `q`; clearing it
   down to a below-floor `t` leaves `?q=t`, not `?q=tryg`; and a collapse-all under an active
   filter leaves `q` untouched. All three go red if the tracker is written after `syncUrl`
@@ -1861,9 +1954,10 @@ remedy.
 
 ## 9. i18n
 
-This slice adds **seven new msgids** — the `filter` notice text, "Clear", "Expand all",
-"Collapse all", the over-ceiling tooltip, "No matching titles." and the filter input's
-accessible name "Filter by title" (§4) — and gives **two existing msgids a further reference**.
+This slice adds **eight new msgids** — the `filter` notice text, "Clear", "Expand all",
+"Collapse all", the over-ceiling tooltip, "No matching titles.", the filter input's accessible
+name "Filter by title" (§4), and the reorder refusal's *"Clear the filter to reorder."* (§3m) —
+and gives **two existing msgids a further reference**.
 So the catalog work is a task, not an afterthought.
 
 **Each notice text is ONE msgid used twice.** The same literal appears in `_info_entries`'s
