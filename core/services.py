@@ -33,12 +33,33 @@ _DEFAULTS = {
     "max_image_mib": MAX_IMAGE_MIB_CEILING,
     "max_video_mib": MAX_VIDEO_MIB_CEILING,
     "onboarded": False,
+    "favicon_url": None,
+    "favicon_size": None,
 }
 
 
 def _safe_color(value):
     """Return the stored color iff it passes validation, else None (absent)."""
     return value if (value and is_valid_css_color(value)) else None
+
+
+def _favicon_size(field):
+    """ "<W>x<H>" for a readable stored image, else None.
+
+    Opens the stored file, so it runs here -- once per cache rebuild -- never per
+    render. Two distinct failure modes: a missing file RAISES (OSError), while an
+    unreadable image header makes get_image_dimensions return (None, None)
+    WITHOUT raising, which would otherwise stringify to "NonexNone".
+    """
+    if not field:
+        return None
+    try:
+        width, height = field.width, field.height
+    except (OSError, ValueError):
+        return None
+    if not width or not height:
+        return None
+    return f"{width}x{height}"
 
 
 def _build():
@@ -67,6 +88,8 @@ def _build():
         "max_image_mib": inst.max_image_mib or _DEFAULTS["max_image_mib"],
         "max_video_mib": inst.max_video_mib or _DEFAULTS["max_video_mib"],
         "onboarded": inst.onboarded,
+        "favicon_url": inst.favicon.url if inst.favicon else None,
+        "favicon_size": _favicon_size(inst.favicon),
     }
 
 
@@ -93,3 +116,18 @@ def mark_onboarded():
     if not inst.onboarded:
         inst.onboarded = True
         inst.save(update_fields=["onboarded"])
+
+
+FAVICON_DIR = "core/img/favicon/"
+
+
+def effective_primary(cfg=None):
+    """The brand primary if it is present and valid, else PRIMARY_DEFAULT."""
+    cfg = cfg or get_site_config()
+    value = cfg.get("primary")
+    return value if (value and is_valid_css_color(value)) else PRIMARY_DEFAULT
+
+
+def default_name():
+    """The fallback institution name, for callers that must not import _DEFAULTS."""
+    return _DEFAULTS["name"]
