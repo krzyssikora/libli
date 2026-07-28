@@ -16,8 +16,10 @@ This delivers two things:
    `/manage/settings/` → Branding (and in the first-run wizard's Identity step, which shares the same
    form and template), and it replaces the libli mark on the browser tab, the iOS home screen, the
    installed-app icon, and the bare `/favicon.ico` request. Clearing the upload restores the libli
-   default. The one deliberate exception is `templates/500.html`, which carries no icon at all — see
-   "Render surfaces".
+   default. The one deliberate exception among app-shell pages is `templates/500.html`, which carries
+   no icon at all — see "Render surfaces". (`403.html` and `404.html` do extend `base.html`, so they
+   are covered. `templates/courses/manage/gradebook_print.html` is a second standalone document with
+   its own `<head>`; it is a print view and is left alone.)
 
 The override rides the branding path that already exists for `Institution.logo` — same singleton
 model, same form, same cached `get_site_config()` bundle, same cache invalidation — so it adds a
@@ -62,18 +64,26 @@ The dot's left edge (256) clears the stem's right edge (236) by 20 units.
 **Coordinate convention — the two media do not agree, and this is where they would silently drift.**
 SVG's `<rect x="172" width="64">` covers exactly 64 units; Pillow's `ImageDraw.rounded_rectangle` and
 `ellipse` take **endpoint-inclusive** boxes (measured in this project's `.venv` with Pillow 12.2.0:
-`ellipse([(0,0),(10,10)])` fills 11 px). A literal transcription of the table into Pillow therefore
-produces a 65×255 stem and an 85 px dot — one unit fat in each axis, and a different corner-radius
-clamp. **Every Pillow call passes `(x0·s, y0·s, x1·s − 1, y1·s − 1)`** where `s` is the scale factor
-for that output; the SVG emits the half-open extents verbatim.
+`ellipse([(0,0),(10,10)])` fills 11 px). Transcribed literally into Pillow at 1:1, the table would
+therefore produce a 65×255 stem and an 85 px dot — one canvas unit fat in each axis, and a different
+corner-radius clamp.
+
+**Every Pillow call passes `(x0·s, y0·s, x1·s − 1, y1·s − 1)`, where `s = 4 · size / 512` is the
+_supersampled_ scale** — the 4× factor is *inside* `s`, so the `− 1` removes exactly one supersample
+pixel (a quarter of a canvas unit at `size = 512`), which is the correct correction for an
+endpoint-inclusive box. Subtracting one *final* pixel instead would over-trim by 4 supersample pixels
+(a 0.75 px error on the stem width), and subtracting one *canvas unit* would over-trim by 4×. Worked
+example, `icon-512.png` (`size = 512`, `s = 4`, supersample canvas 2048×2048): the stem box is
+`(688, 516, 943, 1531)`. The SVG has no such correction — it emits the half-open extents verbatim.
 
 Two generator assertions enforce this rather than trusting it:
 
 - the artwork bounding box is centred (left margin == right margin, top == bottom) — computed from
   the constants, catching an off-centre geometry edit;
 - the **rendered** stem and dot extents, measured in pixels from the produced raster (not from the
-  constants), match the table at each output size — this is the one that catches the endpoint
-  convention being got wrong, which the constants-only assertion cannot see.
+  constants), match the table — this is the one that catches the endpoint convention being got wrong,
+  which the constants-only assertion cannot see. It needs a stated classification predicate and a
+  stated size range to be writable at all; see "Testing".
 
 Fill colours are literals in the generator, **not** reads of `BrandColor` — the default mark is a
 fixed libli asset, and a PA who wants their own colours uploads their own icon. Both fills are the
@@ -119,8 +129,18 @@ consumed as `sorted(set(sizes))`, so its own order is irrelevant — only `frame
 separately: the result is **not** byte-identical to handing Pillow one source image with `sizes=`
 (which resizes internally), so naming the mechanism is what makes the output reproducible.
 
-The script is idempotent — two runs from the same source produce byte-identical output — and is the
-documented way to regenerate the assets. It is not run at request time or at deploy time.
+The script is the way to regenerate the assets; it is not run at request time or at deploy time.
+"Documented" means two concrete artefacts this build must produce: a module docstring in
+`scripts/build_favicons.py` stating the invocation and when to re-run it (any geometry or palette
+change), and one line in the dev-onboarding docs (`docs/dev/`) pointing at it.
+
+**All three URL-emitting surfaces build static URLs through `django.templatetags.static.static()`** —
+the `{% favicon_links %}` tag, the manifest view's `icons[].src`, and the `/favicon.ico` redirect
+target. Production runs `whitenoise.storage.CompressedManifestStaticFilesStorage`
+(`config/settings/base.py`), under which a hardcoded `/static/core/img/favicon/icon-192.png` 404s.
+This cannot be caught by a test: `config/settings/test.py` deliberately swaps in plain
+`StaticFilesStorage`, so a hardcoded path stays green in the suite and breaks only in production. It
+is therefore a review-enforced invariant, stated here so the reviewer knows to look.
 
 ### 3. `Institution.favicon` — the override field
 
@@ -140,9 +160,9 @@ handling" are therefore **form-level**; that is stated here rather than implied.
 
 ### 4. Form surface — `BrandingForm`
 
-`favicon` joins `Meta.fields` immediately after `logo`, with an explicit `labels` / `help_texts` entry
-(see below), the shared styled clearable-file widget, and `clean_favicon()` enforcing the rules in
-"Error handling".
+`favicon` joins `Meta.fields` immediately after `logo`, rendered by the shared styled clearable-file
+widget, with `clean_favicon()` enforcing the rules in "Error handling" and its label/help text coming
+from the model field (see below).
 
 **Both surfaces render it.** `templates/institution/manage/_branding_fields.html` renders each field
 in a hand-written block — adding a name to `Meta.fields` renders nothing on its own — so the favicon
@@ -161,9 +181,13 @@ catalogue-health tests reject) in exchange for nothing.
 **i18n of the label and help text is explicit, not auto-derived.** `BrandingForm` has no
 `labels`/`help_texts` dict today, and this repo has already been bitten by that: auto-derived
 ModelForm labels carry no `_()`, appear in no catalogue, and render in English under a Polish UI.
-So `favicon` gets `gettext_lazy` label and help text (on the model field per §3, and mirrored in the
-form's `labels`/`help_texts` if the form needs to override), with the help-text copy written out in
-"Error handling" — that string is the only place a PA learns the constraints before uploading.
+
+**One source of truth: the model field.** `favicon`'s `gettext_lazy` `verbose_name` and `help_text`
+live on the model (§3), and nowhere else — a ModelForm derives `form.favicon.label` /
+`.help_text` from them, which is exactly what `_branding_fields.html` renders. No `labels` /
+`help_texts` dict is added to `BrandingForm`; duplicating the strings in both places would be two
+msgids for one label. The help-text copy is written out in "Error handling" — that string is the only
+place a PA learns the constraints before uploading.
 
 **Targeted refactor this pulls in.** `LogoClearableFileInput` and
 `templates/institution/manage/widgets/logo_clearable.html` are logo-specific in three ways, all of
@@ -189,7 +213,19 @@ which must be parameterized before a second field can share them:
    `thumb_variant` (see item 3) — and overrides **`get_context()`** to inject all six under
    `context["widget"]`, since constructor kwargs are otherwise invisible to the template. The five
    strings default to the existing logo copy and `thumb_variant` defaults to `""` (rendering no extra
-   class), so the logo field's markup and msgids are unchanged. **Catalogue consequences:** the five
+   class), so the logo field's markup and msgids are unchanged. The favicon field's five strings are
+   written out here so they are neither invented at implementation time nor drifting from the PL
+   screenshots:
+
+   | kwarg | EN | PL |
+   |---|---|---|
+   | `current_label` | Current favicon | Bieżąca ikona strony |
+   | `empty_label` | No favicon yet | Brak ikony strony |
+   | `replace_label` | Replace favicon | Zmień ikonę strony |
+   | `upload_label` | Upload favicon | Prześlij ikonę strony |
+   | `remove_label` | Remove favicon | Usuń ikonę strony |
+
+   **Catalogue consequences:** the five
    favicon msgids are additions; the five logo msgids must stay byte-identical or they become obsolete
    `#~` entries; and their `#:` source references move from the `.html` template to
    `institution/forms.py`, which is expected churn, not a regression.
@@ -198,14 +234,19 @@ which must be parameterized before a second field can share them:
    renamed to `.branding-file*` (touching `settings.css` and the widget template; no other file and no
    test references those class names), and the favicon field passes
    `thumb_variant="branding-file__thumb--icon"` — a **48 px square** box. Because ~32 px of content
-   box cannot hold a wrapped "No favicon yet" (or "Brak ikony") label, the **icon variant's empty
-   state renders no text inside the tile**: a dashed 48 px square, with `empty_label` carried as its
-   `aria-label` so the control stays announced. The logo variant's centred-text empty state is
-   unchanged. This is scoped CSS work, not an afterthought: the project's rule is that every view
-   ships styled.
+   box cannot hold a wrapped "No favicon yet" / "Brak ikony strony" label, the **icon variant's empty
+   state renders no text inside the tile**: a dashed 48 px square carrying `role="img"` **and**
+   `aria-label="{{ empty_label }}"`. The `role` is not optional — the tile is a `<div>`, whose implicit
+   `generic` role makes `aria-label` alone unannounced, so without it the stated mitigation silently
+   does nothing. The logo variant's centred-text empty state is unchanged. This is scoped CSS work,
+   not an afterthought: the project's rule is that every view ships styled.
 
-The brand-preview signature (`[data-preview-logo]`) stays wired to the **logo** field only — a favicon
-in the identity signature would misrepresent what that preview shows.
+The brand-preview signature (`[data-preview-logo]`, `[data-preview-name]`) stays wired to the **logo**
+field only — a favicon in the identity signature would misrepresent what that preview shows. The
+discriminator is explicit, since the script is now a per-wrapper loop: each iteration reads
+`wrapper.dataset.fileField`, and the `previewLogo` branches (including the remove-checkbox →
+`previewLogo.hidden` toggle) run **only** when it equals `"logo"`. Everything else — thumb swap,
+filename echo, resetting the remove checkbox on a new pick — is per-wrapper and field-agnostic.
 
 ### 5. `get_site_config()` — `favicon_url` and `favicon_size`
 
@@ -247,10 +288,13 @@ the head block:
   `<link rel="manifest" href="{% url 'core:webmanifest' %}">`,
   `<meta name="theme-color" content="<effective primary>">`.
 - *Override set:* the three icon links collapse to two pointing at the uploaded file —
-  `<link rel="icon" href="{{ favicon_url }}">` and
+  `<link rel="icon" href="{{ favicon_url }}" type="image/png" sizes="{{ favicon_size }}">` (the
+  `sizes` attribute omitted entirely when `favicon_size` is `None`) and
   `<link rel="apple-touch-icon" href="{{ favicon_url }}">` — with the manifest link and `theme-color`
-  unchanged. Both links are safe because the upload is PNG-only: an ICO in `apple-touch-icon` would be
-  ignored by iOS and silently fall back to a page screenshot.
+  unchanged. The `type`/`sizes` are emitted for the same reason the manifest carries them and the ICO
+  link declares its frames: the bundle already knows both, and an accurate declaration lets the
+  browser skip a fetch. Both links are safe because the upload is PNG-only: an ICO in
+  `apple-touch-icon` would be ignored by iOS and silently fall back to a page screenshot.
 
 **Escaping is `format_html`, not `mark_safe`.** A `simple_tag` returning a plain string is
 auto-escaped in full, so the markup would render as visible text; the only working options are
@@ -388,9 +432,14 @@ deterministically and "one test per refusal" is writable):
 four surfaces this feature promises, silently unbranded. PNG-only also makes the manifest `type`
 constant and drops a bundle key.
 
-**SVG is rejected** by rules 2 and 3 together. The reason is worth stating: an uploaded SVG served
-same-origin from `/media/` is a stored-XSS vector, and nothing in this codebase sanitizes SVG. As §3
-notes, this is a **form-level** guarantee — a shell/fixture write bypasses it.
+**SVG is rejected, but not by these rules — and the distinction matters for the error message.** A
+genuine SVG never reaches `clean_favicon` at all: `forms.ImageField.to_python` cannot open it with
+Pillow and raises `ValidationError("invalid_image")` first, after which Django skips the field's
+`clean_<field>` entirely. The PA therefore sees Django's stock *"Upload a valid image. The file you
+uploaded was either not an image or a corrupted image."* Rules 2 and 3 exist for the **disguised**
+case — PNG bytes named `mark.svg`. The reason both paths matter: an uploaded SVG served same-origin
+from `/media/` is a stored-XSS vector, and nothing in this codebase sanitizes SVG. As §3 notes, this
+is a **form-level** guarantee — a shell/fixture write bypasses it.
 
 **Alpha channel is accepted, with a stated cost.** A transparent PNG is fine on a browser tab but iOS
 composites transparency onto black on the home screen, and flattening it server-side is an explicit
@@ -434,32 +483,55 @@ invert the behaviour it guards and confirm it goes RED, rather than accepting a 
 **Generator (`scripts/build_favicons.py`)** — all tests call `build(tmp_path)`; none write into the
 working tree.
 
-- **Idempotence:** two runs into two different `tmp_path` directories produce byte-identical files.
-  (Durable across Pillow releases, because both runs use the same Pillow.)
-- **SVG drift guard:** the committed `favicon.svg` is **byte-compared** against a fresh render. The
-  SVG is pure string formatting with no Pillow involvement, so unlike the rasters this comparison is
-  durable — and it is the only assertion that catches a geometry constant changing without the
-  committed assets being regenerated (a corner-radius edit leaves every dimension, sample, and bbox
-  assertion below green).
-- **Structural assertions against the committed rasters** — deliberately *not* byte-comparison with a
-  fresh run, because `pyproject.toml` declares `pillow>=12.2.0` (a floor, not a pin) and PNG/ICO
-  encoder output is not contracted across releases; a routine lock bump would otherwise turn this test
-  RED with no code change. Assert instead: every declared file exists; each raster's pixel dimensions
-  match the table; `favicon.ico` contains exactly the frames 16/32/48 (this is the regression test for
-  the ascending-order collapse); and sampled pixels carry the expected colours.
-- **Sampled pixels** are pinned in canvas units and scaled per output as `round(u × size / 512)`, each
-  chosen ≥ 10 canvas units from any shape edge so the LANCZOS blend cannot make the assertion flaky:
+Each bullet states which artefact it opens — the **committed** file under
+`core/static/core/img/favicon/`, or a **fresh** `build(tmp_path)` render — because that choice decides
+whether the bullet is a correctness check or a drift guard.
+
+- **SVG drift guard** (committed vs fresh): the committed `favicon.svg` is **byte-compared** against a
+  fresh render. The SVG is pure string formatting with no Pillow involvement, so unlike the rasters
+  this comparison is durable across Pillow releases — and it is the assertion that catches a geometry
+  constant changing without the committed assets being regenerated.
+- **Raster drift guard** (committed vs fresh): the fresh render's per-file **dimensions, mode, corner
+  alpha, and sample set** must equal the committed files'. This replaces a naive "two fresh runs are
+  byte-identical" idempotence check, which is **vacuous** — nothing in the generator could make two
+  consecutive runs differ short of deliberately adding a timestamp, so there is nothing to delete that
+  turns it RED. This version has a deletable guard: change a geometry constant without regenerating
+  and it goes RED.
+- Byte-comparing committed *rasters* against a fresh run is deliberately **not** done:
+  `pyproject.toml` declares `pillow>=12.2.0` (a floor, not a pin) and PNG/ICO encoder output is not
+  contracted across releases, so a routine lock bump would turn it RED with no code change.
+- **Existence and dimensions** (committed): every declared file exists and its pixel dimensions match
+  the output table.
+- **ICO frame set** (committed): `Image.open(path).ico.sizes()` returns exactly
+  `{(16,16), (32,32), (48,48)}`. The API matters — `Image.open(path).size` reports `(48, 48)` for a
+  *collapsed* single-frame file too, so an assertion written against `.size` passes on the very bug
+  this guards (the ascending-order collapse).
+- **Sampled pixels** (committed), in canvas units scaled per output as `round(u × size / 512)`:
   `(100, 256)` = primary (inside the tile, outside the artwork), `(204, 256)` = white (stem interior
-  centre line), `(298, 341)` = accent (dot centre). Exact equality, no tolerance.
-- **Rendered-extent assertions** measure the stem and dot in **pixels** from the produced raster and
-  compare against the geometry table — the guard for the endpoint-inclusive convention, which the
-  constants-only centring assertion cannot see.
+  centre line), `(298, 341)` = accent (dot centre).
+
+  **Exact equality holds only at outputs ≥ 48 px** — verified at 512/192/180/48. It does **not** hold
+  at the two small ICO frames: measured, the 32 px dot-centre sample is `(194,123,44)` against an
+  expected `(199,123,42)`, and at 16 px the tile sample is `(24,128,122)` and the dot-centre sample
+  `(148,125,66)` — nowhere near accent. The cause is that a margin expressed in *canvas* units is
+  meaningless at small outputs (10 canvas units is 0.31 px at 16 px, while a 4× LANCZOS reduction
+  draws from roughly ±96 canvas units, and the 64-unit stem is 2 px wide). **So: sample only outputs
+  ≥ 48 px, and state the margin rule in output pixels — every sample point must sit ≥ 4 output px from
+  any shape edge.** The 16/32 px frames are covered by the frame-set and dimension assertions only.
+- **Rendered-extent assertion** (committed), the guard for the endpoint-inclusive convention. It needs
+  a classification predicate, and the obvious ones disagree: on the 512 render, scanning for *exactly*
+  white gives x 173–234, while a threshold scan gives 172–235. **Predicate: a pixel belongs to the
+  stem iff all three RGB channels are ≥ 200.** Under it, assert on `icon-512.png` the *exact* inclusive
+  ranges **x 172–235, y 129–382**, and on `icon-192.png` the scaled ranges within **±1 output px**.
+  Do not run this at 180 px or below — at 16 px the stem is 2 px wide and a ±1 px classification error
+  is a 50% error. The 512 assertion is the load-bearing one: getting the endpoint convention wrong
+  shifts it to 172–236, which exact equality catches and a tolerance would mask.
 - The centred-bounding-box assertion fires when the geometry is nudged off-centre; the
   `PRIMARY_DEFAULT`/`ACCENT_DEFAULT` equality assertion fires when the palette diverges; the
   inscribed-circle assertion fires if the maskable artwork outgrows the safe zone.
-- **Mode and corners:** every raster is `RGBA`; `icon-512.png` and `favicon.ico`'s 48 px frame have
-  corner pixel `(0,0,0,0)`, while `apple-touch-icon.png` and `icon-maskable-512.png` have alpha 255 at
-  all four corners — the assertion that actually distinguishes the variants.
+- **Mode and corners** (committed): every raster is `RGBA`; `icon-512.png` and `favicon.ico`'s 48 px
+  frame have corner pixel `(0,0,0,0)`, while `apple-touch-icon.png` and `icon-maskable-512.png` have
+  alpha 255 at all four corners — the assertion that actually distinguishes the variants.
 
 **Config bundle**
 - `favicon_url` is `None` with no upload, the media URL with one, and `None` again after a clear.
@@ -469,7 +541,9 @@ working tree.
   covers the new keys too).
 
 **Form validation** — one test per refusal, each asserting the *field-scoped* error, plus the accept
-and clear paths: too-large file, `.svg`-named PNG bytes, ICO, JPEG, non-square, 32 px (under the
+and clear paths: too-large file, `.svg`-named PNG bytes, a **genuine SVG** (asserting only that the
+field errors, not the message wording — that path is `forms.ImageField`'s stock `invalid_image`, not
+`clean_favicon`), ICO, JPEG, non-square, 32 px (under the
 floor), 1024 px (over the ceiling), valid square PNG accepted, **uppercase `.PNG` accepted**,
 `favicon-clear` empties the field. Plus the value-type guard: **saving the Branding form without
 touching the favicon does not raise** (the `FieldFile` path), and a clear (`False`) short-circuits
@@ -492,7 +566,10 @@ before any Pillow access. That pair is the regression test for the 500 described
   and the default icon trio with `type`, `sizes`, and the maskable `purpose`.
 - `short_name` at its boundaries: a ≤12-char name passes through; a long multi-word name truncates at
   the word boundary **with no trailing space** (assert the exact string); a name whose first word
-  exceeds 12 characters hard-truncates to exactly 12 and is never empty.
+  exceeds 12 characters hard-truncates to exactly 12 and is never empty; and the **default install**
+  case, `"My Institution"` (14 chars) → `"My"`. That last one is the short name every unconfigured
+  install ships, so it is asserted rather than discovered — it is the correct output of the rule, not
+  an oversight.
 - With an override, the manifest has a single icon entry carrying `favicon_size` (or `"any"` when the
   file is unreadable) and `"type": "image/png"`.
 - The manifest is reachable **anonymously**.
@@ -514,4 +591,18 @@ obsolete entries in either catalogue; `.mo` files recompiled.
 
 **Visual verification** — the Branding field screenshotted in light *and* dark (judged separately, not
 inferred from one another), including the icon variant's **empty state** and its filled state, plus
-the generated mark rendered at 16/32/180 px and actually looked at before shipping.
+the generated mark rendered at 16/32/180 px and actually looked at before shipping. The empty tile is
+additionally checked with an **accessibility snapshot**, not just a screenshot — a screenshot cannot
+show whether `role="img"` + `aria-label` produced an accessible name.
+
+## Docs
+
+Adding a field to the Branding tab makes the PA help topic and its shipped screenshots wrong, and this
+repo has an existing mechanism for both:
+
+- `docs/help/platform-admin/branding-settings.md` and its `.pl.md` twin enumerate the tab field by
+  field ("Set the institution **name** and **logo** (2 MB max), the **primary** and **accent**
+  colours…"). Both get the favicon and its constraints.
+- That topic embeds `static:core/img/help/branding.en.png`, regenerated by
+  `tests/capture_help_screenshots.py` (shot `"branding"` → topic `branding-settings`). Both
+  `branding.en.png` and `branding.pl.png` are re-captured through that script rather than by hand.
