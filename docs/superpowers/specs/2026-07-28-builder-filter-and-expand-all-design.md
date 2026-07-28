@@ -167,21 +167,24 @@ symptom other than "the filter doesn't work for that one node".
 `translate` runs **before** `casefold` so the table can carry both cases; folding first would
 turn `Ł` into `ł` and need only one entry, but stating the order here removes the ambiguity.
 
-**Measured cost, with the method stated** — 944 titles of mean length 42, 15 repetitions,
-CPython 3.13 on the development machine. An earlier draft of this spec quoted 39 ms / 18–24 ms
-for the first two rows with no method recorded; those numbers did not reproduce and are
-withdrawn:
+**Cost: the ratio is stable, the absolute numbers are not, and only the ratio is recorded.**
+Three attempts to pin absolutes for 944 titles produced 8.7 / 11.8 / 24.1 ms for the same
+variant, because the dominant variable was never held fixed: **diacritic density**. Re-measured
+deliberately, 15 repetitions, CPython 3.13, 944 titles of mean length ~42:
 
-| Variant | best of 15 | median |
+| corpus | `str.translate` (sources 1–3) | NFKD + drop combining marks |
 | --- | --- | --- |
-| `casefold()` + NFKD + drop combining marks (generator + join) | 11.8 ms | 15.0 ms |
-| `str.translate` over sources 1–2 only | 9.4 ms | 11.7 ms |
-| **`str.translate` over sources 1–3** (the chosen one) | **8.7 ms** | **9.9 ms** |
+| diacritic-heavy (every title) | 24.1 ms best | 32.4 ms best |
+| ~5 % of titles carry a diacritic | 9.4 ms best | 21.8 ms best |
 
-**The table is not chosen for speed** — the spread is 2–5 ms on the largest course in the
-corpus, which is noise against a ~700 ms render. It is chosen because it handles NFD input in
-the same single pass, and because what folds is an explicit, inspectable table rather than a
-property of whichever Unicode version ships with the interpreter.
+So: **the table is 1.3–2.3× faster than the NFKD pass**, and both are tens of milliseconds
+against a ~700 ms render. Real Polish titles sit between these corpora.
+
+**The table is not chosen for speed at all** — it is chosen because it handles NFD input in the
+same single pass (§1b's third source), and because what folds is an explicit, inspectable table
+rather than a property of whichever Unicode version ships with the interpreter. Any absolute
+number quoted here should be treated as an order of magnitude; the ratio is the reproducible
+part.
 
 **The fold is Polish-complete, not Unicode-complete**, and that is the intended scope. `ß`
 folds to `ss` via `casefold` (a Python guarantee, not our table); `ø`, `đ` and `ħ` have no
@@ -228,7 +231,7 @@ that is the *expected* case, not a pessimistic one.
 
 **The render-cost prediction is a LOWER BOUND, and the acceptance gate is the measurement, not
 the prediction.** A naive extrapolation gives 226 rows × ~2.6 ms/row (slice 1's 2,477 ms /
-944 rows) + 89 ms cmap + ~10 ms fold ≈ **690 ms**. That model is row-linear and this shape is
+944 rows) + 89 ms cmap + 10–25 ms fold ≈ **700 ms**. That model is row-linear and this shape is
 not: the 2.6 ms/row constant comes from an `open=all` render of 944 rows across 138 scopes
 (0.15 scopes/row), whereas the filtered worst case is ~226 rows across up to ~126 scopes
 (~0.56 scopes/row) — nearly the same *absolute* scope count as the full render. Per-scope work
@@ -240,10 +243,16 @@ floor, 1 s as the gate, and measure before believing either.
 
 ### 1d. What the filter does *not* do
 
-**A matched container shows without its children.** Filtering for a chapter title returns that
-chapter's row **already expanded** — §1c puts every matched container into `chains`, so it
-renders open — over an **empty** scope: "No matching titles." (§3h) plus that scope's add
-affordance. Its toggle's count reads 0.
+**A matched container shows without its NON-matching children.** Filtering for a chapter title
+returns that chapter's row **already expanded** — §1c puts every matched container into
+`chains`, so it renders open — over a scope holding **only its matching descendants**. When
+none match, that scope is empty: "No matching titles." (§3h) plus the scope's add affordance,
+and the toggle's count reads 0.
+
+The count is **not** invariably 0, and saying so would be wrong: §1c keeps *every* match, so a
+chapter whose title matches and one of whose units also matches renders that unit inside it and
+counts 1. The rule is that the filter never *pulls in* a non-matching child — not that a matched
+container is always childless.
 
 Getting this wrong in either direction is easy, so both halves are pinned: the row is **not**
 collapsed-awaiting-expansion (an earlier draft of this spec said it was, contradicting §1c and
@@ -809,11 +818,11 @@ covering them:
    reparent redirect. It goes through §5a's `setTreeParams` like every other path — which is
    also what stops an implementer reaching for the live input value here.
 
-### 3k. `_tree_context` grows four keys — stated once, not patched three times
+### 3k. `_tree_context` grows five keys — stated once, not patched three times
 
 `toggle_href` reads everything from the template context, and the sole producer of those keys
 is `_tree_context(course, cmap, ids)` — whose docstring says "Takes no `request`: everything it
-needs is already resolved". This slice needs four more context values in every renderer:
+needs is already resolved". This slice needs five more context values in every renderer:
 
 | key | consumer | source |
 | --- | --- | --- |
@@ -870,12 +879,12 @@ delete-confirm form carries no `data-op`, so its 409 returns `_builder_with_noti
   presence.
 
   **The attribute is always emitted, even when empty**, exactly as `q_min` always is and for
-  a sharper reason. §5c reads it at init and runs it through the client floor, i.e. calls a
-  string method on it; a conditionally-emitted attribute returns `null` from `getAttribute`,
-  `null.replace` throws, and the throw is inside `builder.js`'s single top-level IIFE under
-  `"use strict"` — so **no listener is ever registered and the entire JS builder is dead**, on
-  the most common page there is (unfiltered, no `q`). This is the `parseInt(null) === NaN`
-  hazard `q_min` gets a paragraph for, one line away and strictly worse.
+  the same class of reason. §5z stores it verbatim at init, so a conditionally-emitted
+  attribute puts `null` in the tracker without throwing — the failure surfaces **later**, the
+  first time the skip-comparison folds it (`null.replace`), inside the `input`/submit handler.
+  The builder keeps working; **filtering is permanently inert**, and the exception is one the
+  author never sees. That is the same outcome `q_min`'s `parseInt(null) === NaN` produces, and
+  it is why both attributes are unconditional rather than one of them.
 
   **It carries `q_raw` unconditionally — including a present-but-INACTIVE `q`.** An earlier
   draft emitted `""` below the floor, which made the two paths of the same gesture disagree:
@@ -1041,6 +1050,14 @@ Raw-in-tracker, effective-in-comparison satisfies every case the floor exists fo
 into an unfiltered tree compares `""` to `""` and sends nothing; clearing an applied `tryg`
 compares `""` to `"tryg"` and fires; clearing a below-floor `a` compares `""` to `""` and
 correctly does nothing.
+
+**A skipped request still updates the tracker to the live raw value.** Otherwise the tracker —
+and therefore the address bar, which follows it (§5a) — keeps a value the box no longer holds:
+delete the `a` from a `?q=a` page, no request fires (correctly), but the next toggle would send
+`q=a` and `syncUrl` would keep `?q=a`, so a reload repopulates the character the author just
+deleted. Since the effective query did not change, no re-render is needed and the update is
+free: the pane stays correct either way, and the URL now tracks the box on both below-floor
+paths instead of only one of them.
 
 ### 5a. `q` rides SEVEN request paths — five with the applied value — and `withOpen` reaches two
 
@@ -1303,8 +1320,10 @@ The only disabled state is §6a's over-ceiling guard.
 
 ### 6a. Expand-all
 
-An `<a>` whose `href` is the builder URL with `open=all` and `q`, so it works without JS as a
-plain navigation. With JS: `preventDefault`, fetch `data-tree-url` with
+An `<a data-expand-all>` whose `href` is the builder URL with `open=all` and `q`, so it works
+without JS as a plain navigation. (Named, like every other JS-reachable hook in this design, so
+the delegated handler has something to match on and §6a's bail order is unambiguous:
+hook match → `aria-disabled="true"` early return → `data-expand-all-disabled` bail.) With JS: `preventDefault`, fetch `data-tree-url` with
 `open=all` and `q`, behind the parent §8 busy affordance, `applyFragment`, then `syncUrl` — which
 writes the resulting **enumeration** into the URL, since the collector can only ever emit one.
 
@@ -1337,6 +1356,8 @@ meet.
 `replaceState` writes the full enumeration after an expand-all, so without an inverse every
 subsequent reload re-renders the whole tree and the only escape is hand-editing the address bar.
 Collapse is already client-owned (parent §5), so this costs nothing:
+
+The control is `<a data-collapse-all>`.
 
 - **JS:** remove every `ol.tree__scope[data-scope]:not([data-scope="top"])`; for each
   `[data-toggle]`, set `aria-expanded="false"`, remove `aria-controls`, and set `aria-label`
@@ -1457,12 +1478,17 @@ until this was done.
 - `fold` maps `ą ć ę ł ń ó ś ź ż` and their capitals to ASCII; **the `ł` case is the one that
   a generic NFKD fold silently fails**, so it is asserted explicitly in both directions
   (`laka` finds `Łąka`; `Łąka` finds `laka`)
-- **the client floor never exceeds the server floor on Latin input** — a unit test over the
-  Polish alphabet plus `ß` and the multi-character table entries, asserting
-  `client_measure(ch) <= len(fold(ch))` for each. This is the direction that collapses the tree
-  (§5c); the measured Latin-script count of counterexamples is 0, so any regression is a real
-  one. Include `"a\u0085"`, which fails under a bare `trim()`, and **an astral character**
-  (`"\u{1D400}"`), which fails under `.length` and passes under code-point counting.
+- **the client floor never exceeds the server floor on Latin input** — over the Polish
+  alphabet, `ß`, and the multi-character table entries, asserting
+  `client_measure(ch) <= len(fold(ch))`. This is the direction that collapses the tree (§5c),
+  and the measured Latin-script count of counterexamples is 0, so any regression is real.
+  **`client_measure` is a stated Python mirror of §5c's expression, and its UTF-16 half must be
+  explicit** — `len(stripped.encode("utf-16-le")) // 2` for the `.length` behaviour versus
+  `len(stripped)` for code points — or the pinned `"\u{1D400}"` falsification is unreachable,
+  since Python has no `.length` and both spellings would agree. Include `"a\u0085"`, which
+  fails under a bare `trim()`.
+  **This row guards the mirror, not `builder.js`.** An implementation that ships `.length`
+  passes it, so the real coverage is the astral e2e below.
 - **an NFD-normalized title is found by an ASCII query** — `fold(unicodedata.normalize("NFD",
   "Kąty"))` must equal `"katy"`. Falsified by dropping U+0300–U+036F from the table, which
   leaves `'kąty'` and is invisible in every precomposed fixture (§1b)
@@ -1561,11 +1587,15 @@ until this was done.
   drop**, never a rename, whose success response never reaches `_render_scope`
 - **a filtered response carries exactly one `filter` code** in `X-Builder-Info` (the
   server-side half; the client-side registry behaviour is an e2e row, below)
-- **the info slot is in the DOM on an UNFILTERED, untruncated builder page**, carries **no
-  `hidden` attribute**, and **matches `:empty`** — asserted on `matches(":empty")` (or the
-  computed `display`), never on mere DOM presence. One newline of template whitespace defeats
-  `:empty` and leaves a sunken grey bar on every builder page, permanently (§3i), and a
-  presence-only assertion stays green through it. Falsified by restoring slice 1's
+- **the info slot is in the DOM on an UNFILTERED, untruncated builder page** and carries **no
+  `hidden` attribute** — plus, in the same row, that the rendered element has **no text content
+  at all**: assert the markup contains `<ul class="builder__info" …></ul>` with nothing between
+  the tags (or that the parsed node's `contents` is empty). Two falsifications, both required:
+  restore slice 1's `{% if info %}` wrapper (presence), and insert **one newline** inside the
+  element (whitespace). The second is the one that matters — `:empty` does not match an element
+  containing whitespace, so a newline leaves a sunken grey bar on every builder page,
+  permanently (§3i) — and a presence-only assertion stays green through it. The browser-side
+  `matches(":empty")` check is the e2e row below. Falsified by restoring slice 1's
   `{% if info %}` wrapper. The existing registry e2e cannot cover this: it starts from a `?q=`
   load, where the server rendered an entry and `{% if info %}` would produce the slot anyway.
 - **a server-rendered notice is VISIBLE without JS** — a filtered page GET, asserting the
@@ -1629,6 +1659,10 @@ not a pass):**
 - **a `?q=<match>` page load, then clear** — returns the unfiltered tree. Falsified by
   initialising the applied-`q` tracker to `""` instead of the server-rendered active `q`, which
   makes the clear a no-op and leaves filtered markup over an empty input (§5c).
+- **a single astral character issues no filter fetch** — type `\u{1D400}` into the box and
+  assert no `manage_tree` request and untouched expansions. This is the one row that can go red
+  against a `.length` client measure (§5c), which is worth ~1M characters of tree-collapsing
+  exposure; every other floor row uses BMP input, where the two spellings agree.
 - **the client reads `data-q-min` rather than hardcoding it** — monkeypatch `MIN_QUERY` to 3
   and assert a 2-character query issues **no** filter fetch. The view-level row asserts the
   attribute; only this one can go red against a by-value `2` in `builder.js`.
@@ -1638,16 +1672,28 @@ not a pass):**
 - **pressing Enter in the filter field applies the filter without navigating** (§5b) —
   asserted with the no-navigation guard slice 1 already uses, since a full-page load would also
   *look* filtered while silently discarding the stash
-- **two rapid queries leave the later one's results** (the last-wins id; falsified by removing
-  it)
+- **an out-of-order filter response is discarded** (the last-wins id). **The row must force
+  the reversal** — hold the first `manage_tree` response with `page.route` until the second has
+  landed, then release it — and assert the pane shows the *later* query's rows. "Two rapid
+  queries" cannot go red: below 300 ms the debounce coalesces them into one fetch, and above it
+  a local server answers FIFO, so the test passes with no last-wins id at all. §5b's own
+  argument is that debounce is not last-wins; the test has to reproduce the case the argument
+  names.
 - **a toggle fired inside the debounce window carries the APPLIED `q`, not the typed one**
-  (§5a) — apply `tryg`, type `trygo`, toggle before the debounce fires, and assert the returned
-  children match the pane the author is looking at
+  (§5a) — apply `tryg`, type `trygo`, toggle before the debounce fires, and **assert on the
+  toggle's outgoing request URL** (`q=tryg`, not `q=trygo`) via a request listener. **Not on the
+  rendered children**: at t≈300 ms the `trygo` filter fetch lands and `applyFragment` replaces
+  the whole top scope, taking the inserted children with it — so a DOM assertion has a window of
+  300 ms minus the toggle round trip and goes red against a *correct* implementation whenever
+  the toggle is slow. That is this repo's recorded "assert on requests, not on a sampled race
+  window" trap. A rendered-children check may follow as a secondary, timing-tolerant assertion.
 - **expand-all then collapse-all** returns to the top rows, and the address bar holds `open=`
 - **a toggle on a below-floor `?q=a` page leaves `q=a` in the address bar** (§5a's `syncUrl`
   rule) — falsified by gating `syncUrl` on `q_active` instead of on blankness, which strips the
   author's half-typed text on the JS path only
 - collapse-all sets `aria-expanded="false"` and removes `aria-controls` on every toggle
+- **the empty info slot is not rendered** — `document.querySelector(".builder__info").matches(":empty")`
+  is true and its computed `display` is `none`, on an unfiltered untruncated page (§3i)
 - **a fragment-borne notice lands on a page that had none** — load an unfiltered, untruncated
   builder, type a query, and assert a `[data-info-key="filter"]` entry appears. Without §3i's
   always-present slot the JS has nowhere to insert, and the resulting throw is swallowed by the
