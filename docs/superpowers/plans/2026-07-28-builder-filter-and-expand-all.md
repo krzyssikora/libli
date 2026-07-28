@@ -77,9 +77,18 @@ uv run pytest tests/test_builder_lazy_scopes.py tests/test_builder_open_ids.py \
   tests/test_manage_move_picker.py tests/test_manage_affordance.py \
   tests/test_builder_styles.py tests/test_builder_js_invariants.py \
   tests/test_manage_builder.py tests/test_builder_duplicate_unit.py \
-  tests/test_manage_node_duplicate.py \
+  tests/test_manage_node_duplicate.py tests/test_tree_badge.py \
+  tests/test_manage_duplicate_button.py \
   tests/test_i18n_po_health.py -q
 ```
+
+`tests/test_tree_badge.py` renders `_tree_node.html` **directly** through
+`render_to_string` with a hand-built context (`:55-56`), so Tasks 6 and 8 edit
+the exact template it asserts on — and because that context defines neither `q`
+nor `filtered`, both new `{% if %}` branches take their falsy arm there. That
+is the intended outcome, but it is worth a recorded before-state rather than an
+assumption. `tests/test_manage_duplicate_button.py` counts `data-op="duplicate"`
+in the builder page, and Task 6 Step 4 adds an input inside that very form.
 
 The last three are in the list because later tasks assert them green without
 them ever having been baselined: **Task 3 Step 8** runs
@@ -98,8 +107,16 @@ Expected: exit 0.
 ```bash
 uv run pytest tests/test_e2e_builder_toggle.py tests/test_e2e_builder_reorder.py \
   tests/test_e2e_builder_ws2.py tests/test_e2e_builder_authoring.py \
-  tests/test_e2e_builder.py tests/test_e2e_builder_tree_layout.py -m e2e -q
+  tests/test_e2e_builder.py tests/test_e2e_builder_tree_layout.py \
+  tests/test_e2e_inline_rename.py -m e2e -q
 ```
+
+`test_e2e_inline_rename.py` is in this list because it drives the rename form
+in `_tree_node.html` (Task 6 Step 4 adds a hidden `q` to it) **and** builder.js's
+rename/`swapping` lifecycle — which Task 11 Step 7, Task 12's toggle-chain
+reshape, Task 13's `pointerdown` arming and Task 14's M15 conversion of the
+submit handler all touch. It is the single suite most exposed by this slice's
+JS work.
 
 Expected: exit 0. **If this exits 5, the marker was dropped — that is not a pass.**
 
@@ -1089,7 +1106,23 @@ under filtered rows and report unfiltered counts — while the page-render count
 test stays green. `parent`, `parent_kind` and `updated` keep resolving against
 the full course: a scope's own identity is not a filtering question.
 
-`_info_entries` gains the keyword arguments used above; Task 5 gives it its body.
+**`_info_entries` needs its interim signature in THIS task, not Task 5.** The
+shipped one is `_info_entries(opened)` (`views_manage.py:355`), and the
+`builder()` snippet above already calls it with three keywords — so "Task 5
+gives it its body" must not be read as "defer it". Without this edit every row
+of Step 8's three-suite gate dies on `TypeError: _info_entries() got an
+unexpected keyword argument 'q_active'`, including the `_builder_with_notice`
+and `_render_scope` paths. Widen the signature now and leave the body alone:
+
+```python
+def _info_entries(opened, *, q_active=False, shown=0, total=0):
+    """Interim: accepts the filter keywords but still emits only the
+    truncation entry. Task 5 Step 3 replaces the body, adds the `code` key
+    and DROPS these defaults (by then all three call sites pass them)."""
+    # ... existing truncation-only body, unchanged ...
+```
+
+The defaults are what keep this task self-contained; Task 5 removes them.
 
 - [ ] **Step 7: Emit three of the four `data-*` attributes**
 
@@ -1580,8 +1613,15 @@ Expected: PASS.
 1. Change `or "none"` to `or ""` and drop the header when empty → `test_render_scope_always_sets_the_header_and_uses_none_when_empty` must fail.
 2. Put the `<ul>` back behind `{% if info %}` → `test_the_info_slot_is_present_and_empty_on_an_unfiltered_page` must fail.
 3. Insert a newline inside the `<ul>` → the same test must fail on the `</ul>` adjacency assertion.
+4. Build the header from the human text instead of the code — i.e.
+   `", ".join(e["text"] for e in entries)` in Step 4 →
+   `test_the_header_is_machine_readable_under_the_polish_locale` must fail on
+   `value.isascii()`. Without this the row cannot go red against anything Step
+   3 or Step 4 can produce (the `code` values are f-strings over ASCII literals
+   and integers), so it would be an unfalsifiable guard — the one thing this
+   plan's Global Constraints refuse to count as a test.
 
-Restore all three.
+Restore all four.
 
 - [ ] **Step 9: Lint and commit**
 
@@ -1644,15 +1684,55 @@ def test_markup_hrefs_percent_encode_q(filtered_course):
 
 
 def test_the_six_redirect_sites_carry_q(filtered_course):
+    """One assertion per SITE, not one site standing for six.
+
+    The four non-rename sites are otherwise unguarded by anything in this
+    plan: Task 7's rows that follow those same redirects assert a row is
+    PRESENT, which is equally true of a fully unfiltered render -- so dropping
+    `_raw_q(request)` at node_add (:489), node_move reorder (:585), node_move
+    reparent (:621) or node_duplicate (:715) would pass every other row here.
+    """
     client, course, part, chap, hit, miss = filtered_course
     rename = reverse("courses:manage_node_rename", kwargs={"slug": course.slug})
-    resp = client.post(
-        rename,
-        {"node": hit.pk, "token": hit.updated.isoformat(), "title": "Nowy", "q": "trygo"},
-    )
-    assert resp.status_code == 302
-    assert "open=session" in resp["Location"]
-    assert "q=trygo" in resp["Location"]
+    add = reverse("courses:manage_node_add", kwargs={"slug": course.slug})
+    move = reverse("courses:manage_node_move", kwargs={"slug": course.slug})
+    dup = reverse("courses:manage_node_duplicate", kwargs={"slug": course.slug})
+
+    delete = reverse("courses:manage_node_delete", kwargs={"slug": course.slug})
+
+    def tok(node):
+        """Every mutation bumps `updated`, so read the token immediately
+        before the post that uses it -- a token captured up front is stale by
+        the second iteration and the row 409s instead of redirecting."""
+        node.refresh_from_db()
+        return node.updated.isoformat()
+
+    def check(label, url, payload, q="trygo"):
+        payload["q"] = q
+        resp = client.post(url, payload)
+        assert resp.status_code == 302, f"{label}: {resp.status_code}"
+        assert "open=session" in resp["Location"], label
+        assert f"q={q}" in resp["Location"], label
+
+    check("rename", rename, {"node": hit.pk, "token": tok(hit), "title": "Nowy"})
+    check("add", add, {
+        "parent": chap.pk, "parent_token": tok(chap),
+        "kind": "unit", "unit_type": "lesson", "title": "Dodana",
+    })
+    # BELOW the floor here only: Task 8 refuses a reorder under an ACTIVE
+    # filter with 422, so q=trygo would assert against the refusal, not the
+    # redirect. `miss` is not the first child, so "up" is a real move.
+    check("reorder", move,
+          {"mode": "reorder", "node": miss.pk, "direction": "up",
+           "token": tok(miss)}, q="a")
+    check("reparent", move,
+          {"mode": "reparent", "node": miss.pk, "new_parent": part.pk,
+           "position": 0, "node_token": tok(miss)})
+    check("duplicate", dup, {"node": hit.pk, "token": tok(hit)})
+    # LAST, and the sixth site: node_delete's NON-bespoke branch, i.e. no
+    # `open` in the POST. The bespoke `open`-carrying branch is
+    # test_node_delete_bespoke_redirect_carries_q.
+    check("delete", delete, {"node": miss.pk, "token": tok(miss)})
 
 
 def test_node_delete_bespoke_redirect_carries_q(filtered_course):
@@ -1811,11 +1891,31 @@ delete-confirm path. Only the `q` clause is new.
     href="{% url 'courses:manage_builder' slug=course.slug %}{% if open_present %}?open={{ open|urlencode }}{% else %}?open=session{% endif %}{% if q %}&amp;q={{ q|urlencode }}{% endif %}"
 ```
 
-`node_delete`'s GET puts `_raw_q(request)` in its context. **For the picker
-the edit site is `_move_picker` (`views_manage.py:797-807`), not `node_move`** —
-`node_move`'s GET branch (`:625-627`) only delegates, so an implementer editing
-there finds nothing to change and the picker row stays red.
-`_move_picker.html`'s reparent form then carries it as a hidden input.
+`node_delete`'s GET puts `_raw_q(request)` in its context (`:688-694`), beside
+the existing `open_present`/`open` keys:
+
+```python
+        "q": _raw_q(request),
+```
+
+**For the picker the edit site is `_move_picker` (`views_manage.py:797-807`),
+not `node_move`** — `node_move`'s GET branch (`:625-627`) only delegates, so an
+implementer editing there finds nothing to change and the picker row stays red.
+Add the same key to the render dict it builds:
+
+```python
+            "children_map": cmap,       # unchanged -- see the warning below
+            "nodes_top": cmap.get(None, []),
+            "q": _raw_q(request),       # new
+```
+
+`_move_picker.html`'s reparent form then carries it as a hidden input, beside
+the existing `node_token` at `:6` — value-gated, like every other `q` input in
+this task:
+
+```html
+  {% if q %}<input type="hidden" name="q" value="{{ q }}">{% endif %}
+```
 
 **While you are in that context dict: its `children_map` (`:804`) and
 `nodes_top` (`:805`) must stay the FULL map.** So must `link_picker`'s
@@ -1915,7 +2015,15 @@ Expected: PASS. `test_manage_node_ops` may need its expected redirect URLs updat
 
 - [ ] **Step 11: Falsify**
 
-Change `{{ q|urlencode }}` to `{{ q }}` in the delete href → `test_markup_hrefs_percent_encode_q` must fail. Restore.
+1. Change `{{ q|urlencode }}` to `{{ q }}` in the delete href →
+   `test_markup_hrefs_percent_encode_q` must fail.
+2. Drop the `_raw_q(request)` argument from **`node_add`'s**
+   `_redirect_to_builder` call (`:489`) — a site no other row in this plan
+   reaches — → `test_the_six_redirect_sites_carry_q` must fail on the `add`
+   label. This is what proves the row covers six sites rather than standing on
+   the rename one.
+
+Restore both.
 
 - [ ] **Step 12: Lint and commit**
 
@@ -2238,11 +2346,29 @@ git commit -m "feat(builder): builder_force — the no-JS force-include channel"
 def test_the_arrows_and_the_grip_render_disabled_under_a_filter(filtered_course):
     """Both halves. Dropping `draggable` alone leaves .ica--grip's
     `cursor: grab` and `:active { cursor: grabbing }` intact, so the row still
-    looks draggable -- the lying affordance this rule exists to remove."""
+    looks draggable -- the lying affordance this rule exists to remove.
+
+    A SECOND MATCHING SIBLING is mandatory. _move_buttons.html already renders
+    both arrows disabled on `is_first`/`is_last` alone, and under `q=trygo` the
+    shared fixture gives `chap` exactly ONE surviving child -- so `hit` would
+    be both first and last, both arrows would be disabled without the
+    `or filtered` edit, and deleting that edit could not turn this row red.
+    With two matches, `hit` is first-but-not-last, so the DOWN arrow is
+    disabled only by `or filtered`.
+
+    Added here rather than in the fixture: shown/total are asserted as 1/1 by
+    test_counts_under_a_filter_are_the_filtered_counts and by
+    test_a_forced_row_does_not_move_shown_or_total, and a second permanent
+    match would redden both.
+    """
     client, course, part, chap, hit, miss = filtered_course
+    ContentNodeFactory(course=course, kind="unit", parent=chap, title="Trygonometria II")
     url = reverse("courses:manage_builder", kwargs={"slug": course.slug})
     filtered = client.get(url, {"q": "trygo"}).content.decode()
     row = filtered.split(f'data-node="{hit.pk}"')[1].split("</li>")[0]
+    assert "disabled" in row.split('value="down"')[1].split(">")[0], (
+        "the DOWN arrow is the one only `or filtered` can disable here"
+    )
     assert row.count("disabled") >= 3  # up, down, grip
     assert 'draggable="true"' not in row
 
@@ -2317,10 +2443,20 @@ def test_a_positioned_REPARENT_under_a_filter_still_succeeds(filtered_course):
 - [ ] **Step 2: Run to verify failure**
 
 ```bash
-uv run pytest tests/test_builder_filter_views.py -q -k "arrows or reorder or REPARENT"
+uv run pytest tests/test_builder_filter_views.py -q -k \
+  "arrows or refused_on_both_branches or BELOW_FLOOR_q_still or REPARENT"
 ```
 
-Expected: FAIL — the reorder succeeds with 200 and the sibling order changes.
+Expected: a **mixed** run, and the split matters.
+
+- RED: `test_the_arrows_and_the_grip_render_disabled_under_a_filter` (no
+  `disabled` on the grip yet) and
+  `test_a_reorder_under_an_active_filter_is_refused_on_both_branches` (the
+  reorder succeeds with 200 and the sibling order changes).
+- GREEN already: `test_a_reorder_under_a_BELOW_FLOOR_q_still_succeeds` and
+  `test_a_positioned_REPARENT_under_a_filter_still_succeeds`. Both assert that
+  something keeps working, so they pass before the guard exists. They are here
+  to catch an over-broad guard at Step 6, not to go red now.
 
 - [ ] **Step 3: Add the server guard**
 
@@ -2372,11 +2508,19 @@ repo's `_simulate_drag` dispatches native `DragEvent`s through `page.evaluate`
 (Chromium will not fire DnD from Playwright input), so without this guard the
 e2e in Step 5 cannot observe the rule at all.
 
+The merged handler in full — **one** `var grip`. The existing body already
+opens with `var grip = …; if (!grip) return;`, so pasting the new guard above
+it verbatim would declare `grip` twice in the same function:
+
 ```js
   root.addEventListener("dragstart", function (e) {
     var grip = e.target.closest(".ica--grip");
-    if (grip && grip.disabled) { e.preventDefault(); return; }
-    // ... existing handler body
+    if (!grip) return;
+    if (grip.disabled) { e.preventDefault(); return; }   // new
+    var row = grip.closest(".tree__row");
+    drag = { pk: row.getAttribute("data-node"), kind: row.getAttribute("data-kind"),
+             token: row.getAttribute("data-updated") };
+    e.dataTransfer.effectAllowed = "move";
   });
 ```
 
@@ -2414,8 +2558,13 @@ here exits 4 (file not found), which is not a pass.
 1. Change `builder_filter.is_active(_raw_q(request))` to `bool(request.POST.get("q"))` → `test_a_reorder_under_a_BELOW_FLOOR_q_still_succeeds` must fail.
 2. Widen the guard to fire for `mode == "reparent"` too → `test_a_positioned_REPARENT_under_a_filter_still_succeeds` must fail.
 3. Return `_op_error.html` unconditionally → the no-JS half of the refusal row must fail on the `builder__tree` assertion.
+4. Remove `or filtered` from **both** buttons in `_move_buttons.html` →
+   `test_the_arrows_and_the_grip_render_disabled_under_a_filter` must fail on
+   the DOWN-arrow assertion. Without this fourth check the `_move_buttons.html`
+   edit ships unguarded: the grip's `disabled` comes from `_tree_node.html` and
+   would keep the count at 3 on its own.
 
-Restore all three.
+Restore all four.
 
 - [ ] **Step 8: Lint and commit**
 
@@ -2545,10 +2694,20 @@ def test_the_filter_control_is_styled():
 - [ ] **Step 2: Run to verify failure**
 
 ```bash
-uv run pytest tests/test_builder_filter_views.py tests/test_builder_styles.py -q -k "clear_anchor or accessible or expand_all or bulk or filter_control or info_slot"
+uv run pytest tests/test_builder_filter_views.py tests/test_builder_styles.py -q -k \
+  "clear_anchor or accessible_name or expand_all or bulk or filter_control"
 ```
 
 Expected: FAIL — no `data-filter-clear` in the markup.
+
+**`info_slot` is deliberately NOT in that expression.** It would match
+`test_the_info_slot_is_present_and_empty_on_an_unfiltered_page`, green since
+Task 5, turning a red gate into a mixed run where "expected red" and
+"regression" look the same — the problem already fixed for Task 6 Step 2.
+`test_the_info_slot_hides_when_empty_via_empty_not_hidden` is in the same
+position: it guards the `.builder__info:empty` rule that **shipped in Task 5**,
+so it is a carry-forward regression guard, not a red gate for this task. Run it
+with the rest at Step 5; do not expect it red at Step 2.
 
 - [ ] **Step 3: Add the header controls**
 
@@ -2844,9 +3003,12 @@ uv run pytest tests/test_e2e_builder_filter.py -m e2e -q
 Expected: **one** failure —
 `test_a_toggle_under_a_filter_carries_the_APPLIED_q`, because the toggle
 request carries no `q` at all. `test_drag_is_inert_while_a_filter_is_active`
-should already **pass**: it exercises Task 8's server guard and `dragstart`
-bail, both of which shipped two tasks ago. A red drag row here means Task 8's
-Step 4 edits were lost, not that this task is incomplete. (Exit 5 means the
+should already **pass**: it exercises Task 8's **`dragstart` bail**, which
+shipped two tasks ago. Not the server guard — a drop posts `mode=reparent`,
+which that guard is deliberately scoped *not* to refuse (Task 8 Step 7's
+falsification 2 requires that widening it break a test). So a red drag row here
+means Task 8 Step 4's `builder.js` edit was lost, not that this task is
+incomplete; look there first, not at `node_move`. (Exit 5 means the
 marker was dropped; that is not a pass.)
 
 - [ ] **Step 3: Add the tracker**
@@ -3071,6 +3233,32 @@ def test_the_client_reads_data_q_min_rather_than_hardcoding_it(
     assert sent == []
 
 
+def test_clearing_a_BELOW_FLOOR_query_scrubs_it_from_the_url_and_the_hrefs(
+    page, live_server
+):
+    """The skip path, which issues no request and therefore reaches no
+    response handler. effectiveQ("a") and effectiveQ("") are BOTH "", so the
+    guard returns early -- and without syncUrl/rewriteBulkHrefs on that path
+    `?q=a` outlives the Clear it was cleared by. No other row exercises it:
+    every other clear crosses the floor and takes the fetch path.
+
+    The HREF half of this rule is asserted in Task 13, not here:
+    rewriteBulkHrefs is still a no-op stub at the end of this task, so an
+    href assertion would be red for a reason that is not the behaviour
+    under test.
+    """
+    owner = _make_pa_user("pa")
+    course, chap, hit = _seed_flat(owner)
+    _login(page, live_server, "pa")
+    page.goto(f"{live_server.url}{_builder(course)}?q=a&open=all")
+    sent = []
+    page.on("request", lambda r: sent.append(r.url) if "/build/tree/" in r.url else None)
+    page.click("[data-filter-clear]")
+    page.wait_for_timeout(400)
+    assert sent == [], "the skip path must issue no request"
+    assert "q=" not in page.url
+
+
 def test_clear_restores_the_pre_filter_expansion(page, live_server):
     owner = _make_pa_user("pa")
     course, part, chap, hit = _seed_deep(owner)
@@ -3202,7 +3390,20 @@ line is part of those steps.
     // is null, and the fallback re-renders everything the author had open --
     // on mat-pp after an expand-all, the multi-second render, from one
     // keystroke.
-    if (eff === effectiveQ(pendingQ)) { appliedQ = live; pendingQ = live; return; }
+    if (eff === effectiveQ(pendingQ)) {
+      // No FETCH is needed -- the pane already shows the right thing -- but
+      // the tracker still moved, and syncUrl/rewriteBulkHrefs are otherwise
+      // only ever called from a response handler. Skipping them here strands
+      // a below-floor query: load ?q=a, click Clear, and eff === "" on both
+      // sides, so without these two lines `?q=a` stays in the address bar and
+      // in both bulk hrefs while the box reads empty -- a reload or a
+      // middle-click silently restores a filter the author just cleared.
+      appliedQ = live;
+      pendingQ = live;
+      rewriteBulkHrefs();
+      syncUrl();
+      return;
+    }
     pendingQ = live;          // at ISSUE time, before the fetch
 
     var url = new URL(root.getAttribute("data-tree-url"), window.location.origin);
@@ -3304,6 +3505,10 @@ Expected: PASS.
    row must fail, and for a different reason: the clear is skipped entirely, so
    no request is issued and nothing is there to discard.
 4. Remove `updateClearVisibility()` from the click handler — the clear-hides-it row must fail.
+5. Remove `rewriteBulkHrefs(); syncUrl();` from the **skip** branch (leaving
+   the two tracker writes) →
+   `test_clearing_a_BELOW_FLOOR_query_scrubs_it_from_the_url_and_the_hrefs`
+   must fail. It is the only row that reaches that branch.
 
 Restore each.
 
@@ -3413,6 +3618,11 @@ uv run pytest tests/test_e2e_builder_filter.py -m e2e -q -k "info or slot"
 Expected: FAIL — no entry ever appears from a fragment.
 
 - [ ] **Step 3: Add the registry**
+
+**First delete Task 11 Step 3's stub line** — `function applyInfo() {}` — and
+replace it with the block below. Two `function applyInfo` declarations in one
+IIFE do not error (the later hoisted declaration wins), so a leftover stub is
+invisible to every test in this plan and just leaves dead, misleading source.
 
 ```js
   // ---- the info slot ---------------------------------------------------------
@@ -3645,6 +3855,26 @@ def test_the_bulk_hrefs_stay_current_after_a_js_filter_apply(page, live_server):
     page.wait_for_selector(f'li[data-node="{miss.pk}"]', state="detached")
     href = page.locator("[data-expand-all]").get_attribute("href")
     assert "q=trygo" in href
+
+
+def test_the_bulk_hrefs_are_scrubbed_when_a_below_floor_q_is_cleared(page, live_server):
+    """The href half Task 11 deferred to here, now that rewriteBulkHrefs has a
+    real body. This is the SKIP path -- no request, no response handler -- so
+    the rewrite happens only because applyFilterState calls it inline. The
+    server rendered `q=a` into this href, so a no-op leaves it there and a
+    middle-click reopens a filter the author cleared.
+    """
+    owner = _make_pa_user("pa")
+    course, chap, hit = _seed_flat(owner)
+    _login(page, live_server, "pa")
+    page.goto(f"{live_server.url}{_builder(course)}?q=a&open=all")
+    assert "q=a" in page.locator("[data-expand-all]").get_attribute("href"), (
+        "the server did not render q into the href; the row proves nothing"
+    )
+    page.click("[data-filter-clear]")
+    page.wait_for_timeout(400)
+    for hook in ("[data-expand-all]", "[data-collapse-all]"):
+        assert "q=" not in page.locator(hook).get_attribute("href"), hook
 ```
 
 - [ ] **Step 2: Run to verify failure**
@@ -3736,6 +3966,10 @@ Under a filter this renders from the **restricted** map — ~226 rows on `mat-pp
 **Accepted cost:** a half-typed rename in a nested row is discarded rather than committed. Under collapse-all the row is removed either way, so the choice is between losing the uncommitted text and shipping a database/tree divergence the author is never told about.
 
 - [ ] **Step 5: Keep the hrefs current**
+
+**First delete Task 11 Step 3's other stub line** — `function rewriteBulkHrefs() {}`
+— and replace it with this. Same trap as Task 12 Step 3: a duplicate
+declaration is silently harmless and permanently confusing.
 
 ```js
   function rewriteBulkHrefs() {
@@ -3922,9 +4156,22 @@ The two-argument `.then` form separates a rejected fetch from a throw in the suc
 ```bash
 uv run pytest tests/test_manage_element_ops.py tests/test_manage_node_ops.py -q
 uv run pytest tests/test_e2e_builder_toggle.py tests/test_e2e_builder_filter.py -m e2e -q
+uv run pytest tests/test_e2e_builder_ws2.py tests/test_e2e_builder_authoring.py \
+  tests/test_e2e_builder_reorder.py tests/test_e2e_inline_rename.py -m e2e -q
 ```
 
-Expected: exit 0 for both.
+Expected: exit 0 for all three.
+
+**The third command is not optional, for the same reason Task 9 Step 5 runs the
+layout suite.** M15 rewrites the submit handler (`:264`) and the drop handler
+(`:652`) — the two most-used gestures — and the two-argument `.then` form
+deliberately stops a throw in the success path from producing any notice at
+all. `test_e2e_builder_ws2.py` is the only suite that drives the drop handler,
+and `test_e2e_builder_authoring.py`, `test_e2e_builder_reorder.py` and
+`test_e2e_inline_rename.py` are the ones that drive the submit handler.
+Deferring them to Task 16 puts the breakage one commit and six steps away from
+its cause, mixed in with the probe and screenshot work. (`-m e2e` mandatory;
+exit 5 is not a pass.)
 
 - [ ] **Step 6: Lint and commit**
 
@@ -3984,8 +4231,13 @@ Polish for the eight, matching the existing register:
 ```bash
 uv run python manage.py compilemessages
 uv run pytest tests/test_i18n_po_health.py -q
-grep -c "#, fuzzy" locale/pl/LC_MESSAGES/django.po   # expect 0
+grep -rc "#, fuzzy" locale/pl/LC_MESSAGES/django.po locale/en/LC_MESSAGES/django.po
 ```
+
+**Both catalogs, expect 0 in each.** Step 1 regenerates `-l pl -l en`, so
+`makemessages` can leave a fuzzy in `en` just as easily — and a fuzzy arrives
+pre-filled from an unrelated msgid, so it ships a wrong string that reads as
+deliberate. Checking only `pl` lets that through both gates.
 
 - [ ] **Step 5: Commit**
 
@@ -4012,9 +4264,9 @@ Chunked, in the **foreground**, one invocation at a time. Never background a lon
 ```bash
 uv run pytest tests/test_builder_filter.py tests/test_builder_filter_views.py tests/test_builder_open_ids.py tests/test_builder_lazy_scopes.py -q
 uv run pytest tests/test_manage_node_ops.py tests/test_manage_element_ops.py tests/test_manage_move_picker.py tests/test_manage_affordance.py tests/test_builder_styles.py tests/test_builder_js_invariants.py -q
-uv run pytest tests/test_i18n_po_health.py tests/test_manage_builder.py -q
+uv run pytest tests/test_i18n_po_health.py tests/test_manage_builder.py tests/test_tree_badge.py tests/test_manage_duplicate_button.py tests/test_builder_duplicate_unit.py tests/test_manage_node_duplicate.py -q
 uv run pytest tests/test_e2e_builder_filter.py tests/test_e2e_builder_toggle.py tests/test_e2e_builder_reorder.py -m e2e -q
-uv run pytest tests/test_e2e_builder_ws2.py tests/test_e2e_builder_authoring.py tests/test_e2e_builder.py tests/test_e2e_builder_tree_layout.py -m e2e -q
+uv run pytest tests/test_e2e_builder_ws2.py tests/test_e2e_builder_authoring.py tests/test_e2e_builder.py tests/test_e2e_builder_tree_layout.py tests/test_e2e_inline_rename.py -m e2e -q
 ```
 
 Each must exit 0. Anything red outside the three files Task 0 predicted is a regression.
@@ -4128,7 +4380,7 @@ git commit -m "chore(builder): slice 2 verdict — measurements and ledger"
 - [ ] Every task's falsification produced RED and was restored.
 - [ ] `uv run ruff format --check .` and `uv run ruff check .` both exit 0.
 - [ ] Every suite in Task 16 Step 1 exits 0 — and the e2e runs carried `-m e2e` (exit 5 is not a pass).
-- [ ] `grep -c "#, fuzzy" locale/pl/LC_MESSAGES/django.po` returns 0; `.mo` files regenerated with `compilemessages`, never merged by hand.
+- [ ] `grep -rc "#, fuzzy" locale/pl/LC_MESSAGES/django.po locale/en/LC_MESSAGES/django.po` returns 0 for **both**; `.mo` files regenerated with `compilemessages`, never merged by hand.
 - [ ] The branch is rebased on master and the `.mo` files regenerated **after** the rebase — a tracked binary `.mo` has no 3-way merge.
 - [ ] `git branch --show-current` is `worktree-builder-large-course-perf`.
 - [ ] The measured filter round trip is recorded in the PR body against the < 1 s target, with the before-numbers from the spec.
