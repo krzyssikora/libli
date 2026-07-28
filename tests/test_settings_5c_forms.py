@@ -432,7 +432,7 @@ def test_favicon_clear_empties_the_field(db, settings, tmp_path):
 @pytest.mark.parametrize(
     "max_memory,expected_class",
     [
-        # The default ceiling: a small upload never leaves RAM. This leg is the
+        # A generous ceiling: a small upload never leaves RAM. This leg is the
         # CONTROL -- it is the path every other favicon test already takes, and it
         # proves the lowered ceiling below is what actually swaps the handler
         # rather than the test silently measuring the same branch twice.
