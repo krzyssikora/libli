@@ -543,8 +543,11 @@ def test_delete_confirm_get_emits_hidden_input_for_an_explicitly_empty_open(clie
 @pytest.mark.django_db
 def test_delete_confirm_get_omits_hidden_input_when_open_is_absent(client):
     """Sibling of the above: with no `open` param at all, the confirm page
-    must NOT emit a hidden `open` input (and the Cancel link must not carry
-    `open=`) -- absent stays absent through the GET hop too."""
+    must NOT emit a hidden `open` input -- absent stays absent through the
+    GET hop too. (The Cancel link is a DIFFERENT concern: with no `open` to
+    round-trip it falls back to `?open=session`, same as the POST branch's
+    `_redirect_to_builder` -- see
+    test_delete_confirm_cancel_link_falls_back_to_open_session_when_absent.)"""
     owner = make_login(client, "owner")
     course, part, chapters = _big_course(owner)
     victim = chapters[0][1][0]
@@ -553,7 +556,24 @@ def test_delete_confirm_get_omits_hidden_input_when_open_is_absent(client):
         + f"?node={victim.pk}"
     ).content.decode()
     assert 'name="open"' not in confirm
-    assert "?open=" not in confirm
+
+
+@pytest.mark.django_db
+def test_delete_confirm_cancel_link_falls_back_to_open_session_when_absent(client):
+    """A no-JS author's delete-confirm href never carries `open` (only
+    builder.js stamps one on), so on a course above SIZE_THRESHOLD
+    `open_present` is ALWAYS false. Cancel must degrade the same way the
+    POST branch's `_redirect_to_builder` does -- `?open=session` -- or the
+    author's whole expanded tree collapses on a mere Cancel."""
+    owner = make_login(client, "owner")
+    course, part, chapters = _big_course(owner)
+    victim = chapters[0][1][0]
+    confirm = client.get(
+        reverse("courses:manage_node_delete", kwargs={"slug": "big"})
+        + f"?node={victim.pk}"
+    ).content.decode()
+    builder_url = reverse("courses:manage_builder", kwargs={"slug": "big"})
+    assert f'href="{builder_url}?open=session"' in confirm
 
 
 @pytest.mark.django_db

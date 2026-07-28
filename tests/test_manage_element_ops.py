@@ -152,7 +152,7 @@ def test_no_js_element_reorder_redirects_with_open_session(client):
     owner = make_login(client, "owner")
     course = CourseFactory(slug="c1", owner=owner)
     unit, els = _unit_with_elements(course, 2)
-    e0, e1 = els
+    _e0, e1 = els
     resp = client.post(  # no FETCH header
         reverse("courses:manage_element_move", kwargs={"slug": "c1"}),
         {

@@ -485,11 +485,12 @@
     t.dataset.submitting = "1";
     busyStart();
     var body = new URLSearchParams();
-    body.set("open", collectOpen() ? collectOpen() + "," + pk : pk);
+    var open = collectOpen();
+    body.set("open", open ? open + "," + pk : pk);
     fetch(scopeUrlFor(pk) + "?" + body.toString(), {
       headers: { "X-Requested-With": "fetch" },
     }).then(function (r) {
-      if (!r.status || r.status !== 200) throw new Error("bad status");
+      if (r.status !== 200) throw new Error("bad status");
       return r.text();
     }).then(function (html) {
       // A foreign applyFragment may have replaced this row while we waited.

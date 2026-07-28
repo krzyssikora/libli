@@ -25,7 +25,7 @@ class OpenSet:
     attribute rebinding but not mutation of a mutable field, and a plain set
     would also make the generated __hash__ raise."""
 
-    ids: frozenset
+    ids: frozenset[int]
     truncated: bool = False
     explicit: bool = False  # resolved by step 1 or 2 -> safe to persist
 
