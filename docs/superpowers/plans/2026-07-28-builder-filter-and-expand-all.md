@@ -42,7 +42,7 @@ Every task's requirements implicitly include this section.
 | `courses/static/courses/css/builder.css` | Filter control, info slot `:empty` rule, disabled bulk controls. |
 | `templates/courses/manage/builder.html` | Filter form, bulk controls, the always-present info slot, five new `data-*` attributes. |
 | `templates/courses/manage/_scope.html`, `_tree_node.html`, `_move_buttons.html`, `_add_affordance.html`, `node_confirm_delete.html`, `_move_picker.html` | Hidden `q`, percent-encoded `q` in hrefs, filter-aware empty text, `disabled` grip/arrows. |
-| `courses/templatetags/courses_manage_extras.py` | `toggle_href` preserves `q`. |
+| `courses/templatetags/courses_manage_extras.py` | `toggle_href` preserves `q` (via `urlencode`, so it needs no separate escaping rule). |
 | `tests/test_builder_filter.py` *(new)* | `builder_filter` unit tests, no DB. |
 | `tests/test_builder_filter_views.py` *(new)* | View/integration rows from §8. |
 | `tests/test_e2e_builder_filter.py` *(new)* | The `-m e2e` rows from §8. |
@@ -52,7 +52,12 @@ Every task's requirements implicitly include this section.
 ## Task 0: Baseline — enumerate the affected tests before changing behaviour
 
 **Files:**
-- Create: `.superpowers/sdd/affected-tests-slice2.md`
+- Create: `docs/superpowers/notes/2026-07-28-affected-tests-slice2.md`
+
+**Not under `.superpowers/`** — `.gitignore:13` ignores that whole directory, so
+`git add` on a named path there exits 1 and the commit step then has nothing
+staged. Slice 1's ledger lived there as an untracked working note; these two are
+committed, so they go somewhere tracked.
 
 **Interfaces:**
 - Consumes: nothing.
@@ -66,7 +71,8 @@ Run each and record the exit code:
 uv run pytest tests/test_builder_lazy_scopes.py tests/test_builder_open_ids.py \
   tests/test_manage_node_ops.py tests/test_manage_element_ops.py \
   tests/test_manage_move_picker.py tests/test_manage_affordance.py \
-  tests/test_builder_styles.py tests/test_i18n_po_health.py -q
+  tests/test_builder_styles.py tests/test_builder_js_invariants.py \
+  tests/test_i18n_po_health.py -q
 ```
 
 Expected: exit 0.
@@ -74,14 +80,21 @@ Expected: exit 0.
 - [ ] **Step 2: Record the e2e baseline for the files this slice will touch**
 
 ```bash
-uv run pytest tests/test_e2e_builder_toggle.py tests/test_e2e_builder_reorder.py -m e2e -q
+uv run pytest tests/test_e2e_builder_toggle.py tests/test_e2e_builder_reorder.py \
+  tests/test_e2e_builder_ws2.py tests/test_e2e_builder_authoring.py \
+  tests/test_e2e_builder.py -m e2e -q
 ```
 
 Expected: exit 0. **If this exits 5, the marker was dropped — that is not a pass.**
 
+`test_builder_js_invariants.py` (which regexes `builder.js`'s source) and the
+three extra e2e files are in this list because the slice rewrites `withOpen`,
+the toggle's `.then` chain, every `.catch`, `syncUrl`, the `swapping` lifecycle
+and the picker fetch — all of which those suites exercise.
+
 - [ ] **Step 3: Write the ledger**
 
-Create `.superpowers/sdd/affected-tests-slice2.md` recording, for each file above: the exit code, the test count, and a one-line note on why this slice can affect it. Name explicitly the three that encode behaviour this slice **changes**:
+Create `docs/superpowers/notes/2026-07-28-affected-tests-slice2.md` recording, for each file above: the exit code, the test count, and a one-line note on why this slice can affect it. Name explicitly the three that encode behaviour this slice **changes**:
 
 - `tests/test_manage_node_ops.py` — reorder now refuses under an active filter (Task 8).
 - `tests/test_manage_move_picker.py` — the picker gains `q` (Task 6).
@@ -93,7 +106,7 @@ Anything outside this list going red during Tasks 1–16 is a regression, not mi
 
 ```bash
 git branch --show-current   # expect worktree-builder-large-course-perf
-git add .superpowers/sdd/affected-tests-slice2.md
+git add docs/superpowers/notes/2026-07-28-affected-tests-slice2.md
 git commit -m "chore(builder): baseline the tests slice 2 can affect"
 ```
 
@@ -106,7 +119,7 @@ git commit -m "chore(builder): baseline the tests slice 2 can affect"
 - Test: `tests/test_builder_filter.py`
 
 **Interfaces:**
-- Consumes: `courses.models.ContentNode` (for the `Kind.UNIT` comparison only).
+- Consumes: nothing. The module imports only `unicodedata` and compares `node.kind != "unit"` against a string literal — deliberately, since that is what keeps it DB-free and lets the tests use a `FakeNode`. The literal matches `ContentNode.Kind.UNIT`'s value.
 - Produces:
   - `MIN_QUERY: int = 2`, `MATCH_CAP: int = 100`
   - `fold(s: str) -> str`
@@ -118,6 +131,7 @@ git commit -m "chore(builder): baseline the tests slice 2 can affect"
 Create `tests/test_builder_filter.py`:
 
 ```python
+import re
 import unicodedata
 
 from courses.builder_filter import MATCH_CAP
@@ -152,8 +166,10 @@ def test_fold_handles_l_stroke_in_both_directions():
     # The one letter NFKD cannot reach: U+0142 has no decomposition, so a
     # generic "NFKD then drop combining marks" fold leaves it in place.
     assert fold("Łąka") == "laka"
-    assert fold("laka") in fold("Łąka")
-    assert fold("Łąka") in fold("laka")
+    # The containment the filter actually performs, in both directions --
+    # `fold(x) in fold(x)` would be true whatever fold did.
+    assert fold("laka") in fold("Rozdział: Łąka i las")
+    assert fold("ŁĄKA") in fold("rozdzial: laka i las")
 
 
 def test_fold_handles_decomposed_input():
@@ -220,22 +236,33 @@ def test_walk_includes_a_matched_container_itself_and_every_ancestor():
 def test_cap_keeps_the_first_MATCH_CAP_in_order_pk_with_scattered_pks():
     # Scattered, non-sequential pks: CPython iterates small sequential ints
     # ascending, so a sorted->list mutation would stay green on tidy pks.
+    # DISTINCT pks: filtered_map indexes by pk, so a repeated list collapses
+    # 240 nodes to 6 and every count assertion below becomes unreachable.
     nodes = [
-        FakeNode(pk, None, f"Zadanie {i}", order=i % 7)
-        for i, pk in enumerate([9001, 17, 4242, 3, 88888, 512] * 40)
+        FakeNode(9001 + i * 7919, None, f"Zadanie {i}", order=i % 7)
+        for i in range(240)
     ]
     restricted, chains, shown, total, active = filtered_map(_map(nodes), "zadanie")
     assert total == len(nodes)
     assert shown == MATCH_CAP
     kept = restricted[None]
     assert len(kept) == MATCH_CAP
-    assert [(n.order, n.pk) for n in kept] == sorted((n.order, n.pk) for n in kept)
+    # The cap is applied to the (order, pk)-sorted match list, so the kept SET
+    # is the 100 lowest (order, pk) pairs. The emitted ROW order is the input
+    # order of cmap[parent] -- see the sibling-order test.
+    lowest = sorted((n.order, n.pk) for n in nodes)[:MATCH_CAP]
+    assert sorted((n.order, n.pk) for n in kept) == lowest
 
 
 def test_restricted_map_preserves_sibling_order_and_groups_roots_under_none():
-    a = FakeNode(10, None, "Alfa", order=1, kind="chapter")
+    """PRESERVES, never re-sorts. _children_map already emits each parent's
+    children in (order, pk) order (views_manage.py:140), so the input order IS
+    the correct order -- the fixture must be built that way or the test
+    asserts a sort filtered_map deliberately does not perform.
+    """
     b = FakeNode(11, None, "Alfabet", order=0, kind="chapter")
-    restricted, *_ = filtered_map(_map([a, b]), "alfa")
+    a = FakeNode(10, None, "Alfa", order=1, kind="chapter")
+    restricted, *_ = filtered_map(_map([b, a]), "alfa")   # cmap order
     assert restricted[None] == [b, a]
 
 
@@ -244,15 +271,24 @@ def test_client_floor_never_exceeds_the_server_floor_on_latin_input():
     # server is below it sends a filter fetch that omits `open`, and the
     # server's blank `q` collapses the tree. Measured Latin count: 0.
     def client_measure(s):
+        """A mirror of builder.js's effectiveQ. The UTF-16 half must be
+        EXPLICIT: Python has no `.length`, so spelling this `len(stripped)`
+        makes the astral falsification unreachable -- both spellings agree on
+        every BMP input, so the test could not tell the two measures apart.
+        """
+        t = re.sub(r"^[\s\u001c-\u001f\u0085]+|[\s\u001c-\u001f\u0085]+$", "", s)
         stripped = "".join(
             c
-            for c in unicodedata.normalize("NFC", s)
+            for c in unicodedata.normalize("NFC", t)
             if not (0x0300 <= ord(c) <= 0x036F)
         )
-        return len(stripped)
+        return len(stripped.encode("utf-16-le")) // 2   # what .length counts
 
-    for ch in "ąćęłńóśźżĄĆĘŁŃÓŚŹŻß" + "Ĳǆǉǌǳ" + "a":
+    for ch in "ąćęłńóśźżĄĆĘŁŃÓŚŹŻß" + "Ĳǆǉǌǳ" + "a\u0085":
         assert client_measure(ch) <= len(fold(ch)), ch
+    # The two inputs that catch a bare trim() and a .length count.
+    assert client_measure("a\u0085") == 1
+    assert client_measure("𝐀") == 2 > len(fold("𝐀"))
 ```
 
 - [ ] **Step 2: Run the tests to verify they fail**
@@ -421,7 +457,15 @@ git commit -m "feat(builder): filter derivation module — fold, floor, match, w
 
 - [ ] **Step 1: Write the failing tests**
 
-Append to `tests/test_builder_open_ids.py`:
+First add the two imports the file lacks, at the **top** with the existing
+block (isort is force-single-line; `E402` rejects a mid-file import):
+
+```python
+from courses.builder_open import OPEN_KEY
+from tests.factories import TEST_PASSWORD
+```
+
+Then append to `tests/test_builder_open_ids.py`:
 
 ```python
 def test_q_chain_beats_the_open_session_sentinel(rf, small_course_cmap):
@@ -484,15 +528,14 @@ Add the fixture at the top of the file if it is not already there:
 
 ```python
 @pytest.fixture
-def small_course_cmap(db, django_user_model):
+def small_course_cmap(client, db):
     """Under SIZE_THRESHOLD, so step 4 fires and q_chain=None is
     distinguishable from q_chain=set()."""
-    owner = django_user_model.objects.create_user(username="o", password=TEST_PASSWORD)
+    owner = make_login(client, "sc-owner")
     course = CourseFactory(slug="sc", owner=owner)
     a = ContentNodeFactory(course=course, kind="part", unit_type=None, parent=None)
     b = ContentNodeFactory(course=course, kind="part", unit_type=None, parent=None)
     c = ContentNodeFactory(course=course, kind="part", unit_type=None, parent=None)
-    a.pk, b.pk, c.pk = a.pk, b.pk, c.pk
     cmap = {None: [a, b, c]}
     for n, pk in ((a, 111), (b, 222), (c, 333)):
         n.pk = pk
@@ -582,84 +625,24 @@ def _remember_open(request, course, opened, *, q_active):
 
 Update its single call site in `builder()` to pass `q_active=` (Task 3 supplies the value; for now pass `False` so the tree stays green).
 
-- [ ] **Step 5: Add the two view-level halves**
-
-The unit tests above pin `open_ids`. Both *paths* need pinning too, because
-the sentinel one is the common one and would stay broken if only the notice
-one were covered. Append to `tests/test_builder_lazy_scopes.py`:
-
-```python
-def test_a_no_js_mutation_SUCCESS_under_a_filter_returns_the_chains_open(
-    db, django_user_model
-):
-    """The redirect lands on ?open=session&q=..., and step 1 fires before
-    step 3 in the shipped code -- so without the restructure the author gets
-    their stored PRE-FILTER set over a filtered map."""
-    owner, client = make_login(django_user_model, "pa")
-    course, part, chap, hit = _deep_course(owner)
-    session = client.session
-    session[OPEN_KEY] = {course.slug: []}          # populated, and NOT the chains
-    session.save()
-    rename = reverse("courses:manage_node_rename", kwargs={"slug": course.slug})
-    resp = client.post(
-        rename,
-        {"node": hit.pk, "token": hit.updated.isoformat(), "title": "Nowy", "q": "nowy"},
-    )
-    body = client.get(resp["Location"]).content.decode()
-    assert f'ol[data-scope="{chap.pk}"]'.strip('ol[]"') or True
-    assert f'data-scope="{chap.pk}"' in body       # the chain is OPEN
-
-
-def test_builder_with_notice_under_a_filter_returns_the_chains_open(
-    db, django_user_model
-):
-    owner, client = make_login(django_user_model, "pa")
-    course, part, chap, hit = _deep_course(owner)
-    session = client.session
-    session[OPEN_KEY] = {course.slug: []}
-    session.save()
-    rename = reverse("courses:manage_node_rename", kwargs={"slug": course.slug})
-    resp = client.post(
-        rename,
-        {"node": hit.pk, "token": "stale-token", "title": "Nowy", "q": "trygo"},
-    )
-    assert resp.status_code == 409
-    assert f'data-scope="{chap.pk}"' in resp.content.decode()
-
-
-def test_step_2_still_beats_step_3(db, django_user_model):
-    """A no-JS toggle href under a filter carries a real enumeration, and it
-    must win -- the half a move-step-3-to-the-top implementation breaks."""
-    owner, client = make_login(django_user_model, "pa")
-    course, part, chap, hit = _deep_course(owner)
-    url = reverse("courses:manage_builder", kwargs={"slug": course.slug})
-    body = client.get(url, {"q": "trygo", "open": str(part.pk)}).content.decode()
-    assert f'data-scope="{part.pk}"' in body
-    assert f'data-scope="{chap.pk}"' not in body   # the chains did NOT win
-```
-
-Add a `_deep_course(owner)` helper beside `_big_course` that seeds
-part > chapter > one matching unit, and import `TEST_PASSWORD` from
-`tests.factories` if the fixture needs it.
-
-- [ ] **Step 6: Run the tests to verify they pass**
+- [ ] **Step 5: Run the tests to verify they pass**
 
 ```bash
-uv run pytest tests/test_builder_open_ids.py tests/test_builder_lazy_scopes.py -q
+uv run pytest tests/test_builder_open_ids.py -q
 ```
 
 Expected: PASS, exit 0.
 
-- [ ] **Step 7: Falsify**
+- [ ] **Step 6: Falsify**
 
 Move the `if q_chain is not None:` block back below the `mode == "notice"` read → `test_q_chain_beats_the_notice_carrier` must fail. Move it below the sentinel → `test_q_chain_beats_the_open_session_sentinel` must fail. Restore.
 
-- [ ] **Step 8: Lint and commit**
+- [ ] **Step 7: Lint and commit**
 
 ```bash
 uv run ruff format . && uv run ruff check .
 git branch --show-current
-git add courses/builder_open.py courses/views_manage.py tests/test_builder_open_ids.py tests/test_builder_lazy_scopes.py
+git add courses/builder_open.py courses/views_manage.py tests/test_builder_open_ids.py
 git commit -m "feat(builder): q outranks both session reads; _remember_open gates on q_active"
 ```
 
@@ -673,6 +656,13 @@ git commit -m "feat(builder): q outranks both session reads; _remember_open gate
 
 **Interfaces:**
 - Consumes: `builder_filter.filtered_map`, `builder_filter.is_active`, `builder_filter.MIN_QUERY` (Task 1); `open_ids` (Task 2).
+
+**Deliberate deviation from spec 1:** the spec says "`views_manage` imports it
+as `_filtered_map`, exactly as slice 1 aliased `open_ids`". This plan imports
+the MODULE (`from courses import builder_filter`) and calls
+`builder_filter.filtered_map(...)` / `builder_filter.MIN_QUERY` instead —
+because that is what makes the `MIN_QUERY` monkeypatch tests bite, for exactly
+the reason `_info_entries` reads `builder_open.CEILING` through its module.
 - Produces:
   - `_raw_q(request) -> str` — POST then GET.
   - `FilterContext(cmap, opened, open_ids, shown, total, q_active, q_raw)`.
@@ -695,9 +685,15 @@ from tests.factories import make_login
 
 
 @pytest.fixture
-def filtered_course(db, django_user_model):
-    """part > chapter > units, with exactly one matching unit deep down."""
-    owner, client = make_login(django_user_model, "pa")
+def filtered_course(client, db):
+    """part > chapter > units, with exactly one matching unit deep down.
+
+    `make_login(client, username)` takes the CLIENT and returns the USER
+    (tests/factories.py:175) -- the repo idiom is the pytest-django `client`
+    fixture plus `owner = make_login(client, "...")`, as in
+    tests/test_builder_lazy_scopes.py:52.
+    """
+    owner = make_login(client, "pa")
     course = CourseFactory(slug="filt", owner=owner)
     part = ContentNodeFactory(
         course=course, kind="part", unit_type=None, parent=None, title="Czesc I"
@@ -761,7 +757,35 @@ def test_a_matched_container_renders_OPEN_over_an_empty_scope(filtered_course):
     toggle = body.split(f'data-toggle="{chap.pk}"')[1].split(">")[0]
     assert 'aria-expanded="true"' in toggle
     assert f'aria-controls="tree-scope-{chap.pk}"' in toggle
-    assert "No matching titles." in body or "Brak pasuj" in body
+    assert f'data-node="{hit.pk}"' not in body       # no descendant matched
+    # The "No matching titles." wording is Task 6's; asserting it here would
+    # make this task's own gate red until then.
+
+
+def test_remember_open_does_NOT_write_while_a_filter_is_active(filtered_course):
+    """Asserted ON THE SESSION, never on the render. Driven through a TOGGLE
+    under an active filter: a bare filtered GET resolves via step 3, which is
+    not `explicit`, so the write is already suppressed and the row would pass
+    without the rule. This is the half slice 1 could not write."""
+    client, course, part, chap, hit, miss = filtered_course
+    url = reverse("courses:manage_builder", kwargs={"slug": course.slug})
+    client.get(url, {"open": f"{part.pk},{chap.pk}"})     # persists the real set
+    before = client.session.get("builder_open", {}).get(course.slug)
+    client.get(url, {"q": "trygo", "open": str(part.pk)})  # a toggle, filtered
+    assert client.session.get("builder_open", {}).get(course.slug) == before
+
+
+def test_remember_open_DOES_write_under_a_below_floor_q(filtered_course):
+    """The half where this spec deliberately narrows the parent's "q is
+    absent" to "q is ACTIVE". A presence gate (`"q" in request.GET`) is
+    strictly stricter and passes the row above too, so only this one catches
+    it -- and the loss it prevents is invisible: a no-JS author silently stops
+    persisting expansions whenever a stray ?q=a sits in the URL."""
+    client, course, part, chap, hit, miss = filtered_course
+    url = reverse("courses:manage_builder", kwargs={"slug": course.slug})
+    client.get(url, {"q": "a", "open": f"{part.pk},{chap.pk}"})
+    stored = client.session.get("builder_open", {}).get(course.slug)
+    assert stored == sorted([part.pk, chap.pk])
 
 
 def test_counts_under_a_filter_are_the_filtered_counts(filtered_course):
@@ -952,6 +976,29 @@ def _expand_all_disabled(cmap):
 
 `_builder_with_notice()` takes the identical shape with `mode="notice"`.
 
+**All three callers must be rewired in this step.** `_tree_context`'s four new
+arguments are keyword-only and defaultless, so `_render_scope`
+(`views_manage.py:351`) and `_builder_with_notice` (`:742`) raise `TypeError`
+on the first fragment or notice render until they pass them:
+
+```python
+    context.update(
+        _tree_context(
+            course,
+            cmap,                       # the FULL map, always
+            fc.open_ids,
+            q=fc.q_raw,
+            filtered=fc.q_active,
+            expand_all_disabled=_expand_all_disabled(cmap),
+            q_min=builder_filter.MIN_QUERY,
+        )
+    )
+```
+
+On the fragment path `expand_all_disabled` and `q_min` are computed but unused
+— `_scope.html` consumes neither, and only `builder.html` emits their
+attributes. Passing them anyway keeps one signature rather than two.
+
 `_render_scope()` takes `mode="fragment"`, passes its own `extra_open=extra_open`, and — critically — **`nodes` comes from the RESTRICTED map in both branches**:
 
 ```python
@@ -969,7 +1016,28 @@ def _expand_all_disabled(cmap):
         parent_kind = parent.kind if parent else None
 ```
 
-`_scope.html` iterates `nodes`, **not** `children_map`, and `_render_scope` builds it from its own separate read of the map — so swapping only `children_map` ships a toggle that, under an active filter, returns **every** child of the expanded scope into a filtered pane. `parent`, `parent_kind` and `updated` keep resolving against the full course: a scope's own identity is not a filtering question.
+…and the context dict it builds must ALSO carry the restricted map:
+
+```python
+    context = {
+        "scope_id": scope_ref,
+        "scope_updated": updated,
+        "parent_kind": parent_kind,
+        "nodes": nodes,
+        "children_map": fc.cmap,        # RESTRICTED -- the recursive descent
+        "course": course,               # and _tree_toggle's counts read this
+    }
+```
+
+**Both keys, not one.** `_scope.html` iterates `nodes`, **not** `children_map`,
+and `_render_scope` builds `nodes` from its own separate read — so swapping only
+`children_map` ships a toggle that returns **every** child of the expanded scope
+into a filtered pane. But swapping only `nodes` is just as wrong in the other
+direction: `_tree_node.html`'s recursive descent and `_tree_toggle.html`'s counts
+both read `children_map`, so a fragment would render unfiltered grandchildren
+under filtered rows and report unfiltered counts — while the page-render count
+test stays green. `parent`, `parent_kind` and `updated` keep resolving against
+the full course: a scope's own identity is not a filtering question.
 
 `_info_entries` gains the keyword arguments used above; Task 5 gives it its body.
 
@@ -1028,7 +1096,7 @@ git commit -m "feat(builder): FilterContext — one q resolution, restricted map
 Append to `tests/test_builder_filter_views.py`:
 
 ```python
-def test_manage_tree_access_control(db, django_user_model, filtered_course):
+def test_manage_tree_access_control(filtered_course):
     """The same rows as manage_node_scope MINUS the pk row -- four in total.
     NOT 'non-numeric pk -> 404': this route has no pk, so such a test would
     guard nothing (the resolver would 404 before the view ran)."""
@@ -1037,7 +1105,8 @@ def test_manage_tree_access_control(db, django_user_model, filtered_course):
 
     assert Client().get(url).status_code in (301, 302)
 
-    _, other = make_login(django_user_model, "nobody")
+    other = Client()
+    make_login(other, "nobody")
     assert other.get(url).status_code == 403
 
     assert client.get(url).status_code == 200
@@ -1169,10 +1238,39 @@ def test_the_header_is_machine_readable_under_the_polish_locale(filtered_course)
     into a role=status region."""
     client, course, *_ = filtered_course
     url = reverse("courses:manage_tree", kwargs={"slug": course.slug})
-    with override("pl"):
-        value = client.get(url, {"q": "trygo"})["X-Builder-Info"]
+    # NOT `with override("pl")`: config/settings/base.py:48 installs
+    # core.middleware.SessionLocaleMiddleware, which calls translation.activate
+    # per request (core/middleware.py:48-54) and overrides the ambient context
+    # for the duration of the view -- the response would render under the
+    # default `en` and the assertions would pass against an implementation that
+    # put the human string in the header.
+    resp = client.get(
+        url, {"q": "trygo"}, HTTP_ACCEPT_LANGUAGE="pl", **{"HTTP_X_REQUESTED_WITH": "fetch"}
+    )
+    assert "Filtrowane" in resp.content.decode() or resp["Content-Language"] == "pl", (
+        "the Polish locale is not actually active; the assertions below would "
+        "be vacuous"
+    )
+    value = resp["X-Builder-Info"]
     assert value.isascii()
     assert "=?utf-8?" not in value
+
+
+def test_one_msgid_per_notice(filtered_course):
+    """The page route and the fragment route render the SAME literal, so
+    makemessages collapses them into one catalog entry. Two entries would let
+    them be translated differently and disagree about what the tree shows.
+
+    They are not directly comparable -- the server interpolates while the
+    attribute keeps its placeholders -- so a literal equality assertion fails
+    on a CORRECT implementation. Substitute, then compare.
+    """
+    client, course, *_ = filtered_course
+    url = reverse("courses:manage_builder", kwargs={"slug": course.slug})
+    body = client.get(url, {"q": "trygo"}, HTTP_ACCEPT_LANGUAGE="pl").content.decode()
+    template = body.split('data-msg-filter="')[1].split('"')[0]
+    rendered = body.split('data-info-key="filter">')[1].split("<")[0]
+    assert template % {"shown": 1, "total": 1} == rendered
 
 
 def test_a_rename_and_a_422_carry_no_header_at_all(filtered_course):
@@ -1209,7 +1307,7 @@ def test_a_server_rendered_notice_is_visible_without_js(filtered_course):
     assert 'data-info-key="filter"' in body
 ```
 
-Add `from django.utils.translation import override` to the imports.
+No `override` import is needed — the locale is driven through the request.
 
 - [ ] **Step 2: Run to verify failure**
 
@@ -1367,9 +1465,14 @@ def test_markup_hrefs_percent_encode_q(filtered_course):
     the href outright."""
     client, course, part, chap, hit, miss = filtered_course
     url = reverse("courses:manage_builder", kwargs={"slug": course.slug})
-    body = client.get(url, {"q": "a b&open=all"}).content.decode()
-    assert "q=a%20b%26open%3Dall" in body or "q=a+b%26open%3Dall" in body
-    assert "&open=all" not in body.replace("%26open%3Dall", "")
+    # The query must BOTH contain `&`/space AND match a node: a query that
+    # matches nothing renders an empty restricted map, `_scope.html` takes
+    # {% empty %}, no _tree_node.html is included -- and there is no delete or
+    # Move href in the response at all, so the falsification is unreachable.
+    body = client.get(url, {"q": "tryg&open=all"}).content.decode()
+    assert f'data-node="{hit.pk}"' in body, "no row rendered; the row proves nothing"
+    assert "q=tryg%26open%3Dall" in body
+    assert "?node=" in body and "&open=all" not in body
 
 
 def test_the_six_redirect_sites_carry_q(filtered_course):
@@ -1520,9 +1623,101 @@ In `node_confirm_delete.html`, beside the existing hidden `open`:
 
 **Value-gated, not presence-gated.** The neighbouring `open` uses an `open_present` flag because absent-vs-empty is meaningful for `open`; it is not for `q`, and a `q_present` twin would be a flag nothing consumes. Its Cancel link needs its own `q` too — the existing `{% if open_present %}?open=…{% else %}?open=session{% endif %}` structure has no slot for one.
 
-`node_delete`'s GET and `node_move`'s GET both put `_raw_q(request)` in their context; `_move_picker.html`'s reparent form carries it as a hidden input.
+`node_delete`'s GET puts `_raw_q(request)` in its context. **For the picker
+the edit site is `_move_picker` (`views_manage.py:797-807`), not `node_move`** —
+`node_move`'s GET branch (`:625-627`) only delegates, so an implementer editing
+there finds nothing to change and the picker row stays red.
+`_move_picker.html`'s reparent form then carries it as a hidden input.
 
-- [ ] **Step 9: Run the tests**
+**While you are in that context dict: its `children_map` (`:804`) and
+`nodes_top` (`:805`) must stay the FULL map.** So must `link_picker`'s
+`children_map`/`top_nodes` (`:275`). These are *destination candidate* lists and
+the slot positions the numeric `position` field indexes into — restricting them
+would make the picker compute positions against a filtered child list, and
+offering only matching destinations would leave a filtered author unable to move
+anything out of the match set. This is the one place the spec calls the risk
+live rather than theoretical, precisely because the `q` edit lands one line
+away.
+
+- [ ] **Step 9: Add the two view-level halves of the precedence fix**
+
+The unit tests above pin `open_ids`. Both *paths* need pinning too, because
+the sentinel one is the common one and would stay broken if only the notice
+one were covered. Append to `tests/test_builder_lazy_scopes.py`:
+
+```python
+def test_a_no_js_mutation_SUCCESS_under_a_filter_returns_the_chains_open(client, db):
+    """The redirect lands on ?open=session&q=..., and step 1 fires before
+    step 3 in the shipped code -- so without the restructure the author gets
+    their stored PRE-FILTER set over a filtered map."""
+    owner = make_login(client, "pa")
+    course, part, chap, hit = _deep_course(owner)
+    session = client.session
+    session[OPEN_KEY] = {course.slug: []}          # populated, and NOT the chains
+    session.save()
+    rename = reverse("courses:manage_node_rename", kwargs={"slug": course.slug})
+    resp = client.post(
+        rename,
+        {"node": hit.pk, "token": hit.updated.isoformat(), "title": "Nowy", "q": "nowy"},
+    )
+    body = client.get(resp["Location"]).content.decode()
+    assert f'data-scope="{chap.pk}"' in body       # the chain is OPEN
+
+
+def test_builder_with_notice_under_a_filter_returns_the_chains_open(client, db):
+    owner = make_login(client, "pa")
+    course, part, chap, hit = _deep_course(owner)
+    session = client.session
+    session[OPEN_KEY] = {course.slug: []}
+    session.save()
+    rename = reverse("courses:manage_node_rename", kwargs={"slug": course.slug})
+    resp = client.post(
+        rename,
+        {"node": hit.pk, "token": "stale-token", "title": "Nowy", "q": "trygo"},
+    )
+    assert resp.status_code == 409
+    assert f'data-scope="{chap.pk}"' in resp.content.decode()
+
+
+def test_step_2_still_beats_step_3(client, db):
+    """A no-JS toggle href under a filter carries a real enumeration, and it
+    must win -- the half a move-step-3-to-the-top implementation breaks."""
+    owner = make_login(client, "pa")
+    course, part, chap, hit = _deep_course(owner)
+    url = reverse("courses:manage_builder", kwargs={"slug": course.slug})
+    body = client.get(url, {"q": "trygo", "open": str(part.pk)}).content.decode()
+    assert f'data-scope="{part.pk}"' in body
+    assert f'data-scope="{chap.pk}"' not in body   # the chains did NOT win
+```
+
+Add `_deep_course` beside `_big_course` in the same file:
+
+```python
+def _deep_course(owner):
+    """part > chapter > one matching unit, ABOVE nothing in particular --
+    the depth is what matters, not the size. `hit` must match both "trygo"
+    and (after the rename) "nowy"; `chap` must NOT match "trygo", or the
+    chain-vs-enumeration distinction the tests turn on disappears.
+    """
+    course = CourseFactory(slug="deep", owner=owner)
+    part = ContentNodeFactory(
+        course=course, kind="part", unit_type=None, parent=None, title="P0"
+    )
+    chap = ContentNodeFactory(
+        course=course, kind="chapter", unit_type=None, parent=part, title="Rozdzial"
+    )
+    hit = ContentNodeFactory(
+        course=course, kind="unit", parent=chap, title="Trygonometria"
+    )
+    return course, part, chap, hit
+```
+
+**These two rows belong here, not in Task 2.** They need `q` on the redirect
+(Step 7 above) *and* `_filter_context` wired into `builder()` (Task 3); at the
+end of Task 2 both are still missing, so they would be red for reasons that are
+not the behaviour under test.
+
+- [ ] **Step 10: Run the tests**
 
 ```bash
 uv run pytest tests/test_builder_filter_views.py tests/test_manage_node_ops.py tests/test_manage_move_picker.py -q
@@ -1530,16 +1725,16 @@ uv run pytest tests/test_builder_filter_views.py tests/test_manage_node_ops.py t
 
 Expected: PASS. `test_manage_node_ops` may need its expected redirect URLs updated — that is the behaviour change Task 0 predicted, not a regression.
 
-- [ ] **Step 10: Falsify**
+- [ ] **Step 11: Falsify**
 
 Change `{{ q|urlencode }}` to `{{ q }}` in the delete href → `test_markup_hrefs_percent_encode_q` must fail. Restore.
 
-- [ ] **Step 11: Lint and commit**
+- [ ] **Step 12: Lint and commit**
 
 ```bash
 uv run ruff format . && uv run ruff check .
 git branch --show-current
-git add courses/ templates/ tests/test_builder_filter_views.py
+git add courses/ templates/ tests/test_builder_filter_views.py tests/test_builder_lazy_scopes.py
 git commit -m "feat(builder): q rides the no-JS path — forms, hrefs, redirects, picker"
 ```
 
@@ -1654,6 +1849,28 @@ def test_a_no_js_reparent_into_a_NON_MATCHING_destination_shows_the_node(
     assert f'data-node="{other.pk}"' in body   # the CHAIN, not just the pk
 
 
+def test_a_forced_row_does_not_move_shown_or_total(filtered_course):
+    """The rule is invisible in the markup and would otherwise rot: if a
+    forced pk counted, the X-Builder-Info notice would stop matching the cap
+    it describes."""
+    client, course, part, chap, hit, miss = filtered_course
+    add = reverse("courses:manage_node_add", kwargs={"slug": course.slug})
+    resp = client.post(
+        add,
+        {
+            "parent": chap.pk,
+            "parent_token": chap.updated.isoformat(),
+            "kind": "unit",
+            "unit_type": "lesson",
+            "title": "Zupelnie inny tytul",
+            "q": "trygo",
+        },
+        **{"HTTP_X_REQUESTED_WITH": "fetch"},
+    )
+    assert "Zupelnie inny tytul" in resp.content.decode()
+    assert resp["X-Builder-Info"] == "filter;shown=1;total=1"
+
+
 def test_force_inclusion_is_idempotent(filtered_course):
     """A duplicate <li data-node=X> makes the DOM collector double-count and
     dragover's :scope > queries pick an arbitrary one."""
@@ -1709,7 +1926,12 @@ def _stash_builder_force(request, slug, node):
     makes a no-JS unit add under a filter return a tree without the row the
     author just created.
     """
-    remember_node(request, slug, sorted(_ancestor_chain(node)), key=FORCE_KEY)
+    remember_node(
+        request,
+        slug,
+        sorted(_ancestor_chain(node))[: builder_open.SESSION_OPEN_LIMIT],
+        key=FORCE_KEY,
+    )
 
 
 def _take_builder_force(request, slug):
@@ -1727,12 +1949,29 @@ def _take_builder_force(request, slug):
 
 - [ ] **Step 4: Stash on the three mutation paths**
 
-In `node_add`, `node_duplicate` and `node_move`'s reparent branch, on the **no-JS** (redirect) path only, immediately before the redirect:
+Three separate insertions, each beside the existing `_persist_chain` line —
+**and each with its own local name**, because only one of the three binds
+`new_node`:
 
 ```python
+# node_add, views_manage.py:488  (binds `node`)
+        _persist_chain(request, course, node)
+        _stash_builder_force(request, course.slug, node)
+        return _redirect_to_builder(course, _raw_q(request))
+
+# node_move reparent, views_manage.py:620  (binds `node`)
+            _persist_chain(request, course, node)
+            _stash_builder_force(request, course.slug, node)
+            return _redirect_to_builder(course, _raw_q(request))
+
+# node_duplicate, views_manage.py:714  (binds `new_node`)
+        _persist_chain(request, course, new_node)
         _stash_builder_force(request, course.slug, new_node)
         return _redirect_to_builder(course, _raw_q(request))
 ```
+
+Pasting one form into all three raises `NameError` at runtime on the no-JS
+redirect path — which no fragment test exercises.
 
 - [ ] **Step 5: Consume in `builder()`**
 
@@ -1919,15 +2158,54 @@ In `_tree_node.html`, the grip:
 
 `disabled` **and** dropping `draggable`: the grip is a `<button>`, so `disabled` picks up `.ica:disabled { opacity: .35; cursor: default; }` (`builder.css:60`) and `:active` never matches — otherwise `.ica--grip { cursor: grab }` (`:62`) and `.ica--grip:active { cursor: grabbing }` (`:155`) survive and the author presses a live-looking grip for nothing.
 
-- [ ] **Step 5: Run the tests**
+- [ ] **Step 5: Add the drag e2e**
+
+The markup row above proves the attribute is gone; only a real gesture proves
+the *behaviour*. Append to `tests/test_e2e_builder_filter.py` (Task 10 creates
+the file; this row can be written now and run after it):
+
+```python
+def test_drag_is_inert_while_a_filter_is_active(page, live_server):
+    """The row that catches the targetFor-index-into-full-list defect, which
+    produces no error and no visible symptom in the filtered pane. Uses the
+    real gesture via _simulate_drag (tests/test_e2e_builder_toggle.py:56),
+    never page.evaluate."""
+    owner = _make_pa_user("pa")
+    course, part, chap, hit = _seed_deep(owner)
+    other = ContentNodeFactory(course=course, kind="unit", parent=chap, title="Logika")
+    _login(page, live_server, "pa")
+    page.goto(f"{live_server.url}{_builder(course)}?q=trygo")
+    before = list(
+        ContentNode.objects.filter(parent=chap)
+        .order_by("order", "pk")
+        .values_list("pk", flat=True)
+    )
+    moved = []
+    page.on("request", lambda r: moved.append(r.url) if "node/move" in r.url else None)
+    _simulate_drag(page, f'li[data-node="{hit.pk}"] .ica--grip', f'ol[data-scope="{part.pk}"]')
+    page.wait_for_timeout(400)
+    assert moved == []
+    after = list(
+        ContentNode.objects.filter(parent=chap)
+        .order_by("order", "pk")
+        .values_list("pk", flat=True)
+    )
+    assert before == after
+```
+
+Copy `_simulate_drag` into the file alongside the other helpers, and import
+`ContentNode` from `courses.models`.
+
+- [ ] **Step 6: Run the tests**
 
 ```bash
 uv run pytest tests/test_builder_filter_views.py tests/test_manage_node_ops.py -q
+uv run pytest tests/test_e2e_builder_filter.py -m e2e -q -k drag_is_inert
 ```
 
-Expected: PASS.
+Expected: PASS (the e2e row only after Task 10 creates the file).
 
-- [ ] **Step 6: Falsify**
+- [ ] **Step 7: Falsify**
 
 1. Change `builder_filter.is_active(_raw_q(request))` to `bool(request.POST.get("q"))` → `test_a_reorder_under_a_BELOW_FLOOR_q_still_succeeds` must fail.
 2. Widen the guard to fire for `mode == "reparent"` too → `test_a_positioned_REPARENT_under_a_filter_still_succeeds` must fail.
@@ -1935,12 +2213,12 @@ Expected: PASS.
 
 Restore all three.
 
-- [ ] **Step 7: Lint and commit**
+- [ ] **Step 8: Lint and commit**
 
 ```bash
 uv run ruff format . && uv run ruff check .
 git branch --show-current
-git add courses/views_manage.py templates/courses/manage/ tests/test_builder_filter_views.py
+git add courses/views_manage.py templates/courses/manage/ tests/
 git commit -m "feat(builder): suppress ordering while a filter is active"
 ```
 
@@ -1992,14 +2270,18 @@ def test_expand_all_loses_its_href_over_the_ceiling(filtered_course, monkeypatch
 
     monkeypatch.setattr("courses.builder_open.CEILING", 0)
     over = client.get(url).content.decode()
-    tag = over.split("data-expand-all")[1].split(">")[0]
+    # Split on the ANCHOR's hook (with its trailing newline), never on the bare
+    # string: `.builder` carries `data-expand-all-disabled` earlier in the
+    # document and "data-expand-all" is a prefix of it, so a bare split lands
+    # inside the <section> tag and every assertion below reads the wrong slice.
+    tag = over.split("data-expand-all\n")[1].split(">")[0]
     assert "href" not in tag
     assert 'aria-disabled="true"' in tag
     assert "data-expand-all-disabled" in over
 
     monkeypatch.setattr("courses.builder_open.CEILING", 500)
     under = client.get(url).content.decode()
-    assert "href" in under.split("data-expand-all")[1].split(">")[0]
+    assert "href" in under.split("data-expand-all\n")[1].split(">")[0]
     assert "data-expand-all-disabled" not in under
 
 
@@ -2011,10 +2293,15 @@ def test_both_bulk_controls_stay_ENABLED_under_an_active_filter(filtered_course)
     client, course, *_ = filtered_course
     url = reverse("courses:manage_builder", kwargs={"slug": course.slug})
     body = client.get(url, {"q": "trygo"}).content.decode()
-    for hook in ("data-expand-all", "data-collapse-all"):
+    for hook in ("data-expand-all\n", "data-collapse-all\n"):
+        # Split FORWARD from the hook: the href follows it in the markup, so
+        # slicing backwards to the last `<a` yields only the class attribute.
+        # And the hook needs its trailing newline -- `.builder` carries
+        # `data-expand-all-disabled`, of which "data-expand-all" is a PREFIX,
+        # and that attribute appears earlier in the document.
         tag = body.split(hook)[1].split(">")[0]
         assert "aria-disabled" not in tag
-        assert "href" in body.split(hook)[0].rsplit("<a", 1)[1]
+        assert "href" in tag
 
 
 def test_expand_all_under_a_filter_returns_only_filtered_rows(filtered_course):
@@ -2033,21 +2320,21 @@ def test_both_bulk_hrefs_carry_q(filtered_course):
     url = reverse("courses:manage_builder", kwargs={"slug": course.slug})
     for query in ("trygo", "a"):  # active AND present-but-inactive
         body = client.get(url, {"q": query}).content.decode()
-        expand = body.split("data-expand-all")[0].rsplit("<a", 1)[1]
-        assert f"q={query}" in expand or f"q%3D{query}" in expand
+        expand = body.split("data-expand-all\n")[1].split(">")[0]
+        assert f"q={query}" in expand
 ```
 
 In `tests/test_builder_styles.py`, add:
 
 ```python
 def test_the_info_slot_hides_when_empty_via_empty_not_hidden():
-    css = (BUILDER_CSS).read_text(encoding="utf-8")
+    css = _css()          # the file's existing helper (line 16)
     assert ".builder__info:empty" in css
     assert "display: none" in css.split(".builder__info:empty")[1].split("}")[0]
 
 
 def test_the_filter_control_is_styled():
-    css = (BUILDER_CSS).read_text(encoding="utf-8")
+    css = _css()
     assert ".builder__filter" in css
 ```
 
@@ -2082,6 +2369,15 @@ In `templates/courses/manage/builder.html`, inside `.builder__tree`'s `<header c
          href="{{ builder_url }}?open={% if q %}&amp;q={{ q|urlencode }}{% endif %}">{% trans "Collapse all" %}</a>
 ```
 
+**Keep each hook attribute last on its line, with the `href` on the next line.**
+The §8 rows slice forward from `"data-expand-all\n"` precisely because
+`.builder` also carries `data-expand-all-disabled`, and the bare string is a
+prefix of it — reflowing these two tags onto one line silently redirects those
+assertions into the `<section>` tag.
+
+```html
+```
+
 Notes an implementer must not "simplify":
 
 - The Clear anchor is **rendered unconditionally**, carrying `hidden` when `q` is blank. `hidden` is safe on a `.btn` because `app.css:42` already ships `.btn[hidden] { display: none; }` with a comment naming this exact trap; a new component class would re-open it.
@@ -2105,7 +2401,12 @@ Append to `courses/static/courses/css/builder.css`:
 .builder__filter { display: flex; gap: var(--space-2); flex: 1 1 0; min-width: 0;
                    margin-left: auto; }
 .builder__filter input[type="search"] { flex: 1 1 0; min-width: 0; }
-.builder__filter .btn { margin-left: 0; }
+.manage__head .btn { margin-left: 0; }   /* the row now has FIVE controls:
+   app.css:591 gives every .manage__head .btn `margin-left: auto`, which was
+   right when the row held one <h1> and two buttons. With Import, Export,
+   Expand all, Collapse all and the form, only the FORM should claim the free
+   space. Scoping the reset to .builder__tree's header keeps other manage
+   pages untouched. */
 ```
 
 - [ ] **Step 5: Run the tests, then screenshot**
@@ -2143,7 +2444,68 @@ git commit -m "feat(builder): filter control and bulk controls — markup and CS
 
 - [ ] **Step 1: Write the failing e2e**
 
-Create `tests/test_e2e_builder_filter.py` with the file's standard preamble (copy `pytestmark`, `_login` and `assert_no_navigation` from `tests/test_e2e_builder_toggle.py`), then:
+Create `tests/test_e2e_builder_filter.py`. **A new e2e module inherits
+nothing**, so copy SIX things from `tests/test_e2e_builder_toggle.py`, not
+three: `pytestmark` (`:11`), the `_allow_async_unsafe` autouse fixture (`:15`),
+`_make_pa_user` (`:24`), `_login` (`:44`, which calls `_make_pa_user`), `stamp`
+(`:117`) and `assert_no_navigation` (`:122`, which calls `stamp`). Import
+`TEST_PASSWORD` from `tests.factories`.
+
+Then add the seeds and two shorthands this file needs — **none of them exists
+today**, and `_seed` in the toggle file takes an *owner*, not a `page`:
+
+```python
+def _builder(course):
+    return reverse("courses:manage_builder", kwargs={"slug": course.slug})
+
+
+def _center(locator):
+    box = locator.bounding_box()
+    return box["x"] + box["width"] / 2, box["y"] + box["height"] / 2
+
+
+def _seed_flat(owner):
+    """chapter > one matching unit. The chapter title must NOT contain
+    "tryg", or it joins the match chain and renders already-expanded -- at
+    which point clicking its toggle COLLAPSES it, no request is issued, and
+    the toggle rows below wait forever on a removed element.
+    """
+    course = CourseFactory(slug="e2ef", owner=owner)
+    chap = ContentNodeFactory(
+        course=course, kind="chapter", unit_type=None, parent=None, title="Rozdzial"
+    )
+    hit = ContentNodeFactory(
+        course=course, kind="unit", parent=chap, title="Trygonometria"
+    )
+    return course, chap, hit
+
+
+def _seed_two(owner):
+    """_seed_flat plus a NON-matching sibling, for the rows that assert the
+    filter hides something."""
+    course, chap, hit = _seed_flat(owner)
+    miss = ContentNodeFactory(course=course, kind="unit", parent=chap, title="Logika")
+    return course, chap, hit, miss
+
+
+def _seed_deep(owner):
+    """part > chapter > matching unit, for the stash and expand-all rows,
+    which need two nested scopes to tell apart."""
+    course = CourseFactory(slug="e2ed", owner=owner)
+    part = ContentNodeFactory(
+        course=course, kind="part", unit_type=None, parent=None, title="Czesc"
+    )
+    chap = ContentNodeFactory(
+        course=course, kind="chapter", unit_type=None, parent=part, title="Rozdzial"
+    )
+    hit = ContentNodeFactory(
+        course=course, kind="unit", parent=chap, title="Trygonometria"
+    )
+    return course, part, chap, hit
+```
+
+Every e2e below takes the owner from `_make_pa_user("pa")` and seeds before
+`_login`. Then:
 
 ```python
 def test_a_toggle_under_a_filter_carries_the_APPLIED_q(page, live_server):
@@ -2151,9 +2513,14 @@ def test_a_toggle_under_a_filter_carries_the_APPLIED_q(page, live_server):
     holds the last RENDERED q, the box holds what is currently typed, and the
     tracker holds what the pane actually shows. Sending the live value returns
     markup filtered by `trygo` into a pane rendered for `tryg`."""
-    course, chap, hit = _seed(page)
+    owner = _make_pa_user("pa")
+    course, chap, hit = _seed_flat(owner)
     _login(page, live_server, "pa")
-    page.goto(f"{live_server.url}{_builder(course)}?q=tryg")
+    # ?open= as well as ?q=: under an active filter every ancestor of every
+    # match is in `chains`, so `chap` would render ALREADY EXPANDED and the
+    # click below would collapse it -- no request, and the wait would time out
+    # on a removed element. An explicit empty `open` wins by precedence step 2.
+    page.goto(f"{live_server.url}{_builder(course)}?q=tryg&open=")
 
     sent = []
     page.on("request", lambda r: sent.append(r.url) if "/build/" in r.url else None)
@@ -2205,18 +2572,26 @@ Near the top of the IIFE in `builder.js`, beside `collectOpen`:
     // Latin for 0 either way.
     //
     // The explicit class, not trim(): Python's str.strip() takes U+0085 and
-    // U+001C-1F, which trim() does not, so "a" would be 2 to the client
+    // U+001C-1F, which trim() does not, so "a\u0085" would be 2 to the client
     // and 1 to the server -- the direction that collapses the tree.
     //
     // [...s].length, not .length: .length counts UTF-16 units and Python
     // counts code points, so every astral character measures 2 here and 1
     // there -- the same dangerous direction, for the whole astral plane.
-    var t = (s || "")
-      .replace(/^[\s-]+|[\s-]+$/g, "")
-      .normalize("NFC")
-      .replace(/[̀-ͯ]/g, "");
-    return [...t].length >= qMin ? (s || "").replace(
-      /^[\s-]+|[\s-]+$/g, "") : "";
+    // Every class member is written as an ESCAPE, never a literal byte:
+    // U+001C-001F and U+0085 are invisible in an editor and in a diff, and
+    // if one is lost to a paste that normalises whitespace the client floor
+    // silently disagrees with str.strip() in the direction that collapses
+    // the tree.
+    // Every class member is written as an ESCAPE, never a literal byte:
+    // U+001C-001F and U+0085 are invisible in an editor and in a diff, and
+    // if one is lost to a paste that normalises whitespace the client floor
+    // silently disagrees with str.strip() in the direction that collapses
+    // the tree. Same for the combining-mark class.
+    var TRIM = /^[\s\u001c-\u001f\u0085]+|[\s\u001c-\u001f\u0085]+$/g;
+    var MARKS = /[\u0300-\u036f]/g;
+    var t = (s || "").replace(TRIM, "").normalize("NFC").replace(MARKS, "");
+    return [...t].length >= qMin ? (s || "").replace(TRIM, "") : "";
   }
 ```
 
@@ -2303,7 +2678,8 @@ git commit -m "feat(builder): applied-q tracker + setTreeParams across every req
 
 ```python
 def test_typing_a_query_filters_without_navigating(page, live_server):
-    course, chap, hit, miss = _seed_two(page)
+    owner = _make_pa_user("pa")
+    course, chap, hit, miss = _seed_two(owner)
     _login(page, live_server, "pa")
     page.goto(f"{live_server.url}{_builder(course)}")
     assert_no_navigation(page)
@@ -2318,7 +2694,8 @@ def test_the_filter_fetch_omits_open(page, live_server):
     vacuous: filtering is done by the restricted map, so sending
     open=<collector> and sending nothing produce identical rows on any tree
     whose match ancestors are already open."""
-    course, part, chap, hit = _seed_deep(page)
+    owner = _make_pa_user("pa")
+    course, part, chap, hit = _seed_deep(owner)
     _login(page, live_server, "pa")
     page.goto(f"{live_server.url}{_builder(course)}?open=")
     sent = []
@@ -2334,7 +2711,8 @@ def test_typing_below_the_floor_into_an_UNFILTERED_tree_issues_no_request(
     """Without the applied-state guard the first character takes the clear
     path, the stash is null, and the fallback sends the collector's full
     enumeration -- a complete re-render triggered by one keystroke."""
-    course, chap, hit = _seed(page)
+    owner = _make_pa_user("pa")
+    course, chap, hit = _seed_flat(owner)
     _login(page, live_server, "pa")
     page.goto(f"{live_server.url}{_builder(course)}?open=all")
     sent = []
@@ -2349,7 +2727,8 @@ def test_a_single_astral_character_issues_no_filter_fetch(page, live_server):
     is worth ~1M characters of tree-collapsing exposure: .length counts UTF-16
     units and Python counts code points, so an astral character is 2 here and
     1 there. Every other floor row uses BMP input, where the two agree."""
-    course, chap, hit = _seed(page)
+    owner = _make_pa_user("pa")
+    course, chap, hit = _seed_flat(owner)
     _login(page, live_server, "pa")
     page.goto(f"{live_server.url}{_builder(course)}?open=all")
     sent = []
@@ -2365,7 +2744,8 @@ def test_the_client_reads_data_q_min_rather_than_hardcoding_it(
     """The view-level row asserts the ATTRIBUTE; only this one can go red
     against a by-value `2` in builder.js."""
     monkeypatch.setattr("courses.builder_filter.MIN_QUERY", 3)
-    course, chap, hit, miss = _seed_two(page)
+    owner = _make_pa_user("pa")
+    course, chap, hit, miss = _seed_two(owner)
     _login(page, live_server, "pa")
     page.goto(f"{live_server.url}{_builder(course)}")
     sent = []
@@ -2376,7 +2756,8 @@ def test_the_client_reads_data_q_min_rather_than_hardcoding_it(
 
 
 def test_clear_restores_the_pre_filter_expansion(page, live_server):
-    course, part, chap, hit = _seed_deep(page)
+    owner = _make_pa_user("pa")
+    course, part, chap, hit = _seed_deep(owner)
     _login(page, live_server, "pa")
     page.goto(f"{live_server.url}{_builder(course)}?open={part.pk}")
     page.fill("#builder-q", "trygo")
@@ -2389,7 +2770,8 @@ def test_clear_restores_the_pre_filter_expansion(page, live_server):
 def test_collapse_everything_filter_clear_comes_back_EMPTY(page, live_server):
     """The stash === null rule: a legitimately empty pre-filter set stashes as
     "", and `if (!stash)` misreads it as absent."""
-    course, part, chap, hit = _seed_deep(page)
+    owner = _make_pa_user("pa")
+    course, part, chap, hit = _seed_deep(owner)
     _login(page, live_server, "pa")
     page.goto(f"{live_server.url}{_builder(course)}?open=")
     page.fill("#builder-q", "trygo")
@@ -2403,7 +2785,8 @@ def test_clicking_the_clear_control_hides_it(page, live_server):
     """box.value = "" fires NO input event, so a visibility rule living only
     in that handler never runs on this path. Emptying by TYPING passes
     regardless, which is why this row clicks the control."""
-    course, chap, hit = _seed(page)
+    owner = _make_pa_user("pa")
+    course, chap, hit = _seed_flat(owner)
     _login(page, live_server, "pa")
     page.goto(f"{live_server.url}{_builder(course)}?q=trygo")
     assert page.locator("[data-filter-clear]").is_visible()
@@ -2416,7 +2799,8 @@ def test_a_clear_is_not_overwritten_by_an_in_flight_filter_response(page, live_s
     """ONE generation counter across every data-tree-url request. With a
     counter per path the released filter response repaints filtered markup
     over an empty input."""
-    course, chap, hit, miss = _seed_two(page)
+    owner = _make_pa_user("pa")
+    course, chap, hit, miss = _seed_two(owner)
     _login(page, live_server, "pa")
     page.goto(f"{live_server.url}{_builder(course)}?open=all")
 
@@ -2448,7 +2832,25 @@ uv run pytest tests/test_e2e_builder_filter.py -m e2e -q
 
 Expected: FAIL — typing does nothing; there is no filter handler.
 
-- [ ] **Step 3: Add the state and the shared counter**
+- [ ] **Step 3: Add no-op stubs for the two later collaborators**
+
+`applyFilterState` below calls `applyInfo` (Task 12) and `rewriteBulkHrefs`
+(Task 13). Those are separate commits, so at the end of *this* task neither
+identifier exists — and a `ReferenceError` inside the `.then` is swallowed by
+the `.catch` as "Network error", skipping everything ordered after it: the
+tracker write, the stash clear and `syncUrl`. Every row in this task would fail
+for a reason that is not the behaviour under test. Ship the stubs now; Tasks 12
+and 13 replace their bodies.
+
+```js
+  function applyInfo() {}          // replaced in Task 12
+  function rewriteBulkHrefs() {}   // replaced in Task 13
+```
+
+Task 12 Step 3 and Task 13 Step 5 give their real bodies; deleting the stub
+line is part of those steps.
+
+- [ ] **Step 4: Add the state and the shared counter**
 
 ```js
   // null, NOT "" -- a legitimately empty pre-filter set stashes as "", and
@@ -2464,7 +2866,7 @@ Expected: FAIL — typing does nothing; there is no filter handler.
   var filterTimer = null;
 ```
 
-- [ ] **Step 4: The one entry point**
+- [ ] **Step 5: The one entry point**
 
 ```js
   var box = root.querySelector("#builder-q");
@@ -2522,7 +2924,7 @@ Expected: FAIL — typing does nothing; there is no filter handler.
 
 The ordered steps — busy → `applyFragment` → header → **tracker write** → **bulk-href rewrite** → `syncUrl` — are load-bearing: `syncUrl` and the rewrite **both read the tracker**, so writing it afterwards leaves `?q=tryg` over an unfiltered tree, and rewriting before it puts the previous value in the bulk hrefs.
 
-- [ ] **Step 5: Wire the three entry points**
+- [ ] **Step 6: Wire the three entry points**
 
 ```js
   if (box) {
@@ -2552,7 +2954,7 @@ The ordered steps — busy → `applyFragment` → header → **tracker write** 
   }
 ```
 
-- [ ] **Step 6: Discard the stash on a mutation while filtered**
+- [ ] **Step 7: Discard the stash on a mutation while filtered**
 
 In **both** the submit handler (`:215`) and the drop handler (`:618`), after a successful apply:
 
@@ -2562,7 +2964,7 @@ In **both** the submit handler (`:215`) and the drop handler (`:618`), after a s
 
 Naming both sites is what stops the rule being implemented in whichever handler the implementer happened to be editing.
 
-- [ ] **Step 7: Run the e2e**
+- [ ] **Step 8: Run the e2e**
 
 ```bash
 uv run pytest tests/test_e2e_builder_filter.py -m e2e -q
@@ -2570,7 +2972,7 @@ uv run pytest tests/test_e2e_builder_filter.py -m e2e -q
 
 Expected: PASS.
 
-- [ ] **Step 8: Falsify four guards**
+- [ ] **Step 9: Falsify four guards**
 
 1. `preFilterOpen === null` → `if (!preFilterOpen)` — the collapse/filter/clear row must fail.
 2. Drop the `eff === effectiveQ(appliedQ)` guard — the below-floor no-request row must fail.
@@ -2579,7 +2981,7 @@ Expected: PASS.
 
 Restore each.
 
-- [ ] **Step 9: Lint and commit**
+- [ ] **Step 10: Lint and commit**
 
 ```bash
 uv run ruff format . && uv run ruff check .
@@ -2607,7 +3009,8 @@ def test_a_fragment_borne_notice_lands_on_a_page_that_had_none(page, live_server
     """Without the always-present slot the JS has nowhere to insert, and the
     throw is swallowed by the .catch and mislabelled 'Network error' while the
     tree still updates -- so no other row notices."""
-    course, chap, hit, miss = _seed_two(page)
+    owner = _make_pa_user("pa")
+    course, chap, hit, miss = _seed_two(owner)
     _login(page, live_server, "pa")
     page.goto(f"{live_server.url}{_builder(course)}")
     page.fill("#builder-q", "trygo")
@@ -2617,7 +3020,8 @@ def test_a_fragment_borne_notice_lands_on_a_page_that_had_none(page, live_server
 def test_the_info_slot_replaces_by_key(page, live_server):
     """From a ?q= PAGE LOAD, or the test passes vacuously: the registry bug is
     that the JS knows only about entries it inserted itself."""
-    course, chap, hit, miss = _seed_two(page)
+    owner = _make_pa_user("pa")
+    course, chap, hit, miss = _seed_two(owner)
     _login(page, live_server, "pa")
     page.goto(f"{live_server.url}{_builder(course)}?q=trygo")
     page.fill("#builder-q", "trygono")
@@ -2631,7 +3035,8 @@ def test_an_absent_header_does_NOT_clear_the_slot(page, live_server):
     """A rename 200 is _rename_result.html and carries no header. The
     server-side row proves only that it is absent; this proves the client
     IGNORES an absent header rather than clearing on it."""
-    course, chap, hit, miss = _seed_two(page)
+    owner = _make_pa_user("pa")
+    course, chap, hit, miss = _seed_two(owner)
     _login(page, live_server, "pa")
     page.goto(f"{live_server.url}{_builder(course)}?q=trygo")
     page.wait_for_selector('[data-info-key="filter"]')
@@ -2644,7 +3049,8 @@ def test_an_absent_header_does_NOT_clear_the_slot(page, live_server):
 
 def test_clearing_the_filter_removes_the_filter_entry(page, live_server):
     """The ONLY path on which `none` does any work."""
-    course, chap, hit, miss = _seed_two(page)
+    owner = _make_pa_user("pa")
+    course, chap, hit, miss = _seed_two(owner)
     _login(page, live_server, "pa")
     page.goto(f"{live_server.url}{_builder(course)}?q=trygo")
     page.wait_for_selector('[data-info-key="filter"]')
@@ -2656,7 +3062,8 @@ def test_clearing_the_filter_removes_the_filter_entry(page, live_server):
 def test_the_empty_info_slot_is_not_rendered(page, live_server):
     """Both at load AND after a filter -> clear cycle: the second catches the
     JS leaving a whitespace text node, which makes the sunken bar permanent."""
-    course, chap, hit, miss = _seed_two(page)
+    owner = _make_pa_user("pa")
+    course, chap, hit, miss = _seed_two(owner)
     _login(page, live_server, "pa")
     page.goto(f"{live_server.url}{_builder(course)}")
     assert page.evaluate(
@@ -2768,7 +3175,8 @@ git commit -m "feat(builder): X-Builder-Info client registry"
 
 ```python
 def test_expand_all_then_collapse_all(page, live_server):
-    course, part, chap, hit = _seed_deep(page)
+    owner = _make_pa_user("pa")
+    course, part, chap, hit = _seed_deep(owner)
     _login(page, live_server, "pa")
     page.goto(f"{live_server.url}{_builder(course)}?open=")
     page.click("[data-expand-all]")
@@ -2783,7 +3191,8 @@ def test_collapse_all_does_not_navigate(page, live_server):
     """It is an <a href>. After a navigation the server renders the same
     collapsed toggles and the same open= in the address bar, so every other
     collapse-all assertion passes through the bug."""
-    course, part, chap, hit = _seed_deep(page)
+    owner = _make_pa_user("pa")
+    course, part, chap, hit = _seed_deep(owner)
     _login(page, live_server, "pa")
     page.goto(f"{live_server.url}{_builder(course)}?open=all")
     assert_no_navigation(page)
@@ -2792,7 +3201,8 @@ def test_collapse_all_does_not_navigate(page, live_server):
 
 
 def test_collapse_all_resets_aria_on_every_toggle(page, live_server):
-    course, part, chap, hit = _seed_deep(page)
+    owner = _make_pa_user("pa")
+    course, part, chap, hit = _seed_deep(owner)
     _login(page, live_server, "pa")
     page.goto(f"{live_server.url}{_builder(course)}?open=all")
     page.click("[data-collapse-all]")
@@ -2809,7 +3219,8 @@ def test_collapse_all_over_a_dirty_rename_posts_nothing(page, live_server):
     commitRename fires a real POST whose applyRename then no-ops on a detached
     form. DB holds the new title, tree shows the old, nothing is reported.
     The keyboard path was already correct."""
-    course, part, chap, hit = _seed_deep(page)
+    owner = _make_pa_user("pa")
+    course, part, chap, hit = _seed_deep(owner)
     _login(page, live_server, "pa")
     page.goto(f"{live_server.url}{_builder(course)}?open=all")
     posted = []
@@ -2824,7 +3235,8 @@ def test_expand_all_fires_a_request_UNDER_the_ceiling(page, live_server):
     """The under-ceiling half catches a data-expand-all-disabled emitted BY
     VALUE: "False" is truthy in JS, so the bail fires on every course and the
     control is silently dead everywhere."""
-    course, part, chap, hit = _seed_deep(page)
+    owner = _make_pa_user("pa")
+    course, part, chap, hit = _seed_deep(owner)
     _login(page, live_server, "pa")
     page.goto(f"{live_server.url}{_builder(course)}?open=")
     sent = []
@@ -2838,7 +3250,8 @@ def test_the_bulk_hrefs_stay_current_after_a_js_filter_apply(page, live_server):
     """They sit in the header, OUTSIDE every fragment applyFragment swaps, so
     nothing else refreshes them -- and a middle-click on a stale one opens an
     unfiltered open=all render."""
-    course, chap, hit, miss = _seed_two(page)
+    owner = _make_pa_user("pa")
+    course, chap, hit, miss = _seed_two(owner)
     _login(page, live_server, "pa")
     page.goto(f"{live_server.url}{_builder(course)}")
     page.fill("#builder-q", "trygo")
@@ -3001,35 +3414,61 @@ git commit -m "feat(builder): expand-all and collapse-all"
 
 The behaviour was decided in the parent spec's §4 as an accepted trade (the 409 renders into the editor, which has no tree pane); only the coverage is missing. Add to `tests/test_manage_element_ops.py`:
 
+**There is no `TextElementFactory` in this repo** — `tests/test_link_transfer.py:15`
+and `tests/test_inbound_link_warning.py:13` both say so in comments, and the
+idiom is to build the element through `Element` + its concrete model. And
+`element_save` (`views_manage.py:1256-1287`) rejects a POST that carries no
+`type`/`unit` with `HttpResponseBadRequest` **before** any conflict check, so
+the payload below must carry both or the response is a 400 that proves nothing.
+
+**Before writing the test, read `element_save`'s conflict branch and derive the
+expected status from it** rather than from this plan — the point of the row is
+to pin the behaviour that exists, and slice 1's review recorded it as a 409 on
+`_element_conflict`.
+
 ```python
-def test_element_save_conflict_returns_a_collapsed_tree(db, django_user_model):
-    """The 'unit vanished mid-edit' path. Pinned so the accepted trade stays a
-    decision rather than becoming a surprise."""
-    owner, client = make_login(django_user_model, "pa")
+def test_element_save_conflict_after_the_unit_vanished(client, db):
+    """The 'unit vanished mid-edit' path. Pinned so the accepted trade
+    (spec 4: the conflict renders into the editor, which has no tree pane)
+    stays a decision rather than becoming a surprise."""
+    owner = make_login(client, "pa")
     course = CourseFactory(slug="conf", owner=owner)
     unit = ContentNodeFactory(course=course, kind="unit", parent=None)
-    element = TextElementFactory(node=unit)
+    element = Element.objects.create(
+        unit=unit, content_object=TextElement.objects.create(body="before")
+    )
+    stale_token = unit.updated.isoformat()
     unit.delete()
     url = reverse("courses:manage_element_save", kwargs={"slug": course.slug})
     resp = client.post(
         url,
-        {"element": element.pk, "token": "stale", "body": "x"},
+        {
+            "type": "text",
+            "unit": unit.pk,
+            "element": element.pk,
+            "unit_token": stale_token,
+            "body": "after",
+        },
         **{"HTTP_X_REQUESTED_WITH": "fetch"},
     )
     assert resp.status_code == 409
 ```
 
-- [ ] **Step 2: M10 — `_persist_chain`'s redundant query**
+- [ ] **Step 2: M10 — DROPPED, and the reason recorded**
 
-`_persist_chain` calls `_children_map(course)` on the no-JS redirect path, re-running the whole-course query the caller already has. Thread the caller's map in:
+The ledger entry reads "`_persist_chain` re-runs `_children_map` on the no-JS
+redirect path", implying a caller already holds that map. **It does not.**
+`_persist_chain` is called from `node_add` (`views_manage.py:488`), `node_move`'s
+reparent branch (`:620`) and `node_duplicate` (`:714`), and `grep -n
+"_children_map("` shows the only call sites are `:247`, `:271`, `:329`, `:412`
+(inside `_persist_chain` itself), `:733` and `:796` — none of the three callers
+computes one. Threading a map in would mean *adding* `_children_map(course)` to
+each caller to pass it down: the same query, moved.
 
-```python
-def _persist_chain(request, course, node, cmap):
-    ...
-    chain = _ancestor_chain(node) & container_pks(cmap)
-```
-
-Update its call sites to pass the `cmap` they already hold.
+A real fix would give `_persist_chain` a narrower dependency (the container-pk
+set) and find someone who already has it. Nobody on the no-JS redirect path
+does. **Record M10 as investigated-and-dropped in the ledger**, with this
+finding, so it is not re-opened on the same false premise.
 
 - [ ] **Step 3: M15 — the `.catch` mislabel, file-wide**
 
@@ -3137,7 +3576,7 @@ git commit -m "i18n(builder): eight new msgids for the filter and bulk controls"
 
 **Files:**
 - Modify: whichever existing tests encode the changed behaviour
-- Modify: `.superpowers/sdd/progress.md`
+- Modify: `docs/superpowers/notes/2026-07-28-slice2-progress.md`
 
 **Interfaces:** none.
 
@@ -3147,21 +3586,40 @@ Chunked, in the **foreground**, one invocation at a time. Never background a lon
 
 ```bash
 uv run pytest tests/test_builder_filter.py tests/test_builder_filter_views.py tests/test_builder_open_ids.py tests/test_builder_lazy_scopes.py -q
-uv run pytest tests/test_manage_node_ops.py tests/test_manage_element_ops.py tests/test_manage_move_picker.py tests/test_manage_affordance.py tests/test_builder_styles.py -q
+uv run pytest tests/test_manage_node_ops.py tests/test_manage_element_ops.py tests/test_manage_move_picker.py tests/test_manage_affordance.py tests/test_builder_styles.py tests/test_builder_js_invariants.py -q
 uv run pytest tests/test_i18n_po_health.py tests/test_manage_builder.py -q
 uv run pytest tests/test_e2e_builder_filter.py tests/test_e2e_builder_toggle.py tests/test_e2e_builder_reorder.py -m e2e -q
+uv run pytest tests/test_e2e_builder_ws2.py tests/test_e2e_builder_authoring.py tests/test_e2e_builder.py -m e2e -q
 ```
 
 Each must exit 0. Anything red outside the three files Task 0 predicted is a regression.
 
-- [ ] **Step 2: Measure against `mat-pp`**
+- [ ] **Step 2: Teach the existing probe about `q`**
 
-Every probe carries the explicit dev-DB prefix:
+`scripts/perf/` holds exactly two probes, `probe_tree_render.py` and
+`probe_browser.py`. **Neither takes `--course`/`--q`/`--open`** — both are driven
+by environment variables and run through `manage.py shell -c "exec(open(...).read())"`,
+and `probe_browser.py`'s own comment records that argparse errors with
+"unrecognized arguments" under that invocation. There is no `probe_builder.py`.
+So the filtered timing needs one small extension rather than a new script.
+
+Add a `Q=` variable to `probe_tree_render.py` beside the existing `SLUG=`/`OPEN=`
+handling, feeding `builder_filter.filtered_map` before the render is timed, and
+report the resulting row and scope counts alongside the milliseconds. Keep the
+env-var interface — it is what makes the `manage.py shell` invocation work.
+
+- [ ] **Step 3: Measure against `mat-pp`**
+
+Every probe carries the explicit dev-DB prefix (the perf data lives in the
+shared dev database; this worktree's `.env` points pytest elsewhere):
 
 ```bash
-DATABASE_URL=postgres://libli:libli@localhost:5432/libli uv run python scripts/perf/probe_builder.py --course mat-pp --q trygo
-DATABASE_URL=postgres://libli:libli@localhost:5432/libli uv run python scripts/perf/probe_builder.py --course mat-pp --open all
-DATABASE_URL=postgres://libli:libli@localhost:5432/libli uv run python scripts/perf/probe_builder.py --course mat-pp
+DATABASE_URL=postgres://libli:libli@localhost:5432/libli SLUG=mat-pp Q=trygo \
+  uv run python manage.py shell -c "exec(open('scripts/perf/probe_tree_render.py').read())"
+DATABASE_URL=postgres://libli:libli@localhost:5432/libli SLUG=mat-pp OPEN=all \
+  uv run python manage.py shell -c "exec(open('scripts/perf/probe_tree_render.py').read())"
+DATABASE_URL=postgres://libli:libli@localhost:5432/libli SLUG=mat-pp \
+  uv run python manage.py shell -c "exec(open('scripts/perf/probe_tree_render.py').read())"
 ```
 
 Record against the targets:
@@ -3175,20 +3633,20 @@ Record against the targets:
 
 **Do not optimise `_render_scope`'s full-cmap rebuild in this slice.** Narrowing it would help only the *unfiltered* toggle — under a filter the full map is required by both `_open_ids`'s sanitisation and the ancestor walk — and would fork the fragment contract. If the toggle misses in production, that narrowing is still the sanctioned first remedy.
 
-- [ ] **Step 3: Screenshot the UI**
+- [ ] **Step 4: Screenshot the UI**
 
 Playwright, **light and dark**, judged separately rather than inferred from one another: the header at 1400px and narrow, a filtered tree, the "Filtered: n / m" notice, an empty filtered scope, and the disabled grip/arrows.
 
-- [ ] **Step 4: Write the ledger**
+- [ ] **Step 5: Write the ledger**
 
-Append to `.superpowers/sdd/progress.md`: per-task commit ranges, the falsification results, the measured numbers against the table above, and any deviation from this plan with its reason.
+Append to `docs/superpowers/notes/2026-07-28-slice2-progress.md`: per-task commit ranges, the falsification results, the measured numbers against the table above, and any deviation from this plan with its reason.
 
-- [ ] **Step 5: Final lint and commit**
+- [ ] **Step 6: Final lint and commit**
 
 ```bash
 uv run ruff format --check . && uv run ruff check .
 git branch --show-current
-git add .superpowers/sdd/progress.md
+git add docs/superpowers/notes/2026-07-28-slice2-progress.md scripts/perf/probe_tree_render.py
 git commit -m "chore(builder): slice 2 verdict — measurements and ledger"
 ```
 
