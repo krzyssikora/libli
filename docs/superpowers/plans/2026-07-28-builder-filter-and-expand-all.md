@@ -127,6 +127,14 @@ and the picker fetch — all of which those suites exercise.
 
 - [ ] **Step 3: Write the ledger**
 
+**`docs/superpowers/notes/` does not exist yet** — `docs/superpowers/` holds
+only `plans/` and `specs/`. Create it first (an editor tool will do so
+implicitly; `mkdir -p docs/superpowers/notes` removes the doubt):
+
+```bash
+mkdir -p docs/superpowers/notes
+```
+
 Create `docs/superpowers/notes/2026-07-28-affected-tests-slice2.md` recording, for each file above: the exit code, the test count, and a one-line note on why this slice can affect it. Name explicitly the three that encode behaviour this slice **changes**:
 
 - `tests/test_manage_node_ops.py` — reorder now refuses under an active filter (Task 8).
@@ -1066,7 +1074,17 @@ On the fragment path `expand_all_disabled` and `q_min` are computed but unused
 — `_scope.html` consumes neither, and only `builder.html` emits their
 attributes. Passing them anyway keeps one signature rather than two.
 
-`_render_scope()` takes `mode="fragment"`, passes its own `extra_open=extra_open`, and — critically — **`nodes` comes from the RESTRICTED map in both branches**:
+`_render_scope()` takes `mode="fragment"`, passes its own `extra_open=extra_open`, and — critically — **`nodes` comes from the RESTRICTED map in both branches**.
+
+**Delete `views_manage.py:330-331` — the existing `opened = _open_ids(...)` and
+`ids = set(opened.ids) | _extra_container_pks(extra_open, cmap)` lines.**
+`_filter_context` now does both internally, so leaving them costs a second
+`_open_ids` resolution and, worse, leaves a live `ids` local that an
+implementer will hand to `_tree_context` instead of `fc.open_ids` — silently
+dropping effect 1. Nothing catches that: ruff sees a used variable, and the
+open set it computes is right on the *unfiltered* path, which is what most
+fragment tests exercise. The third argument to `_tree_context` is
+**`fc.open_ids`**.
 
 ```python
     fc = _filter_context(request, course, cmap, mode="fragment", extra_open=extra_open)
@@ -1158,9 +1176,13 @@ def test_effect_two_reinserts_into_a_parent_with_no_key(filtered_course):
     wired until Task 7. `chap` matches "rozdzial" and has no matching
     descendant, so the restricted map has NO key for it at all.
     """
+    # `courses` sorts BEFORE `courses.views_manage`. ruff's I rules apply to
+    # nested blocks too, and `ruff format` does not reorder imports -- pasted
+    # the other way round this is an I001 at Step 10's `ruff check` gate,
+    # which the commit depends on. (Verified: I001 fires on the nested block.)
+    from courses import builder_filter
     from courses.views_manage import _apply_effect_two
     from courses.views_manage import _children_map
-    from courses import builder_filter
 
     _, course, part, chap, hit, miss = filtered_course
     cmap = _children_map(course)
@@ -1383,10 +1405,25 @@ def test_render_scope_always_sets_the_header_and_uses_none_when_empty(filtered_c
     assert filtered["X-Builder-Info"] == "filter;shown=1;total=1"
 
 
-def test_the_header_is_machine_readable_under_the_polish_locale(filtered_course):
-    """Django encodes header values latin-1 with mime_encode=True, so a Polish
-    string comes back as =?utf-8?q?...?= and the JS would paste that token
-    into a role=status region."""
+def test_the_header_is_machine_readable_under_the_polish_locale(
+    filtered_course, monkeypatch
+):
+    """A human string in the header would reach the JS as a value it then
+    pastes into a role=status region, in whatever locale the request happened
+    to use -- and `raw.split(", ")` would shred it into bogus keys.
+
+    CEILING=0 forces the TRUNCATION entry alongside the filter one, and it is
+    the only notice whose Polish contains a non-ASCII character
+    ("...zakresów."). Without it this row cannot fail: "Filtrowane: 1 / 1" is
+    pure ASCII, so an implementation that put the human text in the header
+    would still satisfy every assertion below.
+
+    Note what actually bites: `ó` IS latin-1-encodable, so Django does NOT
+    MIME-encode it -- the header simply comes back non-ASCII. `isascii()` is
+    the load-bearing assertion; the `=?utf-8?` one covers the strings that are
+    not latin-1-encodable.
+    """
+    monkeypatch.setattr("courses.builder_open.CEILING", 0)
     client, course, *_ = filtered_course
     url = reverse("courses:manage_tree", kwargs={"slug": course.slug})
     # The session key, NOT `with override("pl")` and NOT Accept-Language
@@ -1616,10 +1653,15 @@ Expected: PASS.
 4. Build the header from the human text instead of the code — i.e.
    `", ".join(e["text"] for e in entries)` in Step 4 →
    `test_the_header_is_machine_readable_under_the_polish_locale` must fail on
-   `value.isascii()`. Without this the row cannot go red against anything Step
-   3 or Step 4 can produce (the `code` values are f-strings over ASCII literals
-   and integers), so it would be an unfalsifiable guard — the one thing this
-   plan's Global Constraints refuse to count as a test.
+   `value.isascii()`.
+
+   **The truncation monkeypatch in that row is what makes this bite.** The
+   filter notice's Polish is `"Filtrowane: %(shown)s / %(total)s"` → rendered
+   `"Filtrowane: 1 / 1"`, which is **pure ASCII** — so with only that entry
+   present the mutation produces an ASCII header and the row stays green. The
+   only non-ASCII string `_info_entries` can emit is the truncation one
+   (`"Otwarto tylko pierwsze %(limit)s zakresów."`), and `filtered_course` is
+   nowhere near the ceiling, so it never fires on its own.
 
 Restore all four.
 
@@ -1883,7 +1925,7 @@ reads `{% if open_present %}?open={{ open|urlencode }}{% else %}?open=session{% 
 both branches already emit a `?`, so `q` appends with `&` in either case.
 **Keep the `{% url %}` tag — do NOT substitute `{{ builder_url }}`:** that key
 comes from `_tree_context`, and `node_delete`'s GET context
-(`views_manage.py:688-694`) is `{course, node, counts, open_present, open}`, so
+(`views_manage.py:645-656`) is `{course, node, counts, open_present, open}`, so
 the variable would render empty and Cancel would point back at the
 delete-confirm path. Only the `q` clause is new.
 
@@ -1891,7 +1933,7 @@ delete-confirm path. Only the `q` clause is new.
     href="{% url 'courses:manage_builder' slug=course.slug %}{% if open_present %}?open={{ open|urlencode }}{% else %}?open=session{% endif %}{% if q %}&amp;q={{ q|urlencode }}{% endif %}"
 ```
 
-`node_delete`'s GET puts `_raw_q(request)` in its context (`:688-694`), beside
+`node_delete`'s GET puts `_raw_q(request)` in its context (`:645-656`), beside
 the existing `open_present`/`open` keys:
 
 ```python
@@ -2795,7 +2837,9 @@ and seven commits later, mixed in with every JS change, and bisecting the CSS
 back out is far harder. (`-m e2e` is mandatory; exit 5 is not a pass.)
 
 If the ratio moves, `.builder__tree` needs `min-width: 0` — add it and say so
-in the ledger rather than relaxing the ratio.
+in `docs/superpowers/notes/2026-07-28-affected-tests-slice2.md` (Task 0's
+ledger, the only one that exists yet) rather than relaxing the ratio. If you
+write there, add that path to Step 7's `git add`.
 
 Then verify the header at **1400px and at a narrow width**, in **light and dark**, judging dark on its own rather than inferring it from light. The narrow width is the one that matters: this is where the repo's recorded `flex: 1 1 auto` wrap trap bites.
 
@@ -3085,7 +3129,15 @@ Near the top of the IIFE in `builder.js`, beside `collectOpen`:
 
 Then update the four remaining senders to use it:
 
-- the toggle (`:487-490`): `setTreeParams(new URLSearchParams(), {openOverride: open ? open + "," + pk : pk})`
+- the toggle (`:487-489` — **not** `:490`, which is the `fetch(` line and
+  must survive): three statements become two, and `body` must still be
+  bound because `:490` calls `body.toString()`:
+  ```js
+      var open = collectOpen();
+      var body = setTreeParams(new URLSearchParams(), {
+        openOverride: open ? open + "," + pk : pk,
+      });
+  ```
 - the drop and the submit handler: already covered through `withOpen`
 - the Move-picker fetch (`:276`): parse the href into a `URL` and set **only
   `q`** — `u.searchParams.set("q", appliedQ)` — **not** `setTreeParams(u)`.
@@ -3495,7 +3547,16 @@ Expected: PASS.
 
 - [ ] **Step 9: Falsify four guards**
 
-1. `preFilterOpen === null` → `if (!preFilterOpen)` — the collapse/filter/clear row must fail.
+1. In the **clear (`else`) branch's ternary** —
+   `preFilterOpen === null ? collectOpen() : preFilterOpen` → change it to
+   `!preFilterOpen ? collectOpen() : preFilterOpen`. The clear then falls back
+   to `collectOpen()` over the *filtered* tree, whose chains are open, and
+   `test_collapse_everything_filter_clear_comes_back_EMPTY` must fail.
+
+   **Not the stash guard** (`if (preFilterOpen === null) preFilterOpen = …`):
+   that row makes exactly one filter fetch, and `preFilterOpen` is `null` at
+   that moment under both spellings, so mutating it there is a no-op and the
+   row stays green. The ternary is the site the test actually reaches.
 2. Drop the `eff === effectiveQ(pendingQ)` skip guard entirely (the whole `if`,
    not just one operand) — the below-floor no-request row must fail. **The
    guard compares against `pendingQ`, not `appliedQ`**; falsification 3b below
@@ -3670,8 +3731,29 @@ The registry operates on **server-rendered** entries too, because it queries the
 
 Add `applyInfo(r)` to the submit handler, the drop handler and
 `applyFilterState` — all three already use the nested `r.text().then(…)` form,
-so `r` is in scope and the call drops in beside their existing
-`applyFragment`.
+so `r` is in scope.
+
+**In the submit handler it goes at the TOP of the `r.text().then(function
+(text) {…})` body, before the status branches — NOT beside `applyFragment`.**
+`applyFragment(text)` lives in the **else** arm of
+`if (r.status === 200 && form.getAttribute("data-op") === "rename")`
+(`builder.js:243-252`); a rename 200 takes `applyRename(form, text)` instead
+and would never reach `applyInfo` at all. That is precisely the path
+`test_an_absent_header_does_NOT_clear_the_slot` drives, so placing the call in
+the else arm makes that row pass vacuously and makes Step 6's falsification 1
+unable to go red:
+
+```js
+    }).then(function (r) {
+      return r.text().then(function (text) {
+        applyInfo(r);          // FIRST, on every arm. A rename 200 and a 422
+                               // carry no header, so this is a no-op there --
+                               // by construction, not by a call-site list.
+        if (r.status === 200 || r.status === 409) {
+```
+
+The drop handler and `applyFilterState` have no such split; there the call sits
+beside `applyFragment` as described.
 
 **The toggle handler needs its whole chain reshaped**, because it does
 `.then(function (r) { if (r.status !== 200) throw …; return r.text(); })` —
@@ -3739,7 +3821,17 @@ Expected: PASS.
 
 1. Change `if (raw === null …) return;` to treat an absent header as a clear → `test_an_absent_header_does_NOT_clear_the_slot` must fail.
 2. Skip the "read server-rendered entries" behaviour by keeping a private array instead of querying the DOM → `test_the_info_slot_replaces_by_key` must fail.
-3. Insert with `insertAdjacentHTML("beforeend", "\n<li>…</li>")` → `test_the_empty_info_slot_is_not_rendered` must fail on the second assertion.
+3. Replace the `raw === "none"` clear's `infoSlot.replaceChildren()` with
+   `infoSlot.innerHTML = "\n"` → `test_the_empty_info_slot_is_not_rendered`
+   must fail on the second assertion.
+
+   **Attack the CLEAR, not the insert.** Inserting with
+   `insertAdjacentHTML("beforeend", "\n<li>…</li>")` does not redden that row:
+   its second assertion runs after a filter → clear cycle, the clear response
+   carries `X-Builder-Info: none`, and `replaceChildren()` removes *every*
+   child including any stray text node — so `:empty` matches again and the
+   mutation is invisible. The residue only survives if the clear itself leaves
+   a text node behind.
 
 Restore each.
 
@@ -3855,6 +3947,30 @@ def test_the_bulk_hrefs_stay_current_after_a_js_filter_apply(page, live_server):
     page.wait_for_selector(f'li[data-node="{miss.pk}"]', state="detached")
     href = page.locator("[data-expand-all]").get_attribute("href")
     assert "q=trygo" in href
+
+
+def test_an_over_ceiling_expand_all_never_grows_an_href(page, live_server, monkeypatch):
+    """The `if (!href) return;` guard, as a runnable row rather than a hand
+    check. Over the ceiling the server omits the href on purpose; without the
+    guard `new URL(null, origin)` yields "/null" and rewriteBulkHrefs turns a
+    deliberately inert control into a live link to a 404.
+
+    Collapse-all is the control group: it always has an href, so it proves the
+    rewrite still ran and this row is not passing because nothing happened.
+    """
+    monkeypatch.setattr("courses.builder_open.CEILING", 0)
+    owner = _make_pa_user("pa")
+    course, chap, hit, miss = _seed_two(owner)
+    _login(page, live_server, "pa")
+    page.goto(f"{live_server.url}{_builder(course)}")
+    expand = page.locator("[data-expand-all]")
+    assert expand.get_attribute("href") is None, (
+        "the server rendered an href over the ceiling; the row proves nothing"
+    )
+    page.fill("#builder-q", "trygo")
+    page.wait_for_selector(f'li[data-node="{miss.pk}"]', state="detached")
+    assert expand.get_attribute("href") is None
+    assert "q=trygo" in page.locator("[data-collapse-all]").get_attribute("href")
 
 
 def test_the_bulk_hrefs_are_scrubbed_when_a_below_floor_q_is_cleared(page, live_server):
@@ -4008,7 +4124,10 @@ Expected: PASS.
 1. Remove `e.preventDefault()` from collapse-all → `test_collapse_all_does_not_navigate` must fail.
 2. Remove the `pointerdown` arming → `test_collapse_all_over_a_dirty_rename_posts_nothing` must fail.
 3. Change `hasAttribute` to `getAttribute` on `data-expand-all-disabled` → `test_expand_all_fires_a_request_UNDER_the_ceiling` must fail.
-4. Drop the `if (!href) return;` guard, force the over-ceiling render, apply a filter, and assert the href does not become `/null?...`.
+4. Drop the `if (!href) return;` guard from `rewriteBulkHrefs` →
+   `test_an_over_ceiling_expand_all_never_grows_an_href` must fail, because
+   `new URL(null, origin)` yields `/null` and the control acquires a live
+   href. (A runnable row, not a hand-check — Task 3 Step 9 rules those out.)
 
 Restore each.
 
@@ -4107,8 +4226,12 @@ each caller to pass it down: the same query, moved.
 
 A real fix would give `_persist_chain` a narrower dependency (the container-pk
 set) and find someone who already has it. Nobody on the no-JS redirect path
-does. **Record M10 as investigated-and-dropped in the ledger**, with this
-finding, so it is not re-opened on the same false premise.
+does. **Record M10 as investigated-and-dropped in
+`docs/superpowers/notes/2026-07-28-affected-tests-slice2.md`** — Task 0's
+ledger, and the only one that exists at this point; Task 16's progress note is
+not created until Task 16 Step 5 — with this finding, so it is not re-opened on
+the same false premise. Step 6's `git add` includes that path, or the finding
+is written and never committed.
 
 - [ ] **Step 3: M15 — the `.catch` mislabel, file-wide**
 
@@ -4118,12 +4241,17 @@ their success `.then`, mislabelling them "Network error". Fix those
 reshaped the toggle's chain.
 
 **Exactly five sites, and two deliberate exclusions.** Apply the rewrite to:
-the submit handler (`:264`), the toggle (`:511`, as Task 12 left it), the drop
-handler (`:652`), and the two fetches this slice added — `applyFilterState`
-(Task 11 Step 5) and expand-all (Task 13 Step 3). All five share the
-`busyStart()` … `.then(function () { busyEnd(); })` shape the snippet assumes.
+the submit handler, the toggle (as Task 12 Step 4 reshaped it), the drop
+handler, and the two fetches this slice added — `applyFilterState`
+(Task 11 Step 5) and expand-all (Task 13 Step 3).
 
-**Do NOT touch `loadPanel` (`:311`) or the Move-picker fetch (`:282`).**
+**Identify them by shape, not by line number.** Tasks 11–13 insert two new
+fetches and rewrite the toggle's whole chain, so every numeral in the shipped
+file has moved by the time this task runs. The criterion is the one already
+used below to exclude the other two: a site qualifies iff it pairs
+`busyStart()` with a trailing `.then(function () { busyEnd(); })`.
+
+**Do NOT touch `loadPanel` or the Move-picker fetch.**
 Neither has a `busyStart`/`busyEnd` pair, so the snippet's trailing
 `.then(function () { busyEnd(); })` would decrement a counter nothing
 incremented and corrupt the busy state for every other request. Neither nests
@@ -4142,6 +4270,27 @@ panel fetches, not tree-pane fetches; M15 is not about them.
 ```
 
 The two-argument `.then` form separates a rejected fetch from a throw in the success path.
+
+**The submit handler's error arm is TWO statements, not one.** Its shipped
+`.catch` (`builder.js:264-267`) is `notice(...)` **and** `releaseForm(form);`,
+and dropping the second leaves the rename form's input permanently locked after
+any network failure — with nothing in this plan covering it. Its arm reads:
+
+```js
+    }, function () {
+      notice(msg("network", "Network error — please try again."));
+      releaseForm(form);
+    }).then(function () { busyEnd(); });
+```
+
+**Accepted consequence, stated rather than discovered:** the whole point of the
+two-argument form is that a *throw* in the success path no longer reaches this
+arm — so such a throw now also skips `releaseForm`. That is the right trade
+here (the success arm already calls `releaseForm(form)` on every status
+branch, so only a genuine bug in `applyFragment`/`applyRename` could skip it,
+and silently mislabelling that bug as "Network error" is what M15 exists to
+stop). Do **not** "fix" it by moving `releaseForm` into the trailing
+`.then(function () { busyEnd(); })`: that runs on the stale-response path too.
 
 - [ ] **Step 4: M16 — the `swapping` blur disarm**
 
@@ -4178,7 +4327,7 @@ exit 5 is not a pass.)
 ```bash
 uv run ruff format . && uv run ruff check .
 git branch --show-current
-git add courses/ tests/
+git add courses/ tests/ docs/superpowers/notes/2026-07-28-affected-tests-slice2.md
 git commit -m "fix(builder): clear the four deferred slice-1 minors"
 ```
 
@@ -4362,7 +4511,10 @@ Playwright, **light and dark**, judged separately rather than inferred from one 
 
 - [ ] **Step 5: Write the ledger**
 
-Append to `docs/superpowers/notes/2026-07-28-slice2-progress.md`: per-task commit ranges, the falsification results, the measured numbers against the table above, and any deviation from this plan with its reason.
+Create (it does not exist yet — no earlier step writes it) or append to
+`docs/superpowers/notes/2026-07-28-slice2-progress.md`: per-task commit ranges,
+the falsification results, the measured numbers against the table above, and
+any deviation from this plan with its reason.
 
 - [ ] **Step 6: Final lint and commit**
 
