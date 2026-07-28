@@ -1033,6 +1033,18 @@ code:
 adds `disabled` to both buttons in `_move_buttons.html`, and on the grip button
 (`_tree_node.html:32`) it both drops `draggable` **and** adds `disabled`.
 
+**Plus one client-side guard, because the markup is not the whole story.**
+Removing `draggable` stops a *real* drag, but a `dragstart` dispatched
+programmatically ignores the attribute entirely — and `builder.js`'s handler
+checks only `e.target.closest(".ica--grip")`, so `dragover`/`drop` still run and
+the drop still POSTs `mode=reparent`, which §3m deliberately does **not** refuse
+server-side. **Rule: the `dragstart` handler bails when the grip is
+`disabled`.** That closes the synthetic path, and it is also what makes the
+behaviour testable at all: this repo's `_simulate_drag` dispatches native
+`DragEvent`s through `page.evaluate` precisely because Chromium will not fire
+DnD from Playwright's pointer input, so a markup-only rule has no e2e that can
+observe it.
+
 **Dropping `draggable` alone would reintroduce the lying affordance this section condemns.**
 The arrows get a real disabled treatment for free (`builder.css:60`,
 `.ica:disabled { opacity: .35; cursor: default; }`), but the grip keeps
@@ -1196,20 +1208,40 @@ Three sections need this value and an earlier draft defined it in all three, aga
 different mental models; the contradiction that produced is recorded below. It is defined here,
 and §3k, §5a and §5c point at this definition rather than restating it.
 
-| | |
-| --- | --- |
-| **type** | a **string** — the *raw* query, never a boolean and never the folded form |
-| **initial value** | `data-applied-q` verbatim (§3k), which is `q_raw` — so a below-floor `?q=a` initialises it to `"a"`, not `""` |
-| **written by** | the filter fetch, to the value it sent; the clear fetch, to the **live raw box value** (see below); a skipped request, to the live raw box value |
-| **read by** | the five applied-`q` senders (§5a), `syncUrl` (§5a), the skip-comparison (§5c), and the bulk-href rewrite (§6b) |
+**There are TWO values, and conflating them breaks the clear path.**
 
-**The floor is applied in the COMPARISON, never in the tracker.** The skip test is
+| | `appliedQ` | `pendingQ` |
+| --- | --- | --- |
+| **means** | what the pane is currently **showing** | what the latest **issued** request will apply |
+| **type** | a **string** — the *raw* query, never a boolean, never folded | same |
+| **initial value** | `data-applied-q` verbatim (§3k) — a below-floor `?q=a` starts as `"a"`, not `""` | the same value |
+| **written** | when a filter/clear **response is applied** | when a filter/clear request is **issued**, and by a skipped request |
+| **read by** | the five applied-`q` senders (§5a), `syncUrl` (§5a), the bulk-href rewrite (§6b) | **the skip-comparison, and only that** (§5c) |
+
+**Why the skip-comparison must read `pendingQ` and not `appliedQ`.** `appliedQ`
+only advances when a response lands, so during an in-flight filter it still holds
+the *previous* query. Type `trygo` on an unfiltered page and click Clear before
+the response arrives: the clear computes `effective("") === ""` and compares it
+against `effective(appliedQ) === ""` — **equal**, so it returns early, issues no
+request and never bumps the generation counter. The in-flight filter response
+then lands unopposed, repaints filtered markup, writes `appliedQ = "trygo"` and
+restores `?q=trygo` — filtered, capped markup over an **empty input**, which is
+the exact state §5c exists to prevent, reached through §5c's own guard.
+
+With `pendingQ` the same sequence compares `""` against `"trygo"`, issues the
+clear, bumps the counter, and the released filter response is discarded as stale.
+
+**The generation counter cannot substitute for this**, and that is worth stating:
+the losing path issues no request at all, so there is nothing to bump.
+
+**The floor is applied in the COMPARISON, never in either tracker.** The skip
+test is
 
 ```
-effective(candidate) === effective(tracker)      // both sides folded through the client floor
+effective(candidate) === effective(pendingQ)     // both sides folded through the client floor
 ```
 
-and what gets *sent* is the tracker's raw string. Storing the effective value instead breaks
+and what gets *sent* on the five applied-`q` paths is `appliedQ`'s raw string. Storing the effective value instead breaks
 three things at once, which is what an earlier draft did: on a `?q=a` page the tracker would
 hold `""`, so the first toggle would send `q=""`, `syncUrl` would strip `a` from the address
 bar — the exact regression §3k carries `q_raw` unconditionally to prevent — the two halves of
@@ -1228,6 +1260,9 @@ cuts the box down to `t`, the clear fires, a blank tracker makes `syncUrl` drop 
 URL, and the `t` is gone on reload. §1 and §3k both promise the raw `q` round-trips through the
 box, the hidden inputs and the URL. So all three writers agree: **the tracker always holds the
 raw text the box last settled on**, and only the comparison folds it.
+
+**A skipped request updates BOTH to the live raw value** — nothing was sent and
+nothing will land, so the pane and the intent agree by definition.
 
 **A skipped request still updates the tracker to the live raw value.** Otherwise the tracker —
 and therefore the address bar, which follows it (§5a) — keeps a value the box no longer holds:
