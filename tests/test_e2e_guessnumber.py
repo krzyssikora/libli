@@ -516,14 +516,31 @@ def test_restored_guessnumber_does_not_repost_on_enter(page, live_server):
     row = add_element(unit, _guessnumber("<p>Guess: {{42}}</p>"))
     _seed_state(student, unit, {str(row.pk): {"done": True}})
     _login(page, live_server, "gn_restore_enter")
-    page.goto(_unit_url(live_server, unit))
+    # progress.js debounces its own POST to the unit's /seen/ endpoint by 500 ms from
+    # the first IntersectionObserver callback (measured here: ~510 ms after goto
+    # returns, against ~120 ms to satisfy the readOnly check below). That POST has
+    # nothing to do with this element, but under CPU contention the pre-listener work
+    # stretches past ~350 ms and the seen POST lands INSIDE the window watched below
+    # -- the measured cause of this test's flake. Drain it here, so a POST observed
+    # after this point can only have been caused by the Enter key.
+    with page.expect_response(
+        lambda r: r.request.method == "POST" and "/seen/" in r.url
+    ):
+        page.goto(_unit_url(live_server, unit))
 
     expect(_input(page)).to_have_js_property("readOnly", True)
     posts = []
     page.on("request", lambda r: posts.append(r.url) if r.method == "POST" else None)
     _input(page).focus()
     _input(page).press("Enter")
-    page.wait_for_timeout(150)  # allow any (wrongly) queued POST to start
+    # A happens-after barrier, NOT a settle sleep: a GET issued from the page only
+    # once the keydown handler has already run. Were the skip-arm branch missing,
+    # submit() would have created its fetch synchronously inside that handler, i.e.
+    # strictly before this one, so the POST is guaranteed to have been reported by
+    # the time this response arrives. A fixed sleep instead has to guess how long
+    # that takes, and guesses wrong on a loaded machine.
+    with page.expect_response(lambda r: "gn-enter-barrier" in r.url):
+        page.evaluate("() => { fetch(location.pathname + '?gn-enter-barrier=1'); }")
     assert posts == []
 
 
