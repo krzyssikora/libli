@@ -1,5 +1,6 @@
 """Operational institution settings (branding colours admin is Phase 5)."""
 
+import os
 import re
 
 from django import forms
@@ -78,6 +79,17 @@ class BrandingFileInput(ClearableFileInput):
 
 
 MAX_LOGO_BYTES = 2 * 1024 * 1024  # 2 MB
+MAX_FAVICON_BYTES = 256 * 1024  # 256 KB -- fetched by every visitor
+
+FAVICON_CURRENT = _("Current favicon")
+FAVICON_EMPTY = _("No favicon yet")
+FAVICON_REPLACE = _("Replace favicon")
+FAVICON_UPLOAD = _("Upload favicon")
+FAVICON_REMOVE = _("Remove favicon")
+
+ALLOWED_FAVICON_SUFFIX = ".png"
+MIN_FAVICON_PX = 192
+MAX_FAVICON_PX = 512
 
 _HEX6 = re.compile(r"^#[0-9a-fA-F]{6}$")
 _HEX3 = re.compile(r"^#[0-9a-fA-F]{3}$")
@@ -120,11 +132,22 @@ class BrandingForm(forms.ModelForm):
         fields = [
             "name",
             "logo",
+            "favicon",
             "enabled_languages",
             "default_language",
             "default_theme",
         ]
-        widgets = {"logo": BrandingFileInput()}
+        widgets = {
+            "logo": BrandingFileInput(),
+            "favicon": BrandingFileInput(
+                current_label=FAVICON_CURRENT,
+                empty_label=FAVICON_EMPTY,
+                replace_label=FAVICON_REPLACE,
+                upload_label=FAVICON_UPLOAD,
+                remove_label=FAVICON_REMOVE,
+                icon_variant=True,
+            ),
+        }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -155,6 +178,43 @@ class BrandingForm(forms.ModelForm):
             return value
         if getattr(value, "size", 0) > MAX_LOGO_BYTES:
             raise forms.ValidationError(_("Logo must be 2 MB or smaller."))
+        return value
+
+    def clean_favicon(self):
+        value = self.cleaned_data.get("favicon")
+        # Three different things land here: a fresh upload (which forms.ImageField
+        # has given an .image), the sentinel False (clear ticked), or the existing
+        # FieldFile (field untouched). Only the first carries .image; touching
+        # .image on the others is a 500 on every ordinary Branding save.
+        image = getattr(value, "image", None)
+        if image is None:
+            return value
+
+        # Cheapest first, so a fixture violating two rules reports deterministically.
+        if getattr(value, "size", 0) > MAX_FAVICON_BYTES:
+            raise forms.ValidationError(_("The favicon must be 256 KB or smaller."))
+
+        suffix = os.path.splitext(value.name or "")[1].lower()
+        if suffix != ALLOWED_FAVICON_SUFFIX:
+            raise forms.ValidationError(_("The favicon must be a .png file."))
+
+        if image.format != "PNG":
+            raise forms.ValidationError(_("The favicon must be a PNG image."))
+
+        width, height = image.size
+        if width != height:
+            raise forms.ValidationError(
+                _(
+                    "The favicon must be square - crop it to equal width and "
+                    "height first."
+                )
+            )
+
+        if not (MIN_FAVICON_PX <= width <= MAX_FAVICON_PX):
+            raise forms.ValidationError(
+                _("The favicon must be between 192 and 512 pixels.")
+            )
+
         return value
 
     def clean_primary(self):
