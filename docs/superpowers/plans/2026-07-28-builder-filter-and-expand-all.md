@@ -527,7 +527,15 @@ First add the one import the file lacks, at the **top** with the existing
 block (isort is force-single-line; `E402` rejects a mid-file import). The file
 already imports `pytest`, `reverse`, `open_ids`, `_children_map`,
 `remember_node`, both factories and `make_login`
-(`tests/test_builder_open_ids.py:1-14`); only this is missing:
+(`tests/test_builder_open_ids.py:1-14`); only this is missing.
+
+**It goes between `from courses.builder_open import LAST_NODE_KEY` and
+`from courses.builder_open import SESSION_SLUG_LIMIT`** — ruff's isort runs
+`order-by-type`, so the ALL-CAPS names sort as a group ahead of `_finalize`,
+`container_pks` and `open_ids`, and `OPEN_KEY` lands alphabetically between
+those two. Appended to the end of the block it is an `I001` at this task's own
+Step 7 `ruff check` gate, and `ruff format` will not move it. (Verified with
+`ruff check --select I --fix --diff` on exactly this block.)
 
 ```python
 from courses.builder_open import OPEN_KEY
@@ -4016,13 +4024,34 @@ The ordered steps — busy → `applyFragment` → header → **tracker write** 
 
 - [ ] **Step 7: Discard the stash on a mutation while filtered**
 
-In **both** the submit handler (`:215`) and the drop handler (`:618`), after a successful apply:
+In **both** the submit handler (`:215`) and the drop handler (`:618`):
 
 ```js
     if (appliedQ) preFilterOpen = null;   // the tree changed underneath it
 ```
 
 Naming both sites is what stops the rule being implemented in whichever handler the implementer happened to be editing.
+
+**In the submit handler, the exact arm matters.** Its success body splits
+(`builder.js:245-251`): a rename 200 takes `applyRename(form, text)`, and
+everything else takes `applyFragment(text); syncUrl();`. "After a successful
+apply" describes both, but the only row that covers this rule —
+`test_a_MUTATION_while_filtered_discards_the_stash` — drives a **rename**, so a
+line placed beside `applyFragment` never executes and the row fails at Step 8
+against code that looks correct. Same hazard Task 12 Step 4 spells out for
+`applyInfo` in this handler.
+
+Put it **inside the `if (r.status === 200 || r.status === 409) { … }` block,
+after `clearMoving()`** — past the rename/else split, so both arms reach it,
+and outside the `else if (r.status === 422)` arm, where nothing mutated and
+the stash is still valid:
+
+```js
+          if (inPanel) setPanel(neutralPanel);
+          clearMoving();
+          if (appliedQ) preFilterOpen = null;   // new -- both arms, not 422
+        } else if (r.status === 422) {
+```
 
 - [ ] **Step 8: Run the e2e**
 
@@ -4739,9 +4768,11 @@ declaration is silently harmless and permanently confusing.
     // applyFragment swaps and outside what manage_tree returns -- so unlike
     // the delete and Move hrefs, nothing else refreshes them.
     //
-    // Called from the RESPONSE handlers, never from the controls' own click
-    // handlers: a click-time rewrite cannot fix the case this exists for,
-    // because a middle-click dispatches auxclick, not click.
+    // Called from the response handlers AND from the two request-less paths
+    // that still change `appliedQ`: the clear skip branch (Task 11 Step 5)
+    // and collapse-all, which issues no fetch at all. What must NOT happen is
+    // relying on a click-time rewrite ALONE -- a middle-click dispatches
+    // auxclick, not click, so it would never run for the case this exists for.
     root.querySelectorAll("[data-expand-all], [data-collapse-all]").forEach(
       function (el) {
         var href = el.getAttribute("href");
