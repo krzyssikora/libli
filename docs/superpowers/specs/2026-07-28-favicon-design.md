@@ -130,8 +130,11 @@ racing another `pytest-xdist` worker.
 the list of written paths** — the drift-guard tests iterate that return value rather than re-deriving
 the filename list, so a newly added output cannot silently escape them. Each returned path is matched
 to its committed twin by `Path.name` under `core/static/core/img/favicon/`, and the comparison
-**dispatches on suffix**: `.svg` → byte-compare; `.png`/`.ico` → dimensions, mode, corner alpha, and
-sample set. An unrecognised suffix **fails the test** rather than being skipped — that is what keeps
+**dispatches on suffix**: `.svg` → byte-compare; `.png` → dimensions, mode, corner alpha, sample set,
+extent scans; `.ico` → the same, **iterated over `ico.sizes()` frame by frame**. That last part is not
+incidental: `Image.open("favicon.ico")` yields only the 48 px frame, so a naive comparison would leave
+the independently-drawn 16 and 32 px frames — the two a browser tab actually shows — outside the drift
+guard entirely. An unrecognised suffix **fails the test** rather than being skipped — that is what keeps
 the "no new output escapes" property true for a future output type.
 
 That covers additions but not removals, so it is paired with a **set-equality** assertion: the file
@@ -312,7 +315,10 @@ which must be parameterized before a second field can share them:
    renamed to `.branding-file*` (touching `settings.css` and the widget template; no other file and no
    test references those class names). **`icon_variant` is the single discriminator** for both the CSS
    and the markup fork: when true the template adds `branding-file__thumb--icon` — a **48 px square**
-   box — *and* takes the empty-state branch below. It is a boolean rather than a CSS-class string
+   box — in **both** branches (the empty `<div>` and the filled `<img>`; otherwise the filled state
+   would letterbox a square icon inside the 120×64 landscape box under `object-fit: contain`) *and*
+   takes the empty-state branch below. Only the no-text/`role="img"` treatment is specific to the
+   empty branch. It is a boolean rather than a CSS-class string
    precisely because it forks accessibility markup, not just styling; keying an `aria` decision off a
    class name would let the two drift.
 
@@ -327,11 +333,17 @@ which must be parameterized before a second field can share them:
    `widget.is_initial` is false — so on an empty field, picking a file updates the filename echo and
    nothing else. That is *every* first favicon upload. Fix it in the shared script: on pick, if the
    thumb element is not an `<img>`, **replace it with an `<img>`** carrying the same
-   `data-file-thumb` hook, then set its `src`. Precisely: the new `<img>` keeps
-   `branding-file__thumb` and (for the favicon) `--icon`, **drops** `--empty`, carries
-   `alt="{{ current_label }}"` to match the server-rendered filled state, and **does not** carry
-   `role="img"` or `aria-label` — an `<img>` has an image role already, and an `aria-label` would
-   compete with `alt`. Those two attributes exist only on the empty `<div>` and leave with it.
+   `data-file-thumb` hook, then set its `src`. Precisely: the new `<img>` copies the old element's
+   `className` **minus `branding-file__thumb--empty`** — which carries `--icon` over automatically,
+   with no second discriminator in the script — and **does not** carry `role="img"` or `aria-label`,
+   since an `<img>` has an image role already and an `aria-label` would compete with `alt`. Those two
+   attributes exist only on the empty `<div>` and leave with it.
+
+   **`alt` needs a carrier**, because the swap happens in the shared loop at the bottom of
+   `_branding_fields.html`, which has no access to per-widget constructor kwargs. So `get_context()`
+   also emits **`data-file-current-label`** on the `[data-file-field]` wrapper, and the script reads
+   `alt` from it. With `aria-label` forbidden on the new `<img>`, `alt` is its only accessible name —
+   leaving its value to be invented at implementation time is exactly what §4 otherwise prevents.
 
    This repairs the logo field's identical thumb gap at the same time. **Scope:** the thumb only. The
    identity-signature preview (`[data-preview-logo]`) is rendered as a `<span>` when no logo is set and
@@ -355,9 +367,15 @@ filename echo, resetting the remove checkbox on a new pick — is per-wrapper an
 - `favicon_size` — `"<W>x<H>"`, read from `inst.favicon.width/height`. This opens the stored file, so
   it happens **inside `_build()`** — i.e. once per cache rebuild (300 s TTL), never per render.
   Two failure modes, both handled: a missing file raises → `try/except (OSError, ValueError)` → `None`;
-  a **truncated or corrupt** file makes `django.core.files.images.get_image_dimensions` return
-  `(None, None)` *without raising*, so an explicit `if width and height` guard is required too —
+  a file whose **image header is unreadable** makes `django.core.files.images.get_image_dimensions`
+  return `(None, None)` *without raising*, so an explicit `if width and height` guard is required too —
   otherwise the manifest ships the literal string `"NonexNone"`.
+
+  **"Unreadable header", not "truncated".** Measured: a PNG truncated to half its bytes still reports
+  `256×256`, because PNG dimensions live in the IHDR chunk at the very start. `(None, None)` needs
+  content that is not a decodable image header at all — the fixture is non-image bytes
+  (`b"not an image"`) written to `MEDIA_ROOT/branding/x.png`. A truncation-based fixture would return
+  a real size and fail the test for a reason unrelated to the code under test.
 
 No `favicon_mime` key: uploads are PNG-only (see "Error handling"), so the manifest's `type` is always
 `"image/png"`.
@@ -471,8 +489,9 @@ upload rules. Handle it where it arises: if the stripped name is empty, fall bac
 maskable entry additionally carries `"purpose": "maskable"`. With an override it is a **single** entry
 `{"src": favicon_url, "sizes": favicon_size, "type": "image/png", "purpose": "any"}` — an
 override therefore forgoes the maskable variant, so Android may crop the uploaded icon under an
-adaptive-icon mask. That is an accepted trade (deriving a maskable variant would mean server-side
-image generation, an explicit non-goal), stated rather than silent.
+adaptive-icon mask — **and it also drops the 512 px entry**, so a small-but-valid 192 px upload yields
+a lower-resolution splash icon than the default trio would. Both are accepted trades (deriving either
+variant would mean server-side image generation, an explicit non-goal), stated rather than silent.
 
 **When `favicon_size` is `None`** (unreadable stored file), both surfaces behave the same way: the
 head link omits its `sizes` attribute and the manifest entry omits its `sizes` key. Not `"any"` — §5's
@@ -645,9 +664,17 @@ invert the behaviour it guards and confirm it goes RED, rather than accepting a 
 - `tests/test_favicon_render.py` — bundle keys, head render, manifest and redirect routes (new file).
 - `tests/test_settings_5c_forms.py` — the form-validation cases. This is where the existing
   branding-form tests already live (`test_branding_form_logo_clear_removes_logo`,
-  `test_branding_form_logo_renders_thumbnail_and_remove_when_logo_set`) along with the `_png_file` and
-  `_branding_data` helpers the new cases reuse. Do **not** create a `test_institution_settings.py` —
-  there is no such file, and adding one would strand the new cases away from those fixtures.
+  `test_branding_form_logo_renders_thumbnail_and_remove_when_logo_set`) along with the `_branding_data`
+  helper the new cases reuse. Do **not** create a `test_institution_settings.py` — there is no such
+  file, and adding one would strand the new cases away from those fixtures.
+
+  **`_png_file` must be generalized first.** It is currently a fixed `Image.new("RGB", (4, 4))` with
+  only a `name` parameter, so it can build **none** of the eleven form-validation fixtures: at 4×4 the
+  "valid PNG accepted", "exactly 192" and "exactly 512" cases all fail rule 5, and the `.gif`-named,
+  `.png`-named ICO/JPEG, non-square, 1024-flat and 512-noise cases need other sizes, modes and
+  formats. Add `size`, `mode` and `format` parameters (defaulted so every existing caller is
+  unchanged). As-is it stays usable only for the model-level `inst.favicon.save(...)` paths — the
+  clear test and the render tests — which bypass form validation entirely.
 - `tests/test_setup_wizard.py` — the wizard Identity-step favicon case, beside the existing
   wizard-step tests.
 - `tests/test_e2e_favicon.py` — e2e (`-m e2e` is mandatory or the whole group is silently deselected).
@@ -673,11 +700,18 @@ whether the bullet is a correctness check or a drift guard.
   the `xmlns`. This is the assertion that pins "the SVG emits half-open extents verbatim; the raster
   applies `− 1`" — the vector is the file most browsers actually render.
 - **Raster drift guard** (committed vs fresh): the fresh render's per-file **dimensions, mode, corner
-  alpha, and sample set** must equal the committed files'. This replaces a naive "two fresh runs are
-  byte-identical" idempotence check, which is **vacuous** — nothing in the generator could make two
-  consecutive runs differ short of deliberately adding a timestamp, so there is nothing to delete that
-  turns it RED. This version has a deletable guard: change a geometry constant without regenerating
-  and it goes RED.
+  alpha, sample set, *both extent scans*, and the maskable bounding box** must equal the committed
+  files'. It replaces a naive "two fresh runs are byte-identical" idempotence check, which is
+  **vacuous** — nothing in the generator could make two consecutive runs differ short of deliberately
+  adding a timestamp.
+
+  **The extent scans and maskable bbox are in this comparison deliberately**, because the weaker
+  version (dimensions + mode + corner alpha + samples only) was measured to be nearly blind: mutating
+  `STEM_Y`, `STEM_R`, `TILE_R`, or `DOT_R` and leaving the committed assets stale left it **green**,
+  and only `STEM_X` reddened it — incidentally, via the 48 px ICO sample. So do **not** credit this
+  guard with catching unregenerated geometry edits in general; the **SVG byte-compare** is what
+  actually does that, and it is credited separately above. This bullet is the raster-side sanity
+  check, now with enough teeth to see a radius or stem-length change.
 - Byte-comparing committed *rasters* against a fresh run is deliberately **not** done:
   `pyproject.toml` declares `pillow>=12.2.0` (a floor, not a pin) and PNG/ICO encoder output is not
   contracted across releases, so a routine lock bump would turn it RED with no code change.
@@ -751,11 +785,21 @@ whether the bullet is a correctness check or a drift guard.
   **Falsification for this guard is deleting the `− 1` itself**, not editing a geometry constant — a
   constant edit reddens the centring and SVG assertions instead and proves nothing about the
   convention.
-- **Corner-radius probe** (committed): the radius constants are otherwise unguarded — the corner-alpha
-  assertion at `(0,0)` reads `(0,0,0,0)` for any radius above ~2, the extent predicate only measures
-  the white stem, and no sample point sits near a corner. So: on `icon-512.png`, assert one pixel just
-  *inside* the radius-112 arc is the tile colour and one just *outside* it is transparent. Measure both
-  coordinates when implementing and pin them as literals.
+- **Corner-radius probes** (committed). What is unguarded is specifically the **raster-side `r · s`
+  scaling** — the SVG-correctness bullet already pins `rx="112"` and `rx="32"` on the vector side,
+  while on the raster side the corner-alpha assertion at `(0,0)` reads `(0,0,0,0)` for any radius above
+  ~2 and no sample point sits near a corner.
+
+  **The two probe points must bracket the arc, and "just inside / just outside" is not a sufficient
+  rule.** Along the diagonal the boundary sits at `R(1 − 1/√2) ≈ 0.293·R`, i.e. `d ≈ 32.8` for
+  `R = 112`. Measured, `(30,30)` is transparent and `(40,40)` is tile-coloured — both satisfy a plain
+  reading, yet both keep the same readings when `TILE_R` moves 112 → 128 (boundary 37.5), so the probe
+  stays green. So: **pick the pair within ~1–2 px either side of `0.293·R`** — at `R = 112`, `d = 32`
+  transparent and `d = 34` tile — and pin them as literals.
+
+  Add a **second probe on the stem's cap** for the same reason: `STEM_R 32 → 16` was measured to
+  redden nothing in the entire raster set, so the tile probe alone leaves the stem's radius scaling
+  unguarded.
 - The centred-bounding-box assertion fires when the geometry is nudged off-centre; the
   `PRIMARY_DEFAULT`/`ACCENT_DEFAULT` equality assertion fires when the palette diverges.
 - **Maskable safe zone, measured from the render** (committed), not computed from the constants. The
@@ -776,7 +820,8 @@ whether the bullet is a correctness check or a drift guard.
 **Config bundle**
 - `favicon_url` is `None` with no upload, the media URL with one, and `None` again after a clear.
 - `favicon_size` is `"WxH"` for a real upload, `None` when the file is **missing**, and `None` when
-  the file is **present but corrupt** (the `(None, None)` path — not the same test).
+  the file is **present with an unreadable image header** (the `(None, None)` path — not the same
+  test; the fixture is `b"not an image"`, not a truncated PNG, per §5).
 - The bundle is invalidated on `Institution.save()` (the existing signal covers it; this proves it
   covers the new keys too).
 
@@ -819,11 +864,17 @@ before any Pillow access. That pair is the regression test for the 500 described
 - With an override, the icon links point at the media URL and the static default icons are *absent*
   (not merely present-alongside).
 - A media filename containing HTML-special characters is escaped in the `href` — the falsification for
-  choosing `format_html` over `mark_safe`. **It must be constructed, not uploaded:**
-  `get_valid_filename` strips exactly those characters on the way in (measured:
-  `sch"ool<x>&.png` → `schoolx.png`), so an upload-based test finds nothing to escape and passes
-  identically under `mark_safe` — vacuous. Set `inst.favicon.name` directly, or patch `favicon_url`
-  in the cached bundle, the same construction the malformed-colour case already uses.
+  choosing `format_html` over `mark_safe`. **It must be built by patching `favicon_url` in the cached
+  bundle** — the same construction the malformed-colour case uses — and by no other route. Two
+  plausible alternatives are both measurably vacuous:
+  - *uploading* such a filename: `get_valid_filename` strips exactly those characters
+    (`sch"ool<x>&.png` → `schoolx.png`);
+  - setting `inst.favicon.name` directly: `FileSystemStorage.url()` runs `filepath_to_uri`, yielding
+    `/media/branding/sch%22ool%3Cx%3E%26.png` — percent-encoded, containing none of `" < > &`.
+
+  Under either, `format_html` and `mark_safe` produce byte-identical output and the test passes with
+  the fix reverted. Only the patched bundle discriminates (measured: `sch&quot;ool&lt;x&gt;&amp;.png`
+  versus the raw string).
 - With an override whose `favicon_size` is `None`, the head link **omits** its `sizes` attribute
   (the counterpart of the manifest assertion below).
 - `theme-color` equals `PRIMARY_DEFAULT` when the stored primary is `None`, and again when it is
