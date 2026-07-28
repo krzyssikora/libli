@@ -2100,7 +2100,8 @@ unattainable.
 
 - [ ] **Step 2: Run to verify failure**
 
-Select the six new rows **by name**. `-k` is a substring match over the whole
+Select the nine rows this task turns green **by name** — Step 1 writes eleven,
+and the two named below it are deliberately excluded. `-k` is a substring match over the whole
 test id, so a bare `-k "q"` also drags in every already-green Task 3/4/5 row
 whose name happens to contain a `q` (`test_data_applied_q_…`,
 `test_a_below_floor_query_…`, `test_data_q_min_…`, `test_manage_tree_honours_q`
