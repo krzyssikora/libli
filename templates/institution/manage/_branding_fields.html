@@ -34,6 +34,13 @@
     {% if form.logo.help_text %}<span class="settings__help">{{ form.logo.help_text }}</span>{% endif %}
     {{ form.logo.errors }}
   </div>
+
+  <div class="settings__field">
+    <label class="settings__label" for="{{ form.favicon.id_for_label }}">{{ form.favicon.label }}</label>
+    {{ form.favicon }}
+    {% if form.favicon.help_text %}<span class="settings__help">{{ form.favicon.help_text }}</span>{% endif %}
+    {{ form.favicon.errors }}
+  </div>
 </div>
 
 {% comment %} ── Brand colours ── {% endcomment %}
