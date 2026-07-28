@@ -968,6 +968,48 @@ The pinned test must go through **a toggle under an active filter**, not a bare 
 bare GET resolves via step 3, which is not `explicit`, so the write is already suppressed and
 the test would pass without the rule.
 
+### 3m. Ordering is suppressed while a filter is active
+
+**A filtered scope shows a SUBSET of its siblings, and every position-based operation in this
+builder computes against the full list.** §1d is what first makes a rendered scope partial —
+slice 1 always rendered every child of an open scope — so this is a hazard the filter creates,
+not one it inherits. Two operations break, both silently, both verified against the shipped
+code:
+
+- **Drag-and-drop.** `targetFor` (`builder.js:543-554`) counts only the rendered `.tree__row`
+  children of the target `<ol>` and posts that ordinal as `position` (`:635`); `place_node`
+  (`courses/ordering.py:77-86`) splices it into
+  `ContentNode.objects.filter(course=…, parent=new_parent).order_by("order", "pk")` — **the
+  full child list**. Dropping between the two visible children of a 30-child chapter posts
+  `position=1`, and the node lands as that chapter's *second* node overall. No error, no
+  feedback, wrong data.
+- **The up/down arrows.** `reorder_node` (`courses/builder.py:260-264`) swaps against the full
+  sibling queryset. With full order `u1(match), u2, u3, u4(match)` the filtered scope shows
+  `u1, u4`; clicking u1's "Move down" yields `u2, u1, u3, u4` — and the re-rendered filtered
+  scope is **visually identical**, so the author clicks again, and again. Three silent
+  mutations for one apparent no-op. Worse, `is_first`/`is_last` come from `forloop.first` /
+  `forloop.last` over the restricted `nodes` (`_scope.html:11` → `_move_buttons.html`), so the
+  arrows are `disabled` at the edges of the *filtered* list: u4's "down" is greyed out although
+  u4 can still move down. The affordance lies in both directions.
+
+**Rule: while `q_active`, drag-and-drop is disabled and the up/down arrows render `disabled`.**
+
+This is the honest reading of what a filtered view is *for*. "Move down" past siblings the
+author cannot see is not a well-defined gesture, so there is no correct index to compute — the
+choice is between suppressing the operation and inventing a semantics for it. The alternative
+(carry the neighbouring sibling's pk instead of an ordinal, and have `place_node` resolve it
+against the real list) changes the contract of two shipped service functions to support a
+gesture that means nothing in the view that needs it.
+
+**Moving things while filtered still works — through the Move picker**, whose destination and
+slot lists §3k already keeps **full** for exactly this reason. That is the one surface where a
+position under a filter is unambiguous, and it is now the documented route.
+
+**Consequently the mutations available under a filter are: rename, add, duplicate, delete and
+the Move picker.** Reorder and drop are not, so §8's "`q` rides every fragment request" row and
+its "a filtered mutation re-asserts `filter;…`" row both narrow accordingly — a drop under a
+filter is not a case that exists.
+
 ## 4. The filter control
 
 Sits in `.builder__tree`'s header row, after the title, beside the expand/collapse controls.
@@ -994,11 +1036,20 @@ is not a reliable accessible name.
   precedence step 2 would outrank step 3 and matches inside collapsed branches would never
   appear.
 - `type="search"` gives Chromium a native clear affordance that fires `input`, so the JS path
-  gets clearing for free; the explicit Clear link exists for the no-JS path and is rendered
-  **whenever the input has any text — `{% if q %}`, on the raw value, not on `q_active`**. A
+  gets clearing for free — **but Firefox renders none**, so the link below is the only one-click
+  clear a Firefox author has, and it must work on both paths. The explicit Clear link is
+  rendered **whenever the input has any text — `{% if q %}`, on the raw value, not on
+  `q_active`**.
+- **The JS intercepts the Clear link**: `preventDefault`, empty the input, and run §5d's clear
+  path. Left un-intercepted it is a full-page navigation to a bare builder URL — precedence
+  steps 4–6, the module-scoped stash discarded, every expansion lost — which is exactly what
+  §5d's stash exists to prevent, on the control *labelled* "Clear". The route is routine, not
+  theoretical: the link is server-rendered, so it appears on any reload of a `?q=` URL, which
+  §5c calls a first-class path. It is the eighth entry in §5a's request table, sending the same
+  values as the clear fetch. A
   below-floor `?q=a` renders an unfiltered tree with `a` still in the box, and a no-JS author
   needs a way to empty it; gating on `q_active` would leave them retyping over stale text.
-- The no-JS **Clear** link is a plain GET with neither `q` nor `open`, so it lands on
+- **Without** JS the Clear link is a plain GET with neither `q` nor `open`, so it lands on
   precedence steps 4–6. A no-JS author's pre-filter expansion is therefore **not** restored —
   there is no client to stash it and no session slot that means "what was open before the
   filter". Recorded as an accepted limitation of the no-JS path, not a defect.
@@ -1070,7 +1121,7 @@ deleted. Since the effective query did not change, no re-render is needed and th
 free: the pane stays correct either way, and the URL now tracks the box on both below-floor
 paths instead of only one of them.
 
-### 5a. `q` rides SEVEN request paths — five with the applied value — and `withOpen` reaches two
+### 5a. `q` rides EIGHT request paths — six with the applied value — and `withOpen` reaches two
 
 **Set, never append**: mutation forms already carry a hidden `q`, so appending would put two
 values in the `FormData` and `QueryDict.get` returns the last — the collector would win only by
@@ -1106,22 +1157,24 @@ The toggle is the most common fragment request and the subject of this slice's o
 the result is exactly the defect §5c exists to prevent: unfiltered children arriving into a
 filtered pane.
 
-**Rule: seven request paths are named here, each with the value it sends. Six carry `q`; the
-clear path omits it.**
+**Rule: eight request paths are named here, each with the value it sends. Six carry `q`; the
+two clear paths omit it.**
 
 | path | site | `open` | `q` |
 | --- | --- | --- | --- |
 | mutation submit | `builder.js:240` via `withOpen` | collector | **applied** |
-| drop | `builder.js:638` via `withOpen` | collector | **applied** |
+| drop | `builder.js:638` via `withOpen` | collector | **applied** — but §3m makes a drop impossible while filtered, so in practice always blank |
 | **toggle expand** | `builder.js:487-490`, its own `URLSearchParams` | collector **+ this pk** | **applied** |
 | **Move picker fetch** | `builder.js:276`, an href GET (§3j item 4) | n/a — carved out of the collector | **applied** |
 | **expand-all** | new, §6a | `all` | **applied** |
 | **filter fetch** | new, §5b | **omitted** | **live** — its job is to apply it |
-| **clear** | new, §5d | stash, or the collector | **omitted** |
+| **clear** (box emptied / below floor) | new, §5d | stash, or the collector | **omitted** |
+| **clear** (the Clear link, intercepted) | new, §4 | stash, or the collector | **omitted** |
 
-The fifth, sixth and seventh rows are three different requests with three different `q` rules,
-so they get three rows: collapsing them hides the fact that expand-all is an *applied*-`q`
-sender, not an exception like the filter fetch. Sending the live value there would drop a
+The last four rows are distinct requests with distinct `q` rules, so they get one row each:
+collapsing them hides the fact that expand-all is an *applied*-`q` sender rather than an
+exception like the filter fetch, and that the Clear link is a request path at all rather than
+the plain navigation §4 originally took it for. Sending the live value there would drop a
 ~226-row bulk render, filtered by a query the author never applied, into the pane.
 
 The cleanest shape is one `setTreeParams(target, {openOverride})` helper used by all of them,
@@ -1129,8 +1182,11 @@ with the toggle passing its `open + pk` as the override and the picker passing n
 the shape, **`q` must not be supplied by `withOpen` alone**. §8 pins a test that the toggle
 request carries `q`.
 
-**`syncUrl` writes the `q` the request actually sent** — the applied raw value — and deletes
-the parameter only when that value is **blank**. Not "when inactive": a below-floor `?q=a` is
+**`syncUrl` writes the TRACKER (§5z)** — never "whatever this request sent", which is
+undefined for the two paths that send no `q` at all (the clear fetch) or issue no request at
+all (§6b's collapse-all, which also calls `syncUrl`; under the other reading it would strip `q`
+from the URL and silently drop the filter). It deletes the parameter only when the tracker is
+**blank**. Not "when inactive": a below-floor `?q=a` is
 present-but-inactive, so an activity-gated `syncUrl` would strip the `a` from the address bar on
 the author's first toggle, undoing on the JS path exactly the round-trip §3k carries `q_raw`
 unconditionally to preserve. A cleared filter sends a blank value and so still leaves no `?q=`
@@ -1294,7 +1350,11 @@ stashed `open` and no `q`.
   cleared tree still shows the row the mutation created), because a stale stash and a correct
   fallback both produce a merely non-empty tree.
 **The clear response is handled exactly like the filter fetch's** — the parent §8 busy
-counter, `applyFragment`, §3i's header handling, then `syncUrl`. The header step is the one
+counter, `applyFragment`, §3i's header handling, **the tracker write (§5z)**, then `syncUrl`.
+**That order is load-bearing and is why the tracker write is listed as a step rather than left
+to inference**: `syncUrl` reads the tracker, so writing it afterwards leaves `?q=tryg` in the
+address bar over a freshly-unfiltered tree, and the next reload restores the filter the author
+just dismissed. The header step is the one
 worth naming: **the clear path is the ONLY consumer of `X-Builder-Info: none`.** Its response
 carries no codes, so `none` is what removes the "Filtered: 100 / 940" entry; a clear handler
 written without header handling leaves that notice standing over a freshly-unfiltered tree,
@@ -1545,8 +1605,10 @@ until this was done.
   test would guard nothing.
 - **a filter request omits `open`**: with every scope collapsed, filtering for a title three
   levels down returns the match row
-- **`q` rides every fragment request**: with a filter active, a rename 409, an add, a reorder,
-  a duplicate and a drop each return **filtered** markup
+- **`q` rides every fragment request**: with a filter active, a rename 409, an add and a
+  duplicate each return **filtered** markup. **Not a reorder or a drop** — §3m suppresses both
+  while filtered, so they are not cases that exist; driving them here would pin behaviour the
+  spec forbids.
 - **expanding a scope under a filter returns only the filtered children of that scope** — the
   `nodes` half of §3k. Falsified by pointing `_render_scope`'s `nodes` back at the full map,
   which leaves `children_map` restricted and every other filtered test green.
@@ -1571,6 +1633,13 @@ until this was done.
   exactly **one** `<li data-node=…>` for it
 - **a force-included row does not move `shown`/`total`** in the emitted header
 - **counts under a filter are the filtered counts**
+- **the up/down arrows render `disabled` under an active filter, and enabled without one**
+  (§3m) — asserted on the rendered markup. Falsified by restoring the `is_first`/`is_last`
+  gating alone, which leaves the arrows live at non-edge positions and lets a click mutate the
+  full sibling order invisibly.
+- **a reorder POST submitted under an active filter is refused** — the server does not rely on
+  the markup alone, since the form is trivially replayable. Assert the full sibling order is
+  unchanged.
 - **a matched container renders OPEN over an empty scope** (§1d) — `aria-expanded="true"`,
   `aria-controls` present, and "No matching titles." inside, not a collapsed row
 - **BOTH §3c session paths, each with `builder_open` populated and holding a set that is not
@@ -1608,8 +1677,9 @@ until this was done.
   text. Goes red the moment a second catalog entry appears for the same notice.
 - **`none` is emitted when no codes apply**, and codes join with `, ` when both apply
 - **a rename, a 422 and a panel fetch under an active filter carry no header at all**
-- **a filtered mutation re-asserts `filter;…`** — driven by an **add, reorder, duplicate or
-  drop**, never a rename, whose success response never reaches `_render_scope`
+- **a filtered mutation re-asserts `filter;…`** — driven by an **add or a duplicate** (§3m
+  rules out reorder and drop under a filter), never a rename, whose success response never
+  reaches `_render_scope`
 - **a filtered response carries exactly one `filter` code** in `X-Builder-Info` (the
   server-side half; the client-side registry behaviour is an e2e row, below)
 - **the info slot is in the DOM on an UNFILTERED, untruncated builder page** and carries **no
@@ -1665,6 +1735,10 @@ until this was done.
 not a pass):**
 
 - type a query, assert only matching and ancestor rows are present
+- **drag is inert while a filter is active** (§3m) — attempt the real drag gesture under a
+  filter and assert no `node_move` request and an unchanged full-course order. This is the row
+  that catches the `targetFor`-index-into-full-list defect, which produces no error and no
+  visible symptom in the filtered pane. Drive the real gesture, never `page.evaluate`.
 - **the filter fetch omits `open`, asserted where it can go red** — **collapse the target row's
   ancestor chain first**, then type the query and assert the match appears. Without the collapse
   the test is vacuous: filtering is done by the restricted map, so sending `open=<collector>`
@@ -1688,6 +1762,10 @@ not a pass):**
   filter's chains (the `stash === null` rule; falsified by changing it to `if (!stash)`)
 - **a below-floor query takes the clear path** — type `tryg`, then delete down to `t`, and
   assert the unfiltered tree is back rather than stale filtered markup
+- **clicking the Clear LINK with JS on does not navigate** (§4) — asserted with the
+  no-navigation guard, and the pre-filter expansion is restored. Falsified by removing the
+  interception: the page still ends up unfiltered, so only the navigation guard and the
+  surviving expansions can tell the two apart.
 - **a `?q=<match>` page load, then clear** — returns the unfiltered tree. Falsified by
   initialising the applied-`q` tracker to `""` instead of the server-rendered active `q`, which
   makes the clear a no-op and leaves filtered markup over an empty input (§5c).
@@ -1720,6 +1798,11 @@ not a pass):**
   the toggle is slow. That is this repo's recorded "assert on requests, not on a sampled race
   window" trap. A rendered-children check may follow as a secondary, timing-tolerant assertion.
 - **expand-all then collapse-all** returns to the top rows, and the address bar holds `open=`
+- **the address bar after a clear** — clearing an applied `tryg` leaves no `q`; clearing it
+  down to a below-floor `t` leaves `?q=t`, not `?q=tryg`; and a collapse-all under an active
+  filter leaves `q` untouched. All three go red if the tracker is written after `syncUrl`
+  instead of before it (§5d), and the third also catches `syncUrl` reading "what this request
+  sent" on a path that sends nothing (§5a).
 - **a toggle on a below-floor `?q=a` page leaves `q=a` in the address bar** (§5a's `syncUrl`
   rule) — falsified by gating `syncUrl` on `q_active` instead of on blankness, which strips the
   author's half-typed text on the JS path only
