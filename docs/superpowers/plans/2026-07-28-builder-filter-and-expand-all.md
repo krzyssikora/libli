@@ -798,7 +798,14 @@ def test_a_below_floor_query_renders_unfiltered_and_emits_no_filter_entry(
     filtered_course,
 ):
     """?q=a is a PRESENT q that is INACTIVE. Catches a q_active derived from
-    bool(q.strip()) rather than from the floor."""
+    bool(q.strip()) rather than from the floor.
+
+    The SECOND assertion is a carry-forward, not a gate for this task: at Task
+    3 `_info_entries` still has its interim truncation-only body, so no
+    `filter` entry can be emitted by anything and the assertion cannot fail.
+    It starts biting at Task 5 Step 3, which is what makes it worth writing
+    now rather than then.
+    """
     client, course, part, chap, hit, miss = filtered_course
     url = reverse("courses:manage_builder", kwargs={"slug": course.slug})
     body = client.get(url, {"q": "a", "open": "all"}).content.decode()
@@ -1924,13 +1931,17 @@ whose name happens to contain a `q` (`test_data_applied_q_…`,
 indistinguishable from "regression":
 
 ```bash
-uv run pytest tests/test_builder_filter_views.py -q -k \
+uv run pytest tests/test_builder_filter_views.py tests/test_builder_lazy_scopes.py -q -k \
   "preserve_q or percent_encode_q or redirect_sites or bespoke_redirect \
    or move_picker_round_trip or no_matching_titles \
-   or every_tree_form or delete_confirm_round_trip"
+   or every_tree_form or delete_confirm_round_trip \
+   or mutation_SUCCESS_under_a_filter or with_notice_under_a_filter \
+   or step_2_still_beats_step_3"
 ```
 
-Expected: all eight FAIL — no `q=trygo` anywhere in the markup.
+Expected: all eleven FAIL — no `q=trygo` anywhere in the markup, and the three
+`test_builder_lazy_scopes.py` rows from Step 9 red because the redirect drops
+`q` (Step 7) and `_filter_context` is not yet reached from those paths.
 
 - [ ] **Step 3: `toggle_href` preserves `q`**
 
@@ -2039,7 +2050,7 @@ reads `{% if open_present %}?open={{ open|urlencode }}{% else %}?open=session{% 
 both branches already emit a `?`, so `q` appends with `&` in either case.
 **Keep the `{% url %}` tag — do NOT substitute `{{ builder_url }}`:** that key
 comes from `_tree_context`, and `node_delete`'s GET context
-(`views_manage.py:645-656`) is `{course, node, counts, open_present, open}`, so
+(`views_manage.py:647-657`) is `{course, node, counts, open_present, open}`, so
 the variable would render empty and Cancel would point back at the
 delete-confirm path. Only the `q` clause is new.
 
@@ -2047,7 +2058,7 @@ delete-confirm path. Only the `q` clause is new.
     href="{% url 'courses:manage_builder' slug=course.slug %}{% if open_present %}?open={{ open|urlencode }}{% else %}?open=session{% endif %}{% if q %}&amp;q={{ q|urlencode }}{% endif %}"
 ```
 
-`node_delete`'s GET puts `_raw_q(request)` in its context (`:645-656`), beside
+`node_delete`'s GET puts `_raw_q(request)` in its context (`:647-657`), beside
 the existing `open_present`/`open` keys:
 
 ```python
@@ -2117,7 +2128,16 @@ def test_builder_with_notice_under_a_filter_returns_the_chains_open(client, db):
     rename = reverse("courses:manage_node_rename", kwargs={"slug": course.slug})
     resp = client.post(
         rename,
-        {"node": hit.pk, "token": "stale-token", "title": "Nowy", "q": "trygo"},
+        # A VALID ISO timestamp, not "stale-token": the repo idiom
+        # (tests/test_manage_node_ops.py:137, :347) exercises _check_token's
+        # COMPARISON. A non-parsing string only reaches it via
+        # parse_datetime returning None -- a different branch.
+        {
+            "node": hit.pk,
+            "token": "2000-01-01T00:00:00+00:00",
+            "title": "Nowy",
+            "q": "trygo",
+        },
     )
     assert resp.status_code == 409
     assert f'data-scope="{chap.pk}"' in resp.content.decode()
@@ -2164,8 +2184,20 @@ not the behaviour under test.
 - [ ] **Step 10: Run the tests**
 
 ```bash
-uv run pytest tests/test_builder_filter_views.py tests/test_manage_node_ops.py \n  tests/test_manage_move_picker.py tests/test_tree_badge.py \n  tests/test_manage_affordance.py tests/test_manage_duplicate_button.py \n  tests/test_builder_duplicate_unit.py tests/test_manage_node_duplicate.py -q
+uv run pytest tests/test_builder_filter_views.py tests/test_builder_lazy_scopes.py \
+  tests/test_manage_node_ops.py \
+  tests/test_manage_move_picker.py tests/test_tree_badge.py \
+  tests/test_manage_affordance.py tests/test_manage_duplicate_button.py \
+  tests/test_builder_duplicate_unit.py tests/test_manage_node_duplicate.py -q
 ```
+
+**`test_builder_lazy_scopes.py` is first for two reasons.** Step 9 appends
+three rows to it — the only view-level pins of the whole precedence
+restructure — and without it here they are never executed in the task that
+writes them. It is also the suite most exposed to *this* task: it asserts on
+the toggle href (a regex over `<a class="tree__toggle" href="…">`, which Step 3
+rewrites), on `_redirect_to_builder`'s output (Step 7) and on
+`node_confirm_delete.html`'s Cancel href (Step 8).
 
 The last five are the suites Task 0 baselined as at-risk from **this** task:
 `_tree_node.html` (badge), `_add_affordance.html` (affordance), the duplicate
@@ -2193,7 +2225,7 @@ Expected: PASS. `test_manage_node_ops` may need its expected redirect URLs updat
    and on that label alone. Per-form assertions are what make a single missed
    form visible.
 5. Drop the `"q": _raw_q(request)` key from `node_delete`'s GET context
-   (`:645-656`) → `test_the_delete_confirm_round_trip_stays_filtered` must
+   (`:647-657`) → `test_the_delete_confirm_round_trip_stays_filtered` must
    fail on the hidden-input assertion, because `{% if q %}` then takes its
    falsy arm.
 
@@ -2490,6 +2522,12 @@ redirect path — which no fragment test exercises.
     fc = _filter_context(request, course, cmap, mode="page", extra_open=force)
 ```
 
+**Only these three lines change.** The rest of `builder()` as Task 3 Step 6
+spelled it out — `_remember_open(request, course, fc.opened, q_active=fc.q_active)`,
+the `context` dict, the `_tree_context` update and the `render` — is unchanged.
+Task 3 wrote that body out in full precisely because a pasted partial loses
+something; do not let this snippet become a replacement for it.
+
 - [ ] **Step 6: Run the tests**
 
 ```bash
@@ -2741,8 +2779,12 @@ Step 1's copy list — it is what makes this rule observable at all.
 - [ ] **Step 6: Run the tests**
 
 ```bash
-uv run pytest tests/test_builder_filter_views.py tests/test_manage_node_ops.py \n  tests/test_tree_badge.py tests/test_manage_affordance.py -q
+uv run pytest tests/test_builder_filter_views.py tests/test_manage_node_ops.py \
+  tests/test_tree_badge.py tests/test_manage_affordance.py -q
+uv run pytest tests/test_e2e_builder_ws2.py -m e2e -q
 ```
+
+**The second command is why Step 4's `dragstart` edit is not shipped blind.** `test_e2e_builder_ws2.py` is the only suite that drives `dragstart`/`dragover`/`drop`, and a mis-merged `var grip` or a guard that fires on the ENABLED grip would otherwise ship six commits before anything notices. It exists today, so unlike `test_e2e_builder_filter.py` it cannot exit 4 here.
 
 `test_tree_badge.py` renders `_tree_node.html` directly and this task edits the
 grip inside it; `_move_buttons.html` sits in the same rows.
@@ -2866,12 +2908,20 @@ def test_expand_all_under_a_filter_returns_only_filtered_rows(filtered_course):
 
 
 def test_both_bulk_hrefs_carry_q(filtered_course):
+    """BOTH, as the name says. Asserting only expand-all leaves the collapse
+    anchor's `q` clause unguarded: no other row can catch its removal --
+    test_both_bulk_controls_stay_ENABLED checks only href/aria-disabled,
+    Task 13's over-ceiling row reads the collapse href AFTER rewriteBulkHrefs
+    has re-added `q` client-side, and the below-floor row asserts `q=` is
+    ABSENT. A no-JS author's Collapse all would silently drop the filter.
+    """
     client, course, *_ = filtered_course
     url = reverse("courses:manage_builder", kwargs={"slug": course.slug})
     for query in ("trygo", "a"):  # active AND present-but-inactive
         body = client.get(url, {"q": query}).content.decode()
-        expand = body.split("data-expand-all\n")[1].split(">")[0]
-        assert f"q={query}" in expand
+        for hook in ("data-expand-all\n", "data-collapse-all\n"):
+            tag = body.split(hook)[1].split(">")[0]
+            assert f"q={query}" in tag, (hook, query)
 ```
 
 In `tests/test_builder_styles.py`, add:
@@ -2915,7 +2965,13 @@ with the rest at Step 5; do not expect it red at Step 2.
 
 - [ ] **Step 3: Add the header controls**
 
-In `templates/courses/manage/builder.html`, inside `.builder__tree`'s `<header class="manage__head">`, after the `<h1>`:
+In `templates/courses/manage/builder.html`, inside `.builder__tree`'s
+`<header class="manage__head">` — **after the existing Import and Export
+anchors (`builder.html:18-19`), not immediately after the `<h1>`** (`:17`). The header
+already reads `<h1>` → Import → Export; appending gives
+`<h1>` → Import → Export → form → Expand all → Collapse all, which is the order
+Step 4's CSS comment describes. Inserting straight after the `<h1>` reverses
+it, and the only thing that would catch that is Step 5's screenshot:
 
 ```html
       <form class="builder__filter" method="get" action="{{ builder_url }}" data-filter>
@@ -2986,7 +3042,8 @@ Append to `courses/static/courses/css/builder.css`:
 - [ ] **Step 5: Run the tests, then screenshot**
 
 ```bash
-uv run pytest tests/test_builder_filter_views.py tests/test_builder_styles.py \n  tests/test_manage_builder.py -q
+uv run pytest tests/test_builder_filter_views.py tests/test_builder_styles.py \
+  tests/test_manage_builder.py -q
 uv run pytest tests/test_e2e_builder_tree_layout.py -m e2e -q
 ```
 
@@ -3007,7 +3064,14 @@ Then verify the header at **1400px and at a narrow width**, in **light and dark*
 
 - [ ] **Step 6: Falsify**
 
-Wrap the Clear anchor in `{% if q %}` → `test_the_clear_anchor_is_always_in_the_dom_and_hidden_when_blank` must fail. Restore.
+1. Wrap the Clear anchor in `{% if q %}` →
+   `test_the_clear_anchor_is_always_in_the_dom_and_hidden_when_blank` must fail.
+2. Remove `{% if q %}&amp;q={{ q|urlencode }}{% endif %}` from the
+   **collapse-all** anchor only → `test_both_bulk_hrefs_carry_q` must fail on
+   the `data-collapse-all` hook. Before that row asserted both hooks, this
+   mutation was invisible to the entire suite.
+
+Restore both.
 
 - [ ] **Step 7: Lint and commit**
 
@@ -3327,7 +3391,7 @@ Then update the four remaining senders to use it:
   yields `?node=5&q=X&q=X` and works only because `QueryDict.get` takes the
   last. And `setTreeParams` would additionally stamp `open`, which
   `_move_picker` never reads — it consumes `request.GET["node"]` and nothing
-  else (`views_manage.py:778-782`) — so on `mat-pp` after an expand-all every
+  else (`views_manage.py:779-783`) — so on `mat-pp` after an expand-all every
   picker GET would carry a ~1 KB comma-joined pk list, on a slice whose whole
   premise is request cost.
 
@@ -3350,8 +3414,17 @@ Then update the four remaining senders to use it:
 - [ ] **Step 6: Run the e2e**
 
 ```bash
-uv run pytest tests/test_e2e_builder_filter.py -m e2e -q
+uv run pytest tests/test_e2e_builder_filter.py tests/test_e2e_inline_rename.py \
+  tests/test_e2e_builder_ws2.py -m e2e -q
 ```
+
+**The two extra suites are load-bearing.** Step 4 rewrote `withOpen` — the
+body builder for *both* the submit handler (`:240`) and the drop handler
+(`:638`) — so from this commit on **every** rename, add, reorder, duplicate
+and drag POST carries a new `q` field. `test_e2e_inline_rename.py` drives the
+submit path and `test_e2e_builder_ws2.py` the drop path; Task 0 Step 2
+baselines both precisely because of this. Deferring them to Task 14 puts the
+breakage four commits from its cause.
 
 Expected: PASS.
 
@@ -3571,6 +3644,21 @@ uv run pytest tests/test_e2e_builder_filter.py -m e2e -q
 ```
 
 Expected: FAIL — typing does nothing; there is no filter handler.
+
+**Where all five of this task's blocks go.** Every other JS step in this plan
+names its site; this one needs it stated once, because one pair is
+order-sensitive. Put Steps 3, 4, 5 and 6 **together, in that order**, inside
+the IIFE after `scopeUrlFor` and before the toggle's `click` handler — Step 10
+of Task 10 already put `setTreeParams` and `effectiveQ` above that point, and
+`collectOpen`, `applyFragment`, `busyStart`, `notice`, `msg` and `syncUrl` are
+all defined earlier still.
+
+**Step 5's `var box = root.querySelector("#builder-q");` MUST precede Step 6's
+`if (box) { … }`.** Both execute at load. `var` hoists the declaration but not
+the assignment, so pasted in the other order `box` is `undefined`, the `if`
+never runs, all three entry points are silently unwired — and there is no
+error in the console. Every e2e in this task then fails with nothing to point
+at.
 
 - [ ] **Step 3: Add no-op stubs for the two later collaborators**
 
@@ -3833,6 +3921,30 @@ def test_clearing_the_filter_removes_the_filter_entry(page, live_server):
     assert page.locator('[data-info-key="filter"]').count() == 0
 
 
+def test_clearing_removes_the_filter_entry_while_truncation_SURVIVES(
+    page, live_server, monkeypatch
+):
+    """The case `none` cannot express. Over the ceiling the clear response's
+    header is `truncation;limit=0` -- NOT `none` -- so a client that only
+    replaces the keys it is given leaves a stale "Filtered: 1 / 1" over an
+    unfiltered tree, for good. The other clear row uses a small course where
+    the header really is `none`, so it passes through this bug.
+
+    Both assertions matter: the filter entry must go, and the truncation entry
+    must NOT be collateral damage from an over-eager clear.
+    """
+    monkeypatch.setattr("courses.builder_open.CEILING", 0)
+    owner = _make_pa_user("pa")
+    course, chap, hit, miss = _seed_two(owner)
+    _login(page, live_server, "pa")
+    page.goto(f"{live_server.url}{_builder(course)}?q=trygo")
+    page.wait_for_selector('[data-info-key="filter"]')
+    assert page.locator('[data-info-key="truncation"]').count() == 1
+    page.click("[data-filter-clear]")
+    page.wait_for_selector('[data-info-key="filter"]', state="detached")
+    assert page.locator('[data-info-key="truncation"]').count() == 1
+
+
 def test_the_empty_info_slot_is_not_rendered(page, live_server):
     """Both at load AND after a filter -> clear cycle: the second catches the
     JS leaving a whitespace text node, which makes the sunken bar permanent."""
@@ -3894,6 +4006,18 @@ invisible to every test in this plan and just leaves dead, misleading source.
     if (raw === null || !infoSlot) return;
 
     if (raw === "none") { infoSlot.replaceChildren(); return; }
+
+    // FULL STATE, not a delta. The header lists every entry that applies to
+    // the response, so a key it OMITS must be REMOVED -- otherwise, on a
+    // course over the ceiling, clearing the filter sends
+    // `truncation;limit=500` (not `none`), the loop below refreshes the
+    // truncation entry, and the stale `filter` <li> survives over an
+    // unfiltered tree, permanently. `none` only covers the case where NO key
+    // applies, which is why it cannot carry this on its own.
+    var incoming = raw.split(", ").map(function (e) { return e.split(";")[0]; });
+    infoSlot.querySelectorAll("[data-info-key]").forEach(function (li) {
+      if (incoming.indexOf(li.getAttribute("data-info-key")) === -1) li.remove();
+    });
 
     // grammar:  entry ( ", " entry )*   with   entry := key ( ";" name "=" value )*
     raw.split(", ").forEach(function (entry) {
@@ -4014,8 +4138,11 @@ already replaced the hand-built `body.set("open", …)` with
 - [ ] **Step 5: Run the e2e**
 
 ```bash
-uv run pytest tests/test_e2e_builder_filter.py -m e2e -q
+uv run pytest tests/test_e2e_builder_filter.py tests/test_e2e_builder_toggle.py \
+  -m e2e -q
 ```
+
+**`test_e2e_builder_toggle.py` is not optional here.** Step 4 replaced the toggle's entire `.then` chain -- the non-200 branch moved and stopped being a `throw`, the `Response` is now threaded through a nested `r.text().then(...)`, and the staleness guard was re-ordered. That suite is the one that drives this handler, and Task 0 Step 2 baselines it for exactly this reason; leaving it to Task 14 mixes the breakage in with M15's rewrite of the same chains.
 
 Expected: PASS.
 
@@ -4026,6 +4153,13 @@ Expected: PASS.
 3. Replace the `raw === "none"` clear's `infoSlot.replaceChildren()` with
    `infoSlot.innerHTML = "\n"` → `test_the_empty_info_slot_is_not_rendered`
    must fail on the second assertion.
+3b. Delete the full-state removal loop (the
+   `incoming.indexOf(...) === -1` block), leaving only the per-entry replace →
+   `test_clearing_removes_the_filter_entry_while_truncation_SURVIVES` must
+   fail. Then instead make the loop remove **every** `[data-info-key]`
+   unconditionally before re-inserting → the same row must fail on the
+   *truncation* assertion. Two mutations, two assertions: a delta client and
+   an over-eager clear are different bugs and this row catches both.
 
    **Attack the CLEAR, not the insert.** Inserting with
    `insertAdjacentHTML("beforeend", "\n<li>…</li>")` does not redden that row:
