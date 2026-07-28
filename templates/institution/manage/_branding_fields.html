@@ -148,12 +148,6 @@
     });
   }
 
-  // ── Logo: preview the chosen file, reflect the filename, honour Remove. ──
-  var logoInput = $("[data-logo-input]");
-  var logoThumb = $("[data-logo-thumb]");
-  var logoFilename = $("[data-logo-filename]");
-  var logoRemove = $("[data-logo-remove]");
-
   function showPreviewLogo(src) {
     if (!previewLogo) { return; }
     if (previewLogo.tagName === "IMG") {
@@ -162,32 +156,65 @@
     }
   }
 
-  if (logoInput) {
-    logoInput.addEventListener("change", function () {
-      var file = logoInput.files && logoInput.files[0];
-      if (logoFilename) {
-        logoFilename.textContent = file ? file.name : "";
-        logoFilename.hidden = !file;
-      }
-      if (!file) { return; }
-      if (logoRemove) { logoRemove.checked = false; }
-      var reader = new FileReader();
-      reader.onload = function (e) {
-        if (logoThumb && logoThumb.tagName === "IMG") { logoThumb.src = e.target.result; }
-        showPreviewLogo(e.target.result);
-      };
-      reader.readAsDataURL(file);
-    });
-  }
+  // ── File fields: preview the chosen file, echo the filename, honour Remove. ──
+  // One loop over the wrappers, so a second file field cannot cross-fire with the
+  // logo's hooks. Only the logo drives the identity-signature preview.
+  form.querySelectorAll("[data-file-field]").forEach(function (wrapper) {
+    var input = wrapper.querySelector("[data-file-input]");
+    var filename = wrapper.querySelector("[data-file-filename]");
+    var remove = wrapper.querySelector("[data-file-remove]");
+    var isLogo = wrapper.dataset.fileField === "logo";
 
-  if (logoRemove) {
-    logoRemove.addEventListener("change", function () {
-      if (logoRemove.checked && previewLogo && previewLogo.tagName === "IMG") {
-        previewLogo.hidden = true;
-      } else if (previewLogo && previewLogo.tagName === "IMG" && previewLogo.getAttribute("src")) {
-        previewLogo.hidden = false;
+    function currentThumb() {
+      // Re-query rather than caching: the <div> is REPLACED on the first pick,
+      // and a cached reference would then point at a detached node, so only the
+      // first pick would ever preview.
+      return wrapper.querySelector("[data-file-thumb]");
+    }
+
+    function showThumb(src) {
+      var thumb = currentThumb();
+      if (!thumb) { return; }
+      if (thumb.tagName !== "IMG") {
+        var img = document.createElement("img");
+        img.className = thumb.className.replace("branding-file__thumb--empty", "").trim();
+        img.setAttribute("data-file-thumb", "");
+        img.alt = wrapper.dataset.fileCurrentLabel || "";
+        // No role/aria-label: an <img> has an image role already, and aria-label
+        // would compete with alt. Those live only on the empty <div>.
+        thumb.replaceWith(img);
+        thumb = img;
       }
-    });
-  }
+      thumb.src = src;
+    }
+
+    if (input) {
+      input.addEventListener("change", function () {
+        var file = input.files && input.files[0];
+        if (filename) {
+          filename.textContent = file ? file.name : "";
+          filename.hidden = !file;
+        }
+        if (!file) { return; }
+        if (remove) { remove.checked = false; }
+        var reader = new FileReader();
+        reader.onload = function (e) {
+          showThumb(e.target.result);
+          if (isLogo) { showPreviewLogo(e.target.result); }
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    if (remove && isLogo) {
+      remove.addEventListener("change", function () {
+        if (remove.checked && previewLogo && previewLogo.tagName === "IMG") {
+          previewLogo.hidden = true;
+        } else if (previewLogo && previewLogo.tagName === "IMG" && previewLogo.getAttribute("src")) {
+          previewLogo.hidden = false;
+        }
+      });
+    }
+  });
 }());
 </script>

@@ -261,3 +261,20 @@ def test_branding_form_logo_no_remove_when_no_logo():
     html = str(form["logo"])
 
     assert 'name="logo-clear"' not in html
+
+
+def test_branding_file_input_renders_field_scoped_hooks(db):
+    """The generalized widget scopes its JS hooks per field so a second file field
+    cannot cross-fire with the logo's."""
+    html = str(BrandingForm(instance=Institution.load())["logo"])
+    assert 'data-file-field="logo"' in html
+    assert "data-file-input" in html
+    assert "data-file-thumb" in html
+    assert "data-logo-input" not in html
+
+
+def test_branding_file_input_logo_copy_is_unchanged(db):
+    """The refactor must not retire the five existing logo msgids."""
+    html = str(BrandingForm(instance=Institution.load())["logo"])
+    assert "Upload logo" in html
+    assert "No logo yet" in html
