@@ -10,7 +10,10 @@
          data-node-move-url="{% url 'courses:manage_node_move' slug=course.slug %}"
          data-msg-conflict="{% trans 'This changed elsewhere — reloaded to the latest.' %}"
          data-msg-illegal="{% trans "That move isn't allowed here." %}"
-         data-msg-network="{% trans 'Network error — please try again.' %}">
+         data-msg-network="{% trans 'Network error — please try again.' %}"
+         data-applied-q="{{ q }}"
+         data-q-min="{{ q_min }}"
+         {% if expand_all_disabled %}data-expand-all-disabled{% endif %}>
   {% include "courses/manage/_icon_sprite.html" %}
   <div class="builder__tree">
     <header class="manage__head">

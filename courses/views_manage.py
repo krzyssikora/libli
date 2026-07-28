@@ -1,3 +1,5 @@
+from dataclasses import dataclass
+
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.decorators import permission_required
 from django.core.exceptions import PermissionDenied
@@ -16,6 +18,7 @@ from django.utils.translation import gettext_lazy
 from django.views.decorators.http import require_POST
 
 from courses import builder as builder_svc
+from courses import builder_filter
 from courses import builder_open  # for builder_open.CEILING -- see below
 from courses.access import can_manage_course
 from courses.access import get_node_or_404  # reuse 1a's IDOR-safe resolver
@@ -173,16 +176,132 @@ def _open_descendants(cmap, ids):
     return out
 
 
-def _tree_context(course, cmap, ids):
-    """Keys every renderer of tree markup must supply, or toggle_href silently
-    sees nothing on fragment renders. Takes no `request`: everything it needs
-    is already resolved."""
+def _raw_q(request):
+    """POST then GET. Named because NINE non-rendering sites need their own
+    read: the six _redirect_to_builder mutation sites, node_delete's GET,
+    _move_picker (NOT node_move's GET, which only delegates to it), and
+    node_move's mode=="reorder" guard. Without one helper the resolution
+    rule is re-expressed ten times.
+
+    Mutation forms carry a hidden `q` in the body; toggles, manage_node_scope
+    and manage_tree carry it in the query string. The body wins because the
+    JS collector sets it there.
+    """
+    if "q" in request.POST:
+        return request.POST["q"]
+    return request.GET.get("q", "")
+
+
+@dataclass(frozen=True)
+class FilterContext:
+    """A record, not a tuple: it carries seven things and two of them are
+    easy to leave out and expensive to leave out.
+
+    q_raw -- if this is not handed back, all three renderers re-do the
+    POST-then-GET read to populate the `q` context key, reinstating the
+    resolution rule in three places. It is the RAW value, not the normalized
+    one, because a half-typed ?q=a must survive into the input and every href.
+
+    opened AND open_ids -- _tree_context must render from the union with
+    effect 1, while _remember_open must read `opened` untouched, or builder()
+    persists forced-open pks as though the author had chosen them.
+    """
+
+    cmap: dict
+    opened: builder_open.OpenSet
+    open_ids: frozenset
+    shown: int
+    total: int
+    q_active: bool
+    q_raw: str
+
+
+def _filter_context(request, course, cmap, *, mode, extra_open=()):
+    """The one owner of q resolution, the restricted map, effect 2 and the
+    open set.
+
+    `mode` is required and has no default: the three callers need "page",
+    "notice" and "fragment", and open_ids's own default is "fragment" -- so a
+    mode-less helper would silently put builder() on the fragment row and
+    destroy both the session seed and the <=150-node rule, on the one path
+    where they matter.
+    """
+    q_raw = _raw_q(request)
+    restricted, chains, shown, total, q_active = builder_filter.filtered_map(
+        cmap, q_raw
+    )
+    # The chain set when q is ACTIVE, not when it is non-empty: a filter that
+    # matches nothing yields an EMPTY chain set, and passing None there would
+    # fall through to steps 4-6 (spec 3b).
+    opened = _open_ids(
+        request, course, cmap, mode=mode, q_chain=chains if q_active else None
+    )
+    ids = set(opened.ids) | _extra_container_pks(extra_open, cmap)
+    _apply_effect_two(restricted, extra_open, cmap)
+    return FilterContext(
+        cmap=restricted,
+        opened=opened,
+        open_ids=frozenset(ids),
+        shown=shown,
+        total=total,
+        q_active=q_active,
+        q_raw=q_raw,
+    )
+
+
+def _apply_effect_two(restricted, extra_open, full_cmap):
+    """Re-insert each forced pk's node into the RESTRICTED map.
+
+    `setdefault`, not `restricted[...]`: _children_map only creates a key for
+    a parent that HAS children (views_manage.py:139-141), and the restricted
+    map is built by regrouping the kept nodes -- so a matched container with
+    no matching descendants has no key of its own, and a filter that matched
+    nothing has no None key. Spec 1d ships an add affordance into exactly
+    those empty scopes, so "filter for a chapter, add a unit inside it" would
+    raise KeyError -> 500.
+
+    Applies to EVERY pk regardless of kind, units included; effect 1 keeps
+    the container-only filter. Splitting the kind test across the two effects
+    is what makes both pinned requirements satisfiable at once.
+    """
+    if not extra_open:
+        return
+    index = builder_open.nodes_by_pk(full_cmap)
+    for pk in extra_open:
+        node = index.get(pk)
+        if node is None:
+            continue
+        rows = restricted.setdefault(node.parent_id, [])
+        if any(existing.pk == node.pk for existing in rows):
+            continue  # idempotent: a duplicate row breaks the DOM collector
+        rows.append(node)
+        rows.sort(key=lambda n: (n.order, n.pk))
+
+
+def _tree_context(course, cmap, ids, *, q, filtered, expand_all_disabled, q_min):
+    """`cmap` here is the FULL map: _open_descendants builds the descendant
+    sets a COLLAPSE href subtracts, and over the restricted map an open
+    descendant the filter excluded would survive in the emitted `open` and
+    spring back the moment the filter is cleared.
+    """
     return {
         "open_ids": ids,
         "open_joined": ",".join(str(p) for p in sorted(ids)),
         "open_descendants": _open_descendants(cmap, ids),
         "builder_url": reverse("courses:manage_builder", kwargs={"slug": course.slug}),
+        "q": q,
+        "filtered": filtered,
+        "expand_all_disabled": expand_all_disabled,
+        "q_min": q_min,
     }
+
+
+def _expand_all_disabled(cmap):
+    """Read CEILING THROUGH the module: tests monkeypatch
+    courses.builder_open.CEILING, and a by-value import desyncs this guard
+    from the patched number -- the same trap _info_entries documents.
+    """
+    return len(builder_open.container_pks(cmap)) > builder_open.CEILING
 
 
 def remember_node(request, slug, pk, key=LAST_NODE_KEY):
@@ -248,15 +367,27 @@ def builder(request, slug):
     if not can_manage_course(request.user, course):
         raise PermissionDenied
     cmap = _children_map(course)
-    opened = _open_ids(request, course, cmap, mode="page")
-    _remember_open(request, course, opened, q_active=False)
+    fc = _filter_context(request, course, cmap, mode="page")
+    _remember_open(request, course, fc.opened, q_active=fc.q_active)
     context = {
         "course": course,
-        "children_map": cmap,
-        "top_nodes": cmap.get(None, []),
-        "info": _info_entries(opened),
+        "children_map": fc.cmap,
+        "top_nodes": fc.cmap.get(None, []),
+        "info": _info_entries(
+            fc.opened, q_active=fc.q_active, shown=fc.shown, total=fc.total
+        ),
     }
-    context.update(_tree_context(course, cmap, opened.ids))
+    context.update(
+        _tree_context(
+            course,
+            cmap,
+            fc.open_ids,
+            q=fc.q_raw,
+            filtered=fc.q_active,
+            expand_all_disabled=_expand_all_disabled(cmap),
+            q_min=builder_filter.MIN_QUERY,
+        )
+    )
     return render(request, "courses/manage/builder.html", context)
 
 
@@ -330,17 +461,16 @@ def _render_scope(request, course, scope_ref, *, extra_open=()):
     """Re-render a single scope <ol> (root carries data-scope). scope_ref is a parent
     pk or 'top'. Used for 200 success and 409 fresh-fragment on single-scope ops."""
     cmap = _children_map(course)
-    opened = _open_ids(request, course, cmap, mode="fragment")
-    ids = set(opened.ids) | _extra_container_pks(extra_open, cmap)
+    fc = _filter_context(request, course, cmap, mode="fragment", extra_open=extra_open)
     if scope_ref == "top":
         nodes, updated, parent_kind = (
-            cmap.get(None, []),
+            fc.cmap.get(None, []),
             course.updated.isoformat(),
             None,
         )
     else:
         parent = ContentNode.objects.filter(pk=scope_ref, course=course).first()
-        nodes = cmap.get(int(scope_ref), [])
+        nodes = fc.cmap.get(int(scope_ref), [])
         updated = parent.updated.isoformat() if parent else course.updated.isoformat()
         parent_kind = parent.kind if parent else None
     context = {
@@ -348,15 +478,30 @@ def _render_scope(request, course, scope_ref, *, extra_open=()):
         "scope_updated": updated,
         "parent_kind": parent_kind,
         "nodes": nodes,
-        "children_map": cmap,
-        "course": course,
+        "children_map": fc.cmap,  # RESTRICTED -- the recursive descent
+        "course": course,  # and _tree_toggle's counts read this
     }
-    context.update(_tree_context(course, cmap, ids))
+    context.update(
+        _tree_context(
+            course,
+            cmap,  # the FULL map, always
+            fc.open_ids,
+            q=fc.q_raw,
+            filtered=fc.q_active,
+            expand_all_disabled=_expand_all_disabled(cmap),
+            q_min=builder_filter.MIN_QUERY,
+        )
+    )
     return render(request, "courses/manage/_scope.html", context)
 
 
-def _info_entries(opened):
-    """Keyed, so an incoming entry REPLACES rather than stacks."""
+def _info_entries(opened, *, q_active=False, shown=0, total=0):
+    """Interim: accepts the filter keywords but still emits only the
+    truncation entry. Task 5 Step 3 replaces the body, adds the `code` key
+    and DROPS these defaults (by then all three call sites pass them).
+
+    Keyed, so an incoming entry REPLACES rather than stacks.
+    """
     if not opened.truncated:
         return []
     return [
@@ -734,15 +879,27 @@ def _builder_with_notice(request, course, message, status):
     """No-JS error response: re-render the WHOLE builder page with a notice (spec
     §No-JS fallback: 'stale token re-renders the full builder page with the notice')."""
     cmap = _children_map(course)
-    opened = _open_ids(request, course, cmap, mode="notice")
+    fc = _filter_context(request, course, cmap, mode="notice")
     context = {
         "course": course,
-        "children_map": cmap,
-        "top_nodes": cmap.get(None, []),
+        "children_map": fc.cmap,
+        "top_nodes": fc.cmap.get(None, []),
         "notice": message,
-        "info": _info_entries(opened),
+        "info": _info_entries(
+            fc.opened, q_active=fc.q_active, shown=fc.shown, total=fc.total
+        ),
     }
-    context.update(_tree_context(course, cmap, opened.ids))
+    context.update(
+        _tree_context(
+            course,
+            cmap,  # the FULL map, always
+            fc.open_ids,
+            q=fc.q_raw,
+            filtered=fc.q_active,
+            expand_all_disabled=_expand_all_disabled(cmap),
+            q_min=builder_filter.MIN_QUERY,
+        )
+    )
     return render(request, "courses/manage/builder.html", context, status=status)
 
 
