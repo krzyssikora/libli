@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-27 18:23+0200\n"
+"POT-Creation-Date: 2026-07-28 09:43+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -221,7 +221,7 @@ msgstr "Eksport dziennika ocen"
 #: .\core\help.py:268 .\notes\templates\notes\course_notes.html:9
 #: .\notes\templates\notes\overview.html:3
 #: .\notes\templates\notes\overview.html:10
-#: .\tags\templates\tags\my_tags.html:7 .\templates\base.html:77
+#: .\tags\templates\tags\my_tags.html:7 .\templates\base.html:78
 msgid "Tags & notes"
 msgstr "Tagi i notatki"
 
@@ -246,13 +246,13 @@ msgstr "Branding i ustawienia platformy"
 msgid "SSO (OIDC)"
 msgstr "Logowanie SSO (OIDC)"
 
-#: .\core\help.py:310 .\courses\forms.py:81 .\templates\base.html:99
+#: .\core\help.py:310 .\courses\forms.py:81 .\templates\base.html:100
 #: .\templates\courses\manage\subject_list.html:3
 #: .\templates\courses\manage\subject_list.html:7
 msgid "Subjects"
 msgstr "Przedmioty"
 
-#: .\core\help.py:317 .\templates\base.html:102
+#: .\core\help.py:317 .\templates\base.html:103
 #: .\templates\grouping\cohort_list.html:4
 msgid "Cohorts"
 msgstr "Kohorty"
@@ -268,12 +268,12 @@ msgstr "Kreator pierwszego uruchomienia"
 #: .\core\help.py:338
 #: .\notifications\templates\notifications\_bell_panel.html:4
 #: .\notifications\templates\notifications\list.html:6
-#: .\templates\base.html:120 .\templates\base.html:124
+#: .\templates\base.html:121 .\templates\base.html:125
 #: .\templates\institution\manage\_tabs.html:12
 msgid "Notifications"
 msgstr "Powiadomienia"
 
-#: .\core\views.py:137
+#: .\core\views.py:142
 msgid "Your settings have been saved."
 msgstr "Twoje ustawienia zostały zapisane."
 
@@ -2352,8 +2352,8 @@ msgstr[0] ""
 "%(n)s link wewnętrzny nie miał celu w tym archiwum i został zamieniony na "
 "zwykły tekst."
 msgstr[1] ""
-"%(n)s linki wewnętrzne nie miały celu w tym archiwum i zostały zamienione "
-"na zwykły tekst."
+"%(n)s linki wewnętrzne nie miały celu w tym archiwum i zostały zamienione na "
+"zwykły tekst."
 msgstr[2] ""
 "%(n)s linków wewnętrznych nie miało celu w tym archiwum i zostało "
 "zamienionych na zwykły tekst."
@@ -2392,7 +2392,7 @@ msgstr "Kod klasy w rejestrze zewnętrznym"
 msgid "Class code in your external register."
 msgstr "Kod klasy w Twoim rejestrze zewnętrznym."
 
-#: .\grouping\forms.py:50 .\templates\base.html:82
+#: .\grouping\forms.py:50 .\templates\base.html:83
 #: .\templates\grouping\group_list.html:5
 #: .\templates\grouping\my_groups.html:10
 msgid "Groups"
@@ -2422,82 +2422,144 @@ msgstr "Nie można usunąć kohorty domyślnej; najpierw wskaż inną jako domy�
 msgid "All groups in a collection must belong to the collection's course."
 msgstr "Wszystkie grupy w kolekcji muszą należeć do kursu tej kolekcji."
 
-#: .\institution\forms.py:59
+#: .\institution\forms.py:53
+msgid "Current logo"
+msgstr "Aktualne logo"
+
+#: .\institution\forms.py:54
+msgid "No logo yet"
+msgstr "Brak logo"
+
+#: .\institution\forms.py:55
+msgid "Replace logo"
+msgstr "Zastąp logo"
+
+#: .\institution\forms.py:56
+msgid "Upload logo"
+msgstr "Prześlij logo"
+
+#: .\institution\forms.py:57
+msgid "Remove logo"
+msgstr "Usuń logo"
+
+#: .\institution\forms.py:84
+msgid "Current favicon"
+msgstr "Bieżąca ikona strony"
+
+#: .\institution\forms.py:85
+msgid "No favicon yet"
+msgstr "Brak ikony strony"
+
+#: .\institution\forms.py:86
+msgid "Replace favicon"
+msgstr "Zmień ikonę strony"
+
+#: .\institution\forms.py:87
+msgid "Upload favicon"
+msgstr "Prześlij ikonę strony"
+
+#: .\institution\forms.py:88
+msgid "Remove favicon"
+msgstr "Usuń ikonę strony"
+
+#: .\institution\forms.py:112
 msgid "Enter a 6-digit hex colour like #147E78."
 msgstr "Podaj kolor 6-cyfrowym kodem hex, np. #147E78."
 
-#: .\institution\forms.py:69
+#: .\institution\forms.py:122
 msgid "Enabled languages"
 msgstr "Włączone języki"
 
-#: .\institution\forms.py:72
+#: .\institution\forms.py:125
 msgid "Default language"
 msgstr "Domyślny język"
 
-#: .\institution\forms.py:74
+#: .\institution\forms.py:127
 msgid "Primary colour"
 msgstr "Kolor podstawowy"
 
-#: .\institution\forms.py:75
+#: .\institution\forms.py:128
 msgid "Accent colour"
 msgstr "Kolor uzupełniający"
 
-#: .\institution\forms.py:108
+#: .\institution\forms.py:172
 msgid "Enable at least one language."
 msgstr "Włącz co najmniej jeden język."
 
-#: .\institution\forms.py:116
+#: .\institution\forms.py:180
 msgid "Logo must be 2 MB or smaller."
 msgstr "Logo musi mieć rozmiar 2 MB lub mniejszy."
 
-#: .\institution\forms.py:131
+#: .\institution\forms.py:195
+msgid "The favicon must be 256 KB or smaller."
+msgstr "Ikona strony może mieć najwyżej 256 KB."
+
+#: .\institution\forms.py:199
+msgid "The favicon must be a .png file."
+msgstr "Ikona strony musi być plikiem .png."
+
+#: .\institution\forms.py:202
+msgid "The favicon must be a PNG image."
+msgstr "Ikona strony musi być obrazem PNG."
+
+#: .\institution\forms.py:208
+msgid "The favicon must be square - crop it to equal width and height first."
+msgstr ""
+"Ikona strony musi być kwadratowa - najpierw przytnij ją do równej szerokości "
+"i wysokości."
+
+#: .\institution\forms.py:215
+msgid "The favicon must be between 192 and 512 pixels."
+msgstr "Ikona strony musi mieć od 192 do 512 pikseli."
+
+#: .\institution\forms.py:232
 msgid "Default language must be an enabled language."
 msgstr "Domyślny język musi być językiem włączonym."
 
-#: .\institution\forms.py:158
+#: .\institution\forms.py:259
 msgid "Allowed email domains"
 msgstr "Dozwolone domeny e-mail"
 
-#: .\institution\forms.py:159
+#: .\institution\forms.py:260
 msgid "One domain per line. Leave blank to allow any domain."
 msgstr ""
 "Jedna domena w wierszu. Pozostaw puste, aby zezwolić na dowolną domenę."
 
-#: .\institution\forms.py:182
+#: .\institution\forms.py:283
 #, python-format
 msgid "\"%(d)s\" is not a valid domain."
 msgstr "\"%(d)s\" nie jest prawidłową domeną."
 
-#: .\institution\forms.py:197
+#: .\institution\forms.py:298
 msgid "Allowed image types"
 msgstr "Dozwolone typy obrazów"
 
-#: .\institution\forms.py:202
+#: .\institution\forms.py:303
 msgid "Allowed video types"
 msgstr "Dozwolone typy wideo"
 
-#: .\institution\forms.py:207
+#: .\institution\forms.py:308
 msgid "Max image size (MiB)"
 msgstr "Maksymalny rozmiar obrazu (MiB)"
 
-#: .\institution\forms.py:208 .\institution\forms.py:214
+#: .\institution\forms.py:309 .\institution\forms.py:315
 #, python-brace-format
 msgid "Up to {n} MiB."
 msgstr "Do {n} MiB."
 
-#: .\institution\forms.py:213
+#: .\institution\forms.py:314
 msgid "Max video size (MiB)"
 msgstr "Maksymalny rozmiar wideo (MiB)"
 
-#: .\institution\forms.py:229
+#: .\institution\forms.py:330
 msgid "Enable at least one image type."
 msgstr "Włącz co najmniej jeden typ obrazu."
 
-#: .\institution\forms.py:235
+#: .\institution\forms.py:336
 msgid "Enable at least one video type."
 msgstr "Włącz co najmniej jeden typ wideo."
 
-#: .\institution\forms.py:243
+#: .\institution\forms.py:344
 msgid "Retention window (days)"
 msgstr "Okno przechowywania (dni)"
 
@@ -2521,7 +2583,26 @@ msgstr "Ciemny"
 msgid "Auto"
 msgstr "Automatyczny"
 
-#: .\institution\models.py:53
+#: .\institution\models.py:25
+msgid "Logo"
+msgstr "Logo"
+
+#: .\institution\models.py:31
+msgid "Favicon"
+msgstr "Ikona strony (favicon)"
+
+#: .\institution\models.py:33
+msgid ""
+"Square PNG, 192-512 px, up to 256 KB. Replaces the libli icon in browser "
+"tabs and on home screens. Transparent areas show as black on iOS home "
+"screens - use a solid background for best results."
+msgstr ""
+"Kwadratowy plik PNG, 192-512 px, do 256 KB. Zastępuje ikonę libli w kartach "
+"przeglądarki i na ekranach głównych. Przezroczyste obszary wyświetlają się "
+"na czarno na ekranie głównym iOS - dla najlepszego efektu użyj jednolitego "
+"tła."
+
+#: .\institution\models.py:66
 msgid ""
 "Delete read notifications older than this many days, measured from when each "
 "notification was created. 0 keeps read notifications indefinitely; orphaned "
@@ -3200,7 +3281,7 @@ msgstr ""
 msgid "Back to main page"
 msgstr "Powrót do strony głównej"
 
-#: .\templates\403.html:25 .\templates\base.html:142
+#: .\templates\403.html:25 .\templates\base.html:143
 #: .\templates\core\landing.html:12
 msgid "Log in"
 msgstr "Zaloguj się"
@@ -3406,7 +3487,7 @@ msgstr "Użytkownicy"
 
 #: .\templates\accounts\manage\invitations.html:8
 #: .\templates\accounts\manage\people.html:3
-#: .\templates\accounts\manage\people.html:8 .\templates\base.html:105
+#: .\templates\accounts\manage\people.html:8 .\templates\base.html:106
 msgid "People"
 msgstr "Osoby"
 
@@ -3563,56 +3644,56 @@ msgstr ""
 "Twoje konto nie jest autoryzowane na tej platformie — skontaktuj się z "
 "administratorem."
 
-#: .\templates\allauth\layouts\entrance.html:21 .\templates\base.html:71
+#: .\templates\allauth\layouts\entrance.html:21 .\templates\base.html:72
 msgid "Toggle theme"
 msgstr "Przełącz motyw"
 
-#: .\templates\base.html:75
+#: .\templates\base.html:76
 msgid "Menu"
 msgstr "Menu"
 
-#: .\templates\base.html:76
+#: .\templates\base.html:77
 #: .\templates\institution\manage\_branding_fields.html:16
 msgid "Primary"
 msgstr "Główne"
 
-#: .\templates\base.html:79 .\templates\core\home.html:45
+#: .\templates\base.html:80 .\templates\core\home.html:45
 #: .\templates\courses\manage\course_list.html:3
 #: .\templates\courses\manage\course_list.html:7
 msgid "Studio"
 msgstr "Studio"
 
-#: .\templates\base.html:85 .\templates\core\landing.html:32
+#: .\templates\base.html:86 .\templates\core\landing.html:32
 #: .\templates\help\doc.html:21 .\templates\help\index.html:3
 #: .\templates\help\index.html:7
 msgid "Help"
 msgstr "Pomoc"
 
-#: .\templates\base.html:95
+#: .\templates\base.html:96
 msgid "Admin"
 msgstr "Administracja"
 
-#: .\templates\base.html:109 .\templates\core\home.html:67
+#: .\templates\base.html:110 .\templates\core\home.html:67
 #: .\templates\institution\manage\settings.html:3
 #: .\templates\institution\manage\settings.html:8
 msgid "Institution settings"
 msgstr "Ustawienia instytucji"
 
-#: .\templates\base.html:110
+#: .\templates\base.html:111
 msgid "Setup wizard"
 msgstr "Kreator konfiguracji"
 
-#: .\templates\base.html:111
+#: .\templates\base.html:112
 msgid "SIS webhook guide"
 msgstr "Przewodnik webhooka SIS"
 
-#: .\templates\base.html:134 .\templates\core\home.html:65
+#: .\templates\base.html:135 .\templates\core\home.html:65
 #: .\templates\core\user_settings.html:3 .\templates\core\user_settings.html:8
 #: .\templates\courses\manage\editor\_unit_settings.html:4
 msgid "Settings"
 msgstr "Ustawienia"
 
-#: .\templates\base.html:137
+#: .\templates\base.html:138
 msgid "Log out"
 msgstr "Wyloguj"
 
@@ -6205,19 +6286,19 @@ msgstr "Twoja instytucja"
 msgid "Accent"
 msgstr "Uzupełniający"
 
-#: .\templates\institution\manage\_branding_fields.html:44
+#: .\templates\institution\manage\_branding_fields.html:51
 msgid "Brand colours"
 msgstr "Kolory marki"
 
-#: .\templates\institution\manage\_branding_fields.html:52
+#: .\templates\institution\manage\_branding_fields.html:59
 msgid "Pick primary colour"
 msgstr "Wybierz kolor podstawowy"
 
-#: .\templates\institution\manage\_branding_fields.html:64
+#: .\templates\institution\manage\_branding_fields.html:71
 msgid "Pick accent colour"
 msgstr "Wybierz kolor uzupełniający"
 
-#: .\templates\institution\manage\_branding_fields.html:76
+#: .\templates\institution\manage\_branding_fields.html:83
 msgid "Localization"
 msgstr "Lokalizacja"
 
@@ -6381,26 +6462,6 @@ msgstr "MiB"
 #: .\templates\institution\manage\_uploads_tab.html:59
 msgid "Save upload settings"
 msgstr "Zapisz ustawienia przesyłania"
-
-#: .\templates\institution\manage\widgets\logo_clearable.html:25
-msgid "Current logo"
-msgstr "Aktualne logo"
-
-#: .\templates\institution\manage\widgets\logo_clearable.html:27
-msgid "No logo yet"
-msgstr "Brak logo"
-
-#: .\templates\institution\manage\widgets\logo_clearable.html:31
-msgid "Replace logo"
-msgstr "Zastąp logo"
-
-#: .\templates\institution\manage\widgets\logo_clearable.html:31
-msgid "Upload logo"
-msgstr "Prześlij logo"
-
-#: .\templates\institution\manage\widgets\logo_clearable.html:38
-msgid "Remove logo"
-msgstr "Usuń logo"
 
 #: .\templates\institution\setup\_wizard.html:3
 #: .\templates\institution\setup\_wizard.html:12
