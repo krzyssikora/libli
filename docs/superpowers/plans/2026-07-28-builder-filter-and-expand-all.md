@@ -617,7 +617,19 @@ def small_course_cmap(client, db):
 uv run pytest tests/test_builder_open_ids.py -q -k "q_chain or open_session_never"
 ```
 
-Expected: FAIL on `test_q_chain_beats_the_open_session_sentinel` and `test_q_chain_beats_the_notice_carrier` (both return the stored set).
+Expected: a **mixed** run.
+
+- RED: `test_q_chain_beats_the_open_session_sentinel` and
+  `test_q_chain_beats_the_notice_carrier` — both return the stored set,
+  because step 1 and the notice read still fire before the `q_chain` block.
+- GREEN already, against the shipped `open_ids`:
+  `test_an_explicit_enumeration_still_beats_q_chain` (step 2 already wins),
+  `test_q_chain_matters_at_the_function_boundary` (the parameter already
+  exists and step 3 already sits below step 2) and
+  `test_open_session_never_reaches_parse_in_page_mode` (the shipped sentinel
+  branch already sets `present = False` on the miss). All three are
+  carry-forward guards that the restructure must not break — which is exactly
+  what Step 6's falsifications exercise.
 
 - [ ] **Step 3: Restructure `open_ids`**
 
@@ -905,7 +917,21 @@ Expected: FAIL — no `data-applied-q` in the markup.
 
 - [ ] **Step 3: Add `_raw_q` and `FilterContext`**
 
-Add `from dataclasses import dataclass` and `from courses import builder_filter` to the import block at the **top** of `courses/views_manage.py` (E402 rejects a mid-file import; isort is force-single-line). Then, near the other helpers:
+Two imports, and **neither one appends to the end of the block** — isort's
+`I001` fails this task's own Step 10 `ruff check` if either lands in the wrong
+section, and `ruff format` does not reorder imports:
+
+- `from dataclasses import dataclass` opens a **new first section**, separated
+  by a blank line from the django block. `courses/views_manage.py` currently
+  has **no stdlib imports at all** — line 1 is
+  `from django.contrib.auth.decorators import login_required` — so this is the
+  file's first, not an addition to an existing one.
+- `from courses import builder_filter` goes **between**
+  `from courses import builder as builder_svc` and
+  `from courses import builder_open`, where it sorts.
+
+(E402 rejects a mid-file import; isort is force-single-line.) Then, near the
+other helpers:
 
 ```python
 def _raw_q(request):
@@ -1654,9 +1680,11 @@ At the end of `_render_scope`, after the `render(...)` call:
     entries = _info_entries(
         fc.opened, q_active=fc.q_active, shown=fc.shown, total=fc.total
     )
-    # ALWAYS set, `none` when nothing applies. The parent spec pairs "absent
-    # when none apply" with "an absent header clears all keys", and the client
-    # cannot implement that pair: the submit handler serves both a rename
+    # ALWAYS set, and FULL STATE: every entry that applies to this response,
+    # so the client can remove a key this header omits (Task 12). `none` when
+    # nothing applies. The parent spec pairs "absent when none apply" with
+    # "an absent header clears all keys", and the client cannot implement
+    # that pair: the submit handler serves both a rename
     # (_rename_result.html, no header, must NOT clear) and an add (a scope, no
     # codes, MUST clear), and those are byte-identical from its side.
     resp["X-Builder-Info"] = ", ".join(e["code"] for e in entries) or "none"
@@ -1910,8 +1938,15 @@ def test_the_delete_confirm_round_trip_stays_filtered(filtered_course):
     confirm = reverse("courses:manage_node_delete", kwargs={"slug": course.slug})
     body = client.get(confirm, {"node": miss.pk, "q": "trygo"}).content.decode()
 
-    # 1. the hidden input the confirm POST will carry
-    form = body.split("<form", 1)[1].split("</form>", 1)[0]
+    # 1. the hidden input the confirm POST will carry.
+    #    Anchor on the form's OWN action, never on the first `<form` in the
+    #    document: node_confirm_delete.html extends base.html, which emits
+    #    `<form class="lang-switch">` at :60 -- ~90 lines before
+    #    `{% block content %}` at :152 -- so a naive split returns the
+    #    language switcher and both assertions fail on a CORRECT
+    #    implementation.
+    form = body.split(f'action="{confirm}"', 1)[1].split("</form>", 1)[0]
+    assert 'name="token"' in form, "sliced the wrong form; re-derive the anchor"
     assert 'name="q"' in form and 'value="trygo"' in form
 
     # 2. the Cancel href. No `open` in the GET, so the template takes its
@@ -2994,10 +3029,11 @@ Task 5, turning a red gate into a mixed run where "expected red" and
 `open=all&q=trygo` and asserts the restricted map renders, and both the route
 (Task 4) and the restricted map (Task 3) shipped earlier. Expect it green;
 everything else in the expression is red.
-`test_the_info_slot_hides_when_empty_via_empty_not_hidden` is in the same
-position: it guards the `.builder__info:empty` rule that **shipped in Task 5**,
-so it is a carry-forward regression guard, not a red gate for this task. Run it
-with the rest at Step 5; do not expect it red at Step 2.
+`test_the_info_slot_hides_when_empty_via_empty_not_hidden` is likewise outside
+the selector on purpose — its name matches none of these substrings, so it does
+not run at Step 2 at all. It guards the `.builder__info:empty` rule that
+**shipped in Task 5**, making it a carry-forward regression guard rather than a
+red gate; it first runs at Step 5.
 
 - [ ] **Step 3: Add the header controls**
 
@@ -3585,6 +3621,47 @@ def test_the_client_reads_data_q_min_rather_than_hardcoding_it(
     assert sent == []
 
 
+def test_retrying_the_same_query_after_a_FAILED_fetch_issues_a_new_request(
+    page, live_server
+):
+    """pendingQ advances at ISSUE time and only the success path advances
+    appliedQ, so a failed fetch leaves pendingQ ahead of reality. Without the
+    rollback, retrying the identical query takes the skip branch: no request,
+    yet appliedQ, syncUrl and the bulk hrefs all move as if it had worked --
+    the pane shows the pre-filter tree while ?q=trygo sits in the URL, and the
+    next toggle sends q=trygo against unfiltered markup.
+
+    One keystroke from the suite already: Task 10's headline row aborts every
+    filter fetch for exactly this reason.
+    """
+    owner = _make_pa_user("pa")
+    course, chap, hit, miss = _seed_two(owner)
+    _login(page, live_server, "pa")
+    page.goto(f"{live_server.url}{_builder(course)}?open=all")
+
+    fail = [True]
+    sent = []
+
+    def handler(route):
+        sent.append(route.request.url)
+        if fail[0]:
+            fail[0] = False
+            route.abort()
+        else:
+            route.continue_()
+
+    page.route("**/build/tree/**", handler)
+
+    page.fill("#builder-q", "trygo")
+    page.wait_for_timeout(600)
+    assert len(sent) == 1, "the first attempt did not reach the network"
+
+    # The retry gesture: Enter on the form, same query, nothing retyped.
+    page.press("#builder-q", "Enter")
+    page.wait_for_selector(f'li[data-node="{miss.pk}"]', state="detached")
+    assert len(sent) == 2, "the retry was skipped; pendingQ was never rolled back"
+
+
 def test_clearing_a_BELOW_FLOOR_query_scrubs_it_from_the_url_and_the_hrefs(
     page, live_server
 ):
@@ -3814,8 +3891,21 @@ line is part of those steps.
     fetch(url.toString(), { headers: { "X-Requested-With": "fetch" } })
       .then(function (r) {
         return r.text().then(function (text) {
-          if (gen !== treeGen) return;          // stale: touch NOTHING
-          if (r.status !== 200) { notice(msg("network", "Network error — please try again.")); return; }
+          if (gen !== treeGen) return;          // stale: touch NOTHING --
+                                                // a newer issue owns pendingQ
+          if (r.status !== 200) {
+            // Roll pendingQ BACK. It advanced at issue time, and only the
+            // success path advances appliedQ -- so without this, retrying the
+            // identical query hits `eff === effectiveQ(pendingQ)`, takes the
+            // skip branch, issues NO request, and still writes appliedQ,
+            // syncUrl and the bulk hrefs. The tracker would then claim the
+            // pane shows `trygo` while it shows the pre-filter tree, and the
+            // next toggle would send q=trygo against unfiltered markup: the
+            // exact desync the tracker exists to prevent.
+            pendingQ = appliedQ;
+            notice(msg("network", "Network error — please try again."));
+            return;
+          }
           applyFragment(text);
           applyInfo(r);                          // Task 12
           appliedQ = live;                       // BEFORE syncUrl and the rewrite
@@ -3824,7 +3914,12 @@ line is part of those steps.
           syncUrl();
         });
       })
-      .catch(function () { notice(msg("network", "Network error — please try again.")); })
+      .catch(function () {
+        // Same rollback as the non-200 arm, gen-guarded: a STALE request
+        // rejecting must not clobber the pendingQ a newer issue owns.
+        if (gen === treeGen) pendingQ = appliedQ;
+        notice(msg("network", "Network error — please try again."));
+      })
       .then(function () { busyEnd(); });
   }
 ```
@@ -3904,6 +3999,11 @@ Expected: PASS.
    the two tracker writes) →
    `test_clearing_a_BELOW_FLOOR_query_scrubs_it_from_the_url_and_the_hrefs`
    must fail. It is the only row that reaches that branch.
+6. Delete **both** `pendingQ = appliedQ;` rollbacks (the non-200 arm and the
+   gen-guarded one in `.catch`) →
+   `test_retrying_the_same_query_after_a_FAILED_fetch_issues_a_new_request`
+   must fail on `len(sent) == 2`: the retry takes the skip branch and issues
+   nothing.
 
 Restore each.
 
@@ -3985,28 +4085,51 @@ def test_clearing_the_filter_removes_the_filter_entry(page, live_server):
     assert page.locator('[data-info-key="filter"]').count() == 0
 
 
-def test_clearing_removes_the_filter_entry_while_truncation_SURVIVES(
+def test_a_REFINE_that_drops_below_the_ceiling_removes_the_truncation_entry(
     page, live_server, monkeypatch
 ):
-    """The case `none` cannot express. Over the ceiling the clear response's
-    header is `truncation;limit=0` -- NOT `none` -- so a client that only
-    replaces the keys it is given leaves a stale "Filtered: 1 / 1" over an
-    unfiltered tree, for good. The other clear row uses a small course where
-    the header really is `none`, so it passes through this bug.
+    """The case `none` cannot express, in the ONLY direction that is reachable.
 
-    Both assertions matter: the filter entry must go, and the truncation entry
-    must NOT be collateral damage from an over-eager clear.
+    NOT the clear path. A clear sends `open=<preFilterOpen or collectOpen()>`,
+    both DOM-derived enumerations of scopes a previous _finalize already
+    capped at <= CEILING -- so `len(kept) > CEILING` is False and a clear
+    response can never be truncated. Its header is `none`, and
+    replaceChildren() already covers that. Building this row on a clear makes
+    it red against a CORRECT implementation.
+
+    The reachable direction is a REFINE: the slot holds truncation + filter,
+    and a narrower query resolves to a chain set that FITS under the ceiling,
+    so the response carries `filter` with no `truncation`. Without the removal
+    loop the stale truncation entry survives.
+
+    CEILING=2 with three containers: "trygo" matches both units, so the chains
+    are {part, c1, c2} = 3 > 2 and the load truncates. "trygonometria d"
+    matches only the second, so the chains are {part, c2} = 2 and it does not.
+    Both folds verified by substring, not by eye.
     """
-    monkeypatch.setattr("courses.builder_open.CEILING", 0)
+    monkeypatch.setattr("courses.builder_open.CEILING", 2)
     owner = _make_pa_user("pa")
-    course, chap, hit, miss = _seed_two(owner)
+    course = CourseFactory(slug="e2etr", owner=owner)
+    part = ContentNodeFactory(
+        course=course, kind="part", unit_type=None, parent=None, title="Czesc"
+    )
+    c1 = ContentNodeFactory(
+        course=course, kind="chapter", unit_type=None, parent=part, title="Rozdzial I"
+    )
+    c2 = ContentNodeFactory(
+        course=course, kind="chapter", unit_type=None, parent=part, title="Rozdzial II"
+    )
+    ContentNodeFactory(course=course, kind="unit", parent=c1, title="Trygonometria")
+    ContentNodeFactory(
+        course=course, kind="unit", parent=c2, title="Trygonometria dodatkowa"
+    )
     _login(page, live_server, "pa")
     page.goto(f"{live_server.url}{_builder(course)}?q=trygo")
-    page.wait_for_selector('[data-info-key="filter"]')
-    assert page.locator('[data-info-key="truncation"]').count() == 1
-    page.click("[data-filter-clear]")
-    page.wait_for_selector('[data-info-key="filter"]', state="detached")
-    assert page.locator('[data-info-key="truncation"]').count() == 1
+    page.wait_for_selector('[data-info-key="truncation"]')
+    assert page.locator('[data-info-key="filter"]').count() == 1
+    page.fill("#builder-q", "trygonometria d")
+    page.wait_for_selector('[data-info-key="truncation"]', state="detached")
+    assert page.locator('[data-info-key="filter"]').count() == 1
 
 
 def test_the_empty_info_slot_is_not_rendered(page, live_server):
@@ -4033,17 +4156,21 @@ def test_the_empty_info_slot_is_not_rendered(page, live_server):
 ```bash
 uv run pytest tests/test_e2e_builder_filter.py -m e2e -q -k \
   "fragment_borne or replaces_by_key or absent_header \
-   or removes_the_filter_entry or empty_info_slot"
+   or removes_the_filter_entry or removes_the_truncation_entry\
+   or empty_info_slot"
 ```
 
 Expected: a **mixed** run. `-k "info or slot"` would be worse than useless
 here — it selects neither row the stated expectation describes.
 
-- RED: `test_a_fragment_borne_notice_lands_on_a_page_that_had_none` (no entry
-  ever appears from a fragment), `test_clearing_the_filter_removes_the_filter_entry`
-  (the stub never removes one) and `test_the_empty_info_slot_is_not_rendered`
-  (times out waiting for `[data-info-key="filter"]`). **None of the first two
-  contains "info" or "slot".**
+- RED, four of them: `test_a_fragment_borne_notice_lands_on_a_page_that_had_none`
+  (no entry ever appears from a fragment),
+  `test_clearing_the_filter_removes_the_filter_entry` (the stub never removes
+  one), `test_the_empty_info_slot_is_not_rendered` (times out waiting for
+  `[data-info-key="filter"]`) and
+  `test_a_REFINE_that_drops_below_the_ceiling_removes_the_truncation_entry`
+  (times out on its `state="detached"` wait — the stub removes nothing).
+  **None of the first two contains "info" or "slot".**
 - GREEN already, against Task 11's `function applyInfo() {}` stub:
   `test_the_info_slot_replaces_by_key` and
   `test_an_absent_header_does_NOT_clear_the_slot`. Both load `?q=trygo`, get
@@ -4072,12 +4199,18 @@ invisible to every test in this plan and just leaves dead, misleading source.
     if (raw === "none") { infoSlot.replaceChildren(); return; }
 
     // FULL STATE, not a delta. The header lists every entry that applies to
-    // the response, so a key it OMITS must be REMOVED -- otherwise, on a
-    // course over the ceiling, clearing the filter sends
-    // `truncation;limit=500` (not `none`), the loop below refreshes the
-    // truncation entry, and the stale `filter` <li> survives over an
-    // unfiltered tree, permanently. `none` only covers the case where NO key
-    // applies, which is why it cannot carry this on its own.
+    // the response, so a key it OMITS must be REMOVED.
+    //
+    // The reachable case is a REFINE, not a clear: the slot holds
+    // truncation + filter, the author narrows the query, the new chain set
+    // fits under the ceiling, and the response carries `filter` with no
+    // `truncation` -- so without this loop the stale truncation entry
+    // survives over a tree that is no longer truncated.
+    //
+    // A CLEAR is already covered by `none` above, and cannot reach here: it
+    // sends `open=<enumeration>` derived from the DOM, whose scopes a
+    // previous _finalize already capped at <= CEILING, so `len(kept) >
+    // CEILING` is False and the response is never truncated.
     var incoming = raw.split(", ").map(function (e) { return e.split(";")[0]; });
     infoSlot.querySelectorAll("[data-info-key]").forEach(function (li) {
       if (incoming.indexOf(li.getAttribute("data-info-key")) === -1) li.remove();
@@ -4219,11 +4352,14 @@ Expected: PASS.
    must fail on the second assertion.
 3b. Delete the full-state removal loop (the
    `incoming.indexOf(...) === -1` block), leaving only the per-entry replace →
-   `test_clearing_removes_the_filter_entry_while_truncation_SURVIVES` must
-   fail. Then instead make the loop remove **every** `[data-info-key]`
-   unconditionally before re-inserting → the same row must fail on the
-   *truncation* assertion. Two mutations, two assertions: a delta client and
-   an over-eager clear are different bugs and this row catches both.
+   `test_a_REFINE_that_drops_below_the_ceiling_removes_the_truncation_entry`
+   must fail on its `state="detached"` wait: the stale truncation entry never
+   goes away.
+3c. Restore it, then make the loop remove **every** `[data-info-key]`
+   unconditionally before re-inserting → the same row must fail on its final
+   assertion instead, because the `filter` entry is destroyed along with the
+   truncation one. A delta client and an over-eager clear are different bugs;
+   two mutations, two different assertions, one row.
 
    **Attack the CLEAR, not the insert.** Inserting with
    `insertAdjacentHTML("beforeend", "\n<li>…</li>")` does not redden that row:
@@ -4603,12 +4739,12 @@ The behaviour was decided in the parent spec's §4 as an accepted trade (the 409
 **There is no `TextElementFactory` in this repo** — `tests/test_link_transfer.py:15`
 and `tests/test_inbound_link_warning.py:13` both say so in comments, and the
 idiom is to build the element through `Element` + its concrete model. And
-`element_save` (`views_manage.py:1255-1263`) rejects a POST whose `type` is not
-one of its six known keys with `HttpResponseBadRequest`, **before** any conflict
-check — so the payload below must carry a valid `type` or the response is a 400
-that proves nothing. (`unit` is NOT part of that guard: it is read at `:1265`
-and handed to `save_element`, which is what raises `ConflictError`. Carry it
-anyway, because that is the field the conflict is about.)
+`element_save`'s type guard (`views_manage.py:1256-1289`, a 31-key tuple) rejects
+a POST whose `type` is not one of those keys with `HttpResponseBadRequest`,
+**before** any conflict check — so the payload below must carry a valid `type`
+or the response is a 400 that proves nothing. (`unit` is NOT part of that
+guard: it is read at `:1291` and handed to `save_element`, which is what raises
+`ConflictError`. Carry it anyway — it is the field the conflict is about.)
 
 **Before writing the test, read `element_save`'s conflict branch and derive the
 expected status from it** rather than from this plan — the point of the row is
