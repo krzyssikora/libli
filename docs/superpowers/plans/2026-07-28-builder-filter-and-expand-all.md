@@ -93,8 +93,8 @@ in the builder page, and Task 6 Step 4 adds an input inside that very form.
 The last three are in the list because later tasks assert them green without
 them ever having been baselined: **Task 3 Step 8** runs
 `tests/test_manage_builder.py`, and Tasks 6 and 7 both change `node_duplicate`
-— Task 6 Step 7 puts `q` on its redirect (`views_manage.py:714`'s
-`_redirect_to_builder`), Task 7 Step 4 adds `_stash_builder_force` beside it —
+— Task 6 Step 7 puts `q` on its redirect (`views_manage.py:715`'s
+`_redirect_to_builder`; `:714` is the `_persist_chain` line Task 7 anchors to), Task 7 Step 4 adds `_stash_builder_force` beside it —
 which is exactly what `tests/test_builder_duplicate_unit.py` and
 `tests/test_manage_node_duplicate.py` exercise. Task 16 Step 1 also re-runs
 `test_manage_builder.py` under the "anything red is a regression" rule, which
@@ -306,11 +306,18 @@ def test_cap_keeps_the_first_MATCH_CAP_in_order_pk_with_scattered_pks():
     assert sorted((n.order, n.pk) for n in kept) == lowest
 
 
-def test_restricted_map_preserves_sibling_order_and_groups_roots_under_none():
-    """PRESERVES, never re-sorts. _children_map already emits each parent's
-    children in (order, pk) order (views_manage.py:140), so the input order IS
-    the correct order -- the fixture must be built that way or the test
-    asserts a sort filtered_map deliberately does not perform.
+def test_restricted_map_groups_roots_under_none_in_cmap_order():
+    """What this row ACTUALLY guards: roots land under the None key, in the
+    order cmap gave them.
+
+    It does NOT guard "never re-sorts", despite the temptation to name it
+    that. `_children_map` already emits each parent's children in (order, pk)
+    order (views_manage.py:140), so the fixture below is built that way -- and
+    an implementation that re-sorted `rows` by (order, pk) would produce the
+    identical [b, a]. Constructing a fixture whose cmap order DIFFERS from
+    (order, pk) order would catch the re-sort, but it would also be a shape
+    _children_map can never produce, so the row would guard a case that cannot
+    occur. Naming the row honestly is the better trade.
     """
     b = FakeNode(11, None, "Alfabet", order=0, kind="chapter")
     a = FakeNode(10, None, "Alfa", order=1, kind="chapter")
@@ -698,6 +705,13 @@ Expected: PASS, exit 0.
 - [ ] **Step 6: Falsify**
 
 Move the `if q_chain is not None:` block back below the `mode == "notice"` read → `test_q_chain_beats_the_notice_carrier` must fail. Move it below the sentinel → `test_q_chain_beats_the_open_session_sentinel` must fail. Restore.
+
+Then the third direction, which the two above cannot reach: move the `q_chain`
+block **above** step 2's `if present and not sentinel:` →
+`test_an_explicit_enumeration_still_beats_q_chain` must fail. Re-run it once
+Task 6 exists and `test_step_2_still_beats_step_3` must fail too — that row is
+green from birth and this is the only mutation that reddens it, which is what
+keeps it from being an untested test.
 
 - [ ] **Step 7: Lint and commit**
 
@@ -1576,7 +1590,7 @@ uv run pytest tests/test_builder_filter_views.py -q -k \
   "always_sets_the_header or machine_readable or info_slot_is_present or notice_is_visible"
 ```
 
-Expected: a **mixed** run. RED: the three rows above (`KeyError:
+Expected: a **mixed** run. RED: the four rows above (`KeyError:
 'X-Builder-Info'` for the first two, no `data-info-key` for the third and
 fourth). `test_a_rename_and_a_422_carry_no_header_at_all` is deliberately
 **not** selected — it asserts the header is *absent*, so it is already green
@@ -1726,7 +1740,7 @@ git commit -m "feat(builder): X-Builder-Info header + always-present info slot"
 - Modify: `templates/courses/manage/_tree_node.html`, `_scope.html`, `_add_affordance.html`, `_move_buttons.html`, `node_confirm_delete.html`, `_move_picker.html`
 - Modify: `courses/templatetags/courses_manage_extras.py` (`toggle_href`)
 - Modify: `courses/views_manage.py` (`_redirect_to_builder`, `node_delete`, `node_move` GET)
-- Test: `tests/test_builder_filter_views.py`
+- Test: `tests/test_builder_filter_views.py`, `tests/test_builder_lazy_scopes.py`
 
 **Interfaces:**
 - Consumes: `_raw_q` (Task 3); the `q` and `filtered` context keys (Task 3).
@@ -1921,6 +1935,104 @@ def test_an_empty_filtered_scope_says_no_matching_titles(filtered_course):
     assert "No children yet." in plain or "Nie ma jeszcze" in plain
 ```
 
+**Then append the view-level halves of the precedence fix.**
+The unit tests in Task 2 pin `open_ids`; both *paths* need pinning too,
+because the sentinel one is the common one and would stay broken if only
+the notice one were covered. Append to `tests/test_builder_lazy_scopes.py`:
+
+```python
+def test_a_no_js_mutation_SUCCESS_under_a_filter_returns_the_chains_open(client, db):
+    """The redirect lands on ?open=session&q=..., and step 1 fires before
+    step 3 in the shipped code -- so without the restructure the author gets
+    their stored PRE-FILTER set over a filtered map."""
+    owner = make_login(client, "pa")
+    course, part, chap, hit = _deep_course(owner)
+    session = client.session
+    session[OPEN_KEY] = {course.slug: []}          # populated, and NOT the chains
+    session.save()
+    rename = reverse("courses:manage_node_rename", kwargs={"slug": course.slug})
+    resp = client.post(
+        rename,
+        {"node": hit.pk, "token": hit.updated.isoformat(), "title": "Nowy", "q": "nowy"},
+    )
+    body = client.get(resp["Location"]).content.decode()
+    assert f'data-scope="{chap.pk}"' in body       # the chain is OPEN
+
+
+def test_builder_with_notice_under_a_filter_returns_the_chains_open(client, db):
+    owner = make_login(client, "pa")
+    course, part, chap, hit = _deep_course(owner)
+    session = client.session
+    session[OPEN_KEY] = {course.slug: []}
+    session.save()
+    rename = reverse("courses:manage_node_rename", kwargs={"slug": course.slug})
+    resp = client.post(
+        rename,
+        # A VALID ISO timestamp, not "stale-token": the repo idiom
+        # (tests/test_manage_node_ops.py:137, :347) exercises _check_token's
+        # COMPARISON. A non-parsing string only reaches it via
+        # parse_datetime returning None -- a different branch.
+        {
+            "node": hit.pk,
+            "token": "2000-01-01T00:00:00+00:00",
+            "title": "Nowy",
+            "q": "trygo",
+        },
+    )
+    assert resp.status_code == 409
+    assert f'data-scope="{chap.pk}"' in resp.content.decode()
+
+
+def test_step_2_still_beats_step_3(client, db):
+    """A no-JS toggle href under a filter carries a real enumeration, and it
+    must win -- the half a move-step-3-to-the-top implementation breaks.
+
+    GREEN from the moment it is written, unlike its two siblings: it follows
+    no redirect and needs nothing from Task 6. By the end of Task 5 the
+    restructured open_ids already resolves `?q=trygo&open=<part>` via step 2
+    (`present and not sentinel` -> _parse, explicit) and the restricted map
+    already renders part's scope without chap's. It is a carry-forward
+    regression guard here; its falsification lives in Task 2 Step 6.
+    """
+    owner = make_login(client, "pa")
+    course, part, chap, hit = _deep_course(owner)
+    url = reverse("courses:manage_builder", kwargs={"slug": course.slug})
+    body = client.get(url, {"q": "trygo", "open": str(part.pk)}).content.decode()
+    assert f'data-scope="{part.pk}"' in body
+    assert f'data-scope="{chap.pk}"' not in body   # the chains did NOT win
+```
+
+Add `_deep_course` beside `_big_course` in the same file:
+
+```python
+def _deep_course(owner):
+    """part > chapter > one matching unit, ABOVE nothing in particular --
+    the depth is what matters, not the size. `hit` must match both "trygo"
+    and (after the rename) "nowy"; `chap` must NOT match "trygo", or the
+    chain-vs-enumeration distinction the tests turn on disappears.
+    """
+    course = CourseFactory(slug="deep", owner=owner)
+    part = ContentNodeFactory(
+        course=course, kind="part", unit_type=None, parent=None, title="P0"
+    )
+    chap = ContentNodeFactory(
+        course=course, kind="chapter", unit_type=None, parent=part, title="Rozdzial"
+    )
+    hit = ContentNodeFactory(
+        course=course, kind="unit", parent=chap, title="Trygonometria"
+    )
+    return course, part, chap, hit
+```
+
+**These rows belong in Task 6, not Task 2** — they need `q` on the redirect
+(Step 7) *and* `_filter_context` wired into `builder()` (Task 3); at the end of
+Task 2 both are missing, so they would be red for the wrong reason.
+
+**And they belong in Step 1, not Step 9** — Step 2's red gate names them, so a
+test written seven steps later matches nothing there and the gate is
+unattainable.
+
+
 - [ ] **Step 2: Run to verify failure**
 
 Select the six new rows **by name**. `-k` is a substring match over the whole
@@ -1935,13 +2047,16 @@ uv run pytest tests/test_builder_filter_views.py tests/test_builder_lazy_scopes.
   "preserve_q or percent_encode_q or redirect_sites or bespoke_redirect \
    or move_picker_round_trip or no_matching_titles \
    or every_tree_form or delete_confirm_round_trip \
-   or mutation_SUCCESS_under_a_filter or with_notice_under_a_filter \
-   or step_2_still_beats_step_3"
+   or mutation_SUCCESS_under_a_filter or with_notice_under_a_filter"
 ```
 
-Expected: all eleven FAIL — no `q=trygo` anywhere in the markup, and the three
-`test_builder_lazy_scopes.py` rows from Step 9 red because the redirect drops
-`q` (Step 7) and `_filter_context` is not yet reached from those paths.
+Expected: all ten FAIL — no `q=trygo` anywhere in the markup, and the two
+`test_builder_lazy_scopes.py` rows red because the redirect drops `q` (Step 7).
+
+**`test_step_2_still_beats_step_3` is deliberately NOT selected.** It is green
+the moment Step 1 writes it — it follows no redirect and depends on nothing in
+this task, only on Task 2's restructure. Including it would make the gate
+mixed for no benefit; run it with the rest at Step 10.
 
 - [ ] **Step 3: `toggle_href` preserves `q`**
 
@@ -2094,92 +2209,13 @@ anything out of the match set. This is the one place the spec calls the risk
 live rather than theoretical, precisely because the `q` edit lands one line
 away.
 
-- [ ] **Step 9: Add the two view-level halves of the precedence fix**
+- [ ] **Step 9: (moved) the view-level precedence rows are written in Step 1**
 
-The unit tests above pin `open_ids`. Both *paths* need pinning too, because
-the sentinel one is the common one and would stay broken if only the notice
-one were covered. Append to `tests/test_builder_lazy_scopes.py`:
-
-```python
-def test_a_no_js_mutation_SUCCESS_under_a_filter_returns_the_chains_open(client, db):
-    """The redirect lands on ?open=session&q=..., and step 1 fires before
-    step 3 in the shipped code -- so without the restructure the author gets
-    their stored PRE-FILTER set over a filtered map."""
-    owner = make_login(client, "pa")
-    course, part, chap, hit = _deep_course(owner)
-    session = client.session
-    session[OPEN_KEY] = {course.slug: []}          # populated, and NOT the chains
-    session.save()
-    rename = reverse("courses:manage_node_rename", kwargs={"slug": course.slug})
-    resp = client.post(
-        rename,
-        {"node": hit.pk, "token": hit.updated.isoformat(), "title": "Nowy", "q": "nowy"},
-    )
-    body = client.get(resp["Location"]).content.decode()
-    assert f'data-scope="{chap.pk}"' in body       # the chain is OPEN
-
-
-def test_builder_with_notice_under_a_filter_returns_the_chains_open(client, db):
-    owner = make_login(client, "pa")
-    course, part, chap, hit = _deep_course(owner)
-    session = client.session
-    session[OPEN_KEY] = {course.slug: []}
-    session.save()
-    rename = reverse("courses:manage_node_rename", kwargs={"slug": course.slug})
-    resp = client.post(
-        rename,
-        # A VALID ISO timestamp, not "stale-token": the repo idiom
-        # (tests/test_manage_node_ops.py:137, :347) exercises _check_token's
-        # COMPARISON. A non-parsing string only reaches it via
-        # parse_datetime returning None -- a different branch.
-        {
-            "node": hit.pk,
-            "token": "2000-01-01T00:00:00+00:00",
-            "title": "Nowy",
-            "q": "trygo",
-        },
-    )
-    assert resp.status_code == 409
-    assert f'data-scope="{chap.pk}"' in resp.content.decode()
-
-
-def test_step_2_still_beats_step_3(client, db):
-    """A no-JS toggle href under a filter carries a real enumeration, and it
-    must win -- the half a move-step-3-to-the-top implementation breaks."""
-    owner = make_login(client, "pa")
-    course, part, chap, hit = _deep_course(owner)
-    url = reverse("courses:manage_builder", kwargs={"slug": course.slug})
-    body = client.get(url, {"q": "trygo", "open": str(part.pk)}).content.decode()
-    assert f'data-scope="{part.pk}"' in body
-    assert f'data-scope="{chap.pk}"' not in body   # the chains did NOT win
-```
-
-Add `_deep_course` beside `_big_course` in the same file:
-
-```python
-def _deep_course(owner):
-    """part > chapter > one matching unit, ABOVE nothing in particular --
-    the depth is what matters, not the size. `hit` must match both "trygo"
-    and (after the rename) "nowy"; `chap` must NOT match "trygo", or the
-    chain-vs-enumeration distinction the tests turn on disappears.
-    """
-    course = CourseFactory(slug="deep", owner=owner)
-    part = ContentNodeFactory(
-        course=course, kind="part", unit_type=None, parent=None, title="P0"
-    )
-    chap = ContentNodeFactory(
-        course=course, kind="chapter", unit_type=None, parent=part, title="Rozdzial"
-    )
-    hit = ContentNodeFactory(
-        course=course, kind="unit", parent=chap, title="Trygonometria"
-    )
-    return course, part, chap, hit
-```
-
-**These two rows belong here, not in Task 2.** They need `q` on the redirect
-(Step 7 above) *and* `_filter_context` wired into `builder()` (Task 3); at the
-end of Task 2 both are still missing, so they would be red for reasons that are
-not the behaviour under test.
+Nothing to do here. `test_a_no_js_mutation_SUCCESS_under_a_filter_returns_the_chains_open`,
+`test_builder_with_notice_under_a_filter_returns_the_chains_open`,
+`test_step_2_still_beats_step_3` and the `_deep_course` helper are all written
+in **Step 1**, because Step 2's red gate names them — a test authored here
+would not exist when that gate runs.
 
 - [ ] **Step 10: Run the tests**
 
@@ -3055,10 +3091,19 @@ commit that can break it**: deferred to Task 16 Step 1 it surfaces eight tasks
 and seven commits later, mixed in with every JS change, and bisecting the CSS
 back out is far harder. (`-m e2e` is mandatory; exit 5 is not a pass.)
 
-If the ratio moves, `.builder__tree` needs `min-width: 0` — add it and say so
-in `docs/superpowers/notes/2026-07-28-affected-tests-slice2.md` (Task 0's
-ledger, the only one that exists yet) rather than relaxing the ratio. If you
-write there, add that path to Step 7's `git add`.
+**Do not reach for `min-width: 0` on `.builder__tree` — `builder.css:4`
+already ships it**, with a comment explaining that both grid items need it.
+That also means the risk above is already largely mitigated and the ratio will
+probably hold; run the suite anyway rather than assuming.
+
+If it *does* move, the live remedies in order are: cap the form
+(`.builder__filter { max-width: 24rem; }`), or give it its own header row
+below the buttons. Both of Step 4's `min-width: 0` declarations are already
+in place, so the fix is about the form's *preferred* width, not its minimum.
+Record whichever you take in
+`docs/superpowers/notes/2026-07-28-affected-tests-slice2.md` (Task 0's ledger,
+the only one that exists yet) and add that path to Step 7's `git add` —
+relaxing the ratio is not an option.
 
 Then verify the header at **1400px and at a narrow width**, in **light and dark**, judging dark on its own rather than inferring it from light. The narrow width is the one that matters: this is where the repo's recorded `flex: 1 1 auto` wrap trap bites.
 
@@ -3643,13 +3688,32 @@ def test_a_clear_is_not_overwritten_by_an_in_flight_filter_response(page, live_s
 uv run pytest tests/test_e2e_builder_filter.py -m e2e -q
 ```
 
-Expected: FAIL — typing does nothing; there is no filter handler.
+Expected: a **mixed** run, and half of it is green before anything ships.
+
+- RED: `test_typing_a_query_filters_without_navigating`,
+  `test_the_filter_fetch_omits_open`, `test_clear_restores_the_pre_filter_expansion`,
+  `test_collapse_everything_filter_clear_comes_back_EMPTY`, and
+  `test_a_clear_is_not_overwritten_by_an_in_flight_filter_response` (that one
+  errors on `held[0]` — no request is ever routed, so the list stays empty).
+- GREEN already, for reasons that have nothing to do with this task:
+  `test_typing_below_the_floor_into_an_UNFILTERED_tree_issues_no_request`,
+  `test_a_single_astral_character_issues_no_filter_fetch` and
+  `test_the_client_reads_data_q_min_rather_than_hardcoding_it` all assert
+  `sent == []`, trivially true with no filter JS at all;
+  `test_clicking_the_clear_control_hides_it` and
+  `test_clearing_a_BELOW_FLOOR_query_scrubs_it_from_the_url_and_the_hrefs`
+  pass **through** a full-page navigation — `[data-filter-clear]` is still a
+  bare `<a href="{{ builder_url }}">`, so the click lands on the unfiltered
+  builder with no `q=` in the URL, issues no `/build/tree/` request, and the
+  server re-renders the Clear anchor with `hidden`.
+
+Those five are Step 9's falsification targets, not red gates.
 
 **Where all five of this task's blocks go.** Every other JS step in this plan
 names its site; this one needs it stated once, because one pair is
 order-sensitive. Put Steps 3, 4, 5 and 6 **together, in that order**, inside
-the IIFE after `scopeUrlFor` and before the toggle's `click` handler — Step 10
-of Task 10 already put `setTreeParams` and `effectiveQ` above that point, and
+the IIFE after `scopeUrlFor` and before the toggle's `click` handler — Task 10
+Steps 3-4 already put `effectiveQ` and `setTreeParams` above that point, and
 `collectOpen`, `applyFragment`, `busyStart`, `notice`, `msg` and `syncUrl` are
 all defined earlier still.
 
@@ -4343,12 +4407,36 @@ def test_the_bulk_hrefs_are_scrubbed_when_a_below_floor_q_is_cleared(page, live_
 - [ ] **Step 2: Run to verify failure**
 
 ```bash
-uv run pytest tests/test_e2e_builder_filter.py -m e2e -q -k "expand or collapse or bulk"
+uv run pytest tests/test_e2e_builder_filter.py -m e2e -q -k \
+  "expand_all or collapse_all or bulk_hrefs"
 ```
 
-Expected: FAIL — the clicks navigate.
+Expected: a **mixed** run, and two rows pass *because* the clicks navigate.
+
+- RED: `test_collapse_all_does_not_navigate`,
+  `test_collapse_all_over_a_dirty_rename_posts_nothing`,
+  `test_expand_all_fires_a_request_UNDER_the_ceiling`,
+  `test_the_bulk_hrefs_stay_current_after_a_js_filter_apply`,
+  `test_an_over_ceiling_expand_all_never_grows_an_href` and
+  `test_the_bulk_hrefs_are_scrubbed_when_a_below_floor_q_is_cleared`.
+- GREEN already: `test_expand_all_then_collapse_all` and
+  `test_collapse_all_resets_aria_on_every_toggle`. The expand-all `<a>` goes to
+  `?open=all` and the collapse-all `<a>` to `?open=`, and the server then
+  renders exactly what they assert — the expanded/collapsed tree,
+  `aria-expanded="false"` on every toggle, no `aria-controls`, `open=` in the
+  address bar. They are navigation-tolerant regression guards; only
+  `test_collapse_all_does_not_navigate` separates the two implementations,
+  which is what its own docstring says.
 
 - [ ] **Step 3: Expand-all**
+
+**Where Steps 3-5 go:** immediately after `rewriteBulkHrefs` (Step 5's own
+site is named there), before the `// --- WS2 drag-and-drop` section. Unlike
+Task 11's blocks the ordering among these three is free — `treeGen` and
+`swapping` are `var`-hoisted and assigned at load, and the new `pointerdown`
+listener cannot collide with the toggle's, which returns early unless
+`e.target.closest("[data-toggle]")` matches. Stated so it does not have to be
+re-derived.
 
 ```js
   root.addEventListener("click", function (e) {
@@ -4515,9 +4603,12 @@ The behaviour was decided in the parent spec's §4 as an accepted trade (the 409
 **There is no `TextElementFactory` in this repo** — `tests/test_link_transfer.py:15`
 and `tests/test_inbound_link_warning.py:13` both say so in comments, and the
 idiom is to build the element through `Element` + its concrete model. And
-`element_save` (`views_manage.py:1256-1287`) rejects a POST that carries no
-`type`/`unit` with `HttpResponseBadRequest` **before** any conflict check, so
-the payload below must carry both or the response is a 400 that proves nothing.
+`element_save` (`views_manage.py:1255-1263`) rejects a POST whose `type` is not
+one of its six known keys with `HttpResponseBadRequest`, **before** any conflict
+check — so the payload below must carry a valid `type` or the response is a 400
+that proves nothing. (`unit` is NOT part of that guard: it is read at `:1265`
+and handed to `save_element`, which is what raises `ConflictError`. Carry it
+anyway, because that is the field the conflict is about.)
 
 **Before writing the test, read `element_save`'s conflict branch and derive the
 expected status from it** rather than from this plan — the point of the row is
@@ -4536,9 +4627,9 @@ def test_element_save_conflict_after_the_unit_vanished(client, db):
 
     NOTE the branch this actually takes: with the unit gone, element_save's
     ConflictError handler re-queries it, gets None, and returns
-    `_render_tree(request, course, status=409)` (views_manage.py:1299-1300) --
+    `_render_tree(request, course, status=409)` (views_manage.py:1300-1301) --
     a TREE pane, not the editor. Spec 4's "the conflict renders into the
-    editor" describes the OTHER arm (`:1301-1303`), the one where the unit
+    editor" describes the OTHER arm (`:1302-1304`), the one where the unit
     still exists. Derive the expected status by reading that branch, not from
     this plan.
     """
