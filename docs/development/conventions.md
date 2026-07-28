@@ -77,6 +77,15 @@ concrete model, wire it into the `Element` GFK and the render/editor dispatch,
 and add its label. New quiz question types subclass `QuestionElement` and reuse
 the quiz persistence/scoring machinery rather than adding new views.
 
+## Static assets
+
+`scripts/build_favicons.py` generates every favicon asset (`favicon.svg`,
+`favicon.ico`, the `icon-192`/`icon-512` PNGs, the apple-touch icon and the
+maskable icon) from one set of geometry and palette constants; the outputs
+are committed, not built at request or deploy time. Re-run it with
+`uv run python scripts/build_favicons.py` after any change to that geometry
+or palette, and commit the regenerated files alongside the change.
+
 ## Migrations & checks
 
 ```bash

@@ -9,8 +9,8 @@ worth deciding on day one.
 ## The steps
 
 1. **Welcome** — an overview of what's ahead.
-2. **Identity** — your institution's name, logo, colours and languages
-   (the same fields as [Branding & settings](branding-settings)).
+2. **Identity** — your institution's name, logo, favicon, colours and
+   languages (the same fields as [Branding & settings](branding-settings)).
 3. **Access** — sign-up policy and allowed email domains.
 4. **Team** — send invitations to your first colleagues without leaving
    the wizard; see [Invitations](invitations) for what happens next.
