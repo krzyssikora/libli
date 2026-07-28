@@ -190,8 +190,11 @@ contains them. A future language adds a pair, not a mechanism.
 
 ### 1c. Matching, the cap and the walk
 
-- **Matches** are the nodes — **every kind, units included** — whose folded title contains the
-  folded query.
+- **Matches** are the nodes — **every kind, units included** — whose folded title contains
+  **`needle = fold(q.strip())`**. One value, computed once, used for **both** the floor test
+  (§1a) and the containment test. Folding without stripping first would let `"ab "` — a
+  trailing space is routine on paste — clear the floor as a 3-character query and then match no
+  title at all, so the author gets "Filtered: 0 / 0" on a query that should hit.
 - **Capped at the first `MATCH_CAP` in `("order", "pk")` order.** That ordering is
   deterministic but is **not** tree order: `order` is a sibling-local index, so a course-wide
   sort interleaves nodes from unrelated parents. Determinism is what the cap needs; tree order
@@ -678,22 +681,32 @@ authoring action, while the tree on screen is still filtered and capped.
 `{% if info %}` as slice 1 does — the JS needs somewhere to insert, and a slot that only exists
 when the server put something in it means the first fragment-borne notice has no home.
 
-**It is hidden by `.builder__info:empty { display: none; }`, not by the `hidden` attribute**,
-and the difference is two separate bugs:
+**It is hidden by `.builder__info:empty { display: none; }`, not by the `hidden` attribute.**
+The reason is singular and sufficient: **a `hidden` attribute set at render time makes every
+server-rendered notice invisible without JS.** Only the JS would ever remove it, so a no-JS
+author who filters gets `data-info-key="filter"` in the DOM and sees nothing — and slice 1's
+*shipped* truncation notice, visible today (`builder.html:23` has no `hidden`), silently
+regresses on the same path. §3i's own rule is that the page route and the fragment route are
+both required. With `:empty` the JS never touches visibility at all: it inserts and removes
+entries, and the CSS follows. That also sidesteps this repo's recorded `.btn[hidden]` trap.
 
-- **A `hidden` attribute set at render time makes every server-rendered notice invisible
-  without JS.** Only the JS would ever remove it, so a no-JS author who filters gets
-  `data-info-key="filter"` in the DOM and sees nothing — and slice 1's *shipped* truncation
-  notice, which is visible today (`builder.html:23` has no `hidden`), silently regresses on the
-  same path. §3i's own rule is that the page route and the fragment route are both required.
-- **A `role="status"` region that is not rendered is not in the accessibility tree**, so
-  inserting a child and unhiding it in the same task is not a reliable announcement trigger.
-  `:empty` keeps the element rendered and lets the insertion itself be the mutation the live
-  region reports.
+**`:empty` does not match an element containing whitespace, and this markup is one newline away
+from a permanent grey bar.** Measured in Chromium: `<ul id="b">\n</ul>` reports
+`matches(":empty") === false` and renders at 16 px. `.builder__info` carries `padding` and
+`background: var(--surface-sunken)` (`builder.css:184-185`), so a slot written the natural
+multi-line Django way shows a sunken bar on **every** builder page — permanently, because the
+server's whitespace text nodes survive the JS's `<li>` removals, so a `none` header can never
+re-hide it. **Rule: the `<ul>` and its `{% for %}` emit no whitespace inside the element**, as
+`builder.html:23` already does today on one line. §8 asserts the computed style, not mere
+presence.
 
-With `:empty` the JS never touches visibility at all — it inserts and removes entries, and the
-CSS follows. That also sidesteps this repo's recorded `.btn[hidden]` trap, where the attribute
-loses to a class rule of equal specificity.
+**Accepted limitation: the first fragment-borne notice may not be announced.** `display: none`
+keeps the region out of the accessibility tree just as `hidden` does, so inserting a child and
+rendering the region in the same task is not a reliable live-region trigger. An earlier draft
+claimed `:empty` avoided this; it does not, and the claim is withdrawn rather than left as an
+invariant the mechanism cannot deliver. Server-rendered notices — the common case, and the one
+a no-JS author depends on — are unaffected, since they are in the DOM and rendered from the
+start.
 
 The JS **reads the server-rendered `[data-info-key]` entries on init** so replace-and-clear
 operate on them too. Without this the registry only knows entries it inserted itself, and the
@@ -807,7 +820,7 @@ needs is already resolved". This slice needs four more context values in every r
 | `q` | `toggle_href`, the hidden inputs, the delete/Move hrefs, the filter input's value | the **raw** submitted `q`, not the normalized one |
 | `filtered` | `_scope.html`'s `{% empty %}` branch (§3h) | `q_active` |
 | `expand_all_disabled` | whether `builder.html` emits expand-all's `href`, **and** `data-expand-all-disabled` on `.builder` for the JS bail (§6a) | `len(container_pks(full_cmap)) > builder_open.CEILING` |
-| `applied_q` | `data-applied-q` on `.builder` — the value §5c's tracker initialises from, and the value the five applied-`q` paths send | **`fc.q_raw`** — the raw submitted string, never the `q_active` bool |
+| `applied_q` | `data-applied-q` on `.builder` — initialises §5z's tracker | **`fc.q_raw`**, emitted **unconditionally** (empty string when there is no `q`) — never the `q_active` bool |
 | `q_min` | `data-q-min` on `.builder` — the client floor (§5c) | `builder_filter.MIN_QUERY`, read **through the module** so §8's monkeypatch bites |
 
 **Two of the three DOM-carried values are RESOLVED server-side; `MIN_QUERY` deliberately
@@ -856,6 +869,14 @@ delete-confirm form carries no `data-op`, so its 409 returns `_builder_with_noti
   bool and a string is how that ships. §8 asserts the attribute's **value**, not just its
   presence.
 
+  **The attribute is always emitted, even when empty**, exactly as `q_min` always is and for
+  a sharper reason. §5c reads it at init and runs it through the client floor, i.e. calls a
+  string method on it; a conditionally-emitted attribute returns `null` from `getAttribute`,
+  `null.replace` throws, and the throw is inside `builder.js`'s single top-level IIFE under
+  `"use strict"` — so **no listener is ever registered and the entire JS builder is dead**, on
+  the most common page there is (unfiltered, no `q`). This is the `parseInt(null) === NaN`
+  hazard `q_min` gets a paragraph for, one line away and strictly worse.
+
   **It carries `q_raw` unconditionally — including a present-but-INACTIVE `q`.** An earlier
   draft emitted `""` below the floor, which made the two paths of the same gesture disagree:
   the no-JS expand-all href carried `q=a` (§6b) while the JS fetch sent `q=""`, and `syncUrl`
@@ -901,9 +922,9 @@ the same block — `parent`, `parent_kind`, `updated` — continue to resolve ag
 course, since a scope's own identity is not a filtering question.
 
 **Two further `children_map` sites keep the FULL map, and must be named or they will be
-"fixed".** `link_picker` (`views_manage.py:275`) and `node_move`'s picker GET (`:804`, together
-with its own `nodes_top` key at `:805`) both set `children_map` and neither renders the builder
-tree. The picker's lists are *destination candidates* and the slot positions the numeric
+"fixed".** `link_picker` (`views_manage.py:275`, which sets **`top_nodes` in the same dict literal**) and
+`node_move`'s picker GET (`:804`, together with its own `nodes_top` key at `:805`) both set
+`children_map` and neither renders the builder tree. The picker's lists are *destination candidates* and the slot positions the numeric
 `position` field indexes into — restricting them would make the JS picker compute positions
 against a filtered child list, and offering only matching destinations would make a filtered
 author unable to move anything out of the match set. The risk is live rather than theoretical:
@@ -990,6 +1011,37 @@ pass checks the row at a narrow width, not just at 1400px.
 
 ## 5. Client
 
+### 5z. The applied-`q` tracker — defined once, here
+
+Three sections need this value and an earlier draft defined it in all three, against subtly
+different mental models; the contradiction that produced is recorded below. It is defined here,
+and §3k, §5a and §5c point at this definition rather than restating it.
+
+| | |
+| --- | --- |
+| **type** | a **string** — the *raw* query, never a boolean and never the folded form |
+| **initial value** | `data-applied-q` verbatim (§3k), which is `q_raw` — so a below-floor `?q=a` initialises it to `"a"`, not `""` |
+| **written by** | the filter fetch and the clear fetch, when their response lands: to the value that request sent |
+| **read by** | the five applied-`q` senders (§5a), `syncUrl` (§5a), and the skip-comparison (§5c) |
+
+**The floor is applied in the COMPARISON, never in the tracker.** The skip test is
+
+```
+effective(candidate) === effective(tracker)      // both sides folded through the client floor
+```
+
+and what gets *sent* is the tracker's raw string. Storing the effective value instead breaks
+three things at once, which is what an earlier draft did: on a `?q=a` page the tracker would
+hold `""`, so the first toggle would send `q=""`, `syncUrl` would strip `a` from the address
+bar — the exact regression §3k carries `q_raw` unconditionally to prevent — the two halves of
+§6b's expand-all gesture would disagree again, and the toggled scope's re-rendered delete and
+Move hrefs would drop `q` while every other row kept it.
+
+Raw-in-tracker, effective-in-comparison satisfies every case the floor exists for: typing `t`
+into an unfiltered tree compares `""` to `""` and sends nothing; clearing an applied `tryg`
+compares `""` to `"tryg"` and fires; clearing a below-floor `a` compares `""` to `""` and
+correctly does nothing.
+
 ### 5a. `q` rides SEVEN request paths — five with the applied value — and `withOpen` reaches two
 
 **Set, never append**: mutation forms already carry a hidden `q`, so appending would put two
@@ -1065,6 +1117,13 @@ the two are done together rather than twice.
 
 ### 5b. The filter fetch
 
+- **The form's own submit is a first-class path, not just the debounce.** Pressing Enter in
+  the search field or clicking the Filter button submits a `method="get"` form; §4 requires the
+  JS to intercept it, and without that the single most obvious "apply the filter" gesture does a
+  full-page navigation and discards §5d's module-scoped stash. **Rule: the `[data-filter]`
+  submit listener `preventDefault`s, cancels any pending debounce timer, and runs the same
+  filter/clear decision as the debounced path with the live value** — one code path, reached two
+  ways.
 - **300 ms debounce** after the last keystroke. Undebounced it would issue a full-tree render
   per keystroke — the exact cost profile this work exists to remove.
 - **Plus a last-wins request id**, in the shape `loadPanel` already uses. The debounce does not
@@ -1096,9 +1155,15 @@ So: **`MIN_QUERY` reaches the JS as `data-q-min` on `.builder`** (never a by-val
 same reason `CEILING` never crosses the boundary), and **the client measures**
 
 ```js
-q.replace(/^[\s\u001c-\u001f\u0085]+|[\s\u001c-\u001f\u0085]+$/g, "")
- .normalize("NFC").replace(/[\u0300-\u036f]/g, "").length
+[...q.replace(/^[\s\u001c-\u001f\u0085]+|[\s\u001c-\u001f\u0085]+$/g, "")
+     .normalize("NFC").replace(/[\u0300-\u036f]/g, "")].length
 ```
+
+**The spread is not decoration: `.length` counts UTF-16 code units and Python's `len()` counts
+code points.** Every astral character — an emoji, or a U+1D400-block mathematical letter, which
+is not an exotic thing to paste into a maths course's filter box — is `.length === 2` on the
+client and `len() == 1` after the server's fold. That is the dangerous direction, for
+essentially the whole astral plane.
 
 **Only one direction of disagreement is dangerous, and the measure is chosen to close it.**
 If the client thinks a query is *above* the floor while the server thinks it is *below*, the
@@ -1115,18 +1180,25 @@ carries `open`.
    Hiragana, Arabic and the Indic scripts, whose decomposed marks and jamo fall *outside*
    U+0300–U+036F while the server leaves the precomposed character as one. An **NFC**-based
    client is longer for **83**. For Latin script — the corpus — the count is **0 either way**.
-   NFC costs nothing and removes 99% of the exposure, so NFC it is.
-2. **`String.prototype.trim()` and Python's `str.strip()` strip different sets.** Measured:
+2. **`.length` was the wrong count**, and this one dwarfs the normalisation choice. Measured in
+   **Node**, not emulated in Python: with `.length`, **1,048,216** single characters measure
+   longer on the client than on the server (77 of them BMP; the rest are astral characters
+   counted as two units purely by their encoding). With code-point counting the figure is the
+   **83** above. An earlier draft of this spec quoted "83" beside a `.length` expression — the
+   number was measured in Python, which counts code points, and does not describe the JS it was
+   attached to. Both figures are now measured in the runtime that will execute them.
+3. **`String.prototype.trim()` and Python's `str.strip()` strip different sets.** Measured:
    Python strips U+0085 and U+001C–U+001F (all report `isspace()`), JS `trim()` does not; JS
    strips U+FEFF, Python does not. So a bare `q.trim()` makes `"a\u0085"` client-length 2 and
    server-length 1 — the dangerous direction, from input that is not even exotic. The explicit
    character class above closes it; U+FEFF needs no handling, because JS stripping *more* than
    Python only ever puts the client below the floor.
 
-**Residual, accepted:** those 83 non-Latin characters. A single one of them typed alone into
-the box yields one collapsed tree, recoverable by expanding again or reloading. Closing it
-completely would mean shipping the fold table to the client, which is 373 entries of
-duplicated rule for a corpus with zero exposure.
+**Residual, accepted:** the 83 non-Latin characters that survive NFC and code-point counting.
+A single one of them typed alone into the box yields one collapsed tree, recoverable by
+expanding again or reloading. Closing it completely would mean shipping the 373-entry fold
+table to the client — a duplicated rule, for a corpus with zero exposure (0 Latin-script
+counterexamples, measured).
 
 Note what the ordering does *not* rely on: the fold table is not one-character-to-one, and
 saying so would be false — it holds 14 multi-character entries (`Ĳ→IJ`, `ǆ→dz`, `ǉ→lj`,
@@ -1157,13 +1229,9 @@ finds it equal, and **skips the request**, leaving filtered and capped markup on
 empty input. The next toggle then sends `q=""` and drops unfiltered children into it: the exact
 "stale filtered markup" outcome this section exists to prevent, reintroduced by its own guard.
 
-So: **initialise the tracker to the EFFECTIVE value of `data-applied-q`** — the raw string
-when it clears the client floor, `""` when it does not. Not from the `filtered` context key:
-that has no markup carrier (§3k), so the JS cannot read it, and after `data-applied-q` began
-carrying `q_raw` unconditionally the attribute no longer distinguishes *filtered* from
-*present-but-below-floor* on its own. Running it through the same floor the tracker's
-comparisons use is the only derivation available, and it is the one that keeps init and
-comparison consistent by construction.
+So: **initialise the tracker from `data-applied-q`, verbatim** — see §5z, which defines the
+tracker once and is the only place its type, initial value, writers and readers are stated. Not
+from the `filtered` context key: that has no markup carrier (§3k), so the JS cannot read it.
 
 With the guard in place, the floor only ever saves a round trip on the way *into* a filter,
 never on the way out.
@@ -1393,7 +1461,8 @@ until this was done.
   Polish alphabet plus `ß` and the multi-character table entries, asserting
   `client_measure(ch) <= len(fold(ch))` for each. This is the direction that collapses the tree
   (§5c); the measured Latin-script count of counterexamples is 0, so any regression is a real
-  one. Include `"a\u0085"`, which fails under a bare `trim()`.
+  one. Include `"a\u0085"`, which fails under a bare `trim()`, and **an astral character**
+  (`"\u{1D400}"`), which fails under `.length` and passes under code-point counting.
 - **an NFD-normalized title is found by an ASCII query** — `fold(unicodedata.normalize("NFD",
   "Kąty"))` must equal `"katy"`. Falsified by dropping U+0300–U+036F from the table, which
   leaves `'kąty'` and is invisible in every precomposed fixture (§1b)
@@ -1492,8 +1561,11 @@ until this was done.
   drop**, never a rename, whose success response never reaches `_render_scope`
 - **a filtered response carries exactly one `filter` code** in `X-Builder-Info` (the
   server-side half; the client-side registry behaviour is an e2e row, below)
-- **the info slot is in the DOM on an UNFILTERED, untruncated builder page** — present and
-  empty, and carrying **no `hidden` attribute**. Falsified by restoring slice 1's
+- **the info slot is in the DOM on an UNFILTERED, untruncated builder page**, carries **no
+  `hidden` attribute**, and **matches `:empty`** — asserted on `matches(":empty")` (or the
+  computed `display`), never on mere DOM presence. One newline of template whitespace defeats
+  `:empty` and leaves a sunken grey bar on every builder page, permanently (§3i), and a
+  presence-only assertion stays green through it. Falsified by restoring slice 1's
   `{% if info %}` wrapper. The existing registry e2e cannot cover this: it starts from a `?q=`
   load, where the server rendered an entry and `{% if info %}` would produce the slot anyway.
 - **a server-rendered notice is VISIBLE without JS** — a filtered page GET, asserting the
@@ -1517,7 +1589,10 @@ until this was done.
   944-row tree
 - **both bulk-control hrefs carry `q`**, both the active kind and a present-but-inactive `?q=a`
 - **`data-applied-q` holds the raw submitted `q`** — on a filtered render *and* on a
-  below-floor `?q=a` (where it is `a`, not empty), and absent-or-empty with no `q` at all.
+  below-floor `?q=a` (where it is `a`, not empty), and **present-and-empty** with no `q` at
+  all. The empty case is asserted as *present*: a conditionally-emitted attribute makes §5c's
+  init call a string method on `null`, which throws inside the top-level IIFE and kills the
+  entire builder JS (§3k).
   Asserted on the attribute's **value**: one failure it guards is a bool rendering as the
   string `"True"` (§3k), the other is a below-floor `q` being dropped so the JS and no-JS
   paths of the same gesture disagree.
@@ -1526,7 +1601,8 @@ until this was done.
 - **`data-q-min` equals `builder_filter.MIN_QUERY`**, with `MIN_QUERY` monkeypatched to a
   non-default value, **on `builder()` AND on `_builder_with_notice()`** — the notice page is
   where a hand-patched attribute goes missing and `parseInt(null)` silently kills filtering
-  (§3k). The twin of the `CEILING` monkeypatch row. Without it a by-value `2` in
+  (§3k). This row guards the **attribute**, not the JS: a hardcoded `2` in `builder.js` passes
+  it either way. The client half is the e2e row below. Without it a by-value `2` in
   `builder.js` ships green and the two constants desync the moment `MIN_QUERY` moves.
 
 **e2e (`-m e2e` — mandatory, or the tests are silently deselected and pytest exits 5, which is
@@ -1553,9 +1629,15 @@ not a pass):**
 - **a `?q=<match>` page load, then clear** — returns the unfiltered tree. Falsified by
   initialising the applied-`q` tracker to `""` instead of the server-rendered active `q`, which
   makes the clear a no-op and leaves filtered markup over an empty input (§5c).
+- **the client reads `data-q-min` rather than hardcoding it** — monkeypatch `MIN_QUERY` to 3
+  and assert a 2-character query issues **no** filter fetch. The view-level row asserts the
+  attribute; only this one can go red against a by-value `2` in `builder.js`.
 - **typing below the floor into an UNFILTERED tree issues no request at all** (§5c) — expand
   several scopes, type `t`, and assert no `manage_tree` request was made and the expansions are
   untouched. Falsified by keying the guard off the input's contents instead of the applied `q`.
+- **pressing Enter in the filter field applies the filter without navigating** (§5b) —
+  asserted with the no-navigation guard slice 1 already uses, since a full-page load would also
+  *look* filtered while silently discarding the stash
 - **two rapid queries leave the later one's results** (the last-wins id; falsified by removing
   it)
 - **a toggle fired inside the debounce window carries the APPLIED `q`, not the typed one**
