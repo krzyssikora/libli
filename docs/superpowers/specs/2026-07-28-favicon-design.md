@@ -134,6 +134,11 @@ to its committed twin by `Path.name` under `core/static/core/img/favicon/`, and 
 sample set. An unrecognised suffix **fails the test** rather than being skipped — that is what keeps
 the "no new output escapes" property true for a future output type.
 
+That covers additions but not removals, so it is paired with a **set-equality** assertion: the file
+names present under `core/static/core/img/favicon/` equal the names `build(tmp_path)` returns.
+Without it, a renamed output (say `icon-192.png` → `icon-192x192.png`) leaves the stale file committed
+and still collected and served, with every test green.
+
 **The SVG's byte encoding is pinned**, because it is byte-compared and this repo has no
 `.gitattributes` while development is on Windows and CI on Linux. `build()` writes it with
 `path.write_bytes(svg.encode("utf-8"))` — never text mode, which would emit CRLF on Windows and LF on
@@ -172,7 +177,8 @@ separately: the result is **not** byte-identical to handing Pillow one source im
 The script is the way to regenerate the assets; it is not run at request time or at deploy time.
 "Documented" means two concrete artefacts this build must produce: a module docstring in
 `scripts/build_favicons.py` stating the invocation and when to re-run it (any geometry or palette
-change), and one line in the dev-onboarding docs (`docs/dev/`) pointing at it.
+change), and one line in `docs/development/conventions.md` pointing at it. (There is no `docs/dev/` —
+this repo's dev-onboarding docs are `docs/development/{architecture,conventions,setup}.md`.)
 
 **All three URL-emitting surfaces build static URLs through `django.templatetags.static.static()`** —
 the `{% favicon_links %}` tag, the manifest view's `icons[].src`, and the `/favicon.ico` redirect
@@ -446,9 +452,20 @@ that for a login redirect.
 `.strip()`ed first; if it is ≤ 12 characters use it as-is; otherwise `name[:12].rsplit(" ", 1)[0]`
 then `.rstrip()` — the boundary character is the **ASCII space only** (not hyphens, not other
 whitespace), so `Jan-Kochanowski Liceum` truncates inside the hyphenated word and a double space
-collapses harmlessly under `rstrip`. If that yields an empty string (the first word is itself longer
-than 12 characters — "Międzynarodowe", "Gesamtschule") hard-truncate to exactly 12 characters. `name` itself is never empty — `get_site_config()` already falls back to
-`_DEFAULTS["name"]`.
+collapses harmlessly under `rstrip`.
+
+**There is no empty-result branch**, and an earlier draft's hard-truncate fallback was removed as dead
+code. For any stripped non-empty name, `name[:12].rsplit(" ", 1)[0]` is never empty — a fuzz over
+200k space/letter strings found zero cases — because with no space in the first 12 characters
+`rsplit` returns the whole slice. A long first word simply takes the main path:
+`"Międzynarodowe Liceum"` → `"Międzynarodo"`. Keeping the branch would have meant shipping a test that
+still passes with the branch deleted.
+
+The name can nonetheless be **whitespace-only**: `_build()` uses `inst.name or _DEFAULTS["name"]`, and
+`"   "` is truthy. Both the Branding form and the admin strip through `CharField(strip=True)`, so this
+is reachable only by a shell/fixture/data-migration write — the same bypass class §3 documents for the
+upload rules. Handle it where it arises: if the stripped name is empty, fall back to
+`_DEFAULTS["name"]` and run the rule on that, so neither `name` nor `short_name` can be `""`.
 
 `icons` is the 192/512/maskable trio by default, each with `"type": "image/png"` and its `sizes`; the
 maskable entry additionally carries `"purpose": "maskable"`. With an override it is a **single** entry
@@ -533,10 +550,10 @@ deterministically and "one test per refusal" is writable):
 | # | rule | limit | reads | why |
 |---|---|---|---|---|
 | 1 | size | **≤ 256 KB** (`MAX_FAVICON_BYTES`, defined next to `MAX_LOGO_BYTES` in `institution/forms.py`) | `getattr(value, "size", 0)` — the byte count, mirroring `clean_logo`. **Not** `value.image.size`, which is a `(width, height)` tuple. | An icon fetched by every visitor has no legitimate reason to be larger. The logo's separate 2 MB cap is unchanged. |
-| 2 | filename extension | **`.png`** | `os.path.splitext(value.name)[1].lower()` — case-folded, so `SCHOOL.PNG` is accepted | `upload_to="branding/"` preserves the uploaded **filename**, so a file whose bytes decode as PNG but whose name is `mark.svg` or `mark.html` would be stored and served same-origin under that extension. Checking format alone does not close that; both checks are deliberate. Only the **last** extension is inspected — `mark.svg.png` passes — which is correct here because every serving layer in the path (`core/media_serve.py`, and a real deployment's web server) also types the response off the last extension. |
+| 2 | filename extension | **`.png`** | `os.path.splitext(value.name)[1].lower()` — case-folded, so `SCHOOL.PNG` is accepted | Narrows the extension to one. `upload_to="branding/"` preserves the uploaded **filename**, so a PNG named `mark.gif` would be stored and served same-origin under that extension. Only the **last** extension is inspected — `mark.svg.png` passes — which is correct here because every serving layer in the path (`core/media_serve.py`, and a real deployment's web server) also types the response off the last extension. |
 | 3 | decoded format | **PNG** | `value.image.format` | Never trust the extension for content. |
 | 4 | square | **width == height** | `value.image.size` | Every consumer renders in a square box; a non-square upload is squashed. "Crop it square first" beats silently distorting a school's logo. |
-| 5 | dimensions | **192–512 px** | `value.image.size` | The floor is 192 because the upload also becomes the manifest's sole icon and the iOS home-screen icon; below ~192 an installed app gets a blurry or rejected icon. The ceiling is 512 — the largest slot libli emits — which also keeps rules 1 and 5 describing a *non-empty* intersection (a 1024 px PNG routinely exceeds 256 KB). |
+| 5 | dimensions | **192–512 px, both bounds inclusive** — `if not (192 <= w <= 512)` | `value.image.size` | The floor is 192 because the upload also becomes the manifest's sole icon and the iOS home-screen icon; below ~192 an installed app gets a blurry or rejected icon. The ceiling is 512 — the largest slot libli emits — which also keeps rules 1 and 5 describing a *non-empty* intersection (a 1024 px PNG routinely exceeds 256 KB). **Inclusive matters**: 512 is both the largest slot libli emits and the size of the generated default, so an exclusive comparison would reject the recommended upload. |
 
 **The five refusal messages are written out here**, in both languages, for the same reason the widget
 copy and help text are: they are the strings a PA actually sees, they carry the same numbers as the
@@ -545,7 +562,7 @@ help text, and inventing them at implementation time is how the two drift apart.
 | rule | EN | PL |
 |---|---|---|
 | 1 | The favicon must be 256 KB or smaller. | Ikona strony może mieć najwyżej 256 KB. |
-| 2 | The favicon must be a .png file. | Ikona strony musi być plikiem .png. |
+| 2 | The favicon must be a .png file. | Ikona strony musi być plikiem .png. | <!-- reachable for .gif/.bmp/.webp/.pdf; .svg/.html are caught earlier by Django -->
 | 3 | The favicon must be a PNG image. | Ikona strony musi być obrazem PNG. |
 | 4 | The favicon must be square — crop it to equal width and height first. | Ikona strony musi być kwadratowa — najpierw przytnij ją do równej szerokości i wysokości. |
 | 5 | The favicon must be between 192 and 512 pixels. | Ikona strony musi mieć od 192 do 512 pikseli. |
@@ -558,25 +575,40 @@ the wrong-content cases, and collapsing them into one message would hide which c
 four surfaces this feature promises, silently unbranded. PNG-only also makes the manifest `type`
 constant and drops a bundle key.
 
-**SVG is rejected, but not by these rules — and the distinction matters for the error message.** A
-genuine SVG never reaches `clean_favicon` at all: `forms.ImageField.to_python` cannot open it with
-Pillow and raises `ValidationError("invalid_image")` first, after which Django skips the field's
-`clean_<field>` entirely. The PA therefore sees Django's stock *"Upload a valid image. The file you
-uploaded was either not an image or a corrupted image."* Rules 2 and 3 exist for the **disguised**
-case — PNG bytes named `mark.svg`. The reason both paths matter: an uploaded SVG served same-origin
-from `/media/` is a stored-XSS vector, and nothing in this codebase sanitizes SVG. As §3 notes, this
-is a **form-level** guarantee — a shell/fixture write bypasses it.
+**Two Django checks run *before* rule 1, and they own the cases this spec used to attribute to
+rules 2 and 3.** Both were measured:
+
+- `forms.ImageField.to_python` cannot open a genuine SVG with Pillow and raises
+  `ValidationError("invalid_image")`, after which Django skips `clean_<field>` entirely. The PA sees
+  the stock *"Upload a valid image…"*.
+- `forms.ImageField.default_validators` includes `validate_image_file_extension`, which runs in
+  `Field.clean()` — again **before** `clean_favicon`. So PNG bytes named `mark.svg` or `mark.html`
+  error with Django's stock *"File extension “svg” is not allowed…"*, and rule 2's message is never
+  produced for them.
+
+Rule 2 is therefore reachable only for extensions **Pillow registers but this feature disallows** —
+measured reachable: `mark.gif`, `mark.bmp`, `mark.webp`, `mark.pdf`. That is its real job: narrowing
+Django's broad image-extension allowlist to one. The `.svg`/`.html` cases are still refused, just one
+layer earlier and with a different message.
+
+The reason all three layers matter: an uploaded SVG served same-origin from `/media/` is a stored-XSS
+vector, and nothing in this codebase sanitizes SVG. As §3 notes, this is a **form-level** guarantee —
+a shell/fixture write bypasses every one of them.
 
 **Alpha channel is accepted, with a stated cost.** A transparent PNG is fine on a browser tab but iOS
 composites transparency onto black on the home screen, and flattening it server-side is an explicit
 non-goal. Transparent uploads are therefore accepted and still emitted as `apple-touch-icon`; the
 help text warns about it.
 
-**Help text copy** (the only place a PA learns the constraints before uploading; `gettext_lazy`, EN
-and PL):
+**Label and help-text copy** (the only place a PA learns the constraints before uploading;
+`gettext_lazy`). Written out in both languages for the same reason as the widget and refusal strings —
+neither msgid exists in `locale/pl` today, and leaving them to the implementer is how copy drifts from
+the PL screenshots.
 
-> Square PNG, 192–512 px, up to 256 KB. Replaces the libli icon in browser tabs and on home screens.
-> Transparent areas show as black on iOS home screens — use a solid background for best results.
+| | EN | PL |
+|---|---|---|
+| label | Favicon | Ikona strony (favicon) |
+| help text | Square PNG, 192–512 px, up to 256 KB. Replaces the libli icon in browser tabs and on home screens. Transparent areas show as black on iOS home screens — use a solid background for best results. | Kwadratowy plik PNG, 192–512 px, do 256 KB. Zastępuje ikonę libli w kartach przeglądarki i na ekranach głównych. Przezroczyste obszary wyświetlają się na czarno na ekranie głównym iOS — dla najlepszego efektu użyj jednolitego tła. |
 
 Each failure is a field-level `ValidationError`, so the settings form re-renders at HTTP 200 with the
 message next to the field. The existing PRG behaviour in `institution/views_manage.py` (valid POST →
@@ -590,8 +622,9 @@ dimensions, the upload is rejected rather than accepted-and-hoped-for.
 
 - `favicon_url` dereferences `.url` only behind an `if inst.favicon` guard.
 - `favicon_size` handles both a raising failure (`OSError`/`ValueError`, deleted file) and a
-  non-raising one (`get_image_dimensions` returning `(None, None)` on a corrupt file) → `None` → the
-  manifest entry falls back to `"sizes": "any"` rather than raising or emitting `"NonexNone"`.
+  non-raising one (`get_image_dimensions` returning `(None, None)` on a corrupt file) → `None`, on
+  which both surfaces **omit** their size declaration (§6) rather than raising, emitting
+  `"NonexNone"`, or substituting `"any"`.
 - `theme-color` and the manifest's `theme_color` fall back to `PRIMARY_DEFAULT` when the stored brand
   colour is absent or fails `is_valid_css_color()`. This is reachable on a plain install:
   `_build()` returns `_safe_color(colors.get("primary"))`, i.e. `None`, whenever the `BrandColor` row
@@ -678,9 +711,11 @@ whether the bullet is a correctness check or a drift guard.
   assertions all pass on. They are excluded from colour sampling, not from checking, so assert a weak
   but non-vacuous set: each frame has **≥ 3 distinct RGBA values** (not uniform), its **centre pixel
   is fully opaque**, and the pixel at the scaled dot centre is **channel-wise closer to accent than to
-  primary** (measured at 16 px: `(148,125,66)`, distance ≈ 56 to accent vs ≈ 139 to primary — the
-  margin is comfortable). Measure and pin the exact values when implementing; the spec fixes the form
-  of the assertion, not invented numbers.
+  primary** by **Euclidean RGB distance** (measured at 16 px: `(148,125,66)`, ≈ 56 to accent vs ≈ 139
+  to primary — the margin is comfortable). Note the metric differs from the maskable bullet's
+  max-per-channel one deliberately; under max-per-channel the same pixel reads 51 vs 128. Measure and
+  pin the exact values when implementing; the spec fixes the form of the assertion, not invented
+  numbers.
 - **Rendered-extent assertion** (committed), the guard for the endpoint-inclusive convention. It needs
   a classification predicate, and the obvious ones disagree: on the 512 render, scanning for *exactly*
   white gives x 173–234, while a threshold scan gives 172–235. **Predicate: a pixel belongs to the
@@ -692,9 +727,30 @@ whether the bullet is a correctness check or a drift guard.
 
   Run it **only on those two outputs** — the boundary is set by which sizes have measured literals,
   not by a property of 180 px (where the stem is a perfectly measurable 22.5 output px wide). The
-  separate 16 px arithmetic below is about the ICO frames' colour sampling, not this assertion. The
-  512 assertion is the load-bearing one: getting the endpoint convention wrong shifts it to 172–236,
-  which exact equality catches and a tolerance would mask.
+  separate 16 px arithmetic below is about the ICO frames' colour sampling, not this assertion.
+
+  **The `≥ 200` predicate alone does not catch a missing `− 1`, and this was measured.** Rendering the
+  mark with the correction and without it (the naive half-open transcription — exactly "the endpoint
+  convention got wrong") produces *identical* results under that predicate at both sizes, and
+  identical results for every colour sample, the corner probe, and the 16 px frame checks. The rasters
+  really do differ (the stem is 0.25 canvas units fat) but nothing in the plan would have gone RED,
+  and raster byte-comparison is deliberately excluded — so the most heavily argued mechanism in §1
+  would have shipped unguarded. The asymmetry: `≥ 200` *does* catch **over**-correction (subtracting a
+  whole final pixel gives `172–234, 129–381`), which is what made it look sufficient.
+
+  So pin **both predicates** on `icon-512.png`:
+
+  - `≥ 200` in all channels → **x 172–235, y 129–382** (catches over-correction);
+  - **exactly white** (`255,255,255`) → **x 173–234, y 130–381** (catches the *missing* correction,
+    which shifts this scan to `173–235, 130–382`).
+
+  And pin the maskable bounding box as **exact measured literals** rather than the ±2 tolerance:
+  x 172–339, y 129–382 (a missing `− 1` moves it to x 172–340, y 129–383, which the tolerance would
+  have absorbed). Keep the half-diagonal < 204.8 check as a separate safe-zone assertion.
+
+  **Falsification for this guard is deleting the `− 1` itself**, not editing a geometry constant — a
+  constant edit reddens the centring and SVG assertions instead and proves nothing about the
+  convention.
 - **Corner-radius probe** (committed): the radius constants are otherwise unguarded — the corner-alpha
   assertion at `(0,0)` reads `(0,0,0,0)` for any radius above ~2, the extent predicate only measures
   the white stem, and no sample point sits near a corner. So: on `icon-512.png`, assert one pixel just
@@ -707,12 +763,12 @@ whether the bullet is a correctness check or a drift guard.
   is a tautology — it can only fail if someone edits the geometry table, and cannot catch a bug in the
   maskable *rendering* path (a stray offset, a wrong `s`, an accidental inset), which is the one thing
   that variant is uniquely exposed to. So: scan `icon-maskable-512.png` for the bounding box of pixels
-  whose **channel-wise distance from the tile colour exceeds 24** — exact RGBA inequality would sweep
-  in every anti-aliasing and ringing pixel, the same reason the stem assertion uses a threshold rather
-  than exact white — and assert that box's half-diagonal is < 204.8 and that its centre is within
-  **±2 output px of (255.5, 255.5)** in both axes. Both numbers are tolerances by design; a ±1 px halo
-  asymmetry must not redden this. Same distinction the extent assertion makes between constants and
-  pixels.
+  whose **maximum absolute per-channel difference** from the tile colour exceeds 24 — exact RGBA
+  inequality would sweep in every anti-aliasing and ringing pixel, the same reason the stem assertion
+  uses a threshold rather than exact white. Assert the box's **exact measured extents (x 172–339,
+  y 129–382)** and that its half-diagonal is < 204.8. The exact literals replace an earlier ±2 px
+  centring tolerance, which was measured to absorb a missing `− 1` (it moves the box to x 172–340,
+  y 129–383) — the same distinction the extent assertion makes between constants and pixels.
 - **Mode and corners** (committed): every raster is `RGBA`; `icon-512.png` and `favicon.ico`'s 48 px
   frame have corner pixel `(0,0,0,0)`, while `apple-touch-icon.png` and `icon-maskable-512.png` have
   alpha 255 at all four corners — the assertion that actually distinguishes the variants.
@@ -728,20 +784,27 @@ whether the bullet is a correctness check or a drift guard.
 rule it targets, not merely that the field errored: rules 2 and 3 read near-identically to a PA, and
 message equality is the only thing that proves which check fired.
 
-Two fixtures need pinning or they trip the wrong rule:
+Three fixtures need pinning or they trip the wrong rule:
 
+- **The rule-2 fixture is PNG bytes named `mark.gif`**, not `mark.svg`. Django's
+  `validate_image_file_extension` runs before `clean_favicon` and rejects `.svg`/`.html` with its own
+  stock message, so a `.svg`-named fixture never reaches rule 2 and its message assertion goes RED.
+  `.gif` is in Django's allowlist but not in this feature's, which is precisely the gap rule 2 exists
+  to close.
 - **Rule 3 fixtures carry a `.png` filename.** Rule 2 runs first, so a plain `.ico`/`.jpg` upload
-  fails on the extension and yields message 2 — leaving rule 3 untested and making those cases
-  duplicates of the `.svg`-named one. The rule-3 cases are ICO bytes and JPEG bytes *named* `mark.png`.
+  fails on the extension and yields message 2 — leaving rule 3 untested. The rule-3 cases are ICO
+  bytes and JPEG bytes *named* `mark.png`.
 - **The over-the-ceiling fixture is a 1024×1024 flat-colour PNG.** Rule 1 runs first and, as rule 5's
   own justification says, a 1024 px PNG routinely exceeds 256 KB — so a photographic fixture yields
   message 1. Flat colour compresses to a few KB and reaches rule 5. Conversely the too-large fixture
   is a 512 px **noise** PNG, which is what reliably exceeds 256 KB while staying inside the ceiling.
 
-The cases: too-large, `.svg`-named PNG bytes, a **genuine SVG** (asserting only that the field errors,
-not the wording — that path is `forms.ImageField`'s stock `invalid_image`, not `clean_favicon`),
-`.png`-named ICO, `.png`-named JPEG, non-square, 32 px (under the
-floor), 1024 px flat-colour (over the ceiling), valid square PNG accepted, **uppercase `.PNG` accepted**,
+The cases, with message equality asserted except where noted: too-large; `.gif`-named PNG bytes;
+`.png`-named ICO; `.png`-named JPEG; non-square; 32 px (under the floor); 1024 px flat-colour (over
+the ceiling); **exactly 192 px accepted**; **exactly 512 px accepted**; valid square PNG accepted;
+**uppercase `.PNG` accepted**. Two cases assert only *that the field errors*, never the wording,
+because Django owns those messages and they are not `clean_favicon`'s: a **genuine SVG**
+(`invalid_image`) and **`.svg`-named PNG bytes** (`validate_image_file_extension`). Plus
 `favicon-clear` empties the field. Plus the value-type guard: **saving the Branding form without
 touching the favicon does not raise** (the `FieldFile` path), and a clear (`False`) short-circuits
 before any Pillow access. That pair is the regression test for the 500 described above.
@@ -756,7 +819,13 @@ before any Pillow access. That pair is the regression test for the 500 described
 - With an override, the icon links point at the media URL and the static default icons are *absent*
   (not merely present-alongside).
 - A media filename containing HTML-special characters is escaped in the `href` — the falsification for
-  choosing `format_html` over `mark_safe`.
+  choosing `format_html` over `mark_safe`. **It must be constructed, not uploaded:**
+  `get_valid_filename` strips exactly those characters on the way in (measured:
+  `sch"ool<x>&.png` → `schoolx.png`), so an upload-based test finds nothing to escape and passes
+  identically under `mark_safe` — vacuous. Set `inst.favicon.name` directly, or patch `favicon_url`
+  in the cached bundle, the same construction the malformed-colour case already uses.
+- With an override whose `favicon_size` is `None`, the head link **omits** its `sizes` attribute
+  (the counterpart of the manifest assertion below).
 - `theme-color` equals `PRIMARY_DEFAULT` when the stored primary is `None`, and again when it is
   malformed; same for the manifest's `theme_color`. Both must go RED with the fallback removed. The
   `None` case is reachable on a plain install; the **malformed** case is not — `_build()` already runs
@@ -775,12 +844,15 @@ before any Pillow access. That pair is the regression test for the 500 described
   and the default icon trio with `type`, `sizes`, and the maskable `purpose`.
 - `short_name` at its boundaries: a ≤12-char name passes through; a long multi-word name truncates at
   the word boundary **with no trailing space** (assert the exact string); a name whose first word
-  exceeds 12 characters hard-truncates to exactly 12 and is never empty; and the **default install**
+  exceeds 12 characters yields the exact string `"Międzynarodo"` (the main path — there is no
+  hard-truncate branch to test); a whitespace-only name falls back to the default; and the
+  **default install**
   case, `"My Institution"` (14 chars) → `"My"`. That last one is the short name every unconfigured
   install ships, so it is asserted rather than discovered — it is the correct output of the rule, not
   an oversight.
-- With an override, the manifest has a single icon entry carrying `favicon_size` (or `"any"` when the
-  file is unreadable) and `"type": "image/png"`.
+- With an override, the manifest has a single icon entry carrying `favicon_size` and
+  `"type": "image/png"`; when `favicon_size` is `None` the entry **omits the `sizes` key entirely**
+  (not `"any"` — see §6).
 - The manifest is reachable **anonymously**.
 - `/favicon.ico` 302s to the static asset by default and to the media URL with an override, and sets
   **no** `Cache-Control` header.
