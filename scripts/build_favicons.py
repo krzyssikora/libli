@@ -4,6 +4,9 @@ Re-run after ANY change to the geometry constants or the palette below:
 
     uv run python scripts/build_favicons.py
 
+A deliberate stem-geometry change also requires updating the expected extent
+literal in `build()`.
+
 Writes to core/static/core/img/favicon/ by default; --out redirects it (the
 tests render into tmp_path that way). Never runs at request or deploy time --
 the outputs are committed.
@@ -19,6 +22,9 @@ exactly one supersample pixel. Radii scale but are never decremented.
 
 import argparse
 from pathlib import Path
+
+from PIL import Image
+from PIL import ImageDraw
 
 # ── Geometry (canvas units, half-open extents) ─────────────────────────────
 CANVAS = 512
@@ -64,6 +70,26 @@ def _svg():
     )
 
 
+def _threshold_white(p):
+    """A pixel counts as stem iff all three RGB channels are >= 200.
+
+    Also imported by tests/test_favicon_build.py -- one predicate, one home.
+    """
+    return p[0] >= 200 and p[1] >= 200 and p[2] >= 200
+
+
+def _measure_stem(im):
+    """Inclusive (x0, x1, y0, y1) of the stem, measured in pixels."""
+    px = im.load()
+    xs, ys = [], []
+    for y in range(im.height):
+        for x in range(im.width):
+            if _threshold_white(px[x, y]):
+                xs.append(x)
+                ys.append(y)
+    return min(xs), max(xs), min(ys), max(ys)
+
+
 def _assert_centred():
     """The artwork bounding box is centred by construction."""
     x1, y1 = DOT_CX + DOT_R, DOT_CY + DOT_R
@@ -85,6 +111,30 @@ def _assert_maskable_fits():
         )
 
 
+def _render(size, tile_radius=TILE_R):
+    """Draw the mark at `size` px, supersampled and LANCZOS-downsampled.
+
+    tile_radius=0 makes the tile full-bleed, which also makes every pixel opaque --
+    that is how the apple-touch and maskable variants get their alpha 255 (iOS
+    composites transparency onto black and applies its own corner mask).
+    """
+    s = _scale(size)
+    canvas = size * SUPERSAMPLE
+    im = Image.new("RGBA", (canvas, canvas), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(im)
+    draw.rounded_rectangle(
+        _box(0, 0, CANVAS, CANVAS, s), radius=tile_radius * s, fill=PRIMARY
+    )
+    draw.rounded_rectangle(
+        _box(STEM_X0, STEM_Y0, STEM_X1, STEM_Y1, s), radius=STEM_R * s, fill=STEM_FILL
+    )
+    draw.ellipse(
+        _box(DOT_CX - DOT_R, DOT_CY - DOT_R, DOT_CX + DOT_R, DOT_CY + DOT_R, s),
+        fill=ACCENT,
+    )
+    return im.resize((size, size), Image.LANCZOS)
+
+
 def build(out_dir):
     """Write every favicon asset into `out_dir`; return the written paths.
 
@@ -101,6 +151,46 @@ def build(out_dir):
     # Linux, and this file is byte-compared by tests/test_favicon_build.py.
     svg_path.write_bytes(_svg().encode("utf-8"))
     written.append(svg_path)
+
+    for name, size, radius in (
+        ("icon-192.png", 192, TILE_R),
+        ("icon-512.png", 512, TILE_R),
+        # Squared and full-bleed: iOS masks corners itself, so a pre-rounded tile
+        # would show background wedges inside the mask.
+        ("apple-touch-icon.png", 180, 0),
+        ("icon-maskable-512.png", 512, 0),
+    ):
+        image = _render(size, tile_radius=radius)
+        if name == "icon-512.png":
+            # Catches OVER-correction (subtracting a whole final pixel instead of
+            # one supersample pixel) -> (172, 234, 129, 381). It does NOT catch a
+            # MISSING correction: measured, deleting the -1 leaves this extent
+            # unchanged. That case is caught by the exact-white extent and the
+            # maskable bbox in tests/test_favicon_build.py.
+            #
+            # This literal is part of the geometry contract: a DELIBERATE change to
+            # STEM_X0/STEM_X1/STEM_Y0/STEM_Y1 must update it here, or the documented
+            # regeneration command fails. The module docstring says so too.
+            measured = _measure_stem(image)
+            if measured != (172, 235, 129, 382):
+                raise AssertionError(f"icon-512 stem extent drifted: {measured}")
+        path = out_dir / name
+        image.save(path, format="PNG")
+        written.append(path)
+
+    # Largest-first is load-bearing: IcoImagePlugin takes its ceiling from
+    # frames[0].size and SILENTLY drops every requested size larger than it, so an
+    # ascending list yields a one-frame ICO. The sizes= order is irrelevant
+    # (it is consumed as sorted(set(...))); only frames[0] matters.
+    frames = [_render(n) for n in (48, 32, 16)]
+    ico_path = out_dir / "favicon.ico"
+    frames[0].save(
+        ico_path,
+        format="ICO",
+        sizes=[(48, 48), (32, 32), (16, 16)],
+        append_images=frames[1:],
+    )
+    written.append(ico_path)
     return written
 
 
