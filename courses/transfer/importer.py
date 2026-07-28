@@ -1072,9 +1072,19 @@ def import_subtree(
         )
         node_map = _create_nodes(document, target_course, root_parent=insertion_node)
         created = _create_elements(document, node_map, assets)
-        _rewrite_links(
-            document, node_map, created, on_missing=on_missing, report=report
-        )
+
+        # Bookkeeping is UNCONDITIONAL -- `defer` skips the rewrite, not this.
+        # migrate_course_content needs export_id -> new_pk from every part, and
+        # the natural reading of "skip the post-pass entirely" would drop exactly
+        # it. The pk-valued projection keeps the state file JSON-serialisable.
+        if report is not None:
+            report["node_map"] = {eid: n.pk for eid, n in node_map.items()}
+            report.setdefault("flattened_links", 0)
+
+        if on_missing != "defer":
+            _rewrite_links(
+                document, node_map, created, on_missing=on_missing, report=report
+            )
         return node_map[document["nodes"][0]["id"]]
 
     return _run_import(work, created_files)

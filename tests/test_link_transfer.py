@@ -1,5 +1,6 @@
 import pytest
 
+from courses.models import Course
 from courses.models import TextElement
 from courses.transfer.export import build_export
 from courses.transfer.schema import FORMAT_VERSION
@@ -335,3 +336,107 @@ def test_the_subtree_confirm_view_warns_too(client):
     )
     texts = [m.message for m in get_messages(resp.wsgi_request)]
     assert any("plain text" in t for t in texts), texts
+
+
+# --- Task 2: importer defer + report["node_map"] -------------------------------
+
+
+def _round_trip_subtree(course, root, target_course, user, report, *, on_missing):
+    """Export `root` as a subtree and graft it into `target_course`.
+
+    import_subtree is the ONLY entry point that learns `defer`, so every test
+    below goes through here rather than part 2's import_course-based _round_trip.
+    """
+    import io
+
+    from courses.transfer.export import build_export
+    from courses.transfer.export import write_archive_from
+    from courses.transfer.importer import import_subtree
+    from courses.transfer.importer import open_archive
+    from courses.transfer.importer import validate_archive_document
+
+    manifest, document, assets, _problems = build_export(course, node=root)
+    buf = io.BytesIO()
+    write_archive_from(manifest, document, assets, buf)
+    buf.seek(0)
+    with open_archive(buf, expected_kind="subtree") as (zf, mani, doc, media):
+        validate_archive_document(
+            zf, mani, doc, media, kind="subtree", target_course=target_course
+        )
+        return import_subtree(
+            zf,
+            mani,
+            doc,
+            media,
+            target_course,
+            None,
+            user,
+            on_missing=on_missing,
+            report=report,
+        )
+
+
+def test_defer_skips_the_rewrite_and_reports_node_map():
+    """The cutover's contract: rewrite NOTHING, but hand back the map."""
+    course, chapter, _unit = _course_with_link()
+    target = Course.objects.create(title="T", slug="t-defer", uses_chapters=True)
+    report = {}
+    _round_trip_subtree(
+        course, chapter, target, course.owner, report, on_missing="defer"
+    )
+
+    from courses.models import TextElement
+
+    body = TextElement.objects.filter(elements__unit__course=target).first().body
+    # Untouched: the href still holds the SOURCE pk.
+    assert f"/courses/n/{chapter.pk}/" in body
+    # And the map came back anyway.
+    assert report["node_map"]
+    assert all(isinstance(v, int) for v in report["node_map"].values())
+    # Present-and-zero, not absent -- callers read it without a .get.
+    assert report["flattened_links"] == 0
+
+
+@pytest.mark.parametrize("policy", ["keep", "unwrap", "defer"])
+def test_node_map_is_populated_for_every_on_missing_value(policy):
+    course, chapter, _unit = _course_with_link()
+    target = Course.objects.create(title="T", slug=f"t-{policy}", uses_chapters=True)
+    report = {}
+    _round_trip_subtree(
+        course, chapter, target, course.owner, report, on_missing=policy
+    )
+    assert report["node_map"], policy
+    assert "flattened_links" in report, policy
+
+
+def test_rewrite_links_still_rejects_defer():
+    """`defer` is an importer concept. Part 2's helper must not learn it."""
+    from courses.richtext import rewrite_links
+
+    with pytest.raises(ValueError):
+        rewrite_links('<a href="/courses/n/1/">x</a>', {}, on_missing="defer")
+
+
+def test_defer_never_calls_the_rewrite_post_pass(monkeypatch):
+    """Traces the actual call path: instrument importer._rewrite_links itself so
+    it raises if invoked, then run a defer import through it. If the on_missing
+    != "defer" gate in import_subtree ever regressed to call the post-pass
+    anyway, this goes red -- not because rewrite_links rejected "defer" (that's
+    the sibling test above), but because it was called AT ALL."""
+    import courses.transfer.importer as importer_module
+
+    def _boom(*args, **kwargs):
+        raise AssertionError(
+            "_rewrite_links must not be called under on_missing='defer'"
+        )
+
+    monkeypatch.setattr(importer_module, "_rewrite_links", _boom)
+
+    course, chapter, _unit = _course_with_link()
+    target = Course.objects.create(title="T", slug="t-defer-trace", uses_chapters=True)
+    report = {}
+    # Must complete without the monkeypatched _rewrite_links ever firing.
+    _round_trip_subtree(
+        course, chapter, target, course.owner, report, on_missing="defer"
+    )
+    assert report["node_map"]
