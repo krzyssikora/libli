@@ -3,8 +3,10 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.decorators import permission_required
 from django.http import HttpResponse
 from django.http import HttpResponseBadRequest
+from django.http import JsonResponse
 from django.shortcuts import redirect
 from django.shortcuts import render
+from django.templatetags.static import static
 from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils.translation import gettext_lazy as _
@@ -14,6 +16,9 @@ from core.context_processors import COOKIE_THEME
 from core.context_processors import THEME_VALUES
 from core.forms import UserSettingsForm
 from core.middleware import LANGUAGE_SESSION_KEY as SESSION_KEY
+from core.services import FAVICON_DIR
+from core.services import default_name
+from core.services import effective_primary
 from core.services import get_site_config
 
 
@@ -196,3 +201,83 @@ def institution_settings(request):
     redirect so existing reverses/bookmarks resolve. login_required runs first so an
     anonymous request redirects to login; an authed user lacking the perm gets 403."""
     return redirect("institution:settings")
+
+
+MANIFEST_BACKGROUND = "#F4F1EA"  # the app's light surface; a white splash would flash
+
+
+def _short_name(name):
+    """<= 12 chars, truncated on an ASCII space, right-stripped.
+
+    There is deliberately no empty-result branch: for any stripped non-empty name,
+    name[:12].rsplit(" ", 1)[0] is never empty (with no space in the first 12
+    characters rsplit returns the whole slice), so a hard-truncate fallback would
+    be dead code whose test passes with the branch deleted.
+    """
+    name = (name or "").strip() or default_name()
+    if len(name) <= 12:
+        return name
+    return name[:12].rsplit(" ", 1)[0].rstrip()
+
+
+def _manifest_icons(cfg):
+    url = cfg.get("favicon_url")
+    if url:
+        # A single entry: an override forgoes both the maskable variant (Android may
+        # crop it) and the 512 px entry (a 192 px upload yields a lower-resolution
+        # splash). Deriving either would mean server-side image generation.
+        entry = {"src": url, "type": "image/png", "purpose": "any"}
+        if cfg.get("favicon_size"):
+            entry["sizes"] = cfg["favicon_size"]
+        return [entry]
+    return [
+        {
+            "src": static(FAVICON_DIR + "icon-192.png"),
+            "sizes": "192x192",
+            "type": "image/png",
+        },
+        {
+            "src": static(FAVICON_DIR + "icon-512.png"),
+            "sizes": "512x512",
+            "type": "image/png",
+        },
+        {
+            "src": static(FAVICON_DIR + "icon-maskable-512.png"),
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "maskable",
+        },
+    ]
+
+
+def webmanifest(request):
+    """The PWA manifest. A view, not a static file: name and icons both depend on
+    institution state. Public -- the browser fetches it regardless of session."""
+    cfg = get_site_config()
+    name = (cfg["name"] or "").strip() or default_name()
+    return JsonResponse(
+        {
+            "name": name,
+            "short_name": _short_name(name),
+            # "/" not "/home/": landing already bounces authenticated users to the
+            # dashboard, while an anonymous launch keeps the landing page's SSO entry.
+            "start_url": "/",
+            "display": "standalone",
+            "background_color": MANIFEST_BACKGROUND,
+            "theme_color": effective_primary(cfg),
+            "icons": _manifest_icons(cfg),
+        },
+        content_type="application/manifest+json",
+    )
+
+
+def favicon_ico(request):
+    """Browsers request this path unprompted wherever no <link rel="icon"> is in
+    scope -- a direct /media/ or JSON hit, a bookmark manager, an installer. A
+    static file there could not honour the override; no route makes each a 404.
+
+    No Cache-Control: a long-lived cached 302 would outlive a PA clearing the
+    favicon, contradicting "clearing restores the default".
+    """
+    cfg = get_site_config()
+    return redirect(cfg.get("favicon_url") or static(FAVICON_DIR + "favicon.ico"))

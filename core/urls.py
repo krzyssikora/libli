@@ -16,4 +16,6 @@ urlpatterns = [
     ),
     path("help/", views_help.help_index, name="help_index"),
     path("help/<slug:slug>/", views_help.help_topic, name="help_topic"),
+    path("site.webmanifest", views.webmanifest, name="webmanifest"),
+    path("favicon.ico", views.favicon_ico, name="favicon_ico"),
 ]
