@@ -397,8 +397,10 @@ def test_dragimage_quiz_withhold_then_reveal_js(live_server, browser):
     # accepted label may appear in the pre-reveal fragment (no-leak, spec §7.1).
     _set_slots("Liver", "Liver")
     page.locator('.question__form button[type="submit"]').first.click()
+    # quiz.js swaps the whole feedback box in ONE `box.innerHTML = await res.text()`,
+    # so the verdict appearing means the entire fragment is already in the DOM --
+    # nothing further can arrive for this attempt. No settle sleep is needed.
     feedback.locator(".is-incorrect").wait_for(timeout=6000)
-    page.wait_for_timeout(300)
     content = page.content()
     assert "question__reveal" not in content, (
         "reveal must not render with attempts left"
@@ -408,8 +410,14 @@ def test_dragimage_quiz_withhold_then_reveal_js(live_server, browser):
     # Wrong on the last attempt → reveal shows the accepted labels.
     _set_slots("Liver", "Liver")
     page.locator('.question__form button[type="submit"]').first.click()
-    page.locator("[data-question-feedback] .is-incorrect").wait_for(timeout=6000)
-    page.wait_for_timeout(500)
+    # Do NOT wait on .is-incorrect again: attempt 1's verdict is STILL in the box, so
+    # that wait is satisfied instantly and would leave the second round trip
+    # unsynchronised (this is the measured flake -- under load the second response
+    # landed after the old fixed sleep and the reveal assertion read stale content).
+    # [data-quiz-locked] is emitted by the server ONLY on a terminal response, i.e.
+    # exactly by the last-attempt swap, and it is not the reveal block itself, so
+    # waiting on it does not make the assertions below vacuous.
+    feedback.locator("[data-quiz-locked]").wait_for(state="attached", timeout=6000)
     revealed = page.content()
     assert "Correct label:" in revealed, (
         "reveal must show accepted labels after last attempt"
