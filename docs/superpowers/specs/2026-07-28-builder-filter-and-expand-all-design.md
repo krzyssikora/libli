@@ -41,7 +41,7 @@ no database access**, so it is unit-testable standalone and the view layer canno
 second copy of the matching rule.
 
 ```python
-MIN_QUERY = 2      # chars, after stripping
+MIN_QUERY = 2      # chars of the FOLDED query, after stripping -- see 1a
 MATCH_CAP = 100    # matches kept, in (order, pk) order
 
 def fold(s: str) -> str: ...
@@ -673,15 +673,27 @@ construction** — not by a call-site exclusion list that can drift. This matter
 under a gesture-based rule, a rename would clear the filter notice on the single most common
 authoring action, while the tree on screen is still filtered and capped.
 
-**The slot is always in the DOM.** `builder.html` renders
-`<ul class="builder__info" role="status" data-info hidden>` unconditionally, not behind
+**The slot is always in the DOM, and it is NEVER `hidden`.** `builder.html` renders
+`<ul class="builder__info" role="status" data-info>` unconditionally, not behind
 `{% if info %}` as slice 1 does — the JS needs somewhere to insert, and a slot that only exists
-when the server put something in it means the first fragment-borne notice has no home. The JS
-sets and clears the `hidden` attribute by child count.
+when the server put something in it means the first fragment-borne notice has no home.
 
-**`[hidden]` needs an explicit `display: none`** in `builder.css` if `.builder__info` declares
-any `display`, per this repo's recorded `.btn[hidden]` trap — the attribute loses to a class
-rule of equal specificity.
+**It is hidden by `.builder__info:empty { display: none; }`, not by the `hidden` attribute**,
+and the difference is two separate bugs:
+
+- **A `hidden` attribute set at render time makes every server-rendered notice invisible
+  without JS.** Only the JS would ever remove it, so a no-JS author who filters gets
+  `data-info-key="filter"` in the DOM and sees nothing — and slice 1's *shipped* truncation
+  notice, which is visible today (`builder.html:23` has no `hidden`), silently regresses on the
+  same path. §3i's own rule is that the page route and the fragment route are both required.
+- **A `role="status"` region that is not rendered is not in the accessibility tree**, so
+  inserting a child and unhiding it in the same task is not a reliable announcement trigger.
+  `:empty` keeps the element rendered and lets the insertion itself be the mutation the live
+  region reports.
+
+With `:empty` the JS never touches visibility at all — it inserts and removes entries, and the
+CSS follows. That also sidesteps this repo's recorded `.btn[hidden]` trap, where the attribute
+loses to a class rule of equal specificity.
 
 The JS **reads the server-rendered `[data-info-key]` entries on init** so replace-and-clear
 operate on them too. Without this the registry only knows entries it inserted itself, and the
@@ -711,6 +723,15 @@ to blank; the six mutation sites pass the request's `q`, and the two element sit
 and keep their current behaviour. Reading `request` inside the helper would silently extend the
 rule to two editor-originated redirects the parent scoped out — a change nobody asked for,
 arriving through a signature.
+
+**Every `q` in an href is percent-encoded — `{{ q|urlencode }}`, never bare `{{ q }}`.**
+Django autoescapes HTML but does **not** percent-encode, and these are hand-built hrefs
+(`{{ delete_url }}?node={{ node.pk }}`) rather than `urlencode` dicts like `toggle_href`
+(`courses_manage_extras.py:244`) or the delete Cancel link's `{{ open|urlencode }}`
+(`node_confirm_delete.html:18`). A query containing `&` therefore splits into a second
+parameter — filtering for `x&open=all` makes the delete-confirm GET arrive with `open=all`
+attached — and a `#` truncates the href outright. `_redirect_to_builder` builds its query with
+`urlencode` for the same reason. Hidden inputs are unaffected: they are form values, not URLs.
 
 **Every `q` carrier — hidden inputs, `{% toggle_href %}`, the delete and Move hrefs, and the
 two bulk-control hrefs — omits the parameter entirely when `q` is blank**, rather than emitting
@@ -787,8 +808,19 @@ needs is already resolved". This slice needs four more context values in every r
 | `filtered` | `_scope.html`'s `{% empty %}` branch (§3h) | `q_active` |
 | `expand_all_disabled` | whether `builder.html` emits expand-all's `href`, **and** `data-expand-all-disabled` on `.builder` for the JS bail (§6a) | `len(container_pks(full_cmap)) > builder_open.CEILING` |
 | `applied_q` | `data-applied-q` on `.builder` — the value §5c's tracker initialises from, and the value the five applied-`q` paths send | **`fc.q_raw`** — the raw submitted string, never the `q_active` bool |
+| `q_min` | `data-q-min` on `.builder` — the client floor (§5c) | `builder_filter.MIN_QUERY`, read **through the module** so §8's monkeypatch bites |
 
-**Both DOM-carried values are RESOLVED server-side, and no threshold crosses the boundary.**
+**Two of the three DOM-carried values are RESOLVED server-side; `MIN_QUERY` deliberately
+crosses as a number.** `expand_all_disabled` and `applied_q` become a boolean and a string
+because the client has no business re-deriving them. `MIN_QUERY` is the exception and the
+reason is different: the client must apply the floor **without a round trip**, so it needs the
+number itself — carried, never hardcoded, for the same reason `CEILING` is never hardcoded.
+
+**`q_min` belongs in `_tree_context` like the rest, not hand-patched into `builder()`.**
+`.builder` is rendered by `builder()` *and* `_builder_with_notice()`; patching one leaves the
+notice page without the attribute, where `parseInt(null)` is `NaN`, every floor comparison is
+false, and filtering is silently dead on that page. That page is reachable with JS on — the
+delete-confirm form carries no `data-op`, so its 409 returns `_builder_with_notice`.
 
 - **`expand_all_disabled`** is a boolean, not a number the template or the JS compares. A Django
   template cannot evaluate `container_count > builder_open.CEILING` — module attributes are
@@ -808,10 +840,13 @@ needs is already resolved". This slice needs four more context values in every r
   This is the same presence-vs-truthiness trap this repo pins for `open`/`open_present` and for
   `.btn[hidden]`.
 - **`applied_q`** must reach the client because §5c initialises its tracker from it, and the
-  alternatives are both bad: re-deriving it from the input's value duplicates the floor rule,
-  or sniffing the `[data-info-key="filter"]` entry, which couples the tracker to a notice that
-  exists for a different reason. `filtered` is a template key with no markup carrier, so it
-  cannot serve this.
+  value it needs is **the last APPLIED query — a stable anchor that does not move as the author
+  types**. The filter input cannot serve that: its `value` is the live text by the second
+  keystroke, which is precisely what §5a forbids the five applied-`q` paths from sending. (At
+  init the two happen to agree, since both come from `q_raw`; they diverge the moment anyone
+  types, which is when the tracker matters.) Sniffing the `[data-info-key="filter"]` entry
+  would work but couples the tracker to a notice that exists for a different reason, and
+  `filtered` is a template key with no markup carrier.
 
   **It is a distinct key from `q_active`, and the distinction is load-bearing.** `q_active` is
   a `bool` on `FilterContext`; wiring it straight to the attribute renders
@@ -864,6 +899,16 @@ full child list.
 So: `nodes` is `restricted.get(<scope key>, [])` in **both** branches. The sibling lookups in
 the same block — `parent`, `parent_kind`, `updated` — continue to resolve against the full
 course, since a scope's own identity is not a filtering question.
+
+**Two further `children_map` sites keep the FULL map, and must be named or they will be
+"fixed".** `link_picker` (`views_manage.py:275`) and `node_move`'s picker GET (`:804`, together
+with its own `nodes_top` key at `:805`) both set `children_map` and neither renders the builder
+tree. The picker's lists are *destination candidates* and the slot positions the numeric
+`position` field indexes into — restricting them would make the JS picker compute positions
+against a filtered child list, and offering only matching destinations would make a filtered
+author unable to move anything out of the match set. The risk is live rather than theoretical:
+§3j item 4 already sends the implementer into `node_move`'s GET context to add `q`, one line
+from `:804`. §8's reparent row POSTs, so it would stay green.
 
 Meanwhile the **full** map continues to be what `_tree_context` hands `_open_descendants`
 (§2, row 4). Restricted and full derive from the same local, and the difference between them is
@@ -1004,8 +1049,12 @@ with the toggle passing its `open + pk` as the override and the picker passing n
 the shape, **`q` must not be supplied by `withOpen` alone**. §8 pins a test that the toggle
 request carries `q`.
 
-`syncUrl` sets `q` when active and **deletes** it when not, so a cleared filter does not leave
-`?q=` in the address bar. `open` keeps its existing rule: present-but-empty, never omitted.
+**`syncUrl` writes the `q` the request actually sent** — the applied raw value — and deletes
+the parameter only when that value is **blank**. Not "when inactive": a below-floor `?q=a` is
+present-but-inactive, so an activity-gated `syncUrl` would strip the `a` from the address bar on
+the author's first toggle, undoing on the JS path exactly the round-trip §3k carries `q_raw`
+unconditionally to preserve. A cleared filter sends a blank value and so still leaves no `?q=`
+behind. `open` keeps its existing rule: present-but-empty, never omitted.
 
 **The toggle's `.then` chain has to be reshaped to read a header at all.** It currently does
 `.then(function (r) { if (r.status !== 200) throw …; return r.text(); })` (`builder.js:492-495`),
@@ -1044,23 +1093,46 @@ the **empty** set — every expansion the author had, gone. The clear path would
 stash; the filter path deliberately does not.
 
 So: **`MIN_QUERY` reaches the JS as `data-q-min` on `.builder`** (never a by-value `2`, for the
-same reason `CEILING` never crosses the boundary), and **the client measures
-`q.trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").length`**. That is not the server's
-full fold, and it does **not** always agree with it: source 1 contains 14 multi-character
-entries (`Ĳ→IJ`, `ǆ→dz`, `ǉ→lj`, `ǌ→nj`, `ǳ→dz` and their case variants) and `casefold` expands
-`ß→ss` and the `ﬁ`-class ligatures — measured, `'ß'` is client-length 1 and server-length 2.
+same reason `CEILING` never crosses the boundary), and **the client measures**
 
-**The invariant that makes this safe is directional: the server's fold never produces a
-SHORTER string than the client's measure.** Every table entry maps one character to one or
-more, combining marks are removed by both, and `casefold` only ever lengthens. So a
-disagreement can only put the **client below the floor while the server is above it** — and
-below the floor the client takes the *clear* path, which carries `open` (§5d) and cannot
-collapse anything. The dangerous direction, client-above/server-below, is unreachable.
+```js
+q.replace(/^[\s\u001c-\u001f\u0085]+|[\s\u001c-\u001f\u0085]+$/g, "")
+ .normalize("NFC").replace(/[\u0300-\u036f]/g, "").length
+```
 
-Without the `normalize`, that guarantee inverts: a decomposed grapheme is two characters to the
-client and one to the server, so the client would send a *filter* fetch — which omits `open` —
-for a query the server treats as blank, and the tree collapses. That input is reachable from
-the same imported-HTML content §1b's third table source exists for.
+**Only one direction of disagreement is dangerous, and the measure is chosen to close it.**
+If the client thinks a query is *above* the floor while the server thinks it is *below*, the
+client sends a filter fetch, which omits `open` (§5b); the server treats `q` as blank,
+`open_ids` takes the fragment-absent path, and the response is the **empty** set — every
+expansion gone. The opposite disagreement is harmless: the client takes the clear path, which
+carries `open`.
+
+**Two things break that guarantee, and both were measured rather than reasoned about.**
+
+1. **`NFD` was the wrong normalisation.** Measured across all of Unicode, comparing
+   `len(fold(ch))` against the client's measure: an **NFD**-based client is longer than the
+   server's fold for **11,371** characters — every Hangul syllable, plus Hebrew, Katakana,
+   Hiragana, Arabic and the Indic scripts, whose decomposed marks and jamo fall *outside*
+   U+0300–U+036F while the server leaves the precomposed character as one. An **NFC**-based
+   client is longer for **83**. For Latin script — the corpus — the count is **0 either way**.
+   NFC costs nothing and removes 99% of the exposure, so NFC it is.
+2. **`String.prototype.trim()` and Python's `str.strip()` strip different sets.** Measured:
+   Python strips U+0085 and U+001C–U+001F (all report `isspace()`), JS `trim()` does not; JS
+   strips U+FEFF, Python does not. So a bare `q.trim()` makes `"a\u0085"` client-length 2 and
+   server-length 1 — the dangerous direction, from input that is not even exotic. The explicit
+   character class above closes it; U+FEFF needs no handling, because JS stripping *more* than
+   Python only ever puts the client below the floor.
+
+**Residual, accepted:** those 83 non-Latin characters. A single one of them typed alone into
+the box yields one collapsed tree, recoverable by expanding again or reloading. Closing it
+completely would mean shipping the fold table to the client, which is 373 entries of
+duplicated rule for a corpus with zero exposure.
+
+Note what the ordering does *not* rely on: the fold table is not one-character-to-one, and
+saying so would be false — it holds 14 multi-character entries (`Ĳ→IJ`, `ǆ→dz`, `ǉ→lj`,
+`ǌ→nj`, `ǳ→dz` and their case variants) and `casefold` expands `ß→ss` and the `ﬁ`-class
+ligatures (measured: `'ß'` is client-length 1, server-length 2). Those all lengthen the
+*server* side, which is the safe direction.
 
 **Guarded by whether a filter is currently APPLIED, not by what the input contains.** Without
 that guard the first character an author types into an *unfiltered* tree takes the clear path;
@@ -1085,8 +1157,13 @@ finds it equal, and **skips the request**, leaving filtered and capped markup on
 empty input. The next toggle then sends `q=""` and drops unfiltered children into it: the exact
 "stale filtered markup" outcome this section exists to prevent, reintroduced by its own guard.
 
-So: initialise to the raw `q` when the server rendered a **filtered** tree, and to `""`
-otherwise — the same `filtered` flag §3k already puts in the context.
+So: **initialise the tracker to the EFFECTIVE value of `data-applied-q`** — the raw string
+when it clears the client floor, `""` when it does not. Not from the `filtered` context key:
+that has no markup carrier (§3k), so the JS cannot read it, and after `data-applied-q` began
+carrying `q_raw` unconditionally the attribute no longer distinguishes *filtered* from
+*present-but-below-floor* on its own. Running it through the same floor the tracker's
+comparisons use is the only derivation available, and it is the one that keeps init and
+comparison consistent by construction.
 
 With the guard in place, the floor only ever saves a round trip on the way *into* a filter,
 never on the way out.
@@ -1312,6 +1389,11 @@ until this was done.
 - `fold` maps `ą ć ę ł ń ó ś ź ż` and their capitals to ASCII; **the `ł` case is the one that
   a generic NFKD fold silently fails**, so it is asserted explicitly in both directions
   (`laka` finds `Łąka`; `Łąka` finds `laka`)
+- **the client floor never exceeds the server floor on Latin input** — a unit test over the
+  Polish alphabet plus `ß` and the multi-character table entries, asserting
+  `client_measure(ch) <= len(fold(ch))` for each. This is the direction that collapses the tree
+  (§5c); the measured Latin-script count of counterexamples is 0, so any regression is a real
+  one. Include `"a\u0085"`, which fails under a bare `trim()`.
 - **an NFD-normalized title is found by an ASCII query** — `fold(unicodedata.normalize("NFD",
   "Kąty"))` must equal `"katy"`. Falsified by dropping U+0300–U+036F from the table, which
   leaves `'kąty'` and is invisible in every precomposed fixture (§1b)
@@ -1411,13 +1493,19 @@ until this was done.
 - **a filtered response carries exactly one `filter` code** in `X-Builder-Info` (the
   server-side half; the client-side registry behaviour is an e2e row, below)
 - **the info slot is in the DOM on an UNFILTERED, untruncated builder page** — present and
-  `hidden`, not absent. Falsified by restoring slice 1's `{% if info %}` wrapper. The existing
-  registry e2e cannot cover this: it starts from a `?q=` load, where the server rendered an
-  entry and `{% if info %}` would produce the slot anyway.
+  empty, and carrying **no `hidden` attribute**. Falsified by restoring slice 1's
+  `{% if info %}` wrapper. The existing registry e2e cannot cover this: it starts from a `?q=`
+  load, where the server rendered an entry and `{% if info %}` would produce the slot anyway.
+- **a server-rendered notice is VISIBLE without JS** — a filtered page GET, asserting the
+  `data-info-key="filter"` entry is present and its container is not `hidden`. This is the row
+  that stops the always-present slot regressing slice 1's truncation notice into an invisible
+  one on the no-JS path (§3i).
 - **toggle hrefs preserve `q`**, and a no-JS mutation under a filter returns to the filtered
   tree
-- **the four no-form carriers of §3j**: the delete href and the Move href carry `&q=` **in the
-  markup**; `node_delete`'s bespoke redirect (`views_manage.py:673-674`) carries `q` —
+- **the four no-form carriers of §3j**, driven with a query containing **a space and an `&`**
+  so the encoding is exercised rather than assumed: the delete href and the Move href carry a
+  **percent-encoded** `&q=` **in the markup** — a bare `{{ q }}` lets `x&open=all` arrive at the
+  delete confirm as a second parameter; `node_delete`'s bespoke redirect (`views_manage.py:673-674`) carries `q` —
   **driven with an `open`-bearing confirm GET**, i.e. the JS-rewritten path, because a plain
   no-JS delete takes `:675` instead and would pass on the six-site edit alone; and the no-JS
   Move-picker round trip lands back on the filtered tree
@@ -1436,7 +1524,9 @@ until this was done.
 - **`data-expand-all-disabled` is present over the ceiling and ABSENT under it** — asserted on
   presence, never on a value, per §3k's emission rule
 - **`data-q-min` equals `builder_filter.MIN_QUERY`**, with `MIN_QUERY` monkeypatched to a
-  non-default value — the twin of the `CEILING` monkeypatch row. Without it a by-value `2` in
+  non-default value, **on `builder()` AND on `_builder_with_notice()`** — the notice page is
+  where a hand-patched attribute goes missing and `parseInt(null)` silently kills filtering
+  (§3k). The twin of the `CEILING` monkeypatch row. Without it a by-value `2` in
   `builder.js` ships green and the two constants desync the moment `MIN_QUERY` moves.
 
 **e2e (`-m e2e` — mandatory, or the tests are silently deselected and pytest exits 5, which is
@@ -1472,6 +1562,9 @@ not a pass):**
   (§5a) — apply `tryg`, type `trygo`, toggle before the debounce fires, and assert the returned
   children match the pane the author is looking at
 - **expand-all then collapse-all** returns to the top rows, and the address bar holds `open=`
+- **a toggle on a below-floor `?q=a` page leaves `q=a` in the address bar** (§5a's `syncUrl`
+  rule) — falsified by gating `syncUrl` on `q_active` instead of on blankness, which strips the
+  author's half-typed text on the JS path only
 - collapse-all sets `aria-expanded="false"` and removes `aria-controls` on every toggle
 - **a fragment-borne notice lands on a page that had none** — load an unfiltered, untruncated
   builder, type a query, and assert a `[data-info-key="filter"]` entry appears. Without §3i's
