@@ -712,6 +712,13 @@ def filtered_course(client, db):
         course=course, kind="unit", parent=chap, title="Trygonometria & wektory"
     )
     miss = ContentNodeFactory(course=course, kind="unit", parent=chap, title="Logika")
+    # A CHILDLESS container, so _scope.html's {% empty %} branch is reachable
+    # at all: without it no scope in this fixture is ever empty under
+    # `open=all`, and the unfiltered half of the empty-message row cannot pass.
+    # "Pusty" matches no query used anywhere in this plan.
+    ContentNodeFactory(
+        course=course, kind="chapter", unit_type=None, parent=part, title="Pusty"
+    )
     return client, course, part, chap, hit, miss
 
 
@@ -1499,12 +1506,19 @@ def test_markup_hrefs_percent_encode_q(filtered_course):
     # takes {% empty %}, no _tree_node.html is included -- so there is no
     # delete or Move href in the response at all and the falsification is
     # unreachable. `hit` is titled "Trygonometria & wektory" for this row.
-    body = client.get(url, {"q": "tryg & wek"}).content.decode()
+    # MEASURED, not eyeballed. Two earlier drafts of this row shipped a query
+    # that matched NOTHING: fold("tryg & wek") is not a substring of
+    # fold("Trygonometria & wektory"), because `tryg` is followed by
+    # `onometria`. Check any replacement the same way -- run
+    # `fold(q) in fold(title)` and require True -- rather than by reading it.
+    body = client.get(url, {"q": "metria & wek"}).content.decode()
     assert f'data-node="{hit.pk}"' in body, "no row rendered; the row proves nothing"
     # space -> %20 or +, & -> %26; the raw `&` must NOT survive into the href
-    assert "q=tryg%20%26%20wek" in body or "q=tryg+%26+wek" in body
-    delete_href = body.split('data-delete="')[0].rsplit("href=\"", 1)[1]
-    assert "&q=" in delete_href and "& wek" not in delete_href
+    assert "q=metria%20%26%20wek" in body or "q=metria+%26+wek" in body
+    # The template writes `&amp;q=`, so THAT is what the HTML source holds.
+    delete_href = body.split('data-delete="')[0].rsplit('href="', 1)[1]
+    assert "&amp;q=" in delete_href
+    assert "& wek" not in delete_href
 
 
 def test_the_six_redirect_sites_carry_q(filtered_course):
@@ -1655,10 +1669,15 @@ In `node_confirm_delete.html`, beside the existing hidden `open`:
 
 **Value-gated, not presence-gated.** The neighbouring `open` uses an `open_present` flag because absent-vs-empty is meaningful for `open`; it is not for `q`, and a `q_present` twin would be a flag nothing consumes. Its Cancel link needs its own `q` too. `node_confirm_delete.html:18` currently
 reads `{% if open_present %}?open={{ open|urlencode }}{% else %}?open=session{% endif %}`;
-both branches already emit a `?`, so `q` appends with `&` in either case:
+both branches already emit a `?`, so `q` appends with `&` in either case.
+**Keep the `{% url %}` tag — do NOT substitute `{{ builder_url }}`:** that key
+comes from `_tree_context`, and `node_delete`'s GET context
+(`views_manage.py:688-694`) is `{course, node, counts, open_present, open}`, so
+the variable would render empty and Cancel would point back at the
+delete-confirm path. Only the `q` clause is new.
 
 ```html
-    href="{{ builder_url }}{% if open_present %}?open={{ open|urlencode }}{% else %}?open=session{% endif %}{% if q %}&amp;q={{ q|urlencode }}{% endif %}"
+    href="{% url 'courses:manage_builder' slug=course.slug %}{% if open_present %}?open={{ open|urlencode }}{% else %}?open=session{% endif %}{% if q %}&amp;q={{ q|urlencode }}{% endif %}"
 ```
 
 `node_delete`'s GET puts `_raw_q(request)` in its context. **For the picker
@@ -2061,12 +2080,15 @@ git commit -m "feat(builder): builder_force — the no-JS force-include channel"
 
 **Files:**
 - Modify: `courses/views_manage.py` (`node_move`'s reorder branch)
+- Modify: `courses/static/courses/js/builder.js` (the `dragstart` bail)
 - Modify: `templates/courses/manage/_move_buttons.html`, `_tree_node.html`
 - Test: `tests/test_builder_filter_views.py`
 
 **Interfaces:**
 - Consumes: `builder_filter.is_active` (Task 1), `_raw_q` (Task 3), the `filtered` context key (Task 3).
-- Produces: a 422 refusal branch in `node_move`.
+- Produces: a 422 refusal branch in `node_move`; a `dragstart` bail on a
+  `disabled` grip in `builder.js` — without which the rule is unobservable (see
+  Step 4).
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -2227,8 +2249,11 @@ In `_tree_node.html`, the grip:
 - [ ] **Step 5: Add the drag e2e**
 
 The markup row above proves the attribute is gone; only a real gesture proves
-the *behaviour*. Append to `tests/test_e2e_builder_filter.py` (Task 10 creates
-the file; this row can be written now and run after it):
+the *behaviour*. **Write this row in Task 10, not here.**
+`tests/test_e2e_builder_filter.py` does not exist yet — Task 10 Step 1
+**creates** it, so a row added now is overwritten along with `_simulate_drag`
+and the `ContentNode` import, neither of which is in Task 10's copy list. Add
+both to Task 10 Step 1's scaffolding when you get there, together with this row:
 
 ```python
 def test_drag_is_inert_while_a_filter_is_active(page, live_server):
@@ -2266,10 +2291,10 @@ Copy `_simulate_drag` into the file alongside the other helpers, and import
 
 ```bash
 uv run pytest tests/test_builder_filter_views.py tests/test_manage_node_ops.py -q
-uv run pytest tests/test_e2e_builder_filter.py -m e2e -q -k drag_is_inert
 ```
 
-Expected: PASS (the e2e row only after Task 10 creates the file).
+Expected: PASS. The drag e2e runs in Task 10 once its file exists — invoking it
+here exits 4 (file not found), which is not a pass.
 
 - [ ] **Step 7: Falsify**
 
@@ -2284,7 +2309,7 @@ Restore all three.
 ```bash
 uv run ruff format . && uv run ruff check .
 git branch --show-current
-git add courses/views_manage.py templates/courses/manage/ tests/
+git add courses/views_manage.py courses/static/courses/js/builder.js templates/courses/manage/ tests/
 git commit -m "feat(builder): suppress ordering while a filter is active"
 ```
 
@@ -2434,14 +2459,13 @@ In `templates/courses/manage/builder.html`, inside `.builder__tree`'s `<header c
       {% endif %}
       <a class="btn btn--ghost btn--small" data-collapse-all
          href="{{ builder_url }}?open={% if q %}&amp;q={{ q|urlencode }}{% endif %}">{% trans "Collapse all" %}</a>
+```
+
 **Keep each hook attribute last on its line, with the `href` on the next line.**
 The §8 rows slice forward from `"data-expand-all\n"` precisely because
 `.builder` also carries `data-expand-all-disabled`, and the bare string is a
 prefix of it — reflowing these two tags onto one line silently redirects those
 assertions into the `<section>` tag.
-
-```html
-```
 
 Notes an implementer must not "simplify":
 
@@ -2636,18 +2660,8 @@ Near the top of the IIFE in `builder.js`, beside `collectOpen`:
 
 ```js
   // ---- the applied-q tracker -------------------------------------------------
-  // ONE definition. Three sections read this value and an earlier design
-  // defined it in all three against different mental models.
-  //
-  //   type          a STRING -- the RAW query, never a boolean, never folded
-  //   initial       data-applied-q verbatim, so a below-floor ?q=a starts as "a"
-  //   written by    the filter fetch (to what it sent); the clear fetch (to the
-  //                 live raw box value); a skipped request (same)
-  //   read by       the five applied-q senders, syncUrl, the skip-comparison,
-  //                 and the bulk-href rewrite
-  //
-  // The floor applies in the COMPARISON, never in the tracker. Storing the
-  // effective value makes a ?q=a page send q="" on the first toggle, and
+  // The floor applies in the COMPARISON, never in either value. Storing the
+  // effective form makes a ?q=a page send q="" on the first toggle, and
   // syncUrl then strips the `a` from the address bar.
   // TWO values, and conflating them breaks the clear path (spec 5z).
   //   appliedQ  -- what the pane is SHOWING; written when a response lands;
@@ -2778,9 +2792,13 @@ def test_typing_a_query_filters_without_navigating(page, live_server):
     stamp(page)                 # plants window.__samedoc; assert_no_navigation
                                 # only READS it, so the order is load-bearing
     page.fill("#builder-q", "trygo")
-    page.wait_for_selector(f'li[data-node="{hit.pk}"]')
+    # Wait on the non-matching row DISAPPEARING, never on the matching one
+    # appearing: these fixtures are under SIZE_THRESHOLD, so a bare page GET
+    # takes precedence step 4 and opens every container -- `hit` is already in
+    # the DOM at load, the wait returns instantly, and the assertions below run
+    # inside the 300 ms debounce, before any fetch exists.
+    page.wait_for_selector(f'li[data-node="{miss.pk}"]', state="detached")
     assert_no_navigation(page)  # AFTER the gesture, or it cannot detect one
-    assert page.locator(f'li[data-node="{miss.pk}"]').count() == 0
     assert "q=trygo" in page.url
 
 
@@ -2856,10 +2874,12 @@ def test_clear_restores_the_pre_filter_expansion(page, live_server):
     _login(page, live_server, "pa")
     page.goto(f"{live_server.url}{_builder(course)}?open={part.pk}")
     page.fill("#builder-q", "trygo")
-    page.wait_for_selector(f'li[data-node="{hit.pk}"]')
+    page.wait_for_selector(f'ol[data-scope="{chap.pk}"]')   # the chain opened
     page.click("[data-filter-clear]")
-    page.wait_for_selector(f'ol[data-scope="{part.pk}"]')
-    assert page.locator(f'ol[data-scope="{chap.pk}"]').count() == 0
+    # `part`'s scope is open in BOTH states, so waiting on it is satisfied by
+    # the still-filtered markup and the assertion then races the response.
+    page.wait_for_selector(f'ol[data-scope="{chap.pk}"]', state="detached")
+    assert page.locator(f'ol[data-scope="{part.pk}"]').count() == 1
 
 
 def test_collapse_everything_filter_clear_comes_back_EMPTY(page, live_server):
@@ -3356,7 +3376,10 @@ def test_the_bulk_hrefs_stay_current_after_a_js_filter_apply(page, live_server):
     _login(page, live_server, "pa")
     page.goto(f"{live_server.url}{_builder(course)}")
     page.fill("#builder-q", "trygo")
-    page.wait_for_selector(f'li[data-node="{hit.pk}"]')
+    # Same trap: `hit` is already rendered at load on an under-threshold
+    # fixture, and rewriteBulkHrefs only runs in the RESPONSE handler ~300 ms
+    # later -- so a no-op wait reads the server-rendered href.
+    page.wait_for_selector(f'li[data-node="{miss.pk}"]', state="detached")
     href = page.locator("[data-expand-all]").get_attribute("href")
     assert "q=trygo" in href
 ```
@@ -3714,26 +3737,39 @@ failure a partial one produces:** a wrong or absent `open_ids` renders the tree
 win for the wrong reason". The probe builds its render context by hand at
 `:77-88`, so **every** key has to move together:
 
+**Written against the file as it actually is.** The probe deliberately carries
+no view imports beyond `_children_map`, so it ships its own `_descendants`
+(`:39`), and its locals are `ids` (`:67`) and `ctx` (`:77`) — not `open_ids`
+and `context`:
+
 ```python
+# with the other imports at the top (:20-22)
+from courses.builder_filter import filtered_map
+
+# beside SLUG/OPEN (:24-25)
 Q = os.environ.get("Q", "")
+
+# after `ids` is resolved (:67), before ctx is built (:77)
+render_map = cmap
 if Q:
     restricted, chains, shown, total, _active = filtered_map(cmap, Q)
-    cmap_for_render = restricted
-    nodes = restricted.get(None, [])
-    open_ids = chains
-else:
-    cmap_for_render = cmap
-    nodes = cmap.get(None, [])
-    # open_ids stays whatever OPEN= resolved to
-context = {
-    "nodes": nodes,
-    "children_map": cmap_for_render,
-    "open_ids": open_ids,
-    "open_joined": ",".join(str(p) for p in sorted(open_ids)),
-    "open_descendants": _open_descendants(cmap, open_ids),   # the FULL map
+    render_map = restricted
+    ids = chains
+    print(f"filtered: shown={shown} total={total}")
+
+ctx = {
+    "nodes": render_map.get(None, []),
+    "children_map": render_map,                    # RESTRICTED when Q is set
+    "open_ids": ids,
+    "open_joined": ",".join(str(p) for p in sorted(ids)),
+    "open_descendants": _descendants(cmap, ids),   # the FULL map, always
     "q": Q,
     "filtered": bool(Q),
-    ...
+    "scope_id": "top",
+    "scope_updated": course.updated.isoformat(),
+    "parent_kind": None,
+    "course": course,
+    "builder_url": f"/manage/courses/{SLUG}/build/",
 }
 ```
 
