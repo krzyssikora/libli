@@ -71,8 +71,10 @@ corner-radius clamp.
 **Every Pillow call passes `(x0·s, y0·s, x1·s − 1, y1·s − 1)`, where `s = 4 · size / 512` is the
 _supersampled_ scale** — the 4× factor is *inside* `s`, so the `− 1` removes exactly one supersample
 pixel (a quarter of a canvas unit at `size = 512`), which is the correct correction for an
-endpoint-inclusive box. Subtracting one *final* pixel instead would over-trim by 4 supersample pixels
-(a 0.75 px error on the stem width), and subtracting one *canvas unit* would over-trim by 4×. Worked
+endpoint-inclusive box. Subtracting one *final* pixel instead would subtract 4 supersample pixels
+where 1 is correct — over-trimming by 3, i.e. a 0.75 canvas-unit error on the stem width (measured:
+`x1 = 236·4 − 4 = 940` against the correct `943`, giving 63.25 instead of 64.0) — and subtracting one
+*canvas unit* would over-trim by 4×. Worked
 example, `icon-512.png` (`size = 512`, `s = 4`, supersample canvas 2048×2048): the stem box is
 `(688, 516, 943, 1531)`. The SVG has no such correction — it emits the half-open extents verbatim.
 
@@ -81,6 +83,12 @@ example, `icon-512.png` (`size = 512`, `s = 4`, supersample canvas 2048×2048): 
 `y0` is `193.5` supersample px, and at `apple-touch-icon.png` (`s = 1.40625`) every coordinate is
 fractional, so a rounding choice would change the supersampled raster and therefore the committed
 bytes that §2 requires be reproducible from this spec.
+
+**Two generator assertions live in `build()` itself** (so `build(tmp_path)` exercises them on every
+call, including from the tests) and are **re-run against the committed rasters** in
+`tests/test_favicon_build.py`: the centred-bounding-box check and the pixel-measured stem-extent
+check. Both homes are intentional — in `build()` they stop a bad render being written at all; in the
+tests they also verify what is committed.
 
 **Radii scale but are never decremented.** Every corner radius is passed as `r · s`, unrounded, in
 supersample pixels — the `− 1` correction applies to *box endpoints only*, never to a radius. (At
@@ -134,7 +142,14 @@ to its committed twin by `Path.name` under `core/static/core/img/favicon/`, and 
 extent scans; `.ico` → the same, **iterated over `ico.sizes()` frame by frame**. That last part is not
 incidental: `Image.open("favicon.ico")` yields only the 48 px frame, so a naive comparison would leave
 the independently-drawn 16 and 32 px frames — the two a browser tab actually shows — outside the drift
-guard entirely. An unrecognised suffix **fails the test** rather than being skipped — that is what keeps
+guard entirely.
+
+**The frame *reader* is named too**, for the same reason the writer is: the idiomatic multi-frame
+route silently re-creates that escape. Measured in this environment, `IcoImageFile` has **no
+`n_frames`**, `ImageSequence.Iterator` yields `[(48,48)]` and nothing more *without raising*, and
+`seek(1)` raises `EOFError`. Use `im = Image.open(path); im.size = (16, 16)` (verified in Pillow
+12.2.0, no deprecation warning) or `Image.open(path).ico.getimage((16, 16))`. **Do not use
+`ImageSequence` or `seek()` here.** An unrecognised suffix **fails the test** rather than being skipped — that is what keeps
 the "no new output escapes" property true for a future output type.
 
 That covers additions but not removals, so it is paired with a **set-equality** assertion: the file
@@ -338,6 +353,14 @@ which must be parameterized before a second field can share them:
    with no second discriminator in the script — and **does not** carry `role="img"` or `aria-label`,
    since an `<img>` has an image role already and an `aria-label` would compete with `alt`. Those two
    attributes exist only on the empty `<div>` and leave with it.
+
+   **The handler must re-bind its thumb reference after the swap**, or only the *first* pick ever
+   previews. The existing script caches the thumb outside the change handler
+   (`var logoThumb = $("[data-logo-thumb]")`), and the natural per-wrapper translation caches it at
+   loop top — after `replaceWith` that variable points at a **detached** node and every subsequent
+   pick updates nothing. Either assign the new `<img>` back to the loop-scoped variable or re-query
+   `wrapper.querySelector("[data-file-thumb]")` inside the handler. The e2e and visual checks
+   therefore pick a file **twice** on the same field; a single pick would ship this green.
 
    **`alt` needs a carrier**, because the swap happens in the shared loop at the bottom of
    `_branding_fields.html`, which has no access to per-widget constructor kwargs. So `get_context()`
@@ -710,8 +733,14 @@ whether the bullet is a correctness check or a drift guard.
   `STEM_Y`, `STEM_R`, `TILE_R`, or `DOT_R` and leaving the committed assets stale left it **green**,
   and only `STEM_X` reddened it — incidentally, via the 48 px ICO sample. So do **not** credit this
   guard with catching unregenerated geometry edits in general; the **SVG byte-compare** is what
-  actually does that, and it is credited separately above. This bullet is the raster-side sanity
-  check, now with enough teeth to see a radius or stem-length change.
+  actually does that, and it is credited separately above.
+
+  **Exactly what the strengthened guard was measured to catch**, mutation by mutation, so nobody
+  later mistakes its coverage: `STEM_Y1 383→370` RED, `STEM_X +8` RED, `DOT_R 42→36` RED (via the
+  maskable bbox), `DOT_CY 341→330` RED (48 px ICO sample), `TILE_R 112→96` RED (16/32 px ICO corner
+  alpha) — but **`TILE_R 112→128` GREEN and `STEM_R 32→16` GREEN**. Those last two are the corner
+  probes' job alone, which is why the probes are not redundant with this bullet and must not be
+  dropped as such.
 - Byte-comparing committed *rasters* against a fresh run is deliberately **not** done:
   `pyproject.toml` declares `pillow>=12.2.0` (a floor, not a pin) and PNG/ICO encoder output is not
   contracted across releases, so a routine lock bump would turn it RED with no code change.
@@ -790,12 +819,21 @@ whether the bullet is a correctness check or a drift guard.
   while on the raster side the corner-alpha assertion at `(0,0)` reads `(0,0,0,0)` for any radius above
   ~2 and no sample point sits near a corner.
 
-  **The two probe points must bracket the arc, and "just inside / just outside" is not a sufficient
-  rule.** Along the diagonal the boundary sits at `R(1 − 1/√2) ≈ 0.293·R`, i.e. `d ≈ 32.8` for
-  `R = 112`. Measured, `(30,30)` is transparent and `(40,40)` is tile-coloured — both satisfy a plain
-  reading, yet both keep the same readings when `TILE_R` moves 112 → 128 (boundary 37.5), so the probe
-  stays green. So: **pick the pair within ~1–2 px either side of `0.293·R`** — at `R = 112`, `d = 32`
-  transparent and `d = 34` tile — and pin them as literals.
+  **The two probe points must bracket the arc tightly enough to be bidirectionally discriminating,
+  while avoiding the arc itself.** Along the diagonal the boundary sits at `R(1 − 1/√2) ≈ 0.293·R`,
+  i.e. `d ≈ 32.8` for `R = 112`. Two failure modes, both measured:
+
+  - **Too loose:** `(30,30)` transparent and `(40,40)` tile both hold when `TILE_R` moves 112 → 128
+    (boundary 37.5), so that pair stays green on a radius increase.
+  - **Too tight:** `d = 32` is *not* transparent — it reads `(15,120,120,17)`, a pixel sitting
+    directly on the arc (supersample distance 449.7 vs radius 448, so ~1 of 16 subpixels covered).
+    It is the single most resampling-fragile point on the tile, exactly the kind of value the
+    "pin as literals" discipline must not be applied to.
+
+  **Use `d = 30` and `d = 34`**, both fully saturated and bidirectionally discriminating: measured,
+  `(30,30)` is `(0,0,0,0)` at `R = 112` and `(20,126,120,255)` at `R = 96`; `(34,34)` is
+  `(20,126,120,255)` at `R = 112` and `(0,0,0,0)` at `R = 128`. Derive the stem-cap probe the same
+  way — bracket its arc with saturated pixels, never a straddling one.
 
   Add a **second probe on the stem's cap** for the same reason: `STEM_R 32 → 16` was measured to
   redden nothing in the entire raster set, so the tile probe alone leaves the stem's radius scaling
