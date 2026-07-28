@@ -3864,7 +3864,9 @@ Expected: a **mixed** run, and half of it is green before anything ships.
   builder with no `q=` in the URL, issues no `/build/tree/` request, and the
   server re-renders the Clear anchor with `hidden`.
 
-Those five are Step 9's falsification targets, not red gates.
+All five are Step 9's falsification targets, not red gates — mutations 2, 4, 5
+reach three of them, and mutations 8 and 9 (which edit Task 10's `effectiveQ`)
+reach the astral and `data-q-min` rows.
 
 **Where all five of this task's blocks go.** Every other JS step in this plan
 names its site; this one needs it stated once, because one pair is
@@ -4075,7 +4077,7 @@ uv run pytest tests/test_e2e_builder_filter.py -m e2e -q
 
 Expected: PASS.
 
-- [ ] **Step 9: Falsify four guards**
+- [ ] **Step 9: Falsify nine guards**
 
 1. In the **clear (`else`) branch's ternary** —
    `preFilterOpen === null ? collectOpen() : preFilterOpen` → change it to
@@ -4111,6 +4113,21 @@ Expected: PASS.
    collapses. (The drop-handler site is the same rule on the other gesture;
    Task 8's e2e already proves a drag cannot start under a filter, so it is
    the submit site that carries the observable behaviour.)
+
+The last two mutate **Task 10 Step 3's `effectiveQ`**, not anything this task
+wrote — but the rows they redden are written here, and without them those two
+ship unfalsified:
+
+8. Change `[...t].length` to `t.length` in `effectiveQ` →
+   `test_a_single_astral_character_issues_no_filter_fetch` must fail.
+   `.length` counts UTF-16 units, so `𝐀` measures 2, clears the floor, and a
+   filter fetch is issued where none should be. This is the only row in the
+   plan that can detect it — every other floor row uses BMP input, where the
+   two measures agree.
+9. Replace `qMin` with a literal `2` in `effectiveQ`'s comparison →
+   `test_the_client_reads_data_q_min_rather_than_hardcoding_it` must fail.
+   That row monkeypatches `MIN_QUERY` to 3 and types two characters, so a
+   hardcoded 2 issues a fetch the attribute forbids.
 
 Restore each.
 
@@ -5000,16 +5017,36 @@ Unlike `releaseForm`, `busyEnd` **should** run on the stale path — it is the
 counterpart of a `busyStart` that definitely happened — so the objection that
 ruled out moving `releaseForm` into the trailing handler does not apply here.
 
-**The submit handler's error arm is TWO statements, not one.** Its shipped
-`.catch` (`builder.js:264-267`) is `notice(...)` **and** `releaseForm(form);`,
-and dropping the second leaves the rename form's input permanently locked after
-any network failure — with nothing in this plan covering it. Its arm reads:
+**Two of the five arms are more than a `notice()`. Both are spelled out below;
+the other three — the toggle, the drop handler and expand-all — really are
+notice-only.** Do not treat the generic snippet's `// network only` as a
+default for all five.
+
+**1. The submit handler.** Its shipped `.catch` (`builder.js:264-267`) is
+`notice(...)` **and** `releaseForm(form);`, and dropping the second leaves the
+rename form's input permanently locked after any network failure — with
+nothing in this plan covering it. Its arm reads:
 
 ```js
     }, function () {
       notice(msg("network", "Network error — please try again."));
       releaseForm(form);
     }).then(function () { busyEnd(); });
+```
+
+**2. `applyFilterState`** (Task 11 Step 5). Its arm is also two statements, and
+the first is easy to lose because it is a guard rather than a call:
+
+```js
+    }, function () {
+      // Gen-guarded: a STALE request rejecting must not clobber the pendingQ
+      // a newer issue owns. Dropping this line reintroduces the desync
+      // test_retrying_the_same_query_after_a_FAILED_fetch_issues_a_new_request
+      // exists to catch -- and that row fails at Task 14 Step 5 with nothing
+      // pointing back at this rewrite as the cause.
+      if (gen === treeGen) pendingQ = appliedQ;
+      notice(msg("network", "Network error — please try again."));
+    }).then(finish, finish);
 ```
 
 **Accepted consequence, stated rather than discovered:** the whole point of the
