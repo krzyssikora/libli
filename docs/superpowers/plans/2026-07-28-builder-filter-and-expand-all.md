@@ -141,9 +141,12 @@ Create `docs/superpowers/notes/2026-07-28-affected-tests-slice2.md` recording, f
 - `tests/test_manage_move_picker.py` — the picker gains `q` (Task 6).
 - `tests/test_builder_styles.py` — new selectors for the filter control and disabled bulk controls (Task 9).
 - `tests/test_builder_duplicate_unit.py`, `tests/test_manage_node_duplicate.py`
-  — `node_duplicate`'s redirect gains `q` (Task 6) and its success path gains
-  `_stash_builder_force` (Task 7). Expect redirect-URL assertions to need
-  updating; that is migration, not regression.
+  — `node_duplicate` gains `_stash_builder_force` beside `_persist_chain`
+  (Task 7 Step 4), and `_tree_node.html`'s duplicate form gains a hidden `q`
+  (Task 6 Step 4). **Neither suite asserts on a redirect** — the first drives
+  `builder_svc.duplicate_unit` directly and never calls the view, and the
+  second's rows all take the fetch/fragment path — so unlike the three above,
+  a red here is a REGRESSION, not migration.
 
 Also record `tests/test_manage_builder.py`, which nothing in this slice edits
 but Tasks 3 and 16 both assert green.
@@ -1616,9 +1619,11 @@ uv run pytest tests/test_builder_filter_views.py -q -k \
   "always_sets_the_header or machine_readable or info_slot_is_present or notice_is_visible"
 ```
 
-Expected: a **mixed** run. RED: the four rows above (`KeyError:
-'X-Builder-Info'` for the first two, no `data-info-key` for the third and
-fourth). `test_a_rename_and_a_422_carry_no_header_at_all` is deliberately
+Expected: an **all-red** run — all four selected rows fail (`KeyError:
+'X-Builder-Info'` for the first two; the `<ul class="builder__info">` is
+still behind `{% if info %}` for the third; no `data-info-key="filter"`
+for the fourth, since `_info_entries` still has its interim
+truncation-only body). `test_a_rename_and_a_422_carry_no_header_at_all` is deliberately
 **not** selected — it asserts the header is *absent*, so it is already green
 before Steps 3-4 exist and would blur the gate, exactly as in Tasks 6, 8 and 9.
 
@@ -2082,16 +2087,27 @@ uv run pytest tests/test_builder_filter_views.py tests/test_builder_lazy_scopes.
   "preserve_q or percent_encode_q or redirect_sites or bespoke_redirect \
    or move_picker_round_trip or no_matching_titles \
    or every_tree_form or delete_confirm_round_trip \
-   or mutation_SUCCESS_under_a_filter or with_notice_under_a_filter"
+   or mutation_SUCCESS_under_a_filter"
 ```
 
-Expected: all ten FAIL — no `q=trygo` anywhere in the markup, and the two
-`test_builder_lazy_scopes.py` rows red because the redirect drops `q` (Step 7).
+Expected: all nine FAIL — no `q=trygo` anywhere in the markup, and
+`test_a_no_js_mutation_SUCCESS_under_a_filter_returns_the_chains_open` red
+because the redirect drops `q` (Step 7).
 
-**`test_step_2_still_beats_step_3` is deliberately NOT selected.** It is green
-the moment Step 1 writes it — it follows no redirect and depends on nothing in
-this task, only on Task 2's restructure. Including it would make the gate
-mixed for no benefit; run it with the rest at Step 10.
+**Two of Step 1's rows are deliberately NOT selected — both are green already:**
+
+- `test_step_2_still_beats_step_3` follows no redirect and depends on nothing
+  in this task, only on Task 2's restructure.
+- `test_builder_with_notice_under_a_filter_returns_the_chains_open` likewise.
+  It POSTs a stale token and asserts on the **409 body directly** — no redirect
+  is involved, so Step 7 cannot affect it. `_builder_with_notice` →
+  `_filter_context(mode="notice")` → `_raw_q` reads `q` from the POST the test
+  already sends → chains → step 3 resolves them above the notice read. It has
+  been green since Task 3 Step 6 rewired that function, and its real job is to
+  guard **that** rewiring.
+
+Including either would make the gate mixed for no benefit; both run with the
+rest at Step 10.
 
 - [ ] **Step 3: `toggle_href` preserves `q`**
 
@@ -3767,11 +3783,15 @@ uv run pytest tests/test_e2e_builder_filter.py -m e2e -q
 
 Expected: a **mixed** run, and half of it is green before anything ships.
 
-- RED: `test_typing_a_query_filters_without_navigating`,
+- RED, six of the eleven rows Step 1 writes:
+  `test_typing_a_query_filters_without_navigating`,
   `test_the_filter_fetch_omits_open`, `test_clear_restores_the_pre_filter_expansion`,
-  `test_collapse_everything_filter_clear_comes_back_EMPTY`, and
+  `test_collapse_everything_filter_clear_comes_back_EMPTY`,
   `test_a_clear_is_not_overwritten_by_an_in_flight_filter_response` (that one
-  errors on `held[0]` — no request is ever routed, so the list stays empty).
+  errors on `held[0]` — no request is ever routed, so the list stays empty),
+  and `test_retrying_the_same_query_after_a_FAILED_fetch_issues_a_new_request`
+  (fails on its first assertion, `len(sent) == 1` — with no filter JS the
+  `page.fill` never reaches the network at all).
 - GREEN already, for reasons that have nothing to do with this task:
   `test_typing_below_the_floor_into_an_UNFILTERED_tree_issues_no_request`,
   `test_a_single_astral_character_issues_no_filter_fetch` and
@@ -4843,7 +4863,7 @@ Neither has a `busyStart`/`busyEnd` pair, so the snippet's trailing
 `.then(function () { busyEnd(); })` would decrement a counter nothing
 incremented and corrupt the busy state for every other request. Neither nests
 `r.text().then(…)`. And `loadPanel`'s `.catch` is deliberately gated on
-`id === panelReq` (its comment at `:305-308` explains why: an ungated slow
+`id === panelReq` at `:314` (the comment at `:312-313` explains why: an ungated slow
 FAILURE from an earlier row would replace a later row's loaded panel with an
 error box) — the snippet has no such gate and would drop that guard. They are
 panel fetches, not tree-pane fetches; M15 is not about them.
@@ -5095,6 +5115,7 @@ Q = os.environ.get("Q", "")
 
 # after `ids` is resolved (:67), before ctx is built (:77)
 render_map = cmap
+q_on = False
 if Q:
     # Imported HERE, not at the top. `_containers` (:28-33) and `_descendants`
     # (:39) are deliberate local copies so the probe RUNS ON TODAY'S CODE --
@@ -5106,19 +5127,29 @@ if Q:
     # filtered measurement, which by definition is an AFTER run.
     from courses.builder_filter import filtered_map
 
-    restricted, chains, shown, total, _active = filtered_map(cmap, Q)
-    render_map = restricted
-    ids = chains
-    print(f"filtered: shown={shown} total={total}")
+    restricted, chains, shown, total, q_on = filtered_map(cmap, Q)
+    # Gate on the RETURNED q_active, not on bool(Q). A below-floor Q (say
+    # `Q=a`) yields chains=set() and q_active=False -- so `ids = chains` would
+    # hand the render an EMPTY open set over the full map and time a silently
+    # COLLAPSED tree. That is exactly the failure the probe's own comment at
+    # :72-76 exists to prevent ("would make every 'after' number look like a
+    # huge win for the wrong reason"), and it is invisible in the output.
+    if q_on:
+        render_map = restricted
+        ids = chains
+        print(f"filtered: shown={shown} total={total}")
+    else:
+        print(f"Q={Q!r} is below the floor; measuring UNFILTERED")
 
 ctx = {
     "nodes": render_map.get(None, []),
-    "children_map": render_map,                    # RESTRICTED when Q is set
+    "children_map": render_map,                    # RESTRICTED only when q_on
     "open_ids": ids,
     "open_joined": ",".join(str(p) for p in sorted(ids)),
     "open_descendants": _descendants(cmap, ids),   # the FULL map, always
-    "q": Q,
-    "filtered": bool(Q),
+    "q": Q,                    # the RAW value, active or not -- the template
+                               # emits it either way, as the page does
+    "filtered": q_on,          # the FLAG, not bool(Q) -- see above
     "scope_id": "top",
     "scope_updated": course.updated.isoformat(),
     "parent_kind": None,
