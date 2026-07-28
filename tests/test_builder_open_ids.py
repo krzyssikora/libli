@@ -3,6 +3,7 @@ from django.urls import reverse
 
 from courses.builder_open import CEILING
 from courses.builder_open import LAST_NODE_KEY
+from courses.builder_open import OPEN_KEY
 from courses.builder_open import SESSION_SLUG_LIMIT
 from courses.builder_open import _finalize
 from courses.builder_open import container_pks
@@ -12,6 +13,21 @@ from courses.views_manage import remember_node
 from tests.factories import ContentNodeFactory
 from tests.factories import CourseFactory
 from tests.factories import make_login
+
+
+@pytest.fixture
+def small_course_cmap(client, db):
+    """Under SIZE_THRESHOLD, so step 4 fires and q_chain=None is
+    distinguishable from q_chain=set()."""
+    owner = make_login(client, "sc-owner")
+    course = CourseFactory(slug="sc", owner=owner)
+    a = ContentNodeFactory(course=course, kind="part", unit_type=None, parent=None)
+    b = ContentNodeFactory(course=course, kind="part", unit_type=None, parent=None)
+    c = ContentNodeFactory(course=course, kind="part", unit_type=None, parent=None)
+    cmap = {None: [a, b, c]}
+    for n, pk in ((a, 111), (b, 222), (c, 333)):
+        n.pk = pk
+    return course, cmap
 
 
 def _req(rf, query="", post=None, session=None):
@@ -270,3 +286,59 @@ def test_remember_node_skips_an_unchanged_write():
     assert r.session.modified is False
     remember_node(r, "s", 2)  # changed -> writes
     assert r.session.modified is True
+
+
+def test_q_chain_beats_the_open_session_sentinel(rf, small_course_cmap):
+    """The no-JS mutation SUCCESS path redirects to ?open=session&q=...
+
+    Step 1 fires before step 3 in the shipped code, so without the
+    restructure the author gets their stored PRE-FILTER set over a filtered
+    map: every match below the top level invisible, under a notice claiming
+    to have found them.
+    """
+    course, cmap = small_course_cmap
+    request = rf.get("/", {"open": "session", "q": "trygo"})
+    request.session = {OPEN_KEY: {course.slug: [111, 222]}}
+    opened = open_ids(request, course, cmap, mode="page", q_chain={333})
+    assert set(opened.ids) == {333}
+    assert opened.explicit is False
+
+
+def test_q_chain_beats_the_notice_carrier(rf, small_course_cmap):
+    course, cmap = small_course_cmap
+    request = rf.post("/", {})
+    request.session = {OPEN_KEY: {course.slug: [111, 222]}}
+    opened = open_ids(request, course, cmap, mode="notice", q_chain={333})
+    assert set(opened.ids) == {333}
+
+
+def test_an_explicit_enumeration_still_beats_q_chain(rf, small_course_cmap):
+    """Step 2 must keep winning, or 'filter, then toggle' cannot work: a
+    no-JS toggle href under a filter carries a real enumeration."""
+    course, cmap = small_course_cmap
+    request = rf.get("/", {"open": "111,222", "q": "trygo"})
+    request.session = {}
+    opened = open_ids(request, course, cmap, mode="page", q_chain={333})
+    assert set(opened.ids) == {111, 222}
+    assert opened.explicit is True
+
+
+def test_open_session_never_reaches_parse_in_page_mode(rf, small_course_cmap):
+    """`session` matches no digits, so _parse would yield the EMPTY set with
+    explicit=True -- a collapsed tree that _remember_open then persists."""
+    course, cmap = small_course_cmap
+    request = rf.get("/", {"open": "session"})
+    request.session = {OPEN_KEY: {course.slug: [111]}}
+    opened = open_ids(request, course, cmap, mode="page", q_chain=None)
+    assert set(opened.ids) == {111}
+
+
+def test_q_chain_matters_at_the_function_boundary(rf, small_course_cmap):
+    """The spec-3b invariant. mode='page' is NOT optional: the signature's
+    default is 'fragment', which skips step 4 and returns the empty set for
+    BOTH branches, making the assertion vacuous."""
+    course, cmap = small_course_cmap
+    request = rf.get("/", {})
+    request.session = {}
+    assert set(open_ids(request, course, cmap, mode="page", q_chain=set()).ids) == set()
+    assert set(open_ids(request, course, cmap, mode="page", q_chain=None).ids) != set()

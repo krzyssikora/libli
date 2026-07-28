@@ -215,17 +215,20 @@ def _ancestor_chain(node):
     return out
 
 
-def _remember_open(request, course, opened):
+def _remember_open(request, course, opened, *, q_active):
     """Persist ONLY an author-chosen open set (precedence steps 1-2).
 
-    Gated on opened.explicit, NOT on `"open" in request.GET`. The two differ
-    exactly where it matters: `?open=session` with the key missing or flushed
-    sets `present` internally to False and falls through to steps 4-6, so the
-    parameter IS in the querystring while the resolved set is derived. Keying
-    off raw presence would write that derived set over the author's real one,
-    permanently.
+    The `q_active` gate is the half slice 1 could not write, and the parent
+    spec pins it: without it a no-JS author filters, clicks a toggle whose
+    href carries `open = <the filter's chains> +- pk`, that arrives via step 2
+    as explicit=True, and the DERIVED chains are written over their real
+    pre-filter expansion -- permanently, since the no-JS path has no stash.
+
+    Gated on q_active, NOT on `"q" in request.GET`: a below-floor `?q=a`
+    renders unfiltered, so its `open` is a genuine author-chosen set and
+    suppressing the write would lose it.
     """
-    if not opened.explicit:
+    if q_active or not opened.explicit:
         return
     # Bound the PAYLOAD, not just the slug count. Without this an author who
     # opens 20 large courses with ?open=all stores up to 20 x CEILING = 10,000
@@ -246,7 +249,7 @@ def builder(request, slug):
         raise PermissionDenied
     cmap = _children_map(course)
     opened = _open_ids(request, course, cmap, mode="page")
-    _remember_open(request, course, opened)
+    _remember_open(request, course, opened, q_active=False)
     context = {
         "course": course,
         "children_map": cmap,

@@ -120,8 +120,8 @@ def open_ids(request, course, cmap, *, mode="fragment", q_chain=None):
     """Resolve the open set. `mode` is one of "page" | "notice" | "fragment".
 
     Steps run per mode (spec section 2):
-      page     -> 1, 2, 3, 4, 5, 6
-      notice   -> 2, 3, 4, 5, 6 + a direct builder_open read
+      page     -> 2, 3, 1, 4, 5, 6
+      notice   -> 2, 3, 4, 5, 6 + a direct builder_open read (between 3 and 4)
       fragment -> 2, 3, 6 only  (never touches the session; the size rule is a
                   LANDING rule for a page, not a rule about a re-render)
 
@@ -134,31 +134,39 @@ def open_ids(request, course, cmap, *, mode="fragment", q_chain=None):
     containers = container_pks(cmap)  # one copy of the "a unit owns no scope" rule
     raw, present = _raw_open(request)
 
+    # The sentinel is lifted OUT of step 2's predicate. `present` alone cannot
+    # separate them, and step 1 mutates it -- so hoisting the q_chain block
+    # without this makes `?open=3,4&q=...` resolve to the chains (breaking
+    # "an explicit open wins"), and leaving `if present:` intact sends
+    # "session" into _parse, which matches no digits and yields the EMPTY set
+    # with explicit=True: a collapsed tree that _remember_open then persists.
+    sentinel = present and raw == "session" and mode == "page"
+
+    # Step 2 -- an explicit value wins, including the empty string.
+    if present and not sentinel:
+        return _finalize(_parse(raw, containers), containers, explicit=True)
+
+    # Step 3 -- the filter's chains. Above BOTH session reads: `q` is a signal
+    # in the request being served, while the sentinel and the notice carrier
+    # are fallbacks for a request that carries no signal. Below step 2, which
+    # is what makes "filter, then toggle" work.
+    if q_chain is not None:
+        return _finalize(q_chain, containers)
+
     # Step 1 -- the no-JS post-mutation sentinel, page mode only.
-    if present and raw == "session" and mode == "page":
+    if sentinel:
         stored = _stored_open(request, course.slug)
         if stored is not _MISSING:
             return _finalize(stored, containers, explicit=True)
-        present = False  # missing/flushed -> fall through to 3-6
-
-    # Step 2 -- an explicit value wins, including the empty string.
-    if present:
-        return _finalize(_parse(raw, containers), containers, explicit=True)
+        # missing/flushed -> fall through to 4-6
 
     # A no-JS conflict/validation re-render is the same author, same tab,
-    # mid-loop -- it cannot be a bookmark, so reading the carrier is safe and
-    # keeps a FAILED mutation showing the same tree as a successful one.
+    # mid-loop -- it cannot be a bookmark, so reading the carrier is safe.
     if mode == "notice":
         stored = _stored_open(request, course.slug)
         if stored is not _MISSING:
             # explicit=False: safe to RENDER from, not safe to write back.
-            # Marking it True would hand a future caller a wrong
-            # "author chose this" signal.
             return _finalize(stored, containers, explicit=False)
-
-    # Step 3 -- the filter's chains (slice 2; always None here).
-    if q_chain is not None:
-        return _finalize(q_chain, containers)
 
     if mode == "fragment":
         return _finalize(set(), containers)  # step 6
