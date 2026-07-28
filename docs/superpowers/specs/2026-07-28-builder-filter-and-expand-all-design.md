@@ -382,9 +382,12 @@ tracing it is what makes the rule honest:
 - With `chains` empty the restricted map holds at most top-level units, `open_ids`'s result is
   consumed only by `_tree_node.html`'s `{% if node.pk in open_ids %}` and by `toggle_href`, and
   neither runs without a container row. The two branches render byte-identical markup.
-- Nor is there a side channel: both resolve `explicit=False`, so `_remember_open` is unaffected
-  either way, and neither can trip `truncated` (step 4 fires only at ≤150 nodes, and a chain set
-  is bounded at 400 — both far under `CEILING`).
+- Nor is there a side channel. The two branches do **not** both resolve `explicit=False` —
+  under §3c's ordering a `q_chain=None` request carrying `open=session` reaches the sentinel and
+  returns `explicit=True` (`builder_open.py:141`) — but it does not matter, because
+  `_remember_open` no-ops whenever `q` is active (§3l), so nothing can be persisted either way.
+  Neither branch can trip `truncated` either (step 4 fires only at ≤150 nodes, and a chain set is
+  bounded at 400 — both far under `CEILING`).
 
 The rule stays, for two reasons that are worth more than the false one: it keeps "an active
 filter fully determines the open set" true at the function boundary rather than by luck of what
@@ -1030,7 +1033,7 @@ and §3k, §5a and §5c point at this definition rather than restating it.
 | --- | --- |
 | **type** | a **string** — the *raw* query, never a boolean and never the folded form |
 | **initial value** | `data-applied-q` verbatim (§3k), which is `q_raw` — so a below-floor `?q=a` initialises it to `"a"`, not `""` |
-| **written by** | the filter fetch and the clear fetch, when their response lands: to the value that request sent |
+| **written by** | the filter fetch, to the value it sent; the clear fetch, to the **live raw box value** (see below); a skipped request, to the live raw box value |
 | **read by** | the five applied-`q` senders (§5a), `syncUrl` (§5a), and the skip-comparison (§5c) |
 
 **The floor is applied in the COMPARISON, never in the tracker.** The skip test is
@@ -1050,6 +1053,14 @@ Raw-in-tracker, effective-in-comparison satisfies every case the floor exists fo
 into an unfiltered tree compares `""` to `""` and sends nothing; clearing an applied `tryg`
 compares `""` to `"tryg"` and fires; clearing a below-floor `a` compares `""` to `""` and
 correctly does nothing.
+
+**The clear fetch writes the live RAW box value, not blank.** "The value that request sent"
+has no referent here — the clear request omits `q` entirely (§5a) — and reading it as blank
+reproduces the regression this section exists to prevent: on a `?q=tryg` page where the author
+cuts the box down to `t`, the clear fires, a blank tracker makes `syncUrl` drop `q` from the
+URL, and the `t` is gone on reload. §1 and §3k both promise the raw `q` round-trips through the
+box, the hidden inputs and the URL. So all three writers agree: **the tracker always holds the
+raw text the box last settled on**, and only the comparison folds it.
 
 **A skipped request still updates the tracker to the live raw value.** Otherwise the tracker —
 and therefore the address bar, which follows it (§5a) — keeps a value the box no longer holds:
@@ -1282,6 +1293,13 @@ stashed `open` and no `q`.
   implementer happened to be editing. The e2e must assert the **fallback was used** (the
   cleared tree still shows the row the mutation created), because a stale stash and a correct
   fallback both produce a merely non-empty tree.
+**The clear response is handled exactly like the filter fetch's** — the parent §8 busy
+counter, `applyFragment`, §3i's header handling, then `syncUrl`. The header step is the one
+worth naming: **the clear path is the ONLY consumer of `X-Builder-Info: none`.** Its response
+carries no codes, so `none` is what removes the "Filtered: 100 / 940" entry; a clear handler
+written without header handling leaves that notice standing over a freshly-unfiltered tree,
+and every server-side assertion still passes because the header was emitted correctly.
+
 - **If the stash really is absent, the clear request carries the collector's current
   enumeration — it never omits `open`.** Filter → mutate → clear is a normal authoring
   sequence and reaches the clear with no stash. Omitting `open` there would put the request on
@@ -1359,6 +1377,13 @@ Collapse is already client-owned (parent §5), so this costs nothing:
 
 The control is `<a data-collapse-all>`.
 
+- **JS: `preventDefault` first**, exactly as §6a's expand-all does and for a sharper reason —
+  this handler issues no request, so without it the browser follows the `href` and the "no
+  request at all" title is false: a full-page navigation that also discards §5d's module-scoped
+  stash, the same hazard §5b names for the filter form's Enter key. Every otherwise-pinned
+  assertion survives the bug, because after the navigation the server renders exactly the same
+  collapsed toggles and the address bar holds `open=` from the href itself — so §8 pins it with
+  a no-navigation guard.
 - **JS:** remove every `ol.tree__scope[data-scope]:not([data-scope="top"])`; for each
   `[data-toggle]`, set `aria-expanded="false"`, remove `aria-controls`, and set `aria-label`
   from the server-rendered **`data-label-expand`** attribute; then `syncUrl`.
@@ -1620,9 +1645,10 @@ until this was done.
 - **both bulk-control hrefs carry `q`**, both the active kind and a present-but-inactive `?q=a`
 - **`data-applied-q` holds the raw submitted `q`** — on a filtered render *and* on a
   below-floor `?q=a` (where it is `a`, not empty), and **present-and-empty** with no `q` at
-  all. The empty case is asserted as *present*: a conditionally-emitted attribute makes §5c's
-  init call a string method on `null`, which throws inside the top-level IIFE and kills the
-  entire builder JS (§3k).
+  all. **The empty case is asserted as *present*** because a conditionally-emitted attribute
+  puts `null` in §5z's tracker without any symptom at load: the `TypeError` comes later, inside
+  the `input` handler, and leaves **filtering silently inert** while the rest of the builder
+  works (§3k). There is nothing to notice at runtime, so the attribute has to be pinned here.
   Asserted on the attribute's **value**: one failure it guards is a bool rendering as the
   string `"True"` (§3k), the other is a below-floor `q` being dropped so the JS and no-JS
   paths of the same gesture disagree.
@@ -1650,8 +1676,14 @@ not a pass):**
   **and that the toggle's own request carried `q`** (§5a; falsified by reverting the toggle to
   `withOpen`-less parameter building, which is how the defect would actually reappear)
 - **filter → clear restores the pre-filter expansion** (the stash), and **filter → mutate →
-  clear** lands on the **collector fallback** — asserted by the *created row* still being
-  present, not merely by the tree being non-empty, since a stale stash produces that too
+  clear** lands on the **collector fallback**. **The setup is load-bearing: collapse the
+  destination chain BEFORE filtering**, so the pre-filter stash excludes it; then filter (which
+  opens the chain), add there, and clear. Only then does a stale stash hide the created row and
+  the assertion go red. Without the collapse the row is vacuous on every builder fixture — they
+  are all small enough to land fully expanded under precedence step 4, so the destination is
+  already open in the stash and the created row is present either way, which is exactly the
+  vacuity this row's "assert on the created row, not on non-emptiness" wording was meant to
+  avoid.
 - **collapse everything, filter, clear** — the tree comes back **empty**, not filled with the
   filter's chains (the `stash === null` rule; falsified by changing it to `if (!stash)`)
 - **a below-floor query takes the clear path** — type `tryg`, then delete down to `t`, and
@@ -1703,6 +1735,10 @@ not a pass):**
   fetches leave `document.querySelectorAll('[data-info-key="filter"]').length === 1`. Falsified
   by skipping §3i's "read the server-rendered entries on init" step, which makes the second
   entry an append — the test must go RED there or it is guarding nothing.
+- **clearing the filter removes the `filter` entry** — filter until it is on screen, clear,
+  assert `[data-info-key="filter"]` is gone. This is the only path on which `none` does any
+  work (§5d); falsified by making the JS ignore the `none` header, which leaves a stale
+  "Filtered: 100 / 940" over an unfiltered tree while every server-side row still passes.
 - **an absent `X-Builder-Info` does NOT clear the slot** — filter until the `filter` entry is
   on screen, rename a visible row (whose 200 is `_rename_result.html` and carries no header),
   and assert the entry is still there. §8's server-side row proves only that the header is
@@ -1716,6 +1752,9 @@ not a pass):**
 - **expand-all DOES fire a request under the ceiling, and does NOT over it** — both directions.
   The under-ceiling half is the one that catches a `data-expand-all-disabled` emitted by value
   (§3k), where the bail fires on every course and the control is silently dead everywhere.
+- **collapse-all does not navigate** (§6b's `preventDefault`) — asserted with the
+  no-navigation guard, since after a navigation the server renders the same collapsed toggles
+  and the same `open=` in the address bar, so every other collapse-all row stays green
 - **collapse-all over a dirty rename posts nothing** (§6b) — driven with a **real mouse click**,
   not keyboard activation, because focus moves at mousedown and the keyboard path is the one
   that was already correct. Falsified by removing the `pointerdown` arming.
