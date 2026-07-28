@@ -313,9 +313,17 @@ them are easy to leave out and expensive to leave out:
 - **`q_raw`.** `_filter_context` owns the `q` read (POST then GET, above). If it does not hand
   the raw value back, all three renderers must re-do `request.POST.get("q") or
   request.GET.get("q")` to populate §3k's `q` context key — reinstating the resolution rule in
-  three places, which is the drift this helper exists to prevent. **No caller may re-read `q`
-  from the request.** It is `q_raw`, not the normalized form, because the author's half-typed
+  three places, which is the drift this helper exists to prevent. **No tree renderer may
+  re-read `q` from the request** — `builder()`, `_builder_with_notice()` and `_render_scope()`
+  take it from here. It is `q_raw`, not the normalized form, because the author's half-typed
   `?q=a` must survive into the input's value and every href (§1).
+
+  **Eight non-rendering sites do need their own read, so the resolution rule itself lives in a
+  named helper**, `_raw_q(request)` (POST then GET), which `_filter_context` calls too. They
+  are the six `_redirect_to_builder` mutation sites (§3j), plus `node_delete`'s GET (for the
+  confirm form's hidden input and its Cancel link) and `node_move`'s GET (for the picker
+  context) — none of which render tree markup, so none can be served by `FilterContext`.
+  Without the named helper the POST-then-GET rule really would be re-expressed nine times.
 - **Both the pre-union and the post-union set**, because two consumers need different ones.
   `_render_scope` today keeps the force-union in a plain local
   (`ids = set(opened.ids) | _extra_container_pks(...)`), deliberately *outside* the frozen
@@ -425,9 +433,17 @@ if mode == "notice":                  # the conflict/validation carrier
     ...
 ```
 
-`raw == "session"` must never reach `_parse`. The fragment-mode early return stays **below**
-step 3, or a filter fetch — which omits `open` by design (§5b) — would resolve to the empty set
-and render every match below the top level invisible.
+**In page mode, `raw == "session"` must never reach `_parse`** — it matches no digits, so it
+would yield the empty set with `explicit=True`. In the other two modes the sentinel is `False`
+by construction and `"session"` *does* fall through to `_parse`; that is unreachable in
+practice (the sentinel is a GET-redirect marker and a fragment or notice render never carries
+it) and must be left alone. **Do not "fix" it by dropping `mode == "page"` from `sentinel`**:
+that would make a fragment call `_stored_open`, which the parent's mode table forbids outright
+— a fragment must never read the session.
+
+The fragment-mode early return stays **below** step 3, or a filter fetch — which omits `open` by
+design (§5b) — would resolve to the empty set and render every match below the top level
+invisible.
 
 - **Above the session**, because `q` is a signal in the request being served, while both session
   reads are fallbacks for a request that carries no signal. Concretely, `open=session` is a
@@ -512,6 +528,13 @@ and a no-JS unit add under a filter returns a tree **without the row the author 
 the precise failure this section exists to close. The two channels feed different consumers and
 must not share a filter.
 
+**It stores a sorted `list[int]`, not the `set` that `_ancestor_chain` returns.** No
+`SESSION_SERIALIZER` is configured, so Django 5.2 uses `JSONSerializer` and a `set` raises
+`TypeError: Object of type set is not JSON serializable` — the parent spec measured this exact
+failure on the sibling channel, and `_persist_chain` avoids it by passing `sorted(...)`
+(`views_manage.py:428`). The rule above says which half of `_persist_chain` **not** to copy;
+this is the half that must be. Same payload cap as `builder_open`.
+
 A rename that moves a title out of the match set is the same case and is **not** covered: the
 renamed row legitimately no longer matches. Recorded as a decision, not an oversight.
 
@@ -562,6 +585,15 @@ consumes via `firstElementChild`.
 returns a list of entries each carrying `key`, `text` and `code`; the template renders `text`,
 and `_render_scope` joins the `code` values into the header. Two sources of truth here would
 drift the moment a third notice is added.
+
+**And one msgid owns each string.** The entry has a single owner, but the *human text* still
+reaches the author by two routes — `_info_entries`'s `_(…)` on the page, `data-msg-<key>` on a
+fragment — and if those are two catalog entries the same notice can be translated two different
+ways, so the page and the fragment disagree about what the tree is showing. **The Python literal
+and the template literal must be the same msgid**, placeholders included
+(`"Filtered: %(shown)s / %(total)s"` in both; the server interpolates, the JS substitutes). That
+is one catalog entry per key, not two, and §8 pins the two renderings against each other under
+the Polish locale.
 
 **One word per concept, across all three vocabularies.** The key, the code prefix and the
 `data-msg-*` suffix are the **same token** — `truncation` and `filter`:
@@ -678,6 +710,11 @@ and keep their current behaviour. Reading `request` inside the helper would sile
 rule to two editor-originated redirects the parent scoped out — a change nobody asked for,
 arriving through a signature.
 
+**Every `q` carrier — hidden inputs, `{% toggle_href %}`, the delete and Move hrefs, and the
+two bulk-control hrefs — omits the parameter entirely when `q` is blank**, rather than emitting
+`&q=`. On an unfiltered `open=all` render that is one saved parameter on every container toggle
+href and every form on the page.
+
 **The hidden `q` is emitted under `{% if q %}`, in every tree form.** Unconditional emission
 would add an empty hidden input to every rename, reorder, duplicate and add form on the page —
 944 + 944 + 807 + 138 of them on `mat-pp` under `open=all`, on a page this work exists to
@@ -724,25 +761,35 @@ covering them:
    forbids by name, and the two values genuinely differ during the 300 ms debounce. It goes
    through §5a's `setTreeParams` like every other request path.
 
-### 3k. `_tree_context` grows three keys — stated once, not patched three times
+### 3k. `_tree_context` grows four keys — stated once, not patched three times
 
 `toggle_href` reads everything from the template context, and the sole producer of those keys
 is `_tree_context(course, cmap, ids)` — whose docstring says "Takes no `request`: everything it
-needs is already resolved". This slice needs three more context values in every renderer:
+needs is already resolved". This slice needs four more context values in every renderer:
 
 | key | consumer | source |
 | --- | --- | --- |
 | `q` | `toggle_href`, the hidden inputs, the delete/Move hrefs, the filter input's value | the **raw** submitted `q`, not the normalized one |
 | `filtered` | `_scope.html`'s `{% empty %}` branch (§3h) | `q_active` |
-| `container_count` | `data-container-count` on `.builder`, which the JS reads (§6a) | `len(container_pks(full_cmap))` |
-| `expand_all_disabled` | whether `builder.html` emits expand-all's `href` at all (§6a) | `len(container_pks(full_cmap)) > builder_open.CEILING` |
+| `expand_all_disabled` | whether `builder.html` emits expand-all's `href`, **and** `data-expand-all-disabled` on `.builder` for the JS bail (§6a) | `len(container_pks(full_cmap)) > builder_open.CEILING` |
+| `q_active` | `data-q-active` on `.builder`, carrying the **applied** `q` (§5c's tracker) — the raw value when the render was filtered, empty otherwise | from `FilterContext` |
 
-**`expand_all_disabled` is a resolved boolean, not a number the template compares.** A Django
-template cannot evaluate `container_count > builder_open.CEILING` — there is no way to reach a
-module attribute from template syntax, and §6a requires the comparison to read `CEILING`
-*through the module* so the monkeypatch in §8 takes effect. Emitting the count alone would
-leave the server-side guard unimplementable and push the comparison back to a call site, which
-this section forbids. The count still ships as well, because the JS reads it.
+**Both DOM-carried values are RESOLVED server-side, and no threshold crosses the boundary.**
+
+- **`expand_all_disabled`** is a boolean, not a number the template or the JS compares. A Django
+  template cannot evaluate `container_count > builder_open.CEILING` — module attributes are
+  unreachable from template syntax — and §6a requires the comparison to read `CEILING` *through
+  the module* so §8's monkeypatch takes effect. **The parent spec's `data-container-count` is
+  therefore replaced by `data-expand-all-disabled`** (see Deltas): a raw count on `.builder`
+  would leave the JS with nothing to compare it against except a hardcoded `500`, which is
+  exactly the by-value duplication §6a's next bullet forbids — and §8's monkeypatch test asserts
+  on the missing `href`, so a desynced JS constant would ship green.
+- **`q_active`** must reach the client because §5c initialises its applied-`q` tracker from it,
+  and the alternatives are both bad: re-deriving it from the input's value duplicates the floor
+  rule (and gets it *wrong*, since the floor is `len(fold(q.strip()))` and a decomposed `ą` is
+  two code points folding to one), or sniffing the `[data-info-key="filter"]` entry, which
+  couples the tracker to a notice that exists for a different reason. `filtered` is a template
+  key with no markup carrier, so it cannot serve this.
 
 These go into `_tree_context`'s signature — which therefore gains the arguments to compute
 them — **not** into four hand-patched render calls. Three renderers exist (`builder()`,
@@ -757,7 +804,11 @@ is the failure mode:
 | --- | --- | --- |
 | `children_map` | `views_manage.py:252`, `:348`, `:737` | `_tree_node.html`'s recursive descent and `_tree_toggle.html`'s counts |
 | `top_nodes` | `builder()` and `_builder_with_notice()` | `builder.html:24` |
-| **`nodes`** | **`_render_scope` only, `views_manage.py:333-341`** | **`_scope.html`'s `{% for node in nodes %}`** |
+| **`nodes`** | **`_render_scope`, `views_manage.py:333-341` — the only *Python* site** | **`_scope.html`'s `{% for node in nodes %}`** |
+
+`nodes` is also bound in template syntax — `builder.html:24` passes `nodes=top_nodes` and
+`_tree_node.html:49` passes `nodes=children_map|get_item:node.pk` — but both derive from keys
+already in the table above, so restricting those two covers them.
 
 **`nodes` is the one that is easy to miss and the most damaging to miss.** `_scope.html` does
 **not** iterate `children_map` — it iterates `nodes`, which `_render_scope` builds from its own
@@ -845,13 +896,24 @@ pass checks the row at a narrow width, not just at 1400px.
 
 ## 5. Client
 
-### 5a. `q` rides FOUR request paths, and `withOpen` reaches only two of them
+### 5a. `q` rides FIVE request paths, and `withOpen` reaches only two of them
 
 **Set, never append**: mutation forms already carry a hidden `q`, so appending would put two
 values in the `FormData` and `QueryDict.get` returns the last — the collector would win only by
-accident of ordering. The two genuinely differ during the 300 ms debounce, where the hidden
-input holds the last *rendered* `q` and the input holds what is currently typed. **The filter
-input's value is authoritative.**
+accident of ordering.
+
+**The value they set is the APPLIED `q` (§5c's tracker), not the filter input's live value.**
+Three values are in play during the 300 ms debounce: the hidden input holds the last *rendered*
+`q`, the box holds what is currently typed, and the tracker holds what the pane is actually
+showing. An earlier draft of this spec sent the live value, which is the one choice that breaks
+the pane: with `tryg` applied and `trygo` typed, a toggle or an add fired inside the debounce
+returns markup filtered by `trygo` **into a pane rendered for `tryg`** — the mirror image of the
+"unfiltered children arriving into a filtered pane" defect this rule exists to prevent — after
+which `syncUrl` writes `q=trygo` and the `filter` entry re-asserts counts for a query the tree
+does not show.
+
+The filter fetch itself is the exception, and obviously so: its whole job is to *apply* the live
+value, and it updates the tracker when it lands.
 
 **`withOpen` (`builder.js:110`) is called from exactly two sites** — the submit handler
 (`:240`) and the drop handler (`:638`). Saying "`withOpen` sets `q` on every fragment request"
@@ -1030,12 +1092,12 @@ meet.
 - **The server-side omission of `href` is the authoritative guard**: over the ceiling the
   control renders without `href`, with `aria-disabled="true"` and a `title` saying the course
   is too large to expand at once.
-- The JS **also** bails on `data-container-count` (on `.builder`, as the parent spec names), so
-  the guard does not depend on markup archaeology. Two mechanisms for one rule, deliberately:
-  the attribute is what the JS reads, the missing `href` is what the browser obeys. **The
-  handler additionally returns early on `aria-disabled="true"`** — a `preventDefault`-then-fetch
-  handler never consults the markup otherwise, so without this the disabled control still fires
-  its request when clicked.
+- The JS **also** bails, on `data-expand-all-disabled` (on `.builder`) — **not** on the parent's
+  `data-container-count`, which would give the client a number and no threshold to compare it
+  against (§3k). Two mechanisms for one rule, deliberately: the attribute is what the JS reads,
+  the missing `href` is what the browser obeys. **The handler additionally returns early on
+  `aria-disabled="true"`** — a `preventDefault`-then-fetch handler never consults the markup
+  otherwise, so without this the disabled control still fires its request when clicked.
 - **The comparison reads `builder_open.CEILING` through the module**, never
   `from courses.builder_open import CEILING`. `_info_entries` carries a load-bearing comment
   about exactly this (`views_manage.py:361-364`): tests monkeypatch the module attribute, and a
@@ -1071,7 +1133,14 @@ silently swallowed) — so it cannot simply be widened.
 
 **Rule for collapse-all:** arm `swapping` at `pointerdown` when `document.activeElement` is
 inside *any* scope about to be removed (which, for collapse-all, is any non-top scope), and
-latch it around the bulk removal. **The e2e must drive a real mouse click**, not keyboard
+latch it around the bulk removal.
+
+**The accepted cost: a half-typed rename in a nested row is discarded, not committed.** That is
+the right trade here and it differs from slice 1's narrowed case — there, an unrelated row
+survives the gesture and its pending edit deserves its commit opportunity, so arming broadly
+would lose an edit for no reason. Under collapse-all the row is removed either way, so the
+choice is between losing the uncommitted text and shipping a database/tree divergence the
+author is never told about. Recorded so it reads as a decision. **The e2e must drive a real mouse click**, not keyboard
 activation — parent §5 records that a keyboard-only test verifies the one path that was already
 correct.
 - **No-JS:** `href` is the builder URL with `open=` — **present-but-empty**, per parent §2's
@@ -1130,6 +1199,14 @@ Every point where this document overrides `2026-07-27-…-design.md`:
     pre-union and post-union open sets, rather than the parent's loose tuple. See §3a.
 13. **The fold table deletes combining marks (U+0300–U+036F)**, so decomposed titles match. Not
     in the parent, which specifies `title__icontains`. See §1b.
+14. **`data-expand-all-disabled` replaces the parent's `data-container-count`**, and
+    `data-q-active` is added. The parent has the JS compare a raw count against the ceiling,
+    which would put a by-value `500` in `builder.js` — the duplication §6a forbids one bullet
+    later, and one §8's monkeypatch test cannot catch. Both attributes now carry a
+    server-resolved value instead of a number the client must interpret. See §3k.
+15. **The four non-filter client paths send the APPLIED `q`, not the live input value.** The
+    parent's collector rule makes the input authoritative; during the debounce that returns
+    markup filtered by a query the pane is not showing. See §5a.
 
 ## 8. Testing
 
@@ -1168,9 +1245,10 @@ until this was done.
 
 **View / integration:**
 
-- **`manage_tree` access control**, the same five rows as `manage_node_scope`: anonymous →
-  login redirect, non-manager → 403, foreign slug → 404, manager → 200 with `data-scope="top"`.
-  **Not** "non-numeric pk → 404" — that route has no pk.
+- **`manage_tree` access control**, the same rows as `manage_node_scope` minus the pk row —
+  four in total: anonymous → login redirect, non-manager → 403, foreign slug → 404, manager →
+  200 with `data-scope="top"`. **Not** "non-numeric pk → 404" — that route has no pk, so such a
+  test would guard nothing.
 - **a filter request omits `open`**: with every scope collapsed, filtering for a title three
   levels down returns the match row
 - **`q` rides every fragment request**: with a filter active, a rename 409, an add, a reorder,
@@ -1210,13 +1288,18 @@ until this was done.
 - **`_remember_open` does not write while `q` is active** (§3l) — driven through **a toggle
   under an active filter**, asserted **on the session**, never on the render. A bare filtered
   GET resolves via step 3, which is not `explicit`, so it would pass without the rule.
-- **a below-floor `?q=a` renders unfiltered markup**, with **no** `data-info-key="filter"`
-  entry and `X-Builder-Info: none` — the view-level twin of the unit floor test, and the one
-  that catches a `q_active` derived from `bool(q.strip())`
+- **a below-floor query is inactive on both response types** — the view-level twin of the unit
+  floor test, and the one that catches a `q_active` derived from `bool(q.strip())`. Two
+  assertions, because the two response types carry the signal differently and neither carries
+  both: the **page** `?q=a` renders unfiltered markup with no `data-info-key="filter"` entry and
+  **no header at all** (`builder()` never reaches `_render_scope`, §3i), while the **fragment**
+  `manage_tree?q=a` returns `X-Builder-Info: none` and has no info slot to inspect
 - **an empty filtered scope says "No matching titles.", an empty unfiltered one says "No
   children yet."**
 - **the `X-Builder-Info` header is machine-readable** — never a non-ASCII byte, never an
   RFC-2047 `=?utf-8?` prefix — asserted **under the Polish locale**
+- **the page-rendered text and the `data-msg-<key>` template are the same string** under the
+  Polish locale, for both keys (§3i) — the guard against one notice acquiring two translations
 - **`none` is emitted when no codes apply**, and codes join with `, ` when both apply
 - **a rename, a 422 and a panel fetch under an active filter carry no header at all**
 - **a filtered mutation re-asserts `filter;…`** — driven by an **add, reorder, duplicate or
@@ -1244,6 +1327,13 @@ until this was done.
 not a pass):**
 
 - type a query, assert only matching and ancestor rows are present
+- **the filter fetch omits `open`, asserted where it can go red** — **collapse the target row's
+  ancestor chain first**, then type the query and assert the match appears. Without the collapse
+  the test is vacuous: filtering is done by the restricted map, so sending `open=<collector>`
+  and sending nothing produce byte-identical rows on any tree whose match ancestors are already
+  open — which is every fixture small enough to land fully expanded under step 4. Belt and
+  braces: also assert the outgoing request URL has no `open` parameter, as the toggle row
+  already does for `q`.
 - **expand a scope while `q` is active** and assert only matching/ancestor rows return —
   **and that the toggle's own request carried `q`** (§5a; falsified by reverting the toggle to
   `withOpen`-less parameter building, which is how the defect would actually reappear)
@@ -1262,6 +1352,9 @@ not a pass):**
   untouched. Falsified by keying the guard off the input's contents instead of the applied `q`.
 - **two rapid queries leave the later one's results** (the last-wins id; falsified by removing
   it)
+- **a toggle fired inside the debounce window carries the APPLIED `q`, not the typed one**
+  (§5a) — apply `tryg`, type `trygo`, toggle before the debounce fires, and assert the returned
+  children match the pane the author is looking at
 - **expand-all then collapse-all** returns to the top rows, and the address bar holds `open=`
 - collapse-all sets `aria-expanded="false"` and removes `aria-controls` on every toggle
 - **collapse-all over a dirty rename posts nothing** (§6b) — driven with a **real mouse click**,
@@ -1287,9 +1380,14 @@ remedy.
 
 ## 9. i18n
 
-This slice adds roughly nine user-facing strings — the two `data-msg-*` templates, the two
-`info` texts, "Filter", "Clear", "Expand all", "Collapse all", the over-ceiling tooltip and
-"No matching titles." — so the catalog work is a task, not an afterthought:
+This slice adds **eight** user-facing strings: the two notice texts, "Filter", "Clear",
+"Expand all", "Collapse all", the over-ceiling tooltip and "No matching titles." — so the
+catalog work is a task, not an afterthought.
+
+**Eight, not ten: each notice text is ONE msgid used twice.** The same literal appears in
+`_info_entries`'s `_(…)` and in the `data-msg-<key>` attribute, deliberately (§3i), so
+`makemessages` collapses them into a single entry. Two entries for one notice is the defect,
+not the baseline — it lets the page and the fragment route disagree in translation.
 
 - msgids in **both** catalogs (`pl` and `en`); regenerate with
   `makemessages -l pl -l en --no-obsolete`
