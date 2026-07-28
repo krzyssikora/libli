@@ -3,6 +3,7 @@ bundle, graft the bundle into an existing target course, verify the result."""
 
 import io
 import json
+import re
 
 import pytest
 from django.contrib.auth import get_user_model
@@ -11,14 +12,24 @@ from django.core.management import CommandError
 from django.core.management import call_command
 
 from courses.management.commands.migrate_course_content import BASELINE_NAME
+from courses.management.commands.migrate_course_content import LINK_STATE_NAME
 from courses.management.commands.migrate_course_content import MANIFEST_NAME
 from courses.management.commands.migrate_course_content import Command
+from courses.management.commands.migrate_course_content import _build_mapping
+from courses.management.commands.migrate_course_content import _fresh_state
+from courses.management.commands.migrate_course_content import _invert_node_index
+from courses.management.commands.migrate_course_content import _is_fail_closed
+from courses.management.commands.migrate_course_content import _live_pks
+from courses.management.commands.migrate_course_content import _merge_rewrite
+from courses.management.commands.migrate_course_content import _read_state
+from courses.management.commands.migrate_course_content import _write_state
 from courses.models import ContentNode
 from courses.models import Course
 from courses.models import Element
 from courses.models import ImageElement
 from courses.models import MediaAsset
 from courses.models import TextElement
+from courses.richtext import rewrite_instance
 
 pytestmark = pytest.mark.django_db
 
@@ -146,6 +157,126 @@ def test_export_writes_the_media_side_table_keyed_by_source_pk(tmp_path):
         assert parts and all(isinstance(i, int) for i in parts)
 
 
+def test_export_writes_a_node_index_covering_every_node(tmp_path):
+    course = _mk_source(parts=("Alpha", "Beta"))
+    bundle = tmp_path / "bundle"
+    call_command(
+        "migrate_course_content",
+        "export",
+        "--source-slug",
+        "src",
+        "--bundle-dir",
+        str(bundle),
+    )
+    index = _read_manifest(bundle)["node_index"]
+    # Every node in the COURSE, not just link targets and not just one part.
+    all_pks = set(
+        ContentNode.objects.filter(course=course).values_list("pk", flat=True)
+    )
+    assert {int(k) for k in index} == all_pks
+    # Shape: {"<pk>": [order, "nN"]}, the pair in that order. JSON has no tuple
+    # type, so it round-trips as a 2-element list.
+    order, export_id = index[str(sorted(all_pks)[0])]
+    assert isinstance(order, int)
+    assert export_id.startswith("n")
+    # Export ids restart at n1 in EVERY archive -- the part order is what
+    # disambiguates them, and keying the two phases differently would make
+    # every lookup miss silently.
+    per_order = {}
+    for o, eid in index.values():
+        per_order.setdefault(o, set()).add(eid)
+    assert all("n1" in ids for ids in per_order.values())
+
+
+def test_export_node_index_round_trips_through_invert_node_index(tmp_path):
+    """The format-level proof: what `_export` writes is exactly what
+    `_invert_node_index` (Task 3's reader) expects to read back, per part
+    order, for a genuinely multi-part course exported through the real,
+    un-mocked `build_export` path."""
+    course = _mk_source(parts=("Alpha", "Beta", "Gamma"))
+    bundle = tmp_path / "bundle"
+    call_command(
+        "migrate_course_content",
+        "export",
+        "--source-slug",
+        "src",
+        "--bundle-dir",
+        str(bundle),
+    )
+    node_index = _read_manifest(bundle)["node_index"]
+
+    parts = list(
+        ContentNode.objects.filter(course=course, parent__isnull=True).order_by(
+            "order", "pk"
+        )
+    )
+    assert len(parts) == 3  # a genuine multi-part fixture, not a single-part one
+
+    def _subtree_pks(root):
+        pks = {root.pk}
+        frontier = [root.pk]
+        while frontier:
+            children = list(
+                ContentNode.objects.filter(parent_id__in=frontier).values_list(
+                    "pk", flat=True
+                )
+            )
+            pks.update(children)
+            frontier = children
+        return pks
+
+    seen_pks = []  # a list, not a set: duplicates across parts must be caught
+    for part in parts:
+        inverted = _invert_node_index(node_index, part.order)
+        # Every export id in this part's own inversion resolves back to a
+        # source pk that both exists and belongs to THIS part's own subtree
+        # (never a sibling part's), and export ids restart at n1 per part, so
+        # this could only line up if the (order, export_id) pair round-trips
+        # exactly as written.
+        assert inverted, f"part {part.order} inverted to nothing"
+        subtree = _subtree_pks(part)
+        for eid, pk in inverted.items():
+            assert eid.startswith("n")
+            assert isinstance(pk, int)
+            assert pk in subtree, (
+                f"part {part.order}'s inversion resolved {eid!r} to pk {pk}, "
+                f"which is not in that part's own subtree"
+            )
+        seen_pks.extend(inverted.values())
+    # The union across all per-order inversions recovers the whole course
+    # exactly once per node -- no loss, no cross-part duplication.
+    all_pks = set(
+        ContentNode.objects.filter(course=course).values_list("pk", flat=True)
+    )
+    assert len(seen_pks) == len(set(seen_pks)) == len(all_pks)
+    assert set(seen_pks) == all_pks
+
+
+def test_export_node_index_survives_allow_problems(tmp_path, monkeypatch):
+    """--allow-problems must not cost the operator the node index."""
+    from courses.management.commands import migrate_course_content as mod
+
+    _mk_source(parts=("Alpha",))
+    bundle = tmp_path / "bundle"
+    real = mod.build_export
+
+    def fake(course, node=None, **kw):
+        manifest, document, media, _p = real(course, node=node, **kw)
+        return manifest, document, media, ["synthetic problem"]
+
+    monkeypatch.setattr(mod, "build_export", fake)
+    call_command(
+        "migrate_course_content",
+        "export",
+        "--source-slug",
+        "src",
+        "--bundle-dir",
+        str(bundle),
+        "--allow-problems",
+    )
+    assert _read_manifest(bundle)["node_index"]
+
+
 def test_export_rejects_an_unknown_source_slug(tmp_path):
     with pytest.raises(CommandError, match="no course with slug"):
         call_command(
@@ -188,7 +319,7 @@ def test_export_aborts_on_problems_and_allow_problems_overrides(tmp_path, monkey
             "--bundle-dir",
             str(bundle),
         )
-    assert not list(bundle.glob("*.zip")) if bundle.exists() else True
+    assert not list(bundle.glob("*.zip"))
 
     # The override lets the same export through.
     call_command(
@@ -281,18 +412,28 @@ def test_export_aborts_on_a_top_level_order_collision(tmp_path):
         )
 
 
-def test_export_refuses_import_only_flags(tmp_path):
+@pytest.mark.parametrize(
+    "flag, value",
+    [("--force", None), ("--resolve-rewrite", "applied")],
+)
+def test_export_refuses_import_only_flags(tmp_path, flag, value):
+    """Extended (not duplicated) for --resolve-rewrite per the flag-matrix
+    trap: omitting the flag from _ACTION_FLAGS would let this slip through
+    silently, so the same refusal test must cover it too."""
     _mk_source()
+    args = [
+        "migrate_course_content",
+        "export",
+        "--source-slug",
+        "src",
+        "--bundle-dir",
+        str(tmp_path / "b"),
+        flag,
+    ]
+    if value is not None:
+        args.append(value)
     with pytest.raises(CommandError, match="not valid for"):
-        call_command(
-            "migrate_course_content",
-            "export",
-            "--source-slug",
-            "src",
-            "--bundle-dir",
-            str(tmp_path / "b"),
-            "--force",
-        )
+        call_command(*args)
 
 
 def _export_bundle(tmp_path, parts=("P0", "P1", "P2"), source_slug="src"):
@@ -335,6 +476,112 @@ def test_import_grafts_every_part_at_top_level_in_source_order(tmp_path):
         .values_list("title", flat=True)
     )
     assert tops == ["P0", "P1", "P2"]
+
+
+def test_import_no_longer_flattens_cross_part_links_but_defers_them(tmp_path):
+    # SUPERSEDES part 2's behaviour: this command moves content ONE TOP-LEVEL
+    # PART AT A TIME, so build_export(course, node=part) only ever emits
+    # link_nodes for targets INSIDE that part -- a cross-part link is
+    # unmappable from any single part's own node_map. Part 2's command called
+    # import_subtree with the on_missing="unwrap" default, so such a link was
+    # flattened to plain text immediately. Part 3's graft loop now passes
+    # on_missing="defer" (Task 5), which skips _rewrite_links entirely -- the
+    # link is left pending until both parts are grafted, and Task 8's site 2
+    # then runs the deferred pass automatically at the end of THIS `import`
+    # invocation, resolving it to the target's new pk rather than flattening it.
+    course = _mk_source(parts=("P0", "P1"))
+    unit0 = ContentNode.objects.get(course=course, kind="unit", title="U0")
+    unit1 = ContentNode.objects.get(course=course, kind="unit", title="U1")
+    el = Element.objects.get(unit=unit0, title="T")
+    text = el.content_object
+    text.body = f'<p><a href="/courses/n/{unit1.pk}/">x</a></p>'
+    text.save(update_fields=["body"])
+
+    bundle = tmp_path / "bundle"
+    call_command(
+        "migrate_course_content",
+        "export",
+        "--source-slug",
+        "src",
+        "--bundle-dir",
+        str(bundle),
+    )
+    target = _mk_target()
+    _user()
+    buf = io.StringIO()
+    call_command(
+        "migrate_course_content",
+        "import",
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+        stdout=buf,
+    )
+    out = buf.getvalue()
+    assert "00-src.zip" in out
+    # Resolved by the deferred pass, not flattened: the rewrite summary's own
+    # "0 link(s) flattened" line contains the substring "flattened", so the
+    # actual claim is the count, not the word.
+    state = _read_state_raw(bundle)
+    assert state["rewrite"]["flattened"] == 0
+    # Both parts committed, and the pass has now run over both.
+    assert [e["order"] for e in state["parts"]] == [0, 1]
+    assert all(e["rewritten"] is True for e in state["parts"])
+    # End-to-end: the href now names the target's NEW pk, not the source pk.
+    new_unit1 = ContentNode.objects.get(course=target, title="U1")
+    body = TextElement.objects.get(
+        elements__unit__course=target, elements__unit__title="U0"
+    ).body
+    assert f"/courses/n/{new_unit1.pk}/" in body
+
+
+def test_import_reports_nothing_when_every_link_resolves_within_its_part(tmp_path):
+    # The counterpart to the flattened-link warning: an in-part link is now
+    # correctly remapped by Task 8's deferred pass (which fires automatically
+    # at the end of this `import`), so it must not be COUNTED as flattened.
+    # The rewrite summary line always contains the literal word "flattened"
+    # (e.g. "0 link(s) flattened"), so the claim under test is the count, not
+    # the word's presence in stdout.
+    course = _mk_source(parts=("P0", "P1"))
+    unit0 = ContentNode.objects.get(course=course, kind="unit", title="U0")
+    el = Element.objects.get(unit=unit0, title="T")
+    text = el.content_object
+    text.body = f'<p><a href="/courses/n/{unit0.pk}/">x</a></p>'
+    text.save(update_fields=["body"])
+
+    bundle = tmp_path / "bundle"
+    call_command(
+        "migrate_course_content",
+        "export",
+        "--source-slug",
+        "src",
+        "--bundle-dir",
+        str(bundle),
+    )
+    target = _mk_target()
+    _user()
+    buf = io.StringIO()
+    call_command(
+        "migrate_course_content",
+        "import",
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+        stdout=buf,
+    )
+    state = _read_state_raw(bundle)
+    assert state["rewrite"]["flattened"] == 0
+    new_unit0 = ContentNode.objects.get(course=target, title="U0")
+    body = TextElement.objects.get(
+        elements__unit__course=target, elements__unit__title="U0"
+    ).body
+    assert f"/courses/n/{new_unit0.pk}/" in body
 
 
 def test_import_carries_placeholder_titles_verbatim(tmp_path):
@@ -1030,6 +1277,375 @@ def test_verify_fails_when_an_imported_media_asset_is_deleted(tmp_path):
         )
 
 
+def test_verify_refuses_when_the_link_state_is_missing(tmp_path):
+    bundle = _export_bundle(tmp_path)
+    _mk_target()
+    _user()
+    call_command(
+        "migrate_course_content",
+        "import",
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+    )
+    (bundle / LINK_STATE_NAME).unlink()
+    with pytest.raises(CommandError, match=LINK_STATE_NAME):
+        call_command(
+            "migrate_course_content",
+            "verify",
+            "--target-slug",
+            "dst",
+            "--bundle-dir",
+            str(bundle),
+        )
+
+
+def test_verify_refuses_a_state_file_that_is_not_applied(tmp_path):
+    bundle = _export_bundle(tmp_path)
+    _mk_target()
+    _user()
+    call_command(
+        "migrate_course_content",
+        "import",
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+    )
+    st = _read_state_raw(bundle)
+    st["status"] = "collecting"
+    _write_state(bundle, st)
+    with pytest.raises(CommandError, match="deferred link rewrite never ran"):
+        call_command(
+            "migrate_course_content",
+            "verify",
+            "--target-slug",
+            "dst",
+            "--bundle-dir",
+            str(bundle),
+        )
+
+
+def test_verify_refuses_an_in_progress_state_file(tmp_path):
+    bundle = _export_bundle(tmp_path)
+    _mk_target()
+    _user()
+    call_command(
+        "migrate_course_content",
+        "import",
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+    )
+    st = _read_state_raw(bundle)
+    st["status"] = "in_progress"
+    _write_state(bundle, st)
+    with pytest.raises(CommandError, match="in_progress") as exc:
+        call_command(
+            "migrate_course_content",
+            "verify",
+            "--target-slug",
+            "dst",
+            "--bundle-dir",
+            str(bundle),
+        )
+    # The probe reading, not a bare refusal (Task 11 supplies it).
+    assert "in the pending scope" in str(exc.value)
+
+
+def test_the_in_progress_probe_reports_unavailable_when_the_pending_scope_is_empty(
+    tmp_path,
+):
+    """This fixture's status is hand-flipped to in_progress WITHOUT clearing
+    any part's `rewritten` flag, so the pending scope is empty (`total == 0`).
+    The two threshold lines the populated case prints -- "near {total} means
+    the rewrite did NOT run" and "near 0 means it DID commit" -- would BOTH
+    read "near 0" here, handing the operator two opposite instructions for
+    the one decision this message exists to disambiguate. The message must
+    report the reading as unavailable instead of rendering that contradiction.
+    """
+    bundle = _export_bundle(tmp_path)
+    _mk_target()
+    _user()
+    call_command(
+        "migrate_course_content",
+        "import",
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+    )
+    st = _read_state_raw(bundle)
+    st["status"] = "in_progress"  # every part's "rewritten" is left True
+    _write_state(bundle, st)
+    with pytest.raises(CommandError, match="in_progress") as exc:
+        call_command(
+            "migrate_course_content",
+            "verify",
+            "--target-slug",
+            "dst",
+            "--bundle-dir",
+            str(bundle),
+        )
+    msg = str(exc.value)
+    assert "in the pending scope" in msg
+    assert "unavailable" in msg.lower()
+    # The two contradictory "near 0" lines must never both appear.
+    assert not (
+        "near 0 means the rewrite did NOT run" in msg
+        and "near 0 means it DID commit" in msg
+    )
+
+
+def test_the_in_progress_refusal_prints_a_probe_reading(tmp_path):
+    """The reading is the sole discriminator for an irreversible operator
+    decision, so both numbers must be present and both must be over the PENDING
+    scope -- over all entries the ratio is meaningless on a repair resume.
+
+    This drives a plain `--start-at` resume with NO --resolve-rewrite flag, so
+    it reaches gate 2 (`state["status"] == "in_progress"`) directly -- unlike
+    every --resolve-rewrite test, which dispatches before gate 2 is reached.
+    """
+    bundle = _export_bundle(tmp_path)
+    _mk_target()
+    _user()
+    call_command(
+        "migrate_course_content",
+        "import",
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+    )
+    st = _read_state_raw(bundle)
+    st["status"] = "in_progress"
+    for e in st["parts"]:
+        e["rewritten"] = False
+    _write_state(bundle, st)
+    with pytest.raises(CommandError) as exc:
+        call_command(
+            "migrate_course_content",
+            "import",
+            "--target-slug",
+            "dst",
+            "--bundle-dir",
+            str(bundle),
+            "--as-user",
+            "mig@example.com",
+            "--start-at",
+            "3",
+        )
+    msg = str(exc.value)
+    assert "--resolve-rewrite" in msg
+    assert "dangling" in msg
+    assert "in the pending scope" in msg
+
+
+def test_the_probe_denominator_is_the_pending_scope(tmp_path):
+    """Only ONE order (1) is left pending; the other two are already
+    rewritten. The pending-scope count in the message must therefore be
+    strictly smaller than the whole-migration count -- proving the probe
+    scans `pending`, not `state["parts"]`."""
+    bundle = _export_bundle(tmp_path)
+    _mk_target()
+    _user()
+    call_command(
+        "migrate_course_content",
+        "import",
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+    )
+    st = _read_state_raw(bundle)
+    st["status"] = "in_progress"
+    for e in st["parts"]:  # only ONE order pending
+        e["rewritten"] = int(e["order"]) != 1
+    _write_state(bundle, st)
+    with pytest.raises(CommandError) as exc:
+        call_command(
+            "migrate_course_content",
+            "import",
+            "--target-slug",
+            "dst",
+            "--bundle-dir",
+            str(bundle),
+            "--as-user",
+            "mig@example.com",
+            "--start-at",
+            "3",
+        )
+    msg = str(exc.value)
+    pending_n = int(re.search(r"of (\d+) in the pending scope", msg).group(1))
+    whole_n = int(re.search(r"migration holds (\d+)", msg).group(1))
+    assert pending_n < whole_n
+
+
+def test_verify_refuses_the_wrong_target_rather_than_passing_trivially(tmp_path):
+    """Without the identity check the scope is empty, so total_elements == 0
+    and the reconciliation succeeds having checked nothing."""
+    bundle = _export_bundle(tmp_path)
+    _mk_target()
+    Course.objects.create(title="Other", slug="other", uses_parts=True)
+    _user()
+    call_command(
+        "migrate_course_content",
+        "import",
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+    )
+    # match= is mandatory: verifying "other" also trips the pre-existing node
+    # tally ("node count mismatch"), so a bare raises() passes with the identity
+    # check deleted and the falsification below could never go RED.
+    with pytest.raises(CommandError, match="Refusing to mix targets"):
+        call_command(
+            "migrate_course_content",
+            "verify",
+            "--target-slug",
+            "other",
+            "--bundle-dir",
+            str(bundle),
+        )
+
+
+def test_verify_raises_on_a_dangling_internal_href(tmp_path):
+    bundle = _export_bundle(tmp_path)
+    target = _mk_target()
+    _user()
+    call_command(
+        "migrate_course_content",
+        "import",
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+    )
+    # MUTATE an existing body -- do NOT add an Element. The pinned gate order
+    # puts the four tally checks before the reconciliation, so an extra join
+    # raises "element count mismatch: expected 6, target 'dst' holds 7" and the
+    # match= never fires. (Measured: sanitize_html leaves this markup
+    # byte-identical, so .update() and .save() both work.)
+    TextElement.objects.filter(elements__unit__course=target).update(
+        body='<p><a href="/courses/n/999999/">x</a></p>'
+    )
+    with pytest.raises(CommandError, match="dangling"):
+        call_command(
+            "migrate_course_content",
+            "verify",
+            "--target-slug",
+            "dst",
+            "--bundle-dir",
+            str(bundle),
+        )
+
+
+def test_verify_caps_dangling_examples_at_ten_even_when_one_target_has_many_sites(
+    tmp_path,
+):
+    """Fix 2 (final review): the `if len(examples) >= 10: break` sat OUTSIDE
+    the inner per-site loop, so one target pk cited from many elements
+    appended ALL of its sites before the outer per-pk loop ever re-checked the
+    bound -- a hub node linked from hundreds of units would yield a
+    CommandError hundreds of tuples long. 12 parts here, each contributing one
+    TextElement, all pointed at the SAME dangling pk -- one target cited from
+    12 sites, one more than the cap.
+    """
+    bundle = _export_bundle(tmp_path, parts=tuple(f"P{i}" for i in range(12)))
+    target = _mk_target()
+    _user()
+    call_command(
+        "migrate_course_content",
+        "import",
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+    )
+    n_texts = TextElement.objects.filter(elements__unit__course=target).count()
+    assert n_texts == 12  # sanity: really more sites than the cap
+    TextElement.objects.filter(elements__unit__course=target).update(
+        body='<p><a href="/courses/n/999999/">x</a></p>'
+    )
+    with pytest.raises(CommandError, match="dangling") as exc:
+        call_command(
+            "migrate_course_content",
+            "verify",
+            "--target-slug",
+            "dst",
+            "--bundle-dir",
+            str(bundle),
+        )
+    msg = str(exc.value)
+    assert "First 10:" in msg
+    triples = re.findall(r"\(\d+, \d+, '/courses/n/\d+/'\)", msg)
+    assert len(triples) == 10
+
+
+def test_verify_passes_on_a_clean_migration(tmp_path):
+    course = _mk_source(parts=("P0", "P1"))
+    _link_between(course, "P0", "P1")
+    bundle = tmp_path / "bundle"
+    call_command(
+        "migrate_course_content",
+        "export",
+        "--source-slug",
+        "src",
+        "--bundle-dir",
+        str(bundle),
+    )
+    _mk_target()
+    _user()
+    call_command(
+        "migrate_course_content",
+        "import",
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+    )
+    out = io.StringIO()
+    call_command(
+        "migrate_course_content",
+        "verify",
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        stdout=out,
+    )
+    assert "OK" in out.getvalue()
+    # The per-part table (Task 7's recorded rows, rendered by `verify`): the
+    # element carrying the link lives in part 0, so part 0 shows one rewrite
+    # and part 1 shows none -- not just that a table exists, but that its
+    # content is the actual per-order split, not a placeholder.
+    assert "  part 0: 1 rewritten, 0 flattened" in out.getvalue()
+    assert "  part 1: 0 rewritten, 0 flattened" in out.getvalue()
+
+
 def test_shared_media_duplicates_and_is_accounted_for(tmp_path):
     """An asset referenced from two parts is exported into both archives and
     re-materialised twice, so the target's media count legitimately EXCEEDS the
@@ -1102,3 +1718,2477 @@ def test_bundle_archives_rejects_a_misnamed_archive(tmp_path):
     (bundle / "notes.zip").write_bytes(b"")
     with pytest.raises(CommandError, match="notes.zip"):
         Command()._bundle_archives(bundle)
+
+
+# --- link-state file: constants and pure helpers --------------------------
+
+
+def _read_state_raw(bundle):
+    return json.loads((bundle / LINK_STATE_NAME).read_text(encoding="utf-8"))
+
+
+def test_invert_node_index_parses_string_pks_to_ints():
+    """The `src` guard is a fatal equality test and node_index keys are decimal
+    STRINGS. Without int() the comparison is False on every part of every run."""
+    ni = {"1234": [0, "n1"], "1235": [0, "n2"], "9001": [1, "n1"]}
+    assert _invert_node_index(ni, 0) == {"n1": 1234, "n2": 1235}
+    assert _invert_node_index(ni, 1) == {"n1": 9001}
+    assert _invert_node_index(ni, 7) == {}
+
+
+def test_invert_node_index_survives_a_json_round_trip():
+    """JSON has no tuple type: [order, export_id] comes back as a 2-element list."""
+    ni = json.loads(json.dumps({"1234": (0, "n1")}))
+    assert _invert_node_index(ni, 0) == {"n1": 1234}
+
+
+def test_write_state_is_atomic_and_leaves_no_tmp_file(tmp_path):
+    bundle = tmp_path / "b"
+    bundle.mkdir()
+    _write_state(bundle, {"version": 1, "parts": []})
+    assert _read_state_raw(bundle) == {"version": 1, "parts": []}
+    assert not (bundle / (LINK_STATE_NAME + ".tmp")).exists()
+
+
+def test_read_state_validating_rejects_torn_json_and_a_wrong_version(tmp_path):
+    bundle = tmp_path / "b"
+    bundle.mkdir()
+    (bundle / LINK_STATE_NAME).write_text('{"version": 1, "par', encoding="utf-8")
+    with pytest.raises(CommandError, match="not valid JSON"):
+        _read_state(bundle, validate=True)
+    (bundle / LINK_STATE_NAME).write_text('{"version": 2}', encoding="utf-8")
+    with pytest.raises(CommandError, match="version"):
+        _read_state(bundle, validate=True)
+
+
+def test_read_state_non_validating_swallows_a_torn_file(tmp_path):
+    """The `start_at is None` branch discards the file wholesale, so validating
+    it there could only manufacture a dead end with no documented remedy."""
+    bundle = tmp_path / "b"
+    bundle.mkdir()
+    (bundle / LINK_STATE_NAME).write_text('{"version": 1, "par', encoding="utf-8")
+    assert _read_state(bundle, validate=False) is None
+
+
+def test_read_state_returns_none_when_absent(tmp_path):
+    bundle = tmp_path / "b"
+    bundle.mkdir()
+    assert _read_state(bundle, validate=True) is None
+
+
+def test_fresh_state_carries_all_five_top_level_keys():
+    target = _mk_target()
+    st = _fresh_state(target)
+    assert set(st) == {"version", "status", "target_slug", "target_pk", "parts"}
+    assert st["status"] == "collecting"
+    assert st["target_pk"] == target.pk
+    assert st["parts"] == []
+
+
+def test_live_pks_filters_to_rows_in_the_given_course():
+    """course=target is not decoration: a bare pk__in would call a node in some
+    OTHER course 'resolved', which is the mis-point this design guards against."""
+    target = _mk_target()
+    other = Course.objects.create(title="Other", slug="other")
+    a = ContentNode.objects.create(course=target, kind="part", title="A")
+    b = ContentNode.objects.create(course=other, kind="part", title="B")
+    entries = [{"order": 0, "node_map": {"n1": a.pk, "n2": b.pk, "n3": 10**9}}]
+    assert _live_pks(entries, target) == {a.pk}
+
+
+# --- the deferred pass: mapping, fatal skips, fail-closed probe -----------
+
+
+def test_is_fail_closed_separates_the_three_cases():
+    """The naive `not changed` rule is catastrophically wrong: a body with NO
+    links returns exactly the same signal as a fail-closed one, so it would
+    record nearly every element and make verify's reconciliation vacuous."""
+    plain = TextElement(body="<p>no links here</p>")
+    good = TextElement(body='<p><a href="/courses/n/7/">x</a></p>')
+    torn = TextElement(body='<p><a href="/courses/n/7/">x</p>')  # no </a>
+    assert _is_fail_closed(plain) is False
+    assert _is_fail_closed(good) is False
+    assert _is_fail_closed(torn) is True
+
+
+def test_is_fail_closed_recognizes_a_saved_fill_gate_fixture():
+    """FillGateElement -- unlike TextElement -- has no save() override, so a
+    torn anchor stored in `stem` is not closed by sanitize_html. Measured
+    through a real save()+reload, not just an in-memory instance: this is one
+    of the two end-to-end vehicles the FAIL-CLOSED FIXTURES preamble names for
+    Tasks 7 and 12 (SwitchGateElement is the other; TextElement can never
+    carry one at all, since its save() closes the anchor)."""
+    from courses.models import FillGateElement
+
+    fixture = FillGateElement.objects.create(
+        # SINGLE torn anchor, UNMAPPABLE target, no </a> anywhere after it.
+        stem='<p><a href="/courses/n/999999/">torn</p>',
+        answers=[["x"]],
+    )
+    fixture.refresh_from_db()
+    assert fixture.stem == '<p><a href="/courses/n/999999/">torn</p>'
+    assert _is_fail_closed(fixture) is True
+
+
+def test_build_mapping_covers_every_order_but_scopes_to_pending():
+    """Two sets, never one. The rewrite's SCOPE is pending-only; the mapping's
+    LIVENESS filter is every recorded order, because a pending part's links may
+    point into an already-rewritten one."""
+    target = _mk_target()
+    nodes = [
+        ContentNode.objects.create(course=target, kind="part", title=f"N{i}")
+        for i in range(3)
+    ]
+    state = _fresh_state(target)
+    state["parts"] = [
+        {
+            "order": 0,
+            "node_map": {"n1": nodes[0].pk, "n2": nodes[1].pk},
+            "src": {},
+            "rewritten": True,
+        },
+        {"order": 1, "node_map": {"n1": nodes[2].pk}, "src": {}, "rewritten": False},
+    ]
+    node_index = {"1234": [0, "n1"], "1235": [0, "n2"], "9001": [1, "n1"]}
+    mapping, scope_pks, _attr, scanned = _build_mapping(state, node_index, target)
+    assert mapping == {1234: nodes[0].pk, 1235: nodes[1].pk, 9001: nodes[2].pk}
+    assert scope_pks == {nodes[2].pk}  # pending only
+    assert scanned == {1}
+
+
+def test_build_mapping_is_fatal_when_a_recorded_pk_is_not_live():
+    """Not a warning. Under on_missing='unwrap' an entry that contributes no
+    mapping is not inert -- every href to it is flattened irreversibly."""
+    target = _mk_target()
+    state = _fresh_state(target)
+    state["parts"] = [
+        {"order": 0, "node_map": {"n1": 10**9}, "src": {}, "rewritten": False}
+    ]
+    # Match the VALUE, not the label: the message interpolates all three labels
+    # unconditionally, so match="skipped_dead" is satisfied by any of the three.
+    with pytest.raises(CommandError, match=r"skipped_dead=\[1000000000\]"):
+        _build_mapping(state, {"1": [0, "n1"]}, target)
+
+
+def test_build_mapping_is_fatal_on_an_unrecorded_order_or_export_id():
+    target = _mk_target()
+    node = ContentNode.objects.create(course=target, kind="part", title="N")
+    state = _fresh_state(target)
+    state["parts"] = [
+        {"order": 0, "node_map": {"n1": node.pk}, "src": {}, "rewritten": False}
+    ]
+    with pytest.raises(CommandError, match=r"skipped_parts=\[5\]"):
+        _build_mapping(state, {"1": [5, "n1"]}, target)
+    with pytest.raises(CommandError, match=r"skipped_ids=\[\(0, 'nZZ'\)\]"):
+        _build_mapping(state, {"1": [0, "nZZ"]}, target)
+
+
+# --- _merge_rewrite: accumulation across passes ----------------------------
+
+
+def test_merge_rewrite_first_pass_writes_full_rows_and_a_summed_total():
+    per_order = {0: {"elements_touched": 3, "flattened": 1}}
+    merged = _merge_rewrite(None, per_order, [], {0})
+    assert merged == {
+        "parts": [{"order": 0, "elements_touched": 3, "flattened": 1}],
+        "elements_touched": 3,
+        "flattened": 1,
+        "fail_closed_elements": [],
+    }
+
+
+def test_merge_rewrite_carries_forward_unscanned_orders_with_null_counts():
+    """A pass scanning only order 1 must not clobber order 0's earlier row, and
+    must not claim a whole-migration total it never measured."""
+    prior = {
+        "parts": [{"order": 0, "elements_touched": 5, "flattened": 0}],
+        "elements_touched": 5,
+        "flattened": 0,
+        "fail_closed_elements": [],
+    }
+    per_order = {1: {"elements_touched": 2, "flattened": 0}}
+    merged = _merge_rewrite(prior, per_order, [], {0, 1})
+    assert merged["parts"] == [
+        {"order": 0, "elements_touched": 5, "flattened": 0},
+        {"order": 1, "elements_touched": 2, "flattened": 0},
+    ]
+    # Order 0 was carried forward with a known count, order 1 is freshly
+    # measured -- both known, so the total IS summed here. Nullness is only
+    # forced when a carried-forward row's count was never known (see below).
+    assert merged["elements_touched"] == 7
+    assert merged["flattened"] == 0
+
+
+def test_merge_rewrite_nulls_totals_when_a_carried_forward_row_is_unknown():
+    """`resolved_by_operator` carries no per-order counts, so a later pass's
+    carried-forward row for the resolved order is {elements_touched: None,
+    flattened: None} -- and the top-level totals must not silently sum None."""
+    prior = {"resolved_by_operator": True, "parts": []}
+    per_order = {1: {"elements_touched": 2, "flattened": 0}}
+    merged = _merge_rewrite(prior, per_order, [], {0, 1})
+    rows = {r["order"]: r for r in merged["parts"]}
+    assert rows[0] == {"order": 0, "elements_touched": None, "flattened": None}
+    assert rows[1] == {"order": 1, "elements_touched": 2, "flattened": 0}
+    assert merged["elements_touched"] is None
+    assert merged["flattened"] is None
+
+
+def _mk_bare_element(target):
+    """One real Element join row on a throwaway unit -- _merge_rewrite queries
+    Element.objects.filter(pk__in=...) to drop dead pks, so these tests need a
+    genuine row, not a synthetic pk."""
+    unit = ContentNode.objects.create(
+        course=target, kind="unit", title="U", unit_type="lesson"
+    )
+    return Element.objects.create(
+        unit=unit, title="", content_object=TextElement.objects.create(body="<p>x</p>")
+    )
+
+
+def test_merge_rewrite_unions_fail_closed_only_when_the_key_was_present():
+    """An incomplete list is worse than an absent one: verify RECOMPUTES on
+    absence but TRUSTS a present list, so a pass that has no fail_closed_elements
+    to carry forward must not fabricate one from just its own findings."""
+    target = _mk_target()
+    el = _mk_bare_element(target)
+    prior_with_key = {"parts": [], "fail_closed_elements": [el.pk]}
+    merged = _merge_rewrite(prior_with_key, {}, [999999], {0})
+    assert merged["fail_closed_elements"] == sorted({el.pk})  # 999999 not live
+
+    prior_without_key = {"resolved_by_operator": True, "parts": []}
+    merged2 = _merge_rewrite(prior_without_key, {}, [el.pk], {0})
+    assert "fail_closed_elements" not in merged2  # NOT just [el.pk]
+
+
+def test_merge_rewrite_drops_fail_closed_pks_whose_element_row_is_gone():
+    target = _mk_target()
+    el = _mk_bare_element(target)
+    dead_pk = el.pk + 10**6
+    merged = _merge_rewrite(None, {}, [el.pk, dead_pk], {0})
+    assert merged["fail_closed_elements"] == [el.pk]
+
+
+# --- Command._run_link_pass: the single rewrite pass, end to end ----------
+
+
+def test_run_link_pass_rewrites_maps_and_flattens_and_records_fail_closed(
+    tmp_path, monkeypatch
+):
+    """Direct call. The trigger sites now fire the pass automatically at the
+    end of `import` (Task 8), so the setup `import` below suppresses it via
+    monkeypatch to keep exact control over timing: a FillGateElement fixture
+    is added target-side, AFTER the import but BEFORE the pass runs, and it
+    must be in scope for the same pass that resolves the pre-import links --
+    something an already-`applied` state would foreclose. Exercises, in one
+    real `import`ed target: a cross-part link that resolves to a live pk
+    (rewritten, counted), a link to nowhere (flattened, counted), a SECOND
+    cross-part link in the OTHER direction so the counts genuinely split
+    across two parts (not just two elements in one part -- see the per-part
+    attribution note below), and the FillGateElement fail-closed fixture
+    (recorded, but its OTHER field still gets rewritten)."""
+    from courses.models import FillGateElement
+
+    course = _mk_source(parts=("P0", "P1"))
+    unit0 = ContentNode.objects.get(course=course, kind="unit", title="U0")
+    unit1 = ContentNode.objects.get(course=course, kind="unit", title="U1")
+    el0 = Element.objects.get(unit=unit0, title="T")
+    text0 = el0.content_object
+    text0.body = f'<p><a href="/courses/n/{unit1.pk}/">x</a></p>'
+    text0.save(update_fields=["body"])
+    Element.objects.create(
+        unit=unit0,
+        title="L",
+        content_object=TextElement.objects.create(
+            body='<p><a href="/courses/n/999999/">gone</a></p>'
+        ),
+    )
+    # A link the OTHER way (part 1 -> part 0), so a rewritten element exists
+    # under BOTH parts. `order_by_new_pk` is per-caller keyed by unit pk, not
+    # by which side of the fixture happened to be touched first -- without
+    # this second, cross-part-in-the-opposite-direction element, every
+    # rewritten/flattened element in this test lives under part 0, so
+    # misattributing every count to a single (recorded, pending) order would
+    # leave rw["elements_touched"]/rw["flattened"] unchanged and ship green.
+    Element.objects.create(
+        unit=unit1,
+        title="L2",
+        content_object=TextElement.objects.create(
+            body=f'<p><a href="/courses/n/{unit0.pk}/">y</a></p>'
+        ),
+    )
+
+    bundle = tmp_path / "bundle"
+    call_command(
+        "migrate_course_content",
+        "export",
+        "--source-slug",
+        "src",
+        "--bundle-dir",
+        str(bundle),
+    )
+    target = _mk_target()
+    _user()
+    monkeypatch.setattr(Command, "_run_link_pass", lambda *a, **k: None)
+    call_command(
+        "migrate_course_content",
+        "import",
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+    )
+    monkeypatch.undo()  # this test drives the real pass by hand, below
+    node_index = _read_manifest(bundle)["node_index"]
+    state = _read_state_raw(bundle)
+    assert state["status"] == "collecting"  # the pass has not fired yet
+
+    # A fail-closed fixture, built target-side (its unmappable target is never
+    # in the map, so it needs no import round trip either way).
+    new_u0 = ContentNode.objects.get(course=target, title="U0")
+    Element.objects.create(
+        unit=new_u0,
+        title="torn",
+        content_object=FillGateElement.objects.create(
+            stem='<p><a href="/courses/n/999999/">torn</p>',
+            answers=[["x"]],
+        ),
+    )
+
+    buf = io.StringIO()
+    cmd = Command()
+    cmd.stdout = buf
+    cmd._run_link_pass(bundle, state, node_index, target)
+
+    assert state["status"] == "applied"
+    assert all(e["rewritten"] is True for e in state["parts"])
+
+    new_u1 = ContentNode.objects.get(course=target, title="U1")
+    bodies = list(
+        TextElement.objects.filter(elements__unit__course=target).values_list(
+            "body", flat=True
+        )
+    )
+    assert any(f"/courses/n/{new_u1.pk}/" in b for b in bodies)  # rewritten (P0->P1)
+    assert any(f"/courses/n/{new_u0.pk}/" in b for b in bodies)  # rewritten (P1->P0)
+    assert not any("/courses/n/999999/" in b for b in bodies)  # flattened
+    assert any("gone" in b for b in bodies)  # unwrapped to plain text
+
+    fixture = FillGateElement.objects.get()
+    assert fixture.stem == '<p><a href="/courses/n/999999/">torn</p>'  # untouched
+
+    rw = state["rewrite"]
+    # Exactly three rewritten elements (el0's cross-part link, the flattened
+    # "gone" link, and L2's cross-part link back the other way) and one
+    # flatten. Everything else in scope -- both ImageElements, unit1's
+    # original plain-text element, and the fail-closed fixture -- contributes
+    # neither.
+    assert rw["flattened"] == 1
+    assert rw["elements_touched"] == 3
+    # PER-PART attribution, not just the totals: el0 and L live under part 0
+    # (order 0), L2 lives under part 1 (order 1). A bug that attributes every
+    # element to a single order -- e.g. `order_by_new_pk[join.unit_id]`
+    # replaced by a constant -- leaves the totals above unchanged (3 touched,
+    # 1 flattened, summed over whichever bucket) but reports the wrong split
+    # here, which is exactly what `verify`'s per-part table would print.
+    assert rw["parts"] == [
+        {"order": 0, "elements_touched": 2, "flattened": 1},
+        {"order": 1, "elements_touched": 1, "flattened": 0},
+    ]
+    fixture_el = Element.objects.get(content_type__model="fillgateelement")
+    assert rw["fail_closed_elements"] == [fixture_el.pk]
+
+    out = buf.getvalue()
+    assert "deferred link rewrite applied" in out
+    assert "flattened" in out
+
+    # Persisted, not just mutated in memory.
+    on_disk = _read_state_raw(bundle)
+    assert on_disk["status"] == "applied"
+    assert on_disk["rewrite"]["fail_closed_elements"] == [fixture_el.pk]
+
+
+# --- import: graft under an outer atomic, record the link state -----------
+
+
+def test_import_refuses_a_bundle_with_no_node_index(tmp_path):
+    """A pre-feature bundle: fatal BEFORE anything is grafted. The tolerant
+    fall-through would not mean 'no rewrites' -- with an empty map and
+    on_missing='unwrap' it means every internal link in the course is destroyed
+    inside a committed transaction, with the count arriving afterwards."""
+    bundle = _export_bundle(tmp_path)
+    target = _mk_target()
+    _user()
+    manifest = _read_manifest(bundle)
+    del manifest["node_index"]
+    (bundle / MANIFEST_NAME).write_text(json.dumps(manifest), encoding="utf-8")
+    with pytest.raises(CommandError, match="predates internal-link support"):
+        call_command(
+            "migrate_course_content",
+            "import",
+            "--target-slug",
+            "dst",
+            "--bundle-dir",
+            str(bundle),
+            "--as-user",
+            "mig@example.com",
+        )
+    assert ContentNode.objects.filter(course=target).count() == 0
+
+
+def test_import_records_one_state_entry_per_grafted_part(tmp_path):
+    bundle = _export_bundle(tmp_path)
+    target = _mk_target()
+    _user()
+    call_command(
+        "migrate_course_content",
+        "import",
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+    )
+    state = _read_state_raw(bundle)
+    assert state["version"] == 1
+    assert state["target_pk"] == target.pk
+    assert [e["order"] for e in state["parts"]] == [0, 1, 2]
+    index = _read_manifest(bundle)["node_index"]
+    for entry in state["parts"]:
+        # node_map values are real pks in the target.
+        assert all(
+            ContentNode.objects.filter(pk=pk, course=target).exists()
+            for pk in entry["node_map"].values()
+        )
+        # src is the manifest's inversion for that order -- int-valued.
+        assert entry["src"] == _invert_node_index(index, entry["order"])
+        # Site 2 fires on this full import, and the pass flips every flag.
+        assert entry["rewritten"] is True
+
+
+# --- import: the deferred link rewrite fires automatically ----------------
+
+
+def _link_between(course, from_title, to_title):
+    """Give the unit under `from_title` a text element linking to `to_title`'s
+    unit. Returns the target node's pk."""
+    src_unit = ContentNode.objects.get(course=course, title=f"U{from_title[-1]}")
+    dst_unit = ContentNode.objects.get(course=course, title=f"U{to_title[-1]}")
+    Element.objects.create(
+        unit=src_unit,
+        title="L",
+        content_object=TextElement.objects.create(
+            body=f'<p><a href="/courses/n/{dst_unit.pk}/">go</a></p>'
+        ),
+    )
+    return dst_unit.pk
+
+
+def test_a_full_import_rewrites_cross_part_and_intra_part_links(tmp_path):
+    """The headline case. The intra-part link is NOT padding: it is what catches
+    a rewrite-per-part-then-finish design, under which the final old-pk-keyed
+    pass would flatten every within-part link in the course. A cross-part-only
+    fixture passes that broken design.
+
+    This is also site 2's falsification: add `not todo` to site 2 and this goes
+    RED, because the loop never empties `todo`."""
+    course = _mk_source(parts=("P0", "P1"))
+    _link_between(course, "P0", "P1")  # cross-part
+    _link_between(course, "P0", "P0")  # intra-part
+    bundle = tmp_path / "bundle"
+    call_command(
+        "migrate_course_content",
+        "export",
+        "--source-slug",
+        "src",
+        "--bundle-dir",
+        str(bundle),
+    )
+    target = _mk_target()
+    _user()
+    call_command(
+        "migrate_course_content",
+        "import",
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+    )
+
+    new_u0 = ContentNode.objects.get(course=target, title="U0")
+    new_u1 = ContentNode.objects.get(course=target, title="U1")
+    bodies = " ".join(
+        TextElement.objects.filter(elements__unit__course=target).values_list(
+            "body", flat=True
+        )
+    )
+    assert f"/courses/n/{new_u1.pk}/" in bodies  # cross-part -> NEW pk
+    assert f"/courses/n/{new_u0.pk}/" in bodies  # intra-part -> NEW pk
+    assert _read_state_raw(bundle)["status"] == "applied"
+
+
+def test_the_pass_survives_an_interrupted_import_resumed_with_start_at(tmp_path):
+    """What pins the state to a file rather than memory."""
+    course = _mk_source(parts=("P0", "P1"))
+    _link_between(course, "P0", "P1")
+    bundle = tmp_path / "bundle"
+    call_command(
+        "migrate_course_content",
+        "export",
+        "--source-slug",
+        "src",
+        "--bundle-dir",
+        str(bundle),
+    )
+    target = _mk_target()
+    _user()
+    args = (
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+    )
+    # A GENUINE interruption -- do NOT graft everything and wind the state back
+    # by hand. `--start-at 0` grafts BOTH parts and site 2 applies the pass, so
+    # P0's href already holds a TARGET pk; re-running the pass over it with a
+    # SOURCE-keyed mapping unwrap-FLATTENS it (measured), which is the exact
+    # double-apply the per-order `rewritten` flags exist to prevent.
+    archives = sorted(bundle.glob("*.zip"))
+    good = archives[1].read_bytes()
+    archives[1].write_bytes(b"corrupt")
+    with pytest.raises(CommandError):
+        call_command("migrate_course_content", "import", *args)
+    assert _read_state_raw(bundle)["status"] == "collecting"  # pass never fired
+    archives[1].write_bytes(good)
+    # A second process. The map for part 0 must have survived on disk.
+    call_command("migrate_course_content", "import", *args, "--start-at", "1")
+    new_u1 = ContentNode.objects.get(course=target, title="U1")
+    bodies = " ".join(
+        TextElement.objects.filter(elements__unit__course=target).values_list(
+            "body", flat=True
+        )
+    )
+    assert f"/courses/n/{new_u1.pk}/" in bodies
+
+
+def test_the_skipped_pass_window_still_applies_on_a_start_at_resume(
+    tmp_path, monkeypatch
+):
+    """A run that dies after the last part commits, resumed with
+    --start-at part_count, must still rewrite. Site 1 is the only place that
+    can fire here, because the loop body never runs."""
+    course = _mk_source(parts=("P0", "P1"))
+    _link_between(course, "P0", "P1")
+    bundle = tmp_path / "bundle"
+    call_command(
+        "migrate_course_content",
+        "export",
+        "--source-slug",
+        "src",
+        "--bundle-dir",
+        str(bundle),
+    )
+    target = _mk_target()
+    _user()
+    args = (
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+    )
+    # Genuine "parts committed, pass never ran": suppress the pass for the
+    # setup invocation. Winding an APPLIED state back by hand would leave the
+    # bodies holding TARGET pks, and the re-run's SOURCE-keyed mapping would
+    # unwrap-flatten them -- a status-only assertion cannot tell that apart from
+    # a correct rewrite.
+    import courses.management.commands.migrate_course_content as mod
+
+    monkeypatch.setattr(mod.Command, "_run_link_pass", lambda *a, **k: None)
+    call_command("migrate_course_content", "import", *args, "--start-at", "0")
+    monkeypatch.undo()
+    assert _read_state_raw(bundle)["status"] == "collecting"
+
+    call_command("migrate_course_content", "import", *args, "--start-at", "2")
+    assert _read_state_raw(bundle)["status"] == "applied"
+    # Site 1's ONLY firing-and-rewriting coverage -- assert the rewrite, not
+    # just the marker.
+    new_u1 = ContentNode.objects.get(course=target, title="U1")
+    bodies = " ".join(
+        TextElement.objects.filter(elements__unit__course=target).values_list(
+            "body", flat=True
+        )
+    )
+    assert f"/courses/n/{new_u1.pk}/" in bodies
+
+
+def test_a_completed_migration_re_invoked_does_not_re_run_the_pass(tmp_path):
+    """The once-only guard, and the existing 'nothing to do' line must survive."""
+    course = _mk_source(parts=("P0", "P1"))
+    _link_between(course, "P0", "P1")  # so the body half is not vacuous
+    bundle = tmp_path / "bundle"
+    call_command(
+        "migrate_course_content",
+        "export",
+        "--source-slug",
+        "src",
+        "--bundle-dir",
+        str(bundle),
+    )
+    target = _mk_target()
+    _user()
+    args = (
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+    )
+    call_command("migrate_course_content", "import", *args)
+    before = _read_state_raw(bundle)["rewrite"]
+    bodies_before = sorted(
+        TextElement.objects.filter(elements__unit__course=target).values_list(
+            "body", flat=True
+        )
+    )
+    out = io.StringIO()
+    # --start-at must equal the PART COUNT of this fixture (2), not 3: the
+    # invariant is `baseline["top_nodes"] + start_at == existing`, so
+    # --start-at 3 against a two-part source raises "expects the target to
+    # hold exactly 3 top-level node(s) ... but it holds 2" and never reaches
+    # any assertion below.
+    call_command(
+        "migrate_course_content", "import", *args, "--start-at", "2", stdout=out
+    )
+    assert _read_state_raw(bundle)["rewrite"] == before
+    assert (
+        sorted(
+            TextElement.objects.filter(elements__unit__course=target).values_list(
+                "body", flat=True
+            )
+        )
+        == bodies_before
+    )  # and no body was re-edited
+    assert "already complete" in out.getvalue()
+
+
+def test_a_link_with_no_target_in_any_part_is_flattened_and_counted(tmp_path):
+    course = _mk_source(parts=("P0",))
+    unit = ContentNode.objects.get(course=course, title="U0")
+    Element.objects.create(
+        unit=unit,
+        title="L",
+        content_object=TextElement.objects.create(
+            body='<p><a href="/courses/n/999999/">gone</a></p>'
+        ),
+    )
+    bundle = tmp_path / "bundle"
+    call_command(
+        "migrate_course_content",
+        "export",
+        "--source-slug",
+        "src",
+        "--bundle-dir",
+        str(bundle),
+    )
+    target = _mk_target()
+    _user()
+    out = io.StringIO()
+    call_command(
+        "migrate_course_content",
+        "import",
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+        stdout=out,
+    )
+    bodies = " ".join(
+        TextElement.objects.filter(elements__unit__course=target).values_list(
+            "body", flat=True
+        )
+    )
+    assert "/courses/n/999999/" not in bodies
+    assert "gone" in bodies  # unwrapped to plain text
+    assert _read_state_raw(bundle)["rewrite"]["flattened"] >= 1
+    assert "flattened" in out.getvalue()
+
+
+def test_a_regraft_replaces_the_entry_rather_than_duplicating(tmp_path):
+    bundle = _export_bundle(tmp_path)
+    _mk_target()
+    _user()
+    args = (
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+    )
+    call_command("migrate_course_content", "import", *args, "--start-at", "0")
+    first = _read_state_raw(bundle)
+    ContentNode.objects.filter(
+        course=Course.objects.get(slug="dst"), parent__isnull=True
+    ).exclude(title="P0").delete()
+    call_command("migrate_course_content", "import", *args, "--start-at", "1")
+    second = _read_state_raw(bundle)
+    assert [e["order"] for e in second["parts"]] == [0, 1, 2]  # not 0,1,2,1,2
+    assert second["parts"][1]["node_map"] != first["parts"][1]["node_map"]
+
+
+# --- import: the ordered branch and the five resume gates -----------------
+
+
+def _seed_state(bundle, target, orders, *, status="collecting", rewritten=False):
+    """Hand-write a state file AND the world it describes.
+
+    Three things must line up or the test measures the wrong gate:
+
+    1. `BASELINE_NAME` must exist. Without it the resume path re-captures the
+       baseline NOW (`:419-427`), so `baseline["top_nodes"] == existing` and
+       `:433` raises for EVERY `--start-at K > 0` -- before any gate under test.
+       Seeded here as an all-zero baseline, matching an empty target.
+    2. The target must hold exactly `len(orders)` top-level nodes, or `:433`
+       raises anyway.
+    3. `node_map` values must be REAL live pks in `target`. Synthetic pks make
+       `_build_mapping`'s `skipped_dead` non-empty, so any seeded test that
+       reaches the pass dies on the fatal-skip CommandError instead.
+
+    Every seeded test must also pass `match=` to `pytest.raises`, or it can pass
+    on `:433`'s message and prove nothing.
+    """
+    index = _read_manifest(bundle)["node_index"]
+    (bundle / BASELINE_NAME).write_text(
+        json.dumps(
+            {
+                "top_nodes": 0,
+                "all_nodes": 0,
+                "kind_counts": {},
+                "elements": 0,
+                "media": 0,
+            }
+        ),
+        encoding="utf-8",
+    )
+    state = _fresh_state(target)
+    state["status"] = status
+    for o in orders:
+        src = _invert_node_index(index, o)
+        # One real node per export id, so _live_pks finds every recorded pk.
+        top = ContentNode.objects.create(course=target, kind="part", title=f"S{o}")
+        node_map = {}
+        for i, eid in enumerate(src):
+            node_map[eid] = (
+                top.pk
+                if i == 0
+                else ContentNode.objects.create(
+                    course=target, kind="chapter", title=f"S{o}c{i}", parent=top
+                ).pk
+            )
+        state["parts"].append(
+            {
+                "order": o,
+                "node_map": node_map,
+                "src": src,
+                "rewritten": rewritten,
+            }
+        )
+    _write_state(bundle, state)
+    return state
+
+
+def test_resume_refuses_a_state_file_missing_target_pk(tmp_path):
+    """The gate that stops a wrong-target resume writing itself a matching
+    identity. Adopting the resolved target instead would defeat it."""
+    bundle = _export_bundle(tmp_path)
+    target = _mk_target()
+    _user()
+    st = _seed_state(bundle, target, [0])
+    del st["target_pk"]
+    _write_state(bundle, st)
+    with pytest.raises(CommandError, match="pre-feature import"):
+        call_command(
+            "migrate_course_content",
+            "import",
+            "--target-slug",
+            "dst",
+            "--bundle-dir",
+            str(bundle),
+            "--as-user",
+            "mig@example.com",
+            "--start-at",
+            "1",
+        )
+
+
+def test_resume_refuses_a_state_file_for_a_different_target(tmp_path):
+    bundle = _export_bundle(tmp_path)
+    target = _mk_target()
+    other = Course.objects.create(title="Other", slug="other", uses_parts=True)
+    _user()
+    st = _seed_state(bundle, target, [0])
+    st["target_pk"] = other.pk
+    _write_state(bundle, st)
+    # match= is mandatory: :433's own message contains "target", so a bare
+    # pytest.raises(CommandError) would pass on the wrong gate.
+    with pytest.raises(CommandError, match="Refusing to mix targets"):
+        call_command(
+            "migrate_course_content",
+            "import",
+            "--target-slug",
+            "dst",
+            "--bundle-dir",
+            str(bundle),
+            "--as-user",
+            "mig@example.com",
+            "--start-at",
+            "1",
+        )
+
+
+def test_a_renamed_course_is_a_note_not_an_error(tmp_path, capsys):
+    bundle = _export_bundle(tmp_path)
+    target = _mk_target()
+    _user()
+    call_command(
+        "migrate_course_content",
+        "import",
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+        "--start-at",
+        "0",
+    )
+    target.slug = "dst-renamed"
+    target.save(update_fields=["slug"])
+    call_command(
+        "migrate_course_content",
+        "import",
+        "--target-slug",
+        "dst-renamed",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+        "--start-at",
+        "3",
+    )
+    assert "renamed" in capsys.readouterr().out
+
+
+def test_resume_refuses_when_a_committed_order_is_missing_from_the_state(tmp_path):
+    bundle = _export_bundle(tmp_path)
+    target = _mk_target()
+    _user()
+    # Two orders' worth of nodes, but only order 0 recorded.
+    _seed_state(bundle, target, [0])
+    ContentNode.objects.create(course=target, kind="part", title="extra")
+    with pytest.raises(CommandError, match="does not record them"):
+        call_command(
+            "migrate_course_content",
+            "import",
+            "--target-slug",
+            "dst",
+            "--bundle-dir",
+            str(bundle),
+            "--as-user",
+            "mig@example.com",
+            "--start-at",
+            "2",
+        )
+
+
+def test_the_subset_guard_is_not_lexicographic(tmp_path):
+    """JSON coerces int object keys to strings and max() over them is
+    lexicographic: max(['0','9','10']) == '9'. With mat-pp's 21 parts a
+    max()-based guard is wrong from part 10 onward. Hand-write the state and
+    seed the nodes rather than running a real ten-part import."""
+    bundle = _export_bundle(tmp_path, parts=tuple(f"P{i}" for i in range(11)))
+    target = _mk_target()
+    _user()
+    # rewritten=True: this test asserts the GUARD accepts. After the loop grafts
+    # part 10, recorded == on_disk == {0..10} and site 2 DOES fire -- seeding the
+    # orders as already-rewritten keeps the pass's scope to order 10 alone,
+    # rather than dragging ten seeded parts into it as a second subject.
+    _seed_state(bundle, target, list(range(10)), rewritten=True)
+    # Accepted: every archive order below 10 is recorded. A lexicographic-max
+    # implementation computes max(["0".."9"]) == "9" and rejects this.
+    call_command(
+        "migrate_course_content",
+        "import",
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+        "--start-at",
+        "10",
+    )
+    assert ContentNode.objects.filter(course=target, title="P10").exists()
+
+
+def test_resume_refuses_when_the_state_records_orders_no_longer_on_disk(tmp_path):
+    """recorded > on_disk. Without this the trigger's set equality is merely
+    False and `import` exits 0 having rewritten nothing."""
+    bundle = _export_bundle(tmp_path)
+    target = _mk_target()
+    _user()
+    _seed_state(bundle, target, [0, 1, 2], rewritten=True)
+    (sorted(bundle.glob("*.zip"))[-1]).unlink()
+    manifest = _read_manifest(bundle)
+    manifest["part_count"] = 2
+    (bundle / MANIFEST_NAME).write_text(json.dumps(manifest), encoding="utf-8")
+    with pytest.raises(CommandError, match="no longer holds their archive"):
+        call_command(
+            "migrate_course_content",
+            "import",
+            "--target-slug",
+            "dst",
+            "--bundle-dir",
+            str(bundle),
+            "--as-user",
+            "mig@example.com",
+            "--start-at",
+            "3",
+        )
+
+
+def test_a_missing_state_file_with_start_at_above_zero_refuses(tmp_path):
+    bundle = _export_bundle(tmp_path)
+    target = _mk_target()
+    _user()
+    # A baseline plus one committed part, but NO state file -- the pre-feature
+    # import shape. Without the baseline, :433 would raise first.
+    (bundle / BASELINE_NAME).write_text(
+        json.dumps(
+            {
+                "top_nodes": 0,
+                "all_nodes": 0,
+                "kind_counts": {},
+                "elements": 0,
+                "media": 0,
+            }
+        ),
+        encoding="utf-8",
+    )
+    ContentNode.objects.create(course=target, kind="part", title="P0")
+    with pytest.raises(CommandError, match="cannot be reconstructed"):
+        call_command(
+            "migrate_course_content",
+            "import",
+            "--target-slug",
+            "dst",
+            "--bundle-dir",
+            str(bundle),
+            "--as-user",
+            "mig@example.com",
+            "--start-at",
+            "1",
+        )
+
+
+def test_a_torn_state_file_is_tolerated_on_the_discard_branch(tmp_path):
+    bundle = _export_bundle(tmp_path)
+    _mk_target()
+    _user()
+    (bundle / LINK_STATE_NAME).write_text('{"version": 1, "par', encoding="utf-8")
+    call_command(  # no --start-at: discards it
+        "migrate_course_content",
+        "import",
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+    )
+    assert _read_state_raw(bundle)["version"] == 1
+
+
+def test_a_torn_state_file_refuses_on_the_resume_branch(tmp_path):
+    bundle = _export_bundle(tmp_path)
+    target = _mk_target()
+    _user()
+    _seed_state(bundle, target, [0])  # baseline + one committed part
+    (bundle / LINK_STATE_NAME).write_text('{"version": 1, "par', encoding="utf-8")
+    with pytest.raises(CommandError, match="not valid JSON"):
+        call_command(
+            "migrate_course_content",
+            "import",
+            "--target-slug",
+            "dst",
+            "--bundle-dir",
+            str(bundle),
+            "--as-user",
+            "mig@example.com",
+            "--start-at",
+            "1",
+        )
+
+
+def test_src_drift_refuses_after_a_re_export_from_an_edited_source(tmp_path):
+    """A sibling REORDER inside an ALREADY-RECORDED part. Export ids are
+    per-archive positional, so editing an ungrafted part leaves every recorded
+    part's src byte-identical and the guard correctly does not fire -- which
+    would make this test vacuous. Reordering top-level parts changes archive
+    names, not intra-part export ids, so that would be vacuous too."""
+    bundle = _export_bundle(tmp_path)
+    _mk_target()
+    _user()
+    call_command(
+        "migrate_course_content",
+        "import",
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+        "--start-at",
+        "0",
+    )
+    src = Course.objects.get(slug="src")
+    p0 = ContentNode.objects.get(course=src, title="P0")
+    ContentNode.objects.create(course=src, kind="chapter", title="extra", parent=p0)
+    call_command(
+        "migrate_course_content",
+        "export",
+        "--source-slug",
+        "src",
+        "--bundle-dir",
+        str(bundle),
+        "--clean",
+    )
+    with pytest.raises(CommandError, match="re-exported"):
+        call_command(
+            "migrate_course_content",
+            "import",
+            "--target-slug",
+            "dst",
+            "--bundle-dir",
+            str(bundle),
+            "--as-user",
+            "mig@example.com",
+            "--start-at",
+            "3",
+        )
+
+
+def test_dry_run_leaves_an_existing_state_file_byte_identical(tmp_path):
+    """--force names step 3's write path. A bare `import --dry-run` over a
+    bundle whose parts are committed hits :401 first (which fires regardless of
+    dry_run, since :408's gate is downstream) and would pass on the wrong error."""
+    bundle = _export_bundle(tmp_path)
+    _mk_target()
+    _user()
+    call_command(
+        "migrate_course_content",
+        "import",
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+    )
+    before = (bundle / LINK_STATE_NAME).read_bytes()
+    call_command(
+        "migrate_course_content",
+        "import",
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+        "--dry-run",
+        "--force",
+    )
+    assert (bundle / LINK_STATE_NAME).read_bytes() == before
+
+
+# --- --resolve-rewrite: the operator's manual exit from an in_progress ----
+
+
+def test_resolve_rewrite_not_applied_runs_the_pass_in_one_invocation(
+    tmp_path, monkeypatch
+):
+    """ONE invocation, not two: no --start-at value both clears :433 and empties
+    todo under non-contiguous orders, so a flip-then-resume form has no working
+    argument."""
+    course = _mk_source(parts=("P0", "P1"))
+    _link_between(course, "P0", "P1")
+    bundle = tmp_path / "bundle"
+    call_command(
+        "migrate_course_content",
+        "export",
+        "--source-slug",
+        "src",
+        "--bundle-dir",
+        str(bundle),
+    )
+    target = _mk_target()
+    _user()
+    # Suppress the pass for the first invocation so the bodies still hold SOURCE
+    # pks, then forge the crash window on top of that genuine pre-pass state.
+    import courses.management.commands.migrate_course_content as mod
+
+    monkeypatch.setattr(mod.Command, "_run_link_pass", lambda *a, **k: None)
+    call_command(
+        "migrate_course_content",
+        "import",
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+    )
+    monkeypatch.undo()
+    st = _read_state_raw(bundle)
+    st["status"] = "in_progress"  # marker set, pass never committed
+    _write_state(bundle, st)
+
+    call_command(
+        "migrate_course_content",
+        "import",
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+        "--resolve-rewrite",
+        "not-applied",
+    )
+    assert _read_state_raw(bundle)["status"] == "applied"
+    # i5: the pass really rewrote, not merely flipped the marker.
+    new_u1 = ContentNode.objects.get(course=target, title="U1")
+    bodies = " ".join(
+        TextElement.objects.filter(elements__unit__course=target).values_list(
+            "body", flat=True
+        )
+    )
+    assert f"/courses/n/{new_u1.pk}/" in bodies
+
+
+def test_resolve_rewrite_applied_sets_every_per_entry_flag(tmp_path):
+    """status == 'applied' <=> no entry has rewritten == false. Flipping only
+    status leaves every entry false, and the documented repair resume then makes
+    pending == every order, re-applying an old-source-pk map over hrefs that
+    already hold target pks."""
+    bundle = _export_bundle(tmp_path)
+    _mk_target()
+    _user()
+    call_command(
+        "migrate_course_content",
+        "import",
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+    )
+    st = _read_state_raw(bundle)
+    st["status"] = "in_progress"
+    # The completed pass already set every flag True, so leaving them would make
+    # the assertion below hold whether or not the `applied` arm sets them --
+    # i.e. the falsification could not go RED. The spec's scenario is precisely
+    # "flipping only status leaves every entry FALSE".
+    for e in st["parts"]:
+        e["rewritten"] = False
+    _write_state(bundle, st)
+    call_command(
+        "migrate_course_content",
+        "import",
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+        "--resolve-rewrite",
+        "applied",
+    )
+    after = _read_state_raw(bundle)
+    assert after["status"] == "applied"
+    assert all(e["rewritten"] for e in after["parts"])
+    assert after["rewrite"]["resolved_by_operator"] is True
+
+
+def test_resolve_rewrite_applied_then_a_repair_resume_leaves_bodies_alone(tmp_path):
+    """The consequence the per-entry flags exist to prevent: with only `status`
+    flipped, a repair resume makes pending == every order and the pass re-applies
+    an old-SOURCE-pk map over hrefs that already hold TARGET pks."""
+    course = _mk_source(parts=("P0", "P1"))
+    _link_between(course, "P0", "P0")
+    bundle = tmp_path / "bundle"
+    call_command(
+        "migrate_course_content",
+        "export",
+        "--source-slug",
+        "src",
+        "--bundle-dir",
+        str(bundle),
+    )
+    target = _mk_target()
+    _user()
+    args = (
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+    )
+    call_command("migrate_course_content", "import", *args)
+    st = _read_state_raw(bundle)
+    st["status"] = "in_progress"
+    for e in st["parts"]:
+        e["rewritten"] = False
+    _write_state(bundle, st)
+    call_command(
+        "migrate_course_content", "import", *args, "--resolve-rewrite", "applied"
+    )
+    p0_before = sorted(
+        TextElement.objects.filter(
+            elements__unit__parent__parent__title="P0",
+            elements__unit__course=target,
+        ).values_list("body", flat=True)
+    )
+    ContentNode.objects.filter(course=target, parent__isnull=True, title="P1").delete()
+    call_command("migrate_course_content", "import", *args, "--start-at", "1")
+    assert (
+        sorted(
+            TextElement.objects.filter(
+                elements__unit__parent__parent__title="P0",
+                elements__unit__course=target,
+            ).values_list("body", flat=True)
+        )
+        == p0_before
+    )
+
+
+def test_resolve_rewrite_refuses_a_wrong_target_before_mutating(tmp_path):
+    bundle = _export_bundle(tmp_path)
+    _mk_target()
+    Course.objects.create(title="Other", slug="other", uses_parts=True)
+    _user()
+    call_command(
+        "migrate_course_content",
+        "import",
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+    )
+    st = _read_state_raw(bundle)
+    st["status"] = "in_progress"
+    _write_state(bundle, st)
+    before = (bundle / LINK_STATE_NAME).read_bytes()
+    with pytest.raises(CommandError, match="Refusing to mix targets"):
+        call_command(
+            "migrate_course_content",
+            "import",
+            "--target-slug",
+            "other",
+            "--bundle-dir",
+            str(bundle),
+            "--as-user",
+            "mig@example.com",
+            "--resolve-rewrite",
+            "applied",
+        )
+    assert (bundle / LINK_STATE_NAME).read_bytes() == before
+
+
+def test_resolve_rewrite_applied_refuses_a_collecting_file(tmp_path):
+    bundle = _export_bundle(tmp_path)
+    target = _mk_target()
+    _user()
+    _seed_state(bundle, target, [0, 1, 2])
+    with pytest.raises(CommandError, match="only meaningful on an in_progress"):
+        call_command(
+            "migrate_course_content",
+            "import",
+            "--target-slug",
+            "dst",
+            "--bundle-dir",
+            str(bundle),
+            "--as-user",
+            "mig@example.com",
+            "--resolve-rewrite",
+            "applied",
+        )
+
+
+def test_resolve_rewrite_requires_as_user(tmp_path):
+    """Pins the documented invocation against the real required-argument gate
+    rather than the spec's prose: --as-user is checked unconditionally at :371,
+    before the pinned handling point."""
+    bundle = _export_bundle(tmp_path)
+    _mk_target()
+    with pytest.raises(CommandError, match="requires --as-user"):
+        call_command(
+            "migrate_course_content",
+            "import",
+            "--target-slug",
+            "dst",
+            "--bundle-dir",
+            str(bundle),
+            "--resolve-rewrite",
+            "not-applied",
+        )
+
+
+@pytest.mark.parametrize("extra", [("--start-at", "0"), ("--force",), ("--dry-run",)])
+def test_resolve_rewrite_refuses_conflicting_flags(tmp_path, extra):
+    bundle = _export_bundle(tmp_path)
+    target = _mk_target()
+    _user()
+    _seed_state(bundle, target, [0, 1, 2], status="in_progress")
+    with pytest.raises(CommandError, match="cannot be combined with"):
+        call_command(
+            "migrate_course_content",
+            "import",
+            "--target-slug",
+            "dst",
+            "--bundle-dir",
+            str(bundle),
+            "--as-user",
+            "mig@example.com",
+            "--resolve-rewrite",
+            "not-applied",
+            *extra,
+        )
+
+
+def test_resolve_rewrite_not_applied_accepts_a_complete_collecting_file(
+    tmp_path, monkeypatch
+):
+    """The second disjunct of the acceptance rule, and the ONLY test of it.
+
+    It exists because site 1 is provably unreachable under non-contiguous orders
+    -- there is no --start-at value that both clears :433 and empties todo -- so
+    without this arm such a bundle can never reach the pass. Falsify by deleting
+    the `collecting` disjunct: this goes RED while every other test stays green.
+    """
+    course = _mk_source(parts=("P0", "P1"))
+    _link_between(course, "P0", "P1")
+    bundle = tmp_path / "bundle"
+    call_command(
+        "migrate_course_content",
+        "export",
+        "--source-slug",
+        "src",
+        "--bundle-dir",
+        str(bundle),
+    )
+    target = _mk_target()
+    _user()
+    args = (
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+    )
+    # Produce the genuine "all parts committed, pass never ran" shape by
+    # suppressing the pass for the first invocation only. Winding an APPLIED
+    # state back by hand would leave the bodies already rewritten to target pks,
+    # and the re-run would flatten them (measured) -- the test would assert a
+    # link the code under test destroys.
+    import courses.management.commands.migrate_course_content as mod
+
+    monkeypatch.setattr(mod.Command, "_run_link_pass", lambda *a, **k: None)
+    call_command("migrate_course_content", "import", *args)
+    monkeypatch.undo()
+    assert _read_state_raw(bundle)["status"] == "collecting"
+
+    call_command(
+        "migrate_course_content", "import", *args, "--resolve-rewrite", "not-applied"
+    )
+    assert _read_state_raw(bundle)["status"] == "applied"
+    new_u1 = ContentNode.objects.get(course=target, title="U1")
+    bodies = " ".join(
+        TextElement.objects.filter(elements__unit__course=target).values_list(
+            "body", flat=True
+        )
+    )
+    assert f"/courses/n/{new_u1.pk}/" in bodies
+
+
+@pytest.mark.parametrize("arm", ["applied", "not-applied"])
+@pytest.mark.parametrize(
+    "raw, match",
+    [('{"version": 1, "par', "not valid JSON"), ('{"version": 2}', "version")],
+)
+def test_resolve_rewrite_validates_the_state_file(tmp_path, arm, raw, match):
+    """Step 1's validate expression is `not (start_at is None and resolve is
+    None)`, not a plain `start_at is None`. --start-at is fatal alongside
+    --resolve-rewrite, so start_at is ALWAYS None here -- a naive exemption
+    would skip validation on every resolve invocation, and step 2 returns before
+    step 3 ever discards anything. Falsify by simplifying the expression: all
+    four of these go RED."""
+    bundle = _export_bundle(tmp_path)
+    _mk_target()
+    _user()
+    call_command(
+        "migrate_course_content",
+        "import",
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+    )
+    (bundle / LINK_STATE_NAME).write_text(raw, encoding="utf-8")
+    with pytest.raises(CommandError, match=match):
+        call_command(
+            "migrate_course_content",
+            "import",
+            "--target-slug",
+            "dst",
+            "--bundle-dir",
+            str(bundle),
+            "--as-user",
+            "mig@example.com",
+            "--resolve-rewrite",
+            arm,
+        )
+
+
+def test_verify_rejects_resolve_rewrite_as_a_foreign_flag(tmp_path):
+    """_reject_foreign_flags's `_FLAG_UNSET["resolve_rewrite"]` lookup is
+    evaluated for EVERY foreign flag on every action -- resolve_rewrite must
+    be present in that dict or `verify` KeyErrors before it can even report
+    the rejection.
+
+    Fix 6 (final review): the previous version of this test only ran a plain
+    `verify` and asserted nothing -- it merely didn't crash, which is already
+    exercised by every other `verify` test in this file and proves nothing
+    about this flag specifically (deleting the `_FLAG_UNSET` entry would
+    redden ~20 other tests, not reveal itself here). Asserting the REJECTION
+    directly, by passing the flag to the one action it does not belong to, is
+    non-vacuous: it fails both if the KeyError regresses and if the guard
+    stops rejecting the flag.
+    """
+    with pytest.raises(CommandError, match="--resolve-rewrite is not valid"):
+        call_command(
+            "migrate_course_content",
+            "verify",
+            "--target-slug",
+            "dst",
+            "--bundle-dir",
+            str(tmp_path / "bundle"),
+            "--resolve-rewrite",
+            "applied",
+        )
+
+
+# --- Task 12: the remaining spec cases -------------------------------------
+
+
+def test_the_repair_resume_rewrites_only_the_re_grafted_part(tmp_path):
+    """A tail deletion is the only shape :433 accepts -- deleting a middle part
+    gives a red test on the wrong error. Parts BEFORE K must be byte-identical:
+    that half is what catches a fix that re-runs the whole pass and re-applies
+    an old-pk map over already-rewritten hrefs."""
+    course = _mk_source(parts=("P0", "P1", "P2"))
+    _link_between(course, "P0", "P0")
+    bundle = tmp_path / "bundle"
+    call_command(
+        "migrate_course_content",
+        "export",
+        "--source-slug",
+        "src",
+        "--bundle-dir",
+        str(bundle),
+    )
+    target = _mk_target()
+    _user()
+    args = (
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+    )
+    call_command("migrate_course_content", "import", *args)
+    p0_bodies = sorted(
+        TextElement.objects.filter(
+            elements__unit__parent__parent__title="P0",
+            elements__unit__course=target,
+        ).values_list("body", flat=True)
+    )
+    ContentNode.objects.filter(
+        course=target, parent__isnull=True, title__in=("P1", "P2")
+    ).delete()
+    call_command("migrate_course_content", "import", *args, "--start-at", "1")
+    assert (
+        sorted(
+            TextElement.objects.filter(
+                elements__unit__parent__parent__title="P0",
+                elements__unit__course=target,
+            ).values_list("body", flat=True)
+        )
+        == p0_bodies
+    )
+    assert _read_state_raw(bundle)["status"] == "applied"
+
+
+def test_a_cross_part_link_from_a_re_grafted_part_into_a_rewritten_one(tmp_path):
+    """The scope/mapping separation. Falsify by building the mapping's liveness
+    set from pending orders only: the link is silently unwrap-flattened while
+    all three skip counters report 0."""
+    course = _mk_source(parts=("P0", "P1"))
+    _link_between(course, "P1", "P0")  # part 1 -> part 0
+    bundle = tmp_path / "bundle"
+    call_command(
+        "migrate_course_content",
+        "export",
+        "--source-slug",
+        "src",
+        "--bundle-dir",
+        str(bundle),
+    )
+    target = _mk_target()
+    _user()
+    args = (
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+    )
+    call_command("migrate_course_content", "import", *args)
+    ContentNode.objects.filter(course=target, parent__isnull=True, title="P1").delete()
+    call_command("migrate_course_content", "import", *args, "--start-at", "1")
+    new_u0 = ContentNode.objects.get(course=target, title="U0")
+    bodies = " ".join(
+        TextElement.objects.filter(elements__unit__course=target).values_list(
+            "body", flat=True
+        )
+    )
+    assert f"/courses/n/{new_u0.pk}/" in bodies
+
+
+def test_force_leaves_pre_existing_linked_content_untouched(tmp_path):
+    """Scoping matters most under --force: pre-existing bodies carry TARGET
+    pks, and sweeping them with an old-pk-keyed map would flatten them or, on a
+    numeric coincidence, mis-point them."""
+    bundle = _export_bundle(tmp_path, parts=("P0",))
+    target = _mk_target()
+    _user()
+    squatter = ContentNode.objects.create(course=target, kind="part", title="Sq")
+    ch = ContentNode.objects.create(
+        course=target, kind="chapter", title="C", parent=squatter
+    )
+    unit = ContentNode.objects.create(
+        course=target, kind="unit", title="SqU", parent=ch, unit_type="lesson"
+    )
+    body = f'<p><a href="/courses/n/{squatter.pk}/">mine</a></p>'
+    Element.objects.create(
+        unit=unit,
+        title="pre",
+        content_object=TextElement.objects.create(body=body),
+    )
+    call_command(
+        "migrate_course_content",
+        "import",
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+        "--force",
+    )
+    assert TextElement.objects.get(elements__unit=unit).body == body
+
+
+def test_a_fail_closed_body_is_recorded_and_reported_not_fatal(tmp_path):
+    """MUST use FillGateElement, not TextElement.
+
+    Measured: TextElement.save() runs sanitize_html (courses/models.py:393), and
+        sanitize_html('<p><a href="/courses/n/7/">torn</p>')
+        -> '<p><a href="/courses/n/7/">torn</a></p>'
+    i.e. the sanitiser CLOSES the anchor, so a TextElement fixture can never be
+    fail-closed and the test would assert an empty list. FillGateElement has no
+    save() override and _build_fill_gate (importer.py:549-552) stores `stem`
+    raw on the import side too. (SwitchGateElement works identically; the spec
+    standardises on FillGateElement.) The stem is a SINGLE torn anchor at an
+    UNMAPPABLE target: a second anchor
+    would supply the `</a>` this one's search finds, and a mappable pk never
+    reaches the branch the bail lives on -- either shape probes False.
+    """
+    from courses.models import FillGateElement
+
+    course = _mk_source(parts=("P0", "P1"))
+    u0 = ContentNode.objects.get(course=course, title="U0")
+    # NB no `u1`: the torn anchor targets an unmappable pk, so nothing here
+    # references part 1. Binding it would be F841 under this repo's ruff config.
+    Element.objects.create(
+        unit=u0,
+        title="torn",
+        content_object=FillGateElement.objects.create(
+            # SINGLE torn anchor, UNMAPPABLE target, no </a> anywhere after it.
+            # A second well-formed anchor would supply the </a> this one's search
+            # finds, and a mappable pk never reaches the unwrap branch at all --
+            # see the FAIL-CLOSED FIXTURES note above.
+            stem='<p><a href="/courses/n/999999/">torn</p>',
+            answers=[["x"]],  # list[list[str]], per the model docstring
+        ),
+    )
+    bundle = tmp_path / "bundle"
+    call_command(
+        "migrate_course_content",
+        "export",
+        "--source-slug",
+        "src",
+        "--bundle-dir",
+        str(bundle),
+    )
+    _mk_target()
+    _user()
+    call_command(
+        "migrate_course_content",
+        "import",
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+    )
+
+    fail_closed_pks = _read_state_raw(bundle)["rewrite"]["fail_closed_elements"]
+    assert fail_closed_pks
+    torn_epk = fail_closed_pks[0]
+    torn_unit_id = Element.objects.get(pk=torn_epk).unit_id
+    out = io.StringIO()
+    call_command(
+        "migrate_course_content",
+        "verify",  # reports, does not raise
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        stdout=out,
+    )
+    result = out.getvalue()
+    assert "malformed" in result
+    # Fix 1 (final review): the spec requires "a reported, non-fatal count
+    # WITH THE SAME EXAMPLE TRIPLES" -- a count alone across a 20,054-element
+    # course gives no way to FIND the element. `"malformed" in result` alone
+    # would NOT catch the omission of examples; assert a REAL
+    # (unit_id, element pk, href) triple is present.
+    assert f"({torn_unit_id}, {torn_epk}, '/courses/n/999999/')" in result
+
+
+def test_a_fail_closed_instance_still_gets_its_other_fields_rewritten():
+    """The deliberate absence of `continue` after fail_closed_elements.append.
+
+    UNIT-level, and it must be: the guard only bites on an instance with TWO
+    registry fields, and part 2's registry gives exactly two such models --
+    GuessNumberElement (stem + success_message) and the question models
+    (stem + explanation). Built UNSAVED so no save() sanitiser closes the torn
+    anchor, the same trick Task 7's _is_fail_closed unit test uses.
+
+    This test documents part 2's per-field behaviour; it does NOT falsify Task
+    7's loop, because it never calls `_run_link_pass`. The reachable guard is
+    `test_a_fail_closed_instance_in_the_target_keeps_rewriting_its_other_field`
+    below — adding `continue` after the append turns THAT one red, not this one.
+    """
+    from courses.models import GuessNumberElement
+
+    obj = GuessNumberElement(
+        stem='<p><a href="/courses/n/999999/">torn</p>',  # fail-closed
+        success_message='<p><a href="/courses/n/55/">ok</a></p>',  # mappable
+    )
+    assert _is_fail_closed(obj) is True
+    changed, _flattened = rewrite_instance(obj, {55: 900}, on_missing="unwrap")
+    assert "success_message" in changed
+    assert "/courses/n/900/" in obj.success_message
+    assert obj.stem == '<p><a href="/courses/n/999999/">torn</p>'  # untouched
+
+
+def test_a_fail_closed_instance_in_the_target_keeps_rewriting_its_other_field(
+    tmp_path, monkeypatch
+):
+    """THE reachable falsification for the missing `continue` in Task 7's loop.
+
+    It has to be built target-side, after the graft: an import cannot carry a
+    torn stem in, because `_build_guess_number` (importer.py:767) does
+    `stem=sanitize_html(data["stem"])`. Created directly on a grafted unit it
+    survives, because GuessNumberElement.save() sanitises only `success_message`
+    (models.py:779) -- and a well-formed anchor is byte-identical through the
+    sanitiser, so the mappable link survives that too.
+
+    Falsify by adding `continue` after `fail_closed_elements.append(join.pk)`:
+    success_message keeps its SOURCE pk, and verify stays silent because the
+    element was subtracted from the dangling count.
+    """
+    from courses.models import GuessNumberElement
+
+    course = _mk_source(parts=("P0", "P1"))
+    bundle = tmp_path / "bundle"
+    call_command(
+        "migrate_course_content",
+        "export",
+        "--source-slug",
+        "src",
+        "--bundle-dir",
+        str(bundle),
+    )
+    target = _mk_target()
+    _user()
+    args = (
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+    )
+    import courses.management.commands.migrate_course_content as mod
+
+    monkeypatch.setattr(mod.Command, "_run_link_pass", lambda *a, **k: None)
+    call_command("migrate_course_content", "import", *args)
+    monkeypatch.undo()
+
+    src_u1 = ContentNode.objects.get(course=course, title="U1")
+    tgt_u0 = ContentNode.objects.get(course=target, title="U0")
+    Element.objects.create(
+        unit=tgt_u0,
+        title="two-field",
+        content_object=GuessNumberElement.objects.create(
+            stem='<p><a href="/courses/n/999999/">torn</p>',  # fail-closed
+            success_message=f'<p><a href="/courses/n/{src_u1.pk}/">ok</a></p>',
+            # REQUIRED: target is a DecimalField with no default and no null
+            # (models.py:757). Omitting it raises IntegrityError in setup, and
+            # Task 12 Step 2 would send you hunting production code for it.
+            # `tolerance` defaults, so it needs nothing.
+            target=1,
+        ),
+    )
+    call_command(
+        "migrate_course_content", "import", *args, "--resolve-rewrite", "not-applied"
+    )
+
+    obj = GuessNumberElement.objects.get(elements__unit=tgt_u0)
+    new_u1 = ContentNode.objects.get(course=target, title="U1")
+    assert f"/courses/n/{new_u1.pk}/" in obj.success_message  # rewritten
+    assert obj.stem == '<p><a href="/courses/n/999999/">torn</p>'  # untouched
+    assert _read_state_raw(bundle)["rewrite"]["fail_closed_elements"]
+
+
+def test_an_element_with_no_links_is_not_recorded_as_fail_closed(tmp_path):
+    """The naive `not changed` rule would record nearly every element and make
+    the reconciliation vacuous. Invisible without this assertion."""
+    bundle = _export_bundle(tmp_path, parts=("P0",))
+    _mk_target()
+    _user()
+    call_command(
+        "migrate_course_content",
+        "import",
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+    )
+    assert _read_state_raw(bundle)["rewrite"]["fail_closed_elements"] == []
+
+
+def test_the_stale_entry_resume_grafts_first_and_rewrites_after(tmp_path):
+    """Site 1's `not todo` conjunct — the ONLY coverage of it, and of the spec's
+    stale-entry ordering condition.
+
+    The stale-entry window is: the outer atomic wrote part K's state entry, then
+    the process died before the commit. Forge it by grafting everything, then
+    deleting the LAST part's nodes while leaving its entry recorded.
+
+    Falsify by deleting `todo=todo` from site 1: the run must then raise the
+    `skipped_dead` CommandError with part N-1 ungrafted. Do NOT assert flattened
+    links -- the fatal-skip rule makes that unreachable (spec §Testing).
+    """
+    course = _mk_source(parts=("P0", "P1"))
+    _link_between(course, "P0", "P1")
+    bundle = tmp_path / "bundle"
+    call_command(
+        "migrate_course_content",
+        "export",
+        "--source-slug",
+        "src",
+        "--bundle-dir",
+        str(bundle),
+    )
+    target = _mk_target()
+    _user()
+    args = (
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+    )
+    call_command("migrate_course_content", "import", *args)
+    # Delete P1's nodes but KEEP its entry -> stale. Reset the flags so the pass
+    # is re-armed, and drop P0's rewrite so the map is source-keyed again.
+    ContentNode.objects.filter(course=target, parent__isnull=True, title="P1").delete()
+    st = _read_state_raw(bundle)
+    st["status"] = "collecting"
+    for e in st["parts"]:
+        e["rewritten"] = False
+    st.pop("rewrite", None)
+    _write_state(bundle, st)
+    # P0's body was rewritten by the first pass, so restore it to a source pk --
+    # otherwise the re-run would flatten it (the double-apply the per-order flags
+    # exist to prevent, defeated here by hand-editing the state).
+    src_u1 = ContentNode.objects.get(course=course, title="U1")
+    TextElement.objects.filter(elements__unit__course=target).filter(
+        body__contains="/courses/n/"
+    ).update(body=f'<p><a href="/courses/n/{src_u1.pk}/">go</a></p>')
+
+    call_command("migrate_course_content", "import", *args, "--start-at", "1")
+    assert ContentNode.objects.filter(course=target, title="P1").exists()
+    assert _read_state_raw(bundle)["status"] == "applied"
+    assert [e["order"] for e in _read_state_raw(bundle)["parts"]] == [0, 1]
+    new_u1 = ContentNode.objects.get(course=target, title="U1")
+    bodies = " ".join(
+        TextElement.objects.filter(elements__unit__course=target).values_list(
+            "body", flat=True
+        )
+    )
+    assert f"/courses/n/{new_u1.pk}/" in bodies
+
+
+def test_the_state_file_survives_a_re_export_of_an_unchanged_source(tmp_path):
+    """Directly exercises the decision NOT to unlink the state file on --clean.
+    This is the shape of test_start_at_recovers_after_force_and_a_mid_run_failure,
+    which is green today and must stay green."""
+    _mk_source(parts=("P0", "P1", "P2"))
+    bundle = tmp_path / "bundle"
+    call_command(
+        "migrate_course_content",
+        "export",
+        "--source-slug",
+        "src",
+        "--bundle-dir",
+        str(bundle),
+    )
+    _mk_target()
+    _user()
+    args = (
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+    )
+    # A GENUINE mid-run failure: part 1's archive is corrupt, so part 0 commits
+    # and nothing else does. recorded {0} != on_disk {0,1,2}, so the pass never
+    # fires and part 0's hrefs still hold source pks.
+    archives = sorted(bundle.glob("*.zip"))
+    good = archives[1].read_bytes()
+    archives[1].write_bytes(b"corrupt")
+    with pytest.raises(CommandError):
+        call_command("migrate_course_content", "import", *args)
+    before = _read_state_raw(bundle)["parts"][0]["src"]
+
+    archives[1].write_bytes(good)  # repair, then re-export --clean
+    call_command(
+        "migrate_course_content",
+        "export",
+        "--source-slug",
+        "src",
+        "--bundle-dir",
+        str(bundle),
+        "--clean",
+    )
+    assert _read_state_raw(bundle)["parts"][0]["src"] == before  # NOT unlinked
+    call_command("migrate_course_content", "import", *args, "--start-at", "1")
+    assert _read_state_raw(bundle)["status"] == "applied"
+
+
+def test_dry_run_start_at_zero_creates_no_state_file(tmp_path):
+    """Step 4's ONLY write path. Falsify by deleting its `if not
+    o.get("dry_run"):` guard -- no other test covers it."""
+    bundle = _export_bundle(tmp_path)
+    _mk_target()
+    _user()
+    call_command(
+        "migrate_course_content",
+        "import",
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+        "--dry-run",
+        "--start-at",
+        "0",
+    )
+    assert not (bundle / LINK_STATE_NAME).exists()
+
+
+def test_resolve_rewrite_applied_carries_a_prior_pass_forward(tmp_path):
+    """The arm AUGMENTS the rewrite object; it does not replace it.
+
+    Falsify with `state["rewrite"] = {"resolved_by_operator": True}`: verify then
+    trusts a fail_closed_elements list that omits the earlier element, counts it
+    as ordinary dangling, and raises with no remedy reachable."""
+    from courses.models import FillGateElement
+
+    course = _mk_source(parts=("P0", "P1"))
+    u0 = ContentNode.objects.get(course=course, title="U0")
+    Element.objects.create(
+        unit=u0,
+        title="torn",
+        content_object=FillGateElement.objects.create(
+            stem='<p><a href="/courses/n/999999/">torn</p>',
+            answers=[["x"]],
+        ),
+    )
+    bundle = tmp_path / "bundle"
+    call_command(
+        "migrate_course_content",
+        "export",
+        "--source-slug",
+        "src",
+        "--bundle-dir",
+        str(bundle),
+    )
+    _mk_target()
+    _user()
+    args = (
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+    )
+    call_command("migrate_course_content", "import", *args)
+    before = _read_state_raw(bundle)["rewrite"]
+    assert before["fail_closed_elements"]
+
+    st = _read_state_raw(bundle)
+    st["status"] = "in_progress"  # do NOT pop "rewrite"
+    for e in st["parts"]:
+        e["rewritten"] = False
+    _write_state(bundle, st)
+    call_command(
+        "migrate_course_content", "import", *args, "--resolve-rewrite", "applied"
+    )
+    after = _read_state_raw(bundle)["rewrite"]
+    assert after["resolved_by_operator"] is True
+    assert after["fail_closed_elements"] == before["fail_closed_elements"]
+    assert after["parts"] == before["parts"]
+
+
+def test_resolve_rewrite_applied_then_verify_recomputes_fail_closed(tmp_path):
+    """The `fail_closed_elements`-ABSENT branch, which no other test reaches.
+
+    --resolve-rewrite applied writes no such key by construction, so verify must
+    recompute it live. Treating the missing key as [] makes every fail-closed
+    body read as ordinary dangling -- and with status already applied and
+    --resolve-rewrite refusing a non-in_progress file, verify fails forever with
+    no remedy."""
+    from courses.models import FillGateElement
+
+    course = _mk_source(parts=("P0", "P1"))
+    u0 = ContentNode.objects.get(course=course, title="U0")
+    Element.objects.create(
+        unit=u0,
+        title="torn",
+        content_object=FillGateElement.objects.create(
+            # UNMAPPABLE target: a mappable pk never reaches the unwrap
+            # branch where the fail-closed bail lives.
+            stem='<p><a href="/courses/n/999999/">torn</p>',
+            answers=[["x"]],
+        ),
+    )
+    bundle = tmp_path / "bundle"
+    call_command(
+        "migrate_course_content",
+        "export",
+        "--source-slug",
+        "src",
+        "--bundle-dir",
+        str(bundle),
+    )
+    _mk_target()
+    _user()
+    args = (
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+    )
+    call_command("migrate_course_content", "import", *args)
+    # Force the resolved_by_operator shape: no counts, no fail_closed key.
+    st = _read_state_raw(bundle)
+    st["status"] = "in_progress"
+    st.pop("rewrite", None)
+    for e in st["parts"]:
+        e["rewritten"] = False
+    _write_state(bundle, st)
+    call_command(
+        "migrate_course_content", "import", *args, "--resolve-rewrite", "applied"
+    )
+    assert "fail_closed_elements" not in _read_state_raw(bundle)["rewrite"]
+
+    out = io.StringIO()
+    call_command(
+        "migrate_course_content",
+        "verify",  # reports, does NOT raise
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        stdout=out,
+    )
+    assert "malformed" in out.getvalue()
+
+
+def test_a_repair_resume_keeps_a_fail_closed_element_from_another_part(tmp_path):
+    """The merge rule. Falsify by replacing the `rewrite` object wholesale: the
+    earlier part's element vanishes from the list, verify TRUSTS the shortened
+    list, counts it as ordinary dangling, and raises with no remedy."""
+    from courses.models import FillGateElement
+
+    course = _mk_source(parts=("P0", "P1"))
+    u0 = ContentNode.objects.get(course=course, title="U0")
+    Element.objects.create(
+        unit=u0,
+        title="torn",
+        content_object=FillGateElement.objects.create(
+            # UNMAPPABLE target: a mappable pk never reaches the unwrap
+            # branch where the fail-closed bail lives.
+            stem='<p><a href="/courses/n/999999/">torn</p>',
+            answers=[["x"]],
+        ),
+    )
+    bundle = tmp_path / "bundle"
+    call_command(
+        "migrate_course_content",
+        "export",
+        "--source-slug",
+        "src",
+        "--bundle-dir",
+        str(bundle),
+    )
+    target = _mk_target()
+    _user()
+    args = (
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+    )
+    call_command("migrate_course_content", "import", *args)
+    recorded = set(_read_state_raw(bundle)["rewrite"]["fail_closed_elements"])
+    assert recorded
+    ContentNode.objects.filter(course=target, parent__isnull=True, title="P1").delete()
+    call_command("migrate_course_content", "import", *args, "--start-at", "1")
+    after = set(_read_state_raw(bundle)["rewrite"]["fail_closed_elements"])
+    assert recorded <= after  # part 0's finding carried forward
+
+
+def test_verify_reports_a_structural_failure_before_a_link_one(tmp_path):
+    """Gate ordering: a missing part is the more actionable report, so the node
+    tally must pre-empt the link reconciliation. Needs a fixture that would trip
+    BOTH -- _export_bundle alone has no internal links, so it cannot falsify
+    the ordering."""
+    course = _mk_source(parts=("P0", "P1"))
+    _link_between(course, "P0", "P1")
+    bundle = tmp_path / "bundle"
+    call_command(
+        "migrate_course_content",
+        "export",
+        "--source-slug",
+        "src",
+        "--bundle-dir",
+        str(bundle),
+    )
+    target = _mk_target()
+    _user()
+    call_command(
+        "migrate_course_content",
+        "import",
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+    )
+    # Deleting P1 removes the link's target too, so both gates would fire.
+    ContentNode.objects.filter(course=target, parent__isnull=True, title="P1").delete()
+    with pytest.raises(CommandError, match="node count mismatch"):
+        call_command(
+            "migrate_course_content",
+            "verify",
+            "--target-slug",
+            "dst",
+            "--bundle-dir",
+            str(bundle),
+        )
+
+
+def test_skipped_dead_raises_before_the_transaction(tmp_path):
+    """The unit test in Task 7 cannot observe either half of this: the status
+    flip and the transaction both live in _run_link_pass. Moving the raise after
+    `status = "in_progress"; write` would leave the unit test green."""
+    course = _mk_source(parts=("P0", "P1"))
+    _link_between(course, "P0", "P1")
+    bundle = tmp_path / "bundle"
+    call_command(
+        "migrate_course_content",
+        "export",
+        "--source-slug",
+        "src",
+        "--bundle-dir",
+        str(bundle),
+    )
+    target = _mk_target()
+    _user()
+    args = (
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+    )
+    call_command("migrate_course_content", "import", *args, "--start-at", "0")
+    st = _read_state_raw(bundle)
+    st["status"] = "collecting"
+    for e in st["parts"]:
+        e["rewritten"] = False
+    st.pop("rewrite", None)
+    # Point one recorded pk at a row that does not exist.
+    st["parts"][0]["node_map"][sorted(st["parts"][0]["node_map"])[0]] = 10**9
+    _write_state(bundle, st)
+    bodies_before = sorted(
+        TextElement.objects.filter(elements__unit__course=target).values_list(
+            "body", flat=True
+        )
+    )
+    # Match the VALUE, not the label (see the unit twin's comment at :1823-1824
+    # above): the message interpolates all three labels unconditionally, so
+    # match="skipped_dead" is satisfied even if the WRONG counter fired.
+    with pytest.raises(CommandError, match=r"skipped_dead=\[1000000000\]"):
+        call_command("migrate_course_content", "import", *args, "--start-at", "2")
+    assert _read_state_raw(bundle)["status"] == "collecting"  # never flipped
+    assert (
+        sorted(
+            TextElement.objects.filter(elements__unit__course=target).values_list(
+                "body", flat=True
+            )
+        )
+        == bodies_before
+    )  # nothing touched
+
+
+def test_resolve_rewrite_with_no_state_file_refuses(tmp_path):
+    """I3 / spec: '--resolve-rewrite with no state file at all -> CommandError'."""
+    bundle = _export_bundle(tmp_path)
+    _mk_target()
+    _user()
+    call_command(
+        "migrate_course_content",
+        "import",
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+    )
+    (bundle / LINK_STATE_NAME).unlink()
+    with pytest.raises(CommandError, match="no rewrite state to resolve"):
+        call_command(
+            "migrate_course_content",
+            "import",
+            "--target-slug",
+            "dst",
+            "--bundle-dir",
+            str(bundle),
+            "--as-user",
+            "mig@example.com",
+            "--resolve-rewrite",
+            "not-applied",
+        )
+
+
+def test_a_failed_resolve_leaves_the_file_in_progress_and_re_runnable(tmp_path):
+    """I4. The `collecting` flip is deliberately NOT persisted before the pass:
+    the pass's own gates raise before it writes `in_progress`, so persisting
+    first would leave --resolve-rewrite refused ever after -- and the --start-at
+    fallback provably has no working value under non-contiguous orders.
+
+    Falsify by persisting `collecting` first: the second invocation is refused
+    and the migration is stuck."""
+    bundle = _export_bundle(tmp_path)
+    _mk_target()
+    _user()
+    args = (
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+    )
+    call_command("migrate_course_content", "import", *args)
+    st = _read_state_raw(bundle)
+    st["status"] = "in_progress"
+    for e in st["parts"]:
+        e["rewritten"] = False
+    _write_state(bundle, st)
+    # Break the src guard so the pass raises before it can write in_progress.
+    src = Course.objects.get(slug="src")
+    p0 = ContentNode.objects.get(course=src, title="P0")
+    ContentNode.objects.create(course=src, kind="chapter", title="extra", parent=p0)
+    call_command(
+        "migrate_course_content",
+        "export",
+        "--source-slug",
+        "src",
+        "--bundle-dir",
+        str(bundle),
+        "--clean",
+    )
+
+    with pytest.raises(CommandError, match="re-exported"):
+        call_command(
+            "migrate_course_content",
+            "import",
+            *args,
+            "--resolve-rewrite",
+            "not-applied",
+        )
+    assert _read_state_raw(bundle)["status"] == "in_progress"  # still re-runnable
+
+
+def test_a_fresh_start_overwrites_an_in_progress_state_file(tmp_path):
+    """I5 / spec: the `start_at is None` branch OVERWRITES rather than refuses,
+    and must be asserted separately from the resume-path refusal."""
+    bundle = _export_bundle(tmp_path)
+    _mk_target()
+    _user()
+    args = (
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+    )
+    call_command("migrate_course_content", "import", *args)
+    st = _read_state_raw(bundle)
+    st["status"] = "in_progress"
+    _write_state(bundle, st)
+    # No --start-at: step 3's branch. --force because the target is non-empty.
+    call_command("migrate_course_content", "import", *args, "--force")
+    after = _read_state_raw(bundle)
+    assert after["status"] == "applied"  # rebuilt, not refused
+    assert len(after["parts"]) == 3
+
+
+def test_a_state_write_oserror_on_a_later_part_names_the_resume_hint(
+    tmp_path, monkeypatch
+):
+    """I2 / spec: 'a second case on a later part asserts the --start-at
+    <committed + 1> hint AND the orphaned-media log line.' Without it, the else
+    arm of the hint and the orphan sentence could both be deleted silently."""
+    import courses.management.commands.migrate_course_content as mod
+
+    bundle = _export_bundle(tmp_path)
+    _mk_target()
+    _user()
+    real = mod._write_state
+    calls = {"n": 0}
+
+    def boom(bundle_, state_):
+        calls["n"] += 1
+        if calls["n"] <= 2:  # fresh-state write + part 0's write
+            return real(bundle_, state_)
+        raise OSError("disk full")
+
+    monkeypatch.setattr(mod, "_write_state", boom)
+    with pytest.raises(CommandError) as exc:
+        call_command(
+            "migrate_course_content",
+            "import",
+            "--target-slug",
+            "dst",
+            "--bundle-dir",
+            str(bundle),
+            "--as-user",
+            "mig@example.com",
+            "--start-at",
+            "0",
+        )
+    msg = str(exc.value)
+    assert "--start-at 1" in msg
+    assert "orphaned" in msg
+
+
+def test_a_database_error_at_commit_still_gets_the_resume_hint(tmp_path, monkeypatch):
+    """Fix 9 (final review): a DatabaseError surfacing at the outer atomic's
+    COMMIT -- possible AFTER `_write_state` has already returned successfully
+    -- matches neither `except OSError` nor `except TransferError`, so before
+    this fix it escaped `_import` as a raw traceback, losing the --start-at
+    recovery hint exactly when the state file and the DB may have diverged.
+
+    Verified real exception type by reading django/db/utils.py's
+    DatabaseErrorWrapper directly (not guessing): a failed backend commit is
+    wrapped into one of DataError / OperationalError / IntegrityError /
+    InternalError / ProgrammingError / NotSupportedError / DatabaseError --
+    every one of those IS a `django.db.DatabaseError` subclass -- so catching
+    `DatabaseError` is the correct, verified choice.
+
+    Same technique as the sibling OSError test above: `_write_state` is the
+    LAST statement inside the per-part `with transaction.atomic():` block, so
+    a real call followed by a raised DatabaseError faithfully simulates
+    "commit failed right after the write succeeded" for the purposes of
+    exercising the except-clause at that scope.
+    """
+    from django.db import DatabaseError
+
+    import courses.management.commands.migrate_course_content as mod
+
+    bundle = _export_bundle(tmp_path)
+    _mk_target()
+    _user()
+    real = mod._write_state
+    calls = {"n": 0}
+
+    def boom(bundle_, state_):
+        calls["n"] += 1
+        if calls["n"] <= 2:  # fresh-state write + part 0's write
+            return real(bundle_, state_)
+        raise DatabaseError("connection reset during commit")
+
+    monkeypatch.setattr(mod, "_write_state", boom)
+    with pytest.raises(CommandError) as exc:
+        call_command(
+            "migrate_course_content",
+            "import",
+            "--target-slug",
+            "dst",
+            "--bundle-dir",
+            str(bundle),
+            "--as-user",
+            "mig@example.com",
+            "--start-at",
+            "0",
+        )
+    msg = str(exc.value)
+    assert "last part committed: 0" in msg
+    assert "--start-at 1" in msg
+
+
+def test_write_state_really_goes_through_os_replace(tmp_path, monkeypatch):
+    """I6. The presence/absence assertions alone are green for a plain
+    truncate-in-place write, which is exactly what the spec forbids -- so assert
+    the MECHANISM."""
+    import courses.management.commands.migrate_course_content as mod
+
+    bundle = tmp_path / "b"
+    bundle.mkdir()
+    seen = []
+    real_replace = mod.os.replace
+
+    def spy(src, dst):
+        seen.append((str(src), str(dst)))
+        return real_replace(src, dst)
+
+    monkeypatch.setattr(mod.os, "replace", spy)
+    _write_state(bundle, {"version": 1, "parts": []})
+    assert seen == [
+        (str(bundle / (LINK_STATE_NAME + ".tmp")), str(bundle / LINK_STATE_NAME))
+    ]
+
+
+def test_a_state_write_oserror_on_part_zero_names_the_right_recovery(
+    tmp_path, monkeypatch
+):
+    """committed is None on the first part, so an else-arm-only hint evaluates
+    None + 1 and raises TypeError -- a raw traceback, exactly what the handler
+    exists to prevent."""
+    import courses.management.commands.migrate_course_content as mod
+
+    bundle = _export_bundle(tmp_path)
+    _mk_target()
+    _user()
+
+    # The step-4 branch writes a fresh state file BEFORE the graft loop, outside
+    # the try/except OSError under test. Blowing up on call 1 would raise a bare
+    # OSError out of handle() -- a different bug, and the test would pass on the
+    # wrong exception type. Let that first write through.
+    real = mod._write_state
+    calls = {"n": 0}
+
+    def boom(bundle_, state_):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            return real(bundle_, state_)
+        raise OSError("disk full")
+
+    monkeypatch.setattr(mod, "_write_state", boom)
+    with pytest.raises(CommandError) as exc:
+        call_command(
+            "migrate_course_content",
+            "import",
+            "--target-slug",
+            "dst",
+            "--bundle-dir",
+            str(bundle),
+            "--as-user",
+            "mig@example.com",
+            "--start-at",
+            "0",
+        )
+    msg = str(exc.value)
+    assert "no parts committed" in msg
+    # "could not write" is unique to the `except OSError` handler -- the
+    # sibling `except TransferError` handler raises f"{archive.name}: {exc}"
+    # with no such phrase, and both handlers emit "no parts committed" when
+    # `committed is None`, so that assertion alone cannot tell which fired.
+    assert "could not write" in msg
+    assert calls["n"] == 2  # the loop's write was reached, and only once

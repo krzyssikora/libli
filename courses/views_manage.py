@@ -34,6 +34,7 @@ from courses.models import Enrollment
 from courses.models import QuestionElement
 from courses.models import Subject
 from courses.models import UnitProgress
+from courses.richtext import count_inbound_links
 from courses.transfer.schema import TransferError
 
 
@@ -254,6 +255,25 @@ def builder(request, slug):
     }
     context.update(_tree_context(course, cmap, opened.ids))
     return render(request, "courses/manage/builder.html", context)
+
+
+@login_required
+def link_picker(request, slug):
+    """The course tree, as a bare partial, for the rich-text link dialog.
+
+    Rendered standalone (no base.html) because the dialog fetches it and injects the
+    markup directly. Like `builder`, passes children_map PLUS top_nodes: _children_map
+    keys roots under None, which a template cannot index.
+    """
+    course = get_object_or_404(Course, slug=slug)
+    if not can_manage_course(request.user, course):
+        raise PermissionDenied
+    cmap = _children_map(course)
+    return render(
+        request,
+        "courses/manage/editor/_link_picker.html",
+        {"course": course, "children_map": cmap, "top_nodes": cmap.get(None, [])},
+    )
 
 
 @login_required
@@ -622,6 +642,7 @@ def node_delete(request, slug):
         counts = {
             "descendants": _descendant_count(node),
             "elements": _element_count(node),
+            "inbound_links": count_inbound_links(course, node),
         }
         return render(
             request,

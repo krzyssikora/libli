@@ -520,6 +520,20 @@ input[type=number] {
 /* completion is signalled by the ✓ badge alone; done rows read a touch quieter */
 .outline-unit--done .outline-unit__title { color: var(--text-secondary); }
 
+/* Internal-link landing cue. The id lives on the <li> (the scroll target) but the
+   highlight must not: a non-unit <li> contains its whole descendant subtree, so
+   `li:target` would tint most of the page. The two branches of _outline_node.html
+   render different row elements, hence two selectors.
+   scroll-margin-top is for breathing room, NOT sticky chrome -- .app-header is
+   position: relative and .outline sits in the normal .app-main flow. */
+.outline-node { scroll-margin-top: var(--space-4); }
+.outline-node:target > .outline-node__head,
+.outline-node:target > .outline-unit {
+  background: var(--surface-sunken);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 0 0 2px var(--primary);
+}
+
 /* a unit row lays its title link + tag chips + tag affordance + notes badge out
    inline on one line; the title link grows so the affordances tuck to the right */
 .outline-node--unit {

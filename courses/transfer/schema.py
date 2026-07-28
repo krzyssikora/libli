@@ -11,7 +11,7 @@ from django.utils.translation import gettext as _
 from courses.color_bands import is_valid_stored
 from courses.constants import COURSE_LANGUAGES
 
-FORMAT_VERSION = 5
+FORMAT_VERSION = 6
 KIND_COURSE = "course"
 KIND_SUBTREE = "subtree"
 
@@ -111,14 +111,38 @@ def validate_document(doc, *, kind, target_allowed_kinds=None):
     from courses.transfer.payloads import validate_element_data  # Task 7
 
     is_course = kind == KIND_COURSE
+    # Optional-key pattern, mirroring the FORMAT_VERSION-2 width/height addition in
+    # payloads.py. _exact_keys both REQUIRES every listed key and REJECTS every
+    # unlisted one, so without this a v5 archive fails "missing the key 'link_nodes'"
+    # and a new archive fails "unknown key 'link_nodes'".
+    if isinstance(doc, dict):
+        doc.setdefault("link_nodes", {})
     _exact_keys(
         doc,
-        (["course"] if is_course else ["context"]) + ["nodes", "elements", "media"],
+        (["course"] if is_course else ["context"])
+        + ["nodes", "elements", "media", "link_nodes"],
         "course.json",
     )
     nodes = check_list(doc["nodes"], "nodes")
     elements = check_list(doc["elements"], "elements")
     media = check_list(doc["media"], "media")
+
+    link_nodes = doc["link_nodes"]
+    if not isinstance(link_nodes, dict):
+        _err(_("course.json: link_nodes must be an object."))
+    if len(link_nodes) > settings.TRANSFER_MAX_NODES:
+        _err(
+            _("course.json: link_nodes lists more than %(n)d entries."),
+            n=settings.TRANSFER_MAX_NODES,
+        )
+    for key, value in link_nodes.items():
+        # Length cap matters: a 100_000-digit key would make a bare int() raise
+        # ValueError past CPython's 4300-digit conversion limit, turning a hostile
+        # archive into a 500 -- which these validators exist to prevent.
+        if not isinstance(key, str) or not key.isdecimal() or len(key) > 12:
+            _err(_("course.json: link_nodes has an invalid node id."))
+        if not isinstance(value, str):
+            _err(_("course.json: link_nodes has an invalid archive reference."))
 
     if is_course:
         c = doc["course"]

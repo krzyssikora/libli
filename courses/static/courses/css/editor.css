@@ -875,3 +875,55 @@ button.asset-cell:hover { border-color: var(--primary); }
   background: var(--surface-raised); color: var(--text-tertiary);
   font-size: .68rem; font-weight: 700;
 }
+
+/* ---- Link dialog + picker -------------------------------------------------
+   Layout classes are picker-LOCAL. The builder's .tree__scope/.tree__row/.tree__rowhead
+   are deliberately NOT reused: they live in builder.css, which this page does not load
+   (asserted in tests/test_editor_styles.py), so borrowing the names would ship an
+   unindented, unstyled list. */
+.link-dialog { padding: 0; border: 0; border-radius: var(--radius-md); max-width: 34rem; width: 92vw; }
+.link-dialog::backdrop { background: rgb(0 0 0 / .45); }
+.link-dialog__card { padding: var(--space-5); background: var(--surface-raised); border-radius: var(--radius-md); }
+.link-dialog__title { margin: 0 0 var(--space-4); font-size: 1.05rem; }
+.link-dialog__actions { display: flex; gap: var(--space-2); justify-content: flex-end; margin-top: var(--space-4); }
+.link-dialog__msg { margin: var(--space-2) 0 0; color: var(--text-secondary); font-size: .85rem; }
+.link-dialog__msg--error { color: var(--danger); }
+.link-dialog__status { margin: var(--space-2) 0 0; font-size: .8rem; color: var(--text-secondary); }
+/* editor.css's existing .search rules are scoped to .picker, which this dialog is not,
+   so without these the filter renders at the UA default width inside a 34rem dialog. */
+.link-dialog .search { display: block; margin-bottom: var(--space-3); }
+.link-dialog .search .input { width: 100%; }
+
+/* A UA <dialog> caps at roughly the viewport, so without an explicit cap a 925-row
+   tree either overflows or grows the dialog past the screen. */
+.link-picker__mount { max-height: 40vh; overflow-y: auto; margin-top: var(--space-3);
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: var(--space-2); }
+.link-picker__scope { list-style: none; margin: 0; padding: 0; }
+.link-picker__scope .link-picker__scope { padding-left: 14px; border-left: 2px solid var(--border-subtle); }
+.link-picker__item { margin: 0; }
+.link-picker__item:focus { outline: 2px solid var(--primary); outline-offset: 2px; }
+.link-picker__item[aria-selected="true"] > .link-picker__row { background: var(--surface-sunken); font-weight: 600; }
+.link-picker__item[aria-disabled="true"] > .link-picker__row { opacity: .55; }
+.link-picker__row { display: flex; align-items: center; gap: var(--space-2); padding: 3px 4px;
+  border-radius: var(--radius-sm); cursor: pointer; }
+.link-picker__row:hover { background: var(--surface-sunken); }
+/* min-width: 0 is what lets a long title actually truncate inside the 34rem dialog --
+   a flex item's default min-width is auto, so without it the row overflows instead. */
+.link-picker__title { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* DUPLICATED from builder.css .tree__badge block -- twin. The editor page does not load builder.css
+   (tests/test_editor_styles.py asserts it), and pulling that stylesheet in would drag
+   along .tree__title overrides that exist to win a specificity fight with app.css.
+   tests/test_editor_styles.py::test_duplicated_badge_rules_match_their_twin keeps the
+   two copies in step. */
+.tree__badge { font-size: .6rem; text-transform: uppercase; letter-spacing: .03em; border: 1px solid currentColor; border-radius: 8px; padding: 0 6px; }
+.tree__badge--part, .tree__badge--chapter, .tree__badge--section { color: var(--primary); }
+.tree__badge--unit { color: var(--accent); }
+
+/* Preview-pane links are click-inert: clicking one would navigate away and discard
+   whatever is open in the edit form. NOT full inertness -- the anchors stay in the tab
+   order and Enter still navigates; closing that would need the preview render to set
+   tabindex="-1", a template change not worth it for a pane authors read rather than tab
+   through. Note data-scope is NOT editor-only (the builder puts it on every tree
+   scope), so this selector must stay pinned to ="preview". */
+[data-scope="preview"] .el a { pointer-events: none; }

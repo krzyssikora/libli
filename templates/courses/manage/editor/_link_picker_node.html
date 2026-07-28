@@ -1,0 +1,36 @@
+{% load courses_manage_extras %}
+{% comment %}One picker row. No translatable text here -- the only strings are the node
+title and the model's own get_kind_display / get_unit_type_display, which is why §i18n
+can say the picker partials contribute no new msgids. The <li> IS the treeitem so that its
+children's <ol role="group"> sits INSIDE it -- with role="none" on the li, each group
+would be a sibling of the item it belongs to and no item would own a subtree. The row is
+not a <button>: role="treeitem" overrides button semantics anyway, and link_dialog.js
+implements Enter/Space and roving tabindex by hand. What matters is that it is focusable
+and keyboard-operable.{% endcomment %}
+{% with children=children_map|get_item:n.pk %}
+<li class="link-picker__item" role="treeitem"
+    aria-level="{{ level }}" aria-selected="false" tabindex="-1"
+    {% if children %}aria-expanded="true"{% endif %}
+    data-node="{{ n.pk }}" data-title="{{ n.title }}"
+    data-href="{% url 'courses:node_permalink' node_pk=n.pk %}">
+  <span class="link-picker__row">
+    {% if n.kind == "unit" %}
+      {% if n.unit_type == "quiz" %}
+        <span class="tree__badge tree__badge--unit tree__badge--quiz" title="{{ n.get_unit_type_display }}">Q</span>
+      {% else %}
+        <span class="tree__badge tree__badge--unit tree__badge--lesson" title="{{ n.get_unit_type_display }}">L</span>
+      {% endif %}
+    {% else %}
+      <span class="tree__badge tree__badge--{{ n.kind }}">{{ n.get_kind_display }}</span>
+    {% endif %}
+    <span class="link-picker__title">{{ n.title }}</span>
+  </span>
+  {% if children %}
+    <ol class="link-picker__scope" role="group">
+      {% for child in children %}
+        {% include "courses/manage/editor/_link_picker_node.html" with n=child children_map=children_map level=level|add:1 %}
+      {% endfor %}
+    </ol>
+  {% endif %}
+</li>
+{% endwith %}

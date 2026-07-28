@@ -617,6 +617,37 @@ def lesson_unit(request, slug, node_pk):
     return render(request, "courses/lesson_unit.html", ctx)
 
 
+@login_required
+def node_permalink(request, node_pk):
+    """Slug-free permalink to any ContentNode.
+
+    Stored links carry only a pk, so this survives a course being re-slugged and
+    lets the redirect target change without touching a single stored body.
+
+    404 -- NOT PermissionDenied -- for an inaccessible node. get_node_or_404's
+    docstring states the convention: "a foreign node always 404s before any 403."
+    Every other node-addressed view scopes by slug first; this one has no slug, so
+    returning 403 would make it an existence oracle for every node in the install.
+    """
+    node = get_object_or_404(ContentNode.objects.select_related("course"), pk=node_pk)
+    if not can_access_course(request.user, node.course):
+        raise Http404("node is not accessible")
+    if node.kind == ContentNode.Kind.UNIT:
+        # Branch explicitly rather than letting lesson_unit forward a quiz: that
+        # would cost a second redirect hop on every quiz link and couple this view
+        # to another's implementation detail.
+        name = (
+            "courses:quiz_unit"
+            if node.unit_type == ContentNode.UnitType.QUIZ
+            else "courses:lesson_unit"
+        )
+        return redirect(name, slug=node.course.slug, node_pk=node.pk)
+    return redirect(
+        reverse("courses:course_outline", kwargs={"slug": node.course.slug})
+        + f"#node-{node.pk}"
+    )
+
+
 def _progress_json(progress):
     return {
         "seen_element_ids": list(progress.seen_element_ids),
