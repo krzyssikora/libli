@@ -55,8 +55,10 @@ filter derivation: the fold, the match selection, the ancestor walk, the 100-cap
 
 **`q_active` is the fifth element, and nothing outside this module may re-derive it.** Four
 consumers need to know whether the filter is on: §3b's `q_chain` decision, §3h's `filtered`
-flag, §3i's `filter` entry (emitted even when `shown == total == 0`) and §4's Clear link. The
-first four elements cannot express it — `chains=set(), shown=0, total=0` is returned both for
+flag, §3i's `filter` entry (emitted even when `shown == total == 0`) and §3l's
+`_remember_open` gate. **§4's Clear link is deliberately NOT one of them** — it reads the raw
+`q`, so a below-floor `?q=a` still offers a way to empty the box. The first four elements
+cannot express it — `chains=set(), shown=0, total=0` is returned both for
 "below the floor, unfiltered" and for "active, matched nothing". The only alternative is to
 re-test `len(q.strip()) >= MIN_QUERY` in the view, which is precisely the second copy of the
 rule this module exists to prevent, and which would drift the moment the floor changes.
@@ -740,9 +742,9 @@ covering them:
    parent §4 (`:838`), which has it set "the live `open` **and `q`**" at click time. See Deltas.
    The markup value is already correct: every filter transition re-renders the whole top scope
    through `manage_tree`, so these hrefs carry the applied `q` by construction. Setting it at
-   click time would make delete a **sixth** client path sending the *live* input value —
-   §5a's defect, on the one gesture that is a full-page navigation and cannot be corrected by a
-   later fragment.
+   click time would add a sixth `q`-writing client path for no gain — and it is the one
+   gesture that is a full-page navigation, so an implementation that reached for the live input
+   value there could not be corrected by a later fragment.
 2. **The Move link** in `_tree_node.html` (`{{ move_url }}?node={{ node.pk }}`), same reason.
 3. **`node_delete`'s `open`-present branch builds its own redirect**, and it is the **JS**
    author's path, not the no-JS one. The code is `if "open" in request.POST:` (`:672`) →
@@ -762,12 +764,16 @@ covering them:
    "every tree form" rule, and parent §8 carves the `[data-move]` fetch out of the collector, so
    nothing else would supply it.
 
-   **The fetch SETS, it does not append** (parent §2 says "appends", and this spec overrides
-   it; see Deltas). `builder.js:276` fetches `mv.getAttribute("href")`, and item 2 above already
-   put `&q=<rendered>` in that href — so appending yields `?node=5&q=<rendered>&q=<live>`, which
-   works only because `QueryDict.get` returns the last (verified). That is the accident §5a
-   forbids by name, and the two values genuinely differ during the 300 ms debounce. It goes
-   through §5a's `setTreeParams` like every other request path.
+   **The fetch SETS the applied `q`, it does not append** (parent §2 says "appends", and this
+   spec overrides it; see Deltas). `builder.js:276` fetches `mv.getAttribute("href")`, and item
+   2 above already put `&q=` in that href — so appending yields `?node=5&q=X&q=X` and works only
+   because `QueryDict.get` returns the last (verified). The duplicate is harmless today, since
+   §5a makes the picker an **applied**-`q` sender and every filter transition re-renders the
+   whole top scope, so the href's value and the tracker's are the same string. It is still
+   forbidden: a request whose correctness depends on parameter ordering is one refactor away
+   from breaking, and the picker's `q` flows on into `_move_picker.html`'s hidden input and the
+   reparent redirect. It goes through §5a's `setTreeParams` like every other path — which is
+   also what stops an implementer reaching for the live input value here.
 
 ### 3k. `_tree_context` grows four keys — stated once, not patched three times
 
@@ -780,7 +786,7 @@ needs is already resolved". This slice needs four more context values in every r
 | `q` | `toggle_href`, the hidden inputs, the delete/Move hrefs, the filter input's value | the **raw** submitted `q`, not the normalized one |
 | `filtered` | `_scope.html`'s `{% empty %}` branch (§3h) | `q_active` |
 | `expand_all_disabled` | whether `builder.html` emits expand-all's `href`, **and** `data-expand-all-disabled` on `.builder` for the JS bail (§6a) | `len(container_pks(full_cmap)) > builder_open.CEILING` |
-| `applied_q` | `data-applied-q` on `.builder` — the value §5c's tracker initialises from | **`fc.q_raw if fc.q_active else ""`** — a string, never the bool |
+| `applied_q` | `data-applied-q` on `.builder` — the value §5c's tracker initialises from, and the value the five applied-`q` paths send | **`fc.q_raw`** — the raw submitted string, never the `q_active` bool |
 
 **Both DOM-carried values are RESOLVED server-side, and no threshold crosses the boundary.**
 
@@ -814,6 +820,18 @@ needs is already resolved". This slice needs four more context values in every r
   matches nothing against, and the author's pane empties on their next toggle. One name for a
   bool and a string is how that ships. §8 asserts the attribute's **value**, not just its
   presence.
+
+  **It carries `q_raw` unconditionally — including a present-but-INACTIVE `q`.** An earlier
+  draft emitted `""` below the floor, which made the two paths of the same gesture disagree:
+  the no-JS expand-all href carried `q=a` (§6b) while the JS fetch sent `q=""`, and `syncUrl`
+  then stripped `a` from the address bar and from every re-rendered hidden input — contradicting
+  §1's promise that the raw `q` round-trips through the input's value, the hidden inputs and the
+  URL. Sending `q_raw` costs nothing, because the server treats a below-floor value as blank
+  either way (§1a); it just keeps the author's half-typed text alive on both paths.
+
+  **The tracker's skip-comparison is on the EFFECTIVE values, not the raw ones** (§5c): both
+  sides run through the client floor first, so typing `t` into an unfiltered tree compares
+  `""` against `""` and sends nothing.
 
 These go into `_tree_context`'s signature — which therefore gains the arguments to compute
 them — **not** into four hand-patched render calls. Three renderers exist (`builder()`,
@@ -927,7 +945,7 @@ pass checks the row at a narrow width, not just at 1400px.
 
 ## 5. Client
 
-### 5a. `q` rides FIVE request paths, and `withOpen` reaches only two of them
+### 5a. `q` rides SEVEN request paths — five with the applied value — and `withOpen` reaches two
 
 **Set, never append**: mutation forms already carry a hidden `q`, so appending would put two
 values in the `FormData` and `QueryDict.get` returns the last — the collector would win only by
@@ -963,7 +981,8 @@ The toggle is the most common fragment request and the subject of this slice's o
 the result is exactly the defect §5c exists to prevent: unfiltered children arriving into a
 filtered pane.
 
-**Rule: all seven paths carry `q`, and each is named — with the value each one sends.**
+**Rule: seven request paths are named here, each with the value it sends. Six carry `q`; the
+clear path omits it.**
 
 | path | site | `open` | `q` |
 | --- | --- | --- | --- |
@@ -1027,11 +1046,21 @@ stash; the filter path deliberately does not.
 So: **`MIN_QUERY` reaches the JS as `data-q-min` on `.builder`** (never a by-value `2`, for the
 same reason `CEILING` never crosses the boundary), and **the client measures
 `q.trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").length`**. That is not the server's
-full fold, but it agrees with it on length for every input that matters: the fold table maps one
-character to one character throughout, so stripping combining marks is the only step that
-changes a count. Without the `normalize`, a decomposed grapheme is two characters to the client
-and one to the server — the exact divergence above, reachable from the same imported-HTML
-content §1b's third table source exists for.
+full fold, and it does **not** always agree with it: source 1 contains 14 multi-character
+entries (`Ĳ→IJ`, `ǆ→dz`, `ǉ→lj`, `ǌ→nj`, `ǳ→dz` and their case variants) and `casefold` expands
+`ß→ss` and the `ﬁ`-class ligatures — measured, `'ß'` is client-length 1 and server-length 2.
+
+**The invariant that makes this safe is directional: the server's fold never produces a
+SHORTER string than the client's measure.** Every table entry maps one character to one or
+more, combining marks are removed by both, and `casefold` only ever lengthens. So a
+disagreement can only put the **client below the floor while the server is above it** — and
+below the floor the client takes the *clear* path, which carries `open` (§5d) and cannot
+collapse anything. The dangerous direction, client-above/server-below, is unreachable.
+
+Without the `normalize`, that guarantee inverts: a decomposed grapheme is two characters to the
+client and one to the server, so the client would send a *filter* fetch — which omits `open` —
+for a query the server treats as blank, and the tree collapses. That input is reachable from
+the same imported-HTML content §1b's third table source exists for.
 
 **Guarded by whether a filter is currently APPLIED, not by what the input contains.** Without
 that guard the first character an author types into an *unfiltered* tree takes the clear path;
@@ -1154,7 +1183,7 @@ meet.
   otherwise, so without this the disabled control still fires its request when clicked.
 - **The comparison reads `builder_open.CEILING` through the module**, never
   `from courses.builder_open import CEILING`. `_info_entries` carries a load-bearing comment
-  about exactly this (`views_manage.py:361-364`): tests monkeypatch the module attribute, and a
+  about exactly this (`views_manage.py:362-365`): tests monkeypatch the module attribute, and a
   by-value import desyncs the guard from the patched number. §8's ceiling test monkeypatches
   `CEILING` down, so a by-value import fails it confusingly rather than clearly.
 
@@ -1353,6 +1382,12 @@ until this was done.
 - **`_remember_open` does not write while `q` is active** (§3l) — driven through **a toggle
   under an active filter**, asserted **on the session**, never on the render. A bare filtered
   GET resolves via step 3, which is not `explicit`, so it would pass without the rule.
+- **…but DOES write under a below-floor `?q=a`** — a toggle with `?q=a&open=…`, asserting
+  `session["builder_open"]` was updated. This is the half where §3l deliberately narrows the
+  parent's "`q` is absent" to "`q` is active" (Delta 10), and the row above cannot guard it: a
+  presence gate (`"q" in request.GET`) is strictly stricter and passes it too. Without this
+  row the deviation is untested and a no-JS author silently stops persisting expansions
+  whenever a stray `?q=a` sits in the URL.
 - **a below-floor query is inactive on both response types** — the view-level twin of the unit
   floor test, and the one that catches a `q_active` derived from `bool(q.strip())`. Two
   assertions, because the two response types carry the signal differently and neither carries
@@ -1375,6 +1410,10 @@ until this was done.
   drop**, never a rename, whose success response never reaches `_render_scope`
 - **a filtered response carries exactly one `filter` code** in `X-Builder-Info` (the
   server-side half; the client-side registry behaviour is an e2e row, below)
+- **the info slot is in the DOM on an UNFILTERED, untruncated builder page** — present and
+  `hidden`, not absent. Falsified by restoring slice 1's `{% if info %}` wrapper. The existing
+  registry e2e cannot cover this: it starts from a `?q=` load, where the server rendered an
+  entry and `{% if info %}` would produce the slot anyway.
 - **toggle hrefs preserve `q`**, and a no-JS mutation under a filter returns to the filtered
   tree
 - **the four no-form carriers of §3j**: the delete href and the Move href carry `&q=` **in the
@@ -1389,11 +1428,16 @@ until this was done.
   filter returns only filtered rows** — `open=all` + `q` renders the restricted map, never the
   944-row tree
 - **both bulk-control hrefs carry `q`**, both the active kind and a present-but-inactive `?q=a`
-- **`data-applied-q` holds the submitted `q` on a filtered render and is empty on a below-floor
-  `?q=a`** — asserted on the attribute's **value**, since the failure it guards (§3k) is a bool
-  rendering as the string `"True"`
+- **`data-applied-q` holds the raw submitted `q`** — on a filtered render *and* on a
+  below-floor `?q=a` (where it is `a`, not empty), and absent-or-empty with no `q` at all.
+  Asserted on the attribute's **value**: one failure it guards is a bool rendering as the
+  string `"True"` (§3k), the other is a below-floor `q` being dropped so the JS and no-JS
+  paths of the same gesture disagree.
 - **`data-expand-all-disabled` is present over the ceiling and ABSENT under it** — asserted on
   presence, never on a value, per §3k's emission rule
+- **`data-q-min` equals `builder_filter.MIN_QUERY`**, with `MIN_QUERY` monkeypatched to a
+  non-default value — the twin of the `CEILING` monkeypatch row. Without it a by-value `2` in
+  `builder.js` ships green and the two constants desync the moment `MIN_QUERY` moves.
 
 **e2e (`-m e2e` — mandatory, or the tests are silently deselected and pytest exits 5, which is
 not a pass):**
@@ -1429,10 +1473,25 @@ not a pass):**
   children match the pane the author is looking at
 - **expand-all then collapse-all** returns to the top rows, and the address bar holds `open=`
 - collapse-all sets `aria-expanded="false"` and removes `aria-controls` on every toggle
+- **a fragment-borne notice lands on a page that had none** — load an unfiltered, untruncated
+  builder, type a query, and assert a `[data-info-key="filter"]` entry appears. Without §3i's
+  always-present slot the JS has nowhere to insert, and the resulting throw is swallowed by the
+  `.catch` and mislabelled "Network error" (M15) while the tree still updates, so no other row
+  notices.
 - **the info slot replaces by key**: from a `?q=<match>` **page load**, two successive filter
   fetches leave `document.querySelectorAll('[data-info-key="filter"]').length === 1`. Falsified
   by skipping §3i's "read the server-rendered entries on init" step, which makes the second
   entry an append — the test must go RED there or it is guarding nothing.
+- **an absent `X-Builder-Info` does NOT clear the slot** — filter until the `filter` entry is
+  on screen, rename a visible row (whose 200 is `_rename_result.html` and carries no header),
+  and assert the entry is still there. §8's server-side row proves only that the header is
+  absent; this is the half that proves the client *ignores* an absent header rather than
+  clearing on it — the defect Delta 2 exists to prevent, and one that a "no header → clear"
+  implementation passes every other test with.
+- **the Move-picker fetch sends exactly ONE `q` parameter** — open the picker under an active
+  filter and assert the outgoing request URL has a single `q`. An append implementation yields
+  `?node=5&q=X&q=X`, which `QueryDict.get` resolves correctly, so every server-side and no-JS
+  assertion stays green while Delta 11 is violated.
 - **expand-all DOES fire a request under the ceiling, and does NOT over it** — both directions.
   The under-ceiling half is the one that catches a `data-expand-all-disabled` emitted by value
   (§3k), where the bail fires on every course and the control is silently dead everywhere.
@@ -1459,18 +1518,25 @@ remedy.
 
 ## 9. i18n
 
-This slice adds **seven new msgids** — the `filter` notice text, "Filter", "Clear", "Expand
-all", "Collapse all", the over-ceiling tooltip, "No matching titles.", plus the filter input's
-accessible name (§4) — and gives **one existing msgid a second reference**. So the catalog work
-is a task, not an afterthought.
+This slice adds **seven new msgids** — the `filter` notice text, "Clear", "Expand all",
+"Collapse all", the over-ceiling tooltip, "No matching titles." and the filter input's
+accessible name "Filter by title" (§4) — and gives **two existing msgids a further reference**.
+So the catalog work is a task, not an afterthought.
 
 **Each notice text is ONE msgid used twice.** The same literal appears in `_info_entries`'s
 `_(…)` and in the `data-msg-<key>` attribute, deliberately (§3i), so `makemessages` collapses
 them into a single entry. Two entries for one notice is the defect, not the baseline — it lets
 the page and the fragment route disagree in translation.
 
-**The `truncation` text is NOT new.** `_("Only the first %(limit)s scopes were opened.")` shipped
-in slice 1 (`views_manage.py:367-369`) and is already in both catalogs
+**Two of the strings are NOT new, and the count is a review signal — if the diff shows a new
+entry for either, the literals have drifted apart.**
+
+`msgid "Filter"` already ships with five references (`locale/pl/LC_MESSAGES/django.po:3509`),
+one of them in `templates/courses/manage/media/manager.html:36` — the very file §4 models its
+markup on. The submit button reuses it; only the field's accessible name is new.
+
+**The `truncation` text is NOT new either.** `_("Only the first %(limit)s scopes were opened.")` shipped
+in slice 1 (`views_manage.py:369-370`) and is already in both catalogs
 (`locale/pl/LC_MESSAGES/django.po:2237`). Adding `data-msg-truncation` gives it a second
 reference, not a second entry — and if the diff shows a new entry for it, the literals have
 drifted apart.
