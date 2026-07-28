@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-28 11:50+0200\n"
+"POT-Creation-Date: 2026-07-28 12:37+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: English\n"
@@ -523,7 +523,7 @@ msgid "A checklist needs between %(lo)s and %(hi)s items."
 msgstr ""
 
 #: .\courses\exporters.py:62 .\courses\exporters.py:122 .\grouping\forms.py:13
-#: .\grouping\forms.py:28 .\grouping\forms.py:50
+#: .\grouping\forms.py:28 .\grouping\forms.py:50 .\institution\models.py:24
 #: .\templates\accounts\manage\people.html:41
 #: .\templates\courses\manage\gradebook_print.html:54
 #: .\templates\courses\manage\media\manager.html:21
@@ -2473,22 +2473,30 @@ msgstr ""
 msgid "Auto"
 msgstr ""
 
-#: .\institution\models.py:25
+#: .\institution\models.py:27
 msgid "Logo"
 msgstr ""
 
-#: .\institution\models.py:31
+#: .\institution\models.py:33
 msgid "Favicon"
 msgstr ""
 
-#: .\institution\models.py:33
+#: .\institution\models.py:35
 msgid ""
 "Square PNG, 192-512 px, up to 256 KB. Replaces the libli icon in browser "
 "tabs and on home screens. Transparent areas show as black on iOS home "
 "screens - use a solid background for best results."
 msgstr ""
 
-#: .\institution\models.py:66
+#: .\institution\models.py:44
+msgid "Signup policy"
+msgstr ""
+
+#: .\institution\models.py:61
+msgid "Default theme"
+msgstr ""
+
+#: .\institution\models.py:74
 msgid ""
 "Delete read notifications older than this many days, measured from when each "
 "notification was created. 0 keeps read notifications indefinitely; orphaned "
