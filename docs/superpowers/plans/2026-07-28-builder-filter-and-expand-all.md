@@ -924,7 +924,24 @@ def test_counts_under_a_filter_are_the_filtered_counts(filtered_course):
 uv run pytest tests/test_builder_filter_views.py -q
 ```
 
-Expected: FAIL — no `data-applied-q` in the markup.
+Expected: a **mixed** run — six red, two green-from-birth.
+
+- RED, because nothing filters yet and no `data-*` attribute is emitted:
+  `test_a_filtered_page_shows_the_match_and_hides_the_rest`,
+  `test_data_applied_q_holds_the_raw_q_and_is_always_present`,
+  `test_data_q_min_is_emitted_and_read_through_the_module`,
+  `test_a_matched_container_renders_OPEN_over_an_empty_scope`,
+  `test_remember_open_does_NOT_write_while_a_filter_is_active` and
+  `test_counts_under_a_filter_are_the_filtered_counts`.
+- GREEN already, against the code as Task 2 leaves it:
+  - `test_remember_open_DOES_write_under_a_below_floor_q` — Task 2 Step 4
+    already wired `_remember_open(..., q_active=False)`, so an explicit
+    `?open=part,chap` is persisted whatever `q` says. Its gate is **Step 9's
+    falsification 3**, whose second mutation (a presence gate) is the only
+    thing that reddens it.
+  - `test_a_below_floor_query_renders_unfiltered_and_emits_no_filter_entry` —
+    both assertions hold when nothing filters at all. Its second assertion
+    only starts biting at Task 5, as its own docstring records.
 
 - [ ] **Step 3: Add `_raw_q` and `FilterContext`**
 
@@ -3217,7 +3234,7 @@ git commit -m "feat(builder): filter control and bulk controls — markup and CS
 
 **Interfaces:**
 - Consumes: `data-applied-q`, `data-q-min` (Task 3).
-- Produces: `appliedQ` (module-scoped string), `effectiveQ(s)`, `setTreeParams(target, opts)`, `updateClearVisibility()`.
+- Produces: `appliedQ` and `pendingQ` (module-scoped strings), `qMin`, `effectiveQ(s)`, `setTreeParams(target, opts)`. **Not** `updateClearVisibility()` — it depends on `var box`, which Task 11 Step 5 introduces alongside it.
 
 - [ ] **Step 1: Write the failing e2e**
 
@@ -3576,7 +3593,7 @@ git commit -m "feat(builder): applied-q tracker + setTreeParams across every req
 
 **Interfaces:**
 - Consumes: `appliedQ`, `effectiveQ`, `setTreeParams` (Task 10); `data-tree-url` (Task 4).
-- Produces: `preFilterOpen` (module-scoped, initialised `null`), `treeGen` (shared generation counter), `applyFilterState(q)`.
+- Produces: `preFilterOpen` (module-scoped, initialised `null`), `treeGen` (shared generation counter), `filterTimer`, `box`, `updateClearVisibility()`, `applyFilterState(q)`.
 
 - [ ] **Step 1: Write the failing e2e**
 
@@ -5002,7 +5019,9 @@ normally, so the chain is fulfilled again and `busyEnd` runs.
 `.then(finish, finish)` restores the guarantee in plain ES5 — no `.finally`,
 which would be a third modern exception in a file that lists exactly two.
 
-**`finish` is per-site**, because two of the five do more than `busyEnd()`:
+**`finish` is per-site**, because exactly one of the five — the toggle — does
+more than call `busyEnd()`. The other four are
+`var finish = function () { busyEnd(); };` verbatim:
 
 ```js
     // the toggle -- clear `submitting` on BOTH paths, or the row wedges
@@ -5028,10 +5047,12 @@ rename form's input permanently locked after any network failure — with
 nothing in this plan covering it. Its arm reads:
 
 ```js
+    var finish = function () { busyEnd(); };
+    ...
     }, function () {
       notice(msg("network", "Network error — please try again."));
       releaseForm(form);
-    }).then(function () { busyEnd(); });
+    }).then(finish, finish);        // BOTH arms, like every other site
 ```
 
 **2. `applyFilterState`** (Task 11 Step 5). Its arm is also two statements, and
@@ -5056,7 +5077,9 @@ here (the success arm already calls `releaseForm(form)` on every status
 branch, so only a genuine bug in `applyFragment`/`applyRename` could skip it,
 and silently mislabelling that bug as "Network error" is what M15 exists to
 stop). Do **not** "fix" it by moving `releaseForm` into the trailing
-`.then(function () { busyEnd(); })`: that runs on the stale-response path too.
+`.then(finish, finish)`: that runs on the stale-response path too, where the
+form was already released by whichever response won. `busyEnd` belongs there
+precisely because it *should* run on every path; `releaseForm` does not.
 
 - [ ] **Step 4: M16 — the `swapping` blur disarm**
 
