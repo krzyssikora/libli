@@ -10,13 +10,20 @@ from django.shortcuts import get_object_or_404
 from django.shortcuts import redirect
 from django.shortcuts import render
 from django.urls import reverse
+from django.utils.http import urlencode
 from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy
 from django.views.decorators.http import require_POST
 
 from courses import builder as builder_svc
+from courses import builder_open  # for builder_open.CEILING -- see below
 from courses.access import can_manage_course
 from courses.access import get_node_or_404  # reuse 1a's IDOR-safe resolver
+from courses.builder_open import LAST_NODE_KEY
+from courses.builder_open import OPEN_KEY
+from courses.builder_open import SESSION_SLUG_LIMIT
+from courses.builder_open import container_pks
+from courses.builder_open import open_ids as _open_ids
 from courses.forms import CourseForm
 from courses.forms import SubjectForm
 from courses.models import ChoiceQuestionElement
@@ -135,21 +142,119 @@ def _children_map(course):
     return cmap
 
 
+def _open_descendants(cmap, ids):
+    """pk -> the OPEN container pks beneath it, in one bottom-up pass.
+
+    Per row this would be a subtree walk; computed once per render it is a
+    single pass, which is what keeps toggle_href off the render's critical
+    path under a fully expanded tree.
+    """
+    out = {}
+
+    def walk(pk):
+        if pk in out:
+            return out[pk]
+        acc = set()
+        for child in cmap.get(pk, []):
+            if child.kind == ContentNode.Kind.UNIT:
+                continue
+            if child.pk in ids:
+                acc.add(child.pk)
+            acc |= walk(child.pk)
+        out[pk] = acc
+        return acc
+
+    # Only OPEN containers need an entry: a collapsed row's toggle is an
+    # EXPAND href, which uses the open_joined fast path and never consults
+    # this map. Walking every container instead would add a full-cmap pass to
+    # the toggle endpoint, whose budget is < 300 ms.
+    for pk in ids:
+        walk(pk)
+    return out
+
+
+def _tree_context(course, cmap, ids):
+    """Keys every renderer of tree markup must supply, or toggle_href silently
+    sees nothing on fragment renders. Takes no `request`: everything it needs
+    is already resolved."""
+    return {
+        "open_ids": ids,
+        "open_joined": ",".join(str(p) for p in sorted(ids)),
+        "open_descendants": _open_descendants(cmap, ids),
+        "builder_url": reverse("courses:manage_builder", kwargs={"slug": course.slug}),
+    }
+
+
+def remember_node(request, slug, pk, key=LAST_NODE_KEY):
+    """Store a per-course pk (or pk list) in the session, most-recent last.
+
+    Skips the write when the value is unchanged: with a DB-backed session an
+    unconditional write means a session save on EVERY row focus.
+    """
+    store = request.session.get(key) or {}
+    if store.get(slug) == pk:
+        return
+    # pop before re-inserting: a dict preserves INSERTION order and
+    # re-assigning an existing key does not move it to the end, so without
+    # this the eviction below drops recently-used slugs first.
+    store.pop(slug, None)
+    store[slug] = pk
+    while len(store) > SESSION_SLUG_LIMIT:
+        store.pop(next(iter(store)))
+    request.session[key] = store
+    request.session.modified = True
+
+
+def _ancestor_chain(node):
+    """The node's own pk plus every ancestor pk. One query per level, and the
+    chain is at most 4 deep, so this is bounded."""
+    out, cur = {node.pk}, node.parent
+    while cur is not None:
+        out.add(cur.pk)
+        cur = cur.parent
+    return out
+
+
+def _remember_open(request, course, opened):
+    """Persist ONLY an author-chosen open set (precedence steps 1-2).
+
+    Gated on opened.explicit, NOT on `"open" in request.GET`. The two differ
+    exactly where it matters: `?open=session` with the key missing or flushed
+    sets `present` internally to False and falls through to steps 4-6, so the
+    parameter IS in the querystring while the resolved set is derived. Keying
+    off raw presence would write that derived set over the author's real one,
+    permanently.
+    """
+    if not opened.explicit:
+        return
+    # Bound the PAYLOAD, not just the slug count. Without this an author who
+    # opens 20 large courses with ?open=all stores up to 20 x CEILING = 10,000
+    # integers in a DB-backed session that is decoded on every subsequent
+    # request -- a new per-request cost, on a PR whose premise is request cost.
+    remember_node(
+        request,
+        course.slug,
+        sorted(opened.ids)[: builder_open.SESSION_OPEN_LIMIT],
+        key=OPEN_KEY,
+    )
+
+
 @login_required
 def builder(request, slug):
     course = get_object_or_404(Course, slug=slug)
     if not can_manage_course(request.user, course):
         raise PermissionDenied
     cmap = _children_map(course)
-    return render(
-        request,
-        "courses/manage/builder.html",
-        {
-            "course": course,
-            "children_map": cmap,
-            "top_nodes": cmap.get(None, []),
-        },
-    )
+    opened = _open_ids(request, course, cmap, mode="page")
+    _remember_open(request, course, opened)
+    context = {
+        "course": course,
+        "children_map": cmap,
+        "top_nodes": cmap.get(None, []),
+        "info": _info_entries(opened),
+    }
+    context.update(_tree_context(course, cmap, opened.ids))
+    return render(request, "courses/manage/builder.html", context)
 
 
 @login_required
@@ -176,6 +281,7 @@ def node_panel(request, slug, pk):
     node = get_node_or_404(pk, slug)  # 404 on missing / slug-mismatch, BEFORE access
     if not can_manage_course(request.user, node.course):
         raise PermissionDenied
+    remember_node(request, node.course.slug, node.pk)
     if node.kind == ContentNode.Kind.UNIT:
         elements = list(
             node.elements.filter(parent__isnull=True)
@@ -194,6 +300,21 @@ def node_panel(request, slug, pk):
     )
 
 
+@login_required
+def node_scope(request, slug, pk):
+    """One scope <ol>, for the JS expand path.
+
+    _require_manage alone is NOT enough: it validates the COURSE, and
+    _render_scope resolves a missing/foreign pk to parent=None and returns 200
+    with an empty scope. Resolve the node first, mirroring node_panel.
+    """
+    node = get_node_or_404(pk, slug)
+    if node.kind == ContentNode.Kind.UNIT:
+        raise Http404("Units own no scope.")
+    course = _require_manage(request, slug)
+    return _render_scope(request, course, node.pk)
+
+
 # --- node-op endpoints (Task 7) ---
 def _require_manage(request, slug):
     course = get_object_or_404(Course, slug=slug)
@@ -202,10 +323,12 @@ def _require_manage(request, slug):
     return course
 
 
-def _render_scope(request, course, scope_ref):
+def _render_scope(request, course, scope_ref, *, extra_open=()):
     """Re-render a single scope <ol> (root carries data-scope). scope_ref is a parent
     pk or 'top'. Used for 200 success and 409 fresh-fragment on single-scope ops."""
     cmap = _children_map(course)
+    opened = _open_ids(request, course, cmap, mode="fragment")
+    ids = set(opened.ids) | _extra_container_pks(extra_open, cmap)
     if scope_ref == "top":
         nodes, updated, parent_kind = (
             cmap.get(None, []),
@@ -217,31 +340,94 @@ def _render_scope(request, course, scope_ref):
         nodes = cmap.get(int(scope_ref), [])
         updated = parent.updated.isoformat() if parent else course.updated.isoformat()
         parent_kind = parent.kind if parent else None
-    return render(
-        request,
-        "courses/manage/_scope.html",
+    context = {
+        "scope_id": scope_ref,
+        "scope_updated": updated,
+        "parent_kind": parent_kind,
+        "nodes": nodes,
+        "children_map": cmap,
+        "course": course,
+    }
+    context.update(_tree_context(course, cmap, ids))
+    return render(request, "courses/manage/_scope.html", context)
+
+
+def _info_entries(opened):
+    """Keyed, so an incoming entry REPLACES rather than stacks."""
+    if not opened.truncated:
+        return []
+    return [
         {
-            "scope_id": scope_ref,
-            "scope_updated": updated,
-            "parent_kind": parent_kind,
-            "nodes": nodes,
-            "children_map": cmap,
-            "course": course,
-        },
-    )
+            "key": "truncation",
+            # Read through the MODULE, not a value imported at import time:
+            # tests monkeypatch courses.builder_open.CEILING, and a by-value
+            # import would make the notice claim 500 while _finalize truncated
+            # at the patched number.
+            # "scopes", not "sections": `section` is a real ContentNode.Kind here,
+            # and a truncated set is mostly parts and chapters. Getting this
+            # wrong costs a second catalog round after Task 12's makemessages.
+            "text": _("Only the first %(limit)s scopes were opened.")
+            % {"limit": builder_open.CEILING},
+        }
+    ]
 
 
-def _render_tree(request, course, status=200):
+def _extra_container_pks(extra_open, cmap):
+    """Effect 1 of extra_open: union into the open set, unit pks dropped.
+
+    Effect 2 (re-inserting into a filtered map) is slice 2 -- see spec
+    section 9. Callers pass EVERY created/moved pk whatever its kind; the kind
+    filter lives here, not at the call site.
+    """
+    return set(extra_open) & container_pks(cmap)
+
+
+def _render_tree(request, course, status=200, *, extra_open=()):
     """Whole tree pane (root data-scope='top').
 
     Used for re-parent + top-scope ops + their 409s."""
-    resp = _render_scope(request, course, "top")
+    resp = _render_scope(request, course, "top", extra_open=extra_open)
     resp.status_code = status
     return resp
 
 
 def _scope_ref(parent_id):
     return "top" if parent_id is None else parent_id
+
+
+def _redirect_to_builder(course):
+    """The ONLY places allowed to emit the open=session sentinel."""
+    url = reverse("courses:manage_builder", kwargs={"slug": course.slug})
+    return redirect(f"{url}?open=session")
+
+
+def _persist_chain(request, course, node):
+    """Union a created/moved node's chain into the no-JS carrier.
+
+    The CHAIN, not the bare pk: if builder_open happens to be missing, a bare
+    [new_pk] is non-empty, so the open=session read would NOT fall through and
+    the tree would render with every ancestor collapsed -- hiding the node the
+    author just created.
+    """
+    cmap = _children_map(course)
+    # `or []` is fine HERE and nowhere else: we are about to union a chain in,
+    # so a stored-empty and a missing key both mean "start from nothing". The
+    # deliberate consequence is that a mutation re-opens the chain over an
+    # author's fully-collapsed state -- correct, since the node they just
+    # created must be visible.
+    stored = request.session.get(OPEN_KEY, {}).get(course.slug) or []
+    chain = _ancestor_chain(node) & container_pks(cmap)
+    merged = set(stored) | chain
+    # Same payload cap as _remember_open -- this writer unions and never
+    # trims, so without it repeated no-JS adds/moves push one slug's list well
+    # past the budget. Keep the NEW chain preferentially.
+    capped = sorted(chain) + sorted(merged - chain)
+    remember_node(
+        request,
+        course.slug,
+        sorted(capped[: builder_open.SESSION_OPEN_LIMIT]),
+        key=OPEN_KEY,
+    )
 
 
 @login_required
@@ -299,11 +485,14 @@ def node_add(request, slug):
             request, "courses/manage/_op_error.html", {"message": msg}, status=422
         )
     if not _wants_fragment(request):
-        return redirect("courses:manage_builder", slug=course.slug)
+        _persist_chain(request, course, node)
+        return _redirect_to_builder(course)
     # top-level add touches the top scope -> whole tree pane; nested add -> that scope
     if node.parent_id is None:
-        return _render_tree(request, course)
-    return _render_scope(request, course, _scope_ref(node.parent_id))
+        return _render_tree(request, course, extra_open=_ancestor_chain(node))
+    return _render_scope(
+        request, course, _scope_ref(node.parent_id), extra_open=_ancestor_chain(node)
+    )
 
 
 @login_required
@@ -361,7 +550,7 @@ def node_rename(request, slug):
     if to_editor:
         return redirect("courses:manage_editor", slug=slug, pk=node.pk)
     if not _wants_fragment(request):
-        return redirect("courses:manage_builder", slug=course.slug)
+        return _redirect_to_builder(course)
     # a unit-settings change re-renders the unit panel
     if is_settings and node.kind == ContentNode.Kind.UNIT:
         return _render_unit_panel(request, node)
@@ -393,7 +582,7 @@ def node_move(request, slug):
                 )
             return _conflict_scope(request, course, request.POST.get("node"))
         if not _wants_fragment(request):
-            return redirect("courses:manage_builder", slug=course.slug)
+            return _redirect_to_builder(course)
         if node.parent_id is None:
             return _render_tree(request, course)
         return _render_scope(request, course, _scope_ref(node.parent_id))
@@ -401,7 +590,7 @@ def node_move(request, slug):
         position = request.POST.get("position")
         position = int(position) if position not in (None, "") else None
         try:
-            builder_svc.reparent_node(
+            node, _old = builder_svc.reparent_node(
                 course,
                 request.POST.get("node"),
                 request.POST.get("new_parent"),
@@ -428,9 +617,10 @@ def node_move(request, slug):
                 request, "courses/manage/_op_error.html", {"message": msg}, status=422
             )
         if not _wants_fragment(request):
-            return redirect("courses:manage_builder", slug=course.slug)
+            _persist_chain(request, course, node)
+            return _redirect_to_builder(course)
         return _render_tree(
-            request, course
+            request, course, extra_open=_ancestor_chain(node)
         )  # re-parent touches two scopes -> whole tree
     elif request.method == "GET":
         # no-JS / JS picker: render the legal-destination picker for ?node=
@@ -457,7 +647,13 @@ def node_delete(request, slug):
         return render(
             request,
             "courses/manage/node_confirm_delete.html",
-            {"course": course, "node": node, "counts": counts},
+            {
+                "course": course,
+                "node": node,
+                "counts": counts,
+                "open_present": "open" in request.GET,
+                "open": request.GET.get("open", ""),
+            },
         )
     try:
         parent_id = builder_svc.delete_node(
@@ -473,7 +669,10 @@ def node_delete(request, slug):
             )
         return _render_tree(request, course, status=409)
     if not _wants_fragment(request):
-        return redirect("courses:manage_builder", slug=course.slug)
+        if "open" in request.POST:
+            url = reverse("courses:manage_builder", kwargs={"slug": course.slug})
+            return redirect(f"{url}?{urlencode({'open': request.POST['open']})}")
+        return _redirect_to_builder(course)
     if parent_id is None:
         return _render_tree(request, course)
     return _render_scope(request, course, _scope_ref(parent_id))
@@ -512,10 +711,16 @@ def node_duplicate(request, slug):
             request, "courses/manage/_op_error.html", {"message": msg}, status=422
         )
     if not _wants_fragment(request):
-        return redirect("courses:manage_builder", slug=course.slug)
+        _persist_chain(request, course, new_node)
+        return _redirect_to_builder(course)
     if new_node.parent_id is None:
-        return _render_tree(request, course)
-    return _render_scope(request, course, _scope_ref(new_node.parent_id))
+        return _render_tree(request, course, extra_open=_ancestor_chain(new_node))
+    return _render_scope(
+        request,
+        course,
+        _scope_ref(new_node.parent_id),
+        extra_open=_ancestor_chain(new_node),
+    )
 
 
 def _wants_fragment(request):
@@ -526,17 +731,16 @@ def _builder_with_notice(request, course, message, status):
     """No-JS error response: re-render the WHOLE builder page with a notice (spec
     §No-JS fallback: 'stale token re-renders the full builder page with the notice')."""
     cmap = _children_map(course)
-    return render(
-        request,
-        "courses/manage/builder.html",
-        {
-            "course": course,
-            "children_map": cmap,
-            "top_nodes": cmap.get(None, []),
-            "notice": message,
-        },
-        status=status,
-    )
+    opened = _open_ids(request, course, cmap, mode="notice")
+    context = {
+        "course": course,
+        "children_map": cmap,
+        "top_nodes": cmap.get(None, []),
+        "notice": message,
+        "info": _info_entries(opened),
+    }
+    context.update(_tree_context(course, cmap, opened.ids))
+    return render(request, "courses/manage/builder.html", context, status=status)
 
 
 def _conflict_scope(request, course, node_pk):
@@ -654,7 +858,7 @@ def element_move(request, slug):
     if _editor_ctx(request):
         return _render_editor_fragments(request, unit)
     if not _wants_fragment(request):
-        return redirect("courses:manage_builder", slug=course.slug)
+        return _redirect_to_builder(course)
     return _render_unit_panel(request, unit)
 
 
@@ -670,7 +874,7 @@ def element_delete(request, slug):
     if _editor_ctx(request):
         return _render_editor_fragments(request, unit)
     if not _wants_fragment(request):
-        return redirect("courses:manage_builder", slug=course.slug)
+        return _redirect_to_builder(course)
     return _render_unit_panel(request, unit)
 
 

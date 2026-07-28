@@ -724,6 +724,10 @@ def test_no_js_rename_still_redirects_to_the_builder(client):
         {"node": node.pk, "token": _tok(node), "title": "New"},
     )
     assert resp.status_code == 302
-    assert resp.url == reverse("courses:manage_builder", kwargs={"slug": "c1"})
+    # Task 6: the no-JS redirect now carries the open=session sentinel so the
+    # author's expanded tree round-trips through the session carrier.
+    assert resp.url == (
+        reverse("courses:manage_builder", kwargs={"slug": "c1"}) + "?open=session"
+    )
     node.refresh_from_db()
     assert node.title == "New"

@@ -105,3 +105,12 @@ def test_tree_rename_form_is_a_shrinkable_flex_item():
         "defensive reset matching .tree__inline (builder.css:44) so the form never "
         "contributes vertical space in a row with only padding: 3px 4px"
     )
+
+
+def test_busy_state_does_not_block_pointer_events():
+    """If it did, the per-toggle in-flight guard would be dead code and
+    test_double_click_yields_exactly_one_scope would pass vacuously."""
+    css = _css()
+    block = re.search(r"\.builder\[data-busy\][^{]*\{([^}]*)\}", css)
+    assert block, "no [data-busy] rule found"
+    assert "pointer-events" not in block.group(1)
