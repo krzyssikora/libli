@@ -41,6 +41,14 @@ def _render_unit(unit_type, title="Intro", lang=None):
         "rename_url": reverse(
             "courses:manage_node_rename", kwargs={"slug": course.slug}
         ),
+        # Without this, `{% if node.pk in open_ids %}` evaluates against an
+        # undefined variable; Django's smartif swallows the resulting error
+        # and the branch just resolves False. That happens to be harmless
+        # here (kind is always "unit", so the branch that reads open_ids is
+        # gated out by `node.kind != "unit"` regardless) -- but leaving it
+        # undefined would silently hide a real error if this helper were ever
+        # reused for a container node. Supply it explicitly.
+        "open_ids": frozenset(),
     }
     if lang:
         with translation.override(lang):

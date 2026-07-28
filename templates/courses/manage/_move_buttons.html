@@ -1,5 +1,5 @@
 {% load i18n %}
-<form class="tree__inline" method="post" action="{% url 'courses:manage_node_move' slug=node.course.slug %}" data-op="reorder">
+<form class="tree__inline" method="post" action="{{ move_url }}" data-op="reorder">
   {% csrf_token %}
   <input type="hidden" name="mode" value="reorder">
   <input type="hidden" name="node" value="{{ node.pk }}">

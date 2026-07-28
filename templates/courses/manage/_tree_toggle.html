@@ -1,0 +1,14 @@
+{% load i18n courses_manage_extras %}
+{% comment %}One toggle. `is_open` decides aria-*; both labels are rendered
+   server-side because JS cannot select a Polish plural form. aria-controls is
+   emitted ONLY when expanded -- pointing it at a missing id is invalid ARIA
+   that screen readers treat as no relationship.{% endcomment %}
+{% blocktrans count counter=kids|length with title=node.title asvar label_expand %}Expand {{ title }}, {{ counter }} item{% plural %}Expand {{ title }}, {{ counter }} items{% endblocktrans %}
+{% blocktrans count counter=kids|length with title=node.title asvar label_collapse %}Collapse {{ title }}, {{ counter }} item{% plural %}Collapse {{ title }}, {{ counter }} items{% endblocktrans %}
+<a class="tree__toggle" href="{% if is_open %}{% toggle_href node True %}{% else %}{% toggle_href node False %}{% endif %}" data-toggle="{{ node.pk }}"
+   aria-expanded="{% if is_open %}true{% else %}false{% endif %}"
+   {% if is_open %}aria-controls="tree-scope-{{ node.pk }}"{% endif %}
+   aria-label="{% if is_open %}{{ label_collapse }}{% else %}{{ label_expand }}{% endif %}"
+   data-label-expand="{{ label_expand }}"
+   data-label-collapse="{{ label_collapse }}"
+><svg class="ic"><use href="#bi-chevron"/></svg></a>

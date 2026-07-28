@@ -2,6 +2,7 @@ from courses.models import ContentNode
 from tests.factories import ContentNodeFactory
 from tests.factories import CourseFactory
 from tests.factories import make_pa
+from tests.helpers_builder import open_all_param
 
 
 def _course_with_section(client, username):
@@ -20,8 +21,14 @@ def _course_with_section(client, username):
 
 
 def test_affordance_shows_only_legal_kinds_per_scope(client, db):
+    # This fixture is well under SIZE_THRESHOLD, so it would arrive fully open
+    # even without the param -- pass open=all explicitly so the assertion
+    # actually documents "an open scope shows its affordance" rather than
+    # relying on the below-threshold auto-expand as an accident of size.
     course, ch, sec = _course_with_section(client, "pa")
-    html = client.get(f"/manage/courses/{course.slug}/build/").content.decode()
+    html = client.get(
+        f"/manage/courses/{course.slug}/build/" + open_all_param()
+    ).content.decode()
     assert "+ Chapter" in html  # top scope primary chip
     assert f'data-add-scope="{ch.pk}"' in html  # chapter scope has an affordance
     assert (
@@ -35,10 +42,54 @@ def test_empty_chapter_still_shows_its_add_affordance(client, db):
     ch = ContentNodeFactory(
         course=course, kind="chapter", unit_type=None, parent=None, title="Ch"
     )
-    html = client.get(f"/manage/courses/{course.slug}/build/").content.decode()
+    html = client.get(
+        f"/manage/courses/{course.slug}/build/" + open_all_param()
+    ).content.decode()
     assert (
         f'data-add-scope="{ch.pk}"' in html
     )  # empty chapter still exposes its + chips
+
+
+def test_collapsed_scope_hides_its_add_affordance(client, db):
+    # Behaviour change (not a fixture artifact): a container's own
+    # add-affordance lives inside `_scope.html`, which `_tree_node.html` only
+    # includes when the container's pk is in open_ids (templates/courses/
+    # manage/_tree_node.html). Collapsing a scope therefore hides the "+"
+    # chips for adding children to it, along with the rest of that scope's
+    # markup. Force full collapse with an explicit empty `open=` -- an empty
+    # string is still "present", so it does not fall through to the
+    # below-threshold auto-expand (courses/builder_open.py `_raw_open`/
+    # `open_ids` step 2 vs step 4).
+    course, ch, sec = _course_with_section(client, "pa4")
+    html = client.get(f"/manage/courses/{course.slug}/build/?open=").content.decode()
+    assert "+ Chapter" in html  # the root scope always renders (builder.html
+    # includes it directly, never gated behind open_ids)
+    assert f'data-node="{ch.pk}"' in html  # ch's own row still renders...
+    assert f'data-add-scope="{ch.pk}"' not in html  # ...but its scope is closed
+    # sec is INSIDE ch's collapsed scope, so its row -- and its affordance --
+    # aren't in the response at all.
+    assert f'data-node="{sec.pk}"' not in html
+    assert f'data-add-scope="{sec.pk}"' not in html
+
+
+def test_opening_a_scope_reveals_its_add_affordance(client, db):
+    # Complement to the collapsed case above: opening exactly `ch` (and only
+    # `ch`) shows ch's own affordance and sec's row, but sec's OWN scope stays
+    # closed since sec's pk isn't in the requested open set.
+    course, ch, sec = _course_with_section(client, "pa5")
+    html = client.get(
+        f"/manage/courses/{course.slug}/build/?open={ch.pk}"
+    ).content.decode()
+    assert f'data-add-scope="{ch.pk}"' in html  # ch is open -> its chips render
+    assert f'data-node="{sec.pk}"' in html  # sec's row is visible (child of ch)
+    assert f'data-add-scope="{sec.pk}"' not in html  # but sec's own scope is shut
+
+    # Opening both makes sec's affordance appear too.
+    html_both = client.get(
+        f"/manage/courses/{course.slug}/build/?open={ch.pk},{sec.pk}"
+    ).content.decode()
+    assert f'data-add-scope="{ch.pk}"' in html_both
+    assert f'data-add-scope="{sec.pk}"' in html_both
 
 
 def test_reorder_buttons_disabled_at_boundaries(client, db):

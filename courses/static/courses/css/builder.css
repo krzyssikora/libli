@@ -168,3 +168,31 @@ input.tree__title:focus { outline: 2px solid var(--primary); outline-offset: 1px
 .element-list__item { display: flex; min-width: 0; align-items: baseline; gap: var(--space-2); padding: var(--space-2) 0; border-bottom: 1px solid var(--border-subtle); }
 .element-list__type { flex: none; font-size: .7rem; text-transform: uppercase; letter-spacing: .03em; color: var(--primary); }
 .element-list__summary { flex: 1; min-width: 0; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Disclosure column. Fixed width on BOTH the control and the leaf spacer so
+   titles stay aligned down the tree; the count lives in aria-label, not in
+   visible text, precisely so this width cannot vary. */
+.tree__toggle { flex: 0 0 18px; width: 18px; height: 18px; display: inline-flex;
+  align-items: center; justify-content: center; color: var(--text-secondary);
+  border-radius: var(--radius-sm); text-decoration: none; }
+.tree__toggle .ic { width: 12px; height: 12px; transition: transform .12s ease; }
+.tree__toggle[aria-expanded="true"] .ic { transform: rotate(90deg); }
+.tree__toggle:hover { color: var(--text-primary); background: var(--surface-raised); }
+.tree__toggle:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+.tree__toggle--leaf { pointer-events: none; }
+
+.builder__info { list-style: none; margin: 0 0 var(--space-3); padding: var(--space-2) var(--space-3);
+  background: var(--surface-sunken); border-radius: var(--radius-sm); color: var(--text-secondary); font-size: .875rem; }
+
+/* Task 8: per-toggle in-flight state, so it is obvious WHICH row is loading. */
+.tree__toggle[data-submitting] { opacity: .45; }
+.tree__toggle[data-submitting] .ic { animation: builder-spin .7s linear infinite; }
+@keyframes builder-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .tree__toggle[data-submitting] .ic { animation: none; }
+}
+
+/* Visual only. It must NOT set pointer-events:none -- the per-toggle
+   in-flight guard is what prevents double activation, and blocking pointer
+   events here would make that guard dead code. */
+.builder[data-busy] .builder__tree { opacity: .6; transition: opacity .1s ease; cursor: progress; }
