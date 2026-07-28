@@ -303,3 +303,66 @@ def test_reopening_prefills_and_remove_unwraps(page, live_server):
     _await_effect(page, "() => !document.querySelector('.rte-surface a')")
     assert page.locator(".rte-surface a").count() == 0
     assert "quadratics" in page.locator(".rte-surface").inner_text()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_dialog_text_follows_the_dark_theme(page, live_server):
+    """The UA styles <dialog> as `color: CanvasText; background-color: Canvas`, and this
+    app themes off a data-theme ATTRIBUTE rather than color-scheme, so Canvas stays
+    LIGHT under the dark theme. Anything in the dialog that does not state its own
+    colour therefore inherits near-black -- which is what the picker tree titles and the
+    "Insert link" heading do. Measured, not read: the assertion is on the computed
+    colour against the dark palette's --text-primary, so deleting the rule that fixes it
+    turns this red."""
+    owner = _make_pa_user("pa")
+    owner.theme = "dark"
+    owner.save(update_fields=["theme"])
+    course, _chapter, unit = _seed(owner)
+    _login(page, live_server, "pa")
+    _open_editor(page, live_server, course, unit)
+    assert page.get_attribute("html", "data-theme") == "dark"
+
+    _add_text_element(page)
+    dialog = _open_link_dialog(page)
+
+    dark_text = page.evaluate(
+        "() => getComputedStyle(document.documentElement)"
+        ".getPropertyValue('--text-primary').trim()"
+    )
+    assert dark_text == "#F2EFE9"  # the [data-theme=dark] token, not the light one
+
+    def colour_of(selector):
+        return dialog.locator(selector).first.evaluate(
+            "el => getComputedStyle(el).color"
+        )
+
+    expected = "rgb(242, 239, 233)"
+    assert colour_of(".link-picker__title") == expected
+    assert colour_of(".link-dialog__title") == expected
+
+
+@pytest.mark.django_db(transaction=True)
+def test_modal_is_centred_in_the_viewport(page, live_server):
+    """The UA centres a showModal() dialog with `dialog { margin: auto }` against its
+    all-round `inset: 0`. core/static/core/css/reset.css's `* { margin: 0 }` matches the
+    same element at higher specificity than a UA rule, so without an explicit `margin`
+    the box collapses to the viewport's TOP-LEFT corner. (dialog.imgzoom in courses.css
+    hand-writes its own insets around the same trap.) Measured against the real box, so
+    dropping the declaration turns this red."""
+    owner = _make_pa_user("pa")
+    course, _chapter, unit = _seed(owner)
+    _login(page, live_server, "pa")
+    _open_editor(page, live_server, course, unit)
+    _add_text_element(page)
+    dialog = _open_link_dialog(page)
+
+    box = dialog.bounding_box()
+    view = page.viewport_size
+    # Not a tautology: the dialog is 34rem wide in a 1280px-wide viewport, so a
+    # left-pinned box misses these by ~370px horizontally and ~100px vertically.
+    assert box["width"] < view["width"] - 100
+    assert box["height"] < view["height"] - 50
+    slack_x = (view["width"] - box["width"]) / 2
+    slack_y = (view["height"] - box["height"]) / 2
+    assert abs(box["x"] - slack_x) <= 2, (box, view)
+    assert abs(box["y"] - slack_y) <= 2, (box, view)
