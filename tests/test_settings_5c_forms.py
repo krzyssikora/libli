@@ -2,7 +2,10 @@ import io
 import os
 
 import pytest
+from django.core.files.uploadedfile import InMemoryUploadedFile
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.core.files.uploadedfile import TemporaryUploadedFile
+from django.urls import reverse
 from PIL import Image
 
 from courses import validators as cv
@@ -12,6 +15,7 @@ from institution.forms import UploadsForm
 from institution.forms import normalize_hex
 from institution.models import BrandColor
 from institution.models import Institution
+from tests.factories import make_pa
 
 
 def _branding_data(**over):
@@ -423,3 +427,69 @@ def test_favicon_clear_empties_the_field(db, settings, tmp_path):
     assert form.is_valid(), form.errors
     form.save()
     assert not Institution.load().favicon
+
+
+@pytest.mark.parametrize(
+    "max_memory,expected_class",
+    [
+        # The default ceiling: a small upload never leaves RAM. This leg is the
+        # CONTROL -- it is the path every other favicon test already takes, and it
+        # proves the lowered ceiling below is what actually swaps the handler
+        # rather than the test silently measuring the same branch twice.
+        (2 * 1024 * 1024, InMemoryUploadedFile),
+        # Lowered so an ordinary 256x256 fixture exceeds it.
+        # MemoryFileUploadHandler.handle_raw_input reads
+        # FILE_UPLOAD_MAX_MEMORY_SIZE per request, so this needs no >2.5 MB file.
+        (0, TemporaryUploadedFile),
+    ],
+)
+def test_favicon_accepted_on_both_upload_handler_paths(
+    db, client, settings, tmp_path, monkeypatch, max_memory, expected_class
+):
+    """clean_favicon's guard is `getattr(value, "image", None)`, and .image is set
+    by forms.ImageField.to_python from temporary_file_path() for a spooled upload
+    but from the in-memory bytes otherwise. Only the latter had coverage.
+
+    Driven through the real settings view: the handler is chosen by
+    MultiPartParser while parsing the request body, so constructing the form
+    directly cannot exercise this at all -- a SimpleUploadedFile handed to
+    BrandingForm(files=...) bypasses every upload handler.
+    """
+    settings.MEDIA_ROOT = tmp_path
+    settings.FILE_UPLOAD_MAX_MEMORY_SIZE = max_memory
+
+    observed = []
+    original = BrandingForm.clean_favicon
+
+    def spy(self):
+        value = self.cleaned_data.get("favicon")
+        observed.append(
+            {
+                "cls": type(value),
+                "spooled": hasattr(value, "temporary_file_path"),
+                "has_image": getattr(value, "image", None) is not None,
+            }
+        )
+        return original(self)
+
+    monkeypatch.setattr(BrandingForm, "clean_favicon", spy)
+
+    make_pa(client, "pa")
+    resp = client.post(
+        reverse("institution:settings_branding"),
+        _post(favicon=_png_file("mark.png", size=(256, 256))),
+    )
+
+    # The proof that the branch under test was reached, not merely that the POST
+    # succeeded: the guard saw the expected upload class WITH .image populated.
+    assert observed == [
+        {
+            "cls": expected_class,
+            "spooled": expected_class is TemporaryUploadedFile,
+            "has_image": True,
+        }
+    ]
+    assert resp.status_code == 302, resp.context["branding"].errors
+    stored = Institution.load().favicon
+    assert stored.name.startswith("branding/mark")
+    assert (tmp_path / stored.name).exists()
