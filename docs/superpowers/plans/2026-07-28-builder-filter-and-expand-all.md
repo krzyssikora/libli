@@ -76,8 +76,20 @@ uv run pytest tests/test_builder_lazy_scopes.py tests/test_builder_open_ids.py \
   tests/test_manage_node_ops.py tests/test_manage_element_ops.py \
   tests/test_manage_move_picker.py tests/test_manage_affordance.py \
   tests/test_builder_styles.py tests/test_builder_js_invariants.py \
+  tests/test_manage_builder.py tests/test_builder_duplicate_unit.py \
+  tests/test_manage_node_duplicate.py \
   tests/test_i18n_po_health.py -q
 ```
+
+The last three are in the list because later tasks assert them green without
+them ever having been baselined: **Task 3 Step 8** runs
+`tests/test_manage_builder.py`, and Tasks 6 and 7 both change `node_duplicate`
+— Task 6 Step 7 puts `q` on its redirect (`views_manage.py:714`'s
+`_redirect_to_builder`), Task 7 Step 4 adds `_stash_builder_force` beside it —
+which is exactly what `tests/test_builder_duplicate_unit.py` and
+`tests/test_manage_node_duplicate.py` exercise. Task 16 Step 1 also re-runs
+`test_manage_builder.py` under the "anything red is a regression" rule, which
+is meaningless without a recorded before-state.
 
 Expected: exit 0.
 
@@ -103,6 +115,13 @@ Create `docs/superpowers/notes/2026-07-28-affected-tests-slice2.md` recording, f
 - `tests/test_manage_node_ops.py` — reorder now refuses under an active filter (Task 8).
 - `tests/test_manage_move_picker.py` — the picker gains `q` (Task 6).
 - `tests/test_builder_styles.py` — new selectors for the filter control and disabled bulk controls (Task 9).
+- `tests/test_builder_duplicate_unit.py`, `tests/test_manage_node_duplicate.py`
+  — `node_duplicate`'s redirect gains `q` (Task 6) and its success path gains
+  `_stash_builder_force` (Task 7). Expect redirect-URL assertions to need
+  updating; that is migration, not regression.
+
+Also record `tests/test_manage_builder.py`, which nothing in this slice edits
+but Tasks 3 and 16 both assert green.
 
 Anything outside this list going red during Tasks 1–16 is a regression, not migration noise.
 
@@ -178,7 +197,11 @@ def test_fold_handles_l_stroke_in_both_directions():
 
 def test_fold_handles_decomposed_input():
     # Imported HTML arrives NFD; without U+0300-U+036F in the table this
-    # returns 'kąty' and an ASCII query misses it entirely.
+    # returns "ka\u0328ty" -- base `a` followed by a DANGLING combining
+    # ogonek. Written ESCAPED on purpose: the precomposed "k\u0105ty" is a
+    # DIFFERENT string, indistinguishable from it in a terminal and in a
+    # diff, and that difference is the whole point of this row. An ASCII
+    # query misses the node entirely.
     assert fold(unicodedata.normalize("NFD", "Kąty")) == "katy"
 
 
@@ -333,8 +356,10 @@ def _build_fold_table():
        and `laka` stops matching `Łąka`.
     3. The combining marks themselves, DELETED, so decomposed (NFD) input
        folds the same as precomposed. Titles imported from external HTML
-       arrive NFD; without this, fold(NFD("Kąty")) is 'kąty' and an ASCII
-       query misses that node with no symptom.
+       arrive NFD; without this, fold(NFD("k\u0105ty")) is "ka\u0328ty" --
+       base `a` plus a DANGLING combining ogonek, NOT the precomposed
+       "k\u0105ty" it renders identically to -- and an ASCII query misses
+       that node with no symptom.
     """
     table = {}
     for cp in range(0x00C0, 0x0250):
@@ -461,8 +486,11 @@ git commit -m "feat(builder): filter derivation module — fold, floor, match, w
 
 - [ ] **Step 1: Write the failing tests**
 
-First add the two imports the file lacks, at the **top** with the existing
-block (isort is force-single-line; `E402` rejects a mid-file import):
+First add the one import the file lacks, at the **top** with the existing
+block (isort is force-single-line; `E402` rejects a mid-file import). The file
+already imports `pytest`, `reverse`, `open_ids`, `_children_map`,
+`remember_node`, both factories and `make_login`
+(`tests/test_builder_open_ids.py:1-14`); only this is missing:
 
 ```python
 from courses.builder_open import OPEN_KEY
@@ -681,9 +709,16 @@ the reason `_info_entries` reads `builder_open.CEILING` through its module.
 
 Create `tests/test_builder_filter_views.py`:
 
+**Exactly these imports, and no more.** `django.test.Client` is NOT imported
+here: its only consumer is `test_manage_tree_access_control`, which Task 4
+Step 1 appends. Ruff selects `F`, and `tests/**`'s per-file ignores cover only
+`S105/S106/S107` (`pyproject.toml:39-41`) — so importing it now fires `F401` at
+**this task's own** Step 10 `ruff check` gate and the task cannot reach its
+commit. Same trap as `TEST_PASSWORD` in Task 2 Step 1. Each later task adds the
+imports its own rows need, at the top with this block.
+
 ```python
 import pytest
-from django.test import Client
 from django.urls import reverse
 
 from tests.factories import ContentNodeFactory
@@ -1078,10 +1113,69 @@ Expected: PASS, exit 0.
 
 - [ ] **Step 9: Falsify two guards**
 
-1. Change `_apply_effect_two`'s `setdefault` to `restricted[node.parent_id]` — Task 7's empty-destination test will go red once written; for now confirm by hand in a shell that the `KeyError` is reachable.
-2. Point `_render_scope`'s `nodes` back at `cmap` instead of `fc.cmap` — Task 11's e2e will go red; for now confirm by hand that a filtered `manage_node_scope` returns unfiltered children.
+Both real red gates land later (Tasks 7 and 11), so this step needs its own
+runnable ones — "confirm by hand" is not a falsification. Write these two rows
+into `tests/test_builder_filter_views.py` **now**, as part of this task; Tasks
+7 and 11 then add the user-visible versions on top.
 
-Restore both.
+```python
+def test_effect_two_reinserts_into_a_parent_with_no_key(filtered_course):
+    """Task 3's own red gate for `setdefault`. Direct on the helper, because
+    the user-visible route (a no-JS add into an empty filtered scope) is not
+    wired until Task 7. `chap` matches "rozdzial" and has no matching
+    descendant, so the restricted map has NO key for it at all.
+    """
+    from courses.views_manage import _apply_effect_two
+    from courses.views_manage import _children_map
+    from courses import builder_filter
+
+    _, course, part, chap, hit, miss = filtered_course
+    cmap = _children_map(course)
+    restricted, *_ = builder_filter.filtered_map(cmap, "rozdzial")
+    assert chap.pk not in restricted, "fixture drifted; the row proves nothing"
+    _apply_effect_two(restricted, (hit.pk,), cmap)
+    assert [n.pk for n in restricted[chap.pk]] == [hit.pk]
+
+
+def test_a_filtered_scope_fragment_returns_only_matching_children(filtered_course):
+    """Task 3's own red gate for `nodes` AND `children_map` both coming from
+    the RESTRICTED map. Task 11's e2e drives this through the browser; this
+    drives the endpoint directly, in the commit that introduces the bug.
+
+    Request PART's scope, not the chapter's. The chapter's children are units
+    with no children of their own, so `children_map` is never read on that
+    path and the second falsification below cannot go red. From `part`:
+      * `nodes`        -> part's children: chapter "Rozdzial", NOT "Pusty"
+      * `children_map` -> the recursive descent into Rozdzial: `hit`, not `miss`
+    Under q=trygo the fragment carries no `open`, so precedence step 3 resolves
+    to the chains {part, chap} and the descent actually happens (spec 3b).
+    """
+    client, course, part, chap, hit, miss = filtered_course
+    url = reverse(
+        "courses:manage_node_scope", kwargs={"slug": course.slug, "pk": part.pk}
+    )
+    text = client.get(
+        url, {"q": "trygo"}, **{"HTTP_X_REQUESTED_WITH": "fetch"}
+    ).content.decode()
+    assert f'data-node="{chap.pk}"' in text
+    assert f'data-node="{hit.pk}"' in text, "the descent did not happen; row is vacuous"
+    assert f'data-node="{miss.pk}"' not in text   # children_map is restricted
+    assert "Pusty" not in text                    # nodes is restricted
+```
+
+Then falsify:
+
+1. Change `_apply_effect_two`'s `setdefault` to `restricted[node.parent_id]` →
+   `test_effect_two_reinserts_into_a_parent_with_no_key` must fail with
+   `KeyError`.
+2. Point `_render_scope`'s `nodes` back at `cmap` instead of `fc.cmap` → the
+   same row must fail on the **`"Pusty"`** assertion. Restore it, then point
+   `children_map` back at `cmap` instead → it must fail on the **`miss`**
+   assertion. Two separate mutations, two different assertions: that is what
+   proves Step 6's "both keys, not one" rather than assuming it.
+
+Restore each. Confirm the exact route name against `courses/urls.py:169`
+before running — the row is worthless if it 404s.
 
 - [ ] **Step 10: Lint and commit**
 
@@ -1108,7 +1202,16 @@ git commit -m "feat(builder): FilterContext — one q resolution, restricted map
 
 - [ ] **Step 1: Write the failing tests**
 
-Append to `tests/test_builder_filter_views.py`:
+First add the import this task's first row needs, at the **top** with the
+existing block (`E402`; isort is force-single-line). Task 3 deliberately left
+it out because nothing used it there yet, and an unused import fails that
+task's `ruff check`:
+
+```python
+from django.test import Client
+```
+
+Then append to `tests/test_builder_filter_views.py`:
 
 ```python
 def test_manage_tree_access_control(filtered_course):
@@ -1253,12 +1356,22 @@ def test_the_header_is_machine_readable_under_the_polish_locale(filtered_course)
     into a role=status region."""
     client, course, *_ = filtered_course
     url = reverse("courses:manage_tree", kwargs={"slug": course.slug})
-    # NOT `with override("pl")`: config/settings/base.py:48 installs
-    # core.middleware.SessionLocaleMiddleware, which calls translation.activate
-    # per request (core/middleware.py:48-54) and overrides the ambient context
-    # for the duration of the view -- the response would render under the
-    # default `en` and the assertions would pass against an implementation that
-    # put the human string in the header.
+    # The session key, NOT `with override("pl")` and NOT Accept-Language
+    # alone. Two middlewares/signals stack against both:
+    #   * core.middleware.SessionLocaleMiddleware (installed at
+    #     config/settings/base.py:48) calls translation.activate per request
+    #     (core/middleware.py:48-54), discarding an ambient `override`.
+    #   * `make_login` calls force_login, which fires user_logged_in, and
+    #     core/signals.py:14-21 seeds session["_language"] from user.language
+    #     -- which accounts/models.py:28 defaults to "en". That key is what
+    #     SessionLocaleMiddleware PREFERS (core/middleware.py:49-51), so it
+    #     never reaches Accept-Language at all.
+    # So Accept-Language alone renders `en` and the Content-Language guard
+    # below goes red. Seed the session, exactly as
+    # tests/test_builder_lazy_scopes.py:634-641 already does.
+    session = client.session
+    session["_language"] = "pl"
+    session.save()
     resp = client.get(
         url, {"q": "trygo"}, HTTP_ACCEPT_LANGUAGE="pl", **{"HTTP_X_REQUESTED_WITH": "fetch"}
     )
@@ -1286,7 +1399,16 @@ def test_one_msgid_per_notice(filtered_course):
     """
     client, course, *_ = filtered_course
     url = reverse("courses:manage_builder", kwargs={"slug": course.slug})
+    # Same seed as the row above, and for the same reason -- the login signal
+    # has already pinned session["_language"] to "en", so Accept-Language is
+    # never consulted. Without it this row still passes, but vacuously: it
+    # would compare an English template against an English render and could
+    # not detect the two literals drifting apart in Polish.
+    session = client.session
+    session["_language"] = "pl"
+    session.save()
     body = client.get(url, {"q": "trygo"}, HTTP_ACCEPT_LANGUAGE="pl").content.decode()
+    assert "Filtrowane" in body, "the Polish catalog is not active; the row is vacuous"
     template = body.split('data-msg-filter="')[1].split('"')[0]
     rendered = body.split('data-info-key="filter">')[1].split("<")[0]
     assert template % {"shown": 1, "total": 1} == rendered
@@ -1568,11 +1690,20 @@ def test_an_empty_filtered_scope_says_no_matching_titles(filtered_course):
 
 - [ ] **Step 2: Run to verify failure**
 
+Select the six new rows **by name**. `-k` is a substring match over the whole
+test id, so a bare `-k "q"` also drags in every already-green Task 3/4/5 row
+whose name happens to contain a `q` (`test_data_applied_q_…`,
+`test_a_below_floor_query_…`, `test_data_q_min_…`, `test_manage_tree_honours_q`
+…) — the red gate is still in there, but buried, and "expected red" becomes
+indistinguishable from "regression":
+
 ```bash
-uv run pytest tests/test_builder_filter_views.py -q -k "q or picker or matching"
+uv run pytest tests/test_builder_filter_views.py -q -k \
+  "preserve_q or percent_encode_q or redirect_sites or bespoke_redirect \
+   or move_picker_round_trip or no_matching_titles"
 ```
 
-Expected: FAIL — no `q=trygo` anywhere in the markup.
+Expected: all six FAIL — no `q=trygo` anywhere in the markup.
 
 - [ ] **Step 3: `toggle_href` preserves `q`**
 
@@ -1808,6 +1939,17 @@ git commit -m "feat(builder): q rides the no-JS path — forms, hrefs, redirects
 - Produces: `_stash_builder_force(request, slug, node)`, `_take_builder_force(request, slug) -> tuple[int, ...]`; session key `builder_force`.
 
 - [ ] **Step 1: Write the failing tests**
+
+First add the import `test_force_inclusion_is_idempotent` needs, at the **top**
+with the existing block (`E402`; isort is force-single-line). Neither Task 3's
+block nor Task 4's addition carries it, and the model — not just its factory —
+is queried below:
+
+```python
+from courses.models import ContentNode
+```
+
+Then append:
 
 ```python
 def test_a_no_js_unit_add_under_a_filter_shows_the_new_row(filtered_course):
@@ -2246,46 +2388,17 @@ In `_tree_node.html`, the grip:
 
 `disabled` **and** dropping `draggable`: the grip is a `<button>`, so `disabled` picks up `.ica:disabled { opacity: .35; cursor: default; }` (`builder.css:60`) and `:active` never matches — otherwise `.ica--grip { cursor: grab }` (`:62`) and `.ica--grip:active { cursor: grabbing }` (`:155`) survive and the author presses a live-looking grip for nothing.
 
-- [ ] **Step 5: Add the drag e2e**
+- [ ] **Step 5: The drag e2e is written in Task 10, not here**
 
-The markup row above proves the attribute is gone; only a real gesture proves
-the *behaviour*. **Write this row in Task 10, not here.**
-`tests/test_e2e_builder_filter.py` does not exist yet — Task 10 Step 1
-**creates** it, so a row added now is overwritten along with `_simulate_drag`
-and the `ContentNode` import, neither of which is in Task 10's copy list. Add
-both to Task 10 Step 1's scaffolding when you get there, together with this row:
+The markup row above proves the attribute is gone; only a real gesture
+proves the *behaviour*. That row — `test_drag_is_inert_while_a_filter_is_active`
+— lives in **Task 10 Step 1**, together with the `_simulate_drag` helper and
+the `ContentNode` import it needs, because `tests/test_e2e_builder_filter.py`
+does not exist yet: Task 10 Step 1 **creates** it, and anything written here
+would be overwritten.
 
-```python
-def test_drag_is_inert_while_a_filter_is_active(page, live_server):
-    """The row that catches the targetFor-index-into-full-list defect, which
-    produces no error and no visible symptom in the filtered pane. Uses the
-    real gesture via _simulate_drag (tests/test_e2e_builder_toggle.py:56),
-    never page.evaluate."""
-    owner = _make_pa_user("pa")
-    course, part, chap, hit = _seed_deep(owner)
-    other = ContentNodeFactory(course=course, kind="unit", parent=chap, title="Logika")
-    _login(page, live_server, "pa")
-    page.goto(f"{live_server.url}{_builder(course)}?q=trygo")
-    before = list(
-        ContentNode.objects.filter(parent=chap)
-        .order_by("order", "pk")
-        .values_list("pk", flat=True)
-    )
-    moved = []
-    page.on("request", lambda r: moved.append(r.url) if "node/move" in r.url else None)
-    _simulate_drag(page, f'li[data-node="{hit.pk}"] .ica--grip', f'ol[data-scope="{part.pk}"]')
-    page.wait_for_timeout(400)
-    assert moved == []
-    after = list(
-        ContentNode.objects.filter(parent=chap)
-        .order_by("order", "pk")
-        .values_list("pk", flat=True)
-    )
-    assert before == after
-```
-
-Copy `_simulate_drag` into the file alongside the other helpers, and import
-`ContentNode` from `courses.models`.
+Nothing to do in this step. Do not add the row here, and do not skip Task 10
+Step 1's copy list — it is what makes this rule observable at all.
 
 - [ ] **Step 6: Run the tests**
 
@@ -2419,7 +2532,7 @@ In `tests/test_builder_styles.py`, add:
 
 ```python
 def test_the_info_slot_hides_when_empty_via_empty_not_hidden():
-    css = _css()          # the file's existing helper (line 16)
+    css = _css()          # the file's existing helper (line 14)
     assert ".builder__info:empty" in css
     assert "display: none" in css.split(".builder__info:empty")[1].split("}")[0]
 
@@ -2487,28 +2600,43 @@ Append to `courses/static/courses/css/builder.css`:
    space itself and the buttons after it sit flush.
    `flex: 1 1 0`, never `1 1 auto` -- with `auto` the base size is max-content
    and wrap is decided on that BEFORE shrinking. */
-.builder__filter { display: flex; gap: var(--space-2); flex: 1 1 0; min-width: 0;
-                   margin-left: auto; }
+/* NO `margin-left: auto` here. Auto margins absorb only the free space that
+   remains AFTER flex-grow has been resolved, and `flex: 1 1 0` on this same
+   item consumes all of it -- so the margin would be a no-op sitting next to a
+   genuinely load-bearing line, reading as though it did something. The form
+   claims the free space by GROWING; that is the whole mechanism. */
+.builder__filter { display: flex; gap: var(--space-2); flex: 1 1 0; min-width: 0; }
 .builder__filter input[type="search"] { flex: 1 1 0; min-width: 0; }
-.manage__head .btn { margin-left: 0; }   /* the row now has FIVE controls:
-   app.css:591 gives every .manage__head .btn `margin-left: auto`, which was
-   right when the row held one <h1> and two buttons. With Import, Export,
-   Expand all, Collapse all and the form, only the FORM should claim the free
-   space. Scoping the reset to .builder__tree's header keeps other manage
-   pages untouched. */
+.builder__tree .manage__head .btn { margin-left: 0; }   /* the row now has FIVE
+   controls: app.css:591 gives every .manage__head .btn `margin-left: auto`,
+   which was right when the row held one <h1> and two buttons. With Import,
+   Export, Expand all, Collapse all and the form, only the FORM should claim
+   the free space.
+   The `.builder__tree` prefix is load-bearing twice over: it keeps other
+   manage pages untouched, and it raises specificity above app.css:591 so the
+   reset wins regardless of stylesheet load order. An unscoped
+   `.manage__head .btn` ties on specificity and would depend on builder.css
+   being linked after app.css (base.html:46-48) -- true today, and exactly the
+   kind of accident that breaks silently when someone moves the rule. */
 ```
 
 - [ ] **Step 5: Run the tests, then screenshot**
 
 ```bash
 uv run pytest tests/test_builder_filter_views.py tests/test_builder_styles.py -q
+uv run pytest tests/test_e2e_builder_tree_layout.py -m e2e -q
 ```
 
-**`tests/test_e2e_builder_tree_layout.py` pins `1.7 < tree/panel width ratio <
-2.4` at a fixed 1000px viewport.** This task puts a `flex: 1 1 0` form plus two
-more anchors into that header, so a grown min-content width can push the `2fr`
-track and break the ratio. If it moves, `.builder__tree` needs `min-width: 0` —
-add it and say so in the ledger rather than relaxing the ratio.
+**The second command is not optional.** `tests/test_e2e_builder_tree_layout.py`
+pins `1.7 < tree/panel width ratio < 2.4` at a fixed 1000px viewport, and this
+task puts a `flex: 1 1 0` form plus two more anchors into that header — a grown
+min-content width can push the `2fr` track and break the ratio. Run it **in the
+commit that can break it**: deferred to Task 16 Step 1 it surfaces eight tasks
+and seven commits later, mixed in with every JS change, and bisecting the CSS
+back out is far harder. (`-m e2e` is mandatory; exit 5 is not a pass.)
+
+If the ratio moves, `.builder__tree` needs `min-width: 0` — add it and say so
+in the ledger rather than relaxing the ratio.
 
 Then verify the header at **1400px and at a narrow width**, in **light and dark**, judging dark on its own rather than inferring it from light. The narrow width is the one that matters: this is where the repo's recorded `flex: 1 1 auto` wrap trap bites.
 
@@ -2540,12 +2668,21 @@ git commit -m "feat(builder): filter control and bulk controls — markup and CS
 - [ ] **Step 1: Write the failing e2e**
 
 Create `tests/test_e2e_builder_filter.py`. **A new e2e module inherits
-nothing**, so copy SIX things from `tests/test_e2e_builder_toggle.py`, not
+nothing**, so copy SEVEN things from `tests/test_e2e_builder_toggle.py`, not
 three: `pytestmark` (`:11`), the `_allow_async_unsafe` autouse fixture (`:15`),
 `_make_pa_user` (`:24`), `_login` (`:44`, which assumes the user ALREADY
 exists — always call `_make_pa_user` first), `stamp`
-(`:117`) and `assert_no_navigation` (`:122`, which READS the sentinel `stamp`
-plants — always call `stamp` first, then the gesture, then the assertion).
+(`:117`), `assert_no_navigation` (`:122`, which READS the sentinel `stamp`
+plants — always call `stamp` first, then the gesture, then the assertion), and
+`_simulate_drag` (`:56`, which dispatches native `DragEvent`s — Chromium will
+not fire DnD from Playwright input).
+
+**`_simulate_drag` is the seventh for a reason.** Its only consumer is
+`test_drag_is_inert_while_a_filter_is_active`, which belongs to **Task 8's**
+rule but is written *here* (Task 8 Step 5 explains why). If you skip either,
+two things break: that row raises `NameError`, and `ContentNode` — imported in
+the block below — is used by nothing, so `F401` fires at this task's own
+Step 8 `ruff check` gate and the commit is blocked.
 
 The full import block the new file needs:
 
@@ -2633,10 +2770,25 @@ def test_a_toggle_under_a_filter_carries_the_APPLIED_q(page, live_server):
     # on a removed element. An explicit empty `open` wins by precedence step 2.
     page.goto(f"{live_server.url}{_builder(course)}?q=tryg&open=")
 
+    # Kill every filter fetch for the whole row, so appliedQ CANNOT advance
+    # past the rendered `tryg` no matter when the debounce fires. Without this
+    # the assertions depend on page.fill and page.click both completing inside
+    # the 300 ms window: if the timer wins, applyFilterState swaps the top
+    # scope (removing the toggle mid-click) and writes appliedQ = "trygo", and
+    # the last assertion fails intermittently on a loaded machine. Sleeping or
+    # "do NOT wait for the debounce" is sampling a race, not pinning a rule.
+    #
+    # `**/build/tree/**` matches manage_tree ONLY -- the toggle's own request
+    # is /build/node/<pk>/scope/ (courses/urls.py:169) and is untouched. The
+    # aborted fetch raises a "Network error" notice this row does not assert
+    # on, and [data-busy] deliberately does not block pointer events
+    # (builder.css:196-198), so the toggle click still lands.
+    page.route("**/build/tree/**", lambda route: route.abort())
+
     sent = []
     page.on("request", lambda r: sent.append(r.url) if "/build/" in r.url else None)
 
-    page.fill("#builder-q", "trygo")          # do NOT wait for the debounce
+    page.fill("#builder-q", "trygo")
     page.click(f'[data-toggle="{chap.pk}"]')
     page.wait_for_selector(f'ol[data-scope="{chap.pk}"]')
 
@@ -2646,13 +2798,56 @@ def test_a_toggle_under_a_filter_carries_the_APPLIED_q(page, live_server):
     assert "q=trygo" not in scope_reqs[-1]
 ```
 
+**And the drag row Task 8 deferred to here** — it belongs to Task 8's rule, but
+this is the step that creates the file. It is the only row that can observe
+that rule at all: a programmatic `dragstart` ignores the `draggable`
+attribute, so the markup assertion in Task 8 cannot prove the behaviour.
+
+```python
+def test_drag_is_inert_while_a_filter_is_active(page, live_server):
+    """The row that catches the targetFor-index-into-full-list defect, which
+    produces no error and no visible symptom in the filtered pane. Uses the
+    real gesture via _simulate_drag (tests/test_e2e_builder_toggle.py:56),
+    never page.evaluate."""
+    owner = _make_pa_user("pa")
+    course, part, chap, hit = _seed_deep(owner)
+    # NOT `other = ContentNodeFactory(...)`: the name is never read, and ruff
+    # selects `F`, so F841 would fail this task's own Step 8 lint gate. The
+    # filtered_course fixture uses the same unbound-call idiom for "Pusty".
+    ContentNodeFactory(course=course, kind="unit", parent=chap, title="Logika")
+    _login(page, live_server, "pa")
+    page.goto(f"{live_server.url}{_builder(course)}?q=trygo")
+    before = list(
+        ContentNode.objects.filter(parent=chap)
+        .order_by("order", "pk")
+        .values_list("pk", flat=True)
+    )
+    moved = []
+    page.on("request", lambda r: moved.append(r.url) if "node/move" in r.url else None)
+    _simulate_drag(page, f'li[data-node="{hit.pk}"] .ica--grip', f'ol[data-scope="{part.pk}"]')
+    page.wait_for_timeout(400)
+    assert moved == []
+    after = list(
+        ContentNode.objects.filter(parent=chap)
+        .order_by("order", "pk")
+        .values_list("pk", flat=True)
+    )
+    assert before == after
+```
+
 - [ ] **Step 2: Run to verify failure**
 
 ```bash
 uv run pytest tests/test_e2e_builder_filter.py -m e2e -q
 ```
 
-Expected: FAIL — the toggle request carries no `q` at all. (Exit 5 means the marker was dropped; that is not a pass.)
+Expected: **one** failure —
+`test_a_toggle_under_a_filter_carries_the_APPLIED_q`, because the toggle
+request carries no `q` at all. `test_drag_is_inert_while_a_filter_is_active`
+should already **pass**: it exercises Task 8's server guard and `dragstart`
+bail, both of which shipped two tasks ago. A red drag row here means Task 8's
+Step 4 edits were lost, not that this task is incomplete. (Exit 5 means the
+marker was dropped; that is not a pass.)
 
 - [ ] **Step 3: Add the tracker**
 
@@ -2730,7 +2925,15 @@ Then update the four remaining senders to use it:
 
 - the toggle (`:487-490`): `setTreeParams(new URLSearchParams(), {openOverride: open ? open + "," + pk : pk})`
 - the drop and the submit handler: already covered through `withOpen`
-- the Move-picker fetch (`:276`): parse the href into a `URL` and `setTreeParams(u)` — **sets, does not append**; the href already carries a rendered `q`, so appending yields `?node=5&q=X&q=X` and works only because `QueryDict.get` takes the last
+- the Move-picker fetch (`:276`): parse the href into a `URL` and set **only
+  `q`** — `u.searchParams.set("q", appliedQ)` — **not** `setTreeParams(u)`.
+  Sets, does not append: the href already carries a rendered `q`, so appending
+  yields `?node=5&q=X&q=X` and works only because `QueryDict.get` takes the
+  last. And `setTreeParams` would additionally stamp `open`, which
+  `_move_picker` never reads — it consumes `request.GET["node"]` and nothing
+  else (`views_manage.py:778-782`) — so on `mat-pp` after an expand-all every
+  picker GET would carry a ~1 KB comma-joined pk list, on a slice whose whole
+  premise is request cost.
 
 - [ ] **Step 5: `syncUrl` writes the tracker**
 
@@ -3092,7 +3295,10 @@ Expected: PASS.
 - [ ] **Step 9: Falsify four guards**
 
 1. `preFilterOpen === null` → `if (!preFilterOpen)` — the collapse/filter/clear row must fail.
-2. Drop the `eff === effectiveQ(appliedQ)` guard — the below-floor no-request row must fail.
+2. Drop the `eff === effectiveQ(pendingQ)` skip guard entirely (the whole `if`,
+   not just one operand) — the below-floor no-request row must fail. **The
+   guard compares against `pendingQ`, not `appliedQ`**; falsification 3b below
+   covers swapping the operand, which is a different defect.
 3. Use a per-path counter instead of `treeGen` — the in-flight overwrite row must fail.
 3b. Compare the skip guard against `appliedQ` instead of `pendingQ` — the same
    row must fail, and for a different reason: the clear is skipped entirely, so
@@ -3252,7 +3458,64 @@ The registry operates on **server-rendered** entries too, because it queries the
 
 - [ ] **Step 4: Call it from every tree-pane response**
 
-Add `applyInfo(r)` to the toggle handler, the submit handler, the drop handler and `applyFilterState`. **The toggle's `.then` chain needs reshaping** — it currently does `.then(function (r) { …; return r.text(); })`, which discards the `Response` before the body is available, so adopt the nested `r.text().then(…)` form the submit and drop handlers already use. This touches the same chains as Task 14's M15 fix; do them in one pass.
+Add `applyInfo(r)` to the submit handler, the drop handler and
+`applyFilterState` — all three already use the nested `r.text().then(…)` form,
+so `r` is in scope and the call drops in beside their existing
+`applyFragment`.
+
+**The toggle handler needs its whole chain reshaped**, because it does
+`.then(function (r) { if (r.status !== 200) throw …; return r.text(); })` —
+which discards the `Response` before the body resolves, so `applyInfo(r)` has
+nothing to read. Do not improvise this: the non-200 branch has to move, and it
+interacts with Task 14's M15 rewrite. Replace `builder.js:490-517` with:
+
+```js
+    fetch(scopeUrlFor(pk) + "?" + body.toString(), {
+      headers: { "X-Requested-With": "fetch" },
+    }).then(function (r) {
+      // NESTED so `r` survives into the body handler. applyInfo needs the
+      // Response; the old `return r.text()` threw it away.
+      return r.text().then(function (html) {
+        // The non-200 branch moves HERE and stops being a `throw`. Task 14
+        // converts the error arm below to the two-argument `.then` form,
+        // which deliberately no longer sees throws from the success path --
+        // so a thrown "bad status" would become an unhandled rejection and
+        // the author would get no notice at all.
+        if (r.status !== 200) {
+          notice(msg("network", "Network error — please try again."));
+          return;
+        }
+        // A foreign applyFragment may have replaced this row while we waited.
+        var live = root.querySelector('li.tree__row[data-node="' + pk + '"]');
+        var ctl = live && live.querySelector(':scope > .tree__rowhead [data-toggle]');
+        if (!live || !ctl || !ctl.dataset.submitting) return;
+        var incoming = parseFragment(html).firstElementChild;
+        if (!incoming) return;
+        var dup = live.querySelector(":scope > ol.tree__scope");
+        if (dup) dup.remove();
+        live.appendChild(incoming);
+        ctl.setAttribute("aria-expanded", "true");
+        ctl.setAttribute("aria-controls", "tree-scope-" + pk);
+        if (ctl.dataset.labelCollapse) {
+          ctl.setAttribute("aria-label", ctl.dataset.labelCollapse);
+        }
+        applyInfo(r);   // AFTER the staleness guard: a response whose row
+                        // vanished must not repaint the info slot either.
+        syncUrl();
+      });
+    }).catch(function () {
+      notice(msg("network", "Network error — please try again."));
+    }).then(function () {
+      var ctl2 = root.querySelector('[data-toggle="' + pk + '"]');
+      if (ctl2) delete ctl2.dataset.submitting;   // BOTH paths, or the row wedges
+      busyEnd();
+    });
+```
+
+The lines above it are unchanged except for Task 10 Step 4's edit, which
+already replaced the hand-built `body.set("open", …)` with
+`setTreeParams(new URLSearchParams(), {openOverride: …})`. Leave
+`t.dataset.submitting`, `busyStart()` and `scopeUrlFor(pk)` alone.
 
 - [ ] **Step 5: Run the e2e**
 
@@ -3550,17 +3813,31 @@ expected status from it** rather than from this plan — the point of the row is
 to pin the behaviour that exists, and slice 1's review recorded it as a 409 on
 `_element_conflict`.
 
+**Capture the pk BEFORE the delete.** `Collector.delete()` sets the deleted
+instance's `pk` to `None` (`django/db/models/deletion.py`), and Django's test
+client refuses `None` in POST data outright — `TypeError: Cannot encode None
+for key 'unit' as POST data` — so posting `unit.pk` after `unit.delete()`
+errors in the client and never reaches `element_save` at all.
+
 ```python
 def test_element_save_conflict_after_the_unit_vanished(client, db):
-    """The 'unit vanished mid-edit' path. Pinned so the accepted trade
-    (spec 4: the conflict renders into the editor, which has no tree pane)
-    stays a decision rather than becoming a surprise."""
+    """The 'unit vanished mid-edit' path, pinned so it stays a decision.
+
+    NOTE the branch this actually takes: with the unit gone, element_save's
+    ConflictError handler re-queries it, gets None, and returns
+    `_render_tree(request, course, status=409)` (views_manage.py:1299-1300) --
+    a TREE pane, not the editor. Spec 4's "the conflict renders into the
+    editor" describes the OTHER arm (`:1301-1303`), the one where the unit
+    still exists. Derive the expected status by reading that branch, not from
+    this plan.
+    """
     owner = make_login(client, "pa")
     course = CourseFactory(slug="conf", owner=owner)
     unit = ContentNodeFactory(course=course, kind="unit", parent=None)
     element = Element.objects.create(
         unit=unit, content_object=TextElement.objects.create(body="before")
     )
+    unit_pk = unit.pk                      # BEFORE the delete -- see above
     stale_token = unit.updated.isoformat()
     unit.delete()
     url = reverse("courses:manage_element_save", kwargs={"slug": course.slug})
@@ -3568,7 +3845,7 @@ def test_element_save_conflict_after_the_unit_vanished(client, db):
         url,
         {
             "type": "text",
-            "unit": unit.pk,
+            "unit": unit_pk,
             "element": element.pk,
             "unit_token": stale_token,
             "body": "after",
@@ -3577,6 +3854,11 @@ def test_element_save_conflict_after_the_unit_vanished(client, db):
     )
     assert resp.status_code == 409
 ```
+
+Because that arm returns `_render_tree`, this response **does** carry the
+`X-Builder-Info` header Task 5 added — `_render_tree` wraps `_render_scope`.
+That is consistent with `test_a_rename_and_a_422_carry_no_header_at_all`, which
+covers only the two paths that never reach `_render_scope`.
 
 - [ ] **Step 2: M10 — DROPPED, and the reason recorded**
 
@@ -3596,7 +3878,26 @@ finding, so it is not re-opened on the same false premise.
 
 - [ ] **Step 3: M15 — the `.catch` mislabel, file-wide**
 
-Every `.catch` in `builder.js` also swallows errors thrown inside its success `.then`, mislabelling them "Network error". Fix them **together**, since this slice added two more fetches and Task 12 already reshaped the toggle's chain:
+The tree-pane `.catch` sites in `builder.js` also swallow errors thrown inside
+their success `.then`, mislabelling them "Network error". Fix those
+**together**, since this slice added two more fetches and Task 12 already
+reshaped the toggle's chain.
+
+**Exactly five sites, and two deliberate exclusions.** Apply the rewrite to:
+the submit handler (`:264`), the toggle (`:511`, as Task 12 left it), the drop
+handler (`:652`), and the two fetches this slice added — `applyFilterState`
+(Task 11 Step 5) and expand-all (Task 13 Step 3). All five share the
+`busyStart()` … `.then(function () { busyEnd(); })` shape the snippet assumes.
+
+**Do NOT touch `loadPanel` (`:311`) or the Move-picker fetch (`:282`).**
+Neither has a `busyStart`/`busyEnd` pair, so the snippet's trailing
+`.then(function () { busyEnd(); })` would decrement a counter nothing
+incremented and corrupt the busy state for every other request. Neither nests
+`r.text().then(…)`. And `loadPanel`'s `.catch` is deliberately gated on
+`id === panelReq` (its comment at `:305-308` explains why: an ungated slow
+FAILURE from an earlier row would replace a later row's loaded panel with an
+error box) — the snippet has no such gate and would drop that guard. They are
+panel fetches, not tree-pane fetches; M15 is not about them.
 
 ```js
     }).then(function (r) {
@@ -3769,7 +4070,7 @@ ctx = {
     "scope_updated": course.updated.isoformat(),
     "parent_kind": None,
     "course": course,
-    "builder_url": f"/manage/courses/{SLUG}/build/",
+    "builder_url": f"/manage/courses/{course.slug}/build/",
 }
 ```
 
