@@ -1915,6 +1915,15 @@ green, so a bisect separates them from the feature:
 
 ## 11. Out of scope
 
+- **Re-enabling drag and the up/down arrows under an active filter** (§3m). Deferred
+  deliberately, and recorded here as future work rather than a closed question: the decision to
+  suppress them is the cheap correct answer, not the only one. Making them work means giving
+  the ordering path a filter-independent way to express a position — carry the neighbouring
+  sibling's **pk** instead of a visible-list ordinal, and have `ordering.place_node` and
+  `builder.reorder_node` resolve it against the real sibling list. That is a change to two
+  shipped service functions plus the drag payload and the reorder form, so it belongs in its
+  own PR with its own tests, not bolted onto a filter slice. Until then the Move picker is the
+  documented route for moving things while filtered.
 - **Matching anything but the title** — kind, unit type, slug, element content. Title is what
   an author navigates by.
 - **Diacritic folding beyond Latin Extended-B**, and locale-aware collation generally. §1b's
