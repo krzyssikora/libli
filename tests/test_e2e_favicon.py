@@ -104,7 +104,12 @@ def test_pa_uploads_then_clears_the_favicon(page, live_server, tmp_path, setting
     head = page.locator('link[rel="icon"]').first
     assert "/media/branding/" in head.get_attribute("href")
 
-    # The logo field must not have cross-fired.
+    # This runs after _save_branding()'s full page reload, so the logo thumb is
+    # always a freshly rendered <div> with no src regardless of whether the
+    # in-page JS was scoped per wrapper -- it cannot prove scoping. What it does
+    # prove: saving the favicon field did not also write the logo model field.
+    # In-page scoping of the change handler is covered above, by the thumb-swap
+    # falsification (the second pick changing `src` on the SAME field's thumb).
     logo_thumb = page.locator('[data-file-field="logo"] [data-file-thumb]')
     assert logo_thumb.get_attribute("src") in (None, "")
 

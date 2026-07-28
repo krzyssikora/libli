@@ -43,23 +43,28 @@ def _safe_color(value):
     return value if (value and is_valid_css_color(value)) else None
 
 
-def _favicon_size(field):
-    """ "<W>x<H>" for a readable stored image, else None.
+def _favicon_fields(field):
+    """(url, "<W>x<H>") for a readable stored image, else (None, None).
 
     Opens the stored file, so it runs here -- once per cache rebuild -- never per
     render. Two distinct failure modes: a missing file RAISES (OSError), while an
     unreadable image header makes get_image_dimensions return (None, None)
     WITHOUT raising, which would otherwise stringify to "NonexNone".
+
+    Resolves both keys from the SAME existence check so they cannot drift apart:
+    a missing file must fail favicon_url closed too, or {% favicon_links %} takes
+    the override branch on a dead URL and suppresses the default SVG/ICO links
+    entirely, leaving the site with no favicon at all instead of falling back.
     """
     if not field:
-        return None
+        return None, None
     try:
         width, height = field.width, field.height
     except (OSError, ValueError):
-        return None
+        return None, None
     if not width or not height:
-        return None
-    return f"{width}x{height}"
+        return None, None
+    return field.url, f"{width}x{height}"
 
 
 def _build():
@@ -69,6 +74,7 @@ def _build():
     if inst is None:
         return dict(_DEFAULTS)
     colors = {c.key: c.value for c in inst.brand_colors.all()}
+    favicon_url, favicon_size = _favicon_fields(inst.favicon)
     return {
         "name": inst.name or _DEFAULTS["name"],
         # Guard: dereferencing .url on an empty ImageField raises ValueError.
@@ -88,8 +94,8 @@ def _build():
         "max_image_mib": inst.max_image_mib or _DEFAULTS["max_image_mib"],
         "max_video_mib": inst.max_video_mib or _DEFAULTS["max_video_mib"],
         "onboarded": inst.onboarded,
-        "favicon_url": inst.favicon.url if inst.favicon else None,
-        "favicon_size": _favicon_size(inst.favicon),
+        "favicon_url": favicon_url,
+        "favicon_size": favicon_size,
     }
 
 

@@ -65,6 +65,33 @@ def test_bundle_favicon_size_is_none_when_the_file_is_missing(settings, tmp_path
     assert get_site_config()["favicon_size"] is None
 
 
+def test_missing_favicon_file_falls_back_to_the_default_links(
+    settings, tmp_path, client
+):
+    """The fail-closed counterpart of the size test above: favicon_url must go
+    None TOGETHER with favicon_size, or {% favicon_links %} takes the override
+    branch on a dead URL and the rendered page ships a <link rel="icon"> that
+    404s with NO fallback -- the default SVG/ICO links are gone, not just absent
+    a sizes attribute.
+    """
+    settings.MEDIA_ROOT = tmp_path
+    inst = Institution.load()
+    inst.favicon.save("mark.png", png_upload(), save=True)
+    # Delete via .path -- the stored name is relative to MEDIA_ROOT, so joining it
+    # onto tmp_path by hand silently no-ops and the test would assert nothing.
+    Path(inst.favicon.path).unlink()
+    invalidate_site_config()
+
+    cfg = get_site_config()
+    assert cfg["favicon_url"] is None
+    assert cfg["favicon_size"] is None
+
+    body = client.get("/").content.decode()
+    assert "/media/branding/" not in body
+    assert 'type="image/svg+xml"' in body
+    assert "favicon.ico" in body
+
+
 def test_bundle_favicon_size_is_none_for_an_unreadable_header(settings, tmp_path):
     """get_image_dimensions returns (None, None) WITHOUT raising for content that is
     not a decodable image header -- so the try/except is not enough on its own and
