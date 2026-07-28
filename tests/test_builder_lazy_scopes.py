@@ -604,3 +604,40 @@ def test_per_row_url_reversals_are_hoisted(client):
         assert seen.count(name) <= bound, f"{name} still reversed per row"
     # export is a real <a href> a no-JS author follows, so it stays per node
     assert seen.count("courses:manage_node_export") == rows
+
+
+@pytest.mark.django_db
+def test_polish_toggle_labels_use_all_three_plural_forms(client):
+    owner = make_login(client, "owner")
+    course = CourseFactory(slug="pl", owner=owner)
+    part = ContentNodeFactory(course=course, kind="part", parent=None, title="Cz")
+    # The repo's established pattern (tests/test_i18n_catalog.py:15).
+    # translation.override does NOT work here: SessionLocaleMiddleware calls
+    # translation.activate() on every request, so the response renders in the
+    # request language and the override is discarded.
+    session = client.session
+    session["_language"] = "pl"
+    session.save()
+    labels = {}
+    for n in (1, 2, 5):
+        while course.nodes.filter(parent=part).count() < n:
+            ContentNodeFactory(
+                course=course,
+                kind="chapter",
+                parent=part,
+                title=f"R{course.nodes.filter(parent=part).count()}",
+            )
+        html = client.get(
+            reverse("courses:manage_builder", kwargs={"slug": "pl"}) + "?open=",
+            HTTP_ACCEPT_LANGUAGE="pl",
+        ).content.decode()
+        labels[n] = re.search(
+            rf'data-toggle="{part.pk}"[\s\S]*?aria-label="([^"]+)"', html
+        ).group(1)
+    # Compare with the NUMBER stripped. The label interpolates {{ counter }},
+    # so "…, 1 …" / "…, 2 …" / "…, 5 …" are three distinct strings whichever
+    # plural form gettext picked -- the naive set-of-three assertion holds even
+    # in English, and even if all three msgstr[n] were identical.
+    stems = {n: re.sub(r"\d+", "N", v) for n, v in labels.items()}
+    assert len(set(stems.values())) == 3, stems
+    assert "Rozwiń" in labels[1], labels  # not silently falling back to en
