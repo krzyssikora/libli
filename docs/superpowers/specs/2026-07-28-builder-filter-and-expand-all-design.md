@@ -1060,6 +1060,11 @@ gesture that means nothing in the view that needs it.
 slot lists §3k already keeps **full** for exactly this reason. That is the one surface where a
 position under a filter is unambiguous, and it is now the documented route.
 
+**The guard's only legal source for `q_active` is `builder_filter.is_active(_raw_q(request))`**
+(§1). It runs in `node_move`'s `mode == "reorder"` branch (`views_manage.py:567`), before any
+`cmap` is loaded, so there is no `FilterContext` to read the flag from — and re-testing the
+floor inline is the one spelling §1 forbids by name.
+
 **The server guard is scoped to `mode=reorder`, and a positioned REPARENT is not refused.**
 A drop posts `mode=reparent` with a `position` (`builder.js:630-636`) to the same endpoint the
 Move picker's reparent form uses, and the two are indistinguishable server-side — so a guard
@@ -1340,7 +1345,8 @@ the two are done together rather than twice.
   no-JS form (which carries no `open`) would work correctly, so the two paths would silently
   diverge on this slice's central promise.
 - Ordered steps on the response: the parent §8 busy counter → `applyFragment` → §3i's header
-  handling → **the tracker write (§5z), to the value this fetch sent** → `syncUrl`. **The order
+  handling → **the tracker write (§5z), to the value this fetch sent** → **the bulk-href
+  rewrite (§6b)** → `syncUrl`. **The order
   is load-bearing, exactly as in §5d**, and for the mirror-image reason: `syncUrl` reads the
   tracker (§5a), which starts at `""` on an unfiltered page — so writing it *after* `syncUrl`
   puts `open=…` and **no `q`** into the address bar when a filter is applied. The reload path
@@ -1481,11 +1487,15 @@ stashed `open` and no `q`.
   cleared tree still shows the row the mutation created), because a stale stash and a correct
   fallback both produce a merely non-empty tree.
 **The clear response is handled exactly like the filter fetch's** — the parent §8 busy
-counter, `applyFragment`, §3i's header handling, **the tracker write (§5z)**, then `syncUrl`.
-**That order is load-bearing and is why the tracker write is listed as a step rather than left
-to inference**: `syncUrl` reads the tracker, so writing it afterwards leaves `?q=tryg` in the
-address bar over a freshly-unfiltered tree, and the next reload restores the filter the author
-just dismissed. The header step is the one
+counter, `applyFragment`, §3i's header handling, **the tracker write (§5z)**, **the bulk-href
+rewrite (§6b)**, then `syncUrl`.
+**That order is load-bearing, and is why both the tracker write and the href rewrite are
+listed as steps rather than left to inference**: `syncUrl` and the rewrite BOTH read the
+tracker. Writing it after `syncUrl` leaves `?q=tryg` in the address bar over a freshly
+unfiltered tree, and the next reload restores the filter the author just dismissed; running
+the rewrite before it puts the *previous* value in the bulk hrefs — so applying a filter from
+an unfiltered page writes `q=""` into "Expand all" and a middle-click opens the unfiltered
+944-row render §6b exists to prevent. The header step is the one
 worth naming: **the clear path is the ONLY consumer of `X-Builder-Info: none`.** Its response
 carries no codes, so `none` is what removes the "Filtered: 100 / 940" entry; a clear handler
 written without header handling leaves that notice standing over a freshly-unfiltered tree,
@@ -1616,8 +1626,13 @@ correct.
 filter, and the present-but-inactive kind (a below-floor `?q=a`), so the author's half-typed
 text is still in the box when the page comes back.
 
-**And both handlers rewrite their own href's `q` from the tracker when a filter or clear
-response is applied — skipping any control that has no `href`.** Over the ceiling expand-all is
+**When a filter or clear response is applied, THAT handler rewrites both bulk controls' hrefs
+from the tracker — skipping any control that has no `href`.** The actor is the response
+handler (§5b, §5d), not the controls' own click handlers: those never run at the moment a
+response lands, and **a click-time rewrite cannot fix the case this paragraph exists for** —
+middle-click dispatches `auxclick`, not `click`, so a `this.href = …` at the top of each click
+handler reads correctly on a left click, never fires on a middle click, and leaves exactly the
+stale href described below while passing every left-click assertion. Over the ceiling expand-all is
 rendered href-less on purpose (§6a calls that the authoritative guard), and the natural rewrite
 would run `new URL(el.getAttribute("href"), origin)` on `null`, which yields `/null` (verified)
 and writes `href="/null?open=all&q=…"` onto the disabled control — a middle-click then lands on
