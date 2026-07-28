@@ -87,9 +87,17 @@ DB-free. This is a deliberate deviation; see Deltas.
 
 ### 1a. Blank, and the 2-character floor
 
-`q` is stripped of leading and trailing whitespace. A query shorter than `MIN_QUERY` after
-stripping is **treated as blank**, and `filtered_map` returns
+`q` is stripped of leading and trailing whitespace. A query whose **folded** length is shorter
+than `MIN_QUERY` is **treated as blank**, and `filtered_map` returns
 `(copy_of_cmap, set(), 0, 0, False)` — the unrestricted map, no chains, inactive.
+
+**The floor counts `len(fold(q.strip()))`, not `len(q.strip())`.** Code points and folded
+characters are not the same thing, and the gap is reachable from the same source §1b's NFD
+handling exists for: a decomposed `ą` pasted out of imported HTML is **two** code points
+(measured) that fold to the single character `a`. Counting raw length lets it clear the floor
+and produce the hundreds-of-matches → 100-cap → ~226-row render the floor exists to block — on
+the one path (`?q=` by hand, or a no-JS submit) that has no debounce to soften it. Folding
+first also keeps the floor consistent with what is actually matched.
 
 **The floor is enforced here, on the server**, not only in the JS. On `mat-pp` a single letter
 matches hundreds of titles → 100 capped matches → up to ~220 rows, i.e. exactly the cost
@@ -215,7 +223,7 @@ that is the *expected* case, not a pessimistic one.
 
 **The render-cost prediction is a LOWER BOUND, and the acceptance gate is the measurement, not
 the prediction.** A naive extrapolation gives 226 rows × ~2.6 ms/row (slice 1's 2,477 ms /
-944 rows) + 89 ms cmap + ~24 ms fold ≈ **700 ms**. That model is row-linear and this shape is
+944 rows) + 89 ms cmap + ~10 ms fold ≈ **690 ms**. That model is row-linear and this shape is
 not: the 2.6 ms/row constant comes from an `open=all` render of 944 rows across 138 scopes
 (0.15 scopes/row), whereas the filtered worst case is ~226 rows across up to ~126 scopes
 (~0.56 scopes/row) — nearly the same *absolute* scope count as the full render. Per-scope work
@@ -342,10 +350,13 @@ rendered HTML.** An earlier draft of this spec claimed that passing `None` with 
 would fall through to step 4 and expand a ≤150-node course "in full". That is **false**, and
 tracing it is what makes the rule honest:
 
-- `chains` is empty exactly when no container is rendered. `chains` contains every matched
-  container plus every ancestor of every match, and the restricted map contains exactly the
-  matches and those ancestors — so *the restricted map contains a container if and only if
-  `chains` is non-empty*.
+- **Absent effect 2**, `chains` is empty exactly when no container is rendered: `chains`
+  contains every matched container plus every ancestor of every match, and the restricted map
+  contains exactly the matches and those ancestors — so the restricted map contains a container
+  if and only if `chains` is non-empty. (Effect 2 is the one exception, and it cuts the other
+  way: a force-included container **is** in the restricted map without being in `chains`, so
+  with `extra_open` in play the two branches genuinely differ. That strengthens the rule rather
+  than weakening it — it is simply not the justification an earlier draft claimed.)
 - With `chains` empty the restricted map holds at most top-level units, `open_ids`'s result is
   consumed only by `_tree_node.html`'s `{% if node.pk in open_ids %}` and by `toggle_href`, and
   neither runs without a container row. The two branches render byte-identical markup.
@@ -384,6 +395,40 @@ the write is exactly what keeps the stale pre-filter set alive to win.
 step 2 (an explicit enumeration or `all`)   >   step 3 (the filter's chains)   >   the session
 ```
 
+**This is a restructuring, not a relocation, and the required shape is stated here because
+three of the four natural placements are wrong.** Step 1 and step 2 share one predicate —
+`present`, from `_raw_open` — and step 1 *mutates* it (`present = False` when the stored key is
+missing, so the sentinel falls through). Simply hoisting the `if q_chain is not None:` block
+above both reads makes `?open=3,4&q=…` resolve to the **chains**, breaking "an explicit `open`
+wins". Leaving `if present:` intact while moving the sentinel is worse: `open=session` then
+reaches `_parse("session")`, which matches no digits and yields the **empty** set with
+`explicit=True` — a silently collapsed tree that `_remember_open` would then persist.
+
+The sentinel must be lifted out of step 2's test:
+
+```python
+sentinel = present and raw == "session" and mode == "page"
+
+if present and not sentinel:          # step 2 -- an explicit value, including ""
+    return _finalize(_parse(raw, containers), containers, explicit=True)
+
+if q_chain is not None:               # step 3 -- the filter's chains
+    return _finalize(q_chain, containers)
+
+if sentinel:                          # step 1 -- the no-JS post-mutation sentinel
+    stored = _stored_open(request, course.slug)
+    if stored is not _MISSING:
+        return _finalize(stored, containers, explicit=True)
+                                      # missing/flushed -> fall through to 4-6
+
+if mode == "notice":                  # the conflict/validation carrier
+    ...
+```
+
+`raw == "session"` must never reach `_parse`. The fragment-mode early return stays **below**
+step 3, or a filter fetch — which omits `open` by design (§5b) — would resolve to the empty set
+and render every match below the top level invisible.
+
 - **Above the session**, because `q` is a signal in the request being served, while both session
   reads are fallbacks for a request that carries no signal. Concretely, `open=session` is a
   *sentinel* meaning "restore what I had"; under an active filter the right answer to that is
@@ -408,10 +453,15 @@ so passing the restricted map is all this takes — no template change.
 
 ### 3e. `extra_open` effect 2
 
-**`_filter_context` performs the re-insertion**, not `_render_scope`. All three renderers need
-it — `builder()` and `_builder_with_notice()` reach it through the `builder_force` session
-channel (§3f) — so placing it in the fragment renderer alone would leave the no-JS path without
-it. `_render_scope` merely passes its `extra_open` through.
+**`_filter_context` performs the re-insertion**, not `_render_scope`. Both `_render_scope` (from
+its `extra_open` argument) and `builder()` (from the `builder_force` session channel, §3f) need
+it, so placing it in the fragment renderer alone would leave the no-JS path without it. Each
+renderer merely passes its own `extra_open` through.
+
+**`_builder_with_notice` does NOT read `builder_force`.** A notice render follows a *failed*
+mutation, so there is nothing created to force-include — and letting it read would leave the
+single clear site undefined, with a 409 able to consume a stash `builder()` was about to use.
+`builder()` is the sole reader and the sole clearer.
 
 After the restricted map is built, each `extra_open` pk's node — resolved from the **full**
 cmap — is re-inserted into `restricted[node.parent_id]`, re-sorted by `(order, pk)`, and
@@ -451,6 +501,16 @@ lands on a filtered tree with their new node **absent** — on the path with the
 for **exactly that next render**, then clears it. The stash reuses `remember_node`'s
 per-slug bound (`SESSION_SLUG_LIMIT`), and holds a **chain**, not a bare pk — the same reason
 `_persist_chain` exists on the `open` side.
+
+**It stores the UNFILTERED `_ancestor_chain(node)` — do NOT copy `_persist_chain`'s
+intersection.** `_persist_chain` computes `_ancestor_chain(node) & container_pks(cmap)`
+(`views_manage.py:419`), deliberately dropping the node's own pk when it is a unit, because it
+feeds the *open* set and a unit owns no scope. `builder_force` feeds `extra_open`, whose effect
+2 "applies to every pk regardless of kind, units included" (§3e). An implementer told to follow
+`_persist_chain` copies the `& container_pks(...)`, the new unit's pk never reaches effect 2,
+and a no-JS unit add under a filter returns a tree **without the row the author just created** —
+the precise failure this section exists to close. The two channels feed different consumers and
+must not share a filter.
 
 A rename that moves a title out of the match set is the same case and is **not** covered: the
 renamed row legitimately no longer matches. Recorded as a decision, not an oversight.
@@ -605,11 +665,18 @@ append `q` when the mutation carried one, and `_builder_with_notice` re-renders 
 submitted `q`. Otherwise a no-JS author who filters and then renames a matched row lands on the
 unfiltered tree — the "same gesture, two different trees" divergence the parent rejects.
 
-**"The six redirect sites" is one function.** All six go through
-`_redirect_to_builder(course)` (`views_manage.py:398-401`), whose signature has no access to
-`q` — so the edit is that helper plus its signature (`(request, course)`, or an explicit `q`
-argument), not six edit points. Worth saying, because an implementer looking for six will not
-find them.
+**"The six redirect sites" is one function with EIGHT callers.** All six mutation redirects go
+through `_redirect_to_builder(course)` (`views_manage.py:398-401`), whose signature has no
+access to `q` — so the edit is that helper plus its signature, not six edit points. But the
+helper is also called by **`element_move` (`:861`) and `element_delete` (`:877`)**, which parent
+§4 explicitly *excludes* from the `q` rule ("Three further `redirect(…)` sites are deliberately
+excluded … All three stay on the seed path").
+
+**So `q` is passed IN, not read inside.** The helper takes an explicit `q` argument defaulting
+to blank; the six mutation sites pass the request's `q`, and the two element sites pass nothing
+and keep their current behaviour. Reading `request` inside the helper would silently extend the
+rule to two editor-originated redirects the parent scoped out — a change nobody asked for,
+arriving through a signature.
 
 **The hidden `q` is emitted under `{% if q %}`, in every tree form.** Unconditional emission
 would add an empty hidden input to every rename, reorder, duplicate and add form on the page —
@@ -667,20 +734,47 @@ needs is already resolved". This slice needs three more context values in every 
 | --- | --- | --- |
 | `q` | `toggle_href`, the hidden inputs, the delete/Move hrefs, the filter input's value | the **raw** submitted `q`, not the normalized one |
 | `filtered` | `_scope.html`'s `{% empty %}` branch (§3h) | `q_active` |
-| `container_count` | `data-container-count` on `.builder`, and the expand-all disabled state (§6a) | `len(container_pks(full_cmap))` |
+| `container_count` | `data-container-count` on `.builder`, which the JS reads (§6a) | `len(container_pks(full_cmap))` |
+| `expand_all_disabled` | whether `builder.html` emits expand-all's `href` at all (§6a) | `len(container_pks(full_cmap)) > builder_open.CEILING` |
 
-They go into `_tree_context`'s signature — which therefore gains the arguments to compute
-them — **not** into three hand-patched render calls. Three renderers exist (`builder()`,
+**`expand_all_disabled` is a resolved boolean, not a number the template compares.** A Django
+template cannot evaluate `container_count > builder_open.CEILING` — there is no way to reach a
+module attribute from template syntax, and §6a requires the comparison to read `CEILING`
+*through the module* so the monkeypatch in §8 takes effect. Emitting the count alone would
+leave the server-side guard unimplementable and push the comparison back to a call site, which
+this section forbids. The count still ships as well, because the JS reads it.
+
+These go into `_tree_context`'s signature — which therefore gains the arguments to compute
+them — **not** into four hand-patched render calls. Three renderers exist (`builder()`,
 `_builder_with_notice()`, `_render_scope()`), and `_tree_context` exists specifically to stop
 them drifting; adding keys at the call sites re-opens exactly that.
 
-**The context key that becomes the restricted map is `children_map`.** §2 names the two maps by
-role; this is the line where role meets code. All three renderers set `children_map` separately
-(`views_manage.py:233`, `:346`, `:738`), and it is what `_tree_node.html` and
-`_tree_toggle.html` read — so `children_map` becomes the **restricted** map in all three, while
-the **full** map continues to be what `_tree_context` hands `_open_descendants` (§2, row 4).
-Both derive from the same local, and the difference between them is one argument at one call
-site, which is exactly why it needs writing down.
+**Three context keys carry a map or a node list, and ALL THREE must become restricted.** §2
+names the maps by role; this is the line where role meets code, and getting it partially right
+is the failure mode:
+
+| key | set at | consumed by |
+| --- | --- | --- |
+| `children_map` | `views_manage.py:252`, `:348`, `:737` | `_tree_node.html`'s recursive descent and `_tree_toggle.html`'s counts |
+| `top_nodes` | `builder()` and `_builder_with_notice()` | `builder.html:24` |
+| **`nodes`** | **`_render_scope` only, `views_manage.py:333-341`** | **`_scope.html`'s `{% for node in nodes %}`** |
+
+**`nodes` is the one that is easy to miss and the most damaging to miss.** `_scope.html` does
+**not** iterate `children_map` — it iterates `nodes`, which `_render_scope` builds from its own
+separate read of the map (`cmap.get(None, [])` for `"top"`, `cmap.get(int(scope_ref), [])`
+otherwise). An implementer who swaps only `children_map` ships a toggle that, under an active
+filter, returns **every** child of the expanded scope into a filtered pane — exactly the defect
+§5a and §5c exist to prevent — and `manage_tree`'s top scope renders unfiltered too. §1d's
+"matched container over an empty scope" also becomes unreachable, because `nodes` would be the
+full child list.
+
+So: `nodes` is `restricted.get(<scope key>, [])` in **both** branches. The sibling lookups in
+the same block — `parent`, `parent_kind`, `updated` — continue to resolve against the full
+course, since a scope's own identity is not a filtering question.
+
+Meanwhile the **full** map continues to be what `_tree_context` hands `_open_descendants`
+(§2, row 4). Restricted and full derive from the same local, and the difference between them is
+one argument at one call site, which is exactly why it needs writing down.
 
 ### 3l. `_remember_open` must not write while a filter is active
 
@@ -723,11 +817,19 @@ Sits in `.builder__tree`'s header row, after the title, beside the expand/collap
   appear.
 - `type="search"` gives Chromium a native clear affordance that fires `input`, so the JS path
   gets clearing for free; the explicit Clear link exists for the no-JS path and is rendered
-  only when `q` is active.
+  **whenever the input has any text — `{% if q %}`, on the raw value, not on `q_active`**. A
+  below-floor `?q=a` renders an unfiltered tree with `a` still in the box, and a no-JS author
+  needs a way to empty it; gating on `q_active` would leave them retyping over stale text.
 - The no-JS **Clear** link is a plain GET with neither `q` nor `open`, so it lands on
   precedence steps 4–6. A no-JS author's pre-filter expansion is therefore **not** restored —
   there is no client to stash it and no session slot that means "what was open before the
   filter". Recorded as an accepted limitation of the no-JS path, not a defect.
+- **A no-JS author's expansions made *while* filtered do not survive a mutation either**, and
+  this follows from two deliberate rules meeting: §3l never writes `builder_open` while
+  filtered, and §3c resolves the post-mutation `open=session` to the bare chains. So filter,
+  expand a matched chapter, rename a row inside it — and the chapter comes back collapsed. The
+  JS path is unaffected (the collector carries the live enumeration). Recorded here as a
+  decision rather than left to be discovered.
 
 Styling follows the repo's practice: token-driven CSS, no new component vocabulary, and the UI
 is verified with Playwright screenshots in **both** light and dark before the PR, judged
@@ -822,11 +924,24 @@ full enumeration to `manage_tree` — **a complete re-render of everything the a
 triggered by one keystroke**, and again on every pause below two characters. After an
 expand-all on `mat-pp` that is the multi-second render §6a warns about, provoked by typing.
 
-**Rule: the client tracks the `q` of the last *applied* render (initialised `""`), and any
-request — filter or clear — is skipped when the value it would send equals it.** Typing `t`
-into an unfiltered tree computes an effective `q` of `""`, which equals the applied state, so
-nothing is sent. Deleting a real filter down to `t` computes `""` against an applied `tryg`, so
-the clear fires exactly once.
+**Rule: the client tracks the `q` of the last *applied* render, and any request — filter or
+clear — is skipped when the value it would send equals it.** Typing `t` into an unfiltered tree
+computes an effective `q` of `""`, which equals the applied state, so nothing is sent. Deleting
+a real filter down to `t` computes `""` against an applied `tryg`, so the clear fires exactly
+once.
+
+**The tracker is initialised from the SERVER-RENDERED active `q`, never unconditionally to
+`""`.** A page GET of a `?q=tryg` URL is a routine path here, not an edge case: `syncUrl` puts
+`q` in the address bar, so every reload while filtered is one, and §3i's registry rule and §8's
+replace-by-key test are both built on it. Initialised to `""` on such a load, the tracker says
+"nothing applied" over a tree that is visibly filtered — so the author's very next clear (the
+`type="search"` native affordance §4 relies on, or deleting below the floor) computes `""`,
+finds it equal, and **skips the request**, leaving filtered and capped markup on screen above an
+empty input. The next toggle then sends `q=""` and drops unfiltered children into it: the exact
+"stale filtered markup" outcome this section exists to prevent, reintroduced by its own guard.
+
+So: initialise to the raw `q` when the server rendered a **filtered** tree, and to `""`
+otherwise — the same `filtered` flag §3k already puts in the context.
 
 With the guard in place, the floor only ever saves a round trip on the way *into* a filter,
 never on the way out.
@@ -923,7 +1038,7 @@ meet.
   its request when clicked.
 - **The comparison reads `builder_open.CEILING` through the module**, never
   `from courses.builder_open import CEILING`. `_info_entries` carries a load-bearing comment
-  about exactly this (`views_manage.py:360-363`): tests monkeypatch the module attribute, and a
+  about exactly this (`views_manage.py:361-364`): tests monkeypatch the module attribute, and a
   by-value import desyncs the guard from the patched number. §8's ceiling test monkeypatches
   `CEILING` down, so a by-value import fails it confusingly rather than clearly.
 
@@ -936,6 +1051,29 @@ Collapse is already client-owned (parent §5), so this costs nothing:
 - **JS:** remove every `ol.tree__scope[data-scope]:not([data-scope="top"])`; for each
   `[data-toggle]`, set `aria-expanded="false"`, remove `aria-controls`, and set `aria-label`
   from the server-rendered **`data-label-expand`** attribute; then `syncUrl`.
+- **JS, the half that is easy to omit:** the `swapping` guard, **both halves of it**.
+
+**Collapse-all inherits neither half of slice 1's dirty-rename guard, because both are bound to
+`[data-toggle]`.** Slice 1 wraps the single-scope removal in `swapping = true / finally false`
+(`builder.js:475-478`) *and* arms `swapping` at **`pointerdown`** on a toggle
+(`builder.js:445-463`), with a comment recording why the later position does not work: a mouse
+click moves focus at mousedown, so a dirty title's `focusout` fires **before** the click handler
+runs, at which point the rename guard (`:420`, `if (swapping || !form.isConnected) return;`)
+sees `swapping === false` and `isConnected === true` and `commitRename` posts for real.
+
+Collapse-all is a new control, so clicking it with a half-typed title anywhere in the tree fires
+a rename POST whose `applyRename` then no-ops on the detached form: **the database holds the new
+title, the tree shows the old one, and nothing is reported.**
+
+The existing arming is also deliberately **narrowed** to the clicked toggle's own subtree — its
+comment names the case it protects (edit row A, click row B's toggle, and A's edit would be
+silently swallowed) — so it cannot simply be widened.
+
+**Rule for collapse-all:** arm `swapping` at `pointerdown` when `document.activeElement` is
+inside *any* scope about to be removed (which, for collapse-all, is any non-top scope), and
+latch it around the bulk removal. **The e2e must drive a real mouse click**, not keyboard
+activation — parent §5 records that a keyboard-only test verifies the one path that was already
+correct.
 - **No-JS:** `href` is the builder URL with `open=` — **present-but-empty**, per parent §2's
   rule. Omitting the parameter would re-seed from the session and collapse nothing. **It
   carries `q` too**, symmetrically with §6a.
@@ -1009,7 +1147,8 @@ until this was done.
   "Kąty"))` must equal `"katy"`. Falsified by dropping U+0300–U+036F from the table, which
   leaves `'kąty'` and is invisible in every precomposed fixture (§1b)
 - the 2-char floor returns the map unchanged, empty chains and **`q_active is False`**, for
-  `"a"`, `" a "` and `""`; an at-floor `"ab"` returns `q_active is True` **even when it matches
+  `"a"`, `" a "`, `""` **and a decomposed single grapheme** (`unicodedata.normalize("NFD", "ą")`
+  — two code points, one folded character, so a raw-length floor would wrongly let it through); an at-floor `"ab"` returns `q_active is True` **even when it matches
   nothing** — the distinction the fifth return value exists for
 - **the returned map is never the argument**: `assert restricted is not cmap` and
   `restricted[parent] is not cmap[parent]`, on the **blank** path — the alias §1 forbids, and
@@ -1036,13 +1175,24 @@ until this was done.
   levels down returns the match row
 - **`q` rides every fragment request**: with a filter active, a rename 409, an add, a reorder,
   a duplicate and a drop each return **filtered** markup
+- **expanding a scope under a filter returns only the filtered children of that scope** — the
+  `nodes` half of §3k. Falsified by pointing `_render_scope`'s `nodes` back at the full map,
+  which leaves `children_map` restricted and every other filtered test green.
 - **an add or duplicate under an active filter returns its own new row visible** (effect 2),
   for a **unit** as well as a container — the unit case is the one that fails when the kind
   test is put at the call site
-- **a no-JS add under a filter** shows the new row after the redirect (the `builder_force`
-  session channel), with the session cleared between the page GET and the POST to prove the
-  write carried a chain — **and a second builder GET no longer force-includes it**, which is
-  the half with no visible symptom when the clear is missing
+- **a no-JS add of a UNIT under a filter** shows the new row after the redirect (the
+  `builder_force` channel, §3f), **and a second builder GET no longer force-includes it** — the
+  half with no visible symptom when the clear is missing. The unit kind is load-bearing: a
+  container would survive a `& container_pks(...)` intersection and hide the §3f trap.
+  **Clear only `session["builder_open"]` between the GET and the POST**, never the whole
+  session — `flush()` drops `_auth_user_id`, so the POST would measure a login redirect rather
+  than force-inclusion.
+- **a no-JS REPARENT under a filter, into a destination the filter excludes**, returns the
+  moved node visible. This is the row that actually proves the stash carried a *chain*: an add
+  form can only be submitted from a scope that is already visible, so its parent is a match or
+  a walked ancestor either way and a bare-pk stash would pass. The Move picker is the one no-JS
+  surface that offers a destination outside the restricted map.
 - **force-inclusion is idempotent**: forcing a pk that the filter already matched yields
   exactly **one** `<li data-node=…>` for it
 - **a force-included row does not move `shown`/`total`** in the emitted header
@@ -1104,6 +1254,9 @@ not a pass):**
   filter's chains (the `stash === null` rule; falsified by changing it to `if (!stash)`)
 - **a below-floor query takes the clear path** — type `tryg`, then delete down to `t`, and
   assert the unfiltered tree is back rather than stale filtered markup
+- **a `?q=<match>` page load, then clear** — returns the unfiltered tree. Falsified by
+  initialising the applied-`q` tracker to `""` instead of the server-rendered active `q`, which
+  makes the clear a no-op and leaves filtered markup over an empty input (§5c).
 - **typing below the floor into an UNFILTERED tree issues no request at all** (§5c) — expand
   several scopes, type `t`, and assert no `manage_tree` request was made and the expansions are
   untouched. Falsified by keying the guard off the input's contents instead of the applied `q`.
@@ -1111,6 +1264,9 @@ not a pass):**
   it)
 - **expand-all then collapse-all** returns to the top rows, and the address bar holds `open=`
 - collapse-all sets `aria-expanded="false"` and removes `aria-controls` on every toggle
+- **collapse-all over a dirty rename posts nothing** (§6b) — driven with a **real mouse click**,
+  not keyboard activation, because focus moves at mousedown and the keyboard path is the one
+  that was already correct. Falsified by removing the `pointerdown` arming.
 
 **Manual, before the PR** — re-run `scripts/perf/`:
 
