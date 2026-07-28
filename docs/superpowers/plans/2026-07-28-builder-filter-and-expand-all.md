@@ -2763,8 +2763,14 @@ def test_a_positioned_REPARENT_under_a_filter_still_succeeds(filtered_course):
 
 ```bash
 uv run pytest tests/test_builder_filter_views.py -q -k \
-  "arrows or refused_on_both_branches or BELOW_FLOOR_q_still or REPARENT"
+  "arrows or refused_on_both_branches or BELOW_FLOOR_q_still or positioned_REPARENT"
 ```
+
+**`positioned_REPARENT`, not bare `REPARENT`.** pytest's `-k` matching is
+**case-insensitive** (verified: `-k "REPARENT"` selects a test named
+`..._reparent_...`), so the bare term would also drag in Task 7's
+`test_a_no_js_reparent_into_a_NON_MATCHING_destination_shows_the_node`, which
+is already in the file and green.
 
 Expected: a **mixed** run, and the split matters.
 
@@ -3704,6 +3710,36 @@ def test_clearing_a_BELOW_FLOOR_query_scrubs_it_from_the_url_and_the_hrefs(
     assert "q=" not in page.url
 
 
+def test_a_MUTATION_while_filtered_discards_the_stash(page, live_server):
+    """Step 7's `if (appliedQ) preFilterOpen = null;`, which would otherwise
+    ship with nothing able to redden it.
+
+    The two behaviours are cleanly separable here. Load with only `part` open,
+    filter (chains open `chap` too), then RENAME through the submit handler --
+    a real mutation under an active filter -- and clear:
+      * WITH the discard: preFilterOpen is null, so the clear falls back to
+        collectOpen() over the current tree and `chap` stays open.
+      * WITHOUT it: the clear replays the stashed pre-filter enumeration and
+        `chap` collapses, silently undoing the expansion the filter produced
+        around the row the author just edited.
+    """
+    owner = _make_pa_user("pa")
+    course, part, chap, hit = _seed_deep(owner)
+    _login(page, live_server, "pa")
+    page.goto(f"{live_server.url}{_builder(course)}?open={part.pk}")
+    page.fill("#builder-q", "trygo")
+    page.wait_for_selector(f'ol[data-scope="{chap.pk}"]')      # the chain opened
+    row = page.locator(f'li[data-node="{hit.pk}"] input.tree__title')
+    row.fill("Trygonometria II")
+    row.press("Enter")
+    page.wait_for_timeout(400)
+    page.click("[data-filter-clear]")
+    page.wait_for_timeout(400)
+    assert page.locator(f'ol[data-scope="{chap.pk}"]').count() == 1, (
+        "the clear replayed a stash the mutation should have discarded"
+    )
+
+
 def test_clear_restores_the_pre_filter_expansion(page, live_server):
     owner = _make_pa_user("pa")
     course, part, chap, hit = _seed_deep(owner)
@@ -3783,7 +3819,9 @@ uv run pytest tests/test_e2e_builder_filter.py -m e2e -q
 
 Expected: a **mixed** run, and half of it is green before anything ships.
 
-- RED, six of the eleven rows Step 1 writes:
+- RED, seven of the twelve rows Step 1 writes (the seventh being
+  `test_a_MUTATION_while_filtered_discards_the_stash`, which times out on
+  `ol[data-scope]` — no filter JS, so the chain never opens):
   `test_typing_a_query_filters_without_navigating`,
   `test_the_filter_fetch_omits_open`, `test_clear_restores_the_pre_filter_expansion`,
   `test_collapse_everything_filter_clear_comes_back_EMPTY`,
@@ -4024,6 +4062,12 @@ Expected: PASS.
    `test_retrying_the_same_query_after_a_FAILED_fetch_issues_a_new_request`
    must fail on `len(sent) == 2`: the retry takes the skip branch and issues
    nothing.
+7. Delete `if (appliedQ) preFilterOpen = null;` from Step 7's **submit**
+   handler site → `test_a_MUTATION_while_filtered_discards_the_stash` must
+   fail: the clear replays the stale pre-filter enumeration and `chap`
+   collapses. (The drop-handler site is the same rule on the other gesture;
+   Task 8's e2e already proves a drag cannot start under a filter, so it is
+   the submit site that carries the observable behaviour.)
 
 Restore each.
 
@@ -4869,14 +4913,47 @@ error box) — the snippet has no such gate and would drop that guard. They are
 panel fetches, not tree-pane fetches; M15 is not about them.
 
 ```js
+    var finish = function () { busyEnd(); };        // per-site; see below
+    ...
     }).then(function (r) {
       return r.text().then(function (text) { /* success work */ });
     }, function () {
       notice(msg("network", "Network error — please try again."));   // network only
-    }).then(function () { busyEnd(); });
+    }).then(finish, finish);                        // BOTH arms -- see below
 ```
 
-The two-argument `.then` form separates a rejected fetch from a throw in the success path.
+The two-argument `.then` form separates a rejected fetch from a throw in the
+success path.
+
+**The trailing handler must be passed as BOTH arguments, and this is the whole
+reason the shape changes.** `.then(onFulfilled, onRejected)` does *not* route a
+rejection produced by `onFulfilled` to `onRejected` — only an upstream
+rejection reaches it. So after this rewrite a throw inside the success arm
+leaves the chain rejected, and a trailing `.then(function () { busyEnd(); })`
+with no rejection handler is **skipped**: `busy` stays ≥ 1 forever,
+`data-busy` sticks on `.builder`, and `builder.css:198` leaves the whole tree
+at `opacity: .6; cursor: progress` for the rest of the session — with no
+notice, because that is the same throw M15 stopped mislabelling. Today's
+`.catch(err).then(busyEnd)` does not have this problem: `.catch` returns
+normally, so the chain is fulfilled again and `busyEnd` runs.
+
+`.then(finish, finish)` restores the guarantee in plain ES5 — no `.finally`,
+which would be a third modern exception in a file that lists exactly two.
+
+**`finish` is per-site**, because two of the five do more than `busyEnd()`:
+
+```js
+    // the toggle -- clear `submitting` on BOTH paths, or the row wedges
+    var finish = function () {
+      var ctl2 = root.querySelector('[data-toggle="' + pk + '"]');
+      if (ctl2) delete ctl2.dataset.submitting;
+      busyEnd();
+    };
+```
+
+Unlike `releaseForm`, `busyEnd` **should** run on the stale path — it is the
+counterpart of a `busyStart` that definitely happened — so the objection that
+ruled out moving `releaseForm` into the trailing handler does not apply here.
 
 **The submit handler's error arm is TWO statements, not one.** Its shipped
 `.catch` (`builder.js:264-267`) is `notice(...)` **and** `releaseForm(form);`,
@@ -5113,49 +5190,53 @@ and `context`:
 # beside SLUG/OPEN (:24-25)
 Q = os.environ.get("Q", "")
 
-# after `ids` is resolved (:67), before ctx is built (:77)
-render_map = cmap
-q_on = False
-if Q:
-    # Imported HERE, not at the top. `_containers` (:28-33) and `_descendants`
-    # (:39) are deliberate local copies so the probe RUNS ON TODAY'S CODE --
-    # their docstrings say so in as many words ("so this probe runs BEFORE
-    # courses.builder_open exists"). A module-level import executes
-    # unconditionally and would destroy exactly that property, making the
-    # BEFORE half of every comparison impossible on a clean checkout. Inside
-    # the `if Q:` block the import only runs when the caller asked for a
-    # filtered measurement, which by definition is an AFTER run.
-    from courses.builder_filter import filtered_map
+# ---- everything BELOW is inside `_run()` (probe_tree_render.py:61) and is
+# ---- indented four spaces to match. `ids` (:67) and `ctx` (:77) are locals
+# ---- of that function; pasted at column 0 this is an IndentationError, and
+# ---- `ruff format` cannot repair indentation.
+    # after `ids` is resolved (:67), before ctx is built (:77)
+    render_map = cmap
+    q_on = False
+    if Q:
+        # Imported HERE, not at the top. `_containers` (:28-33) and `_descendants`
+        # (:39) are deliberate local copies so the probe RUNS ON TODAY'S CODE --
+        # their docstrings say so in as many words ("so this probe runs BEFORE
+        # courses.builder_open exists"). A module-level import executes
+        # unconditionally and would destroy exactly that property, making the
+        # BEFORE half of every comparison impossible on a clean checkout. Inside
+        # the `if Q:` block the import only runs when the caller asked for a
+        # filtered measurement, which by definition is an AFTER run.
+        from courses.builder_filter import filtered_map
 
-    restricted, chains, shown, total, q_on = filtered_map(cmap, Q)
-    # Gate on the RETURNED q_active, not on bool(Q). A below-floor Q (say
-    # `Q=a`) yields chains=set() and q_active=False -- so `ids = chains` would
-    # hand the render an EMPTY open set over the full map and time a silently
-    # COLLAPSED tree. That is exactly the failure the probe's own comment at
-    # :72-76 exists to prevent ("would make every 'after' number look like a
-    # huge win for the wrong reason"), and it is invisible in the output.
-    if q_on:
-        render_map = restricted
-        ids = chains
-        print(f"filtered: shown={shown} total={total}")
-    else:
-        print(f"Q={Q!r} is below the floor; measuring UNFILTERED")
+        restricted, chains, shown, total, q_on = filtered_map(cmap, Q)
+        # Gate on the RETURNED q_active, not on bool(Q). A below-floor Q (say
+        # `Q=a`) yields chains=set() and q_active=False -- so `ids = chains` would
+        # hand the render an EMPTY open set over the full map and time a silently
+        # COLLAPSED tree. That is exactly the failure the probe's own comment at
+        # :72-76 exists to prevent ("would make every 'after' number look like a
+        # huge win for the wrong reason"), and it is invisible in the output.
+        if q_on:
+            render_map = restricted
+            ids = chains
+            print(f"filtered: shown={shown} total={total}")
+        else:
+            print(f"Q={Q!r} is below the floor; measuring UNFILTERED")
 
-ctx = {
-    "nodes": render_map.get(None, []),
-    "children_map": render_map,                    # RESTRICTED only when q_on
-    "open_ids": ids,
-    "open_joined": ",".join(str(p) for p in sorted(ids)),
-    "open_descendants": _descendants(cmap, ids),   # the FULL map, always
-    "q": Q,                    # the RAW value, active or not -- the template
-                               # emits it either way, as the page does
-    "filtered": q_on,          # the FLAG, not bool(Q) -- see above
-    "scope_id": "top",
-    "scope_updated": course.updated.isoformat(),
-    "parent_kind": None,
-    "course": course,
-    "builder_url": f"/manage/courses/{course.slug}/build/",
-}
+    ctx = {
+        "nodes": render_map.get(None, []),
+        "children_map": render_map,                    # RESTRICTED only when q_on
+        "open_ids": ids,
+        "open_joined": ",".join(str(p) for p in sorted(ids)),
+        "open_descendants": _descendants(cmap, ids),   # the FULL map, always
+        "q": Q,                    # the RAW value, active or not -- the template
+                                   # emits it either way, as the page does
+        "filtered": q_on,          # the FLAG, not bool(Q) -- see above
+        "scope_id": "top",
+        "scope_updated": course.updated.isoformat(),
+        "parent_kind": None,
+        "course": course,
+        "builder_url": f"/manage/courses/{course.slug}/build/",
+    }
 ```
 
 `q` and `filtered` matter: without them the timed render skips the per-row
