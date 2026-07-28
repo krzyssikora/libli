@@ -2633,7 +2633,21 @@ Expected: PASS.
 
 - [ ] **Step 7: Falsify three guards**
 
-1. Change `sorted(_ancestor_chain(node))` to `sorted(_ancestor_chain(node) & container_pks(_children_map(course)))` → the unit-add row must fail.
+1. Change `sorted(_ancestor_chain(node))` to
+   `sorted(_ancestor_chain(node) & container_pks(_children_map(node.course)))`
+   → `test_a_no_js_unit_add_under_a_filter_shows_the_new_row` must fail
+   **because the intersection drops the new unit's own pk**, not for any other
+   reason.
+
+   **`node.course`, not `course`.** `_stash_builder_force(request, slug, node)`
+   takes no `course` — that name exists in `_persist_chain(request, course, node)`
+   (`views_manage.py:404`), which is where this intersection is copied from
+   (`:419`). Written as `container_pks(_children_map(course))` the mutation
+   raises `NameError` on every no-JS add, duplicate and reparent, so the row
+   goes red on a 500 and restoring it falsifies nothing —
+   leaving the "do NOT copy `_persist_chain`'s intersection" rule, the whole
+   reason that row passes, with no executed falsification.
+   `ContentNode.course` is a real FK (`courses/models.py:190`).
 1b. Delete `_stash_builder_force` from `node_move`'s reparent branch → the
    non-matching-reparent row must fail. (It is the only row that can: every
    other force-include case involves a node the filter would keep anyway.)
