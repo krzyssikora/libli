@@ -367,7 +367,8 @@ def builder(request, slug):
     if not can_manage_course(request.user, course):
         raise PermissionDenied
     cmap = _children_map(course)
-    fc = _filter_context(request, course, cmap, mode="page")
+    force = _take_builder_force(request, course.slug)
+    fc = _filter_context(request, course, cmap, mode="page", extra_open=force)
     _remember_open(request, course, fc.opened, q_active=fc.q_active)
     context = {
         "course": course,
@@ -627,6 +628,51 @@ def _persist_chain(request, course, node):
     )
 
 
+FORCE_KEY = "builder_force"
+
+
+def _stash_builder_force(request, slug, node):
+    """Stash a created/moved node's chain for EXACTLY the next page render.
+
+    extra_open exists only on FRAGMENT renders, but a no-JS add, duplicate or
+    reparent REDIRECTS -- and the following page GET re-derives the restricted
+    map from `q` alone, knows nothing of the new pk, and that node's title
+    will rarely match. The author would land on a filtered tree with their new
+    node ABSENT, indistinguishable from failure, on the path with the least
+    feedback.
+
+    Stores a sorted list[int]: no SESSION_SERIALIZER is configured, so
+    Django 5.2 uses JSONSerializer and a set raises
+    "TypeError: Object of type set is not JSON serializable".
+
+    Stores the UNFILTERED chain -- do NOT copy _persist_chain's
+    `& container_pks(cmap)` intersection. That one deliberately drops a unit's
+    own pk because it feeds the OPEN set; this one feeds extra_open, whose
+    effect 2 applies to every pk regardless of kind. Copying the intersection
+    makes a no-JS unit add under a filter return a tree without the row the
+    author just created.
+    """
+    remember_node(
+        request,
+        slug,
+        sorted(_ancestor_chain(node))[: builder_open.SESSION_OPEN_LIMIT],
+        key=FORCE_KEY,
+    )
+
+
+def _take_builder_force(request, slug):
+    """Read and CLEAR. builder() is the sole reader and the sole clearer:
+    _builder_with_notice follows a FAILED mutation, so there is nothing
+    created to force-include, and letting it read would leave the clear site
+    undefined."""
+    store = request.session.get(FORCE_KEY) or {}
+    pks = tuple(store.pop(slug, ()))
+    if pks:
+        request.session[FORCE_KEY] = store
+        request.session.modified = True
+    return pks
+
+
 @login_required
 def node_add(request, slug):
     course = _require_manage(request, slug)
@@ -683,6 +729,7 @@ def node_add(request, slug):
         )
     if not _wants_fragment(request):
         _persist_chain(request, course, node)
+        _stash_builder_force(request, course.slug, node)
         return _redirect_to_builder(course, _raw_q(request))
     # top-level add touches the top scope -> whole tree pane; nested add -> that scope
     if node.parent_id is None:
@@ -815,6 +862,7 @@ def node_move(request, slug):
             )
         if not _wants_fragment(request):
             _persist_chain(request, course, node)
+            _stash_builder_force(request, course.slug, node)
             return _redirect_to_builder(course, _raw_q(request))
         return _render_tree(
             request, course, extra_open=_ancestor_chain(node)
@@ -914,6 +962,7 @@ def node_duplicate(request, slug):
         )
     if not _wants_fragment(request):
         _persist_chain(request, course, new_node)
+        _stash_builder_force(request, course.slug, new_node)
         return _redirect_to_builder(course, _raw_q(request))
     if new_node.parent_id is None:
         return _render_tree(request, course, extra_open=_ancestor_chain(new_node))

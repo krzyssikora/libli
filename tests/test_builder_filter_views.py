@@ -2,6 +2,7 @@ import pytest
 from django.test import Client
 from django.urls import reverse
 
+from courses.models import ContentNode
 from tests.factories import ContentNodeFactory
 from tests.factories import CourseFactory
 from tests.factories import make_login
@@ -606,3 +607,153 @@ def test_an_empty_filtered_scope_says_no_matching_titles(filtered_course):
     assert "No matching titles." in filtered or "Brak pasuj" in filtered
     plain = client.get(url, {"open": "all"}).content.decode()
     assert "No children yet." in plain or "Nie ma jeszcze" in plain
+
+
+def test_a_no_js_unit_add_under_a_filter_shows_the_new_row(filtered_course):
+    """The unit kind is load-bearing: a container would survive a
+    `& container_pks(...)` intersection and hide the trap."""
+    client, course, part, chap, hit, miss = filtered_course
+    add = reverse("courses:manage_node_add", kwargs={"slug": course.slug})
+    resp = client.post(
+        add,
+        {
+            "parent": chap.pk,
+            "parent_token": chap.updated.isoformat(),
+            "kind": "unit",
+            "unit_type": "lesson",
+            "title": "Zupelnie inny tytul",
+            "q": "trygo",
+        },
+    )
+    assert resp.status_code == 302
+    body = client.get(resp["Location"]).content.decode()
+    assert "Zupelnie inny tytul" in body
+
+
+def test_builder_force_is_consumed_exactly_once(filtered_course):
+    """The clear is the half with no visible symptom when it is missing: an
+    uncleared stash passes every other row while pinning a stale pk into
+    every filtered render for that slug."""
+    client, course, part, chap, hit, miss = filtered_course
+    add = reverse("courses:manage_node_add", kwargs={"slug": course.slug})
+    resp = client.post(
+        add,
+        {
+            "parent": chap.pk,
+            "parent_token": chap.updated.isoformat(),
+            "kind": "unit",
+            "unit_type": "lesson",
+            "title": "Zupelnie inny tytul",
+            "q": "trygo",
+        },
+    )
+    client.get(resp["Location"])
+    url = reverse("courses:manage_builder", kwargs={"slug": course.slug})
+    second = client.get(url, {"q": "trygo"}).content.decode()
+    assert "Zupelnie inny tytul" not in second
+
+
+def test_an_add_into_an_EMPTY_filtered_scope_does_not_500(filtered_course):
+    """The destination has NO key in the restricted map: _children_map only
+    creates keys for parents that HAVE children, and spec 1d ships an add
+    affordance into exactly this scope."""
+    client, course, part, chap, hit, miss = filtered_course
+    add = reverse("courses:manage_node_add", kwargs={"slug": course.slug})
+    resp = client.post(
+        add,
+        {
+            "parent": chap.pk,
+            "parent_token": chap.updated.isoformat(),
+            "kind": "unit",
+            "unit_type": "lesson",
+            "title": "Nowa lekcja",
+            "q": "rozdzial",  # matches the CHAPTER; no descendant matches
+        },
+        **{"HTTP_X_REQUESTED_WITH": "fetch"},
+    )
+    assert resp.status_code == 200
+    assert "Nowa lekcja" in resp.content.decode()
+
+
+def test_a_no_js_reparent_into_a_NON_MATCHING_destination_shows_the_node(
+    filtered_course,
+):
+    """The row that actually proves the stash carried a CHAIN. An add form
+    can only be submitted from a scope that is already visible, so its parent
+    is a match or a walked ancestor either way and a bare-pk stash would pass
+    that row. The Move picker is the one no-JS surface offering a destination
+    the filter excludes."""
+    client, course, part, chap, hit, miss = filtered_course
+    other = ContentNodeFactory(
+        course=course,
+        kind="chapter",
+        unit_type=None,
+        parent=part,
+        title="Zupelnie inny",
+    )
+    move = reverse("courses:manage_node_move", kwargs={"slug": course.slug})
+    resp = client.post(
+        move,
+        {
+            "mode": "reparent",
+            # `miss`, NOT `hit`: moving a node that still matches the query
+            # makes the row vacuous -- filtered_map would select it on its own
+            # and walk `other` -> `part` into the chains unaided, so both
+            # assertions pass with _stash_builder_force deleted entirely.
+            "node": miss.pk,
+            "new_parent": other.pk,
+            "position": 0,
+            "node_token": miss.updated.isoformat(),
+            "q": "trygo",
+        },
+    )
+    assert resp.status_code == 302
+    body = client.get(resp["Location"]).content.decode()
+    assert f'data-node="{miss.pk}"' in body
+    assert f'data-node="{other.pk}"' in body  # the CHAIN, not just the pk
+
+
+def test_a_forced_row_does_not_move_shown_or_total(filtered_course):
+    """The rule is invisible in the markup and would otherwise rot: if a
+    forced pk counted, the X-Builder-Info notice would stop matching the cap
+    it describes."""
+    client, course, part, chap, hit, miss = filtered_course
+    add = reverse("courses:manage_node_add", kwargs={"slug": course.slug})
+    resp = client.post(
+        add,
+        {
+            "parent": chap.pk,
+            "parent_token": chap.updated.isoformat(),
+            "kind": "unit",
+            "unit_type": "lesson",
+            "title": "Zupelnie inny tytul",
+            "q": "trygo",
+        },
+        **{"HTTP_X_REQUESTED_WITH": "fetch"},
+    )
+    assert "Zupelnie inny tytul" in resp.content.decode()
+    assert resp["X-Builder-Info"] == "filter;shown=1;total=1"
+
+
+def test_force_inclusion_is_idempotent(filtered_course):
+    """A duplicate <li data-node=X> makes the DOM collector double-count and
+    dragover's :scope > queries pick an arbitrary one."""
+    client, course, part, chap, hit, miss = filtered_course
+    add = reverse("courses:manage_node_add", kwargs={"slug": course.slug})
+    resp = client.post(
+        add,
+        {
+            "parent": chap.pk,
+            "parent_token": chap.updated.isoformat(),
+            "kind": "unit",
+            "unit_type": "lesson",
+            "title": "Trygonometria druga",  # ALSO matches q
+            "q": "trygo",
+        },
+        **{"HTTP_X_REQUESTED_WITH": "fetch"},
+    )
+    # _tree_node.html:26-27 emits the title TWICE per row -- `value="..."` and
+    # `title="..."` on the same input -- so a correct, non-duplicated row
+    # yields 2. Count a per-row-unique token instead.
+    new_pk = ContentNode.objects.get(title="Trygonometria druga").pk
+    assert resp.content.decode().count(f'data-node="{new_pk}"') == 1
