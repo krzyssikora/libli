@@ -184,6 +184,13 @@ input.tree__title:focus { outline: 2px solid var(--primary); outline-offset: 1px
 .builder__info { list-style: none; margin: 0 0 var(--space-3); padding: var(--space-2) var(--space-3);
   background: var(--surface-sunken); border-radius: var(--radius-sm); color: var(--text-secondary); font-size: .875rem; }
 
+/* :empty, not [hidden] -- a render-time hidden attribute would hide every
+   SERVER-rendered notice from a no-JS author. The one-line markup above is
+   load-bearing: :empty does not match an element containing whitespace, and
+   the server's text nodes would survive the JS's <li> removals, leaving a
+   permanent sunken bar. */
+.builder__info:empty { display: none; }
+
 /* Task 8: per-toggle in-flight state, so it is obvious WHICH row is loading. */
 .tree__toggle[data-submitting] { opacity: .45; }
 .tree__toggle[data-submitting] .ic { animation: builder-spin .7s linear infinite; }

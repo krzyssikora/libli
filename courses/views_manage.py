@@ -506,32 +506,58 @@ def _render_scope(request, course, scope_ref, *, extra_open=()):
             q_min=builder_filter.MIN_QUERY,
         )
     )
-    return render(request, "courses/manage/_scope.html", context)
+    resp = render(request, "courses/manage/_scope.html", context)
+    entries = _info_entries(
+        fc.opened, q_active=fc.q_active, shown=fc.shown, total=fc.total
+    )
+    # ALWAYS set, and FULL STATE: every entry that applies to this response,
+    # so the client can remove a key this header omits (Task 12). `none` when
+    # nothing applies. The parent spec pairs "absent when none apply" with
+    # "an absent header clears all keys", and the client cannot implement
+    # that pair: the submit handler serves both a rename
+    # (_rename_result.html, no header, must NOT clear) and an add (a scope, no
+    # codes, MUST clear), and those are byte-identical from its side.
+    resp["X-Builder-Info"] = ", ".join(e["code"] for e in entries) or "none"
+    return resp
 
 
-def _info_entries(opened, *, q_active=False, shown=0, total=0):
-    """Interim: accepts the filter keywords but still emits only the
-    truncation entry. Task 5 Step 3 replaces the body, adds the `code` key
-    and DROPS these defaults (by then all three call sites pass them).
+def _info_entries(opened, *, q_active, shown, total):
+    """Keyed, so an incoming entry REPLACES rather than stacks.
 
-    Keyed, so an incoming entry REPLACES rather than stacks.
+    ONE WORD PER CONCEPT: the info key, the header code prefix and the
+    data-msg-* suffix are the same token. Three near-synonyms would force the
+    JS to carry a prefix->key map that lives nowhere, and a registry keyed off
+    the code prefix would never match the server-rendered
+    data-info-key="truncation" entry -- appending a second copy, which is the
+    bug the read-on-init rule exists to close.
+
+    ONE MSGID per notice: the same literal appears here and in the
+    data-msg-<key> attribute, deliberately, so makemessages collapses them.
+    Two entries would let the page and the fragment route disagree.
     """
-    if not opened.truncated:
-        return []
-    return [
-        {
-            "key": "truncation",
-            # Read through the MODULE, not a value imported at import time:
-            # tests monkeypatch courses.builder_open.CEILING, and a by-value
-            # import would make the notice claim 500 while _finalize truncated
-            # at the patched number.
-            # "scopes", not "sections": `section` is a real ContentNode.Kind here,
-            # and a truncated set is mostly parts and chapters. Getting this
-            # wrong costs a second catalog round after Task 12's makemessages.
-            "text": _("Only the first %(limit)s scopes were opened.")
-            % {"limit": builder_open.CEILING},
-        }
-    ]
+    entries = []
+    if opened.truncated:
+        entries.append(
+            {
+                "key": "truncation",
+                "code": f"truncation;limit={builder_open.CEILING}",
+                "text": _("Only the first %(limit)s scopes were opened.")
+                % {"limit": builder_open.CEILING},
+            }
+        )
+    if q_active:
+        # Emitted whenever q is active, INCLUDING shown == total == 0:
+        # "Filtered: 0 / 0" over an empty tree is the only explanation the
+        # author gets.
+        entries.append(
+            {
+                "key": "filter",
+                "code": f"filter;shown={shown};total={total}",
+                "text": _("Filtered: %(shown)s / %(total)s")
+                % {"shown": shown, "total": total},
+            }
+        )
+    return entries
 
 
 def _extra_container_pks(extra_open, cmap):

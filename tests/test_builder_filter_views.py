@@ -221,3 +221,126 @@ def test_manage_tree_honours_q(filtered_course):
     body = client.get(url, {"q": "trygo"}).content.decode()
     assert f'data-node="{hit.pk}"' in body
     assert f'data-node="{miss.pk}"' not in body
+
+
+def test_render_scope_always_sets_the_header_and_uses_none_when_empty(filtered_course):
+    """`none` rather than an absent header: the client cannot otherwise tell a
+    rename 200 (must NOT clear) from a code-less scope response (must clear).
+    """
+    client, course, part, chap, hit, miss = filtered_course
+    url = reverse("courses:manage_tree", kwargs={"slug": course.slug})
+    assert client.get(url)["X-Builder-Info"] == "none"
+    filtered = client.get(url, {"q": "trygo"})
+    assert filtered["X-Builder-Info"] == "filter;shown=1;total=1"
+
+
+def test_the_header_is_machine_readable_under_the_polish_locale(
+    filtered_course, monkeypatch
+):
+    """A human string in the header would reach the JS as a value it then
+    pastes into a role=status region, in whatever locale the request happened
+    to use -- and `raw.split(", ")` would shred it into bogus keys.
+
+    CEILING=0 forces the TRUNCATION entry alongside the filter one, and it is
+    the only notice whose Polish contains a non-ASCII character
+    ("...zakresów."). Without it this row cannot fail: "Filtrowane: 1 / 1" is
+    pure ASCII, so an implementation that put the human text in the header
+    would still satisfy every assertion below.
+
+    Note what actually bites: `ó` IS latin-1-encodable, so Django does NOT
+    MIME-encode it -- the header simply comes back non-ASCII. `isascii()` is
+    the load-bearing assertion; the `=?utf-8?` one covers the strings that are
+    not latin-1-encodable.
+    """
+    monkeypatch.setattr("courses.builder_open.CEILING", 0)
+    client, course, *_ = filtered_course
+    url = reverse("courses:manage_tree", kwargs={"slug": course.slug})
+    # The session key, NOT `with override("pl")` and NOT Accept-Language
+    # alone. Two middlewares/signals stack against both:
+    #   * core.middleware.SessionLocaleMiddleware (installed at
+    #     config/settings/base.py:48) calls translation.activate per request
+    #     (core/middleware.py:48-54), discarding an ambient `override`.
+    #   * `make_login` calls force_login, which fires user_logged_in, and
+    #     core/signals.py:14-21 seeds session["_language"] from user.language
+    #     -- which accounts/models.py:28 defaults to "en". That key is what
+    #     SessionLocaleMiddleware PREFERS (core/middleware.py:49-51), so it
+    #     never reaches Accept-Language at all.
+    # So Accept-Language alone renders `en` and the Content-Language guard
+    # below goes red. Seed the session, exactly as
+    # tests/test_builder_lazy_scopes.py:634-641 already does.
+    session = client.session
+    session["_language"] = "pl"
+    session.save()
+    resp = client.get(
+        url,
+        {"q": "trygo"},
+        HTTP_ACCEPT_LANGUAGE="pl",
+        **{"HTTP_X_REQUESTED_WITH": "fetch"},
+    )
+    # Content-Language alone: this response is a bare <ol> fragment, so the
+    # "Filtrowane" notice (which lives in builder.html's info slot) is never
+    # part of it. core/middleware.py:43 subclasses LocaleMiddleware, whose
+    # process_response sets this header.
+    assert resp["Content-Language"] == "pl", (
+        "the Polish locale is not actually active; the assertions below would "
+        "be vacuous"
+    )
+    value = resp["X-Builder-Info"]
+    assert value.isascii()
+    assert "=?utf-8?" not in value
+
+
+def test_a_rename_and_a_422_carry_no_header_at_all(filtered_course):
+    """They never reach _render_scope, so they neither set nor clear."""
+    client, course, part, chap, hit, miss = filtered_course
+    rename = reverse("courses:manage_node_rename", kwargs={"slug": course.slug})
+    resp = client.post(
+        rename,
+        {
+            "node": hit.pk,
+            "token": hit.updated.isoformat(),
+            "title": "Nowy",
+            "q": "trygo",
+        },
+        **{"HTTP_X_REQUESTED_WITH": "fetch"},
+    )
+    assert resp.status_code == 200
+    assert "X-Builder-Info" not in resp
+
+    # the 422 half the test's name promises: an empty title is rejected by the
+    # form, and _op_error.html never reaches _render_scope either
+    bad = client.post(
+        reverse("courses:manage_node_add", kwargs={"slug": course.slug}),
+        {
+            "parent": chap.pk,
+            "parent_token": chap.updated.isoformat(),
+            "kind": "unit",
+            "unit_type": "lesson",
+            "title": "",
+            "q": "trygo",
+        },
+        **{"HTTP_X_REQUESTED_WITH": "fetch"},
+    )
+    assert bad.status_code == 422
+    assert "X-Builder-Info" not in bad
+
+
+def test_the_info_slot_is_present_and_empty_on_an_unfiltered_page(filtered_course):
+    """Present, not hidden, and with NO text content: `:empty` does not match
+    an element containing whitespace, and one newline leaves a sunken grey bar
+    on every builder page, permanently."""
+    client, course, *_ = filtered_course
+    url = reverse("courses:manage_builder", kwargs={"slug": course.slug})
+    body = client.get(url).content.decode()
+    assert 'class="builder__info"' in body
+    assert "hidden" not in body.split('class="builder__info"')[1].split(">")[0]
+    marker = body.split('class="builder__info"')[1]
+    open_tag_end = marker.index(">")
+    assert marker[open_tag_end + 1 : open_tag_end + 6].startswith("</ul>")
+
+
+def test_a_server_rendered_notice_is_visible_without_js(filtered_course):
+    client, course, *_ = filtered_course
+    url = reverse("courses:manage_builder", kwargs={"slug": course.slug})
+    body = client.get(url, {"q": "trygo"}).content.decode()
+    assert 'data-info-key="filter"' in body
