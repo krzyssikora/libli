@@ -977,3 +977,28 @@ def test_both_bulk_hrefs_carry_q(filtered_course):
         for hook in ("data-expand-all\n", "data-collapse-all\n"):
             tag = body.split(hook)[1].split(">")[0]
             assert f"q={query}" in tag, (hook, query)
+
+
+def test_one_msgid_per_notice(filtered_course):
+    """The page route and the fragment route render the SAME literal, so
+    makemessages collapses them into one catalog entry. Two entries would let
+    them be translated differently and disagree about what the tree shows.
+
+    They are not directly comparable -- the server interpolates while the
+    attribute keeps its placeholders -- so a literal equality assertion fails
+    on a CORRECT implementation. Substitute, then compare.
+    """
+    client, course, *_ = filtered_course
+    url = reverse("courses:manage_builder", kwargs={"slug": course.slug})
+    # The login signal has already pinned session["_language"] to "en", so
+    # Accept-Language is never consulted. Without this seed the row still
+    # passes, but vacuously: it would compare an English template against an
+    # English render and could not detect the two literals drifting apart.
+    session = client.session
+    session["_language"] = "pl"
+    session.save()
+    body = client.get(url, {"q": "trygo"}, HTTP_ACCEPT_LANGUAGE="pl").content.decode()
+    assert "Filtrowane" in body, "the Polish catalog is not active; the row is vacuous"
+    template = body.split('data-msg-filter="')[1].split('"')[0]
+    rendered = body.split('data-info-key="filter">')[1].split("<")[0]
+    assert template % {"shown": 1, "total": 1} == rendered
