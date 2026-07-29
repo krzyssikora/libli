@@ -215,8 +215,7 @@ def test_no_js_fallback_reorder_and_duplicate(browser, live_server):
 
     def _titles():
         return [
-            n.title
-            for n in ContentNode.objects.filter(parent=chap).order_by("order")
+            n.title for n in ContentNode.objects.filter(parent=chap).order_by("order")
         ]
 
     assert _titles() == ["First", "Second"]
