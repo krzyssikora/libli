@@ -576,7 +576,29 @@
     });
   }
 
-  function rewriteBulkHrefs() {}   // replaced in Task 13
+  function rewriteBulkHrefs() {
+    // These two sit in .builder__tree's header, OUTSIDE every fragment
+    // applyFragment swaps and outside what manage_tree returns -- so unlike
+    // the delete and Move hrefs, nothing else refreshes them.
+    //
+    // Called from the response handlers AND from the two request-less paths
+    // that still change `appliedQ`: the clear skip branch (Task 11 Step 5)
+    // and collapse-all, which issues no fetch at all. What must NOT happen is
+    // relying on a click-time rewrite ALONE -- a middle-click dispatches
+    // auxclick, not click, so it would never run for the case this exists for.
+    root.querySelectorAll("[data-expand-all], [data-collapse-all]").forEach(
+      function (el) {
+        var href = el.getAttribute("href");
+        if (!href) return;       // never ADD one: over the ceiling the control
+                                 // is href-less on purpose, and
+                                 // new URL(null, origin) yields "/null"
+        var u = new URL(href, window.location.origin);
+        if (appliedQ) u.searchParams.set("q", appliedQ);
+        else u.searchParams.delete("q");
+        el.setAttribute("href", u.pathname + u.search);
+      }
+    );
+  }
 
   // null, NOT "" -- a legitimately empty pre-filter set stashes as "", and
   // `if (!stash)` misreads that as absent, so an author who had everything
@@ -769,6 +791,8 @@
         if (!live || !ctl || !ctl.dataset.submitting) return;
         var incoming = parseFragment(html).firstElementChild;
         if (!incoming) return;
+        // Replace, never blind-append: a scope arriving while one is already
+        // present would leave two sibling <ol data-scope>, and `:scope > ol.tree__scope` picks one at random.
         var dup = live.querySelector(":scope > ol.tree__scope");
         if (dup) dup.remove();
         live.appendChild(incoming);
@@ -801,6 +825,76 @@
     u.searchParams.set("open", collectOpen());
     del.setAttribute("href", u.pathname + u.search);
   });
+
+  // ---- bulk expand / collapse ------------------------------------------------
+  root.addEventListener("click", function (e) {
+    var el = e.target.closest("[data-expand-all]");
+    if (!el) return;
+    e.preventDefault();
+    // Both bails. The markup guard is authoritative (the server omits the
+    // href over the ceiling), but a preventDefault-then-fetch handler never
+    // consults the markup, so without these the disabled control still fires
+    // its request. hasAttribute, never getAttribute: the value form renders
+    // "False", which is truthy.
+    if (el.getAttribute("aria-disabled") === "true") return;
+    if (root.hasAttribute("data-expand-all-disabled")) return;
+
+    var url = new URL(root.getAttribute("data-tree-url"), window.location.origin);
+    setTreeParams(url, { openOverride: "all" });   // sends the APPLIED q
+    var gen = ++treeGen;
+    busyStart();
+    fetch(url.toString(), { headers: { "X-Requested-With": "fetch" } })
+      .then(function (r) {
+        return r.text().then(function (text) {
+          if (gen !== treeGen) return;
+          if (r.status !== 200) { notice(msg("network", "Network error — please try again.")); return; }
+          applyFragment(text);
+          applyInfo(r);
+          rewriteBulkHrefs();
+          syncUrl();          // writes the resulting ENUMERATION: the
+        });                   // collector can only ever emit one
+      })
+      .catch(function () { notice(msg("network", "Network error — please try again.")); })
+      .then(function () { busyEnd(); });
+  });
+
+  root.addEventListener("pointerdown", function (e) {
+    // Arm `swapping` BEFORE the click: a mouse click moves focus at
+    // mousedown, so a dirty title's focusout fires first, and the rename
+    // guard would read swapping === false and isConnected === true and commit.
+    // Slice 1's arming is deliberately NARROWED to the clicked toggle's own
+    // subtree, so this control inherits neither half.
+    if (!e.target.closest("[data-collapse-all]")) return;
+    var active = document.activeElement;
+    if (active && active.closest("ol.tree__scope[data-scope]:not([data-scope='top'])")) {
+      swapping = true;
+    }
+  });
+
+  root.addEventListener("click", function (e) {
+    if (!e.target.closest("[data-collapse-all]")) return;
+    e.preventDefault();          // it is an <a href>; "no request at all" is
+                                 // false without this, and the navigation
+                                 // would discard the stash
+    swapping = true;
+    try {
+      root
+        .querySelectorAll('ol.tree__scope[data-scope]:not([data-scope="top"])')
+        .forEach(function (ol) { ol.remove(); });
+    } finally {
+      swapping = false;
+    }
+    root.querySelectorAll("[data-toggle]").forEach(function (t) {
+      t.setAttribute("aria-expanded", "false");
+      t.removeAttribute("aria-controls");
+      // The server-rendered label pair: JS cannot select a Polish plural form.
+      var label = t.getAttribute("data-label-expand");
+      if (label) t.setAttribute("aria-label", label);
+    });
+    rewriteBulkHrefs();
+    syncUrl();
+  });
+  // ---- end bulk expand / collapse --------------------------------------------
 
   // --- WS2 drag-and-drop ----------------------------------------------------
   var RANK = { part: 0, chapter: 1, section: 2, unit: 3 };

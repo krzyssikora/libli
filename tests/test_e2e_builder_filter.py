@@ -624,3 +624,196 @@ def test_the_empty_info_slot_is_not_rendered(page, live_server):
     page.click("[data-filter-clear]")
     page.wait_for_timeout(500)
     assert page.evaluate("document.querySelector('.builder__info').matches(':empty')")
+
+
+def test_expand_all_then_collapse_all(page, live_server):
+    owner = _make_pa_user("pa")
+    course, part, chap, hit = _seed_deep(owner)
+    _login(page, live_server, "pa")
+    page.goto(f"{live_server.url}{_builder(course)}?open=")
+    page.click("[data-expand-all]")
+    page.wait_for_selector(f'ol[data-scope="{chap.pk}"]')
+    page.click("[data-collapse-all]")
+    page.wait_for_timeout(300)
+    assert (
+        page.locator('ol.tree__scope[data-scope]:not([data-scope="top"])').count() == 0
+    )
+    assert "open=" in page.url
+
+
+def test_collapse_all_does_not_navigate(page, live_server):
+    """It is an <a href>. After a navigation the server renders the same
+    collapsed toggles and the same open= in the address bar, so every other
+    collapse-all assertion passes through the bug."""
+    owner = _make_pa_user("pa")
+    course, part, chap, hit = _seed_deep(owner)
+    _login(page, live_server, "pa")
+    page.goto(f"{live_server.url}{_builder(course)}?open=all")
+    stamp(page)
+    page.click("[data-collapse-all]")
+    page.wait_for_timeout(300)
+    assert_no_navigation(page)
+
+
+def test_collapse_all_resets_aria_on_every_toggle(page, live_server):
+    owner = _make_pa_user("pa")
+    course, part, chap, hit = _seed_deep(owner)
+    _login(page, live_server, "pa")
+    page.goto(f"{live_server.url}{_builder(course)}?open=all")
+    page.click("[data-collapse-all]")
+    page.wait_for_timeout(300)
+    for t in page.locator("[data-toggle]").all():
+        assert t.get_attribute("aria-expanded") == "false"
+        assert t.get_attribute("aria-controls") is None
+
+
+def test_collapse_all_over_a_dirty_rename_posts_nothing(page, live_server):
+    """A REAL MOUSE CLICK, not keyboard activation: a click moves focus at
+    mousedown, so the dirty title's focusout fires BEFORE the click handler,
+    when `swapping` is still false and isConnected is still true -- and
+    commitRename fires a real POST whose applyRename then no-ops on a detached
+    form. DB holds the new title, tree shows the old, nothing is reported.
+    The keyboard path was already correct."""
+    owner = _make_pa_user("pa")
+    course, part, chap, hit = _seed_deep(owner)
+    _login(page, live_server, "pa")
+    page.goto(f"{live_server.url}{_builder(course)}?open=all")
+    posted = []
+    page.on("request", lambda r: posted.append(r.url) if r.method == "POST" else None)
+    page.locator(f'li[data-node="{hit.pk}"] input.tree__title').fill("Brudny tytul")
+    page.mouse.click(*_center(page.locator("[data-collapse-all]")))
+    page.wait_for_timeout(400)
+    assert not [u for u in posted if "rename" in u]
+
+
+def test_expand_all_fires_a_request_UNDER_the_ceiling(page, live_server):
+    """The under-ceiling half catches a data-expand-all-disabled emitted BY
+    VALUE: "False" is truthy in JS, so the bail fires on every course and the
+    control is silently dead everywhere."""
+    owner = _make_pa_user("pa")
+    course, part, chap, hit = _seed_deep(owner)
+    _login(page, live_server, "pa")
+    page.goto(f"{live_server.url}{_builder(course)}?open=")
+    sent = []
+    page.on(
+        "request", lambda r: sent.append(r.url) if "/build/tree/" in r.url else None
+    )
+    page.click("[data-expand-all]")
+    page.wait_for_selector(f'ol[data-scope="{chap.pk}"]')
+    assert sent
+
+
+def test_the_bulk_hrefs_stay_current_after_a_js_filter_apply(page, live_server):
+    """They sit in the header, OUTSIDE every fragment applyFragment swaps, so
+    nothing else refreshes them -- and a middle-click on a stale one opens an
+    unfiltered open=all render."""
+    owner = _make_pa_user("pa")
+    course, chap, hit, miss = _seed_two(owner)
+    _login(page, live_server, "pa")
+    page.goto(f"{live_server.url}{_builder(course)}")
+    page.fill("#builder-q", "trygo")
+    # Same trap: `hit` is already rendered at load on an under-threshold
+    # fixture, and rewriteBulkHrefs only runs in the RESPONSE handler ~300 ms
+    # later -- so a no-op wait reads the server-rendered href.
+    page.wait_for_selector(f'li[data-node="{miss.pk}"]', state="detached")
+    href = page.locator("[data-expand-all]").get_attribute("href")
+    assert "q=trygo" in href
+
+
+def test_an_over_ceiling_expand_all_never_grows_an_href(page, live_server, monkeypatch):
+    """The `if (!href) return;` guard, as a runnable row rather than a hand
+    check. Over the ceiling the server omits the href on purpose; without the
+    guard `new URL(null, origin)` yields "/null" and rewriteBulkHrefs turns a
+    deliberately inert control into a live link to a 404.
+
+    Collapse-all is the control group: it always has an href, so it proves the
+    rewrite still ran and this row is not passing because nothing happened.
+
+    BARRIER NOTE, measured rather than copied. Do NOT reuse the neighbouring
+    row's `li[data-node=miss]` + state="detached" wait: under CEILING=0
+    `_finalize` truncates the resolved set to EMPTY, so the page loads with the
+    chapter COLLAPSED and that <li> is never in the DOM. `state="detached"`
+    resolves instantly on a selector that never existed, and the assertions
+    would then run inside the 300 ms debounce, before any fetch — reading the
+    server-rendered href and failing. Wait on the `filter` info entry instead:
+    at load the slot holds only a `truncation` entry (no `q` in the URL), so
+    the `filter` entry is a true happens-after signal for the response.
+    """
+    monkeypatch.setattr("courses.builder_open.CEILING", 0)
+    owner = _make_pa_user("pa")
+    course, chap, hit, miss = _seed_two(owner)
+    _login(page, live_server, "pa")
+    page.goto(f"{live_server.url}{_builder(course)}")
+    expand = page.locator("[data-expand-all]")
+    assert expand.get_attribute("href") is None, (
+        "the server rendered an href over the ceiling; the row proves nothing"
+    )
+    assert page.locator('[data-info-key="filter"]').count() == 0
+    page.fill("#builder-q", "trygo")
+    page.wait_for_selector('[data-info-key="filter"]')  # the response landed
+    assert expand.get_attribute("href") is None
+    assert "q=trygo" in page.locator("[data-collapse-all]").get_attribute("href")
+
+
+def test_the_bulk_hrefs_are_scrubbed_when_a_below_floor_q_is_cleared(page, live_server):
+    """The href half Task 11 deferred to here, now that rewriteBulkHrefs has a
+    real body. This is the SKIP path -- no request, no response handler -- so
+    the rewrite happens only because applyFilterState calls it inline. The
+    server rendered `q=a` into this href, so a no-op leaves it there and a
+    middle-click reopens a filter the author cleared.
+    """
+    owner = _make_pa_user("pa")
+    course, chap, hit = _seed_flat(owner)
+    _login(page, live_server, "pa")
+    page.goto(f"{live_server.url}{_builder(course)}?q=a&open=all")
+    assert "q=a" in page.locator("[data-expand-all]").get_attribute("href"), (
+        "the server did not render q into the href; the row proves nothing"
+    )
+    page.click("[data-filter-clear]")
+    page.wait_for_timeout(400)
+    for hook in ("[data-expand-all]", "[data-collapse-all]"):
+        assert "q=" not in page.locator(hook).get_attribute("href"), hook
+
+
+def test_an_in_flight_expand_all_does_not_repaint_over_a_later_filter(
+    page, live_server
+):
+    """The forward obligation Task 11's review left open, made runnable.
+
+    `treeGen` is ONE counter for EVERY data-tree-url request, and the comment
+    that says so was written before expand-all existed -- so nothing until now
+    could redden an expand-all that fetches without taking a generation. The
+    interleaving: click Expand all, type a filter while it is in flight, and
+    the expand-all response lands LAST and repaints the fully-expanded,
+    unfiltered tree over the filtered one, clears the filter info entry and
+    strips ?q= from the address bar.
+
+    Held by `open=all`, which only the expand-all fetch carries: the filter
+    fetch deliberately sends no `open` at all.
+    """
+    owner = _make_pa_user("pa")
+    course, chap, hit, miss = _seed_two(owner)
+    _login(page, live_server, "pa")
+    page.goto(f"{live_server.url}{_builder(course)}")
+
+    held = []
+
+    def handler(route):
+        if "open=all" in route.request.url and not held:
+            held.append(route)  # hold the EXPAND-ALL response
+        else:
+            route.continue_()
+
+    page.route("**/build/tree/**", handler)
+
+    page.click("[data-expand-all]")
+    page.wait_for_timeout(400)
+    assert held, "expand-all issued no request; the row proves nothing"
+    page.fill("#builder-q", "trygo")
+    page.wait_for_selector(f'li[data-node="{miss.pk}"]', state="detached")
+    held[0].continue_()  # release it late
+    page.wait_for_timeout(400)
+
+    assert page.locator(f'li[data-node="{miss.pk}"]').count() == 0
+    assert page.locator('[data-info-key="filter"]').count() == 1
+    assert "q=trygo" in page.url
