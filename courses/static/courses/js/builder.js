@@ -318,6 +318,7 @@
           // that existed solely to refresh it was deleted along with it.)
           if (inPanel) setPanel(neutralPanel);
           clearMoving();
+          if (appliedQ) preFilterOpen = null;   // the tree changed underneath it
         } else if (r.status === 422) {
           notice(parseFragment(text).textContent.trim());
         }
@@ -510,6 +511,138 @@
     var tpl = root.getAttribute("data-node-scope-url") || "";
     return tpl.replace(/\/0\/scope\/$/, "/" + pk + "/scope/");
   }
+
+  // ---- title filter: the fetch, the clear path and the pre-filter stash ------
+  // Steps 3-6 below are ONE ordered block: `var box` (Step 5) must precede the
+  // `if (box)` wiring (Step 6), because `var` hoists the declaration but not
+  // the assignment -- pasted the other way round `box` is undefined at the
+  // guard, all three entry points are silently unwired, and nothing logs.
+  function applyInfo() {}          // replaced in Task 12
+  function rewriteBulkHrefs() {}   // replaced in Task 13
+
+  // null, NOT "" -- a legitimately empty pre-filter set stashes as "", and
+  // `if (!stash)` misreads that as absent, so an author who had everything
+  // collapsed, filtered, then cleared would get the filter's chains open
+  // instead of the empty tree they started from.
+  var preFilterOpen = null;
+  // ONE counter for EVERY data-tree-url request: filter, clear and
+  // expand-all all applyFragment the same pane. With a counter per path, a
+  // filter response landing after a clear repaints filtered markup, writes
+  // the tracker back and restores ?q= -- filtered markup over an empty box.
+  var treeGen = 0;
+  var filterTimer = null;
+
+  var box = root.querySelector("#builder-q");
+
+  function updateClearVisibility() {
+    var clear = root.querySelector("[data-filter-clear]");
+    if (clear) clear.hidden = !box.value;
+  }
+
+  function applyFilterState(live) {
+    var eff = effectiveQ(live);
+    // Compared against pendingQ, not appliedQ (see above). Guarded on what is
+    // APPLIED-or-IN-FLIGHT, not on what the box contains: otherwise the first
+    // character typed into an unfiltered tree takes the clear path, the stash
+    // is null, and the fallback re-renders everything the author had open --
+    // on mat-pp after an expand-all, the multi-second render, from one
+    // keystroke.
+    if (eff === effectiveQ(pendingQ)) {
+      // No FETCH is needed -- the pane already shows the right thing -- but
+      // the tracker still moved, and syncUrl/rewriteBulkHrefs are otherwise
+      // only ever called from a response handler. Skipping them here strands
+      // a below-floor query: load ?q=a, click Clear, and eff === "" on both
+      // sides, so without these two lines `?q=a` stays in the address bar and
+      // in both bulk hrefs while the box reads empty -- a reload or a
+      // middle-click silently restores a filter the author just cleared.
+      appliedQ = live;
+      pendingQ = live;
+      rewriteBulkHrefs();
+      syncUrl();
+      return;
+    }
+    pendingQ = live;          // at ISSUE time, before the fetch
+
+    var url = new URL(root.getAttribute("data-tree-url"), window.location.origin);
+    if (eff) {
+      // Entering a filter: stash BEFORE the first fetch, and only on the
+      // unfiltered -> filtered transition (refining does not re-stash).
+      if (preFilterOpen === null) preFilterOpen = collectOpen();
+      url.searchParams.set("q", live);
+      // NO `open`: step 2 outranks step 3, so a filter fetch carrying it
+      // would return only the scopes that happened to be open already, and a
+      // match three levels down inside a collapsed branch would never appear.
+    } else {
+      // Clearing. Never omits `open`: that is the fragment-absent path, i.e.
+      // the EMPTY set, which would collapse the course to its top rows.
+      url.searchParams.set(
+        "open", preFilterOpen === null ? collectOpen() : preFilterOpen
+      );
+    }
+
+    var gen = ++treeGen;
+    busyStart();
+    fetch(url.toString(), { headers: { "X-Requested-With": "fetch" } })
+      .then(function (r) {
+        return r.text().then(function (text) {
+          if (gen !== treeGen) return;          // stale: touch NOTHING --
+                                                // a newer issue owns pendingQ
+          if (r.status !== 200) {
+            // Roll pendingQ BACK. It advanced at issue time, and only the
+            // success path advances appliedQ -- so without this, retrying the
+            // identical query hits `eff === effectiveQ(pendingQ)`, takes the
+            // skip branch, issues NO request, and still writes appliedQ,
+            // syncUrl and the bulk hrefs. The tracker would then claim the
+            // pane shows `trygo` while it shows the pre-filter tree, and the
+            // next toggle would send q=trygo against unfiltered markup: the
+            // exact desync the tracker exists to prevent.
+            pendingQ = appliedQ;
+            notice(msg("network", "Network error — please try again."));
+            return;
+          }
+          applyFragment(text);
+          applyInfo(r);                          // Task 12
+          appliedQ = live;                       // BEFORE syncUrl and the rewrite
+          if (!eff) preFilterOpen = null;        // consumed on APPLY, not on issue
+          rewriteBulkHrefs();                    // Task 13
+          syncUrl();
+        });
+      })
+      .catch(function () {
+        // Same rollback as the non-200 arm, gen-guarded: a STALE request
+        // rejecting must not clobber the pendingQ a newer issue owns.
+        if (gen === treeGen) pendingQ = appliedQ;
+        notice(msg("network", "Network error — please try again."));
+      })
+      .then(function () { busyEnd(); });
+  }
+
+  if (box) {
+    root.addEventListener("input", function (e) {
+      if (e.target !== box) return;
+      updateClearVisibility();
+      clearTimeout(filterTimer);
+      filterTimer = setTimeout(function () { applyFilterState(box.value); }, 300);
+    });
+    // Enter / the Filter button. Without this the most obvious "apply the
+    // filter" gesture is a full-page navigation that discards the stash.
+    root.addEventListener("submit", function (e) {
+      var form = e.target.closest("[data-filter]");
+      if (!form) return;
+      e.preventDefault();
+      clearTimeout(filterTimer);
+      applyFilterState(box.value);
+    });
+    root.addEventListener("click", function (e) {
+      if (!e.target.closest("[data-filter-clear]")) return;
+      e.preventDefault();
+      clearTimeout(filterTimer);        // else it fires and issues a SECOND clear
+      box.value = "";
+      updateClearVisibility();          // box.value = "" fires no input event
+      applyFilterState("");
+    });
+  }
+  // ---- end title filter ------------------------------------------------------
 
   root.addEventListener("pointerdown", function (e) {
     // Armed HERE, not around the <ol> removal: a click moves focus at
@@ -714,6 +847,7 @@
       if (r.status === 200 || r.status === 409) {
         applyFragment(text);
         syncUrl();
+        if (appliedQ) preFilterOpen = null;   // the tree changed underneath it
         if (r.status === 409) notice(msg("conflict", "This changed elsewhere — reloaded to the latest."));
         // A drag bypasses the submit handler's panel-refresh. If the panel holds a token-bearing
         // form (e.g. the dragged node's Move picker / rename), it is now stale — clear it so
