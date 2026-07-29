@@ -343,7 +343,7 @@
       // Set ONLY `q`, not setTreeParams: the href already carries a rendered
       // `q`, so appending would yield `?node=5&q=X&q=X` and work only because
       // QueryDict.get takes the last -- and setTreeParams would additionally
-      // stamp `open`, which _move_picker never reads (views_manage.py:779-783),
+      // stamp `open`, which _move_picker never reads (views_manage.py:1075-1111),
       // so after an expand-all every picker GET would carry a ~1 KB pk list.
       var u = new URL(mv.getAttribute("href"), window.location.origin);
       u.searchParams.set("q", appliedQ);

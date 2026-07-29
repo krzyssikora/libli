@@ -177,11 +177,12 @@ def _open_descendants(cmap, ids):
 
 
 def _raw_q(request):
-    """POST then GET. Named because NINE non-rendering sites need their own
+    """POST then GET. Named because TEN non-rendering sites need their own
     read: the six _redirect_to_builder mutation sites, node_delete's GET,
-    _move_picker (NOT node_move's GET, which only delegates to it), and
-    node_move's mode=="reorder" guard. Without one helper the resolution
-    rule is re-expressed ten times.
+    node_delete's bespoke `?open=` redirect branch, _move_picker (NOT
+    node_move's GET, which only delegates to it), and node_move's
+    mode=="reorder" guard. Without one helper the resolution rule is
+    re-expressed eleven times.
 
     Mutation forms carry a hidden `q` in the body; toggles, manage_node_scope
     and manage_tree carry it in the query string. The body wins because the
@@ -207,7 +208,9 @@ class FilterContext:
     persists forced-open pks as though the author had chosen them.
     """
 
-    cmap: dict
+    # The RESTRICTED children-map (post-filter). Every caller also has a
+    # local `cmap` holding the FULL map -- do not confuse the two.
+    restricted: dict
     opened: builder_open.OpenSet
     open_ids: frozenset
     shown: int
@@ -239,7 +242,7 @@ def _filter_context(request, course, cmap, *, mode, extra_open=()):
     ids = set(opened.ids) | _extra_container_pks(extra_open, cmap)
     _apply_effect_two(restricted, extra_open, cmap)
     return FilterContext(
-        cmap=restricted,
+        restricted=restricted,
         opened=opened,
         open_ids=frozenset(ids),
         shown=shown,
@@ -372,8 +375,8 @@ def builder(request, slug):
     _remember_open(request, course, fc.opened, q_active=fc.q_active)
     context = {
         "course": course,
-        "children_map": fc.cmap,
-        "top_nodes": fc.cmap.get(None, []),
+        "children_map": fc.restricted,
+        "top_nodes": fc.restricted.get(None, []),
         "info": _info_entries(
             fc.opened, q_active=fc.q_active, shown=fc.shown, total=fc.total
         ),
@@ -479,13 +482,13 @@ def _render_scope(request, course, scope_ref, *, extra_open=()):
     fc = _filter_context(request, course, cmap, mode="fragment", extra_open=extra_open)
     if scope_ref == "top":
         nodes, updated, parent_kind = (
-            fc.cmap.get(None, []),
+            fc.restricted.get(None, []),
             course.updated.isoformat(),
             None,
         )
     else:
         parent = ContentNode.objects.filter(pk=scope_ref, course=course).first()
-        nodes = fc.cmap.get(int(scope_ref), [])
+        nodes = fc.restricted.get(int(scope_ref), [])
         updated = parent.updated.isoformat() if parent else course.updated.isoformat()
         parent_kind = parent.kind if parent else None
     context = {
@@ -493,7 +496,7 @@ def _render_scope(request, course, scope_ref, *, extra_open=()):
         "scope_updated": updated,
         "parent_kind": parent_kind,
         "nodes": nodes,
-        "children_map": fc.cmap,  # RESTRICTED -- the recursive descent
+        "children_map": fc.restricted,  # the recursive descent walks this
         "course": course,  # and _tree_toggle's counts read this
     }
     context.update(
@@ -524,6 +527,12 @@ def _render_scope(request, course, scope_ref, *, extra_open=()):
 
 def _info_entries(opened, *, q_active, shown, total):
     """Keyed, so an incoming entry REPLACES rather than stacks.
+
+    The truncation entry below reads `builder_open.CEILING` THROUGH the
+    module, not via a `from ... import CEILING`: tests monkeypatch
+    `courses.builder_open.CEILING`, and a by-value import would bind the
+    original number at import time and desync this text from the patched
+    guard.
 
     ONE WORD PER CONCEPT: the info key, the header code prefix and the
     data-msg-* suffix are the same token. Three near-synonyms would force the
@@ -1012,8 +1021,8 @@ def _builder_with_notice(request, course, message, status):
     fc = _filter_context(request, course, cmap, mode="notice")
     context = {
         "course": course,
-        "children_map": fc.cmap,
-        "top_nodes": fc.cmap.get(None, []),
+        "children_map": fc.restricted,
+        "top_nodes": fc.restricted.get(None, []),
         "notice": message,
         "info": _info_entries(
             fc.opened, q_active=fc.q_active, shown=fc.shown, total=fc.total

@@ -134,12 +134,17 @@ def open_ids(request, course, cmap, *, mode="fragment", q_chain=None):
     containers = container_pks(cmap)  # one copy of the "a unit owns no scope" rule
     raw, present = _raw_open(request)
 
-    # The sentinel is lifted OUT of step 2's predicate. `present` alone cannot
-    # separate them, and step 1 mutates it -- so hoisting the q_chain block
-    # without this makes `?open=3,4&q=...` resolve to the chains (breaking
-    # "an explicit open wins"), and leaving `if present:` intact sends
-    # "session" into _parse, which matches no digits and yields the EMPTY set
-    # with explicit=True: a collapsed tree that _remember_open then persists.
+    # The sentinel is computed here, once, rather than folded into step 2's
+    # predicate inline. `present` alone cannot separate "explicit open=" from
+    # the no-JS sentinel value "session" -- an earlier version of this
+    # function told them apart by mutating `present` to False once step 1 had
+    # consumed the sentinel; that mutation is gone, but the need to resolve
+    # the sentinel before step 2 has not: without it, hoisting the q_chain
+    # block above step 1 makes `?open=3,4&q=...` resolve to the chains
+    # (breaking "an explicit open wins"), and leaving `if present:` bare
+    # sends "session" into _parse, which matches no digits and yields the
+    # EMPTY set with explicit=True: a collapsed tree that _remember_open then
+    # persists.
     sentinel = present and raw == "session" and mode == "page"
 
     # Step 2 -- an explicit value wins, including the empty string.
