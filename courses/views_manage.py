@@ -809,6 +809,28 @@ def node_move(request, slug):
     course = _require_manage(request, slug)
     mode = request.POST.get("mode")
     if mode == "reorder":
+        # Every position-based op computes against the FULL sibling list while
+        # a filtered scope renders a SUBSET (spec 3m): reorder_node swaps
+        # full-list neighbours, so "Move down" mutates the course with NO
+        # visible change and the author clicks again, and again.
+        #
+        # is_active, not `request.POST.get("q")`: this branch runs before any
+        # children-map is loaded, so no FilterContext exists -- and a
+        # truthiness gate would refuse under a below-floor ?q=a, where the
+        # tree renders unfiltered and the arrows render ENABLED.
+        #
+        # Scoped to mode=="reorder" ONLY. A drop posts mode=reparent with a
+        # position, indistinguishable from the Move picker's form -- and the
+        # picker's slot indices are computed against the FULL child list, so
+        # they are correct by construction. Widening this guard would break
+        # the one route left for moving while filtered.
+        if builder_filter.is_active(_raw_q(request)):
+            msg = _("Clear the filter to reorder.")
+            if not _wants_fragment(request):
+                return _builder_with_notice(request, course, msg, status=422)
+            return render(
+                request, "courses/manage/_op_error.html", {"message": msg}, status=422
+            )
         try:
             node, changed = builder_svc.reorder_node(
                 course,

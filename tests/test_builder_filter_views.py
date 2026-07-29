@@ -757,3 +757,129 @@ def test_force_inclusion_is_idempotent(filtered_course):
     # yields 2. Count a per-row-unique token instead.
     new_pk = ContentNode.objects.get(title="Trygonometria druga").pk
     assert resp.content.decode().count(f'data-node="{new_pk}"') == 1
+
+
+def test_the_arrows_and_the_grip_render_disabled_under_a_filter(filtered_course):
+    """Both halves. Dropping `draggable` alone leaves .ica--grip's
+    `cursor: grab` and `:active { cursor: grabbing }` intact, so the row still
+    looks draggable -- the lying affordance this rule exists to remove.
+
+    A SECOND MATCHING SIBLING is mandatory. _move_buttons.html already renders
+    both arrows disabled on `is_first`/`is_last` alone, and under `q=trygo` the
+    shared fixture gives `chap` exactly ONE surviving child -- so `hit` would
+    be both first and last, both arrows would be disabled without the
+    `or filtered` edit, and deleting that edit could not turn this row red.
+    With two matches, `hit` is first-but-not-last, so the DOWN arrow is
+    disabled only by `or filtered`.
+
+    Added here rather than in the fixture: shown/total are asserted as 1/1 by
+    test_counts_under_a_filter_are_the_filtered_counts and by
+    test_a_forced_row_does_not_move_shown_or_total, and a second permanent
+    match would redden both.
+    """
+    client, course, part, chap, hit, miss = filtered_course
+    ContentNodeFactory(
+        course=course, kind="unit", parent=chap, title="Trygonometria II"
+    )
+    url = reverse("courses:manage_builder", kwargs={"slug": course.slug})
+    filtered = client.get(url, {"q": "trygo"}).content.decode()
+    row = filtered.split(f'data-node="{hit.pk}"')[1].split("</li>")[0]
+    assert "disabled" in row.split('value="down"')[1].split(">")[0], (
+        "the DOWN arrow is the one only `or filtered` can disable here"
+    )
+    assert row.count("disabled") >= 3  # up, down, grip
+    assert 'draggable="true"' not in row
+
+    plain = client.get(url, {"open": "all"}).content.decode()
+    prow = plain.split(f'data-node="{hit.pk}"')[1].split("</li>")[0]
+    assert 'draggable="true"' in prow
+
+
+def test_a_reorder_under_an_active_filter_is_refused_on_both_branches(filtered_course):
+    """The form is trivially replayable, so the markup alone is not a guard."""
+    client, course, part, chap, hit, miss = filtered_course
+    move = reverse("courses:manage_node_move", kwargs={"slug": course.slug})
+    before = list(
+        type(hit)
+        .objects.filter(parent=chap)
+        .order_by("order", "pk")
+        .values_list("pk", flat=True)
+    )
+
+    frag = client.post(
+        move,
+        {
+            "mode": "reorder",
+            "node": hit.pk,
+            "direction": "down",
+            "token": hit.updated.isoformat(),
+            "q": "trygo",
+        },
+        **{"HTTP_X_REQUESTED_WITH": "fetch"},
+    )
+    assert frag.status_code == 422
+    assert "op-error" in frag.content.decode()
+
+    page = client.post(
+        move,
+        {
+            "mode": "reorder",
+            "node": hit.pk,
+            "direction": "down",
+            "token": hit.updated.isoformat(),
+            "q": "trygo",
+        },
+    )
+    assert page.status_code == 422
+    assert "builder__tree" in page.content.decode()  # a full page, not a bare fragment
+
+    after = list(
+        type(hit)
+        .objects.filter(parent=chap)
+        .order_by("order", "pk")
+        .values_list("pk", flat=True)
+    )
+    assert before == after
+
+
+def test_a_reorder_under_a_BELOW_FLOOR_q_still_succeeds(filtered_course):
+    """The refusal row above passes under a truthiness gate
+    (request.POST.get("q")) or a presence gate, both of which wrongly refuse
+    here -- while the arrows render ENABLED, because `filtered` is False."""
+    client, course, part, chap, hit, miss = filtered_course
+    move = reverse("courses:manage_node_move", kwargs={"slug": course.slug})
+    resp = client.post(
+        move,
+        {
+            "mode": "reorder",
+            "node": hit.pk,
+            "direction": "down",
+            "token": hit.updated.isoformat(),
+            "q": "a",
+        },
+        **{"HTTP_X_REQUESTED_WITH": "fetch"},
+    )
+    assert resp.status_code == 200
+
+
+def test_a_positioned_REPARENT_under_a_filter_still_succeeds(filtered_course):
+    """A drop and the Move picker post the same mode=reparent shape and are
+    indistinguishable server-side, so a guard widened to "any positioned move"
+    would break the one route spec 3m designates for moving while filtered."""
+    client, course, part, chap, hit, miss = filtered_course
+    move = reverse("courses:manage_node_move", kwargs={"slug": course.slug})
+    resp = client.post(
+        move,
+        {
+            "mode": "reparent",
+            "node": hit.pk,
+            "new_parent": part.pk,
+            "position": 0,
+            "node_token": hit.updated.isoformat(),
+            "q": "trygo",
+        },
+        **{"HTTP_X_REQUESTED_WITH": "fetch"},
+    )
+    assert resp.status_code == 200
+    hit.refresh_from_db()
+    assert hit.parent_id == part.pk
