@@ -105,15 +105,77 @@
     });
     return out.join(",");
   }
-  // SET, never append: mutation forms may already carry the value, and
-  // QueryDict.get returns the LAST, so appending would win only by accident.
-  function withOpen(body) { body.set("open", collectOpen()); return body; }
+  // ---- the applied-q tracker -------------------------------------------------
+  // The floor applies in the COMPARISON, never in either value. Storing the
+  // effective form makes a ?q=a page send q="" on the first toggle, and
+  // syncUrl then strips the `a` from the address bar.
+  // TWO values, and conflating them breaks the clear path (spec 5z).
+  //   appliedQ  -- what the pane is SHOWING; written when a response lands;
+  //                read by the five senders, syncUrl and rewriteBulkHrefs
+  //   pendingQ  -- what the latest ISSUED request will apply; written at issue
+  //                time; read by the skip-comparison, and only that
+  // appliedQ alone is stale during an in-flight filter: type `trygo`, click
+  // Clear before it lands, and the clear compares "" against "" (appliedQ has
+  // not advanced), returns early, issues NO request and never bumps treeGen --
+  // so the filter response lands unopposed and repaints filtered markup over
+  // an empty box. The counter cannot save it: the losing path sends nothing.
+  var appliedQ = root.getAttribute("data-applied-q") || "";
+  var pendingQ = appliedQ;
+  var qMin = parseInt(root.getAttribute("data-q-min"), 10) || 2;
+
+  function effectiveQ(s) {
+    // Mirrors builder_filter.is_active. NFC, not NFD: measured over all of
+    // Unicode, an NFD client measure exceeds the server's fold for 11,371
+    // characters (Hangul, Hebrew, Katakana, Arabic, Indic), NFC for 83, and
+    // Latin for 0 either way.
+    //
+    // The explicit class, not trim(): Python's str.strip() takes U+0085 and
+    // U+001C-1F, which trim() does not, so "a\u0085" would be 2 to the client
+    // and 1 to the server -- the direction that collapses the tree.
+    //
+    // [...s].length, not .length: .length counts UTF-16 units and Python
+    // counts code points, so every astral character measures 2 here and 1
+    // there -- the same dangerous direction, for the whole astral plane.
+    // Every class member is written as an ESCAPE, never a literal byte:
+    // U+001C-001F and U+0085 are invisible in an editor and in a diff, and
+    // if one is lost to a paste that normalises whitespace the client floor
+    // silently disagrees with str.strip() in the direction that collapses
+    // the tree. Same for the combining-mark class.
+    var TRIM = /^[\s\u001c-\u001f\u0085]+|[\s\u001c-\u001f\u0085]+$/g;
+    var MARKS = /[\u0300-\u036f]/g;
+    var t = (s || "").replace(TRIM, "").normalize("NFC").replace(MARKS, "");
+    return [...t].length >= qMin ? (s || "").replace(TRIM, "") : "";
+  }
+
+  // SET, never append: mutation forms already carry a hidden q, so appending
+  // puts two values in the FormData and QueryDict.get returns the LAST -- the
+  // collector would win only by accident of ordering.
+  function setTreeParams(target, opts) {
+    var open = (opts && opts.openOverride !== undefined)
+      ? opts.openOverride
+      : collectOpen();
+    if (target.set) {                       // FormData or URLSearchParams
+      target.set("open", open);
+      target.set("q", appliedQ);
+    } else {                                // a URL
+      target.searchParams.set("open", open);
+      target.searchParams.set("q", appliedQ);
+    }
+    return target;
+  }
+  function withOpen(body) { return setTreeParams(body); }
 
   function syncUrl() {
     // Present-but-empty, never omitted: dropping the parameter makes the next
     // page GET see `open` as ABSENT and re-seed from the session.
     var u = new URL(window.location.href);
     u.searchParams.set("open", collectOpen());
+    // Writes the TRACKER, not "whatever this request sent" -- which is
+    // undefined for the clear fetch (sends no q) and for collapse-all (issues
+    // no request at all, yet calls this). Deletes only when the tracker is
+    // blank, so a below-floor `a` survives in the address bar.
+    if (appliedQ) u.searchParams.set("q", appliedQ);
+    else u.searchParams.delete("q");
     history.replaceState(null, "", u.toString());
   }
 
@@ -273,7 +335,14 @@
     var mv = e.target.closest("[data-move]");
     if (mv) {
       e.preventDefault();
-      fetch(mv.getAttribute("href"), { headers: { "X-Requested-With": "fetch" } })
+      // Set ONLY `q`, not setTreeParams: the href already carries a rendered
+      // `q`, so appending would yield `?node=5&q=X&q=X` and work only because
+      // QueryDict.get takes the last -- and setTreeParams would additionally
+      // stamp `open`, which _move_picker never reads (views_manage.py:779-783),
+      // so after an expand-all every picker GET would carry a ~1 KB pk list.
+      var u = new URL(mv.getAttribute("href"), window.location.origin);
+      u.searchParams.set("q", appliedQ);
+      fetch(u.pathname + u.search, { headers: { "X-Requested-With": "fetch" } })
         .then(function (r) { return r.text(); })
         .then(function (html) {
           setPanel(html);
@@ -484,9 +553,10 @@
     }
     t.dataset.submitting = "1";
     busyStart();
-    var body = new URLSearchParams();
     var open = collectOpen();
-    body.set("open", open ? open + "," + pk : pk);
+    var body = setTreeParams(new URLSearchParams(), {
+      openOverride: open ? open + "," + pk : pk,
+    });
     fetch(scopeUrlFor(pk) + "?" + body.toString(), {
       headers: { "X-Requested-With": "fetch" },
     }).then(function (r) {
