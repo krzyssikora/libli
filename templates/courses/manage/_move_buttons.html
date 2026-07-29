@@ -1,10 +1,14 @@
 {% load i18n %}
-<form class="tree__inline" method="post" action="{{ move_url }}" data-op="reorder">
-  {% csrf_token %}
-  <input type="hidden" name="mode" value="reorder">
-  <input type="hidden" name="node" value="{{ node.pk }}">
-  <input type="hidden" name="token" value="{{ node.updated.isoformat }}">
-  {% if q %}<input type="hidden" name="q" value="{{ q }}">{% endif %}
-  <button class="ica" type="submit" name="direction" value="up"{% if is_first or filtered %} disabled{% endif %} aria-label="{% trans 'Move up' %}" title="{% trans 'Move up' %}"><svg class="ic"><use href="#bi-up"/></svg></button>
-  <button class="ica" type="submit" name="direction" value="down"{% if is_last or filtered %} disabled{% endif %} aria-label="{% trans 'Move down' %}" title="{% trans 'Move down' %}"><svg class="ic"><use href="#bi-down"/></svg></button>
-</form>
+{% comment %}Buttons only -- no <form>, no csrf, no hidden fields. They submit the
+   row's own form (_tree_node.html) and redirect it to move_url with `formaction`;
+   `mode=reorder` and the node/token pair are the row form's, rendered once.
+
+   `formaction` is load-bearing for the no-JS path, not a convenience: the row
+   form's own action is the RENAME url, so without it a no-JS reorder renames the
+   node instead of moving it. Guarded by
+   test_e2e_builder.py::test_no_js_fallback_reorder_and_duplicate.
+
+   These sit directly in .tree__cluster now, which already supplies the same
+   `display:inline-flex; gap:1px` the removed .tree__inline wrapper did.{% endcomment %}
+<button class="ica icm icm--up" type="submit" formaction="{{ move_url }}" data-op="reorder" name="direction" value="up"{% if is_first or filtered %} disabled{% endif %} aria-label="{% trans 'Move up' %}" title="{% trans 'Move up' %}"></button>
+<button class="ica icm icm--down" type="submit" formaction="{{ move_url }}" data-op="reorder" name="direction" value="down"{% if is_last or filtered %} disabled{% endif %} aria-label="{% trans 'Move down' %}" title="{% trans 'Move down' %}"></button>

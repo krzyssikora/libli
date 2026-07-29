@@ -183,6 +183,26 @@
   function busyStart() { busy++; root.setAttribute("data-busy", "1"); }
   function busyEnd() { if (--busy <= 0) { busy = 0; root.removeAttribute("data-busy"); } }
 
+  // Run `fn` once the frame our DOM writes land in has actually been PAINTED.
+  //
+  // TWO nested rAFs, and one is not enough: a rAF callback runs BEFORE its
+  // frame's style/layout/paint, so a single one would fire while the browser
+  // still has all that work ahead of it. The second callback runs in the NEXT
+  // frame, i.e. after the first frame's paint reached the screen.
+  //
+  // This exists because busyEnd() was clearing `data-busy` at the end of the
+  // JS task, while the browser had not yet laid out or painted a single one of
+  // the ~40,000 elements applyFragment had just inserted. Measured on mat-pp:
+  // `data-busy` was removed at t=1438 ms and a 491 ms main-thread block STARTED
+  // at t=1438 ms. The dim therefore covered the fetch and nothing else -- the
+  // author saw an un-dimmed, apparently-finished tree while the main thread was
+  // still blocked, and any click they made in that window (Collapse all being
+  // the obvious one) sat undispatched until it ended, which reads as a dead
+  // button. The work is not made faster here; the indicator is made honest.
+  function afterPaint(fn) {
+    requestAnimationFrame(function () { requestAnimationFrame(fn); });
+  }
+
   // True only for the synchronous duration of the scope swap in applyFragment. Chromium
   // DOES dispatch focusout for a focused input inside the subtree being removed, and it
   // dispatches it from INSIDE replaceWith() -- at a point where the input and its form
@@ -263,12 +283,20 @@
   }
   function msg(key, fallback) { return root.getAttribute("data-msg-" + key) || fallback; }
 
-  // Release a form from its in-flight state. Only a rename form locks its title input,
-  // so the data-op gate spares every add/reorder/duplicate/reparent submission a
-  // querySelector that can never match.
-  function releaseForm(form) {
+  // Release a form from its in-flight state. Only a rename LOCKS anything, so the
+  // op gate spares every add/reorder/duplicate/reparent submission a querySelector
+  // that can never match.
+  //
+  // Takes the RESOLVED op, and touches `submitting` only on the rename arm. Since
+  // a row is one shared form (see _tree_node.html), an unconditional
+  // `delete form.dataset.submitting` here would let a reorder response clear the
+  // flag belonging to a rename still in flight on the SAME form -- and leave the
+  // title input readOnly forever, because the reorder arm returns before the
+  // unlock. Reorder and duplicate never set the flag in the first place, so
+  // skipping them is behaviour-preserving.
+  function releaseForm(form, op) {
+    if (op !== "rename") return;
     delete form.dataset.submitting;
-    if (form.getAttribute("data-op") !== "rename") return;
     var ti = form.querySelector("input.tree__title");
     if (ti) ti.readOnly = false;
   }
@@ -278,6 +306,19 @@
     var form = e.target.closest("form[data-op]");
     if (!form) return;
     e.preventDefault();
+    // The op and the endpoint come from the BUTTON when it declares them: one row
+    // is one form serving rename + reorder + duplicate, and each button carries
+    // its own data-op/formaction. The form-level fallback is not a nicety -- it is
+    // the rename path, where commitRename() calls requestSubmit() with no argument
+    // and `e.submitter` is therefore null.
+    //
+    // getAttribute("formaction"), never the .formAction PROPERTY: the property
+    // reflects the FORM's action when the attribute is absent, so every no-formaction
+    // submitter would silently read as "overridden" and the `||` would never fall
+    // through.
+    var op = (e.submitter && e.submitter.getAttribute("data-op"))
+      || form.getAttribute("data-op");
+    var action = (e.submitter && e.submitter.getAttribute("formaction")) || form.action;
     var inPanel = panel.contains(form);
     var body = new FormData(form);
     // include the submitter's name/value (e.g. direction=up)
@@ -286,7 +327,7 @@
     // and append it as parent_token so the server can verify the destination's token.
     // The server treats parent_token as optional (existence-only when absent = no-JS path),
     // so skipping it here is safe — we just add it when available for the stricter JS path.
-    if (form.getAttribute("data-op") === "reparent") {
+    if (op === "reparent") {
       var sel = form.querySelector("select[name='new_parent']");
       if (sel) {
         var opt = sel.options[sel.selectedIndex];
@@ -297,7 +338,7 @@
     }
     busyStart();
     var finish = function () { busyEnd(); };
-    fetch(form.action, {
+    fetch(action, {
       method: "POST",
       headers: { "X-CSRFToken": csrf(), "X-Requested-With": "fetch" },
       body: withOpen(body),
@@ -310,7 +351,7 @@
           // A rename's 200 is patched in place; its 409 deliberately still goes through
           // applyFragment -- there the tree genuinely diverged and _conflict_scope must
           // be applied, or the stale row is never reloaded.
-          if (r.status === 200 && form.getAttribute("data-op") === "rename") {
+          if (r.status === 200 && op === "rename") {
             applyRename(form, text);
           } else {
             applyFragment(text);
@@ -326,11 +367,11 @@
         } else if (r.status === 422) {
           notice(parseFragment(text).textContent.trim());
         }
-        releaseForm(form);
+        releaseForm(form, op);
       });
     }, function () {
       notice(msg("network", "Network error — please try again."));   // network only
-      releaseForm(form);
+      releaseForm(form, op);
     }).then(finish, function (e) { finish(); if (window.console) console.error(e); });        // BOTH arms, like every other site
   });
 
@@ -425,7 +466,9 @@
   });
 
   // ---- Inline rename: commit ---------------------------------------------------
-  function titleForm(input) { return input.closest("form.tree__rename"); }
+  // form.tree__rowhead: the row's single form (was form.tree__rename, which no
+  // longer exists -- the title is now a direct child of the rowhead form).
+  function titleForm(input) { return input.closest("form.tree__rowhead"); }
 
   // Programmatic value assignment fires NO input event, so the tooltip must be synced
   // by hand here or it keeps showing abandoned text -- exactly on the truncated long
@@ -663,7 +706,11 @@
 
     var gen = ++treeGen;
     busyStart();
-    var finish = function () { busyEnd(); };
+    // afterPaint: this path applyFragment's the WHOLE pane, so clearing the dim
+    // synchronously would un-dim before the swapped-in tree is painted. Clearing
+    // a filter is the large case -- it restores the pre-filter open set, which
+    // after an expand-all is the entire course.
+    var finish = function () { afterPaint(busyEnd); };
     fetch(url.toString(), { headers: { "X-Requested-With": "fetch" } })
       .then(function (r) {
         return r.text().then(function (text) {
@@ -865,7 +912,10 @@
     setTreeParams(url, { openOverride: "all" });   // sends the APPLIED q
     var gen = ++treeGen;
     busyStart();
-    var finish = function () { busyEnd(); };
+    // afterPaint: the largest swap in the app. Without it the dim is dropped
+    // while the browser still has the whole expanded tree to lay out and paint,
+    // which is exactly the window an author clicks Collapse all in.
+    var finish = function () { afterPaint(busyEnd); };
     fetch(url.toString(), { headers: { "X-Requested-With": "fetch" } })
       .then(function (r) {
         return r.text().then(function (text) {

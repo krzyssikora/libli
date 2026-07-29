@@ -233,9 +233,13 @@ def _toggle_open_pks(html, pk):
     emitted attribute ORDER (class, href, data-toggle) -- reversing it makes
     the match silently fail, and an `assert m is None or ...` would then pass
     on the miss.
+
+    `class="tree__toggle[^"]*"`, not an exact match: the toggle also carries the
+    masked-icon classes (`icm icm--chevron`), and pinning the attribute's exact
+    VALUE made this helper fail closed the moment an unrelated class was added.
     """
     m = re.search(
-        rf'<a class="tree__toggle" href="([^"]+)"[^>]*data-toggle="{pk}"', html
+        rf'<a class="tree__toggle[^"]*" href="([^"]+)"[^>]*data-toggle="{pk}"', html
     )
     assert m, f"no toggle href found for pk={pk}"
     qs = parse_qs(urlparse(m.group(1)).query)

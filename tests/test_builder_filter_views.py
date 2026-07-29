@@ -526,21 +526,36 @@ def test_every_tree_form_carries_a_hidden_q(filtered_course):
     every rename, add, reorder and duplicate.
 
     Asserted per FORM, not once over the body -- a single hidden input
-    anywhere would otherwise satisfy all four.
+    anywhere would otherwise satisfy all of them.
+
+    A row is ONE form now (rename + reorder + duplicate share it via
+    `formaction`), so its single hidden `q` covers three of the four ops -- but
+    only while those buttons really are inside it. That containment is asserted
+    here too: move a button out of the rowhead form and it silently loses `q`
+    for no-JS authors, which no other test would notice.
     """
     client, course, part, chap, hit, miss = filtered_course
     url = reverse("courses:manage_builder", kwargs={"slug": course.slug})
     body = client.get(url, {"q": "trygo", "open": "all"}).content.decode()
     forms = {
-        "rename": 'class="tree__rename"',
+        "rowhead": 'class="tree__rowhead"',
         "add": 'class="tree__add"',
-        "reorder": 'data-op="reorder"',
-        "duplicate": 'data-op="duplicate"',
     }
     for label, marker in forms.items():
         assert marker in body, f"{label}: form absent; the row proves nothing"
         frag = body.split(marker, 1)[1].split("</form>", 1)[0]
         assert 'name="q"' in frag and 'value="trygo"' in frag, label
+
+    # The ops that no longer own a form must sit INSIDE the rowhead form.
+    # Anchored on a UNIT's row: `duplicate` renders only for units, so taking the
+    # first rowhead in the document would test a part and pass on its absence.
+    unit_row = body.split(f'data-node="{hit.pk}"', 1)[1]
+    rowhead = unit_row.split('class="tree__rowhead"', 1)[1].split("</form>", 1)[0]
+    for op in ("reorder", "duplicate"):
+        assert f'data-op="{op}"' in rowhead, (
+            f"{op} button is outside the rowhead form -- it would post without q"
+        )
+    assert 'name="title"' in rowhead, "rename input is outside the rowhead form"
 
 
 def test_the_delete_confirm_round_trip_stays_filtered(filtered_course):

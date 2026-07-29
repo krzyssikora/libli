@@ -164,12 +164,14 @@ def test_builder_unit_panel_is_readonly(client):
     assert 'data-op="settings"' not in body  # settings form removed from the builder
 
 
-RENAME_FORM_RE = re.compile(r'<form class="tree__rename".*?</form>', re.DOTALL)
+# The row's single form. Was `<form class="tree__rename">`, which wrapped only the
+# title; a row now has ONE form (the rowhead) serving rename + reorder + duplicate.
+RENAME_FORM_RE = re.compile(r'<form class="tree__rowhead".*?</form>', re.DOTALL)
 
 
 def _rename_form(html):
     m = RENAME_FORM_RE.search(html)
-    assert m, "no .tree__rename form found in the builder page"
+    assert m, "no .tree__rowhead form found in the builder page"
     return m.group(0)
 
 

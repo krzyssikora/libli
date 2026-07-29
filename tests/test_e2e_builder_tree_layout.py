@@ -374,12 +374,12 @@ def test_notice_bar_is_visible_and_opaque_while_panel_scrolled(page, live_server
     # it on the first node, so the naive .first selector picks a disabled button and
     # Playwright's actionability check hangs for 30s on a failure unrelated to the
     # notice.
-    # Narrowed to data-op="reorder": every row now also carries
-    # form.tree__rename[data-op="rename"] whose visually-hidden submit precedes the
-    # cluster in document order — .first would pick that clipped button and .click()
-    # would hang on the hit-target check for the full timeout.
+    # Narrowed to data-op="reorder", which is now on the BUTTON: a row is one
+    # form[data-op="rename"] and its visually-hidden submit precedes the cluster in
+    # document order, so an unnarrowed .first would pick that clipped button and
+    # .click() would hang on the hit-target check for the full timeout.
     page.locator(
-        ".builder__tree form[data-op=\"reorder\"] button[type='submit']:not([disabled])"
+        '.builder__tree button[data-op="reorder"]:not([disabled])'
     ).first.click()
 
     bar = page.locator(".builder__panel > .op-error")

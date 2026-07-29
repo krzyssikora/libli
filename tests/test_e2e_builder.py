@@ -127,23 +127,18 @@ def test_stale_token_409_swap(page, live_server):
     # Trigger a reorder for Alpha (the first unit, direction=up hits boundary so we
     # try down instead — either direction can hit the server; the stale check fires
     # regardless of boundary).  Find the reorder form for Alpha and submit down.
-    # The builder renders reorder buttons as forms with data-op="reorder" and a hidden
-    # input[name="direction"].  We target the first such form inside the scope.
-    reorder_form = page.locator('form[data-op="reorder"]').first
+    # The reorder buttons are submit buttons on the ROW's shared form, each carrying
+    # its own data-op="reorder" and formaction; they used to be a form of their own.
+    #
+    # No `pytest.skip` fallback any more. The old one keyed off
+    # `form[data-op="reorder"]`, so this markup change would have made the locator
+    # match nothing, skipped the test, and reported green while the 409 path went
+    # entirely unexercised.
     _UNIT_FALLBACK = (
         "server 409 contract is unit-tested by"
         " test_stale_token_returns_409_and_does_not_write."
     )
-    if not reorder_form.is_visible():
-        pytest.skip(
-            "Reorder form not visible — builder template may have changed; "
-            + _UNIT_FALLBACK
-        )
-
-    # Submit the 'down' button (direction=down)
-    down_btn = reorder_form.locator("button[value='down']")
-    if not down_btn.count():
-        pytest.skip("Down button not found in reorder form — " + _UNIT_FALLBACK)
+    down_btn = page.locator('button[data-op="reorder"][value="down"]').first
     down_btn.click()
 
     # After the fetch completes, builder.js should call notice() which prepends a
@@ -186,4 +181,61 @@ def test_no_js_fallback_add(browser, live_server):
     ).click()  # full-page POST -> 302 redirect
     page.wait_for_selector('.tree__title[value="Part A"]')
     assert Course.objects.get(slug="nojs").nodes.filter(title="Part A").exists()
+    ctx.close()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_no_js_fallback_reorder_and_duplicate(browser, live_server):
+    """With JS disabled, the row's `formaction` buttons still hit the right views.
+
+    This is the only guard on `formaction` itself. A row is ONE form whose action
+    is the RENAME url; reorder and duplicate reach node_move / node_duplicate
+    solely because their buttons override it. Drop the attribute and the JS path
+    keeps working (builder.js reads it and would fall back to form.action... to
+    rename), while a no-JS author silently renames the node instead of moving it
+    — a data-losing failure no other test in the suite can see.
+    """
+    from courses.models import ContentNode
+    from courses.models import Course
+    from tests.factories import ContentNodeFactory
+    from tests.factories import CourseFactory
+
+    owner = _make_pa_user("pa4")
+    course = CourseFactory(slug="nojs2", owner=owner)
+    chap = ContentNodeFactory(
+        course=course, kind="chapter", unit_type=None, parent=None, title="Chap"
+    )
+    first = ContentNodeFactory(course=course, kind="unit", parent=chap, title="First")
+    ContentNodeFactory(course=course, kind="unit", parent=chap, title="Second")
+
+    ctx = browser.new_context(java_script_enabled=False)
+    page = ctx.new_page()
+    _login(page, live_server, "pa4")
+    page.goto(f"{live_server.url}/manage/courses/nojs2/build/?open=all")
+
+    def _titles():
+        return [
+            n.title for n in ContentNode.objects.filter(parent=chap).order_by("order")
+        ]
+
+    assert _titles() == ["First", "Second"]
+
+    row = page.locator(f'li.tree__row[data-node="{first.pk}"]')
+    row.locator(
+        ':scope > .tree__rowhead button[data-op="reorder"][value="down"]'
+    ).click()
+    page.wait_for_selector('.tree__title[value="First"]')
+    assert _titles() == ["Second", "First"], "no-JS reorder did not reach node_move"
+
+    # ...and the title is untouched, i.e. the POST did NOT land on node_rename.
+    assert Course.objects.get(slug="nojs2").nodes.filter(title="First").count() == 1
+
+    before = ContentNode.objects.filter(parent=chap).count()
+    page.locator(f'li.tree__row[data-node="{first.pk}"]').locator(
+        ':scope > .tree__rowhead button[data-op="duplicate"]'
+    ).click()
+    page.wait_for_selector('.tree__title[value="First"]')
+    assert ContentNode.objects.filter(parent=chap).count() == before + 1, (
+        "no-JS duplicate did not reach node_duplicate"
+    )
     ctx.close()
