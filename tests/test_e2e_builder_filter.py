@@ -681,8 +681,12 @@ def test_collapse_all_over_a_dirty_rename_posts_nothing(page, live_server):
     posted = []
     page.on("request", lambda r: posted.append(r.url) if r.method == "POST" else None)
     page.locator(f'li[data-node="{hit.pk}"] input.tree__title').fill("Brudny tytul")
+    stamp(page)
     page.mouse.click(*_center(page.locator("[data-collapse-all]")))
     page.wait_for_timeout(400)
+    assert_no_navigation(page)  # renames are JS-driven; a dead JS path would
+    # navigate here, post nothing (correctly, but for the wrong reason), and
+    # pass the assertion below vacuously.
     assert not [u for u in posted if "rename" in u]
 
 
@@ -796,6 +800,15 @@ def test_an_in_flight_expand_all_does_not_repaint_over_a_later_filter(
     _login(page, live_server, "pa")
     page.goto(f"{live_server.url}{_builder(course)}")
 
+    # BARRIER NOTE, measured rather than copied. The wait below for `miss` to
+    # reach state="detached" is only a happens-after signal for the filter
+    # response if `miss` was actually rendered at load. On a fixture where it
+    # never renders, that wait resolves INSTANTLY, the held response is
+    # released before the 300 ms debounce even fires, the two responses land
+    # in the benign order, and this row would pass even with the guard
+    # removed.
+    assert page.locator(f'li[data-node="{miss.pk}"]').count() == 1
+
     held = []
 
     def handler(route):
@@ -811,8 +824,11 @@ def test_an_in_flight_expand_all_does_not_repaint_over_a_later_filter(
     assert held, "expand-all issued no request; the row proves nothing"
     page.fill("#builder-q", "trygo")
     page.wait_for_selector(f'li[data-node="{miss.pk}"]', state="detached")
-    held[0].continue_()  # release it late
-    page.wait_for_timeout(400)
+
+    # A sleep after continue_() only samples whether the stale response has
+    # landed; expect_response is a real happens-after signal that it has.
+    with page.expect_response(lambda r: "open=all" in r.url):
+        held[0].continue_()  # release it late
 
     assert page.locator(f'li[data-node="{miss.pk}"]').count() == 0
     assert page.locator('[data-info-key="filter"]').count() == 1

@@ -792,7 +792,9 @@
         var incoming = parseFragment(html).firstElementChild;
         if (!incoming) return;
         // Replace, never blind-append: a scope arriving while one is already
-        // present would leave two sibling <ol data-scope>, and `:scope > ol.tree__scope` picks one at random.
+        // present would leave two sibling <ol data-scope> elements, and the
+        // `:scope > ol.tree__scope` lookup would then deterministically match
+        // the FIRST one in document order -- not necessarily this response's.
         var dup = live.querySelector(":scope > ol.tree__scope");
         if (dup) dup.remove();
         live.appendChild(incoming);
@@ -831,11 +833,20 @@
     var el = e.target.closest("[data-expand-all]");
     if (!el) return;
     e.preventDefault();
-    // Both bails. The markup guard is authoritative (the server omits the
-    // href over the ceiling), but a preventDefault-then-fetch handler never
-    // consults the markup, so without these the disabled control still fires
-    // its request. hasAttribute, never getAttribute: the value form renders
-    // "False", which is truthy.
+    // Both bails, but only the first is decisive today: it shares its
+    // `{% if expand_all_disabled %}` with data-expand-all-disabled
+    // (builder.html:19/35) and runs first, so over the ceiling it always
+    // fires before the second is even reached. The second is deliberate
+    // defence-in-depth, kept for the day the anchor becomes a <button
+    // disabled> or an a11y pass drops aria-disabled.
+    //
+    // hasAttribute, never getAttribute: builder.html:19 emits this attribute
+    // BY PRESENCE, so under that markup getAttribute would return null/""
+    // (both falsy) and the bail could never fire -- hasAttribute is the only
+    // accessor that sees it. A VALUE form (e.g. ="False") would be fatal
+    // under either accessor; the bare form is pinned by
+    // tests/test_builder_filter_views.py:932, which asserts the attribute is
+    // ABSENT from the under-ceiling render.
     if (el.getAttribute("aria-disabled") === "true") return;
     if (root.hasAttribute("data-expand-all-disabled")) return;
 
@@ -876,6 +887,15 @@
     e.preventDefault();          // it is an <a href>; "no request at all" is
                                  // false without this, and the navigation
                                  // would discard the stash
+    // KNOWN LIMITATION, not fixed here: this does not bump treeGen, so an
+    // in-flight expand-all still passes `gen === treeGen` and repaints the
+    // fully-expanded tree over this collapse. The obvious fix -- ++treeGen
+    // here too -- is WRONG: it would also invalidate an in-flight FILTER
+    // response, advancing pendingQ with no success path left to advance
+    // appliedQ to match, and no rollback (the rollback only runs on a non-200
+    // or a caught rejection) -- the exact desync the :671-678 comment exists
+    // to prevent. The pre-existing toggle-collapse path has the identical
+    // hole and already shipped; this one is not new.
     swapping = true;
     try {
       root
