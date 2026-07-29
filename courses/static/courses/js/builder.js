@@ -302,6 +302,9 @@
       body: withOpen(body),
     }).then(function (r) {
       return r.text().then(function (text) {
+        applyInfo(r);          // FIRST, on every arm. A rename 200 and a 422
+                               // carry no header, so this is a no-op there --
+                               // by construction, not by a call-site list.
         if (r.status === 200 || r.status === 409) {
           // A rename's 200 is patched in place; its 409 deliberately still goes through
           // applyFragment -- there the tree genuinely diverged and _conflict_scope must
@@ -517,7 +520,62 @@
   // `if (box)` wiring (Step 6), because `var` hoists the declaration but not
   // the assignment -- pasted the other way round `box` is undefined at the
   // guard, all three entry points are silently unwired, and nothing logs.
-  function applyInfo() {}          // replaced in Task 12
+  // ---- the info slot ---------------------------------------------------------
+  var infoSlot = root.querySelector("[data-info]");
+
+  function applyInfo(response) {
+    // header ABSENT -> not a tree-pane response, ignore ENTIRELY. A rename
+    // 200, a 422 and both panel fetches never reach _render_scope, so they
+    // neither set nor clear -- by construction, not by a call-site list.
+    var raw = response.headers.get("X-Builder-Info");
+    if (raw === null || !infoSlot) return;
+
+    if (raw === "none") { infoSlot.replaceChildren(); return; }
+
+    // FULL STATE, not a delta. The header lists every entry that applies to
+    // the response, so a key it OMITS must be REMOVED.
+    //
+    // The reachable case is a REFINE, not a clear: the slot holds
+    // truncation + filter, the author narrows the query, the new chain set
+    // fits under the ceiling, and the response carries `filter` with no
+    // `truncation` -- so without this loop the stale truncation entry
+    // survives over a tree that is no longer truncated.
+    //
+    // A CLEAR is already covered by `none` above, and cannot reach here: it
+    // sends `open=<enumeration>` derived from the DOM, whose scopes a
+    // previous _finalize already capped at <= CEILING, so `len(kept) >
+    // CEILING` is False and the response is never truncated.
+    var incoming = raw.split(", ").map(function (e) { return e.split(";")[0]; });
+    infoSlot.querySelectorAll("[data-info-key]").forEach(function (li) {
+      if (incoming.indexOf(li.getAttribute("data-info-key")) === -1) li.remove();
+    });
+
+    // grammar:  entry ( ", " entry )*   with   entry := key ( ";" name "=" value )*
+    raw.split(", ").forEach(function (entry) {
+      var parts = entry.split(";");
+      var key = parts[0];
+      var params = {};
+      parts.slice(1).forEach(function (p) {
+        var kv = p.split("=");
+        params[kv[0]] = kv[1];
+      });
+      var template = msg(key, "");
+      if (!template) return;
+      var text = template.replace(/%\((\w+)\)s/g, function (_m, name) {
+        return params[name] !== undefined ? params[name] : "";
+      });
+      // Replace by KEY -- the info key, the code prefix and the data-msg-*
+      // suffix are deliberately the same token, so no prefix->key map exists
+      // to get wrong.
+      var existing = infoSlot.querySelector('[data-info-key="' + key + '"]');
+      var li = document.createElement("li");
+      li.setAttribute("data-info-key", key);
+      li.textContent = text;             // element nodes only: never leave a
+      if (existing) existing.replaceWith(li);   // text node inside the slot,
+      else infoSlot.appendChild(li);            // or :empty stops matching
+    });
+  }
+
   function rewriteBulkHrefs() {}   // replaced in Task 13
 
   // null, NOT "" -- a legitimately empty pre-filter set stashes as "", and
@@ -693,29 +751,41 @@
     fetch(scopeUrlFor(pk) + "?" + body.toString(), {
       headers: { "X-Requested-With": "fetch" },
     }).then(function (r) {
-      if (r.status !== 200) throw new Error("bad status");
-      return r.text();
-    }).then(function (html) {
-      // A foreign applyFragment may have replaced this row while we waited.
-      var live = root.querySelector('li.tree__row[data-node="' + pk + '"]');
-      var ctl = live && live.querySelector(':scope > .tree__rowhead [data-toggle]');
-      if (!live || !ctl || !ctl.dataset.submitting) return;
-      var incoming = parseFragment(html).firstElementChild;
-      if (!incoming) return;
-      // Replace, never blind-append: two responses would leave two sibling
-      // <ol data-scope> and `:scope > ol.tree__scope` would pick one at random.
-      var dup = live.querySelector(":scope > ol.tree__scope");
-      if (dup) dup.remove();
-      live.appendChild(incoming);             // direct child, after .tree__rowhead
-      ctl.setAttribute("aria-expanded", "true");
-      ctl.setAttribute("aria-controls", "tree-scope-" + pk);
-      if (ctl.dataset.labelCollapse) ctl.setAttribute("aria-label", ctl.dataset.labelCollapse);
-      syncUrl();
+      // NESTED so `r` survives into the body handler. applyInfo needs the
+      // Response; the old `return r.text()` threw it away.
+      return r.text().then(function (html) {
+        // The non-200 branch moves HERE and stops being a `throw`. Task 14
+        // converts the error arm below to the two-argument `.then` form,
+        // which deliberately no longer sees throws from the success path --
+        // so a thrown "bad status" would become an unhandled rejection and
+        // the author would get no notice at all.
+        if (r.status !== 200) {
+          notice(msg("network", "Network error — please try again."));
+          return;
+        }
+        // A foreign applyFragment may have replaced this row while we waited.
+        var live = root.querySelector('li.tree__row[data-node="' + pk + '"]');
+        var ctl = live && live.querySelector(':scope > .tree__rowhead [data-toggle]');
+        if (!live || !ctl || !ctl.dataset.submitting) return;
+        var incoming = parseFragment(html).firstElementChild;
+        if (!incoming) return;
+        var dup = live.querySelector(":scope > ol.tree__scope");
+        if (dup) dup.remove();
+        live.appendChild(incoming);
+        ctl.setAttribute("aria-expanded", "true");
+        ctl.setAttribute("aria-controls", "tree-scope-" + pk);
+        if (ctl.dataset.labelCollapse) {
+          ctl.setAttribute("aria-label", ctl.dataset.labelCollapse);
+        }
+        applyInfo(r);   // AFTER the staleness guard: a response whose row
+                        // vanished must not repaint the info slot either.
+        syncUrl();
+      });
     }).catch(function () {
       notice(msg("network", "Network error — please try again."));
     }).then(function () {
       var ctl2 = root.querySelector('[data-toggle="' + pk + '"]');
-      if (ctl2) delete ctl2.dataset.submitting;   // clear on BOTH paths, or the row wedges
+      if (ctl2) delete ctl2.dataset.submitting;   // BOTH paths, or the row wedges
       busyEnd();
     });
   });
@@ -846,6 +916,7 @@
     }).then(function (r) { return r.text().then(function (text) {
       if (r.status === 200 || r.status === 409) {
         applyFragment(text);
+        applyInfo(r);
         syncUrl();
         if (appliedQ) preFilterOpen = null;   // the tree changed underneath it
         if (r.status === 409) notice(msg("conflict", "This changed elsewhere — reloaded to the latest."));

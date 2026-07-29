@@ -508,3 +508,119 @@ def test_a_clear_is_not_overwritten_by_an_in_flight_filter_response(page, live_s
     assert page.locator(f'li[data-node="{miss.pk}"]').count() == 1
     assert page.locator('[data-info-key="filter"]').count() == 0
     assert "q=" not in page.url
+
+
+def test_a_fragment_borne_notice_lands_on_a_page_that_had_none(page, live_server):
+    """Without the always-present slot the JS has nowhere to insert, and the
+    throw is swallowed by the .catch and mislabelled 'Network error' while the
+    tree still updates -- so no other row notices."""
+    owner = _make_pa_user("pa")
+    course, chap, hit, miss = _seed_two(owner)
+    _login(page, live_server, "pa")
+    page.goto(f"{live_server.url}{_builder(course)}")
+    page.fill("#builder-q", "trygo")
+    page.wait_for_selector('[data-info-key="filter"]')
+
+
+def test_the_info_slot_replaces_by_key(page, live_server):
+    """From a ?q= PAGE LOAD, or the test passes vacuously: the registry bug is
+    that the JS knows only about entries it inserted itself."""
+    owner = _make_pa_user("pa")
+    course, chap, hit, miss = _seed_two(owner)
+    _login(page, live_server, "pa")
+    page.goto(f"{live_server.url}{_builder(course)}?q=trygo")
+    page.fill("#builder-q", "trygono")
+    page.wait_for_timeout(500)
+    page.fill("#builder-q", "trygonom")
+    page.wait_for_timeout(500)
+    assert page.locator('[data-info-key="filter"]').count() == 1
+
+
+def test_an_absent_header_does_NOT_clear_the_slot(page, live_server):
+    """A rename 200 is _rename_result.html and carries no header. The
+    server-side row proves only that it is absent; this proves the client
+    IGNORES an absent header rather than clearing on it."""
+    owner = _make_pa_user("pa")
+    course, chap, hit, miss = _seed_two(owner)
+    _login(page, live_server, "pa")
+    page.goto(f"{live_server.url}{_builder(course)}?q=trygo")
+    page.wait_for_selector('[data-info-key="filter"]')
+    row = page.locator(f'li[data-node="{hit.pk}"] input.tree__title')
+    row.fill("Trygonometria II")
+    row.press("Enter")
+    page.wait_for_timeout(400)
+    assert page.locator('[data-info-key="filter"]').count() == 1
+
+
+def test_clearing_the_filter_removes_the_filter_entry(page, live_server):
+    """The ONLY path on which `none` does any work."""
+    owner = _make_pa_user("pa")
+    course, chap, hit, miss = _seed_two(owner)
+    _login(page, live_server, "pa")
+    page.goto(f"{live_server.url}{_builder(course)}?q=trygo")
+    page.wait_for_selector('[data-info-key="filter"]')
+    page.click("[data-filter-clear]")
+    page.wait_for_timeout(500)
+    assert page.locator('[data-info-key="filter"]').count() == 0
+
+
+def test_a_REFINE_that_drops_below_the_ceiling_removes_the_truncation_entry(
+    page, live_server, monkeypatch
+):
+    """The case `none` cannot express, in the ONLY direction that is reachable.
+
+    NOT the clear path. A clear sends `open=<preFilterOpen or collectOpen()>`,
+    both DOM-derived enumerations of scopes a previous _finalize already
+    capped at <= CEILING -- so `len(kept) > CEILING` is False and a clear
+    response can never be truncated. Its header is `none`, and
+    replaceChildren() already covers that. Building this row on a clear makes
+    it red against a CORRECT implementation.
+
+    The reachable direction is a REFINE: the slot holds truncation + filter,
+    and a narrower query resolves to a chain set that FITS under the ceiling,
+    so the response carries `filter` with no `truncation`. Without the removal
+    loop the stale truncation entry survives.
+
+    CEILING=2 with three containers: "trygo" matches both units, so the chains
+    are {part, c1, c2} = 3 > 2 and the load truncates. "trygonometria d"
+    matches only the second, so the chains are {part, c2} = 2 and it does not.
+    Both folds verified by substring, not by eye.
+    """
+    monkeypatch.setattr("courses.builder_open.CEILING", 2)
+    owner = _make_pa_user("pa")
+    course = CourseFactory(slug="e2etr", owner=owner)
+    part = ContentNodeFactory(
+        course=course, kind="part", unit_type=None, parent=None, title="Czesc"
+    )
+    c1 = ContentNodeFactory(
+        course=course, kind="chapter", unit_type=None, parent=part, title="Rozdzial I"
+    )
+    c2 = ContentNodeFactory(
+        course=course, kind="chapter", unit_type=None, parent=part, title="Rozdzial II"
+    )
+    ContentNodeFactory(course=course, kind="unit", parent=c1, title="Trygonometria")
+    ContentNodeFactory(
+        course=course, kind="unit", parent=c2, title="Trygonometria dodatkowa"
+    )
+    _login(page, live_server, "pa")
+    page.goto(f"{live_server.url}{_builder(course)}?q=trygo")
+    page.wait_for_selector('[data-info-key="truncation"]')
+    assert page.locator('[data-info-key="filter"]').count() == 1
+    page.fill("#builder-q", "trygonometria d")
+    page.wait_for_selector('[data-info-key="truncation"]', state="detached")
+    assert page.locator('[data-info-key="filter"]').count() == 1
+
+
+def test_the_empty_info_slot_is_not_rendered(page, live_server):
+    """Both at load AND after a filter -> clear cycle: the second catches the
+    JS leaving a whitespace text node, which makes the sunken bar permanent."""
+    owner = _make_pa_user("pa")
+    course, chap, hit, miss = _seed_two(owner)
+    _login(page, live_server, "pa")
+    page.goto(f"{live_server.url}{_builder(course)}")
+    assert page.evaluate("document.querySelector('.builder__info').matches(':empty')")
+    page.fill("#builder-q", "trygo")
+    page.wait_for_selector('[data-info-key="filter"]')
+    page.click("[data-filter-clear]")
+    page.wait_for_timeout(500)
+    assert page.evaluate("document.querySelector('.builder__info').matches(':empty')")
