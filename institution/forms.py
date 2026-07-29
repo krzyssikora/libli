@@ -1,5 +1,6 @@
 """Operational institution settings (branding colours admin is Phase 5)."""
 
+import os
 import re
 
 from django import forms
@@ -17,18 +18,59 @@ from institution.models import BrandColor
 from institution.models import Institution
 
 
-class LogoClearableFileInput(ClearableFileInput):
+class BrandingFileInput(ClearableFileInput):
     """ClearableFileInput that renders via a styled project template.
 
     BoundField.as_widget() passes renderer=form.renderer (the default form
     renderer, which only looks in Django's built-in forms/templates dir).
     We override _render() to always use TemplatesSetting instead so the
-    project's TEMPLATES dirs are searched for the custom logo widget template.
-    The native checkbox_name ("logo-clear") is preserved so Django's
+    project's TEMPLATES dirs are searched for the custom widget template.
+    The native checkbox_name ("<field>-clear") is preserved so Django's
     value_from_datadict / clear logic fires unchanged.
+
+    Copy is per-field: the five labels default to the logo's wording so the logo
+    field's msgids and rendered copy are unchanged by the generalization (its
+    data-* hook names and CSS classes are deliberately renamed).
+    icon_variant is a boolean, not a CSS-class string, because it forks
+    accessibility markup as well as styling -- keying an aria decision off a
+    class name would let the two drift.
     """
 
-    template_name = "institution/manage/widgets/logo_clearable.html"
+    template_name = "institution/manage/widgets/branding_file.html"
+
+    def __init__(
+        self,
+        attrs=None,
+        *,
+        current_label=None,
+        empty_label=None,
+        replace_label=None,
+        upload_label=None,
+        remove_label=None,
+        icon_variant=False,
+    ):
+        super().__init__(attrs)
+        self.current_label = current_label or _("Current logo")
+        self.empty_label = empty_label or _("No logo yet")
+        self.replace_label = replace_label or _("Replace logo")
+        self.upload_label = upload_label or _("Upload logo")
+        self.remove_label = remove_label or _("Remove logo")
+        self.icon_variant = icon_variant
+
+    def get_context(self, name, value, attrs):
+        # Constructor kwargs are invisible to the widget template without this.
+        context = super().get_context(name, value, attrs)
+        context["widget"].update(
+            {
+                "current_label": self.current_label,
+                "empty_label": self.empty_label,
+                "replace_label": self.replace_label,
+                "upload_label": self.upload_label,
+                "remove_label": self.remove_label,
+                "icon_variant": self.icon_variant,
+            }
+        )
+        return context
 
     def _render(self, template_name, context, renderer=None):
         return super()._render(
@@ -37,6 +79,17 @@ class LogoClearableFileInput(ClearableFileInput):
 
 
 MAX_LOGO_BYTES = 2 * 1024 * 1024  # 2 MB
+MAX_FAVICON_BYTES = 256 * 1024  # 256 KB -- fetched by every visitor
+
+FAVICON_CURRENT = _("Current favicon")
+FAVICON_EMPTY = _("No favicon yet")
+FAVICON_REPLACE = _("Replace favicon")
+FAVICON_UPLOAD = _("Upload favicon")
+FAVICON_REMOVE = _("Remove favicon")
+
+ALLOWED_FAVICON_SUFFIX = ".png"
+MIN_FAVICON_PX = 192
+MAX_FAVICON_PX = 512
 
 _HEX6 = re.compile(r"^#[0-9a-fA-F]{6}$")
 _HEX3 = re.compile(r"^#[0-9a-fA-F]{3}$")
@@ -79,11 +132,22 @@ class BrandingForm(forms.ModelForm):
         fields = [
             "name",
             "logo",
+            "favicon",
             "enabled_languages",
             "default_language",
             "default_theme",
         ]
-        widgets = {"logo": LogoClearableFileInput()}
+        widgets = {
+            "logo": BrandingFileInput(),
+            "favicon": BrandingFileInput(
+                current_label=FAVICON_CURRENT,
+                empty_label=FAVICON_EMPTY,
+                replace_label=FAVICON_REPLACE,
+                upload_label=FAVICON_UPLOAD,
+                remove_label=FAVICON_REMOVE,
+                icon_variant=True,
+            ),
+        }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -114,6 +178,43 @@ class BrandingForm(forms.ModelForm):
             return value
         if getattr(value, "size", 0) > MAX_LOGO_BYTES:
             raise forms.ValidationError(_("Logo must be 2 MB or smaller."))
+        return value
+
+    def clean_favicon(self):
+        value = self.cleaned_data.get("favicon")
+        # Three different things land here: a fresh upload (which forms.ImageField
+        # has given an .image), the sentinel False (clear ticked), or the existing
+        # FieldFile (field untouched). Only the first carries .image; touching
+        # .image on the others is a 500 on every ordinary Branding save.
+        image = getattr(value, "image", None)
+        if image is None:
+            return value
+
+        # Cheapest first, so a fixture violating two rules reports deterministically.
+        if getattr(value, "size", 0) > MAX_FAVICON_BYTES:
+            raise forms.ValidationError(_("The favicon must be 256 KB or smaller."))
+
+        suffix = os.path.splitext(value.name or "")[1].lower()
+        if suffix != ALLOWED_FAVICON_SUFFIX:
+            raise forms.ValidationError(_("The favicon must be a .png file."))
+
+        if image.format != "PNG":
+            raise forms.ValidationError(_("The favicon must be a PNG image."))
+
+        width, height = image.size
+        if width != height:
+            raise forms.ValidationError(
+                _(
+                    "The favicon must be square - crop it to equal width and "
+                    "height first."
+                )
+            )
+
+        if not (MIN_FAVICON_PX <= width <= MAX_FAVICON_PX):
+            raise forms.ValidationError(
+                _("The favicon must be between 192 and 512 pixels.")
+            )
+
         return value
 
     def clean_primary(self):

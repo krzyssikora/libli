@@ -9,8 +9,9 @@ garść ustawień wartych podjęcia od razu pierwszego dnia.
 ## Kroki
 
 1. **Powitanie** — przegląd tego, co przed Tobą.
-2. **Tożsamość** — nazwa Twojej instytucji, logo, kolory i języki (te same
-   pola co w temacie [Branding i ustawienia platformy](branding-settings)).
+2. **Tożsamość** — nazwa Twojej instytucji, logo, favicon, kolory i języki
+   (te same pola co w temacie
+   [Branding i ustawienia platformy](branding-settings)).
 3. **Dostęp** — polityka rejestracji i dozwolone domeny e-mail.
 4. **Zespół** — wysyłanie zaproszeń do pierwszych współpracowników bez
    opuszczania kreatora; co dzieje się dalej opisuje temat

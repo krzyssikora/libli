@@ -307,16 +307,16 @@
   white-space: nowrap;
 }
 
-/* ── Logo field — media row (thumbnail + actions) ────────────────────────── */
+/* ── Branding file field — media row (thumbnail + actions) ───────────────── */
 
-.logo-field {
+.branding-file {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: var(--space-4);
 }
 
-.logo-field__thumb {
+.branding-file__thumb {
   height: 64px;
   width: 120px;
   flex: none;
@@ -327,7 +327,7 @@
   padding: var(--space-2);
 }
 
-.logo-field__thumb--empty {
+.branding-file__thumb--empty {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -336,7 +336,12 @@
   color: var(--text-tertiary);
 }
 
-.logo-field__actions {
+.branding-file__thumb--icon {
+  height: 48px;
+  width: 48px;
+}
+
+.branding-file__actions {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
@@ -345,13 +350,13 @@
 
 /* The styled "Replace/Upload" button is a label wrapping a transparent native
    file input that fills it, so a click anywhere on the button opens the dialog. */
-.logo-field__choose {
+.branding-file__choose {
   position: relative;
   overflow: hidden;
   cursor: pointer;
 }
 
-.logo-field__input {
+.branding-file__input {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -360,13 +365,13 @@
   cursor: pointer;
 }
 
-.logo-field__filename {
+.branding-file__filename {
   font-size: .8125rem;
   color: var(--text-secondary);
   font-family: var(--font-mono);
 }
 
-.logo-field__remove {
+.branding-file__remove {
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
@@ -375,7 +380,7 @@
   cursor: pointer;
 }
 
-.logo-field__remove input[type="checkbox"] {
+.branding-file__remove input[type="checkbox"] {
   width: 1rem;
   height: 1rem;
   flex: none;

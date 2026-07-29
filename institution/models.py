@@ -20,10 +20,28 @@ class Institution(models.Model):
     SIGNUP_CHOICES = [("invite", _("Invite only")), ("open", _("Open self-signup"))]
     THEME_CHOICES = [("light", _("Light")), ("dark", _("Dark")), ("auto", _("Auto"))]
 
-    name = models.CharField(max_length=200, default="My Institution")
-    logo = models.ImageField(upload_to="branding/", blank=True, null=True)
+    name = models.CharField(
+        max_length=200, default="My Institution", verbose_name=_("Name")
+    )
+    logo = models.ImageField(
+        upload_to="branding/", blank=True, null=True, verbose_name=_("Logo")
+    )
+    favicon = models.ImageField(
+        upload_to="branding/",
+        blank=True,
+        null=True,
+        verbose_name=_("Favicon"),
+        help_text=_(
+            "Square PNG, 192-512 px, up to 256 KB. Replaces the libli icon in "
+            "browser tabs and on home screens. Transparent areas show as black on "
+            "iOS home screens - use a solid background for best results."
+        ),
+    )
     signup_policy = models.CharField(
-        max_length=10, choices=SIGNUP_CHOICES, default="invite"
+        max_length=10,
+        choices=SIGNUP_CHOICES,
+        default="invite",
+        verbose_name=_("Signup policy"),
     )
     allowed_email_domains = models.JSONField(default=list, blank=True)
     allowed_image_extensions = models.JSONField(
@@ -37,7 +55,10 @@ class Institution(models.Model):
     enabled_languages = models.JSONField(default=default_languages, blank=True)
     default_language = models.CharField(max_length=5, default="en")
     default_theme = models.CharField(
-        max_length=5, choices=THEME_CHOICES, default="auto"
+        max_length=5,
+        choices=THEME_CHOICES,
+        default="auto",
+        verbose_name=_("Default theme"),
     )
     onboarded = models.BooleanField(
         default=False,

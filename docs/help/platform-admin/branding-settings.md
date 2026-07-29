@@ -8,8 +8,10 @@ Notifications and Integrations each have their own topic.
 
 ![The branding settings tab](static:core/img/help/branding.en.png)
 
-Set the institution **name** and **logo** (2 MB max), the **primary** and
-**accent** colours used throughout the interface (as 6-digit hex codes,
+Set the institution **name** and **logo** (2 MB max), the **favicon** shown
+in browser tabs and used as the home-screen icon on mobile (a square PNG,
+192-512 px, 256 KB max — replaces the default libli icon), the **primary**
+and **accent** colours used throughout the interface (as 6-digit hex codes,
 e.g. `#147E78`), the **default theme** (**Light**, **Dark** or **Auto** —
 Auto is the default), and which **languages** are enabled for the
 platform's own UI, with one of them chosen as the **default language**.

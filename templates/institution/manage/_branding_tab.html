@@ -3,10 +3,10 @@
 Branding tab: a live identity preview (the signature element) on top, then the
 controls grouped as Identity / Brand colours / Localization.
 
-Colour hex inputs carry data-hex="1" (set by _hex_field in forms.py); the logo
-widget exposes data-logo-* hooks. The inline script at the bottom keeps the
-preview (name, logo, primary/accent samples) in sync as the admin edits, before
-anything is saved.
+Colour hex inputs carry data-hex="1" (set by _hex_field in forms.py); each
+branding file widget exposes data-file-* hooks inside its data-file-field
+wrapper. The inline script at the bottom keeps the preview (name, logo,
+primary/accent samples) in sync as the admin edits, before anything is saved.
 {% endcomment %}
 <form class="settings__form" method="post" action="{% url 'institution:settings_branding' %}" enctype="multipart/form-data">
   {% csrf_token %}
