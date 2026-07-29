@@ -230,7 +230,21 @@ input.tree__title:focus { outline: 2px solid var(--primary); outline-offset: 1px
    sits well above the ~8rem line where wrapping starts to trigger at this row's actual
    content, leaving margin for longer (e.g. Polish) button labels shifting that line. */
 .builder__filter { display: flex; gap: var(--space-2); flex: 1 1 0; min-width: 12rem; }
-.builder__filter input[type="search"] { flex: 1 1 0; min-width: 0; }
+/* The fill/colour/rim half of this rule is not cosmetic. app.css:136 themes
+   `input[type=text|email|password|url], select, textarea` -- `type=search` is
+   NOT in that list, and no `.input` class applies here, so without these
+   declarations the field keeps the UA's white background while inheriting the
+   page's near-white --text-primary. MEASURED in dark mode before this rule
+   existed: background rgb(255,255,255) against colour rgb(242,239,233), i.e.
+   the typed query at roughly 1.05:1 contrast -- invisible, not merely faint.
+   Values mirror app.css:136 exactly (same fill, same --border-strong rim, same
+   padding) so the filter box reads as the same control as every other themed
+   input; `width` is deliberately NOT copied, because the flex basis above owns
+   sizing here. */
+.builder__filter input[type="search"] { flex: 1 1 0; min-width: 0;
+  padding: var(--space-2) var(--space-3);
+  background: var(--surface-sunken); color: var(--text-primary);
+  border: 1px solid var(--border-strong); border-radius: var(--radius-sm); }
 .builder__tree .manage__head .btn { margin-left: 0; }   /* the row now has FIVE
    controls: app.css:591 gives every .manage__head .btn `margin-left: auto`,
    which was right when the row held one <h1> and two buttons. With Import,
