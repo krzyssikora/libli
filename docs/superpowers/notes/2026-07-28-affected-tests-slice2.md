@@ -83,6 +83,27 @@ as *intended* migration — and only once the specific task that changes that
 behaviour has landed. `test_manage_builder.py` must stay green throughout;
 it encodes no changed behaviour.
 
+## M10 — investigated and DROPPED (Task 14 Step 2)
+
+Recorded so the finding is not re-opened on the same false premise.
+
+The slice-1 ledger entry read "`_persist_chain` re-runs `_children_map` on the
+no-JS redirect path", implying a caller already holds that map. **It does not.**
+Verified on this branch at Task 14:
+
+- `_persist_chain` is defined at `courses/views_manage.py:602` and called from
+  exactly three places — `node_add` (`:731`), `node_move`'s reparent branch
+  (`:886`) and `node_duplicate` (`:986`).
+- `grep -n "_children_map(" courses/` returns the definition at `:140` and call
+  sites `:369`, `:406`, `:478`, `:610`, `:1006`, `:1081`. `:610` is *inside*
+  `_persist_chain` itself; none of the three callers computes one.
+
+So threading a map in would mean *adding* `_children_map(course)` to each caller
+to pass it down: the same query, moved — no saving. A real fix would give
+`_persist_chain` a narrower dependency (the container-pk set) and find a caller
+that already has it; nobody on the no-JS redirect path does. **Dropped, not
+deferred.**
+
 ## Note on tooling
 
 The combined pytest invocations' own final summary line (e.g. "166 passed in

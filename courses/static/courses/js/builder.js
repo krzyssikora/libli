@@ -296,6 +296,7 @@
       }
     }
     busyStart();
+    var finish = function () { busyEnd(); };
     fetch(form.action, {
       method: "POST",
       headers: { "X-CSRFToken": csrf(), "X-Requested-With": "fetch" },
@@ -327,10 +328,10 @@
         }
         releaseForm(form);
       });
-    }).catch(function () {
-      notice(msg("network", "Network error — please try again."));
+    }, function () {
+      notice(msg("network", "Network error — please try again."));   // network only
       releaseForm(form);
-    }).then(function () { busyEnd(); });
+    }).then(finish, finish);        // BOTH arms, like every other site
   });
 
   // Node selection -> load the detail panel fragment.
@@ -662,6 +663,7 @@
 
     var gen = ++treeGen;
     busyStart();
+    var finish = function () { busyEnd(); };
     fetch(url.toString(), { headers: { "X-Requested-With": "fetch" } })
       .then(function (r) {
         return r.text().then(function (text) {
@@ -687,14 +689,16 @@
           rewriteBulkHrefs();                    // Task 13
           syncUrl();
         });
-      })
-      .catch(function () {
-        // Same rollback as the non-200 arm, gen-guarded: a STALE request
-        // rejecting must not clobber the pendingQ a newer issue owns.
+      }, function () {
+        // Gen-guarded: a STALE request rejecting must not clobber the pendingQ
+        // a newer issue owns. Dropping this line reintroduces the desync
+        // test_retrying_the_same_query_after_a_FAILED_fetch_issues_a_new_request
+        // exists to catch -- and that row fails at Task 14 Step 5 with nothing
+        // pointing back at this rewrite as the cause.
         if (gen === treeGen) pendingQ = appliedQ;
         notice(msg("network", "Network error — please try again."));
       })
-      .then(function () { busyEnd(); });
+      .then(finish, finish);
   }
 
   if (box) {
@@ -745,6 +749,9 @@
   });
   document.addEventListener("pointerup", function () { swapping = false; });
   document.addEventListener("pointercancel", function () { swapping = false; });
+  // `swapping` latches true if pointerup never fires (window blur mid-press);
+  // `pointerFocus` has the same shape.
+  window.addEventListener("blur", function () { swapping = false; pointerFocus = false; });
 
   root.addEventListener("click", function (e) {
     var t = e.target.closest("[data-toggle]");
@@ -766,6 +773,12 @@
     }
     t.dataset.submitting = "1";
     busyStart();
+    // the toggle -- clear `submitting` on BOTH paths, or the row wedges
+    var finish = function () {
+      var ctl2 = root.querySelector('[data-toggle="' + pk + '"]');
+      if (ctl2) delete ctl2.dataset.submitting;
+      busyEnd();
+    };
     var open = collectOpen();
     var body = setTreeParams(new URLSearchParams(), {
       openOverride: open ? open + "," + pk : pk,
@@ -807,13 +820,9 @@
                         // vanished must not repaint the info slot either.
         syncUrl();
       });
-    }).catch(function () {
-      notice(msg("network", "Network error — please try again."));
-    }).then(function () {
-      var ctl2 = root.querySelector('[data-toggle="' + pk + '"]');
-      if (ctl2) delete ctl2.dataset.submitting;   // BOTH paths, or the row wedges
-      busyEnd();
-    });
+    }, function () {
+      notice(msg("network", "Network error — please try again."));   // network only
+    }).then(finish, finish);
   });
 
   // The delete link is a plain navigation for everyone -- node_confirm_delete's
@@ -854,6 +863,7 @@
     setTreeParams(url, { openOverride: "all" });   // sends the APPLIED q
     var gen = ++treeGen;
     busyStart();
+    var finish = function () { busyEnd(); };
     fetch(url.toString(), { headers: { "X-Requested-With": "fetch" } })
       .then(function (r) {
         return r.text().then(function (text) {
@@ -864,9 +874,10 @@
           rewriteBulkHrefs();
           syncUrl();          // writes the resulting ENUMERATION: the
         });                   // collector can only ever emit one
+      }, function () {
+        notice(msg("network", "Network error — please try again."));   // network only
       })
-      .catch(function () { notice(msg("network", "Network error — please try again.")); })
-      .then(function () { busyEnd(); });
+      .then(finish, finish);
   });
 
   root.addEventListener("pointerdown", function (e) {
@@ -1025,6 +1036,7 @@
     clearDropMarks(); drag = null; clearMoving();
     withOpen(body);
     busyStart();
+    var finish = function () { busyEnd(); };
     fetch(root.getAttribute("data-node-move-url"), {
       method: "POST", headers: { "X-CSRFToken": csrf(), "X-Requested-With": "fetch" }, body: body,
     }).then(function (r) { return r.text().then(function (text) {
@@ -1039,7 +1051,9 @@
         // reusing it can't spuriously 409.
         if (panel.querySelector("form[data-op]")) setPanel("");
       } else if (r.status === 422) { notice(msg("illegal", "That move isn't allowed here.")); }
-    }); }).catch(function () { notice(msg("network", "Network error — please try again.")); }).then(function () { busyEnd(); });
+    }); }, function () {
+      notice(msg("network", "Network error — please try again."));   // network only
+    }).then(finish, finish);
   });
   root.addEventListener("dragend", function () {
     cancelFrame(); clearDropMarks(); drag = null; pointerFocus = false;
