@@ -216,7 +216,20 @@ input.tree__title:focus { outline: 2px solid var(--primary); outline-offset: 1px
    item consumes all of it -- so the margin would be a no-op sitting next to a
    genuinely load-bearing line, reading as though it did something. The form
    claims the free space by GROWING; that is the whole mechanism. */
-.builder__filter { display: flex; gap: var(--space-2); flex: 1 1 0; min-width: 0; }
+/* Review fix (Task 9): `flex-basis: 0` plus `min-width: 0` gave this item no floor at
+   all, so at any width where .manage__head's other FIVE items (h1, Import, Export,
+   Expand all, Collapse all) already claim most of the row -- true at every unstacked
+   width, since app.css:34 caps .app-main at 960px regardless of viewport -- the flex-
+   grow share left for the filter was a sliver, and the search input inside it rendered
+   unreadable. `min-width` is not a rendered-size promise here; it changes the
+   HYPOTHETICAL size flex-wrap uses to decide whether the row overflows, so once the
+   floor no longer fits alongside its siblings the whole form wraps onto its own line
+   (with Expand/Collapse joining it there) and then fills that line via flex-grow, same
+   as `.tree__add-title`'s `min-width: 6rem` a few rules up -- there is no width token
+   for this, so a rem literal is the repo's existing pattern for an input floor. 12rem
+   sits well above the ~8rem line where wrapping starts to trigger at this row's actual
+   content, leaving margin for longer (e.g. Polish) button labels shifting that line. */
+.builder__filter { display: flex; gap: var(--space-2); flex: 1 1 0; min-width: 12rem; }
 .builder__filter input[type="search"] { flex: 1 1 0; min-width: 0; }
 .builder__tree .manage__head .btn { margin-left: 0; }   /* the row now has FIVE
    controls: app.css:591 gives every .manage__head .btn `margin-left: auto`,
