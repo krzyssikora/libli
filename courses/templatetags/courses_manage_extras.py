@@ -244,7 +244,8 @@ def toggle_href(context, node, is_open):
     params = {"open": joined}
     q = context.get("q") or ""
     if q:
-        params["q"] = q  # omitted entirely when blank -- one saved
-        # parameter on every container toggle href
+        # omitted entirely when blank -- one saved parameter on every
+        # container toggle href
+        params["q"] = q
     query = urlencode(params)
     return f"{context.get('builder_url', '')}?{query}#node-{node.pk}"

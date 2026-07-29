@@ -432,7 +432,17 @@ def test_the_six_redirect_sites_carry_q(filtered_course):
         resp = client.post(url, payload)
         assert resp.status_code == 302, f"{label}: {resp.status_code}"
         assert "open=session" in resp["Location"], label
-        assert f"q={q}" in resp["Location"], label
+        if q == "metria & wek":
+            # `&`-bearing q, asserted on the PERCENT-ENCODED form: "trygo"/"a"
+            # are encoding-invariant and cannot tell Python's urlencode from a
+            # raw f-string interpolation. Same idiom as
+            # test_markup_hrefs_percent_encode_q.
+            assert (
+                "q=metria%20%26%20wek" in resp["Location"]
+                or "q=metria+%26+wek" in resp["Location"]
+            ), label
+        else:
+            assert f"q={q}" in resp["Location"], label
 
     check("rename", rename, {"node": hit.pk, "token": tok(hit), "title": "Nowy"})
     check(
@@ -466,7 +476,7 @@ def test_the_six_redirect_sites_carry_q(filtered_course):
             "node_token": tok(miss),
         },
     )
-    check("duplicate", dup, {"node": hit.pk, "token": tok(hit)})
+    check("duplicate", dup, {"node": hit.pk, "token": tok(hit)}, q="metria & wek")
     # LAST, and the sixth site: node_delete's NON-bespoke branch, i.e. no
     # `open` in the POST. The bespoke `open`-carrying branch is
     # test_node_delete_bespoke_redirect_carries_q.
@@ -498,8 +508,13 @@ def test_the_no_js_move_picker_round_trip_stays_filtered(filtered_course):
     client, course, part, chap, hit, miss = filtered_course
     picker = reverse("courses:manage_node_move", kwargs={"slug": course.slug})
     body = client.get(picker, {"node": hit.pk, "q": "trygo"}).content.decode()
-    assert 'name="q"' in body
-    assert 'value="trygo"' in body
+    # Sliced to the picker form itself, matching every sibling row in this
+    # file -- a bare whole-body assertion does not tie `name="q"` and
+    # `value="trygo"` to the same element.
+    assert 'class="move-picker"' in body, "the picker form did not render"
+    frag = body.split('class="move-picker"', 1)[1].split("</form>", 1)[0]
+    assert 'name="q"' in frag
+    assert 'value="trygo"' in frag
 
 
 def test_every_tree_form_carries_a_hidden_q(filtered_course):
@@ -559,6 +574,29 @@ def test_the_delete_confirm_round_trip_stays_filtered(filtered_course):
     )
     assert resp.status_code == 302
     assert "q=trygo" in resp["Location"]
+
+
+def test_the_delete_confirm_cancel_href_percent_encodes_q(filtered_course):
+    """Companion to test_the_delete_confirm_round_trip_stays_filtered's Cancel
+    href assertion, which uses `q="trygo"` -- an encoding-invariant value, so
+    `"?open=session&amp;q=trygo" in body` is byte-identical whether
+    node_confirm_delete.html:19 uses `{{ q|urlencode }}` or a bare `{{ q }}`.
+    That row leaves the Cancel href's encoding entirely untested.
+
+    Here `q` contains `&` and a space, and the assertion is made ON THE
+    SLICED HREF, never on the whole body -- same idiom as
+    test_markup_hrefs_percent_encode_q's delete-href row.
+    """
+    client, course, part, chap, hit, miss = filtered_course
+    confirm = reverse("courses:manage_node_delete", kwargs={"slug": course.slug})
+    body = client.get(confirm, {"node": miss.pk, "q": "metria & wek"}).content.decode()
+    assert 'class="btn btn--ghost"' in body, "no Cancel link rendered"
+    # class comes before href in this anchor's attribute order -- slice from
+    # the class marker to the tag's own closing `>`.
+    cancel_frag = body.split('class="btn btn--ghost"', 1)[1].split(">", 1)[0]
+    assert "href=" in cancel_frag, "sliced past the anchor -- re-derive"
+    cancel_href = cancel_frag.split('href="', 1)[1].rsplit('"', 1)[0]
+    assert "q=metria%20%26%20wek" in cancel_href or "q=metria+%26+wek" in cancel_href
 
 
 def test_an_empty_filtered_scope_says_no_matching_titles(filtered_course):

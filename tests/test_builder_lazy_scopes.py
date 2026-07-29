@@ -729,6 +729,38 @@ def test_builder_with_notice_under_a_filter_returns_the_chains_open(client, db):
     assert f'data-scope="{chap.pk}"' in resp.content.decode()
 
 
+def test_builder_with_notice_mode_is_pinned_to_notice(client, db):
+    """`_builder_with_notice` must pass mode="notice" to `_filter_context`,
+    not mode="page". Swapping it stays green everywhere else: with an EMPTY
+    carrier and no `q` (q_chain=None), mode="notice" reads the stored
+    open-set carrier and renders nothing open, while mode="page" skips that
+    read and falls through to the seed step, which opens EVERY container on
+    a course this small (<=SIZE_THRESHOLD) -- so a no-JS 409/422 re-render
+    would spring the whole course open and discard the author's collapsed
+    state. `_deep_course` is 3 nodes, well under the seed threshold, so this
+    NEGATIVE assertion needs no new large fixture (a positive assertion that
+    the carrier's own set is honoured would).
+    """
+    owner = make_login(client, "pa")
+    course, part, chap, hit = _deep_course(owner)
+    session = client.session
+    session[OPEN_KEY] = {course.slug: []}  # populated AND EMPTY
+    session.save()
+    rename = reverse("courses:manage_node_rename", kwargs={"slug": course.slug})
+    resp = client.post(
+        rename,
+        {
+            "node": hit.pk,
+            "token": "2000-01-01T00:00:00+00:00",  # stale -> ConflictError -> 409
+            "title": "Nowy",
+            # deliberately no "q": q_chain=None, so step 3 does not resolve
+            # this and the notice-vs-page branch is what decides it.
+        },
+    )
+    assert resp.status_code == 409
+    assert f'data-scope="{part.pk}"' not in resp.content.decode()
+
+
 def test_step_2_still_beats_step_3(client, db):
     """A no-JS toggle href under a filter carries a real enumeration, and it
     must win -- the half a move-step-3-to-the-top implementation breaks.
