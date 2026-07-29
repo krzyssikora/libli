@@ -883,3 +883,97 @@ def test_a_positioned_REPARENT_under_a_filter_still_succeeds(filtered_course):
     assert resp.status_code == 200
     hit.refresh_from_db()
     assert hit.parent_id == part.pk
+
+
+def test_the_clear_anchor_is_always_in_the_dom_and_hidden_when_blank(filtered_course):
+    """`{% if q %}` puts NOTHING in the DOM on an unfiltered page, so the JS
+    rule has no element to show -- and `clear.hidden = !box.value` on a null
+    querySelector throws inside the input handler on the most common entry
+    point there is, killing filtering before the debounce is scheduled."""
+    client, course, *_ = filtered_course
+    url = reverse("courses:manage_builder", kwargs={"slug": course.slug})
+    blank = client.get(url).content.decode()
+    assert "data-filter-clear" in blank
+    tag = blank.split("data-filter-clear")[1].split(">")[0]
+    assert "hidden" in tag
+
+    filtered = client.get(url, {"q": "trygo"}).content.decode()
+    tag2 = filtered.split("data-filter-clear")[1].split(">")[0]
+    assert "hidden" not in tag2
+
+
+def test_the_filter_input_has_an_accessible_name(filtered_course):
+    """ "Filter" labels the BUTTON, not the field."""
+    client, course, *_ = filtered_course
+    url = reverse("courses:manage_builder", kwargs={"slug": course.slug})
+    body = client.get(url).content.decode()
+    assert 'id="builder-q"' in body
+    assert 'for="builder-q"' in body
+
+
+def test_expand_all_loses_its_href_over_the_ceiling(filtered_course, monkeypatch):
+    client, course, *_ = filtered_course
+    url = reverse("courses:manage_builder", kwargs={"slug": course.slug})
+
+    monkeypatch.setattr("courses.builder_open.CEILING", 0)
+    over = client.get(url).content.decode()
+    # Split on the ANCHOR's hook (with its trailing newline), never on the bare
+    # string: `.builder` carries `data-expand-all-disabled` earlier in the
+    # document and "data-expand-all" is a prefix of it, so a bare split lands
+    # inside the <section> tag and every assertion below reads the wrong slice.
+    tag = over.split("data-expand-all\n")[1].split(">")[0]
+    assert "href" not in tag
+    assert 'aria-disabled="true"' in tag
+    assert "data-expand-all-disabled" in over
+
+    monkeypatch.setattr("courses.builder_open.CEILING", 500)
+    under = client.get(url).content.decode()
+    assert "href" in under.split("data-expand-all\n")[1].split(">")[0]
+    assert "data-expand-all-disabled" not in under
+
+
+def test_both_bulk_controls_stay_ENABLED_under_an_active_filter(filtered_course):
+    """Spec 6z. The tempting rule -- disable them while filtering, since a
+    filtered tree is already fully open -- is FALSE once step 2 wins: after
+    any toggle under a filter the resolved set is not the chains and filtered
+    containers genuinely are collapsed."""
+    client, course, *_ = filtered_course
+    url = reverse("courses:manage_builder", kwargs={"slug": course.slug})
+    body = client.get(url, {"q": "trygo"}).content.decode()
+    for hook in ("data-expand-all\n", "data-collapse-all\n"):
+        # Split FORWARD from the hook: the href follows it in the markup, so
+        # slicing backwards to the last `<a` yields only the class attribute.
+        # And the hook needs its trailing newline -- `.builder` carries
+        # `data-expand-all-disabled`, of which "data-expand-all" is a PREFIX,
+        # and that attribute appears earlier in the document.
+        tag = body.split(hook)[1].split(">")[0]
+        assert "aria-disabled" not in tag
+        assert "href" in tag
+
+
+def test_expand_all_under_a_filter_returns_only_filtered_rows(filtered_course):
+    """open=all + q renders the RESTRICTED map -- ~226 rows on mat-pp, not
+    944 -- which is why 6z keeps the control enabled rather than disabling it
+    on a cost argument that does not hold."""
+    client, course, part, chap, hit, miss = filtered_course
+    url = reverse("courses:manage_tree", kwargs={"slug": course.slug})
+    body = client.get(url, {"open": "all", "q": "trygo"}).content.decode()
+    assert f'data-node="{hit.pk}"' in body
+    assert f'data-node="{miss.pk}"' not in body
+
+
+def test_both_bulk_hrefs_carry_q(filtered_course):
+    """BOTH, as the name says. Asserting only expand-all leaves the collapse
+    anchor's `q` clause unguarded: no other row can catch its removal --
+    test_both_bulk_controls_stay_ENABLED checks only href/aria-disabled,
+    Task 13's over-ceiling row reads the collapse href AFTER rewriteBulkHrefs
+    has re-added `q` client-side, and the below-floor row asserts `q=` is
+    ABSENT. A no-JS author's Collapse all would silently drop the filter.
+    """
+    client, course, *_ = filtered_course
+    url = reverse("courses:manage_builder", kwargs={"slug": course.slug})
+    for query in ("trygo", "a"):  # active AND present-but-inactive
+        body = client.get(url, {"q": query}).content.decode()
+        for hook in ("data-expand-all\n", "data-collapse-all\n"):
+            tag = body.split(hook)[1].split(">")[0]
+            assert f"q={query}" in tag, (hook, query)

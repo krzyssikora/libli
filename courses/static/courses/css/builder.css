@@ -203,3 +203,29 @@ input.tree__title:focus { outline: 2px solid var(--primary); outline-offset: 1px
    in-flight guard is what prevents double activation, and blocking pointer
    events here would make that guard dead code. */
 .builder[data-busy] .builder__tree { opacity: .6; transition: opacity .1s ease; cursor: progress; }
+
+/* The header row is .manage__head, and app.css:591 already declares
+   `.manage__head .btn { margin-left: auto; }` (reset to 0 at :644 for narrow
+   viewports). Every .btn in the row claims the free space, so the filter form
+   is laid out around that rule rather than fighting it: it takes the free
+   space itself and the buttons after it sit flush.
+   `flex: 1 1 0`, never `1 1 auto` -- with `auto` the base size is max-content
+   and wrap is decided on that BEFORE shrinking. */
+/* NO `margin-left: auto` here. Auto margins absorb only the free space that
+   remains AFTER flex-grow has been resolved, and `flex: 1 1 0` on this same
+   item consumes all of it -- so the margin would be a no-op sitting next to a
+   genuinely load-bearing line, reading as though it did something. The form
+   claims the free space by GROWING; that is the whole mechanism. */
+.builder__filter { display: flex; gap: var(--space-2); flex: 1 1 0; min-width: 0; }
+.builder__filter input[type="search"] { flex: 1 1 0; min-width: 0; }
+.builder__tree .manage__head .btn { margin-left: 0; }   /* the row now has FIVE
+   controls: app.css:591 gives every .manage__head .btn `margin-left: auto`,
+   which was right when the row held one <h1> and two buttons. With Import,
+   Export, Expand all, Collapse all and the form, only the FORM should claim
+   the free space.
+   The `.builder__tree` prefix is load-bearing twice over: it keeps other
+   manage pages untouched, and it raises specificity above app.css:591 so the
+   reset wins regardless of stylesheet load order. An unscoped
+   `.manage__head .btn` ties on specificity and would depend on builder.css
+   being linked after app.css (base.html:46-48) -- true today, and exactly the
+   kind of accident that breaks silently when someone moves the rule. */

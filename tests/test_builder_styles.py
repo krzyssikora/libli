@@ -114,3 +114,14 @@ def test_busy_state_does_not_block_pointer_events():
     block = re.search(r"\.builder\[data-busy\][^{]*\{([^}]*)\}", css)
     assert block, "no [data-busy] rule found"
     assert "pointer-events" not in block.group(1)
+
+
+def test_the_info_slot_hides_when_empty_via_empty_not_hidden():
+    css = _css()  # the file's existing helper (line 14)
+    assert ".builder__info:empty" in css
+    assert "display: none" in css.split(".builder__info:empty")[1].split("}")[0]
+
+
+def test_the_filter_control_is_styled():
+    css = _css()
+    assert ".builder__filter" in css

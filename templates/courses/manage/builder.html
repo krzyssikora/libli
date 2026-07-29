@@ -23,6 +23,23 @@
       <h1 class="builder__title">{{ course.title }}</h1>
       <a class="btn btn--ghost btn--small" href="{% url 'courses:manage_import_content' slug=course.slug %}">{% trans "Import content" %}</a>
       <a class="btn btn--ghost btn--small" href="{% url 'courses:manage_course_export' slug=course.slug %}">{% trans "Export" %}</a>
+      <form class="builder__filter" method="get" action="{{ builder_url }}" data-filter>
+        <label class="visually-hidden" for="builder-q">{% trans "Filter by title" %}</label>
+        <input id="builder-q" type="search" name="q" value="{{ q }}">
+        <button class="btn btn--ghost btn--small" type="submit">{% trans "Filter" %}</button>
+        <a class="btn btn--ghost btn--small" href="{{ builder_url }}"
+           data-filter-clear{% if not q %} hidden{% endif %}>{% trans "Clear" %}</a>
+      </form>
+      {% if expand_all_disabled %}
+      <a class="btn btn--ghost btn--small" data-expand-all
+         aria-disabled="true"
+         title="{% trans 'This course is too large to expand at once.' %}">{% trans "Expand all" %}</a>
+      {% else %}
+      <a class="btn btn--ghost btn--small" data-expand-all
+         href="{{ builder_url }}?open=all{% if q %}&amp;q={{ q|urlencode }}{% endif %}">{% trans "Expand all" %}</a>
+      {% endif %}
+      <a class="btn btn--ghost btn--small" data-collapse-all
+         href="{{ builder_url }}?open={% if q %}&amp;q={{ q|urlencode }}{% endif %}">{% trans "Collapse all" %}</a>
     </header>
     {% include "courses/manage/_structure_legend.html" with course=course %}
     <p class="helptext">{% trans "Add a slide break to split this unit into a slideshow." %}</p>

@@ -535,7 +535,7 @@
   root.addEventListener("dragstart", function (e) {
     var grip = e.target.closest(".ica--grip");
     if (!grip) return;
-    if (grip.disabled) { e.preventDefault(); return; }   // new
+    if (grip.disabled) { e.preventDefault(); return; }
     var row = grip.closest(".tree__row");
     drag = { pk: row.getAttribute("data-node"), kind: row.getAttribute("data-kind"),
              token: row.getAttribute("data-updated") };
