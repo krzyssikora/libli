@@ -9,6 +9,7 @@
     {% csrf_token %}
     <input type="hidden" name="parent" value="{{ scope_id }}">
     <input type="hidden" name="parent_token" value="{{ scope_updated }}">
+    {% if q %}<input type="hidden" name="q" value="{{ q }}">{% endif %}
     {% comment %}JS hides this until a + chip is clicked; visible with JS off. `required` blocks a no-JS
        empty-title submit; the JS commit path only submits when non-empty AND the field is
        visible at submit time, so `required` never blocks a hidden (display:none) control.{% endcomment %}

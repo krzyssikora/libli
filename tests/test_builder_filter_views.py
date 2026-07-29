@@ -344,3 +344,227 @@ def test_a_server_rendered_notice_is_visible_without_js(filtered_course):
     url = reverse("courses:manage_builder", kwargs={"slug": course.slug})
     body = client.get(url, {"q": "trygo"}).content.decode()
     assert 'data-info-key="filter"' in body
+
+
+def test_toggle_hrefs_preserve_q(filtered_course):
+    """Sliced to the TOGGLE anchor specifically.
+
+    A bare `assert "q=trygo" in body` is vacuous: Step 5 puts `&q=trygo` into
+    the delete and Move href of every rendered row (and Task 9 adds two bulk
+    hrefs), so it passes with the toggle_href edit reverted entirely. Nothing
+    else in this plan can go red against that, which is how an unguarded edit
+    ships.
+    """
+    client, course, part, chap, hit, miss = filtered_course
+    url = reverse("courses:manage_builder", kwargs={"slug": course.slug})
+    body = client.get(url, {"q": "trygo"}).content.decode()
+    # The toggle is an <a> whose href toggle_href builds and which ends
+    # `#node-<pk>`; slice backwards from its data-toggle hook to that anchor's
+    # own `href="`.
+    marker = f'data-toggle="{chap.pk}"'
+    assert marker in body, "the chapter toggle did not render; the row proves nothing"
+    tag = body[body.rindex("<a", 0, body.index(marker)) : body.index(marker)]
+    assert "q=trygo" in tag, tag
+    assert f"#node-{chap.pk}" in tag, "not the toggle anchor -- re-derive the slice"
+
+
+def test_markup_hrefs_percent_encode_q(filtered_course):
+    """Django autoescapes HTML but does NOT percent-encode. A query with an
+    `&` splits into a second parameter -- filtering for `x&open=all` makes the
+    delete-confirm GET arrive with open=all attached -- and a `#` truncates
+    the href outright."""
+    client, course, part, chap, hit, miss = filtered_course
+    url = reverse("courses:manage_builder", kwargs={"slug": course.slug})
+    # The query must BOTH contain `&`/space AND FOLD INTO a title. A query
+    # that matches nothing renders an empty restricted map, `_scope.html`
+    # takes {% empty %}, no _tree_node.html is included -- so there is no
+    # delete or Move href in the response at all and the falsification is
+    # unreachable. `hit` is titled "Trygonometria & wektory" for this row.
+    # MEASURED, not eyeballed. Two earlier drafts of this row shipped a query
+    # that matched NOTHING: fold("tryg & wek") is not a substring of
+    # fold("Trygonometria & wektory"), because `tryg` is followed by
+    # `onometria`. Check any replacement the same way -- run
+    # `fold(q) in fold(title)` and require True -- rather than by reading it.
+    body = client.get(url, {"q": "metria & wek"}).content.decode()
+    assert f'data-node="{hit.pk}"' in body, "no row rendered; the row proves nothing"
+    # space -> %20 or +, & -> %26; the raw `&` must NOT survive into the href
+    assert "q=metria%20%26%20wek" in body or "q=metria+%26+wek" in body
+    # The template writes `&amp;q=`, so THAT is what the HTML source holds.
+    delete_href = body.split('data-delete="')[0].rsplit('href="', 1)[1]
+    assert "&amp;q=" in delete_href
+    assert "& wek" not in delete_href
+    # Asserted ON THE DELETE HREF, not on the body. The two assertions above
+    # cannot tell `{{ q|urlencode }}` from a bare `{{ q }}` and MEASURABLY do
+    # not: autoescaping renders the bare form as `&amp;q=metria &amp; wek`,
+    # which still satisfies `"&amp;q=" in delete_href` and still contains no
+    # literal `"& wek"` -- while the entity decodes back to a real `&` in the
+    # browser and splits the query into `q=metria ` plus ` wek=`. And the
+    # body-level percent-encoding assertion is satisfied by toggle_href's own
+    # `q=metria+%26+wek` whatever this href holds.
+    assert "q=metria%20%26%20wek" in delete_href or "q=metria+%26+wek" in delete_href
+
+
+def test_the_six_redirect_sites_carry_q(filtered_course):
+    """One assertion per SITE, not one site standing for six.
+
+    The four non-rename sites are otherwise unguarded by anything in this
+    plan: Task 7's rows that follow those same redirects assert a row is
+    PRESENT, which is equally true of a fully unfiltered render -- so dropping
+    `_raw_q(request)` at node_add (:489), node_move reorder (:585), node_move
+    reparent (:621) or node_duplicate (:715) would pass every other row here.
+    """
+    client, course, part, chap, hit, miss = filtered_course
+    rename = reverse("courses:manage_node_rename", kwargs={"slug": course.slug})
+    add = reverse("courses:manage_node_add", kwargs={"slug": course.slug})
+    move = reverse("courses:manage_node_move", kwargs={"slug": course.slug})
+    dup = reverse("courses:manage_node_duplicate", kwargs={"slug": course.slug})
+    delete = reverse("courses:manage_node_delete", kwargs={"slug": course.slug})
+
+    def tok(node):
+        """Every mutation bumps `updated`, so read the token immediately
+        before the post that uses it -- a token captured up front is stale by
+        the second iteration and the row 409s instead of redirecting."""
+        node.refresh_from_db()
+        return node.updated.isoformat()
+
+    def check(label, url, payload, q="trygo"):
+        payload["q"] = q
+        resp = client.post(url, payload)
+        assert resp.status_code == 302, f"{label}: {resp.status_code}"
+        assert "open=session" in resp["Location"], label
+        assert f"q={q}" in resp["Location"], label
+
+    check("rename", rename, {"node": hit.pk, "token": tok(hit), "title": "Nowy"})
+    check(
+        "add",
+        add,
+        {
+            "parent": chap.pk,
+            "parent_token": tok(chap),
+            "kind": "unit",
+            "unit_type": "lesson",
+            "title": "Dodana",
+        },
+    )
+    # BELOW the floor here only: Task 8 refuses a reorder under an ACTIVE
+    # filter with 422, so q=trygo would assert against the refusal, not the
+    # redirect. `miss` is not the first child, so "up" is a real move.
+    check(
+        "reorder",
+        move,
+        {"mode": "reorder", "node": miss.pk, "direction": "up", "token": tok(miss)},
+        q="a",
+    )
+    check(
+        "reparent",
+        move,
+        {
+            "mode": "reparent",
+            "node": miss.pk,
+            "new_parent": part.pk,
+            "position": 0,
+            "node_token": tok(miss),
+        },
+    )
+    check("duplicate", dup, {"node": hit.pk, "token": tok(hit)})
+    # LAST, and the sixth site: node_delete's NON-bespoke branch, i.e. no
+    # `open` in the POST. The bespoke `open`-carrying branch is
+    # test_node_delete_bespoke_redirect_carries_q.
+    check("delete", delete, {"node": miss.pk, "token": tok(miss)})
+
+
+def test_node_delete_bespoke_redirect_carries_q(filtered_course):
+    """views_manage.py:672-675 builds its own redirect rather than going
+    through _redirect_to_builder, and it is the JS-REWRITTEN path: a no-JS
+    confirm POST carries no `open` and takes :675 instead. Driving this as a
+    no-JS delete would go green on the six-site edit alone while :674 kept
+    dropping q for every JS author."""
+    client, course, part, chap, hit, miss = filtered_course
+    delete = reverse("courses:manage_node_delete", kwargs={"slug": course.slug})
+    resp = client.post(
+        delete,
+        {
+            "node": miss.pk,
+            "token": miss.updated.isoformat(),
+            "open": str(chap.pk),
+            "q": "trygo",
+        },
+    )
+    assert resp.status_code == 302
+    assert "q=trygo" in resp["Location"]
+
+
+def test_the_no_js_move_picker_round_trip_stays_filtered(filtered_course):
+    client, course, part, chap, hit, miss = filtered_course
+    picker = reverse("courses:manage_node_move", kwargs={"slug": course.slug})
+    body = client.get(picker, {"node": hit.pk, "q": "trygo"}).content.decode()
+    assert 'name="q"' in body
+    assert 'value="trygo"' in body
+
+
+def test_every_tree_form_carries_a_hidden_q(filtered_course):
+    """Step 4's edit is the most-repeated one in this task and the whole no-JS
+    story rests on it, yet nothing else can observe it: every other row POSTs
+    `q` in the payload BY HAND, so all four forms could ship without the input
+    and the suite would stay green while a no-JS author loses the filter on
+    every rename, add, reorder and duplicate.
+
+    Asserted per FORM, not once over the body -- a single hidden input
+    anywhere would otherwise satisfy all four.
+    """
+    client, course, part, chap, hit, miss = filtered_course
+    url = reverse("courses:manage_builder", kwargs={"slug": course.slug})
+    body = client.get(url, {"q": "trygo", "open": "all"}).content.decode()
+    forms = {
+        "rename": 'class="tree__rename"',
+        "add": 'class="tree__add"',
+        "reorder": 'data-op="reorder"',
+        "duplicate": 'data-op="duplicate"',
+    }
+    for label, marker in forms.items():
+        assert marker in body, f"{label}: form absent; the row proves nothing"
+        frag = body.split(marker, 1)[1].split("</form>", 1)[0]
+        assert 'name="q"' in frag and 'value="trygo"' in frag, label
+
+
+def test_the_delete_confirm_round_trip_stays_filtered(filtered_course):
+    """The GET nothing else reaches. Both other delete rows POST straight to
+    manage_node_delete, so `node_confirm_delete.html`'s hidden input, its
+    Cancel href and node_delete's GET context key are all unguarded -- and if
+    the context key is forgotten, `{{ q }}` renders empty, the {% if q %}
+    input disappears, and the confirm POST silently drops the filter.
+    """
+    client, course, part, chap, hit, miss = filtered_course
+    confirm = reverse("courses:manage_node_delete", kwargs={"slug": course.slug})
+    body = client.get(confirm, {"node": miss.pk, "q": "trygo"}).content.decode()
+
+    # 1. the hidden input the confirm POST will carry.
+    #    Anchor on the form's OWN action, never on the first `<form` in the
+    #    document: node_confirm_delete.html extends base.html, which emits
+    #    `<form class="lang-switch">` at :60 -- ~90 lines before
+    #    `{% block content %}` at :152 -- so a naive split returns the
+    #    language switcher and both assertions fail on a CORRECT
+    #    implementation.
+    form = body.split(f'action="{confirm}"', 1)[1].split("</form>", 1)[0]
+    assert 'name="token"' in form, "sliced the wrong form; re-derive the anchor"
+    assert 'name="q"' in form and 'value="trygo"' in form
+
+    # 2. the Cancel href. No `open` in the GET, so the template takes its
+    #    `{% else %}?open=session{% endif %}` arm and `q` appends with `&`.
+    assert "?open=session&amp;q=trygo" in body
+
+    # 3. the POST that form makes -- the filter must survive the redirect
+    resp = client.post(
+        confirm, {"node": miss.pk, "token": miss.updated.isoformat(), "q": "trygo"}
+    )
+    assert resp.status_code == 302
+    assert "q=trygo" in resp["Location"]
+
+
+def test_an_empty_filtered_scope_says_no_matching_titles(filtered_course):
+    client, course, part, chap, hit, miss = filtered_course
+    url = reverse("courses:manage_builder", kwargs={"slug": course.slug})
+    filtered = client.get(url, {"q": "rozdzial"}).content.decode()
+    assert "No matching titles." in filtered or "Brak pasuj" in filtered
+    plain = client.get(url, {"open": "all"}).content.decode()
+    assert "No children yet." in plain or "Nie ma jeszcze" in plain

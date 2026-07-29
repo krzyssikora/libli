@@ -47,6 +47,25 @@ def _big_course(owner, units_each=4):
     return course, part, chapters
 
 
+def _deep_course(owner):
+    """part > chapter > one matching unit, ABOVE nothing in particular --
+    the depth is what matters, not the size. `hit` must match both "trygo"
+    and (after the rename) "nowy"; `chap` must NOT match "trygo", or the
+    chain-vs-enumeration distinction the tests turn on disappears.
+    """
+    course = CourseFactory(slug="deep", owner=owner)
+    part = ContentNodeFactory(
+        course=course, kind="part", unit_type=None, parent=None, title="P0"
+    )
+    chap = ContentNodeFactory(
+        course=course, kind="chapter", unit_type=None, parent=part, title="Rozdzial"
+    )
+    hit = ContentNodeFactory(
+        course=course, kind="unit", parent=chap, title="Trygonometria"
+    )
+    return course, part, chap, hit
+
+
 @pytest.mark.django_db
 def test_collapsed_scope_emits_no_descendant_rows(client):
     owner = make_login(client, "owner")
@@ -661,3 +680,69 @@ def test_polish_toggle_labels_use_all_three_plural_forms(client):
     stems = {n: re.sub(r"\d+", "N", v) for n, v in labels.items()}
     assert len(set(stems.values())) == 3, stems
     assert "Rozwiń" in labels[1], labels  # not silently falling back to en
+
+
+def test_a_no_js_mutation_SUCCESS_under_a_filter_returns_the_chains_open(client, db):
+    """The redirect lands on ?open=session&q=..., and step 1 fires before
+    step 3 in the shipped code -- so without the restructure the author gets
+    their stored PRE-FILTER set over a filtered map."""
+    owner = make_login(client, "pa")
+    course, part, chap, hit = _deep_course(owner)
+    session = client.session
+    session[OPEN_KEY] = {course.slug: []}  # populated, and NOT the chains
+    session.save()
+    rename = reverse("courses:manage_node_rename", kwargs={"slug": course.slug})
+    resp = client.post(
+        rename,
+        {
+            "node": hit.pk,
+            "token": hit.updated.isoformat(),
+            "title": "Nowy",
+            "q": "nowy",
+        },
+    )
+    body = client.get(resp["Location"]).content.decode()
+    assert f'data-scope="{chap.pk}"' in body  # the chain is OPEN
+
+
+def test_builder_with_notice_under_a_filter_returns_the_chains_open(client, db):
+    owner = make_login(client, "pa")
+    course, part, chap, hit = _deep_course(owner)
+    session = client.session
+    session[OPEN_KEY] = {course.slug: []}
+    session.save()
+    rename = reverse("courses:manage_node_rename", kwargs={"slug": course.slug})
+    resp = client.post(
+        rename,
+        # A VALID ISO timestamp, not "stale-token": the repo idiom
+        # (tests/test_manage_node_ops.py:137, :347) exercises _check_token's
+        # COMPARISON. A non-parsing string only reaches it via
+        # parse_datetime returning None -- a different branch.
+        {
+            "node": hit.pk,
+            "token": "2000-01-01T00:00:00+00:00",
+            "title": "Nowy",
+            "q": "trygo",
+        },
+    )
+    assert resp.status_code == 409
+    assert f'data-scope="{chap.pk}"' in resp.content.decode()
+
+
+def test_step_2_still_beats_step_3(client, db):
+    """A no-JS toggle href under a filter carries a real enumeration, and it
+    must win -- the half a move-step-3-to-the-top implementation breaks.
+
+    GREEN from the moment it is written, unlike its two siblings: it follows
+    no redirect and needs nothing from Task 6. By the end of Task 5 the
+    restructured open_ids already resolves `?q=trygo&open=<part>` via step 2
+    (`present and not sentinel` -> _parse, explicit) and the restricted map
+    already renders part's scope without chap's. It is a carry-forward
+    regression guard here; its falsification lives in Task 2 Step 6.
+    """
+    owner = make_login(client, "pa")
+    course, part, chap, hit = _deep_course(owner)
+    url = reverse("courses:manage_builder", kwargs={"slug": course.slug})
+    body = client.get(url, {"q": "trygo", "open": str(part.pk)}).content.decode()
+    assert f'data-scope="{part.pk}"' in body
+    assert f'data-scope="{chap.pk}"' not in body  # the chains did NOT win

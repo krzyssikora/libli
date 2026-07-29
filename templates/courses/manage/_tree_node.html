@@ -23,6 +23,7 @@
       {% csrf_token %}
       <input type="hidden" name="node" value="{{ node.pk }}">
       <input type="hidden" name="token" value="{{ node.updated.isoformat }}">
+      {% if q %}<input type="hidden" name="q" value="{{ q }}">{% endif %}
       <input class="tree__title" type="text" name="title" value="{{ node.title }}"
              title="{{ node.title }}" aria-label="{% trans 'Title' %}"
              required maxlength="200" autocomplete="off" spellcheck="false">
@@ -31,17 +32,18 @@
     <span class="tree__cluster">
       <button type="button" class="ica ica--grip" draggable="true" aria-label="{% trans 'Drag to move' %}" title="{% trans 'Drag to move' %}"><svg class="ic"><use href="#bi-grip"/></svg></button>
       {% include "courses/manage/_move_buttons.html" with node=node is_first=is_first is_last=is_last move_url=move_url %}
-      <a class="ica" href="{{ move_url }}?node={{ node.pk }}" data-move="{{ node.pk }}" aria-label="{% trans 'Move…' %}" title="{% trans 'Move…' %}"><svg class="ic"><use href="#bi-move"/></svg></a>
+      <a class="ica" href="{{ move_url }}?node={{ node.pk }}{% if q %}&amp;q={{ q|urlencode }}{% endif %}" data-move="{{ node.pk }}" aria-label="{% trans 'Move…' %}" title="{% trans 'Move…' %}"><svg class="ic"><use href="#bi-move"/></svg></a>
       <a class="ica" href="{% url 'courses:manage_node_export' slug=node.course.slug pk=node.pk %}" aria-label="{% trans 'Export subtree' %}" title="{% trans 'Export subtree' %}"><svg class="ic"><use href="#bi-download"/></svg></a>
       {% if node.kind == "unit" %}
       <form class="tree__inline" method="post" action="{{ duplicate_url }}" data-op="duplicate">
         {% csrf_token %}
         <input type="hidden" name="node" value="{{ node.pk }}">
         <input type="hidden" name="token" value="{{ node.updated.isoformat }}">
+        {% if q %}<input type="hidden" name="q" value="{{ q }}">{% endif %}
         <button class="ica" type="submit" aria-label="{% trans 'Duplicate' %}" title="{% trans 'Duplicate' %}"><svg class="ic"><use href="#bi-duplicate"/></svg></button>
       </form>
       {% endif %}
-      <a class="ica ica--danger" href="{{ delete_url }}?node={{ node.pk }}" data-delete="{{ node.pk }}" aria-label="{% trans 'Delete' %}" title="{% trans 'Delete' %}"><svg class="ic"><use href="#bi-trash"/></svg></a>
+      <a class="ica ica--danger" href="{{ delete_url }}?node={{ node.pk }}{% if q %}&amp;q={{ q|urlencode }}{% endif %}" data-delete="{{ node.pk }}" aria-label="{% trans 'Delete' %}" title="{% trans 'Delete' %}"><svg class="ic"><use href="#bi-trash"/></svg></a>
     </span>
   </div>
   {% if node.kind != "unit" %}

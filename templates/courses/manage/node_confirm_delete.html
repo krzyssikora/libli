@@ -14,8 +14,9 @@
     <input type="hidden" name="node" value="{{ node.pk }}">
     <input type="hidden" name="token" value="{{ node.updated.isoformat }}">
     {% if open_present %}<input type="hidden" name="open" value="{{ open }}">{% endif %}
+    {% if q %}<input type="hidden" name="q" value="{{ q }}">{% endif %}
     <button class="btn btn--danger" type="submit">{% trans "Delete" %}</button>
-    <a class="btn btn--ghost" href="{% url 'courses:manage_builder' slug=course.slug %}{% if open_present %}?open={{ open|urlencode }}{% else %}?open=session{% endif %}">{% trans "Cancel" %}</a>
+    <a class="btn btn--ghost" href="{% url 'courses:manage_builder' slug=course.slug %}{% if open_present %}?open={{ open|urlencode }}{% else %}?open=session{% endif %}{% if q %}&amp;q={{ q|urlencode }}{% endif %}">{% trans "Cancel" %}</a>
   </form>
 </section>
 {% endblock %}

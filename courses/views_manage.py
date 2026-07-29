@@ -583,10 +583,19 @@ def _scope_ref(parent_id):
     return "top" if parent_id is None else parent_id
 
 
-def _redirect_to_builder(course):
-    """The ONLY places allowed to emit the open=session sentinel."""
+def _redirect_to_builder(course, q=""):
+    """The ONLY places allowed to emit the open=session sentinel.
+
+    `q` is passed IN, not read from the request: this helper has EIGHT
+    callers, and element_move/element_delete are excluded from the q rule by
+    the parent spec. Reading `request` here would silently extend the rule to
+    two editor-originated redirects nobody asked to change.
+    """
     url = reverse("courses:manage_builder", kwargs={"slug": course.slug})
-    return redirect(f"{url}?open=session")
+    params = {"open": "session"}
+    if q:
+        params["q"] = q
+    return redirect(f"{url}?{urlencode(params)}")
 
 
 def _persist_chain(request, course, node):
@@ -674,7 +683,7 @@ def node_add(request, slug):
         )
     if not _wants_fragment(request):
         _persist_chain(request, course, node)
-        return _redirect_to_builder(course)
+        return _redirect_to_builder(course, _raw_q(request))
     # top-level add touches the top scope -> whole tree pane; nested add -> that scope
     if node.parent_id is None:
         return _render_tree(request, course, extra_open=_ancestor_chain(node))
@@ -738,7 +747,7 @@ def node_rename(request, slug):
     if to_editor:
         return redirect("courses:manage_editor", slug=slug, pk=node.pk)
     if not _wants_fragment(request):
-        return _redirect_to_builder(course)
+        return _redirect_to_builder(course, _raw_q(request))
     # a unit-settings change re-renders the unit panel
     if is_settings and node.kind == ContentNode.Kind.UNIT:
         return _render_unit_panel(request, node)
@@ -770,7 +779,7 @@ def node_move(request, slug):
                 )
             return _conflict_scope(request, course, request.POST.get("node"))
         if not _wants_fragment(request):
-            return _redirect_to_builder(course)
+            return _redirect_to_builder(course, _raw_q(request))
         if node.parent_id is None:
             return _render_tree(request, course)
         return _render_scope(request, course, _scope_ref(node.parent_id))
@@ -806,7 +815,7 @@ def node_move(request, slug):
             )
         if not _wants_fragment(request):
             _persist_chain(request, course, node)
-            return _redirect_to_builder(course)
+            return _redirect_to_builder(course, _raw_q(request))
         return _render_tree(
             request, course, extra_open=_ancestor_chain(node)
         )  # re-parent touches two scopes -> whole tree
@@ -841,6 +850,7 @@ def node_delete(request, slug):
                 "counts": counts,
                 "open_present": "open" in request.GET,
                 "open": request.GET.get("open", ""),
+                "q": _raw_q(request),
             },
         )
     try:
@@ -859,8 +869,12 @@ def node_delete(request, slug):
     if not _wants_fragment(request):
         if "open" in request.POST:
             url = reverse("courses:manage_builder", kwargs={"slug": course.slug})
-            return redirect(f"{url}?{urlencode({'open': request.POST['open']})}")
-        return _redirect_to_builder(course)
+            params = {"open": request.POST["open"]}
+            q = _raw_q(request)
+            if q:
+                params["q"] = q
+            return redirect(f"{url}?{urlencode(params)}")
+        return _redirect_to_builder(course, _raw_q(request))
     if parent_id is None:
         return _render_tree(request, course)
     return _render_scope(request, course, _scope_ref(parent_id))
@@ -900,7 +914,7 @@ def node_duplicate(request, slug):
         )
     if not _wants_fragment(request):
         _persist_chain(request, course, new_node)
-        return _redirect_to_builder(course)
+        return _redirect_to_builder(course, _raw_q(request))
     if new_node.parent_id is None:
         return _render_tree(request, course, extra_open=_ancestor_chain(new_node))
     return _render_scope(
@@ -1001,8 +1015,14 @@ def _move_picker(request, course):
             "course": course,
             "node": node,
             "candidates": candidates,
+            # children_map/nodes_top stay the FULL map: this is a DESTINATION
+            # chooser, and the numeric `position` field indexes into these
+            # slot lists. A restricted map would both compute positions
+            # against a filtered child list and leave a filtered author unable
+            # to move anything OUT of the match set.
             "children_map": cmap,
             "nodes_top": cmap.get(None, []),
+            "q": _raw_q(request),
         },
     )
 
