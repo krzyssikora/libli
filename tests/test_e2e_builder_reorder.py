@@ -117,13 +117,13 @@ def test_reorder_unit_and_section(page, live_server):
     sec_a_row = page.locator(f'li.tree__row[data-node="{sec_a.pk}"]')
 
     # Unit down, then up.
-    intro_row.locator('form[data-op="reorder"] button[value="down"]').first.click()
+    intro_row.locator('button[data-op="reorder"][value="down"]').first.click()
     _wait_order(page, ch1.pk, [sec_a.pk, intro.pk, sec_b.pk])
-    intro_row.locator('form[data-op="reorder"] button[value="up"]').first.click()
+    intro_row.locator('button[data-op="reorder"][value="up"]').first.click()
     _wait_order(page, ch1.pk, [intro.pk, sec_a.pk, sec_b.pk])
 
     # Section A down (swaps with sibling Section B).
-    sec_a_row.locator('form[data-op="reorder"] button[value="down"]').first.click()
+    sec_a_row.locator('button[data-op="reorder"][value="down"]').first.click()
     _wait_order(page, ch1.pk, [intro.pk, sec_b.pk, sec_a.pk])
 
 

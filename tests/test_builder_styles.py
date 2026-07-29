@@ -93,17 +93,23 @@ def test_tree_title_input_neutralises_the_global_form_control_rule():
     )
 
 
-def test_tree_rename_form_is_a_shrinkable_flex_item():
+def test_tree_title_is_a_shrinkable_flex_item():
+    """The title input is the row's flex item now that .tree__rename is gone.
+
+    `flex: 1 1 auto` is the trap this guards, not a style preference: with an
+    `auto` basis the base size is max-content and the row's wrap decision is made
+    on that BEFORE shrinking, so one long title drops the whole control cluster
+    onto a second line. min-width:0 does not fix it.
+    """
     css = _css()
-    rule = re.search(r"\.tree__rename\s*\{[^}]*\}", css)
-    assert rule, ".tree__rename must be styled"
+    rule = re.search(r"input\.tree__title\s*\{[^}]*\}", css)
+    assert rule, "input.tree__title must be styled"
     body = rule.group(0)
-    assert re.search(r"min-width:\s*0", body), (
-        ".tree__rename is now the flex item and would otherwise blow out the row"
+    assert re.search(r"flex:\s*1\s+1\s+0", body), (
+        "must be `flex: 1 1 0` -- `1 1 auto` or a width sizes the row on max-content"
     )
-    assert re.search(r"margin:\s*0", body), (
-        "defensive reset matching .tree__inline (builder.css:44) so the form never "
-        "contributes vertical space in a row with only padding: 3px 4px"
+    assert re.search(r"min-width:\s*0", body), (
+        "without it the input's min-content width keeps the row from shrinking"
     )
 
 

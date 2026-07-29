@@ -483,9 +483,7 @@ def test_sibling_tokens_are_refreshed_so_duplicate_still_works(page, live_server
     # also finds Unit 2's duplicate button -- two elements, so .click() raises a
     # strict-mode violation before the feature is exercised at all.
     row = page.locator(f'li.tree__row[data-node="{nodes["unit1"].pk}"]')
-    row.locator(
-        ':scope > .tree__rowhead form[data-op="duplicate"] button[type="submit"]'
-    ).click()
+    row.locator(':scope > .tree__rowhead button[data-op="duplicate"]').click()
     expect(page.locator('.tree__title[value="Renamed"]')).to_have_count(2)
     expect(page.locator(".op-error")).to_have_count(0)
 
@@ -502,7 +500,7 @@ def test_reorder_arrows_still_work_after_a_rename(page, live_server):
     row = page.locator(f'li.tree__row[data-node="{nodes["unit1"].pk}"]')
     # Unit 1 is the FIRST sibling, so its "up" arrow renders disabled -- click "down".
     row.locator(
-        ':scope > .tree__rowhead form[data-op="reorder"] button[value="down"]'
+        ':scope > .tree__rowhead button[data-op="reorder"][value="down"]'
     ).click()
     page.wait_for_function(
         "([sel, pk]) => {const ol = document.querySelector(sel); if (!ol) return false;"

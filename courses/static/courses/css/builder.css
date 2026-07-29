@@ -43,8 +43,15 @@
    Hover/focus are layout-neutral: a transparent rest border becomes coloured on hover
    (a border appearing from nothing would shift text and grow the row), and focus uses
    outline, which does not participate in layout. */
-.tree__rename { flex: 1; min-width: 0; display: flex; margin: 0; }
-input.tree__title { width: 100%; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+/* `flex: 1 1 0`, never `1 1 auto` and never the old `width: 100%`: the title is
+   now a DIRECT flex child of .tree__rowhead (the .tree__rename wrapper is gone
+   with the three-forms-per-row markup). With an `auto` basis the base size is
+   max-content, and the row's wrap decision is made on THAT before shrinking, so
+   a long title pushes the control cluster onto a second line. min-width:0 alone
+   does not fix it. The row's hidden inputs are display:none per the UA sheet and
+   the visually-hidden Rename button is position:absolute, so neither becomes a
+   flex item. */
+input.tree__title { flex: 1 1 0; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   text-align: left; color: var(--text-primary); font: inherit; background: none;
   border: 1px solid transparent; border-radius: 0; padding: 0; cursor: text; }
 input.tree__title:hover { border-color: var(--border-default); }
@@ -54,13 +61,50 @@ input.tree__title:focus { outline: 2px solid var(--primary); outline-offset: 1px
 /* #6 control cluster — always visible, subtle, brighten on hover/focus */
 .tree__cluster { display: inline-flex; gap: 1px; align-items: center; opacity: .5; transition: opacity .12s; }
 .tree__rowhead:hover .tree__cluster, .tree__rowhead:focus-within .tree__cluster { opacity: 1; }
-.tree__inline { display: inline-flex; gap: 1px; margin: 0; }
 .ica { background: none; border: none; padding: 3px; margin: 0; color: var(--text-tertiary); cursor: pointer; border-radius: 5px; line-height: 0; display: inline-flex; }
 .ica:hover { background: var(--surface-sunken); color: var(--primary); }
 .ica:disabled { opacity: .35; cursor: default; }
 .ica--danger:hover { color: var(--danger); }
 .ica--grip { cursor: grab; }
 .ic { width: 15px; height: 15px; display: block; }
+
+/* Masked tree icons -- NOT the `<svg class="ic"><use href="#bi-*"/></svg>`
+   sprite pattern the rest of the manage UI uses, and deliberately so.
+   The builder tree renders ~7 icons per row. On mat-pp that is 6,678 <use>
+   instances across 954 rows, and each one instantiates a shadow tree: 13,356
+   elements, 33% of the fully-expanded DOM. Measured on the real course, the
+   swap's insert+layout drops from a 334 ms median to 230 ms (-31%) and the
+   collapse-all removal from 55 ms to 39 ms when the pair is replaced by a
+   mask that costs no element at all.
+   Inlining the symbol's paths instead was measured too and is WORSE than it
+   looks -- several symbols expand to multiple <path>/<circle> children, so
+   the element count RISES to 45,580 for only a 22% layout win.
+   The sprite stays for `el-*` (element cards) and the editors, which render
+   a bounded number of icons and where this trade does not pay.
+
+   `background-color: currentColor` is what makes the glyph inherit .ica's
+   colour, so hover/:disabled/.ica--danger keep working untouched. Fills are
+   written `black`, never `currentColor`: inside a data: URI the SVG is its
+   OWN document, `currentColor` there resolves against that document's initial
+   color rather than this page's, and the mask reads ALPHA -- so the only
+   thing that matters is that the glyph be opaque. */
+.icm::before {
+  content: "";
+  display: block;
+  width: 15px;
+  height: 15px;
+  background-color: currentColor;
+  -webkit-mask: var(--icm) no-repeat center / contain;
+  mask: var(--icm) no-repeat center / contain;
+}
+.icm--grip { --icm: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cg fill='black'%3E%3Ccircle cx='6' cy='4' r='1.1'/%3E%3Ccircle cx='10' cy='4' r='1.1'/%3E%3Ccircle cx='6' cy='8' r='1.1'/%3E%3Ccircle cx='10' cy='8' r='1.1'/%3E%3Ccircle cx='6' cy='12' r='1.1'/%3E%3Ccircle cx='10' cy='12' r='1.1'/%3E%3C/g%3E%3C/svg%3E"); }
+.icm--up { --icm: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round' d='M4 10l4-4 4 4'/%3E%3C/svg%3E"); }
+.icm--down { --icm: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round' d='M4 6l4 4 4-4'/%3E%3C/svg%3E"); }
+.icm--move { --icm: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round' d='M2 8h8m-3-3l3 3-3 3M13.5 3.5v9'/%3E%3C/svg%3E"); }
+.icm--trash { --icm: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round' d='M3 4.5h10M6.5 4.5V3h3v1.5M4.7 4.5l.5 8.2a1 1 0 001 .9h3.6a1 1 0 001-.9l.5-8.2'/%3E%3C/svg%3E"); }
+.icm--download { --icm: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round' d='M8 1.5v8m0 0-2.8-2.8M8 9.5l2.8-2.8M2.5 12v1.5a1 1 0 001 1h9a1 1 0 001-1V12'/%3E%3C/svg%3E"); }
+.icm--duplicate { --icm: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round' d='M6 6h6v6H6z M4 10V4h6v2'/%3E%3C/svg%3E"); }
+.icm--chevron { --icm: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round' d='M6 3l5 5-5 5'/%3E%3C/svg%3E"); }
 
 /* #11 contextual "+" affordance */
 .tree__add-row { list-style: none; }
@@ -175,8 +219,11 @@ input.tree__title:focus { outline: 2px solid var(--primary); outline-offset: 1px
 .tree__toggle { flex: 0 0 18px; width: 18px; height: 18px; display: inline-flex;
   align-items: center; justify-content: center; color: var(--text-secondary);
   border-radius: var(--radius-sm); text-decoration: none; }
-.tree__toggle .ic { width: 12px; height: 12px; transition: transform .12s ease; }
-.tree__toggle[aria-expanded="true"] .ic { transform: rotate(90deg); }
+/* ::before, not `.ic` -- the toggle's chevron is a masked icon (see .icm), so
+   there is no longer an <svg> child to rotate. The size override has to stay
+   on the same pseudo-element the mask paints into. */
+.tree__toggle::before { width: 12px; height: 12px; transition: transform .12s ease; }
+.tree__toggle[aria-expanded="true"]::before { transform: rotate(90deg); }
 .tree__toggle:hover { color: var(--text-primary); background: var(--surface-raised); }
 .tree__toggle:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
 .tree__toggle--leaf { pointer-events: none; }
@@ -193,10 +240,10 @@ input.tree__title:focus { outline: 2px solid var(--primary); outline-offset: 1px
 
 /* Task 8: per-toggle in-flight state, so it is obvious WHICH row is loading. */
 .tree__toggle[data-submitting] { opacity: .45; }
-.tree__toggle[data-submitting] .ic { animation: builder-spin .7s linear infinite; }
+.tree__toggle[data-submitting]::before { animation: builder-spin .7s linear infinite; }
 @keyframes builder-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) {
-  .tree__toggle[data-submitting] .ic { animation: none; }
+  .tree__toggle[data-submitting]::before { animation: none; }
 }
 
 /* Visual only. It must NOT set pointer-events:none -- the per-toggle

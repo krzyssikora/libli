@@ -5,10 +5,10 @@
    that screen readers treat as no relationship.{% endcomment %}
 {% blocktrans count counter=kids|length with title=node.title asvar label_expand %}Expand {{ title }}, {{ counter }} item{% plural %}Expand {{ title }}, {{ counter }} items{% endblocktrans %}
 {% blocktrans count counter=kids|length with title=node.title asvar label_collapse %}Collapse {{ title }}, {{ counter }} item{% plural %}Collapse {{ title }}, {{ counter }} items{% endblocktrans %}
-<a class="tree__toggle" href="{% if is_open %}{% toggle_href node True %}{% else %}{% toggle_href node False %}{% endif %}" data-toggle="{{ node.pk }}"
+<a class="tree__toggle icm icm--chevron" href="{% if is_open %}{% toggle_href node True %}{% else %}{% toggle_href node False %}{% endif %}" data-toggle="{{ node.pk }}"
    aria-expanded="{% if is_open %}true{% else %}false{% endif %}"
    {% if is_open %}aria-controls="tree-scope-{{ node.pk }}"{% endif %}
    aria-label="{% if is_open %}{{ label_collapse }}{% else %}{{ label_expand }}{% endif %}"
    data-label-expand="{{ label_expand }}"
    data-label-collapse="{{ label_collapse }}"
-><svg class="ic"><use href="#bi-chevron"/></svg></a>
+></a>
