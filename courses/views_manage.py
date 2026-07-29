@@ -435,6 +435,20 @@ def node_panel(request, slug, pk):
 
 
 @login_required
+def manage_tree(request, slug):
+    """The whole top scope, as a fragment, for the filter and expand-all.
+
+    builder() returns a full page and is the only builder view with no
+    _wants_fragment branch; manage_node_scope is declared <int:pk> so it
+    cannot serve the top scope. Adding a fragment branch to builder() would
+    silently change its contract for every existing test that sends
+    X-Requested-With: fetch.
+    """
+    course = _require_manage(request, slug)
+    return _render_tree(request, course)
+
+
+@login_required
 def node_scope(request, slug, pk):
     """One scope <ol>, for the JS expand path.
 

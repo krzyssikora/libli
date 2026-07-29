@@ -1,4 +1,5 @@
 import pytest
+from django.test import Client
 from django.urls import reverse
 
 from tests.factories import ContentNodeFactory
@@ -182,3 +183,41 @@ def test_a_filtered_scope_fragment_returns_only_matching_children(filtered_cours
     assert f'data-node="{hit.pk}"' in text, "the descent did not happen; row is vacuous"
     assert f'data-node="{miss.pk}"' not in text  # children_map is restricted
     assert "Pusty" not in text  # nodes is restricted
+
+
+def test_manage_tree_access_control(filtered_course):
+    """The same rows as manage_node_scope MINUS the pk row -- four in total.
+    NOT 'non-numeric pk -> 404': this route has no pk, so such a test would
+    guard nothing (the resolver would 404 before the view ran)."""
+    client, course, *_ = filtered_course
+    url = reverse("courses:manage_tree", kwargs={"slug": course.slug})
+
+    assert Client().get(url).status_code in (301, 302)
+
+    other = Client()
+    make_login(other, "nobody")
+    assert other.get(url).status_code == 403
+
+    assert client.get(url).status_code == 200
+
+    missing = reverse("courses:manage_tree", kwargs={"slug": "no-such-course"})
+    assert client.get(missing).status_code == 404
+
+
+def test_manage_tree_returns_the_top_scope_and_nothing_else(filtered_course):
+    """applyFragment consumes firstElementChild; returning .builder__tree
+    with its header would break that single-element contract."""
+    client, course, *_ = filtered_course
+    url = reverse("courses:manage_tree", kwargs={"slug": course.slug})
+    body = client.get(url).content.decode().strip()
+    assert body.startswith("<ol")
+    assert 'data-scope="top"' in body
+    assert "builder__tree" not in body
+
+
+def test_manage_tree_honours_q(filtered_course):
+    client, course, part, chap, hit, miss = filtered_course
+    url = reverse("courses:manage_tree", kwargs={"slug": course.slug})
+    body = client.get(url, {"q": "trygo"}).content.decode()
+    assert f'data-node="{hit.pk}"' in body
+    assert f'data-node="{miss.pk}"' not in body

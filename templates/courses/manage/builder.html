@@ -7,6 +7,7 @@
 <section class="builder" data-course-slug="{{ course.slug }}"
          data-panel-url="{% url 'courses:manage_node_panel' slug=course.slug pk=0 %}"
          data-node-scope-url="{% url 'courses:manage_node_scope' slug=course.slug pk=0 %}"
+         data-tree-url="{% url 'courses:manage_tree' slug=course.slug %}"
          data-node-move-url="{% url 'courses:manage_node_move' slug=course.slug %}"
          data-msg-conflict="{% trans 'This changed elsewhere — reloaded to the latest.' %}"
          data-msg-illegal="{% trans "That move isn't allowed here." %}"
