@@ -104,6 +104,31 @@ to pass it down: the same query, moved — no saving. A real fix would give
 that already has it; nobody on the no-JS redirect path does. **Dropped, not
 deferred.**
 
+## M16 — window blur disarm ships unfalsified here, and why (Task 14 fix wave)
+
+Task 14's M16 change (`builder.js:754`, the `window.addEventListener("blur", ...)`
+handler that clears `swapping`/`pointerFocus`) has no falsifying test in this
+environment. Removing the line stays green here. This is a limitation of the
+environment, not an oversight in the test suite:
+
+- The only row in the suite that produces a *real* window blur is
+  `tests/test_e2e_inline_rename.py:352 test_window_blur_does_not_commit`. It
+  opens a second page in the same browser context and calls
+  `other.bring_to_front()` — a genuine browser-level blur of the first page,
+  not a synthetic `dispatchEvent`.
+- That row carries a `document.hasFocus()` skip guard (`:372-376`): if the
+  first page still reports focus after the second page is brought to front,
+  the test skips itself rather than asserting on a state it cannot produce.
+  In this environment that guard trips, so the row skips and M16 is never
+  exercised.
+
+The concrete check that would flip this: if a CI e2e run reports **0 skipped**
+for `test_e2e_builder_*` / `test_e2e_inline_rename`, that means
+`test_window_blur_does_not_commit` executed (not skipped) there, and an M16
+row should be added to the ledger reflecting that it *is* falsifiable in that
+environment. Do not add the M16 row itself here — in this environment it would
+record a skip, not a falsification.
+
 ## Note on tooling
 
 The combined pytest invocations' own final summary line (e.g. "166 passed in

@@ -354,3 +354,9 @@ def test_element_save_conflict_after_the_unit_vanished(client, db):
         **{"HTTP_X_REQUESTED_WITH": "fetch"},
     )
     assert resp.status_code == 409
+    # Pins the ARM: only the tree arm (_render_tree -> _render_scope,
+    # views_manage.py:1592) sets this header; the editor-fragment arm
+    # (_render_editor_fragments, :1595) never does. Without this, a future
+    # regression that quietly swapped in the fragment arm would still be 409
+    # and this test would stay green.
+    assert "X-Builder-Info" in resp

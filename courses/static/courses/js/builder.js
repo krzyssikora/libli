@@ -331,7 +331,7 @@
     }, function () {
       notice(msg("network", "Network error — please try again."));   // network only
       releaseForm(form);
-    }).then(finish, finish);        // BOTH arms, like every other site
+    }).then(finish, function (e) { finish(); if (window.console) console.error(e); });        // BOTH arms, like every other site
   });
 
   // Node selection -> load the detail panel fragment.
@@ -698,7 +698,7 @@
         if (gen === treeGen) pendingQ = appliedQ;
         notice(msg("network", "Network error — please try again."));
       })
-      .then(finish, finish);
+      .then(finish, function (e) { finish(); if (window.console) console.error(e); });
   }
 
   if (box) {
@@ -789,11 +789,13 @@
       // NESTED so `r` survives into the body handler. applyInfo needs the
       // Response; the old `return r.text()` threw it away.
       return r.text().then(function (html) {
-        // The non-200 branch moves HERE and stops being a `throw`. Task 14
-        // converts the error arm below to the two-argument `.then` form,
-        // which deliberately no longer sees throws from the success path --
-        // so a thrown "bad status" would become an unhandled rejection and
-        // the author would get no notice at all.
+        // The non-200 branch moves HERE and stops being a `throw`. The
+        // two-argument `.then(finish, ...)` below is the rejection handler
+        // for this whole chain, and it always calls `finish()` and returns
+        // undefined -- so it RESOLVES the chain rather than re-rejecting it.
+        // A thrown "bad status" here would land there: finish() still runs
+        // (a console.error trace fires), but there is no notice() and no
+        // unhandled-rejection event -- do not make this a `throw`.
         if (r.status !== 200) {
           notice(msg("network", "Network error — please try again."));
           return;
@@ -822,7 +824,7 @@
       });
     }, function () {
       notice(msg("network", "Network error — please try again."));   // network only
-    }).then(finish, finish);
+    }).then(finish, function (e) { finish(); if (window.console) console.error(e); });
   });
 
   // The delete link is a plain navigation for everyone -- node_confirm_delete's
@@ -877,7 +879,7 @@
       }, function () {
         notice(msg("network", "Network error — please try again."));   // network only
       })
-      .then(finish, finish);
+      .then(finish, function (e) { finish(); if (window.console) console.error(e); });
   });
 
   root.addEventListener("pointerdown", function (e) {
@@ -1053,7 +1055,7 @@
       } else if (r.status === 422) { notice(msg("illegal", "That move isn't allowed here.")); }
     }); }, function () {
       notice(msg("network", "Network error — please try again."));   // network only
-    }).then(finish, finish);
+    }).then(finish, function (e) { finish(); if (window.console) console.error(e); });
   });
   root.addEventListener("dragend", function () {
     cancelFrame(); clearDropMarks(); drag = null; pointerFocus = false;
