@@ -171,6 +171,11 @@ urlpatterns = [
         name="manage_node_scope",
     ),
     path(
+        "manage/courses/<slug:slug>/build/tree/",
+        views_manage.manage_tree,
+        name="manage_tree",
+    ),
+    path(
         "manage/courses/<slug:slug>/link-picker/",
         views_manage.link_picker,
         name="manage_link_picker",

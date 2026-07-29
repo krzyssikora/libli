@@ -4,6 +4,7 @@
   <input type="hidden" name="mode" value="reparent">
   <input type="hidden" name="node" value="{{ node.pk }}">
   <input type="hidden" name="node_token" value="{{ node.updated.isoformat }}">
+  {% if q %}<input type="hidden" name="q" value="{{ q }}">{% endif %}
   <div class="move-picker__head">{% trans "Move" %}:
     <span class="tree__badge tree__badge--{{ node.kind }}">{{ node.get_kind_display }}</span> {{ node.title }}</div>
 

@@ -184,6 +184,13 @@ input.tree__title:focus { outline: 2px solid var(--primary); outline-offset: 1px
 .builder__info { list-style: none; margin: 0 0 var(--space-3); padding: var(--space-2) var(--space-3);
   background: var(--surface-sunken); border-radius: var(--radius-sm); color: var(--text-secondary); font-size: .875rem; }
 
+/* :empty, not [hidden] -- a render-time hidden attribute would hide every
+   SERVER-rendered notice from a no-JS author. The one-line markup above is
+   load-bearing: :empty does not match an element containing whitespace, and
+   the server's text nodes would survive the JS's <li> removals, leaving a
+   permanent sunken bar. */
+.builder__info:empty { display: none; }
+
 /* Task 8: per-toggle in-flight state, so it is obvious WHICH row is loading. */
 .tree__toggle[data-submitting] { opacity: .45; }
 .tree__toggle[data-submitting] .ic { animation: builder-spin .7s linear infinite; }
@@ -196,3 +203,56 @@ input.tree__title:focus { outline: 2px solid var(--primary); outline-offset: 1px
    in-flight guard is what prevents double activation, and blocking pointer
    events here would make that guard dead code. */
 .builder[data-busy] .builder__tree { opacity: .6; transition: opacity .1s ease; cursor: progress; }
+
+/* The header row is .manage__head, and app.css:591 already declares
+   `.manage__head .btn { margin-left: auto; }` (reset to 0 at :644 for narrow
+   viewports). Every .btn in the row claims the free space, so the filter form
+   is laid out around that rule rather than fighting it: it takes the free
+   space itself and the buttons after it sit flush.
+   `flex: 1 1 0`, never `1 1 auto` -- with `auto` the base size is max-content
+   and wrap is decided on that BEFORE shrinking. */
+/* NO `margin-left: auto` here. Auto margins absorb only the free space that
+   remains AFTER flex-grow has been resolved, and `flex: 1 1 0` on this same
+   item consumes all of it -- so the margin would be a no-op sitting next to a
+   genuinely load-bearing line, reading as though it did something. The form
+   claims the free space by GROWING; that is the whole mechanism. */
+/* Review fix (Task 9): `flex-basis: 0` plus `min-width: 0` gave this item no floor at
+   all, so at any width where .manage__head's other FIVE items (h1, Import, Export,
+   Expand all, Collapse all) already claim most of the row -- true at every unstacked
+   width, since app.css:34 caps .app-main at 960px regardless of viewport -- the flex-
+   grow share left for the filter was a sliver, and the search input inside it rendered
+   unreadable. `min-width` is not a rendered-size promise here; it changes the
+   HYPOTHETICAL size flex-wrap uses to decide whether the row overflows, so once the
+   floor no longer fits alongside its siblings the whole form wraps onto its own line
+   (with Expand/Collapse joining it there) and then fills that line via flex-grow, same
+   as `.tree__add-title`'s `min-width: 6rem` a few rules up -- there is no width token
+   for this, so a rem literal is the repo's existing pattern for an input floor. 12rem
+   sits well above the ~8rem line where wrapping starts to trigger at this row's actual
+   content, leaving margin for longer (e.g. Polish) button labels shifting that line. */
+.builder__filter { display: flex; gap: var(--space-2); flex: 1 1 0; min-width: 12rem; }
+/* The fill/colour/rim half of this rule is not cosmetic. app.css:136 themes
+   `input[type=text|email|password|url], select, textarea` -- `type=search` is
+   NOT in that list, and no `.input` class applies here, so without these
+   declarations the field keeps the UA's white background while inheriting the
+   page's near-white --text-primary. MEASURED in dark mode before this rule
+   existed: background rgb(255,255,255) against colour rgb(242,239,233), i.e.
+   the typed query at roughly 1.05:1 contrast -- invisible, not merely faint.
+   Values mirror app.css:136 exactly (same fill, same --border-strong rim, same
+   padding) so the filter box reads as the same control as every other themed
+   input; `width` is deliberately NOT copied, because the flex basis above owns
+   sizing here. */
+.builder__filter input[type="search"] { flex: 1 1 0; min-width: 0;
+  padding: var(--space-2) var(--space-3);
+  background: var(--surface-sunken); color: var(--text-primary);
+  border: 1px solid var(--border-strong); border-radius: var(--radius-sm); }
+.builder__tree .manage__head .btn { margin-left: 0; }   /* the row now has FIVE
+   controls: app.css:591 gives every .manage__head .btn `margin-left: auto`,
+   which was right when the row held one <h1> and two buttons. With Import,
+   Export, Expand all, Collapse all and the form, only the FORM should claim
+   the free space.
+   The `.builder__tree` prefix is load-bearing twice over: it keeps other
+   manage pages untouched, and it raises specificity above app.css:591 so the
+   reset wins regardless of stylesheet load order. An unscoped
+   `.manage__head .btn` ties on specificity and would depend on builder.css
+   being linked after app.css (base.html:46-48) -- true today, and exactly the
+   kind of accident that breaks silently when someone moves the rule. */

@@ -23,6 +23,7 @@ from courses.views_manage import _children_map
 
 SLUG = os.environ.get("SLUG", "mat-pp")
 OPEN = os.environ.get("OPEN", "all")
+Q = os.environ.get("Q", "")
 
 
 def _containers(cmap):
@@ -74,16 +75,46 @@ def _run():
     # nothing %}` renders the else-branch), so omitting it renders SILENTLY
     # COLLAPSED rather than failing loudly -- which would make every "after"
     # number look like a huge win for the wrong reason.
+    render_map = cmap
+    q_on = False
+    if Q:
+        # Imported HERE, not at the top. `_containers` (:28-33) and `_descendants`
+        # (:39) are deliberate local copies so the probe RUNS ON TODAY'S CODE --
+        # their docstrings say so in as many words ("so this probe runs BEFORE
+        # courses.builder_open exists"). A module-level import executes
+        # unconditionally and would destroy exactly that property, making the
+        # BEFORE half of every comparison impossible on a clean checkout. Inside
+        # the `if Q:` block the import only runs when the caller asked for a
+        # filtered measurement, which by definition is an AFTER run.
+        from courses.builder_filter import filtered_map
+
+        restricted, chains, shown, total, q_on = filtered_map(cmap, Q)
+        # Gate on the RETURNED q_active, not on bool(Q). A below-floor Q (say
+        # `Q=a`) yields chains=set() and q_active=False -- so `ids = chains` would
+        # hand the render an EMPTY open set over the full map and time a silently
+        # COLLAPSED tree. That is exactly the failure the probe's own comment at
+        # :72-76 exists to prevent ("would make every 'after' number look like a
+        # huge win for the wrong reason"), and it is invisible in the output.
+        if q_on:
+            render_map = restricted
+            ids = chains
+            print(f"filtered: shown={shown} total={total}")
+        else:
+            print(f"Q={Q!r} is below the floor; measuring UNFILTERED")
+
     ctx = {
+        "nodes": render_map.get(None, []),
+        "children_map": render_map,  # RESTRICTED only when q_on
+        "open_ids": ids,
+        "open_joined": ",".join(str(p) for p in sorted(ids)),
+        "open_descendants": _descendants(cmap, ids),  # the FULL map, always
+        "q": Q,  # the RAW value, active or not -- the template
+        # emits it either way, as the page does
+        "filtered": q_on,  # the FLAG, not bool(Q) -- see above
         "scope_id": "top",
         "scope_updated": course.updated.isoformat(),
         "parent_kind": None,
-        "nodes": cmap.get(None, []),
-        "children_map": cmap,
         "course": course,
-        "open_ids": ids,
-        "open_joined": ",".join(str(p) for p in sorted(ids)),
-        "open_descendants": _descendants(cmap, ids),
         "builder_url": f"/manage/courses/{course.slug}/build/",
     }
     render_to_string("courses/manage/_scope.html", ctx)  # warm the template
@@ -91,7 +122,7 @@ def _run():
     html = render_to_string("courses/manage/_scope.html", ctx)
     dt = (time.perf_counter() - t0) * 1000
     tags = Counter(t.lower() for t in re.findall(r"<([a-zA-Z][a-zA-Z0-9-]*)", html))
-    print(f"slug={SLUG} open={OPEN}")
+    print(f"slug={SLUG} open={OPEN} q={Q!r} q_active={q_on}")
     print(f"  nodes in course : {sum(len(v) for v in cmap.values())}")
     print(f"  open scopes     : {len(ids)}")
     print(f"  warm render     : {dt:.1f} ms")

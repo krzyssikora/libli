@@ -349,6 +349,48 @@ def test_field_is_readonly_during_the_round_trip(page, live_server):
 
 
 @pytest.mark.django_db(transaction=True)
+def test_a_failed_submit_releases_the_form(page, live_server):
+    # (F) falsify: remove `releaseForm(form)` from the submit handler's rejection arm.
+    # Unlike test_window_blur_does_not_commit, this needs no window focus -- an
+    # aborted fetch rejects the promise unconditionally, so it goes RED for real.
+    #
+    # Sibling of test_field_is_readonly_during_the_round_trip: same gate-the-route
+    # harness, so the in-flight (readOnly=true) window is actually observed instead
+    # of racing an abort that could resolve before the first poll.
+    course, nodes = _seed_course()
+    _open_builder(page, live_server, course, "owner")
+
+    gate = {"release": None}
+
+    def _handler(route):
+        gate["release"] = route
+
+    page.route("**/build/node/rename/", _handler)
+
+    title = page.locator('.tree__title[value="Unit 1"]').element_handle()
+    # Clicking the title also focuses it, which fires an UNRELATED, unmocked
+    # GET that loads the detail panel (focusin -> loadPanel, builder.js:394-416).
+    # That response lands asynchronously and calls setPanel(), which would
+    # otherwise race the notice() this test asserts on and silently overwrite
+    # it. Let that fetch settle first so the panel is quiescent before the
+    # rename's own notice lands.
+    title.click()
+    expect(page.locator(f'.panel[data-panel-for="{nodes["unit1"].pk}"]')).to_have_count(
+        1
+    )
+    title.press("Control+a")
+    page.keyboard.type("Renamed")
+    with page.expect_request("**/build/node/rename/"):
+        title.press("Enter")
+    page.wait_for_function("el => el.readOnly === true", arg=title)
+    assert gate["release"] is not None
+    gate["release"].abort()
+    # The rejection arm must still release the field, or it wedges read-only forever.
+    page.wait_for_function("el => el.readOnly === false", arg=title)
+    page.wait_for_selector(".op-error")
+
+
+@pytest.mark.django_db(transaction=True)
 def test_window_blur_does_not_commit(page, live_server):
     """(F) falsify: remove the `relatedTarget === null && !document.hasFocus()`
     bail-out from the title focusout handler.

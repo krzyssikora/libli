@@ -7,20 +7,43 @@
 <section class="builder" data-course-slug="{{ course.slug }}"
          data-panel-url="{% url 'courses:manage_node_panel' slug=course.slug pk=0 %}"
          data-node-scope-url="{% url 'courses:manage_node_scope' slug=course.slug pk=0 %}"
+         data-tree-url="{% url 'courses:manage_tree' slug=course.slug %}"
          data-node-move-url="{% url 'courses:manage_node_move' slug=course.slug %}"
          data-msg-conflict="{% trans 'This changed elsewhere — reloaded to the latest.' %}"
          data-msg-illegal="{% trans "That move isn't allowed here." %}"
-         data-msg-network="{% trans 'Network error — please try again.' %}">
+         data-msg-network="{% trans 'Network error — please try again.' %}"
+         data-msg-truncation="{% trans 'Only the first %(limit)s scopes were opened.' %}"
+         data-msg-filter="{% trans 'Filtered: %(shown)s / %(total)s' %}"
+         data-applied-q="{{ q }}"
+         data-q-min="{{ q_min }}"
+         {% if expand_all_disabled %}data-expand-all-disabled{% endif %}>
   {% include "courses/manage/_icon_sprite.html" %}
   <div class="builder__tree">
     <header class="manage__head">
       <h1 class="builder__title">{{ course.title }}</h1>
       <a class="btn btn--ghost btn--small" href="{% url 'courses:manage_import_content' slug=course.slug %}">{% trans "Import content" %}</a>
       <a class="btn btn--ghost btn--small" href="{% url 'courses:manage_course_export' slug=course.slug %}">{% trans "Export" %}</a>
+      <form class="builder__filter" method="get" action="{{ builder_url }}" data-filter>
+        <label class="visually-hidden" for="builder-q">{% trans "Filter by title" %}</label>
+        <input id="builder-q" type="search" name="q" value="{{ q }}">
+        <button class="btn btn--ghost btn--small" type="submit">{% trans "Filter" %}</button>
+        <a class="btn btn--ghost btn--small" href="{{ builder_url }}"
+           data-filter-clear{% if not q %} hidden{% endif %}>{% trans "Clear" %}</a>
+      </form>
+      {% if expand_all_disabled %}
+      <a class="btn btn--ghost btn--small" data-expand-all
+         aria-disabled="true"
+         title="{% trans 'This course is too large to expand at once.' %}">{% trans "Expand all" %}</a>
+      {% else %}
+      <a class="btn btn--ghost btn--small" data-expand-all
+         href="{{ builder_url }}?open=all{% if q %}&amp;q={{ q|urlencode }}{% endif %}">{% trans "Expand all" %}</a>
+      {% endif %}
+      <a class="btn btn--ghost btn--small" data-collapse-all
+         href="{{ builder_url }}?open={% if q %}&amp;q={{ q|urlencode }}{% endif %}">{% trans "Collapse all" %}</a>
     </header>
     {% include "courses/manage/_structure_legend.html" with course=course %}
     <p class="helptext">{% trans "Add a slide break to split this unit into a slideshow." %}</p>
-    {% if info %}<ul class="builder__info" role="status">{% for entry in info %}<li data-info-key="{{ entry.key }}">{{ entry.text }}</li>{% endfor %}</ul>{% endif %}
+    <ul class="builder__info" role="status" data-info>{% for entry in info %}<li data-info-key="{{ entry.key }}">{{ entry.text }}</li>{% endfor %}</ul>
     {% include "courses/manage/_scope.html" with scope_id="top" scope_updated=course.updated.isoformat nodes=top_nodes children_map=children_map parent_kind=None open_ids=open_ids %}
   </div>
   <div class="builder__panel" data-panel>

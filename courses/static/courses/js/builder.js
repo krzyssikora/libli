@@ -105,15 +105,77 @@
     });
     return out.join(",");
   }
-  // SET, never append: mutation forms may already carry the value, and
-  // QueryDict.get returns the LAST, so appending would win only by accident.
-  function withOpen(body) { body.set("open", collectOpen()); return body; }
+  // ---- the applied-q tracker -------------------------------------------------
+  // The floor applies in the COMPARISON, never in either value. Storing the
+  // effective form makes a ?q=a page send q="" on the first toggle, and
+  // syncUrl then strips the `a` from the address bar.
+  // TWO values, and conflating them breaks the clear path (spec 5z).
+  //   appliedQ  -- what the pane is SHOWING; written when a response lands;
+  //                read by the five senders, syncUrl and rewriteBulkHrefs
+  //   pendingQ  -- what the latest ISSUED request will apply; written at issue
+  //                time; read by the skip-comparison, and only that
+  // appliedQ alone is stale during an in-flight filter: type `trygo`, click
+  // Clear before it lands, and the clear compares "" against "" (appliedQ has
+  // not advanced), returns early, issues NO request and never bumps treeGen --
+  // so the filter response lands unopposed and repaints filtered markup over
+  // an empty box. The counter cannot save it: the losing path sends nothing.
+  var appliedQ = root.getAttribute("data-applied-q") || "";
+  var pendingQ = appliedQ;
+  var qMin = parseInt(root.getAttribute("data-q-min"), 10) || 2;
+
+  function effectiveQ(s) {
+    // Mirrors builder_filter.is_active. NFC, not NFD: measured over all of
+    // Unicode, an NFD client measure exceeds the server's fold for 11,371
+    // characters (Hangul, Hebrew, Katakana, Arabic, Indic), NFC for 83, and
+    // Latin for 0 either way.
+    //
+    // The explicit class, not trim(): Python's str.strip() takes U+0085 and
+    // U+001C-1F, which trim() does not, so "a\u0085" would be 2 to the client
+    // and 1 to the server -- the direction that collapses the tree.
+    //
+    // [...s].length, not .length: .length counts UTF-16 units and Python
+    // counts code points, so every astral character measures 2 here and 1
+    // there -- the same dangerous direction, for the whole astral plane.
+    // Every class member is written as an ESCAPE, never a literal byte:
+    // U+001C-001F and U+0085 are invisible in an editor and in a diff, and
+    // if one is lost to a paste that normalises whitespace the client floor
+    // silently disagrees with str.strip() in the direction that collapses
+    // the tree. Same for the combining-mark class.
+    var TRIM = /^[\s\u001c-\u001f\u0085]+|[\s\u001c-\u001f\u0085]+$/g;
+    var MARKS = /[\u0300-\u036f]/g;
+    var t = (s || "").replace(TRIM, "").normalize("NFC").replace(MARKS, "");
+    return [...t].length >= qMin ? (s || "").replace(TRIM, "") : "";
+  }
+
+  // SET, never append: mutation forms already carry a hidden q, so appending
+  // puts two values in the FormData and QueryDict.get returns the LAST -- the
+  // collector would win only by accident of ordering.
+  function setTreeParams(target, opts) {
+    var open = (opts && opts.openOverride !== undefined)
+      ? opts.openOverride
+      : collectOpen();
+    if (target.set) {                       // FormData or URLSearchParams
+      target.set("open", open);
+      target.set("q", appliedQ);
+    } else {                                // a URL
+      target.searchParams.set("open", open);
+      target.searchParams.set("q", appliedQ);
+    }
+    return target;
+  }
+  function withOpen(body) { return setTreeParams(body); }
 
   function syncUrl() {
     // Present-but-empty, never omitted: dropping the parameter makes the next
     // page GET see `open` as ABSENT and re-seed from the session.
     var u = new URL(window.location.href);
     u.searchParams.set("open", collectOpen());
+    // Writes the TRACKER, not "whatever this request sent" -- which is
+    // undefined for the clear fetch (sends no q) and for collapse-all (issues
+    // no request at all, yet calls this). Deletes only when the tracker is
+    // blank, so a below-floor `a` survives in the address bar.
+    if (appliedQ) u.searchParams.set("q", appliedQ);
+    else u.searchParams.delete("q");
     history.replaceState(null, "", u.toString());
   }
 
@@ -234,12 +296,16 @@
       }
     }
     busyStart();
+    var finish = function () { busyEnd(); };
     fetch(form.action, {
       method: "POST",
       headers: { "X-CSRFToken": csrf(), "X-Requested-With": "fetch" },
       body: withOpen(body),
     }).then(function (r) {
       return r.text().then(function (text) {
+        applyInfo(r);          // FIRST, on every arm. A rename 200 and a 422
+                               // carry no header, so this is a no-op there --
+                               // by construction, not by a call-site list.
         if (r.status === 200 || r.status === 409) {
           // A rename's 200 is patched in place; its 409 deliberately still goes through
           // applyFragment -- there the tree genuinely diverged and _conflict_scope must
@@ -256,15 +322,16 @@
           // that existed solely to refresh it was deleted along with it.)
           if (inPanel) setPanel(neutralPanel);
           clearMoving();
+          if (appliedQ) preFilterOpen = null;   // the tree changed underneath it
         } else if (r.status === 422) {
           notice(parseFragment(text).textContent.trim());
         }
         releaseForm(form);
       });
-    }).catch(function () {
-      notice(msg("network", "Network error — please try again."));
+    }, function () {
+      notice(msg("network", "Network error — please try again."));   // network only
       releaseForm(form);
-    }).then(function () { busyEnd(); });
+    }).then(finish, function (e) { finish(); if (window.console) console.error(e); });        // BOTH arms, like every other site
   });
 
   // Node selection -> load the detail panel fragment.
@@ -273,7 +340,14 @@
     var mv = e.target.closest("[data-move]");
     if (mv) {
       e.preventDefault();
-      fetch(mv.getAttribute("href"), { headers: { "X-Requested-With": "fetch" } })
+      // Set ONLY `q`, not setTreeParams: the href already carries a rendered
+      // `q`, so appending would yield `?node=5&q=X&q=X` and work only because
+      // QueryDict.get takes the last -- and setTreeParams would additionally
+      // stamp `open`, which _move_picker never reads (views_manage.py:1075-1111),
+      // so after an expand-all every picker GET would carry a ~1 KB pk list.
+      var u = new URL(mv.getAttribute("href"), window.location.origin);
+      u.searchParams.set("q", appliedQ);
+      fetch(u.pathname + u.search, { headers: { "X-Requested-With": "fetch" } })
         .then(function (r) { return r.text(); })
         .then(function (html) {
           setPanel(html);
@@ -442,6 +516,218 @@
     return tpl.replace(/\/0\/scope\/$/, "/" + pk + "/scope/");
   }
 
+  // ---- title filter: the fetch, the clear path and the pre-filter stash ------
+  // Steps 3-6 below are ONE ordered block: `var box` (Step 5) must precede the
+  // `if (box)` wiring (Step 6), because `var` hoists the declaration but not
+  // the assignment -- pasted the other way round `box` is undefined at the
+  // guard, all three entry points are silently unwired, and nothing logs.
+  // ---- the info slot ---------------------------------------------------------
+  var infoSlot = root.querySelector("[data-info]");
+
+  function applyInfo(response) {
+    // header ABSENT -> not a tree-pane response, ignore ENTIRELY. A rename
+    // 200, a 422 and both panel fetches never reach _render_scope, so they
+    // neither set nor clear -- by construction, not by a call-site list.
+    var raw = response.headers.get("X-Builder-Info");
+    if (raw === null || !infoSlot) return;
+
+    if (raw === "none") { infoSlot.replaceChildren(); return; }
+
+    // FULL STATE, not a delta. The header lists every entry that applies to
+    // the response, so a key it OMITS must be REMOVED.
+    //
+    // The reachable case is a REFINE, not a clear: the slot holds
+    // truncation + filter, the author narrows the query, the new chain set
+    // fits under the ceiling, and the response carries `filter` with no
+    // `truncation` -- so without this loop the stale truncation entry
+    // survives over a tree that is no longer truncated.
+    //
+    // A CLEAR is already covered by `none` above, and cannot reach here: it
+    // sends `open=<enumeration>` derived from the DOM, whose scopes a
+    // previous _finalize already capped at <= CEILING, so `len(kept) >
+    // CEILING` is False and the response is never truncated.
+    var incoming = raw.split(", ").map(function (e) { return e.split(";")[0]; });
+    infoSlot.querySelectorAll("[data-info-key]").forEach(function (li) {
+      if (incoming.indexOf(li.getAttribute("data-info-key")) === -1) li.remove();
+    });
+
+    // grammar:  entry ( ", " entry )*   with   entry := key ( ";" name "=" value )*
+    raw.split(", ").forEach(function (entry) {
+      var parts = entry.split(";");
+      var key = parts[0];
+      var params = {};
+      parts.slice(1).forEach(function (p) {
+        var kv = p.split("=");
+        params[kv[0]] = kv[1];
+      });
+      var template = msg(key, "");
+      if (!template) return;
+      var text = template.replace(/%\((\w+)\)s/g, function (_m, name) {
+        return params[name] !== undefined ? params[name] : "";
+      });
+      // Replace by KEY -- the info key, the code prefix and the data-msg-*
+      // suffix are deliberately the same token, so no prefix->key map exists
+      // to get wrong.
+      var existing = infoSlot.querySelector('[data-info-key="' + key + '"]');
+      var li = document.createElement("li");
+      li.setAttribute("data-info-key", key);
+      li.textContent = text;             // element nodes only: never leave a
+      if (existing) existing.replaceWith(li);   // text node inside the slot,
+      else infoSlot.appendChild(li);            // or :empty stops matching
+    });
+  }
+
+  function rewriteBulkHrefs() {
+    // These two sit in .builder__tree's header, OUTSIDE every fragment
+    // applyFragment swaps and outside what manage_tree returns -- so unlike
+    // the delete and Move hrefs, nothing else refreshes them.
+    //
+    // Called from the response handlers AND from the two request-less paths
+    // that still change `appliedQ`: the clear skip branch (Task 11 Step 5)
+    // and collapse-all, which issues no fetch at all. What must NOT happen is
+    // relying on a click-time rewrite ALONE -- a middle-click dispatches
+    // auxclick, not click, so it would never run for the case this exists for.
+    root.querySelectorAll("[data-expand-all], [data-collapse-all]").forEach(
+      function (el) {
+        var href = el.getAttribute("href");
+        if (!href) return;       // never ADD one: over the ceiling the control
+                                 // is href-less on purpose, and
+                                 // new URL(null, origin) yields "/null"
+        var u = new URL(href, window.location.origin);
+        if (appliedQ) u.searchParams.set("q", appliedQ);
+        else u.searchParams.delete("q");
+        el.setAttribute("href", u.pathname + u.search);
+      }
+    );
+  }
+
+  // null, NOT "" -- a legitimately empty pre-filter set stashes as "", and
+  // `if (!stash)` misreads that as absent, so an author who had everything
+  // collapsed, filtered, then cleared would get the filter's chains open
+  // instead of the empty tree they started from.
+  var preFilterOpen = null;
+  // ONE counter for EVERY data-tree-url request: filter, clear and
+  // expand-all all applyFragment the same pane. With a counter per path, a
+  // filter response landing after a clear repaints filtered markup, writes
+  // the tracker back and restores ?q= -- filtered markup over an empty box.
+  var treeGen = 0;
+  var filterTimer = null;
+
+  var box = root.querySelector("#builder-q");
+
+  function updateClearVisibility() {
+    var clear = root.querySelector("[data-filter-clear]");
+    if (clear) clear.hidden = !box.value;
+  }
+
+  function applyFilterState(live) {
+    var eff = effectiveQ(live);
+    // Compared against pendingQ, not appliedQ (see above). Guarded on what is
+    // APPLIED-or-IN-FLIGHT, not on what the box contains: otherwise the first
+    // character typed into an unfiltered tree takes the clear path, the stash
+    // is null, and the fallback re-renders everything the author had open --
+    // on mat-pp after an expand-all, the multi-second render, from one
+    // keystroke.
+    if (eff === effectiveQ(pendingQ)) {
+      // No FETCH is needed -- the pane already shows the right thing -- but
+      // the tracker still moved, and syncUrl/rewriteBulkHrefs are otherwise
+      // only ever called from a response handler. Skipping them here strands
+      // a below-floor query: load ?q=a, click Clear, and eff === "" on both
+      // sides, so without these two lines `?q=a` stays in the address bar and
+      // in both bulk hrefs while the box reads empty -- a reload or a
+      // middle-click silently restores a filter the author just cleared.
+      appliedQ = live;
+      pendingQ = live;
+      rewriteBulkHrefs();
+      syncUrl();
+      return;
+    }
+    pendingQ = live;          // at ISSUE time, before the fetch
+
+    var url = new URL(root.getAttribute("data-tree-url"), window.location.origin);
+    if (eff) {
+      // Entering a filter: stash BEFORE the first fetch, and only on the
+      // unfiltered -> filtered transition (refining does not re-stash).
+      if (preFilterOpen === null) preFilterOpen = collectOpen();
+      url.searchParams.set("q", live);
+      // NO `open`: step 2 outranks step 3, so a filter fetch carrying it
+      // would return only the scopes that happened to be open already, and a
+      // match three levels down inside a collapsed branch would never appear.
+    } else {
+      // Clearing. Never omits `open`: that is the fragment-absent path, i.e.
+      // the EMPTY set, which would collapse the course to its top rows.
+      url.searchParams.set(
+        "open", preFilterOpen === null ? collectOpen() : preFilterOpen
+      );
+    }
+
+    var gen = ++treeGen;
+    busyStart();
+    var finish = function () { busyEnd(); };
+    fetch(url.toString(), { headers: { "X-Requested-With": "fetch" } })
+      .then(function (r) {
+        return r.text().then(function (text) {
+          if (gen !== treeGen) return;          // stale: touch NOTHING --
+                                                // a newer issue owns pendingQ
+          if (r.status !== 200) {
+            // Roll pendingQ BACK. It advanced at issue time, and only the
+            // success path advances appliedQ -- so without this, retrying the
+            // identical query hits `eff === effectiveQ(pendingQ)`, takes the
+            // skip branch, issues NO request, and still writes appliedQ,
+            // syncUrl and the bulk hrefs. The tracker would then claim the
+            // pane shows `trygo` while it shows the pre-filter tree, and the
+            // next toggle would send q=trygo against unfiltered markup: the
+            // exact desync the tracker exists to prevent.
+            pendingQ = appliedQ;
+            notice(msg("network", "Network error — please try again."));
+            return;
+          }
+          applyFragment(text);
+          applyInfo(r);                          // Task 12
+          appliedQ = live;                       // BEFORE syncUrl and the rewrite
+          if (!eff) preFilterOpen = null;        // consumed on APPLY, not on issue
+          rewriteBulkHrefs();                    // Task 13
+          syncUrl();
+        });
+      }, function () {
+        // Gen-guarded: a STALE request rejecting must not clobber the pendingQ
+        // a newer issue owns. Dropping this line reintroduces the desync
+        // test_retrying_the_same_query_after_a_FAILED_fetch_issues_a_new_request
+        // exists to catch -- and that row fails at Task 14 Step 5 with nothing
+        // pointing back at this rewrite as the cause.
+        if (gen === treeGen) pendingQ = appliedQ;
+        notice(msg("network", "Network error — please try again."));
+      })
+      .then(finish, function (e) { finish(); if (window.console) console.error(e); });
+  }
+
+  if (box) {
+    root.addEventListener("input", function (e) {
+      if (e.target !== box) return;
+      updateClearVisibility();
+      clearTimeout(filterTimer);
+      filterTimer = setTimeout(function () { applyFilterState(box.value); }, 300);
+    });
+    // Enter / the Filter button. Without this the most obvious "apply the
+    // filter" gesture is a full-page navigation that discards the stash.
+    root.addEventListener("submit", function (e) {
+      var form = e.target.closest("[data-filter]");
+      if (!form) return;
+      e.preventDefault();
+      clearTimeout(filterTimer);
+      applyFilterState(box.value);
+    });
+    root.addEventListener("click", function (e) {
+      if (!e.target.closest("[data-filter-clear]")) return;
+      e.preventDefault();
+      clearTimeout(filterTimer);        // else it fires and issues a SECOND clear
+      box.value = "";
+      updateClearVisibility();          // box.value = "" fires no input event
+      applyFilterState("");
+    });
+  }
+  // ---- end title filter ------------------------------------------------------
+
   root.addEventListener("pointerdown", function (e) {
     // Armed HERE, not around the <ol> removal: a click moves focus at
     // mousedown, so a dirty title's focusout fires BEFORE this handler's click
@@ -463,6 +749,9 @@
   });
   document.addEventListener("pointerup", function () { swapping = false; });
   document.addEventListener("pointercancel", function () { swapping = false; });
+  // `swapping` latches true if pointerup never fires (window blur mid-press);
+  // `pointerFocus` has the same shape.
+  window.addEventListener("blur", function () { swapping = false; pointerFocus = false; });
 
   root.addEventListener("click", function (e) {
     var t = e.target.closest("[data-toggle]");
@@ -484,37 +773,58 @@
     }
     t.dataset.submitting = "1";
     busyStart();
-    var body = new URLSearchParams();
+    // the toggle -- clear `submitting` on BOTH paths, or the row wedges
+    var finish = function () {
+      var ctl2 = root.querySelector('[data-toggle="' + pk + '"]');
+      if (ctl2) delete ctl2.dataset.submitting;
+      busyEnd();
+    };
     var open = collectOpen();
-    body.set("open", open ? open + "," + pk : pk);
+    var body = setTreeParams(new URLSearchParams(), {
+      openOverride: open ? open + "," + pk : pk,
+    });
     fetch(scopeUrlFor(pk) + "?" + body.toString(), {
       headers: { "X-Requested-With": "fetch" },
     }).then(function (r) {
-      if (r.status !== 200) throw new Error("bad status");
-      return r.text();
-    }).then(function (html) {
-      // A foreign applyFragment may have replaced this row while we waited.
-      var live = root.querySelector('li.tree__row[data-node="' + pk + '"]');
-      var ctl = live && live.querySelector(':scope > .tree__rowhead [data-toggle]');
-      if (!live || !ctl || !ctl.dataset.submitting) return;
-      var incoming = parseFragment(html).firstElementChild;
-      if (!incoming) return;
-      // Replace, never blind-append: two responses would leave two sibling
-      // <ol data-scope> and `:scope > ol.tree__scope` would pick one at random.
-      var dup = live.querySelector(":scope > ol.tree__scope");
-      if (dup) dup.remove();
-      live.appendChild(incoming);             // direct child, after .tree__rowhead
-      ctl.setAttribute("aria-expanded", "true");
-      ctl.setAttribute("aria-controls", "tree-scope-" + pk);
-      if (ctl.dataset.labelCollapse) ctl.setAttribute("aria-label", ctl.dataset.labelCollapse);
-      syncUrl();
-    }).catch(function () {
-      notice(msg("network", "Network error — please try again."));
-    }).then(function () {
-      var ctl2 = root.querySelector('[data-toggle="' + pk + '"]');
-      if (ctl2) delete ctl2.dataset.submitting;   // clear on BOTH paths, or the row wedges
-      busyEnd();
-    });
+      // NESTED so `r` survives into the body handler. applyInfo needs the
+      // Response; the old `return r.text()` threw it away.
+      return r.text().then(function (html) {
+        // The non-200 branch moves HERE and stops being a `throw`. The
+        // two-argument `.then(finish, ...)` below is the rejection handler
+        // for this whole chain, and it always calls `finish()` and returns
+        // undefined -- so it RESOLVES the chain rather than re-rejecting it.
+        // A thrown "bad status" here would land there: finish() still runs
+        // (a console.error trace fires), but there is no notice() and no
+        // unhandled-rejection event -- do not make this a `throw`.
+        if (r.status !== 200) {
+          notice(msg("network", "Network error — please try again."));
+          return;
+        }
+        // A foreign applyFragment may have replaced this row while we waited.
+        var live = root.querySelector('li.tree__row[data-node="' + pk + '"]');
+        var ctl = live && live.querySelector(':scope > .tree__rowhead [data-toggle]');
+        if (!live || !ctl || !ctl.dataset.submitting) return;
+        var incoming = parseFragment(html).firstElementChild;
+        if (!incoming) return;
+        // Replace, never blind-append: a scope arriving while one is already
+        // present would leave two sibling <ol data-scope> elements, and the
+        // `:scope > ol.tree__scope` lookup would then deterministically match
+        // the FIRST one in document order -- not necessarily this response's.
+        var dup = live.querySelector(":scope > ol.tree__scope");
+        if (dup) dup.remove();
+        live.appendChild(incoming);
+        ctl.setAttribute("aria-expanded", "true");
+        ctl.setAttribute("aria-controls", "tree-scope-" + pk);
+        if (ctl.dataset.labelCollapse) {
+          ctl.setAttribute("aria-label", ctl.dataset.labelCollapse);
+        }
+        applyInfo(r);   // AFTER the staleness guard: a response whose row
+                        // vanished must not repaint the info slot either.
+        syncUrl();
+      });
+    }, function () {
+      notice(msg("network", "Network error — please try again."));   // network only
+    }).then(finish, function (e) { finish(); if (window.console) console.error(e); });
   });
 
   // The delete link is a plain navigation for everyone -- node_confirm_delete's
@@ -529,12 +839,103 @@
     del.setAttribute("href", u.pathname + u.search);
   });
 
+  // ---- bulk expand / collapse ------------------------------------------------
+  root.addEventListener("click", function (e) {
+    var el = e.target.closest("[data-expand-all]");
+    if (!el) return;
+    e.preventDefault();
+    // Both bails, but only the first is decisive today: it shares its
+    // `{% if expand_all_disabled %}` with data-expand-all-disabled
+    // (builder.html:19/35) and runs first, so over the ceiling it always
+    // fires before the second is even reached. The second is deliberate
+    // defence-in-depth, kept for the day the anchor becomes a <button
+    // disabled> or an a11y pass drops aria-disabled.
+    //
+    // hasAttribute, never getAttribute: builder.html:19 emits this attribute
+    // BY PRESENCE, so under that markup getAttribute would return null/""
+    // (both falsy) and the bail could never fire -- hasAttribute is the only
+    // accessor that sees it. A VALUE form (e.g. ="False") would be fatal
+    // under either accessor; the bare form is pinned by
+    // tests/test_builder_filter_views.py:932, which asserts the attribute is
+    // ABSENT from the under-ceiling render.
+    if (el.getAttribute("aria-disabled") === "true") return;
+    if (root.hasAttribute("data-expand-all-disabled")) return;
+
+    var url = new URL(root.getAttribute("data-tree-url"), window.location.origin);
+    setTreeParams(url, { openOverride: "all" });   // sends the APPLIED q
+    var gen = ++treeGen;
+    busyStart();
+    var finish = function () { busyEnd(); };
+    fetch(url.toString(), { headers: { "X-Requested-With": "fetch" } })
+      .then(function (r) {
+        return r.text().then(function (text) {
+          if (gen !== treeGen) return;
+          if (r.status !== 200) { notice(msg("network", "Network error — please try again.")); return; }
+          applyFragment(text);
+          applyInfo(r);
+          rewriteBulkHrefs();
+          syncUrl();          // writes the resulting ENUMERATION: the
+        });                   // collector can only ever emit one
+      }, function () {
+        notice(msg("network", "Network error — please try again."));   // network only
+      })
+      .then(finish, function (e) { finish(); if (window.console) console.error(e); });
+  });
+
+  root.addEventListener("pointerdown", function (e) {
+    // Arm `swapping` BEFORE the click: a mouse click moves focus at
+    // mousedown, so a dirty title's focusout fires first, and the rename
+    // guard would read swapping === false and isConnected === true and commit.
+    // Slice 1's arming is deliberately NARROWED to the clicked toggle's own
+    // subtree, so this control inherits neither half.
+    if (!e.target.closest("[data-collapse-all]")) return;
+    var active = document.activeElement;
+    if (active && active.closest("ol.tree__scope[data-scope]:not([data-scope='top'])")) {
+      swapping = true;
+    }
+  });
+
+  root.addEventListener("click", function (e) {
+    if (!e.target.closest("[data-collapse-all]")) return;
+    e.preventDefault();          // it is an <a href>; "no request at all" is
+                                 // false without this, and the navigation
+                                 // would discard the stash
+    // KNOWN LIMITATION, not fixed here: this does not bump treeGen, so an
+    // in-flight expand-all still passes `gen === treeGen` and repaints the
+    // fully-expanded tree over this collapse. The obvious fix -- ++treeGen
+    // here too -- is WRONG: it would also invalidate an in-flight FILTER
+    // response, advancing pendingQ with no success path left to advance
+    // appliedQ to match, and no rollback (the rollback only runs on a non-200
+    // or a caught rejection) -- the exact desync the :671-678 comment exists
+    // to prevent. The pre-existing toggle-collapse path has the identical
+    // hole and already shipped; this one is not new.
+    swapping = true;
+    try {
+      root
+        .querySelectorAll('ol.tree__scope[data-scope]:not([data-scope="top"])')
+        .forEach(function (ol) { ol.remove(); });
+    } finally {
+      swapping = false;
+    }
+    root.querySelectorAll("[data-toggle]").forEach(function (t) {
+      t.setAttribute("aria-expanded", "false");
+      t.removeAttribute("aria-controls");
+      // The server-rendered label pair: JS cannot select a Polish plural form.
+      var label = t.getAttribute("data-label-expand");
+      if (label) t.setAttribute("aria-label", label);
+    });
+    rewriteBulkHrefs();
+    syncUrl();
+  });
+  // ---- end bulk expand / collapse --------------------------------------------
+
   // --- WS2 drag-and-drop ----------------------------------------------------
   var RANK = { part: 0, chapter: 1, section: 2, unit: 3 };
   var drag = null;  // { pk, kind, token }
   root.addEventListener("dragstart", function (e) {
     var grip = e.target.closest(".ica--grip");
     if (!grip) return;
+    if (grip.disabled) { e.preventDefault(); return; }
     var row = grip.closest(".tree__row");
     drag = { pk: row.getAttribute("data-node"), kind: row.getAttribute("data-kind"),
              token: row.getAttribute("data-updated") };
@@ -637,19 +1038,24 @@
     clearDropMarks(); drag = null; clearMoving();
     withOpen(body);
     busyStart();
+    var finish = function () { busyEnd(); };
     fetch(root.getAttribute("data-node-move-url"), {
       method: "POST", headers: { "X-CSRFToken": csrf(), "X-Requested-With": "fetch" }, body: body,
     }).then(function (r) { return r.text().then(function (text) {
       if (r.status === 200 || r.status === 409) {
         applyFragment(text);
+        applyInfo(r);
         syncUrl();
+        if (appliedQ) preFilterOpen = null;   // the tree changed underneath it
         if (r.status === 409) notice(msg("conflict", "This changed elsewhere — reloaded to the latest."));
         // A drag bypasses the submit handler's panel-refresh. If the panel holds a token-bearing
         // form (e.g. the dragged node's Move picker / rename), it is now stale — clear it so
         // reusing it can't spuriously 409.
         if (panel.querySelector("form[data-op]")) setPanel("");
       } else if (r.status === 422) { notice(msg("illegal", "That move isn't allowed here.")); }
-    }); }).catch(function () { notice(msg("network", "Network error — please try again.")); }).then(function () { busyEnd(); });
+    }); }, function () {
+      notice(msg("network", "Network error — please try again."));   // network only
+    }).then(finish, function (e) { finish(); if (window.console) console.error(e); });
   });
   root.addEventListener("dragend", function () {
     cancelFrame(); clearDropMarks(); drag = null; pointerFocus = false;

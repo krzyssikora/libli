@@ -1,3 +1,5 @@
+from dataclasses import dataclass
+
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.decorators import permission_required
 from django.core.exceptions import PermissionDenied
@@ -16,6 +18,7 @@ from django.utils.translation import gettext_lazy
 from django.views.decorators.http import require_POST
 
 from courses import builder as builder_svc
+from courses import builder_filter
 from courses import builder_open  # for builder_open.CEILING -- see below
 from courses.access import can_manage_course
 from courses.access import get_node_or_404  # reuse 1a's IDOR-safe resolver
@@ -173,16 +176,135 @@ def _open_descendants(cmap, ids):
     return out
 
 
-def _tree_context(course, cmap, ids):
-    """Keys every renderer of tree markup must supply, or toggle_href silently
-    sees nothing on fragment renders. Takes no `request`: everything it needs
-    is already resolved."""
+def _raw_q(request):
+    """POST then GET. Named because TEN non-rendering sites need their own
+    read: the six _redirect_to_builder mutation sites, node_delete's GET,
+    node_delete's bespoke `?open=` redirect branch, _move_picker (NOT
+    node_move's GET, which only delegates to it), and node_move's
+    mode=="reorder" guard. Without one helper the resolution rule is
+    re-expressed eleven times.
+
+    Mutation forms carry a hidden `q` in the body; toggles, manage_node_scope
+    and manage_tree carry it in the query string. The body wins because the
+    JS collector sets it there.
+    """
+    if "q" in request.POST:
+        return request.POST["q"]
+    return request.GET.get("q", "")
+
+
+@dataclass(frozen=True)
+class FilterContext:
+    """A record, not a tuple: it carries seven things and two of them are
+    easy to leave out and expensive to leave out.
+
+    q_raw -- if this is not handed back, all three renderers re-do the
+    POST-then-GET read to populate the `q` context key, reinstating the
+    resolution rule in three places. It is the RAW value, not the normalized
+    one, because a half-typed ?q=a must survive into the input and every href.
+
+    opened AND open_ids -- _tree_context must render from the union with
+    effect 1, while _remember_open must read `opened` untouched, or builder()
+    persists forced-open pks as though the author had chosen them.
+    """
+
+    # The RESTRICTED children-map (post-filter). Every caller also has a
+    # local `cmap` holding the FULL map -- do not confuse the two.
+    restricted: dict
+    opened: builder_open.OpenSet
+    open_ids: frozenset
+    shown: int
+    total: int
+    q_active: bool
+    q_raw: str
+
+
+def _filter_context(request, course, cmap, *, mode, extra_open=()):
+    """The one owner of q resolution, the restricted map, effect 2 and the
+    open set.
+
+    `mode` is required and has no default: the three callers need "page",
+    "notice" and "fragment", and open_ids's own default is "fragment" -- so a
+    mode-less helper would silently put builder() on the fragment row and
+    destroy both the session seed and the <=150-node rule, on the one path
+    where they matter.
+    """
+    q_raw = _raw_q(request)
+    restricted, chains, shown, total, q_active = builder_filter.filtered_map(
+        cmap, q_raw
+    )
+    # The chain set when q is ACTIVE, not when it is non-empty: a filter that
+    # matches nothing yields an EMPTY chain set, and passing None there would
+    # fall through to steps 4-6 (spec 3b).
+    opened = _open_ids(
+        request, course, cmap, mode=mode, q_chain=chains if q_active else None
+    )
+    ids = set(opened.ids) | _extra_container_pks(extra_open, cmap)
+    _apply_effect_two(restricted, extra_open, cmap)
+    return FilterContext(
+        restricted=restricted,
+        opened=opened,
+        open_ids=frozenset(ids),
+        shown=shown,
+        total=total,
+        q_active=q_active,
+        q_raw=q_raw,
+    )
+
+
+def _apply_effect_two(restricted, extra_open, full_cmap):
+    """Re-insert each forced pk's node into the RESTRICTED map.
+
+    `setdefault`, not `restricted[...]`: _children_map only creates a key for
+    a parent that HAS children (views_manage.py:139-141), and the restricted
+    map is built by regrouping the kept nodes -- so a matched container with
+    no matching descendants has no key of its own, and a filter that matched
+    nothing has no None key. Spec 1d ships an add affordance into exactly
+    those empty scopes, so "filter for a chapter, add a unit inside it" would
+    raise KeyError -> 500.
+
+    Applies to EVERY pk regardless of kind, units included; effect 1 keeps
+    the container-only filter. Splitting the kind test across the two effects
+    is what makes both pinned requirements satisfiable at once.
+    """
+    if not extra_open:
+        return
+    index = builder_open.nodes_by_pk(full_cmap)
+    for pk in extra_open:
+        node = index.get(pk)
+        if node is None:
+            continue
+        rows = restricted.setdefault(node.parent_id, [])
+        if any(existing.pk == node.pk for existing in rows):
+            continue  # idempotent: a duplicate row breaks the DOM collector
+        rows.append(node)
+        rows.sort(key=lambda n: (n.order, n.pk))
+
+
+def _tree_context(course, cmap, ids, *, q, filtered, expand_all_disabled, q_min):
+    """`cmap` here is the FULL map: _open_descendants builds the descendant
+    sets a COLLAPSE href subtracts, and over the restricted map an open
+    descendant the filter excluded would survive in the emitted `open` and
+    spring back the moment the filter is cleared.
+    """
     return {
         "open_ids": ids,
         "open_joined": ",".join(str(p) for p in sorted(ids)),
         "open_descendants": _open_descendants(cmap, ids),
         "builder_url": reverse("courses:manage_builder", kwargs={"slug": course.slug}),
+        "q": q,
+        "filtered": filtered,
+        "expand_all_disabled": expand_all_disabled,
+        "q_min": q_min,
     }
+
+
+def _expand_all_disabled(cmap):
+    """Read CEILING THROUGH the module: tests monkeypatch
+    courses.builder_open.CEILING, and a by-value import desyncs this guard
+    from the patched number -- the same trap _info_entries documents.
+    """
+    return len(builder_open.container_pks(cmap)) > builder_open.CEILING
 
 
 def remember_node(request, slug, pk, key=LAST_NODE_KEY):
@@ -215,17 +337,20 @@ def _ancestor_chain(node):
     return out
 
 
-def _remember_open(request, course, opened):
+def _remember_open(request, course, opened, *, q_active):
     """Persist ONLY an author-chosen open set (precedence steps 1-2).
 
-    Gated on opened.explicit, NOT on `"open" in request.GET`. The two differ
-    exactly where it matters: `?open=session` with the key missing or flushed
-    sets `present` internally to False and falls through to steps 4-6, so the
-    parameter IS in the querystring while the resolved set is derived. Keying
-    off raw presence would write that derived set over the author's real one,
-    permanently.
+    The `q_active` gate is the half slice 1 could not write, and the parent
+    spec pins it: without it a no-JS author filters, clicks a toggle whose
+    href carries `open = <the filter's chains> +- pk`, that arrives via step 2
+    as explicit=True, and the DERIVED chains are written over their real
+    pre-filter expansion -- permanently, since the no-JS path has no stash.
+
+    Gated on q_active, NOT on `"q" in request.GET`: a below-floor `?q=a`
+    renders unfiltered, so its `open` is a genuine author-chosen set and
+    suppressing the write would lose it.
     """
-    if not opened.explicit:
+    if q_active or not opened.explicit:
         return
     # Bound the PAYLOAD, not just the slug count. Without this an author who
     # opens 20 large courses with ?open=all stores up to 20 x CEILING = 10,000
@@ -245,15 +370,28 @@ def builder(request, slug):
     if not can_manage_course(request.user, course):
         raise PermissionDenied
     cmap = _children_map(course)
-    opened = _open_ids(request, course, cmap, mode="page")
-    _remember_open(request, course, opened)
+    force = _take_builder_force(request, course.slug)
+    fc = _filter_context(request, course, cmap, mode="page", extra_open=force)
+    _remember_open(request, course, fc.opened, q_active=fc.q_active)
     context = {
         "course": course,
-        "children_map": cmap,
-        "top_nodes": cmap.get(None, []),
-        "info": _info_entries(opened),
+        "children_map": fc.restricted,
+        "top_nodes": fc.restricted.get(None, []),
+        "info": _info_entries(
+            fc.opened, q_active=fc.q_active, shown=fc.shown, total=fc.total
+        ),
     }
-    context.update(_tree_context(course, cmap, opened.ids))
+    context.update(
+        _tree_context(
+            course,
+            cmap,
+            fc.open_ids,
+            q=fc.q_raw,
+            filtered=fc.q_active,
+            expand_all_disabled=_expand_all_disabled(cmap),
+            q_min=builder_filter.MIN_QUERY,
+        )
+    )
     return render(request, "courses/manage/builder.html", context)
 
 
@@ -301,6 +439,20 @@ def node_panel(request, slug, pk):
 
 
 @login_required
+def manage_tree(request, slug):
+    """The whole top scope, as a fragment, for the filter and expand-all.
+
+    builder() returns a full page and is the only builder view with no
+    _wants_fragment branch; manage_node_scope is declared <int:pk> so it
+    cannot serve the top scope. Adding a fragment branch to builder() would
+    silently change its contract for every existing test that sends
+    X-Requested-With: fetch.
+    """
+    course = _require_manage(request, slug)
+    return _render_tree(request, course)
+
+
+@login_required
 def node_scope(request, slug, pk):
     """One scope <ol>, for the JS expand path.
 
@@ -327,17 +479,16 @@ def _render_scope(request, course, scope_ref, *, extra_open=()):
     """Re-render a single scope <ol> (root carries data-scope). scope_ref is a parent
     pk or 'top'. Used for 200 success and 409 fresh-fragment on single-scope ops."""
     cmap = _children_map(course)
-    opened = _open_ids(request, course, cmap, mode="fragment")
-    ids = set(opened.ids) | _extra_container_pks(extra_open, cmap)
+    fc = _filter_context(request, course, cmap, mode="fragment", extra_open=extra_open)
     if scope_ref == "top":
         nodes, updated, parent_kind = (
-            cmap.get(None, []),
+            fc.restricted.get(None, []),
             course.updated.isoformat(),
             None,
         )
     else:
         parent = ContentNode.objects.filter(pk=scope_ref, course=course).first()
-        nodes = cmap.get(int(scope_ref), [])
+        nodes = fc.restricted.get(int(scope_ref), [])
         updated = parent.updated.isoformat() if parent else course.updated.isoformat()
         parent_kind = parent.kind if parent else None
     context = {
@@ -345,31 +496,83 @@ def _render_scope(request, course, scope_ref, *, extra_open=()):
         "scope_updated": updated,
         "parent_kind": parent_kind,
         "nodes": nodes,
-        "children_map": cmap,
-        "course": course,
+        "children_map": fc.restricted,  # the recursive descent walks this
+        "course": course,  # and _tree_toggle's counts read this
     }
-    context.update(_tree_context(course, cmap, ids))
-    return render(request, "courses/manage/_scope.html", context)
+    context.update(
+        _tree_context(
+            course,
+            cmap,  # the FULL map, always
+            fc.open_ids,
+            q=fc.q_raw,
+            filtered=fc.q_active,
+            expand_all_disabled=_expand_all_disabled(cmap),
+            q_min=builder_filter.MIN_QUERY,
+        )
+    )
+    resp = render(request, "courses/manage/_scope.html", context)
+    entries = _info_entries(
+        fc.opened, q_active=fc.q_active, shown=fc.shown, total=fc.total
+    )
+    # ALWAYS set, and FULL STATE: every entry that applies to this response,
+    # so the client can remove a key this header omits (Task 12). `none` when
+    # nothing applies. The parent spec pairs "absent when none apply" with
+    # "an absent header clears all keys", and the client cannot implement
+    # that pair: the submit handler serves both a rename
+    # (_rename_result.html, no header, must NOT clear) and an add (a scope, no
+    # codes, MUST clear), and those are byte-identical from its side.
+    resp["X-Builder-Info"] = ", ".join(e["code"] for e in entries) or "none"
+    return resp
 
 
-def _info_entries(opened):
-    """Keyed, so an incoming entry REPLACES rather than stacks."""
-    if not opened.truncated:
-        return []
-    return [
-        {
-            "key": "truncation",
-            # Read through the MODULE, not a value imported at import time:
-            # tests monkeypatch courses.builder_open.CEILING, and a by-value
-            # import would make the notice claim 500 while _finalize truncated
-            # at the patched number.
-            # "scopes", not "sections": `section` is a real ContentNode.Kind here,
-            # and a truncated set is mostly parts and chapters. Getting this
-            # wrong costs a second catalog round after Task 12's makemessages.
-            "text": _("Only the first %(limit)s scopes were opened.")
-            % {"limit": builder_open.CEILING},
-        }
-    ]
+def _info_entries(opened, *, q_active, shown, total):
+    """Keyed, so an incoming entry REPLACES rather than stacks.
+
+    The truncation entry below reads `builder_open.CEILING` THROUGH the
+    module, not via a `from ... import CEILING`: tests monkeypatch
+    `courses.builder_open.CEILING`, and a by-value import would bind the
+    original number at import time and desync this text from the patched
+    guard.
+
+    ONE WORD PER CONCEPT: the info key, the header code prefix and the
+    data-msg-* suffix are the same token. Three near-synonyms would force the
+    JS to carry a prefix->key map that lives nowhere, and a registry keyed off
+    the code prefix would never match the server-rendered
+    data-info-key="truncation" entry -- appending a second copy, which is the
+    bug the read-on-init rule exists to close.
+
+    SAME LITERAL per notice, here and in the data-msg-<key> attribute,
+    deliberately -- but they do NOT collapse to one catalog entry. Django's
+    {% trans %} looks up a msgid with every literal "%" doubled, while this
+    _() call looks up the single-% form; a "%"-bearing literal therefore
+    always occupies TWO msgids that must be kept in translation-sync by
+    hand (see the paired entries in locale/*/LC_MESSAGES/django.po). The
+    property this buys is not "one entry" but "the page and the fragment
+    route agree" -- verified by test_both_notice_routes_agree_in_polish.
+    """
+    entries = []
+    if opened.truncated:
+        entries.append(
+            {
+                "key": "truncation",
+                "code": f"truncation;limit={builder_open.CEILING}",
+                "text": _("Only the first %(limit)s scopes were opened.")
+                % {"limit": builder_open.CEILING},
+            }
+        )
+    if q_active:
+        # Emitted whenever q is active, INCLUDING shown == total == 0:
+        # "Filtered: 0 / 0" over an empty tree is the only explanation the
+        # author gets.
+        entries.append(
+            {
+                "key": "filter",
+                "code": f"filter;shown={shown};total={total}",
+                "text": _("Filtered: %(shown)s / %(total)s")
+                % {"shown": shown, "total": total},
+            }
+        )
+    return entries
 
 
 def _extra_container_pks(extra_open, cmap):
@@ -395,10 +598,19 @@ def _scope_ref(parent_id):
     return "top" if parent_id is None else parent_id
 
 
-def _redirect_to_builder(course):
-    """The ONLY places allowed to emit the open=session sentinel."""
+def _redirect_to_builder(course, q=""):
+    """The ONLY places allowed to emit the open=session sentinel.
+
+    `q` is passed IN, not read from the request: this helper has EIGHT
+    callers, and element_move/element_delete are excluded from the q rule by
+    the parent spec. Reading `request` here would silently extend the rule to
+    two editor-originated redirects nobody asked to change.
+    """
     url = reverse("courses:manage_builder", kwargs={"slug": course.slug})
-    return redirect(f"{url}?open=session")
+    params = {"open": "session"}
+    if q:
+        params["q"] = q
+    return redirect(f"{url}?{urlencode(params)}")
 
 
 def _persist_chain(request, course, node):
@@ -428,6 +640,51 @@ def _persist_chain(request, course, node):
         sorted(capped[: builder_open.SESSION_OPEN_LIMIT]),
         key=OPEN_KEY,
     )
+
+
+FORCE_KEY = "builder_force"
+
+
+def _stash_builder_force(request, slug, node):
+    """Stash a created/moved node's chain for EXACTLY the next page render.
+
+    extra_open exists only on FRAGMENT renders, but a no-JS add, duplicate or
+    reparent REDIRECTS -- and the following page GET re-derives the restricted
+    map from `q` alone, knows nothing of the new pk, and that node's title
+    will rarely match. The author would land on a filtered tree with their new
+    node ABSENT, indistinguishable from failure, on the path with the least
+    feedback.
+
+    Stores a sorted list[int]: no SESSION_SERIALIZER is configured, so
+    Django 5.2 uses JSONSerializer and a set raises
+    "TypeError: Object of type set is not JSON serializable".
+
+    Stores the UNFILTERED chain -- do NOT copy _persist_chain's
+    `& container_pks(cmap)` intersection. That one deliberately drops a unit's
+    own pk because it feeds the OPEN set; this one feeds extra_open, whose
+    effect 2 applies to every pk regardless of kind. Copying the intersection
+    makes a no-JS unit add under a filter return a tree without the row the
+    author just created.
+    """
+    remember_node(
+        request,
+        slug,
+        sorted(_ancestor_chain(node))[: builder_open.SESSION_OPEN_LIMIT],
+        key=FORCE_KEY,
+    )
+
+
+def _take_builder_force(request, slug):
+    """Read and CLEAR. builder() is the sole reader and the sole clearer:
+    _builder_with_notice follows a FAILED mutation, so there is nothing
+    created to force-include, and letting it read would leave the clear site
+    undefined."""
+    store = request.session.get(FORCE_KEY) or {}
+    pks = tuple(store.pop(slug, ()))
+    if pks:
+        request.session[FORCE_KEY] = store
+        request.session.modified = True
+    return pks
 
 
 @login_required
@@ -486,7 +743,8 @@ def node_add(request, slug):
         )
     if not _wants_fragment(request):
         _persist_chain(request, course, node)
-        return _redirect_to_builder(course)
+        _stash_builder_force(request, course.slug, node)
+        return _redirect_to_builder(course, _raw_q(request))
     # top-level add touches the top scope -> whole tree pane; nested add -> that scope
     if node.parent_id is None:
         return _render_tree(request, course, extra_open=_ancestor_chain(node))
@@ -550,7 +808,7 @@ def node_rename(request, slug):
     if to_editor:
         return redirect("courses:manage_editor", slug=slug, pk=node.pk)
     if not _wants_fragment(request):
-        return _redirect_to_builder(course)
+        return _redirect_to_builder(course, _raw_q(request))
     # a unit-settings change re-renders the unit panel
     if is_settings and node.kind == ContentNode.Kind.UNIT:
         return _render_unit_panel(request, node)
@@ -565,6 +823,28 @@ def node_move(request, slug):
     course = _require_manage(request, slug)
     mode = request.POST.get("mode")
     if mode == "reorder":
+        # Every position-based op computes against the FULL sibling list while
+        # a filtered scope renders a SUBSET (spec 3m): reorder_node swaps
+        # full-list neighbours, so "Move down" mutates the course with NO
+        # visible change and the author clicks again, and again.
+        #
+        # is_active, not `request.POST.get("q")`: this branch runs before any
+        # children-map is loaded, so no FilterContext exists -- and a
+        # truthiness gate would refuse under a below-floor ?q=a, where the
+        # tree renders unfiltered and the arrows render ENABLED.
+        #
+        # Scoped to mode=="reorder" ONLY. A drop posts mode=reparent with a
+        # position, indistinguishable from the Move picker's form -- and the
+        # picker's slot indices are computed against the FULL child list, so
+        # they are correct by construction. Widening this guard would break
+        # the one route left for moving while filtered.
+        if builder_filter.is_active(_raw_q(request)):
+            msg = _("Clear the filter to reorder.")
+            if not _wants_fragment(request):
+                return _builder_with_notice(request, course, msg, status=422)
+            return render(
+                request, "courses/manage/_op_error.html", {"message": msg}, status=422
+            )
         try:
             node, changed = builder_svc.reorder_node(
                 course,
@@ -582,7 +862,7 @@ def node_move(request, slug):
                 )
             return _conflict_scope(request, course, request.POST.get("node"))
         if not _wants_fragment(request):
-            return _redirect_to_builder(course)
+            return _redirect_to_builder(course, _raw_q(request))
         if node.parent_id is None:
             return _render_tree(request, course)
         return _render_scope(request, course, _scope_ref(node.parent_id))
@@ -618,7 +898,8 @@ def node_move(request, slug):
             )
         if not _wants_fragment(request):
             _persist_chain(request, course, node)
-            return _redirect_to_builder(course)
+            _stash_builder_force(request, course.slug, node)
+            return _redirect_to_builder(course, _raw_q(request))
         return _render_tree(
             request, course, extra_open=_ancestor_chain(node)
         )  # re-parent touches two scopes -> whole tree
@@ -653,6 +934,7 @@ def node_delete(request, slug):
                 "counts": counts,
                 "open_present": "open" in request.GET,
                 "open": request.GET.get("open", ""),
+                "q": _raw_q(request),
             },
         )
     try:
@@ -671,8 +953,12 @@ def node_delete(request, slug):
     if not _wants_fragment(request):
         if "open" in request.POST:
             url = reverse("courses:manage_builder", kwargs={"slug": course.slug})
-            return redirect(f"{url}?{urlencode({'open': request.POST['open']})}")
-        return _redirect_to_builder(course)
+            params = {"open": request.POST["open"]}
+            q = _raw_q(request)
+            if q:
+                params["q"] = q
+            return redirect(f"{url}?{urlencode(params)}")
+        return _redirect_to_builder(course, _raw_q(request))
     if parent_id is None:
         return _render_tree(request, course)
     return _render_scope(request, course, _scope_ref(parent_id))
@@ -712,7 +998,8 @@ def node_duplicate(request, slug):
         )
     if not _wants_fragment(request):
         _persist_chain(request, course, new_node)
-        return _redirect_to_builder(course)
+        _stash_builder_force(request, course.slug, new_node)
+        return _redirect_to_builder(course, _raw_q(request))
     if new_node.parent_id is None:
         return _render_tree(request, course, extra_open=_ancestor_chain(new_node))
     return _render_scope(
@@ -731,15 +1018,27 @@ def _builder_with_notice(request, course, message, status):
     """No-JS error response: re-render the WHOLE builder page with a notice (spec
     §No-JS fallback: 'stale token re-renders the full builder page with the notice')."""
     cmap = _children_map(course)
-    opened = _open_ids(request, course, cmap, mode="notice")
+    fc = _filter_context(request, course, cmap, mode="notice")
     context = {
         "course": course,
-        "children_map": cmap,
-        "top_nodes": cmap.get(None, []),
+        "children_map": fc.restricted,
+        "top_nodes": fc.restricted.get(None, []),
         "notice": message,
-        "info": _info_entries(opened),
+        "info": _info_entries(
+            fc.opened, q_active=fc.q_active, shown=fc.shown, total=fc.total
+        ),
     }
-    context.update(_tree_context(course, cmap, opened.ids))
+    context.update(
+        _tree_context(
+            course,
+            cmap,  # the FULL map, always
+            fc.open_ids,
+            q=fc.q_raw,
+            filtered=fc.q_active,
+            expand_all_disabled=_expand_all_disabled(cmap),
+            q_min=builder_filter.MIN_QUERY,
+        )
+    )
     return render(request, "courses/manage/builder.html", context, status=status)
 
 
@@ -801,8 +1100,14 @@ def _move_picker(request, course):
             "course": course,
             "node": node,
             "candidates": candidates,
+            # children_map/nodes_top stay the FULL map: this is a DESTINATION
+            # chooser, and the numeric `position` field indexes into these
+            # slot lists. A restricted map would both compute positions
+            # against a filtered child list and leave a filtered author unable
+            # to move anything OUT of the match set.
             "children_map": cmap,
             "nodes_top": cmap.get(None, []),
+            "q": _raw_q(request),
         },
     )
 

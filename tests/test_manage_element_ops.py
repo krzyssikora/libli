@@ -319,3 +319,44 @@ def test_preview_elements_carry_data_element_id(client):
     assert resp.status_code == 200
     assert b'class="prev-el"' in resp.content
     assert f'data-element-id="{el.pk}"'.encode() in resp.content
+
+
+def test_element_save_conflict_after_the_unit_vanished(client, db):
+    """The 'unit vanished mid-edit' path, pinned so it stays a decision.
+
+    NOTE the branch this actually takes: with the unit gone, element_save's
+    ConflictError handler re-queries it, gets None, and returns
+    `_render_tree(request, course, status=409)` (views_manage.py:1591-1592) --
+    a TREE pane, not the editor. Spec 4's "the conflict renders into the
+    editor" describes the OTHER arm (`:1593-1595`), the one where the unit
+    still exists. Derive the expected status by reading that branch, not from
+    this plan.
+    """
+    owner = make_login(client, "pa")
+    course = CourseFactory(slug="conf", owner=owner)
+    unit = ContentNodeFactory(course=course, kind="unit", parent=None)
+    element = Element.objects.create(
+        unit=unit, content_object=TextElement.objects.create(body="before")
+    )
+    unit_pk = unit.pk  # BEFORE the delete -- see above
+    stale_token = unit.updated.isoformat()
+    unit.delete()
+    url = reverse("courses:manage_element_save", kwargs={"slug": course.slug})
+    resp = client.post(
+        url,
+        {
+            "type": "text",
+            "unit": unit_pk,
+            "element": element.pk,
+            "unit_token": stale_token,
+            "body": "after",
+        },
+        **{"HTTP_X_REQUESTED_WITH": "fetch"},
+    )
+    assert resp.status_code == 409
+    # Pins the ARM: only the tree arm (_render_tree -> _render_scope,
+    # views_manage.py:1592) sets this header; the editor-fragment arm
+    # (_render_editor_fragments, :1595) never does. Without this, a future
+    # regression that quietly swapped in the fragment arm would still be 409
+    # and this test would stay green.
+    assert "X-Builder-Info" in resp

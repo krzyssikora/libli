@@ -89,6 +89,19 @@ def test_builder_tree_layout(page, live_server, tmp_path):
     ratio = tree_box["width"] / panel_box["width"]
     assert 1.7 < ratio < 2.4, f"tree:panel width ratio {ratio:.2f} not ~2:1"
 
+    # Regression guard (Task 9 review fix): .builder__filter used to have
+    # `flex-basis: 0` with NO min-width floor, so at this exact 1000px width the
+    # filter <input> was squeezed to an 8px sliver -- unusable, though technically
+    # still on-screen. 150px is well above that 8px sliver and well below the
+    # ~288px the input actually renders at once the fix's `min-width: 12rem` on
+    # `.builder__filter` forces the whole form to wrap onto its own line instead
+    # of degrading in place (measured via Playwright, not eyeballed).
+    filter_input_box = page.locator("#builder-q").bounding_box()
+    assert filter_input_box["width"] > 150, (
+        f"filter input is only {filter_input_box['width']:.1f}px wide -- "
+        "collapsing to an unusable sliver"
+    )
+
     # Long title truncates on one line: content overflows the input box. Measured on
     # the UNFOCUSED input — Chromium does report scrollWidth > clientWidth for a
     # single-line text control, verified by falsification (a short title gives
