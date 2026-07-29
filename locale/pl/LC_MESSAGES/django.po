@@ -4552,13 +4552,21 @@ msgstr "Tego przeniesienia nie można tu wykonać."
 msgid "Network error — please try again."
 msgstr "Błąd sieci — spróbuj ponownie."
 
+# Django's {% trans %} looks up this doubled-%% msgid at runtime for its
+# single-% sibling in courses/views_manage.py; keep both translations in
+# sync -- this is not a duplicate to delete.
 #: .\templates\courses\manage\builder.html:15
+#, python-format
 msgid "Only the first %%(limit)s scopes were opened."
-msgstr "Otwarto tylko pierwsze %(limit)s zakresów."
+msgstr "Otwarto tylko pierwsze %%(limit)s zakresów."
 
+# Django's {% trans %} looks up this doubled-%% msgid at runtime for its
+# single-% sibling in courses/views_manage.py; keep both translations in
+# sync -- this is not a duplicate to delete.
 #: .\templates\courses\manage\builder.html:16
+#, python-format
 msgid "Filtered: %%(shown)s / %%(total)s"
-msgstr "Filtrowane: %(shown)s / %(total)s"
+msgstr "Filtrowane: %%(shown)s / %%(total)s"
 
 #: .\templates\courses\manage\builder.html:24
 #: .\templates\courses\manage\import_course.html:4

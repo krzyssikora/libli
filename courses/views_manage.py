@@ -532,9 +532,14 @@ def _info_entries(opened, *, q_active, shown, total):
     data-info-key="truncation" entry -- appending a second copy, which is the
     bug the read-on-init rule exists to close.
 
-    ONE MSGID per notice: the same literal appears here and in the
-    data-msg-<key> attribute, deliberately, so makemessages collapses them.
-    Two entries would let the page and the fragment route disagree.
+    SAME LITERAL per notice, here and in the data-msg-<key> attribute,
+    deliberately -- but they do NOT collapse to one catalog entry. Django's
+    {% trans %} looks up a msgid with every literal "%" doubled, while this
+    _() call looks up the single-% form; a "%"-bearing literal therefore
+    always occupies TWO msgids that must be kept in translation-sync by
+    hand (see the paired entries in locale/*/LC_MESSAGES/django.po). The
+    property this buys is not "one entry" but "the page and the fragment
+    route agree" -- verified by test_both_notice_routes_agree_in_polish.
     """
     entries = []
     if opened.truncated:

@@ -4388,11 +4388,19 @@ msgstr ""
 msgid "Network error — please try again."
 msgstr ""
 
+# Django's {% trans %} looks up this doubled-%% msgid at runtime for its
+# single-% sibling in courses/views_manage.py; keep both translations in
+# sync -- this is not a duplicate to delete.
 #: .\templates\courses\manage\builder.html:15
+#, python-format
 msgid "Only the first %%(limit)s scopes were opened."
 msgstr ""
 
+# Django's {% trans %} looks up this doubled-%% msgid at runtime for its
+# single-% sibling in courses/views_manage.py; keep both translations in
+# sync -- this is not a duplicate to delete.
 #: .\templates\courses\manage\builder.html:16
+#, python-format
 msgid "Filtered: %%(shown)s / %%(total)s"
 msgstr ""
 

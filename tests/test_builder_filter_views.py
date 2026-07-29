@@ -979,10 +979,18 @@ def test_both_bulk_hrefs_carry_q(filtered_course):
             assert f"q={query}" in tag, (hook, query)
 
 
-def test_one_msgid_per_notice(filtered_course):
-    """The page route and the fragment route render the SAME literal, so
-    makemessages collapses them into one catalog entry. Two entries would let
-    them be translated differently and disagree about what the tree shows.
+def test_both_notice_routes_agree_in_polish(filtered_course):
+    """The page route (the server-rendered notice) and the fragment route
+    (the data-msg-filter attribute, read by JS on subsequent AJAX updates)
+    render the SAME literal -- but it does NOT collapse to one catalog
+    entry: Django's {% trans %} looks up a "%"-doubled msgid at runtime,
+    while the Python _() call behind the server-rendered notice looks up
+    the single-% form, so the literal necessarily occupies two msgids that
+    must be kept in sync by hand. This test does not assert there is only
+    one msgid -- there are two -- it pins the property that actually
+    matters: both routes still agree once translated into Polish, so an
+    author can trust the tree's data-msg-filter attribute is telling them
+    the same thing the notice banner just said.
 
     They are not directly comparable -- the server interpolates while the
     attribute keeps its placeholders -- so a literal equality assertion fails
