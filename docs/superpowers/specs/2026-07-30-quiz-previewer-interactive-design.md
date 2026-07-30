@@ -47,9 +47,9 @@ coincidence.
 
 ### Prose that documents the opposite behaviour
 
-`views.py:1204` does not stand alone. Four prose sites assert the behaviour this change reverses, and
-**all four are required edits** — leaving them is worse than the original bug, because the next reader
-trusts them:
+`views.py:1204` does not stand alone. **Five** prose sites assert the behaviour this change reverses,
+and **all five are required edits** — leaving them is worse than the original bug, because the next
+reader trusts them:
 
 - `courses/views.py:1201-1203` — "a previewer gets a READ-ONLY quiz, never live forms that 403 on
   submit." Every clause becomes false.
@@ -58,9 +58,10 @@ trusts them:
   is untouched by this change), so the divergence shrinks from `seen/quiz` to `seen`. The `seen`
   rationale remains load-bearing for
   `tests/test_courses_progress.py::test_previewer_seen_no_write_and_ignores_stored_completion`.
-- `tests/test_unit_edit_link.py:328` and `tests/test_unit_nav_render.py:800` — docstrings justifying
-  why the actor is enrolled, both stating that `quiz_answer` raises `PermissionDenied` for previewers.
-- `tests/test_quiz_views.py:59` — the inline comment
+- `tests/test_unit_edit_link.py:328` — docstring justifying why the actor is enrolled, stating that
+  `quiz_answer` raises `PermissionDenied` for previewers.
+- `tests/test_unit_nav_render.py:800` — the same claim, in the same shape.
+- `tests/test_quiz_views.py:61` — the inline comment
   `# Read-only preview: no Finish button, inputs disabled (no live forms that 403).`, which must be
   rewritten alongside the assertion beneath it.
 
@@ -162,10 +163,22 @@ early exit at `quiz.py:28-29` — so a locked stand-in reaches
 inside the **validation** panel. An implementer who reads "`[N]`/`[R]` → locked True" and hoists the
 lock decision above the empty-answer guard makes an empty submit freeze the question: `quiz.js`
 disables the controls on `[data-quiz-locked]`, and the no-JS path freezes it permanently through
-`st["locked"]`. Mirror `views_manage.py:1747` exactly —
-`SimpleNamespace(locked=False, attempt_count=attempt - 1)`. The enrolled path cannot reach the
-validation branch with a locked response at all (`views.py:1298-1302` returns `_quiz_locked_response`
-first), so `False` is also the faithful mirror.
+`st["locked"]`. Use `locked=False, attempt_count=attempt - 1`, exactly as `views_manage.py:1747` does.
+The enrolled path cannot reach the validation branch with a locked response at all
+(`views.py:1298-1302` returns `_quiz_locked_response` first), so `False` is also the faithful mirror.
+
+**But do not copy `views_manage.py:1747` wholesale.** That call site builds
+`SimpleNamespace(locked=False, attempt_count=attempt - 1)` with **no `latest_answer`**, because
+`element_try` renders the fragment directly and never calls `_quiz_render_feedback`. The previewer
+branch routes *every* response through `_quiz_render_feedback`, validation included, and its no-JS
+branch runs `rehydrate(question, response.latest_answer)` at `views.py:1265`. A stand-in missing that
+attribute raises
+`AttributeError: 'types.SimpleNamespace' object has no attribute 'latest_answer'` — a 500 on a path
+the error table declares supported.
+
+**So `ephemeral_quiz_feedback` builds one three-attribute stand-in on every branch.** All three
+attributes are always present; only `.locked` and `.attempt_count` vary by branch, and
+`.latest_answer` is always `answer_to_json(answer)`.
 
 `.latest_answer` **must** be `answer_to_json(answer)`, not the raw `build_answer` output.
 `rehydrate` (`courses/quiz.py:85-91`) is specified against a *stored* `latest_answer` — the output of
@@ -376,6 +389,13 @@ submits an extended-response question currently sees "Submitted for review" besi
 answer box until the next page load. The full selector is a strict improvement to both paths, not a
 scope expansion.
 
+**Widen `editor.js` in the same commit.** `courses/static/courses/js/editor.js` freezes the authoring
+"try it" preview with the identical too-narrow selector
+(`qEl.querySelectorAll("input, button[type=submit]")`) and misses the same three families. Leaving it
+would let the two client-side freezes diverge immediately after a change whose stated rationale is
+that code-identical duplicates rot apart (issue #169) — and it would be a strange look to extract the
+Python half to stop twin drift while creating fresh drift in the JS half. Widen both.
+
 ## Data flow
 
 ### Previewer, GET
@@ -570,6 +590,14 @@ After a previewer POSTs an answer (correct, incorrect, empty, and beyond `max_at
 Drive a previewer and an enrolled student through the same question with the same answers and assert
 the rendered feedback fragments agree on verdict, `attempts_left`, and lock state — for AUTO,
 `NOT_MARKED`, and `REVIEW` marking modes.
+
+**Both sides must POST with `HTTP_X_REQUESTED_WITH="fetch"`.** `_quiz_render_feedback` branches on
+`_wants_fragment(request)` (`views.py:87`), and the Django test client does not send that header by
+default — so without it the test compares two *full pages*, which this spec elsewhere states
+provably differ (banner present, Finish absent, every other question blank and unlocked). Parity is a
+**fragment-mode claim only**; it does not contradict the "no-JS previewer feedback is single-question
+and non-cumulative" consequence recorded above, because that describes the other branch. The existing
+suite convention for this header is at `tests/test_unit_edit_link.py:323-326`.
 
 **The previewer side must POST `attempt=N` explicitly.** The Django test client runs no JS, so nothing
 supplies the counter; `parse_attempt` floors to 1, and a previewer's second POST would still be
