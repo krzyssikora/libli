@@ -100,8 +100,8 @@ against exactly it:
 | 1 | `--surface-raised` | `#FFFFFF` | `#2C2925` |
 | 2 | `--surface-base` | `#F4F1EA` | `#1A1816` |
 | 3 | `--surface-sunken` — `.question__feedback-panel` base and its neutral/validation variants (`courses.css:59,78-79`) | `#FAF8F3` | `#15130F` |
-| 4 | `--danger-subtle` — `.question__feedback-panel--incorrect` (`_quiz_question_feedback.html:27`) | `#F2D9D5` | `#3A1E1A` |
-| 5 | `--success-subtle` — `.question__feedback-panel--correct` (`:37`) | `#E3ECD7` | `#2A3620` |
+| 4 | `--danger-subtle` — `.question__feedback-panel--incorrect` (`templates/courses/elements/_quiz_question_feedback.html:30`) | `#F2D9D5` | `#3A1E1A` |
+| 5 | `--success-subtle` — `.question__feedback-panel--correct` (`:23`) | `#E3ECD7` | `#2A3620` |
 | 6 | `--warning-subtle` | `#F4E8CD` | `#3A2F18` |
 | 7 | `.callout--example` bg (`courses.css:1414-1459`) | `#F2F6FC` | `#313132` |
 | 8 | `.callout--note` bg | `#F5F5F6` | `#34322F` |
@@ -202,7 +202,7 @@ Field coverage cannot be read off field names — there are **three** sanitisers
 | sanitiser | fields | in **backfill** scope? |
 |---|---|---|
 | `sanitize_html` | `TextElement.body`, `SpoilerElement.body`, `CalloutElement.body`, `GuessNumberElement.success_message` (`models.py:779`), `QuestionElement.stem`/`.explanation` on every concrete question type (`models.py:1604-1605`) | yes |
-| `sanitize_cell` | table cells (`models.py:962`), filltable cells (`:1134`), MCQ `options` (`:738`), choicegrid cycler options (`:805`), gallery `img["desc"]` (`:1278`), `element_forms.py:419,513` | table + filltable cells only; the rest are **out of scope for the backfill** — and **measured** to carry zero palette colour: palette colour exists only under the JSON keys `body`, `html` and `stem` (see the appendix). The exclusion therefore costs nothing. |
+| `sanitize_cell` | table cells (`models.py:962`), filltable cells (`:1134`), `SwitchGateElement.options` (`:738`, class at `:725`), `SwitchGridElement` cycler options (`:805`, class at `:789`), gallery `img["desc"]` (`:1278`), `element_forms.py:419` (`SwitchGateElementForm`) and `:513` (`SwitchGridElementForm`) — these are **not** MCQ or choice-grid options, which an earlier draft mislabelled. `Choice.text`/`Choice.feedback` (`models.py:1789`, plain `CharField`s) pass through **none** of the three sanitisers, so MCQ option text is outside both the feature and the backfill | table + filltable cells only; the rest are **out of scope for the backfill** — and **measured** to carry zero palette colour: palette colour exists only under the JSON keys `body`, `html` and `stem` (see the appendix). The exclusion therefore costs nothing. |
 | `sanitize_stem_segments` (`courses/switchgrid.py:54`, used by `builders.py:205,215,278,290,314`) | `FillGateElement.stem`, `SwitchGateElement.stem`, `GuessNumberElement.stem`, `SwitchGridElement.lines[*].stem` | yes for the three in `RICH_TEXT_FIELDS`. `SwitchGridElement.lines[*].stem` is out of **backfill** scope (2 palette occurrences) and is **not** an RTE surface — it is a bare textarea, so it gets no swatches and no D10 refusal; see "Protected regions" |
 
 **Some fields are sanitised TWICE on the import path, and the key must reproduce the
@@ -491,8 +491,21 @@ was included:
 
 | element carrying the cleared colour | action |
 |---|---|
-| bare `<span>` with no other allowed class or attribute | unwrap |
-| any other tag (`a`, `b`, `em`, `strong`, `i`, `u`), or a span with another class/attribute | remove the `tc-*` class and the inline colour **only**; keep the element |
+| bare `<span>` whose only class is `tc-*` (or none) and which has no other attribute | unwrap |
+| any other tag (`a`, `b`, `em`, `strong`, `i`, `u`), or a span with a **non-`tc-*`** class or another attribute | remove the `tc-*` class and the inline colour **only**; keep the element |
+
+`tc-*` is explicitly **not** "another allowed class" for this test — otherwise every coloured
+span would route to the keep-the-element row and Clear would never unwrap anything.
+
+**Clearing after a reload is the primary path and needs its own rule.** A surface mounted
+from stored HTML carries colour *only* as `class="tc-red"` — there is no inline colour
+anywhere — yet `mapColours` is specified to never touch an element without one. So on the
+author path, for each element whose inline colour resolves to the sentinel, `mapColours` must
+also strip `tc-*` from that element **and from its `tc-*` ancestors up to `root` that the
+cleared range covers**. Without this, `foreColor` emits a nested sentinel span inside the
+existing `tc-red`, `mapColours` drops the inner colour and unwraps the inner bare span, the
+outer `tc-red` survives, and **Clear is a silent no-op** on the path authors actually use. An
+e2e case colours, saves, reloads, then clears.
 
 An e2e case colours a link, clears it, and asserts the link survives with its `href`.
 
@@ -551,7 +564,10 @@ active swatch is indicated by a ring, not by colour alone — and it must **not*
 represents. Use a distinct `.rte-swatch` class whose `.is-on` state is a `box-shadow` ring.
 Specificity is a tie, so declaration order decides: `.rte-btn.is-on` and `.rte-swatch.is-on`
 are both (0,2,0), so `.rte-swatch.is-on` **must be declared after `editor.css:230`** — or the
-swatch must not carry `rte-btn` at all and `.rte-swatch` restates the sizing it needs. Pick
+swatch must not carry `rte-btn` at all — in which case `.rte-swatch` must restate the
+`:disabled` treatment (`opacity:.38` and the hover reset, `editor.css:228-229`) as well as
+the sizing, or filltable's answer/image cells would show swatches that are inert but look
+live, since `filltable_editor.js:379-381` sets `disabled` on every `[data-cmd]`. Pick
 one and pin it with a test asserting the active swatch's computed background is not
 `--primary`. The frontend-design pass judges the
 active state in a screenshot, since a test asserting "the class is present" would pass
@@ -667,10 +683,13 @@ Two distinct reasons, both measured:
 - Attribute-dropping would yield `<span>założenie</span>`, which can never equal what the
   pre-change loader stored (`założenie`), because `span` is allowed after slice 1.
 - The pre-change sanitiser unwrapped **all** spans, not just coloured ones, and the corpus
-  is full of others: of **1197** spans, only 697 carry colour — the rest are 299
-  `<span class="myequation">`, 129 bare `<span>`, 96 `<span style="display:inline-block…">`
-  and similar. **10 of the 301 colour-bearing field occurrences (3%) also carry a
-  non-colour span.** A key that unwraps only colour spans replays to `<span class="">…`
+  is full of others: of **1197** spans, **510** carry colour — 697 is the corpus-wide count
+  of colour-bearing *elements*, most but not all of them spans. The other 687 spans are 299
+  `<span class="myequation">`, 180 other inline-style spans, 142 bare `<span>`, and small
+  class buckets. **10 of the 301 colour-bearing field occurrences (3%) also carry a
+  non-colour span.** (A 302nd colour-bearing occurrence sits under a `raw` key in
+  `104_geometria_3_czworokaty/030_wstep.json` carrying only hex colours — neither palette nor
+  in scope, hence 301.) A key that unwraps only colour spans replays to `<span class="">…`
   while the DB holds the fully-unwrapped value — a silent zero-match with no diagnostic,
   the exact failure class the acceptance gate detects but cannot attribute.
 
@@ -694,6 +713,34 @@ backfill needs it too. A span-only colouriser leaves `<strong style="color:red">
 the sanitiser strips `style`, and the written value is **byte-identical to the key**: a
 silent no-op the gate would score as success without the `value != key` precondition.
 
+**The key must replay the sanitiser as it behaved AT IMPORT TIME, not as it behaves after
+slice 1.** Slice 1 provably changes both sanitisers' output for a tag that gains an
+`allowed_classes` entry — measured:
+
+```
+<strong class="yellow_on_gray">x</strong>
+  pre-slice-1  -> <strong>x</strong>            <- what the DB actually holds
+  post-slice-1 -> <strong class="">x</strong>   <- what a naive key replay produces
+```
+
+nh3 deletes the `class` attribute for a tag that is **not** a key in `allowed_classes`, and
+emits an empty `class=""` for one that **is**. Adding `strong`/`b`/`i`/`u`/`a` to the
+allowlist therefore moves every such key off the stored value. This is not a corner case:
+the corpus carries 435 `class="nolist"`, 300 `myequation`, 244 `switch_value`, 201 `bold`,
+127 `table_wrapper`, 98 `centered`, and the measured example above is real —
+`130_kombinatoryka/120_kombinatoryka.json`, `elements[8].elements[9].body`, inside the part
+holding 51% of the corpus colour. Every affected key would silently miss, and the gate would
+score it as an unattributable shortfall.
+
+**Rule:** the key generator uses a frozen `LEGACY_ALLOWED_CLASSES` / `LEGACY_CELL_CLASSES`
+pair — copies of the allowlists *without* the `tc-*` families — and never the live
+constants, so a later change to the live allowlists cannot silently move the keys. Deleting
+empty `class=""` from the key instead would be wrong: pre-slice-1 output legitimately
+contains `class=""` for the block/alignment tags, which were already allowlist keys.
+
+The **value** replays the current, post-slice-1 path. The two differ by construction, and
+that is the point.
+
 The generator then replays **the full import write path for that field, in order** (see the
 three-sanitiser table) — for gate stems `sanitize_stem_segments`; for
 `FillBlankQuestionElement.stem` the composition `sanitize_html(sanitize_stem_segments(x))`,
@@ -706,10 +753,22 @@ but the backfill writes colour into exactly the marker- and sentinel-token-beari
 (`FillGateElement.stem`, `SwitchGateElement.stem`, `GuessNumberElement.stem`,
 `FillBlankQuestionElement.stem`). If a source span straddles or sits inside such a region,
 the backfill would store precisely the corruption D10 exists to prevent, and the next form
-edit would surface it. So: run the same intersection test over each source value, and
-**refuse and report** any occurrence that intersects a maths or marker region. The corpus
-measurement behind D8 (0 contaminated maths spans) covers only maths — the equivalent
-marker measurement must be taken during implementation and reported beside it.
+edit would surface it. So: run the same intersection test over each source value and **refuse and report** any
+occurrence that intersects a protected region.
+
+**The source-side region is a different shape from the editor's, and scanning for `{{…}}`
+there would be vacuous.** Measured over all 835 corpus files: `{{` occurs **zero** times,
+while the U+FFFF sentinel token occurs **6992** times — the loader feeds
+`sanitize_stem_segments`, which splits on `￿<digits>￿`, not on author braces. The
+backfill's test is therefore `￿\d+￿` for `sanitize_stem_segments` fields; the
+editor keeps `{{…}}` for D10. The hazard is real in shape: those segments are sanitised
+independently, so a colour span straddling a token is auto-closed by nh3 and the tail
+silently loses its colour.
+
+Measured in-scope overlap today is **zero** — but by exclusion, not by the guard: the four
+colour-bearing source strings carrying a sentinel are 2 `fill_gate` stems in the excluded
+`001_` part and 2 `switch_grid` line stems, which are out of backfill scope. Recording that
+keeps a future 0 from being mistaken for a clean result.
 
 The unwrap is a bs4 pass, and this repo has a recorded trap there: `str(Tag)` re-escapes
 entities while `str(NavigableString)` decodes them, so a body must be serialised with
@@ -860,8 +919,17 @@ would have caught the composed-path defect.
 on tags outside `TC_CLASS_TAGS`; keeps `tc-*` on the inline emphasis tags and on `a`;
 **asserts nh3's actual output for a disallowed class — `<span class="">`, element kept, not
 unwrapped**; idempotent on both paths; preserves maths spans in cells. `ALIGN_CLASS_VALUES`
-unchanged after import. `test_sanitize_align.py:34` and
-`test_sanitiser_passes_internal_links_through_untouched` stay green.
+**and `TC_CLASS_VALUES`** unchanged after import (both new dicts bind one shared set object
+across up to 13 keys — the same aliasing trap, so build each entry as `set(TC_CLASS_VALUES)`
+or guard it).
+
+**`test_sanitize_align.py:34` must be UPDATED, not preserved.** It asserts
+`"class" not in sanitize_cell('<b class="ta-center">x</b>')`; measured, the output becomes
+`<b class="">x</b>` once `b` is an `allowed_classes` key, so the assertion fails. Rewrite it
+as `'ta-center' not in …`. The general consequence belongs in the test list too: **after
+slice 1 both sanitisers emit a residual `class=""` wherever they previously deleted the
+attribute**, for every tag in `TC_CLASS_TAGS`.
+`test_sanitiser_passes_internal_links_through_untouched` does stay green (verified).
 
 **CSS.** All four tokens defined in both themes, and every value clears 4.5:1 against **all
 ten surfaces** in the normative surface list.
@@ -993,7 +1061,7 @@ or any other key the prototype did not walk. The real decomposition:
 
 | | palette elements |
 |---|---|
-| on a `span` — what the prototype emitted | **446** = `body`-span 268 + `stem`-span 6 (→ 274 via `sanitize_html`) + `html`-span 172 (via `sanitize_cell`) |
+| on a `span` — what the prototype emitted | **446** — but *not* split 274/172 as an earlier draft said. By owning sanitiser: **270 via `sanitize_html`** (`body` 268 + `choice`-stem 2) and **176 via `sanitize_cell`** (`html` 172 + `fill_gate`-stem 2 + `switch_grid` line-stem 2, the last pair out of backfill scope and counted only for corpus completeness). The six coloured stems are `fill_gate` 2, `choice` 2, `switch_grid` 2 — only the `choice` pair goes through bare `sanitize_html` |
 | on a non-span carrier — silently dropped by the prototype | **142** (`strong` 117, `p` 7, `li` 6, `u` 6, `figcaption` 4, `i` 2) |
 | total | **588** |
 
