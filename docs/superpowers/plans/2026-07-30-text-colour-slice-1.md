@@ -114,11 +114,12 @@ SLOTS = ("red", "blue", "green", "orange")
 
 # Normative surface list (spec: "The surface list is the specification").
 #
-# These literals are a CROSS-CHECK, not the source of truth: test_surface_literals_still
-# _match_the_css below re-reads the six token surfaces from tokens.css and recomputes the
-# four callout grounds from courses.css, so changing --surface-base, a .callout--* accent,
-# or the 6% mix reddens the suite instead of silently leaving the AA guard measuring
-# values that no longer exist. Callout grounds are
+# These literals are a CROSS-CHECK, not the source of truth:
+# test_surface_literals_still_match_the_css below re-reads the six token surfaces
+# from tokens.css and recomputes the four callout grounds from courses.css. So
+# changing --surface-base, a .callout--* accent, or the 6% mix reddens the suite
+# instead of silently leaving the AA guard measuring values that no longer exist.
+# Callout grounds are
 # color-mix(in srgb, <accent> 6%, --surface-raised) with per-channel round() in sRGB.
 LIGHT_SURFACES = {
     "--surface-raised": "#FFFFFF",
@@ -690,7 +691,8 @@ LEGACY_ALLOWED_CLASSES = {
     "li": {"ta-left", "ta-center", "ta-right"},
 }
 # sanitize_cell passed NO allowed_classes before this change, so the legacy cell
-# behaviour is "no tag is an allowed_classes key" -- deliberately empty, not an oversight.
+# behaviour is "no tag is an allowed_classes key" -- deliberately empty, not an
+# oversight.
 LEGACY_CELL_ALLOWED_CLASSES = {}
 
 # Two independent families merged into one mapping. ALIGN_CLASS_TAGS and
@@ -846,8 +848,6 @@ Create `tests/test_e2e_colour_probe.py`:
 """Throwaway probe. Records what execCommand and KaTeX actually emit, so Tasks 5-7
 are written against measurement rather than assumption. Deleted at the end of Task 4.
 """
-
-from pathlib import Path
 
 from pathlib import Path
 
