@@ -278,8 +278,15 @@ def test_try_quiz_malformed_attempt_floors_to_one(client):
 
 
 @pytest.mark.django_db
-def test_try_quiz_empty_answer_is_validation(client):
-    """State 2: empty answer -> validation panel, attempt not consumed."""
+def test_try_quiz_empty_answer_is_validation_no_fetch_header(client):
+    """State 2: empty answer -> validation panel, attempt not consumed.
+
+    NAME MATTERS: `test_try_quiz_empty_answer_is_validation` (no suffix) already
+    exists at tests/test_element_try.py:180. Appending a same-named function
+    rebinds the name, pytest collects only the later definition, and the
+    pre-existing test is silently DELETED from the suite. This variant differs by
+    omitting the fetch header, so it is worth keeping alongside rather than
+    replacing."""
     pa = make_pa(client, "pa")
     course = CourseFactory(owner=pa)
     unit = _quiz_unit(course)
@@ -368,7 +375,12 @@ Expected: PASS, no failures. The five equivalence tests passing before AND after
 
 ```bash
 uv run ruff format courses/quiz.py courses/views_manage.py tests/test_ephemeral_quiz_feedback.py tests/test_element_try.py
-uv run ruff check courses/quiz.py courses/views_manage.py
+# Lint the TEST files too, in the task that creates them: ruff's F811
+# (redefinition of unused name) is what catches a test-name collision that would
+# otherwise silently shadow existing coverage. Deferring this to Task 5's
+# `ruff check .` surfaces it three commits later, where the natural "fix" is to
+# delete the new test rather than notice the old one was being clobbered.
+uv run ruff check courses/quiz.py courses/views_manage.py tests/test_ephemeral_quiz_feedback.py tests/test_element_try.py
 git add courses/quiz.py courses/views_manage.py tests/test_ephemeral_quiz_feedback.py tests/test_element_try.py
 git commit -m "refactor(quiz): extract ephemeral grader into courses/quiz.py
 
@@ -509,12 +521,12 @@ def test_previewer_dragfill_no_leak_while_attempts_remain(client):
     user.is_staff = True
     user.save()
     unit = make_quiz_unit()
-    # COPY THE `stem=` VALUE VERBATIM from tests/test_questions_2d_quiz_noleak.py:24
-    # — it contains a non-printable blank-placeholder sentinel that will not survive
-    # being retyped from this plan. Everything else on this line is as shown.
+    # The stem's blank-placeholder sentinel is irrelevant here: the withhold branch
+    # never renders the stem, so any stem passes. (Measured -- the source fixture at
+    # tests/test_questions_2d_quiz_noleak.py:26 uses a ￿-delimited placeholder;
+    # this test's two assertions hold either way.)
     q = DragFillBlankQuestionElement.objects.create(
-        stem="<copy from the source fixture>", distractors="Rome",
-        marking_mode="A", max_attempts=2,
+        stem="Cap is X", distractors="Rome", marking_mode="A", max_attempts=2
     )
     DragBlank.objects.create(question=q, correct_token="Paris")
     el = add_element(unit, q)
@@ -716,7 +728,7 @@ def test_enrolled_path_ignores_client_supplied_attempt(client):
 - [ ] **Step 2: Run to verify they fail**
 
 Run: `uv run pytest tests/test_quiz_previewer_answer.py -q`
-Expected: the previewer tests FAIL with 403 (the branch does not exist yet). `test_non_privileged_user_still_denied`, `test_enrolled_staff_still_persists`, and `test_enrolled_path_ignores_client_supplied_attempt` should already PASS — they pin behaviour that must survive.
+Expected: the previewer tests FAIL with 403 (the branch does not exist yet). `test_non_privileged_user_still_denied`, `test_enrolled_staff_still_persists`, `test_enrolled_path_ignores_client_supplied_attempt`, and `test_previewer_cannot_finish_a_quiz` should already PASS — they pin behaviour that must survive (`quiz_finish` is untouched by this task, so a previewer already gets 403 there).
 
 - [ ] **Step 3: Add `st["locked"]` to `_quiz_render_feedback`**
 
@@ -1026,6 +1038,8 @@ def test_submitted_quiz_still_freezes_inputs(client):
 Run: `uv run pytest tests/test_quiz_previewer_render.py -q`
 Expected: FAIL — banner assertions fail (no `data-quiz-preview-notice`), liveness assertions fail (inputs still `disabled`).
 
+`test_previewer_locked_question_freezes_inputs` will already PASS here, vacuously: until the `render_element` line is rewired, `read_only=True` disables a previewer's inputs regardless of `locked`. That green is expected, not a sign the work is done — Step 6's Mutation B is what actually exercises it.
+
 All factories referenced above were verified to exist. If a question type fails to render for want of child rows, add them via the matching child factory (`MatchPairFactory`, `DragZoneFactory`) — the fieldset is emitted regardless, so the assertion holds either way. To re-check the roster:
 `uv run python -c "import django,os; os.environ.setdefault('DJANGO_SETTINGS_MODULE','config.settings.local'); django.setup(); import tests.factories as f; print([n for n in dir(f) if n.endswith('Factory')])"`
 
@@ -1096,11 +1110,15 @@ Leave the `{% if not read_only %}` Finish block untouched.
 Run: `uv run pytest tests/test_quiz_previewer_render.py -q`
 Expected: PASS, no failures
 
-- [ ] **Step 6: Falsify the liveness test**
+- [ ] **Step 6: Falsify — TWO separate mutations, because one test needs the other**
 
-Revert line 12 to `quiz_submitted=read_only`. `test_previewer_control_level_inputs_are_live`, `test_previewer_fieldset_wrapped_inputs_are_live`, and `test_previewer_bare_textarea_is_live` must all FAIL. Revert the revert.
+**Mutation A.** Revert the `render_element` line to `quiz_submitted=read_only`. `test_previewer_control_level_inputs_are_live`, `test_previewer_fieldset_wrapped_inputs_are_live`, and `test_previewer_bare_textarea_is_live` must all FAIL. Revert.
 
-Run: `uv run pytest tests/test_quiz_previewer_render.py -q`
+**Mutation B.** Temporarily delete `st["locked"] = response.locked` from `_quiz_render_feedback` (added in Task 2). `test_previewer_locked_question_freezes_inputs` must FAIL. Revert.
+
+Mutation B is required and is **not** covered by Mutation A: under A that test stays GREEN (a previewer's `read_only` disables the input anyway), and its real falsifier could not run in Task 2 because the test did not exist there yet. Without this step the plan's "falsify every new test" constraint is unmet for exactly one test.
+
+Run after each: `uv run pytest tests/test_quiz_previewer_render.py -q`
 
 - [ ] **Step 7: Update the one existing test that pins the old behaviour**
 
@@ -1233,7 +1251,7 @@ Replace the `forEach` block at lines 29-50 with:
   });
 ```
 
-Leave the Finish flush block (`quiz.js` 52-76; its inner `Promise.all` is 61-73) untouched — it deliberately does not append `attempt`.
+Leave the Finish flush block (`quiz.js` 52-76; its inner `Promise.all` is 65-73) untouched — it deliberately does not append `attempt`.
 
 - [ ] **Step 2: Widen the twin selector in `editor.js`**
 
@@ -1387,11 +1405,11 @@ import pytest
 from courses.models import Attempt
 from courses.models import QuestionResponse
 from courses.models import QuizSubmission
+from tests.factories import TEST_PASSWORD
 from tests.factories import ShortTextQuestionElement
 from tests.factories import add_element
 from tests.factories import make_quiz_unit
 from tests.factories import make_verified_user
-from tests.factories import TEST_PASSWORD
 
 pytestmark = [pytest.mark.e2e, pytest.mark.django_db]
 
@@ -1412,7 +1430,7 @@ def test_previewer_answers_quiz_and_nothing_persists(live_server, page):
     q = ShortTextQuestionElement.objects.create(
         stem="Capital?", accepted="Paris", max_attempts=3
     )
-    el = add_element(unit, q)
+    add_element(unit, q)  # not bound: ruff F841 flags an unused local
 
     # Non-enrolled but access-bearing: is_staff is what makes can_access_course
     # pass without an Enrollment. No existing e2e helper yields this combination.
@@ -1422,11 +1440,18 @@ def test_previewer_answers_quiz_and_nothing_persists(live_server, page):
     user.is_staff = True
     user.save()
 
-    # Log in through the real form, mirroring tests/test_e2e_quiz.py's login block.
+    # Log in through the real form. The locators MUST be scoped to the login form:
+    # templates/allauth/layouts/entrance.html renders a `lang-switch` form with one
+    # <button type="submit"> per language, so the page has THREE submit buttons and
+    # page.click('button[type="submit"]') (legacy, non-strict) clicks the FIRST --
+    # the "EN" language button -- which POSTs set_ui_language, reloads, and wipes the
+    # filled fields. The failure then surfaces misleadingly at the banner assertion.
+    # Block copied verbatim from tests/test_e2e_editor.py:44-48.
     page.goto(f"{live_server.url}/accounts/login/")
-    page.fill('input[name="login"]', "e2e_qprev")
-    page.fill('input[name="password"]', TEST_PASSWORD)
-    page.click('button[type="submit"]')
+    form = page.locator("form[action*='login']")
+    form.locator("input[name='login']").fill("e2e_qprev")
+    form.locator("input[name='password']").fill(TEST_PASSWORD)
+    form.locator("button[type='submit']").click()
 
     page.goto(f"{live_server.url}/courses/{unit.course.slug}/u/{unit.pk}/quiz/")
     assert page.locator("[data-quiz-preview-notice]").is_visible()
@@ -1440,7 +1465,7 @@ def test_previewer_answers_quiz_and_nothing_persists(live_server, page):
     assert Attempt.objects.count() == 0
 ```
 
-If the login selectors differ from the above, copy the exact login block from `tests/test_e2e_quiz.py` rather than adjusting by trial — that file's block is known-good.
+Do **not** "simplify" the scoped locators back to `page.fill(...)` / `page.click('button[type="submit"]')`. Those selectors *match* — they just match the language switcher first, so the failure looks like a feature bug rather than a login bug. `tests/test_e2e_editor.py:41-43` carries the same warning in a comment.
 
 - [ ] **Step 2: Run the e2e test**
 
@@ -1464,10 +1489,25 @@ Read both images. Judge dark mode on its own evidence — never infer it from li
 
 If the banner fails contrast or reads wrong in either theme, fix the styling and re-shoot before proceeding.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 5: Lint and format the new file**
+
+Task 5's `ruff check .` / `ruff format --check .` ran *before* this file existed, so nothing else in the plan lints it. Without this step the branch's final commit is lint-red and CI catches it after the PR is open.
+
+```bash
+uv run ruff format tests/test_e2e_quiz_previewer.py
+uv run ruff check tests/test_e2e_quiz_previewer.py
+```
+
+Expected: both clean.
+
+- [ ] **Step 6: Commit**
+
+Stage the test **plus any stylesheet touched in Step 4** — a contrast fix left unstaged is silently dropped at PR time.
 
 ```bash
 git add tests/test_e2e_quiz_previewer.py
+# If Step 4 required a styling fix, stage it too, e.g.:
+#   git add core/static/core/css/app.css
 git commit -m "test(e2e): previewer answers a quiz and nothing persists"
 ```
 
@@ -1501,7 +1541,7 @@ git commit -m "test(e2e): previewer answers a quiz and nothing persists"
 
 The two coverage gaps this deviation originally left are now closed inside Task 2 rather than by a separate task: `test_previewer_fragment_covers_every_marking_mode` parametrises over `A`/`N`/`R` (REVIEW previously had no view-level coverage at all), and `test_previewer_no_leak_while_attempts_remain` now asserts the `attempts_left` **number**, so a previewer/student off-by-one is caught at the endpoint rather than only in a unit test.
 
-**Placeholder scan:** none. Every code step carries complete code, with two stated exceptions: Task 6 Step 1 leaves the e2e login steps to be mirrored from `tests/test_e2e_quiz.py` (this repo's login helper is the one convention that must not be re-invented), and Task 5 Step 2 asks the implementer to read two docstrings before rewriting them. One step carries a conditional fallback — `node --check` availability in Task 4 Step 3 — with the stated consequence if it is unavailable.
+**Placeholder scan:** none. Every code step carries complete, copy-ready code. One stated exception remains: Task 5 Step 2 asks the implementer to read two docstrings before rewriting them, which cannot be pre-written without their current text. One step carries a conditional fallback — `node --check` availability in Task 4 Step 3 — with the stated consequence if it is unavailable. (The Task 6 e2e login block and the dragfill `stem=` value were both placeholders in earlier drafts; both are now literal.)
 
 **Factory/helper verification (done, not assumed):** every factory and helper named in test code was checked against the running app. `MultiGridQuestionElementFactory` **does not exist** and was replaced with `MatchPairQuestionElementFactory` + `MatchPairFactory`. `test_element_try.py` has **no `_course` helper** — the real idiom is `make_pa(client, "pa")` + `CourseFactory(owner=pa)`, now used verbatim. Confirmed present: `ExtendedResponseQuestionElementFactory`, `MatchPairQuestionElementFactory`, `MatchPairFactory`, `DragToImageQuestionElementFactory`, `ShortTextQuestionElement`, `EnrollmentFactory`, `add_element`, `make_login`, `make_quiz_unit`, `make_pa`, `CourseFactory`, `SlideBreakElement`. Marking-mode codes verified as `A` / `N` / `R`.
 
