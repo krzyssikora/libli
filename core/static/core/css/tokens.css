@@ -55,6 +55,12 @@
   --success: #5A7D3C; --success-subtle: #E3ECD7;
   --warning: #B8811F; --warning-subtle: #F4E8CD;
   --danger:  #A8392E; --danger-subtle:  #F2D9D5;
+  /* Author-selectable text colour. Independent of --danger/--success/--warning
+     despite some dark values coinciding: those are UI accents and may move for
+     UI reasons; these are body-text colours measured against ten surfaces
+     (see tests/test_text_colour_css.py). Light red and --danger-subtle sit at a
+     4.51:1 margin — neither moves without re-running that test. */
+  --tc-red: #B2372A; --tc-blue: #1F61AD; --tc-green: #3F6B24; --tc-orange: #8A5514;
 
   /* radius / shadow / type / spacing */
   --radius-sm: 7px; --radius-md: 10px; --radius-lg: 12px; --radius-xl: 18px;
@@ -90,6 +96,7 @@
   --success: #9FBF7B; --success-subtle: #2A3620;
   --warning: #E8B761; --warning-subtle: #3A2F18;
   --danger:  #E57373; --danger-subtle:  #3A1E1A;
+  --tc-red: #EA8A82; --tc-blue: #8FBCE8; --tc-green: #9FBF7B; --tc-orange: #E8B761;
   --shadow-xs: 0 1px 2px rgba(0,0,0,.4);
   --shadow-sm: 0 2px 6px rgba(0,0,0,.45);
   --shadow-md: 0 6px 16px rgba(0,0,0,.5);

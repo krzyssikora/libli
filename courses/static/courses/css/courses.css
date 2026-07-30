@@ -932,6 +932,10 @@ a.unit-crumbs__label:focus-visible { outline: 2px solid var(--primary); outline-
 .va-top { vertical-align: top; }
 .va-middle { vertical-align: middle; }
 .va-bottom { vertical-align: bottom; }
+.tc-red { color: var(--tc-red); }
+.tc-blue { color: var(--tc-blue); }
+.tc-green { color: var(--tc-green); }
+.tc-orange { color: var(--tc-orange); }
 
 /* --- Fill-in table (student self-check widget). Structurally a twin of
    .el--table (same border/ta-*/va-* rules, renamed) wrapped in a .filltable
