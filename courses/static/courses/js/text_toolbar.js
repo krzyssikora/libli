@@ -173,6 +173,15 @@
           surface.dispatchEvent(new Event("input"));
         });
         break;
+      case "colour-red": case "colour-blue":
+      case "colour-green": case "colour-orange":
+        if (window.libliColour) {
+          window.libliColour.apply(surface, cmd.slice("colour-".length));
+        }
+        break;
+      case "colour-none":
+        if (window.libliColour) window.libliColour.apply(surface, null);
+        break;
       default: break;
     }
   }
@@ -194,6 +203,21 @@
     textarea.parentNode.insertBefore(surface, textarea);
 
     function sync() { textarea.value = styleToClass(surface.innerHTML); }
+    // Registered BEFORE sync: listener order is registration order, so a pass added
+    // afterwards would let sync write the textarea from the un-normalised surface.
+    // Any save path that does not go through the form's submit handler (the editor's
+    // fragment saves) would then store inline colour, which the sanitiser strips --
+    // silent colour loss on exactly the pasted content this exists for.
+    surface.addEventListener("input", function (e) {
+      if (!window.libliColour) return;
+      // mapColours FIRST: a pasted <span style="color: red"> matches
+      // tidyPastedSpans' predicate exactly, so tidying first would unwrap the carrier
+      // and destroy the colour before it could be mapped.
+      window.libliColour.mapColours(surface, { dropUnmapped: true });
+      if (e.inputType === "insertFromPaste" || e.inputType === "insertFromDrop") {
+        window.libliColour.tidyPastedSpans(surface);
+      }
+    });
     surface.addEventListener("input", sync);
     // Ensure the latest content is in the textarea before the form submits.
     var form = textarea.closest("form");
@@ -248,6 +272,13 @@
         var on = false;
         try { on = document.queryCommandState(p[1]); } catch (e) { on = false; }
         b.classList.toggle("is-on", !!on);
+      });
+      // Swatches. Not part of the flat bold/italic map: the active slot comes from
+      // the caret's ancestor class, not from queryCommandState.
+      var slot = window.libliColour ? window.libliColour.activeSlot(surface) : null;
+      ["red", "blue", "green", "orange"].forEach(function (name) {
+        var button = toolbar.querySelector('[data-cmd="colour-' + name + '"]');
+        if (button) button.classList.toggle("is-on", slot === name);
       });
     }
     surface.addEventListener("keyup", refreshActive);

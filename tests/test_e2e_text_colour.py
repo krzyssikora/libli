@@ -16,6 +16,12 @@ from pathlib import Path
 
 import pytest
 
+from tests.test_e2e_editor import _add_element
+from tests.test_e2e_editor import _editor_url
+from tests.test_e2e_editor import _login
+from tests.test_e2e_editor import _make_pa_user
+from tests.test_e2e_editor import _seed_course_and_unit
+
 pytestmark = pytest.mark.e2e
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -397,3 +403,104 @@ def test_unmapped_katex_colour_is_left_untouched(page):
     }"""
     )
     assert "purple" in html
+
+
+@pytest.mark.django_db(transaction=True)
+def test_colour_survives_save_and_reload(page, live_server):
+    """The whole point, driven through the real gesture: type into the editor, select,
+    click the red swatch, save, reload, and find the class still stored."""
+    from courses.models import TextElement
+
+    _make_pa_user("tc_save")
+    _login(page, live_server, "tc_save")
+    unit = _seed_course_and_unit("tc_save", slug="tc-save")
+
+    page.goto(_editor_url(live_server, unit))
+    page.wait_for_selector('[data-scope="editor"]')
+    _add_element(page, "text")
+
+    surface = page.locator("[data-edit-slot] .rte-surface")
+    surface.wait_for(state="visible")
+    surface.click()
+    page.keyboard.type("alpha beta")
+    page.keyboard.press("Control+A")
+    page.locator('[data-edit-slot] [data-cmd="colour-red"]').click()
+    page.locator("[data-edit-slot] button[type='submit']").click()
+    # Wait on a CHILD, not the slot itself: _element_row.html renders
+    # <div class="el-edit-slot" data-edit-slot> unconditionally on every row, so the
+    # slot survives the save (empty but present) and state="detached" on the bare
+    # selector times out. Every shipped e2e scopes to a child for this reason.
+    page.wait_for_selector(
+        "[data-edit-slot] form[data-op='element-save']", state="detached"
+    )
+
+    body = TextElement.objects.order_by("-id").first().body
+    assert "tc-red" in body, body
+    assert "style" not in body, "colour must be stored as a class, never inline"
+
+    # Reload and reopen — the round-trip half of the claim. classToStyle runs on
+    # mount, and this is what proves it leaves tc-* alone.
+    page.goto(_editor_url(live_server, unit))
+    page.wait_for_selector('[data-scope="editor"]')
+    page.locator("[data-element] .el-act-edit").first.click()
+    page.wait_for_selector("[data-edit-slot] .rte-surface")
+    assert page.locator("[data-edit-slot] .rte-surface .tc-red").count() == 1
+
+
+@pytest.mark.django_db(transaction=True)
+def test_paste_normalises_in_the_surface_and_the_textarea(page, live_server):
+    """styleToClass is a pure STRING function and never touches the live surface, and
+    sync is already registered on `input` — so the colour pass must run BEFORE it, or
+    the textarea is written from un-normalised DOM and the sanitiser strips the colour
+    on any save path that does not go through the form's submit handler."""
+    _make_pa_user("tc_paste")
+    _login(page, live_server, "tc_paste")
+    unit = _seed_course_and_unit("tc_paste", slug="tc-paste")
+
+    page.goto(_editor_url(live_server, unit))
+    page.wait_for_selector('[data-scope="editor"]')
+    _add_element(page, "text")
+    page.locator("[data-edit-slot] .rte-surface").wait_for(state="visible")
+
+    page.evaluate(
+        """() => {
+        const s = document.querySelector('[data-edit-slot] .rte-surface');
+        s.focus();
+        s.innerHTML = '<span style="color: red">x</span>';
+        s.dispatchEvent(new InputEvent('input', {inputType: 'insertFromPaste'}));
+    }"""
+    )
+    assert page.locator("[data-edit-slot] .rte-surface .tc-red").count() == 1
+    value = page.evaluate(
+        "() => document.querySelector('[data-edit-slot] [data-rte-source]').value"
+    )
+    assert "tc-red" in value, (
+        "the textarea must carry the class immediately after paste"
+    )
+    assert "style" not in value
+
+
+@pytest.mark.django_db(transaction=True)
+def test_refusal_shows_the_translated_message(page, live_server):
+    _make_pa_user("tc_refuse")
+    _login(page, live_server, "tc_refuse")
+    unit = _seed_course_and_unit("tc_refuse", slug="tc-refuse")
+
+    page.goto(_editor_url(live_server, unit))
+    page.wait_for_selector('[data-scope="editor"]')
+    _add_element(page, "text")
+    page.locator("[data-edit-slot] .rte-surface").wait_for(state="visible")
+
+    page.evaluate(
+        """() => {
+        const s = document.querySelector('[data-edit-slot] .rte-surface');
+        s.innerHTML = 'a \\\\(x + y\\\\) b';
+        const t = s.firstChild;
+        const r = document.createRange();
+        r.setStart(t, 3); r.setEnd(t, 4);          // inside the maths region
+        const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r);
+    }"""
+    )
+    page.locator('[data-edit-slot] [data-cmd="colour-red"]').click()
+    assert page.locator("[data-colour-refusal]").count() == 1
+    assert page.locator("[data-edit-slot] .rte-surface .tc-red").count() == 0
