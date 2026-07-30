@@ -43,6 +43,44 @@
 
 ---
 
+### Task 0: Branch off an up-to-date master
+
+**Files:** none.
+
+**Interfaces:**
+- Consumes: nothing.
+- Produces: a clean `text-colour-palette` branch — the branch Task 12 pushes. Without
+  this, all twelve commits land on whatever was checked out (an unrelated shipped
+  feature) and the push in Task 12 either fails or pushes the wrong history.
+
+- [ ] **Step 1: Fetch and branch**
+
+```bash
+git fetch origin
+git checkout -b text-colour-palette origin/master
+git branch --show-current
+```
+
+Expected: `text-colour-palette`.
+
+If the branch already exists (this plan was written on it), verify instead:
+
+```bash
+git branch --show-current          # must print text-colour-palette
+git log --oneline -1 origin/master # note the base; master moves often in this repo
+```
+
+- [ ] **Step 2: Confirm the worktree is clean**
+
+```bash
+git status --porcelain
+```
+
+Expected: empty, or only this plan/spec. A dirty tree here means another session is
+using this worktree — resolve that before starting.
+
+---
+
 ### Task 1: Palette tokens, `.tc-*` utilities, and the ten-surface contrast guard
 
 **Files:**
@@ -75,8 +113,13 @@ CSS = ROOT / "courses/static/courses/css/courses.css"
 SLOTS = ("red", "blue", "green", "orange")
 
 # Normative surface list (spec: "The surface list is the specification").
-# Callout grounds are color-mix(in srgb, <accent> 6%, --surface-raised) computed with
-# per-channel round() in sRGB; they are precomputed here so the test has fixed values.
+#
+# These literals are a CROSS-CHECK, not the source of truth: test_surface_literals_still
+# _match_the_css below re-reads the six token surfaces from tokens.css and recomputes the
+# four callout grounds from courses.css, so changing --surface-base, a .callout--* accent,
+# or the 6% mix reddens the suite instead of silently leaving the AA guard measuring
+# values that no longer exist. Callout grounds are
+# color-mix(in srgb, <accent> 6%, --surface-raised) with per-channel round() in sRGB.
 LIGHT_SURFACES = {
     "--surface-raised": "#FFFFFF",
     "--surface-base": "#F4F1EA",
@@ -147,6 +190,50 @@ def test_courses_css_defines_every_utility():
         assert f"var(--tc-{slot})" in css, f".tc-{slot} must resolve to var(--tc-{slot})"
 
 
+def _mix(accent, ground, ratio=0.06):
+    a = [int(accent.lstrip("#")[i : i + 2], 16) for i in (0, 2, 4)]
+    b = [int(ground.lstrip("#")[i : i + 2], 16) for i in (0, 2, 4)]
+    return "#%02X%02X%02X" % tuple(
+        round(a[i] * ratio + b[i] * (1 - ratio)) for i in range(3)
+    )
+
+
+def test_surface_literals_still_match_the_css():
+    """The AA guard measures against frozen literals; this is what stops them drifting
+    away from the CSS they claim to describe."""
+    tokens = TOKENS.read_text(encoding="utf-8")
+    css = CSS.read_text(encoding="utf-8")
+    for selector, surfaces in (
+        (":root", LIGHT_SURFACES),
+        ('[data-theme="dark"]', DARK_SURFACES),
+    ):
+        block = _block(tokens, selector)
+        for name, expected in surfaces.items():
+            if not name.startswith("--"):
+                continue
+            match = re.search(rf"{re.escape(name)}:\s*(#[0-9A-Fa-f]{{6}})", block)
+            assert match, f"{selector} no longer defines {name}"
+            assert match.group(1).upper() == expected.upper(), (
+                f"{selector} {name} moved to {match.group(1)}; update the surface list "
+                f"and re-run the AA measurement"
+            )
+    for theme, surfaces, ground in (
+        ("", LIGHT_SURFACES, LIGHT_SURFACES["--surface-raised"]),
+        ('[data-theme="dark"] ', DARK_SURFACES, DARK_SURFACES["--surface-raised"]),
+    ):
+        for kind in ("example", "note", "tip", "warning"):
+            match = re.search(
+                rf"{re.escape(theme)}\.callout--{kind}\s*\{{\s*--callout-accent:\s*"
+                rf"(#[0-9A-Fa-f]{{6}})",
+                css,
+            )
+            assert match, f"no {theme}.callout--{kind} accent in courses.css"
+            computed = _mix(match.group(1), ground)
+            assert computed.upper() == surfaces[f"callout-{kind}"].upper(), (
+                f"callout-{kind}{' dark' if theme else ''} ground is now {computed}"
+            )
+
+
 def test_every_slot_clears_aa_on_every_surface():
     css = TOKENS.read_text(encoding="utf-8")
     failures = []
@@ -174,8 +261,10 @@ def test_every_slot_clears_aa_on_every_surface():
 uv run pytest tests/test_text_colour_css.py -v
 ```
 
-Expected: `test_tokens_define_every_slot_in_both_themes` FAILS with
-`:root is missing --tc-* tokens: ['red', 'blue', 'green', 'orange']`.
+Expected: **3 failed** — `test_tokens_define_every_slot_in_both_themes` with
+`:root is missing --tc-* tokens: [...]`, `test_courses_css_defines_every_utility` on the
+missing `.tc-*` classes, and `test_every_slot_clears_aa_on_every_surface` on its
+`assert match`. All three are expected; nothing else is wrong.
 
 - [ ] **Step 3: Add the tokens**
 
@@ -216,7 +305,7 @@ In `courses/static/courses/css/courses.css`, immediately after the `.va-bottom` 
 uv run pytest tests/test_text_colour_css.py -v
 ```
 
-Expected: 3 passed.
+Expected: 4 passed.
 
 - [ ] **Step 6: Falsify**
 
@@ -420,9 +509,9 @@ def parse_style_colour(style):
     return None
 
 
-def slot_for_style(style):
-    """The palette slot named by a style attribute's colour, or None."""
-    return SLOTS.get(parse_style_colour(style))
+# NOTE: slot_for_style() -- the obvious SLOTS.get(parse_style_colour(style)) helper --
+# is deliberately NOT defined here. Nothing in slice 1 calls it; it belongs to slice 2's
+# backfill and arrives with slice 2's tests.
 ```
 
 - [ ] **Step 4: Run the test to verify it passes**
@@ -536,11 +625,15 @@ def test_legacy_snapshot_excludes_the_colour_family():
     """Slice 2's key generator replays the PRE-colour sanitiser: the DB holds
     <strong>x</strong>, but post-change nh3 emits <strong class=""> for a tag that is
     an allowed_classes key. Freezing the old allowlist is what keeps keys matching."""
-    for mapping in (LEGACY_ALLOWED_CLASSES, LEGACY_CELL_ALLOWED_CLASSES):
-        for values in mapping.values():
-            assert not any(v.startswith("tc-") for v in values)
-    assert "strong" not in LEGACY_ALLOWED_CLASSES
-    assert "span" not in LEGACY_ALLOWED_CLASSES
+    # Pin the exact key set: an emptiness-only check passes vacuously for {} and would
+    # absorb a drift instead of catching it.
+    assert set(LEGACY_ALLOWED_CLASSES) == {
+        "p", "div", "h2", "h3", "h4", "blockquote", "li"
+    }
+    assert LEGACY_CELL_ALLOWED_CLASSES == {}
+    for values in LEGACY_ALLOWED_CLASSES.values():
+        assert values == {"ta-left", "ta-center", "ta-right"}
+        assert not any(v.startswith("tc-") for v in values)
 ```
 
 - [ ] **Step 2: Run the test to verify it fails**
@@ -580,7 +673,17 @@ Replace the `ALLOWED_CLASSES` assignment (currently line 45) with:
 #                                 ->  <strong class="">y</strong> (after)
 # Frozen as a literal, not derived from the live constants, so a later edit to the
 # live allowlist cannot silently move the keys.
-LEGACY_ALLOWED_CLASSES = {tag: set(ALIGN_CLASS_VALUES) for tag in ALIGN_CLASS_TAGS}
+LEGACY_ALLOWED_CLASSES = {
+    "p": {"ta-left", "ta-center", "ta-right"},
+    "div": {"ta-left", "ta-center", "ta-right"},
+    "h2": {"ta-left", "ta-center", "ta-right"},
+    "h3": {"ta-left", "ta-center", "ta-right"},
+    "h4": {"ta-left", "ta-center", "ta-right"},
+    "blockquote": {"ta-left", "ta-center", "ta-right"},
+    "li": {"ta-left", "ta-center", "ta-right"},
+}
+# sanitize_cell passed NO allowed_classes before this change, so the legacy cell
+# behaviour is "no tag is an allowed_classes key" -- deliberately empty, not an oversight.
 LEGACY_CELL_ALLOWED_CLASSES = {}
 
 # Two independent families merged into one mapping. ALIGN_CLASS_TAGS and
@@ -626,13 +729,41 @@ to:
         allowed_classes=CELL_ALLOWED_CLASSES,
 ```
 
+- [ ] **Step 3b: Record the newly-widened marker hole**
+
+Allowing `span` widens what survives inside a `{{...}}` marker on the **server** path.
+MEASURED against the real `sanitize_html`:
+
+```
+before:  {{<span>a</span>|b}}  ->  {{a|b}}               (span stripped; answer clean)
+after:   {{<span>a</span>|b}}  ->  {{<span>a</span>|b}}  (markup becomes the answer)
+```
+
+D10's `apply()` refusal is a **client-side** guard, so the HTML source view, a no-JS
+save, and an import all bypass it. Slice 1 does not close this: closing it means
+stripping tags inside markers in the parser, which changes fill-blank parsing and needs
+its own change. Add a test that records the behaviour as knowingly accepted, so the next
+reader finds a decision rather than a surprise — append to
+`courses/tests/test_sanitize_colour.py`:
+
+```python
+def test_marker_interior_markup_is_knowingly_accepted():
+    """Allowing span widened what survives inside {{...}}. The editor refuses to
+    produce this (D10), but the server path does not reject it. Recorded, not fixed.
+    If this ever fails, someone closed the hole — update the spec's D10 section.
+    """
+    assert "<span>" in sanitize_html("<p>{{<span>a</span>|b}}</p>")
+```
+
 - [ ] **Step 4: Update the align test that can no longer pass**
 
 `courses/tests/test_sanitize_align.py:34` currently asserts
 `assert "class" not in sanitize_cell('<b class="ta-center">x</b>')`.
 
 Once `b` is an `allowed_classes` key, nh3 emits `<b class="">x</b>` — the attribute
-survives with an empty value. Replace that line with:
+survives with an empty value. It lives in `test_cell_and_label_stay_class_free`, whose name the new assertion
+contradicts — cells no longer stay class-free. **Rename the function to
+`test_cell_drops_align_token_and_label_stays_class_free`** and replace that line with:
 
 ```python
     # nh3 filters class TOKENS; it cannot unwrap or delete the attribute once the tag
@@ -644,12 +775,25 @@ survives with an empty value. Replace that line with:
 - [ ] **Step 5: Run the tests to verify they pass**
 
 ```
-uv run pytest courses/tests/test_sanitize_colour.py courses/tests/test_sanitize_align.py tests/test_richtext.py tests/test_table_sanitize.py -v
+uv run pytest courses/tests/test_sanitize_colour.py courses/tests/test_sanitize_align.py   tests/test_richtext.py tests/test_table_sanitize.py tests/lal_import/   tests/test_filltable_model.py tests/test_spanning_roundtrip.py   tests/test_table_transfer.py -v
 ```
 
-Expected: all pass. If `tests/test_richtext.py` fails, read the failure before changing
-anything — `test_sanitiser_passes_internal_links_through_untouched` is load-bearing for
-the internal-link feature and must stay green.
+Expected: all pass. Two things to expect rather than be surprised by:
+
+- **Adding `span` to `CELL_TAGS` changes stored cell HTML.** MEASURED:
+  `<span class="myequation">a</span>` used to store as `a` and now stores as
+  `<span class="">a</span>`; a bare `<span>x</span>` used to vanish and now survives.
+  That is why `tests/lal_import/`, `test_filltable_model.py`,
+  `test_spanning_roundtrip.py` and `test_table_transfer.py` are in the run list — they
+  assert exact cell `html`.
+- **`tests/lal_import/test_tables.py:169` carries a comment this change falsifies** — it
+  justifies an accepted behaviour with "`span` is not in sanitize_cell's CELL_TAGS".
+  Update that comment here; a stale justification is how the next reader concludes the
+  wrong thing.
+
+If `tests/test_richtext.py` fails, read the failure before changing anything —
+`test_sanitiser_passes_internal_links_through_untouched` is load-bearing for the
+internal-link feature and must stay green.
 
 - [ ] **Step 6: Falsify**
 
@@ -703,13 +847,7 @@ PAGE = """
 """
 
 
-def _probe(page, html, script):
-    page.set_content(html)
-    return page.evaluate(script)
-
-
-@pytest.mark.parametrize("browser_name", ["chromium"])
-def test_probe(page, browser_name):
+def test_probe(page):
     page.set_content(PAGE)
     result = page.evaluate(
         """() => {
@@ -746,7 +884,18 @@ def test_probe(page, browser_name):
 uv run pytest tests/test_e2e_colour_probe.py -m e2e -s -v
 ```
 
-Record, in a scratch note you will paste into Task 5 and into the spec:
+**Each measurement has a defined expected answer and a defined consequence.** Tasks 5-7
+are written out in full against the expected column; if a measurement differs, make the
+stated edit before continuing — do not adapt a test to a shape the spec denies.
+
+| # | measurement | expected | if it differs |
+|---|---|---|---|
+| 1 | which element `foreColor` styles | a fresh `<span>`, sometimes an existing inline wrapper | if it styles the **block**, Task 5's `mapColours` block branch is load-bearing rather than defensive — keep it and add the block case to Task 5's tests |
+| 2 | the serialisation of `el.style.color` | `rgb(r, g, b)` | if a hex or a keyword, no change: `normaliseColour` accepts all three. Only a **fourth** form requires editing `MAP` |
+| 3 | clearing over an enclosing range | sentinel span wraps the stored `tc-*`, i.e. the survivor is a **descendant** | if the survivor is an ancestor instead, Task 6's `eachTc` walk is wrong — **stop and revise the spec's clearing table**, then re-derive Task 6 |
+| 4 | KaTeX's colour carrier and `style` contents | colour on a descendant; the same attribute also carries `height` | if colour lands only on the `.katex` root, Task 7's assertions need re-anchoring to that element |
+
+Record each answer inline in this task, and update the spec's Unknowns section:
 
 1. **Which element `foreColor` styles** — a fresh `<span>`, an existing inline wrapper,
    or the block. This decides whether `TC_CLASS_TAGS`'s `b/i/em/strong/u/a` entries and
@@ -763,7 +912,7 @@ Record, in a scratch note you will paste into Task 5 and into the spec:
 Replace the body of `test_probe` with:
 
 ```python
-    page.goto("data:text/html,<div id='m'></div>")
+    page.goto("data:text/html,<!DOCTYPE html><div id='m'></div>")
     page.add_script_tag(path="courses/static/courses/vendor/katex/katex.min.js")
     result = page.evaluate(
         """() => {
@@ -789,8 +938,11 @@ Task 7 clears the longhand or the attribute).
 - [ ] **Step 4: Delete the probe and commit the recorded findings**
 
 ```bash
-git rm -f tests/test_e2e_colour_probe.py
+rm tests/test_e2e_colour_probe.py
 ```
+
+Plain `rm`, not `git rm`: the probe was never staged, so `git rm` exits
+`fatal: pathspec ... did not match any files` and the task stalls on a red command.
 
 Append the three measurements to the spec's "Unknowns to measure during implementation"
 section, converting each from a question into a recorded fact.
@@ -807,7 +959,7 @@ git commit -m "docs(text-colour): record measured execCommand and KaTeX emission
 **Files:**
 - Create: `courses/static/courses/js/text_colour.js`
 - Test: `tests/test_colour_map_drift.py` (create)
-- Test: `tests/test_e2e_text_colour.py` (create — grows through Tasks 5-9)
+- Test: `tests/test_e2e_text_colour.py` (create — grows through Tasks 5-10)
 
 **Interfaces:**
 - Consumes: the Task 4 measurements; `courses.colour.SLOTS` (mirrored, not imported).
@@ -1010,7 +1162,10 @@ Create `courses/static/courses/js/text_colour.js`:
         wrapChildren(el, slot);
       }
     }
-    if (changed) collapseNested(root);
+    // Unconditional: the collapse also has to fire for CLASS-ONLY markup (a reloaded
+    // surface carries tc-* with no inline colour at all), where nothing above sets
+    // `changed`. It is idempotent, so running it always is free.
+    collapseNested(root);
     return changed;
   }
 
@@ -1115,7 +1270,7 @@ Create `courses/static/courses/js/text_colour.js`:
 uv run pytest tests/test_colour_map_drift.py -v
 ```
 
-Expected: 1 passed.
+Expected: 2 passed.
 
 - [ ] **Step 5: Write the e2e test for the two passes**
 
@@ -1123,6 +1278,11 @@ Create `tests/test_e2e_text_colour.py`:
 
 ```python
 """Browser-level behaviour of window.libliColour.
+
+EVERY set_content string here starts with <!DOCTYPE html>. Playwright's set_content
+emits no doctype, which leaves the document in quirks mode, and katex.render then
+throws "KaTeX doesn't work in quirks mode" — the assertion never runs and the test
+errors instead of failing. Do not "tidy" the doctype away.
 
 The pure helpers (normaliseColour, and the two DOM passes over fixed markup) are
 exercised via page.evaluate — they are functions, not gestures. Everything involving
@@ -1138,13 +1298,12 @@ SCRIPT = "courses/static/courses/js/text_colour.js"
 
 
 def _page_with_module(page):
-    page.set_content("<div id='root'></div>")
+    page.set_content("<!DOCTYPE html><div id='root'></div>")
     page.add_script_tag(path=SCRIPT)
     return page
 
 
-@pytest.mark.parametrize("browser_name", ["chromium"])
-def test_normalise_colour_accepts_every_input_form(page, browser_name):
+def test_normalise_colour_accepts_every_input_form(page):
     _page_with_module(page)
     assert page.evaluate("() => libliColour.normaliseColour('#B2372A')") == [178, 55, 42]
     assert page.evaluate("() => libliColour.normaliseColour('rgb(178, 55, 42)')") == [
@@ -1155,8 +1314,7 @@ def test_normalise_colour_accepts_every_input_form(page, browser_name):
     assert page.evaluate("() => libliColour.slotFor(libliColour.SENTINEL)") is None
 
 
-@pytest.mark.parametrize("browser_name", ["chromium"])
-def test_map_colours_moves_a_class_off_a_block_tag(page, browser_name):
+def test_map_colours_moves_a_class_off_a_block_tag(page):
     _page_with_module(page)
     html = page.evaluate(
         """() => {
@@ -1171,8 +1329,7 @@ def test_map_colours_moves_a_class_off_a_block_tag(page, browser_name):
     assert "style" not in html
 
 
-@pytest.mark.parametrize("browser_name", ["chromium"])
-def test_map_colours_leaves_unmapped_colour_on_the_render_path(page, browser_name):
+def test_map_colours_leaves_unmapped_colour_on_the_render_path(page):
     _page_with_module(page)
     html = page.evaluate(
         """() => {
@@ -1185,8 +1342,7 @@ def test_map_colours_leaves_unmapped_colour_on_the_render_path(page, browser_nam
     assert "purple" in html, "render path must not destroy existing \\color{purple}"
 
 
-@pytest.mark.parametrize("browser_name", ["chromium"])
-def test_map_colours_is_a_noop_on_second_call(page, browser_name):
+def test_map_colours_is_a_noop_on_second_call(page):
     _page_with_module(page)
     first, second = page.evaluate(
         """() => {
@@ -1201,8 +1357,7 @@ def test_map_colours_is_a_noop_on_second_call(page, browser_name):
     assert first == second
 
 
-@pytest.mark.parametrize("browser_name", ["chromium"])
-def test_nested_colour_spans_collapse_innermost_wins(page, browser_name):
+def test_nested_colour_spans_collapse_innermost_wins(page):
     _page_with_module(page)
     html = page.evaluate(
         """() => {
@@ -1216,8 +1371,7 @@ def test_nested_colour_spans_collapse_innermost_wins(page, browser_name):
     assert "tc-red" not in html, "whitespace text nodes must not defeat the collapse"
 
 
-@pytest.mark.parametrize("browser_name", ["chromium"])
-def test_tidy_unwraps_a_bare_span_but_keeps_semantic_ones(page, browser_name):
+def test_tidy_unwraps_a_bare_span_but_keeps_semantic_ones(page):
     _page_with_module(page)
     html = page.evaluate(
         """() => {
@@ -1234,9 +1388,8 @@ def test_tidy_unwraps_a_bare_span_but_keeps_semantic_ones(page, browser_name):
     assert "data-x" in html, "a span with another attribute is not paste litter"
 
 
-@pytest.mark.parametrize("browser_name", ["chromium"])
-def test_pasted_katex_becomes_its_latex_source(page, browser_name):
-    page.set_content("<div id='root'></div>")
+def test_pasted_katex_becomes_its_latex_source(page):
+    page.set_content("<!DOCTYPE html><div id='root'></div>")
     page.add_script_tag(path="courses/static/courses/vendor/katex/katex.min.js")
     page.add_script_tag(path=SCRIPT)
     text = page.evaluate(
@@ -1332,8 +1485,7 @@ def _select_text(page, root_id, needle):
     )
 
 
-@pytest.mark.parametrize("browser_name", ["chromium"])
-def test_refuses_a_selection_wholly_inside_a_maths_region(page, browser_name):
+def test_refuses_a_selection_wholly_inside_a_maths_region(page):
     _page_with_module(page)
     page.evaluate(
         """() => { document.getElementById('root').outerHTML =
@@ -1348,8 +1500,7 @@ def test_refuses_a_selection_wholly_inside_a_maths_region(page, browser_name):
     assert "tc-red" not in html, "a refusal must not mutate the DOM"
 
 
-@pytest.mark.parametrize("browser_name", ["chromium"])
-def test_refuses_a_selection_straddling_a_maths_boundary(page, browser_name):
+def test_refuses_a_selection_straddling_a_maths_boundary(page):
     _page_with_module(page)
     page.evaluate(
         """() => { document.getElementById('root').outerHTML =
@@ -1361,8 +1512,7 @@ def test_refuses_a_selection_straddling_a_maths_boundary(page, browser_name):
     ) == "refused"
 
 
-@pytest.mark.parametrize("browser_name", ["chromium"])
-def test_allows_a_selection_enclosing_a_whole_maths_region(page, browser_name):
+def test_allows_a_selection_enclosing_a_whole_maths_region(page):
     """The one ALLOWED branch. Without this case an implementation that refuses every
     intersection passes the whole suite and the falsification rule catches nothing."""
     _page_with_module(page)
@@ -1379,8 +1529,7 @@ def test_allows_a_selection_enclosing_a_whole_maths_region(page, browser_name):
     assert "\\(x+y\\)" in html, "the delimiters must survive intact"
 
 
-@pytest.mark.parametrize("browser_name", ["chromium"])
-def test_refuses_enclosing_a_region_that_contains_an_element_boundary(page, browser_name):
+def test_refuses_enclosing_a_region_that_contains_an_element_boundary(page):
     """The carve-out on the ALLOWED branch. Such a region already round-trips lossily
     through sanitize_cell with or without colour, so a span there is not a gesture the
     storage layer can support. Without this case, an implementation that ignores
@@ -1396,8 +1545,7 @@ def test_refuses_enclosing_a_region_that_contains_an_element_boundary(page, brow
     ) == "refused"
 
 
-@pytest.mark.parametrize("browser_name", ["chromium"])
-def test_refuses_inside_a_marker(page, browser_name):
+def test_refuses_inside_a_marker(page):
     """D10: markers are parsed AFTER sanitisation, so a coloured marker becomes the
     stored answer. The test runs on every surface, so no opt-in attribute is needed."""
     _page_with_module(page)
@@ -1411,8 +1559,7 @@ def test_refuses_inside_a_marker(page, browser_name):
     ) == "refused"
 
 
-@pytest.mark.parametrize("browser_name", ["chromium"])
-def test_fails_closed_on_an_unclosed_delimiter(page, browser_name):
+def test_fails_closed_on_an_unclosed_delimiter(page):
     _page_with_module(page)
     page.evaluate(
         """() => { document.getElementById('root').outerHTML =
@@ -1424,8 +1571,7 @@ def test_fails_closed_on_an_unclosed_delimiter(page, browser_name):
     ) == "refused"
 
 
-@pytest.mark.parametrize("browser_name", ["chromium"])
-def test_clear_over_an_enclosing_selection_removes_stored_colour(page, browser_name):
+def test_clear_over_an_enclosing_selection_removes_stored_colour(page):
     """The primary clear path. Stored colour is class-carried with NO inline colour,
     and an enclosing selection nests the sentinel span OUTSIDE it — so the surviving
     tc-* is a DESCENDANT. An ancestors-only rule leaves Clear a silent no-op here."""
@@ -1444,8 +1590,7 @@ def test_clear_over_an_enclosing_selection_removes_stored_colour(page, browser_n
     assert "abcdef" in page.evaluate("() => document.getElementById('root').textContent")
 
 
-@pytest.mark.parametrize("browser_name", ["chromium"])
-def test_clear_over_a_partial_selection_leaves_the_remainder_coloured(page, browser_name):
+def test_clear_over_a_partial_selection_leaves_the_remainder_coloured(page):
     """execCommand does NOT split class-carried colour (there is no inline colour to
     split), so apply() must split explicitly or Clear wipes the whole run."""
     _page_with_module(page)
@@ -1462,8 +1607,7 @@ def test_clear_over_a_partial_selection_leaves_the_remainder_coloured(page, brow
     assert html.count("tc-red") == 2, f"a and c must stay coloured, b cleared: {html}"
 
 
-@pytest.mark.parametrize("browser_name", ["chromium"])
-def test_clearing_a_link_keeps_the_link(page, browser_name):
+def test_clearing_a_link_keeps_the_link(page):
     _page_with_module(page)
     page.evaluate(
         """() => { document.getElementById('root').outerHTML =
@@ -1508,14 +1652,44 @@ Insert into `text_colour.js`, before the `window.libliColour = {…}` assignment
   // A DOM Range yields (node, offset) pairs, not indices into textContent. This is
   // the mapping step; getting it wrong is how a region test silently passes.
   function textOffsets(root, range) {
+    // Handles BOTH container kinds. A selection's Range has TEXT containers, but
+    // selectNodeContents(el) yields an ELEMENT container -- and a text-node-only walk
+    // returns null for those, which made splitOrClear dead code and let Clear wipe a
+    // whole coloured run instead of splitting it.
+    var texts = [];
     var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null, false);
-    var acc = 0, start = null, end = null, node;
+    var acc = 0, node;
     while ((node = walker.nextNode())) {
-      var len = node.nodeValue.length;
-      if (node === range.startContainer) start = acc + range.startOffset;
-      if (node === range.endContainer) end = acc + range.endOffset;
-      acc += len;
+      texts.push({ node: node, start: acc });
+      acc += node.nodeValue.length;
     }
+    function offsetOf(container, offset) {
+      var i;
+      if (container.nodeType === 3) {
+        for (i = 0; i < texts.length; i++) {
+          if (texts[i].node === container) return texts[i].start + offset;
+        }
+        return null;
+      }
+      // Element container: `offset` counts CHILD NODES, so the text offset is the
+      // start of the first text node at or after that child.
+      var limit = container.childNodes[offset] || null;
+      if (!limit) {
+        var last = null;
+        for (i = 0; i < texts.length; i++) {
+          if (container.contains(texts[i].node)) last = texts[i];
+        }
+        return last ? last.start + last.node.nodeValue.length : null;
+      }
+      for (i = 0; i < texts.length; i++) {
+        if (texts[i].node === limit || limit.contains(texts[i].node)) {
+          return texts[i].start;
+        }
+      }
+      return null;
+    }
+    var start = offsetOf(range.startContainer, range.startOffset);
+    var end = offsetOf(range.endContainer, range.endOffset);
     if (start === null || end === null) return null;
     return [Math.min(start, end), Math.max(start, end)];
   }
@@ -1605,14 +1779,16 @@ Insert into `text_colour.js`, before the `window.libliColour = {…}` assignment
     if (!span) return "refused";
     if (regionVerdict(root, span) === "refused") { announce(root); return "refused"; }
 
-    var value = slot ? "var-unused" : SENTINEL;
+    var value = SENTINEL;
     if (slot) {
+      value = null;
       for (var i = 0; i < MAP.length; i++) {
         if (MAP[i].slot === slot) {
           value = "rgb(" + MAP[i].rgb.join(", ") + ")";
           break;
         }
       }
+      if (!value) return "refused";   // unknown slot: refuse, never guess a colour
     }
     styleWithCss(true);
     try { document.execCommand("foreColor", false, value); } catch (e) { /* ignore */ }
@@ -1638,7 +1814,7 @@ Insert into `text_colour.js`, before the `window.libliColour = {…}` assignment
       }
       clearInlineColour(el);
     }
-    tidyBareSpans(root);
+    dropAttributelessSpans(root);
     return "ok";
   }
 
@@ -1670,7 +1846,10 @@ Insert into `text_colour.js`, before the `window.libliColour = {…}` assignment
     }
   }
 
-  function tidyBareSpans(root) {
+  // Narrower than tidyPastedSpans' rule (b): this one unwraps ONLY spans with zero
+  // attributes -- the shells left behind after clearing removes a class and a colour.
+  // Rule (b) additionally unwraps class/style-only spans and is paste-gated.
+  function dropAttributelessSpans(root) {
     var spans = root.querySelectorAll("span");
     for (var i = spans.length - 1; i >= 0; i--) {
       var span = spans[i];
@@ -1760,10 +1939,26 @@ CALLERS = ("math.js", "question.js", "quiz.js", "editor.js")
 
 
 def _script_order(path):
+    """Script basenames in document order.
+
+    Parses the {% static '...' %} argument, NOT the raw src attribute: the real markup
+    is src="{% static 'courses/vendor/katex/contrib/auto-render.min.js' %}", so a regex
+    anchored on `.js"` matches nothing, and a `js/`-segment fallback misses everything
+    under vendor/. Both mistakes make this test pass-proof rather than useful.
+    """
     text = (TEMPLATES / path).read_text(encoding="utf-8")
-    return [m.group(1) for m in re.finditer(r"<script src=\"[^\"]*?([\w.-]+\.js)\'?\"", text)] or [
-        m.group(1) for m in re.finditer(r"js/([\w.-]+\.js)", text)
+    return [
+        m.group(1).rsplit("/", 1)[-1]
+        for m in re.finditer(r"{%\s*static\s*'([^']+\.js)'", text)
     ]
+
+
+def test_the_parser_actually_sees_the_katex_scripts():
+    """Self-check. Without it a broken parser returns [] and makes every assertion
+    below vacuous — which is exactly how the first draft of this file failed."""
+    order = _script_order("lesson_unit.html")
+    assert "katex.min.js" in order, order
+    assert "auto-render.min.js" in order, order
 
 
 def test_every_katex_page_loads_text_colour_in_the_right_place():
@@ -1844,7 +2039,15 @@ Append to `text_colour.js`, immediately before the closing `})();`:
 
   // Defensive: if either global is not defined yet, retry once the document is ready
   // rather than silently no-opping for the whole page.
-  if (!wrapRenderMathInElement() || !wrapKatexRender()) {
+  // Evaluate BOTH before testing: `!a() || !b()` short-circuits and never calls b()
+  // when a() fails -- which is exactly the case on a page that loads katex.min.js but
+  // not auto-render.min.js, leaving katex.render unwrapped. The bug is invisible on
+  // real pages (which load both) and only bites in isolation.
+  var inlineWrapped = wrapRenderMathInElement();
+  var renderWrapped = wrapKatexRender();
+  if (!inlineWrapped || !renderWrapped) {
+    // Note: this retry is dead for a script added AFTER load; it exists for the
+    // ordinary defer-in-document-order case.
     document.addEventListener("DOMContentLoaded", function () {
       wrapRenderMathInElement();
       wrapKatexRender();
@@ -1887,13 +2090,12 @@ Expected: 1 passed.
 Append to `tests/test_e2e_text_colour.py`:
 
 ```python
-@pytest.mark.parametrize("browser_name", ["chromium"])
-def test_katex_colour_resolves_to_the_palette_token(page, browser_name):
+def test_katex_colour_resolves_to_the_palette_token(page):
     """D4: prose tc-red and \\color{red} must be the SAME colour. Asserting 'a colour
     is present' would pass even if the class were added while the inline colour stayed,
     which is the failure mode — inline style always beats a class."""
     page.set_content(
-        "<style>.tc-red{color:#B2372A}</style><div id='m'></div>"
+        "<!DOCTYPE html><style>.tc-red{color:#B2372A}</style><div id='m'></div>"
     )
     page.add_script_tag(path="courses/static/courses/vendor/katex/katex.min.js")
     page.add_script_tag(path=SCRIPT)
@@ -1910,11 +2112,10 @@ def test_katex_colour_resolves_to_the_palette_token(page, browser_name):
     )
 
 
-@pytest.mark.parametrize("browser_name", ["chromium"])
-def test_katex_layout_style_survives_the_wrapper(page, browser_name):
+def test_katex_layout_style_survives_the_wrapper(page):
     """Clear the color LONGHAND, not the style attribute: KaTeX packs height and
     vertical-align into the same attribute and removing it destroys the layout."""
-    page.set_content("<div id='m'></div>")
+    page.set_content("<!DOCTYPE html><div id='m'></div>")
     page.add_script_tag(path="courses/static/courses/vendor/katex/katex.min.js")
     page.add_script_tag(path=SCRIPT)
     heights = page.evaluate(
@@ -1928,9 +2129,8 @@ def test_katex_layout_style_survives_the_wrapper(page, browser_name):
     assert heights > 0, "layout declarations must survive"
 
 
-@pytest.mark.parametrize("browser_name", ["chromium"])
-def test_unmapped_katex_colour_is_left_untouched(page, browser_name):
-    page.set_content("<div id='m'></div>")
+def test_unmapped_katex_colour_is_left_untouched(page):
+    page.set_content("<!DOCTYPE html><div id='m'></div>")
     page.add_script_tag(path="courses/static/courses/vendor/katex/katex.min.js")
     page.add_script_tag(path=SCRIPT)
     html = page.evaluate(
@@ -2096,8 +2296,9 @@ the twins land identically.
 
 - [ ] **Step 5: Style the swatches**
 
-Append to `courses/static/courses/css/editor.css` (must be after the `.rte-btn.is-on`
-rule at 230 — append at the end of the RTE toolbar section):
+Insert into `courses/static/courses/css/editor.css` **immediately after line 231**
+(`.rte-btn .ic`) — after `.rte-btn.is-on` at 230, keeping the toolbar rules together.
+The ordering is load-bearing, not cosmetic; the Step 1 test pins it:
 
 ```css
 /* Colour swatches. Deliberately NOT .rte-btn: that class's .is-on state is a solid
@@ -2171,106 +2372,128 @@ Append to `tests/test_e2e_text_colour.py`:
 from tests.factories import TEST_PASSWORD  # noqa: E402
 
 
-@pytest.mark.parametrize("browser_name", ["chromium"])
-def test_colour_survives_save_and_reload(page, live_server, colour_unit, browser_name):
-    """The whole point, driven through the real gesture: select text in the editor,
-    click the red swatch, save, reload, and find the class still there."""
-    _login_and_open_editor(page, live_server, colour_unit)
-    surface = page.locator(".rte-surface").first
+@pytest.mark.django_db(transaction=True)
+def test_colour_survives_save_and_reload(page, live_server):
+    """The whole point, driven through the real gesture: type into the editor, select,
+    click the red swatch, save, reload, and find the class still stored."""
+    from courses.models import TextElement
+
+    _make_pa_user("tc_save")
+    _login(page, live_server, "tc_save")
+    unit = _seed_course_and_unit("tc_save", slug="tc-save")
+
+    page.goto(_editor_url(live_server, unit))
+    page.wait_for_selector('[data-scope="editor"]')
+    _add_element(page, "text")
+
+    surface = page.locator("[data-edit-slot] .rte-surface")
+    surface.wait_for(state="visible")
     surface.click()
+    page.keyboard.type("alpha beta")
     page.keyboard.press("Control+A")
-    page.locator('[data-cmd="colour-red"]').first.click()
-    page.locator('button[type="submit"]').first.click()
-    page.wait_for_load_state("networkidle")
-    _open_editor(page, live_server, colour_unit)
-    assert page.locator(".rte-surface .tc-red").count() == 1
+    page.locator('[data-edit-slot] [data-cmd="colour-red"]').click()
+    page.locator("[data-edit-slot] button[type='submit']").click()
+    page.wait_for_selector("[data-edit-slot]", state="detached")
+
+    body = TextElement.objects.order_by("-id").first().body
+    assert "tc-red" in body, body
+    assert "style" not in body, "colour must be stored as a class, never inline"
 
 
-@pytest.mark.parametrize("browser_name", ["chromium"])
-def test_paste_normalises_in_the_surface_and_the_textarea(page, live_server, colour_unit, browser_name):
+@pytest.mark.django_db(transaction=True)
+def test_paste_normalises_in_the_surface_and_the_textarea(page, live_server):
     """styleToClass is a pure STRING function and never touches the live surface, and
-    sync is already registered on `input` — so the colour pass must run BEFORE it or
+    sync is already registered on `input` — so the colour pass must run BEFORE it, or
     the textarea is written from un-normalised DOM and the sanitiser strips the colour
     on any save path that does not go through the form's submit handler."""
-    _login_and_open_editor(page, live_server, colour_unit)
+    _make_pa_user("tc_paste")
+    _login(page, live_server, "tc_paste")
+    unit = _seed_course_and_unit("tc_paste", slug="tc-paste")
+
+    page.goto(_editor_url(live_server, unit))
+    page.wait_for_selector('[data-scope="editor"]')
+    _add_element(page, "text")
+    page.locator("[data-edit-slot] .rte-surface").wait_for(state="visible")
+
     page.evaluate(
         """() => {
-        const s = document.querySelector('.rte-surface');
+        const s = document.querySelector('[data-edit-slot] .rte-surface');
         s.focus();
         s.innerHTML = '<span style="color: red">x</span>';
         s.dispatchEvent(new InputEvent('input', {inputType: 'insertFromPaste'}));
     }"""
     )
-    assert page.locator(".rte-surface .tc-red").count() == 1
+    assert page.locator("[data-edit-slot] .rte-surface .tc-red").count() == 1
     value = page.evaluate(
-        "() => document.querySelector('[data-rte-source]').value"
+        "() => document.querySelector('[data-edit-slot] [data-rte-source]').value"
     )
     assert "tc-red" in value, "the textarea must carry the class immediately after paste"
     assert "style" not in value
 
 
-@pytest.mark.parametrize("browser_name", ["chromium"])
-def test_refusal_shows_the_translated_message(page, live_server, colour_unit, browser_name):
-    _login_and_open_editor(page, live_server, colour_unit)
+@pytest.mark.django_db(transaction=True)
+def test_refusal_shows_the_translated_message(page, live_server):
+    _make_pa_user("tc_refuse")
+    _login(page, live_server, "tc_refuse")
+    unit = _seed_course_and_unit("tc_refuse", slug="tc-refuse")
+
+    page.goto(_editor_url(live_server, unit))
+    page.wait_for_selector('[data-scope="editor"]')
+    _add_element(page, "text")
+    page.locator("[data-edit-slot] .rte-surface").wait_for(state="visible")
+
     page.evaluate(
         """() => {
-        const s = document.querySelector('.rte-surface');
-        s.innerHTML = 'a \\\\(x + y\\\\) b';
-    }"""
-    )
-    page.evaluate(
-        """() => {
-        const s = document.querySelector('.rte-surface');
+        const s = document.querySelector('[data-edit-slot] .rte-surface');
+        s.innerHTML = 'a \\(x + y\\) b';
         const t = s.firstChild;
         const r = document.createRange();
-        r.setStart(t, 3); r.setEnd(t, 4);
+        r.setStart(t, 3); r.setEnd(t, 4);          // inside the maths region
         const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r);
     }"""
     )
-    page.locator('[data-cmd="colour-red"]').first.click()
+    page.locator('[data-edit-slot] [data-cmd="colour-red"]').click()
     assert page.locator("[data-colour-refusal]").count() == 1
+    assert page.locator("[data-edit-slot] .rte-surface .tc-red").count() == 0
 ```
 
-Add the fixtures and helpers at the top of the file (after the imports):
+Add the imports and the session fixture at the top of the file — **reuse the repo's
+shipped editor helpers; do not hand-roll them.** `tests/test_e2e_alignment.py` is the
+closest shipped analogue of this gesture and is the model to copy:
 
 ```python
-@pytest.fixture
-def colour_unit(db):
-    """A lesson unit holding one TextElement, owned by a staff user."""
-    from tests.factories import CourseFactory
-    from tests.factories import ContentNodeFactory
-    from tests.factories import UserFactory
-    from courses.models import Element
-    from courses.models import TextElement
+import os
 
-    user = UserFactory(is_staff=True)
-    course = CourseFactory(owner=user)
-    unit = ContentNodeFactory(course=course, unit_type="lesson")
-    body = TextElement.objects.create(body="<p>alpha beta gamma</p>")
-    Element.objects.create(
-        unit=unit, order=1, content_type_for(body), object_id=body.pk
-    )
-    return {"user": user, "unit": unit}
+import pytest
+
+from tests.test_e2e_editor import _add_element
+from tests.test_e2e_editor import _editor_url
+from tests.test_e2e_editor import _login
+from tests.test_e2e_editor import _make_pa_user
+from tests.test_e2e_editor import _seed_course_and_unit
+
+pytestmark = pytest.mark.e2e
 
 
-def _login_and_open_editor(page, live_server, colour_unit):
-    page.goto(f"{live_server.url}/accounts/login/")
-    page.fill("[name=username]", colour_unit["user"].username)
-    page.fill("[name=password]", TEST_PASSWORD)
-    page.click("button[type=submit]")
-    _open_editor(page, live_server, colour_unit)
-
-
-def _open_editor(page, live_server, colour_unit):
-    page.goto(f"{live_server.url}/manage/units/{colour_unit['unit'].pk}/edit/")
-    page.wait_for_selector(".rte-surface")
+@pytest.fixture(scope="session", autouse=True)
+def _allow_sync_orm_under_playwright():
+    os.environ.setdefault("DJANGO_ALLOW_ASYNC_UNSAFE", "true")
+    yield
 ```
 
-**Before running:** verify the factory names and the editor URL against
-`tests/factories.py` and `courses/urls.py`, and fix the `Element.objects.create` call to
-match the real generic-relation signature. Plan-review found that factory/helper
-signatures are the single most common source of broken plan test code — check them with
-the same rigour as production code.
+Four things this replaces, each of which was wrong when written by hand:
+
+| hand-rolled | why it fails | use instead |
+|---|---|---|
+| `page.fill("[name=username]", …)` | allauth's field is `name="login"`, and the shell header has its own submit buttons, so the click must be scoped to the login form | `_login(page, live_server, username)` |
+| `UserFactory(is_staff=True)` + `TEST_PASSWORD` | `UserFactory` sets `"password123"` via `PostGenerationMethodCall`, **not** `TEST_PASSWORD`; and mandatory email verification means a user cannot log in without a verified primary `EmailAddress` | `_make_pa_user(username)` |
+| `/manage/units/<pk>/edit/` | that route does not exist — the editor is `manage/courses/<slug>/build/unit/<pk>/edit/` (`courses/urls.py:226`) | `_editor_url(live_server, unit)` |
+| `Element.objects.create(unit=unit, order=1, content_type_for(body), …)` | positional-after-keyword is a **SyntaxError**, and `content_type_for` does not exist | `tests.factories.add_element(unit, obj)` |
+
+Every test that drives the browser must also carry `@pytest.mark.django_db(transaction=True)`
+and seed **inside the test body**. `live_server` runs the app on its own connection in a
+separate thread, so rows written inside the plain `db` fixture's uncommitted transaction
+are invisible to it and the page 404s.
 
 - [ ] **Step 2: Run to verify it fails**
 
@@ -2389,26 +2612,44 @@ git commit -m "feat(text-colour): wire swatches into the rich-text editor"
 Append to `tests/test_e2e_text_colour.py`:
 
 ```python
-@pytest.mark.parametrize("browser_name", ["chromium"])
-def test_cell_colour_reaches_the_saved_json(page, live_server, table_unit, browser_name):
+@pytest.mark.django_db(transaction=True)
+def test_cell_colour_reaches_the_saved_json(page, live_server):
+    """Colour applied in a table cell must reach the stored JSON, not just the DOM.
+
+    MEASURED: TableElement.save() calls _sanitized_data, NOT normalize_data, so the
+    1x1 grid is stored with exactly the keys authored here.
+    """
     from courses.models import TableElement
 
-    _login_and_open_editor(page, live_server, table_unit)
-    cell = page.locator("[data-table-grid] td[contenteditable]").first
+    _make_pa_user("tc_cell")
+    _login(page, live_server, "tc_cell")
+    unit = _seed_course_and_unit("tc_cell", slug="tc-cell")
+
+    table = TableElement.objects.create(
+        data={"cells": [[{"html": "abc", "halign": "left", "valign": "top"}]]}
+    )
+    add_element(unit, table)
+
+    page.goto(_editor_url(live_server, unit))
+    page.wait_for_selector('[data-scope="editor"]')
+    page.locator("[data-op='element-edit']").first.click()
+    cell = page.locator("[data-edit-slot] [data-table-grid] td[contenteditable]").first
+    cell.wait_for(state="visible")
     cell.click()
     page.keyboard.press("Control+A")
-    page.locator('[data-cmd="colour-blue"]').first.click()
-    page.locator('button[type="submit"]').first.click()
-    page.wait_for_load_state("networkidle")
+    page.locator('[data-edit-slot] [data-cmd="colour-blue"]').click()
+    page.locator("[data-edit-slot] button[type='submit']").click()
+    page.wait_for_selector("[data-edit-slot]", state="detached")
 
-    element = TableElement.objects.get(pk=table_unit["element"].pk)
-    assert "tc-blue" in element.data["cells"][0][0]["html"]
+    table.refresh_from_db()
+    assert "tc-blue" in table.data["cells"][0][0]["html"], table.data
 ```
 
-Add a `table_unit` fixture mirroring `colour_unit` but creating a `TableElement` with
-`data={"cells": [[{"html": "abc", "halign": "left", "valign": "top"}]]}`. Verify the
-exact cell-dict shape against `courses/models.py`'s `TableElement.normalize_data`
-before running.
+Add `from tests.factories import add_element` to the module's imports.
+
+**Before running:** open the element-edit affordance the way `tests/test_e2e_editor.py`
+does — if `[data-op='element-edit']` is not the right selector for opening an existing
+element's editor, copy whatever that file uses. Do not invent one.
 
 - [ ] **Step 2: Run to verify it fails**
 
@@ -2420,8 +2661,11 @@ Expected: FAIL — `tc-blue` not in the saved JSON.
 
 - [ ] **Step 3: Wire `table_editor.js`**
 
-In the toolbar `click` handler, inside the `if (cmdBtn && focusCell)` branch, before the
-existing bold/italic/underline handling:
+In the toolbar `click` handler, insert **after `focusCell.focus();` and before
+`if (cmd === "bold" …)`**. Not "immediately inside the branch": `var cmd = ...` and
+`focusCell.focus();` sit between the `if (` on line 529 and the bold branch, so an
+insertion above them reads an undefined `cmd` (var hoisting) and runs before the cell
+has focus, leaving `apply()` no selection to act on.
 
 ```javascript
           if (cmd.indexOf("colour-") === 0 && window.libliColour) {
@@ -2446,8 +2690,11 @@ In the grid `input` listener, before the existing `serialize()` call:
       }
 ```
 
-In `serialize()`, immediately before reading `td.innerHTML`, run the pass over every
-cell — a paste can land in a cell that is never focused again:
+In `serialize()`, insert as the **first statement of the
+`Array.prototype.forEach.call(dataCells(tr), function (td) {` callback — before
+`var cell = {`** (line 172). There is no statement position "immediately before
+`td.innerHTML`": that read happens at line 173, inside the object literal. The pass must
+run over every cell because a paste can land in one that is never focused again:
 
 ```javascript
       if (window.libliColour) window.libliColour.mapColours(td, { dropUnmapped: true });
@@ -2504,13 +2751,25 @@ migration. That is the single load-bearing claim for how this work ships, and no
 tested it. Colour rides inside strings that already round-trip, so this should pass on
 the first run — which is exactly why it must exist: if it ever stops passing, the
 delivery plan is broken.
+
+Drives the REAL transfer engine through the same sequence tests/test_transfer_import.py
+uses. The public API is write_archive(course, node, fileobj) into a file object, then
+open_archive(...) as a context manager yielding (zf, mani, doc, media) — there is no
+export_course()/import_course(path) pair.
 """
+
+import io
 
 import pytest
 
 from courses.models import Element
 from courses.models import TableElement
 from courses.models import TextElement
+from courses.transfer.export import write_archive
+from courses.transfer.importer import import_course
+from courses.transfer.importer import open_archive
+from courses.transfer.importer import validate_archive_document
+from tests.factories import add_element
 
 pytestmark = pytest.mark.django_db
 
@@ -2518,22 +2777,29 @@ BODY = '<p>plain <span class="tc-red">red</span> tail</p>'
 CELL = '<b class="tc-blue">cell</b>'
 
 
-def test_colour_survives_export_and_import(tmp_path, course_with_unit):
-    """Uses the real transfer engine, not a hand-rolled round trip."""
-    from courses.transfer import export as export_mod
-    from courses.transfer import importer as import_mod
+@pytest.fixture(autouse=True)
+def _media_root(settings, tmp_path):
+    """The import path writes real files through default_storage. Copied from
+    tests/test_transfer_import.py:48 — without it the import writes into the repo."""
+    settings.MEDIA_ROOT = str(tmp_path / "media")
+    yield
 
-    course, unit = course_with_unit
+
+def test_colour_survives_export_and_import(course_with_unit_factory):
+    course, unit, user = course_with_unit_factory()
     body = TextElement.objects.create(body=BODY)
     table = TableElement.objects.create(
         data={"cells": [[{"html": CELL, "halign": "left", "valign": "top"}]]}
     )
-    for order, obj in enumerate((body, table), start=1):
-        Element.objects.create(unit=unit, order=order, content_object=obj)
+    add_element(unit, body)
+    add_element(unit, table)
 
-    archive = tmp_path / "bundle.zip"
-    export_mod.export_course(course, archive)
-    imported = import_mod.import_course(archive)
+    buf = io.BytesIO()
+    write_archive(course, None, buf)
+    buf.seek(0)
+    with open_archive(buf, expected_kind="course") as (zf, mani, doc, media):
+        validate_archive_document(zf, mani, doc, media, kind="course")
+        imported = import_course(zf, mani, doc, media, user)
 
     bodies = [
         e.content_object.body
@@ -2550,10 +2816,11 @@ def test_colour_survives_export_and_import(tmp_path, course_with_unit):
     assert tables[0]["cells"][0][0]["html"] == CELL
 ```
 
-**Before running:** check `courses/transfer/export.py` and `importer.py` for the real
-entry-point names and signatures, and reuse whatever fixture
-`tests/test_transfer_import.py` already uses for a course + unit rather than inventing
-`course_with_unit`.
+**Before running:** `course_with_unit_factory` is a placeholder for whatever
+`tests/test_transfer_import.py` already uses to build a course + unit + owner — read that
+file and use its fixture verbatim rather than adding another. The four transfer symbols
+above are verified to exist with these signatures; the fixture name is the one thing here
+that is not.
 
 - [ ] **Step 2: Run it**
 
@@ -2692,11 +2959,21 @@ value rules, the acceptance gate, and the `<dirname>=<pk>` exclusions. Slice 1 d
 `LEGACY_ALLOWED_CLASSES` (Task 3) because the snapshot is only meaningful at the moment
 the allowlist changes.
 
-**Known soft spots in this plan, to verify while executing:**
-- The fixtures in Tasks 9-11 are written from the spec, not from `tests/factories.py`.
-  Check every factory signature and URL before running — plan-review across this repo
-  has repeatedly found that test-helper signatures, not production code, are where plan
-  code breaks.
+**What plan-review round 1 changed (all defects were in executable artefacts, none in
+the design):** four of the plan's own tests went red against its own implementation
+(`collapseNested` never ran for class-only markup; `splitOrClear` was dead code because
+`textOffsets` could not handle an element container; `wrapKatexRender` was skipped by a
+`||` short-circuit; the script-order parser could not see a single `{% static %}`
+script). Every KaTeX assertion errored in quirks mode. The whole browser-driving layer
+was hand-rolled and wrong four independent ways — a syntax error, allauth's field name,
+`UserFactory`'s password, a non-existent editor URL — and the transfer test targeted an
+API that does not exist. All are now fixed by reusing the repo's shipped helpers.
+
+**Remaining soft spots, to verify while executing:**
+- `course_with_unit_factory` in Task 11 is the one fixture name still unverified — read
+  `tests/test_transfer_import.py` and use its fixture verbatim.
+- Task 10's `[data-op='element-edit']` selector for opening an existing element's editor
+  is unverified; copy whatever `tests/test_e2e_editor.py` uses.
 - Task 4's measurements may contradict Task 6's clear implementation. If they do, the
   spec is wrong and must be revised before writing code — do not adapt the code to a
-  measurement the spec denies.
+  measurement the spec denies. The table in Task 4 Step 2 states the branch for each.
