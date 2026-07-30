@@ -822,7 +822,7 @@ Then change `ALLOWED_CLASSES.update(...)` to use `TC_CLASS_VALUES` directly inst
 
 ```bash
 uv run ruff format .
-git add courses/sanitize.py courses/tests/test_sanitize_colour.py courses/tests/test_sanitize_align.py
+git add courses/sanitize.py courses/tests/test_sanitize_colour.py \n  courses/tests/test_sanitize_align.py tests/lal_import/test_tables.py \n  tests/test_e2e_imagezoom.py   # Step 5 edits stale comments in the last two
 git commit -m "feat(text-colour): allow tc-* classes through both sanitisers; freeze legacy allowlist"
 ```
 
