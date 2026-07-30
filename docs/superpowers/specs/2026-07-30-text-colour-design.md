@@ -284,9 +284,15 @@ switch-gate, switch-grid and guess-number are rejected. The three silent ones ar
 D10 load-bearing rather than merely tidy.
 
 Marker regions get the **same four-case table** as maths regions, found in the **same**
-offset pass, on every marker-bearing field that is an RTE surface: the fill-blank,
-**drag-fill-blank**, fill-gate, switch-gate and guess-number stems, all edited through
-`_rte_toolbar.html`.
+offset pass, and the test runs on **every RTE surface and every cell, unconditionally**.
+
+That is deliberate, because `apply()` receives only `root` (a `.rte-surface` div or a `<td>`)
+and has no signal for "this field is marker-bearing": the five marker-bearing stems are
+`name="stem"`, but so are the choice, short-text, numeric, match-pair, extended-response,
+drag-to-image, choicegrid and multigrid stems, which are not. Rather than invent an opt-in
+attribute, run the test everywhere — `{{` occurs **zero** times in the corpus, so the
+false-refusal cost is nil. The fields where it actually bites are the fill-blank,
+**drag-fill-blank**, fill-gate, switch-gate and guess-number stems.
 
 **SwitchGrid line stems are excluded, because they are not an RTE surface.**
 `_edit_switchgrid.html:14` renders each one as a bare
@@ -386,7 +392,7 @@ expression.
 | pass | touches | never touches | run by |
 |---|---|---|---|
 | `mapColours(root, {dropUnmapped})` | only elements carrying an **inline colour**. A **mapped** colour always gets the `tc-*` class added **and** its inline colour removed, on *both* paths. An **unmapped** colour is dropped when `dropUnmapped` (author path) and left untouched otherwise (render path) | any element without inline colour | the KaTeX wrapper; the editor after `apply()`; the editor on `input` |
-| `tidyPastedSpans(root)` | (a) a pasted `.katex` subtree — **replaced by its `annotation[encoding="application/x-tex"]` text**, wrapped in `\[…\]` when the subtree is display maths (`.katex-display` on it or its parent) and `\(…\)` otherwise; (b) any other `span` whose class list holds no `tc-*`/`ta-*` token and which carries no attribute other than `class`/`style` — unwrapped | any element carrying semantics: `a`, `b`, `em`, …, or a span with a `tc-*`/`ta-*` class | the editor, on `input` with `inputType` `insertFromPaste` or `insertFromDrop` |
+| `tidyPastedSpans(root)` | **(a) is evaluated before (b), and (b) never fires inside a `.katex` subtree** — a `.katex` wrapper matches (b)'s predicate exactly (its only attributes are `class` and usually `style`, and `katex` is neither a `tc-*` nor a `ta-*` token), so a bottom-up or (b)-first implementation destroys the subtree before (a) can read its `annotation`, producing the very duplicated-LaTeX failure (a) exists to prevent. Process the root's spans in document order and short-circuit on `.katex`. (a) a pasted `.katex` subtree — **replaced by its `annotation[encoding="application/x-tex"]` text**, wrapped in `\[…\]` when the subtree is display maths (`.katex-display` on it or its parent) and `\(…\)` otherwise; (b) any other `span` whose class list holds no `tc-*`/`ta-*` token and which carries no attribute other than `class`/`style` — unwrapped | any element carrying semantics: `a`, `b`, `em`, …, or a span with a `tc-*`/`ta-*` class | the editor, on `input` with `inputType` `insertFromPaste` or `insertFromDrop` |
 
 Rule (a) is not optional and the earlier "unwraps classless spans" predicate could never
 have satisfied it: KaTeX spans always carry `class`, and usually inline `style` and
@@ -796,7 +802,9 @@ occurrence that intersects a protected region.
 
 **The source-side region is a different shape from the editor's, and scanning for `{{…}}`
 there would be vacuous.** Measured over all 835 corpus files: `{{` occurs **zero** times,
-while the U+FFFF sentinel token occurs **6992** times — the loader feeds
+while the U+FFFF sentinel occurs **3496 times as a character** — i.e. roughly 1748 tokens,
+since each `￿N￿` uses two sentinel characters (an earlier draft said 6992, which
+double-counted; the unit is stated here so the figure is reproducible) — the loader feeds
 `sanitize_stem_segments`, which splits on `￿<digits>￿`, not on author braces. The
 backfill's test is therefore `￿\d+￿` for `sanitize_stem_segments` fields; the
 editor keeps `{{…}}` for D10. The hazard is real in shape: those segments are sanitised
