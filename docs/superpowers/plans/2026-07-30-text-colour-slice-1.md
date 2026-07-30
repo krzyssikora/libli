@@ -837,6 +837,8 @@ Create `tests/test_e2e_colour_probe.py`:
 are written against measurement rather than assumption. Deleted at the end of Task 4.
 """
 
+from pathlib import Path
+
 import pytest
 
 pytestmark = pytest.mark.e2e
@@ -915,8 +917,9 @@ following as a **second test function** (`test_katex_probe`) rather than replaci
 the first probe:
 
 ```python
+def test_katex_probe(page):
     page.goto("data:text/html,<!DOCTYPE html><div id='m'></div>")
-    page.add_script_tag(path="courses/static/courses/vendor/katex/katex.min.js")
+    page.add_script_tag(path=KATEX)
     result = page.evaluate(
         """() => {
         const m = document.getElementById('m');
@@ -1318,7 +1321,11 @@ import pytest
 
 pytestmark = pytest.mark.e2e
 
-SCRIPT = "courses/static/courses/js/text_colour.js"
+ROOT = Path(__file__).resolve().parent.parent
+SCRIPT = str(ROOT / "courses/static/courses/js/text_colour.js")
+KATEX = str(ROOT / "courses/static/courses/vendor/katex/katex.min.js")
+TOKENS_CSS = str(ROOT / "core/static/core/css/tokens.css")
+COURSES_CSS = str(ROOT / "courses/static/courses/css/courses.css")
 
 
 def _page_with_module(page):
@@ -1414,7 +1421,7 @@ def test_tidy_unwraps_a_bare_span_but_keeps_semantic_ones(page):
 
 def test_pasted_katex_becomes_its_latex_source(page):
     page.set_content("<!DOCTYPE html><div id='root'></div>")
-    page.add_script_tag(path="courses/static/courses/vendor/katex/katex.min.js")
+    page.add_script_tag(path=KATEX)
     page.add_script_tag(path=SCRIPT)
     text = page.evaluate(
         """() => {
@@ -1561,14 +1568,14 @@ def test_refuses_enclosing_a_region_that_contains_an_element_boundary(page):
     _page_with_module(page)
     page.evaluate(
         """() => { document.getElementById('root').outerHTML =
-        '<div id="root" contenteditable="true">a \\(x + <b>y</b>\\) b</div>'; }"""
+        '<div id="root" contenteditable="true">a \\\\(x + <b>y</b>\\\\) b</div>'; }"""
     )
     # Pin the delimiters BEFORE selecting. With single backslashes Python emits a
     # SyntaxWarning, the JS literal collapses \( to (, and the DOM text becomes
     # "a (x + y) b" with no delimiters at all -- _select_text then returns False and
     # the test dies on the wrong assertion while the carve-out goes unexercised.
-    assert "\(" in page.evaluate("() => document.getElementById('root').textContent")
-    assert _select_text(page, "root", "a \(x + y\) b")
+    assert "\\(" in page.evaluate("() => document.getElementById('root').textContent")
+    assert _select_text(page, "root", "a \\(x + y\\) b")
     assert page.evaluate(
         "() => libliColour.apply(document.getElementById('root'), 'red')"
     ) == "refused"
@@ -2130,9 +2137,9 @@ def test_katex_colour_resolves_to_the_palette_token(page):
     # computed value a foregone conclusion and proves nothing about palette identity
     # — it is a fourth unguarded copy of the literal. (katex.min.css sets no color.)
     page.set_content("<!DOCTYPE html><div id='m'></div>")
-    page.add_style_tag(path="core/static/core/css/tokens.css")
-    page.add_style_tag(path="courses/static/courses/css/courses.css")
-    page.add_script_tag(path="courses/static/courses/vendor/katex/katex.min.js")
+    page.add_style_tag(path=TOKENS_CSS)
+    page.add_style_tag(path=COURSES_CSS)
+    page.add_script_tag(path=KATEX)
     page.add_script_tag(path=SCRIPT)
     computed = page.evaluate(
         """() => {
@@ -2146,7 +2153,7 @@ def test_katex_colour_resolves_to_the_palette_token(page):
     import re
     from pathlib import Path
 
-    tokens = Path("core/static/core/css/tokens.css").read_text(encoding="utf-8")
+    tokens = Path(TOKENS_CSS).read_text(encoding="utf-8")
     light = re.search(r":root\s*\{(.*?)\n\}", tokens, re.DOTALL).group(1)
     digits = re.search(r"--tc-red:\s*#([0-9A-Fa-f]{6})", light).group(1)
     expected = "rgb(%d, %d, %d)" % tuple(
@@ -2162,7 +2169,7 @@ def test_katex_layout_style_survives_the_wrapper(page):
     """Clear the color LONGHAND, not the style attribute: KaTeX packs height and
     vertical-align into the same attribute and removing it destroys the layout."""
     page.set_content("<!DOCTYPE html><div id='m'></div>")
-    page.add_script_tag(path="courses/static/courses/vendor/katex/katex.min.js")
+    page.add_script_tag(path=KATEX)
     page.add_script_tag(path=SCRIPT)
     heights = page.evaluate(
         """() => {
@@ -2177,7 +2184,7 @@ def test_katex_layout_style_survives_the_wrapper(page):
 
 def test_unmapped_katex_colour_is_left_untouched(page):
     page.set_content("<!DOCTYPE html><div id='m'></div>")
-    page.add_script_tag(path="courses/static/courses/vendor/katex/katex.min.js")
+    page.add_script_tag(path=KATEX)
     page.add_script_tag(path=SCRIPT)
     html = page.evaluate(
         """() => {
@@ -2438,7 +2445,13 @@ def test_colour_survives_save_and_reload(page, live_server):
     page.keyboard.press("Control+A")
     page.locator('[data-edit-slot] [data-cmd="colour-red"]').click()
     page.locator("[data-edit-slot] button[type='submit']").click()
-    page.wait_for_selector("[data-edit-slot]", state="detached")
+    # Wait on a CHILD, not the slot itself: _element_row.html renders
+    # <div class="el-edit-slot" data-edit-slot> unconditionally on every row, so the
+    # slot survives the save (empty but present) and state="detached" on the bare
+    # selector times out. Every shipped e2e scopes to a child for this reason.
+    page.wait_for_selector(
+        "[data-edit-slot] form[data-op='element-save']", state="detached"
+    )
 
     body = TextElement.objects.order_by("-id").first().body
     assert "tc-red" in body, body
@@ -2498,7 +2511,7 @@ def test_refusal_shows_the_translated_message(page, live_server):
     page.evaluate(
         """() => {
         const s = document.querySelector('[data-edit-slot] .rte-surface');
-        s.innerHTML = 'a \\(x + y\\) b';
+        s.innerHTML = 'a \\\\(x + y\\\\) b';
         const t = s.firstChild;
         const r = document.createRange();
         r.setStart(t, 3); r.setEnd(t, 4);          // inside the maths region
@@ -2698,7 +2711,8 @@ def test_cell_colour_reaches_the_saved_json(page, live_server):
     page.keyboard.press("Control+A")
     page.locator('[data-edit-slot] [data-cmd="colour-blue"]').click()
     page.locator("[data-edit-slot] button[type='submit']").click()
-    page.wait_for_selector("[data-edit-slot]", state="detached")
+    # Child-scoped, per the note in Task 9 — the slot div itself never detaches.
+    page.wait_for_selector("[data-edit-slot] [data-table-editor]", state="detached")
 
     table.refresh_from_db()
     assert "tc-blue" in table.data["cells"][0][0]["html"], table.data
@@ -3048,10 +3062,11 @@ was hand-rolled and wrong four independent ways — a syntax error, allauth's fi
 API that does not exist. All are now fixed by reusing the repo's shipped helpers.
 
 **Remaining soft spots, to verify while executing:**
-- `course_with_unit_factory` in Task 11 is the one fixture name still unverified — read
-  `tests/test_transfer_import.py` and use its fixture verbatim.
-- Task 10's `[data-op='element-edit']` selector for opening an existing element's editor
-  is unverified; copy whatever `tests/test_e2e_editor.py` uses.
+- **Resolved in round 2:** Task 11 uses the verified 2-tuple
+  `tests.factories.make_course_with_unit()`; `tests/test_transfer_import.py` has no
+  course/unit fixture at all. Task 10 opens the editor with
+  `[data-element='<pk>'] .el-act-edit`, per `tests/test_e2e_table_editor.py:100` —
+  `data-op="element-edit"` exists nowhere in the repo.
 - Task 4's measurements may contradict Task 6's clear implementation. If they do, the
   spec is wrong and must be revised before writing code — do not adapt the code to a
   measurement the spec denies. The table in Task 4 Step 2 states the branch for each.
