@@ -151,3 +151,184 @@ def test_pasted_katex_becomes_its_latex_source(page):
         "so a (b)-first pass destroys the subtree before its annotation is read"
     )
     assert "<span" not in text
+
+
+def _select_text(page, root_id, needle):
+    """Select `needle` inside `root_id` by walking text nodes — the same offset
+    mapping apply() uses, so the test exercises the real path."""
+    return page.evaluate(
+        """([rootId, needle]) => {
+        const root = document.getElementById(rootId);
+        const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+        let acc = '', nodes = [];
+        while (walker.nextNode()) { nodes.push([walker.currentNode, acc.length]);
+                                    acc += walker.currentNode.nodeValue; }
+        const at = acc.indexOf(needle);
+        if (at < 0) return false;
+        const end = at + needle.length;
+        let sN, sO, eN, eO;
+        for (const [node, base] of nodes) {
+            const len = node.nodeValue.length;
+            if (sN === undefined && at >= base && at <= base + len) {
+                sN = node; sO = at - base;
+            }
+            if (end >= base && end <= base + len) { eN = node; eO = end - base; }
+        }
+        const range = document.createRange();
+        range.setStart(sN, sO); range.setEnd(eN, eO);
+        const sel = window.getSelection();
+        sel.removeAllRanges(); sel.addRange(range);
+        return true;
+    }""",
+        [root_id, needle],
+    )
+
+
+def test_refuses_a_selection_wholly_inside_a_maths_region(page):
+    _page_with_module(page)
+    page.evaluate(
+        """() => { document.getElementById('root').outerHTML =
+        '<div id="root" contenteditable="true">a \\\\(x + y\\\\) b</div>'; }"""
+    )
+    assert _select_text(page, "root", "x")
+    outcome = page.evaluate(
+        "() => libliColour.apply(document.getElementById('root'), 'red')"
+    )
+    assert outcome == "refused"
+    html = page.evaluate("() => document.getElementById('root').innerHTML")
+    assert "tc-red" not in html, "a refusal must not mutate the DOM"
+
+
+def test_refuses_a_selection_straddling_a_maths_boundary(page):
+    _page_with_module(page)
+    page.evaluate(
+        """() => { document.getElementById('root').outerHTML =
+        '<div id="root" contenteditable="true">a \\\\(x + y\\\\) b</div>'; }"""
+    )
+    assert _select_text(page, "root", "a \\(x")
+    assert (
+        page.evaluate("() => libliColour.apply(document.getElementById('root'), 'red')")
+        == "refused"
+    )
+
+
+def test_allows_a_selection_enclosing_a_whole_maths_region(page):
+    """The one ALLOWED branch. Without this case an implementation that refuses every
+    intersection passes the whole suite and the falsification rule catches nothing."""
+    _page_with_module(page)
+    page.evaluate(
+        """() => { document.getElementById('root').outerHTML =
+        '<div id="root" contenteditable="true">a \\\\(x+y\\\\) b</div>'; }"""
+    )
+    assert _select_text(page, "root", "a \\(x+y\\) b")
+    assert (
+        page.evaluate("() => libliColour.apply(document.getElementById('root'), 'red')")
+        == "ok"
+    )
+    html = page.evaluate("() => document.getElementById('root').innerHTML")
+    assert "tc-red" in html
+    assert "\\(x+y\\)" in html, "the delimiters must survive intact"
+
+
+def test_refuses_enclosing_a_region_that_contains_an_element_boundary(page):
+    """The carve-out on the ALLOWED branch. Such a region already round-trips lossily
+    through sanitize_cell with or without colour, so a span there is not a gesture the
+    storage layer can support. Without this case, an implementation that ignores
+    element boundaries entirely passes every other D8 test."""
+    _page_with_module(page)
+    page.evaluate(
+        """() => { document.getElementById('root').outerHTML =
+        '<div id="root" contenteditable="true">a \\\\(x + <b>y</b>\\\\) b</div>'; }"""
+    )
+    # Pin the delimiters BEFORE selecting. With single backslashes Python emits a
+    # SyntaxWarning, the JS literal collapses \( to (, and the DOM text becomes
+    # "a (x + y) b" with no delimiters at all -- _select_text then returns False and
+    # the test dies on the wrong assertion while the carve-out goes unexercised.
+    assert "\\(" in page.evaluate("() => document.getElementById('root').textContent")
+    assert _select_text(page, "root", "a \\(x + y\\) b")
+    assert (
+        page.evaluate("() => libliColour.apply(document.getElementById('root'), 'red')")
+        == "refused"
+    )
+
+
+def test_refuses_inside_a_marker(page):
+    """D10: markers are parsed AFTER sanitisation, so a coloured marker becomes the
+    stored answer. The test runs on every surface, so no opt-in attribute is needed."""
+    _page_with_module(page)
+    page.evaluate(
+        """() => { document.getElementById('root').outerHTML =
+        '<div id="root" contenteditable="true">pick {{a|b}} now</div>'; }"""
+    )
+    assert _select_text(page, "root", "a")
+    assert (
+        page.evaluate("() => libliColour.apply(document.getElementById('root'), 'red')")
+        == "refused"
+    )
+
+
+def test_fails_closed_on_an_unclosed_delimiter(page):
+    _page_with_module(page)
+    page.evaluate(
+        """() => { document.getElementById('root').outerHTML =
+        '<div id="root" contenteditable="true">a \\\\(x + y b</div>'; }"""
+    )
+    assert _select_text(page, "root", "y b")
+    assert (
+        page.evaluate("() => libliColour.apply(document.getElementById('root'), 'red')")
+        == "refused"
+    )
+
+
+def test_clear_over_an_enclosing_selection_removes_stored_colour(page):
+    """The primary clear path. Stored colour is class-carried with NO inline colour,
+    and an enclosing selection nests the sentinel span OUTSIDE it — so the surviving
+    tc-* is a DESCENDANT. An ancestors-only rule leaves Clear a silent no-op here."""
+    _page_with_module(page)
+    page.evaluate(
+        """() => { document.getElementById('root').outerHTML =
+        '<div id="root" contenteditable="true">'
+        + '<span class="tc-red">abc</span>def</div>'; }"""
+    )
+    assert _select_text(page, "root", "abcdef")
+    assert (
+        page.evaluate("() => libliColour.apply(document.getElementById('root'), null)")
+        == "ok"
+    )
+    html = page.evaluate("() => document.getElementById('root').innerHTML")
+    assert "tc-red" not in html
+    assert "abcdef" in page.evaluate(
+        "() => document.getElementById('root').textContent"
+    )
+
+
+def test_clear_over_a_partial_selection_leaves_the_remainder_coloured(page):
+    """execCommand does NOT split class-carried colour (there is no inline colour to
+    split), so apply() must split explicitly or Clear wipes the whole run."""
+    _page_with_module(page)
+    page.evaluate(
+        """() => { document.getElementById('root').outerHTML =
+        '<div id="root" contenteditable="true">'
+        + '<span class="tc-red">abc</span></div>'; }"""
+    )
+    assert _select_text(page, "root", "b")
+    assert (
+        page.evaluate("() => libliColour.apply(document.getElementById('root'), null)")
+        == "ok"
+    )
+    html = page.evaluate("() => document.getElementById('root').innerHTML")
+    assert html.count("tc-red") == 2, f"a and c must stay coloured, b cleared: {html}"
+
+
+def test_clearing_a_link_keeps_the_link(page):
+    _page_with_module(page)
+    page.evaluate(
+        """() => { document.getElementById('root').outerHTML =
+        '<div id="root" contenteditable="true">'
+        + '<a href="/courses/n/12/" class="tc-red">link</a></div>'; }"""
+    )
+    assert _select_text(page, "root", "link")
+    page.evaluate("() => libliColour.apply(document.getElementById('root'), null)")
+    html = page.evaluate("() => document.getElementById('root').innerHTML")
+    assert 'href="/courses/n/12/"' in html, "clearing must never unwrap a link"
+    assert "tc-red" not in html

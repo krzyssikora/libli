@@ -222,6 +222,231 @@
     return start && start === end ? start : null;
   }
 
+  // ---- Protected regions: maths spans and {{...}} markers -------------------
+  //
+  // Colouring inside either is a permanent corruption, not a cosmetic slip:
+  //   - maths: sanitize_cell stashes a balanced \(...\) region INCLUDING any injected
+  //     markup, then escapes it. Both sanitisers are idempotent, so re-saving never
+  //     heals it -- the damage outlives the undo window.
+  //   - markers: fillblank.parse runs AFTER sanitize_html, so {{<span>a</span>|b}}
+  //     still matches the marker regex and the markup becomes the accepted answer.
+  //
+  // The marker test runs on EVERY surface, not just marker-bearing fields: apply()
+  // receives only `root` and has no signal for which field it is editing, and "{{"
+  // occurs zero times in the imported corpus, so the false-refusal cost is nil.
+  var MATH_RE = /\\\(|\\\)|\\\[|\\\]/g;
+  var MARKER_RE = /\{\{(.*?)\}\}/g;
+
+  // A DOM Range yields (node, offset) pairs, not indices into textContent. This is
+  // the mapping step; getting it wrong is how a region test silently passes.
+  function textOffsets(root, range) {
+    // Handles BOTH container kinds. A selection's Range has TEXT containers, but
+    // selectNodeContents(el) yields an ELEMENT container -- and a text-node-only walk
+    // returns null for those, which made splitOrClear dead code and let Clear wipe a
+    // whole coloured run instead of splitting it.
+    var texts = [];
+    var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null, false);
+    var acc = 0, node;
+    while ((node = walker.nextNode())) {
+      texts.push({ node: node, start: acc });
+      acc += node.nodeValue.length;
+    }
+    function offsetOf(container, offset) {
+      var i;
+      if (container.nodeType === 3) {
+        for (i = 0; i < texts.length; i++) {
+          if (texts[i].node === container) return texts[i].start + offset;
+        }
+        return null;
+      }
+      // Element container: `offset` counts CHILD NODES, so the text offset is the
+      // start of the first text node at or after that child.
+      var limit = container.childNodes[offset] || null;
+      if (!limit) {
+        var last = null;
+        for (i = 0; i < texts.length; i++) {
+          if (container.contains(texts[i].node)) last = texts[i];
+        }
+        return last ? last.start + last.node.nodeValue.length : null;
+      }
+      for (i = 0; i < texts.length; i++) {
+        if (texts[i].node === limit || limit.contains(texts[i].node)) {
+          return texts[i].start;
+        }
+      }
+      return null;
+    }
+    var start = offsetOf(range.startContainer, range.startOffset);
+    var end = offsetOf(range.endContainer, range.endOffset);
+    if (start === null || end === null) return null;
+    return [Math.min(start, end), Math.max(start, end)];
+  }
+
+  // Returns {regions: [[start, end], ...], ok: bool}. ok=false means a delimiter is
+  // unbalanced or unclosed anywhere in the scan root -- apply() then FAILS CLOSED.
+  function regions(root) {
+    var text = root.textContent || "";
+    var out = [], ok = true, open = null, m;
+    MATH_RE.lastIndex = 0;
+    while ((m = MATH_RE.exec(text))) {
+      var isOpen = m[0] === "\\(" || m[0] === "\\[";
+      if (isOpen) {
+        if (open !== null) { ok = false; break; }
+        open = m.index;
+      } else {
+        if (open === null) { ok = false; break; }
+        out.push([open, m.index + m[0].length]);
+        open = null;
+      }
+    }
+    if (open !== null) ok = false;
+    MARKER_RE.lastIndex = 0;
+    while ((m = MARKER_RE.exec(text))) out.push([m.index, m.index + m[0].length]);
+    return { regions: out, ok: ok };
+  }
+
+  // Four cases, per the spec's table. The enclosing case is ALLOWED only when the
+  // region carries no element boundary: foreColor's behaviour across a boundary is
+  // recorded as an unknown, and sanitize_cell already round-trips such a region
+  // lossily, so a span there is not a gesture the storage layer can support.
+  function regionVerdict(root, span) {
+    var found = regions(root);
+    if (!found.ok) return "refused";
+    for (var i = 0; i < found.regions.length; i++) {
+      var r = found.regions[i];
+      var enclosing = span[0] <= r[0] && span[1] >= r[1];
+      var disjoint = span[1] <= r[0] || span[0] >= r[1];
+      if (disjoint) continue;
+      if (!enclosing) return "refused";
+      if (regionCrossesElement(root, r)) return "refused";
+    }
+    return "ok";
+  }
+
+  function regionCrossesElement(root, region) {
+    var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null, false);
+    var acc = 0, owner = null, node;
+    while ((node = walker.nextNode())) {
+      var start = acc, end = acc + node.nodeValue.length;
+      acc = end;
+      if (end <= region[0] || start >= region[1]) continue;
+      if (owner === null) owner = node.parentNode;
+      else if (owner !== node.parentNode) return true;
+    }
+    return false;
+  }
+
+  function styleWithCss(on) {
+    try { document.execCommand("styleWithCSS", false, on); } catch (e) { /* ignore */ }
+  }
+
+  function announce(root) {
+    var editor = root.closest ? root.closest(".editor") : null;
+    var text = editor && editor.getAttribute("data-msg-colour-region");
+    if (!text) return;                       // degrade silently, as the conflict path does
+    var bar = document.createElement("div");
+    bar.className = "op-error";
+    bar.setAttribute("data-colour-refusal", "");
+    bar.textContent = text;
+    editor.prepend(bar);
+    setTimeout(function () { bar.remove(); }, 6000);
+  }
+
+  function eachTc(el, fn) {
+    if (tcClassOf(el)) fn(el);
+    var inner = el.querySelectorAll(".tc-red, .tc-blue, .tc-green, .tc-orange");
+    for (var i = 0; i < inner.length; i++) fn(inner[i]);
+  }
+
+  function apply(root, slot) {
+    var sel = window.getSelection();
+    if (!sel || !sel.rangeCount) return "refused";
+    var range = sel.getRangeAt(0);
+    if (!root.contains(range.commonAncestorContainer)) return "refused";
+    var span = textOffsets(root, range);
+    if (!span) return "refused";
+    if (regionVerdict(root, span) === "refused") { announce(root); return "refused"; }
+
+    var value = SENTINEL;
+    if (slot) {
+      value = null;
+      for (var i = 0; i < MAP.length; i++) {
+        if (MAP[i].slot === slot) {
+          value = "rgb(" + MAP[i].rgb.join(", ") + ")";
+          break;
+        }
+      }
+      if (!value) return "refused";   // unknown slot: refuse, never guess a colour
+    }
+    styleWithCss(true);
+    try { document.execCommand("foreColor", false, value); } catch (e) { /* ignore */ }
+    styleWithCss(false);   // MUST reset: document-global, and a leaked true breaks bold
+
+    if (slot) {
+      mapColours(root, { dropUnmapped: true });
+      return "ok";
+    }
+
+    // Clear. Stored colour is class-carried, so execCommand cannot split it and the
+    // surviving tc-* may be an ANCESTOR (partial selection) or a DESCENDANT (the
+    // selection enclosed it). Walk both directions, and split explicitly when the
+    // range covers only part of a coloured element.
+    var sentinels = root.querySelectorAll('[style*="rgb(1, 2, 3)"]');
+    for (var s = 0; s < sentinels.length; s++) {
+      var el = sentinels[s];
+      eachTc(el, clearTc);                                   // el + descendants
+      var up = el.parentNode;
+      while (up && up !== root) {
+        if (tcClassOf(up)) splitOrClear(root, up, span);
+        up = up.parentNode;
+      }
+      clearInlineColour(el);
+    }
+    dropAttributelessSpans(root);
+    return "ok";
+  }
+
+  // If the cleared range covers the whole element, drop its class. Otherwise split it
+  // into cleared and still-coloured parts -- execCommand does not do this for
+  // class-carried colour, and stripping wholesale would clear text outside the range.
+  function splitOrClear(root, el, span) {
+    var elRange = document.createRange();
+    elRange.selectNodeContents(el);
+    var bounds = textOffsets(root, elRange);
+    if (!bounds) { clearTc(el); return; }
+    if (span[0] <= bounds[0] && span[1] >= bounds[1]) { clearTc(el); return; }
+    var slot = tcClassOf(el);
+    clearTc(el);
+    var walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null, false);
+    var acc = bounds[0], node, pending = [];
+    while ((node = walker.nextNode())) {
+      pending.push([node, acc, acc + node.nodeValue.length]);
+      acc += node.nodeValue.length;
+    }
+    for (var i = 0; i < pending.length; i++) {
+      var entry = pending[i], text = entry[0], from = entry[1], to = entry[2];
+      if (to <= span[0] || from >= span[1]) {
+        var keep = document.createElement("span");
+        keep.className = "tc-" + slot;
+        text.parentNode.insertBefore(keep, text);
+        keep.appendChild(text);
+      }
+    }
+  }
+
+  // Narrower than tidyPastedSpans' rule (b): this one unwraps ONLY spans with zero
+  // attributes -- the shells left behind after clearing removes a class and a colour.
+  // Rule (b) additionally unwraps class/style-only spans and is paste-gated.
+  function dropAttributelessSpans(root) {
+    var spans = root.querySelectorAll("span");
+    for (var i = spans.length - 1; i >= 0; i--) {
+      var span = spans[i];
+      if (span.attributes.length) continue;
+      while (span.firstChild) span.parentNode.insertBefore(span.firstChild, span);
+      span.parentNode.removeChild(span);
+    }
+  }
+
   window.libliColour = {
     MAP: MAP,
     SENTINEL: SENTINEL,
@@ -229,6 +454,8 @@
     slotFor: slotFor,
     mapColours: mapColours,
     tidyPastedSpans: tidyPastedSpans,
-    activeSlot: activeSlot
+    activeSlot: activeSlot,
+    apply: apply,
+    regions: regions
   };
 })();
