@@ -523,7 +523,7 @@ def test_previewer_dragfill_no_leak_while_attempts_remain(client):
     unit = make_quiz_unit()
     # The stem's blank-placeholder sentinel is irrelevant here: the withhold branch
     # never renders the stem, so any stem passes. (Measured -- the source fixture at
-    # tests/test_questions_2d_quiz_noleak.py:26 uses a ￿-delimited placeholder;
+    # tests/test_questions_2d_quiz_noleak.py:25 uses a ￿-delimited placeholder;
     # this test's two assertions hold either way.)
     q = DragFillBlankQuestionElement.objects.create(
         stem="Cap is X", distractors="Rome", marking_mode="A", max_attempts=2
@@ -531,11 +531,17 @@ def test_previewer_dragfill_no_leak_while_attempts_remain(client):
     DragBlank.objects.create(question=q, correct_token="Paris")
     el = add_element(unit, q)
 
-    body = client.post(
+    resp = client.post(
         _answer_url(unit, el),
         {"slot": ["Rome"], "attempt": "1"},
         HTTP_X_REQUESTED_WITH="fetch",
-    ).content.decode()
+    )
+    # The status + positive assertions are load-bearing: with only the two "not in"
+    # checks plus the persistence check, a 403 body satisfies all three, so the test
+    # would stay green through a COMPLETE revert of the feature.
+    assert resp.status_code == 200
+    body = resp.content.decode()
+    assert "is-incorrect" in body
     assert "Correct token:" not in body
     assert "question__reveal" not in body
     _assert_nothing_persisted()
@@ -728,7 +734,7 @@ def test_enrolled_path_ignores_client_supplied_attempt(client):
 - [ ] **Step 2: Run to verify they fail**
 
 Run: `uv run pytest tests/test_quiz_previewer_answer.py -q`
-Expected: the previewer tests FAIL with 403 (the branch does not exist yet). `test_non_privileged_user_still_denied`, `test_enrolled_staff_still_persists`, `test_enrolled_path_ignores_client_supplied_attempt`, and `test_previewer_cannot_finish_a_quiz` should already PASS — they pin behaviour that must survive (`quiz_finish` is untouched by this task, so a previewer already gets 403 there).
+Expected: the previewer tests FAIL with 403 (the branch does not exist yet). Five tests should already PASS — they pin behaviour that must survive: `test_non_privileged_user_still_denied`, `test_enrolled_staff_still_persists`, `test_enrolled_path_ignores_client_supplied_attempt`, `test_previewer_cannot_finish_a_quiz` (`quiz_finish` is untouched by this task, so a previewer already gets 403 there), and `test_previewer_dragfill_no_leak_while_attempts_remain` (its `assert resp.status_code == 200` is what stops it passing vacuously against the pre-change 403 — expect **14** failures, not 15).
 
 - [ ] **Step 3: Add `st["locked"]` to `_quiz_render_feedback`**
 
