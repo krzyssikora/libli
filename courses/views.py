@@ -862,7 +862,8 @@ def element_state_save(request, slug, node_pk):
     # Practice state is personal self-tracking (ungraded, absent from analytics), so
     # ANY viewer who can access the lesson persists their own -- not just enrolled
     # students. This deliberately diverges from seen/quiz, which ignore previewers so
-    # authors don't pollute their own SCROLL-tracking and quiz analytics. It is those
+    # authors don't pollute their own SCROLL-tracking and quiz analytics -- quiz now
+    # SERVES previewers live forms, but still records nothing for them. It is those
     # two specifically, NOT progress writes in general: an explicit "Mark as done"
     # click now persists for previewers too (see complete()). The can_access_course
     # gate above is the only guard the write needs.

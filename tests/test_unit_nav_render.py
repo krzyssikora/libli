@@ -797,9 +797,11 @@ def test_crumb_survives_the_no_js_check_answer_re_render(client):
 
 @pytest.mark.django_db
 def test_crumb_survives_the_no_js_quiz_answer_re_render(client):
-    """quiz_answer needs an ENROLLED student (a previewer gets PermissionDenied), an
-    unlocked response with attempts left, and a NON-EMPTY answer — an empty POST
-    takes the validation branch instead."""
+    """quiz_answer needs an ENROLLED student here: the actor is enrolled so this
+    exercises the PERSISTED answer path; a non-enrolled viewer would take
+    quiz_answer's ephemeral previewer branch instead, which writes nothing. Also
+    needs an unlocked response with attempts left, and a NON-EMPTY answer — an
+    empty POST takes the validation branch instead."""
     student = _make_student("crumb_qa")
     course, part, unit, element, right = _quiz_course()
     EnrollmentFactory(student=student, course=course)
