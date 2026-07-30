@@ -53,10 +53,23 @@ reader trusts them:
 
 - `courses/views.py:1201-1203` — "a previewer gets a READ-ONLY quiz, never live forms that 403 on
   submit." Every clause becomes false.
-- `courses/views.py:862-867` — `check_answer`'s "This deliberately diverges from seen/quiz, which
-  ignore previewers…". **Narrow, do not delete:** `seen` still ignores previewers (`views.py:688-698`
-  is untouched by this change), so the divergence shrinks from `seen/quiz` to `seen`. The `seen`
-  rationale remains load-bearing for
+- `courses/views.py:860-866` — `check_answer`'s "This deliberately diverges from seen/quiz, which
+  ignore previewers so authors don't pollute their own SCROLL-tracking and quiz analytics. It is
+  those two specifically, NOT progress writes in general".
+
+  **Add a clarifying clause; do NOT narrow `seen/quiz` to `seen`, and do not touch "those two".**
+  An earlier draft of this spec called for that narrowing. It was wrong, and the comment's own gloss
+  is why: its sense of *ignore* is **persistence** — "so authors don't pollute their own
+  SCROLL-tracking and quiz analytics". Under that sense the sentence stays **true** after this
+  change, because the entire design is a live gradeable quiz that *persists nothing*, so previewer
+  quiz data still never reaches analytics. Narrowing it would delete an accurate statement and
+  weaken the very guarantee this change is built on. Only under the *other* reading — "quiz rejects
+  previewers' requests" — does it become false.
+
+  What genuinely changed is that quiz now **serves** previewers live forms. So append a clause to
+  that effect (e.g. "— quiz now serves previewers live forms, but still records nothing for them")
+  and leave the persistence contrast, the "those two specifically" clause, and the `seen` rationale
+  intact. The `seen` half remains load-bearing for
   `tests/test_courses_progress.py::test_previewer_seen_no_write_and_ignores_stored_completion`.
 - `tests/test_unit_edit_link.py:328` — docstring justifying why the actor is enrolled, stating that
   `quiz_answer` raises `PermissionDenied` for previewers.
@@ -90,8 +103,14 @@ is ever written.
   who reloads the page gets a fresh attempt budget. This is already true of the authoring "try it"
   preview; matching it is consistent, and the alternative (server-side attempt state) would require
   exactly the persistence this change exists to avoid.
-- **The enrolled student path does not change.** Not its grading, attempt enforcement, locking,
-  reveal gating, `[N]`/`[R]` neutral handling, or 409-on-submitted behaviour.
+- **The enrolled student path's *server-side* behaviour does not change.** Not its grading, attempt
+  enforcement, lock-state machine, reveal gating, `[N]`/`[R]` neutral handling, or 409-on-submitted
+  behaviour.
+
+  **One deliberate carve-out:** the client-side `[data-quiz-locked]` freeze selector is widened, and
+  that *is* observable to an enrolled student — it fixes an existing defect where a locked
+  extended-response question stays editable until reload (Component 5). It is in scope as a defect
+  fix, and this Non-goal must not be cited to skip it.
 
 ## Architecture
 
@@ -152,7 +171,7 @@ attributes its consumers touch:
 
 | Attribute | Value | Read by |
 |---|---|---|
-| `.locked` | the ephemeral lock decision; **`False` unconditionally on the validation branch** | `quiz_feedback_context` |
+| `.locked` | the ephemeral lock decision; **`False` unconditionally on the validation branch** | `quiz_feedback_context`, and `_quiz_render_feedback`'s new `st["locked"]` write |
 | `.attempt_count` | `attempt`, or `attempt - 1` on the validation branch | `quiz_feedback_context` (for `attempts_left`) |
 | `.latest_answer` | `answer_to_json(answer)` | `_quiz_render_feedback`'s `rehydrate` call |
 
@@ -361,8 +380,11 @@ The counter is gated so the enrolled path is behaviourally unaffected: the serve
 entirely on the enrolled path, where attempt state comes from the persisted
 `QuestionResponse.attempt_count`.
 
-**`attempt` is a reserved answer-POST field name.** `quiz.js` now adds it to the body of *every* quiz
-answer POST, enrolled path included, and that body is fed straight to
+**`attempt` is a reserved answer-POST field name.** `quiz.js` now adds it to every POST **from the
+per-question submit handler**, enrolled path included. The Finish flush at `quiz.js:61-73` builds its
+own `new FormData(f)` per open form and hits the same endpoint; it deliberately does **not** append
+`attempt` — the server ignores the field on the enrolled path, and Finish is hidden for previewers,
+so the flush has no attempt semantics to carry. Leave that block unedited. The body is fed straight to
 `question.build_answer(request.POST)`. This is safe because all ten `build_answer` implementations
 read only `choice`, `answer`, `blank`, `slot`, and `row_<pk>` (`courses/models.py:1693, 1820, 1849,
 1883, 1905, 1965, 2017, 2076, 2159, 2254`) — verified, not assumed. Recorded so a future question
@@ -374,9 +396,11 @@ by `parse_attempt`.
 
 | Family | Control | Example |
 |---|---|---|
-| 2D / grid | wrapping `<fieldset>` | `dragtoimagequestionelement.html:7`, `multigridquestionelement.html:7` |
-| drag-to-image | `<select name="slot">` | `courses_extras.py:262-270` |
+| 2D / grid | wrapping `<fieldset>` — which also covers every `<select name="slot">`, since those render *inside* it (`dnd.py:85, 107, 126`) | `dragtoimagequestionelement.html:7`, `multigridquestionelement.html:7`, `matchpairquestionelement.html:7` |
 | extended response | bare `<textarea>`, **no fieldset at all** | `extendedresponsequestionelement.html:7-9` |
+
+Two residual families, not three: `select` appears in the widened selector defensively only, because
+disabling the fieldset already disables the selects inside it.
 
 For an enrolled student the next page load repairs this; a JS previewer never gets a server render
 carrying `locked`, so those controls stay interactive after locking. Harmless today only because the
@@ -389,9 +413,20 @@ submits an extended-response question currently sees "Submitted for review" besi
 answer box until the next page load. The full selector is a strict improvement to both paths, not a
 scope expansion.
 
-**Widen `editor.js` in the same commit.** `courses/static/courses/js/editor.js` freezes the authoring
-"try it" preview with the identical too-narrow selector
-(`qEl.querySelectorAll("input, button[type=submit]")`) and misses the same three families. Leaving it
+**Widen `editor.js` in the same commit.** `courses/static/courses/js/editor.js:261` freezes the
+authoring "try it" preview with a similarly-too-narrow selector and misses the same families. The two
+are **not** identical today and the post-change form of each is specified here so they do not diverge
+silently:
+
+| Site | Before | After |
+|---|---|---|
+| `quiz.js:46` | `form.querySelectorAll("input, button")` | `form.querySelectorAll("input, button, select, textarea, fieldset")` |
+| `editor.js:261` | `qEl.querySelectorAll("input, button[type=submit]")` | `qEl.querySelectorAll("input, button[type=submit], select, textarea, fieldset")` |
+
+`editor.js` **keeps** its `[type=submit]` qualifier: its root is the whole `[data-question]` element
+rather than the form, so bare `button` there could reach controls the quiz freeze never touches. (No
+non-submit `<button>` exists inside a question form today, so the choice is currently unobservable —
+which is exactly why it must be written down rather than decided silently.) Leaving it
 would let the two client-side freezes diverge immediately after a change whose stated rationale is
 that code-identical duplicates rot apart (issue #169) — and it would be a strange look to extract the
 Python half to stop twin drift while creating fresh drift in the JS half. Widen both.
@@ -609,10 +644,12 @@ state has implemented the explicit non-goal.
 **Stopping condition — parity is asserted only for POSTs the student path accepts**, i.e. up to and
 including the locking submission. Past that point the two paths *provably* diverge and are meant to:
 a further student POST returns 409 / redirect via `_quiz_locked_response` (`views.py:1297-1302`),
-while the stateless previewer branch returns a fresh 200 fragment. For `[N]`/`[R]` that boundary is
-the *second* POST (locked on first submit); for AUTO it is the POST after correct-or-exhausted. A
-test that keeps driving past it compares a 409 body against a feedback fragment and fails for the
-wrong reason.
+while the stateless previewer branch returns a fresh 200 fragment. State the boundary **ordinally-free
+for both modes**: it is the POST *after the locking submission* — for `[N]`/`[R]` that is the single
+first real submit, for AUTO the correct-or-exhausted one. Empty POSTs never advance toward it (they
+lock nothing), so an inserted empty POST shifts the boundary by one position and any rule pinned to
+"the second POST" would stop a POST early. A test that keeps driving past the boundary compares a 409
+body against a feedback fragment and fails for the wrong reason.
 
 **How `N` advances is also part of the rule.** `N` increments only after a POST whose response is
 *not* the validation panel — the server-side analogue of `quiz.js`'s "increment unless
@@ -681,8 +718,8 @@ test by weakening the withhold gate.
 ### Existing test to update
 
 `tests/test_quiz_views.py:53` `test_quiz_unit_get_no_submission_for_unenrolled_preview` is the only
-test whose *assertions* pin the old behaviour (the four prose sites listed under "The cause" also
-describe it).
+test whose *assertions* pin the old behaviour. The five prose sites listed under "Prose that
+documents the opposite behaviour" also describe it, and all five are required edits.
 
 - `assert not QuizSubmission.objects.filter(unit=unit).exists()` — **load-bearing, keep unchanged.**
 - `assert b"Finish quiz" not in resp.content` — still correct (Finish stays hidden); verify rather
