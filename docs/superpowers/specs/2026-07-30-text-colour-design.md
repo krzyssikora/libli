@@ -1057,16 +1057,35 @@ but they ship as separate PRs.
 
 Stated as claims to test, not as facts:
 
-1. **What KaTeX serialises.** Source-level, `katex.min.js` concatenates `color: ` + the raw
-   token into an inline `style`. Whether `el.style.color` reads back as `"red"` or
-   `rgb(255, 0, 0)`, and whether the colour lands on the wrapper or on descendants, must be
-   checked in a real browser before the slot table is written.
-2. **What `execCommand("foreColor")` emits** with `styleWithCSS` true and false, in Chrome
-   and Firefox — a fresh `span`, a style on an existing inline element (including an `<a>`),
-   or a style on the block. Includes: whether a straddling selection is ever split into more
-   than one span (an earlier draft asserted it is; Chromium measurement says one span), and
-   whether Firefox matches Chromium on the four clear-path shapes tabulated above. This decides whether the `TC_CLASS_TAGS` widening and the
-   move-off-block rule are load-bearing or belt-and-braces.
+1. **What KaTeX serialises — MEASURED (Chromium, Task 4 probe).**
+   `katex.render('\\color{red}{x^2}', el, {throwOnError: false})` reads back
+   `el.style.color` as the bare keyword `"red"`, not `rgb(255, 0, 0)` — the token
+   survives verbatim through KaTeX's own `color: ` concatenation. Colour lands on
+   **five separate descendant** spans (`<span class="mord …">` / `<span class="… mtight">`),
+   never on the `.katex` root, so Task 7's assertions anchor on those descendants as
+   planned. None of those five `style` attributes also carries `height` or
+   `vertical-align` — those live in the same render on sibling `.strut`/`.vlist`/
+   `.pstrut` spans that carry no colour, so colour and layout dimensions never share one
+   `style` attribute here. `normaliseColour` must accept the bare keyword form (it
+   already does), and Task 7's clear-colour pass should remove the `color` **longhand**
+   (`style.removeProperty('color')`) rather than the whole `style` attribute — this
+   render never needed that distinction, but nothing guarantees a future KaTeX
+   construct won't combine both on one element.
+2. **What `execCommand("foreColor")` emits — MEASURED (Chromium, `styleWithCSS(true)`,
+   Task 4 probe).** Over a plain word with no existing inline wrapper it inserts a
+   **fresh `<span style="color: rgb(r, g, b)">`** — `#B2372A` in produced
+   `<span style="color: rgb(178, 55, 42);">alpha</span>` out — always the `rgb(r, g, b)`
+   form. Clearing (the `rgb(1, 2, 3)` sentinel) over a range **enclosing** a stored
+   `<span class="tc-red">` produced
+   `<span style="color: rgb(1, 2, 3);"><span class="tc-red">abc</span>def</span>` —
+   confirming the surviving class is a **descendant** of the sentinel, exactly as
+   tabulated above; the clearing-table row for the enclosing case is now measured fact,
+   not projection. Still genuinely open, and **not** resolved by this probe: whether
+   `foreColor` ever styles an *existing* inline wrapper instead of inserting a fresh
+   span (this probe's selection had no wrapper to test that branch), and whether
+   Firefox matches Chromium on any of the above. This decides whether the
+   `TC_CLASS_TAGS` widening and the move-off-block rule are load-bearing or
+   belt-and-braces.
 3. **Whether the two wrappers together cover every render, and how much they overlap.**
    `auto-render.min.js` resolves `katex` as a property of the same `window.katex` object, so
    wrapping `window.katex.render` probably also fires once per inline span — on a *detached*
