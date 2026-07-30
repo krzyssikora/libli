@@ -36,8 +36,9 @@ Authors cannot colour text. Two consequences:
 | D5 | Backfill via a **guarded management command**, run locally before the prod cutover | Colour then reaches prod through the sanctioned #68 export/import flow with no prod-side migration. |
 | D6 | Backfill matches on **content, never node identity** | Many matematyka nodes have been renamed. Titles are not read or written at any point. |
 | D7 | Parts `001_zbiory_liczbowe` and `002_elementy_logiki` are **excluded**, on both the source and DB sides | The user has made significant manual changes there. Those two parts hold only 29 of 697 spans (4%), so exclusion costs almost nothing. |
-| D8 | `apply()` **refuses** any selection intersecting a `\(…\)` / `\[…\]` region, unless it strictly encloses whole regions | On the cell path the damage is permanent, not cosmetic (see "Maths overlap"). |
+| D8 | `apply()` **refuses** any selection intersecting a `\(…\)` / `\[…\]` region, unless it strictly encloses whole regions containing no element boundary | On the cell path the damage is permanent, not cosmetic (see "Protected regions"). |
 | D9 | Two distinct DOM passes: `mapColours()` and `tidyPastedSpans()` | They have opposite duties. Conflating them destroys rendered KaTeX (see "Two passes"). |
+| D10 | The same refusal covers `{{…}}` author markers | Allowing `span` opens a **new** corruption path: markers are parsed *after* sanitisation, so a coloured marker becomes the stored answer. See "Protected regions". |
 
 ### Non-goals
 
@@ -45,6 +46,8 @@ Authors cannot colour text. Two consequences:
   contrast work, and no imported content uses it.
 - Colouring *inside* a maths expression. That is `\color{}`'s job and the maths editor
   already offers it. D8 is the enforced boundary.
+- Colouring *inside* a `{{…}}` blank/choice marker. D10 refuses it; the marker's interior is
+  parsed data, not prose.
 - Restoring black, gray, magenta, purple, yellow or hex colours (109 spans, 16%). They
   drop to plain text. Explicitly accepted by the user: "the colours used in matematyka
   do not have to reflect the originals, some of them may be skipped".
@@ -181,9 +184,22 @@ Field coverage cannot be read off field names — there are **three** sanitisers
 
 | sanitiser | fields | in scope? |
 |---|---|---|
-| `sanitize_html` | `TextElement.body`, `SpoilerElement.body`, `CalloutElement.body`, `QuestionElement.stem`/`.explanation` on every concrete question type | yes |
+| `sanitize_html` | `TextElement.body`, `SpoilerElement.body`, `CalloutElement.body`, `GuessNumberElement.success_message` (`models.py:779`), `QuestionElement.stem`/`.explanation` on every concrete question type (`models.py:1604-1605`) | yes |
 | `sanitize_cell` | table cells (`models.py:962`), filltable cells (`:1134`), MCQ `options` (`:738`), choicegrid cycler options (`:805`), gallery `img["desc"]` (`:1278`), `element_forms.py:419,513` | table + filltable cells only; the rest are **out of scope** (no authoring surface for colour, no imported colour measured in them) |
 | `sanitize_stem_segments` (`courses/switchgrid.py:54`, used by `builders.py:205,215,278,290,314`) | `FillGateElement.stem`, `SwitchGateElement.stem`, `GuessNumberElement.stem`, `SwitchGridElement.lines[*].stem` | yes for the three in `RICH_TEXT_FIELDS`; `SwitchGridElement.lines[*].stem` is out of scope |
+
+**Some fields are sanitised TWICE on the import path, and the key must reproduce the
+composition.** `builders.py:214` creates `FillBlankQuestionElement` with
+`stem=sanitize_stem_segments(...)`, and `QuestionElement.save()` then re-applies
+`sanitize_html` to `stem` and `explanation` (`models.py:1604-1605`). The stored value is
+`sanitize_html(sanitize_stem_segments(x))`, which is materially different from
+`sanitize_html(x)` — `sanitize_cell` strips block tags and `_canon_math` escapes the maths
+spans. A key built with either sanitiser alone matches **nothing** for that field. The same
+audit is required for `DragFillBlankQuestionElement.stem` (`builders.py:360,376,386`).
+
+**The rule is therefore: reproduce the full import write path, in order, including any
+`save()`-time sanitiser that runs after the builder's explicit one** — not "the sanitiser
+that owns the field", which is ambiguous for exactly these fields.
 
 **The three gate stems have two owning sanitisers depending on write path.**
 `sanitize_stem_segments` is documented as used by the import builder, "which bypasses the
@@ -196,7 +212,7 @@ form's clean()-time sanitize" (`switchgrid.py:56-57`), while a form edit goes th
 - `tc-*` must be allowed under **both** `CELL_ALLOWED_CLASSES` and `ALLOWED_CLASSES`, so a
   later form edit of a backfilled stem does not strip the colour.
 
-### Maths overlap (D8)
+### Protected regions (D8, D10)
 
 An earlier draft said an overlapping colour span merely stops the maths rendering and can
 be undone. That is wrong on the cell path. `_MATH_SPAN` (`sanitize.py:65`) is non-greedy
@@ -211,10 +227,32 @@ selection intersects a maths region, with one exception:
 | selection vs. a `\(…\)` / `\[…\]` region | outcome |
 |---|---|
 | wholly outside every region | allowed |
-| strictly encloses one or more whole regions | **allowed** — the span wraps the delimiters rather than splitting them, so the stashed LaTeX is untouched |
+| strictly encloses whole regions, **none of which contains an element boundary** | **allowed** — the span wraps the delimiters rather than splitting them, so the stashed LaTeX is untouched |
+| strictly encloses a region that **does** contain an element boundary | **refused** — see below |
 | wholly inside a region | **refused** |
 | starts inside, ends outside (or vice versa) | **refused** |
 | any region with an unbalanced or unclosed delimiter in the scan root | **refused** (fail closed) |
+
+The element-boundary carve-out is not pedantry. For `\(x + <b>y</b>\)`, `foreColor` emits
+**one span per element boundary** — the same splitting behaviour the spec relies on
+elsewhere — so `\(` and `\)` end up in *different* spans. `_MATH_SPAN` then matches across
+the intervening tags and `_canon_math` escapes them permanently on the cell path: exactly
+the damage D8 exists to prevent, produced by a case an earlier draft called safe.
+
+**`{{…}}` markers are protected identically (D10), and this is a new hazard created by
+this feature.** `fillblank.py`'s documented order is `sanitize_html(raw) → strip_sentinel →
+parse()`, so markers are parsed **after** sanitisation. Before slice 1 a `<span>` inside a
+marker was stripped; once `span` is allowed, `{{<span class="tc-red">a</span>|b}}` still
+matches `_MARKER_RE` (`fillblank.py:28`) and `group(1)` becomes the accepted-answer list —
+the stored answer is HTML markup that no student input can ever match. For
+switchgate/switchgrid/guessnumber the exact-literal `{{choice}}` / `{{42}}` match fails
+instead, dropping the widget or raising `token_count`.
+
+Marker regions get the **same four-case table** as maths regions, found in the **same**
+offset pass. They apply on the surfaces whose stems carry markers — the fill-blank,
+fill-gate, switch-gate, switch-grid and guess-number stems, all edited through
+`_rte_toolbar.html` — so the refusal is wired wherever the swatches appear on a
+marker-bearing field.
 
 **Detection** is not a lookup. A DOM `Range` yields (node, offset) pairs, not indices into
 `root.textContent`, so the plan must implement an explicit mapping step: a `TreeWalker`
@@ -224,10 +262,14 @@ scan root is **the RTE surface** for rich text and **the individual cell** for t
 editors. Delimiters may straddle element boundaries (`\(x + <b>y</b>\)`), which the
 text-offset approach handles by construction and which has a dedicated unit test.
 
-**Refusal is announced, not silent.** An author who selects across maths and clicks a
-swatch must be told why. Reuse the `.op-error` bar pattern already used for the
-editor-conflict message (`text_toolbar.js:126-137`) with a translated string. A silent
-no-op is the data-loss-shaped failure this repo already rejects elsewhere.
+**Refusal is announced, not silent.** An author who selects across maths or a marker and
+clicks a swatch must be told why. Reuse the `.op-error` bar pattern used for the
+editor-conflict message (`text_toolbar.js:126-137`) — and note that pattern reads its text
+from a **template attribute**, not a JS constant. So: `editor.html` emits
+`data-msg-colour-region` on the `.editor` root beside the existing `data-msg-conflict`,
+`text_colour.js` reads it, and degrades silently when the attribute is absent, exactly as
+the conflict path does. **One** message covers both region kinds. A silent no-op is the
+data-loss-shaped failure this repo already rejects elsewhere.
 
 The corpus measurement (0 contaminated maths spans across 697 imported spans) says the
 *imported* content never has this shape. It says nothing about the editor, which is what
@@ -248,6 +290,19 @@ SLOTS   (178, 55, 42) → "red"      light --tc-red
         (255,  0,  0) → "red"      CSS keyword `red`
         …same three rows per slot for blue / green / orange
 ```
+
+**Removing the inline colour is mandatory on the render path too.** An inline
+`style="color:…"` always beats a class in the cascade, so adding `tc-red` while leaving
+KaTeX's inline `red` in place would leave maths raw, theme-unaware and sub-AA — D4 would
+achieve exactly nothing while a test that merely asserts "a colour is present" still
+passed. The D4 e2e therefore asserts the computed colour **equals the `--tc-red` token
+value**.
+
+**Clear the `color` longhand, not the `style` attribute.** KaTeX packs `height`,
+`vertical-align` and `margin-right` into the same attribute; removing it destroys the
+layout. Set `el.style.color = ""`, then `removeAttribute("style")` **only if the attribute
+is now empty**. The byte-identity test uses a KaTeX span whose style carries both `color`
+and a `height`.
 
 **`null` means "no slot", not "delete".** The caller decides the action, and the two
 callers decide differently — this was a contradiction in an earlier draft:
@@ -277,11 +332,20 @@ expression.
 
 | pass | touches | never touches | run by |
 |---|---|---|---|
-| `mapColours(root)` | only elements carrying an **inline colour**: maps it to a `tc-*` class and clears the style (author path), or maps it and leaves unmapped values alone (render path) | any element without inline colour | the KaTeX wrapper; the editor after `apply()`; the editor on `input` |
-| `tidyPastedSpans(root)` | only `span` elements with **no allowed class, no inline colour and no other attribute** — unwraps them | any element carrying semantics: `a`, `b`, `em`, …, or a span with a `tc-*`/`ta-*` class | the editor, on paste only |
+| `mapColours(root, {dropUnmapped})` | only elements carrying an **inline colour**. A **mapped** colour always gets the `tc-*` class added **and** its inline colour removed, on *both* paths. An **unmapped** colour is dropped when `dropUnmapped` (author path) and left untouched otherwise (render path) | any element without inline colour | the KaTeX wrapper; the editor after `apply()`; the editor on `input` |
+| `tidyPastedSpans(root)` | (a) a pasted `.katex` subtree — **replaced by its `annotation[encoding="application/x-tex"]` text wrapped in `\(…\)`**; (b) any other `span` whose class list holds no `tc-*`/`ta-*` token and which carries no attribute other than `class`/`style` — unwrapped | any element carrying semantics: `a`, `b`, `em`, …, or a span with a `tc-*`/`ta-*` class | the editor, on `input` with `inputType` `insertFromPaste` or `insertFromDrop` |
 
-A test asserts rendered KaTeX survives the wrapper byte-for-byte apart from colour
-attributes.
+Rule (a) is not optional and the earlier "unwraps classless spans" predicate could never
+have satisfied it: KaTeX spans always carry `class`, and usually inline `style` and
+`aria-hidden`, so **none** of them is classless. Worse, a `.katex` subtree contains a
+`.katex-mathml` branch holding `<annotation>x^2</annotation>` plus the flattened glyph
+text; `nh3.clean` strips disallowed *tags* but keeps their text, so a naive paste stores
+the LaTeX source **and** the glyph text as visibly duplicated prose. Replacing the subtree
+with its `annotation` text restores the author's original `\(x^2\)` and re-renders.
+
+A test asserts rendered KaTeX survives the **wrapper** byte-for-byte apart from colour
+attributes (the wrapper must never call `tidyPastedSpans`), and a separate test asserts a
+pasted `.katex` subtree becomes `\(x^2\)` text — not merely that no empty spans remain.
 
 ### Shared JS module
 
@@ -304,6 +368,12 @@ live at once (`text_toolbar.js:146`):
 - selection spanning coloured and uncoloured text → `null`
 
 Called from `refreshActive()` and the `selectionchange` listener (`text_toolbar.js:212-258`).
+
+**The active ring is an RTE-only affordance.** `table_editor.js` has no `refreshActive` and
+no `selectionchange` listener — its toolbar handler (`:523-540`) only dispatches commands —
+so the two table editors' swatches are **stateless**: they apply colour and never show an
+active state. Stating this is what keeps the "byte-identical glue in both twins" rule
+achievable; adding selection-tracking to the table editors is explicitly out of scope.
 
 **Never leave `tc-*` on a tag outside `TC_CLASS_TAGS`.** Selecting a whole paragraph is an
 ordinary gesture, and Unknown #2 concedes it is not yet known which element `foreColor`
@@ -365,10 +435,13 @@ styles on the surface (`text_toolbar.js:48-74`) because its active state needs
 surface would show an author in dark mode the *light-theme* hex. Therefore:
 
 - `classToStyle()` leaves `tc-*` untouched on load.
-- **`input` is the hook**, not `paste`. The `paste` event fires *before* the default
+- **`input` is the only hook**, not `paste`. The `paste` event fires *before* the default
   insertion, so a handler on it sees the pre-paste DOM and normalises nothing; `input`
-  fires afterwards with `inputType: "insertFromPaste"`. If `paste` is wired at all it must
-  defer (`queueMicrotask`) — but `input` alone is sufficient and is what the plan specifies.
+  fires afterwards with `inputType: "insertFromPaste"`. Both passes run from that single
+  listener, and they are gated differently: `mapColours` runs on **every** `input` (it is a
+  no-op when nothing carries inline colour), while `tidyPastedSpans` runs **only** when
+  `inputType` is `insertFromPaste` or `insertFromDrop` — running it on ordinary typing
+  would unwrap spans as the author works.
 - **`mapColours` and `tidyPastedSpans` must run *before* `sync`.** Listener order is
   registration order, and `sync` is already wired at `text_toolbar.js:197`. Registering the
   colour glue afterwards means the textarea is written from the *un-normalised* surface,
@@ -407,7 +480,11 @@ Appended to `_rte_toolbar.html`, `_edit_table.html` (near 41-43) and `_edit_fill
 (near 50-52). In the table editors the group rides the existing toolbar `mousedown`
 preventDefault that preserves `focusCell` (`table_editor.js:523`), and `mapColours()` must
 run on the cell **before** `innerHTML` is harvested into the JSON payload
-(`table_editor.js:174`) or the colour is dropped at save.
+(`table_editor.js:174`) or the colour is dropped at save. The colour branch in **both**
+table editors must set `styleWithCSS(true)` before `foreColor` and reset it to `false`
+afterwards — those files currently force it `false` for bold/italic/underline
+(`table_editor.js:534-537`), and the reset discipline documented in the RTE section applies
+identically here.
 
 ### KaTeX normalisation
 
@@ -420,8 +497,18 @@ called from ~20 sites across `math.js` (`renderInlineText`, itself not exported)
 
 **Mechanism:** wrap `window.renderMathInElement` once, at load, in `text_colour.js`; the
 wrapper calls through and then runs `mapColours(scope, {dropUnmapped: false})`. Every
-existing and future call site is covered without editing any. `libliRenderMath` is wrapped
-too, for the display path.
+existing and future call site is covered without editing any. This works *only* because
+`math.js:30-33` resolves `window.renderMathInElement` at **call** time, not at load time.
+
+**The display path needs a different hook — `window.libliRenderMath` cannot work.**
+`math.js` assigns `window.libliRenderMath = renderMath` during its own evaluation (line 42),
+so at the required insertion point the symbol does not yet exist, and the assignment would
+clobber any earlier wrapper. Worse, line 43 calls the **local** `renderMath(document)` for
+the initial pass, which no `window` wrapper can ever intercept — the dominant case. Wrap
+**`window.katex.render`** instead: `renderOne` resolves bare `katex.render(...)` at call
+time (`math.js:6`), and `katex.min.js` defines it before the insertion point, so the initial
+display pass *is* covered. The wrapper runs `mapColours` on the element KaTeX just rendered
+into.
 
 **Load order is the failure mode, and it is not about captured references.** All scripts
 are `defer`, so they execute in document order, and `math.js` calls `renderMath(document)`
@@ -429,19 +516,26 @@ and `renderInlineText(document)` **at module evaluation**. A `text_colour.js` pl
 `math.js` therefore misses the entire initial page render — the dominant case. The wrapper
 also cannot be installed before `auto-render.min.js` defines `window.renderMathInElement`.
 
-**Insertion point: after `auto-render.min.js`, before `math.js`**, inside the same
-`{% if has_math %}` gate, in each of the five templates that load KaTeX:
+**Insertion point: immediately after `auto-render.min.js`, and before *any* script that
+calls `renderMathInElement`** — which is `math.js` on three pages and `question.js` on the
+other two. Stating it as "before `math.js`" would leave the two results pages unprotected,
+since they never load `math.js` at all:
 
 | template | note |
 |---|---|
 | `courses/lesson_unit.html` | lines 61-63 are katex → auto-render → math.js |
 | `courses/quiz_unit.html` | |
 | `courses/manage/editor/editor.html` | |
-| `courses/quiz_results.html` | loads katex + auto-render but **not** `math.js`; renders `el.explanation` |
+| `courses/quiz_results.html` | loads katex + auto-render but **not** `math.js`; the anchor is `question.js` (`:65`), which resolves `renderMathInElement` as a bare global and runs its own initial pass. Renders `el.explanation`. |
 | `courses/manage/review_submission.html` | same shape as quiz_results |
 
-Defensive requirement: if `window.renderMathInElement` is undefined at wrap time, install a
-lazy accessor rather than silently no-op.
+Gating differs by template: the four student/results pages wrap the scripts in
+`{% if has_math %}`, but `editor.html:135-137` loads KaTeX **unconditionally** and must
+continue to — `window.libliColour` has to exist for the toolbars even in a unit with no
+maths, so on the editor page `text_colour.js` is ungated.
+
+Defensive requirement: if `window.renderMathInElement` (or `window.katex`) is undefined at
+wrap time, install a lazy accessor rather than silently no-op.
 
 ## Backfill command
 
@@ -464,9 +558,11 @@ its children — *not* by dropping the `style` attribute. After slice 1, `span` 
 so attribute-dropping would yield `<span>założenie</span>`, which can never equal what the
 pre-change loader stored (`założenie`). Only unwrapping produces a matchable key.
 
-The generator then applies **the sanitiser that owns that field on the import path** (see
-the three-sanitiser table — for gate stems that is `sanitize_stem_segments`, not
-`sanitize_html`), so the key reproduces what the loader actually stored.
+The generator then replays **the full import write path for that field, in order** (see the
+three-sanitiser table) — for gate stems `sanitize_stem_segments`; for
+`FillBlankQuestionElement.stem` the composition `sanitize_html(sanitize_stem_segments(x))`,
+because `save()` re-sanitises after the builder. Applying a single sanitiser where the real
+path composes two produces keys that match nothing, and it fails silently.
 
 The unwrap is a bs4 pass, and this repo has a recorded trap there: `str(Tag)` re-escapes
 entities while `str(NavigableString)` decodes them, so a body must be serialised with
@@ -483,8 +579,17 @@ The first slice-2 task is therefore to build the key map, run the lookup against
 `mat-pp` DB **in dry-run**, and record matches per part. The gate has a numeric pass
 condition, fixed before the measurement is taken:
 
-- **≥ 70%** of the eligible-part occurrences match, **and**
-- **no eligible part matches zero.**
+- **≥ 70%** of *eligible occurrences* match, **and**
+- **no eligible part that holds at least one palette-colour span matches zero.**
+
+**The denominator is named, because three different corpus counts appear in this spec and
+70% of each gives a different verdict.** It is the number of **(field, part) occurrences in
+the key map after source-side exclusion** — the 306-derived count, not the 588 span count
+and not the 446 emitted-class count. A table counts **once per matching cell**, consistent
+with the per-cell matching contract below. The two parts holding zero colour spans
+(`150_f_wykladnicza`, `120_wartosc_bezwzgledna`) contribute to neither numerator nor
+denominator; without that exclusion the second condition would halt every run by
+construction.
 
 On failure the run **halts** — no `--apply`. A zero-matching part almost always means key
 construction is wrong for a field type (wrong sanitiser, or the bs4 entity trap); a broad
@@ -524,6 +629,10 @@ the cell sanitiser is idempotent.
    test asserts every title is unchanged after a run.
 2. **Renames, reorders, insertions and deletions are irrelevant**, for the same reason.
 3. **Edited content is skipped.** Anything changed since import no longer equals a key.
+   The converse is not guaranteed: author-written content that happens to be byte-identical
+   to a key (a short stem such as "założenie" typed by hand in a new unit) **will** be
+   recoloured, because matching is content-based by design (D6). The dry-run report is where
+   an operator spots it.
 4. **A key with two different colourings is refused**, reported, and skipped.
 
 Measured on the corpus: **257** distinct colour-bearing stripped forms, matched by **306**
@@ -556,7 +665,7 @@ Validation and edge cases:
   repeatable with the same dirname and different pks, and all named subtrees are excluded.
 
 Candidate rows are filtered with `.filter(elements__unit__course=course)` as the base
-queryset (mirroring `richtext.py:246`) and `.exclude(elements__unit_id__in=subtree)`, where
+queryset (mirroring `richtext.py:261`) and `.exclude(elements__unit_id__in=subtree)`, where
 `subtree = set(node._subtree_node_ids())` — the same private helper `richtext.py:253` uses,
 and the descendant walk is the whole correctness of the exclusion. The base filter is not
 optional: `.exclude()` on a reverse relation keeps rows with **no** `Element` at all, so an
@@ -575,6 +684,11 @@ Re-running after an apply changes nothing, because stored values no longer equal
 export bundle.
 
 ## Testing
+
+**Unit — key construction.** For one real field of each shape, assert the generated key
+equals the value the loader actually stored — including `FillBlankQuestionElement.stem`,
+whose import path composes two sanitisers. This is the test that would have caught the
+composed-path defect.
 
 **Unit — sanitiser.** Keeps `span.tc-*`; strips foreign classes, inline `style`, and `tc-*`
 on tags outside `TC_CLASS_TAGS`; keeps `tc-*` on the inline emphasis tags and on `a`;
@@ -603,20 +717,26 @@ survives the wrapper apart from colour attributes; `\color{purple}` is left unto
 colouring a whole paragraph survives save; colouring a link then clearing leaves the link
 and its `href` intact; clearing on a subset of a coloured span leaves the remainder
 coloured; apply-then-undo leaves consistent markup; D8 refuses a selection wholly inside
-`\(x+y\)` **on the cell path** and shows the translated message; both themes screenshotted
+`\(x+y\)` **on the cell path** and shows the translated message; D8 refuses a selection
+enclosing `\(x + <b>y</b>\)` (element boundary inside the region); D10 refuses colouring
+inside `{{a|b}}` in a fill-blank stem, and the stored accepted answers are unchanged; both themes screenshotted
 and judged separately.
 
 **e2e — D4 on the student side.** `\color{red}` and a prose `tc-red` resolve to the same
-computed colour, pinned to `lesson_unit.html` (where the load-order constraint is real),
-plus a second instance on `quiz_results.html`, which loads auto-render **without** `math.js`.
+computed colour — asserted as **equal to the `--tc-red` token value**, not merely "a colour
+is present" — pinned to `lesson_unit.html` (where the load-order constraint is real), plus a
+second instance on `quiz_results.html`, which loads auto-render **without** `math.js`. A
+third case covers **display** maths (`[data-katex]`) on the initial page render, which is
+the path the `window.katex.render` wrapper exists for.
 
 **Transfer round-trip.** Export a course carrying `tc-*` in a body **and** a table cell,
 import into a fresh course, assert byte-identity of both fields. This is the load-bearing
 claim for how the work reaches production (D5).
 
 **Backfill.** Rewrites an untouched element; skips an edited one; leaves every node title
-unchanged; honours the `<dirname>=<pk>` exclusions and rejects a bad dirname, a pk from
-another course, and an empty-pk pair used without report; rewrites a partially-matching
+unchanged; honours the `<dirname>=<pk>` exclusions; rejects a dirname absent from `out/` and a pk
+belonging to another course; **accepts `<dirname>=` and emits the source-side-only report
+line**; rewrites a partially-matching
 table; reads back every rewritten field and asserts byte-identity; writes nothing on a dry
 run; no-ops on second run; refuses a conflicting key; fails closed on a content row with
 more than one owning `Element`; halts when the acceptance gate is not met.
@@ -636,7 +756,7 @@ Two slices, because they carry different risk and only the second touches existi
 
 1. **Feature** — palette tokens, sanitiser, `text_colour.js`, three toolbars, the KaTeX
    wrapper across five templates, tests, i18n (**six** new labels: four colours, "no
-   colour", and the D8 refusal message; run `makemessages -l pl -l en --no-obsolete` so
+   colour", and the one D8/D10 refusal message emitted as `data-msg-colour-region`; run `makemessages -l pl -l en --no-obsolete` so
    both catalogues stay current, and regenerate the `.mo` after merging master — a
    long-lived branch touching `locale/` has produced a silent binary conflict here before).
 2. **Backfill** — `recolour_imported_content`, its tests, the DB-side acceptance
@@ -657,8 +777,9 @@ Stated as claims to test, not as facts:
    and Firefox — a fresh `span`, a style on an existing inline element (including an `<a>`),
    or a style on the block. This decides whether the `TC_CLASS_TAGS` widening and the
    move-off-block rule are load-bearing or belt-and-braces.
-3. **Whether wrapping `renderMathInElement` before `math.js` is sufficient** in all five
-   templates.
+3. **Whether the two wrappers together cover every render** — `renderMathInElement` for
+   inline prose maths and `window.katex.render` for the `[data-katex]` display pass — in all
+   five templates, including `math.js`'s two load-time calls.
 4. **Whether the swatch group fits** the two table toolbars at 360px.
 
 ## Appendix — measured corpus data
