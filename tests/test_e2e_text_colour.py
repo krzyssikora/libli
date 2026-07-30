@@ -16,6 +16,7 @@ from pathlib import Path
 
 import pytest
 
+from tests.factories import add_element
 from tests.test_e2e_editor import _add_element
 from tests.test_e2e_editor import _editor_url
 from tests.test_e2e_editor import _login
@@ -550,3 +551,94 @@ def test_refusal_shows_the_translated_message(page, live_server):
     page.locator('[data-edit-slot] [data-cmd="colour-red"]').click()
     assert page.locator("[data-colour-refusal]").count() == 1
     assert page.locator("[data-edit-slot] .rte-surface .tc-red").count() == 0
+
+
+@pytest.mark.django_db(transaction=True)
+def test_cell_colour_reaches_the_saved_json(page, live_server):
+    """Colour applied in a table cell must reach the stored JSON, not just the DOM.
+
+    MEASURED: TableElement.save() calls _sanitized_data, NOT normalize_data, so the
+    1x1 grid is stored with exactly the keys authored here.
+    """
+    from courses.models import Element
+    from courses.models import TableElement
+
+    _make_pa_user("tc_cell")
+    _login(page, live_server, "tc_cell")
+    unit = _seed_course_and_unit("tc_cell", slug="tc-cell")
+
+    table = TableElement.objects.create(
+        data={"cells": [[{"html": "abc", "halign": "left", "valign": "top"}]]}
+    )
+    add_element(unit, table)
+
+    page.goto(_editor_url(live_server, unit))
+    page.wait_for_selector('[data-scope="editor"]')
+    join = Element.objects.get(unit=unit, object_id=table.pk)
+    page.locator(f"[data-element='{join.pk}'] .el-act-edit").click()
+    page.wait_for_selector("[data-edit-slot] [data-table-editor]")
+    cell = page.locator("[data-edit-slot] [data-table-grid] td[contenteditable]").first
+    cell.wait_for(state="visible")
+    cell.click()
+    page.keyboard.press("Control+A")
+    page.locator('[data-edit-slot] [data-cmd="colour-blue"]').click()
+    page.locator("[data-edit-slot] button[type='submit']").click()
+    # Child-scoped, per the note in Task 9 — the slot div itself never detaches.
+    page.wait_for_selector("[data-edit-slot] [data-table-editor]", state="detached")
+
+    table.refresh_from_db()
+    assert "tc-blue" in table.data["cells"][0][0]["html"], table.data
+
+
+@pytest.mark.django_db(transaction=True)
+def test_cell_clear_through_the_wired_toolbar_removes_the_class(page, live_server):
+    """Regression for the same re-entrancy defect covered above for the RTE, but
+    driven through a table cell editor: the grid's own `input` listener calls
+    mapColours({dropUnmapped: true}), and Chromium fires `input` SYNCHRONOUSLY from
+    inside execCommand. apply(cell, null) marks its range with a SENTINEL colour via
+    execCommand and only AFTERWARDS looks for it -- so without apply()'s
+    isApplying() guard mirrored in the grid's `input` listener, that listener strips
+    the marker first and colour-none becomes a silent no-op. No unwired test (which
+    calls libliColour.apply() directly on a raw div) catches this."""
+    from courses.models import Element
+    from courses.models import TableElement
+
+    _make_pa_user("tc_cell_clear")
+    _login(page, live_server, "tc_cell_clear")
+    unit = _seed_course_and_unit("tc_cell_clear", slug="tc-cell-clear")
+
+    table = TableElement.objects.create(
+        data={"cells": [[{"html": "abc", "halign": "left", "valign": "top"}]]}
+    )
+    add_element(unit, table)
+
+    page.goto(_editor_url(live_server, unit))
+    page.wait_for_selector('[data-scope="editor"]')
+    join = Element.objects.get(unit=unit, object_id=table.pk)
+    page.locator(f"[data-element='{join.pk}'] .el-act-edit").click()
+    page.wait_for_selector("[data-edit-slot] [data-table-editor]")
+    cell = page.locator("[data-edit-slot] [data-table-grid] td[contenteditable]").first
+    cell.wait_for(state="visible")
+    cell.click()
+    page.keyboard.press("Control+A")
+    page.locator('[data-edit-slot] [data-cmd="colour-red"]').click()
+    assert page.locator("[data-edit-slot] [data-table-grid] .tc-red").count() == 1
+
+    # Re-focus the cell: the swatch click above moved focus to the button.
+    cell.click()
+    page.keyboard.press("Control+A")
+    page.locator('[data-edit-slot] [data-cmd="colour-none"]').click()
+
+    remaining = page.locator(
+        "[data-edit-slot] [data-table-grid] .tc-red, "
+        "[data-edit-slot] [data-table-grid] .tc-blue, "
+        "[data-edit-slot] [data-table-grid] .tc-green, "
+        "[data-edit-slot] [data-table-grid] .tc-orange"
+    )
+    assert remaining.count() == 0, "colour-none through the wired grid must clear"
+
+    page.locator("[data-edit-slot] button[type='submit']").click()
+    page.wait_for_selector("[data-edit-slot] [data-table-editor]", state="detached")
+
+    table.refresh_from_db()
+    assert "tc-" not in table.data["cells"][0][0]["html"], table.data

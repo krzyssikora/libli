@@ -169,6 +169,7 @@
       dataRows(grid).forEach(function (tr) {
         var row = [];
         Array.prototype.forEach.call(dataCells(tr), function (td) {
+          if (window.libliColour) window.libliColour.mapColours(td, { dropUnmapped: true });
           var cell = {
             html: td.innerHTML,
             halign: td.dataset.halign || "left",
@@ -460,6 +461,19 @@
 
     grid.addEventListener("input", function (e) {
       if (!e.target.closest("td[contenteditable], th[contenteditable]")) return;
+      // execCommand fires "input" SYNCHRONOUSLY, so apply()'s own execCommand
+      // call re-enters this listener while it is still mid-flight, before it
+      // has found its SENTINEL markers. Without this guard, mapColours below
+      // would strip those markers first and colour-none would be a silent
+      // no-op -- see text_toolbar.js's identical guard.
+      if (window.libliColour && window.libliColour.isApplying()) return;
+      var cell = e.target.closest && e.target.closest("[contenteditable]");
+      if (cell && window.libliColour) {
+        window.libliColour.mapColours(cell, { dropUnmapped: true });
+        if (e.inputType === "insertFromPaste" || e.inputType === "insertFromDrop") {
+          window.libliColour.tidyPastedSpans(cell);
+        }
+      }
       serialize();
     });
 
@@ -529,6 +543,14 @@
         if (cmdBtn && focusCell) {
           var cmd = cmdBtn.getAttribute("data-cmd");
           focusCell.focus();
+          if (cmd.indexOf("colour-") === 0 && window.libliColour) {
+            var slot = cmd === "colour-none" ? null : cmd.slice("colour-".length);
+            // styleWithCSS must be TRUE for colour (this file forces it false for
+            // bold/italic/underline); apply() sets and resets it itself.
+            window.libliColour.apply(focusCell, slot);
+            serialize();
+            return;
+          }
           if (cmd === "bold" || cmd === "italic" || cmd === "underline") {
             // styleWithCSS=false forces execCommand to emit <b>/<i>/<u> tags
             // rather than inline style="" attributes (CELL_TAGS has no
