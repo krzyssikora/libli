@@ -525,9 +525,12 @@ Expected: 6 passed.
 
 - [ ] **Step 5: Falsify**
 
-Change `parse_style_colour`'s `if name.strip().lower() != "color"` to
-`if "color" not in name`. Re-run. Expected:
-`test_parse_style_requires_the_exact_color_property` FAILS on `background-color: red`.
+Change `parse_style_colour`'s `if name.strip().lower() != "color":` to
+`if "color" not in name.strip().lower():` — keep the `.strip().lower()`, so the mutation
+isolates the substring risk. (Dropping it too makes the test fail one assertion earlier on
+case-handling, and the `background-color` assertion is then never reached — MEASURED.)
+Re-run. Expected: `test_parse_style_requires_the_exact_color_property` FAILS on
+`assert parse_style_colour("background-color: red") is None`, showing `(255, 0, 0)`.
 Restore.
 
 - [ ] **Step 6: Commit**
