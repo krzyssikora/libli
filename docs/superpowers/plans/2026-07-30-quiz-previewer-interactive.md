@@ -242,7 +242,7 @@ def ephemeral_quiz_feedback(question, answer, attempt):
 - [ ] **Step 4: Run to verify they pass**
 
 Run: `uv run pytest tests/test_ephemeral_quiz_feedback.py -q`
-Expected: PASS, no failures (15 test items: 7 parse_attempt params + 6 functions, one of which is a 2-way parametrize)
+Expected: PASS, no failures (15 test items: 7 parse_attempt params + 7 functions, one of which is a 2-way parametrize)
 
 - [ ] **Step 5: Falsify — confirm each guard is load-bearing**
 
