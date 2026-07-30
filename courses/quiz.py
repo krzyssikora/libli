@@ -1,6 +1,7 @@
 """View-agnostic helpers for the quiz path (Phase 2c)."""
 
 from decimal import Decimal
+from types import SimpleNamespace
 
 from courses.models import ChoiceQuestionElement
 from courses.models import QuestionElement
@@ -62,6 +63,77 @@ def answer_is_empty(answer):
         # while the flat cases (matrix ["", 3]) are unchanged.
         return all(answer_is_empty(v) for v in answer)
     return not answer
+
+
+def parse_attempt(post):
+    """1-based attempt number from a client-supplied `attempt` field, floored at 1.
+
+    The ephemeral grading paths (student previewer, authoring 'try it') are
+    STATELESS, so the client owns the attempt counter. Junk, absent, and
+    out-of-range values all floor to 1; this never raises.
+
+    `attempt` is a RESERVED answer-POST field name, consumed only here. quiz.js
+    appends it to every answer POST including the enrolled path, where the server
+    ignores it entirely (attempt state comes from the persisted QuestionResponse).
+    NO QuestionElement.build_answer implementation may read it -- all ten read only
+    choice / answer / blank / slot / row_<pk>. A build_answer that claimed the name
+    would silently take a client-controlled value as answer data.
+    """
+    try:
+        return max(1, int(post.get("attempt", "1")))
+    except (TypeError, ValueError):
+        return 1
+
+
+def ephemeral_quiz_feedback(question, answer, attempt):
+    """Grade `answer` without persisting anything.
+
+    Returns the triple (stand_in, result, validation) -- NOT a finished context --
+    so callers can feed it to whichever renderer they need. The student previewer
+    path passes stand_in straight to _quiz_render_feedback in place of a
+    QuestionResponse; views_manage.element_try builds its own context from it.
+
+    Persists NOTHING: no QuizSubmission, no QuestionResponse, no Attempt.
+
+    Mirrors quiz_answer's state machine exactly:
+      - empty answer        -> (stand_in, None, True); mark() is NOT called
+      - AUTO                -> mark(); locked iff correct, or
+                               (max_attempts is not None and attempt >= max_attempts)
+      - NOT_MARKED / REVIEW -> result None, locked True (single submission)
+
+    ONE three-attribute stand-in is built on every branch. `.latest_answer` is
+    always present because _quiz_render_feedback's no-JS branch calls
+    rehydrate(question, response.latest_answer); a stand-in missing it raises
+    AttributeError there. It must be answer_to_json(answer), not the raw
+    build_answer payload, because rehydrate is specified against a STORED value.
+    """
+    latest = answer_to_json(answer)
+    if answer_is_empty(answer):
+        # locked=False is load-bearing, not a default: quiz_feedback_context copies
+        # .locked into the context before its `if validation: return ctx` exit, so a
+        # locked stand-in would emit data-quiz-locked inside the VALIDATION panel and
+        # freeze the question on an empty submit.
+        return (
+            SimpleNamespace(
+                locked=False, attempt_count=attempt - 1, latest_answer=latest
+            ),
+            None,
+            True,
+        )
+    is_auto = question.marking_mode == QuestionElement.MarkingMode.AUTO
+    result = question.mark(answer) if is_auto else None
+    if is_auto:
+        # `max_attempts is not None` is mandatory: null means UNLIMITED attempts.
+        locked = bool(result.correct) or (
+            question.max_attempts is not None and attempt >= question.max_attempts
+        )
+    else:
+        locked = True  # [N]/[R]: single submission
+    return (
+        SimpleNamespace(locked=locked, attempt_count=attempt, latest_answer=latest),
+        result,
+        False,
+    )
 
 
 def selected_ids(answer):
