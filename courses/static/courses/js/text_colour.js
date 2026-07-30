@@ -458,4 +458,65 @@
     apply: apply,
     regions: regions
   };
+
+  // ---- KaTeX normalisation -------------------------------------------------
+  //
+  // Two hooks, because one does not cover the other:
+  //
+  //  * INLINE prose maths goes through window.renderMathInElement. Wrapping it works
+  //    only because math.js resolves that global at CALL time.
+  //
+  //  * DISPLAY maths ([data-katex]) cannot be reached via window.libliRenderMath:
+  //    math.js assigns that symbol during its own evaluation (so it does not exist at
+  //    our insertion point, and the assignment would clobber a wrapper installed
+  //    earlier), and its initial pass calls the LOCAL renderMath. renderOne calls a
+  //    bare `katex.render(...)`, resolved at call time on window.katex -- so that is
+  //    the hook that actually covers the initial render.
+  //
+  // The render path never drops an unmapped colour, so existing \color{purple}
+  // content keeps rendering exactly as it does today.
+  function wrapRenderMathInElement() {
+    var original = window.renderMathInElement;
+    if (typeof original !== "function") return false;
+    if (original.__libliColourWrapped) return true;
+    var wrapped = function (element, options) {
+      var result = original.apply(this, arguments);
+      try { mapColours(element, { dropUnmapped: false }); } catch (e) { /* ignore */ }
+      return result;
+    };
+    wrapped.__libliColourWrapped = true;
+    window.renderMathInElement = wrapped;
+    return true;
+  }
+
+  function wrapKatexRender() {
+    if (!window.katex || typeof window.katex.render !== "function") return false;
+    if (window.katex.render.__libliColourWrapped) return true;
+    var original = window.katex.render;
+    var wrapped = function (expression, element, options) {
+      var result = original.apply(this, arguments);
+      try { mapColours(element, { dropUnmapped: false }); } catch (e) { /* ignore */ }
+      return result;
+    };
+    wrapped.__libliColourWrapped = true;
+    window.katex.render = wrapped;
+    return true;
+  }
+
+  // Defensive: if either global is not defined yet, retry once the document is ready
+  // rather than silently no-opping for the whole page.
+  // Evaluate BOTH before testing: `!a() || !b()` short-circuits and never calls b()
+  // when a() fails -- which is exactly the case on a page that loads katex.min.js but
+  // not auto-render.min.js, leaving katex.render unwrapped. The bug is invisible on
+  // real pages (which load both) and only bites in isolation.
+  var inlineWrapped = wrapRenderMathInElement();
+  var renderWrapped = wrapKatexRender();
+  if (!inlineWrapped || !renderWrapped) {
+    // Note: this retry is dead for a script added AFTER load; it exists for the
+    // ordinary defer-in-document-order case.
+    document.addEventListener("DOMContentLoaded", function () {
+      wrapRenderMathInElement();
+      wrapKatexRender();
+    });
+  }
 })();

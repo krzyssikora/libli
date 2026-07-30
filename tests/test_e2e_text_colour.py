@@ -332,3 +332,72 @@ def test_clearing_a_link_keeps_the_link(page):
     html = page.evaluate("() => document.getElementById('root').innerHTML")
     assert 'href="/courses/n/12/"' in html, "clearing must never unwrap a link"
     assert "tc-red" not in html
+
+
+def test_katex_colour_resolves_to_the_palette_token(page):
+    """D4: prose tc-red and \\color{red} must be the SAME colour. Asserting 'a colour
+    is present' would pass even if the class were added while the inline colour stayed,
+    which is the failure mode — inline style always beats a class."""
+    # Load the REAL stylesheets. An inline `.tc-red{color:#B2372A}` stub makes the
+    # computed value a foregone conclusion and proves nothing about palette identity
+    # — it is a fourth unguarded copy of the literal. (katex.min.css sets no color.)
+    page.set_content("<!DOCTYPE html><div id='m'></div>")
+    page.add_style_tag(path=TOKENS_CSS)
+    page.add_style_tag(path=COURSES_CSS)
+    page.add_script_tag(path=KATEX)
+    page.add_script_tag(path=SCRIPT)
+    computed = page.evaluate(
+        """() => {
+        const m = document.getElementById('m');
+        katex.render('\\\\color{red}{x}', m, {throwOnError: false});
+        const el = m.querySelector('.tc-red');
+        return el ? getComputedStyle(el).color : null;
+    }"""
+    )
+    # Compare against the token itself, never a repeated literal.
+    import re
+
+    tokens = Path(TOKENS_CSS).read_text(encoding="utf-8")
+    light = re.search(r":root\s*\{(.*?)\n\}", tokens, re.DOTALL).group(1)
+    digits = re.search(r"--tc-red:\s*#([0-9A-Fa-f]{6})", light).group(1)
+    expected = (
+        "rgb(%d, %d, %d)"
+        % tuple(  # noqa: UP031
+            int(digits[i : i + 2], 16) for i in (0, 2, 4)
+        )
+    )
+    assert computed == expected, (
+        f"maths resolved to {computed}, prose token is {expected} — the mapped "
+        "element must carry the class AND have its inline colour cleared"
+    )
+
+
+def test_katex_layout_style_survives_the_wrapper(page):
+    """Clear the color LONGHAND, not the style attribute: KaTeX packs height and
+    vertical-align into the same attribute and removing it destroys the layout."""
+    page.set_content("<!DOCTYPE html><div id='m'></div>")
+    page.add_script_tag(path=KATEX)
+    page.add_script_tag(path=SCRIPT)
+    heights = page.evaluate(
+        """() => {
+        const m = document.getElementById('m');
+        katex.render('\\\\color{red}{\\\\frac{1}{2}}', m, {throwOnError: false});
+        return [...m.querySelectorAll('[style]')].map(e => e.getAttribute('style'))
+            .filter(s => /height|vertical-align/.test(s)).length;
+    }"""
+    )
+    assert heights > 0, "layout declarations must survive"
+
+
+def test_unmapped_katex_colour_is_left_untouched(page):
+    page.set_content("<!DOCTYPE html><div id='m'></div>")
+    page.add_script_tag(path=KATEX)
+    page.add_script_tag(path=SCRIPT)
+    html = page.evaluate(
+        """() => {
+        const m = document.getElementById('m');
+        katex.render('\\\\color{purple}{x}', m, {throwOnError: false});
+        return m.innerHTML;
+    }"""
+    )
+    assert "purple" in html
