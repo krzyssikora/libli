@@ -151,9 +151,21 @@ attributes its consumers touch:
 
 | Attribute | Value | Read by |
 |---|---|---|
-| `.locked` | the ephemeral lock decision | `quiz_feedback_context` |
+| `.locked` | the ephemeral lock decision; **`False` unconditionally on the validation branch** | `quiz_feedback_context` |
 | `.attempt_count` | `attempt`, or `attempt - 1` on the validation branch | `quiz_feedback_context` (for `attempts_left`) |
 | `.latest_answer` | `answer_to_json(answer)` | `_quiz_render_feedback`'s `rehydrate` call |
+
+**`.locked = False` on the validation branch is load-bearing, not a default.** `quiz_feedback_context`
+copies `response.locked` into the context at `quiz.py:25` — *before* the `if validation: return ctx`
+early exit at `quiz.py:28-29` — so a locked stand-in reaches
+`_quiz_question_feedback.html:5`, which emits `{% if locked %}<span data-quiz-locked hidden>{% endif %}`
+inside the **validation** panel. An implementer who reads "`[N]`/`[R]` → locked True" and hoists the
+lock decision above the empty-answer guard makes an empty submit freeze the question: `quiz.js`
+disables the controls on `[data-quiz-locked]`, and the no-JS path freezes it permanently through
+`st["locked"]`. Mirror `views_manage.py:1747` exactly —
+`SimpleNamespace(locked=False, attempt_count=attempt - 1)`. The enrolled path cannot reach the
+validation branch with a locked response at all (`views.py:1298-1302` returns `_quiz_locked_response`
+first), so `False` is also the faithful mirror.
 
 `.latest_answer` **must** be `answer_to_json(answer)`, not the raw `build_answer` output.
 `rehydrate` (`courses/quiz.py:85-91`) is specified against a *stored* `latest_answer` — the output of
@@ -176,13 +188,22 @@ behaviour must not change.
 | Context key | Meaning | Consumers |
 |---|---|---|
 | `quiz_submitted` | The submission is `SUBMITTED`; inputs frozen. | question templates (via `_quiz_article.html`) |
-| `previewing` | Viewer is not enrolled; answers cannot be recorded. | preview banner |
+| `previewing` | `not enrolled` — see the derivation rule below. | preview banner |
 | `read_only` | `quiz_submitted or previewing`; gates the Finish form only. | `_quiz_article.html` Finish block |
 
 `read_only` is retained with its current value so the Finish form's condition is untouched — Finish
 stays hidden for previewers, per the decided non-goal. The change is that `_quiz_article.html:12`
 passes `quiz_submitted=quiz_submitted` rather than `quiz_submitted=read_only`, so a previewer's inputs
 render **live**.
+
+**Derivation rule — `previewing` must not cost a query.** `build_quiz_context` already calls
+`is_enrolled(user, node.course)` at `views.py:1134` and **discards the result** (it is the condition of
+an `if` whose only effect is creating the submission). Hoist it into a local —
+`enrolled = is_enrolled(user, node.course)`, then `previewing = not enrolled` — rather than calling
+`is_enrolled` a second time. This builder is otherwise carefully prefetched (`views.py:1113-1131`);
+adding a second `Enrollment.objects.filter(...).exists()` round trip to every quiz render would be a
+silent regression. (`not enrolled` is also exactly `submission is None`, the value `read_only` uses
+today.)
 
 `read_only` keeps its name but no longer means what the name says: after this change its sole job is
 "the Finish form is unavailable", *not* "the page is inert". `build_quiz_context` must carry a
@@ -244,20 +265,36 @@ the repository before.
 A previewer gets a visible, styled banner above the questions explaining the state — the missing
 piece that made the current behaviour read as breakage:
 
-> **Preview** — you are not enrolled in this course, so your answers are not recorded.
+> **Preview** — you are not enrolled in this course, so your answers are not recorded and the quiz
+> cannot be finished.
+
+The second clause is deliberate: the Finish button and the score summary are also absent for a
+previewer, and the whole point of this change is that the page stops having unexplained gaps.
 
 **Markup is pinned**, so the render test and the e2e locator have something durable to target:
 
 ```html
-<aside class="alert alert--info" data-quiz-preview-notice role="status">
+{% get_current_language as LANGUAGE_CODE %}
+<aside class="alert alert--info" data-quiz-preview-notice
+       lang="{{ LANGUAGE_CODE }}" aria-label="{% trans 'Preview notice' %}">
   <strong>{% trans "Preview" %}</strong> — {% trans "you are not enrolled …" %}
 </aside>
 ```
 
-`<aside>` (complementary page-level content, not part of the quiz itself), a stable
-`data-quiz-preview-notice` hook, `role="status"` so assistive tech announces the state, and a
-`<strong>` label rather than a heading — the banner is not a section title and must not enter the
-document outline.
+- `<aside>` keeps the banner in landmark navigation as complementary content, with an `aria-label` to
+  name it.
+- **No `role="status"`.** Two reasons, both disqualifying: a live region only announces mutations
+  that occur *after* it is in the accessibility tree, and this banner is server-rendered and present
+  at first paint on every render path — so it would never announce anything. Worse, `role="status"`
+  **overrides** `<aside>`'s implicit `complementary` role, removing the banner from landmark
+  navigation — the exact opposite of why `<aside>` was chosen.
+- `lang="{{ LANGUAGE_CODE }}"` is required because the banner sits inside
+  `<article class="quiz" lang="{{ course.language }}">` (`_quiz_article.html:2`), so without it a
+  Polish-UI string is announced as English inside an English course. `_unit_crumbs.html:11-15`
+  documents this exact trap. **`LANGUAGE_CODE` must be fetched with `{% get_current_language %}`** —
+  `django.template.context_processors.i18n` is *not* enabled (`config/settings/base.py:66-74`), so it
+  is not otherwise in the context.
+- `<strong>`, not a heading — the banner must not enter the document outline.
 
 Rendered only when `previewing` is true.
 
@@ -320,14 +357,24 @@ type does not quietly claim the name: **no `build_answer` may read `attempt`**; 
 by `parse_attempt`.
 
 **Caveat on the `[data-quiz-locked]` freeze, unchanged from today.** `quiz.js:45-47` disables only
-`form.querySelectorAll("input, button")`. The drag-to-image no-JS controls are `<select name="slot">`
-(`courses_extras.py:262-270`), and the server-side freeze for the 2D families is on the wrapping
-`<fieldset>` (`dragtoimagequestionelement.html:7`, `multigridquestionelement.html:7`) — neither is
-touched by the JS lock. For an enrolled student the next page load repairs it; a JS previewer never
-gets a server render carrying `locked`, so those controls stay interactive after locking. Harmless
-today (the Check button *is* disabled, so nothing can be resubmitted), and fixable for both paths in
-one line by adding `fieldset` to the disable selector. **Do that** — it is a one-line strict
-improvement, not a scope expansion.
+`form.querySelectorAll("input, button")`, which misses **three** control families:
+
+| Family | Control | Example |
+|---|---|---|
+| 2D / grid | wrapping `<fieldset>` | `dragtoimagequestionelement.html:7`, `multigridquestionelement.html:7` |
+| drag-to-image | `<select name="slot">` | `courses_extras.py:262-270` |
+| extended response | bare `<textarea>`, **no fieldset at all** | `extendedresponsequestionelement.html:7-9` |
+
+For an enrolled student the next page load repairs this; a JS previewer never gets a server render
+carrying `locked`, so those controls stay interactive after locking. Harmless today only because the
+Check button *is* disabled, so nothing can actually be resubmitted.
+
+Fix it for both paths by widening the selector to
+`"input, button, select, textarea, fieldset"`. Note that `fieldset` alone is **not** sufficient — the
+extended-response `<textarea>` has no wrapping fieldset, so on the *enrolled* path a student who
+submits an extended-response question currently sees "Submitted for review" beside a still-editable
+answer box until the next page load. The full selector is a strict improvement to both paths, not a
+scope expansion.
 
 ## Data flow
 
@@ -413,11 +460,12 @@ enabled Check button, and could resubmit a single-submission `[N]`/`[R]` questio
 `build_quiz_context` already derived from the just-saved response — so this stays behaviour-preserving
 for students while making the previewer path correct.
 
-Because the previewer has no server-side attempt state, a no-JS previewer is always at attempt 1.
-Consequence, accepted: a no-JS previewer never reaches "wrong on the last attempt", so for a
-multi-attempt AUTO question they see the withhold branch rather than the reveal. This is a strictly
-narrower view than a student gets — it leaks nothing — and it is the direct, stated cost of the
-"no server-side attempt state for previewers" decision.
+Because the previewer has no server-side attempt state, a no-JS previewer is pinned at attempt 1.
+Consequence, accepted: for `max_attempts >= 2` they always see the withhold branch and never the
+wrong-on-last-attempt reveal. At `max_attempts = 1` — the model default — attempt 1 *is* the last
+attempt, so the first wrong submit locks and reveals, identically to a student. Either way this is a
+view no wider than a student's — it leaks nothing — and it is the direct, stated cost of the "no
+server-side attempt state for previewers" decision.
 
 **Accepted consequence: no-JS previewer feedback is single-question and non-cumulative.** On the
 enrolled path the rebuilt context restores every *other* question's `feedback_html`, `locked`,
@@ -472,12 +520,16 @@ After a previewer POSTs an answer (correct, incorrect, empty, and beyond `max_at
 - Previewer GET: inputs are **live**, the preview banner is present, the Finish form is absent, and
   `QuizSubmission` is still not created.
 
-  "Live" must be asserted **per markup family**, or the test is vacuous for half the question types.
-  Only the simple types put `disabled` on the control itself; the 2D/grid types disable a wrapping
-  `<fieldset>` (`dragtoimagequestionelement.html:7`, `multigridquestionelement.html:8`, and likewise
-  choicegrid / matchpair / dragfill). So assert **both**: no `disabled` on the `<input>`/`<button>`
-  for at least one simple type, **and** no `disabled` on the `<fieldset>` for at least one
-  fieldset-wrapped type.
+  "Live" must be asserted **per markup family**, or the test is vacuous for most question types.
+  There are three families, and the test must name at least one of each:
+
+  1. **control-level** — `disabled` on the `<input>`/`<button>` itself (choice, short text, short
+     numeric);
+  2. **fieldset-wrapped** — `disabled` on a wrapping `<fieldset>`
+     (`dragtoimagequestionelement.html:7`, `multigridquestionelement.html:7`, and likewise
+     choicegrid / matchpair / dragfill);
+  3. **bare textarea** — `extendedresponsequestionelement.html:7-9`, which has no wrapping fieldset
+     and so is missed by both of the other checks.
 
 - Multi-slide previewer GET: the banner appears exactly once and outside every `.slide`.
 
@@ -490,8 +542,17 @@ After a previewer POSTs an answer (correct, incorrect, empty, and beyond `max_at
   ```
 
   with a SUBMITTED submission, and assert the inputs are frozen. The context **must** come from
-  `build_quiz_context`, not be hand-built — the whole point is to put the
-  `quiz_submitted` / `read_only` derivation under test.
+  `build_quiz_context`, not be hand-built.
+
+  **Be honest about what this test can and cannot falsify.** Because
+  `read_only = quiz_submitted or previewing`, `read_only ⊇ quiz_submitted` — there is no
+  `build_quiz_context` state with `quiz_submitted=True` and `read_only=False`. A SUBMITTED enrolled
+  submission yields both true, so `quiz_submitted=read_only` and `quiz_submitted=quiz_submitted`
+  render byte-identical HTML and this test passes either way. It guards "a SUBMITTED quiz still
+  freezes its inputs" — the mutation it catches is `quiz_submitted` being dropped from line 12
+  altogether, **not** a revert to `read_only`. The test that actually falsifies the argument-source
+  change is the **previewer-GET liveness** test above, since `previewing=True` is the only state that
+  discriminates the two spellings.
 
   **Do not use `render_element(..., quiz_submitted=True)` for this.** The change under test is the
   argument *source* on `_quiz_article.html:12` (`quiz_submitted=read_only` →
@@ -525,6 +586,29 @@ the *second* POST (locked on first submit); for AUTO it is the POST after correc
 test that keeps driving past it compares a 409 body against a feedback fragment and fails for the
 wrong reason.
 
+**How `N` advances is also part of the rule.** `N` increments only after a POST whose response is
+*not* the validation panel — the server-side analogue of `quiz.js`'s "increment unless
+`.is-validation`" guard, and a faithful mirror of the enrolled path, where an empty answer takes the
+`answer_is_empty` branch (`views.py:1305-1311`) and never increments `attempt_count`. A driver that
+increments `N` once per POST desynchronises the two sides the moment the sequence contains an empty
+submit, and the fragments then diverge on `attempts_left` for the wrong reason. **Include at least
+one empty POST in the parity sequence** so this rule is actually exercised rather than merely
+written down.
+
+### The enrolled path must keep ignoring `attempt`
+
+`quiz.js` will now send a client-controlled `attempt` on **every** quiz answer POST, students
+included. Today `quiz_answer` never reads it (`views.py:1288-1347`), and the reserved-name rule above
+says no `build_answer` may. Neither fact is currently pinned by a test, and the consequence of losing
+it is severe: once `parse_attempt` lives in `courses/quiz.py`, plumbing it into the shared answer path
+is an obvious-looking tidy-up, and it would let a real student POST `attempt=99` to force
+`response.locked = True` and the reveal via `views.py:1330-1333` — an answer oracle on the *persisted*
+path, with the suite still green.
+
+Required test: an enrolled student POSTs a **wrong** answer with `attempt=99` to an AUTO question with
+`max_attempts=3`; the response must still show `attempts_left = 2`, must not contain the reveal, and
+`QuestionResponse.attempt_count` must be `1`.
+
 ### Access invariant — both bounds
 
 **Lower bound.** A plain authenticated user who is **not** enrolled, not staff, not the owner, and
@@ -534,11 +618,13 @@ ephemeral branch. This pins the `accessible_courses` invariant that makes the cl
 
 **Upper bound — the one a mis-keyed branch would break silently.** An `is_staff` user (or the course
 owner) who **is** enrolled must still take the persisted path: POSTing an answer creates a
-`QuizSubmission`, a `QuestionResponse`, and an `Attempt`. Every existing enrolled-path quiz test uses
-a plain student (`tests/test_quiz_views.py:33-38`, `tests/test_quiz_noleak.py:12-14`), so a branch
-mistakenly keyed on `request.user.is_staff` or `can_manage_course` instead of `not is_enrolled(...)`
-would pass the entire suite while silently stopping grade capture for every enrolled teacher. The
-branch condition is `not is_enrolled(request.user, course)` and nothing else.
+`QuizSubmission`, a `QuestionResponse`, and an `Attempt`. **No existing enrolled-path quiz test
+asserts that a row was written for a privileged actor** — the two that drive `quiz_answer` as an
+enrolled course *owner* (`tests/test_unit_edit_link.py:331-333` and `tests/test_e2e_quiz.py::_seed_quiz`,
+which enrols the owner) assert nothing about persistence. So a branch mistakenly keyed on
+`request.user.is_staff` or `can_manage_course` instead of `not is_enrolled(...)` would pass the entire
+suite while silently stopping grade capture for every enrolled teacher. The branch condition is
+`not is_enrolled(request.user, course)` and nothing else.
 
 ### No-leak
 
@@ -551,13 +637,15 @@ not contain the correct answer or the reveal template's output.
 first wrong answer immediately satisfies `attempt >= max_attempts`, locks, and reveals — there is no
 "while attempts remain" state to test, and the test would be vacuous. The existing fixtures already
 do this (`tests/test_quiz_noleak.py:16` uses `max_attempts=3`;
-`tests/test_questions_2d_quiz_noleak.py:31` uses `2`). Stated here so nobody "fixes" a red test by
-weakening the withhold gate.
+`tests/test_questions_2d_quiz_noleak.py:25` and `:49` use `2`). Stated here so nobody "fixes" a red
+test by weakening the withhold gate.
 
 ### No-JS previewer
 
 - An `[N]`/`[R]` question renders `disabled` inputs after one no-JS submit — the direct regression
   test for the `st["locked"]` fix.
+- An **empty** previewer POST emits no `data-quiz-locked` and leaves the inputs live — the regression
+  test for `stand_in.locked = False` on the validation branch.
 - The previewer twin of `tests/test_unit_nav_render.py:799`
   `test_crumb_survives_the_no_js_quiz_answer_re_render` — proves the re-render still carries
   `unit_nav`.
@@ -582,7 +670,12 @@ The extraction must be provably behaviour-preserving at `views_manage.element_tr
 enumerate the branch's five distinct states (`views_manage.py:1741-1761`) as required assertions on
 the rendered fragment:
 
-1. malformed / absent `attempt` → floors to 1;
+1. malformed / absent `attempt` → floors to 1. **Must be exercised at `max_attempts >= 2`**, or it is
+   vacuous: at the model default of `1`, `attempt=1`, `attempt=""`, and `attempt=5` all satisfy
+   `attempt >= max_attempts`, all lock, and all render an identical reveal — the assertion cannot tell
+   a working `parse_attempt` from one returning garbage. Use e.g. `max_attempts=3` with a wrong answer
+   and assert the rendered "2 attempts left", so the floor is observable. (`tests/test_element_try.py`'s
+   `_question` helper defaults to `max_attempts=1`, so this must be set explicitly.)
 2. empty answer → validation panel, attempt not consumed;
 3. AUTO wrong with attempts left → withhold (no reveal, `attempts_left` shown);
 4. AUTO wrong at `max_attempts` → locked + reveal;
