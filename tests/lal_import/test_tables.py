@@ -166,10 +166,13 @@ def test_wrapped_inputs_still_split_two_answers():
     # inputs inside a <span> — recursive find_all + whole-td decode_contents must
     # descend. NOTE (spec-documented limitation): the token split cuts the <span>
     # open, so the static segments are unbalanced fragments ("<span>\([\)" …
-    # "\(]\)</span>"). This is accepted: `span` is not in sanitize_cell's CELL_TAGS,
-    # so both fragments strip to clean math at load. This test only asserts the
-    # ANSWER cells (the correctness-bearing part); static-fragment balancing is the
-    # loader's sanitize_cell/nh3 job, not the parser's.
+    # "\(]\)</span>"). This is accepted: `span` IS now in sanitize_cell's CELL_TAGS
+    # (colour carrier), so nh3 auto-balances each fragment independently at load
+    # rather than stripping the tag -- MEASURED: "<span>\([\)" gains a closing
+    # </span>, while "\(]\)</span>" loses its orphan closing tag. Asymmetric but
+    # inert either way. This test only asserts the ANSWER cells (the
+    # correctness-bearing part); static-fragment balancing is the loader's
+    # sanitize_cell/nh3 job, not the parser's.
     t = _ft(
         '<table><tr><td><span>\\([\\) <input class="table_input"> \\(,\\) '
         '<input class="table_input"> \\(]\\)</span></td></tr></table>'

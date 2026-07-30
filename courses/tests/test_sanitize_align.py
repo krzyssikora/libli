@@ -30,6 +30,9 @@ def test_drops_align_class_on_non_block_tag():
     assert "ta-center" not in sanitize_html('<b class="ta-center">x</b>')
 
 
-def test_cell_and_label_stay_class_free():
-    assert "class" not in sanitize_cell('<b class="ta-center">x</b>')
+def test_cell_drops_align_token_and_label_stays_class_free():
+    # nh3 filters class TOKENS; it cannot unwrap or delete the attribute once the tag
+    # is an allowed_classes key, so a disallowed class leaves class="" behind. What
+    # matters is that the align token is gone from a tag that may not carry it.
+    assert "ta-center" not in sanitize_cell('<b class="ta-center">x</b>')
     assert "ta-center" not in sanitize_label('<span class="ta-center">x</span>')

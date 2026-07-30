@@ -541,8 +541,8 @@ def gallery_lesson(db, _isolated_media):
     math-only desc must be avoided.
 
     No <a href> in any description: GalleryElement.save() sanitises each desc through
-    sanitize_cell, whose allowlist is CELL_TAGS = {strong, b, em, i, u, br} with
-    attributes={} (courses/sanitize.py:62) -- a link would be silently stripped to bare
+    sanitize_cell, whose allowlist is CELL_TAGS = {strong, b, em, i, u, br, span} with
+    attributes={} (courses/sanitize.py:98) -- a link would be silently stripped to bare
     text, so a fixture "carrying a link" would document a case it does not have.
     """
     from courses.models import GalleryElement

@@ -6,6 +6,9 @@ import secrets
 
 import nh3
 
+from courses.colour import TC_CLASS_TAGS
+from courses.colour import TC_CLASS_VALUES
+
 # Safe subset for styled rich text. NOT the deferred arbitrary-HTML element — no
 # scripts, no style/script-bearing attributes.
 ALLOWED_TAGS = {
@@ -16,6 +19,9 @@ ALLOWED_TAGS = {
     # ENTER rendered as a space) while a blank line's <br> survived. Firefox already
     # emits <br>, so it was unaffected. div is structural and carries no script risk.
     "div",
+    # Colour carrier. Purely a class hook: no attribute beyond a token-allowlisted
+    # class is permitted, so this widens the subset by nothing else.
+    "span",
     "strong",
     "b",
     "em",
@@ -42,7 +48,37 @@ ALLOWED_URL_SCHEMES = {"http", "https", "mailto"}
 # the global .ta-* utilities in courses.css (also used by table cells).
 ALIGN_CLASS_VALUES = {"ta-left", "ta-center", "ta-right"}
 ALIGN_CLASS_TAGS = {"p", "div", "h2", "h3", "h4", "blockquote", "li"}
-ALLOWED_CLASSES = {tag: ALIGN_CLASS_VALUES for tag in ALIGN_CLASS_TAGS}
+
+# The pre-colour allowlist, frozen. Slice 2's backfill builds its lookup keys by
+# replaying the sanitiser AS IT BEHAVED AT IMPORT TIME: nh3 deletes the class
+# attribute for a tag that is not an allowed_classes key, but emits an empty
+# class="" for one that is. Adding strong/b/i/u/a/span below therefore moves every
+# such key off the value the loader actually stored. MEASURED:
+#   <strong class="x">y</strong>  ->  <strong>y</strong>          (before)
+#                                 ->  <strong class="">y</strong> (after)
+# Frozen as a literal, not derived from the live constants, so a later edit to the
+# live allowlist cannot silently move the keys.
+LEGACY_ALLOWED_CLASSES = {
+    "p": {"ta-left", "ta-center", "ta-right"},
+    "div": {"ta-left", "ta-center", "ta-right"},
+    "h2": {"ta-left", "ta-center", "ta-right"},
+    "h3": {"ta-left", "ta-center", "ta-right"},
+    "h4": {"ta-left", "ta-center", "ta-right"},
+    "blockquote": {"ta-left", "ta-center", "ta-right"},
+    "li": {"ta-left", "ta-center", "ta-right"},
+}
+# sanitize_cell passed NO allowed_classes before this change, so the legacy cell
+# behaviour is "no tag is an allowed_classes key" -- deliberately empty, not an
+# oversight.
+LEGACY_CELL_ALLOWED_CLASSES = {}
+
+# Two independent families merged into one mapping. ALIGN_CLASS_TAGS and
+# TC_CLASS_TAGS are currently DISJOINT, so no tag needs a union -- but every entry
+# is a fresh set() regardless, because the previous comprehension bound one shared
+# set object to all seven keys and any in-place merge would have widened the align
+# family for every tag at once.
+ALLOWED_CLASSES = {tag: set(ALIGN_CLASS_VALUES) for tag in ALIGN_CLASS_TAGS}
+ALLOWED_CLASSES.update({tag: set(TC_CLASS_VALUES) for tag in TC_CLASS_TAGS})
 
 
 def sanitize_html(value):
@@ -57,9 +93,13 @@ def sanitize_html(value):
     )
 
 
-# Cells allow only inline emphasis + line break. Includes b/i (not just
-# strong/em) because document.execCommand("bold"/"italic") emits <b>/<i>.
-CELL_TAGS = {"strong", "b", "em", "i", "u", "br"}
+# Cells allow only inline emphasis + line break + the colour carrier. Includes b/i
+# (not just strong/em) because document.execCommand("bold"/"italic") emits <b>/<i>.
+CELL_TAGS = {"strong", "b", "em", "i", "u", "br", "span"}
+
+# Only cell tags that may carry colour -- br is in CELL_TAGS but not TC_CLASS_TAGS,
+# and the block-tag alignment family has no business in a cell.
+CELL_ALLOWED_CLASSES = {tag: set(TC_CLASS_VALUES) for tag in CELL_TAGS & TC_CLASS_TAGS}
 
 # Balanced \(...\) (inline) or \[...\] (display), non-greedy, no nesting.
 _MATH_SPAN = re.compile(r"\\\(.*?\\\)|\\\[.*?\\\]", re.DOTALL)
@@ -91,6 +131,7 @@ def sanitize_cell(value):
         protected,
         tags=CELL_TAGS,
         attributes={},
+        allowed_classes=CELL_ALLOWED_CLASSES,
         url_schemes=set(),
         link_rel=None,
         strip_comments=True,  # spec-mandated; nh3 defaults True, stated explicitly
