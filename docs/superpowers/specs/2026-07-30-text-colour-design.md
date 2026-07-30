@@ -148,7 +148,8 @@ Two consequences to accept knowingly:
 - `ALLOWED_TAGS` gains `span`.
 - `TC_CLASS_VALUES = {"tc-red", "tc-blue", "tc-green", "tc-orange"}`.
 - `TC_CLASS_TAGS = {"span", "b", "i", "em", "strong", "u", "a"}`.
-- `CELL_TAGS` gains `span`, and a new `CELL_ALLOWED_CLASSES = {tag: TC_CLASS_VALUES for tag in CELL_TAGS & TC_CLASS_TAGS}`
+- `CELL_TAGS` gains `span`, and a new `CELL_ALLOWED_CLASSES = {tag: set(TC_CLASS_VALUES) for tag in CELL_TAGS & TC_CLASS_TAGS}`
+  — note `set(...)`, so the code an implementer copies is the code the aliasing guard demands
   — covering only cell tags, not the block-tag alignment family, and excluding `br`, which is
   in `CELL_TAGS` but not `TC_CLASS_TAGS` — is passed to `sanitize_cell`'s `nh3.clean`, which
   today passes no `allowed_classes` at all.
@@ -192,7 +193,7 @@ capability** (`clean_content_tags` deletes content, which is worse). So:
   not an unwrap that cannot happen.
 
 Nothing else changes: colour rides inside strings that already round-trip through
-transfer. Cell dicts keep their existing keys (`transfer/payloads.py:605` untouched).
+transfer. Cell dicts keep their existing keys (`courses/transfer/payloads.py:605` untouched).
 
 ### The three sanitisers, and which fields use which
 
@@ -253,11 +254,17 @@ selection intersects a maths region, with one exception:
 | starts inside, ends outside (or vice versa) | **refused** |
 | any region with an unbalanced or unclosed delimiter in the scan root | **refused** (fail closed) |
 
-The element-boundary carve-out is not pedantry. For `\(x + <b>y</b>\)`, `foreColor` emits
-**one span per element boundary** — the same splitting behaviour the spec relies on
-elsewhere — so `\(` and `\)` end up in *different* spans. `_MATH_SPAN` then matches across
-the intervening tags and `_canon_math` escapes them permanently on the cell path: exactly
-the damage D8 exists to prevent, produced by a case an earlier draft called safe.
+The element-boundary carve-out rests on honest ground, and an earlier draft's justification
+for it was **measured false** — recorded here because the false version is the more
+plausible-sounding one. That draft claimed `foreColor` emits one span per element boundary,
+splitting `\(` and `\)` into different spans. Chromium emits **one** span for a straddling
+selection, keeping both delimiters together; and `sanitize_cell("a \(x + <b>y</b>\) b")`
+already escapes the inner tags today, with no span and no colour involved.
+
+The real ground for refusing is simpler: **such a region already round-trips lossily through
+`sanitize_cell` regardless of colour**, so colouring it is not a gesture the storage layer can
+support. Whether `foreColor` ever splits a straddling selection is listed under Unknowns as a
+claim to test, not asserted here.
 
 **`{{…}}` markers are protected identically (D10), and this is a new hazard created by
 this feature.** `fillblank.py`'s documented order is `sanitize_html(raw) → strip_sentinel →
@@ -403,7 +410,7 @@ New `courses/static/courses/js/text_colour.js` exposing `window.libliColour`:
 |---|---|
 | `MAP` | canonical triple → slot |
 | `normaliseColour(value)` | any accepted form → canonical triple, or null |
-| `apply(root, slot)` | colour the selection, or clear it when `slot` is null; refuses per D8 |
+| `apply(root, slot)` | colour the selection, or clear it when `slot` is null; owns the range-aware clear rewrite (it holds the `Range`; `mapColours` does not); refuses per D8/D10 |
 | `mapColours(root, {dropUnmapped})` | see D9 |
 | `tidyPastedSpans(root)` | see D9 |
 | `activeSlot(root)` | the slot at the caret, or null |
@@ -497,20 +504,42 @@ was included:
 `tc-*` is explicitly **not** "another allowed class" for this test — otherwise every coloured
 span would route to the keep-the-element row and Clear would never unwrap anything.
 
-**Clearing after a reload is the primary path and needs its own rule.** A surface mounted
-from stored HTML carries colour *only* as `class="tc-red"` — there is no inline colour
-anywhere — yet `mapColours` is specified to never touch an element without one. So on the
-author path, for each element whose inline colour resolves to the sentinel, `mapColours` must
-also strip `tc-*` from that element **and from its `tc-*` ancestors up to `root` that the
-cleared range covers**. Without this, `foreColor` emits a nested sentinel span inside the
-existing `tc-red`, `mapColours` drops the inner colour and unwraps the inner bare span, the
-outer `tc-red` survives, and **Clear is a silent no-op** on the path authors actually use. An
-e2e case colours, saves, reloads, then clears.
+**Clearing after a reload is the primary path, and it does not behave like clearing inline
+colour.** A surface mounted from stored HTML carries colour *only* as `class="tc-red"` —
+no inline colour anywhere — so none of `mapColours`'s inline-colour machinery applies, and
+`execCommand`'s own splitting does **not** happen (there is no inline colour to split).
+Measured in Chromium with `styleWithCSS(true)` and the sentinel:
+
+| stored shape | cleared range | what `foreColor` produces |
+|---|---|---|
+| `<span class="tc-red">abc</span>` | all of `abc`, or a wider range enclosing it | sentinel span **wrapping** the `tc-red` span — the surviving class is a **descendant** |
+| `<span class="tc-red">abc</span>` | just `b` | `<span class="tc-red">a<span style="color:rgb(1,2,3)">b</span>c</span>` — the outer span is **not** split |
+| `<b class="tc-red">abc</b>` | just `b` | same shape, class stays on the `<b>` |
+| `<span style="color:rgb(178,55,42)">abc</span>` | just `b` | three sibling spans — splitting *does* occur, but only for inline colour |
+
+So the clear-side rewrite is **range-aware and bidirectional**, and it lives in
+`apply(root, null)` — which holds the `Range` — not in `mapColours`, whose signature carries
+no range and which also runs from the `input` listener and both render wrappers where no
+cleared range exists. For each element carrying the sentinel colour, `apply` must:
+
+1. strip `tc-*` from that element, from its `tc-*` **ancestors** up to `root`, **and from
+   every `tc-*` descendant of it** — the enclosing case above makes the surviving class a
+   descendant, and an ancestors-only rule would leave Clear a silent no-op on the most
+   ordinary gesture (select the line, click "no colour");
+2. when the range covers only **part** of a `tc-*` element, **split that element explicitly**
+   into cleared and still-coloured parts rather than stripping the class wholesale. This
+   cannot be delegated to `execCommand` — the table above shows it does not split
+   class-carried colour;
+3. then hand off to `mapColours` to drop the sentinel and unwrap what is left bare.
+
+e2e: colour → save → reload → clear, for an exact selection, an **enclosing** selection, and
+a partial selection (remainder stays coloured).
 
 An e2e case colours a link, clears it, and asserts the link survives with its `href`.
 
-Partial selections follow from execCommand's own splitting: clearing on a subset of a
-coloured span splits it and leaves the remainder coloured. Tested explicitly.
+Partial selections are handled by `apply`'s explicit split (rule 2 above), **not** by
+execCommand — which splits only inline-colour markup, and stored colour is class-carried.
+Tested explicitly, on both shapes.
 
 **Inside the surface, colour is represented as a class** (alignment is represented as
 inline style) — note "inside": never on the contenteditable host itself, per the root rule
@@ -523,7 +552,13 @@ surface would show an author in dark mode the *light-theme* hex. Therefore:
 - **`input` is the only hook**, not `paste`. The `paste` event fires *before* the default
   insertion, so a handler on it sees the pre-paste DOM and normalises nothing; `input`
   fires afterwards with `inputType: "insertFromPaste"`. Both passes run from that single
-  listener, and they are gated differently: `mapColours` runs on **every** `input` (it is a
+  listener, **`mapColours` first**. The order is load-bearing, not stylistic: a pasted
+  `<span style="color: red">x</span>` matches `tidyPastedSpans`'s rule (b) predicate exactly,
+  so running tidy first would unwrap the carrier and destroy the inline colour before
+  `mapColours` could map it — silently failing the paste path the mechanism exists for.
+  Mapping first also makes the unmapped-colour → plain-text unwrap fall out for free. The
+  same order applies in both table editors and is part of the twins' byte-identity rule.
+  They are gated differently: `mapColours` runs on **every** `input` (it is a
   no-op when nothing carries inline colour), while `tidyPastedSpans` runs **only** when
   `inputType` is `insertFromPaste` or `insertFromDrop` — running it on ordinary typing
   would unwrap spans as the author works.
@@ -587,8 +622,11 @@ by all four — which extends the "byte-identical" discipline to the markup inst
 on four hand-copies staying in step. It is **inserted after the bold/italic/underline group,
 before the first `.rte-sep`** (not appended — the end of the toolbar is where `∑` sits).
 
-Plus the two table toolbars: `_edit_table.html` (near 41-43) and `_edit_filltable.html`
-(near 50-52). In the table editors the group rides the existing toolbar `mousedown`
+Plus the two table toolbars, where the RTE positioning rule does **not** transfer: lines
+41-43 / 50-52 are the three h-align buttons *inside* `<span class="table-editor__aligns">`,
+B/I/U end at `:38`/`:47` with `∑` immediately after at `:39`/`:48`, and the first `.rte-sep`
+is only at `:50`/`:59`. Position the group **after the `∑` button and before the opening
+`<span class="table-editor__aligns">`** in both files, so the twins land identically. In the table editors the group rides the existing toolbar `mousedown`
 preventDefault that preserves `focusCell` (`table_editor.js:523`), and `mapColours()` must
 run on the cell **before** `innerHTML` is harvested into the JSON payload
 (`table_editor.js:174`) or the colour is dropped at save.
@@ -823,7 +861,7 @@ rejected re-import alternative returns to the table for parts with no post-impor
 compared to the key whole; the rewrite replaces the field.
 
 **JSON cell fields** (`TableElement.data`, `FillTableElement.data`): the stored value is a
-structure (`{"cells": [[{"html": …, "halign": …}]]}`, `transfer/payloads.py:605-625`),
+structure (`{"cells": [[{"html": …, "halign": …}]]}`, `courses/transfer/payloads.py:605-625`),
 never byte-identical to an HTML key. So:
 
 - the key is **one cell's `html`**, matched per cell;
@@ -923,7 +961,7 @@ unwrapped**; idempotent on both paths; preserves maths spans in cells. `ALIGN_CL
 across up to 13 keys — the same aliasing trap, so build each entry as `set(TC_CLASS_VALUES)`
 or guard it).
 
-**`test_sanitize_align.py:34` must be UPDATED, not preserved.** It asserts
+**`courses/tests/test_sanitize_align.py:34` must be UPDATED, not preserved.** It asserts
 `"class" not in sanitize_cell('<b class="ta-center">x</b>')`; measured, the output becomes
 `<b class="">x</b>` once `b` is an `allowed_classes` key, so the assertion fails. Rewrite it
 as `'ta-center' not in …`. The general consequence belongs in the test list too: **after
@@ -1017,7 +1055,9 @@ Stated as claims to test, not as facts:
    checked in a real browser before the slot table is written.
 2. **What `execCommand("foreColor")` emits** with `styleWithCSS` true and false, in Chrome
    and Firefox — a fresh `span`, a style on an existing inline element (including an `<a>`),
-   or a style on the block. This decides whether the `TC_CLASS_TAGS` widening and the
+   or a style on the block. Includes: whether a straddling selection is ever split into more
+   than one span (an earlier draft asserted it is; Chromium measurement says one span), and
+   whether Firefox matches Chromium on the four clear-path shapes tabulated above. This decides whether the `TC_CLASS_TAGS` widening and the
    move-off-block rule are load-bearing or belt-and-braces.
 3. **Whether the two wrappers together cover every render, and how much they overlap.**
    `auto-render.min.js` resolves `katex` as a property of the same `window.katex` object, so
