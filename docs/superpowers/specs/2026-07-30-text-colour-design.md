@@ -48,8 +48,9 @@ Authors cannot colour text. Two consequences:
   already offers it. D8 is the enforced boundary.
 - Colouring *inside* a `{{…}}` blank/choice marker. D10 refuses it; the marker's interior is
   parsed data, not prose.
-- Restoring black, gray, magenta, purple, yellow or hex colours (109 spans, 16%). They
-  drop to plain text. Explicitly accepted by the user: "the colours used in matematyka
+- Restoring black, gray, magenta, purple, yellow or hex colours (109 spans, 16%). The
+  colouriser **unwraps** them to plain text — note that after slice 1 the sanitiser can no
+  longer do this itself, so the unwrap is the colouriser's explicit duty. Explicitly accepted by the user: "the colours used in matematyka
   do not have to reflect the originals, some of them may be skipped".
 - Any change to models, migrations, transfer schema or exporters.
 
@@ -101,10 +102,20 @@ against exactly it:
 | 4 | `--danger-subtle` — `.question__feedback-panel--incorrect` (`_quiz_question_feedback.html:27`) | `#F2D9D5` | `#3A1E1A` |
 | 5 | `--success-subtle` — `.question__feedback-panel--correct` (`:37`) | `#E3ECD7` | `#2A3620` |
 | 6 | `--warning-subtle` | `#F4E8CD` | `#3A2F18` |
-| 7-10 | the four `.callout` backgrounds, `color-mix(accent 6%, --surface-raised)` (`courses.css:1414-1459`) | mixes | mixes |
+| 7 | `.callout--example` bg (`courses.css:1414-1459`) | `#F2F6FC` | `#313132` |
+| 8 | `.callout--note` bg | `#F5F5F6` | `#34322F` |
+| 9 | `.callout--tip` bg | `#F2F8F5` | `#2F332C` |
+| 10 | `.callout--warning` bg | `#FAF6F1` | `#373229` |
+
+Rows 7-10 are `color-mix(in srgb, <accent> 6%, --surface-raised)` computed with **per-channel
+`round()` in sRGB**; the test must use that convention, because the light margin is thin.
+The assertion is `>= 4.5` on a ratio computed to at least two decimals.
 
 Measured worst case over all ten: **light 4.51:1** (red on `--danger-subtle`),
 **dark 5.12:1** (red on the warning callout). Every slot clears AA on every surface.
+
+**The light margin is 0.01.** `--tc-red` and `--danger-subtle` are now coupled: neither may
+move without re-running the full ten-surface measurement.
 
 Surfaces 3-6 are why the light values are darker than an earlier draft's. `CalloutElement.body`
 and `QuestionElement.explanation` are both `RICH_TEXT_FIELDS` fields, and the explanation
@@ -132,8 +143,9 @@ Two consequences to accept knowingly:
 - `ALLOWED_TAGS` gains `span`.
 - `TC_CLASS_VALUES = {"tc-red", "tc-blue", "tc-green", "tc-orange"}`.
 - `TC_CLASS_TAGS = {"span", "b", "i", "em", "strong", "u", "a"}`.
-- `CELL_TAGS` gains `span`, and a new `CELL_ALLOWED_CLASSES` — covering only `CELL_TAGS`,
-  not the block-tag alignment family — is passed to `sanitize_cell`'s `nh3.clean`, which
+- `CELL_TAGS` gains `span`, and a new `CELL_ALLOWED_CLASSES = {tag: TC_CLASS_VALUES for tag in CELL_TAGS & TC_CLASS_TAGS}`
+  — covering only cell tags, not the block-tag alignment family, and excluding `br`, which is
+  in `CELL_TAGS` but not `TC_CLASS_TAGS` — is passed to `sanitize_cell`'s `nh3.clean`, which
   today passes no `allowed_classes` at all.
 
 **`ALLOWED_CLASSES` must be rebuilt, not mutated.** It is currently
@@ -182,20 +194,23 @@ transfer. Cell dicts keep their existing keys (`transfer/payloads.py:605` untouc
 Field coverage cannot be read off field names — there are **three** sanitisers, and
 `RICH_TEXT_FIELDS` alone is not the right registry for the backfill:
 
-| sanitiser | fields | in scope? |
+| sanitiser | fields | in **backfill** scope? |
 |---|---|---|
 | `sanitize_html` | `TextElement.body`, `SpoilerElement.body`, `CalloutElement.body`, `GuessNumberElement.success_message` (`models.py:779`), `QuestionElement.stem`/`.explanation` on every concrete question type (`models.py:1604-1605`) | yes |
-| `sanitize_cell` | table cells (`models.py:962`), filltable cells (`:1134`), MCQ `options` (`:738`), choicegrid cycler options (`:805`), gallery `img["desc"]` (`:1278`), `element_forms.py:419,513` | table + filltable cells only; the rest are **out of scope** (no authoring surface for colour, no imported colour measured in them) |
-| `sanitize_stem_segments` (`courses/switchgrid.py:54`, used by `builders.py:205,215,278,290,314`) | `FillGateElement.stem`, `SwitchGateElement.stem`, `GuessNumberElement.stem`, `SwitchGridElement.lines[*].stem` | yes for the three in `RICH_TEXT_FIELDS`; `SwitchGridElement.lines[*].stem` is out of scope |
+| `sanitize_cell` | table cells (`models.py:962`), filltable cells (`:1134`), MCQ `options` (`:738`), choicegrid cycler options (`:805`), gallery `img["desc"]` (`:1278`), `element_forms.py:419,513` | table + filltable cells only; the rest are **out of scope for the backfill** — not because they are known to be colour-free (they were never measured; see the appendix, where they are also the explanation for the 588→446 gap) but because they have no authoring surface for colour. The cost is roughly 100 palette-coloured spans, listed as a knowing loss beside the 109 non-palette ones. |
+| `sanitize_stem_segments` (`courses/switchgrid.py:54`, used by `builders.py:205,215,278,290,314`) | `FillGateElement.stem`, `SwitchGateElement.stem`, `GuessNumberElement.stem`, `SwitchGridElement.lines[*].stem` | yes for the three in `RICH_TEXT_FIELDS`; `SwitchGridElement.lines[*].stem` is out of **backfill** scope, but **is** an authoring surface in slice 1 — `element_forms.py:508-509` sanitises each line stem with `sanitize_html`, so an author can colour it and D10's refusal must be wired there |
 
 **Some fields are sanitised TWICE on the import path, and the key must reproduce the
-composition.** `builders.py:214` creates `FillBlankQuestionElement` with
+composition.** `courses/lal_loader/builders.py:214` creates `FillBlankQuestionElement` with
 `stem=sanitize_stem_segments(...)`, and `QuestionElement.save()` then re-applies
 `sanitize_html` to `stem` and `explanation` (`models.py:1604-1605`). The stored value is
 `sanitize_html(sanitize_stem_segments(x))`, which is materially different from
 `sanitize_html(x)` — `sanitize_cell` strips block tags and `_canon_math` escapes the maths
-spans. A key built with either sanitiser alone matches **nothing** for that field. The same
-audit is required for `DragFillBlankQuestionElement.stem` (`builders.py:360,376,386`).
+spans. A key built with either sanitiser alone matches **nothing** for that field. There is **no** drag-fill-blank branch in the loader, so that model can hold no imported
+colour. `builders.py:360/376/386` are `ChoiceQuestionElement`, `ShortNumericQuestionElement`
+and `ShortTextQuestionElement`, each created with a bare `stem=el["stem"]` and **no**
+builder-side sanitiser — their key is therefore `sanitize_html(x)` alone, applied by
+`QuestionElement.save()`.
 
 **The rule is therefore: reproduce the full import write path, in order, including any
 `save()`-time sanitiser that runs after the builder's explicit one** — not "the sanitiser
@@ -216,7 +231,7 @@ form's clean()-time sanitize" (`switchgrid.py:56-57`), while a form edit goes th
 
 An earlier draft said an overlapping colour span merely stops the maths rendering and can
 be undone. That is wrong on the cell path. `_MATH_SPAN` (`sanitize.py:65`) is non-greedy
-and `DOTALL`; `_canon_math` (`sanitize.py:73`) escapes whatever it stashed. So
+and `DOTALL`; `_canon_math` (`sanitize.py:68`) escapes whatever it stashed. So
 `\(<span class="tc-red">x</span> + y\)` — a selection **wholly inside** a region — is
 still delimiter-balanced, gets stashed *with the span*, and is escaped into the stored
 LaTeX permanently. Both sanitisers are idempotent, so re-saving never heals it.
@@ -245,8 +260,10 @@ parse()`, so markers are parsed **after** sanitisation. Before slice 1 a `<span>
 marker was stripped; once `span` is allowed, `{{<span class="tc-red">a</span>|b}}` still
 matches `_MARKER_RE` (`fillblank.py:28`) and `group(1)` becomes the accepted-answer list —
 the stored answer is HTML markup that no student input can ever match. For
-switchgate/switchgrid/guessnumber the exact-literal `{{choice}}` / `{{42}}` match fails
-instead, dropping the widget or raising `token_count`.
+switchgate/switchgrid/guessnumber the exact-literal `{{choice}}` / `{{42}}` match fails and
+the **form rejects the save** with a validation error (`element_forms.py:411-417` catches
+`SwitchGateError` and calls `add_error("stem", …)`). Only fill-blank corrupts **silently** —
+which is what makes D10 load-bearing rather than merely tidy.
 
 Marker regions get the **same four-case table** as maths regions, found in the **same**
 offset pass. They apply on the surfaces whose stems carry markers — the fill-blank,
@@ -375,6 +392,14 @@ so the two table editors' swatches are **stateless**: they apply colour and neve
 active state. Stating this is what keeps the "byte-identical glue in both twins" rule
 achievable; adding selection-tracking to the table editors is explicitly out of scope.
 
+**Never leave `tc-*` on the root itself.** This is worse than the block-tag case:
+`sync()` serialises `surface.innerHTML` (`text_toolbar.js:196`) and `serialize()` reads
+`td.innerHTML` (`table_editor.js:174`), so anything `foreColor` puts on the `.rte-surface`
+div or the contenteditable `<td>` is **never serialised at all** — the colour vanishes with
+no sanitiser involved and no feedback. If the styled element is `root`, `mapColours` wraps
+`root`'s children in a `span` carrying the class and clears the root's inline colour. Unit
+case: `root` carrying `style="color:…"`.
+
 **Never leave `tc-*` on a tag outside `TC_CLASS_TAGS`.** Selecting a whole paragraph is an
 ordinary gesture, and Unknown #2 concedes it is not yet known which element `foreColor`
 styles. If it styles the block, a naive pass produces `p.tc-red`, the sanitiser strips it,
@@ -391,9 +416,13 @@ Idempotency of the pass and convergence of the markup are different properties; 
 required and both are tested.
 
 **Caret and undo.** Mutating the live DOM under a contenteditable collapses the selection
-and cannot be reversed by `execCommand`-driven undo. Two requirements: `mapColours` saves
-and restores the `Range` across any mutation, and it is a **no-op when nothing needs
-rewriting**, so ordinary typing never mutates the DOM. An e2e case covers apply-then-undo.
+and cannot be reversed by `execCommand`-driven undo. Two requirements: `mapColours` saves and restores the `Range` **only when it actually
+mutates and the current selection is inside `root`**, and it is a **no-op when nothing needs
+rewriting**, so ordinary typing never mutates the DOM. The scoping is load-bearing because
+`mapColours` also runs from the render wrappers: `editor.js` re-renders the preview after
+every fragment swap (`:95,:243,:252,:493`) while the author's caret may sit in a live
+`.rte-surface`, and an unscoped `removeAllRanges()`/`addRange()` there would move a
+selection belonging to a different subtree. An e2e case covers apply-then-undo.
 
 Three consumers: `text_toolbar.js`, `table_editor.js`, `filltable_editor.js`. The latter
 two are the code-identical twins guarded by #169. **Acceptance rule:** all colour logic in
@@ -429,7 +458,9 @@ An e2e case colours a link, clears it, and asserts the link survives with its `h
 Partial selections follow from execCommand's own splitting: clearing on a subset of a
 coloured span splits it and leaves the remainder coloured. Tested explicitly.
 
-**Colour is a class on the surface itself**, unlike alignment. Alignment keeps inline
+**Inside the surface, colour is represented as a class** (alignment is represented as
+inline style) — note "inside": never on the contenteditable host itself, per the root rule
+above. Alignment keeps inline
 styles on the surface (`text_toolbar.js:48-74`) because its active state needs
 `queryCommandState("justifyCenter")`. Colour has no such need, and inline colour on the
 surface would show an author in dark mode the *light-theme* hex. Therefore:
@@ -473,14 +504,31 @@ All three toolbars dispatch on `[data-cmd]` (`text_toolbar.js:204`, `table_edito
 so the five controls have a **stated contract** the twins can be byte-identical to:
 `data-cmd="colour-red"`, `colour-blue`, `colour-green`, `colour-orange`, `colour-none`,
 each with a translated `title` and `aria-label` (colour alone cannot name a control). The
-active swatch is indicated by a ring, not by colour alone. The "no colour" control is a
+active swatch is indicated by a ring, not by colour alone — and it must **not** reuse
+`.rte-btn.is-on`, which is already `background: var(--primary); color: var(--text-inverse)`
+(`editor.css:230`) and would repaint the active swatch brand-teal, hiding the very colour it
+represents. Use a distinct `.rte-swatch` class whose `.is-on` state is a `box-shadow` ring
+and which overrides the inherited background/border. The frontend-design pass judges the
+active state in a screenshot, since a test asserting "the class is present" would pass
+either way. The "no colour" control is a
 bordered square with a CSS diagonal — no new sprite entry.
 
 Appended to `_rte_toolbar.html`, `_edit_table.html` (near 41-43) and `_edit_filltable.html`
 (near 50-52). In the table editors the group rides the existing toolbar `mousedown`
 preventDefault that preserves `focusCell` (`table_editor.js:523`), and `mapColours()` must
 run on the cell **before** `innerHTML` is harvested into the JSON payload
-(`table_editor.js:174`) or the colour is dropped at save. The colour branch in **both**
+(`table_editor.js:174`) or the colour is dropped at save.
+
+**Both passes are wired in the table editors too, and "the editor" in D9 means all three.**
+`table_editor.js` has one `input` listener (`:461`) and no paste handler, so without this a
+paste into a cell would store nested `<span class="">` plus duplicated MathML/glyph prose
+(`span` is newly in `CELL_TAGS`), and a paste of inline-coloured HTML would silently lose
+its colour. Wire both from that existing `grid` `input` listener, scoped to
+`e.target.closest("[contenteditable]")` — the cell actually edited — with `tidyPastedSpans`
+gated on `inputType` as in the RTE. `mapColours` additionally runs over **every** cell
+inside `serialize()`, because a paste can land in a cell that is never focused again.
+
+The colour branch in **both**
 table editors must set `styleWithCSS(true)` before `foreColor` and reset it to `false`
 afterwards — those files currently force it `false` for bold/italic/underline
 (`table_editor.js:534-537`), and the reset discipline documented in the RTE section applies
@@ -553,16 +601,41 @@ a key**.
 
 ### Key construction
 
-The key is produced by **unwrapping** the colour spans — removing the `<span>` and keeping
-its children — *not* by dropping the `style` attribute. After slice 1, `span` is allowed,
-so attribute-dropping would yield `<span>założenie</span>`, which can never equal what the
-pre-change loader stored (`założenie`). Only unwrapping produces a matchable key.
+The key is produced by **unwrapping every `<span>`** — removing the element and keeping its
+children — *not* by dropping the `style` attribute, and *not* only for colour-bearing spans.
+
+Two distinct reasons, both measured:
+
+- Attribute-dropping would yield `<span>założenie</span>`, which can never equal what the
+  pre-change loader stored (`założenie`), because `span` is allowed after slice 1.
+- The pre-change sanitiser unwrapped **all** spans, not just coloured ones, and the corpus
+  is full of others: of **1197** spans, only 697 carry colour — the rest are 299
+  `<span class="myequation">`, 129 bare `<span>`, 96 `<span style="display:inline-block…">`
+  and similar. **10 of the 301 colour-bearing field occurrences (3%) also carry a
+  non-colour span.** A key that unwraps only colour spans replays to `<span class="">…`
+  while the DB holds the fully-unwrapped value — a silent zero-match with no diagnostic,
+  the exact failure class the acceptance gate detects but cannot attribute.
+
+**The value the colouriser writes must unwrap them too.** Non-palette and non-colour spans
+must not survive into the DB: once `span` is allowed, nh3 no longer removes them, so
+writing them back would ship `<span class="">` litter into content that is currently clean.
 
 The generator then replays **the full import write path for that field, in order** (see the
 three-sanitiser table) — for gate stems `sanitize_stem_segments`; for
 `FillBlankQuestionElement.stem` the composition `sanitize_html(sanitize_stem_segments(x))`,
 because `save()` re-sanitises after the builder. Applying a single sanitiser where the real
 path composes two produces keys that match nothing, and it fails silently.
+
+**The colouriser must apply D8/D10's region test to the source value, too.** The editor is
+forbidden from producing a colour span that intersects a maths region or a `{{…}}` marker,
+but the backfill writes colour into exactly the marker- and sentinel-token-bearing stems
+(`FillGateElement.stem`, `SwitchGateElement.stem`, `GuessNumberElement.stem`,
+`FillBlankQuestionElement.stem`). If a source span straddles or sits inside such a region,
+the backfill would store precisely the corruption D10 exists to prevent, and the next form
+edit would surface it. So: run the same intersection test over each source value, and
+**refuse and report** any occurrence that intersects a maths or marker region. The corpus
+measurement behind D8 (0 contaminated maths spans) covers only maths — the equivalent
+marker measurement must be taken during implementation and reported beside it.
 
 The unwrap is a bs4 pass, and this repo has a recorded trap there: `str(Tag)` re-escapes
 entities while `str(NavigableString)` decodes them, so a body must be serialised with
@@ -582,11 +655,18 @@ condition, fixed before the measurement is taken:
 - **≥ 70%** of *eligible occurrences* match, **and**
 - **no eligible part that holds at least one palette-colour span matches zero.**
 
-**The denominator is named, because three different corpus counts appear in this spec and
-70% of each gives a different verdict.** It is the number of **(field, part) occurrences in
-the key map after source-side exclusion** — the 306-derived count, not the 588 span count
-and not the 446 emitted-class count. A table counts **once per matching cell**, consistent
-with the per-cell matching contract below. The two parts holding zero colour spans
+**Both sides are defined as computable expressions, because three different corpus counts
+appear in this spec and 70% of each gives a different verdict.** Neither 588 (spans) nor 446
+(emitted classes) nor 306 (occurrences of stripped forms) nor 257 (distinct forms) is the
+right number, so the gate does not cite any of them:
+
+- **denominator** = the number of source-side `(json_file, field_path)` occurrences that
+  produce a key after source-side exclusion;
+- **numerator** = the subset of those whose key matched at least one DB field.
+
+Both are emitted by the dry run itself and re-derived from the code, not quoted from this
+spec. (Per-cell counting belongs to the rewrite contract below, not to the gate.) The two
+parts holding zero colour spans
 (`150_f_wykladnicza`, `120_wartosc_bezwzgledna`) contribute to neither numerator nor
 denominator; without that exclusion the second condition would halt every run by
 construction.
@@ -719,7 +799,10 @@ and its `href` intact; clearing on a subset of a coloured span leaves the remain
 coloured; apply-then-undo leaves consistent markup; D8 refuses a selection wholly inside
 `\(x+y\)` **on the cell path** and shows the translated message; D8 refuses a selection
 enclosing `\(x + <b>y</b>\)` (element boundary inside the region); D10 refuses colouring
-inside `{{a|b}}` in a fill-blank stem, and the stored accepted answers are unchanged; both themes screenshotted
+inside `{{a|b}}` in a fill-blank stem, and the stored accepted answers are unchanged;
+**D8 ALLOWS a selection strictly enclosing `\(x+y\)` with no interior tags** — it stores
+`<span class="tc-red">\(x+y\)</span>` and the maths still renders after reload, with a
+cell-path variant since `sanitize_cell` stashes the region before `nh3.clean`; both themes screenshotted
 and judged separately.
 
 **e2e — D4 on the student side.** `\color{red}` and a prose `tc-red` resolve to the same
@@ -777,9 +860,12 @@ Stated as claims to test, not as facts:
    and Firefox — a fresh `span`, a style on an existing inline element (including an `<a>`),
    or a style on the block. This decides whether the `TC_CLASS_TAGS` widening and the
    move-off-block rule are load-bearing or belt-and-braces.
-3. **Whether the two wrappers together cover every render** — `renderMathInElement` for
-   inline prose maths and `window.katex.render` for the `[data-katex]` display pass — in all
-   five templates, including `math.js`'s two load-time calls.
+3. **Whether the two wrappers together cover every render, and how much they overlap.**
+   `auto-render.min.js` resolves `katex` as a property of the same `window.katex` object, so
+   wrapping `window.katex.render` probably also fires once per inline span — on a *detached*
+   node, before it is appended. `mapColours` is safe on a detached root (it reads only
+   inline `style.color`), but the cost is N+1 passes per scope. Measure the overlap on the
+   largest mat-pp unit and add a re-entrancy guard if it is material.
 4. **Whether the swatch group fits** the two table toolbars at 360px.
 
 ## Appendix — measured corpus data
