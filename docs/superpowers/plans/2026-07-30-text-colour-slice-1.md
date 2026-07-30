@@ -195,9 +195,8 @@ def test_courses_css_defines_every_utility():
 def _mix(accent, ground, ratio=0.06):
     a = [int(accent.lstrip("#")[i : i + 2], 16) for i in (0, 2, 4)]
     b = [int(ground.lstrip("#")[i : i + 2], 16) for i in (0, 2, 4)]
-    return "#%02X%02X%02X" % tuple(
-        round(a[i] * ratio + b[i] * (1 - ratio)) for i in range(3)
-    )
+    r, g, bl = (round(a[i] * ratio + b[i] * (1 - ratio)) for i in range(3))
+    return f"#{r:02X}{g:02X}{bl:02X}"
 
 
 def test_surface_literals_still_match_the_css():
