@@ -10,8 +10,9 @@ Authors cannot colour text. Two consequences:
 1. **New content.** There is no way to colour-code terms — the default idiom in maths
    teaching (`x` red, `y` blue, the coefficient orange).
 2. **Imported content already lost its colour.** The LAL parser output in
-   `scripts/lal_import/out/**.json` carries **697 `<span style="color: …">` spans across
-   106 files in 19 of 21 parts**. `sanitize_html` has never allowed `span`
+   `scripts/lal_import/out/**.json` carries **697 `<span style="color: …">` **colour-bearing elements** across
+   106 files in 19 of 21 parts**. They are *not* all spans — measured by carrier tag:
+   `span` 510, `strong` 161, `p` 8, `li` 6, `u` 6, `figcaption` 4, `i` 2. `sanitize_html` has never allowed `span`
    (`courses/sanitize.py:11-34`), so the loader stored the words and dropped the colour.
    Verified by running the real sanitiser on a real body:
 
@@ -29,13 +30,13 @@ Authors cannot colour text. Two consequences:
 
 | # | Decision | Rationale |
 |---|---|---|
-| D1 | Fixed palette of **four** slots: red, blue, green, orange | Covers 588 of 697 imported spans (84%) and is exactly the set used for colour-coding algebra. Arbitrary colours would require allowing `style` through the sanitiser — a permanent security surface — and authors would pick values that vanish in dark mode. |
+| D1 | Fixed palette of **four** slots: red, blue, green, orange | Covers 588 of 697 imported colour-bearing elements (84%) and is exactly the set used for colour-coding algebra. Arbitrary colours would require allowing `style` through the sanitiser — a permanent security surface — and authors would pick values that vanish in dark mode. |
 | D2 | Colour is a **class on an inline element**, never inline style | Mirrors the shipped `ta-*` alignment mechanism (`sanitize.py:43-45`); keeps the sanitiser a token-level allowlist. |
 | D3 | The sanitiser stays **purely subtractive** | Translating `style="color:…"` → class requires parsing author HTML. Regex attribute surgery on author HTML is the trap that has already bitten this repo (see `richtext.py:79-95`). Translation happens only where a real parser exists: the browser (editor) and bs4 (backfill). |
 | D4 | **KaTeX output is normalised** onto the same palette | Prose and maths colour appear in the same sentence in the imported content. Also makes maths colour theme-aware and AA-compliant, which it is not today. |
 | D5 | Backfill via a **guarded management command**, run locally before the prod cutover | Colour then reaches prod through the sanctioned #68 export/import flow with no prod-side migration. |
 | D6 | Backfill matches on **content, never node identity** | Many matematyka nodes have been renamed. Titles are not read or written at any point. |
-| D7 | Parts `001_zbiory_liczbowe` and `002_elementy_logiki` are **excluded**, on both the source and DB sides | The user has made significant manual changes there. Those two parts hold only 29 of 697 spans (4%), so exclusion costs almost nothing. |
+| D7 | Parts `001_zbiory_liczbowe` and `002_elementy_logiki` are **excluded**, on both the source and DB sides | The user has made significant manual changes there. Those two parts hold only 29 of 697 colour-bearing elements (4%), so exclusion costs almost nothing. |
 | D8 | `apply()` **refuses** any selection intersecting a `\(…\)` / `\[…\]` region, unless it strictly encloses whole regions containing no element boundary | On the cell path the damage is permanent, not cosmetic (see "Protected regions"). |
 | D9 | Two distinct DOM passes: `mapColours()` and `tidyPastedSpans()` | They have opposite duties. Conflating them destroys rendered KaTeX (see "Two passes"). |
 | D10 | The same refusal covers `{{…}}` author markers | Allowing `span` opens a **new** corruption path: markers are parsed *after* sanitisation, so a coloured marker becomes the stored answer. See "Protected regions". |
@@ -48,7 +49,7 @@ Authors cannot colour text. Two consequences:
   already offers it. D8 is the enforced boundary.
 - Colouring *inside* a `{{…}}` blank/choice marker. D10 refuses it; the marker's interior is
   parsed data, not prose.
-- Restoring black, gray, magenta, purple, yellow or hex colours (109 spans, 16%). The
+- Restoring black, gray, magenta, purple, yellow or hex colours (109 elements, 16%). The
   colouriser **unwraps** them to plain text — note that after slice 1 the sanitiser can no
   longer do this itself, so the unwrap is the colouriser's explicit duty. Explicitly accepted by the user: "the colours used in matematyka
   do not have to reflect the originals, some of them may be skipped".
@@ -106,6 +107,10 @@ against exactly it:
 | 8 | `.callout--note` bg | `#F5F5F6` | `#34322F` |
 | 9 | `.callout--tip` bg | `#F2F8F5` | `#2F332C` |
 | 10 | `.callout--warning` bg | `#FAF6F1` | `#373229` |
+
+Deliberately **excluded**: `.table-editor__grid .is-range` (`editor.css:627-632`), which
+paints a `--primary` tint over a selected cell. It is transient selection chrome in an
+authoring tool, not a surface body text is read on.
 
 Rows 7-10 are `color-mix(in srgb, <accent> 6%, --surface-raised)` computed with **per-channel
 `round()` in sRGB**; the test must use that convention, because the light margin is thin.
@@ -197,8 +202,8 @@ Field coverage cannot be read off field names — there are **three** sanitisers
 | sanitiser | fields | in **backfill** scope? |
 |---|---|---|
 | `sanitize_html` | `TextElement.body`, `SpoilerElement.body`, `CalloutElement.body`, `GuessNumberElement.success_message` (`models.py:779`), `QuestionElement.stem`/`.explanation` on every concrete question type (`models.py:1604-1605`) | yes |
-| `sanitize_cell` | table cells (`models.py:962`), filltable cells (`:1134`), MCQ `options` (`:738`), choicegrid cycler options (`:805`), gallery `img["desc"]` (`:1278`), `element_forms.py:419,513` | table + filltable cells only; the rest are **out of scope for the backfill** — not because they are known to be colour-free (they were never measured; see the appendix, where they are also the explanation for the 588→446 gap) but because they have no authoring surface for colour. The cost is roughly 100 palette-coloured spans, listed as a knowing loss beside the 109 non-palette ones. |
-| `sanitize_stem_segments` (`courses/switchgrid.py:54`, used by `builders.py:205,215,278,290,314`) | `FillGateElement.stem`, `SwitchGateElement.stem`, `GuessNumberElement.stem`, `SwitchGridElement.lines[*].stem` | yes for the three in `RICH_TEXT_FIELDS`; `SwitchGridElement.lines[*].stem` is out of **backfill** scope, but **is** an authoring surface in slice 1 — `element_forms.py:508-509` sanitises each line stem with `sanitize_html`, so an author can colour it and D10's refusal must be wired there |
+| `sanitize_cell` | table cells (`models.py:962`), filltable cells (`:1134`), MCQ `options` (`:738`), choicegrid cycler options (`:805`), gallery `img["desc"]` (`:1278`), `element_forms.py:419,513` | table + filltable cells only; the rest are **out of scope for the backfill** — and **measured** to carry zero palette colour: palette colour exists only under the JSON keys `body`, `html` and `stem` (see the appendix). The exclusion therefore costs nothing. |
+| `sanitize_stem_segments` (`courses/switchgrid.py:54`, used by `builders.py:205,215,278,290,314`) | `FillGateElement.stem`, `SwitchGateElement.stem`, `GuessNumberElement.stem`, `SwitchGridElement.lines[*].stem` | yes for the three in `RICH_TEXT_FIELDS`. `SwitchGridElement.lines[*].stem` is out of **backfill** scope (2 palette occurrences) and is **not** an RTE surface — it is a bare textarea, so it gets no swatches and no D10 refusal; see "Protected regions" |
 
 **Some fields are sanitised TWICE on the import path, and the key must reproduce the
 composition.** `courses/lal_loader/builders.py:214` creates `FillBlankQuestionElement` with
@@ -259,17 +264,31 @@ this feature.** `fillblank.py`'s documented order is `sanitize_html(raw) → str
 parse()`, so markers are parsed **after** sanitisation. Before slice 1 a `<span>` inside a
 marker was stripped; once `span` is allowed, `{{<span class="tc-red">a</span>|b}}` still
 matches `_MARKER_RE` (`fillblank.py:28`) and `group(1)` becomes the accepted-answer list —
-the stored answer is HTML markup that no student input can ever match. For
-switchgate/switchgrid/guessnumber the exact-literal `{{choice}}` / `{{42}}` match fails and
-the **form rejects the save** with a validation error (`element_forms.py:411-417` catches
-`SwitchGateError` and calls `add_error("stem", …)`). Only fill-blank corrupts **silently** —
-which is what makes D10 load-bearing rather than merely tidy.
+the stored answer is HTML markup that no student input can ever match. `fillblank.parse` is called from **three** forms, not one — `FillGateElementForm`
+(`element_forms.py:259`), `FillBlankQuestionElementForm` (`:816`) and
+`DragFillBlankQuestionElementForm` (`:856`) — and it raises only on an empty/unterminated
+marker or no blanks, so a coloured marker is *accepted* and stored as the answer list by all
+three. For switchgate/switchgrid/guessnumber the exact-literal `{{choice}}` / `{{42}}` match
+fails instead and the **form rejects the save** (`element_forms.py:411-417` catches
+`SwitchGateError` and calls `add_error("stem", …)`).
+
+So the split is: **fill-blank, drag-fill-blank and fill-gate corrupt silently**;
+switch-gate, switch-grid and guess-number are rejected. The three silent ones are what make
+D10 load-bearing rather than merely tidy.
 
 Marker regions get the **same four-case table** as maths regions, found in the **same**
-offset pass. They apply on the surfaces whose stems carry markers — the fill-blank,
-fill-gate, switch-gate, switch-grid and guess-number stems, all edited through
-`_rte_toolbar.html` — so the refusal is wired wherever the swatches appear on a
-marker-bearing field.
+offset pass, on every marker-bearing field that is an RTE surface: the fill-blank,
+**drag-fill-blank**, fill-gate, switch-gate and guess-number stems, all edited through
+`_rte_toolbar.html`.
+
+**SwitchGrid line stems are excluded, because they are not an RTE surface.**
+`_edit_switchgrid.html:14` renders each one as a bare
+`<textarea name="line-N-stem" rows="1" data-stem>` — no `data-rte-source`, no toolbar, no
+contenteditable, so there is no swatch to refuse from and no live-DOM pass to hang the test
+on. An author can still type raw HTML into that textarea, and per D3 the sanitiser cannot
+detect a marker collision. **Recorded as a knowing gap**, not an oversight: promoting that
+textarea to a full RTE surface is a materially larger change and would need its own decision
+row.
 
 **Detection** is not a lookup. A DOM `Range` yields (node, offset) pairs, not indices into
 `root.textContent`, so the plan must implement an explicit mapping step: a `TreeWalker`
@@ -285,10 +304,14 @@ editor-conflict message (`text_toolbar.js:126-137`) — and note that pattern re
 from a **template attribute**, not a JS constant. So: `editor.html` emits
 `data-msg-colour-region` on the `.editor` root beside the existing `data-msg-conflict`,
 `text_colour.js` reads it, and degrades silently when the attribute is absent, exactly as
-the conflict path does. **One** message covers both region kinds. A silent no-op is the
+the conflict path does. **`text_colour.js` owns the bar in all three editors** — it prepends
+the `.op-error` element itself, reading the attribute off the nearest `.editor`, so the DOM
+and the e2e selector are identical everywhere. The table editors' own announcement path
+(`msg()`/`say()` into `[data-range-status]`, `table_editor.js:226-233`) is deliberately
+**not** used for this message. **One** message covers both region kinds. A silent no-op is the
 data-loss-shaped failure this repo already rejects elsewhere.
 
-The corpus measurement (0 contaminated maths spans across 697 imported spans) says the
+The corpus measurement (0 contaminated maths spans across all 697 colour-bearing elements) says the
 *imported* content never has this shape. It says nothing about the editor, which is what
 D8 governs.
 
@@ -332,8 +355,14 @@ callers decide differently — this was a contradiction in an earlier draft:
 Why a canonical form is mandatory: both JS consumers read colour **back out of the DOM** —
 `el.style.color` for the KaTeX pass, the result of `execCommand("foreColor")` for the
 editor — and browsers serialise those as `rgb(178, 55, 42)`, never `#B2372A` or `red`. A
-map keyed on source literals would match nothing on either JS path. The Python consumer
-reads bs4's view of the source attribute (`color: red;`), a third vocabulary.
+map keyed on source literals would match nothing on either JS path. The Python consumer reads bs4's view of the source attribute, a third vocabulary — and it
+needs a **declaration-parsing step** the value-level contract does not cover: split the
+`style` attribute on `;`, split each declaration on the **first** `:`, `strip().lower()` the
+property name, and require it to equal exactly `color` before handing the value to
+`normaliseColour`. A suffix match is a real trap: the corpus contains `background-color:`
+declarations that an unanchored `color:` search matches, and `color:red` with no space (12
+occurrences) plus values with trailing whitespace and semicolons. Unit cases:
+`background-color: red` yields **no** slot; `color:red` yields red.
 
 The drift test compares the **canonical slot tables** (triple → slot), not raw literals,
 because the two languages legitimately accept different input forms. Follow the
@@ -350,7 +379,7 @@ expression.
 | pass | touches | never touches | run by |
 |---|---|---|---|
 | `mapColours(root, {dropUnmapped})` | only elements carrying an **inline colour**. A **mapped** colour always gets the `tc-*` class added **and** its inline colour removed, on *both* paths. An **unmapped** colour is dropped when `dropUnmapped` (author path) and left untouched otherwise (render path) | any element without inline colour | the KaTeX wrapper; the editor after `apply()`; the editor on `input` |
-| `tidyPastedSpans(root)` | (a) a pasted `.katex` subtree — **replaced by its `annotation[encoding="application/x-tex"]` text wrapped in `\(…\)`**; (b) any other `span` whose class list holds no `tc-*`/`ta-*` token and which carries no attribute other than `class`/`style` — unwrapped | any element carrying semantics: `a`, `b`, `em`, …, or a span with a `tc-*`/`ta-*` class | the editor, on `input` with `inputType` `insertFromPaste` or `insertFromDrop` |
+| `tidyPastedSpans(root)` | (a) a pasted `.katex` subtree — **replaced by its `annotation[encoding="application/x-tex"]` text**, wrapped in `\[…\]` when the subtree is display maths (`.katex-display` on it or its parent) and `\(…\)` otherwise; (b) any other `span` whose class list holds no `tc-*`/`ta-*` token and which carries no attribute other than `class`/`style` — unwrapped | any element carrying semantics: `a`, `b`, `em`, …, or a span with a `tc-*`/`ta-*` class | the editor, on `input` with `inputType` `insertFromPaste` or `insertFromDrop` |
 
 Rule (a) is not optional and the earlier "unwraps classless spans" predicate could never
 have satisfied it: KaTeX spans always carry `class`, and usually inline `style` and
@@ -362,7 +391,9 @@ with its `annotation` text restores the author's original `\(x^2\)` and re-rende
 
 A test asserts rendered KaTeX survives the **wrapper** byte-for-byte apart from colour
 attributes (the wrapper must never call `tidyPastedSpans`), and a separate test asserts a
-pasted `.katex` subtree becomes `\(x^2\)` text — not merely that no empty spans remain.
+pasted `.katex` subtree becomes `\(x^2\)` text — not merely that no empty spans remain — and
+a display-maths paste becomes `\[…\]`, since `[data-katex]` renders with
+`displayMode: true` (`math.js:6`) and rewrapping it inline is a silent visual downgrade.
 
 ### Shared JS module
 
@@ -411,7 +442,10 @@ Unit test on `<p style="color:…">`; e2e on select-whole-paragraph → colour �
 `<span class="tc-red"><span class="tc-blue">…`. `mapColours` collapses a `tc-*` span whose
 only **rendered** content is another `tc-*` span — whitespace-only text nodes are ignored,
 because `execCommand` routinely emits them and an "only child" predicate would fail on
-shapes that are semantically identical. Innermost wins (most recent application).
+shapes that are semantically identical. Innermost wins (most recent application). **A single element carrying two
+slots** (`class="tc-red tc-blue"`, reachable via the HTML source view — measured: nh3 keeps
+both) is normalised to **one** `tc-*` token, last wins, so the outcome never depends on
+declaration order in `courses.css`.
 Idempotency of the pass and convergence of the markup are different properties; both are
 required and both are tested.
 
@@ -420,14 +454,21 @@ and cannot be reversed by `execCommand`-driven undo. Two requirements: `mapColou
 mutates and the current selection is inside `root`**, and it is a **no-op when nothing needs
 rewriting**, so ordinary typing never mutates the DOM. The scoping is load-bearing because
 `mapColours` also runs from the render wrappers: `editor.js` re-renders the preview after
-every fragment swap (`:95,:243,:252,:493`) while the author's caret may sit in a live
+every fragment swap (`:94,:242,:251`, plus the initial pass near `:493`; `editor.js:12` uses
+a bare `renderMathInElement` global, which is what makes the wrapper cover the preview) while the author's caret may sit in a live
 `.rte-surface`, and an unscoped `removeAllRanges()`/`addRange()` there would move a
 selection belonging to a different subtree. An e2e case covers apply-then-undo.
 
 Three consumers: `text_toolbar.js`, `table_editor.js`, `filltable_editor.js`. The latter
-two are the code-identical twins guarded by #169. **Acceptance rule:** all colour logic in
-`text_colour.js`; per-editor glue byte-identical in both files; the #169 guard re-run as
-part of slice 1's test list.
+two are the code-identical twins guarded by #169. **Acceptance rule:** all colour logic in `text_colour.js`; **the inner colour-branch body
+and the `mapColours`/`tidyPastedSpans` call expressions** byte-identical in both files; the
+#169 guard re-run as part of slice 1's test list. The rule is deliberately *not* extended to
+the enclosing guards and listener bodies, which already diverge and stay so —
+`table_editor.js:529` guards `if (cmdBtn && focusCell)` while `filltable_editor.js:729` adds
+`&& focusCell.hasAttribute("contenteditable")`, and their `input` listeners differ
+(`:461-464` vs `:651-655`). One consequence worth recording: `filltable_editor.js:379-381`
+disables every `[data-cmd]` button on answer/image cells, so the swatches inherit that
+disabled state for free in filltable and **do not** in table.
 
 ### Rich text editor
 
@@ -507,13 +548,30 @@ each with a translated `title` and `aria-label` (colour alone cannot name a cont
 active swatch is indicated by a ring, not by colour alone — and it must **not** reuse
 `.rte-btn.is-on`, which is already `background: var(--primary); color: var(--text-inverse)`
 (`editor.css:230`) and would repaint the active swatch brand-teal, hiding the very colour it
-represents. Use a distinct `.rte-swatch` class whose `.is-on` state is a `box-shadow` ring
-and which overrides the inherited background/border. The frontend-design pass judges the
+represents. Use a distinct `.rte-swatch` class whose `.is-on` state is a `box-shadow` ring.
+Specificity is a tie, so declaration order decides: `.rte-btn.is-on` and `.rte-swatch.is-on`
+are both (0,2,0), so `.rte-swatch.is-on` **must be declared after `editor.css:230`** — or the
+swatch must not carry `rte-btn` at all and `.rte-swatch` restates the sizing it needs. Pick
+one and pin it with a test asserting the active swatch's computed background is not
+`--primary`. The frontend-design pass judges the
 active state in a screenshot, since a test asserting "the class is present" would pass
 either way. The "no colour" control is a
 bordered square with a CSS diagonal — no new sprite entry.
 
-Appended to `_rte_toolbar.html`, `_edit_table.html` (near 41-43) and `_edit_filltable.html`
+**There are four RTE toolbar markup sites, not one**, and the primary authoring surface is
+among the three that are easy to miss: `_rte_toolbar.html` is the shared partial used by the
+question/gate editors, but `_edit_text.html`, `_edit_callout.html` and `_edit_spoiler.html`
+each carry a **fully duplicated inline toolbar** with a different control set (three align
+buttons, no `∑`). `TextElement.body` alone holds **390 of the 588** palette-coloured
+elements (66%), so a change that touched only the shared partial would ship the feature with
+no swatches on the surface that needs it most.
+
+The swatch group is therefore extracted into its own partial, `_rte_swatches.html`, included
+by all four — which extends the "byte-identical" discipline to the markup instead of relying
+on four hand-copies staying in step. It is **inserted after the bold/italic/underline group,
+before the first `.rte-sep`** (not appended — the end of the toolbar is where `∑` sits).
+
+Plus the two table toolbars: `_edit_table.html` (near 41-43) and `_edit_filltable.html`
 (near 50-52). In the table editors the group rides the existing toolbar `mousedown`
 preventDefault that preserves `focusCell` (`table_editor.js:523`), and `mapColours()` must
 run on the cell **before** `innerHTML` is harvested into the JSON payload
@@ -620,6 +678,22 @@ Two distinct reasons, both measured:
 must not survive into the DB: once `span` is allowed, nh3 no longer removes them, so
 writing them back would ship `<span class="">` litter into content that is currently clean.
 
+**The colouriser is not span-only** — this is where a naive implementation delivers nothing
+for a fifth of the corpus. 142 of the 588 palette-coloured elements (24%) sit on a tag other
+than `span`, and 61 of the 288 palette-bearing field occurrences (21%) include such a
+carrier. The value rule is per carrier class:
+
+| carrier | count | value rule |
+|---|---|---|
+| `span` | 446 | replace `style="color:…"` with `class="tc-*"` |
+| in `TC_CLASS_TAGS` — `strong` 117, `u` 6, `i` 2 | 125 | put `class="tc-*"` on **the element itself**; drop the inline colour |
+| outside `TC_CLASS_TAGS` — `p` 7, `li` 6, `figcaption` 4 | 17 | wrap the element's **children** in a `tc-*` span; drop the inline colour. `p`/`li` cannot carry `tc-*`, and `figcaption` is not in `ALLOWED_TAGS` at all |
+
+This mirrors the editor's "never leave `tc-*` on a tag outside `TC_CLASS_TAGS`" rule — the
+backfill needs it too. A span-only colouriser leaves `<strong style="color:red">` untouched,
+the sanitiser strips `style`, and the written value is **byte-identical to the key**: a
+silent no-op the gate would score as success without the `value != key` precondition.
+
 The generator then replays **the full import write path for that field, in order** (see the
 three-sanitiser table) — for gate stems `sanitize_stem_segments`; for
 `FillBlankQuestionElement.stem` the composition `sanitize_html(sanitize_stem_segments(x))`,
@@ -653,7 +727,7 @@ The first slice-2 task is therefore to build the key map, run the lookup against
 condition, fixed before the measurement is taken:
 
 - **≥ 70%** of *eligible occurrences* match, **and**
-- **no eligible part that holds at least one palette-colour span matches zero.**
+- **no eligible part that produces at least one key matches zero.**
 
 **Both sides are defined as computable expressions, because three different corpus counts
 appear in this spec and 70% of each gives a different verdict.** Neither 588 (spans) nor 446
@@ -662,7 +736,15 @@ right number, so the gate does not cite any of them:
 
 - **denominator** = the number of source-side `(json_file, field_path)` occurrences that
   produce a key after source-side exclusion;
-- **numerator** = the subset of those whose key matched at least one DB field.
+- **numerator** = the subset of those whose key matched at least one DB field **and whose
+  coloured value differs from the key** (`value != key`).
+
+The `value != key` precondition is load-bearing: without it the non-span-carrier failure
+mode scores as a success. A span-only colouriser yields `value == key` for every non-span
+carrier, the key still matches, and the run reports ~100% while delivering zero colour for
+21% of occurrences — and the read-back byte-identity check passes trivially too. The dry run
+also emits a **`tc-*` classes emitted** count, expected value derived from the source scan,
+and reports *matched-but-unchanged* as its own named skip reason.
 
 Both are emitted by the dry run itself and re-derived from the code, not quoted from this
 spec. (Per-cell counting belongs to the rewrite contract below, not to the gate.) The two
@@ -765,10 +847,14 @@ export bundle.
 
 ## Testing
 
-**Unit — key construction.** For one real field of each shape, assert the generated key
-equals the value the loader actually stored — including `FillBlankQuestionElement.stem`,
-whose import path composes two sanitisers. This is the test that would have caught the
-composed-path defect.
+**Unit — key construction.** For one field of each shape, assert the generated key equals the
+value the loader actually stored. Measured, the only coloured stems in the corpus are
+`fill_gate/stem` (2), `choice/stem` (2) and `switch_grid/stem` (2), so use
+**`FillGateElement.stem`** as the real `sanitize_stem_segments` fixture and
+**`ChoiceQuestionElement.stem`** as the real bare-`sanitize_html` one. The composed-path case
+(`FillBlankQuestionElement.stem`) has **zero** corpus occurrences and uses a synthesised
+fixture — the composition is real even though the imported data is not. This is the test that
+would have caught the composed-path defect.
 
 **Unit — sanitiser.** Keeps `span.tc-*`; strips foreign classes, inline `style`, and `tc-*`
 on tags outside `TC_CLASS_TAGS`; keeps `tc-*` on the inline emphasis tags and on `a`;
@@ -815,6 +901,11 @@ the path the `window.katex.render` wrapper exists for.
 **Transfer round-trip.** Export a course carrying `tc-*` in a body **and** a table cell,
 import into a fresh course, assert byte-identity of both fields. This is the load-bearing
 claim for how the work reaches production (D5).
+
+**Backfill — carriers.** A `<strong style="color:red">` occurrence is rewritten to
+`<strong class="tc-red">`, not left byte-identical to its key; a `<p style="color:red">`
+occurrence has its children wrapped in a `tc-red` span; a `<figcaption>` carrier degrades
+without error. Each asserts `value != key`.
 
 **Backfill.** Rewrites an untouched element; skips an edited one; leaves every node title
 unchanged; honours the `<dirname>=<pk>` exclusions; rejects a dirname absent from `out/` and a pk
@@ -870,7 +961,8 @@ Stated as claims to test, not as facts:
 
 ## Appendix — measured corpus data
 
-Colour spans in `scripts/lal_import/out/**.json`, 697 total across 106 files:
+Colour-bearing **elements** in `scripts/lal_import/out/**.json`, 697 total across 106
+files (carriers: `span` 510, `strong` 161, `p` 8, `li` 6, `u` 6, `figcaption` 4, `i` 2):
 
 | colour | spans | | part | spans |
 |---|---|---|---|---|
@@ -894,9 +986,20 @@ produced **446** `tc-*` classes — 274 through `sanitize_html` and 172 through
 `sanitize_cell` — with **zero** maths spans contaminated by markup and **zero** outputs
 containing a literal escaped `<span`. Two source spans were lost in cleaning.
 
-That 446 does not reconcile to 588-minus-excluded, and the gap is scope, not loss: the
-prototype walked only the JSON keys `body`, `html`, `stem` and `explanation`, and counted
-only the four palette colours. Spans in fields it did not walk — gallery `desc`, MCQ
-`options`, switchgrid line stems, `latex` — are excluded from the 446 and are also, per the
-three-sanitiser table, out of scope for the backfill. The remaining difference is expected;
-the DB-side acceptance gate is what turns any of these figures into a real prediction.
+**An earlier draft explained the 588→446 gap as field scope. That was wrong, and measuring
+it is what surfaced the non-span carrier problem.** Palette colour exists under exactly three
+JSON keys — `body` 390, `html` 192, `stem` 6 — and **zero** under `desc`, `options`, `latex`
+or any other key the prototype did not walk. The real decomposition:
+
+| | palette elements |
+|---|---|
+| on a `span` — what the prototype emitted | **446** = `body`-span 268 + `stem`-span 6 (→ 274 via `sanitize_html`) + `html`-span 172 (via `sanitize_cell`) |
+| on a non-span carrier — silently dropped by the prototype | **142** (`strong` 117, `p` 7, `li` 6, `u` 6, `figcaption` 4, `i` 2) |
+| total | **588** |
+
+So 446 is exactly the palette-coloured **span** count, and the gap is the carriers the
+prototype ignored — which the colouriser's per-carrier value rule now handles. Correcting
+the related claim: the out-of-scope `sanitize_cell` fields (`options`, `desc`, cycler
+options) carry **zero** palette colour, not "roughly 100"; the only out-of-scope palette
+colour anywhere is the 2 occurrences in `SwitchGridElement.lines[*].stem`. The DB-side
+acceptance gate is what turns any of these figures into a real prediction.
