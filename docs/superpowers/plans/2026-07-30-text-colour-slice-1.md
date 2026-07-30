@@ -2344,7 +2344,11 @@ def test_swatch_active_state_does_not_reuse_rte_btn_is_on():
     tie, so the swatch rule must come LATER in the file."""
     css = (ROOT / "courses/static/courses/css/editor.css").read_text(encoding="utf-8")
     assert ".rte-swatch" in css, "swatches need their own class"
-    assert css.index(".rte-swatch.is-on") > css.index(".rte-btn.is-on"), (
+    # Anchor on the selector PLUS its opening brace. Without the brace, str.index
+    # finds the first textual occurrence anywhere -- including inside the CSS block's
+    # own explanatory comment, which names both selectors in prose in that order.
+    # MEASURED: the bare form passes even when the real rules are reordered.
+    assert css.index(".rte-swatch.is-on {") > css.index(".rte-btn.is-on {"), (
         "declaration order decides this tie; .rte-swatch.is-on must be declared after "
         ".rte-btn.is-on"
     )
