@@ -2651,6 +2651,13 @@ In `courses/static/courses/js/text_toolbar.js`, inside `applyCmd`'s `switch`, be
         break;
 ```
 
+**The listener must also skip while `apply()` is running.** `execCommand` fires `input`
+**synchronously**, so without a guard the listener's `mapColours(…, {dropUnmapped: true})`
+strips `apply()`'s own `rgb(1, 2, 3)` sentinel markers before `apply()` can find them —
+making `colour-none` a silent no-op through the real toolbar while every *unwired* test
+still passes. MEASURED in Chromium. `text_colour.js` exposes `isApplying()`; the listener
+returns early when it is true.
+
 In `wireRte`, register the colour pass **before** the existing `sync` listener. Replace:
 
 ```javascript
@@ -2815,6 +2822,11 @@ has focus, leaving `apply()` no selection to act on.
             return;
           }
 ```
+
+**⚠️ The same re-entrancy guard applies here.** Both cell editors wire these passes on
+`input`, and `execCommand` fires `input` synchronously — so each listener must return early
+when `window.libliColour.isApplying()` is true, exactly as the RTE listener does. Without it
+`colour-none` is a silent no-op in the cell editors, and no unwired test will catch it.
 
 In the grid `input` listener, before the existing `serialize()` call:
 
