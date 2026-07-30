@@ -170,8 +170,7 @@ def _block(css, selector):
 
 def _token_values(block):
     return {
-        slot: re.search(rf"--tc-{slot}:\s*(#[0-9A-Fa-f]{{6}})", block)
-        for slot in SLOTS
+        slot: re.search(rf"--tc-{slot}:\s*(#[0-9A-Fa-f]{{6}})", block) for slot in SLOTS
     }
 
 
@@ -187,7 +186,9 @@ def test_courses_css_defines_every_utility():
     css = CSS.read_text(encoding="utf-8")
     for slot in SLOTS:
         assert f".tc-{slot}" in css, f"missing utility class .tc-{slot}"
-        assert f"var(--tc-{slot})" in css, f".tc-{slot} must resolve to var(--tc-{slot})"
+        assert f"var(--tc-{slot})" in css, (
+            f".tc-{slot} must resolve to var(--tc-{slot})"
+        )
 
 
 def _mix(accent, ground, ratio=0.06):
@@ -316,7 +317,7 @@ surfaces. Restore `#B2372A` and confirm green again.
 - [ ] **Step 7: Commit**
 
 ```bash
-uv run ruff format --check .
+uv run ruff format .
 git add core/static/core/css/tokens.css courses/static/courses/css/courses.css tests/test_text_colour_css.py
 git commit -m "feat(text-colour): four-slot palette tokens, AA-measured on ten surfaces"
 ```
@@ -390,8 +391,8 @@ def test_parse_style_requires_the_exact_color_property():
     """background-color is the trap: an unanchored `color:` search matches it and
     invents a text colour that does not exist. Measured on the LAL corpus."""
     assert parse_style_colour("color: red") == (255, 0, 0)
-    assert parse_style_colour("color:red") == (255, 0, 0)          # no space
-    assert parse_style_colour("COLOR : red ;") == (255, 0, 0)      # case + spaces
+    assert parse_style_colour("color:red") == (255, 0, 0)  # no space
+    assert parse_style_colour("COLOR : red ;") == (255, 0, 0)  # case + spaces
     assert parse_style_colour("background-color: red") is None
     assert parse_style_colour("border-color: red") is None
     assert parse_style_colour("height: 1em; color: blue;") == (0, 0, 255)
@@ -628,7 +629,13 @@ def test_legacy_snapshot_excludes_the_colour_family():
     # Pin the exact key set: an emptiness-only check passes vacuously for {} and would
     # absorb a drift instead of catching it.
     assert set(LEGACY_ALLOWED_CLASSES) == {
-        "p", "div", "h2", "h3", "h4", "blockquote", "li"
+        "p",
+        "div",
+        "h2",
+        "h3",
+        "h4",
+        "blockquote",
+        "li",
     }
     assert LEGACY_CELL_ALLOWED_CLASSES == {}
     for values in LEGACY_ALLOWED_CLASSES.values():
@@ -705,9 +712,7 @@ CELL_TAGS = {"strong", "b", "em", "i", "u", "br", "span"}
 
 # Only cell tags that may carry colour -- br is in CELL_TAGS but not TC_CLASS_TAGS,
 # and the block-tag alignment family has no business in a cell.
-CELL_ALLOWED_CLASSES = {
-    tag: set(TC_CLASS_VALUES) for tag in CELL_TAGS & TC_CLASS_TAGS
-}
+CELL_ALLOWED_CLASSES = {tag: set(TC_CLASS_VALUES) for tag in CELL_TAGS & TC_CLASS_TAGS}
 ```
 
 In `sanitize_cell`, pass the new allowlist to `nh3.clean` — change:
@@ -786,7 +791,12 @@ Expected: all pass. Two things to expect rather than be surprised by:
   That is why `tests/lal_import/`, `test_filltable_model.py`,
   `test_spanning_roundtrip.py` and `test_table_transfer.py` are in the run list — they
   assert exact cell `html`.
-- **`tests/lal_import/test_tables.py:169` carries a comment this change falsifies** — it
+- **Two comments elsewhere carry justifications this change falsifies.**
+  `tests/test_e2e_imagezoom.py:544` spells out "CELL_TAGS = {strong, b, em, i, u, br}"
+  — both the set and its line reference are wrong after this task, and that file is
+  not in the run list so nothing surfaces it. (`tests/test_richtext.py:335`'s
+  "CELL_TAGS has no `<a>`" stays true — `a` is not added to `CELL_TAGS`.) And
+  **`tests/lal_import/test_tables.py:169` carries a comment this change falsifies** — it
   justifies an accepted behaviour with "`span` is not in sanitize_cell's CELL_TAGS".
   Update that comment here; a stale justification is how the next reader concludes the
   wrong thing.
@@ -839,9 +849,14 @@ are written against measurement rather than assumption. Deleted at the end of Ta
 
 from pathlib import Path
 
+from pathlib import Path
+
 import pytest
 
 pytestmark = pytest.mark.e2e
+
+ROOT = Path(__file__).resolve().parent.parent
+KATEX = str(ROOT / "courses/static/courses/vendor/katex/katex.min.js")
 
 PAGE = """
 <div id="s" contenteditable="true">alpha <b>beta</b> gamma \\(x + y\\) delta</div>
@@ -993,10 +1008,7 @@ from pathlib import Path
 
 from courses.colour import SLOTS
 
-JS = (
-    Path(__file__).resolve().parent.parent
-    / "courses/static/courses/js/text_colour.js"
-)
+JS = Path(__file__).resolve().parent.parent / "courses/static/courses/js/text_colour.js"
 
 
 def test_js_and_python_slot_tables_agree():
@@ -1008,8 +1020,8 @@ def test_js_and_python_slot_tables_agree():
         "into computed form is a deliberate break, not an accident"
     )
     raw = match.group(1)
-    raw = re.sub(r"//[^\n]*", "", raw)          # strip line comments
-    raw = re.sub(r",(\s*[\]}])", r"\1", raw)    # tolerate trailing commas
+    raw = re.sub(r"//[^\n]*", "", raw)  # strip line comments
+    raw = re.sub(r",(\s*[\]}])", r"\1", raw)  # tolerate trailing commas
     raw = raw.replace("rgb:", '"rgb":').replace("slot:", '"slot":')
     entries = json.loads(raw)
 
@@ -1317,6 +1329,8 @@ a selection or a toolbar click is driven through the real UI in later tasks, bec
 an e2e that bypasses the real gesture ships broken UX green.
 """
 
+from pathlib import Path
+
 import pytest
 
 pytestmark = pytest.mark.e2e
@@ -1336,9 +1350,15 @@ def _page_with_module(page):
 
 def test_normalise_colour_accepts_every_input_form(page):
     _page_with_module(page)
-    assert page.evaluate("() => libliColour.normaliseColour('#B2372A')") == [178, 55, 42]
+    assert page.evaluate("() => libliColour.normaliseColour('#B2372A')") == [
+        178,
+        55,
+        42,
+    ]
     assert page.evaluate("() => libliColour.normaliseColour('rgb(178, 55, 42)')") == [
-        178, 55, 42,
+        178,
+        55,
+        42,
     ]
     assert page.evaluate("() => libliColour.slotFor('red')") == "red"
     assert page.evaluate("() => libliColour.slotFor('purple')") is None
@@ -1538,9 +1558,10 @@ def test_refuses_a_selection_straddling_a_maths_boundary(page):
         '<div id="root" contenteditable="true">a \\\\(x + y\\\\) b</div>'; }"""
     )
     assert _select_text(page, "root", "a \\(x")
-    assert page.evaluate(
-        "() => libliColour.apply(document.getElementById('root'), 'red')"
-    ) == "refused"
+    assert (
+        page.evaluate("() => libliColour.apply(document.getElementById('root'), 'red')")
+        == "refused"
+    )
 
 
 def test_allows_a_selection_enclosing_a_whole_maths_region(page):
@@ -1552,9 +1573,10 @@ def test_allows_a_selection_enclosing_a_whole_maths_region(page):
         '<div id="root" contenteditable="true">a \\\\(x+y\\\\) b</div>'; }"""
     )
     assert _select_text(page, "root", "a \\(x+y\\) b")
-    assert page.evaluate(
-        "() => libliColour.apply(document.getElementById('root'), 'red')"
-    ) == "ok"
+    assert (
+        page.evaluate("() => libliColour.apply(document.getElementById('root'), 'red')")
+        == "ok"
+    )
     html = page.evaluate("() => document.getElementById('root').innerHTML")
     assert "tc-red" in html
     assert "\\(x+y\\)" in html, "the delimiters must survive intact"
@@ -1576,9 +1598,10 @@ def test_refuses_enclosing_a_region_that_contains_an_element_boundary(page):
     # the test dies on the wrong assertion while the carve-out goes unexercised.
     assert "\\(" in page.evaluate("() => document.getElementById('root').textContent")
     assert _select_text(page, "root", "a \\(x + y\\) b")
-    assert page.evaluate(
-        "() => libliColour.apply(document.getElementById('root'), 'red')"
-    ) == "refused"
+    assert (
+        page.evaluate("() => libliColour.apply(document.getElementById('root'), 'red')")
+        == "refused"
+    )
 
 
 def test_refuses_inside_a_marker(page):
@@ -1590,9 +1613,10 @@ def test_refuses_inside_a_marker(page):
         '<div id="root" contenteditable="true">pick {{a|b}} now</div>'; }"""
     )
     assert _select_text(page, "root", "a")
-    assert page.evaluate(
-        "() => libliColour.apply(document.getElementById('root'), 'red')"
-    ) == "refused"
+    assert (
+        page.evaluate("() => libliColour.apply(document.getElementById('root'), 'red')")
+        == "refused"
+    )
 
 
 def test_fails_closed_on_an_unclosed_delimiter(page):
@@ -1602,9 +1626,10 @@ def test_fails_closed_on_an_unclosed_delimiter(page):
         '<div id="root" contenteditable="true">a \\\\(x + y b</div>'; }"""
     )
     assert _select_text(page, "root", "y b")
-    assert page.evaluate(
-        "() => libliColour.apply(document.getElementById('root'), 'red')"
-    ) == "refused"
+    assert (
+        page.evaluate("() => libliColour.apply(document.getElementById('root'), 'red')")
+        == "refused"
+    )
 
 
 def test_clear_over_an_enclosing_selection_removes_stored_colour(page):
@@ -1618,12 +1643,15 @@ def test_clear_over_an_enclosing_selection_removes_stored_colour(page):
         + '<span class="tc-red">abc</span>def</div>'; }"""
     )
     assert _select_text(page, "root", "abcdef")
-    assert page.evaluate(
-        "() => libliColour.apply(document.getElementById('root'), null)"
-    ) == "ok"
+    assert (
+        page.evaluate("() => libliColour.apply(document.getElementById('root'), null)")
+        == "ok"
+    )
     html = page.evaluate("() => document.getElementById('root').innerHTML")
     assert "tc-red" not in html
-    assert "abcdef" in page.evaluate("() => document.getElementById('root').textContent")
+    assert "abcdef" in page.evaluate(
+        "() => document.getElementById('root').textContent"
+    )
 
 
 def test_clear_over_a_partial_selection_leaves_the_remainder_coloured(page):
@@ -1636,9 +1664,10 @@ def test_clear_over_a_partial_selection_leaves_the_remainder_coloured(page):
         + '<span class="tc-red">abc</span></div>'; }"""
     )
     assert _select_text(page, "root", "b")
-    assert page.evaluate(
-        "() => libliColour.apply(document.getElementById('root'), null)"
-    ) == "ok"
+    assert (
+        page.evaluate("() => libliColour.apply(document.getElementById('root'), null)")
+        == "ok"
+    )
     html = page.evaluate("() => document.getElementById('root').innerHTML")
     assert html.count("tc-red") == 2, f"a and c must stay coloured, b cleared: {html}"
 
@@ -1923,6 +1952,7 @@ Expected: `test_refuses_a_selection_wholly_inside_a_maths_region` FAILS. Restore
 - [ ] **Step 6: Commit**
 
 ```bash
+uv run ruff format .
 git add courses/static/courses/js/text_colour.js tests/test_e2e_text_colour.py
 git commit -m "feat(text-colour): protected-region refusal and range-aware clear"
 ```
@@ -2151,14 +2181,11 @@ def test_katex_colour_resolves_to_the_palette_token(page):
     )
     # Compare against the token itself, never a repeated literal.
     import re
-    from pathlib import Path
 
     tokens = Path(TOKENS_CSS).read_text(encoding="utf-8")
     light = re.search(r":root\s*\{(.*?)\n\}", tokens, re.DOTALL).group(1)
     digits = re.search(r"--tc-red:\s*#([0-9A-Fa-f]{6})", light).group(1)
-    expected = "rgb(%d, %d, %d)" % tuple(
-        int(digits[i : i + 2], 16) for i in (0, 2, 4)
-    )
+    expected = "rgb(%d, %d, %d)" % tuple(int(digits[i : i + 2], 16) for i in (0, 2, 4))
     assert computed == expected, (
         f"maths resolved to {computed}, prose token is {expected} — the mapped "
         "element must carry the class AND have its inline colour cleared"
@@ -2212,6 +2239,7 @@ red). Restore.
 - [ ] **Step 8: Commit**
 
 ```bash
+uv run ruff format .
 git add courses/static/courses/js/text_colour.js templates/courses tests/test_text_colour_script_order.py tests/test_e2e_text_colour.py
 git commit -m "feat(text-colour): normalise KaTeX colour onto the palette in both themes"
 ```
@@ -2258,7 +2286,11 @@ TOOLBARS = [
     "_edit_filltable.html",
 ]
 CMDS = [
-    "colour-red", "colour-blue", "colour-green", "colour-orange", "colour-none",
+    "colour-red",
+    "colour-blue",
+    "colour-green",
+    "colour-orange",
+    "colour-none",
 ]
 
 
@@ -2400,6 +2432,7 @@ Remove the include from `_edit_text.html`. Re-run. Expected:
 - [ ] **Step 8: Commit**
 
 ```bash
+uv run ruff format .
 git add templates/courses/manage/editor courses/static/courses/css/editor.css tests/test_text_colour_toolbars.py
 git commit -m "feat(text-colour): swatch partial across all six toolbars"
 ```
@@ -2422,8 +2455,6 @@ git commit -m "feat(text-colour): swatch partial across all six toolbars"
 Append to `tests/test_e2e_text_colour.py`:
 
 ```python
-
-
 @pytest.mark.django_db(transaction=True)
 def test_colour_survives_save_and_reload(page, live_server):
     """The whole point, driven through the real gesture: type into the editor, select,
@@ -2493,7 +2524,9 @@ def test_paste_normalises_in_the_surface_and_the_textarea(page, live_server):
     value = page.evaluate(
         "() => document.querySelector('[data-edit-slot] [data-rte-source]').value"
     )
-    assert "tc-red" in value, "the textarea must carry the class immediately after paste"
+    assert "tc-red" in value, (
+        "the textarea must carry the class immediately after paste"
+    )
     assert "style" not in value
 
 
@@ -2525,7 +2558,9 @@ def test_refusal_shows_the_translated_message(page, live_server):
 
 **Merge into the file's existing header** — Task 5 already created it with
 `import pytest` and `pytestmark = pytest.mark.e2e`, so add only `import os`, the five
-`tests.test_e2e_editor` imports and the session fixture. Re-adding `import pytest`
+`tests.test_e2e_editor` imports and the session fixture (the `from pathlib import
+Path` and the `ROOT`/`SCRIPT`/`KATEX`/`TOKENS_CSS`/`COURSES_CSS` constants are already
+there from Task 5). Re-adding `import pytest`
 duplicates it and reddens `ruff check .` with F811. **Reuse the repo's shipped editor
 helpers; do not hand-roll them.** `tests/test_e2e_alignment.py` is the
 closest shipped analogue of this gesture and is the model to copy:
@@ -2659,6 +2694,7 @@ assertion. Restore.
 - [ ] **Step 7: Commit**
 
 ```bash
+uv run ruff format .
 git add courses/static/courses/js/text_toolbar.js templates/courses/manage/editor/editor.html tests/test_e2e_text_colour.py
 git commit -m "feat(text-colour): wire swatches into the rich-text editor"
 ```
@@ -2810,6 +2846,7 @@ the two editors' shared functions stop matching, and the fix is to edit **both**
 - [ ] **Step 6: Commit**
 
 ```bash
+uv run ruff format .
 git add courses/static/courses/js/table_editor.js courses/static/courses/js/filltable_editor.js tests/test_e2e_text_colour.py
 git commit -m "feat(text-colour): wire swatches into both table editors"
 ```
@@ -2962,7 +2999,7 @@ on the `test_libli` database.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add tests/test_text_colour_transfer.py locale
+git add tests/ courses/ locale   # widened: earlier tasks may have been reformatted
 git commit -m "test(text-colour): transfer round-trip guard; pl/en catalogues"
 ```
 
