@@ -85,6 +85,31 @@ def parse_attempt(post):
         return 1
 
 
+def locked_after(question, result, attempt_count):
+    """Does `question` lock after an attempt that produced `result`?
+
+    THE single source of the lock rule. Both quiz answer paths call this: the
+    persisted one in views.quiz_answer (passing the post-increment
+    QuestionResponse.attempt_count) and the ephemeral one in
+    ephemeral_quiz_feedback (passing the client-supplied attempt number). They
+    were previously independent implementations of the same rule, which is the
+    twin-drift failure mode issue #169 exists for -- each side's tests pinned only
+    its own side, so a one-sided change went green.
+    tests/test_quiz_lock_rule_parity.py is the behavioural guard.
+
+    `max_attempts is not None` is mandatory: null means UNLIMITED attempts, and
+    without the guard this raises
+    TypeError: '>=' not supported between 'int' and 'NoneType'.
+
+    `result` is only consulted for AUTO questions and may be None otherwise.
+    """
+    if question.marking_mode != QuestionElement.MarkingMode.AUTO:
+        return True  # [N]/[R]: single submission
+    return bool(result.correct) or (
+        question.max_attempts is not None and attempt_count >= question.max_attempts
+    )
+
+
 def ephemeral_quiz_feedback(question, answer, attempt):
     """Grade `answer` without persisting anything.
 
@@ -97,9 +122,10 @@ def ephemeral_quiz_feedback(question, answer, attempt):
 
     Mirrors quiz_answer's state machine exactly:
       - empty answer        -> (stand_in, None, True); mark() is NOT called
-      - AUTO                -> mark(); locked iff correct, or
-                               (max_attempts is not None and attempt >= max_attempts)
-      - NOT_MARKED / REVIEW -> result None, locked True (single submission)
+      - anything else       -> mark() for AUTO only, then defer the lock decision
+                               to locked_after(), which views.quiz_answer also
+                               calls. Do not restate the rule here: a copy in prose
+                               drifts exactly the way the code copy did.
 
     ONE three-attribute stand-in is built on every branch. `.latest_answer` is
     always present because _quiz_render_feedback's no-JS branch calls
@@ -122,13 +148,7 @@ def ephemeral_quiz_feedback(question, answer, attempt):
         )
     is_auto = question.marking_mode == QuestionElement.MarkingMode.AUTO
     result = question.mark(answer) if is_auto else None
-    if is_auto:
-        # `max_attempts is not None` is mandatory: null means UNLIMITED attempts.
-        locked = bool(result.correct) or (
-            question.max_attempts is not None and attempt >= question.max_attempts
-        )
-    else:
-        locked = True  # [N]/[R]: single submission
+    locked = locked_after(question, result, attempt)
     return (
         SimpleNamespace(locked=locked, attempt_count=attempt, latest_answer=latest),
         result,
