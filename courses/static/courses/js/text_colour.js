@@ -19,6 +19,14 @@
     { rgb: [255, 165, 0], slot: "orange" }
   ];
 
+  // Re-entrancy guard: Chromium fires `input` SYNCHRONOUSLY from inside execCommand,
+  // and text_toolbar.js's own `input` listener runs mapColours({dropUnmapped: true}).
+  // SENTINEL is deliberately unmapped, so that listener would strip it as soon as
+  // execCommand fires -- before apply()'s own querySelectorAll ever sees it. Set
+  // BEFORE the first execCommand, cleared in a finally so a thrown exception can't
+  // leave it stuck true and permanently disable the toolbar's input listener.
+  var applying = false;
+
   var SLOTS = ["red", "blue", "green", "orange"];
   var TC_TAGS = { SPAN: 1, B: 1, I: 1, EM: 1, STRONG: 1, U: 1, A: 1 };
   // Applied by Clear, then dropped. Never in MAP -- asserted by the drift test.
@@ -378,32 +386,37 @@
       }
       if (!value) return "refused";   // unknown slot: refuse, never guess a colour
     }
-    styleWithCss(true);
-    try { document.execCommand("foreColor", false, value); } catch (e) { /* ignore */ }
-    styleWithCss(false);   // MUST reset: document-global, and a leaked true breaks bold
+    applying = true;
+    try {
+      styleWithCss(true);
+      try { document.execCommand("foreColor", false, value); } catch (e) { /* ignore */ }
+      styleWithCss(false);   // MUST reset: document-global, and a leaked true breaks bold
 
-    if (slot) {
-      mapColours(root, { dropUnmapped: true });
-      return "ok";
-    }
-
-    // Clear. Stored colour is class-carried, so execCommand cannot split it and the
-    // surviving tc-* may be an ANCESTOR (partial selection) or a DESCENDANT (the
-    // selection enclosed it). Walk both directions, and split explicitly when the
-    // range covers only part of a coloured element.
-    var sentinels = root.querySelectorAll('[style*="rgb(1, 2, 3)"]');
-    for (var s = 0; s < sentinels.length; s++) {
-      var el = sentinels[s];
-      eachTc(el, clearTc);                                   // el + descendants
-      var up = el.parentNode;
-      while (up && up !== root) {
-        if (tcClassOf(up)) splitOrClear(root, up, span);
-        up = up.parentNode;
+      if (slot) {
+        mapColours(root, { dropUnmapped: true });
+        return "ok";
       }
-      clearInlineColour(el);
+
+      // Clear. Stored colour is class-carried, so execCommand cannot split it and the
+      // surviving tc-* may be an ANCESTOR (partial selection) or a DESCENDANT (the
+      // selection enclosed it). Walk both directions, and split explicitly when the
+      // range covers only part of a coloured element.
+      var sentinels = root.querySelectorAll('[style*="rgb(1, 2, 3)"]');
+      for (var s = 0; s < sentinels.length; s++) {
+        var el = sentinels[s];
+        eachTc(el, clearTc);                                   // el + descendants
+        var up = el.parentNode;
+        while (up && up !== root) {
+          if (tcClassOf(up)) splitOrClear(root, up, span);
+          up = up.parentNode;
+        }
+        clearInlineColour(el);
+      }
+      dropAttributelessSpans(root);
+      return "ok";
+    } finally {
+      applying = false;
     }
-    dropAttributelessSpans(root);
-    return "ok";
   }
 
   // If the cleared range covers the whole element, drop its class. Otherwise split it
@@ -456,7 +469,8 @@
     tidyPastedSpans: tidyPastedSpans,
     activeSlot: activeSlot,
     apply: apply,
-    regions: regions
+    regions: regions,
+    isApplying: function () { return applying; }
   };
 
   // ---- KaTeX normalisation -------------------------------------------------

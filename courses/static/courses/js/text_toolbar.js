@@ -210,6 +210,12 @@
     // silent colour loss on exactly the pasted content this exists for.
     surface.addEventListener("input", function (e) {
       if (!window.libliColour) return;
+      // apply() drives its own passes in a deliberate order (execCommand, THEN its
+      // own querySelectorAll over the SENTINEL markers). Chromium fires this `input`
+      // listener SYNCHRONOUSLY from inside that execCommand, and SENTINEL is
+      // deliberately unmapped -- so without this guard, mapColours below would strip
+      // the markers before apply() ever saw them, making colour-none a silent no-op.
+      if (window.libliColour.isApplying()) return;
       // mapColours FIRST: a pasted <span style="color: red"> matches
       // tidyPastedSpans' predicate exactly, so tidying first would unwrap the carrier
       // and destroy the colour before it could be mapped.

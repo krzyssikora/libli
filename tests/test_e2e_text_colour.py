@@ -448,6 +448,52 @@ def test_colour_survives_save_and_reload(page, live_server):
 
 
 @pytest.mark.django_db(transaction=True)
+def test_clear_through_the_wired_toolbar_removes_the_class(page, live_server):
+    """Regression for a re-entrancy defect: text_toolbar.js's own `input` listener
+    calls mapColours({dropUnmapped: true}), and Chromium fires `input` SYNCHRONOUSLY
+    from inside execCommand. apply(root, null) marks its range with a SENTINEL colour
+    via execCommand and only AFTERWARDS looks for it -- but SENTINEL is deliberately
+    unmapped, so without apply()'s isApplying() guard the toolbar's own listener
+    strips it first, and apply() finds nothing to clear. The unwired tests above
+    (test_clear_over_an_enclosing_selection_removes_stored_colour and friends) call
+    libliColour.apply() directly on a raw div and never exercise text_toolbar.js's
+    listener at all, which is why this defect shipped unnoticed."""
+    _make_pa_user("tc_clear")
+    _login(page, live_server, "tc_clear")
+    unit = _seed_course_and_unit("tc_clear", slug="tc-clear")
+
+    page.goto(_editor_url(live_server, unit))
+    page.wait_for_selector('[data-scope="editor"]')
+    _add_element(page, "text")
+
+    surface = page.locator("[data-edit-slot] .rte-surface")
+    surface.wait_for(state="visible")
+    surface.click()
+    page.keyboard.type("alpha beta")
+    page.keyboard.press("Control+A")
+    page.locator('[data-edit-slot] [data-cmd="colour-red"]').click()
+    assert page.locator("[data-edit-slot] .rte-surface .tc-red").count() == 1
+
+    # Re-focus the surface: the swatch click above moved focus to the button.
+    surface.click()
+    page.keyboard.press("Control+A")
+    page.locator('[data-edit-slot] [data-cmd="colour-none"]').click()
+
+    remaining = page.locator(
+        "[data-edit-slot] .rte-surface .tc-red, "
+        "[data-edit-slot] .rte-surface .tc-blue, "
+        "[data-edit-slot] .rte-surface .tc-green, "
+        "[data-edit-slot] .rte-surface .tc-orange"
+    )
+    assert remaining.count() == 0, "colour-none through the real toolbar must clear"
+
+    value = page.evaluate(
+        "() => document.querySelector('[data-edit-slot] [data-rte-source]').value"
+    )
+    assert "tc-" not in value, value
+
+
+@pytest.mark.django_db(transaction=True)
 def test_paste_normalises_in_the_surface_and_the_textarea(page, live_server):
     """styleToClass is a pure STRING function and never touches the live surface, and
     sync is already registered on `input` — so the colour pass must run BEFORE it, or
