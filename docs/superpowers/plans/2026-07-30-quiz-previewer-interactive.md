@@ -174,6 +174,13 @@ def parse_attempt(post):
     The ephemeral grading paths (student previewer, authoring 'try it') are
     STATELESS, so the client owns the attempt counter. Junk, absent, and
     out-of-range values all floor to 1; this never raises.
+
+    `attempt` is a RESERVED answer-POST field name, consumed only here. quiz.js
+    appends it to every answer POST including the enrolled path, where the server
+    ignores it entirely (attempt state comes from the persisted QuestionResponse).
+    NO QuestionElement.build_answer implementation may read it -- all ten read only
+    choice / answer / blank / slot / row_<pk>. A build_answer that claimed the name
+    would silently take a client-controlled value as answer data.
     """
     try:
         return max(1, int(post.get("attempt", "1")))
@@ -235,7 +242,7 @@ def ephemeral_quiz_feedback(question, answer, attempt):
 - [ ] **Step 4: Run to verify they pass**
 
 Run: `uv run pytest tests/test_ephemeral_quiz_feedback.py -q`
-Expected: PASS (14 passed)
+Expected: PASS, no failures (15 test items: 7 parse_attempt params + 6 functions, one of which is a 2-way parametrize)
 
 - [ ] **Step 5: Falsify — confirm each guard is load-bearing**
 
@@ -267,7 +274,7 @@ def test_try_quiz_malformed_attempt_floors_to_one(client):
         resp = client.post(_url(course, el), payload)
         body = resp.content.decode()
         assert "2 attempts left" in body, body
-        assert "A" not in body.split("question__verdict")[-1][:200] or True
+        assert "data-quiz-locked" not in body  # floored to 1, so 2 attempts remain
 
 
 @pytest.mark.django_db
@@ -378,7 +385,7 @@ No behaviour change: five characterization tests pin element_try's states."
 Server-side only. Question forms still render `disabled` after this task, so nothing reaches the new branch from the UI yet — deliberate ordering, so there is never a commit where live forms 403.
 
 **Files:**
-- Modify: `courses/views.py` — `_quiz_render_feedback` (~1248-1268), `quiz_answer` (~1271-1290)
+- Modify: `courses/views.py` — `_quiz_render_feedback` (edit inside 1248-1268), `quiz_answer` (edit at 1276-1286; the function runs 1271-1347)
 - Test: `tests/test_quiz_previewer_answer.py` (create)
 
 **Interfaces:**
@@ -468,7 +475,12 @@ def test_previewer_gets_graded_feedback(client):
 def test_previewer_no_leak_while_attempts_remain(client):
     """max_attempts=3 + attempt=1 is mandatory: at the model default of 1 the
     first wrong answer locks and reveals, so there is no withhold state to test
-    and the assertion would be vacuous."""
+    and the assertion would be vacuous.
+
+    Asserts the attempts_left NUMBER, not just absence of the answer: an
+    off-by-one that showed a previewer "3 attempts left" where a student sees "2"
+    would otherwise only be caught by the stand_in unit test, never at the
+    endpoint. "2 attempts left" is the exact rendered English string."""
     user, unit, el = _previewer_quiz(client, max_attempts=3)
     resp = client.post(
         _answer_url(unit, el),
@@ -477,6 +489,98 @@ def test_previewer_no_leak_while_attempts_remain(client):
     )
     assert b"Paris" not in resp.content
     assert b"data-quiz-locked" not in resp.content
+    assert "2 attempts left" in resp.content.decode()
+
+
+@pytest.mark.django_db
+def test_previewer_dragfill_no_leak_while_attempts_remain(client):
+    """The spec names tests/test_questions_2d_quiz_noleak.py too: the 2D reveal
+    templates are a different rendering path from short text, so a
+    short-text-only no-leak test does not cover them.
+
+    Fixture and POST shape mirrored verbatim from
+    tests/test_questions_2d_quiz_noleak.py:22-42 (verified) -- `{"slot": [...]}`,
+    max_attempts=2, and "Correct token:" as the reveal marker. Do not invent a
+    payload shape for these types."""
+    from courses.models import DragBlank
+    from courses.models import DragFillBlankQuestionElement
+
+    user = make_login(client, "prev2d")
+    user.is_staff = True
+    user.save()
+    unit = make_quiz_unit()
+    # COPY THE `stem=` VALUE VERBATIM from tests/test_questions_2d_quiz_noleak.py:24
+    # — it contains a non-printable blank-placeholder sentinel that will not survive
+    # being retyped from this plan. Everything else on this line is as shown.
+    q = DragFillBlankQuestionElement.objects.create(
+        stem="<copy from the source fixture>", distractors="Rome",
+        marking_mode="A", max_attempts=2,
+    )
+    DragBlank.objects.create(question=q, correct_token="Paris")
+    el = add_element(unit, q)
+
+    body = client.post(
+        _answer_url(unit, el),
+        {"slot": ["Rome"], "attempt": "1"},
+        HTTP_X_REQUESTED_WITH="fetch",
+    ).content.decode()
+    assert "Correct token:" not in body
+    assert "question__reveal" not in body
+    _assert_nothing_persisted()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("mode", ["A", "N", "R"])
+def test_previewer_fragment_covers_every_marking_mode(client, mode):
+    """All three marking modes must work at the endpoint, not just AUTO. Without
+    this, REVIEW mode has no view-level previewer coverage at all."""
+    user, unit, el = _previewer_quiz(client, max_attempts=3, marking_mode=mode)
+    resp = client.post(
+        _answer_url(unit, el),
+        {"answer": "London", "attempt": "1"},
+        HTTP_X_REQUESTED_WITH="fetch",
+    )
+    assert resp.status_code == 200
+    if mode == "A":
+        assert b"is-incorrect" in resp.content
+    else:
+        assert b"is-recorded" in resp.content  # [N]/[R]: neutral, never marked
+    _assert_nothing_persisted()
+
+
+@pytest.mark.django_db
+def test_previewer_gets_404_for_element_in_another_unit(client):
+    """The spec's deliberate 403 -> 404 change. Element resolution now precedes the
+    enrollment branch; a future reader who "restores" the old order would revert
+    this silently with the whole suite green."""
+    user, unit, el = _previewer_quiz(client)
+    other = make_quiz_unit(course=unit.course)
+    resp = client.post(
+        _answer_url(other, el), {"answer": "Paris"}, HTTP_X_REQUESTED_WITH="fetch"
+    )
+    assert resp.status_code == 404
+
+
+@pytest.mark.django_db
+def test_previewer_gets_404_for_non_question_element(client):
+    from courses.models import TextElement
+
+    user, unit, el = _previewer_quiz(client)
+    text_el = add_element(unit, TextElement.objects.create(body="<p>hi</p>"))
+    resp = client.post(
+        _answer_url(unit, text_el), {"answer": "x"}, HTTP_X_REQUESTED_WITH="fetch"
+    )
+    assert resp.status_code == 404
+
+
+@pytest.mark.django_db
+def test_previewer_cannot_finish_a_quiz(client):
+    """quiz_finish keeps its enrollment gate. With quiz_answer's gate removed and
+    the Finish button hidden only by a template {% if %}, this untested check two
+    functions away is the only thing stopping a previewer finishing."""
+    user, unit, el = _previewer_quiz(client)
+    resp = client.post(f"/courses/{unit.course.slug}/u/{unit.pk}/quiz/finish/")
+    assert resp.status_code == 403
 
 
 @pytest.mark.django_db
@@ -492,26 +596,54 @@ def test_previewer_empty_answer_does_not_lock(client):
 
 
 @pytest.mark.django_db
-def test_previewer_no_js_neutral_question_renders_disabled_inputs(client):
-    """Regression test for the st["locked"] fix. Without it the no-JS re-render
-    shows 'Answer recorded' beside a LIVE Check button, and the previewer can
-    resubmit a single-submission [N]/[R] question forever."""
+def test_previewer_no_js_locked_state_reaches_render_state(client):
+    """Regression test for the st["locked"] fix, asserted on the CONTEXT.
+
+    It cannot be asserted on the markup in this task: the template still passes
+    quiz_submitted=read_only, and read_only is True for every previewer, so the
+    inputs render `disabled` whether or not st["locked"] is set. The markup
+    assertion only becomes discriminating after Task 3 rewires line 12, and it
+    lives there (test_previewer_locked_question_freezes_inputs).
+
+    Without the fix, render_states[el.pk]["locked"] is False for a [N]/[R]
+    question that the fragment has already marked locked -- which after Task 3
+    means "Answer recorded" beside a LIVE Check button, resubmittable forever.
+    """
     user, unit, el = _previewer_quiz(client, marking_mode="N")
     resp = client.post(_answer_url(unit, el), {"answer": "whatever"})  # no fetch header
     assert resp.status_code == 200
-    body = resp.content.decode()
-    assert "is-recorded" in body
-    assert "disabled" in body.split('name="answer"')[1][:200]
+    assert b"is-recorded" in resp.content
+    assert resp.context["render_states"][el.pk]["locked"] is True
 
 
 @pytest.mark.django_db
 def test_previewer_no_js_re_render_carries_unit_nav(client):
     """Previewer twin of test_crumb_survives_the_no_js_quiz_answer_re_render.
-    A hand-rolled branch that forgot build_unit_nav would ship a nav-less page."""
+    A hand-rolled branch that forgot build_unit_nav would ship a nav-less page.
+
+    The unit MUST hang off a parent part and the assertion MUST be the part
+    title. `_unit_crumbs.html:16` emits <nav class="unit-crumbs"> unconditionally,
+    so `assert b"unit-crumbs" in content` is true even with unit_nav absent
+    entirely -- verified. Only the {% for a in unit_nav.ancestors %} loop depends
+    on unit_nav, and a parentless unit leaves that loop empty. This mirrors why
+    the test it twins asserts `part.title in nav.get_text()`.
+    """
+    from bs4 import BeautifulSoup
+
+    from tests.factories import ContentNodeFactory
+
     user, unit, el = _previewer_quiz(client)
+    part = ContentNodeFactory(
+        course=unit.course, parent=None, kind="part", title="Part One"
+    )
+    unit.parent = part
+    unit.save()
+
     resp = client.post(_answer_url(unit, el), {"answer": "London"})
     assert resp.status_code == 200
-    assert b"unit-crumbs" in resp.content
+    nav = BeautifulSoup(resp.content, "html.parser").select_one("nav.unit-crumbs")
+    assert nav is not None
+    assert "Part One" in nav.get_text()
 
 
 @pytest.mark.django_db
@@ -677,11 +809,11 @@ from courses.quiz import parse_attempt
 - [ ] **Step 5: Run to verify they pass**
 
 Run: `uv run pytest tests/test_quiz_previewer_answer.py -q`
-Expected: PASS (13 passed)
+Expected: PASS, no failures
 
 - [ ] **Step 6: Falsify the two regression tests**
 
-1. Revert `st["locked"] = response.locked` → `test_previewer_no_js_neutral_question_renders_disabled_inputs` must FAIL.
+1. Revert `st["locked"] = response.locked` → `test_previewer_no_js_locked_state_reaches_render_state` must FAIL (`locked` is `False`). Note this is a **context** assertion by design — the markup cannot discriminate until Task 3, see that test's docstring.
 2. Change the branch condition to `if request.user.is_staff:` → `test_enrolled_staff_still_persists` must FAIL (the enrolled staff user would stop persisting).
 
 Run after each: `uv run pytest tests/test_quiz_previewer_answer.py -q`. Revert both.
@@ -714,7 +846,7 @@ st[\"locked\"] so the no-JS re-render freezes a locked question."
 - Modify: `templates/courses/_quiz_article.html`
 - Modify: `locale/pl/LC_MESSAGES/django.po`, `locale/en/LC_MESSAGES/django.po` (+ compiled `.mo`)
 - Test: `tests/test_quiz_previewer_render.py` (create)
-- Test: `tests/test_quiz_views.py:53-63` (update the one test pinning old behaviour)
+- Test: `tests/test_quiz_views.py:61-63` (the assertions; the test's `def` is at :53)
 
 **Interfaces:**
 - Consumes: nothing new.
@@ -843,6 +975,28 @@ def test_enrolled_student_sees_finish_and_no_banner(client):
 
 
 @pytest.mark.django_db
+def test_previewer_locked_question_freezes_inputs(client):
+    """The MARKUP half of Task 2's st["locked"] fix. It lives here, not in Task 2:
+    until line 12 passes quiz_submitted (not read_only), read_only=True disables a
+    previewer's inputs regardless of st["locked"], so the assertion could not fail
+    there. Now that inputs are live by default, `locked` is the only thing that can
+    freeze them -- and it must, or a previewer resubmits an [N]/[R] question forever.
+    """
+    _previewer(client)
+    unit = make_quiz_unit()
+    q = ShortTextQuestionElement.objects.create(
+        stem="Discuss", accepted="", marking_mode="N"
+    )
+    el = add_element(unit, q)
+    url = f"/courses/{unit.course.slug}/u/{unit.pk}/quiz/q/{el.pk}/answer/"
+    resp = client.post(url, {"answer": "whatever"})  # no fetch header -> full page
+    body = resp.content.decode()
+    assert "is-recorded" in body
+    field = body.split('name="answer"')[1][:200]
+    assert "disabled" in field
+
+
+@pytest.mark.django_db
 def test_submitted_quiz_still_freezes_inputs(client):
     """Rendered directly: quiz_unit redirects to results before rendering a
     SUBMITTED quiz (views.py:1224), so a GET would return 302 and assert nothing.
@@ -902,9 +1056,9 @@ Then replace the `read_only` entry in the `ctx` dict (currently lines 1201-1204,
 
 - [ ] **Step 4: Add the banner and rewire `quiz_submitted` in the template**
 
-In `templates/courses/_quiz_article.html`:
+In `templates/courses/_quiz_article.html`. **Line 1 needs no edit** — it is already `{% load i18n static courses_extras %}`, and `get_current_language` ships in the `i18n` library. Do not add another `{% load %}`.
 
-Change line 1 to load the i18n tag library's `get_current_language` (`i18n` is already loaded, so only the tag call is new). After the `<h1>` on line 5, insert:
+After the `<h1 class="lesson-unit__title">` on line 5, insert:
 
 ```html
   {% if previewing %}
@@ -929,7 +1083,7 @@ Change line 1 to load the i18n tag library's `get_current_language` (`i18n` is a
   {% endif %}
 ```
 
-Then on line 12, change `quiz_submitted=read_only` to `quiz_submitted=quiz_submitted`:
+Then on the `{% render_element … %}` line inside the `{% for slide in slides %}` loop (line 12 *before* the banner insertion; roughly line 32 after it — locate it by content, not by number), change `quiz_submitted=read_only` to `quiz_submitted=quiz_submitted`:
 
 ```html
           {% render_element el mode="quiz" feedback_for_pk=el.pk quiz_submitted=quiz_submitted action_url=el|quiz_answer_url locked=st.locked selected_ids=st.selected_ids submitted_values=st.submitted_values attempts_left=st.attempts_left feedback_html=st.feedback_html %}
@@ -940,7 +1094,7 @@ Leave the `{% if not read_only %}` Finish block untouched.
 - [ ] **Step 5: Run to verify they pass**
 
 Run: `uv run pytest tests/test_quiz_previewer_render.py -q`
-Expected: PASS (7 passed)
+Expected: PASS, no failures
 
 - [ ] **Step 6: Falsify the liveness test**
 
@@ -979,13 +1133,16 @@ Leave `assert not QuizSubmission.objects.filter(unit=unit).exists()` unchanged �
 uv run python manage.py makemessages -l pl -l en --no-obsolete
 ```
 
-Then open `locale/pl/LC_MESSAGES/django.po` and `locale/en/LC_MESSAGES/django.po`, find the three new msgids (`Preview notice`, `Preview`, and the long sentence), and:
+**Only `locale/pl` gets translations. `locale/en` msgstrs stay empty** — that is deliberate here: `tests/test_i18n_po_health.py::test_pl_has_no_untranslated_msgid` is pl-only by design, because English falls back to the msgid. Writing `Podgląd` into `locale/en` would serve Polish to English users and **no guard would catch it**.
 
-1. Fill in the Polish translations:
-   - `Preview notice` → `Informacja o podglądzie`
-   - `Preview` → `Podgląd`
-   - the sentence → `nie jesteś zapisany/a na ten kurs, więc Twoje odpowiedzi nie są zapisywane, a quizu nie można zakończyć.`
-2. **Check for `#, fuzzy` markers.** `makemessages` pre-fills fuzzy entries from unrelated msgids. Clearing one means deleting **BOTH** the `#, fuzzy` line and the `#| msgid` line above the entry.
+**There are only TWO new msgids, not three.** `msgid "Preview"` already exists — `locale/pl/LC_MESSAGES/django.po:5745` with `msgstr "Podgląd"` (and `locale/en/…:5524`), from `editor.html:93`. `makemessages` will only append a new `#:` reference line to it; leave its msgstr alone.
+
+In `locale/pl/LC_MESSAGES/django.po` only, fill in the two genuinely new entries:
+
+- `Preview notice` → `Informacja o podglądzie`
+- the sentence → `nie jesteś zapisany/a na ten kurs, więc Twoje odpowiedzi nie są zapisywane, a quizu nie można zakończyć.`
+
+Then **check for `#, fuzzy` markers.** `makemessages` pre-fills fuzzy entries from unrelated msgids. Clearing one means deleting **BOTH** the `#, fuzzy` line and the `#| msgid` line above the entry.
 
 ```bash
 grep -n "fuzzy" locale/pl/LC_MESSAGES/django.po locale/en/LC_MESSAGES/django.po
@@ -1076,7 +1233,7 @@ Replace the `forEach` block at lines 29-50 with:
   });
 ```
 
-Leave the Finish flush block (lines 61-73 in the original file) untouched — it deliberately does not append `attempt`.
+Leave the Finish flush block (`quiz.js` 52-76; its inner `Promise.all` is 61-73) untouched — it deliberately does not append `attempt`.
 
 - [ ] **Step 2: Widen the twin selector in `editor.js`**
 
@@ -1112,7 +1269,14 @@ Expected: `read ok`, then no output from `node --check` (success). If `node` is 
 Run: `uv run pytest tests/test_quiz_previewer_answer.py tests/test_quiz_answer.py -q`
 Expected: PASS (the server already floors a missing `attempt` to 1, so nothing here changes server behaviour)
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 5: Run the e2e suites that actually exercise this JavaScript**
+
+**This step is the only regression coverage these two files get.** The `quiz.js` submit handler and the `editor.js` "try it" freeze are exercised *exclusively* by e2e; `pyproject.toml` sets `addopts = -m 'not e2e'`, so Task 5's "full unit suite" run excludes every test that loads them. 22 e2e modules touch `question__form` / `data-quiz-locked` / `data-scope="preview"` — notably `tests/test_e2e_quiz.py:141`, which asserts `input[name='answer']` is disabled after lock, and `tests/test_e2e_questions.py:421`.
+
+Run: `uv run pytest tests/test_e2e_quiz.py tests/test_e2e_quiz_finish.py tests/test_e2e_questions.py tests/test_e2e_questions_2d.py tests/test_e2e_editor.py -m e2e -q`
+Expected: PASS. `-m e2e` is mandatory — without it pytest deselects everything and exits 5, which reads as success.
+
+- [ ] **Step 6: Commit**
 
 ```bash
 git add courses/static/courses/js/quiz.js courses/static/courses/js/editor.js
@@ -1208,9 +1372,16 @@ nothing) and gains a clause noting quiz now serves live forms."
 
 - [ ] **Step 1: Write the e2e test**
 
-Read `tests/test_e2e_quiz.py` first for this repo's e2e conventions (`live_server`, `page`, the `_seed_quiz` shape, and how it logs in). Mirror them. Create `tests/test_e2e_quiz_previewer.py`:
+Read `tests/test_e2e_quiz.py` first for this repo's e2e conventions. Two of them are load-bearing and both were verified:
+
+1. **The `DJANGO_ALLOW_ASYNC_UNSAFE` fixture is mandatory.** All **75 of 75** `tests/test_e2e_*.py` modules define it themselves, and **nothing in `conftest.py` or `tests/conftest.py` sets it**. This test calls the ORM under Playwright's sync API, so without the fixture the first ORM call raises `SynchronousOnlyOperation` — and Step 2 runs this file *alone*, so no sibling module can set it first.
+2. **No existing login helper produces the user this test needs.** `test_e2e_quiz.py`'s `_make_student` yields a plain user (`is_staff = False`) and gets access by making them the course **owner and enrolling them** — enrolled is exactly what we must not be. `tests/test_e2e_editor._make_pa_user` builds a Platform Admin **group** member, which per `courses/access.py:17-29` is *not* `is_staff`, *not* the owner, and *not* a group teacher — so `can_access_course` returns `False` and the page 403s. **Do not reuse `_make_pa_user` here.** Set `is_staff` explicitly, as below.
+
+Create `tests/test_e2e_quiz_previewer.py`:
 
 ```python
+import os
+
 import pytest
 
 from courses.models import Attempt
@@ -1219,11 +1390,22 @@ from courses.models import QuizSubmission
 from tests.factories import ShortTextQuestionElement
 from tests.factories import add_element
 from tests.factories import make_quiz_unit
+from tests.factories import make_verified_user
+from tests.factories import TEST_PASSWORD
 
 pytestmark = [pytest.mark.e2e, pytest.mark.django_db]
 
 
-def test_previewer_answers_quiz_and_nothing_persists(live_server, page, django_user_model):
+@pytest.fixture(scope="session", autouse=True)
+def _allow_async_unsafe():
+    """Mandatory: all 75 sibling e2e modules define this and no conftest does.
+    Without it, ORM calls under Playwright's sync API raise
+    SynchronousOnlyOperation."""
+    os.environ.setdefault("DJANGO_ALLOW_ASYNC_UNSAFE", "true")
+    yield
+
+
+def test_previewer_answers_quiz_and_nothing_persists(live_server, page):
     """Drives the REAL gesture (type + click), never page.evaluate -- an e2e that
     bypasses the gesture ships broken UX green."""
     unit = make_quiz_unit()
@@ -1232,9 +1414,19 @@ def test_previewer_answers_quiz_and_nothing_persists(live_server, page, django_u
     )
     el = add_element(unit, q)
 
-    # Log in as a non-enrolled STAFF viewer (see tests/test_e2e_quiz.py for this
-    # repo's login helper; reuse it rather than rolling a new one).
-    # ... login steps per the existing e2e convention ...
+    # Non-enrolled but access-bearing: is_staff is what makes can_access_course
+    # pass without an Enrollment. No existing e2e helper yields this combination.
+    user = make_verified_user(
+        username="e2e_qprev", email="e2e_qprev@test.example.com"
+    )
+    user.is_staff = True
+    user.save()
+
+    # Log in through the real form, mirroring tests/test_e2e_quiz.py's login block.
+    page.goto(f"{live_server.url}/accounts/login/")
+    page.fill('input[name="login"]', "e2e_qprev")
+    page.fill('input[name="password"]', TEST_PASSWORD)
+    page.click('button[type="submit"]')
 
     page.goto(f"{live_server.url}/courses/{unit.course.slug}/u/{unit.pk}/quiz/")
     assert page.locator("[data-quiz-preview-notice]").is_visible()
@@ -1247,6 +1439,8 @@ def test_previewer_answers_quiz_and_nothing_persists(live_server, page, django_u
     assert QuestionResponse.objects.count() == 0
     assert Attempt.objects.count() == 0
 ```
+
+If the login selectors differ from the above, copy the exact login block from `tests/test_e2e_quiz.py` rather than adjusting by trial — that file's block is known-good.
 
 - [ ] **Step 2: Run the e2e test**
 
@@ -1303,7 +1497,9 @@ git commit -m "test(e2e): previewer answers a quiz and nothing persists"
 | Testing: e2e + UI verification | 6 |
 | Five stale prose sites | 3 (two) + 5 (three) |
 
-**Known deviation, stated rather than hidden:** the spec's "Grading parity" section describes driving a previewer and a student through an identical answer sequence and diffing the fragments. Task 2 instead pins each side's observable behaviour separately (per-marking-mode feedback assertions, the `attempt=99` oracle test, the no-leak test). This covers the same failure modes with simpler, more falsifiable tests and avoids the desynchronisation traps the spec spends three paragraphs warning about (the `N`-advancement rule, the empty-POST shift, the post-lock 409-vs-200 divergence). **If the reviewer prefers the literal side-by-side diff, add it as a sixth task** — it is a genuine, if fiddlier, strengthening.
+**Known deviation, stated rather than hidden:** the spec's "Grading parity" section describes driving a previewer and a student through an identical answer sequence and diffing the fragments. Task 2 instead pins each side's observable behaviour separately. This covers the same failure modes with simpler, more falsifiable tests and avoids the desynchronisation traps the spec spends three paragraphs warning about (the `N`-advancement rule, the empty-POST shift, the post-lock 409-vs-200 divergence) — and both sides funnel through the one `quiz_feedback_context`, so a genuine parity bug would have to live in the `stand_in` values, which Task 1's unit tests pin directly.
+
+The two coverage gaps this deviation originally left are now closed inside Task 2 rather than by a separate task: `test_previewer_fragment_covers_every_marking_mode` parametrises over `A`/`N`/`R` (REVIEW previously had no view-level coverage at all), and `test_previewer_no_leak_while_attempts_remain` now asserts the `attempts_left` **number**, so a previewer/student off-by-one is caught at the endpoint rather than only in a unit test.
 
 **Placeholder scan:** none. Every code step carries complete code, with two stated exceptions: Task 6 Step 1 leaves the e2e login steps to be mirrored from `tests/test_e2e_quiz.py` (this repo's login helper is the one convention that must not be re-invented), and Task 5 Step 2 asks the implementer to read two docstrings before rewriting them. One step carries a conditional fallback — `node --check` availability in Task 4 Step 3 — with the stated consequence if it is unavailable.
 
