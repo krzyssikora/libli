@@ -851,11 +851,22 @@ Create `tests/test_e2e_colour_probe.py`:
 are written against measurement rather than assumption. Deleted at the end of Task 4.
 """
 
+import os
 from pathlib import Path
 
 import pytest
 
 pytestmark = pytest.mark.e2e
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _allow_sync_orm_under_playwright():
+    """tests/conftest.py makes the `db` fixture autouse, so EVERY Playwright file
+    in this repo needs this — without it all tests here error with
+    SynchronousOnlyOperation at fixture setup, before any assertion runs."""
+    os.environ.setdefault("DJANGO_ALLOW_ASYNC_UNSAFE", "true")
+    yield
+
 
 ROOT = Path(__file__).resolve().parent.parent
 KATEX = str(ROOT / "courses/static/courses/vendor/katex/katex.min.js")
@@ -2559,8 +2570,9 @@ def test_refusal_shows_the_translated_message(page, live_server):
 ```
 
 **Merge into the file's existing header** — Task 5 already created it with
-`import pytest` and `pytestmark = pytest.mark.e2e`, so add only `import os`, the five
-`tests.test_e2e_editor` imports and the session fixture (the `from pathlib import
+`import pytest` and `pytestmark = pytest.mark.e2e`, so add only the five
+`tests.test_e2e_editor` imports (`import os`, `from pathlib import Path` and the
+session fixture already arrived with Task 5) (the `from pathlib import
 Path` and the `ROOT`/`SCRIPT`/`KATEX`/`TOKENS_CSS`/`COURSES_CSS` constants are already
 there from Task 5). Re-adding `import pytest`
 duplicates it and reddens `ruff check .` with F811. **Reuse the repo's shipped editor
