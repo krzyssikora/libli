@@ -220,6 +220,7 @@ def test_previewer_no_js_locked_state_reaches_render_state(client):
     assert resp.status_code == 200
     assert b"is-recorded" in resp.content
     assert resp.context["render_states"][el.pk]["locked"] is True
+    _assert_nothing_persisted()
 
 
 @pytest.mark.django_db
@@ -250,6 +251,7 @@ def test_previewer_no_js_re_render_carries_unit_nav(client):
     nav = BeautifulSoup(resp.content, "html.parser").select_one("nav.unit-crumbs")
     assert nav is not None
     assert "Part One" in nav.get_text()
+    _assert_nothing_persisted()
 
 
 @pytest.mark.django_db

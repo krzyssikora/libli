@@ -61,3 +61,61 @@ def test_previewer_answers_quiz_and_nothing_persists(live_server, page):
     assert QuizSubmission.objects.count() == 0
     assert QuestionResponse.objects.count() == 0
     assert Attempt.objects.count() == 0
+
+
+def test_previewer_client_attempt_counter_reaches_terminal_reveal(live_server, page):
+    """Proves quiz.js's client-owned attempt counter (quiz.js:37-42) actually
+    reaches the server: without `body.append("attempt", ...)`, parse_attempt
+    floors the absent value to 1 forever, so a previewer would NEVER see the
+    wrong-on-last-attempt reveal no matter how many times they submit.
+
+    max_attempts=2 is mandatory: at the default of 1 the first wrong answer is
+    already terminal, so there is no withhold state to observe first.
+
+    Drives the REAL gesture (fill + click) for BOTH submissions. Waits on
+    [data-question][data-attempts-made="1"] between them -- quiz.js swaps the
+    whole feedback box atomically, so re-waiting on a selector the FIRST
+    response already satisfied (e.g. [data-question-feedback] .is-incorrect)
+    would be satisfied instantly by stale DOM and not actually wait for the
+    second response.
+    """
+    unit = make_quiz_unit()
+    q = ShortTextQuestionElement.objects.create(
+        stem="Capital?", accepted="Paris", max_attempts=2
+    )
+    add_element(unit, q)  # not bound: ruff F841 flags an unused local
+
+    user = make_verified_user(
+        username="e2e_qprev2", email="e2e_qprev2@test.example.com"
+    )
+    user.is_staff = True
+    user.save()
+
+    page.goto(f"{live_server.url}/accounts/login/")
+    form = page.locator("form[action*='login']")
+    form.locator("input[name='login']").fill("e2e_qprev2")
+    form.locator("input[name='password']").fill(TEST_PASSWORD)
+    form.locator("button[type='submit']").click()
+
+    page.goto(f"{live_server.url}/courses/{unit.course.slug}/u/{unit.pk}/quiz/")
+    assert page.locator("[data-quiz-preview-notice]").is_visible()
+
+    # First wrong answer: withhold state -- attempts remain, nothing revealed.
+    page.fill('input[name="answer"]', "London")
+    page.click('form.question__form button[type="submit"]')
+    page.wait_for_selector('[data-question][data-attempts-made="1"]')
+    assert page.locator("[data-question-feedback] .is-incorrect").is_visible()
+    assert page.locator(".question__reveal-text").count() == 0
+    assert page.locator("[data-question]").get_attribute("data-attempts-made") == "1"
+
+    # Second wrong answer: terminal state -- only reached if attempt=2 made it
+    # to the server, which only happens if quiz.js's counter appended it.
+    page.fill('input[name="answer"]', "London")
+    page.click('form.question__form button[type="submit"]')
+    page.wait_for_selector('[data-question][data-attempts-made="2"]')
+    assert page.locator(".question__reveal-text").is_visible()
+    assert "Paris" in page.locator(".question__reveal-text").inner_text()
+
+    assert QuizSubmission.objects.count() == 0
+    assert QuestionResponse.objects.count() == 0
+    assert Attempt.objects.count() == 0
