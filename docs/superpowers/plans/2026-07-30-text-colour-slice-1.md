@@ -12,7 +12,12 @@
 
 ## Global Constraints
 
-- **Tooling:** `ruff`/`pytest`/`python` are NOT on PATH. Always `uv run ruff …`, `uv run pytest …`. `uv run ruff format --check .` must pass before every commit.
+- **Tooling:** `ruff`/`pytest`/`python` are NOT on PATH. Always `uv run ruff …`, `uv run pytest …`.
+- **Run `uv run ruff format .` BEFORE `uv run ruff check .`, and verify the check AFTER the
+  format.** MEASURED: `ruff format` can split a long expression across lines and strand a
+  `# noqa` on the wrong physical line, so a check that passed pre-format fails post-format
+  while the noqa still looks present. Prefer f-strings over percent formatting to avoid the
+  situation entirely.
 - **e2e tests:** `-m e2e` is **mandatory** or e2e tests are silently deselected (pytest exits 5). Always `uv run pytest tests/test_e2e_*.py -m e2e`.
 - **Never run two pytest invocations at once** — concurrent runs collide on the Postgres `test_libli` database.
 - **Falsify every test.** After a test passes, delete or invert the thing it guards, re-run, and confirm it goes RED. A passing test proves nothing on its own. Restore afterwards.
@@ -2198,9 +2203,11 @@ def test_katex_colour_resolves_to_the_palette_token(page):
     tokens = Path(TOKENS_CSS).read_text(encoding="utf-8")
     light = re.search(r":root\s*\{(.*?)\n\}", tokens, re.DOTALL).group(1)
     digits = re.search(r"--tc-red:\s*#([0-9A-Fa-f]{6})", light).group(1)
-    expected = "rgb(%d, %d, %d)" % tuple(  # noqa: UP031
-        int(digits[i : i + 2], 16) for i in (0, 2, 4)
-    )
+    # f-string, not percent formatting: `ruff format` splits a long percent
+    # expression across lines and leaves a `# noqa: UP031` stranded on the wrong
+    # one, so `ruff check .` fails while the noqa appears to be present. MEASURED.
+    r, g, b = (int(digits[i : i + 2], 16) for i in (0, 2, 4))
+    expected = f"rgb({r}, {g}, {b})"
     assert computed == expected, (
         f"maths resolved to {computed}, prose token is {expected} — the mapped "
         "element must carry the class AND have its inline colour cleared"
