@@ -1133,7 +1133,11 @@ def build_quiz_context(node, user):
         )
 
     submission = None
-    if is_enrolled(user, node.course):
+    # Hoisted: is_enrolled was already called here and its result discarded.
+    # `previewing` must not cost a second Enrollment query -- this builder is
+    # otherwise carefully prefetched.
+    enrolled = is_enrolled(user, node.course)
+    if enrolled:
         submission, _ = QuizSubmission.objects.get_or_create(student=user, unit=node)
     quiz_submitted = bool(
         submission and submission.status == QuizSubmission.Status.SUBMITTED
@@ -1200,10 +1204,12 @@ def build_quiz_context(node, user):
         "render_states": render_states,
         "submission": submission,
         "quiz_submitted": quiz_submitted,
-        # Inputs are disabled + Finish hidden when the quiz is submitted OR the
-        # accessor is a non-enrolled previewer (submission is None) — a previewer
-        # gets a READ-ONLY quiz, never live forms that 403 on submit.
-        "read_only": quiz_submitted or submission is None,
+        # A non-enrolled previewer gets LIVE question forms: their answers are graded
+        # ephemerally by quiz_answer and nothing is persisted. `read_only` now gates
+        # exactly ONE thing -- the Finish form -- and does NOT mean "the page is
+        # inert". Inputs freeze on `quiz_submitted` alone.
+        "previewing": not enrolled,
+        "read_only": quiz_submitted or not enrolled,
         "has_math": has_math,
         "has_html": has_html,
         "has_questions": True,

@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-29 10:43+0200\n"
+"POT-Creation-Date: 2026-07-30 11:41+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -564,7 +564,7 @@ msgstr "Struktura"
 msgid "Which content levels this course uses."
 msgstr "Których poziomów treści używa ten kurs."
 
-#: .\courses\forms.py:79 .\templates\courses\manage\_tree_node.html:29
+#: .\courses\forms.py:79 .\templates\courses\manage\_tree_node.html:51
 #: .\templates\courses\manage\editor\_edit_iframe.html:7
 #: .\templates\courses\manage\editor\_unit_settings.html:12
 msgid "Title"
@@ -2192,11 +2192,11 @@ msgstr ""
 "To wygląda na link %(provider)s, ale nie znaleźliśmy w nim pojedynczego "
 "filmu — wklej link do jednego filmu."
 
-#: .\courses\views.py:1244
+#: .\courses\views.py:1252
 msgid "This quiz has already been submitted."
 msgstr "Ten quiz został już przesłany."
 
-#: .\courses\views.py:1576
+#: .\courses\views.py:1616
 #, python-format
 msgid "You're now enrolled in %(course)s."
 msgstr "Zapisano Cię na kurs %(course)s."
@@ -2257,7 +2257,7 @@ msgstr "Nie możesz dodać poziomu %(kind)s do tego kursu."
 msgid "This changed elsewhere — reloaded to the latest."
 msgstr "To zostało zmienione gdzie indziej — wczytano najnowszą wersję."
 
-#: .\courses\views_manage.py:842 .\templates\courses\manage\_tree_node.html:34
+#: .\courses\views_manage.py:842 .\templates\courses\manage\_tree_node.html:55
 msgid "Clear the filter to reorder."
 msgstr "Wyczyść filtr, aby zmienić kolejność."
 
@@ -2942,7 +2942,7 @@ msgstr "Usunąć tę notatkę?"
 
 #: .\notes\templates\notes\confirm_delete.html:9
 #: .\tags\templates\tags\delete_confirm.html:13
-#: .\templates\courses\manage\_tree_node.html:47
+#: .\templates\courses\manage\_tree_node.html:62
 #: .\templates\courses\manage\editor\_element_row_controls.html:17
 #: .\templates\courses\manage\media\_asset_cell.html:36
 #: .\templates\courses\manage\node_confirm_delete.html:18
@@ -3966,11 +3966,28 @@ msgstr "wymagane"
 msgid "additional"
 msgstr "dodatkowe"
 
-#: .\templates\courses\_quiz_article.html:20
+#: .\templates\courses\_quiz_article.html:22
+msgid "Preview notice"
+msgstr "Informacja o podglądzie"
+
+#: .\templates\courses\_quiz_article.html:23
+#: .\templates\courses\manage\editor\editor.html:93
+msgid "Preview"
+msgstr "Podgląd"
+
+#: .\templates\courses\_quiz_article.html:24
+msgid ""
+"you are not enrolled in this course, so your answers are not recorded and "
+"the quiz cannot be finished."
+msgstr ""
+"nie jesteś zapisany/a na ten kurs, więc Twoje odpowiedzi nie są zapisywane, "
+"a quizu nie można zakończyć."
+
+#: .\templates\courses\_quiz_article.html:41
 msgid "Finish the quiz? You can't change your answers afterwards."
 msgstr "Zakończyć quiz? Nie będziesz mógł zmienić odpowiedzi."
 
-#: .\templates\courses\_quiz_article.html:26
+#: .\templates\courses\_quiz_article.html:47
 msgid "Finish quiz"
 msgstr "Zakończ quiz"
 
@@ -4336,7 +4353,7 @@ msgstr "Edytuj metadane kursu"
 msgid "Media library"
 msgstr "Biblioteka multimediów"
 
-#: .\templates\courses\manage\_move_buttons.html:8
+#: .\templates\courses\manage\_move_buttons.html:14
 #: .\templates\courses\manage\editor\_edit_gallery.html:34
 #: .\templates\courses\manage\editor\_edit_gallery.html:49
 #: .\templates\courses\manage\editor\_edit_tabs.html:28
@@ -4344,7 +4361,7 @@ msgstr "Biblioteka multimediów"
 msgid "Move up"
 msgstr "Przenieś wyżej"
 
-#: .\templates\courses\manage\_move_buttons.html:9
+#: .\templates\courses\manage\_move_buttons.html:15
 #: .\templates\courses\manage\editor\_edit_gallery.html:35
 #: .\templates\courses\manage\editor\_edit_gallery.html:50
 #: .\templates\courses\manage\editor\_edit_tabs.html:29
@@ -4389,25 +4406,25 @@ msgstr "Brak pasujących tytułów."
 msgid "No children yet."
 msgstr "Brak elementów."
 
-#: .\templates\courses\manage\_tree_node.html:31
+#: .\templates\courses\manage\_tree_node.html:53
 #: .\templates\courses\manage\media\_asset_cell.html:12
 msgid "Rename"
 msgstr "Zmień nazwę"
 
-#: .\templates\courses\manage\_tree_node.html:34
+#: .\templates\courses\manage\_tree_node.html:55
 msgid "Drag to move"
 msgstr "Przeciągnij, aby przenieść"
 
-#: .\templates\courses\manage\_tree_node.html:36
+#: .\templates\courses\manage\_tree_node.html:57
 msgid "Move…"
 msgstr "Przenieś…"
 
-#: .\templates\courses\manage\_tree_node.html:37
+#: .\templates\courses\manage\_tree_node.html:58
 msgid "Export subtree"
 msgstr "Eksportuj poddrzewo"
 
-#: .\templates\courses\manage\_tree_node.html:44
-#: .\tests\test_manage_duplicate_button.py:49
+#: .\templates\courses\manage\_tree_node.html:60
+#: .\tests\test_manage_duplicate_button.py:69
 msgid "Duplicate"
 msgstr "Duplikuj"
 
@@ -5740,10 +5757,6 @@ msgstr "Widok edytora"
 #: .\templates\courses\manage\editor\editor.html:92
 msgid "Split"
 msgstr "Podział"
-
-#: .\templates\courses\manage\editor\editor.html:93
-msgid "Preview"
-msgstr "Podgląd"
 
 #: .\templates\courses\manage\export_preview.html:3
 #: .\templates\courses\manage\export_preview.html:6
