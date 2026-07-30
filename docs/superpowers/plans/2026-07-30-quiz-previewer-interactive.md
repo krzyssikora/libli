@@ -734,7 +734,11 @@ def test_enrolled_path_ignores_client_supplied_attempt(client):
 - [ ] **Step 2: Run to verify they fail**
 
 Run: `uv run pytest tests/test_quiz_previewer_answer.py -q`
-Expected: the previewer tests FAIL with 403 (the branch does not exist yet). Five tests should already PASS — they pin behaviour that must survive: `test_non_privileged_user_still_denied`, `test_enrolled_staff_still_persists`, `test_enrolled_path_ignores_client_supplied_attempt`, `test_previewer_cannot_finish_a_quiz` (`quiz_finish` is untouched by this task, so a previewer already gets 403 there), and `test_previewer_dragfill_no_leak_while_attempts_remain` (its `assert resp.status_code == 200` is what stops it passing vacuously against the pre-change 403 — expect **14** failures, not 15).
+Expected: the previewer tests FAIL with 403 (the branch does not exist yet). Measured: **19 collected, 15 FAILED, 4 passed.**
+
+Exactly **four** tests should already PASS — they pin behaviour that must survive: `test_non_privileged_user_still_denied`, `test_enrolled_staff_still_persists`, `test_enrolled_path_ignores_client_supplied_attempt`, and `test_previewer_cannot_finish_a_quiz` (`quiz_finish` is untouched by this task, so a previewer already gets 403 there).
+
+`test_previewer_dragfill_no_leak_while_attempts_remain` **must be RED here, and that is the point.** Its `assert resp.status_code == 200` is precisely what stops it passing vacuously against the pre-change 403 — its other assertions are all negatives that an error page satisfies. If you see it red at this step, that is correct; do **not** "reconcile" it by deleting the status assertion, which would restore the vacuous version.
 
 - [ ] **Step 3: Add `st["locked"]` to `_quiz_render_feedback`**
 
