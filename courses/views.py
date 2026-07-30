@@ -70,6 +70,7 @@ from courses.quiz import answer_from_json
 from courses.quiz import answer_is_empty  # noqa: F401
 from courses.quiz import answer_to_json  # noqa: F401
 from courses.quiz import ephemeral_quiz_feedback
+from courses.quiz import locked_after
 from courses.quiz import parse_attempt
 from courses.quiz import quiz_feedback_context
 from courses.quiz import rehydrate  # noqa: F401
@@ -1367,13 +1368,9 @@ def quiz_answer(request, slug, node_pk, element_pk):
         response.attempt_count += 1
         response.latest_answer = answer_to_json(answer)
         response.last_attempt_at = timezone.now()
-        if is_auto:
-            response.locked = bool(result.correct) or (
-                question.max_attempts is not None
-                and response.attempt_count >= question.max_attempts
-            )
-        else:
-            response.locked = True  # [N]/[R]: single submission
+        # ONE lock rule, shared with the ephemeral previewer path -- see
+        # courses.quiz.locked_after and tests/test_quiz_lock_rule_parity.py.
+        response.locked = locked_after(question, result, response.attempt_count)
         response.save()
         Attempt.objects.create(
             response=response,
