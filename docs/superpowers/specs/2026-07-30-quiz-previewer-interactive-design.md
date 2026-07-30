@@ -51,8 +51,14 @@ coincidence.
 and **all five are required edits** — leaving them is worse than the original bug, because the next
 reader trusts them:
 
-- `courses/views.py:1201-1203` — "a previewer gets a READ-ONLY quiz, never live forms that 403 on
-  submit." Every clause becomes false.
+- `courses/views.py:1201-1203` — "Inputs are disabled + Finish hidden when the quiz is submitted OR
+  the accessor is a non-enrolled previewer … a previewer gets a READ-ONLY quiz, never live forms that
+  403 on submit."
+
+  **Only the previewer half becomes false** — "READ-ONLY" and "never live forms". The submitted half
+  stays true, and so does "Finish hidden" *for previewers*, which is exactly what Component 2
+  requires the replacement comment to keep documenting (`read_only`'s sole remaining job). Do not
+  delete the whole block; rewrite it around Component 2's required one-line `read_only` comment.
 - `courses/views.py:860-866` — `check_answer`'s "This deliberately diverges from seen/quiz, which
   ignore previewers so authors don't pollute their own SCROLL-tracking and quiz analytics. It is
   those two specifically, NOT progress writes in general".
@@ -392,7 +398,7 @@ type does not quietly claim the name: **no `build_answer` may read `attempt`**; 
 by `parse_attempt`.
 
 **Caveat on the `[data-quiz-locked]` freeze, unchanged from today.** `quiz.js:45-47` disables only
-`form.querySelectorAll("input, button")`, which misses **three** control families:
+`form.querySelectorAll("input, button")`, which misses **two** control families:
 
 | Family | Control | Example |
 |---|---|---|
@@ -405,6 +411,24 @@ disabling the fieldset already disables the selects inside it.
 For an enrolled student the next page load repairs this; a JS previewer never gets a server render
 carrying `locked`, so those controls stay interactive after locking. Harmless today only because the
 Check button *is* disabled, so nothing can actually be resubmitted.
+
+**Accepted residual — the widening freezes form *controls*, not the JS-built drag-and-drop targets.**
+For drag-fill / match-pair / drag-to-image, the `<select name="slot">` is not the interaction surface
+once JS runs: `dnd.js:171,188` sets `sel.style.display = "none"` and builds
+`<span class="dnd__slot">` / `<span class="dragimage__target">` drop targets with `click` handlers
+(`dnd.js:156,198`). **`fieldset[disabled]` does not disable spans** — `disabled` propagates only to
+form controls — and `tapTarget`'s "unarmed + filled → clear" branch (`dnd.js:95-105`) calls
+`setSelect(sel, "")`, which works fine on a hidden, disabled select. So after `[data-quiz-locked]` a
+JS previewer can still tap a filled slot and wipe their own answer out from under the
+"Answer recorded" panel, with no subsequent server render to repair the display.
+
+This is **accepted, not fixed**, and the reason is the same as above: the Check button is disabled, so
+nothing can be resubmitted and no state is corrupted — only the previewer's own display. Closing it
+properly means teaching `dnd.js` to no-op when its select is `disabled`, which changes drag-and-drop
+behaviour on the enrolled path too and is out of scope here.
+
+**Consequence for tests:** do **not** write a "locked DnD question is inert for a previewer" test — it
+would fail correctly. Scope any DnD freeze assertion to the form controls.
 
 Fix it for both paths by widening the selector to
 `"input, button, select, textarea, fieldset"`. Note that `fieldset` alone is **not** sufficient — the
@@ -645,8 +669,9 @@ state has implemented the explicit non-goal.
 including the locking submission. Past that point the two paths *provably* diverge and are meant to:
 a further student POST returns 409 / redirect via `_quiz_locked_response` (`views.py:1297-1302`),
 while the stateless previewer branch returns a fresh 200 fragment. State the boundary **ordinally-free
-for both modes**: it is the POST *after the locking submission* — for `[N]`/`[R]` that is the single
-first real submit, for AUTO the correct-or-exhausted one. Empty POSTs never advance toward it (they
+for both modes**: it is the POST *after the locking submission*, where **the locking submission** is
+the single first real submit for `[N]`/`[R]` and the correct-or-exhausted one for AUTO. Empty POSTs
+never advance toward it (they
 lock nothing), so an inserted empty POST shifts the boundary by one position and any rule pinned to
 "the second POST" would stop a POST early. A test that keeps driving past the boundary compares a 409
 body against a feedback fragment and fails for the wrong reason.
