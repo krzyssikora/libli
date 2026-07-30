@@ -1380,6 +1380,23 @@ def test_allows_a_selection_enclosing_a_whole_maths_region(page, browser_name):
 
 
 @pytest.mark.parametrize("browser_name", ["chromium"])
+def test_refuses_enclosing_a_region_that_contains_an_element_boundary(page, browser_name):
+    """The carve-out on the ALLOWED branch. Such a region already round-trips lossily
+    through sanitize_cell with or without colour, so a span there is not a gesture the
+    storage layer can support. Without this case, an implementation that ignores
+    element boundaries entirely passes every other D8 test."""
+    _page_with_module(page)
+    page.evaluate(
+        """() => { document.getElementById('root').outerHTML =
+        '<div id="root" contenteditable="true">a \(x + <b>y</b>\) b</div>'; }"""
+    )
+    assert _select_text(page, "root", "a \(x + y\) b")
+    assert page.evaluate(
+        "() => libliColour.apply(document.getElementById('root'), 'red')"
+    ) == "refused"
+
+
+@pytest.mark.parametrize("browser_name", ["chromium"])
 def test_refuses_inside_a_marker(page, browser_name):
     """D10: markers are parsed AFTER sanitisation, so a coloured marker becomes the
     stored answer. The test runs on every surface, so no opt-in attribute is needed."""
@@ -1677,7 +1694,7 @@ Add to the exported object:
 uv run pytest tests/test_e2e_text_colour.py -m e2e -v
 ```
 
-Expected: 15 passed.
+Expected: 16 passed.
 
 - [ ] **Step 5: Falsify**
 
@@ -1932,7 +1949,7 @@ def test_unmapped_katex_colour_is_left_untouched(page, browser_name):
 uv run pytest tests/test_e2e_text_colour.py -m e2e -v
 ```
 
-Expected: 18 passed.
+Expected: 19 passed.
 
 Falsify: in `mapColours`, delete the `clearInlineColour(el)` call in the
 `TC_TAGS[el.tagName]` branch. Re-run. Expected:
