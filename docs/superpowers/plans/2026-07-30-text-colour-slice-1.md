@@ -909,7 +909,10 @@ Record each answer inline in this task, and update the spec's Unknowns section:
 
 - [ ] **Step 3: Probe the KaTeX serialisation**
 
-Replace the body of `test_probe` with:
+Record measurements 1-3 from Step 2 **before** editing the file. Then add the
+following as a **second test function** (`test_katex_probe`) rather than replacing
+`test_probe` — replacing it orphans the module-level `PAGE` constant and discards
+the first probe:
 
 ```python
     page.goto("data:text/html,<!DOCTYPE html><div id='m'></div>")
@@ -1013,6 +1016,27 @@ def test_js_and_python_slot_tables_agree():
         f"  only in JS:     {sorted(set(js_table) - set(SLOTS))}\n"
         f"  only in Python: {sorted(set(SLOTS) - set(js_table))}"
     )
+
+
+def test_css_tokens_are_in_the_python_slot_table():
+    """There are THREE copies of every hex: tokens.css, colour.py and
+    text_colour.js. The test above binds the last two. Without this one, changing a
+    --tc-* token to satisfy a future surface leaves the other two stale with a green
+    suite, and slotFor() silently stops recognising the colour the page renders."""
+    from courses.colour import normalise_colour
+
+    tokens = (
+        Path(__file__).resolve().parent.parent / "core/static/core/css/tokens.css"
+    ).read_text(encoding="utf-8")
+    seen = 0
+    for slot in ("red", "blue", "green", "orange"):
+        for value in re.findall(rf"--tc-{slot}:\s*(#[0-9A-Fa-f]{{6}})", tokens):
+            assert SLOTS.get(normalise_colour(value)) == slot, (
+                f"tokens.css --tc-{slot} is {value}, which colour.py does not map "
+                f"to {slot!r} — update _PALETTE and text_colour.js MAP together"
+            )
+            seen += 1
+    assert seen == 8, f"expected 4 slots x 2 themes in tokens.css, found {seen}"
 ```
 
 - [ ] **Step 2: Run it to verify it fails**
@@ -1537,8 +1561,13 @@ def test_refuses_enclosing_a_region_that_contains_an_element_boundary(page):
     _page_with_module(page)
     page.evaluate(
         """() => { document.getElementById('root').outerHTML =
-        '<div id="root" contenteditable="true">a \(x + <b>y</b>\) b</div>'; }"""
+        '<div id="root" contenteditable="true">a \\(x + <b>y</b>\\) b</div>'; }"""
     )
+    # Pin the delimiters BEFORE selecting. With single backslashes Python emits a
+    # SyntaxWarning, the JS literal collapses \( to (, and the DOM text becomes
+    # "a (x + y) b" with no delimiters at all -- _select_text then returns False and
+    # the test dies on the wrong assertion while the carve-out goes unexercised.
+    assert "\(" in page.evaluate("() => document.getElementById('root').textContent")
     assert _select_text(page, "root", "a \(x + y\) b")
     assert page.evaluate(
         "() => libliColour.apply(document.getElementById('root'), 'red')"
@@ -1986,7 +2015,10 @@ def test_every_katex_page_loads_text_colour_in_the_right_place():
 uv run pytest tests/test_text_colour_script_order.py -v
 ```
 
-Expected: FAIL listing all five templates with "text_colour.js is not loaded".
+Expected: **1 failed, 1 passed** — the load-order test fails listing all five
+templates with "text_colour.js is not loaded", while
+`test_the_parser_actually_sees_the_katex_scripts` already passes (it guards the
+parser, not the change).
 
 - [ ] **Step 3: Add the wrappers**
 
@@ -2083,7 +2115,7 @@ with no maths.
 uv run pytest tests/test_text_colour_script_order.py -v
 ```
 
-Expected: 1 passed.
+Expected: 2 passed.
 
 - [ ] **Step 6: Add the e2e assertions**
 
@@ -2094,9 +2126,12 @@ def test_katex_colour_resolves_to_the_palette_token(page):
     """D4: prose tc-red and \\color{red} must be the SAME colour. Asserting 'a colour
     is present' would pass even if the class were added while the inline colour stayed,
     which is the failure mode — inline style always beats a class."""
-    page.set_content(
-        "<!DOCTYPE html><style>.tc-red{color:#B2372A}</style><div id='m'></div>"
-    )
+    # Load the REAL stylesheets. An inline `.tc-red{color:#B2372A}` stub makes the
+    # computed value a foregone conclusion and proves nothing about palette identity
+    # — it is a fourth unguarded copy of the literal. (katex.min.css sets no color.)
+    page.set_content("<!DOCTYPE html><div id='m'></div>")
+    page.add_style_tag(path="core/static/core/css/tokens.css")
+    page.add_style_tag(path="courses/static/courses/css/courses.css")
     page.add_script_tag(path="courses/static/courses/vendor/katex/katex.min.js")
     page.add_script_tag(path=SCRIPT)
     computed = page.evaluate(
@@ -2107,8 +2142,19 @@ def test_katex_colour_resolves_to_the_palette_token(page):
         return el ? getComputedStyle(el).color : null;
     }"""
     )
-    assert computed == "rgb(178, 55, 42)", (
-        "the mapped element must carry the class AND have its inline colour cleared"
+    # Compare against the token itself, never a repeated literal.
+    import re
+    from pathlib import Path
+
+    tokens = Path("core/static/core/css/tokens.css").read_text(encoding="utf-8")
+    light = re.search(r":root\s*\{(.*?)\n\}", tokens, re.DOTALL).group(1)
+    digits = re.search(r"--tc-red:\s*#([0-9A-Fa-f]{6})", light).group(1)
+    expected = "rgb(%d, %d, %d)" % tuple(
+        int(digits[i : i + 2], 16) for i in (0, 2, 4)
+    )
+    assert computed == expected, (
+        f"maths resolved to {computed}, prose token is {expected} — the mapped "
+        "element must carry the class AND have its inline colour cleared"
     )
 
 
@@ -2369,7 +2415,6 @@ git commit -m "feat(text-colour): swatch partial across all six toolbars"
 Append to `tests/test_e2e_text_colour.py`:
 
 ```python
-from tests.factories import TEST_PASSWORD  # noqa: E402
 
 
 @pytest.mark.django_db(transaction=True)
@@ -2398,6 +2443,14 @@ def test_colour_survives_save_and_reload(page, live_server):
     body = TextElement.objects.order_by("-id").first().body
     assert "tc-red" in body, body
     assert "style" not in body, "colour must be stored as a class, never inline"
+
+    # Reload and reopen — the round-trip half of the claim. classToStyle runs on
+    # mount, and this is what proves it leaves tc-* alone.
+    page.goto(_editor_url(live_server, unit))
+    page.wait_for_selector('[data-scope="editor"]')
+    page.locator("[data-element] .el-act-edit").first.click()
+    page.wait_for_selector("[data-edit-slot] .rte-surface")
+    assert page.locator("[data-edit-slot] .rte-surface .tc-red").count() == 1
 
 
 @pytest.mark.django_db(transaction=True)
@@ -2457,8 +2510,11 @@ def test_refusal_shows_the_translated_message(page, live_server):
     assert page.locator("[data-edit-slot] .rte-surface .tc-red").count() == 0
 ```
 
-Add the imports and the session fixture at the top of the file — **reuse the repo's
-shipped editor helpers; do not hand-roll them.** `tests/test_e2e_alignment.py` is the
+**Merge into the file's existing header** — Task 5 already created it with
+`import pytest` and `pytestmark = pytest.mark.e2e`, so add only `import os`, the five
+`tests.test_e2e_editor` imports and the session fixture. Re-adding `import pytest`
+duplicates it and reddens `ruff check .` with F811. **Reuse the repo's shipped editor
+helpers; do not hand-roll them.** `tests/test_e2e_alignment.py` is the
 closest shipped analogue of this gesture and is the model to copy:
 
 ```python
@@ -2619,6 +2675,7 @@ def test_cell_colour_reaches_the_saved_json(page, live_server):
     MEASURED: TableElement.save() calls _sanitized_data, NOT normalize_data, so the
     1x1 grid is stored with exactly the keys authored here.
     """
+    from courses.models import Element
     from courses.models import TableElement
 
     _make_pa_user("tc_cell")
@@ -2632,7 +2689,9 @@ def test_cell_colour_reaches_the_saved_json(page, live_server):
 
     page.goto(_editor_url(live_server, unit))
     page.wait_for_selector('[data-scope="editor"]')
-    page.locator("[data-op='element-edit']").first.click()
+    join = Element.objects.get(unit=unit, object_id=table.pk)
+    page.locator(f"[data-element='{join.pk}'] .el-act-edit").click()
+    page.wait_for_selector("[data-edit-slot] [data-table-editor]")
     cell = page.locator("[data-edit-slot] [data-table-grid] td[contenteditable]").first
     cell.wait_for(state="visible")
     cell.click()
@@ -2647,9 +2706,11 @@ def test_cell_colour_reaches_the_saved_json(page, live_server):
 
 Add `from tests.factories import add_element` to the module's imports.
 
-**Before running:** open the element-edit affordance the way `tests/test_e2e_editor.py`
-does — if `[data-op='element-edit']` is not the right selector for opening an existing
-element's editor, copy whatever that file uses. Do not invent one.
+**Verified:** `data-op="element-edit"` does **not** exist — the only `data-op` values on
+an element row are `element-move` and `element-delete`. The real affordance is
+`.el-act-edit` scoped by `[data-element='<join pk>']`, and the shipped analogue is
+`tests/test_e2e_table_editor.py:100`, **not** `test_e2e_editor.py` (which never opens an
+existing element's editor).
 
 - [ ] **Step 2: Run to verify it fails**
 
@@ -2702,8 +2763,18 @@ run over every cell because a paste can land in one that is never focused again:
 
 - [ ] **Step 4: Wire `filltable_editor.js` identically**
 
-Apply the same three edits. The **inner colour-branch bodies and the `mapColours` /
-`tidyPastedSpans` call expressions must be byte-identical** to `table_editor.js`; the
+The three call expressions are byte-identical to `table_editor.js`, but **the anchors
+are not** — this file's shape differs and "the same three edits" is not executable
+without them:
+
+| edit | `filltable_editor.js` anchor |
+|---|---|
+| colour branch | after `focusCell.focus();` at **:731**, before the bold branch |
+| `serialize()` pass | first statement of the `Array.prototype.forEach.call(dataCells(tr), function (td) {` callback, **before `if (td.hasAttribute("data-image"))` at :195** — `serialize()` here has **three** `var cell = {` sites (:196 image, :209 answer, :220 static), so "before `var cell = {`" is ambiguous |
+| `input` listener | before the `contenteditable` branch's `serialize(); return;` at **:652** — that listener (:651-656) contains **two** `serialize()` calls |
+
+The **inner colour-branch bodies and the `mapColours` / `tidyPastedSpans` call
+expressions must be byte-identical** to `table_editor.js`; the
 enclosing guards already differ between the twins (`table_editor.js:529` guards
 `if (cmdBtn && focusCell)`, `filltable_editor.js:729` adds
 `&& focusCell.hasAttribute("contenteditable")`) and stay different.
@@ -2770,6 +2841,7 @@ from courses.transfer.importer import import_course
 from courses.transfer.importer import open_archive
 from courses.transfer.importer import validate_archive_document
 from tests.factories import add_element
+from tests.factories import make_course_with_unit
 
 pytestmark = pytest.mark.django_db
 
@@ -2785,8 +2857,9 @@ def _media_root(settings, tmp_path):
     yield
 
 
-def test_colour_survives_export_and_import(course_with_unit_factory):
-    course, unit, user = course_with_unit_factory()
+def test_colour_survives_export_and_import():
+    course, unit = make_course_with_unit()
+    user = course.owner
     body = TextElement.objects.create(body=BODY)
     table = TableElement.objects.create(
         data={"cells": [[{"html": CELL, "halign": "left", "valign": "top"}]]}
@@ -2816,11 +2889,11 @@ def test_colour_survives_export_and_import(course_with_unit_factory):
     assert tables[0]["cells"][0][0]["html"] == CELL
 ```
 
-**Before running:** `course_with_unit_factory` is a placeholder for whatever
-`tests/test_transfer_import.py` already uses to build a course + unit + owner — read that
-file and use its fixture verbatim rather than adding another. The four transfer symbols
-above are verified to exist with these signatures; the fixture name is the one thing here
-that is not.
+**Verified:** `tests.factories.make_course_with_unit(owner=None, **kw)` returns a
+**2-tuple** `(course, unit)` — not 3, and not a fixture. `tests/test_transfer_import.py`
+has no course/unit fixture at all (it uses a module-level `_mk_full_source_course()`
+helper), so do not go looking for one there. The four transfer symbols, the `_media_root`
+fixture and `add_element` are all verified to exist with these signatures.
 
 - [ ] **Step 2: Run it**
 
@@ -2909,9 +2982,14 @@ Set the user's theme via `user.theme` — the cookie does not work in e2e.
 
 Judge dark mode on its own screenshots — never infer it from the light ones.
 
-- [ ] **Step 3: Commit any CSS fixes**
+- [ ] **Step 3: Commit any CSS fixes — only if Step 2 produced changes**
+
+If the screenshots were acceptable there is nothing to commit; skip to Step 4.
+`git commit` on an empty diff exits non-zero and stalls the task — the same failure
+mode the `rm` vs `git rm` note in Task 4 guards against.
 
 ```bash
+git status --porcelain courses/static/courses/css/editor.css   # empty => skip
 git add courses/static/courses/css/editor.css
 git commit -m "style(text-colour): toolbar polish at mobile widths"
 ```
