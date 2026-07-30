@@ -325,8 +325,10 @@ def test_quiz_answer_nojs_rerender_carries_the_link(client):
     quiz-answer test in the suite sends HTTP_X_REQUESTED_WITH="fetch" and returns
     at the fragment branch before reaching the builder.
 
-    The actor must be an ENROLLED owner — quiz_answer raises PermissionDenied for
-    non-enrolled users, and the owner needs the link."""
+    The actor must be an ENROLLED owner: the actor is enrolled so this exercises
+    the PERSISTED answer path; a non-enrolled viewer would take quiz_answer's
+    ephemeral previewer branch instead, which writes nothing. And the owner needs
+    the link."""
     owner = make_student(client, "owner")
     course = CourseFactory(owner=owner)
     quiz = make_quiz_unit(course=course)

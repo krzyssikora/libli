@@ -258,9 +258,15 @@
         // Terminal quiz state (correct / out of attempts / [N]/[R]) -> freeze inputs,
         // mirroring the student quiz lock.
         if (slot.querySelector("[data-quiz-locked]")) {
-          qEl.querySelectorAll("input, button[type=submit]").forEach(function (n) {
-            n.disabled = true;
-          });
+          // Same three shapes as quiz.js's freeze; kept in lockstep deliberately.
+          // The [type=submit] qualifier stays: this root is the whole [data-question]
+          // element, not the form, so bare `button` could reach controls the quiz
+          // freeze never touches.
+          qEl
+            .querySelectorAll("input, button[type=submit], select, textarea, fieldset")
+            .forEach(function (n) {
+              n.disabled = true;
+            });
         }
       });
       return;

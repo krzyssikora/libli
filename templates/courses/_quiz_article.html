@@ -3,13 +3,33 @@
          {% if slides|length > 1 %}data-slideshow{% endif %}>
   {% include "courses/_unit_crumbs.html" %}
   <h1 class="lesson-unit__title">{{ unit.title }}</h1>
+  {% if previewing %}
+    {% get_current_language as LANGUAGE_CODE %}
+    {% comment %}Rendered ONCE, outside the {% for slide %} loop: slideshow.js shows
+    one .slide at a time, so a banner inside the loop would repeat per slide and one
+    inside the first slide would vanish when the previewer advances.
+
+    lang="{{ LANGUAGE_CODE }}" is required because this sits inside
+    <article lang="{{ course.language }}"> -- without it a Polish UI string is
+    announced as English inside an English course. LANGUAGE_CODE must come from
+    {% get_current_language %}; the i18n context processor is not enabled.
+
+    No role="status": a server-rendered live region announces nothing (live regions
+    only report post-insertion mutations), and role="status" would OVERRIDE <aside>'s
+    implicit complementary role, removing it from landmark navigation.{% endcomment %}
+    <aside class="alert alert--info" data-quiz-preview-notice
+           lang="{{ LANGUAGE_CODE }}" aria-label="{% trans 'Preview notice' %}">
+      <strong>{% trans "Preview" %}</strong> —
+      {% trans "you are not enrolled in this course, so your answers are not recorded and the quiz cannot be finished." %}
+    </aside>
+  {% endif %}
   {% for slide in slides %}
     <div class="slide">
       {% for el in slide %}
         {% with st=render_states|dictkey:el.pk %}
         <section data-element-id="{{ el.pk }}">
           {% if st.qnum %}<span class="el__qnum" data-qnum="{{ st.qnum }}">{{ st.qnum }}.</span>{% endif %}
-          {% render_element el mode="quiz" feedback_for_pk=el.pk quiz_submitted=read_only action_url=el|quiz_answer_url locked=st.locked selected_ids=st.selected_ids submitted_values=st.submitted_values attempts_left=st.attempts_left feedback_html=st.feedback_html %}
+          {% render_element el mode="quiz" feedback_for_pk=el.pk quiz_submitted=quiz_submitted action_url=el|quiz_answer_url locked=st.locked selected_ids=st.selected_ids submitted_values=st.submitted_values attempts_left=st.attempts_left feedback_html=st.feedback_html %}
         </section>
         {% endwith %}
       {% endfor %}

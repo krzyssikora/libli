@@ -197,3 +197,84 @@ def test_try_rejects_get(client):
     el, _a, _b = _question(unit)
     resp = client.get(_url(course, el), HTTP_X_REQUESTED_WITH="fetch")
     assert resp.status_code == 405
+
+
+@pytest.mark.django_db
+def test_try_quiz_malformed_attempt_floors_to_one(client):
+    """State 1: absent/garbage `attempt` floors to 1. Exercised at max_attempts=3 --
+    at the model default of 1, attempt=1/""/5 all lock and render identically, so
+    the assertion could not tell a working parse_attempt from a broken one."""
+    pa = make_pa(client, "pa")
+    course = CourseFactory(owner=pa)
+    unit = _quiz_unit(course)
+    el, a, b = _question(unit, max_attempts=3)
+    for payload in ({"choice": str(b.pk)}, {"choice": str(b.pk), "attempt": "junk"}):
+        resp = client.post(_url(course, el), payload)
+        body = resp.content.decode()
+        assert "2 attempts left" in body, body
+        assert "data-quiz-locked" not in body  # floored to 1, so 2 attempts remain
+
+
+@pytest.mark.django_db
+def test_try_quiz_empty_answer_is_validation_no_fetch_header(client):
+    """State 2: empty answer -> validation panel, attempt not consumed.
+
+    NAME MATTERS: `test_try_quiz_empty_answer_is_validation` (no suffix) already
+    exists at tests/test_element_try.py:180. Appending a same-named function
+    rebinds the name, pytest collects only the later definition, and the
+    pre-existing test is silently DELETED from the suite. This variant differs by
+    omitting the fetch header, so it is worth keeping alongside rather than
+    replacing."""
+    pa = make_pa(client, "pa")
+    course = CourseFactory(owner=pa)
+    unit = _quiz_unit(course)
+    el, a, b = _question(unit, max_attempts=3)
+    resp = client.post(_url(course, el), {"attempt": "1"})
+    body = resp.content.decode()
+    assert "is-validation" in body
+    assert "data-quiz-locked" not in body
+
+
+@pytest.mark.django_db
+def test_try_quiz_auto_wrong_with_attempts_left_withholds(client):
+    """State 3: withhold -- no reveal, attempts_left shown, not locked."""
+    pa = make_pa(client, "pa")
+    course = CourseFactory(owner=pa)
+    unit = _quiz_unit(course)
+    el, a, b = _question(unit, max_attempts=3)
+    resp = client.post(_url(course, el), {"choice": str(b.pk), "attempt": "1"})
+    body = resp.content.decode()
+    assert "is-incorrect" in body
+    assert "2 attempts left" in body
+    assert "data-quiz-locked" not in body
+
+
+@pytest.mark.django_db
+def test_try_quiz_auto_wrong_at_max_attempts_locks_and_reveals(client):
+    """State 4: locked + reveal."""
+    pa = make_pa(client, "pa")
+    course = CourseFactory(owner=pa)
+    unit = _quiz_unit(course)
+    el, a, b = _question(unit, max_attempts=3)
+    resp = client.post(_url(course, el), {"choice": str(b.pk), "attempt": "3"})
+    body = resp.content.decode()
+    assert "is-incorrect" in body
+    assert "data-quiz-locked" in body
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("mode", ["N", "R"])
+def test_try_quiz_neutral_modes_lock_without_marking(client, mode):
+    """State 5: [N]/[R] -> locked, neutral 'recorded' panel, no mark result."""
+    pa = make_pa(client, "pa")
+    course = CourseFactory(owner=pa)
+    unit = _quiz_unit(course)
+    el, a, b = _question(unit, max_attempts=3)
+    q = el.content_object
+    q.marking_mode = mode
+    q.save()
+    resp = client.post(_url(course, el), {"choice": str(b.pk), "attempt": "1"})
+    body = resp.content.decode()
+    assert "is-recorded" in body
+    assert "data-quiz-locked" in body
+    assert "is-incorrect" not in body

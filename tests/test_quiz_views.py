@@ -58,9 +58,14 @@ def test_quiz_unit_get_no_submission_for_unenrolled_preview(client):
     resp = client.get(url)
     assert resp.status_code == 200
     assert not QuizSubmission.objects.filter(unit=unit).exists()
-    # Read-only preview: no Finish button, inputs disabled (no live forms that 403).
+    # Live preview: no Finish button (nothing to submit), but the question forms are
+    # LIVE -- quiz_answer grades a previewer's answers ephemerally. Asserted against
+    # the question input specifically: a bare `b"disabled" not in content` search
+    # would be vacuous, since unrelated markup elsewhere may carry the attribute.
     assert b"Finish quiz" not in resp.content
-    assert b"disabled" in resp.content
+    assert b"data-quiz-preview-notice" in resp.content
+    field = resp.content.decode().split('name="answer"')[1][:200]
+    assert "disabled" not in field
 
 
 @pytest.mark.django_db

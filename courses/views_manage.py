@@ -1733,31 +1733,15 @@ def element_try(request, slug, pk):
     # answer is withheld until the question locks (correct, or wrong on the last
     # attempt). The client tracks the attempt number; we synthesise the per-question
     # response state. NOTHING is persisted (no QuizSubmission/QuestionResponse).
-    from types import SimpleNamespace
-
-    from courses.quiz import answer_is_empty
+    from courses.quiz import ephemeral_quiz_feedback
+    from courses.quiz import parse_attempt
     from courses.quiz import quiz_feedback_context
 
-    try:
-        attempt = max(1, int(request.POST.get("attempt", "1")))
-    except (TypeError, ValueError):
-        attempt = 1
-
-    if answer_is_empty(answer):
-        fake = SimpleNamespace(locked=False, attempt_count=attempt - 1)
-        ctx = quiz_feedback_context(question, fake, validation=True)
-        return render(request, "courses/elements/_quiz_question_feedback.html", ctx)
-
-    is_auto = question.marking_mode == QuestionElement.MarkingMode.AUTO
-    result = question.mark(answer) if is_auto else None
-    if is_auto:
-        locked = bool(result.correct) or (
-            question.max_attempts is not None and attempt >= question.max_attempts
-        )
-    else:
-        locked = True  # [N]/[R]: single submission
-    fake = SimpleNamespace(locked=locked, attempt_count=attempt)
-    ctx = quiz_feedback_context(question, fake, result=result)
+    attempt = parse_attempt(request.POST)
+    stand_in, result, validation = ephemeral_quiz_feedback(question, answer, attempt)
+    ctx = quiz_feedback_context(
+        question, stand_in, result=result, validation=validation
+    )
     return render(request, "courses/elements/_quiz_question_feedback.html", ctx)
 
 

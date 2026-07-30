@@ -69,6 +69,8 @@ from courses.models import UnitProgress
 from courses.quiz import answer_from_json
 from courses.quiz import answer_is_empty  # noqa: F401
 from courses.quiz import answer_to_json  # noqa: F401
+from courses.quiz import ephemeral_quiz_feedback
+from courses.quiz import parse_attempt
 from courses.quiz import quiz_feedback_context
 from courses.quiz import rehydrate  # noqa: F401
 from courses.quiz import selected_ids
@@ -860,7 +862,8 @@ def element_state_save(request, slug, node_pk):
     # Practice state is personal self-tracking (ungraded, absent from analytics), so
     # ANY viewer who can access the lesson persists their own -- not just enrolled
     # students. This deliberately diverges from seen/quiz, which ignore previewers so
-    # authors don't pollute their own SCROLL-tracking and quiz analytics. It is those
+    # authors don't pollute their own SCROLL-tracking and quiz analytics -- quiz now
+    # SERVES previewers live forms, but still records nothing for them. It is those
     # two specifically, NOT progress writes in general: an explicit "Mark as done"
     # click now persists for previewers too (see complete()). The can_access_course
     # gate above is the only guard the write needs.
@@ -1131,7 +1134,11 @@ def build_quiz_context(node, user):
         )
 
     submission = None
-    if is_enrolled(user, node.course):
+    # Hoisted: is_enrolled was already called here and its result discarded.
+    # `previewing` must not cost a second Enrollment query -- this builder is
+    # otherwise carefully prefetched.
+    enrolled = is_enrolled(user, node.course)
+    if enrolled:
         submission, _ = QuizSubmission.objects.get_or_create(student=user, unit=node)
     quiz_submitted = bool(
         submission and submission.status == QuizSubmission.Status.SUBMITTED
@@ -1198,10 +1205,12 @@ def build_quiz_context(node, user):
         "render_states": render_states,
         "submission": submission,
         "quiz_submitted": quiz_submitted,
-        # Inputs are disabled + Finish hidden when the quiz is submitted OR the
-        # accessor is a non-enrolled previewer (submission is None) — a previewer
-        # gets a READ-ONLY quiz, never live forms that 403 on submit.
-        "read_only": quiz_submitted or submission is None,
+        # A non-enrolled previewer gets LIVE question forms: their answers are graded
+        # ephemerally by quiz_answer and nothing is persisted. `read_only` now gates
+        # exactly ONE thing -- the Finish form -- and does NOT mean "the page is
+        # inert". Inputs freeze on `quiz_submitted` alone.
+        "previewing": not enrolled,
+        "read_only": quiz_submitted or not enrolled,
         "has_math": has_math,
         "has_html": has_html,
         "has_questions": True,
@@ -1262,6 +1271,11 @@ def _quiz_render_feedback(
     st = ctx["render_states"].get(element.pk)
     if st is not None:
         st["feedback_html"] = fragment
+        # A previewer has responses == {}, so build_quiz_context derives locked=False
+        # for every question while the injected fragment still emits data-quiz-locked
+        # -- "Answer recorded" beside a live Check button. True no-op for a student:
+        # writes the value build_quiz_context already derived from the saved response.
+        st["locked"] = response.locked
         selected, submitted = rehydrate(question, response.latest_answer)
         st["selected_ids"] = selected
         st["submitted_values"] = submitted
@@ -1275,8 +1289,6 @@ def quiz_answer(request, slug, node_pk, element_pk):
     course = node.course
     if not can_access_course(request.user, course):
         raise PermissionDenied
-    if not is_enrolled(request.user, course):
-        raise PermissionDenied  # previewers cannot persist
 
     element = get_object_or_404(
         Element.objects.select_related("unit__course"), pk=element_pk, unit=node
@@ -1284,6 +1296,35 @@ def quiz_answer(request, slug, node_pk, element_pk):
     question = element.content_object
     if not isinstance(question, QuestionElement):
         raise Http404("not a question element")
+
+    if not is_enrolled(request.user, course):
+        # Previewer: grade ephemerally, persist NOTHING (no QuizSubmission, no
+        # QuestionResponse, no Attempt). Returns before the transaction below, so
+        # no write path is reachable.
+        #
+        # SAFETY INVARIANT for the client-supplied `attempt`: can_access_course
+        # above delegates to accessible_courses (courses/access.py), which is
+        # staff | owned | enrolled | taught. So reaching here implies staff, owner,
+        # or group teacher -- a plain student is either enrolled (persisted path
+        # below) or already denied. If accessible_courses ever widens, this becomes
+        # a student-reachable answer oracle. Pinned by
+        # tests/test_quiz_previewer_answer.py::test_non_privileged_user_still_denied.
+        #
+        # Resolution now precedes this branch, so a previewer gets the student's 404
+        # rules instead of a blanket 403. Deliberate.
+        attempt = parse_attempt(request.POST)
+        stand_in, result, validation = ephemeral_quiz_feedback(
+            question, question.build_answer(request.POST), attempt
+        )
+        return _quiz_render_feedback(
+            request,
+            node,
+            element,
+            question,
+            stand_in,
+            result=result,
+            validation=validation,
+        )
 
     with transaction.atomic():
         submission, _ = QuizSubmission.objects.select_for_update().get_or_create(
