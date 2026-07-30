@@ -2198,7 +2198,9 @@ def test_katex_colour_resolves_to_the_palette_token(page):
     tokens = Path(TOKENS_CSS).read_text(encoding="utf-8")
     light = re.search(r":root\s*\{(.*?)\n\}", tokens, re.DOTALL).group(1)
     digits = re.search(r"--tc-red:\s*#([0-9A-Fa-f]{6})", light).group(1)
-    expected = "rgb(%d, %d, %d)" % tuple(int(digits[i : i + 2], 16) for i in (0, 2, 4))
+    expected = "rgb(%d, %d, %d)" % tuple(  # noqa: UP031
+        int(digits[i : i + 2], 16) for i in (0, 2, 4)
+    )
     assert computed == expected, (
         f"maths resolved to {computed}, prose token is {expected} — the mapped "
         "element must carry the class AND have its inline colour cleared"
