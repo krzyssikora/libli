@@ -2459,7 +2459,12 @@ the single-guard removal stays green — that is the expected result, and it is 
 this step names both.
 
 Then remove the `if key in entries and entries[key] != value:` branch and re-run —
-expected RED on `test_two_different_colourings_of_one_key_are_refused`. Restore.
+expected RED on **two** tests, from one cause: without that branch a colliding key
+falls through to `if key in entries: continue`, so the FIRST colouring silently
+survives and both `entries == {}` assertions fail —
+`test_two_different_colourings_of_one_key_are_refused` and
+`test_a_conflict_stays_refused_when_the_first_colouring_recurs`. Two failures is the
+correct result here, not an unrelated regression. Restore.
 
 Then remove the `if key in refused:` block and re-run — expected RED on
 `test_a_conflict_stays_refused_when_the_first_colouring_recurs`. Restore.
