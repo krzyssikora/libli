@@ -2982,7 +2982,7 @@ verified and what surprised you.
 ```
 manage.py recolour_imported_content --course <slug> \
     --exclude <dirname>=<pk> [--exclude <dirname>=<pk> …] \
-    [--json-dir scripts/lal_import/out] [--apply]
+    [--json-dir scripts/lal_import/out] [--list-matches] [--apply]
 ```
 
 **Validation rules (each has a test):**
@@ -3929,6 +3929,16 @@ git status --porcelain   # expected: EMPTY
 **This task mutates real local data. Do not start it without the user's explicit
 go-ahead**, reported by the controller. Task 8's dry run must have met the gate.
 
+**Every command in this task carries `PYTHONUTF8=1`, and it is not cosmetic.** MEASURED
+on this machine: `sys.stdout.encoding` is `cp1250`, and printing a character outside it
+raises `UnicodeEncodeError` and **exits 1** — it aborts, it does not degrade. MEASURED
+against the real database: 16 `mat-pp` `TextElement.body` values and 3 `TableElement.data`
+values contain characters cp1250 cannot encode (`² ▻ ☑ ✔ 🡆 ♠ ✓ ❌`), and one of them is
+among the 265 palette-bearing occurrences. Step 5's node-finder samples 5 arbitrary
+`tc-`-bearing bodies, so it can abort before writing `shot.json`; the report's 40-match
+preview happens to sort safe rows first *today*, which is luck, not design. An abort at
+the irreversible step is the wrong place to rediscover this.
+
 **Files:** none changed except `.superpowers/sdd/progress.md`.
 
 - [ ] **Step 1: Take the backup — and prove it is a real one**
@@ -4050,8 +4060,8 @@ hand-edited content D7 exists to protect. Do not paste this block with the liter
 below; every other step that names them uses placeholders for exactly this reason.
 
 ```bash
-DATABASE_URL="postgres://libli:libli@localhost:5432/libli" uv run python manage.py \
-  recolour_imported_content \
+PYTHONUTF8=1 DATABASE_URL="postgres://libli:libli@localhost:5432/libli" \
+  uv run python manage.py recolour_imported_content \
   --course mat-pp \
   --exclude 001_zbiory_liczbowe=<PK1> \
   --exclude 002_elementy_logiki=<PK2> \
@@ -4128,8 +4138,8 @@ stop.
 - [ ] **Step 4: Re-run and confirm the no-op**
 
 ```bash
-DATABASE_URL="postgres://libli:libli@localhost:5432/libli" uv run python manage.py \
-  recolour_imported_content --course mat-pp \
+PYTHONUTF8=1 DATABASE_URL="postgres://libli:libli@localhost:5432/libli" \
+  uv run python manage.py recolour_imported_content --course mat-pp \
   --exclude 001_zbiory_liczbowe=<PK1> --exclude 002_elementy_logiki=<PK2>
 ```
 
@@ -4138,20 +4148,30 @@ Expected: `already applied — … Nothing to do.` and exit 0.
 - [ ] **Step 5: Look at it — light and dark, judged separately**
 
 The sentence the spec quotes (`jeśli ( założenie ) to ( teza )`) lives in
-`002_elementy_logiki`, which is **excluded**, so use `130_kombinatoryka` (51% of the
-corpus colour).
+`002_elementy_logiki`, which is **excluded**, so any node that actually changed will do;
+`130_kombinatoryka` holds 51% of the corpus colour and is the likeliest to be picked.
+
+**Before starting, confirm `DEBUG` is on.** The whole point of this step is judging colour,
+which needs `courses.css`. Under `DEBUG=false` `runserver` serves no static files without
+`--insecure`, and the two PNGs would come out unstyled — a failure that reads as "the
+palette is wrong" rather than "static is missing":
+
+```bash
+grep DJANGO_DEBUG .env          # expected: DJANGO_DEBUG=true
+```
 
 First find a node that actually changed, and create the throwaway user, in one go. Write
 the results to the scratchpad — the capture script reads them from there, because **shell
 variables do not survive between Bash tool calls in this harness**:
 
 ```bash
-DATABASE_URL="postgres://libli:libli@localhost:5432/libli" uv run python -c "
+PYTHONUTF8=1 DATABASE_URL="postgres://libli:libli@localhost:5432/libli" uv run python -c "
 import os, sys, json, secrets, django
 sys.path.insert(0, os.getcwd())
 os.environ.setdefault('DJANGO_SETTINGS_MODULE','config.settings.local'); django.setup()
 from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
+from accounts.emails import ensure_verified_primary_email
 from courses.models import Course, Element, TextElement
 c = Course.objects.get(slug='mat-pp')
 # content_type is MANDATORY here. Element is a generic-FK join row, so object_id alone
@@ -4171,6 +4191,14 @@ U = get_user_model()
 pw = secrets.token_urlsafe(16)
 u, _ = U.objects.get_or_create(username='recolour-check')
 u.is_staff = u.is_superuser = True; u.set_password(pw); u.save()
+# MANDATORY, and not obvious: config/settings/base.py:103 sets
+# ACCOUNT_EMAIL_VERIFICATION = 'mandatory', so a user with no VERIFIED allauth
+# EmailAddress cannot log in at all. MEASURED: posting correct credentials for a bare
+# user redirects to /accounts/confirm-email/ and leaves is_authenticated False -- the
+# screenshots would then capture the login page, i.e. this step would manufacture
+# 'the apply did not work' evidence. This is why the repo's own e2e helpers use
+# tests.factories.make_verified_user rather than a bare user.
+ensure_verified_primary_email(u, 'recolour-check@example.invalid')
 json.dump({'node': out[0], 'user': 'recolour-check', 'pw': pw},
           open(r'<scratchpad>/shot.json', 'w'))
 print('wrote <scratchpad>/shot.json')
@@ -4194,7 +4222,17 @@ DATABASE_URL="postgres://libli:libli@localhost:5432/libli" \
 ```
 
 Run that with the Bash tool's `run_in_background` option, and note the returned task id —
-that, not a `$!` shell variable, is how you stop it later.
+that, not a `$!` shell variable, is how you stop it later. MEASURED: a plain `kill` on the
+shell job leaves the `uv`-spawned python grandchild still bound to the port; stopping the
+background task does free it.
+
+Confirm static is actually being served before spending a screenshot on it:
+
+```bash
+curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:8009/static/courses/css/courses.css
+```
+
+Expected: `200`. Anything else means the screenshots would be unstyled.
 
 Now capture both themes. This repo has no screenshot helper outside the pytest e2e
 harness, and that harness does not drive an external `runserver`, so the script is given
@@ -4203,7 +4241,8 @@ flips `user.theme` between shots — **not** the cookie, a recorded trap in this
 writes two PNGs:
 
 ```bash
-DATABASE_URL="postgres://libli:libli@localhost:5432/libli" uv run python -c "
+DJANGO_ALLOW_ASYNC_UNSAFE=true PYTHONUTF8=1 \
+  DATABASE_URL="postgres://libli:libli@localhost:5432/libli" uv run python -c "
 import os, sys, json, django
 sys.path.insert(0, os.getcwd())
 os.environ.setdefault('DJANGO_SETTINGS_MODULE','config.settings.local'); django.setup()
@@ -4215,6 +4254,13 @@ base = 'http://127.0.0.1:8009'
 with sync_playwright() as pw:
     b = pw.chromium.launch()
     for theme in ('light', 'dark'):
+        # DJANGO_ALLOW_ASYNC_UNSAFE=true on the command line above is MANDATORY for
+        # exactly this line. Playwright's sync API runs user code inside a greenlet with
+        # a live asyncio loop in the same thread, so Django's @async_unsafe guard on
+        # connection.cursor() fires and this raises SynchronousOnlyOperation on the FIRST
+        # iteration, before any screenshot. MEASURED. Every Playwright caller in this repo
+        # sets it -- see tests/capture_help_screenshots.py:33, the closest existing
+        # analogue to this script. Do not remove it as noise.
         u = U.objects.get(username=cfg['user']); u.theme = theme
         u.save(update_fields=['theme'])
         page = b.new_page(viewport={'width': 1280, 'height': 900})
@@ -4230,6 +4276,11 @@ with sync_playwright() as pw:
         form.locator("input[name='password']").fill(cfg['pw'])
         form.locator("button[type='submit']").click()
         page.wait_for_load_state('networkidle')
+        # Fail LOUDLY rather than screenshotting a login page. An unauthenticated
+        # /courses/n/<pk>/ 302s to login, so without this assertion an auth
+        # regression produces a perfectly valid PNG of the wrong thing -- and this
+        # step's entire job is deciding whether the apply worked.
+        assert '/accounts/' not in page.url, 'login failed, still at ' + page.url
         page.goto(base + '/courses/n/%d/' % cfg['node'])
         page.wait_for_load_state('networkidle')
         path = r'<scratchpad>/recolour-%s.png' % theme
@@ -4240,9 +4291,26 @@ with sync_playwright() as pw:
 "
 ```
 
-If the screenshot shows a login form rather than a unit page, the login did not take —
-check the selectors against `tests/test_e2e_builder.py:35-42`, which is the pattern
-this script copies.
+If the assertion above fires, or a screenshot shows a login form, the two MEASURED
+causes are, in order of likelihood:
+
+1. the throwaway user has no **verified** allauth `EmailAddress` — the
+   `ensure_verified_primary_email` call was skipped or failed;
+2. `DJANGO_ALLOW_ASYNC_UNSAFE=true` is missing, so the script died at the first ORM
+   call before reaching the browser at all.
+
+The selectors themselves were verified against the live login page and are exact —
+`templates/account/login.html` renders one `input[name='login']`, one
+`input[name='password']` and exactly one `button[type='submit']` inside
+`form[action*='login']` — so audit them last, not first.
+
+**This whole recipe was rehearsed end-to-end against the TEST database while this plan was
+written**, on a synthetic unit carrying the spec's own example sentence
+(`jeśli ( założenie ) to ( teza )`). It works: the server binds, static returns 200, the
+login assertion passes, both PNGs are written styled, and `getComputedStyle` on the
+`.tc-red` span returns `rgb(178, 55, 42)` in light and `rgb(234, 138, 130)` in dark —
+exactly the `--tc-red` values from the spec's palette table. **So a failure here is a
+signal about the DATA, not about the recipe.**
 
 **Judge the two separately; never infer dark from light.** Confirm the prose colour and any
 adjacent `\color{…}` maths now resolve to the same palette, and that nothing else on the
