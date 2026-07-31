@@ -56,6 +56,13 @@ Every task's requirements implicitly include this section.
 - **Never run two pytest invocations at once** — concurrent runs collide on the Postgres test database.
 - **Never background a long test run.** Two slice-1 subagents backgrounded a suite and then stalled waiting on their own job; the controller had to take over both times. Run it in the foreground and wait.
 - **Do NOT use `--reuse-db` for a broad suite run.** Migration-created data is absent from a reused DB and you get ~21 false failures that look exactly like real regressions. Use `--reuse-db` only for narrow reruns of a single file (1.4 s vs 15 s).
+- **Tasks are STRICTLY SEQUENTIAL in this worktree. Never dispatch two at once**,
+  regardless of what any task's Interfaces block says about module-level independence.
+  Task 6, for instance, correctly advertises that `dbscan.py` imports nothing from
+  `source.py` — that is a statement about imports, not a licence to run it alongside
+  Task 5. Two agents in one worktree collide on the `test_libli_blcp` database, on
+  `uv run ruff format .` rewriting each other's files mid-edit, and on each other's
+  commits; this repo has already paid for that lesson once.
 - **BRANCH GUARD — run these two commands and paste their output into your report BEFORE any commit, and abort if either differs:**
   ```bash
   git rev-parse --show-toplevel   # must end in /builder-large-course-perf
@@ -499,8 +506,13 @@ for part, shape, raw, key in misses[:8]:
 - [ ] **Step 2: Run it against the REAL database**
 
 ```bash
-DATABASE_URL="postgres://libli:libli@localhost:5432/libli" uv run python "<scratchpad>/gate_spike.py"
+PYTHONUTF8=1 DATABASE_URL="postgres://libli:libli@localhost:5432/libli" \
+  uv run python "<scratchpad>/gate_spike.py"
 ```
+
+`PYTHONUTF8=1` for the same reason Task 8 and Task 9 carry it: without it
+`sys.stdout.encoding` is `cp1250` here, and this probe's FAILURE path prints `RAW`/`KEY`
+reprs of Polish source — precisely the diagnostic this task exists to produce.
 
 The `DATABASE_URL` prefix is mandatory. Without it you query `libli_blcp`, which does
 not hold `mat-pp`, and every count comes back zero — a result that looks exactly like
@@ -1882,6 +1894,14 @@ verified and what surprised you.
   second `tabs` level.
 - `SwitchGridElement.lines[*].stem` is **out of backfill scope** (2 palette occurrences,
   and it is not an RTE surface). Do not emit it.
+- **`flagged` elements and their `raw` key are out of scope, and the spec's stated
+  reason for this is measurably wrong.** The spec says the one colour-bearing `raw`
+  occurrence (`104_geometria_3_czworokaty/030_wstep.json`) carries "only hex colours —
+  neither palette nor in scope". MEASURED: it carries `color: #0000ff`, which
+  normalises to `(0, 0, 255)` and **is** the `blue` slot. The real reason is stronger:
+  a flagged element is stored as `HtmlElement.html`, which is explicitly **not
+  sanitised** (`models.py:662`), so its colour was never lost and there is nothing to
+  restore. Recorded here so nobody later "fixes" the walk by adding `raw`.
 - `Choice.text`/`Choice.feedback` pass through **none** of the three sanitisers, so MCQ
   option text is outside the feature. Do not emit it.
 
@@ -2259,8 +2279,19 @@ def _emit(out, part, jf, path, shape, raw):
 def _walk_element(el, out, part, jf, path):
     if not isinstance(el, dict):
         return
+    if el.get("flagged"):
+        # builders.py:76 tests `flagged` BEFORE any type dispatch and stores el["raw"]
+        # into HtmlElement.html, which is explicitly NOT sanitised (models.py:662).
+        # So a flagged element's colour was never lost and there is nothing to restore
+        # -- and emitting an occurrence for one would produce a key that can never
+        # match, surfacing only as an unattributable dip in the gate rate. MEASURED:
+        # the corpus holds exactly ONE flagged element, of type `html`, so this is
+        # inert today; it is closed for the same reason the other never-executing
+        # branches here are.
+        return
     etype = el.get("type")
-    # Mirrors courses/lal_loader/builders.py exactly. `explanation` is absent
+    # Mirrors builders.py's TYPE DISPATCH (not its flagged branch, handled above).
+    # `explanation` is absent
     # because no builder branch writes one; SwitchGridElement.lines[*].stem and
     # Choice.text/feedback are absent because they are out of backfill scope.
     if etype in ("text", "spoiler"):
@@ -2325,6 +2356,7 @@ def build_key_map(occurrences):
     produced = []
     origin = {}  # key -> the first Occurrence that produced it
     refused = set()  # keys retracted for a conflict -- NEVER re-enter the map
+    emitted_by_key = {}  # key -> tc-* classes it contributed, for exact retraction
     skips = []
     producers = 0
     emitted = 0
@@ -2361,11 +2393,25 @@ def build_key_map(occurrences):
         if key in entries and entries[key] != value:
             # The one shape that could colour something WRONG. Refuse both, and
             # retract the entry AND the earlier occurrence's claim on it.
+            n_first = emitted_by_key.pop(key, 0)
             skips.append((occ, SKIP_CONFLICT))
             skips.append((origin[key], SKIP_CONFLICT))
             del entries[key]
             refused.add(key)
             produced[:] = [p for p in produced if p[1] != key]
+            # Undo the retracted entry's contribution to the tc-* counters. Task 8
+            # Step 5 reads `tc-* classes (occurrences)` against ~559 to detect a
+            # span-only colouriser, so leaving classes in that will never be written
+            # feeds a wrong number into a live diagnostic. Corpus conflicts are 0, so
+            # this is inert today -- closed for the same reason as the other
+            # never-executing branches in this module.
+            # Subtract n_first ONLY. This occurrence's own `n` was never added:
+            # `emitted_occurrences += n` sits below the `continue`, so subtracting
+            # n_first + n drives the counter NEGATIVE. Measured: -1 on a two-occurrence
+            # RED/BLUE conflict.
+            emitted -= n_first
+            emitted_occurrences -= n_first
+            per_part[origin[key].part]["emitted"] -= n_first
             continue
         produced.append((occ, key))
         emitted_occurrences += n
@@ -2376,6 +2422,7 @@ def build_key_map(occurrences):
             continue
         entries[key] = value
         origin[key] = occ
+        emitted_by_key[key] = n  # so a later retraction can undo exactly this much
         emitted += n
         per_part[occ.part]["emitted"] += n
 

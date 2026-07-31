@@ -747,8 +747,13 @@ Two distinct reasons, both measured:
   `<span class="myequation">`, 180 other inline-style spans, 142 bare `<span>`, and small
   class buckets. **10 of the 301 colour-bearing field occurrences (3%) also carry a
   non-colour span.** (A 302nd colour-bearing occurrence sits under a `raw` key in
-  `104_geometria_3_czworokaty/030_wstep.json` carrying only hex colours — neither palette nor
-  in scope, hence 301.) A key that unwraps only colour spans replays to `<span class="">…`
+  `104_geometria_3_czworokaty/030_wstep.json`, hence 301. **Corrected during slice 2's plan
+  review:** an earlier version of this note said that occurrence carries "only hex colours —
+  neither palette nor in scope". The first half is false — MEASURED, it carries
+  `color: #0000ff`, which normalises to `(0, 0, 255)` and *is* the `blue` slot. It is out of
+  scope for a stronger reason: a `flagged` element is stored as `HtmlElement.html`, which is
+  explicitly **not sanitised** (`models.py:662`), so its colour was never lost and there is
+  nothing to restore.) A key that unwraps only colour spans replays to `<span class="">…`
   while the DB holds the fully-unwrapped value — a silent zero-match with no diagnostic,
   the exact failure class the acceptance gate detects but cannot attribute.
 
