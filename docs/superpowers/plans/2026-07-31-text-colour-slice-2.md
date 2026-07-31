@@ -38,6 +38,12 @@ composed shapes are **unmeasured** — that is what Task 1 exists for.
 Every task's requirements implicitly include this section.
 
 - **Tooling:** `ruff`/`pytest`/`python` are NOT on PATH. Always `uv run ruff …`, `uv run pytest …`.
+- **The plan's code blocks are ruff-clean after `ruff format`, not necessarily before.**
+  Pasting a block and running `ruff format` may rewrap a long call or line; that is
+  expected and the committed file need not match this document byte-for-byte. What
+  must hold is that `ruff check` passes on the formatted tree. VERIFIED: every code
+  block in this plan was extracted and run through `ruff format` then `ruff check` —
+  `All checks passed!`.
 - **Run `uv run ruff format .` BEFORE `uv run ruff check .`, and verify the check AFTER the format.** MEASURED in slice 1: `ruff format` can split a long expression and strand a `# noqa` on the wrong physical line, so a check that passed pre-format fails post-format while the noqa still looks present. Prefer f-strings over percent formatting.
 - **Never run two pytest invocations at once** — concurrent runs collide on the Postgres test database.
 - **Never background a long test run.** Two slice-1 subagents backgrounded a suite and then stalled waiting on their own job; the controller had to take over both times. Run it in the foreground and wait.
@@ -64,7 +70,7 @@ Every task's requirements implicitly include this section.
 | File | Responsibility |
 |---|---|
 | `courses/colour.py` | *modify* — add `slot_for_style(style)`, the helper slice 1 deliberately left undefined; delete the NOTE comment that reserved it |
-| `courses/sanitize.py` | *modify* — make `sanitize_html`/`sanitize_cell` take a keyword-only `allowed_classes`, defaulted to today's constants, so the legacy replay reuses the real code path instead of copying the maths-stashing logic |
+| `courses/sanitize.py` | *modify* — give `sanitize_html`/`sanitize_cell` a keyword-only `allowed_classes` and `sanitize_cell` a keyword-only `tags`, both defaulted to today's constants, so the legacy replay reuses the real code path instead of copying the maths-stashing logic. `tags` exists for Task 4's test oracle alone |
 | `courses/switchgrid.py` | *modify* — `sanitize_stem_segments` takes a keyword-only `sanitiser`, defaulted to `sanitize_cell`, for the same reason |
 | `courses/recolour/__init__.py` | **new** — empty package marker |
 | `courses/recolour/colouriser.py` | **new** — the two bs4 products of one source fragment: `strip_spans()` (the key's input) and `colourise()` (the value's input, per-carrier rules) |
@@ -117,8 +123,17 @@ If the branch does not exist:
 
 ```bash
 git fetch origin
-git checkout -b text-colour-backfill origin/master
+git checkout -b text-colour-backfill origin/text-colour-backfill
 ```
+
+**Branch from the remote feature branch, NOT from `origin/master`.** This plan
+document is committed only on `text-colour-backfill`; branching from `origin/master`
+would remove the plan you are executing from the working tree. If the file disappears
+after a checkout, that is what happened — recover with
+`git checkout origin/text-colour-backfill -- docs/superpowers/plans/`.
+
+If the remote branch does not exist either (nothing has been pushed yet), the branch
+is local-only and must already be present; do not re-create it.
 
 - [ ] **Step 2: Confirm slice 1 is present**
 
@@ -270,7 +285,13 @@ def legacy_html(v):
 
 def legacy_cell(v):
     """A copy of sanitize_cell with the LEGACY class allowlist. The copy is fine
-    HERE because the probe is thrown away; Task 4 parameterises the real one."""
+    HERE because the probe is thrown away; Task 4 parameterises the real one.
+
+    Note `tags=CELL_TAGS` (the LIVE set, which contains `span`) and not a legacy tag
+    set: the probe strips spans BEFORE calling this, so the tag set is inert here --
+    exactly as `key_for`'s assertion documents for production. Task 4's test ORACLE
+    is the one place that does need legacy tags, because it feeds RAW source through.
+    """
     import secrets
 
     value = v or ""
@@ -284,7 +305,7 @@ def legacy_cell(v):
     protected = _MATH_SPAN.sub(_stash, value)
     cleaned = nh3.clean(
         protected,
-        tags=CELL_TAGS if tags is None else tags,
+        tags=CELL_TAGS,
         attributes={},
         allowed_classes=LEGACY_CELL_ALLOWED_CLASSES,
         url_schemes=set(),
@@ -1021,10 +1042,14 @@ from bs4 import NavigableString
 from courses.colour import slot_for_style
 from courses.fillblank import SENTINEL
 
-# Balanced \(...\) (inline) or \[...\] (display), non-greedy, no nesting -- the same
-# shape courses.sanitize._MATH_SPAN uses, so the guard and the sanitiser agree about
-# what a region is.
-_MATH_SPAN = re.compile(r"\\\(.*?\\\)|\\\[.*?\\\]", re.DOTALL)
+# Balanced \(...\) (inline) or \[...\] (display), non-greedy, no nesting. IMPORTED
+# from the sanitiser, never re-declared: the guard and the sanitiser must agree about
+# what a region IS, and a copied pattern agrees only by comment -- if the sanitiser's
+# pattern ever moves, a duplicate here silently disagrees about region boundaries and
+# the D8 refusal starts protecting the wrong span. This repo guards that class of
+# drift with tests elsewhere (test_colour_map_drift, the #169 twin guard); importing
+# removes the possibility instead of testing for it.
+from courses.sanitize import _MATH_SPAN
 # Anything delimiter-shaped that survived the region scan means an unclosed or
 # unbalanced delimiter: fail closed rather than guess where the region ends.
 _LOOSE_DELIM = re.compile(r"\\[()\[\]]")
@@ -1036,7 +1061,7 @@ _LOOSE_DELIM = re.compile(r"\\[()\[\]]")
 _SENTINEL_TOKEN = re.compile(SENTINEL + r"\d+" + SENTINEL)
 
 
-def _walk(soup):
+def _walk(parsed):
     """(full text, [(start, end) per text node], [(start, end) per coloured tag]).
 
     A coloured tag's extent is the offset range of the text it contains. An empty
@@ -1063,7 +1088,7 @@ def _walk(soup):
         if slot_for_style(node.get("style")) and cursor > start:
             tag_spans.append((start, cursor))
 
-    for child in soup.children:
+    for child in parsed.children:
         visit(child)
     return "".join(text_parts), node_spans, tag_spans
 
@@ -1082,7 +1107,7 @@ def region_verdict(html, *, sentinel_tokens):
     from courses.recolour.colouriser import soup
 
     parsed = soup(html)
-    text, node_spans, tag_spans = _walk(soup)
+    text, node_spans, tag_spans = _walk(parsed)
     if not tag_spans:
         return None
 
@@ -1141,8 +1166,12 @@ Restore, confirm 12 passed.
 
 Now falsify the blank/maths asymmetry — the defect this plan's own dry run caught.
 Delete the `if kind == "blank": return …` branch, so blank tokens inherit the maths
-enclosure carve-out. Re-run — expected RED on
-`test_a_colour_span_ENCLOSING_a_blank_token_is_refused`. Restore.
+enclosure carve-out. Re-run — expected RED on **two** tests:
+`test_a_colour_span_ENCLOSING_a_blank_token_is_refused` and
+`test_a_colour_span_STRADDLING_a_blank_token_is_refused`. The straddling case also
+satisfies the enclosure condition once the branch is gone (the token sits inside a
+single text node), so two failures is the correct result here — not an unrelated
+regression. Restore.
 
 Then falsify the fail-closed branch: delete the `if _LOOSE_DELIM.search(residue)` block
 and re-run — expected RED on `test_unbalanced_delimiter_fails_closed`. Restore.
@@ -1477,14 +1506,28 @@ def sanitize_cell(value, *, tags=None, allowed_classes=None):
     value = value or ""
 ```
 
-…and inside its `nh3.clean(...)` call replace the `allowed_classes=CELL_ALLOWED_CLASSES`
-line with:
+…and inside its `nh3.clean(...)` call make **two** body edits. Replace
+`tags=CELL_TAGS,` with:
+
+```python
+        tags=CELL_TAGS if tags is None else tags,
+```
+
+and replace `allowed_classes=CELL_ALLOWED_CLASSES` with:
 
 ```python
         allowed_classes=CELL_ALLOWED_CLASSES
         if allowed_classes is None
         else allowed_classes,
 ```
+
+**Both edits, not just the second.** A signature that accepts `tags` while the body
+still hardcodes `CELL_TAGS` silently ignores the argument, and the only caller that
+passes it is Task 4's own test oracle — so spans survive into the oracle's stored
+value and `test_table_cell_is_the_cell_shape`,
+`test_fill_gate_stem_is_the_stem_segments_shape` and
+`test_fillblank_stem_is_the_COMPOSED_shape` all fail against keys that are correct.
+That is precisely the misdiagnosis the oracle commentary above warns about.
 
 **Note:** the default must be `None`, not the constant itself —
 `LEGACY_CELL_ALLOWED_CLASSES` is the empty dict `{}`, which is falsy, so an
@@ -1542,16 +1585,20 @@ from courses.sanitize import sanitize_cell
 from courses.sanitize import sanitize_html
 from courses.switchgrid import sanitize_stem_segments
 
-SHAPE_HTML = "html"  # sanitize_html                       -- body, success_message,
-#                                                             choice/numeric/shorttext stem
-SHAPE_CELL = "cell"  # sanitize_cell                       -- table + filltable cells
-SHAPE_STEM = "stem"  # sanitize_stem_segments              -- fill/switch gate,
-#                                                             guess_number stem
-SHAPE_COMPOSED = "composed"  # sanitize_html(sanitize_stem_segments(x))
-#                                                          -- fillblank stem: the
-#                                                             builder sanitises, then
-#                                                             QuestionElement.save()
-#                                                             sanitises again
+# Which sanitiser composition each field shape replays:
+#   html     sanitize_html
+#            body, success_message, choice/numeric/shorttext stem
+#   cell     sanitize_cell
+#            table + filltable cells
+#   stem     sanitize_stem_segments
+#            fill gate, switch gate, guess_number stem
+#   composed sanitize_html(sanitize_stem_segments(x))
+#            fillblank stem -- the builder sanitises, then QuestionElement.save()
+#            sanitises again
+SHAPE_HTML = "html"
+SHAPE_CELL = "cell"
+SHAPE_STEM = "stem"
+SHAPE_COMPOSED = "composed"
 SHAPES = (SHAPE_HTML, SHAPE_CELL, SHAPE_STEM, SHAPE_COMPOSED)
 
 _legacy_html = partial(sanitize_html, allowed_classes=LEGACY_ALLOWED_CLASSES)
@@ -1714,6 +1761,7 @@ it would make this a change-detector. Task 1 and Task 8 measure the real corpus.
 import json
 
 from courses.recolour.source import SKIP_CONFLICT
+from courses.recolour.source import SKIP_FIDELITY
 from courses.recolour.source import SKIP_REGION
 from courses.recolour.source import SKIP_UNCHANGED
 from courses.recolour.source import build_key_map
@@ -1874,10 +1922,12 @@ def test_a_no_op_colouring_is_named_unchanged_and_never_enters_the_map():
     # key and value are both the empty string no matter what the colouriser does.
     from courses.recolour.source import Occurrence
 
-    occ = Occurrence("p", "f.json", "x", "html", '<script style="color: red;">a</script>')
-    km = build_key_map([occ])
-    assert km.producers == 1  # it DID carry palette colour: it counts in the denominator
-    assert km.entries == {}  # ...but it can never count in the numerator
+    raw = '<script style="color: red;">a</script>'
+    km = build_key_map([Occurrence("p", "f.json", "x", "html", raw)])
+    # It DID carry palette colour, so it counts in the denominator...
+    assert km.producers == 1
+    # ...but it can never count in the numerator.
+    assert km.entries == {}
     assert [r for _o, r in km.skips if r == SKIP_UNCHANGED]
 
 
@@ -1929,6 +1979,26 @@ def test_the_same_colouring_twice_is_not_a_conflict():
     assert len(km.entries) == 1
     assert km.producers == 2
     assert not [r for _o, r in km.skips if r == SKIP_CONFLICT]
+
+
+def test_a_lossy_round_trip_is_skipped_and_named():
+    # The one guard between a lossy bs4 round-trip and a corrupted write. MEASURED
+    # on the current corpus it never fires (0 of 319), which is exactly why it needs
+    # a synthetic case: a branch that never executes in production and has no test
+    # is a branch nobody knows is broken.
+    #
+    # An unclosed tag is the reliable trigger: bs4 closes it on serialisation, so
+    # decode_contents() != source. MEASURED: '<p style="color: red;">a' round-trips
+    # to '<p style="color: red;">a</p>'.
+    from courses.recolour.source import Occurrence
+
+    raw = '<p style="color: red;">a'
+    km = build_key_map([Occurrence("p", "f.json", "x", "html", raw)])
+    # It carries palette colour, so it counts in the denominator...
+    assert km.producers == 1
+    # ...but it is never written.
+    assert km.entries == {}
+    assert [r for _o, r in km.skips if r == SKIP_FIDELITY]
 
 
 def test_a_region_intersecting_occurrence_is_refused_and_named():
@@ -2179,7 +2249,7 @@ def build_key_map(occurrences):
 uv run pytest tests/test_recolour_source.py -q
 ```
 
-Expected: 14 passed.
+Expected: 15 passed.
 
 - [ ] **Step 5: Falsify — prove the flags.json skip and the conflict guard are real**
 
@@ -2198,8 +2268,11 @@ Then remove the `if key in entries and entries[key] != value:` branch and re-run
 expected RED on `test_two_different_colourings_of_one_key_are_refused`. Restore.
 
 Then remove the `if key in refused:` block and re-run — expected RED on
-`test_a_conflict_stays_refused_when_the_first_colouring_recurs`. Restore, confirm
-14 passed. Paste all three RED outputs.
+`test_a_conflict_stays_refused_when_the_first_colouring_recurs`. Restore.
+
+Then remove the `if not roundtrip_is_lossless(occ.raw):` block and re-run — expected
+RED on `test_a_lossy_round_trip_is_skipped_and_named`. Restore, confirm 15 passed.
+Paste all four RED outputs.
 
 - [ ] **Step 6: Lint and commit**
 
@@ -2222,7 +2295,10 @@ git commit -m "feat(recolour): source walk and key map with conflict/region refu
   `tests/test_recolour_dbscan.py` (create)
 
 **Interfaces:**
-- Consumes: `courses.recolour.source.KeyMap`.
+- Consumes: `courses.models` only. `find_matches` takes a plain `key -> value` dict,
+  NOT a `KeyMap` — the command (Task 7) is the only consumer of that type, and
+  `dbscan.py` imports nothing from `courses.recolour.source`. Keeping the dependency
+  out is what lets Task 6's tests build `entries` as a two-line literal.
 - Produces:
   - `courses.recolour.dbscan.HTML_FIELDS` / `CELL_FIELDS` — the `(model, field)` registry.
   - `courses.recolour.dbscan.excluded_node_ids(course, pks) -> set[int]`
@@ -2380,13 +2456,17 @@ def test_a_field_the_write_path_alters_raises_ReadBackError(monkeypatch):
     # explicitly declines to touch `stem` (models.py:776-779). Exercising it only
     # inside a falsification step would leave the committed suite with no guard on
     # the one check standing between a mangled write and the database.
+    #
+    # The mangling is "X", NOT an HTML comment: TextElement.save runs sanitize_html
+    # and nh3 defaults to strip_comments=True, so a comment is erased before the row
+    # is written, the read-back matches, and the test can never fire. MEASURED.
     course = CourseFactory()
     _part, unit = _unit(course)
-    el = _text(unit, "założenie")
+    _text(unit, "założenie")
     original = TextElement.save
 
     def _mangling_save(self, *a, **kw):
-        self.body = self.body + "<!-- injected -->"
+        self.body = self.body + "X"
         return original(self, *a, **kw)
 
     monkeypatch.setattr(TextElement, "save", _mangling_save)
@@ -2408,7 +2488,7 @@ def test_a_read_back_failure_inside_a_transaction_leaves_the_row_untouched(monke
     original = TextElement.save
 
     def _mangling_save(self, *a, **kw):
-        self.body = self.body + "<!-- injected -->"
+        self.body = self.body + "X"
         return original(self, *a, **kw)
 
     monkeypatch.setattr(TextElement, "save", _mangling_save)
@@ -2855,6 +2935,35 @@ def test_the_exclusion_protects_hand_edited_content_that_matches_a_key(tmp_path)
     assert twin.body == STORED
 
 
+def test_one_dirname_may_be_paired_with_SEVERAL_pks(tmp_path):
+    # The spec's "one source part mapping to several nodes after manual
+    # restructuring" case. Both named subtrees must be excluded, not just the last
+    # pk seen -- an append-style parser that overwrote would silently recolour a
+    # hand-edited subtree.
+    course, part_a, _el = _course_with(STORED, part_title="A")
+    part_b = ContentNode.objects.create(
+        course=course, parent=None, order=1, kind="part", title="B"
+    )
+    ch = ContentNode.objects.create(
+        course=course, parent=part_b, order=0, kind="chapter", title="C"
+    )
+    unit_b = ContentNode.objects.create(
+        course=course, parent=ch, order=0, kind="unit", title="U", unit_type="lesson"
+    )
+    twin = TextElement.objects.create(body=STORED)
+    Element.objects.create(unit=unit_b, content_object=twin)
+    _simple_tree(tmp_path)
+    with pytest.raises(CommandError):  # both subtrees gone -> nothing matches
+        _run(
+            tmp_path,
+            exclude=[f"010_p={part_a.pk}", f"010_p={part_b.pk}"],
+            apply=True,
+        )
+    twin.refresh_from_db()
+    assert twin.body == STORED
+    assert TextElement.objects.filter(body=STORED).count() == 2
+
+
 def test_a_region_refusal_is_named_AND_counts_against_the_gate(tmp_path):
     # A refusal is a real shortfall in delivered colour, so it belongs in the
     # denominator where an operator sees it -- here it drops a 2-occurrence run to
@@ -3127,9 +3236,15 @@ class Command(BaseCommand):
         reads as an error when it is in fact the intended no-op. But "at least one
         value is present" is too weak a predicate: after a hand-edit sweep that left
         one previously-applied value intact and destroyed every other match, it would
-        report a clean no-op instead of halting. So the threshold is the SAME
-        GATE_MIN_RATE the keys must clear -- symmetric, and not satisfiable by a
-        single survivor.
+        report a clean no-op instead of halting. So the threshold reuses
+        GATE_MIN_RATE, which a single survivor cannot satisfy.
+
+        NOT symmetric with the gate, and the difference is worth stating: the gate's
+        rate is matched OCCURRENCES over palette-bearing occurrences, while this one
+        is distinct VALUES found over distinct values. On this corpus 227 distinct
+        keys back 265 occurrences, so the denominators genuinely differ. The shared
+        constant is a deliberate reuse of one threshold, not a claim that the two
+        ratios measure the same thing.
         """
         if not km.entries:
             return False
@@ -3179,7 +3294,8 @@ class Command(BaseCommand):
         for dirname in source_only:
             w(f"exclusion:     {dirname} — source-side only (no DB node paired)")
         w("")
-        w(f"occurrences producing a key:  {km.producers}")
+        w(f"palette occurrences (denom):  {km.producers}")
+        w(f"  ...of which produced a key: {len(km.produced)}")
         w(f"distinct keys:                {len(km.entries)}")
         w(f"tc-* classes (distinct keys): {km.emitted}")
         w(f"tc-* classes (occurrences):   {km.emitted_occurrences}")
@@ -3187,7 +3303,8 @@ class Command(BaseCommand):
         if km.producers:
             w(f"match rate:                   {numerator / km.producers:.1%} "
               f"(gate: >= {GATE_MIN_RATE:.0%})")
-        w(f"fields that would change:     {len({(m.model, m.pk, m.field) for m in matches})}")
+        fields = {(m.model, m.pk, m.field) for m in matches}
+        w(f"fields that would change:     {len(fields)}")
         w("")
         w("per part:")
         w(f"  {'part':38s} {'keys':>6s} {'matched':>8s} {'fields':>7s} {'tc-*':>6s}")
@@ -3204,7 +3321,8 @@ class Command(BaseCommand):
             for reason, n in sorted(reasons.items()):
                 w(f"  {reason:24s} {n}")
             for occ, reason in km.skips[:10]:
-                w(f"    {occ.part}/{Path(occ.json_file).name} {occ.field_path} — {reason}")
+                name = Path(occ.json_file).name
+                w(f"    {occ.part}/{name} {occ.field_path} — {reason}")
         w("")
 ```
 
@@ -3218,7 +3336,7 @@ top-down from the entry point.
 uv run pytest tests/test_recolour_command.py -q
 ```
 
-Expected: 13 passed.
+Expected: 14 passed.
 
 - [ ] **Step 5: Falsify — prove the gate and the exclusion validation are real**
 
@@ -3227,7 +3345,7 @@ Set `GATE_MIN_RATE = 0.0` and re-run — expected RED on
 Restore.
 
 Then delete the `if not (Path(json_dir) / dirname).is_dir():` check and re-run —
-expected RED on `test_a_dirname_absent_from_out_is_an_error`. Restore, confirm 13 passed.
+expected RED on `test_a_dirname_absent_from_out_is_an_error`. Restore, confirm 14 passed.
 
 Paste both RED outputs.
 
@@ -3271,9 +3389,17 @@ because check ran before format.
 uv run pytest --create-db -q
 ```
 
-Do **not** pass `--reuse-db`, and do **not** background this. Expected: 0 failed. Record
-the pass count. If you see ~21 failures with brand-colour/tokens.css or cohort/grouping
-names, you used a reused DB — re-run with `--create-db`.
+Do **not** pass `--reuse-db`, and do **not** background this. Run it under xdist, as CI
+does — a freshly created database is the slowest configuration available and the
+foreground call has a 10-minute ceiling:
+
+```bash
+uv run pytest --create-db -n 4 -q
+```
+
+Expected: 0 failed, ~4460 passed (slice 1 recorded 4457 before this slice's new tests).
+Record the pass count. If you see ~21 failures with brand-colour/tokens.css or
+cohort/grouping names, you used a reused DB — re-run with `--create-db`.
 
 This slice touches `courses/sanitize.py` and `courses/switchgrid.py`, which the whole app
 uses, so the full suite is the real check here — not just the five new files.
@@ -3368,15 +3494,22 @@ go-ahead**, reported by the controller. Task 8's dry run must have met the gate.
 - [ ] **Step 1: Take the backup**
 
 ```bash
-mkdir -p tmp
+DUMP="<scratchpad>/mat-pp-before-recolour.json"
 DATABASE_URL="postgres://libli:libli@localhost:5432/libli" uv run python manage.py \
-  dumpdata courses --indent 2 -o tmp/mat-pp-before-recolour.json
-ls -l tmp/mat-pp-before-recolour.json
+  dumpdata courses --indent 2 -o "$DUMP"
+ls -l "$DUMP"
+git status --porcelain          # expected: EMPTY -- the dump is outside the repo
 ```
 
+The dump goes to your **scratchpad**, outside the repo tree. MEASURED: `tmp/` is **not**
+in `.gitignore` (`git check-ignore -v tmp/x.json` reports NOT IGNORED), so writing it
+there would leave a multi-megabyte untracked file that contradicts this task's own
+`git status --porcelain # expected: EMPTY` check in Step 6 — and invite someone to
+`git add` it.
+
 A transaction protects against a partial write, not against a wrong one. The run is local
-and the cost is trivial. Confirm the file is non-empty before continuing. `tmp/` is
-gitignored — verify with `git status --porcelain` that it does not appear.
+and the cost is trivial. Confirm the file is non-empty before continuing, and **record its
+path in the ledger** — it is the only way back if Step 3 finds a leak.
 
 - [ ] **Step 2: Apply**
 
@@ -3405,6 +3538,9 @@ import django, os; os.environ.setdefault('DJANGO_SETTINGS_MODULE','config.settin
 from courses.models import Course, ContentNode
 c = Course.objects.get(slug='mat-pp')
 print('NODE_COUNT_BEFORE =', ContentNode.objects.filter(course=c).count())
+from courses.models import TableElement
+print('TABLE_TC_BEFORE =', TableElement.objects.filter(
+    elements__unit__course=c, data__icontains='tc-').count())
 "
 ```
 
@@ -3414,12 +3550,14 @@ Then, after the apply:
 DATABASE_URL="postgres://libli:libli@localhost:5432/libli" uv run python -c "
 import django, os, sys; os.environ.setdefault('DJANGO_SETTINGS_MODULE','config.settings.local'); django.setup()
 from courses.models import Course, ContentNode, TextElement, TableElement
-PK1, PK2, NODE_COUNT_BEFORE = <PK1>, <PK2>, <NODE_COUNT_BEFORE>
+PK1, PK2 = <PK1>, <PK2>
+NODE_COUNT_BEFORE, TABLE_TC_BEFORE = <NODE_COUNT_BEFORE>, <TABLE_TC_BEFORE>
 c = Course.objects.get(slug='mat-pp')
 n = TextElement.objects.filter(elements__unit__course=c, body__contains='tc-').count()
 t = TableElement.objects.filter(elements__unit__course=c, data__icontains='tc-').count()
 print('TextElement bodies carrying tc-*:', n)
-print('TableElement rows carrying tc-*:', t)
+print('TableElement rows carrying tc-*: before', TABLE_TC_BEFORE, '-> after', t)
+assert t > TABLE_TC_BEFORE, 'the cell path wrote nothing'
 excluded = set()
 for pk in (PK1, PK2):
     excluded |= set(ContentNode.objects.get(pk=pk)._subtree_node_ids())
@@ -3430,7 +3568,9 @@ print('nodes before/after (must match):', NODE_COUNT_BEFORE, after)
 "
 ```
 
-Expected: a non-zero `tc-*` count, `LEAK … 0`, and the two node counts equal. A non-zero
+Expected: the table count to have **increased** (MEASURED: it is already `1` on the
+un-backfilled database, so "non-zero" would prove nothing about the cell path), a
+non-zero `TextElement` count, `LEAK … 0`, and the two node counts equal. A non-zero
 leak means the exclusion failed — restore from the dumpdata and stop.
 
 - [ ] **Step 4: Re-run and confirm the no-op**
