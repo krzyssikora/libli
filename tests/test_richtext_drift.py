@@ -38,6 +38,11 @@ EXPECTED = [
     ("models.py", "QuestionElement.save", "self.stem"),
     ("models.py", "SpoilerElement.save", "self.body"),
     ("models.py", "TextElement.save", "self.body"),
+    # Slice 2's backfill REPLAYS the sanitiser to reconstruct the values the LAL
+    # import stored; it is not a storage location, so RICH_TEXT_FIELDS deliberately
+    # has no entry for it. Recorded here rather than omitted, so the baseline stays
+    # the whole truth.
+    ("recolour/replay.py", "", None),
     # Render-time re-sanitise (the |sanitize filter), NOT a storage location. Recorded
     # rather than omitted, so the baseline is the whole truth.
     ("templatetags/courses_extras.py", "sanitize", None),

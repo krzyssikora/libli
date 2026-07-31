@@ -51,18 +51,21 @@ def count_markers(token_stem: str) -> int:
     return len(_TOKEN_RE.findall(token_stem or ""))
 
 
-def sanitize_stem_segments(token_stem: str) -> str:
+def sanitize_stem_segments(token_stem: str, *, sanitiser=None) -> str:
     """Sanitize each non-token segment (sanitize_cell) while preserving the tokens.
 
-    Used by the import builder, which bypasses the form's clean()-time sanitize."""
+    Used by the import builder, which bypasses the form's clean()-time sanitize.
+    `sanitiser` is keyword-only and defaults to sanitize_cell; slice 2's backfill
+    passes the legacy-allowlist variant to rebuild the keys the loader stored."""
     from courses.sanitize import sanitize_cell
 
+    clean = sanitize_cell if sanitiser is None else sanitiser
     parts = _TOKEN_RE.split(token_stem or "")
     # split with one capture group -> [seg, idx, seg, idx, ..., seg]; odd items are
     # the captured index digits, which must be rebuilt back into their sentinel token.
     out = []
     for pos, part in enumerate(parts):
-        out.append(_token(int(part)) if pos % 2 else sanitize_cell(part))
+        out.append(_token(int(part)) if pos % 2 else clean(part))
     return "".join(out)
 
 

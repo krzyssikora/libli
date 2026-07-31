@@ -81,13 +81,19 @@ ALLOWED_CLASSES = {tag: set(ALIGN_CLASS_VALUES) for tag in ALIGN_CLASS_TAGS}
 ALLOWED_CLASSES.update({tag: set(TC_CLASS_VALUES) for tag in TC_CLASS_TAGS})
 
 
-def sanitize_html(value):
-    """Strip everything outside the safe subset. Idempotent on already-clean input."""
+def sanitize_html(value, *, allowed_classes=None):
+    """Strip everything outside the safe subset. Idempotent on already-clean input.
+
+    `allowed_classes` is keyword-only and defaults to the live allowlist. The one
+    caller that passes it is slice 2's backfill, which replays this sanitiser AS
+    IT BEHAVED BEFORE the colour classes existed in order to reconstruct the keys
+    the loader actually stored (see LEGACY_ALLOWED_CLASSES above).
+    """
     return nh3.clean(
         value or "",
         tags=ALLOWED_TAGS,
         attributes=ALLOWED_ATTRIBUTES,
-        allowed_classes=ALLOWED_CLASSES,
+        allowed_classes=ALLOWED_CLASSES if allowed_classes is None else allowed_classes,
         link_rel=None,  # manage rel ourselves via ALLOWED_ATTRIBUTES
         url_schemes=ALLOWED_URL_SCHEMES,
     )
@@ -113,9 +119,15 @@ def _canon_math(span):
     return html.escape(html.unescape(span), quote=False)
 
 
-def sanitize_cell(value):
+def sanitize_cell(value, *, tags=None, allowed_classes=None):
     """Sanitise one table cell's html to CELL_TAGS, protecting balanced LaTeX
-    spans from the HTML tokenizer. Idempotent on already-clean input."""
+    spans from the HTML tokenizer. Idempotent on already-clean input.
+
+    `tags` and `allowed_classes` are keyword-only and default to the live
+    allowlists; see sanitize_html for why the backfill overrides them. `tags` exists
+    for the backfill's TEST ORACLE only -- it replays the loader over RAW source, so
+    it needs the pre-slice-1 tag set to unwrap spans. The backfill's own key
+    generator strips spans before calling this and never passes `tags`."""
     value = value or ""
     nonce = secrets.token_hex(8)
     spans = []
@@ -129,9 +141,11 @@ def sanitize_cell(value):
     protected = _MATH_SPAN.sub(_stash, value)
     cleaned = nh3.clean(
         protected,
-        tags=CELL_TAGS,
+        tags=CELL_TAGS if tags is None else tags,
         attributes={},
-        allowed_classes=CELL_ALLOWED_CLASSES,
+        allowed_classes=CELL_ALLOWED_CLASSES
+        if allowed_classes is None
+        else allowed_classes,
         url_schemes=set(),
         link_rel=None,
         strip_comments=True,  # spec-mandated; nh3 defaults True, stated explicitly

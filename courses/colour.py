@@ -95,6 +95,12 @@ def parse_style_colour(style):
     return None
 
 
-# NOTE: slot_for_style() -- the obvious SLOTS.get(parse_style_colour(style)) helper --
-# is deliberately NOT defined here. Nothing in slice 1 calls it; it belongs to slice 2's
-# backfill and arrives with slice 2's tests.
+def slot_for_style(style):
+    """The palette slot named by a style attribute's `color` declaration, or None.
+
+    None means "no slot", never "delete". The caller decides what an unmapped
+    colour means, and the two callers decide differently: the backfill drops it
+    (it cannot be stored anyway), while the render path leaves it exactly as-is
+    so existing \\color{purple} content keeps rendering as it does today.
+    """
+    return SLOTS.get(parse_style_colour(style))
