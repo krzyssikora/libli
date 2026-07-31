@@ -37,6 +37,14 @@ composed shapes are **unmeasured** — that is what Task 1 exists for.
 
 Every task's requirements implicitly include this section.
 
+- **Every shell block in this plan is BASH.** Use the Bash tool, not PowerShell. This
+  matters because the three most consequential steps here — Task 1 Step 2, Task 8 Step 4
+  and all of Task 9 — depend on the inline env-prefix form
+  `DATABASE_URL="…" uv run python …`, which is a **parse error** in PowerShell, not an
+  environment assignment. The PowerShell equivalent, if you must:
+  `$env:DATABASE_URL = "postgres://libli:libli@localhost:5432/libli"` on its own line
+  first — but note it then persists for the rest of that shell, which is exactly how a
+  later command meant for the TEST database ends up hitting the real one.
 - **Tooling:** `ruff`/`pytest`/`python` are NOT on PATH. Always `uv run ruff …`, `uv run pytest …`.
 - **The plan's code blocks are ruff-clean after `ruff format`, not necessarily before.**
   Pasting a block and running `ruff format` may rewrap a long call or line; that is
@@ -86,6 +94,7 @@ Every task's requirements implicitly include this section.
 | `tests/test_recolour_command.py` | **new** |
 | `.superpowers/sdd/progress.md` | *replace* — slice 2's execution ledger. **Gitignored and untracked** (`.gitignore:13`), so it is never `git add`ed, never `git mv`d, and never appears in `git status --porcelain` |
 | `tests/test_recolour_dbscan.py` | **new** |
+| `tests/test_richtext_drift.py` | *modify* — register `recolour/replay.py` in `EXPECTED`; the guard ASTs every `courses/**/*.py` and `replay.py` adds a `sanitize_html` call site |
 
 ---
 
@@ -185,8 +194,12 @@ makes no commit**. Verify that is the actual state rather than assuming it:
 
 ```bash
 git status --porcelain          # expected: empty
-ls .superpowers/sdd/            # expected: progress.md and progress-slice-1-DONE.md
+ls .superpowers/sdd/progress.md .superpowers/sdd/progress-slice-1-DONE.md
 ```
+
+A containment check, not an equality one: `.superpowers/sdd/` also holds ~40 slice-1
+briefs, reports and review diffs plus an `archive-builder-perf/` directory. Both named
+files must exist; everything else there is history.
 
 An empty `git status` here is the pass condition. If the plan document shows as
 modified, something rewrote it — investigate before starting Task 1.
@@ -1435,6 +1448,28 @@ def test_value_carries_the_colour_and_differs_from_the_key():
     assert value != key_for(RED, "html")
 
 
+def test_every_carrier_class_produces_a_value_that_DIFFERS_from_its_key():
+    # The spec asserts `value != key` per carrier class, and that clause is the whole
+    # defence against the span-only no-op: a colouriser that ignored a carrier would
+    # emit a value byte-identical to the key, the key would still match, and the run
+    # would report ~100% while delivering nothing for that class.
+    #
+    # One case per row of the spec's carrier table -- span, in-TC_CLASS_TAGS, and
+    # outside-TC_CLASS_TAGS -- because they take three different code paths.
+    for src in (
+        '<span style="color: red;">x</span>',  # span carrier
+        '<strong style="color: blue;">x</strong>',  # in TC_CLASS_TAGS
+        '<u style="color: red;">x</u>',  # in TC_CLASS_TAGS
+        '<p style="color: green;">x</p>',  # outside -- wraps children
+        '<li style="color: red;">x</li>',  # outside -- wraps children
+        '<figcaption style="color: orange;">x</figcaption>',  # not in ALLOWED_TAGS
+    ):
+        value, emitted = value_for(src, "html")
+        assert emitted == 1, src
+        assert "tc-" in value, src
+        assert value != key_for(src, "html"), src
+
+
 def test_value_for_a_non_span_carrier_also_differs_from_the_key():
     src = '<p><strong style="color: blue;">x</strong></p>'
     value, emitted = value_for(src, "html")
@@ -1656,7 +1691,7 @@ def value_for(raw, shape):
 uv run pytest tests/test_recolour_replay.py -q
 ```
 
-Expected: 11 passed.
+Expected: 12 passed.
 
 If `test_table_cell_is_the_cell_shape` fails on a `source_root`/`source_dir` argument,
 note that `build_element` only touches those for image/video/fill_table media cells; a
@@ -1682,7 +1717,7 @@ Then falsify the ORACLE itself — the defect this plan shipped in its first dra
 Comment out the four `monkeypatch.setattr` lines in `_patch_loader_to_legacy` and
 re-run: expected RED on `test_the_patched_loader_really_is_the_pre_slice_1_loader`
 **and** on all five loader-comparison tests, because an unpatched loader stores
-`<span>…</span>` where the DB holds bare text. Restore, confirm 11 passed. Paste all
+`<span>…</span>` where the DB holds bare text. Restore, confirm 12 passed. Paste all
 three RED outputs.
 
 - [ ] **Step 7: Confirm the sanitiser change broke nothing**
@@ -1694,13 +1729,50 @@ uv run pytest courses/tests/test_sanitize_align.py courses/tests/test_sanitize_c
 uv run pytest tests/ courses/tests/ -q -k "sanitize or sanitiz or switchgrid"
 ```
 
-Expected: all pass. A default-argument change must be behaviour-neutral; if anything
-reddens here, the default is wrong.
+Expected: all pass **except** `tests/test_richtext_drift.py::test_sanitize_html_call_sites_match_the_registry_baseline`, which Step 7b fixes. A
+default-argument change must be behaviour-neutral, so if anything ELSE reddens here,
+the default is wrong — but do not reach for the sanitiser signature on account of the
+drift guard: that failure is expected and means something different.
 
 Both paths matter. The sanitiser's own guards live in **`courses/tests/`**, not
 `tests/` — there is no `tests/test_sanitize_align.py`, and a `-k` sweep restricted to
 `tests/` would run none of them while still exiting 0, which reads exactly like
 success.
+
+- [ ] **Step 7b: Register the new `sanitize_html` call site with the drift guard**
+
+`tests/test_richtext_drift.py` parses every `courses/**/*.py` (excluding `tests/` and
+`sanitize.py`) and asserts the set of `sanitize_html` call sites equals a frozen
+baseline. MEASURED: `replay.py`'s `SHAPE_COMPOSED` lambda is a new site, so the guard
+fails with
+
+```
+AssertionError: The set of sanitize_html() call sites changed.
++ ('recolour/replay.py', '', None): NOT a question form -- courses/richtext.py
+  RICH_TEXT_FIELDS needs an entry OR a documented exclusion
+```
+
+The guard is asking for one of two things and the **documented exclusion** is the
+correct one here: the backfill *replays* the sanitiser to reconstruct stored values,
+it does not introduce a new storage location, so `RICH_TEXT_FIELDS` must NOT gain an
+entry. Add to `EXPECTED` in `tests/test_richtext_drift.py`, keeping the list sorted:
+
+```python
+    # Slice 2's backfill REPLAYS the sanitiser to reconstruct the values the LAL
+    # import stored; it is not a storage location, so RICH_TEXT_FIELDS deliberately
+    # has no entry for it. Recorded here rather than omitted, so the baseline stays
+    # the whole truth.
+    ("recolour/replay.py", "", None),
+```
+
+Then re-run and confirm it is green:
+
+```bash
+uv run pytest tests/test_richtext_drift.py -q
+```
+
+Falsify: delete the new `EXPECTED` line, re-run, confirm RED with the message above,
+restore.
 
 - [ ] **Step 8: Lint and commit**
 
@@ -1709,7 +1781,7 @@ uv run ruff format .
 uv run ruff check .
 git rev-parse --show-toplevel
 git branch --show-current
-git add courses/sanitize.py courses/switchgrid.py courses/recolour/replay.py tests/test_recolour_replay.py
+git add courses/sanitize.py courses/switchgrid.py courses/recolour/replay.py tests/test_recolour_replay.py tests/test_richtext_drift.py
 git commit -m "feat(recolour): legacy/current sanitiser replay per field shape"
 ```
 
@@ -1728,6 +1800,8 @@ git commit -m "feat(recolour): legacy/current sanitiser replay per field shape"
   - `courses.recolour.source.Occurrence` — a `NamedTuple` with fields
     `part: str`, `json_file: str`, `field_path: str`, `shape: str`, `raw: str`.
   - `courses.recolour.source.walk_source(json_dir, excluded_dirs) -> list[Occurrence]`
+  - `courses.recolour.source.NOT_UNIT_JSON` — the `{manifest.json, flags.json}` skip
+    set, public because Task 7's `--json-dir` validation imports it
   - `courses.recolour.source.KeyMap` — a `NamedTuple` with fields
     `entries: dict[str, str]`, `produced: list[tuple[Occurrence, str]]`,
     `producers: int`, `emitted: int`, `skips: list[tuple[Occurrence, str]]`,
@@ -2074,7 +2148,11 @@ SKIP_FIDELITY = "bs4-round-trip-lossy"
 # Files under a part directory that are not unit payloads. flags.json is a JSON
 # LIST, so a walk that does not skip it dies with
 # `AttributeError: 'list' object has no attribute 'get'`.
-_NOT_UNIT_JSON = {"manifest.json", "flags.json"}
+#
+# PUBLIC (no leading underscore) because the management command imports it to
+# validate --json-dir. Same rule as colouriser.soup(): a cross-module reach for an
+# underscore-private name is coupling nobody notices until someone renames it.
+NOT_UNIT_JSON = {"manifest.json", "flags.json"}
 
 
 class Occurrence(NamedTuple):
@@ -2167,7 +2245,7 @@ def walk_source(json_dir, excluded_dirs):
     excluded = set(excluded_dirs or ())
     out = []
     for jf in sorted(Path(json_dir).glob("*/*.json")):
-        if jf.name in _NOT_UNIT_JSON or jf.parent.name in excluded:
+        if jf.name in NOT_UNIT_JSON or jf.parent.name in excluded:
             continue
         payload = json.loads(jf.read_text("utf-8"))
         if not isinstance(payload, dict):
@@ -2253,7 +2331,7 @@ Expected: 15 passed.
 
 - [ ] **Step 5: Falsify — prove the flags.json skip and the conflict guard are real**
 
-Remove `"flags.json"` from `_NOT_UNIT_JSON` **and** the `if not isinstance(payload,
+Remove `"flags.json"` from `NOT_UNIT_JSON` **and** the `if not isinstance(payload,
 dict): continue` guard in `walk_source`, then re-run — expected RED with an
 `AttributeError: 'list' object has no attribute 'get'` on
 `test_walk_skips_manifest_and_the_list_shaped_flags_file`. Restore both.
@@ -2303,8 +2381,10 @@ git commit -m "feat(recolour): source walk and key map with conflict/region refu
   - `courses.recolour.dbscan.HTML_FIELDS` / `CELL_FIELDS` — the `(model, field)` registry.
   - `courses.recolour.dbscan.excluded_node_ids(course, pks) -> set[int]`
   - `courses.recolour.dbscan.find_matches(course, entries, excluded) -> list[Match]`
-    where `Match` is a `NamedTuple(model, pk, field, cell=None, key=str, value=str)` and
-    `cell` is `(row_index, col_index)` for a JSON cell field, `None` otherwise.
+    where `Match` is a `NamedTuple` with the six REQUIRED fields
+    `(model, pk, field, cell, key, value)` — no defaults; `cell` is `(row_index,
+    col_index)` for a JSON cell field and `None` for an HTML field, and must be passed
+    explicitly either way.
   - `courses.recolour.dbscan.apply_matches(matches) -> int` — writes and reads back;
     raises `ReadBackError` on any byte difference.
   - `courses.recolour.dbscan.MultiOwnerError`, `courses.recolour.dbscan.ReadBackError`.
@@ -2429,6 +2509,43 @@ def test_a_table_matches_per_cell_and_rewrites_partially():
     assert cells[1][1]["html"] == '<span class="tc-blue">d</span>'
     assert cells[0][1]["html"] == "b"  # untouched
     assert cells[1][0]["html"] == "c"
+
+
+def test_a_filltable_answer_cell_is_never_matched():
+    # FillTableElement._sanitized_data re-sanitises cell["html"] ONLY for cells whose
+    # kind is neither `answer` nor `image` (models.py:1120-1134), so a match landing on
+    # an answer cell would be written UNSANITISED and the read-back would not notice --
+    # it compares against what we wrote. The corpus produces zero fill-table matches,
+    # so without this test the guard would ship having never executed.
+    #
+    # The row is built from RAW data, deliberately NOT through normalize_data. MEASURED:
+    # normalize_data DROPS the html key from an answer cell (it emits `answer` instead),
+    # so a normalised fixture has no html for find_matches to see and the test would
+    # pass with the guard deleted -- vacuous. save() -> _sanitized_data does NOT delete
+    # a stray html key, so this shape is what a legacy or hand-edited row looks like,
+    # and it is the shape the guard exists for.
+    from courses.models import FillTableElement
+
+    course = CourseFactory()
+    _part, unit = _unit(course)
+    ft = FillTableElement.objects.create(
+        data={
+            "cells": [
+                [
+                    {"kind": "static", "html": "a", "halign": "left"},
+                    {"kind": "answer", "html": "a", "answer": "a"},
+                ]
+            ]
+        }
+    )
+    Element.objects.create(unit=unit, content_object=ft)
+    ft.refresh_from_db()
+    # Precondition: the answer cell really does still carry an html key, or the test
+    # below proves nothing.
+    assert ft.data["cells"][0][1]["html"] == "a"
+    matches = find_matches(course, {"a": '<span class="tc-red">a</span>'}, set())
+    ft_matches = [m for m in matches if m.model is FillTableElement]
+    assert [m.cell for m in ft_matches] == [(0, 0)]  # the STATIC cell only
 
 
 def test_apply_reads_every_rewritten_field_back():
@@ -2643,6 +2760,17 @@ def find_matches(course, entries, excluded):
                 for c, cell in enumerate(row):
                     if not isinstance(cell, dict):
                         continue
+                    # FillTableElement._sanitized_data sanitises cell["html"] ONLY for
+                    # cells whose kind is neither `answer` nor `image` -- those two keep
+                    # their media/answer payload and are never re-sanitised. A match
+                    # landing on one would be written UNSANITISED while the read-back
+                    # still passed, because the read-back compares against what we
+                    # wrote. TableElement cells carry no `kind` at all, so the guard is
+                    # a no-op there. The real corpus produces zero fill-table matches,
+                    # which is exactly why this branch must be closed rather than left
+                    # to ship unexecuted.
+                    if cell.get("kind") not in (None, "static"):
+                        continue
                     stored = cell.get("html")
                     if stored and stored in entries:
                         matches.append(
@@ -2695,7 +2823,7 @@ def apply_matches(matches):
 uv run pytest tests/test_recolour_dbscan.py -q
 ```
 
-Expected: 12 passed.
+Expected: 13 passed.
 
 - [ ] **Step 5: Falsify — prove the base filter and the read-back are real**
 
@@ -2706,12 +2834,24 @@ Delete the `.filter(elements__unit__course=course)` from `_candidates` (keep onl
 
 Then prove the read-back actually reads. Corrupt only the **write**, leaving the check
 in place: change `setattr(row, field, group[0].value)` to
-`setattr(row, field, group[0].value + "X")`. Re-run — expected `ReadBackError`, reddening
-`test_apply_reads_every_rewritten_field_back`. That proves the check fires on a bad write.
+`setattr(row, field, group[0].value + "X")`. Re-run — expected **three** RED, all from
+the same cause (every one of them calls `apply_matches`, so every one now raises):
+`test_apply_reads_every_rewritten_field_back`, `test_titles_are_never_read_or_written`
+and `test_a_second_apply_matches_nothing`. Three failures is the correct result here,
+not an unrelated regression. That proves the check fires on a bad write.
+
 Now, with the corrupt write still in place, also neuter the check by changing
-`if got != m.value:` to `if False:` and re-run — the test must go RED for a *different*
-reason (the stored value ends in `X`), which proves the check was the only thing standing
-between a bad write and the database. Restore both, confirm 12 passed.
+`if got != m.value:` to `if False:` and re-run — again **three** RED, but a different
+three: `test_apply_reads_every_rewritten_field_back` (the stored value now ends in `X`
+and nothing objected), plus
+`test_a_field_the_write_path_alters_raises_ReadBackError` and
+`test_a_read_back_failure_inside_a_transaction_leaves_the_row_untouched`, which expect
+a `ReadBackError` that no longer comes. That proves the check was the only thing
+standing between a bad write and the database. Restore both, confirm 13 passed.
+
+Then falsify the fill-table guard: delete the
+`if cell.get("kind") not in (None, "static"): continue` block and re-run — expected RED
+on `test_a_filltable_answer_cell_is_never_matched`. Restore.
 
 Paste both RED outputs.
 
@@ -3061,7 +3201,7 @@ from courses.recolour.dbscan import ReadBackError
 from courses.recolour.dbscan import apply_matches
 from courses.recolour.dbscan import excluded_node_ids
 from courses.recolour.dbscan import find_matches
-from courses.recolour.source import _NOT_UNIT_JSON
+from courses.recolour.source import NOT_UNIT_JSON
 from courses.recolour.source import build_key_map
 from courses.recolour.source import walk_source
 
@@ -3106,7 +3246,7 @@ class Command(BaseCommand):
         root = Path(json_dir)
         if not root.is_dir():
             raise CommandError(f"--json-dir {json_dir!r} is not a directory")
-        if not any(jf.name not in _NOT_UNIT_JSON for jf in root.glob("*/*.json")):
+        if not any(jf.name not in NOT_UNIT_JSON for jf in root.glob("*/*.json")):
             raise CommandError(
                 f"--json-dir {json_dir!r} contains no <part>/<unit>.json files; "
                 "this is a wrong path, not an empty corpus"
@@ -3221,6 +3361,11 @@ class Command(BaseCommand):
         fields_by_key = defaultdict(set)
         for m in matches:
             fields_by_key[m.key].add((m.model.__name__, m.pk, m.field))
+        # A key occurring in two source parts credits the same (model, pk, field) to
+        # BOTH, so this column is "fields reachable from this part" and its sum can
+        # exceed the reported total. On the measured run the two agree exactly (191),
+        # which is why the overlap would first surface as an unexplained inconsistency
+        # in some future report rather than now. Stated here so it is not a surprise.
         rewritten_by_part = defaultdict(set)
         for occ, key in km.produced:
             rewritten_by_part[occ.part] |= fields_by_key.get(key, set())
@@ -3340,9 +3485,28 @@ Expected: 14 passed.
 
 - [ ] **Step 5: Falsify — prove the gate and the exclusion validation are real**
 
-Set `GATE_MIN_RATE = 0.0` and re-run — expected RED on
-`test_an_edited_element_is_skipped` (which relies on the gate halting a 0% run).
-Restore.
+Falsify the gate **itself**, not the constant it shares. `_check_gate` has TWO
+independent halting conditions and they overlap, so which tests go RED depends on
+which you remove. All three sets below were MEASURED — do the first two in order:
+
+| mutation | expected RED |
+|---|---|
+| delete the `if rate < GATE_MIN_RATE:` branch only | **1**: `test_a_region_refusal_is_named_AND_counts_against_the_gate` |
+| delete the `if zero_parts:` branch only | **none** — see below |
+| delete **both** branches | **3**: the above plus `test_an_edited_element_is_skipped` and `test_the_exclusion_protects_hand_edited_content_that_matches_a_key` |
+
+**A single-branch deletion leaving everything green is the correct result, not a
+vacuous test.** The two zero-match tests trip *both* conditions at once (rate 0% AND
+a part that produced keys but matched zero), so either surviving branch still halts
+the run. Only the region-refusal test isolates the rate branch, because at 50% its
+part did match one occurrence and `zero_parts` is therefore empty. Run the
+delete-both mutation to see those two go RED. Restore after each.
+
+**Do NOT falsify by setting `GATE_MIN_RATE = 0.0`.** MEASURED: that reds three tests,
+and two of them for the WRONG reason — `_already_applied` reuses the same constant, so
+at 0.0 it returns True and the command exits 0 with "already applied" before
+`_check_gate` is ever reached. The mutation would falsify the shared constant rather
+than the gate, and tell you nothing about the branch you meant to test.
 
 Then delete the `if not (Path(json_dir) / dirname).is_dir():` check and re-run —
 expected RED on `test_a_dirname_absent_from_out_is_an_error`. Restore, confirm 14 passed.
@@ -3397,9 +3561,16 @@ foreground call has a 10-minute ceiling:
 uv run pytest --create-db -n 4 -q
 ```
 
-Expected: 0 failed, ~4460 passed (slice 1 recorded 4457 before this slice's new tests).
-Record the pass count. If you see ~21 failures with brand-colour/tokens.css or
-cohort/grouping names, you used a reused DB — re-run with `--create-db`.
+Expected: 0 failed and **~4542 passed**. MEASURED by collection on this branch: the
+non-e2e suite is **4462** without this slice's files, and this plan adds **80** tests
+(16 + 12 + 11 + 15 + 12 + 14 across the six new files), so 4462 + 80 = 4542.
+
+**Check the delta, not the absolute number.** ~4460 is the PRE-slice baseline: seeing
+it here would mean all 80 new tests failed to collect, which reads as success and is
+the opposite. If the count is short, run the six new files by name and compare.
+
+If you see ~21 failures with brand-colour/tokens.css or cohort/grouping names, you
+used a reused DB — re-run with `--create-db`.
 
 This slice touches `courses/sanitize.py` and `courses/switchgrid.py`, which the whole app
 uses, so the full suite is the real check here — not just the five new files.
@@ -3407,12 +3578,29 @@ uses, so the full suite is the real check here — not just the five new files.
 - [ ] **Step 3: The e2e suite**
 
 ```bash
-uv run pytest tests/test_e2e_*.py -m e2e -n 4 -q
+uv run pytest -m e2e -n 4 -q
 ```
+
+**No path argument at all.** MEASURED collection counts on this branch:
+
+| selector | collected |
+|---|---|
+| `tests/test_e2e_*.py -m e2e` | 461 — misses 104 |
+| `tests/ -m e2e` | 562 — still misses the 3 in `notifications/tests/` |
+| `-m e2e` | **565** |
+
+`pytest.mark.e2e` is applied in four `tests/` files that do not match `test_e2e_*.py`
+(`test_link_apply.py`, `test_link_dialog_behaviour.py`, `test_table_grid_algebra.py`,
+`test_tabs_editor_dnd.py`) **and** in three files under `notifications/tests/`. Step 2's
+`addopts = -m 'not e2e'` deselects all of them there, so any path-scoped selector here
+runs them in neither step — on a slice that modifies `courses/sanitize.py` and
+`courses/switchgrid.py`, which the editor paths those files drive.
 
 `-m e2e` is mandatory or every Playwright test is silently deselected and pytest exits 5,
 which looks like success. `-n 4` (xdist, as CI runs it) is needed because the full e2e
-suite exceeds the 10-minute per-call ceiling sequentially. Expected: 0 failed.
+suite exceeds the 10-minute per-call ceiling sequentially. **Expected: 565 collected,
+0 failed.** Record the collected count in the ledger — a future glob/marker drift is
+invisible unless the number is written down.
 
 Slice 2 changes no JS, CSS or template, so a regression here would be surprising — say so
 explicitly in your report if one appears rather than assuming it is pre-existing.
@@ -3491,15 +3679,65 @@ go-ahead**, reported by the controller. Task 8's dry run must have met the gate.
 
 **Files:** none changed except `.superpowers/sdd/progress.md`.
 
-- [ ] **Step 1: Take the backup**
+- [ ] **Step 1: Take the backup — and prove it is a real one**
 
 ```bash
 DUMP="<scratchpad>/mat-pp-before-recolour.json"
-DATABASE_URL="postgres://libli:libli@localhost:5432/libli" uv run python manage.py \
-  dumpdata courses --indent 2 -o "$DUMP"
+PYTHONUTF8=1 DATABASE_URL="postgres://libli:libli@localhost:5432/libli" \
+  uv run python manage.py dumpdata courses --indent 2 -o "$DUMP"
+echo "exit=$?"
 ls -l "$DUMP"
 git status --porcelain          # expected: EMPTY -- the dump is outside the repo
 ```
+
+**`PYTHONUTF8=1` is mandatory, and this is the step where a missing flag costs you the
+course.** MEASURED on this machine: without it, `dumpdata` dies with
+
+```
+CommandError: Unable to serialize database: 'charmap' codec can't encode
+character '▷' in position 2075
+```
+
+— Django opens the `-o` file with the locale encoding (cp1250 here) and mat-pp content
+contains `▷`. It fails **after** creating the file, leaving a **661-byte truncated stub**.
+A "confirm the file is non-empty" check passes on that stub, and you would then run
+`--apply` against real data with no way back. With the flag: exit 0 and **11,669,475
+bytes**.
+
+So the pass condition is not "non-empty". Verify the dump actually round-trips:
+
+```bash
+PYTHONUTF8=1 DATABASE_URL="postgres://libli:libli@localhost:5432/libli" uv run python -c "
+import json, os, sys, django
+sys.path.insert(0, os.getcwd())
+os.environ.setdefault('DJANGO_SETTINGS_MODULE','config.settings.local'); django.setup()
+from courses.models import ContentNode, TextElement
+rows = json.load(open(os.environ['DUMP'], encoding='utf-8'))
+kinds = {}
+for r in rows: kinds[r['model']] = kinds.get(r['model'], 0) + 1
+print('objects in dump:', len(rows))
+print('contentnode  dump/db:', kinds.get('courses.contentnode'), ContentNode.objects.count())
+print('textelement  dump/db:', kinds.get('courses.textelement'), TextElement.objects.count())
+assert kinds.get('courses.contentnode') == ContentNode.objects.count()
+assert kinds.get('courses.textelement') == TextElement.objects.count()
+print('BACKUP OK')
+"
+```
+
+Expected: `BACKUP OK`, a dump of roughly 11–12 MB, and the two counts matching. A
+`json.load` failure or a count mismatch means the dump is truncated — do not proceed.
+
+**The restore command, written down before it is needed** (a recovery path that has never
+been written down is not a recovery path). To roll back:
+
+```bash
+PYTHONUTF8=1 DATABASE_URL="postgres://libli:libli@localhost:5432/libli" \
+  uv run python manage.py loaddata "$DUMP"
+```
+
+`loaddata` upserts by primary key: it restores every row the dump contains and does **not**
+delete rows created afterwards. That is exactly right here — this backfill only ever
+UPDATEs existing rows, so a restore returns every one of them to its pre-apply value.
 
 The dump goes to your **scratchpad**, outside the repo tree. MEASURED: `tmp/` is **not**
 in `.gitignore` (`git check-ignore -v tmp/x.json` reports NOT IGNORED), so writing it
@@ -3507,9 +3745,42 @@ there would leave a multi-megabyte untracked file that contradicts this task's o
 `git status --porcelain # expected: EMPTY` check in Step 6 — and invite someone to
 `git add` it.
 
-A transaction protects against a partial write, not against a wrong one. The run is local
-and the cost is trivial. Confirm the file is non-empty before continuing, and **record its
-path in the ledger** — it is the only way back if Step 3 finds a leak.
+A transaction protects against a partial write, not against a wrong one. **Record the
+dump's path in the ledger.**
+
+- [ ] **Step 1b: Capture the before-state**
+
+These numbers are the baseline Step 3 compares against, and once you have applied they are
+unrecoverable — so capture them **now**, before Step 2. Use the pks you validated in Task
+8 Step 4; do not reuse this plan's `109`/`153` if Task 8 measured anything else.
+
+```bash
+DATABASE_URL="postgres://libli:libli@localhost:5432/libli" uv run python -c "
+import os, sys, django
+sys.path.insert(0, os.getcwd())
+os.environ.setdefault('DJANGO_SETTINGS_MODULE','config.settings.local'); django.setup()
+from courses.models import Course, ContentNode, TextElement, TableElement, ChoiceQuestionElement
+c = Course.objects.get(slug='mat-pp')
+print('NODE_COUNT_BEFORE =', ContentNode.objects.filter(course=c).count())
+print('TEXT_TC_BEFORE    =', TextElement.objects.filter(
+    elements__unit__course=c, body__contains='tc-').count())
+print('TABLE_TC_BEFORE   =', TableElement.objects.filter(
+    elements__unit__course=c, data__icontains='tc-').count())
+print('CHOICE_TC_BEFORE  =', ChoiceQuestionElement.objects.filter(
+    elements__unit__course=c, stem__contains='tc-').count())
+excluded = set()
+for pk in (<PK1>, <PK2>):
+    excluded |= set(ContentNode.objects.get(pk=pk)._subtree_node_ids())
+print('LEAK_TEXT_BEFORE  =', TextElement.objects.filter(
+    elements__unit_id__in=excluded, body__contains='tc-').count())
+print('LEAK_TABLE_BEFORE =', TableElement.objects.filter(
+    elements__unit_id__in=excluded, data__icontains='tc-').count())
+"
+```
+
+Write all six numbers into the ledger. MEASURED on the un-backfilled database,
+`LEAK_TABLE_BEFORE` is already **1** — so the leak checks in Step 3 must be
+before/after **deltas**, never `== 0`.
 
 - [ ] **Step 2: Apply**
 
@@ -3527,51 +3798,66 @@ the transaction, so a `ReadBackError` rolls everything back and nothing is writt
 
 - [ ] **Step 3: Verify the write took effect, and that nothing else moved**
 
-**Before Step 2**, capture the two numbers this check compares against, so they are
-measured rather than quoted. Use the pks you validated in Task 8 Step 4 — substitute
-them for `<PK1>`/`<PK2>` below and do not reuse this plan's `109`/`153` if Task 8
-measured anything else:
+Substitute the six numbers captured in Step 1b and the pks validated in Task 8 Step 4.
 
 ```bash
 DATABASE_URL="postgres://libli:libli@localhost:5432/libli" uv run python -c "
-import django, os; os.environ.setdefault('DJANGO_SETTINGS_MODULE','config.settings.local'); django.setup()
-from courses.models import Course, ContentNode
-c = Course.objects.get(slug='mat-pp')
-print('NODE_COUNT_BEFORE =', ContentNode.objects.filter(course=c).count())
-from courses.models import TableElement
-print('TABLE_TC_BEFORE =', TableElement.objects.filter(
-    elements__unit__course=c, data__icontains='tc-').count())
-"
-```
-
-Then, after the apply:
-
-```bash
-DATABASE_URL="postgres://libli:libli@localhost:5432/libli" uv run python -c "
-import django, os, sys; os.environ.setdefault('DJANGO_SETTINGS_MODULE','config.settings.local'); django.setup()
-from courses.models import Course, ContentNode, TextElement, TableElement
+import os, sys, django
+sys.path.insert(0, os.getcwd())
+os.environ.setdefault('DJANGO_SETTINGS_MODULE','config.settings.local'); django.setup()
+from courses.models import Course, ContentNode, TextElement, TableElement, ChoiceQuestionElement
 PK1, PK2 = <PK1>, <PK2>
-NODE_COUNT_BEFORE, TABLE_TC_BEFORE = <NODE_COUNT_BEFORE>, <TABLE_TC_BEFORE>
+NODE_COUNT_BEFORE = <NODE_COUNT_BEFORE>
+TEXT_TC_BEFORE, TABLE_TC_BEFORE, CHOICE_TC_BEFORE = <...>, <...>, <...>
+LEAK_TEXT_BEFORE, LEAK_TABLE_BEFORE = <...>, <...>
 c = Course.objects.get(slug='mat-pp')
 n = TextElement.objects.filter(elements__unit__course=c, body__contains='tc-').count()
 t = TableElement.objects.filter(elements__unit__course=c, data__icontains='tc-').count()
-print('TextElement bodies carrying tc-*:', n)
-print('TableElement rows carrying tc-*: before', TABLE_TC_BEFORE, '-> after', t)
-assert t > TABLE_TC_BEFORE, 'the cell path wrote nothing'
+q = ChoiceQuestionElement.objects.filter(elements__unit__course=c, stem__contains='tc-').count()
+print('TextElement   before/after:', TEXT_TC_BEFORE, n)
+print('TableElement  before/after:', TABLE_TC_BEFORE, t)
+print('ChoiceElement before/after:', CHOICE_TC_BEFORE, q)
+assert n > TEXT_TC_BEFORE,   'the rich-text path wrote nothing'
+assert t > TABLE_TC_BEFORE,  'the CELL path wrote nothing'
+assert q > CHOICE_TC_BEFORE, 'the question-stem path wrote nothing'
 excluded = set()
 for pk in (PK1, PK2):
     excluded |= set(ContentNode.objects.get(pk=pk)._subtree_node_ids())
-leak = TextElement.objects.filter(elements__unit_id__in=excluded, body__contains='tc-').count()
-print('LEAK into excluded parts (must be 0):', leak)
+lt = TextElement.objects.filter(elements__unit_id__in=excluded, body__contains='tc-').count()
+lb = TableElement.objects.filter(elements__unit_id__in=excluded, data__icontains='tc-').count()
+print('LEAK text  before/after (must be EQUAL):', LEAK_TEXT_BEFORE, lt)
+print('LEAK table before/after (must be EQUAL):', LEAK_TABLE_BEFORE, lb)
+assert lt == LEAK_TEXT_BEFORE and lb == LEAK_TABLE_BEFORE, 'wrote into an EXCLUDED part'
 after = ContentNode.objects.filter(course=c).count()
 print('nodes before/after (must match):', NODE_COUNT_BEFORE, after)
+assert after == NODE_COUNT_BEFORE
 "
 ```
 
-Expected: the table count to have **increased** (MEASURED: it is already `1` on the
-un-backfilled database, so "non-zero" would prove nothing about the cell path), a
-non-zero `TextElement` count, `LEAK … 0`, and the two node counts equal. A non-zero
-leak means the exclusion failed — restore from the dumpdata and stop.
+All three write paths are checked, because the measured write distribution is
+`TextElement.body` 184, `TableElement` cells 84 (across 5 rows) and
+`ChoiceQuestionElement.stem` 2 — a run that silently covered only the first would still
+show a large `TextElement` increase.
+
+**The leak check is a DELTA, and its limits are worth stating plainly.** Two reasons it is
+not the proof it looks like:
+
+- MEASURED: one `TableElement` inside part 153 **already** carries `tc-`, so a `== 0`
+  assertion would fail on a correct run. Hence before/after equality.
+- MEASURED: `find_matches` returns **270 matches with the exclusion and 270 without it**
+  — no key built from an eligible part matches anything inside the 109/153 subtrees, so
+  the DB-side exclusion protects **zero rows on today's data**. An unchanged leak count is
+  therefore consistent with `excluded_node_ids` being completely broken. This check
+  confirms nothing regressed; it does **not** demonstrate the exclusion works. The tests
+  in Task 6 (`test_an_excluded_subtree_is_filtered_out`) and Task 7
+  (`test_the_exclusion_protects_hand_edited_content_that_matches_a_key`) are what
+  demonstrate that, on data constructed to make it matter.
+
+This is the same honesty the plan applies to the region guard, where measured overlap is
+zero "by exclusion, not by the guard" — a future 0 here must not be read as proof either.
+
+A changed leak count means the exclusion failed: **restore using the Step 1 command** and
+stop.
 
 - [ ] **Step 4: Re-run and confirm the no-op**
 
@@ -3583,19 +3869,72 @@ DATABASE_URL="postgres://libli:libli@localhost:5432/libli" uv run python manage.
 
 Expected: `already applied — … Nothing to do.` and exit 0.
 
-- [ ] **Step 5: Look at it**
+- [ ] **Step 5: Look at it — light and dark, judged separately**
 
-Start the dev server against `libli` and open one recoloured unit in both themes — the
-sentence the spec quotes (`jeśli ( założenie ) to ( teza )`) lives in
-`002_elementy_logiki`, which is **excluded**, so pick a unit from `130_kombinatoryka`
-instead (51% of the corpus colour). Confirm the prose colour and any adjacent
-`\color{…}` maths now agree, and that nothing else shifted.
+The sentence the spec quotes (`jeśli ( założenie ) to ( teza )`) lives in
+`002_elementy_logiki`, which is **excluded**, so use `130_kombinatoryka` (51% of the
+corpus colour).
+
+First find a node that actually changed, rather than guessing a URL:
 
 ```bash
-DATABASE_URL="postgres://libli:libli@localhost:5432/libli" uv run python manage.py runserver
+DATABASE_URL="postgres://libli:libli@localhost:5432/libli" uv run python -c "
+import os, sys, django
+sys.path.insert(0, os.getcwd())
+os.environ.setdefault('DJANGO_SETTINGS_MODULE','config.settings.local'); django.setup()
+from courses.models import Course, Element, TextElement
+c = Course.objects.get(slug='mat-pp')
+rows = TextElement.objects.filter(elements__unit__course=c, body__contains='tc-')[:5]
+for r in rows:
+    el = Element.objects.filter(object_id=r.pk).first()
+    print('node pk', el.unit_id, '->', '/courses/n/%d/' % el.unit_id)
+    print('   ', r.body[:120])
+"
 ```
 
-Report what you saw. If it looks wrong, the dumpdata from Step 1 is the way back.
+`runserver` blocks forever, so it must be started in the **background** — this is the one
+exception to the Global Constraint about foreground execution, which is about *test runs*,
+not servers. Start it, capture both themes, then stop it:
+
+```bash
+DATABASE_URL="postgres://libli:libli@localhost:5432/libli" \
+  uv run python manage.py runserver 8009 &
+SERVER=$!
+```
+
+Log in as a superuser (mat-pp unit pages require an authenticated user). If you do not
+have local credentials, create a throwaway one — never a hardcoded shared password:
+
+```bash
+DATABASE_URL="postgres://libli:libli@localhost:5432/libli" uv run python -c "
+import os, sys, django
+sys.path.insert(0, os.getcwd())
+os.environ.setdefault('DJANGO_SETTINGS_MODULE','config.settings.local'); django.setup()
+import secrets
+from django.contrib.auth import get_user_model
+U = get_user_model()
+pw = secrets.token_urlsafe(16)
+u, _ = U.objects.get_or_create(username='recolour-check', defaults={'is_staff': True, 'is_superuser': True})
+u.is_staff = u.is_superuser = True; u.set_password(pw); u.save()
+print('username: recolour-check')
+print('password:', pw)
+"
+```
+
+Capture a **light and a dark** screenshot of `http://127.0.0.1:8009/courses/n/<pk>/` for
+one of the node pks printed above. Dark mode must be set via the user's `theme` field, not
+the cookie — a recorded trap in this repo. Judge the two **separately**: never infer dark
+from light.
+
+Confirm the prose colour and any adjacent `\color{…}` maths now resolve to the same
+palette, and that nothing else on the page shifted.
+
+```bash
+kill $SERVER
+```
+
+Report what you saw, and attach both screenshots. If it looks wrong, the Step 1 restore
+command is the way back.
 
 - [ ] **Step 6: Record and commit the ledger**
 
