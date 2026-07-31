@@ -213,6 +213,28 @@ def test_a_conflict_stays_refused_when_the_first_colouring_recurs():
     assert km.produced == []
 
 
+def test_a_conflict_after_an_AGREEING_occurrence_leaves_no_phantom_classes():
+    # The middle occurrence AGREES with the origin (same RED colouring), so it
+    # bumps `emitted_occurrences` before the conflicting BLUE occurrence arrives.
+    # Retracting only the origin's contribution (`n_first`) strands the agreeing
+    # occurrence's share: without the fix, emitted_occurrences comes out as 1
+    # even though `entries` and `produced` are correctly empty.
+    from courses.recolour.source import Occurrence
+
+    km = build_key_map(
+        [
+            Occurrence("p", "f.json", "x", "html", RED),
+            Occurrence("p", "g.json", "y", "html", RED),
+            Occurrence("p", "h.json", "z", "html", BLUE),
+        ]
+    )
+    assert km.entries == {}
+    assert km.produced == []
+    assert km.emitted == 0
+    assert km.emitted_occurrences == 0
+    assert km.per_part["p"]["emitted"] == 0
+
+
 def test_the_same_colouring_twice_is_not_a_conflict():
     from courses.recolour.source import Occurrence
 

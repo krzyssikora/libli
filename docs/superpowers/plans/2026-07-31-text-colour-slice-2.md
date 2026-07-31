@@ -2130,6 +2130,28 @@ def test_a_conflict_stays_refused_when_the_first_colouring_recurs():
     assert km.produced == []
 
 
+def test_a_conflict_after_an_AGREEING_occurrence_leaves_no_phantom_classes():
+    # The middle occurrence AGREES with the origin (same RED colouring), so it
+    # bumps `emitted_occurrences` before the conflicting BLUE occurrence arrives.
+    # Retracting only the origin's contribution (`n_first`) strands the agreeing
+    # occurrence's share: without the fix, emitted_occurrences comes out as 1
+    # even though `entries` and `produced` are correctly empty.
+    from courses.recolour.source import Occurrence
+
+    km = build_key_map(
+        [
+            Occurrence("p", "f.json", "x", "html", RED),
+            Occurrence("p", "g.json", "y", "html", RED),
+            Occurrence("p", "h.json", "z", "html", BLUE),
+        ]
+    )
+    assert km.entries == {}
+    assert km.produced == []
+    assert km.emitted == 0
+    assert km.emitted_occurrences == 0
+    assert km.per_part["p"]["emitted"] == 0
+
+
 def test_the_same_colouring_twice_is_not_a_conflict():
     from courses.recolour.source import Occurrence
 
@@ -2362,6 +2384,8 @@ def build_key_map(occurrences):
     origin = {}  # key -> the first Occurrence that produced it
     refused = set()  # keys retracted for a conflict -- NEVER re-enter the map
     emitted_by_key = {}  # key -> tc-* classes it contributed, for exact retraction
+    occ_emitted_by_key = {}  # key -> tc-* classes across EVERY agreeing occurrence
+    # so far (not just the origin's), for exact retraction of emitted_occurrences
     skips = []
     producers = 0
     emitted = 0
@@ -2410,16 +2434,22 @@ def build_key_map(occurrences):
             # feeds a wrong number into a live diagnostic. Corpus conflicts are 0, so
             # this is inert today -- closed for the same reason as the other
             # never-executing branches in this module.
-            # Subtract n_first ONLY. This occurrence's own `n` was never added:
-            # `emitted_occurrences += n` sits below the `continue`, so subtracting
-            # n_first + n drives the counter NEGATIVE. Measured: -1 on a two-occurrence
-            # RED/BLUE conflict.
+            # `emitted` and `per_part[...]["emitted"]` are per-KEY, so n_first (the
+            # origin occurrence's contribution) is the whole thing to undo. But
+            # `emitted_occurrences` was incremented once per AGREEING occurrence, not
+            # just the origin's, so subtracting n_first alone strands any occurrence
+            # that agreed with the origin before this conflict arrived. Subtract the
+            # accumulated per-key occurrence total instead. This occurrence's own `n`
+            # was never added to it: `occ_emitted_by_key[key] = ...` sits below the
+            # `continue`, so the conflicting occurrence's own contribution is not in
+            # the popped total.
             emitted -= n_first
-            emitted_occurrences -= n_first
+            emitted_occurrences -= occ_emitted_by_key.pop(key, 0)
             per_part[origin[key].part]["emitted"] -= n_first
             continue
         produced.append((occ, key))
         emitted_occurrences += n
+        occ_emitted_by_key[key] = occ_emitted_by_key.get(key, 0) + n
         if key in entries:
             # Same colouring twice -- 0 conflicts measured on the corpus. Both
             # occurrences count towards the numerator, so both are in `produced`.
@@ -2443,7 +2473,7 @@ def build_key_map(occurrences):
 uv run pytest tests/test_recolour_source.py -q
 ```
 
-Expected: 15 passed.
+Expected: 16 passed.
 
 - [ ] **Step 5: Falsify — prove the flags.json skip and the conflict guard are real**
 
@@ -2470,7 +2500,7 @@ Then remove the `if key in refused:` block and re-run — expected RED on
 `test_a_conflict_stays_refused_when_the_first_colouring_recurs`. Restore.
 
 Then remove the `if not roundtrip_is_lossless(occ.raw):` block and re-run — expected
-RED on `test_a_lossy_round_trip_is_skipped_and_named`. Restore, confirm 15 passed.
+RED on `test_a_lossy_round_trip_is_skipped_and_named`. Restore, confirm 16 passed.
 Paste all four RED outputs.
 
 - [ ] **Step 6: Lint and commit**
@@ -3806,15 +3836,15 @@ configuration available and the foreground call has a 10-minute ceiling, so the
 sequential form would most likely time out and read as a suite failure. Do **not** pass
 `--reuse-db`, do **not** background it, and do not run a second invocation alongside it.
 
-Expected: 0 failed and **~4546 passed**. MEASURED by collection on this branch: the
+Expected: 0 failed and **~4547 passed**. MEASURED by collection on this branch: the
 non-e2e suite is **4462** without this slice's files. The tests this plan adds are exactly the six
 per-task `Expected: N passed` lines — re-derive the total from them rather than
-trusting this sentence: 16 (Task 2) + 12 (Task 3) + 12 (Task 4) + 15 (Task 5) +
-13 (Task 6) + 16 (Task 7) = **84**. So 4462 + 84 = **4546**.
+trusting this sentence: 16 (Task 2) + 12 (Task 3) + 12 (Task 4) + 16 (Task 5) +
+13 (Task 6) + 16 (Task 7) = **85**. So 4462 + 85 = **4547**.
 
 **Check the delta, not the absolute number, in BOTH directions.** ~4462 here would mean
-all 84 new tests failed to collect — which reads as success and is the opposite. A
-count materially *above* 4546 means tests were added that this plan did not specify;
+all 85 new tests failed to collect — which reads as success and is the opposite. A
+count materially *above* 4547 means tests were added that this plan did not specify;
 find them before continuing. If the count is short, run the six new files by name and
 compare against their stated counts.
 

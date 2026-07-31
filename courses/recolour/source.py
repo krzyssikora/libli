@@ -157,6 +157,8 @@ def build_key_map(occurrences):
     origin = {}  # key -> the first Occurrence that produced it
     refused = set()  # keys retracted for a conflict -- NEVER re-enter the map
     emitted_by_key = {}  # key -> tc-* classes it contributed, for exact retraction
+    occ_emitted_by_key = {}  # key -> tc-* classes across EVERY agreeing occurrence
+    # so far (not just the origin's), for exact retraction of emitted_occurrences
     skips = []
     producers = 0
     emitted = 0
@@ -207,16 +209,22 @@ def build_key_map(occurrences):
             # feeds a wrong number into a live diagnostic. Corpus conflicts are 0, so
             # this is inert today -- closed for the same reason as the other
             # never-executing branches in this module.
-            # Subtract n_first ONLY. This occurrence's own `n` was never added:
-            # `emitted_occurrences += n` sits below the `continue`, so subtracting
-            # n_first + n drives the counter NEGATIVE. Measured: -1 on a two-occurrence
-            # RED/BLUE conflict.
+            # `emitted` and `per_part[...]["emitted"]` are per-KEY, so n_first (the
+            # origin occurrence's contribution) is the whole thing to undo. But
+            # `emitted_occurrences` was incremented once per AGREEING occurrence, not
+            # just the origin's, so subtracting n_first alone strands any occurrence
+            # that agreed with the origin before this conflict arrived. Subtract the
+            # accumulated per-key occurrence total instead. This occurrence's own `n`
+            # was never added to it: `occ_emitted_by_key[key] = ...` sits below the
+            # `continue`, so the conflicting occurrence's own contribution is not in
+            # the popped total.
             emitted -= n_first
-            emitted_occurrences -= n_first
+            emitted_occurrences -= occ_emitted_by_key.pop(key, 0)
             per_part[origin[key].part]["emitted"] -= n_first
             continue
         produced.append((occ, key))
         emitted_occurrences += n
+        occ_emitted_by_key[key] = occ_emitted_by_key.get(key, 0) + n
         if key in entries:
             # Same colouring twice -- 0 conflicts measured on the corpus. Both
             # occurrences count towards the numerator, so both are in `produced`.
