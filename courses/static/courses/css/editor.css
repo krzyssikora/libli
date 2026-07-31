@@ -229,6 +229,36 @@ body.editor-page .app-main { max-width: 102rem; }
 .rte-btn:disabled:hover { background: var(--surface-sunken); }
 .rte-btn.is-on { background: var(--primary); color: var(--text-inverse); border-color: var(--primary); }
 .rte-btn .ic { width: 15px; height: 15px; display: block; }
+
+/* Colour swatches. Deliberately NOT .rte-btn: that class's .is-on state is a solid
+   --primary fill, which would repaint the active swatch and hide the colour it
+   represents. Specificity between .rte-btn.is-on and .rte-swatch.is-on is a tie
+   (0,2,0), so this block must stay AFTER it — tests/test_text_colour_toolbars.py
+   pins the order. */
+.rte-swatches { display: inline-flex; gap: 3px; align-items: center; }
+.rte-swatch {
+  width: 18px; height: 18px; padding: 0; cursor: pointer;
+  border: 1px solid var(--border-strong); border-radius: var(--radius-sm);
+  background: transparent;
+}
+.rte-swatch:disabled { opacity: .38; cursor: default; }
+.rte-swatch--red { background: var(--tc-red); }
+.rte-swatch--blue { background: var(--tc-blue); }
+.rte-swatch--green { background: var(--tc-green); }
+.rte-swatch--orange { background: var(--tc-orange); }
+/* "No colour": a bordered square with a diagonal, drawn in CSS so no sprite entry
+   is needed. */
+.rte-swatch--none {
+  background: linear-gradient(
+    to top right,
+    transparent calc(50% - 1px), var(--text-secondary) calc(50% - 1px),
+    var(--text-secondary) calc(50% + 1px), transparent calc(50% + 1px)
+  );
+}
+.rte-swatch.is-on {
+  box-shadow: 0 0 0 2px var(--surface-raised), 0 0 0 4px var(--text-primary);
+}
+
 .rte-sep { width: 1px; align-self: stretch; background: var(--border-default); margin: 2px 3px; }
 .rte-surface {
   min-height: 8rem; padding: var(--space-2) var(--space-3);

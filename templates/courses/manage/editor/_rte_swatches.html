@@ -1,0 +1,21 @@
+{% load i18n %}
+{% comment %}
+Five colour controls, included by all six toolbars. Extracted into a partial rather
+than hand-copied, because there are four separate rte-toolbar markup sites and the two
+table toolbars on top; four hand-copies would drift.
+
+Swatch buttons carry .rte-swatch, NOT .rte-btn: .rte-btn.is-on paints a solid --primary
+background, which would hide the colour the swatch represents.
+{% endcomment %}
+<span class="rte-swatches">
+  <button type="button" class="rte-swatch rte-swatch--red" data-cmd="colour-red"
+          title="{% trans 'Red text' %}" aria-label="{% trans 'Red text' %}"></button>
+  <button type="button" class="rte-swatch rte-swatch--blue" data-cmd="colour-blue"
+          title="{% trans 'Blue text' %}" aria-label="{% trans 'Blue text' %}"></button>
+  <button type="button" class="rte-swatch rte-swatch--green" data-cmd="colour-green"
+          title="{% trans 'Green text' %}" aria-label="{% trans 'Green text' %}"></button>
+  <button type="button" class="rte-swatch rte-swatch--orange" data-cmd="colour-orange"
+          title="{% trans 'Orange text' %}" aria-label="{% trans 'Orange text' %}"></button>
+  <button type="button" class="rte-swatch rte-swatch--none" data-cmd="colour-none"
+          title="{% trans 'No colour' %}" aria-label="{% trans 'No colour' %}"></button>
+</span>

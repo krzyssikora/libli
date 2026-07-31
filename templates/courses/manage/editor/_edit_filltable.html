@@ -46,6 +46,7 @@ the answer-input placeholder, and the two submit-guard messages.{% endcomment %}
     <button type="button" class="rte-btn" data-cmd="italic" title="{% trans 'Italic' %}" aria-label="{% trans 'Italic' %}"><svg class="ic" aria-hidden="true" focusable="false"><use href="#ed-italic"/></svg></button>
     <button type="button" class="rte-btn" data-cmd="underline" title="{% trans 'Underline' %}" aria-label="{% trans 'Underline' %}"><svg class="ic" aria-hidden="true" focusable="false"><use href="#ed-underline"/></svg></button>
     <button type="button" class="rte-btn rte-btn--text" data-cmd="math" title="{% trans 'Insert math' %}" aria-label="{% trans 'Insert math' %}">∑</button>
+    {% include "courses/manage/editor/_rte_swatches.html" %}
     <span class="table-editor__aligns">
       <button type="button" class="rte-btn" data-halign="left" title="{% trans 'Align left' %}" aria-label="{% trans 'Align left' %}"><svg class="ic" aria-hidden="true" focusable="false"><use href="#ed-align-left"/></svg></button>
       <button type="button" class="rte-btn" data-halign="center" title="{% trans 'Align center' %}" aria-label="{% trans 'Align center' %}"><svg class="ic" aria-hidden="true" focusable="false"><use href="#ed-align-center"/></svg></button>

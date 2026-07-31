@@ -128,12 +128,13 @@
 
 {% block extra_js %}
   {% if has_math %}
-    {% comment %}PRESERVE the existing math trio — the read-only stem/answer live in a
+    {% comment %}PRESERVE the existing math quartet — the read-only stem/answer live in a
     form-less [data-question] and question.js's initial pass typesets their inline
     math. Dropping these regresses math rendering AND breaks
     test_review_views.py::test_review_loads_katex_when_stem_has_math.{% endcomment %}
     <script src="{% static 'courses/vendor/katex/katex.min.js' %}" defer></script>
     <script src="{% static 'courses/vendor/katex/contrib/auto-render.min.js' %}" defer></script>
+    <script src="{% static 'courses/js/text_colour.js' %}" defer></script>
     <script src="{% static 'courses/js/question.js' %}" defer></script>
   {% endif %}
   {% if roster %}<script src="{% static 'courses/js/review_roster.js' %}" defer></script>{% endif %}
