@@ -91,9 +91,9 @@ Every task's requirements implicitly include this section.
 | `tests/test_recolour_regions.py` | **new** |
 | `tests/test_recolour_replay.py` | **new** — the key-construction tests, asserted against what the **real loader** stores |
 | `tests/test_recolour_source.py` | **new** |
+| `tests/test_recolour_dbscan.py` | **new** |
 | `tests/test_recolour_command.py` | **new** |
 | `.superpowers/sdd/progress.md` | *replace* — slice 2's execution ledger. **Gitignored and untracked** (`.gitignore:13`), so it is never `git add`ed, never `git mv`d, and never appears in `git status --porcelain` |
-| `tests/test_recolour_dbscan.py` | **new** |
 | `tests/test_richtext_drift.py` | *modify* — register `recolour/replay.py` in `EXPECTED`; the guard ASTs every `courses/**/*.py` and `replay.py` adds a `sanitize_html` call site |
 
 ---
@@ -511,8 +511,11 @@ broken key construction.
 The gate is: **≥ 70% of key-producing occurrences match, and no eligible part that
 produces at least one key matches zero.**
 
-- **Expected, from M3:** the `html` shape at or near 100%. If it is not, something in the
-  environment differs from the plan author's run — stop and diagnose before anything else.
+- **Expected, from M3 and from the round-1/2/3 plan reviews, which each reproduced it:**
+  **265 occurrences producing a key, 265 matched, 100.0%** — `html` 181, `cell` 84.
+  If the overall figure is not at or near 100%, something in the environment differs
+  from the plan author's run — stop and diagnose before anything else, rather than
+  noting that 70% was cleared.
 - **`cell`, `stem`, `composed` are the unmeasured shapes.** A shape at 0% means its
   replay is wrong (wrong sanitiser, or the composed path applied as a single sanitiser
   rather than `sanitize_html(sanitize_stem_segments(x))`). A shape near 100% confirms it.
@@ -566,6 +569,7 @@ ledger; the path is ignored and the command errors.
 - Create: `courses/recolour/__init__.py` (empty)
 - Create: `courses/recolour/colouriser.py`
 - Test: `tests/test_recolour_colouriser.py`
+- Append: `.superpowers/sdd/progress.md` (untracked; no commit)
 
 **Interfaces:**
 - Consumes: `courses.colour.parse_style_colour`, `SLOTS`, `TC_CLASS_TAGS`.
@@ -893,6 +897,23 @@ git branch --show-current
 git add courses/colour.py courses/recolour/__init__.py courses/recolour/colouriser.py tests/test_recolour_colouriser.py
 git commit -m "feat(recolour): slot_for_style and the per-carrier colouriser"
 ```
+- [ ] **Step L: Record the task in the ledger**
+
+Append to `.superpowers/sdd/progress.md` under `## Tasks`:
+
+```markdown
+Task 2: complete (commit <sha>)
+  - branch guard: <toplevel> / <branch>
+  - <N> passed; falsification RED on <test names>, restored
+  - anything surprising, and any decision you had to make that the plan did not cover
+```
+
+The ledger is untracked, so this is a file write with **no commit**. It is not
+bookkeeping: it is the only record a resumed session has of which tasks are genuinely
+done, which is the entire reason Task 0 archives slice 1's ledger rather than appending
+to it. Git history shows that a commit happened; the ledger is where you say what was
+verified and what surprised you.
+
 
 ---
 
@@ -901,6 +922,7 @@ git commit -m "feat(recolour): slot_for_style and the per-carrier colouriser"
 **Files:**
 - Create: `courses/recolour/regions.py`
 - Test: `tests/test_recolour_regions.py`
+- Append: `.superpowers/sdd/progress.md` (untracked; no commit)
 
 **Interfaces:**
 - Consumes: **Task 2** — `courses.colour.slot_for_style` and
@@ -1189,7 +1211,7 @@ regression. Restore.
 Then falsify the fail-closed branch: delete the `if _LOOSE_DELIM.search(residue)` block
 and re-run — expected RED on `test_unbalanced_delimiter_fails_closed`. Restore.
 
-Paste both RED outputs into your report.
+Paste all three RED outputs into your report.
 
 - [ ] **Step 6: Lint and commit**
 
@@ -1201,16 +1223,36 @@ git branch --show-current
 git add courses/recolour/regions.py tests/test_recolour_regions.py
 git commit -m "feat(recolour): D8/D10 protected-region guard for source values"
 ```
+- [ ] **Step L: Record the task in the ledger**
+
+Append to `.superpowers/sdd/progress.md` under `## Tasks`:
+
+```markdown
+Task 3: complete (commit <sha>)
+  - branch guard: <toplevel> / <branch>
+  - <N> passed; falsification RED on <test names>, restored
+  - anything surprising, and any decision you had to make that the plan did not cover
+```
+
+The ledger is untracked, so this is a file write with **no commit**. It is not
+bookkeeping: it is the only record a resumed session has of which tasks are genuinely
+done, which is the entire reason Task 0 archives slice 1's ledger rather than appending
+to it. Git history shows that a commit happened; the ledger is where you say what was
+verified and what surprised you.
+
 
 ---
 
 ### Task 4: Replay the import write path — the key and the value
 
 **Files:**
-- Modify: `courses/sanitize.py` (keyword-only `allowed_classes` on both sanitisers)
+- Modify: `courses/sanitize.py` (keyword-only `allowed_classes` on both sanitisers, **and**
+  a keyword-only `tags` on `sanitize_cell` — test-oracle only)
 - Modify: `courses/switchgrid.py` (keyword-only `sanitiser` on `sanitize_stem_segments`)
+- Modify: `tests/test_richtext_drift.py` (register the new `sanitize_html` call site — Step 7b)
 - Create: `courses/recolour/replay.py`
 - Test: `tests/test_recolour_replay.py`
+- Append: `.superpowers/sdd/progress.md` (untracked; no commit)
 
 **Interfaces:**
 - Consumes: `courses.recolour.colouriser.strip_spans`, `colourise`.
@@ -1784,6 +1826,23 @@ git branch --show-current
 git add courses/sanitize.py courses/switchgrid.py courses/recolour/replay.py tests/test_recolour_replay.py tests/test_richtext_drift.py
 git commit -m "feat(recolour): legacy/current sanitiser replay per field shape"
 ```
+- [ ] **Step L: Record the task in the ledger**
+
+Append to `.superpowers/sdd/progress.md` under `## Tasks`:
+
+```markdown
+Task 4: complete (commit <sha>)
+  - branch guard: <toplevel> / <branch>
+  - <N> passed; falsification RED on <test names>, restored
+  - anything surprising, and any decision you had to make that the plan did not cover
+```
+
+The ledger is untracked, so this is a file write with **no commit**. It is not
+bookkeeping: it is the only record a resumed session has of which tasks are genuinely
+done, which is the entire reason Task 0 archives slice 1's ledger rather than appending
+to it. Git history shows that a commit happened; the ledger is where you say what was
+verified and what surprised you.
+
 
 ---
 
@@ -1792,6 +1851,7 @@ git commit -m "feat(recolour): legacy/current sanitiser replay per field shape"
 **Files:**
 - Create: `courses/recolour/source.py`
 - Test: `tests/test_recolour_source.py`
+- Append: `.superpowers/sdd/progress.md` (untracked; no commit)
 
 **Interfaces:**
 - Consumes: `colouriser.has_palette_colour`/`roundtrip_is_lossless`, `regions.region_verdict`,
@@ -1802,10 +1862,13 @@ git commit -m "feat(recolour): legacy/current sanitiser replay per field shape"
   - `courses.recolour.source.walk_source(json_dir, excluded_dirs) -> list[Occurrence]`
   - `courses.recolour.source.NOT_UNIT_JSON` — the `{manifest.json, flags.json}` skip
     set, public because Task 7's `--json-dir` validation imports it
-  - `courses.recolour.source.KeyMap` — a `NamedTuple` with fields
+  - `courses.recolour.source.KeyMap` — a `NamedTuple` with **seven** fields, in this
+    order (construction is positional, so the order is part of the contract):
     `entries: dict[str, str]`, `produced: list[tuple[Occurrence, str]]`,
-    `producers: int`, `emitted: int`, `skips: list[tuple[Occurrence, str]]`,
-    `per_part: dict[str, dict]`. `produced` holds the `(occurrence, key)` pairs whose
+    `producers: int`, `emitted: int`, `emitted_occurrences: int`,
+    `skips: list[tuple[Occurrence, str]]`, `per_part: dict[str, dict]`.
+    `emitted_occurrences` is required by Task 7's report and by this task's own
+    `test_only_palette_bearing_occurrences_produce_a_key`. `produced` holds the `(occurrence, key)` pairs whose
     key survived into `entries` — the only occurrences that can enter the gate's
     numerator. It exists so the command scores the run without recomputing keys.
   - `courses.recolour.source.build_key_map(occurrences) -> KeyMap`
@@ -2306,9 +2369,9 @@ def build_key_map(occurrences):
         produced.append((occ, key))
         emitted_occurrences += n
         if key in entries:
-            # Same colouring twice -- 0 conflicts measured on the corpus, where
-            # 257 distinct forms are matched by 306 occurrences. Both occurrences
-            # count towards the numerator, so both are in `produced`.
+            # Same colouring twice -- 0 conflicts measured on the corpus. Both
+            # occurrences count towards the numerator, so both are in `produced`.
+            # (Post-exclusion: 227 distinct keys across 265 occurrences.)
             continue
         entries[key] = value
         origin[key] = occ
@@ -2362,6 +2425,23 @@ git branch --show-current
 git add courses/recolour/source.py tests/test_recolour_source.py
 git commit -m "feat(recolour): source walk and key map with conflict/region refusals"
 ```
+- [ ] **Step L: Record the task in the ledger**
+
+Append to `.superpowers/sdd/progress.md` under `## Tasks`:
+
+```markdown
+Task 5: complete (commit <sha>)
+  - branch guard: <toplevel> / <branch>
+  - <N> passed; falsification RED on <test names>, restored
+  - anything surprising, and any decision you had to make that the plan did not cover
+```
+
+The ledger is untracked, so this is a file write with **no commit**. It is not
+bookkeeping: it is the only record a resumed session has of which tasks are genuinely
+done, which is the entire reason Task 0 archives slice 1's ledger rather than appending
+to it. Git history shows that a commit happened; the ledger is where you say what was
+verified and what surprised you.
+
 
 ---
 
@@ -2853,7 +2933,7 @@ Then falsify the fill-table guard: delete the
 `if cell.get("kind") not in (None, "static"): continue` block and re-run — expected RED
 on `test_a_filltable_answer_cell_is_never_matched`. Restore.
 
-Paste both RED outputs.
+Paste all four RED outputs.
 
 - [ ] **Step 6: Lint and commit**
 
@@ -2865,6 +2945,23 @@ git branch --show-current
 git add courses/recolour/dbscan.py tests/test_recolour_dbscan.py
 git commit -m "feat(recolour): DB candidate scan, exclusions, rewrite with read-back"
 ```
+- [ ] **Step L: Record the task in the ledger**
+
+Append to `.superpowers/sdd/progress.md` under `## Tasks`:
+
+```markdown
+Task 6: complete (commit <sha>)
+  - branch guard: <toplevel> / <branch>
+  - <N> passed; falsification RED on <test names>, restored
+  - anything surprising, and any decision you had to make that the plan did not cover
+```
+
+The ledger is untracked, so this is a file write with **no commit**. It is not
+bookkeeping: it is the only record a resumed session has of which tasks are genuinely
+done, which is the entire reason Task 0 archives slice 1's ledger rather than appending
+to it. Git history shows that a commit happened; the ledger is where you say what was
+verified and what surprised you.
+
 
 ---
 
@@ -3141,6 +3238,38 @@ def test_a_region_refusal_is_named_AND_counts_against_the_gate(tmp_path):
     assert "50.0%" in out
 
 
+def test_the_dry_run_NAMES_each_matched_field(tmp_path):
+    # Spec safety property 3 makes the dry-run report the place an operator spots an
+    # ACCIDENTAL match -- author-written text that happens to equal an imported key.
+    # A report of counts alone cannot do that job, so the listing is load-bearing.
+    _course_with(STORED)
+    _simple_tree(tmp_path)
+    out = _run(tmp_path)
+    assert "matches:" in out
+    assert "TextElement(" in out
+    assert "założenie" in out.split("matches:")[1]
+
+
+def test_list_matches_is_accepted_and_lists_everything(tmp_path):
+    _course_with(STORED)
+    _simple_tree(tmp_path)
+    from io import StringIO
+
+    buf = StringIO()
+    call_command(
+        "recolour_imported_content",
+        "--course",
+        "mat-pp",
+        "--json-dir",
+        str(tmp_path),
+        "--list-matches",
+        stdout=buf,
+    )
+    out = buf.getvalue()
+    assert "matches:" in out
+    assert "more; pass --list-matches" not in out
+
+
 def test_both_tc_class_counts_are_reported(tmp_path):
     # Two counts, because the spec's source-side expectation is per OCCURRENCE
     # while the map writes per DISTINCT KEY. Reporting only one makes Task 8's
@@ -3206,6 +3335,9 @@ from courses.recolour.source import build_key_map
 from courses.recolour.source import walk_source
 
 GATE_MIN_RATE = 0.70
+# How many matches the dry run lists before truncating. The listing exists to
+# discharge spec safety property 3; the cap keeps a 270-match run readable.
+MATCH_PREVIEW = 40
 
 
 class Command(BaseCommand):
@@ -3226,6 +3358,16 @@ class Command(BaseCommand):
             ),
         )
         parser.add_argument("--apply", action="store_true")
+        parser.add_argument(
+            "--list-matches",
+            action="store_true",
+            help=(
+                "List every matched field instead of the first "
+                f"{MATCH_PREVIEW}. Use this to check for an ACCIDENTAL match: "
+                "content-based matching (D6) will recolour author-written text "
+                "that happens to be byte-identical to an imported key."
+            ),
+        )
 
     def handle(self, *args, **o):
         try:
@@ -3335,9 +3477,11 @@ class Command(BaseCommand):
     def _score(self, km, matches):
         """(numerator, per-part counters).
 
-        The numerator counts OCCURRENCES, not distinct keys: on this corpus 257
-        distinct colour-bearing forms are matched by 306 occurrences, and a form
-        that appears in two parts must credit both. `km.produced` already excludes
+        The numerator counts OCCURRENCES, not distinct keys, and a form appearing in
+        two parts must credit both. (Corpus-wide, BEFORE the D7 exclusion, the spec
+        measures 257 distinct forms across 306 occurrences; after exclusion this
+        command actually operates on 227 distinct keys across 265 occurrences, which
+        is what its own report prints.) `km.produced` already excludes
         every occurrence whose value equalled its key, so the spec's `value != key`
         precondition is enforced here by construction -- which is what stops a
         span-only colouriser from scoring ~100% while delivering nothing.
@@ -3434,6 +3578,7 @@ class Command(BaseCommand):
 
     def _report(self, o, km, matches, numerator, per_part, source_only):
         w = self.stdout.write
+        list_matches = o["list_matches"]
         w(f"course:        {o['course']}")
         w(f"json-dir:      {o['json_dir']}")
         for dirname in source_only:
@@ -3451,13 +3596,36 @@ class Command(BaseCommand):
         fields = {(m.model, m.pk, m.field) for m in matches}
         w(f"fields that would change:     {len(fields)}")
         w("")
+        # Spec safety property 3 assigns the dry run a JOB: author-written content that
+        # happens to be byte-identical to a key WILL be recoloured, because matching is
+        # content-based by design (D6), and "the dry-run report is where an operator
+        # spots it". A report of counts alone cannot discharge that -- nothing in it
+        # names a row or shows the text -- so every match is listed, capped unless
+        # --list-matches is passed.
+        w("matches:")
+        shown = sorted(matches, key=lambda m: (m.model.__name__, m.pk, m.field))
+        cap = len(shown) if list_matches else MATCH_PREVIEW
+        for m in shown[:cap]:
+            cell = "" if m.cell is None else f"[{m.cell[0]}][{m.cell[1]}]"
+            excerpt = m.key[:70].replace("\n", " ")
+            w(f"  {m.model.__name__}({m.pk}).{m.field}{cell}  <- {excerpt!r}")
+        if len(shown) > cap:
+            w(f"  ... and {len(shown) - cap} more; pass --list-matches for all")
+        w("")
         w("per part:")
-        w(f"  {'part':38s} {'keys':>6s} {'matched':>8s} {'fields':>7s} {'tc-*':>6s}")
+        # 'occ' not 'keys': this column is per-part OCCURRENCES (km.producers), which
+        # sums to the denominator, NOT to the distinct-key total printed above.
+        w(f"  {'part':38s} {'occ':>6s} {'matched':>8s} {'fields':>7s} {'tc-*':>6s}")
         for part, s in sorted(per_part.items()):
             flag = "   <== ZERO" if s["producers"] and not s["matched"] else ""
             w(f"  {part:38s} {s['producers']:6d} {s['matched']:8d} "
               f"{s['rewritten']:7d} {s['emitted']:6d}{flag}")
         w("")
+        # The spec asks for per-part skip counts; this is a global histogram plus a
+        # sample of the first ten, and the divergence is deliberate: the measured skip
+        # count on the real corpus is ZERO, so a per-part breakdown would be an empty
+        # column on every row. Each skip line names its part, so the information is
+        # recoverable if a run ever produces one. Revisit if skips stop being rare.
         reasons = defaultdict(int)
         for _occ, reason in km.skips:
             reasons[reason.split(":")[0]] += 1
@@ -3481,7 +3649,7 @@ top-down from the entry point.
 uv run pytest tests/test_recolour_command.py -q
 ```
 
-Expected: 14 passed.
+Expected: 16 passed.
 
 - [ ] **Step 5: Falsify — prove the gate and the exclusion validation are real**
 
@@ -3509,7 +3677,7 @@ at 0.0 it returns True and the command exits 0 with "already applied" before
 than the gate, and tell you nothing about the branch you meant to test.
 
 Then delete the `if not (Path(json_dir) / dirname).is_dir():` check and re-run —
-expected RED on `test_a_dirname_absent_from_out_is_an_error`. Restore, confirm 14 passed.
+expected RED on `test_a_dirname_absent_from_out_is_an_error`. Restore, confirm 16 passed.
 
 Paste both RED outputs.
 
@@ -3523,6 +3691,23 @@ git branch --show-current
 git add courses/management/commands/recolour_imported_content.py tests/test_recolour_command.py
 git commit -m "feat(recolour): recolour_imported_content management command"
 ```
+- [ ] **Step L: Record the task in the ledger**
+
+Append to `.superpowers/sdd/progress.md` under `## Tasks`:
+
+```markdown
+Task 7: complete (commit <sha>)
+  - branch guard: <toplevel> / <branch>
+  - <N> passed; falsification RED on <test names>, restored
+  - anything surprising, and any decision you had to make that the plan did not cover
+```
+
+The ledger is untracked, so this is a file write with **no commit**. It is not
+bookkeeping: it is the only record a resumed session has of which tasks are genuinely
+done, which is the entire reason Task 0 archives slice 1's ledger rather than appending
+to it. Git history shows that a commit happened; the ledger is where you say what was
+verified and what surprised you.
+
 
 ---
 
@@ -3550,24 +3735,26 @@ because check ran before format.
 - [ ] **Step 2: Run the full non-e2e suite on a FRESH database**
 
 ```bash
-uv run pytest --create-db -q
-```
-
-Do **not** pass `--reuse-db`, and do **not** background this. Run it under xdist, as CI
-does — a freshly created database is the slowest configuration available and the
-foreground call has a 10-minute ceiling:
-
-```bash
 uv run pytest --create-db -n 4 -q
 ```
 
-Expected: 0 failed and **~4542 passed**. MEASURED by collection on this branch: the
-non-e2e suite is **4462** without this slice's files, and this plan adds **80** tests
-(16 + 12 + 11 + 15 + 12 + 14 across the six new files), so 4462 + 80 = 4542.
+**That is the whole command — run it once.** `-n 4` (xdist, as CI does) is not optional:
+a freshly created database running ~4,500 tests sequentially is the slowest
+configuration available and the foreground call has a 10-minute ceiling, so the
+sequential form would most likely time out and read as a suite failure. Do **not** pass
+`--reuse-db`, do **not** background it, and do not run a second invocation alongside it.
 
-**Check the delta, not the absolute number.** ~4460 is the PRE-slice baseline: seeing
-it here would mean all 80 new tests failed to collect, which reads as success and is
-the opposite. If the count is short, run the six new files by name and compare.
+Expected: 0 failed and **~4546 passed**. MEASURED by collection on this branch: the
+non-e2e suite is **4462** without this slice's files. This plan adds **82** tests —
+re-derive that from the six per-task `Expected: N passed` lines rather than trusting
+this sentence: 16 (Task 2) + 12 (Task 3) + 12 (Task 4) + 15 (Task 5) + 13 (Task 6) +
+16 (Task 7) = 84. So 4462 + 84 = **4546**.
+
+**Check the delta, not the absolute number, in BOTH directions.** ~4462 here would mean
+all 84 new tests failed to collect — which reads as success and is the opposite. A
+count materially *above* 4546 means tests were added that this plan did not specify;
+find them before continuing. If the count is short, run the six new files by name and
+compare against their stated counts.
 
 If you see ~21 failures with brand-colour/tokens.css or cohort/grouping names, you
 used a reused DB — re-run with `--create-db`.
@@ -3605,24 +3792,19 @@ invisible unless the number is written down.
 Slice 2 changes no JS, CSS or template, so a regression here would be surprising — say so
 explicitly in your report if one appears rather than assuming it is pre-existing.
 
-- [ ] **Step 4: The real dry run**
+- [ ] **Step 4a: Re-verify the two exclusion pks FIRST**
 
-```bash
-DATABASE_URL="postgres://libli:libli@localhost:5432/libli" uv run python manage.py \
-  recolour_imported_content \
-  --course mat-pp \
-  --exclude 001_zbiory_liczbowe=109 \
-  --exclude 002_elementy_logiki=153
-```
-
-The `DATABASE_URL` prefix is mandatory — `mat-pp` is not in `libli_blcp`.
-
-**Before running, re-verify the two pks**, because a node may have been deleted or
-restructured since this plan was written:
+A node may have been deleted or restructured since this plan was written, and every
+number Step 4b produces — the per-part table, the gate rate, `fields that would
+change` — is computed against whatever exclusion you pass. Getting this wrong does not
+fail loudly; it silently measures the wrong thing, and Task 9 Step 1b then tells the
+operator to reuse "the pks you validated in Task 8 Step 4".
 
 ```bash
 DATABASE_URL="postgres://libli:libli@localhost:5432/libli" uv run python -c "
-import django, os; os.environ.setdefault('DJANGO_SETTINGS_MODULE','config.settings.local'); django.setup()
+import os, sys, django
+sys.path.insert(0, os.getcwd())
+os.environ.setdefault('DJANGO_SETTINGS_MODULE','config.settings.local'); django.setup()
 from courses.models import ContentNode, Course
 c = Course.objects.get(slug='mat-pp')
 for n in ContentNode.objects.filter(course=c, parent=None).order_by('order')[:2]:
@@ -3630,12 +3812,33 @@ for n in ContentNode.objects.filter(course=c, parent=None).order_by('order')[:2]
 "
 ```
 
-Expected: `109 0 Zbiory liczbowe` and `153 1 Elementy logiki`. If the pks differ, use what
-you measure — never what this plan says.
+Expected: `109 0 Zbiory liczbowe` and `153 1 Elementy logiki`. **If the pks differ, use
+what you measure — never what this plan says** — and write the measured pair into the
+ledger, because Task 9 reads it from there.
+
+- [ ] **Step 4b: The real dry run**
+
+Substitute the pks confirmed in Step 4a.
+
+```bash
+DATABASE_URL="postgres://libli:libli@localhost:5432/libli" uv run python manage.py \
+  recolour_imported_content \
+  --course mat-pp \
+  --exclude 001_zbiory_liczbowe=<PK1> \
+  --exclude 002_elementy_logiki=<PK2>
+```
+
+The `DATABASE_URL` prefix is mandatory — `mat-pp` is not in `libli_blcp`.
 
 - [ ] **Step 5: Read the result against the gate, and against Task 1**
 
-- The rate must be **≥ 70%** and no eligible part may show `<== ZERO`.
+- **MEASURED while this plan was written: 265 palette occurrences, 265 matched,
+  100.0%, 227 distinct keys, 191 fields would change.** The gate floor is ≥ 70% and no
+  eligible part showing `<== ZERO`, but a run at, say, 71% would clear that floor while
+  being a large undiagnosed regression from what was actually measured. Treat anything
+  materially below 100% as a shortfall to explain, not a pass. The floor exists for the
+  case where the corpus or the database has genuinely moved on; it is not the
+  expectation.
 - Compare `occurrences producing a key` and the per-part table against **Task 1's spike**.
   They should agree closely. A large divergence means the production walk and the spike
   disagree about scope — diagnose before Task 9, because one of them is wrong.
@@ -3653,6 +3856,32 @@ you measure — never what this plan says.
 - `protected-region` is expected to be **0** (measured: zero contaminated maths spans
   across all 697 colour-bearing elements). A non-zero count is not necessarily a bug —
   the guard is doing its job — but report each one.
+- **Read the `matches:` listing for accidental matches. This is the step where spec
+  safety property 3 is actually discharged, and it needs a human judgement, not a
+  threshold.** Matching is content-based by design (D6), so author-written text that
+  happens to be byte-identical to an imported key WILL be recoloured. MEASURED on the
+  real database, so you know what normal looks like:
+
+  | | measured |
+  |---|---|
+  | matches | 270 |
+  | distinct keys matched | 227 |
+  | keys matching MORE than one field | 28 (43 extra fields) |
+  | matched keys ≤ 25 characters | 72 of 227 |
+
+  Multi-field matching is **expected and correct** — the same imported form recurs
+  across units and the spec measured 0 conflicting colourings — so a key hitting five
+  fields is not by itself a problem. `<strong>Uwaga!</strong>` ("Note!") matches 5,
+  `<strong>TAK </strong>` / `<strong>NIE </strong>` match 4 each.
+
+  What deserves a look is the **short generic** end: the matched set includes
+  three-letter geometry labels (`EBD`, `ACE`, `DAB`, …) and single letters
+  (`<strong>P</strong>`, `<strong>B</strong>`). Those are the shapes an author could
+  plausibly have typed by hand in a unit written since the import, and recolouring one
+  is a silent, if cosmetic, edit to content nobody asked you to touch. Run
+  `--list-matches`, skim the short keys, and if any names a unit you know was authored
+  after the import, say so in the ledger before Task 9. Nothing automated can make this
+  call — that is precisely why the spec assigns it to the dry run and to a person.
 
 **If the gate fails, STOP.** Do not proceed to Task 9. Report the numbers and your
 diagnosis.
@@ -3682,7 +3911,7 @@ go-ahead**, reported by the controller. Task 8's dry run must have met the gate.
 - [ ] **Step 1: Take the backup — and prove it is a real one**
 
 ```bash
-DUMP="<scratchpad>/mat-pp-before-recolour.json"
+export DUMP="<scratchpad>/mat-pp-before-recolour.json"
 PYTHONUTF8=1 DATABASE_URL="postgres://libli:libli@localhost:5432/libli" \
   uv run python manage.py dumpdata courses --indent 2 -o "$DUMP"
 echo "exit=$?"
@@ -3726,6 +3955,12 @@ print('BACKUP OK')
 
 Expected: `BACKUP OK`, a dump of roughly 11–12 MB, and the two counts matching. A
 `json.load` failure or a count mismatch means the dump is truncated — do not proceed.
+
+**`export` is load-bearing.** MEASURED: a bare `DUMP=…` assignment is a shell variable
+and does not reach a child process, so the verification would die with
+`KeyError: 'DUMP'` before reading a single row. If you see that KeyError, the dump is
+probably fine and the export is missing — do not misread it as a truncated dump and
+re-run `dumpdata`.
 
 **The restore command, written down before it is needed** (a recovery path that has never
 been written down is not a recovery path). To roll back:
@@ -3784,17 +4019,23 @@ before/after **deltas**, never `== 0`.
 
 - [ ] **Step 2: Apply**
 
+Substitute the pks validated in Task 8 Step 4a — **this is the only irreversible step in
+the plan, and the only one where a wrong pk causes real damage**: it would recolour the
+hand-edited content D7 exists to protect. Do not paste this block with the literals
+below; every other step that names them uses placeholders for exactly this reason.
+
 ```bash
 DATABASE_URL="postgres://libli:libli@localhost:5432/libli" uv run python manage.py \
   recolour_imported_content \
   --course mat-pp \
-  --exclude 001_zbiory_liczbowe=109 \
-  --exclude 002_elementy_logiki=153 \
+  --exclude 001_zbiory_liczbowe=<PK1> \
+  --exclude 002_elementy_logiki=<PK2> \
   --apply
 ```
 
-Expected: the same report as Task 8, then `rewrote N field(s)`. The read-back runs inside
-the transaction, so a `ReadBackError` rolls everything back and nothing is written.
+Expected: the same report as Task 8, then `rewrote N field(s)` — **191 on the measured
+run**. The read-back runs inside the transaction, so a `ReadBackError` rolls everything
+back and nothing is written.
 
 - [ ] **Step 3: Verify the write took effect, and that nothing else moved**
 
@@ -3864,7 +4105,7 @@ stop.
 ```bash
 DATABASE_URL="postgres://libli:libli@localhost:5432/libli" uv run python manage.py \
   recolour_imported_content --course mat-pp \
-  --exclude 001_zbiory_liczbowe=109 --exclude 002_elementy_logiki=153
+  --exclude 001_zbiory_liczbowe=<PK1> --exclude 002_elementy_logiki=<PK2>
 ```
 
 Expected: `already applied — … Nothing to do.` and exit 0.
@@ -3875,63 +4116,111 @@ The sentence the spec quotes (`jeśli ( założenie ) to ( teza )`) lives in
 `002_elementy_logiki`, which is **excluded**, so use `130_kombinatoryka` (51% of the
 corpus colour).
 
-First find a node that actually changed, rather than guessing a URL:
+First find a node that actually changed, and create the throwaway user, in one go. Write
+the results to the scratchpad — the capture script reads them from there, because **shell
+variables do not survive between Bash tool calls in this harness**:
 
 ```bash
 DATABASE_URL="postgres://libli:libli@localhost:5432/libli" uv run python -c "
-import os, sys, django
+import os, sys, json, secrets, django
 sys.path.insert(0, os.getcwd())
 os.environ.setdefault('DJANGO_SETTINGS_MODULE','config.settings.local'); django.setup()
+from django.contrib.auth import get_user_model
+from django.contrib.contenttypes.models import ContentType
 from courses.models import Course, Element, TextElement
 c = Course.objects.get(slug='mat-pp')
-rows = TextElement.objects.filter(elements__unit__course=c, body__contains='tc-')[:5]
-for r in rows:
-    el = Element.objects.filter(object_id=r.pk).first()
-    print('node pk', el.unit_id, '->', '/courses/n/%d/' % el.unit_id)
-    print('   ', r.body[:120])
+# content_type is MANDATORY here. Element is a generic-FK join row, so object_id alone
+# is ambiguous across models. MEASURED on this database: for 35 of 50 TextElement pks,
+# a .filter(object_id=pk).first() returns a row belonging to a DIFFERENT model -- the
+# printed node would then be a unit with no recoloured body, and its screenshot would
+# read as 'the apply did not work' at the exact step meant to confirm that it did.
+ct = ContentType.objects.get_for_model(TextElement)
+out = []
+for r in TextElement.objects.filter(elements__unit__course=c, body__contains='tc-')[:5]:
+    el = Element.objects.filter(content_type=ct, object_id=r.pk, unit__course=c).first()
+    if el:
+        out.append(el.unit_id)
+        print('node pk', el.unit_id, '-> /courses/n/%d/' % el.unit_id)
+        print('   ', r.body[:120])
+U = get_user_model()
+pw = secrets.token_urlsafe(16)
+u, _ = U.objects.get_or_create(username='recolour-check')
+u.is_staff = u.is_superuser = True; u.set_password(pw); u.save()
+json.dump({'node': out[0], 'user': 'recolour-check', 'pw': pw},
+          open(os.environ['SHOTDIR'] + '/shot.json', 'w'))
+print('wrote', os.environ['SHOTDIR'] + '/shot.json')
 "
 ```
 
-`runserver` blocks forever, so it must be started in the **background** — this is the one
-exception to the Global Constraint about foreground execution, which is about *test runs*,
-not servers. Start it, capture both themes, then stop it:
+Set `export SHOTDIR="<scratchpad>"` first — like `DUMP` in Step 1, a bare assignment does
+not reach the child process.
+
+Start the server. `runserver` blocks forever, so it goes in the **background** — that is
+consistent with the Global Constraint, which forbids backgrounding *test runs*, not
+servers. `--noreload` matters: without it `runserver` forks an autoreloader child and
+killing the parent leaves the worker holding the port.
 
 ```bash
 DATABASE_URL="postgres://libli:libli@localhost:5432/libli" \
-  uv run python manage.py runserver 8009 &
-SERVER=$!
+  uv run python manage.py runserver 8009 --noreload
 ```
 
-Log in as a superuser (mat-pp unit pages require an authenticated user). If you do not
-have local credentials, create a throwaway one — never a hardcoded shared password:
+Run that with the Bash tool's `run_in_background` option, and note the returned task id —
+that, not a `$!` shell variable, is how you stop it later.
+
+Now capture both themes. This repo has no screenshot helper outside the pytest e2e
+harness, and that harness does not drive an external `runserver`, so the script is given
+here in full rather than left as prose. It logs in through the real form (CSRF-aware),
+flips `user.theme` between shots — **not** the cookie, a recorded trap in this repo — and
+writes two PNGs:
 
 ```bash
 DATABASE_URL="postgres://libli:libli@localhost:5432/libli" uv run python -c "
-import os, sys, django
+import os, sys, json, django
 sys.path.insert(0, os.getcwd())
 os.environ.setdefault('DJANGO_SETTINGS_MODULE','config.settings.local'); django.setup()
-import secrets
 from django.contrib.auth import get_user_model
+from playwright.sync_api import sync_playwright
+cfg = json.load(open(os.environ['SHOTDIR'] + '/shot.json'))
 U = get_user_model()
-pw = secrets.token_urlsafe(16)
-u, _ = U.objects.get_or_create(username='recolour-check', defaults={'is_staff': True, 'is_superuser': True})
-u.is_staff = u.is_superuser = True; u.set_password(pw); u.save()
-print('username: recolour-check')
-print('password:', pw)
+base = 'http://127.0.0.1:8009'
+with sync_playwright() as pw:
+    b = pw.chromium.launch()
+    for theme in ('light', 'dark'):
+        u = U.objects.get(username=cfg['user']); u.theme = theme
+        u.save(update_fields=['theme'])
+        page = b.new_page(viewport={'width': 1280, 'height': 900})
+        page.goto(base + '/accounts/login/')
+        page.fill('input[name=username]', cfg['user'])
+        page.fill('input[name=password]', cfg['pw'])
+        page.click('button[type=submit], input[type=submit]')
+        page.wait_for_load_state('networkidle')
+        page.goto(base + '/courses/n/%d/' % cfg['node'])
+        page.wait_for_load_state('networkidle')
+        path = os.environ['SHOTDIR'] + '/recolour-%s.png' % theme
+        page.screenshot(path=path, full_page=True)
+        print('wrote', path)
+        page.close()
+    b.close()
 "
 ```
 
-Capture a **light and a dark** screenshot of `http://127.0.0.1:8009/courses/n/<pk>/` for
-one of the node pks printed above. Dark mode must be set via the user's `theme` field, not
-the cookie — a recorded trap in this repo. Judge the two **separately**: never infer dark
-from light.
+If the login selectors do not match, open the page once and adjust them — the assertion
+that matters is that the screenshot shows an authenticated unit page, not a login form.
 
-Confirm the prose colour and any adjacent `\color{…}` maths now resolve to the same
-palette, and that nothing else on the page shifted.
+**Judge the two separately; never infer dark from light.** Confirm the prose colour and any
+adjacent `\color{…}` maths now resolve to the same palette, and that nothing else on the
+page shifted.
+
+Stop the server with the Bash tool's task-stop on the background task id from above. Then
+confirm the port is free:
 
 ```bash
-kill $SERVER
+curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:8009/ || echo "port free"
 ```
+
+An orphaned server on 8009 makes any re-run of this step fail with "Address already in
+use", which is why the teardown does not rely on shell state.
 
 Report what you saw, and attach both screenshots. If it looks wrong, the Step 1 restore
 command is the way back.
@@ -3967,6 +4256,7 @@ to the controller that the branch is ready.
 | Matching contract: HTML whole-field; JSON cells per cell, partial rewrite, one changed field | 6 |
 | Read back every rewritten field (the gate stems have no save-time net) | 6 |
 | Safety: titles untouchable; renames/reorders irrelevant; edited content skipped; conflicting key refused | 6, 5, 7 |
+| Safety 3's converse — an ACCIDENTAL match is spotted in the dry-run report | 7 (`_report`'s per-match listing + `--list-matches`) |
 | Exclusion paired `<dirname>=<pk>`; validation; empty pk; repeatable; descendant walk; base filter; fail closed on multi-owner | 6, 7 |
 | Dry-run default; `--apply` in a transaction with `update_fields`; dumpdata first; re-run no-ops | 7, 9 |
 | Run locally before the mat-pp → prod export | 9 |
