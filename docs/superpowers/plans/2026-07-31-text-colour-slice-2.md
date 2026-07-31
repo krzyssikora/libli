@@ -38,7 +38,7 @@ composed shapes are **unmeasured** — that is what Task 1 exists for.
 Every task's requirements implicitly include this section.
 
 - **Every shell block in this plan is BASH.** Use the Bash tool, not PowerShell. This
-  matters because the three most consequential steps here — Task 1 Step 2, Task 8 Step 4
+  matters because the three most consequential steps here — Task 1 Step 2, Task 8 Step 4b
   and all of Task 9 — depend on the inline env-prefix form
   `DATABASE_URL="…" uv run python …`, which is a **parse error** in PowerShell, not an
   environment assignment. The PowerShell equivalent, if you must:
@@ -1753,7 +1753,7 @@ Expected: RED on `test_legacy_and_current_differ_exactly_where_the_spec_says`. R
 
 Then falsify the composed shape: change `_LEGACY[SHAPE_COMPOSED]` to `_legacy_html`
 alone. Expected: RED on `test_fillblank_stem_is_the_COMPOSED_shape`. Restore, confirm
-11 passed.
+12 passed.
 
 Then falsify the ORACLE itself — the defect this plan shipped in its first draft.
 Comment out the four `monkeypatch.setattr` lines in `_patch_loader_to_legacy` and
@@ -1877,8 +1877,9 @@ verified and what surprised you.
 **Traps this task must survive.**
 - `out/*/flags.json` is a JSON **list**. Skip `manifest.json` and `flags.json` by name;
   additionally skip any file whose top-level JSON is not a dict.
-- The walk must recurse into `spoiler.elements` and `tabs[*].tabs[*].elements`, because
-  `build_element` does.
+- The walk must recurse into `spoiler.elements` and `tabs[*].elements`, because
+  `build_element` does (`builders.py:90` for spoilers, `:183-185` for tabs). There is no
+  second `tabs` level.
 - `SwitchGridElement.lines[*].stem` is **out of backfill scope** (2 palette occurrences,
   and it is not an RTE surface). Do not emit it.
 - `Choice.text`/`Choice.feedback` pass through **none** of the three sanitisers, so MCQ
@@ -2449,8 +2450,8 @@ verified and what surprised you.
 
 **Files:**
 - Create: `courses/recolour/dbscan.py`
-- Test: extends `tests/test_recolour_command.py` in Task 7; this task's own tests go in
-  `tests/test_recolour_dbscan.py` (create)
+- Test: `tests/test_recolour_dbscan.py` (create)
+- Append: `.superpowers/sdd/progress.md` (untracked; no commit)
 
 **Interfaces:**
 - Consumes: `courses.models` only. `find_matches` takes a plain `key -> value` dict,
@@ -2970,6 +2971,7 @@ verified and what surprised you.
 **Files:**
 - Create: `courses/management/commands/recolour_imported_content.py`
 - Test: `tests/test_recolour_command.py`
+- Append: `.superpowers/sdd/progress.md` (untracked; no commit)
 
 **Interfaces:**
 - Consumes: everything from Tasks 2-6.
@@ -3585,7 +3587,10 @@ class Command(BaseCommand):
             w(f"exclusion:     {dirname} — source-side only (no DB node paired)")
         w("")
         w(f"palette occurrences (denom):  {km.producers}")
-        w(f"  ...of which produced a key: {len(km.produced)}")
+        # NOT "produced a key": an occurrence skipped as value-equals-key DID produce
+        # one and is excluded here, as is a conflict-retracted one. This counts what
+        # entered the map and is therefore eligible for the numerator.
+        w(f"  ...entering the key map:    {len(km.produced)}")
         w(f"distinct keys:                {len(km.entries)}")
         w(f"tc-* classes (distinct keys): {km.emitted}")
         w(f"tc-* classes (occurrences):   {km.emitted_occurrences}")
@@ -3745,10 +3750,10 @@ sequential form would most likely time out and read as a suite failure. Do **not
 `--reuse-db`, do **not** background it, and do not run a second invocation alongside it.
 
 Expected: 0 failed and **~4546 passed**. MEASURED by collection on this branch: the
-non-e2e suite is **4462** without this slice's files. This plan adds **82** tests —
-re-derive that from the six per-task `Expected: N passed` lines rather than trusting
-this sentence: 16 (Task 2) + 12 (Task 3) + 12 (Task 4) + 15 (Task 5) + 13 (Task 6) +
-16 (Task 7) = 84. So 4462 + 84 = **4546**.
+non-e2e suite is **4462** without this slice's files. The tests this plan adds are exactly the six
+per-task `Expected: N passed` lines — re-derive the total from them rather than
+trusting this sentence: 16 (Task 2) + 12 (Task 3) + 12 (Task 4) + 15 (Task 5) +
+13 (Task 6) + 16 (Task 7) = **84**. So 4462 + 84 = **4546**.
 
 **Check the delta, not the absolute number, in BOTH directions.** ~4462 here would mean
 all 84 new tests failed to collect — which reads as success and is the opposite. A
@@ -3798,7 +3803,7 @@ A node may have been deleted or restructured since this plan was written, and ev
 number Step 4b produces — the per-part table, the gate rate, `fields that would
 change` — is computed against whatever exclusion you pass. Getting this wrong does not
 fail loudly; it silently measures the wrong thing, and Task 9 Step 1b then tells the
-operator to reuse "the pks you validated in Task 8 Step 4".
+operator to reuse "the pks you validated in Task 8 Step 4a".
 
 ```bash
 DATABASE_URL="postgres://libli:libli@localhost:5432/libli" uv run python -c "
@@ -3821,14 +3826,21 @@ ledger, because Task 9 reads it from there.
 Substitute the pks confirmed in Step 4a.
 
 ```bash
-DATABASE_URL="postgres://libli:libli@localhost:5432/libli" uv run python manage.py \
-  recolour_imported_content \
+PYTHONUTF8=1 DATABASE_URL="postgres://libli:libli@localhost:5432/libli" \
+  uv run python manage.py recolour_imported_content \
   --course mat-pp \
   --exclude 001_zbiory_liczbowe=<PK1> \
   --exclude 002_elementy_logiki=<PK2>
 ```
 
 The `DATABASE_URL` prefix is mandatory — `mat-pp` is not in `libli_blcp`.
+
+**`PYTHONUTF8=1` matters for the REPORT, not just for `dumpdata`.** MEASURED on this
+machine: without it stdout falls back to the locale codec and Polish text comes back as
+`Wyra?enia algebraiczne` instead of `Wyrażenia algebraiczne`. Nothing crashes — which is
+the problem. Step 5 asks you to read the matched keys and judge whether any looks like
+hand-authored text, and that judgement is being made on strings whose diacritics have
+been destroyed.
 
 - [ ] **Step 5: Read the result against the gate, and against Task 1**
 
@@ -3882,6 +3894,17 @@ The `DATABASE_URL` prefix is mandatory — `mat-pp` is not in `libli_blcp`.
   `--list-matches`, skim the short keys, and if any names a unit you know was authored
   after the import, say so in the ledger before Task 9. Nothing automated can make this
   call — that is precisely why the spec assigns it to the dry run and to a person.
+  Re-run with `--list-matches` (keeping the `PYTHONUTF8=1` prefix, or the Polish you are
+  judging arrives with its diacritics stripped):
+
+  ```bash
+  PYTHONUTF8=1 DATABASE_URL="postgres://libli:libli@localhost:5432/libli" \
+    uv run python manage.py recolour_imported_content \
+    --course mat-pp \
+    --exclude 001_zbiory_liczbowe=<PK1> \
+    --exclude 002_elementy_logiki=<PK2> \
+    --list-matches
+  ```
 
 **If the gate fails, STOP.** Do not proceed to Task 9. Report the numbers and your
 diagnosis.
@@ -3911,11 +3934,11 @@ go-ahead**, reported by the controller. Task 8's dry run must have met the gate.
 - [ ] **Step 1: Take the backup — and prove it is a real one**
 
 ```bash
-export DUMP="<scratchpad>/mat-pp-before-recolour.json"
 PYTHONUTF8=1 DATABASE_URL="postgres://libli:libli@localhost:5432/libli" \
-  uv run python manage.py dumpdata courses --indent 2 -o "$DUMP"
+  uv run python manage.py dumpdata courses --indent 2 \
+  -o "<scratchpad>/mat-pp-before-recolour.json"
 echo "exit=$?"
-ls -l "$DUMP"
+ls -l "<scratchpad>/mat-pp-before-recolour.json"
 git status --porcelain          # expected: EMPTY -- the dump is outside the repo
 ```
 
@@ -3941,7 +3964,7 @@ import json, os, sys, django
 sys.path.insert(0, os.getcwd())
 os.environ.setdefault('DJANGO_SETTINGS_MODULE','config.settings.local'); django.setup()
 from courses.models import ContentNode, TextElement
-rows = json.load(open(os.environ['DUMP'], encoding='utf-8'))
+rows = json.load(open(r'<scratchpad>/mat-pp-before-recolour.json', encoding='utf-8'))
 kinds = {}
 for r in rows: kinds[r['model']] = kinds.get(r['model'], 0) + 1
 print('objects in dump:', len(rows))
@@ -3956,18 +3979,20 @@ print('BACKUP OK')
 Expected: `BACKUP OK`, a dump of roughly 11–12 MB, and the two counts matching. A
 `json.load` failure or a count mismatch means the dump is truncated — do not proceed.
 
-**`export` is load-bearing.** MEASURED: a bare `DUMP=…` assignment is a shell variable
-and does not reach a child process, so the verification would die with
-`KeyError: 'DUMP'` before reading a single row. If you see that KeyError, the dump is
-probably fine and the export is missing — do not misread it as a truncated dump and
-re-run `dumpdata`.
+**Substitute your real scratchpad path into every occurrence — do not introduce a shell
+variable for it.** Two independent reasons a `DUMP=…` variable does not work here:
+a bare assignment is not exported to a child process, AND — decisively — **shell state
+does not persist between Bash tool calls in this harness**, so even an exported variable
+is gone by the next fence. The literal path is what survives. (Task 9 Step 5 relies on
+the same fact when it hands values between scripts through a JSON file rather than
+through the environment.)
 
 **The restore command, written down before it is needed** (a recovery path that has never
 been written down is not a recovery path). To roll back:
 
 ```bash
 PYTHONUTF8=1 DATABASE_URL="postgres://libli:libli@localhost:5432/libli" \
-  uv run python manage.py loaddata "$DUMP"
+  uv run python manage.py loaddata "<scratchpad>/mat-pp-before-recolour.json"
 ```
 
 `loaddata` upserts by primary key: it restores every row the dump contains and does **not**
@@ -3987,7 +4012,7 @@ dump's path in the ledger.**
 
 These numbers are the baseline Step 3 compares against, and once you have applied they are
 unrecoverable — so capture them **now**, before Step 2. Use the pks you validated in Task
-8 Step 4; do not reuse this plan's `109`/`153` if Task 8 measured anything else.
+8 Step 4a; do not reuse this plan's `109`/`153` if Task 8 measured anything else.
 
 ```bash
 DATABASE_URL="postgres://libli:libli@localhost:5432/libli" uv run python -c "
@@ -4039,7 +4064,7 @@ back and nothing is written.
 
 - [ ] **Step 3: Verify the write took effect, and that nothing else moved**
 
-Substitute the six numbers captured in Step 1b and the pks validated in Task 8 Step 4.
+Substitute the six numbers captured in Step 1b and the pks validated in Task 8 Step 4a.
 
 ```bash
 DATABASE_URL="postgres://libli:libli@localhost:5432/libli" uv run python -c "
@@ -4049,8 +4074,8 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE','config.settings.local'); django.
 from courses.models import Course, ContentNode, TextElement, TableElement, ChoiceQuestionElement
 PK1, PK2 = <PK1>, <PK2>
 NODE_COUNT_BEFORE = <NODE_COUNT_BEFORE>
-TEXT_TC_BEFORE, TABLE_TC_BEFORE, CHOICE_TC_BEFORE = <...>, <...>, <...>
-LEAK_TEXT_BEFORE, LEAK_TABLE_BEFORE = <...>, <...>
+TEXT_TC_BEFORE, TABLE_TC_BEFORE, CHOICE_TC_BEFORE = <TEXT_TC_BEFORE>, <TABLE_TC_BEFORE>, <CHOICE_TC_BEFORE>
+LEAK_TEXT_BEFORE, LEAK_TABLE_BEFORE = <LEAK_TEXT_BEFORE>, <LEAK_TABLE_BEFORE>
 c = Course.objects.get(slug='mat-pp')
 n = TextElement.objects.filter(elements__unit__course=c, body__contains='tc-').count()
 t = TableElement.objects.filter(elements__unit__course=c, data__icontains='tc-').count()
@@ -4147,13 +4172,16 @@ pw = secrets.token_urlsafe(16)
 u, _ = U.objects.get_or_create(username='recolour-check')
 u.is_staff = u.is_superuser = True; u.set_password(pw); u.save()
 json.dump({'node': out[0], 'user': 'recolour-check', 'pw': pw},
-          open(os.environ['SHOTDIR'] + '/shot.json', 'w'))
-print('wrote', os.environ['SHOTDIR'] + '/shot.json')
+          open(r'<scratchpad>/shot.json', 'w'))
+print('wrote <scratchpad>/shot.json')
 "
 ```
 
-Set `export SHOTDIR="<scratchpad>"` first — like `DUMP` in Step 1, a bare assignment does
-not reach the child process.
+Substitute your real scratchpad path literally, here and in the capture script below. Do
+**not** introduce a `SHOTDIR` variable: shell state does not persist between Bash tool
+calls in this harness — which is the very reason `node`/`user`/`pw` are handed over through
+`shot.json` rather than through the environment. A variable holding the path to that file
+would be lost at exactly the boundary the file exists to cross.
 
 Start the server. `runserver` blocks forever, so it goes in the **background** — that is
 consistent with the Global Constraint, which forbids backgrounding *test runs*, not
@@ -4181,7 +4209,7 @@ sys.path.insert(0, os.getcwd())
 os.environ.setdefault('DJANGO_SETTINGS_MODULE','config.settings.local'); django.setup()
 from django.contrib.auth import get_user_model
 from playwright.sync_api import sync_playwright
-cfg = json.load(open(os.environ['SHOTDIR'] + '/shot.json'))
+cfg = json.load(open(r'<scratchpad>/shot.json'))
 U = get_user_model()
 base = 'http://127.0.0.1:8009'
 with sync_playwright() as pw:
@@ -4190,14 +4218,21 @@ with sync_playwright() as pw:
         u = U.objects.get(username=cfg['user']); u.theme = theme
         u.save(update_fields=['theme'])
         page = b.new_page(viewport={'width': 1280, 'height': 900})
+        # Selectors copied from the repo's proven helper (tests/test_e2e_builder.py:35-42,
+        # tests/test_e2e_auth.py). TWO measured gotchas, both of which this repo has
+        # already paid for: login is allauth (config/urls.py:31), so the field is
+        # name='login' NOT name='username'; and an UNSCOPED button[type=submit] clicks
+        # the header language-switch form first. Scope to the login form and reuse the
+        # known-good pattern rather than guessing.
         page.goto(base + '/accounts/login/')
-        page.fill('input[name=username]', cfg['user'])
-        page.fill('input[name=password]', cfg['pw'])
-        page.click('button[type=submit], input[type=submit]')
+        form = page.locator("form[action*='login']")
+        form.locator("input[name='login']").fill(cfg['user'])
+        form.locator("input[name='password']").fill(cfg['pw'])
+        form.locator("button[type='submit']").click()
         page.wait_for_load_state('networkidle')
         page.goto(base + '/courses/n/%d/' % cfg['node'])
         page.wait_for_load_state('networkidle')
-        path = os.environ['SHOTDIR'] + '/recolour-%s.png' % theme
+        path = r'<scratchpad>/recolour-%s.png' % theme
         page.screenshot(path=path, full_page=True)
         print('wrote', path)
         page.close()
@@ -4205,8 +4240,9 @@ with sync_playwright() as pw:
 "
 ```
 
-If the login selectors do not match, open the page once and adjust them — the assertion
-that matters is that the screenshot shows an authenticated unit page, not a login form.
+If the screenshot shows a login form rather than a unit page, the login did not take —
+check the selectors against `tests/test_e2e_builder.py:35-42`, which is the pattern
+this script copies.
 
 **Judge the two separately; never infer dark from light.** Confirm the prose colour and any
 adjacent `\color{…}` maths now resolve to the same palette, and that nothing else on the
@@ -4216,11 +4252,28 @@ Stop the server with the Bash tool's task-stop on the background task id from ab
 confirm the port is free:
 
 ```bash
-curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:8009/ || echo "port free"
+curl -s -o /dev/null http://127.0.0.1:8009/ \
+  && echo "SERVER STILL UP -- stop the background task before re-running this step" \
+  || echo "port free"
 ```
 
 An orphaned server on 8009 makes any re-run of this step fail with "Address already in
 use", which is why the teardown does not rely on shell state.
+
+Delete the throwaway account — this task's whole discipline is "prove nothing else
+moved", and a permanent superuser is exactly the kind of residue Step 3's invariants
+cannot see and the Step 1 `dumpdata courses` backup cannot remove:
+
+```bash
+DATABASE_URL="postgres://libli:libli@localhost:5432/libli" uv run python -c "
+import os, sys, django
+sys.path.insert(0, os.getcwd())
+os.environ.setdefault('DJANGO_SETTINGS_MODULE','config.settings.local'); django.setup()
+from django.contrib.auth import get_user_model
+n, _ = get_user_model().objects.filter(username='recolour-check').delete()
+print('deleted throwaway user rows:', n)
+"
+```
 
 Report what you saw, and attach both screenshots. If it looks wrong, the Step 1 restore
 command is the way back.
@@ -4258,6 +4311,21 @@ to the controller that the branch is ready.
 | Safety: titles untouchable; renames/reorders irrelevant; edited content skipped; conflicting key refused | 6, 5, 7 |
 | Safety 3's converse — an ACCIDENTAL match is spotted in the dry-run report | 7 (`_report`'s per-match listing + `--list-matches`) |
 | Exclusion paired `<dirname>=<pk>`; validation; empty pk; repeatable; descendant walk; base filter; fail closed on multi-owner | 6, 7 |
-| Dry-run default; `--apply` in a transaction with `update_fields`; dumpdata first; re-run no-ops | 7, 9 |
+| `--apply` writes with `update_fields` | 6 (`apply_matches`) |
+| Dry-run default; `--apply` in a transaction; dumpdata first; re-run no-ops | 7, 9 |
 | Run locally before the mat-pp → prod export | 9 |
 | Falsification of every test | every task's falsify step |
+
+**Two deliberate divergences from the spec**, recorded here because the table above
+otherwise reads as unqualified coverage:
+
+1. **Gate denominator.** The spec defines it as occurrences that *produce a key*; the
+   plan counts every palette-bearing occurrence, including those later refused for a
+   protected region, a conflict, or `value == key`. A refusal is a real shortfall in
+   delivered colour and should drag the rate down where an operator sees it, rather
+   than being quietly excluded from the arithmetic. On the measured corpus the two
+   definitions coincide (zero skips), so this changes no number today.
+2. **Per-part skip counts.** The spec asks for them per part; the report emits a global
+   histogram plus the first ten skip lines, each naming its own part. The measured skip
+   count is zero, so a per-part column would be empty on every row. Revisit if skips
+   stop being rare.
