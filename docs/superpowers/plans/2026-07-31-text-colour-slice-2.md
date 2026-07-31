@@ -78,7 +78,8 @@ Every task's requirements implicitly include this section.
 | `tests/test_recolour_replay.py` | **new** — the key-construction tests, asserted against what the **real loader** stores |
 | `tests/test_recolour_source.py` | **new** |
 | `tests/test_recolour_command.py` | **new** |
-| `.superpowers/sdd/progress.md` | *replace* — slice 2's execution ledger |
+| `.superpowers/sdd/progress.md` | *replace* — slice 2's execution ledger. **Gitignored and untracked** (`.gitignore:13`), so it is never `git add`ed, never `git mv`d, and never appears in `git status --porcelain` |
+| `tests/test_recolour_dbscan.py` | **new** |
 
 ---
 
@@ -87,6 +88,13 @@ Every task's requirements implicitly include this section.
 **Files:**
 - Rename: `.superpowers/sdd/progress.md` → `.superpowers/sdd/progress-slice-1-DONE.md`
 - Create: `.superpowers/sdd/progress.md`
+
+**`.superpowers/` is gitignored (`.gitignore:13`) and nothing under it is tracked.**
+MEASURED: `git check-ignore -v .superpowers/sdd/progress.md` matches, and `git
+ls-files .superpowers/` is empty. So every ledger step in this plan uses a plain
+`mv`, never `git mv`; never `git add`s the ledger; and never expects it in `git
+status`. A task whose only artefact is a ledger update therefore makes **no commit
+at all** — that is correct, not a missing step.
 
 **Interfaces:**
 - Consumes: nothing.
@@ -125,8 +133,11 @@ import fails, you are not on a branch containing slice 1 — stop.
 - [ ] **Step 3: Archive slice 1's ledger and open slice 2's**
 
 ```bash
-git mv .superpowers/sdd/progress.md .superpowers/sdd/progress-slice-1-DONE.md
+mv .superpowers/sdd/progress.md .superpowers/sdd/progress-slice-1-DONE.md
 ```
+
+Plain `mv`, not `git mv` — the file is untracked, and `git mv` aborts with
+`fatal: not under version control`.
 
 Create `.superpowers/sdd/progress.md`:
 
@@ -152,12 +163,18 @@ lines are NOT this plan's.
 Task 0: complete
 ```
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 4: Confirm the tree is clean and move on**
+
+The plan document is already committed and the ledger is untracked, so **this task
+makes no commit**. Verify that is the actual state rather than assuming it:
 
 ```bash
-git add .superpowers/sdd/ docs/superpowers/plans/2026-07-31-text-colour-slice-2.md
-git commit -m "plan(text-colour): slice 2 backfill plan; archive slice 1 ledger"
+git status --porcelain          # expected: empty
+ls .superpowers/sdd/            # expected: progress.md and progress-slice-1-DONE.md
 ```
+
+An empty `git status` here is the pass condition. If the plan document shows as
+modified, something rewrote it — investigate before starting Task 1.
 
 ---
 
@@ -196,8 +213,15 @@ import re
 from collections import defaultdict
 from pathlib import Path
 
+import sys
+
 import django
 
+# `uv run python <abs path>` sets sys.path[0] to the SCRIPT's directory, and this
+# project is not installed as a package, so the repo root is otherwise absent and
+# django.setup() dies with `ModuleNotFoundError: No module named 'config'`. Run
+# this from the repo root so os.getcwd() is the repo root.
+sys.path.insert(0, os.getcwd())
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings.local")
 django.setup()
 
@@ -260,7 +284,7 @@ def legacy_cell(v):
     protected = _MATH_SPAN.sub(_stash, value)
     cleaned = nh3.clean(
         protected,
-        tags=CELL_TAGS,
+        tags=CELL_TAGS if tags is None else tags,
         attributes={},
         allowed_classes=LEGACY_CELL_ALLOWED_CLASSES,
         url_schemes=set(),
@@ -487,16 +511,17 @@ Task 1: complete (measurement only, no production code)
   Notes: <anything surprising — a shape with zero occurrences, an unexpected miss>
 ```
 
-- [ ] **Step 5: Delete the probe and commit the ledger**
+- [ ] **Step 5: Delete the probe and prove it never touched the repo**
 
 ```bash
 rm "<scratchpad>/gate_spike.py"
-git status --porcelain   # must show ONLY .superpowers/sdd/progress.md
-git add .superpowers/sdd/progress.md
-git commit -m "measure(text-colour): slice-2 acceptance gate against the mat-pp DB"
+git status --porcelain   # expected: EMPTY
 ```
 
-The probe must not reach the repo tree. `git status` proving that is the check.
+The probe must not reach the repo tree, and an empty `git status` is what proves it.
+The ledger is untracked, so it does not appear here and **there is nothing to
+commit** — this task ends without a commit, by design. Do not try to `git add` the
+ledger; the path is ignored and the command errors.
 
 ---
 
@@ -668,7 +693,11 @@ def test_entities_survive_the_round_trip():
 uv run pytest tests/test_recolour_colouriser.py -x -q
 ```
 
-Expected: collection error — `ModuleNotFoundError: No module named 'courses.recolour'`.
+Expected: a collection error. The FIRST import in the file is
+`from courses.colour import slot_for_style`, so the error is
+`ImportError: cannot import name 'slot_for_style' from 'courses.colour'` — **not**
+`ModuleNotFoundError: No module named 'courses.recolour'`, which is what you would see
+if the colour import already resolved.
 
 - [ ] **Step 3: Add `slot_for_style` to `courses/colour.py`**
 
@@ -723,22 +752,25 @@ from courses.colour import TC_CLASS_TAGS
 from courses.colour import slot_for_style
 
 
-def _soup(html):
+def soup(html):
+    """Parse one fragment. Public because regions.py parses the same way, and a
+    cross-module reach for an underscore-private name is the kind of coupling that
+    goes unnoticed until someone renames it."""
     return BeautifulSoup(html or "", "html.parser")
 
 
 def strip_spans(html):
     """The fragment with every <span> unwrapped, children kept."""
-    soup = _soup(html)
-    for span in soup.find_all("span"):
+    parsed = soup(html)
+    for span in parsed.find_all("span"):
         span.unwrap()
-    return soup.decode_contents()
+    return parsed.decode_contents()
 
 
 def has_palette_colour(html):
     """True when at least one element carries a colour this palette can restore."""
     return any(
-        slot_for_style(tag.get("style")) for tag in _soup(html).find_all(style=True)
+        slot_for_style(tag.get("style")) for tag in soup(html).find_all(style=True)
     )
 
 
@@ -749,7 +781,7 @@ def roundtrip_is_lossless(html):
     guard stays because a future corpus change that broke it would otherwise
     corrupt content silently instead of being skipped and reported.
     """
-    return _soup(html).decode_contents() == (html or "")
+    return soup(html).decode_contents() == (html or "")
 
 
 def _add_colour_class(tag, slot):
@@ -760,12 +792,12 @@ def _add_colour_class(tag, slot):
 
 def colourise(html):
     """(coloured_html, tc_classes_emitted). See the module docstring."""
-    soup = _soup(html)
+    parsed = soup(html)
     emitted = 0
     # find_all materialises the list before any mutation, so wrapping a block
     # carrier's children cannot disturb the iteration -- a nested coloured span
     # is still visited afterwards, at its new depth.
-    for tag in soup.find_all(style=True):
+    for tag in parsed.find_all(style=True):
         slot = slot_for_style(tag.get("style"))
         # Both sanitisers strip `style` wholesale (it is in neither
         # ALLOWED_ATTRIBUTES nor sanitize_cell's empty attribute map), so no
@@ -782,16 +814,16 @@ def colourise(html):
             # TC_CLASS_TAGS (and strips figcaption entirely), so the colour moves
             # onto a NEW span wrapping the children. Mirrors the editor's
             # "never leave tc-* on a tag outside TC_CLASS_TAGS" rule.
-            wrapper = soup.new_tag("span")
+            wrapper = parsed.new_tag("span")
             wrapper["class"] = [f"tc-{slot}"]
             for child in list(tag.contents):
                 wrapper.append(child.extract())
             tag.append(wrapper)
         emitted += 1
-    for span in soup.find_all("span"):
+    for span in parsed.find_all("span"):
         if not any(c.startswith("tc-") for c in (span.get("class") or [])):
             span.unwrap()
-    return soup.decode_contents(), emitted
+    return parsed.decode_contents(), emitted
 ```
 
 - [ ] **Step 5: Run the tests**
@@ -800,7 +832,7 @@ def colourise(html):
 uv run pytest tests/test_recolour_colouriser.py -q
 ```
 
-Expected: 15 passed.
+Expected: 16 passed.
 
 - [ ] **Step 6: Falsify — prove the carrier rule is load-bearing**
 
@@ -815,7 +847,7 @@ uv run pytest tests/test_recolour_colouriser.py -q
 Expected: RED on `test_strong_carrier_keeps_the_element_and_gains_the_class`,
 `test_block_carrier_moves_the_class_onto_a_wrapping_span` and
 `test_figcaption_carrier_degrades_without_error`. Paste the failure lines into your
-report. **Restore the file** and confirm 15 passed again.
+report. **Restore the file** and confirm 16 passed again.
 
 - [ ] **Step 7: Lint and commit**
 
@@ -837,7 +869,9 @@ git commit -m "feat(recolour): slot_for_style and the per-carrier colouriser"
 - Test: `tests/test_recolour_regions.py`
 
 **Interfaces:**
-- Consumes: nothing from earlier tasks (bs4 only).
+- Consumes: **Task 2** — `courses.colour.slot_for_style` and
+  `courses.recolour.colouriser.soup`. Task 3 has a hard dependency on Task 2 and
+  cannot be dispatched before it completes.
 - Produces: `courses.recolour.regions.region_verdict(html, *, sentinel_tokens) -> str | None`
   — a short refusal reason, or `None` when colouring this fragment is safe.
 
@@ -1012,7 +1046,6 @@ def _walk(soup):
     node_spans = []
     tag_spans = []
     cursor = 0
-    open_tags = {}
 
     def visit(node):
         nonlocal cursor
@@ -1029,7 +1062,6 @@ def _walk(soup):
             visit(child)
         if slot_for_style(node.get("style")) and cursor > start:
             tag_spans.append((start, cursor))
-        open_tags[id(node)] = (start, cursor)
 
     for child in soup.children:
         visit(child)
@@ -1047,9 +1079,9 @@ def region_verdict(html, *, sentinel_tokens):
     `sentinel_tokens` is True only for the sanitize_stem_segments field shapes,
     whose segments are sanitised independently.
     """
-    from courses.recolour.colouriser import _soup
+    from courses.recolour.colouriser import soup
 
-    soup = _soup(html)
+    parsed = soup(html)
     text, node_spans, tag_spans = _walk(soup)
     if not tag_spans:
         return None
@@ -1166,17 +1198,25 @@ with either sanitiser alone matches **nothing** for that field, and it fails sil
 Create `tests/test_recolour_replay.py`:
 
 ```python
-"""The key must equal what the REAL LOADER stored -- so these tests run the real
-loader and compare, rather than asserting one sanitiser call against another.
+"""The key must equal what the LOADER STORED AT IMPORT TIME -- so these tests run
+the real loader with the PRE-SLICE-1 allowlists patched in, rather than asserting
+one sanitiser call against another.
 
-This is the test that would have caught the composed-path defect: a key built with
-sanitize_html alone, or sanitize_stem_segments alone, matches nothing for
+The patching is the whole point, and leaving it out makes every assertion here fail
+for the right reason in the wrong place. MEASURED on this branch: the loader running
+TODAY stores `jeśli ( <span>założenie</span> ) to ( teza )` for the fixture below,
+because slice 1 put `span` in ALLOWED_TAGS. The DB was written BEFORE slice 1, so it
+holds `jeśli ( założenie ) to ( teza )` -- which is exactly what `key_for` produces.
+The production key construction is right; an unpatched loader is simply the wrong
+oracle for it.
+
+This is also the test that would have caught the composed-path defect: a key built
+with sanitize_html alone, or sanitize_stem_segments alone, matches nothing for
 FillBlankQuestionElement.stem, and nothing anywhere says so.
 """
 
 import pytest
 
-from courses.fillblank import SENTINEL
 from courses.fillblank import SENTINEL
 from courses.lal_loader.builders import build_element
 from courses.models import ChoiceQuestionElement
@@ -1210,60 +1250,141 @@ def _unit(course):
     )
 
 
-def _load(el):
+def _patch_loader_to_legacy(monkeypatch):
+    """Make the loader behave as it did AT IMPORT TIME (pre-slice-1 allowlists).
+
+    Patched at the points of USE, not just at the definition, and both are needed:
+    `courses/models.py` binds each sanitiser at module import (`from
+    courses.sanitize import sanitize_cell` / `sanitize_html`, models.py:25-26), so
+    patching `courses.sanitize` alone would never reach `QuestionElement.save()` or
+    `TableElement._sanitized_data`. Conversely `courses/switchgrid.py` imports
+    `sanitize_cell` INSIDE `sanitize_stem_segments`, so only the `courses.sanitize`
+    patch reaches the gate-stem path.
+    """
+    import nh3
+
+    from courses import models as courses_models
+    from courses import sanitize as courses_sanitize
+    from courses.sanitize import ALLOWED_ATTRIBUTES
+    from courses.sanitize import ALLOWED_TAGS
+    from courses.sanitize import ALLOWED_URL_SCHEMES
+    from courses.sanitize import CELL_TAGS
+    from courses.sanitize import LEGACY_ALLOWED_CLASSES
+    from courses.sanitize import LEGACY_CELL_ALLOWED_CLASSES
+    from courses.sanitize import sanitize_cell
+
+    # The legacy CLASS allowlists are not sufficient on their own, and this is the
+    # part that is easy to get wrong. MEASURED: patching only the classes leaves the
+    # loader storing `<span>założenie</span>`, because slice 1 added `span` to BOTH
+    # tag sets -- and all six comparisons below then fail against keys that are in
+    # fact correct. The ORACLE feeds RAW source (spans intact) through the sanitiser,
+    # so it needs the pre-slice-1 TAGS as well.
+    #
+    # The production key generator does NOT need this: `key_for` runs `strip_spans`
+    # first, so no span ever reaches the sanitiser and the live tag sets are inert
+    # there -- which is exactly what its `assert "<span" not in stripped` pins down.
+    legacy_tags = ALLOWED_TAGS - {"span"}
+    legacy_cell_tags = CELL_TAGS - {"span"}
+
+    def legacy_html(value, *_a, **_kw):
+        return nh3.clean(
+            value or "",
+            tags=legacy_tags,
+            attributes=ALLOWED_ATTRIBUTES,
+            allowed_classes=LEGACY_ALLOWED_CLASSES,
+            link_rel=None,
+            url_schemes=ALLOWED_URL_SCHEMES,
+        )
+
+    def legacy_cell(value, *_a, **_kw):
+        # Reuses the real sanitize_cell for the maths-stashing logic, overriding
+        # only the two allowlists via the keyword-only parameters added above.
+        return sanitize_cell(
+            value,
+            tags=legacy_cell_tags,
+            allowed_classes=LEGACY_CELL_ALLOWED_CLASSES,
+        )
+
+    monkeypatch.setattr(courses_sanitize, "sanitize_html", legacy_html)
+    monkeypatch.setattr(courses_sanitize, "sanitize_cell", legacy_cell)
+    monkeypatch.setattr(courses_models, "sanitize_html", legacy_html)
+    monkeypatch.setattr(courses_models, "sanitize_cell", legacy_cell)
+
+
+def _load(monkeypatch, el):
+    _patch_loader_to_legacy(monkeypatch)
     course = CourseFactory()
     unit = _unit(course)
-    build_element(
-        course, unit, el, source_root="", source_dir="", allow_html=False
-    )
+    build_element(course, unit, el, source_root="", source_dir="", allow_html=False)
     return unit
 
 
 RED = 'jeśli ( <span style="color: red;">założenie</span> ) to ( teza )'
 
 
-def test_html_shape_key_equals_what_the_loader_stored():
-    _load({"type": "text", "body": RED})
+def test_the_patched_loader_really_is_the_pre_slice_1_loader(monkeypatch):
+    # Guards the oracle itself. Without the patch the loader stores
+    # `<span>założenie</span>` (span is in ALLOWED_TAGS after slice 1) and every
+    # test below fails against a key that is in fact correct.
+    _load(monkeypatch, {"type": "text", "body": RED})
+    assert "<span" not in TextElement.objects.get().body
+
+
+def test_html_shape_key_equals_what_the_loader_stored(monkeypatch):
+    _load(monkeypatch, {"type": "text", "body": RED})
     stored = TextElement.objects.get().body
     assert key_for(RED, "html") == stored
     # And the pre-change loader really did drop the colour:
     assert "color" not in stored and "tc-" not in stored
 
 
-def test_choice_stem_is_the_bare_sanitize_html_shape():
+def test_choice_stem_is_the_bare_sanitize_html_shape(monkeypatch):
     # builders.py:359 creates ChoiceQuestionElement with a bare stem=el["stem"];
     # QuestionElement.save() applies sanitize_html and nothing else.
     _load(
+        monkeypatch,
         {
             "type": "choice",
             "stem": RED,
             "choices": [{"text": "a", "is_correct": True}],
-        }
+        },
     )
     assert key_for(RED, "html") == ChoiceQuestionElement.objects.get().stem
 
 
-def test_fill_gate_stem_is_the_stem_segments_shape():
+def test_fill_gate_stem_is_the_stem_segments_shape(monkeypatch):
+    # MEASURED: zero coloured fill_gate stems survive source-side exclusion (the
+    # corpus's only two sit in the excluded 001_ part), so this synthesised
+    # fixture is the ONLY oracle the stem shape ever gets. It is load-bearing.
     src = f'<span style="color: red;">a</span> {S}0{S} b'
-    _load({"type": "fill_gate", "stem": src, "answers": [["x"]]})
+    _load(monkeypatch, {"type": "fill_gate", "stem": src, "answers": [["x"]]})
     assert key_for(src, "stem") == FillGateElement.objects.get().stem
 
 
-def test_fillblank_stem_is_the_COMPOSED_shape():
+def test_fillblank_stem_is_the_COMPOSED_shape(monkeypatch):
     # The composition is real even though the corpus holds zero coloured
     # fillblank stems -- hence a synthesised fixture.
     src = f'<p><span style="color: red;">a</span></p> {S}0{S}'
-    _load({"type": "fillblank", "stem": src, "blanks": [["x"]]})
+    _load(monkeypatch, {"type": "fillblank", "stem": src, "blanks": [["x"]]})
     stored = FillBlankQuestionElement.objects.get().stem
     assert key_for(src, "composed") == stored
-    # A single sanitiser is NOT the same string -- this is the silent-miss shape.
+    # sanitize_html ALONE is not the same string -- this is the silent-miss shape
+    # the composed replay exists to prevent (the <p> survives an html-only key and
+    # is stripped by the cell pass).
     assert key_for(src, "html") != stored
-    assert key_for(src, "stem") != stored
+    # NOT asserted: that the "stem" shape differs. MEASURED over 8 shapes including
+    # maths and entities, sanitize_html is a NO-OP on sanitize_cell output, so the
+    # composed key and the stem key coincide today. The composition is modelled for
+    # FIDELITY to the real write path, not because it currently diverges -- keep it,
+    # and re-measure before ever "simplifying" SHAPE_COMPOSED away.
 
 
-def test_table_cell_is_the_cell_shape():
+def test_table_cell_is_the_cell_shape(monkeypatch):
     src = '<span style="color: red;">x</span> <strong class="bold">y</strong>'
-    _load({"type": "table", "data": {"cells": [[{"html": src}, {"html": ""}]]}})
+    _load(
+        monkeypatch,
+        {"type": "table", "data": {"cells": [[{"html": src}, {"html": ""}]]}},
+    )
     stored = TableElement.objects.get().data["cells"][0][0]["html"]
     assert key_for(src, "cell") == stored
 
@@ -1344,12 +1465,15 @@ def sanitize_html(value, *, allowed_classes=None):
 And `sanitize_cell` the same way:
 
 ```python
-def sanitize_cell(value, *, allowed_classes=None):
+def sanitize_cell(value, *, tags=None, allowed_classes=None):
     """Sanitise one table cell's html to CELL_TAGS, protecting balanced LaTeX
     spans from the HTML tokenizer. Idempotent on already-clean input.
 
-    `allowed_classes` is keyword-only and defaults to the live allowlist; see
-    sanitize_html for why the backfill overrides it."""
+    `tags` and `allowed_classes` are keyword-only and default to the live
+    allowlists; see sanitize_html for why the backfill overrides them. `tags` exists
+    for the backfill's TEST ORACLE only -- it replays the loader over RAW source, so
+    it needs the pre-slice-1 tag set to unwrap spans. The backfill's own key
+    generator strips spans before calling this and never passes `tags`."""
     value = value or ""
 ```
 
@@ -1485,7 +1609,7 @@ def value_for(raw, shape):
 uv run pytest tests/test_recolour_replay.py -q
 ```
 
-Expected: 10 passed.
+Expected: 11 passed.
 
 If `test_table_cell_is_the_cell_shape` fails on a `source_root`/`source_dir` argument,
 note that `build_element` only touches those for image/video/fill_table media cells; a
@@ -1505,19 +1629,31 @@ Expected: RED on `test_legacy_and_current_differ_exactly_where_the_spec_says`. R
 
 Then falsify the composed shape: change `_LEGACY[SHAPE_COMPOSED]` to `_legacy_html`
 alone. Expected: RED on `test_fillblank_stem_is_the_COMPOSED_shape`. Restore, confirm
-10 passed. Paste both RED outputs.
+11 passed.
+
+Then falsify the ORACLE itself — the defect this plan shipped in its first draft.
+Comment out the four `monkeypatch.setattr` lines in `_patch_loader_to_legacy` and
+re-run: expected RED on `test_the_patched_loader_really_is_the_pre_slice_1_loader`
+**and** on all five loader-comparison tests, because an unpatched loader stores
+`<span>…</span>` where the DB holds bare text. Restore, confirm 11 passed. Paste all
+three RED outputs.
 
 - [ ] **Step 7: Confirm the sanitiser change broke nothing**
 
 The two sanitisers are used across the whole app. Run their existing guards:
 
 ```bash
-uv run pytest tests/test_sanitize_align.py courses/tests/test_colour_map.py tests/test_colour_map_drift.py tests/test_transfer_schema.py -q
-uv run pytest tests/ -q -k "sanitize or sanitiz"
+uv run pytest courses/tests/test_sanitize_align.py courses/tests/test_sanitize_colour.py courses/tests/test_colour_map.py tests/test_colour_map_drift.py tests/test_transfer_schema.py -q
+uv run pytest tests/ courses/tests/ -q -k "sanitize or sanitiz or switchgrid"
 ```
 
 Expected: all pass. A default-argument change must be behaviour-neutral; if anything
 reddens here, the default is wrong.
+
+Both paths matter. The sanitiser's own guards live in **`courses/tests/`**, not
+`tests/` — there is no `tests/test_sanitize_align.py`, and a `-k` sweep restricted to
+`tests/` would run none of them while still exiting 0, which reads exactly like
+success.
 
 - [ ] **Step 8: Lint and commit**
 
@@ -1576,8 +1712,6 @@ it would make this a change-detector. Task 1 and Task 8 measure the real corpus.
 """
 
 import json
-
-import pytest
 
 from courses.recolour.source import SKIP_CONFLICT
 from courses.recolour.source import SKIP_REGION
@@ -1676,6 +1810,10 @@ def test_walk_honours_the_source_side_exclusion(tmp_path):
 def test_walk_ignores_switchgrid_line_stems_and_choice_option_text(tmp_path):
     # Out of backfill scope: line stems are not an RTE surface, and Choice.text
     # passes through none of the three sanitisers.
+    #
+    # Asserted on field_paths, NOT on emptiness: walk_source emits every non-empty
+    # registry field, and the palette filter lives in build_key_map. The choice
+    # element's own `stem` is legitimately walked -- only its option text is not.
     root = _tree(
         tmp_path,
         {
@@ -1691,7 +1829,9 @@ def test_walk_ignores_switchgrid_line_stems_and_choice_option_text(tmp_path):
             }
         },
     )
-    assert walk_source(root, excluded_dirs=()) == []
+    occ = walk_source(root, excluded_dirs=())
+    assert [o.field_path for o in occ] == ["elements[1].stem"]
+    assert build_key_map(occ).producers == 0  # neither carries palette colour
 
 
 def test_only_palette_bearing_occurrences_produce_a_key(tmp_path):
@@ -1711,6 +1851,7 @@ def test_only_palette_bearing_occurrences_produce_a_key(tmp_path):
     assert km.producers == 1
     assert len(km.entries) == 1
     assert km.emitted == 1
+    assert km.emitted_occurrences == 1
 
 
 def test_the_key_maps_to_a_DIFFERENT_value():
@@ -1760,6 +1901,22 @@ def test_two_different_colourings_of_one_key_are_refused():
     assert [r for _o, r in km.skips if r == SKIP_CONFLICT]
 
 
+def test_a_conflict_stays_refused_when_the_first_colouring_recurs():
+    # Stickiness. Without the `refused` set the third occurrence re-inserts the
+    # key with RED's value and the run writes a colouring two sources disagree on.
+    from courses.recolour.source import Occurrence
+
+    km = build_key_map(
+        [
+            Occurrence("p", "f.json", "x", "html", RED),
+            Occurrence("p", "g.json", "y", "html", BLUE),
+            Occurrence("p", "h.json", "z", "html", RED),
+        ]
+    )
+    assert km.entries == {}
+    assert km.produced == []
+
+
 def test_the_same_colouring_twice_is_not_a_conflict():
     from courses.recolour.source import Occurrence
 
@@ -1782,7 +1939,10 @@ def test_a_region_intersecting_occurrence_is_refused_and_named():
     )
     km = build_key_map([occ])
     assert km.entries == {}
-    assert [r for _o, r in km.skips if r == SKIP_REGION]
+    # startswith, not ==: the stored reason is prefixed with the specific refusal
+    # (`protected-region: colour intersects a maths region`). SKIP_UNCHANGED and
+    # SKIP_CONFLICT are stored bare, which is what makes this one easy to miss.
+    assert [r for _o, r in km.skips if r.startswith(SKIP_REGION)]
 
 
 def test_per_part_counters_are_populated():
@@ -1813,10 +1973,12 @@ Create `courses/recolour/source.py`:
 ```python
 """Walk the parser output and build the key -> coloured-value map.
 
-One occurrence is one (json_file, field_path) pair that carries at least one
-PALETTE colour. Occurrences carrying only unmapped colour produce nothing: there is
-no colour to restore, and rewriting the field merely to strip a gray span would
-touch content for no gain.
+Two stages with different filters, and conflating them is a real source of
+confusion. `walk_source` emits one Occurrence per non-empty (json_file, field_path)
+registry field -- ALL of them, colour or not. `build_key_map` is what applies the
+palette filter: an occurrence carrying no palette colour produces no key and is not
+counted, because there is nothing to restore and rewriting the field merely to strip
+a gray span would touch content for no gain.
 """
 
 import json
@@ -1857,9 +2019,18 @@ class KeyMap(NamedTuple):
     entries: dict  # key -> coloured value
     produced: list  # [(Occurrence, key)] for the keys that survived into entries
     producers: int  # occurrences carrying palette colour (the gate's DENOMINATOR)
-    emitted: int  # tc-* classes the values carry
+    emitted: int  # tc-* classes across DISTINCT keys (what the map would write)
+    emitted_occurrences: int  # tc-* classes across ALL producing occurrences
     skips: list  # [(Occurrence, reason)]
     per_part: dict  # part -> {"producers": int, "emitted": int}
+
+# TWO emitted counts, because they answer different questions and the spec's
+# source-side expectation is stated per OCCURRENCE. MEASURED on the real corpus with
+# the two parts excluded: emitted (distinct keys) = 500, emitted_occurrences = 557.
+# The spec predicts 588 palette elements minus the 29 in the excluded parts = 559,
+# and the residual 2 are the SwitchGrid line stems, which are out of backfill scope.
+# Comparing the distinct-key figure against a per-occurrence expectation is what
+# makes the span-only-colouriser diagnostic in Task 8 give no verdict at all.
 
 
 # The denominator deliberately counts EVERY palette-bearing occurrence, including
@@ -1941,9 +2112,11 @@ def build_key_map(occurrences):
     entries = {}
     produced = []
     origin = {}  # key -> the first Occurrence that produced it
+    refused = set()  # keys retracted for a conflict -- NEVER re-enter the map
     skips = []
     producers = 0
     emitted = 0
+    emitted_occurrences = 0
     per_part = defaultdict(lambda: {"producers": 0, "emitted": 0})
 
     for occ in occurrences:
@@ -1959,6 +2132,14 @@ def build_key_map(occurrences):
             skips.append((occ, f"{SKIP_REGION}: {refusal}"))
             continue
         key = key_for(occ.raw, occ.shape)
+        if key in refused:
+            # Stickiness matters: without it a THIRD occurrence carrying the
+            # FIRST colouring silently re-inserts a key two occurrences already
+            # disagreed about, and the conflict guard becomes a no-op on exactly
+            # the shape it exists for. Corpus conflicts are 0 today, so the real
+            # run would never expose this.
+            skips.append((occ, SKIP_CONFLICT))
+            continue
         value, n = value_for(occ.raw, occ.shape)
         if value == key:
             # A colouriser that delivered nothing. The gate's `value != key`
@@ -1971,9 +2152,11 @@ def build_key_map(occurrences):
             skips.append((occ, SKIP_CONFLICT))
             skips.append((origin[key], SKIP_CONFLICT))
             del entries[key]
+            refused.add(key)
             produced[:] = [p for p in produced if p[1] != key]
             continue
         produced.append((occ, key))
+        emitted_occurrences += n
         if key in entries:
             # Same colouring twice -- 0 conflicts measured on the corpus, where
             # 257 distinct forms are matched by 306 occurrences. Both occurrences
@@ -1984,7 +2167,10 @@ def build_key_map(occurrences):
         emitted += n
         per_part[occ.part]["emitted"] += n
 
-    return KeyMap(entries, produced, producers, emitted, skips, dict(per_part))
+    return KeyMap(
+        entries, produced, producers, emitted, emitted_occurrences, skips,
+        dict(per_part)
+    )
 ```
 
 - [ ] **Step 4: Run the tests**
@@ -1993,17 +2179,27 @@ def build_key_map(occurrences):
 uv run pytest tests/test_recolour_source.py -q
 ```
 
-Expected: 13 passed.
+Expected: 14 passed.
 
 - [ ] **Step 5: Falsify — prove the flags.json skip and the conflict guard are real**
 
-Remove `"flags.json"` from `_NOT_UNIT_JSON` and re-run — expected RED (an
-`AttributeError`, or a wrong count) on
-`test_walk_skips_manifest_and_the_list_shaped_flags_file`. Restore.
+Remove `"flags.json"` from `_NOT_UNIT_JSON` **and** the `if not isinstance(payload,
+dict): continue` guard in `walk_source`, then re-run — expected RED with an
+`AttributeError: 'list' object has no attribute 'get'` on
+`test_walk_skips_manifest_and_the_list_shaped_flags_file`. Restore both.
+
+**Removing only one of the two leaves the test GREEN**, because they are redundant
+guards on the same hazard: the name skip alone, or the isinstance check alone, is
+enough to survive `flags.json`. MEASURED. Do not spend time hunting a phantom when
+the single-guard removal stays green — that is the expected result, and it is why
+this step names both.
 
 Then remove the `if key in entries and entries[key] != value:` branch and re-run —
-expected RED on `test_two_different_colourings_of_one_key_are_refused`. Restore, confirm
-13 passed. Paste both RED outputs.
+expected RED on `test_two_different_colourings_of_one_key_are_refused`. Restore.
+
+Then remove the `if key in refused:` block and re-run — expected RED on
+`test_a_conflict_stays_refused_when_the_first_colouring_recurs`. Restore, confirm
+14 passed. Paste all three RED outputs.
 
 - [ ] **Step 6: Lint and commit**
 
@@ -2058,6 +2254,7 @@ from courses.models import Element
 from courses.models import TableElement
 from courses.models import TextElement
 from courses.recolour.dbscan import MultiOwnerError
+from courses.recolour.dbscan import ReadBackError
 from courses.recolour.dbscan import apply_matches
 from courses.recolour.dbscan import excluded_node_ids
 from courses.recolour.dbscan import find_matches
@@ -2176,6 +2373,52 @@ def test_titles_are_never_read_or_written():
     matches = find_matches(course, {"założenie": '<span class="tc-red">założenie</span>'}, set())
     apply_matches(matches)
     assert dict(ContentNode.objects.values_list("pk", "title")) == before
+
+
+def test_a_field_the_write_path_alters_raises_ReadBackError(monkeypatch):
+    # The read-back is the ONLY safety net for the three gate stems, whose save()
+    # explicitly declines to touch `stem` (models.py:776-779). Exercising it only
+    # inside a falsification step would leave the committed suite with no guard on
+    # the one check standing between a mangled write and the database.
+    course = CourseFactory()
+    _part, unit = _unit(course)
+    el = _text(unit, "założenie")
+    original = TextElement.save
+
+    def _mangling_save(self, *a, **kw):
+        self.body = self.body + "<!-- injected -->"
+        return original(self, *a, **kw)
+
+    monkeypatch.setattr(TextElement, "save", _mangling_save)
+    matches = find_matches(
+        course, {"założenie": '<span class="tc-red">założenie</span>'}, set()
+    )
+    with pytest.raises(ReadBackError):
+        apply_matches(matches)
+
+
+def test_a_read_back_failure_inside_a_transaction_leaves_the_row_untouched(monkeypatch):
+    # apply_matches is called inside transaction.atomic() by the command, so the
+    # raise must roll the write back rather than leave a half-applied course.
+    from django.db import transaction
+
+    course = CourseFactory()
+    _part, unit = _unit(course)
+    el = _text(unit, "założenie")
+    original = TextElement.save
+
+    def _mangling_save(self, *a, **kw):
+        self.body = self.body + "<!-- injected -->"
+        return original(self, *a, **kw)
+
+    monkeypatch.setattr(TextElement, "save", _mangling_save)
+    matches = find_matches(
+        course, {"założenie": '<span class="tc-red">założenie</span>'}, set()
+    )
+    with pytest.raises(ReadBackError), transaction.atomic():
+        apply_matches(matches)
+    el.refresh_from_db()
+    assert el.body == "założenie"
 
 
 def test_a_second_apply_matches_nothing():
@@ -2372,7 +2615,7 @@ def apply_matches(matches):
 uv run pytest tests/test_recolour_dbscan.py -q
 ```
 
-Expected: 11 passed.
+Expected: 12 passed.
 
 - [ ] **Step 5: Falsify — prove the base filter and the read-back are real**
 
@@ -2388,7 +2631,7 @@ in place: change `setattr(row, field, group[0].value)` to
 Now, with the corrupt write still in place, also neuter the check by changing
 `if got != m.value:` to `if False:` and re-run — the test must go RED for a *different*
 reason (the stored value ends in `X`), which proves the check was the only thing standing
-between a bad write and the database. Restore both, confirm 11 passed.
+between a bad write and the database. Restore both, confirm 12 passed.
 
 Paste both RED outputs.
 
@@ -2649,11 +2892,15 @@ def test_a_region_refusal_is_named_AND_counts_against_the_gate(tmp_path):
     assert "50.0%" in out
 
 
-def test_tc_classes_emitted_is_reported(tmp_path):
+def test_both_tc_class_counts_are_reported(tmp_path):
+    # Two counts, because the spec's source-side expectation is per OCCURRENCE
+    # while the map writes per DISTINCT KEY. Reporting only one makes Task 8's
+    # span-only-colouriser diagnostic unverdictable.
     _course_with(STORED)
     _simple_tree(tmp_path)
     out = _run(tmp_path)
-    assert "tc-* classes emitted" in out
+    assert "tc-* classes (distinct keys)" in out
+    assert "tc-* classes (occurrences)" in out
 
 
 def test_an_unknown_course_is_an_error(tmp_path):
@@ -2705,6 +2952,7 @@ from courses.recolour.dbscan import ReadBackError
 from courses.recolour.dbscan import apply_matches
 from courses.recolour.dbscan import excluded_node_ids
 from courses.recolour.dbscan import find_matches
+from courses.recolour.source import _NOT_UNIT_JSON
 from courses.recolour.source import build_key_map
 from courses.recolour.source import walk_source
 
@@ -2737,6 +2985,23 @@ class Command(BaseCommand):
             raise CommandError(str(e)) from e
 
     # -- validation ---------------------------------------------------------
+
+    def _validate_json_dir(self, json_dir):
+        """Fail on a wrong --json-dir BEFORE any key work.
+
+        Without this, a mistyped path yields zero occurrences, `producers == 0`, and
+        the gate reports "key construction is broken" -- a confidently wrong
+        diagnosis of an operator typo, which is exactly the misattribution this
+        command works elsewhere to prevent.
+        """
+        root = Path(json_dir)
+        if not root.is_dir():
+            raise CommandError(f"--json-dir {json_dir!r} is not a directory")
+        if not any(jf.name not in _NOT_UNIT_JSON for jf in root.glob("*/*.json")):
+            raise CommandError(
+                f"--json-dir {json_dir!r} contains no <part>/<unit>.json files; "
+                "this is a wrong path, not an empty corpus"
+            )
 
     def _parse_exclusions(self, course, json_dir, raw_pairs):
         """([dirname], [node pk], [dirname reported as source-side only])."""
@@ -2781,6 +3046,7 @@ class Command(BaseCommand):
     def _run(self, o):
         course = resolve_course(o["course"])
         json_dir = o["json_dir"]
+        self._validate_json_dir(json_dir)
         dirnames, pks, source_only = self._parse_exclusions(
             course, json_dir, o["exclude"]
         )
@@ -2828,7 +3094,9 @@ class Command(BaseCommand):
         span-only colouriser from scoring ~100% while delivering nothing.
         """
         matched_keys = {m.key for m in matches}
-        per_part = defaultdict(lambda: {"producers": 0, "matched": 0, "emitted": 0})
+        per_part = defaultdict(
+            lambda: {"producers": 0, "matched": 0, "emitted": 0, "rewritten": 0}
+        )
         for part, stats in km.per_part.items():
             per_part[part]["producers"] = stats["producers"]
             per_part[part]["emitted"] = stats["emitted"]
@@ -2837,18 +3105,42 @@ class Command(BaseCommand):
             if key in matched_keys:
                 numerator += 1
                 per_part[occ.part]["matched"] += 1
+        # The spec asks for per-part REWRITTEN counts, and `matched` is not that: it
+        # counts source occurrences, while a rewrite is one (model, pk, field). One
+        # key can match several DB fields and one field can hold several matching
+        # cells, so the two numbers legitimately differ.
+        fields_by_key = defaultdict(set)
+        for m in matches:
+            fields_by_key[m.key].add((m.model.__name__, m.pk, m.field))
+        rewritten_by_part = defaultdict(set)
+        for occ, key in km.produced:
+            rewritten_by_part[occ.part] |= fields_by_key.get(key, set())
+        for part, fields in rewritten_by_part.items():
+            per_part[part]["rewritten"] = len(fields)
         return numerator, per_part
 
     def _already_applied(self, course, km, excluded):
-        """True when the coloured VALUES are already in the database.
+        """True when the coloured VALUES are already in the database, at the same
+        rate the gate demands of the keys.
 
-        Without this, the second run of an applied backfill halts on the gate,
-        which reads as an error when it is in fact the intended no-op.
+        Without this the second run of an applied backfill halts on the gate, which
+        reads as an error when it is in fact the intended no-op. But "at least one
+        value is present" is too weak a predicate: after a hand-edit sweep that left
+        one previously-applied value intact and destroyed every other match, it would
+        report a clean no-op instead of halting. So the threshold is the SAME
+        GATE_MIN_RATE the keys must clear -- symmetric, and not satisfiable by a
+        single survivor.
         """
         if not km.entries:
             return False
         as_keys = {v: v for v in km.entries.values()}
-        return bool(find_matches(course, as_keys, excluded))
+        found = {m.key for m in find_matches(course, as_keys, excluded)}
+        rate = len(found) / len(as_keys)
+        self.stdout.write(
+            f"values already present in the DB: {len(found)}/{len(as_keys)} "
+            f"({rate:.1%})"
+        )
+        return rate >= GATE_MIN_RATE
 
     def _check_gate(self, km, numerator, per_part):
         if km.producers == 0:
@@ -2889,7 +3181,8 @@ class Command(BaseCommand):
         w("")
         w(f"occurrences producing a key:  {km.producers}")
         w(f"distinct keys:                {len(km.entries)}")
-        w(f"tc-* classes emitted:         {km.emitted}")
+        w(f"tc-* classes (distinct keys): {km.emitted}")
+        w(f"tc-* classes (occurrences):   {km.emitted_occurrences}")
         w(f"matched occurrences:          {numerator}")
         if km.producers:
             w(f"match rate:                   {numerator / km.producers:.1%} "
@@ -2897,11 +3190,11 @@ class Command(BaseCommand):
         w(f"fields that would change:     {len({(m.model, m.pk, m.field) for m in matches})}")
         w("")
         w("per part:")
-        w(f"  {'part':38s} {'keys':>6s} {'matched':>8s} {'tc-*':>6s}")
+        w(f"  {'part':38s} {'keys':>6s} {'matched':>8s} {'fields':>7s} {'tc-*':>6s}")
         for part, s in sorted(per_part.items()):
             flag = "   <== ZERO" if s["producers"] and not s["matched"] else ""
             w(f"  {part:38s} {s['producers']:6d} {s['matched']:8d} "
-              f"{s['emitted']:6d}{flag}")
+              f"{s['rewritten']:7d} {s['emitted']:6d}{flag}")
         w("")
         reasons = defaultdict(int)
         for _occ, reason in km.skips:
@@ -3032,11 +3325,15 @@ you measure — never what this plan says.
 - Compare `occurrences producing a key` and the per-part table against **Task 1's spike**.
   They should agree closely. A large divergence means the production walk and the spike
   disagree about scope — diagnose before Task 9, because one of them is wrong.
-- Compare `tc-* classes emitted` against the spec's source-side expectation: the corpus
-  holds 588 palette-coloured elements, 29 of them in the two excluded parts, so a figure
-  in the neighbourhood of ~559 is expected. A figure near 446 means the non-span carriers
-  are being dropped — the exact failure the `value != key` clause exists to expose. A
-  figure far below either means something larger is wrong.
+- Compare **`tc-* classes (occurrences)`** — not the distinct-key figure — against the
+  spec's source-side expectation, which is stated per occurrence: the corpus holds 588
+  palette-coloured elements, 29 of them in the two excluded parts, so **~559** is
+  expected, and the residual handful are the SwitchGrid line stems that are out of
+  backfill scope. MEASURED while this plan was written: **557 occurrences / 500 distinct
+  keys**. A figure near **446** means the non-span carriers are being dropped — the exact
+  failure the `value != key` clause exists to expose. Reading the distinct-key figure
+  against the ~559 expectation gives no verdict at either end, which is why both counts
+  are printed.
 - `value-equals-key` in the skip list must be **0**. Any non-zero count is the span-only
   no-op shape and must be diagnosed, not accepted.
 - `protected-region` is expected to be **0** (measured: zero contaminated maths spans
@@ -3049,13 +3346,14 @@ diagnosis.
 - [ ] **Step 6: Record everything in the ledger and commit**
 
 Append the suite counts, the full dry-run report and your reading of it to
-`.superpowers/sdd/progress.md`, then:
+`.superpowers/sdd/progress.md`. The ledger is untracked, so **there is no commit in
+this task**; verify instead that the branch is where it should be and the tree is
+clean:
 
 ```bash
 git rev-parse --show-toplevel
 git branch --show-current
-git add .superpowers/sdd/progress.md
-git commit -m "verify(recolour): suites green; real mat-pp dry run meets the gate"
+git status --porcelain   # expected: EMPTY
 ```
 
 ---
@@ -3096,25 +3394,43 @@ the transaction, so a `ReadBackError` rolls everything back and nothing is writt
 
 - [ ] **Step 3: Verify the write took effect, and that nothing else moved**
 
+**Before Step 2**, capture the two numbers this check compares against, so they are
+measured rather than quoted. Use the pks you validated in Task 8 Step 4 — substitute
+them for `<PK1>`/`<PK2>` below and do not reuse this plan's `109`/`153` if Task 8
+measured anything else:
+
 ```bash
 DATABASE_URL="postgres://libli:libli@localhost:5432/libli" uv run python -c "
 import django, os; os.environ.setdefault('DJANGO_SETTINGS_MODULE','config.settings.local'); django.setup()
+from courses.models import Course, ContentNode
+c = Course.objects.get(slug='mat-pp')
+print('NODE_COUNT_BEFORE =', ContentNode.objects.filter(course=c).count())
+"
+```
+
+Then, after the apply:
+
+```bash
+DATABASE_URL="postgres://libli:libli@localhost:5432/libli" uv run python -c "
+import django, os, sys; os.environ.setdefault('DJANGO_SETTINGS_MODULE','config.settings.local'); django.setup()
 from courses.models import Course, ContentNode, TextElement, TableElement
+PK1, PK2, NODE_COUNT_BEFORE = <PK1>, <PK2>, <NODE_COUNT_BEFORE>
 c = Course.objects.get(slug='mat-pp')
 n = TextElement.objects.filter(elements__unit__course=c, body__contains='tc-').count()
 t = TableElement.objects.filter(elements__unit__course=c, data__icontains='tc-').count()
 print('TextElement bodies carrying tc-*:', n)
 print('TableElement rows carrying tc-*:', t)
 excluded = set()
-for pk in (109, 153):
+for pk in (PK1, PK2):
     excluded |= set(ContentNode.objects.get(pk=pk)._subtree_node_ids())
 leak = TextElement.objects.filter(elements__unit_id__in=excluded, body__contains='tc-').count()
 print('LEAK into excluded parts (must be 0):', leak)
-print('total nodes (must still be 966):', ContentNode.objects.filter(course=c).count())
+after = ContentNode.objects.filter(course=c).count()
+print('nodes before/after (must match):', NODE_COUNT_BEFORE, after)
 "
 ```
 
-Expected: a non-zero `tc-*` count, `LEAK … 0`, and the node count unchanged. A non-zero
+Expected: a non-zero `tc-*` count, `LEAK … 0`, and the two node counts equal. A non-zero
 leak means the exclusion failed — restore from the dumpdata and stop.
 
 - [ ] **Step 4: Re-run and confirm the no-op**
@@ -3144,12 +3460,12 @@ Report what you saw. If it looks wrong, the dumpdata from Step 1 is the way back
 - [ ] **Step 6: Record and commit the ledger**
 
 Append the applied counts and your visual verdict to `.superpowers/sdd/progress.md`.
+The ledger is untracked, so **there is no commit in this task** either:
 
 ```bash
 git rev-parse --show-toplevel
 git branch --show-current
-git add .superpowers/sdd/progress.md
-git commit -m "chore(recolour): local mat-pp apply recorded"
+git status --porcelain   # expected: EMPTY
 ```
 
 **Do not push and do not open a PR** — that is outward-facing and the user's call. Report
