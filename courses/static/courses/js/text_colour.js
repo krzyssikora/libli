@@ -112,6 +112,22 @@
     if (!root || !root.querySelectorAll) return false;
     var dropUnmapped = !!(opts && opts.dropUnmapped);
     var changed = false;
+
+    // Save the caret as TEXT OFFSETS -- taken before any mutation below -- but ONLY
+    // when the current selection actually lives inside root. A render-path call must
+    // never touch a selection living in a different subtree: editor.js re-renders the
+    // preview after every fragment swap while the author's caret may sit in a live
+    // .rte-surface, and an unscoped removeAllRanges()/addRange() there would steal a
+    // selection that belongs to someone else's DOM.
+    var savedOffsets = null;
+    var activeSel = window.getSelection();
+    if (activeSel && activeSel.rangeCount && root.contains) {
+      var activeRange = activeSel.getRangeAt(0);
+      if (root.contains(activeRange.commonAncestorContainer)) {
+        savedOffsets = textOffsets(root, activeRange);
+      }
+    }
+
     var styled = root.querySelectorAll("[style]");
     var all = [];
     for (var i = 0; i < styled.length; i++) all.push(styled[i]);
@@ -144,6 +160,23 @@
     // surface carries tc-* with no inline colour at all), where nothing above sets
     // `changed`. It is idempotent, so running it always is free.
     collapseNested(root);
+
+    // Restore ONLY when the pass actually mutated something AND a selection was saved
+    // above -- both conditions from the spec's "Caret and undo" paragraph. Ordinary
+    // typing (changed === false) must stay a true no-op: re-deriving and re-applying a
+    // Range the browser never disturbed is exactly the kind of touch this guard exists
+    // to avoid.
+    if (changed && savedOffsets) {
+      var startPoint = pointAtOffset(root, savedOffsets[0]);
+      var endPoint = pointAtOffset(root, savedOffsets[1]);
+      if (startPoint && endPoint) {
+        var restored = document.createRange();
+        restored.setStart(startPoint.node, startPoint.offset);
+        restored.setEnd(endPoint.node, endPoint.offset);
+        activeSel.removeAllRanges();
+        activeSel.addRange(restored);
+      }
+    }
     return changed;
   }
 
@@ -245,13 +278,11 @@
   var MATH_RE = /\\\(|\\\)|\\\[|\\\]/g;
   var MARKER_RE = /\{\{(.*?)\}\}/g;
 
-  // A DOM Range yields (node, offset) pairs, not indices into textContent. This is
-  // the mapping step; getting it wrong is how a region test silently passes.
-  function textOffsets(root, range) {
-    // Handles BOTH container kinds. A selection's Range has TEXT containers, but
-    // selectNodeContents(el) yields an ELEMENT container -- and a text-node-only walk
-    // returns null for those, which made splitOrClear dead code and let Clear wipe a
-    // whole coloured run instead of splitting it.
+  // Shared TreeWalker accumulation: every text node under `root`, paired with its
+  // global start offset into root.textContent. Used both to map a Range DOWN to
+  // offsets (textOffsets) and to map offsets BACK UP to a Range (pointAtOffset) --
+  // the latter is how a caret survives a mutation that only reparents text nodes.
+  function buildTextIndex(root) {
     var texts = [];
     var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null, false);
     var acc = 0, node;
@@ -259,6 +290,17 @@
       texts.push({ node: node, start: acc });
       acc += node.nodeValue.length;
     }
+    return texts;
+  }
+
+  // A DOM Range yields (node, offset) pairs, not indices into textContent. This is
+  // the mapping step; getting it wrong is how a region test silently passes.
+  function textOffsets(root, range) {
+    // Handles BOTH container kinds. A selection's Range has TEXT containers, but
+    // selectNodeContents(el) yields an ELEMENT container -- and a text-node-only walk
+    // returns null for those, which made splitOrClear dead code and let Clear wipe a
+    // whole coloured run instead of splitting it.
+    var texts = buildTextIndex(root);
     function offsetOf(container, offset) {
       var i;
       if (container.nodeType === 3) {
@@ -288,6 +330,25 @@
     var end = offsetOf(range.endContainer, range.endOffset);
     if (start === null || end === null) return null;
     return [Math.min(start, end), Math.max(start, end)];
+  }
+
+  // Inverse of textOffsets: a global text offset -> a (node, offset) DOM point.
+  // Restoring a caret after mapColours mutates the DOM cannot reuse the ORIGINAL
+  // Range object -- wrapChildren moves a text node into a freshly created span, and a
+  // native Range's boundary-point adjustment on node removal/insertion tracks the old
+  // CONTAINER, not "the same visual position"; MEASURED, it leaves the selection
+  // collapsed and empty. Re-deriving a fresh Range from an offset captured before the
+  // mutation works because wrapChildren/clearTc/clearInlineColour only ever reparent
+  // or restyle -- they never edit a text node's content or document order.
+  function pointAtOffset(root, offset) {
+    var texts = buildTextIndex(root);
+    for (var i = 0; i < texts.length; i++) {
+      var t = texts[i];
+      var len = t.node.nodeValue.length;
+      if (offset <= t.start + len) return { node: t.node, offset: offset - t.start };
+    }
+    var last = texts[texts.length - 1];
+    return last ? { node: last.node, offset: last.node.nodeValue.length } : null;
   }
 
   // Returns {regions: [[start, end], ...], ok: bool}. ok=false means a delimiter is

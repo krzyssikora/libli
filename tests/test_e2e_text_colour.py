@@ -191,6 +191,33 @@ def _select_text(page, root_id, needle):
     )
 
 
+def test_map_colours_preserves_a_selection_it_mutates(page):
+    """Caret and undo (spec): mapColours saves and restores the Range only when it
+    actually mutates AND the current selection is inside root. MEASURED without the
+    fix: selecting 'cd' inside <p style="color: rgb(178,55,42)">abcdef</p> and running
+    a mutating mapColours leaves the selection collapsed and empty, because
+    wrapChildren moves the text node out from under the Range -- this fires on the
+    paste-of-inline-coloured-content path."""
+    _page_with_module(page)
+    page.evaluate(
+        """() => {
+        document.getElementById('root').innerHTML =
+            '<p style="color: rgb(178, 55, 42)">abcdef</p>';
+    }"""
+    )
+    assert _select_text(page, "root", "cd")
+    result = page.evaluate(
+        """() => {
+        const r = document.getElementById('root');
+        libliColour.mapColours(r, {dropUnmapped: true});
+        const sel = window.getSelection();
+        return {collapsed: sel.isCollapsed, text: sel.toString()};
+    }"""
+    )
+    assert result["collapsed"] is False, "a mutating mapColours must not drop the caret"
+    assert result["text"] == "cd"
+
+
 def test_refuses_a_selection_wholly_inside_a_maths_region(page):
     _page_with_module(page)
     page.evaluate(
@@ -544,7 +571,12 @@ def test_refusal_shows_the_translated_message(page, live_server):
         s.innerHTML = 'a \\\\(x + y\\\\) b';
         const t = s.firstChild;
         const r = document.createRange();
-        r.setStart(t, 3); r.setEnd(t, 4);          // inside the maths region
+        r.setStart(t, 3); r.setEnd(t, 4);          // selects just the '(' delimiter
+                                                    // itself (offset 3-4 of the text
+                                                    // "a \\(x + y\\) b"), not the
+                                                    // region's interior -- still
+                                                    // refused, same as wholly-inside
+                                                    // or straddling
         const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r);
     }"""
     )
@@ -642,3 +674,57 @@ def test_cell_clear_through_the_wired_toolbar_removes_the_class(page, live_serve
 
     table.refresh_from_db()
     assert "tc-" not in table.data["cells"][0][0]["html"], table.data
+
+
+@pytest.mark.django_db(transaction=True)
+def test_inline_prose_maths_colour_resolves_to_the_palette_token(page, live_server):
+    """FIX 3: wrapRenderMathInElement -- the hook for INLINE PROSE maths, the exact
+    case in the spec's Problem statement -- had zero coverage before this test. Its
+    correctness depends on math.js:30,33 resolving `window.renderMathInElement` at
+    CALL time (`renderInlineText`); if that global were ever captured into a local at
+    load time, colour normalisation would silently stop firing and the rest of the
+    suite (which drives katex.render display maths, not prose auto-render) would stay
+    green regardless.
+
+    Modelled on test_katex_colour_resolves_to_the_palette_token, but through a real
+    lesson page rather than a bare page.evaluate: seeds a TextElement whose body is
+    prose containing \\(\\color{red}{x}\\), loads it as the owning PA user (real
+    gesture, real script load order -- see test_text_colour_script_order.py), and
+    asserts the rendered element's computed colour equals --tc-red read from
+    tokens.css, not a repeated literal.
+    """
+    import re
+
+    from django.urls import reverse
+
+    from courses.models import TextElement
+
+    _make_pa_user("tc_prose_math")
+    _login(page, live_server, "tc_prose_math")
+    unit = _seed_course_and_unit("tc_prose_math", slug="tc-prose-math")
+    add_element(
+        unit,
+        TextElement.objects.create(body=r"<p>Colour the term \(\color{red}{x}\).</p>"),
+    )
+
+    path = reverse(
+        "courses:lesson_unit", kwargs={"slug": unit.course.slug, "node_pk": unit.pk}
+    )
+    page.goto(f"{live_server.url}{path}")
+
+    mapped = page.locator(".el--text .tc-red")
+    mapped.first.wait_for(state="attached", timeout=5000)
+    assert mapped.count() >= 1
+    # The raw LaTeX source must no longer be visible as text.
+    assert "\\color" not in page.locator(".el--text").inner_text()
+
+    computed = mapped.first.evaluate("(el) => getComputedStyle(el).color")
+
+    tokens_text = Path(TOKENS_CSS).read_text(encoding="utf-8")
+    light = re.search(r":root\s*\{(.*?)\n\}", tokens_text, re.DOTALL).group(1)
+    digits = re.search(r"--tc-red:\s*#([0-9A-Fa-f]{6})", light).group(1)
+    r, g, b = (int(digits[i : i + 2], 16) for i in (0, 2, 4))
+    expected = f"rgb({r}, {g}, {b})"
+    assert computed == expected, (
+        f"prose maths resolved to {computed}, the --tc-red token is {expected}"
+    )

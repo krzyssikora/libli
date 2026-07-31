@@ -13,7 +13,7 @@ def test_body_keeps_tc_class_on_every_allowed_carrier():
         assert "tc-red" in out, f"{tag} lost its colour class: {out}"
 
 
-def test_body_strips_tc_class_on_a_tag_outside_the_carrier_set():
+def test_body_strips_tc_class_on_a_block_tag():
     assert "tc-red" not in sanitize_html('<p class="tc-red">x</p>')
 
 
@@ -83,8 +83,12 @@ def test_legacy_snapshot_excludes_the_colour_family():
 
 
 def test_marker_interior_markup_is_knowingly_accepted():
-    """Allowing span widened what survives inside {{...}}. The editor refuses to
-    produce this (D10), but the server path does not reject it. Recorded, not fixed.
-    If this ever fails, someone closed the hole — update the spec's D10 section.
+    """Allowing span widened what survives inside {{...}}. Only the SWATCH gesture
+    (apply(), which consults regionVerdict) refuses this (D10) -- the refusal is not
+    total. mapColours consults no region test, so pasting inline-coloured content
+    into a marker's interior, or colouring a word then typing "{{" before it and
+    "|b}}" after, both reach the server unrefused. The server path does not reject
+    it either. Recorded, not fixed. If this ever fails, someone closed the hole —
+    update the spec's D10 section.
     """
     assert "<span>" in sanitize_html("<p>{{<span>a</span>|b}}</p>")

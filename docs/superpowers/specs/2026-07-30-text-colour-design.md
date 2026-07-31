@@ -47,8 +47,10 @@ Authors cannot colour text. Two consequences:
   contrast work, and no imported content uses it.
 - Colouring *inside* a maths expression. That is `\color{}`'s job and the maths editor
   already offers it. D8 is the enforced boundary.
-- Colouring *inside* a `{{…}}` blank/choice marker. D10 refuses it; the marker's interior is
-  parsed data, not prose.
+- Colouring *inside* a `{{…}}` blank/choice marker. D10's `apply()` refuses it via
+  `regionVerdict`; the marker's interior is parsed data, not prose. This refusal is **not**
+  total — `mapColours` (the paste and colour-then-type-around paths) consults no region
+  test and does not refuse. See "Protected regions" for the accepted, measured gap.
 - Restoring black, gray, magenta, purple, yellow or hex colours (109 elements, 16%). The
   colouriser **unwraps** them to plain text — note that after slice 1 the sanitiser can no
   longer do this itself, so the unwrap is the colouriser's explicit duty. Explicitly accepted by the user: "the colours used in matematyka
@@ -293,6 +295,19 @@ drag-to-image, choicegrid and multigrid stems, which are not. Rather than invent
 attribute, run the test everywhere — `{{` occurs **zero** times in the corpus, so the
 false-refusal cost is nil. The fields where it actually bites are the fill-blank,
 **drag-fill-blank**, fill-gate, switch-gate and guess-number stems.
+
+**The refusal lives only in `apply()` — `mapColours` consults no region test, and this
+is a knowingly accepted hole, not a closed one.** Two gestures reach past it: pasting
+inline-coloured content whose source already contains `{{…}}` markup (paste normalisation
+runs `mapColours` from the `input` listener's `insertFromPaste` branch, never through
+`apply()`), and colouring a word first, then typing `{{` before it and `|b}}` after — the
+marker only exists once the colour is already applied, so `apply()`'s region check never
+saw it form. MEASURED: `'pick {{<span style="color: red">a</span>|b}} now'` through
+`mapColours` → `{{<span class="tc-red">a</span>|b}}`, and `fillblank.parse` then accepts
+that markup as the stored answer. `courses/tests/test_sanitize_colour.py::
+test_marker_interior_markup_is_knowingly_accepted` records this precisely: the swatch
+gesture through `apply()` refuses, but paste and colour-then-type-around do not — not, as
+an earlier draft of this note claimed, "the editor refuses to produce this."
 
 **SwitchGrid line stems are excluded, because they are not an RTE surface.**
 `_edit_switchgrid.html:14` renders each one as a bare
