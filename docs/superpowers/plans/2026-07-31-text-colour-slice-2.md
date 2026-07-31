@@ -894,9 +894,14 @@ branch body and its `else` with a single `_add_colour_class(tag, slot)` guarded 
 uv run pytest tests/test_recolour_colouriser.py -q
 ```
 
-Expected: RED on `test_strong_carrier_keeps_the_element_and_gains_the_class`,
-`test_block_carrier_moves_the_class_onto_a_wrapping_span` and
-`test_figcaption_carrier_degrades_without_error`. Paste the failure lines into your
+Expected: RED on **four** tests, all from the same cause — every one of them
+exercises a non-span carrier:
+`test_strong_carrier_keeps_the_element_and_gains_the_class`,
+`test_block_carrier_moves_the_class_onto_a_wrapping_span`,
+`test_figcaption_carrier_degrades_without_error` and
+`test_existing_class_is_kept_beside_the_colour_class` (a `<strong>` carrier, so it
+reddens mechanically under the same mutation). Four failures is the correct result
+here, not an unrelated regression. Paste the failure lines into your
 report. **Restore the file** and confirm 16 passed again.
 
 - [ ] **Step 7: Lint and commit**
