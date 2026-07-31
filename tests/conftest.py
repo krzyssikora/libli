@@ -37,24 +37,54 @@ def _quiesce_live_server_before_db_teardown(request):
     MEASURED at a real e2e teardown: 3 other sessions at t+0, one `active` mid-SELECT
     and one committing, quiet by t+50ms. So the wait is real but short.
 
-    ORDERING IS THE WHOLE TRICK, and it is why this reaches for `transactional_db`
-    the same way pytest-django's own `_live_server_helper` does:
-      - requesting `transactional_db` here makes it set up BEFORE this fixture, so
-        this finalizer runs BEFORE the flush -- which is the entire point;
-      - `page` is NOT autouse, so it is set up after this fixture and torn down
-        before it, meaning the browser is already closed (and the `pagehide` POST
-        already emitted) by the time the barrier starts polling.
-    Depend on neither and the barrier runs at the wrong moment and protects nothing.
+    ORDERING IS THE WHOLE TRICK, and it is why this reaches for its dependencies the
+    same way pytest-django's own `_live_server_helper` does:
+      - requesting `transactional_db` makes it set up BEFORE this fixture, so this
+        finalizer runs BEFORE the flush -- which is the entire point. VERIFIED, not
+        assumed: probing `ContentNode.objects.count()` here returns 1, so the tables
+        are still populated when the barrier runs;
+      - requesting `page` makes the browser set up before this fixture too, so the
+        page is still OPEN in this finalizer and is torn down after it.
+
+    WAITING ALONE IS NOT ENOUGH, and a first attempt that only waited proved it:
+    the full e2e suite went from 4 teardown errors to 1, not 0. A barrier can only
+    wait for a request that has ARRIVED, and the delay between `page.close()` and a
+    `keepalive` request reaching the server is unbounded -- so a late enough one
+    still slips in behind the barrier and deadlocks the flush.
+
+    So do not wait for the POST to happen at some unknown moment; MAKE it happen at
+    a known one. Navigating to `about:blank` fires `pagehide` synchronously, which
+    flushes progress.js's queue right here, and the blank page that replaces it has
+    no progress.js left to fire anything else. Only then is waiting meaningful.
     """
     if "live_server" not in request.fixturenames:
         yield
         return
     request.getfixturevalue("transactional_db")
+    page = request.getfixturevalue("page") if "page" in request.fixturenames else None
     yield
+    import warnings
+
     from tests.db_quiesce import wait_for_db_quiescence
 
-    # Deliberately not asserted. A timeout means a request outlived the window, which
-    # is worth neither failing a passing test over nor hiding: the deadlock it guards
-    # against is itself only an intermittent teardown error, and turning that into a
-    # hard failure would be a worse trade than the one we are fixing.
-    wait_for_db_quiescence()
+    if page is not None:
+        try:
+            page.goto("about:blank")
+        except Exception as exc:  # noqa: BLE001 -- teardown must not raise
+            # A test may legitimately have closed or crashed the page itself. That is
+            # not a failure of the test, and the barrier below is still worth running,
+            # so report and carry on rather than turning a green test red.
+            warnings.warn(
+                f"could not blank the page at teardown: {exc!r}", stacklevel=1
+            )
+
+    if not wait_for_db_quiescence():
+        # Surfaced rather than swallowed: a timeout is the one state in which this
+        # fixture knowingly hands a still-busy database to TRUNCATE, so if the
+        # deadlock ever comes back, the warnings summary says whether the barrier
+        # gave up (this warning present) or was outrun (absent).
+        warnings.warn(
+            f"live_server still busy at teardown of {request.node.nodeid}; "
+            "the flush may deadlock",
+            stacklevel=1,
+        )
