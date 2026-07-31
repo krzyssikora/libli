@@ -109,6 +109,7 @@ Every task's requirements implicitly include this section.
 
 **Files:**
 - Rename: `.superpowers/sdd/progress.md` → `.superpowers/sdd/progress-slice-1-DONE.md`
+- Move: `.superpowers/sdd/task-*-brief.md` and `task-*-report.md` → `.superpowers/sdd/archive-slice-1/`
 - Create: `.superpowers/sdd/progress.md`
 
 **`.superpowers/` is gitignored (`.gitignore:13`) and nothing under it is tracked.**
@@ -170,6 +171,26 @@ mv .superpowers/sdd/progress.md .superpowers/sdd/progress-slice-1-DONE.md
 Plain `mv`, not `git mv` — the file is untracked, and `git mv` aborts with
 `fatal: not under version control`.
 
+**Archive the per-task briefs and reports too — the ledger is not the only stale
+file.** `.superpowers/sdd/task-N-brief.md` and `task-N-report.md` are named by task
+NUMBER only, with no slice in the name, so slice 1's `task-8-report.md` sits exactly
+where this plan's Task 8 report goes. MEASURED on this branch: three agents opened a
+`task-N-report.md` holding another plan's content and had to be told it was not
+theirs; one of them appended to it instead of overwriting. Slice 1 ran to task 12, so
+the collision covers every task this plan has.
+
+```bash
+mkdir -p .superpowers/sdd/archive-slice-1
+mv .superpowers/sdd/task-*-brief.md .superpowers/sdd/task-*-report.md \
+   .superpowers/sdd/archive-slice-1/
+```
+
+Nothing under `.superpowers/` is tracked, so this moves no committed file and shows
+up in no `git status`. After the move, `ls .superpowers/sdd/task-*` must report **no
+matches** — that empty result is the pass condition, and it is what guarantees a
+later task's "write your report to `task-N-report.md`" creates a file rather than
+walking into one.
+
 Create `.superpowers/sdd/progress.md`:
 
 ```markdown
@@ -187,7 +208,9 @@ lines are NOT this plan's.
   data needs an explicit DATABASE_URL=postgres://libli:libli@localhost:5432/libli
   prefix.
 - uv run for everything. ruff format BEFORE ruff check.
-- Never run two pytest invocations at once; never background a long suite.
+- Never run two pytest invocations at once. The e2e suite (~20 min) WILL be
+  auto-backgrounded by the harness; capture the output path and poll it (Task 8
+  Step 3), do not fight it.
 - --reuse-db only for narrow single-file reruns.
 
 ## Tasks
@@ -3827,8 +3850,12 @@ because check ran before format.
 - [ ] **Step 2: Run the full non-e2e suite on a FRESH database**
 
 ```bash
-uv run pytest --create-db -n 4 -q
+uv run pytest --create-db -n 4 -q --verbosity=0
 ```
+
+`--verbosity=0` is a display-only override and is required to see the count at all —
+see Step 3 for the measurement (`addopts` already carries `-q`, and a second one
+suppresses the summary line).
 
 **That is the whole command — run it once.** `-n 4` (xdist, as CI does) is not optional:
 a freshly created database running ~4,500 tests sequentially is the slowest
@@ -3857,8 +3884,32 @@ uses, so the full suite is the real check here — not just the five new files.
 - [ ] **Step 3: The e2e suite**
 
 ```bash
-uv run pytest -m e2e -n 4 -q
+uv run pytest -m e2e -n 4 -q --verbosity=0
 ```
+
+**This call WILL be auto-backgrounded, and that is not a failure — plan for it.**
+MEASURED: the full e2e suite takes ~20 minutes (1183s at `-n 4`), and the Bash tool
+enforces a 10-minute per-call ceiling, above which the harness detaches the job and
+returns an output-file path instead of the output. "Run it in the foreground and
+wait" is therefore not a thing that can be complied with; two agents stalled trying,
+waiting on a job whose output they could not read. Do this instead:
+
+1. Run the command **once**. Do **not** pipe it through `tail`/`head` — the harness
+   keeps the whole output file, and a pipe throws away the `collected N items`
+   header line that Step 3 exists to record (this happened; the count had to be
+   inferred from `564 passed + 1 skipped` instead of read).
+2. Keep the returned output-file path. Poll **that file**, not the terminal.
+3. Wait for the completion notification (or a terminal `N passed`/`N failed` line in
+   the file). Do **not** start a second invocation while it runs — two concurrent
+   pytest runs collide on the Postgres test databases and manufacture failures.
+
+`--verbosity=0` is mandatory for a readable result and changes nothing about what
+runs. `pyproject.toml` already sets `addopts = "-q -m 'not e2e'"`, so the literal
+`-q` above stacks to quiet-level **-2** under pytest 9.0.3, which suppresses the
+final `N passed in Ys` summary line entirely — MEASURED with a one-test repro:
+identical run, nothing printed at `-q -q`, `1 passed in 6.57s` with one `-q`.
+Neither `-rA` nor a stderr redirect restores it; only overriding the accumulated
+verbosity does. A run that prints no summary reads as a hang.
 
 **No path argument at all.** MEASURED collection counts on this branch:
 
@@ -3883,6 +3934,27 @@ invisible unless the number is written down.
 
 Slice 2 changes no JS, CSS or template, so a regression here would be surprising — say so
 explicitly in your report if one appears rather than assuming it is pre-existing.
+
+**One divergence has already been OBSERVED here and is not an assertion failure:**
+`ERROR` (not `FAILED`) at teardown, with `psycopg.errors.DeadlockDetected` inside
+Django's `flush()` / `TRUNCATE ... CASCADE`, on `live_server`-backed tests. Measured
+on this branch: 4 such errors in one `-n 4` run (`test_e2e_practice_state`,
+`test_e2e_markdone`, `test_e2e_reveal_gate`, `test_e2e_slideshow`), then a *different*
+subset — 1 of the same 4 — on a serial rerun of only those node IDs. Every affected
+test's own body passed on every observation. The accompanying
+`baza danych "test_libli_blcp_gwN" jest używana przez innych użytkowników` teardown
+warning names the mechanism: a second session still holds the database when teardown
+fires, so the live_server request thread and the test thread deadlock over
+`AccessExclusiveLock` vs `AccessShareLock`.
+
+Distinguish the two cases before reporting a verdict, because they need opposite
+actions:
+- **`ERROR` at teardown, body passed, non-deterministic across runs** → environmental
+  contention, not this diff. Confirm no `test_libli%` connections survive
+  (`select … from pg_stat_activity where datname like 'test_libli%'` → 0 rows), then
+  re-run the suite ONCE, clean. Report both runs' numbers.
+- **`FAILED` with an assertion, or the same node ID erroring reproducibly** → treat as
+  a real regression and stop.
 
 - [ ] **Step 4a: Re-verify the two exclusion pks FIRST**
 
