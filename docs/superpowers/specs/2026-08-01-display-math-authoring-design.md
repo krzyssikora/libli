@@ -93,8 +93,9 @@ Two read-only scans, because the two sanitiser families store different shapes.
 | spans | |
 |---|---|
 | intact (no tag between the delimiters — renders today) | **17,821** |
-| mergeable (partner past a `<div>`/`<p>`/`<br>` boundary — phase 1 fixes these) | **6** |
-| past a non-structural barrier (left alone) | **0** |
+| mergeable **under the module's strict predicate** (attribute-free `<div>`/`<p>`/`<br>` boundary) | **6** |
+| `div`/`p`/`br` boundary but **attributed** (barrier — not fixed) | **0** |
+| past any other tag (barrier — not fixed) | **0** |
 | unclosed | 1 |
 
 **`sanitize_cell`-shaped fields** — table cells and gallery descriptions, which the registry
@@ -107,6 +108,13 @@ deliberately omits and which the hooks nonetheless traverse:
 | values containing math | 5,519 |
 | spans intact | **5,699** |
 | spans with escaped markup inside the math (phase 1b's target) | **0** |
+
+The mergeable count was re-measured under the module's exact predicate (boundary tags attribute-free,
+`div`/`p` holding only text and bare `<br>`), not a looser tag-name taxonomy, so **6 is the real count,
+not an upper bound**. All six are `</p><p>` boundaries, and they are real authored content: one
+`CalloutElement` body holding the reported `align*` block, and five question stems
+(`ChoiceQuestionElement` 218/226/227, `ShortNumericQuestionElement` 76/77) holding
+`\begin{cases}\begin{align}`. They render as nothing today.
 
 **Total measured: 23,520 intact spans, 6 broken.** The imported *matematyka* content is essentially
 all fine — the LAL importer wrote math into single text nodes — so this is an **authoring-time**
@@ -154,14 +162,26 @@ later, plus JS-injected content no server-side filter could ever see.
 - `options` is optional; when absent, the default delimiter set applies;
 - the return value is unspecified — treat it as `undefined`;
 - if `root` **itself** matches an ignored selector the function returns immediately, doing nothing.
-  This is not covered by "the walk does not descend into them": `math.js` already had to special-case
-  a self-matching root (`scope.matches("[data-katex]")`), so it is a live shape here.
+  The check must be **guarded on the existence of `matches`** — `Document` and `DocumentFragment` have
+  none and calling it throws — exactly as `math.js:18` already guards the same hazard with
+  `if (scope.matches && scope.matches("[data-katex]"))`;
+- **the export is unconditional.** Only the two hooks are guarded on the KaTeX globals being present.
+  If the export sat inside that guard, every unit case would fail on a harness page that does not also
+  load `katex.min.js` and `auto-render.min.js`. The unit-test page needs to load only
+  `math_reflow.js` itself.
 
 **Hook A — `window.renderMathInElement(root, options)`**: call `window.libliMathReflow(root, options)`,
 then call through.
 
 **Hook B — `window.katex.render(expr, element, options)`**: strip one balanced surrounding `\[…\]` or
-`\(…\)` from `expr`, then call through. Covers the Math element and the `[data-math-live]` preview.
+`\(…\)` from `expr`, then call through. Covers the Math element and the `[data-math-live]` preview
+(`_edit_math.html`, routed via `text_toolbar.js:302-318` → `window.libliRenderMath` → `katex.render`).
+
+Note that the math-insert dialog's `[data-math-preview]` is a **Hook A** surface, not Hook B —
+`math_input.js:71-72` renders it through `renderMathInElement`. `math_input.js` is loaded at
+`editor.html:135`, i.e. *before* `katex.min.js`; that is safe, and unaffected by the load-order
+argument below, only because it resolves both globals lazily inside event handlers rather than at
+evaluation time.
 
 **Installation is once, unconditional, with no retry, and guarded by a marker.**
 `text_colour.js:587-595` re-runs its installs on `DOMContentLoaded` when either global was missing.
@@ -212,11 +232,19 @@ hardcoded list still matches what the vendored file contains — a KaTeX bump mu
 diverge. The eight default pairs are:
 
 ```
-$$ … $$            \( … \)            \[ … \]
-\begin{equation} … \end{equation}     \begin{align} … \end{align}
-\begin{alignat} … \end{alignat}       \begin{gather} … \end{gather}
-\begin{CD} … \end{CD}
+[{left:"$$",              right:"$$",              display:true },
+ {left:"\\(",             right:"\\)",             display:false},
+ {left:"\\begin{equation}",right:"\\end{equation}",display:true },
+ {left:"\\begin{align}",  right:"\\end{align}",    display:true },
+ {left:"\\begin{alignat}",right:"\\end{alignat}",  display:true },
+ {left:"\\begin{gather}", right:"\\end{gather}",   display:true },
+ {left:"\\begin{CD}",     right:"\\end{CD}",       display:true },
+ {left:"\\[",             right:"\\]",             display:true }]
 ```
+
+Transcribed verbatim from the vendored file, **in its order** — which matters, because "caller's array
+order, first match wins" is load-bearing. `test_math_reflow_defaults.py` compares the **full triples
+(`left`, `right`, `display`) in order**, not just the `left` strings.
 
 Two of those (`\(`, `\[`) overlap with the seven explicit callers; the extra **six** are the actual
 asymmetry. On fill-table, switch-gate and switch-grid, split `$$…$$` and `\begin{align}` spans will
@@ -224,24 +252,62 @@ therefore reflow, and will not on the other seven surfaces. That is pre-existing
 those surfaces accept; the module inherits it rather than creating it, and deliberately does not
 paper over it.
 
-#### Scan semantics — reproduce `splitAtDelimiters`
+One precondition worth stating: `courses/htmlsandbox.py:122` defines `has_math_delimiters` as
+`("\(" in html) or ("\[" in html)`, and the four gated templates emit the whole KaTeX block only
+when `has_math` is true. A page whose *only* math is `$$…$$` therefore loads no KaTeX at all and
+nothing runs — auto-render included. The `$$` behaviour above applies only where a `\(` or `\[`
+appears somewhere on the page too.
 
-The merged text node is handed straight to auto-render, which re-splits it. If the two disagree about
-where a span begins or ends, the reflow merges one region and the renderer parses another. So:
+#### Scan semantics — a faithful port of `splitAtDelimiters`
 
-- **Position order and precedence.** Walk positions left to right; at each position test the
-  delimiters in the caller's array order, first match wins. Do not use longest-match or a
-  reordered alternation.
-- **Opening parity.** A candidate delimiter only *opens* a span when the run of backslashes
-  immediately preceding its first character has even length. Without this,
-  `\[\begin{align*} a&=b \\[2ex] c&=d \end{align*}\]` is misread: `\\[2ex]` contains the characters
-  `\[`. Stated generally for every delimiter in the set — for a delimiter whose own first character
-  is a backslash, that character is not counted as part of the preceding run; for `$$`, which starts
-  with no backslash, the rule reduces to "not preceded by an odd number of backslashes".
-- **Closing search takes the first literal occurrence, with no parity filter** — because that is
-  exactly what auto-render's `splitAtDelimiters` does (it performs no escape handling at all).
-  The asymmetry is deliberate: parity decides where a span *opens*, and auto-render's own semantics
-  decide where it *ends*, so the reflow can never pair a span differently from the renderer.
+The merged text is handed straight back to auto-render, which re-splits it. If the two disagree about
+where a span begins or ends, the reflow merges one region and the renderer parses another. The only
+safe design is therefore a **faithful port**, deviating nowhere. Deminified from the vendored
+`auto-render.min.js`:
+
+```js
+// findEndOfMath(delim, text, startIndex)
+for (; r < t.length; ) {
+  const n = t[r];
+  if (o <= 0 && t.slice(r, r + i) === e) return r;   // accept only at brace depth <= 0
+  "\\" === n ? r++ : "{" === n ? o++ : "}" === n && o--;
+  r++;
+}
+return -1;
+```
+
+- **Openings.** Walk left to right; at each position test the delimiters in the caller's array order,
+  first match wins. **No escape handling** — auto-render does none on openings
+  (`new RegExp("(" + lefts.join("|") + ")")`), so neither may the reflow.
+- **Closings.** Port `findEndOfMath` exactly: a backslash **skips the following character** (so an
+  escaped `\]` is not accepted as a closer), and a closer is only accepted at **brace depth ≤ 0**.
+- Do not use longest-match, a reordered alternation, or an `indexOf`-style first-literal search.
+
+**An earlier draft specified a backslash-parity rule on openings and an `indexOf` closing search.
+Both were wrong and are deliberately removed.** The parity rule was a unilateral deviation: because
+auto-render accepts openings the parity filter rejects, it produced concrete mis-pairings — for
+`<div>\[2ex] \[a</div><div>b\]</div>` the reflow would reject the `\[` inside `\[`, merge
+`\[a
+b\]`, and leave `\[2ex] ` as an adjacent text node, whereupon auto-render (see below)
+re-concatenates and opens at the `\[` inside `\[2ex]`, rendering math the author never wrote where
+today the text stays inert. The `indexOf` closing search was wrong on its own terms: the deminified
+source above shows auto-render *does* escape-skip and brace-track. Being a faithful port removes the
+entire divergence class and needs no parity rule — the `\[2ex]` idiom pairs correctly because the
+scan opens at the span's real `\[` and never reconsiders the interior.
+
+**auto-render concatenates sibling text nodes before splitting.** Also from the vendored source:
+
+```js
+if (3 === r.nodeType) {
+  let o = r.textContent, i = r.nextSibling;
+  for (; i && i.nodeType === Node.TEXT_NODE; ) o += i.textContent, i = i.nextSibling;
+```
+
+It joins the entire run of consecutive sibling text nodes and splits *that* string. So the three text
+nodes rule 5 produces are re-joined before parsing: **the split into three nodes is cosmetic and
+confers no isolation whatsoever.** Any argument that a fragment boundary protects a neighbouring span
+is unfounded. What makes the result correct is only that the reflow scans the same concatenated-run
+text, with the same semantics, as the renderer will.
 
 #### The walk, and what stops it
 
@@ -261,11 +327,20 @@ which the child is guaranteed to have been processed before it can be destroyed.
 list is copied into an array before any rewrite, because rule 5 mutates a live `childNodes` and a
 live iteration would skip or revisit nodes.
 
+**A parent classifies its children on their state *after* every descendant has been processed**, and
+the snapshot is taken immediately before that parent's own rule-5 rewrites. This is observable: a
+`<div>` containing two nested `<div>`s is a barrier by the predicate below, but once post-order
+processing has folded those nested divs into a text node it becomes mergeable — so a two-level split
+span merges only under this rule. The nested-split unit case must assert the resulting merge, not
+merely that no node was skipped.
+
 **Ignored subtrees** are anything matching:
 
 - auto-render's own default ignore list — `script, noscript, style, textarea, pre, code, option`
   (`pre` and `code` are in `ALLOWED_TAGS`, so this is reachable);
-- **`[contenteditable]`** — `text_toolbar.js:196-197` mounts a `contenteditable` `.rte-surface` in
+- **`[contenteditable]:not([contenteditable="false"])`** — the bare attribute-presence selector
+  would also match `contenteditable="false"` subtrees, which are not editable and carry no
+  data-mutation risk. `text_toolbar.js:196-197` mounts a `contenteditable` `.rte-surface` in
   `editor.html`, and `sync()` writes that surface's `innerHTML` back into the POSTed textarea. A DOM
   mutation inside the RTE is therefore a **data** mutation, and would break the render-only
   guarantee. Load-bearing, not hygiene. Its user-visible consequence is deliberate and must be
@@ -295,6 +370,16 @@ Every other node is a **barrier**. The attribute condition is load-bearing: `ALI
 `ta-left`/`ta-center`/`ta-right` on `div`, `p`, `h2`–`h4`, `blockquote`, `li`, and `text_toolbar.js`
 emits them. Merging a `<div class="ta-center">` into a bare text node would discard the centring.
 
+**Named limitation, and it is a likely one.** Centring a formula is an ordinary gesture in maths
+authoring. An author who pastes a multi-line `\[…\]` block and then presses the RTE's centre button
+gets `class="ta-center"` on every line div; every line becomes a barrier, nothing merges, and the
+reported symptom persists with no error — the same silent-failure class this spec exists to remove.
+It appears in the Error-handling and Risks tables, and an e2e case pins the failure mode so it is a
+known boundary rather than a surprise. Widening the predicate to *attribute-homogeneous* runs (merge
+when every covered node carries an identical attribute set, preserving one wrapper) is the obvious
+extension and is deliberately **out of scope here** — it changes the rewrite from "replace with text
+nodes" to "replace with a reconstructed element", which deserves its own risk budget.
+
 #### Phase 1 — merge
 
 For each element reached by the walk, over its snapshotted child list:
@@ -309,10 +394,19 @@ For each element reached by the walk, over its snapshotted child list:
    span's first character through the one holding its last. Those nodes — and only those; earlier and
    later siblings in the run are untouched — are replaced by up to three text nodes: the covered text
    preceding the span, the span itself, and the covered text following it, omitting empties.
-   **The synthetic newlines from step 2 are dropped from the preceding and following fragments and
-   retained only where they fall inside the span.** So
+   **"Synthetic" means only the newlines step 2 manufactures from `<div>`/`<p>` wrapping — never the
+   `"\n"` contributed by a real authored `<br>`.** Synthetic newlines are dropped from the preceding
+   and following fragments and retained only where they fall inside the span. So
    `<div>a</div><div>\[x</div><div>y\]</div><div>b</div>` yields `a`, `\[x\ny\]`, `b` — not
    `"\na\n"` and a whitespace-only node that "omitting empties" would not remove.
+
+   **A real `<br>` inside the covered range but outside the span must survive as an element.** The
+   preceding and following fragments are therefore rebuilt as *node sequences* preserving
+   attribute-free `<br>` elements, not flattened to a single text node — otherwise
+   `<div>a<br>b \[x</div><div>y\]</div>` loses the author's line break either way: dropped as
+   "synthetic", or kept as a `\n` character that HTML collapses to a space because the `<br>` element
+   it came from was replaced. Inside the span a `\n` character is correct, because there the text is
+   LaTeX, not HTML.
 6. Matches are processed left to right, re-deriving the run's segments after each rewrite.
    **This terminates**: after a rewrite the span lies in a single text node, so rule 4 skips it on
    re-derivation and the scan strictly advances past it.
@@ -325,6 +419,11 @@ For each element reached by the walk, over its snapshotted child list:
 > broken span — `<div>\(x\) prose \[a</div><div>b\]</div>` — is not merged, but its wrapper is folded
 > away and it is relocated into a bare text node. It still renders; a unit case pins that. The
 > invariant is about span *parsing*, not about surrounding markup being untouched.
+>
+> **Phase 1b is carved out too**, exactly as phase 2 is: its whole target is a span lying inside a
+> single text node, whose *contents* it rewrites. The corpus measured **0** such spans, so today's
+> content is empirically safe — but that is an observation, not a design guarantee, and the
+> `sanitize_cell`-shaped option surfaces (MCQ, choice-grid, switch-grid) are unmeasured.
 
 **Inline spans merge too, and that collapses authored lines.** The derived set includes `\(…\)` on
 every surface, and KaTeX renders those inline rather than as a block. So
@@ -336,13 +435,28 @@ surprise.
 #### Phase 1b — textual boundaries inside a span
 
 Because `sanitize_cell` already flattened cell content at save (Problem 1b), the boundary markers in
-a cell arrive as **literal characters** rather than as DOM nodes. So, inside a matched span only,
-a literal `<br>`, `<br/>`, `<div>`, `</div>`, `<p>` or `</p>` character sequence — matched by tag
-name, case-insensitively, attributes allowed — becomes `"\n"`.
+a cell arrive as **literal characters** rather than as DOM nodes.
 
-This is the exact textual counterpart of phase 1's DOM merge and is what makes math in table cells
-work at all. It is confined to the interior of a span that has already matched, so prose is never
-touched; and `<br>` has no meaning in LaTeX, so nothing legitimate is being rewritten.
+**Traversal — the part that decides whether phase 1b works at all.** It runs over every text node
+reached by the walk, locating spans with the same faithful `splitAtDelimiters` semantics as phase 1,
+and it applies to **every span the scan finds, including — in fact especially — the ones rule 4
+skipped**. The cell case *is* a rule-4 skip: the span already lies inside one text node. An
+implementer who hangs phase 1b off the rule-5 rewrite path — the only place a span is otherwise both
+matched and acted on — ships a phase 1b that never fires on any cell, and with every corpus count at
+0 there is no test data to reveal it.
+
+**Only `<br>` is rewritten.** Inside a matched span, a literal `<br>` or `<br/>` character sequence,
+matched by tag name case-insensitively, becomes `"\n"`. `<div>` and `<p>` are deliberately **not** in
+the list: `CELL_TAGS` (`courses/sanitize.py:104`) is `{strong, b, em, i, u, br, span}`, so they can
+never appear in flattened cell text, and including them would be unreachable code carrying a real
+hazard — `\(a<p>b\)` is a plausible chain of inequalities that would be silently rewritten to
+`\(a\nb\)` and render as "ab". Attributes are not tolerated either, for the same narrowing reason.
+
+The residual hazard for `<br>` is much smaller: `a<br>b` as intended mathematics would have to mean
+`a < b·r > b`, which no author writes.
+
+This is the textual counterpart of phase 1's DOM merge, and it is what makes math in table cells work
+at all.
 
 #### Phase 2 — delimiter promotion
 
@@ -351,13 +465,22 @@ cosmetic: promote-then-merge would leave a `\(\begin{align*}…\end{align*}\)` t
 across `<div>`s unpromoted, because it is not yet inside any single text node — and that split case
 is precisely the reported symptom.
 
-For every text node reached by the walk, a `\(…\)` span whose content — **after skipping leading
+**Traversal.** A second pass over the same walk, honouring the identical ignored-subtree list — it
+must, or promotion would rewrite the TeX inside a `.katex` annotation or mutate the RTE surface. It
+operates **per text node**, not per run: phase 1's rule-5 output is several adjacent text nodes, and
+a promotion candidate never spans them (a span that spanned nodes would have been merged already).
+
+For every text node reached by that pass, a `\(…\)` span whose content — **after skipping leading
 whitespace**, which a paste plausibly produces — begins with one of the ten display-only environments
 has its delimiters rewritten to `\[…\]`. Specifically:
 
-- the **opening parity rule applies** when locating the `\(`;
-- the delimiters are **hardcoded `\(` → `\[`**, not derived; promotion is about the two libli
-  delimiter forms, not about whatever exotic set a caller registered;
+- **spans are located with the effective delimiter set's partition, not by a raw scan for `\(`.**
+  Only a span the effective scan actually *opened with* `\(` may be promoted. On fill-table,
+  switch-gate and switch-grid the effective set includes `$$` and the `\begin{…}` pairs, so a `\(…\)`
+  sequence sitting **inside** a `$$…$$` span is not a span at all — a raw scan would rewrite its
+  delimiters and corrupt the enclosing formula;
+- once a candidate span is identified, the rewrite is **`\(` → `\[` and `\)` → `\]`**, hardcoded;
+  promotion is about the two libli delimiter forms, not about whatever exotic set a caller registered;
 - promotion is a **no-op unless `\[` is in the effective set** for that caller. All ten callers have
   it today, so this is a stated precondition rather than a live branch, but it must not be left
   implicit;
@@ -397,19 +520,24 @@ matches nothing and is left as-is. The whole reflow is wrapped so a failure degr
 behaviour rather than blocking typesetting.
 
 **Cost.** O(nodes under `root`). `math.js:33` calls `renderMathInElement` once per matched element
-across the nine selectors listed at `math.js:31`, and roots are per-element, so total added traversal
-is bounded by one pass over the page's element subtrees — the same order as auto-render's own work.
+across the nine selectors listed at `math.js:31`. Those selectors nest — a `.el--tabs` holding
+`.el--text` children matches both — so nested content is traversed once per matched ancestor level,
+not once in total. The bound is **O(nodes × nesting depth of matched containers)**, which is small in
+practice (depth 2-3) and is the same order as auto-render's own repeated work over the same roots.
 
 #### Hook B, precisely
 
-Two conditions, both required — the guard is part of the logic, not commentary beside it:
+Reuse the ported `findEndOfMath` rather than inventing a second rule. The expression is stripped iff,
+after skipping leading whitespace, it **opens** with `\[` or `\(` and `findEndOfMath` for the matching
+closer, started just past the opener, lands on a closer whose end is the expression's last
+non-whitespace character.
 
-1. the expression matches `/^\s*\\\[([\s\S]*)\\\]\s*$/` or `/^\s*\\\(([\s\S]*)\\\)\s*$/`; **and**
-2. the captured group contains none of `\[`, `\]`, `\(`, `\)` **counted with the parity rule**, so a
-   legitimate `\\[2ex]` in the body does not veto stripping.
-
-`[\s\S]*` is greedy, so condition 1 alone would match `\[a\] + \[b\]` with the group `a\] + \[b` and
-strip exactly the case that must be left alone.
+That single condition is exactly right where a regex is not. `/^\s*\\\[([\s\S]*)\\\]\s*$/` is greedy,
+so it matches `\[a\] + \[b\]` with the group `a\] + \[b` and would strip the one case that must be
+left alone; `findEndOfMath` stops at the first `\]` instead, which is not the end of the expression, so
+the strip is correctly refused. And because the port skips the character after a backslash, a
+legitimate `\\[2ex]` in the body neither opens nor closes anything, so it does not veto stripping —
+without needing any parity rule of our own.
 
 On a match, strip the wrapper. **`displayMode` is left exactly as the caller passed it, for both
 wrapper forms.** Both real callers reach `katex.render` through `math.js:6`, which hardcodes
@@ -428,14 +556,14 @@ the caller's object; `text_colour.js` wraps the same function and shares the arg
 | Table-cell span holding literal `<br>` text | Converted to `\n` by phase 1b; renders |
 | Intact span inside another span's covered range | Relocated into a bare text node; still renders |
 | Split **inline** `\(…\)` span | Merged; the two authored lines collapse to one (accepted) |
-| `\\[2ex]` row spacing inside a display block | Parity rule: not an opening delimiter |
-| `$$…$$` split span on fill-table / switch-gate / switch-grid | Reflowed — the caller's set registers it |
+| `\\[2ex]` row spacing inside a display block | Ported `findEndOfMath` skips the character after a backslash; it neither opens nor closes |
+| `$$…$$` split span on fill-table / switch-gate / switch-grid | Reflowed — the caller's set registers it — **but only on a page that also contains a `\(` or `\[`** (see below) |
 | `$$…$$` on the other seven surfaces | Not a delimiter there; untouched |
 | `root` itself matches an ignored selector | Returns immediately, does nothing |
 | `renderMathInElement` or `katex` absent | Hooks never install; today's behaviour |
 | Module included twice | Marker guard; installs once |
 | Reflow throws | Caught; the original `renderMathInElement` runs on the untouched DOM |
-| `\[a\] + \[b\]` reaching `katex.render` | Condition 2 fails; not stripped |
+| `\[a\] + \[b\]` reaching `katex.render` | `findEndOfMath` stops at the first `\]`, which is not the expression's end; not stripped |
 | `\(x\)` in a Math element | Wrapper stripped; `displayMode` stays as passed (`true`) |
 | `options` undefined at Hook B | Fresh object constructed; caller's argument never mutated |
 | Display-only environment inside `\(…\)`, any leading whitespace | Promoted to `\[…\]` |
@@ -474,13 +602,19 @@ is removed.
 3. A **Math element** whose `latex` carries the `\[…\]` wrapper renders instead of erroring; and one
    carrying `\(x\)` renders as display.
 4. `\(\begin{align*}…\end{align*}\)` renders as display — **phase 2's own regression coverage**.
-5. `\[a\] + \[b\]` in a Math element is left alone (Hook B condition 2).
-6. A display block containing `\\[2ex]` reflows and strips correctly (parity rule).
+5. `\[a\] + \[b\]` in a Math element is left alone — the ported closer search stops short of the
+   expression's end, so the strip is refused.
+6. A display block containing `\\[2ex]` reflows and strips correctly — pins the ported
+   `findEndOfMath` (a backslash skips the next character), not a parity rule.
 7. **Regression**: single-line `\(x^2\)` and single-line `\[…\]` render identically before and after.
 8. **Idempotence**: a re-rendering surface (quiz feedback swap or tab reveal) still shows one
    `.katex` node.
 
-### `tests/test_math_reflow_unit.py` (e2e-marked; DOM table driven from a Playwright page)
+### `tests/test_e2e_math_reflow_dom.py` (e2e-marked; DOM table driven from a Playwright page)
+
+Named `test_e2e_…` so filename and marker agree: `pyproject.toml` sets `addopts = "-q -m 'not e2e'"`,
+so this file is **excluded from the 4559-test baseline** and runs only under `-m e2e`. A reader
+checking "did the DOM cases run?" against the baseline count would otherwise be misled.
 
 Direct DOM-in/DOM-out cases against `window.libliMathReflow`:
 
@@ -493,7 +627,14 @@ Direct DOM-in/DOM-out cases against `window.libliMathReflow`:
 - **nested split inside a mergeable `<div>` that the parent then folds** — pins post-order traversal;
 - a bystander intact span inside another span's covered range still renders (invariant qualification);
 - a split **inline** `\(…\)` span merges (accepted line collapse);
-- phase 1b: a single text node containing `\[a<br>b\]` as literal text becomes `\[a\nb\]`;
+- phase 1b: a single text node containing `\[a<br>b\]` as literal text becomes `\[a\nb\]` — reached
+  via a **rule-4 skip**, not via a rule-5 rewrite;
+- phase 1b leaves `\(a<p>b\)` alone (only `<br>` is rewritten);
+- ported `findEndOfMath`: a span containing an escaped `\\]` closes at the real closer, and a `\]`
+  inside braces (`\[\text{a\]b}\]`) is not accepted as the closer;
+- a real `<br>` inside the covered range but outside the span survives as a `<br>` element;
+- phase 2 does **not** promote a `\(…\)` sequence sitting inside a `$$…$$` span under the default
+  delimiter set;
 - a `\(…align*…\)` span split across two `<div>`s comes out **both merged and promoted** — pins the
   phase ordering;
 - phase 2 with leading whitespace: `\( \begin{align*}…\)` promotes;
@@ -524,7 +665,9 @@ it rather than re-implementing the parser. It must additionally assert:
   the tag is inside or outside, so containment needs its own assertion;
 - the module registers no `DOMContentLoaded` retry. **That assertion must strip comments before
   matching**, since the module is required to carry a comment explaining why it does not copy
-  `text_colour.js`'s retry; assert on the call form `addEventListener("DOMContentLoaded"` in
+  `text_colour.js`'s retry. Match **quote-agnostically** (`addEventListener\(\s*["']DOMContentLoaded`),
+  since a module written with single quotes would slip past a double-quoted literal and make the
+  assertion vacuous; falsification must prove it reddens with **either** quote style, in
   comment-stripped source. (This repo has been bitten by exactly that:
   `test_element_state_write_routes.py` regexes raw source including comments.)
 - the existing anti-vacuity self-check must cover the new assertions too — a parser returning `[]`
