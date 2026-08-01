@@ -29,9 +29,12 @@ a^n: a^k&=a^{n-k}\\
 
 **Problem 1 — the RTE splits the span, and auto-render only matches inside a single text node.**
 
-`renderMathInElement` scans **text nodes**. It never joins text across element boundaries. A
-contenteditable turns each ENTER into a `<div>` (Chrome/Safari) or a `<br>` (Firefox) — see the
-comment already in `courses/sanitize.py` on why `div` is in `ALLOWED_TAGS`. So the opening `\[` and
+`renderMathInElement` scans **text nodes**. It never joins text across element boundaries. In this
+RTE each ENTER yields a `<div>` on **every** browser — `text_toolbar.js:200` runs
+`document.execCommand("defaultParagraphSeparator", false, "div")` at surface mount precisely so
+per-block alignment works cross-browser — while `<br>` arrives from Shift+Enter and from pasted
+markup. (`courses/sanitize.py` keeps `div` in `ALLOWED_TAGS` for the same reason.) So the opening
+`\[` and
 the closing `\]` land in different text nodes and the whole span is skipped, with no error and no
 visible trace.
 
@@ -182,6 +185,17 @@ later, plus JS-injected content no server-side filter could ever see.
   the hooked callers all pass elements);
 - `options` is optional; when absent, the default delimiter set applies;
 - the return value is unspecified — treat it as `undefined`;
+- **a falsy `root` is an immediate no-op.** Three callers (`filltable.js:73,86`, `switchgate.js:93`,
+  `switchgrid.js:102,111`) pass their root with no truthiness guard, and Hook A calls
+  `libliMathReflow` *before* calling through — so a falsy root reaches us before auto-render's own
+  `if(!e) throw new Error("No element provided to render")` can fire. Returning immediately leaves
+  that error unchanged;
+- **the walk processes the root's own child list for all three root types.** "Does not throw" is not
+  a sufficient contract for `Document`/`DocumentFragment`: an implementation that early-returns for
+  any non-Element root satisfies it while doing nothing. auto-render's `renderElem` iterates
+  `e.childNodes` directly, so a fragment's top-level children *are* processed and split, and the
+  reflow must match. The fragment DOM case therefore asserts an actual merge across two top-level
+  `<div>` children, not merely the absence of a throw;
 - if `root` **itself** matches an ignored selector the function returns immediately, doing nothing.
   The check must be **guarded on the existence of `matches`** — `Document` and `DocumentFragment` have
   none and calling it throws — exactly as `math.js:18` already guards the same hazard with
@@ -216,8 +230,13 @@ evaluation time.
 wrapper, so a retry would wrap an already-wrapped chain and reflow twice per call. A single install is
 safe because the module loads after `katex.min.js` and `auto-render.min.js` in document order. It
 still sets and checks a `__libliMathReflowWrapped` marker — as a **double-include guard** (a shared
-partial, a future refactor), not as a retry enabler. If either global is absent the module installs
-nothing and every path keeps today's behaviour.
+partial, a future refactor), not as a retry enabler. **That marker lives on `window`, not on either
+wrapped function**, and one flag covers both hooks. A function-attached marker would not survive the
+mandated load order: `text_colour.js` wraps second and owns the outer function, so a second include
+of `math_reflow.js` would find no marker on `window.renderMathInElement` and wrap again — exactly the
+double-wrap the marker exists to prevent, and predicted by this spec's own reasoning that marker
+properties do not propagate through another module's wrapper. If either global is absent the module
+installs nothing and every path keeps today's behaviour.
 
 #### Load order and the `has_math` gate
 
@@ -243,8 +262,11 @@ Ordering, all four relations asserted rather than left to transitivity:
 `katex.min.js` < `auto-render.min.js` < `math_reflow.js` < `text_colour.js`, plus
 `math_reflow.js` < `math.js` wherever `math.js` loads. `math.js` runs `renderMath(document)` and
 `renderInlineText(document)` at evaluation time, so if it ever preceded the module the entire first
-paint would bypass both hooks with no error. Placing the module before `text_colour.js` also means
-`text_colour.js` installs second and owns the outer function, keeping its retry logic correct.
+paint would bypass both hooks with no error. Placing the module before `text_colour.js` is convention and determinism, not correctness:
+`text_colour.js`'s retry fires only when a global was absent at its evaluation, which never happens on
+these five templates, so either install order yields the same call sequence (reflow before the
+original renderer, `mapColours` after it). The genuinely load-bearing relation is
+`math_reflow.js` < `math.js`, argued above from `math.js`'s evaluation-time `renderMath(document)`.
 
 #### Delimiter set
 
@@ -307,9 +329,10 @@ return -1;
 
 - **Openings.** Walk left to right; at each position test the delimiters in the caller's array order,
   first match wins. **No escape handling** — auto-render does none on openings
-  — the opener regex is
-  `new RegExp("("+t.map(e=>e.left.replace(/[-/\^$*+?.()|[\]{}]/g,"\$&")).join("|")+")")`, i.e. each
-  delimiter is regex-escaped but no LaTeX escape handling happens — so neither may the reflow.
+  — auto-render builds its opener regex by regex-escaping each `left` string and alternating them,
+  with no LaTeX escape handling anywhere, so neither may the reflow. (The literal is not reproduced
+  here: two earlier attempts to transcribe its nested backslashes were wrong, and the specified port
+  uses ordered `startsWith` rather than a regex, so the exact source text is not load-bearing.)
 - **Closings.** Port `findEndOfMath` exactly: a backslash **skips the following character** (so an
   escaped `\]` is not accepted as a closer), and a closer is only accepted at **brace depth ≤ 0**.
 - Do not use longest-match, a reordered alternation, or an `indexOf`-style first-literal search.
@@ -372,7 +395,10 @@ live iteration would skip or revisit nodes.
 the snapshot is taken immediately before that parent's own rule-5 rewrites. This is observable: a
 `<div>` containing two nested `<div>`s is a barrier by the predicate below, but once post-order
 processing has folded those nested divs into a text node it becomes mergeable — so a two-level split
-span merges only under this rule. The nested-split unit case must assert the resulting merge, not
+span merges only under this rule. **Only when the rewrite covered *all* of its element children**,
+though: rule 5 folds covered nodes only, and non-covered mergeable siblings survive as elements, so an
+outer `<div>` holding `[<div>\[a</div>, <div>b\]</div>, <div>c</div>]` still has a `<div>` child
+afterwards and stays a barrier. The nested-split DOM case must state which of the two it exercises. The nested-split unit case must assert the resulting merge, not
 merely that no node was skipped.
 
 **Ignored subtrees** are anything matching:
@@ -386,11 +412,25 @@ merely that no node was skipped.
   mutation inside the RTE is therefore a **data** mutation, and would break the render-only
   guarantee. Load-bearing, not hygiene. Its user-visible consequence is deliberate and must be
   documented for testers: **display math is not typeset live inside the editing surface** — the round
-  trip is paste → save → view. **The guarantee is one-sided and must not be over-read**: the ignore
-  list constrains `libliMathReflow` only. auto-render honours `ignoredTags`/`ignoredClasses` and
-  nothing else, so if a caller ever passed a root containing `.rte-surface`, auto-render would inject
-  `.katex` markup into the editable subtree and `sync()` would persist it. What actually prevents that
-  is that no caller does — `editor.js` renders only `[data-scope="preview"]`;
+  trip is paste → save → view.
+
+  **A caller already passes an ancestor of a live RTE surface, so this skip is exercised on a real
+  page — it is not prophylaxis.** `_edit_choicegridquestion.html:11` opens
+  `<div … data-choicegrid-editor>` and nests `<textarea data-rte-source>` at line 15;
+  `text_toolbar.js:299` (`initRte(document)`, at module evaluation) inserts a `contenteditable`
+  `.rte-surface` as that textarea's sibling — i.e. *inside* `[data-choicegrid-editor]`; and
+  `choicegrid.js:212` then calls `renderPreviewMath(editor)` with that very element, from a
+  `DOMContentLoaded` handler that runs after the deferred `text_toolbar.js`. So the
+  root-is-an-ancestor shape is **reachable today**. An earlier draft claimed "no caller does"; that
+  was false, and the ancestor-root byte-identity DOM case must be built from the choicegrid shape
+  rather than a synthetic one.
+
+  **The guarantee is still one-sided and must not be over-read**: the ignore list constrains
+  `libliMathReflow`, not auto-render, which honours only `ignoredTags`/`ignoredClasses`. On that same
+  choicegrid path auto-render therefore already walks into `.rte-surface` and can inject `.katex`
+  markup that `sync()` would persist. **That is a pre-existing defect, out of scope here** — this spec
+  must not make it worse, and does not, but neither does it fix it. Recorded so the next person finds
+  it rather than rediscovering it;
 - **`.katex`** — after the first pass KaTeX's output holds the original TeX in a MathML
   `<annotation encoding="application/x-tex">`; re-entering would let phase 2 rewrite the string
   screen readers and copy-paste consumers receive. `math` and `annotation` are listed alongside it
@@ -402,19 +442,47 @@ merely that no node was skipped.
   matches) would otherwise descend into it and let phase 1b or phase 2 rewrite that raw TeX. This is
   a distinct selector, not covered by `.katex`.
 
-The ignore list is **deliberately fixed** rather than derived from `options.ignoredTags` /
-`ignoredClasses` (which auto-render does honour). No caller passes them today, and a fixed list is a
-superset of what any caller would ignore — ignoring more than the renderer is always safe, whereas
-ignoring less would let the reflow act on a subtree the renderer skips. The delimiter set is derived
-precisely because the opposite holds there: scanning a *different* delimiter set than the renderer is
-not safe in either direction.
+The fixed list above is a **floor, not the whole set**: the caller's `options.ignoredTags` and
+`options.ignoredClasses` (which auto-render honours) are **unioned into it**. No caller passes them
+today, but "a fixed list is a superset" is a property of the current callers, not of a fixed list — a
+future caller passing `ignoredTags: ["div"]` would have the reflow act on a subtree the renderer
+skips, folding away the author's wrappers for no rendering benefit. That is a real DOM mutation, and
+this spec applies the opposite standard elsewhere (the `closest()` guard exists precisely because a
+future caller could break the invariant silently). Unioning is strictly safe and cheap: ignoring more
+than the renderer never changes what renders.
+
+The delimiter set is *derived* rather than unioned because the opposite holds there — scanning a
+different delimiter set than the renderer is unsafe in both directions.
 
 **Mergeable vs barrier.** Within one element's child list, a child node is *mergeable* if it is
 
 - a text node, or
-- a `<br>` **carrying no attributes**, or
-- a `<div>` or `<p>` **carrying no attributes** whose descendants are exclusively text nodes and
-  attribute-free `<br>` elements.
+- a `<br>` **carrying no effective attributes**, or
+- a `<div>` or `<p>` **carrying no effective attributes** whose descendants are exclusively text
+  nodes and effectively attribute-free `<br>` elements.
+
+**"No effective attributes" means: no attributes, or only an empty `class` and/or empty `style`.**
+This is not pedantry — without it the feature is a no-op on the dominant authoring path. `div` and `p`
+are keys in `ALLOWED_CLASSES` (via `ALIGN_CLASS_TAGS`), and nh3 emits an **empty** `class` attribute
+for an allowed-classes-keyed tag whose class values are all rejected — the behaviour
+`courses/sanitize.py:53-57` already documents. Measured on this worktree with the real allowlists:
+
+```
+'<div class="MsoNormal">a</div>'  ->  '<div class="">a</div>'
+'<p class="x">a</p>'              ->  '<p class="">a</p>'
+'<div style="color:red">a</div>'  ->  '<div>a</div>'
+'<div class="ta-center">a</div>'  ->  '<div class="ta-center">a</div>'   (kept — a real class)
+```
+
+Pasting a multi-line formula from Word, Google Docs or a web page puts a class on every line block,
+so after save **every line carries `class=""`**. Treating that as "attributed" would make every line
+a barrier, nothing would merge, and the feature would silently do nothing for exactly the paste this
+spec exists to fix. An empty `class` carries no styling, so folding it away loses nothing — whereas
+`class="ta-center"` survives as a real class and correctly stays a barrier (the centring limitation
+below).
+
+The corpus's "attributed boundary: 0" row measures *existing* content and does **not** bound this;
+the paste path is the authoring flow, not the archive.
 
 Every other node is a **barrier**. The attribute condition is load-bearing: `ALIGN_CLASS_TAGS` puts
 `ta-left`/`ta-center`/`ta-right` on `div`, `p`, `h2`–`h4`, `blockquote`, `li`, and `text_toolbar.js`
@@ -437,11 +505,26 @@ For each element reached by the walk, over its snapshotted child list:
 1. Partition the children into maximal **runs** of consecutive mergeable nodes. Barriers terminate a
    run. Each run is processed independently.
 2. Build the run's linear text by concatenating per-child contributions: a text node contributes its
-   data; a `<br>` contributes `"\n"`; a mergeable `<div>`/`<p>` contributes **`"\n"` + its text**
-   (its own `<br>`s becoming `"\n"`) — a **leading** boundary newline only, never a trailing one.
-   One newline per boundary, not two: `<div>a</div><div>\[x</div><div>y\]</div>` gives
-   `"\na\n\[x\ny\]"`, so the span text is `\[x\ny\]`. This is the shape the Purpose section's
-   measurement actually exercised.
+   data; a `<br>` contributes `"\n"`; a mergeable `<div>`/`<p>` contributes its text (its own `<br>`s
+   becoming `"\n"`). Then, **between every pair of adjacent mergeable children, emit one `"\n"` unless
+   the boundary already carries one**, and **collapse any run of consecutive newlines to a single
+   `"\n"`**.
+
+   A leading-only rule (an earlier draft) is wrong: it marks a boundary only when the *next* node is a
+   `div`/`p`, so `<div>\[\alpha</div>` followed by the text node `x\]` yields `\[\alphax\]` — the two
+   tokens concatenate and KaTeX reports an undefined control sequence where the author wrote `\alpha`
+   then `x`. The same loss reappears after a rule-5 rewrite, where a surviving `<div>` sits next to a
+   freshly created text node.
+
+   The collapse rule handles the other direction: `<div><br></div>` is Chrome's representation of an
+   empty line and is mergeable (its only descendant is a bare `<br>`), so without collapsing it would
+   contribute two or three consecutive newlines — a blank line, which in real LaTeX is a `\par` and an
+   error inside `align*`. Collapsing makes that structural rather than relying on KaTeX's whitespace
+   handling.
+
+   Net effect: exactly one `\n` per former boundary. `<div>a</div><div>\[x</div><div>y\]</div>` gives
+   `"a\n\[x\ny\]"`, so the span text is `\[x\ny\]` — the shape the Purpose section's measurement
+   exercised.
 3. Find spans over that text using the scan semantics above.
 4. A span **wholly inside one text-node segment** is skipped.
 5. Any other span is rewritten. Let *covered* be the contiguous child nodes from the one holding the
@@ -604,9 +687,17 @@ converted; phase 2 is idempotent because a promoted span no longer uses `\(`.
 `renderMathInElement` is called repeatedly on the same DOM (quiz feedback swaps, tab reveals,
 `libli:reveal` re-measures), so this matters.
 
-**Bounded failure.** An unclosed opening delimiter, or a span whose partner sits beyond a barrier,
-matches nothing and is left as-is. The whole reflow is wrapped so a failure degrades to today's
-behaviour rather than blocking typesetting.
+**Bounded failure, both hooks.** An unclosed opening delimiter, or a span whose partner sits beyond a
+barrier, matches nothing and is left as-is. The whole reflow is wrapped so a failure degrades to
+today's behaviour rather than blocking typesetting.
+
+**Hook B needs the same containment**, and it is easy to overlook because the paragraph above is about
+the reflow. Hook B runs the ported `findEndOfMath` over `expr`, and `expr` is not guaranteed to be a
+string at every call site — `math.js:6` passes `el.textContent`, but this module's whole justification
+for hooking is that new callers appear. An exception there propagates out of `katex.render`, where
+`math.js` `renderOne`'s `catch` swallows it, leaving the Math element unrendered with no diagnostic.
+So Hook B's strip logic is wrapped too, falling through to `original.apply(this, arguments)` with
+`expr` untouched.
 
 **Cost.** `math.js:33` calls `renderMathInElement` once per matched element
 across the nine selectors listed at `math.js:31`. Those selectors nest — a `.el--tabs` holding
@@ -689,8 +780,16 @@ only `test_e2e_math_reflow.py` and `test_e2e_math_reflow_dom.py` stay outside it
    no `.katex-error`. **The `\[…\]` wrapper is mandatory**: a text element's delimiter set is
    `math.js`'s `INLINE_DELIMS` (`\(`/`\[` only), and bare `\begin{align*}` there is an explicit
    non-goal — a test written from the unwrapped block in this spec's Purpose section could never go
-   green. This case must drive the real gesture; the stored shape a real multi-line paste produces is
-   the unknown under test.
+   green.
+
+   **The test must first assert the split actually happened**, or it can pass vacuously. The spec
+   itself calls the stored shape "the unknown under test", which means the test may not assume it:
+   `keyboard.type` with newlines presses Enter and yields `<div>` blocks, but a clipboard or
+   `insertText` paste can land the whole block in a **single text node** — in which case the assertion
+   is green on `master` with none of this work, and stays green if phase 1 later regresses. So before
+   asserting the render, assert that the **saved HTML** for that element contains a `</div><div>` or
+   `<br>` boundary *between* the `\[` and the `\]`. If the chosen gesture does not produce one, the
+   test fails loudly rather than silently testing nothing.
 2. The same wrapped block in a **callout body** (fixture), and — separately — in a **table cell**
    stored in the shape `sanitize_cell` actually produces (literal `&lt;br&gt;` inside the span), to
    pin phase 1b.
