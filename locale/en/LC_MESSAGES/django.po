@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-31 00:48+0200\n"
+"POT-Creation-Date: 2026-08-01 23:30+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: English\n"
@@ -734,7 +734,7 @@ msgstr ""
 msgid "Total"
 msgstr ""
 
-#: .\courses\media.py:21 .\courses\models.py:563
+#: .\courses\media.py:21 .\courses\models.py:565
 #: .\courses\templatetags\courses_manage_extras.py:32
 #: .\courses\views_manage.py:1317
 #: .\templates\courses\manage\editor\_add_menu.html:16
@@ -743,7 +743,7 @@ msgstr ""
 msgid "Image"
 msgstr ""
 
-#: .\courses\media.py:22 .\courses\models.py:564
+#: .\courses\media.py:22 .\courses\models.py:566
 #: .\courses\templatetags\courses_manage_extras.py:33
 #: .\courses\views_manage.py:1318
 #: .\templates\courses\manage\editor\_add_menu.html:17
@@ -794,40 +794,40 @@ msgstr ""
 msgid "Tip"
 msgstr ""
 
-#: .\courses\models.py:457
-msgid "Warning"
+#: .\courses\models.py:459
+msgid "Important"
 msgstr ""
 
-#: .\courses\models.py:1582 .\templates\courses\manage\_roster_row.html:18
+#: .\courses\models.py:1584 .\templates\courses\manage\_roster_row.html:18
 msgid "Auto-marked"
 msgstr ""
 
-#: .\courses\models.py:1583
+#: .\courses\models.py:1585
 msgid "Not marked"
 msgstr ""
 
-#: .\courses\models.py:1584
+#: .\courses\models.py:1586
 msgid "Requires review"
 msgstr ""
 
-#: .\courses\models.py:2292
+#: .\courses\models.py:2294
 msgid "Zone position must be within the image."
 msgstr ""
 
-#: .\courses\models.py:2294
+#: .\courses\models.py:2296
 msgid "Zone must have a positive size."
 msgstr ""
 
-#: .\courses\models.py:2299
+#: .\courses\models.py:2301
 msgid "Zone must not extend past the image."
 msgstr ""
 
-#: .\courses\models.py:2370
+#: .\courses\models.py:2372
 #: .\templates\courses\manage\review_submission.html:45
 msgid "In progress"
 msgstr ""
 
-#: .\courses\models.py:2371
+#: .\courses\models.py:2373
 msgid "Submitted"
 msgstr ""
 

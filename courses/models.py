@@ -445,7 +445,7 @@ class SpoilerElement(ElementBase):
 
 
 class CalloutElement(ElementBase):
-    """A framed, always-visible callout/aside (Example/Note/Tip/Warning) holding
+    """A framed, always-visible callout/aside (Example/Note/Tip/Important) holding
     rich text + math. Zero JS, no server endpoint. Mirrors SpoilerElement minus the
     toggle, plus a `kind` and an optional heading. See the callout-element design
     doc."""
@@ -454,7 +454,9 @@ class CalloutElement(ElementBase):
         EXAMPLE = "example", _("Example")
         NOTE = "note", _("Note")
         TIP = "tip", _("Tip")
-        WARNING = "warning", _("Warning")
+        # Value stays "warning" (existing rows, `.callout--warning`, exported
+        # archives); only the author-facing label reads "Important".
+        WARNING = "warning", _("Important")
 
     kind = models.CharField(max_length=12, choices=Kind.choices, default=Kind.EXAMPLE)
     heading = models.CharField(max_length=120, blank=True)
