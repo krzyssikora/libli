@@ -866,6 +866,23 @@ a.unit-crumbs__label:focus-visible { outline: 2px solid var(--primary); outline-
 /* Base: the TOC pin is inert until the collapsed state reveals it (Task 2). */
 .unit-toc-pin { display: none; }
 
+/* Visual treatment. Borrows .unit-tree__toggle's so the two read as one control
+   that moved. No :focus-visible rule here — reset.css:24 already applies
+   `outline: 2px solid var(--primary); outline-offset: 2px` to :focus-visible
+   globally, so an element-specific copy would be a byte-for-byte duplicate. */
+.unit-toc-pin {
+  border: 1px solid var(--border-default);
+  border-radius: .4rem;
+  background: var(--surface-raised);
+  color: var(--text-tertiary);
+  cursor: pointer;
+  padding: 0;
+}
+.unit-toc-pin:hover {
+  color: var(--text-secondary);
+  border-color: var(--border-strong);
+}
+
 /* Collapsed desktop rail. State lives on <html> (base.html pre-paint), which is
    GLOBAL to every page — so every rule below is additionally scoped to
    [data-unit-shell], present only on the student unit shell. */

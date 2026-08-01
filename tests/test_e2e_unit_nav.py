@@ -993,6 +993,34 @@ def test_focus_moves_to_the_control_that_becomes_visible(browser, live_server):
         "() => document.activeElement.hasAttribute('data-unit-tree-pin')"
     ), "collapsing must focus the pin"
 
+    # Driven by a REAL Tab, mirroring the proven idiom at
+    # tests/test_e2e_unit_nav.py:768-792. Chromium's :focus-visible heuristic does
+    # not reliably arm on a programmatic .focus() with no prior keyboard input, so
+    # blur first and tab in. Bounded, so a regression fails rather than hangs.
+    page.evaluate("() => document.activeElement.blur()")
+    for _ in range(200):
+        page.keyboard.press("Tab")
+        if page.evaluate(
+            "() => !!document.activeElement"
+            " && document.activeElement.hasAttribute('data-unit-tree-pin')"
+        ):
+            break
+    else:
+        raise AssertionError("never reached the pin by tabbing")
+
+    ring = page.evaluate(
+        "() => { const s = getComputedStyle("
+        "document.querySelector('[data-unit-tree-pin]'));"
+        " return {style: s.outlineStyle, offset: s.outlineOffset}; }"
+    )
+    assert ring["style"] != "none", (
+        f"no focus-visible ring on the pin (outline-style={ring['style']!r})"
+    )
+    assert ring["offset"] not in ("0px", ""), (
+        f"the focus ring has no offset ({ring['offset']}) — it merges into the "
+        f"button border"
+    )
+
     page.locator("[data-unit-tree-pin]").click()
     page.wait_for_function(
         "() => !document.documentElement.classList.contains('unit-tree-collapsed')"
