@@ -101,7 +101,7 @@ tests that cannot fail:
   `render_element`. It renders `<article class="card review">` with `.question__stem` and
   `.review__answer` (`:83-95`; the `<div data-question>` wrapper at `:87`, the stem at `:88`, the
   answer branches at `:91-93`) — **no `.el--text`, no `.el--question`, no `.callout`, no
-  `.unit-crumbs`, none of the eight capped selectors**. Widening every prose-cap selector to
+  `.unit-crumbs`, none of the twelve capped selectors**. Widening every prose-cap selector to
   `.unit-shell` would change that page by exactly zero pixels.
 
   The **one** page that renders the full element surface outside `[data-unit-shell]` is
@@ -405,11 +405,20 @@ considered and rejected on inspection of the markup:
   html.unit-tree-collapsed [data-unit-shell] .lesson-unit__title,
   html.unit-tree-collapsed [data-unit-shell] [data-quiz-preview-notice],
   html.unit-tree-collapsed [data-unit-shell] .quiz-finish,
-  html.unit-tree-collapsed [data-unit-shell] .unit-crumbs {
+  html.unit-tree-collapsed [data-unit-shell] .unit-crumbs,
+  /* prose-bearing element roots that do not match `el--*` — see the ruling table below */
+  html.unit-tree-collapsed [data-unit-shell] .markdone,
+  html.unit-tree-collapsed [data-unit-shell] .fillgate,
+  html.unit-tree-collapsed [data-unit-shell] .stepper,
+  html.unit-tree-collapsed [data-unit-shell] .switchgate {
     max-width: 46rem;
   }
 }
 ```
+
+That is **twelve** prose-cap selectors. Guess-number is a thirteenth candidate: its root class is
+built in `courses_extras.render_guess_number` rather than a template, so resolve it at implementation
+and add it if it is a block-level prose surface. Test 11's coverage floor moves with the list.
 
 Notes on that list:
 
@@ -853,7 +862,7 @@ must size its context above 1040px and assert the branch per precondition 3.
    turn it red.
 
    It deliberately does **not** attempt a second, inner-node assertion for the prose-cap family.
-   `review_submission.html` renders none of the eight capped selectors (see Scoping — it never calls
+   `review_submission.html` renders none of the twelve capped selectors (see Scoping — it never calls
    `render_element`), so widening every one of them changes that page by zero pixels: such an
    assertion could never go red and would be guaranteed-green boilerplate. **The prose-cap family is
    guarded by test 11 instead.**
@@ -878,8 +887,8 @@ must size its context above 1040px and assert the branch per precondition 3.
     containing `html.unit-tree-collapsed` must also contain `[data-unit-shell]`.
 
     **The tokenisation is load-bearing and must be spelled out**, because the prose-cap rule is a
-    *single* comma-separated list of eight selectors. A test that checks each rule's whole prelude as
-    one string would see `[data-unit-shell]` in seven correct siblings and pass while one widened
+    *single* comma-separated list of twelve selectors. A test that checks each rule's whole prelude as
+    one string would see `[data-unit-shell]` in eleven correct siblings and pass while one widened
     entry (`html.unit-tree-collapsed .unit-shell .el--text`) shipped green.
 
     **At-rules must be handled explicitly — this is the failure mode that would silently disable the
@@ -887,21 +896,23 @@ must size its context above 1040px and assert the branch per precondition 3.
     after each `@media …{` fuses with the at-rule prelude when the file is split on `}`. The naive
     `chunk.split("{")[0]` then yields `"@media (min-width: 641px) "`, which contains no
     `html.unit-tree-collapsed`, so the implication is skipped — and since the prose-cap rule is the
-    only rule in its media block, **the entire eight-selector list would go unexamined**. The same
+    only rule in its media block, **the entire twelve-selector list would go unexamined**. The same
     swallows `[data-unit-shell] { margin-inline-start: -2.4rem }` and `> .unit-tree { display: none }`.
 
     Recipe: strip comments → **drop any prelude fragment beginning with `@`** (or use
     `rsplit("{", 1)`) → split the file on `}` → take each rule's prelude → split that on `,` → apply
     the implication to **each** resulting selector.
 
-    **Plus a non-zero-coverage assertion**: the test must assert it examined **at least 11** selectors
-    carrying `html.unit-tree-collapsed` (the count implied by the CSS shape above — one rail rule, one
-    pin rule, one margin rule, eight prose-cap entries). Without it a tokenisation bug passes
+    **Plus a non-zero-coverage assertion**: the test must assert it examined **at least 15** selectors
+    carrying `html.unit-tree-collapsed` — the floor implied by the CSS shape above (one rail rule, one
+    pin rule, one margin rule, twelve prose-cap entries), rising to 16 if guess-number joins the list.
+    A floor, not an equality, so adding a prose entry never reddens the suite. Without it a
+    tokenisation bug passes
     vacuously, which is exactly how this guard would fail in practice. Note the repo has no whole-file
     precedent to copy: `test_consumption_css.py` uses per-rule regexes
     (`r"\.unit-strip\s*\{([^}]*)\}"`), never a file-wide split.
 
-    Falsify by widening exactly one entry in the eight-selector list, and separately by breaking the
+    Falsify by widening exactly one entry in that list, and separately by breaking the
     at-rule handling (the coverage assertion must then go red).
 
     **Strip comments before matching.** The existing idiom in this repo
