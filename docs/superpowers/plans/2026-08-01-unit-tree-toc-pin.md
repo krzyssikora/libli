@@ -1754,16 +1754,52 @@ two-column parent raises a `KeyError` on `tabs`;
 `tabs_obj.data["tabs"][1]["id"]` and covers the spoiler form too.
 
 **Capture.** Write it as `tests/capture_toc_pin_sweep.py` — **not** `test_`-prefixed, so
-`python_files = ["test_*.py"]` never collects it in a normal run — mirroring
-`tests/capture_help_screenshots.py`, which establishes this repo's pattern. Copy the harness header from `tests/capture_help_screenshots.py:14-34` wholesale. It needs:
+`python_files = ["test_*.py"]` never collects it in a normal run.
+`tests/capture_help_screenshots.py` is the shape to follow, but write the header yourself rather than
+copying a range wholesale (see the two traps below). It needs, and needs only:
 
-- `pytestmark = pytest.mark.django_db(transaction=True)` at module level
-- a **session-scoped autouse `_allow_async_unsafe` fixture** doing
-  `os.environ.setdefault("DJANGO_ALLOW_ASYNC_UNSAFE", "true")` - neither `conftest.py` nor
-  `tests/conftest.py` sets it, and without it the first ORM call raises `SynchronousOnlyOperation`
-- a `_login` helper and a `_make_student`-style user factory, to reach a logged-in unit page
-- the `browser` and `live_server` fixtures
-- `browser.new_context(viewport=…)` per shot
+```python
+import os
+import pathlib
+import tempfile
+
+import pytest
+
+pytestmark = pytest.mark.django_db(transaction=True)
+
+OUT_DIR = pathlib.Path(tempfile.gettempdir()) / "toc-pin-sweep"
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _allow_async_unsafe():
+    os.environ.setdefault("DJANGO_ALLOW_ASYNC_UNSAFE", "true")
+    yield
+
+
+def test_capture_toc_pin_sweep(live_server, browser):
+    ...
+```
+
+Four things that will otherwise bite:
+
+- **`OUT_DIR` must point outside the repo.** `capture_help_screenshots.py:28` sets it to
+  `settings.BASE_DIR / "core" / "static" / "core" / "img" / "help"` — a directory holding **58
+  tracked PNGs**, with no `*.png` rule in `.gitignore`. Inheriting it means a name collision
+  overwrites tracked help assets and a non-collision leaves ~16 untracked PNGs in a tracked
+  directory. Use a temp dir.
+- **The entry function must be `test_`-prefixed even though the file is not.** `pyproject.toml` sets
+  `python_files` but not `python_functions`, so pytest's default `test*` applies to function names. A
+  function called `capture_sweep(...)` is collected by nothing, receives no fixtures, and the run ends
+  "no tests ran" — silently.
+- **Do not copy `capture_help_screenshots.py:14-34` verbatim.** That range imports `call_command`,
+  `override_settings`, `reverse` and `freeze_time`, none of which this sweep uses. The script is still
+  on disk when Step 8 runs `ruff check .`, and `F401` is in the selected rule set — four unused
+  imports would redden it.
+- **The `_allow_async_unsafe` fixture is required.** Neither `conftest.py` nor `tests/conftest.py`
+  sets `DJANGO_ALLOW_ASYNC_UNSAFE`, so without it the first ORM call raises `SynchronousOnlyOperation`.
+
+You will also need a `_login` helper and a `_make_student`-style user factory to reach a logged-in
+unit page, plus `browser.new_context(viewport=…)` per shot.
 
 Run it explicitly:
 
@@ -1771,8 +1807,12 @@ Run it explicitly:
 uv run python -m pytest tests/capture_toc_pin_sweep.py --verbosity=0
 ```
 
-**Delete the file before Step 9.** It is scaffolding, not a deliverable, and Step 9's `git add` does
-not include it — left in place it would sit untracked in the tree when the PR opens.
+Expected: `1 passed`, and the shot count written to `OUT_DIR` (2 viewports × 2 states × 2 themes ×
+2 page types = 16, plus the block-notes case).
+
+**Delete both the script and the captured images before Step 9** — and note Step 8 runs
+`ruff check .` while the script is still present, so it must lint clean. Both are scaffolding; Step
+9's `git add` names neither, so anything left behind sits untracked in the tree when the PR opens.
 
 Loop the four axes:
 
