@@ -15,7 +15,7 @@
 - **Every new CSS rule lands in `courses/static/courses/css/courses.css`.** Not `app.css`. Task 2's source guard reads `courses.css` only; a rule elsewhere is unguarded and silent.
 - **Every new selector containing `html.unit-tree-collapsed` must also contain `[data-unit-shell]`.** Unscoped, it leaks onto every page extending `base.html`, including the teacher review page.
 - **The lane is exactly `2.4rem` (38.4px).** The `-2.4rem` overhang, the 1040px breakpoint, the 920px column figure and Tasks 4/5's assertions all depend on it. Do not change it.
-- **The prose cap is exactly `46rem`** — `.lesson`'s own standalone `max-width` at `courses.css:181`.
+- **The prose cap is exactly `46rem`** — the value in the shared `.quiz, .lesson { max-width: 46rem; margin-inline: auto; }` rule at `courses.css:180-181`. There is no lone `.lesson { … }` rule to look for.
 - **The breakpoints are `641px` and `1040px`**, written exactly.
 - Tools are not on PATH: prefix every command with `uv run`.
 - e2e tests are excluded by default (`pyproject.toml:49` sets `addopts = "-q -m 'not e2e'"`). Running them **requires `-m e2e`** or they silently deselect and exit 5.
@@ -115,9 +115,9 @@ with:
           aria-label="{% trans 'Show course contents' %}"
           title="{% trans 'Show course contents' %}">
     <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-      <circle cx="4" cy="6" r="1.4"/><path d="M9 6h11"/>
-      <circle cx="4" cy="12" r="1.4"/><path d="M9 12h11"/>
-      <circle cx="4" cy="18" r="1.4"/><path d="M9 18h11"/>
+      <circle cx="4" cy="6" r="1.6" fill="currentColor" stroke="none"/><path d="M9 6h11"/>
+      <circle cx="4" cy="12" r="1.6" fill="currentColor" stroke="none"/><path d="M9 12h11"/>
+      <circle cx="4" cy="18" r="1.6" fill="currentColor" stroke="none"/><path d="M9 18h11"/>
     </svg>
   </button>
   {% include "courses/_unit_tree.html" %}
@@ -146,10 +146,13 @@ Then on line 5, add `aria-controls="unit-tree"` to the existing toggle, leaving 
 - [ ] **Step 5: Run the test to verify it passes**
 
 ```
-uv run pytest tests/test_unit_nav_render.py -v --verbosity=0
+uv run pytest tests/test_unit_nav_render.py tests/test_tags_consumption.py tests/test_courses_views.py tests/test_review_roster.py --verbosity=0
 ```
 
-Expected: PASS, and the pre-existing tests in that file still pass.
+Expected: all PASS. The extra three modules are not padding — `_unit_shell.html` is a shared partial,
+and `tests/test_tags_consumption.py:142` indexes the literal `'<div class="unit-shell"'` and asserts
+a strict ordering around it, while the other two assert on shell markup. Verifying only the render
+module would let a structural break surface eight commits later.
 
 - [ ] **Step 6: Falsify it**
 
@@ -187,11 +190,17 @@ def test_collapsed_rail_rules_are_deleted_and_every_new_rule_is_scoped():
     `}`. Left unstripped, those braces desynchronise the chunking and can absorb
     a real prelude, silently dropping selectors from the coverage count.
 
-    This test carries more weight than a typical source guard. It is the ONLY
-    guard for the prose-cap family (the teacher review page renders none of the
-    capped selectors, so no behavioural test there can falsify a widened one),
-    and the ONLY guard for the deletion (display:none removes the rail's box, so
-    leftover rules are behaviourally invisible).
+    This test carries more weight than a typical source guard. It is the only
+    guard that the prose-cap selectors are SCOPED to [data-unit-shell] (the
+    teacher review page renders none of the thirteen capped selectors, so no
+    behavioural test there can falsify a widened one), and the only guard for the
+    deletion at all (display:none removes the rail's box, so leftover rules are
+    behaviourally invisible).
+
+    Note the narrower claim: Task 6 DOES give behavioural coverage that four of
+    the thirteen entries cap at 46rem. Do not delete those assertions believing
+    this test subsumes them, and do not weaken this test believing it carries
+    more than scoping.
     """
     import re
 
@@ -261,10 +270,13 @@ Delete these eight lines **in full** — the comment at `:866`, the `@media` wra
   html.unit-tree-collapsed .unit-tree { flex-basis: 2.4rem; }
   html.unit-tree-collapsed .unit-tree__heading,
   html.unit-tree-collapsed .unit-tree__list { display: none; }
-  html.unit-tree-collapsed .unit-tree__toggle { transform: scaleX(-1); }
+  html.unit-tree-collapsed .unit-tree__toggle { transform: scaleX(-1); }  /* ‹ → › */
   html.unit-tree-collapsed .unit-tree__bar { justify-content: center; padding: .55rem .35rem; }
 }
 ```
+
+Line `:871` carries a trailing `  /* ‹ → › */` — reproduced above so the block matches byte-for-byte
+if used as an Edit anchor. If your editor normalises it, delete by line range `866-873` instead.
 
 Replace with:
 
@@ -280,7 +292,12 @@ Replace with:
      icon is 1em on a 16px font, giving a ~38x20 control under the 24x24 minimum.
      The container's align-items: flex-start is load-bearing — under the flex
      default (stretch) the pin would fill the shell's height and sticky would have
-     no room to move. gap: 0 on the shell is what makes the lane abut the column. */
+     no room to move. gap: 0 on the shell is what makes the lane abut the column.
+     z-index 21 is one above .unit-foot's 20 — the footer is inside
+     .unit-shell__main, which sets no z-index and so creates no stacking context,
+     leaving the footer competing in the ROOT context. The two are horizontally
+     disjoint today, so this only matters if future full-bleed or negative-margin
+     content appears in the column. Task 9 may not change it. */
   html.unit-tree-collapsed [data-unit-shell] > .unit-toc-pin {
     display: flex; align-items: center; justify-content: center;
     flex: 0 0 2.4rem; min-height: 2.4rem;
@@ -312,8 +329,8 @@ Replace with:
 Immediately after the block above, add:
 
 ```css
-/* Prose cap. 46rem is `.lesson`'s own standalone max-width (see the .lesson rule
-   near the top of this file), reintroduced at element level in the collapsed
+/* Prose cap. 46rem is the value in the shared `.quiz, .lesson` rule near the top
+   of this file, reintroduced at element level in the collapsed
    state only. An allow-list, NOT cap-by-default: element root classes are
    heterogeneous, and a missed opt-out BREAKS layout (a squeezed table) whereas a
    missed allow-list entry only leaves prose wide. Left alignment needs no
@@ -344,10 +361,11 @@ The `:not()` chain is required because the grid/spatial variants co-occur with `
 - [ ] **Step 5: Run the guard to verify it passes**
 
 ```
-uv run pytest tests/test_consumption_css.py -v --verbosity=0
+uv run pytest tests/test_consumption_css.py tests/test_courses_views.py tests/test_review_roster.py --verbosity=0
 ```
 
-Expected: PASS, all tests in the file.
+Expected: all PASS. `test_consumption_css.py` already owns `.unit-strip` regex guards over this same
+file, and an in-place splice at `:866-873` sits close enough to them to be worth the wider net.
 
 - [ ] **Step 6: Falsify both assertions**
 
@@ -376,15 +394,18 @@ git commit -m "feat(unit-nav): remove the collapsed rail entirely and cap prose 
 - Consumes: `[data-unit-tree-pin]` (Task 1), the collapsed CSS (Task 2).
 - Produces: focus lands on the newly-visible control after each toggle; `aria-expanded` agrees across both controls at all times.
 
-**Why the test repairs live in this task:** Task 2 made `[data-unit-tree-toggle]` `display: none` while collapsed. Three existing tests click it to *expand*, so Playwright's actionability wait now times out. Landing the JS and the repairs together keeps every commit green.
+**Why the test repairs live in this task:** Task 2's commit already made `[data-unit-tree-toggle]` `display: none` while collapsed, so those three e2e tests are red **as of Task 2**, one commit before this one. They are repaired *here* rather than there because the pin only becomes clickable once this task's JS binds it — the repair is not possible earlier. The default suite excludes e2e (`addopts = "-q -m 'not e2e'"`), so the *non-e2e* suite stays green across both commits; the e2e suite is red for exactly one commit, deliberately.
 
 - [ ] **Step 1: Confirm the three tests are red**
 
 ```
-uv run pytest tests/test_e2e_unit_nav.py -m e2e -k "collapse_persists or recentres or folded" -v --verbosity=0
+uv run pytest tests/test_e2e_unit_nav.py -m e2e -k "collapse_persists or recentres or group_is_folded" -v --verbosity=0
 ```
 
-Expected: 3 FAILED — timeouts waiting for `[data-unit-tree-toggle]` to be actionable. `-m e2e` is mandatory; without it these silently deselect and pytest exits 5.
+Expected: 3 FAILED. Do NOT filter on bare `folded` — it also matches
+`test_clicking_a_folded_summary_reveals_its_units` (`:496`) and
+`test_drawer_focus_trap_holds_at_a_folded_summary` (`:593`), neither of which this change touches;
+the run would report 5 selected / 3 failed and read as a partial break. — timeouts waiting for `[data-unit-tree-toggle]` to be actionable. `-m e2e` is mandatory; without it these silently deselect and pytest exits 5.
 
 - [ ] **Step 2: Restructure `unit_nav.js`**
 
@@ -533,15 +554,36 @@ to:
     pin.click()     # expand   (real gesture) -> centerActive() runs
 ```
 
-- [ ] **Step 6: Run the three repaired tests**
+- [ ] **Step 6: Pin an explicit viewport on all three repaired tests**
+
+Each of the three now depends on `[data-unit-tree-pin]` being *visible*, which holds only above
+641px — the exact dependency precondition P1 (Task 5) exists to make explicit. All three currently
+rely on Playwright's 1280px default, which P1 calls out as accidental. Add an explicit viewport to
+each test's context, preserving any existing argument:
+
+```python
+# test_desktop_tree_collapse_persists (~:138)
+ctx = browser.new_context(viewport={"width": 1440, "height": 900})
+
+# test_expanding_the_rail_recentres_the_active_unit — KEEP reduced_motion
+ctx = browser.new_context(reduced_motion="reduce", viewport={"width": 1440, "height": 900})
+
+# test_centering_is_skipped_when_the_active_group_is_folded — KEEP any existing kwargs
+ctx = browser.new_context(viewport={"width": 1440, "height": 900})
+```
+
+Read each call site before editing: `reduced_motion="reduce"` is load-bearing where present (it
+stops `centerActive()`'s smooth scroll racing the assertion), and dropping it would introduce a flake.
+
+- [ ] **Step 7: Run the three repaired tests**
 
 ```
-uv run pytest tests/test_e2e_unit_nav.py -m e2e -k "collapse_persists or recentres or folded" -v --verbosity=0
+uv run pytest tests/test_e2e_unit_nav.py -m e2e -k "collapse_persists or recentres or group_is_folded" -v --verbosity=0
 ```
 
 Expected: 3 PASSED.
 
-- [ ] **Step 7: Run the whole nav e2e file for regressions**
+- [ ] **Step 8: Run the whole nav e2e file for regressions**
 
 ```
 uv run pytest tests/test_e2e_unit_nav.py -m e2e --verbosity=0
@@ -549,7 +591,7 @@ uv run pytest tests/test_e2e_unit_nav.py -m e2e --verbosity=0
 
 Expected: all PASSED.
 
-- [ ] **Step 8: Commit**
+- [ ] **Step 9: Commit**
 
 ```bash
 git add courses/static/courses/js/unit_nav.js tests/test_e2e_unit_nav.py
@@ -567,11 +609,14 @@ git commit -m "feat(unit-nav): bind both collapse controls and move focus betwee
 - Consumes: everything from Tasks 1-3. Uses the existing `_make_student`, `_login`, `_seed_nav_course` helpers already in this file.
 - Produces: nothing later tasks depend on.
 
-**Precondition P1 applies to all three tests here:** set the viewport explicitly. These assert the rail is hidden and the pin visible, which holds only above 641px — they depend on a breakpoint exactly as much as the measuring tests do, and would pass today only because Playwright's 1280px default happens to sit above it.
+**Precondition P1 applies to all four tests here:** set the viewport explicitly. These assert the rail is hidden and the pin visible, which holds only above 641px — they depend on a breakpoint exactly as much as the measuring tests do, and would pass today only because Playwright's 1280px default happens to sit above it.
 
-- [ ] **Step 1: Write the three failing tests**
+- [ ] **Step 1: Write the four behaviour tests**
 
-Append to `tests/test_e2e_unit_nav.py`:
+These are **not** expected to fail on first run — Tasks 1-3 already landed the behaviour they
+describe, so a red here means something is broken, not that TDD is working. **The RED evidence for
+these tests comes from Step 3's falsification, not from a pre-implementation run.** Append to
+`tests/test_e2e_unit_nav.py`:
 
 ```python
 @pytest.mark.django_db(transaction=True)
@@ -764,9 +809,10 @@ git commit -m "test(e2e): cover rail removal, persistence, focus movement and ar
 
 **Preconditions for every test here:** set the viewport explicitly (P1); collapse with a real `[data-unit-tree-toggle]` click and `wait_for_function` on the class (P2); and where a specific side of the 1040px breakpoint matters, **assert `matchMedia` before measuring** (P3). Playwright's `viewport` is the *window* size and the scrollbar comes off it before media queries see it, so a 1040px window yields ~1025px of layout viewport and `(min-width: 1040px)` does **not** match.
 
-- [ ] **Step 1: Write the four failing tests**
+- [ ] **Step 1: Write the four behaviour tests**
 
-Append to `tests/test_e2e_unit_nav.py`:
+As in Task 4, these pass on first run — the behaviour landed in Tasks 1-3. Their RED evidence is
+Step 3's falsification. Append to `tests/test_e2e_unit_nav.py`:
 
 ```python
 def _collapse(page):
@@ -817,8 +863,14 @@ def test_narrow_desktop_band_is_width_neutral(browser, live_server):
 
     The container is derived at RUNTIME: a 900px window is ~885px of layout
     viewport once the scrollbar is subtracted, so a hard-coded literal would fail
-    against a correct implementation. clientWidth alone is 40px too wide (.app-main
-    carries 20px inline padding), so use the computed content width.
+    against a correct implementation.
+
+    Measure `.unit-shell` with getBoundingClientRect, NOT `.app-main` with
+    getComputedStyle. The shell is the actual containing box of the two flex
+    children, so `main == shell - lane` needs no padding arithmetic at all --
+    and `box-sizing: border-box` is global here (reset.css:2), which makes
+    `getComputedStyle(x).width` ambiguous between the border box and the content
+    box. Sidestep the ambiguity rather than reason about it.
     """
     _make_student("e2e_pin_narrow")
     course, units = _seed_nav_course("e2e_pin_narrow", "e2e-pin-narrow")
@@ -831,15 +883,16 @@ def test_narrow_desktop_band_is_width_neutral(browser, live_server):
     assert page.evaluate("() => matchMedia('(min-width: 641px)').matches") is True
 
     _collapse(page)
-    container = page.evaluate(
-        "() => parseFloat(getComputedStyle(document.querySelector('.app-main')).width)"
+    shell = page.evaluate(
+        "() => document.querySelector('.unit-shell').getBoundingClientRect().width"
     )
     main = page.evaluate(
         "() => document.querySelector('.unit-shell__main').getBoundingClientRect().width"
     )
-    assert abs(main - (container - 38.4)) <= 2, (
-        f"expected the main column to be container-38.4px ({container - 38.4:.1f}), "
-        f"got {main:.1f}"
+    assert abs(main - (shell - 38.4)) <= 2, (
+        f"expected the main column to be shell-38.4px ({shell - 38.4:.1f}), "
+        f"got {main:.1f} — below 1040px the lane sits INSIDE the shell, so the "
+        f"column loses exactly one lane and nothing else"
     )
     ctx.close()
 
@@ -949,10 +1002,11 @@ def test_content_column_aligns_with_the_strip_above_it(browser, live_server):
 - [ ] **Step 2: Run them**
 
 ```
-uv run pytest tests/test_e2e_unit_nav.py -m e2e -k "reclaims or width_neutral or clipped or aligns" -v --verbosity=0
+uv run pytest tests/test_e2e_unit_nav.py -m e2e -k "reclaims or narrow_desktop_band or clipped or aligns" -v --verbosity=0
 ```
 
-Expected: 6 PASSED (the clip test is parametrized ×3).
+Expected: 6 PASSED (the clip test is parametrized ×3). Do NOT filter on `width_neutral` — it also
+matches the pre-existing `test_active_marker_is_strong_and_width_neutral` (`:735`).
 
 - [ ] **Step 3: Falsify each**
 
@@ -992,26 +1046,33 @@ def _seed_text_and_table_unit(username, slug):
     """
     from django.contrib.auth import get_user_model
 
-    from courses.models import Element
     from courses.models import Enrollment
     from courses.models import TableElement
     from courses.models import TextElement
     from tests.factories import ContentNodeFactory
     from tests.factories import CourseFactory
+    from tests.factories import add_element
 
     student = get_user_model().objects.get(username=username)
     course = CourseFactory(slug=slug, owner=student)
     Enrollment.objects.get_or_create(student=student, course=course)
     unit = ContentNodeFactory(course=course, kind="unit", unit_type="lesson")
 
-    text = TextElement.objects.create(
-        body="<p>" + ("Lorem ipsum dolor sit amet. " * 40) + "</p>"
+    add_element(
+        unit,
+        TextElement.objects.create(
+            body="<p>" + ("Lorem ipsum dolor sit amet. " * 40) + "</p>"
+        ),
     )
-    Element.objects.create(unit=unit, content_object=text)
 
-    cells = [[{"text": f"r{r}c{c}"} for c in range(4)] for r in range(3)]
-    table = TableElement.objects.create(data={"cells": cells, "border": "grid"})
-    Element.objects.create(unit=unit, content_object=table)
+    # The cell key is "html", NOT "text": TableElement._cell() reads
+    # raw.get("html") (courses/models.py:885), so normalize_data would rewrite a
+    # "text" key to {"html": ""} and every cell would render blank. The width
+    # assertion would still pass — .el--table is a block box that fills the column
+    # whatever the cells hold — so the seed's wrongness would be invisible to this
+    # test and only surface as an empty table in Task 9's screenshot sweep.
+    cells = [[{"html": f"r{r}c{c}"} for c in range(4)] for r in range(3)]
+    add_element(unit, TableElement.objects.create(data={"cells": cells, "border": "grid"}))
 
     return course, unit
 
@@ -1154,8 +1215,9 @@ a student page.
 This test guards exactly ONE rule family — the margin. It deliberately does not
 attempt an inner-node assertion for the prose cap: this page renders none of the
 thirteen capped selectors (it never calls render_element), so such an assertion
-could never go red. The prose-cap family is guarded by the source assertion in
-tests/test_consumption_css.py instead.
+could never go red. That the prose-cap selectors are correctly SCOPED is guarded by the source
+assertion in tests/test_consumption_css.py instead; that four of them cap at the
+right width is guarded behaviourally in test_e2e_unit_nav.py.
 """
 
 import os
@@ -1347,7 +1409,7 @@ git commit -m "i18n: add the TOC pin's label to the pl and en catalogs"
 
 **Files:**
 - Modify: `courses/static/courses/css/courses.css` (visual declarations only)
-- Modify: `docs/superpowers/plans/2026-08-01-unit-tree-toc-pin.md` (record the two deferred decisions)
+- Modify: `docs/superpowers/plans/2026-08-01-unit-tree-toc-pin.md` (append the resolved deferred decisions)
 
 - [ ] **Step 1: Run the non-e2e suite**
 
@@ -1363,31 +1425,99 @@ Expected: all PASS. This is where a stray comment tripping a source-level guard,
 uv run pytest tests/test_e2e_unit_nav.py tests/test_e2e_review_shell_isolation.py -m e2e --verbosity=0
 ```
 
-Expected: all PASS. Run other e2e files separately; never two pytest invocations at once against the same database.
+Expected: all PASS. Then sweep the rest — **44 of the 78 e2e modules render `.unit-shell`**, so a
+hand-picked subset would be arbitrary. Run the whole suite in foreground chunks, the convention this
+repo already uses, with an explicit all-PASS expectation per chunk:
 
-- [ ] **Step 3: Invoke the frontend-design skill**
+```
+uv run pytest tests/ -m e2e --verbosity=0 -p no:randomly -x --co -q | tail -1   # confirm collection
+uv run pytest tests/test_e2e_a*.py tests/test_e2e_b*.py tests/test_e2e_c*.py -m e2e --verbosity=0
+uv run pytest tests/test_e2e_d*.py tests/test_e2e_e*.py tests/test_e2e_f*.py tests/test_e2e_g*.py -m e2e --verbosity=0
+uv run pytest tests/test_e2e_h*.py tests/test_e2e_i*.py tests/test_e2e_l*.py tests/test_e2e_m*.py -m e2e --verbosity=0
+uv run pytest tests/test_e2e_n*.py tests/test_e2e_p*.py tests/test_e2e_q*.py -m e2e --verbosity=0
+uv run pytest tests/test_e2e_r*.py tests/test_e2e_s*.py -m e2e --verbosity=0
+uv run pytest tests/test_e2e_t*.py tests/test_e2e_u*.py tests/test_e2e_w*.py -m e2e --verbosity=0
+```
 
-The pin currently has geometry but no visual treatment. Its remit is **colour, weight, iconography, border/radius, and resting/hover/focus/active states, within the fixed 2.4rem lane**. It may **not** change the lane width or the `min-height` — both are load-bearing for the overhang, the breakpoint derivation and Tasks 5's assertions.
+One invocation at a time — never two pytest processes at once against the same database. If a chunk
+fails, A/B it against `origin/master` before blaming this diff: this repo has a documented family of
+e2e flakes that fail only under parallel load and pass in isolation.
 
-Two layout decisions are deliberately deferred to this pass and **must be recorded in the PR**:
+- [ ] **Step 3: Land the minimum visual treatment**
+
+Tasks 1-8 ship a bare `<button>` with a UA border and no colour, radius, hover or focus ring. That
+last one matters most: Task 3's whole focus-move design assumes a keyboard user can *see* where focus
+landed. Land these declarations in `courses.css` next to the pin's reveal, borrowing
+`.unit-tree__toggle`'s treatment so the two read as one control that moved:
+
+```css
+.unit-toc-pin {
+  border: 1px solid var(--border-default);
+  border-radius: .4rem;
+  background: var(--surface-raised);
+  color: var(--text-tertiary);
+  cursor: pointer;
+  padding: 0;
+}
+.unit-toc-pin:hover { color: var(--text-secondary); border-color: var(--border-strong); }
+.unit-toc-pin:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+```
+
+Place these with the base `display: none` rule, not inside a media query — they are state, not layout.
+
+- [ ] **Step 4: Add the focus-ring assertion**
+
+Without this, "the pin ships unstyled" goes green through the entire suite. Extend
+`test_focus_moves_to_the_control_that_becomes_visible` (Task 4) after the collapse assertion:
+
+```python
+    ring = page.evaluate(
+        "() => { const s = getComputedStyle("
+        "document.querySelector('[data-unit-tree-pin]'), ':focus-visible');"
+        "return parseFloat(s.outlineWidth) || 0; }"
+    )
+    assert ring > 0, (
+        "the focused pin must show a visible focus ring — the focus move is "
+        "pointless if a keyboard user cannot see where focus landed"
+    )
+```
+
+If `:focus-visible` pseudo-element querying proves unreliable in this Chromium build, fall back to
+asserting the resolved `outline-width` on the live focused element after a real `Tab` press. Do not
+drop the assertion.
+
+Run it, then falsify by deleting the `:focus-visible` rule — it MUST go red.
+
+- [ ] **Step 5: Invoke the frontend-design skill for the rest**
+
+With the minimum landed, the skill's remit is **refinement**: colour, weight, iconography,
+border/radius, and resting/hover/focus/active states, within the fixed 2.4rem lane. It may **not**
+change the lane width, the `min-height`, or the `z-index` — all three are load-bearing for the
+overhang, the breakpoint derivation and Task 5's assertions.
+
+Two layout decisions are deliberately deferred to this pass. **Record both in this plan file**, under
+a new "## Deferred decisions — resolved" heading appended at the end, with the choice and one line of
+reasoning each. The plan file is self-contained and the record is verifiable in the diff; the PR body
+is opened by the surrounding pipeline, not by any step here, so "record it in the PR" would name no
+executable action.
 
 1. **Whether `.block-notes` is capped.** Capping aligns the handle with prose but misaligns it under a full-width table **and detaches the note popover**: `.block-notes__pop` is absolutely positioned against `.lesson-block`, which stays 872px, so the handle would move ~136px away from the panel it opens. View this with a **note panel open at ≥1200px** — the only configuration where it is visible.
 2. **Whether unanchored notes are capped** (`notes/_unanchored.html`, the last child of `.lesson`).
 
-- [ ] **Step 4: Screenshot sweep**
+- [ ] **Step 6: Screenshot sweep**
 
 Light **and** dark, judged separately — dark is not assumed to follow from light. At 1440px and ~900px, in both collapsed and expanded states. Cover every element type at top level, prose nested inside all four containers (`two_column`, `spoiler`, `tabs`, `.slideshow-deck` — the last is JS-built and a template grep cannot find it), the quiz page's chrome, unanchored notes, and the block-notes handle with a panel open.
 
 Add any element root that reads badly at full width to the prose-cap allow-list, and re-derive the Task 2 coverage floor **only if an entry is removed** (the assertion is `>=`, so additions never redden it).
 
-- [ ] **Step 5: Re-run the suites after any CSS change**
+- [ ] **Step 7: Re-run the suites after any CSS change**
 
 ```
 uv run pytest tests/test_consumption_css.py --verbosity=0
 uv run pytest tests/test_e2e_unit_nav.py -m e2e --verbosity=0
 ```
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
 git add courses/static/courses/css/courses.css docs/superpowers/plans/2026-08-01-unit-tree-toc-pin.md
