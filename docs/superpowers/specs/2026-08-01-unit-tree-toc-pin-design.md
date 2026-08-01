@@ -47,11 +47,11 @@ Out of scope, deliberately:
 | Piece | Location | Role |
 |---|---|---|
 | `.unit-shell` | `courses.css:535` | `display: flex; align-items: flex-start; max-width: 72rem; margin: 0 auto` |
-| `.unit-tree` | `courses.css:540` | the 14rem rail; sticky at `top: 0`, own scrollbar |
+| `.unit-tree` | `courses.css:540` | the 14rem rail; sticky at `top: 0`, `overflow-y: auto` |
 | `.unit-tree__toggle` | `_unit_tree.html:5-8` | the in-rail `‹` collapse control |
 | `unit_nav.js` | `courses/static/courses/js/unit_nav.js:48-67` | binds `[data-unit-tree-toggle]`, writes `localStorage`, calls `centerActive()` |
 | pre-paint restore | `templates/base.html:34-41` | reads `libli_unit_tree_collapsed`, sets `html.unit-tree-collapsed` before paint |
-| collapsed rules | `courses.css:868-872` | the sliver: the `flex-basis` rule at `:868` plus **three rules across four selectors** at `:869-872` (heading + list share one rule; toggle; bar) |
+| collapsed rules | `courses.css:868-872` | the sliver: **four rules across five selectors** — `flex-basis` at `:868`, then heading + list (one rule, two selectors), toggle, bar |
 | `data-unit-shell` | `_unit_shell.html:2` | existing attribute, present **only** on the student shell — the scoping hook |
 | `.unit-strip` | `courses.css:1659`, rendered by `lesson_unit.html:53` / `quiz_unit.html:10` | full-width sibling **above** the shell (tags disclosure + staff Edit link) |
 
@@ -59,13 +59,19 @@ The state hook (`html.unit-tree-collapsed`), the storage key, and the pre-paint 
 unchanged**. This is a presentation + one-new-control change: no Python, no models, no migrations, no
 new views.
 
-**`courses.css:868-872` is deleted in full.** This is normative, not descriptive. The four selectors
-there are unscoped (`html.unit-tree-collapsed .unit-tree`, `…__heading`, `…__list`, `…__toggle`,
-`…__bar`) — exactly the pattern the Scoping section forbids — and leaving them would be invisible in
-testing, because the new `display: none` at (0,3,1) beats the old `flex-basis` at (0,2,1). The
-deletion **includes `:871`'s `transform: scaleX(-1)`**: the `‹` is now only ever rendered in the
-expanded state, so the flip has nothing left to indicate. That deletion is orthogonal to the decision
-below to leave the JS `data-label-*` swap alone.
+**`courses.css:868-872` is deleted in full.** This is normative, not descriptive. Those five selectors
+are unscoped (`html.unit-tree-collapsed .unit-tree`, `…__heading`, `…__list`, `…__toggle`, `…__bar`) —
+exactly the pattern the Scoping section forbids — and leaving them would be **behaviourally
+invisible**: `display: none` removes the rail's box entirely, so `flex-basis`, `transform` and the bar
+padding all become inert regardless of specificity. (They do not lose a cascade contest; `display` and
+`flex-basis` are different properties and never compete. The conclusion is the same, but the mechanism
+matters — a reader who believes this is a specificity race might conclude a lower-specificity new rule
+would fail to hide the rail.) Because nothing behavioural can detect the leftovers, **test 11 is a
+source-level guard** — see Testing.
+
+The deletion **includes `:871`'s `transform: scaleX(-1)`**: the `‹` is now only ever rendered in the
+expanded state, so the flip has nothing left to indicate. That is orthogonal to the decision below to
+leave the JS `data-label-*` swap alone.
 
 ### Scoping — the constraint every new rule obeys
 
@@ -76,7 +82,7 @@ single global `libli_unit_tree_collapsed` key on *every* page extending `base.ht
 Therefore a rule like `html.unit-tree-collapsed .unit-shell { margin-left: -2.4rem }` would shift the
 teacher review page 38.4px left, with no pin filling the lane, for any teacher who had ever collapsed
 the tree on a student page. The same hazard applies to the prose cap on every page rendering
-`.el--text` or `.callout` (the builder preview, quiz review).
+`.el--text` or `.callout` — including the review page, which renders question content.
 
 **Every new rule in this change is scoped `html.unit-tree-collapsed [data-unit-shell] …`.**
 `_unit_shell.html:2` carries `data-unit-shell`; `review_submission.html:24` does not. The hook already
@@ -103,7 +109,12 @@ before `.unit-tree`, so it leads the tab order when visible.
   would silently bind only the first) and make every existing Playwright
   `page.locator("[data-unit-tree-toggle]")` a strict-mode violation.
 - **`aria-controls="unit-tree"`** requires adding `id="unit-tree"` to `<nav class="unit-tree">`.
-  `_unit_tree.html` is included exactly once per page, so the id is unique.
+  `_unit_tree.html` is included exactly once per page (the mobile drawer inlines its own `<ul>` rather
+  than re-including the partial), so the id is unique. **`aria-controls="unit-tree"` is also added to
+  the existing `.unit-tree__toggle`**, which has `aria-expanded` but no `aria-controls` today: two
+  controls that must agree on `aria-expanded` should not describe different disclosure relationships.
+  This is the one deliberate exception to the otherwise zero-churn treatment of the expanded state —
+  it is a single additive attribute with no behavioural effect.
 - **The label is static**, and carries **no** `data-label-expand` / `data-label-collapse` pair. Under
   this design each control is visible in exactly one state — the pin only while collapsed, the `‹`
   only while expanded — so neither ever needs to swap its label. `unit_nav.js` still syncs
@@ -111,7 +122,7 @@ before `.unit-tree`, so it leads the tab order when visible.
 
   `.unit-tree__toggle` **keeps** its existing `data-label-*` attributes and swap logic untouched.
   That swap is now only ever observed in its expanded form, so it is technically dead — leaving it is
-  a deliberate zero-churn choice for a state this change does not otherwise touch, not an oversight.
+  a deliberate zero-churn choice, not an oversight.
 - **Icon**: an inline `currentColor` line SVG carrying the shared `.icon` class, per the repo's icon
   convention (monochrome SVG, never emoji, never a sprite `<use>`). The mark is a table-of-contents
   glyph — three horizontal rules, each led by a dot — **not** `☰`. `☰` already means "primary menu"
@@ -123,8 +134,8 @@ before `.unit-tree`, so it leads the tab order when visible.
 **The lane is 2.4rem (38.4px) — exactly the width of the sliver it replaces.** That equality is
 deliberate: it makes the narrow-desktop branch (below) width-neutral against today rather than 3.2px
 worse. 2.4rem is a **fixed geometric constant**: the `-2.4rem` overhang, the 1040px breakpoint
-derivation, the 920px content figure and test 5's equality assertion all depend on it. It is not a
-visual-taste parameter (see "Visual verification").
+derivation, the 920px content figure and tests 4, 5 and 10 all depend on it. It is not a visual-taste
+parameter (see "Visual verification").
 
 **Collapsed** (`html.unit-tree-collapsed [data-unit-shell]`, ≥641px):
 
@@ -136,14 +147,17 @@ visual-taste parameter (see "Visual verification").
     (`app.css:108-113`) on the inherited 16px body font, plus UA button padding — giving a ~38×20px
     control, under the 24×24 minimum target size. `min-height` makes the button square in its lane
     and gives block-size an owner.
+  - **`.unit-shell`'s `align-items: flex-start` (`courses.css:535`) is a load-bearing precondition,
+    not merely a reason to omit `align-self`.** Under the flex default (`stretch`) the pin would be
+    stretched to the shell's full height, leaving `position: sticky` no room to move and silently
+    killing the entire treatment. `align-self` is not declared *because* the container already
+    supplies `flex-start`; if that ever changes, the pin needs `align-self: flex-start` explicitly.
   - **Sticky offsets.** As a flex item under `align-items: flex-start`, the pin's *static* position is
-    the top of `.unit-shell` — i.e. exactly where the rail's top edge is, so at scroll 0 the pin and
-    the rail start at the same y. `top: .6rem` is the **stuck** offset only, and is deliberately not
-    the rail's `top: 0` (`courses.css:541`): the rail is a full-height panel that reads correctly
-    flush to the viewport edge, whereas a small free-floating button flush to that edge reads as
-    clipped. The two controls are never co-visible, so the 9.6px difference is unobservable.
-  - `align-self` is **not** declared — `.unit-shell` is already `align-items: flex-start`
-    (`courses.css:535`), so it would be a no-op that reads as though it were doing work.
+    the top of `.unit-shell` — exactly where the rail's top edge is, so at scroll 0 the pin and the
+    rail start at the same y. `top: .6rem` is the **stuck** offset only, and is deliberately not the
+    rail's `top: 0` (`courses.css:541`): the rail is a full-height panel that reads correctly flush to
+    the viewport edge, whereas a small free-floating button flush to that edge reads as clipped. The
+    two controls are never co-visible, so the 9.6px difference is unobservable.
   - `z-index: 21` is one above `.unit-foot`'s 20 (`courses.css:670`). The two cannot overlap today
     for a structural reason — the foot lives inside `.unit-shell__main`, the pin in its own sibling
     flex column, so they are horizontally disjoint — but `.unit-shell__main` sets no `z-index` and
@@ -166,7 +180,7 @@ sub-pixel rounding, so the derivation never sits on its own boundary.
 
 Every worked figure below is quoted in **layout-viewport** terms. A Playwright viewport of 900px
 yields roughly an 885px layout viewport once Chromium's classic scrollbar is subtracted, so tests
-derive container widths by measuring `.app-main` at runtime rather than hard-coding them.
+derive container widths by measuring at runtime rather than hard-coding them.
 
 **Interaction with `.unit-strip`** (the full-width sibling rendered directly above the shell). This
 is worth stating because the negative margin makes it look like a misalignment hazard, and it is not:
@@ -193,9 +207,27 @@ box is always the smaller constraint. Specificity: `html.unit-tree-collapsed [da
 `reset.css`'s only such rule is on `.sr-only`; `.app-main` (`app.css:34`) sets none. A test pins this,
 because a future `overflow` rule would silently amputate the only control that restores the tree.
 
-**Expanded**: unchanged from today. `.unit-toc-pin` stays at its base `display: none` — `display`, not
-`visibility`/`opacity`, so it leaves the tab order. The rail keeps its `‹`. `centerActive()`, the
-sticky tree bar, the rail scrollbar styling and the active-row marker are untouched.
+**Expanded**: visually and structurally as today — the rail keeps its `‹`, the sticky tree bar, the
+scrollbar styling and the active-row marker. **One behaviour does change, and it is accepted rather
+than unnoticed:**
+
+> **The rail's scroll position no longer survives a collapse → expand round trip.** `.unit-tree` is
+> `overflow-y: auto` (`courses.css:540-542`). Today's sliver keeps the box alive at
+> `flex-basis: 2.4rem`, so `scrollTop` persists; `display: none` destroys the scroll box, and on
+> re-display `scrollTop` is 0.
+>
+> `centerActive()` masks this in the ordinary case — it runs on expand and scrolls the active unit to
+> centre, overriding whatever `scrollTop` was anyway. It does **not** mask it on its bail path, when
+> the active row is not visible because the student folded the group containing it
+> (`unit_nav.js:38`; the case `test_centering_is_skipped_when_the_active_group_is_folded` exercises).
+> In exactly that path the rail lands at scroll-top where today it would have held position.
+>
+> **Decision: accept, do not add `scrollTop` save/restore.** The affected path requires the student to
+> have manually folded the group holding their current unit *and* then collapsed and re-expanded the
+> rail; group folding does not persist across loads (it is re-derived from `contains_current` each
+> render), so the window is narrow and self-inflicted. Restoring a saved offset would also fight
+> `centerActive()` on every other path. This paragraph exists so the reset is a recorded consequence,
+> not a bug report waiting to happen.
 
 **Mobile (≤640px)**: the pin's base `display: none` already covers it, since the reveal lives inside
 `@media (min-width: 641px)`. The footer drawer keeps that job.
@@ -228,7 +260,8 @@ The selector *shape* below is normative; the visual declarations are not exhaust
 
 ### Content width
 
-At a 1440px layout viewport:
+At any layout viewport ≥1000px, where `.app-main`'s 960px cap binds (so these figures are *not*
+1440px-specific; only the 641–1039px band differs):
 
 | | Prose | Tables / media |
 |---|---|---|
@@ -242,9 +275,9 @@ readability problem being fixed, not a benefit being surrendered. An implementer
 narrowing must not treat it as a bug.
 
 The invariant that *does* hold: **at any viewport, the collapsed measure is never smaller than the
-expanded measure at that same viewport** (648px expanded vs ≥736px collapsed at 1440px). It is stated
-per-viewport rather than as a universal 648px floor, because below ~1000px the expanded measure is
-much smaller. That constraint fixes the cap from below; readability fixes it from above.
+expanded measure at that same viewport** (648px expanded vs ≥736px collapsed above 1000px). It is
+stated per-viewport rather than as a universal 648px floor, because below ~1000px the expanded measure
+is smaller. That constraint fixes the cap from below; readability fixes it from above.
 
 **The cap is 46rem** = 736px — `.lesson`'s own standalone `max-width` (`courses.css:181`), the measure
 this repo already treats as correct for a lesson article. `.lesson` inside the shell overrides it to
@@ -254,13 +287,16 @@ the collapsed state only.
 **Mechanism — a prose allow-list, not cap-by-default.** Cap-by-default with a wide-element opt-out was
 considered and rejected on inspection of the markup:
 
-1. **The element root classes are heterogeneous.** `class="el el--*"` covers only text, math, image,
+1. **The element root classes are heterogeneous.** `class="el el--*"` covers text, math, image,
    video, iframe, table, filltable, gallery, tabs, twocolumn and questions (including the
    co-occurring variant classes `el--choicegrid`, `el--multigrid`, `el--dragimage`, `el--matchpair`,
-   `el--dragfill` and `el--fillblank`). Callout renders `.callout`, spoiler `.spoiler`, stepper
-   `.stepper`, mark-done `.markdone`, HTML `.html-el`, reveal-gate `.reveal-gate`, fill-gate
-   `.fillgate`; switch-gate/switch-grid/guess-number come from `courses_extras.py` templatetags with
-   their own names. An opt-out list against that surface is long and easy to miss an entry in.
+   `el--dragfill` and `el--fillblank`). But callout's *root* is `.callout` (`calloutelement.html:2`),
+   spoiler's is `.spoiler`, stepper's `.stepper`, mark-done's `.markdone`, HTML's `.html-el`,
+   reveal-gate's `.reveal-gate`, fill-gate's `.fillgate`; switch-gate/switch-grid/guess-number come
+   from `courses_extras.py` templatetags with their own names. (Callout and spoiler *bodies* do carry
+   `el el--text` — `calloutelement.html:7`, `spoilerelement.html:12` — so those bodies are
+   double-capped by the list below. Harmless: the container's own padding makes the inner cap inert.)
+   An opt-out list against that root surface is long and easy to miss an entry in.
 2. **Failure modes are asymmetric.** A missed opt-out *breaks* layout — a wide table squeezed into
    46rem. A missed allow-list entry only leaves prose wider than ideal. The gentler failure belongs
    on the more error-prone list.
@@ -273,6 +309,7 @@ considered and rejected on inspection of the markup:
   html.unit-tree-collapsed [data-unit-shell] .lesson-unit__head,
   html.unit-tree-collapsed [data-unit-shell] .lesson-unit__title,
   html.unit-tree-collapsed [data-unit-shell] [data-quiz-preview-notice],
+  html.unit-tree-collapsed [data-unit-shell] .quiz-finish,
   html.unit-tree-collapsed [data-unit-shell] .unit-crumbs {
     max-width: 46rem;
   }
@@ -284,26 +321,35 @@ Notes on that list:
 - The `:not()` chain is required because the grid/spatial variants co-occur with `.el--question` on
   the same root (`class="el el--question el--choicegrid"`), so they cannot be excluded by omission.
 - **`.el--fillblank` is deliberately absent from the `:not()` chain, i.e. deliberately capped.** It is
-  prose with inline inputs, unlike the five grid/spatial variants that need the width. The asymmetry
-  is intentional, not an oversight.
-- **`.lesson-unit__title` and `[data-quiz-preview-notice]` exist for the quiz page.** The lesson wraps
-  its `<h1>` in `.lesson-unit__head` (`_lesson_article.html:6`), but `_quiz_article.html:5` renders a
-  bare `<h1 class="lesson-unit__title">` as a direct child of `.quiz`, and `:20` renders the
-  previewer banner. Without these two entries the quiz page's title and banner would run the full
-  872px while every question under them stopped at 736px — a ragged right edge on half the in-scope
-  surface. Capping the title is a harmless no-op on the lesson page, where it already sits inside the
-  capped head.
+  prose with inline inputs, unlike the five grid/spatial variants that need the width.
+- **Three entries exist for the quiz page.** The lesson wraps its `<h1>` in `.lesson-unit__head`
+  (`_lesson_article.html:6`), but `_quiz_article.html:5` renders a bare
+  `<h1 class="lesson-unit__title">` as a direct child of `.quiz`, `:20` renders the previewer banner,
+  and `.quiz .quiz-finish` (`courses.css:211-215`) carries a **painted** `border-top`. Without these
+  the quiz page's title, banner and finish divider would run 872px while every question above them
+  stopped at 736px — a ragged edge, and in `.quiz-finish`'s case a literal rule drawn 136px wider
+  than the content it separates. Capping the title is a harmless no-op on the lesson page, where it
+  already sits inside the capped head.
 
-**Nesting.** Only `spoiler`, `tabs` and `two_column` render nested child elements (verified:
-`spoilerelement.html:7-9` calls `render_element`; `calloutelement.html` and `stepperelement.html` do
-not). The cap uses a descendant combinator, so it reaches nested prose — with two different and both
-intended outcomes:
+**Nesting.** Containers that hold other elements are *not* capped, so they span 872px while the cap
+still reaches their prose descendants through the descendant combinator. There are **four**, and the
+fourth is easy to miss:
 
-- Inside **`two_column`**, the column is already narrower than 46rem, so the cap is a genuine no-op.
-- Inside **`spoiler`** and **`tabs`**, the container itself is uncapped and spans 872px, so the cap
-  *does* apply to nested prose, yielding 736px text inside an 872px container. This is intended —
-  nested prose is still prose — but it is a live behaviour, not a no-op, so both containers are on
-  the visual sweep list.
+- **`two_column`** — the column is already narrower than 46rem, so the cap is a genuine no-op inside.
+- **`spoiler`** and **`tabs`** — uncapped at 872px, so the cap *does* apply to nested prose, yielding
+  736px text inside an 872px container. Intended, but a live behaviour rather than a no-op.
+- **`.slideshow-deck`** — a **JS-constructed** container (`slideshow.js:40-46` builds it and moves the
+  slides into it) with `border`, `border-radius`, `background` and `box-shadow`
+  (`courses.css:249-256`), plus `padding: var(--space-6)` on its slides (`:263-271`). It behaves
+  exactly like spoiler/tabs: 736px prose inside a visibly bordered card.
+
+  **The enumeration of nesting containers was made from templates, so it structurally cannot find
+  JS-constructed ones.** That is why this fourth entry was missed on the first two passes, and it is
+  recorded here so a future reader does not trust a template grep to be complete.
+
+The deck itself stays uncapped: it holds arbitrary slide content including tables, so capping it would
+reintroduce the squeeze the allow-list exists to avoid. All four containers are on the visual sweep
+list.
 
 **Left alignment needs no declaration.** `reset.css`'s `* { margin: 0 }` means these elements have no
 auto margins to centre them, so a `max-width` alone leaves them flush left and the text's left edge
@@ -311,12 +357,20 @@ never moves when toggling. This is worth stating because the codebase does centr
 elsewhere — `.quiz, .lesson { margin-inline: auto }` at `courses.css:180-181` — so the absence of
 `margin-inline: 0` here is a verified fact, not an omission.
 
-Explicitly **not** capped, and why: `.el--math` (a wide display equation must be free to use the
-column or scroll rather than be squeezed), all tables/grids/media, and all containers.
+**Block notes are an open visual question, deliberately deferred to the sweep.** `notes/_block_notes.html`
+renders inside every `<section class="lesson-block">` (`_lesson_article.html:40`), which stays 872px.
+`.block-notes__handle` is `margin-left: auto` (`notes/css/notes.css:51-58`) — tucked to the block's
+right edge — so under a 736px-capped text element the handle floats ~136px right of the prose it
+annotates. Two candidate resolutions: cap `.block-notes` too (aligns the handle with prose, but
+misaligns it under a full-width table), or leave it anchored to the block (consistent with today, but
+visually detached from capped prose). **The frontend-design sweep decides this with screenshots and
+records the choice**; it is explicitly in that pass's remit.
 
-The list is a starting point, not a claim of completeness. The frontend-design pass walks every
-element type **and the quiz page's article chrome** in the collapsed state, and adds any that reads
-badly at full width; that visual sweep, not this list, is the completeness mechanism.
+Explicitly **not** capped, and why: `.el--math` (a wide display equation must be free to use the
+column or scroll rather than be squeezed), all tables/grids/media, and all four containers.
+
+The list is a starting point, not a claim of completeness. The visual sweep, not this list, is the
+completeness mechanism.
 
 ### Behaviour
 
@@ -339,6 +393,10 @@ That restructures as follows:
    every control found. It applies the `data-label-*` swap only to controls that carry both
    attributes, so the pin's static label is left alone (this preserves today's
    `if (EXPAND && COLLAPSE)` guard at `unit_nav.js:51-56`, generalised per-control).
+
+   The boot call (`unit_nav.js:66`, today `syncToggle(isCollapsed())` inside the guard) **moves out of
+   the guard and runs unconditionally** — with an empty list it is a no-op, so the guard buys nothing
+   and its absence removes one thing to reason about.
 3. On click, in this exact order:
    a. flip `html.classList.toggle("unit-tree-collapsed")`;
    b. write `localStorage`;
@@ -374,7 +432,7 @@ first paint    base.html pre-paint  ──reads──▶ localStorage["libli_uni
                                              └──CSS──▶ prose allow-list   max-width:46rem
 
 boot           unit_nav.js ──binds──▶ [data-unit-tree-toggle] + [data-unit-tree-pin] (each optional)
-                           ──syncs──▶ aria-expanded on every control found
+                           ──syncs──▶ aria-expanded on every control found (unconditional call)
 
 click          toggle() ──flips──▶ html.unit-tree-collapsed
                         ──writes──▶ localStorage
@@ -425,18 +483,17 @@ Enumerated by grepping `[data-unit-tree-toggle]` across `tests/`, which returns 
 Three of them click the toggle to **expand** as well as collapse, and that second click lands on a
 `display: none` element under this design — Playwright's actionability wait times out:
 
-| Test | File:line | Expand click |
-|---|---|---|
-| `test_desktop_tree_collapse_persists` | `test_e2e_unit_nav.py:132` | `:160` |
-| the re-centre-on-expand test | `test_e2e_unit_nav.py:709` | `:714` |
-| `test_centering_is_skipped_when_the_active_group_is_folded` | `test_e2e_unit_nav.py:842` | `:879` |
+| Test | `def` line | Collapse click | Expand click |
+|---|---|---|---|
+| `test_desktop_tree_collapse_persists` | `test_e2e_unit_nav.py:132` | `:147` | `:160` |
+| `test_expanding_the_rail_recentres_the_active_unit` | `test_e2e_unit_nav.py:662` | `:710` | `:714` |
+| `test_centering_is_skipped_when_the_active_group_is_folded` | `test_e2e_unit_nav.py:842` | `:878` | `:879` |
 
-In the third, `:877` is the locator assignment and `:878` is the **collapse** click, which must keep
-using `[data-unit-tree-toggle]`. Only `:879` moves to the pin.
-
-All three must be updated to click `[data-unit-tree-pin]` for the expand step. This is required, not
-optional — and it is itself a signal: if any of the three still passes unmodified, the rail was not
-actually removed.
+The last two share a shape: `:709` and `:877` assign a single `toggle` locator that is then used for
+**both** clicks. In each, `toggle` stays bound to `[data-unit-tree-toggle]` for the collapse click and
+a **separate** `[data-unit-tree-pin]` locator is introduced for the expand click. Do not repoint the
+existing variable — that would send the collapse click at an element that is `display: none` while
+expanded.
 
 The remaining hit, `:772` in `test_active_marker_is_strong_and_width_neutral`, calls `.focus()` on the
 toggle while **expanded** and needs no change.
@@ -448,9 +505,15 @@ If implementation finds otherwise, that is a finding to report, not a silent fix
 
 ### New coverage
 
-File assignment: test 8 lands in `tests/test_unit_nav_render.py`; tests 1–7 and 10 in
-`tests/test_e2e_unit_nav.py`; test 9 in a new `tests/test_e2e_review_shell_isolation.py` (it needs a
-staff login and a review fixture, neither of which `test_e2e_unit_nav.py` has).
+File assignment: test 8 lands in `tests/test_unit_nav_render.py`; test 11 in
+`tests/test_unit_nav_render.py` as well (it is a source assertion, not a browser test); tests 1–7 and
+10 in `tests/test_e2e_unit_nav.py`; test 9 in a new `tests/test_e2e_review_shell_isolation.py`.
+
+**The new e2e module needs the repo's e2e boilerplate, which `conftest.py` does not supply.** Mirror
+`test_e2e_unit_nav.py:17-56`: `pytestmark = pytest.mark.e2e` (module level), its own session-scoped
+`_allow_async_unsafe` fixture, and the `_login` helper with `TEST_PASSWORD`. Without the marker
+`pyproject.toml:49`'s `addopts = "-q -m 'not e2e'"` silently deselects the whole file and nobody
+notices; without the fixture it errors under `-m e2e`.
 
 **Preconditions shared by tests 4–7 and 10**: set the viewport explicitly, then collapse the tree with
 a real `[data-unit-tree-toggle]` click, then `wait_for_function` on
@@ -470,40 +533,75 @@ collapse step every one of these measures the expanded layout and either fails o
    spends 38.4px on the pin's lane, so the column goes 696px → 920px. Assert with a small tolerance.
    This test must **not** run in the 641–1039px band, where the design is deliberately width-neutral
    and this assertion would correctly fail.
-5. **e2e — the narrow band is width-neutral, not worse.** At a 900px-wide viewport, measure
-   `.app-main`'s content box at runtime and assert the main column equals `container − 38.4px`.
-   Deriving the container rather than hard-coding 860/821.6 is required: a 900px Playwright viewport
-   is ~885px of layout viewport once Chromium's classic scrollbar is subtracted, so a literal would
-   fail against a correct implementation.
-6. **e2e — the pin is not clipped.** At 1440px, assert the pin's `getBoundingClientRect()` lies inside
-   the viewport and is hit-testable at its centre (`document.elementFromPoint` resolves to the button
-   or a descendant). Guards against a future ancestor `overflow: hidden` and against the overhang
-   pushing the control off-screen near the breakpoint.
-7. **e2e — prose is capped, tables are not.** Requires a unit containing **both** a text element and
-   a table element. No existing helper in `test_e2e_unit_nav.py` seeds content elements
-   (`_seed_nav_course`, `_seed_traversal_course`, `_seed_grouped_course` build structure only), so a
-   new seed helper is **part of the deliverable**, built on `add_element()` from `tests/factories.py`
-   with `TextElement` + `TableElement` instances (see `tests/test_align_render.py` for the idiom).
-   At 1440px collapsed, assert `.el--text`'s width ≤736px and `.el--table`'s width >736px. Measure
+5. **e2e — the narrow band is width-neutral, not worse.** At a 900px-wide viewport, assert
+   `.unit-shell__main`'s width equals `container − 38.4px`, where `container` is derived at runtime as
+   `.app-main`'s **content** width: `clientWidth − paddingLeft − paddingRight` from
+   `getComputedStyle`, or equivalently `getComputedStyle(appMain).width`. `clientWidth` alone is 40px
+   too wide (`app.css:34` sets 20px inline padding) and would fail the exact-equality assertion
+   against a correct implementation — the very failure mode this test was rewritten to avoid.
+6. **e2e — the pin is not clipped, at 1440px *and* near the breakpoint.** Assert the pin's
+   `getBoundingClientRect()` lies inside the viewport and is hit-testable at its centre
+   (`document.elementFromPoint` resolves to the button or a descendant). Run at **1440px** (pin left
+   edge ~221.6px) **and at 1040px** (pin left edge ~21.6px, where the clipping risk actually lives) —
+   the near-breakpoint purpose is unreachable from 1440px alone. Add a **1039px** case asserting the
+   branch flips: no overhang, and the pin still fully visible.
+7. **e2e — prose is capped, tables are not; on both page types.** Requires a unit containing **both**
+   a text element and a table element. No existing helper in `test_e2e_unit_nav.py` seeds content
+   elements (`_seed_nav_course`, `_seed_traversal_course`, `_seed_grouped_course` build structure
+   only), so a new seed helper is **part of the deliverable**, built on `add_element()` from
+   `tests/factories.py` with `TextElement` + `TableElement` instances (see `tests/test_align_render.py`
+   for the idiom). At 1440px collapsed, assert `.el--text` ≤736px and `.el--table` >736px. Measure
    those nodes specifically — **not** the enclosing `<section class="lesson-block">`, which is 872px
    either way and would make the assertion vacuous.
+
+   **A quiz case is required, not optional.** `.lesson-unit__title`, `[data-quiz-preview-notice]` and
+   `.quiz-finish` were added specifically for `_quiz_article.html`, and deleting all three would
+   otherwise leave the suite green. Load a quiz unit collapsed at 1440px (seeded via
+   `make_quiz_unit()`, with `previewing` set so the banner renders) and assert `.lesson-unit__title`,
+   `[data-quiz-preview-notice]`, `.quiz-finish` and `.el--question` are each ≤736px.
 8. **Render test** — the pin is present in the DOM on both the lesson page and the quiz page, carries
    `aria-expanded`, and its `aria-controls="unit-tree"` target exists exactly once.
 9. **Non-regression — the review page is untouched.** Load
-   `/manage/courses/<slug>/review/<submission_pk>/` (seeded via `make_review_submission()` in
-   `tests/factories.py`, with a staff Playwright session) and assert the review shell's bounding box
-   is identical with and without the collapsed state.
+   `/manage/courses/<slug>/review/<submission_pk>/` seeded via `make_review_submission()`
+   (`tests/factories.py:271`) and assert the page renders identically with and without the collapsed
+   state.
+
+   **The actor must be built by the test, not taken from the fixture.** `make_review_submission`
+   builds its reviewer with `UserFactory`, whose password is `"password123"` (`factories.py:64`) — not
+   `TEST_PASSWORD` (`:54`) — and with no email verification, so it cannot log in through the allauth
+   form the e2e `_login` helper drives. The gate is also not staffness: it is
+   `can_review_course(user, course)` (`grouping/scoping.py:82`, called at `views_review.py:111`),
+   which passes for a platform admin, **the course owner**, or a teacher of a non-archived group on
+   the course. Simplest satisfying actor: `make_verified_user(...)` with `TEST_PASSWORD`, then assign
+   that user as the seeded course's `owner`.
 
    **The collapsed state must be installed before first paint**, via
    `context.add_init_script("localStorage.setItem('libli_unit_tree_collapsed','1')")` or an explicit
    goto → set → reload. `base.html:34-41` reads `localStorage` pre-paint, so a plain
    `page.evaluate(...)` after `page.goto` measures a page that already painted uncollapsed and the
-   test passes for the wrong reason — vacuous exactly where it matters. Falsified by widening any new
-   selector from `[data-unit-shell]` to `.unit-shell`.
+   test passes for the wrong reason — vacuous exactly where it matters.
+
+   **Two assertions are required, because the two rule families leak differently.** (a) The review
+   shell's bounding box is unchanged — this catches a widened `margin-left`. (b) An inner node's width
+   is unchanged (or its computed `max-width` is `none`) — the review page renders `.el--question`
+   content, and a widened *prose-cap* selector shrinks elements **inside** the shell without moving
+   the shell's own box, leaving assertion (a) green. Falsification is therefore per-family: widen
+   `margin-left`'s selector to `.unit-shell` and (a) must go red; widen the prose-cap selectors and
+   (b) must go red.
 10. **e2e — the content column aligns with the strip above it (≥1040px).** At 1440px collapsed,
     assert `.unit-shell__main`'s left edge equals `.unit-strip`'s left edge (within 1px), and that
     the pin's left edge is ~38.4px left of both. Pins the negative-margin arithmetic against a future
     change to either box.
+11. **Source guard — the sliver rules are actually gone.** Assert `courses.css` contains no
+    `html.unit-tree-collapsed .unit-tree` selector. Nothing behavioural can detect the leftovers (see
+    Architecture), so without this the normative deletion is unenforced and an implementer who skips
+    it ships a green build carrying dead unscoped rules. This repo already has the idiom —
+    `tests/test_element_state_write_routes.py` regexes raw source, `tests/test_i18n_po_health.py`
+    guards catalogs.
+
+    **Strip comments before matching.** That existing idiom is known to trip on prose: a raw-source
+    regex matches text inside `/* … */` too, so a comment that merely *mentions* the old selector
+    would redden the suite. Match against comment-stripped CSS, and say so in the test's docstring.
 
 Both `aria-expanded` values agreeing after each toggle is asserted inside tests 1 and 3 rather than as
 a separate case.
@@ -528,12 +626,15 @@ Both `pl` and `en` catalogs get entries and the `.mo` files are regenerated. `ma
 ### Visual verification
 
 The `frontend-design` skill runs once the mechanics pass. Its remit is **colour, weight, iconography,
-border/radius, and resting/hover/focus/active states, within the fixed 2.4rem lane**.
+border/radius, and resting/hover/focus/active states, within the fixed 2.4rem lane** — plus the one
+open layout decision the spec deliberately left to it: **whether `.block-notes` is capped** (see
+"Block notes" above). That choice must be recorded in the PR, not made silently.
 
 It may **not** change the lane width or the `min-height` that squares the button. 2.4rem is
 load-bearing for the `-2.4rem` overhang, the 1040px breakpoint derivation, the 920px content figure,
-and tests 4, 5 and 10; changing it without re-deriving all of them would silently invalidate them.
+and tests 4, 5, 6 and 10; changing it without re-deriving all of them would silently invalidate them.
 
-The sweep covers every element type at top level, prose nested inside `spoiler` and `tabs`, and the
-quiz page's article chrome (title, previewer banner). Screenshots in light **and** dark, judged
+The sweep covers every element type at top level, prose nested inside **all four** containers
+(`two_column`, `spoiler`, `tabs`, `.slideshow-deck`), the quiz page's article chrome (title, previewer
+banner, finish divider), and the block-notes handle. Screenshots in light **and** dark, judged
 separately, at 1440px and ~900px (the reserved-lane branch), in both collapsed and expanded states.
