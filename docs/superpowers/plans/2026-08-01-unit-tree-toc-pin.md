@@ -29,6 +29,7 @@
 **Files:**
 - Modify: `templates/courses/_unit_shell.html:2-3`
 - Modify: `templates/courses/_unit_tree.html:2`, `:5-8`
+- Modify: `courses/static/courses/css/courses.css` (the one-line base rule only)
 - Test: `tests/test_unit_nav_render.py`
 
 **Interfaces:**
@@ -48,9 +49,7 @@ def test_toc_pin_renders_on_lesson_and_quiz_with_a_unique_aria_controls_target(c
     paint, so a CSS-only reveal is flash-free; a JS-created button would pop in
     after hydration. Its aria-controls target must exist exactly once.
     """
-    student = make_verified_user(
-        username="pin_render", email="pin_render@t.example.com", password=TEST_PASSWORD
-    )
+    student = _make_student("pin_render")
     course = CourseFactory(slug="pin-render", owner=student)
     EnrollmentFactory(course=course, student=student)
     lesson = ContentNodeFactory(course=course, kind="unit", unit_type="lesson")
@@ -145,7 +144,26 @@ Then on line 5, add `aria-controls="unit-tree"` to the existing toggle, leaving 
             data-label-expand="{% trans 'Expand contents' %}">‹</button>
 ```
 
-- [ ] **Step 5: Run the test to verify it passes**
+- [ ] **Step 5: Land the base hiding rule**
+
+Add this **now**, in the same commit as the markup - not in Task 2:
+
+```css
+/* Base: the TOC pin is inert until the collapsed state reveals it (Task 2). */
+.unit-toc-pin { display: none; }
+```
+
+Put it immediately above the `@media (min-width: 641px)` block that Task 2 replaces at
+`courses.css:866-873`.
+
+**Why here and not with the rest of the CSS:** without it, this task's commit ships a `<button>`
+with *no rule at all*, so it renders UA-styled as the first flex item of `.unit-shell` on every
+lesson and quiz page, in both states, at every width - and at <=640px, where `.unit-shell` is
+`display: block`, stacked above the tree. Task 1 verifies only non-e2e modules, so nothing would
+observe it. This rule carries no `html.unit-tree-collapsed`, so Task 2's coverage floor of 17 is
+unaffected.
+
+- [ ] **Step 6: Run the test to verify it passes**
 
 ```
 uv run pytest tests/test_unit_nav_render.py tests/test_tags_consumption.py tests/test_courses_views.py tests/test_review_roster.py --verbosity=0
@@ -156,14 +174,14 @@ and `tests/test_tags_consumption.py:142` indexes the literal `'<div class="unit-
 a strict ordering around it, while the other two assert on shell markup. Verifying only the render
 module would let a structural break surface eight commits later.
 
-- [ ] **Step 6: Falsify it**
+- [ ] **Step 7: Falsify it**
 
 Temporarily delete the `<button class="unit-toc-pin" …>` block from `_unit_shell.html`, re-run — it MUST fail. Restore it. A test that cannot be made to fail is not coverage.
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
-git add templates/courses/_unit_shell.html templates/courses/_unit_tree.html tests/test_unit_nav_render.py
+git add templates/courses/_unit_shell.html templates/courses/_unit_tree.html courses/static/courses/css/courses.css tests/test_unit_nav_render.py
 git commit -m "feat(unit-nav): add the TOC pin button and its aria-controls target"
 ```
 
@@ -280,13 +298,13 @@ Delete these eight lines **in full** — the comment at `:866`, the `@media` wra
 Line `:871` carries a trailing `  /* ‹ → › */` — reproduced above so the block matches byte-for-byte
 if used as an Edit anchor. If your editor normalises it, delete by line range `866-873` instead.
 
-Replace with:
+Replace with — **the base `.unit-toc-pin { display: none; }` rule already landed in Task 1; leave it
+in place above this block.** What follows is the single positive override that reveals it:
 
 ```css
 /* Collapsed desktop rail. State lives on <html> (base.html pre-paint), which is
    GLOBAL to every page — so every rule below is additionally scoped to
    [data-unit-shell], present only on the student unit shell. */
-.unit-toc-pin { display: none; }
 
 @media (min-width: 641px) {
   html.unit-tree-collapsed [data-unit-shell] > .unit-tree { display: none; }
@@ -517,7 +535,10 @@ the same step that already edits this test, is deliberate: every repair step shi
 line, so a later step working from fixed anchors would edit the wrong lines. Never string-match
 `browser.new_context(reduced_motion="reduce")` — it occurs **ten** times in this file.
 
-In the same test, change `ctx = browser.new_context()` (`:138`) to:
+In the same test, change `ctx = browser.new_context()` (`:138`) to - **and note the bare form is
+not unique either: it occurs twice, at `:138` and `:374`
+(`test_prev_next_traverses_lesson_and_quiz`), so anchor on the adjacent
+`_login(page, live_server, "e2e_nav_collapse")` line, or edit by line number** -
 
 ```python
     ctx = browser.new_context(viewport={"width": 1440, "height": 900})
@@ -525,7 +546,9 @@ In the same test, change `ctx = browser.new_context()` (`:138`) to:
 
 - [ ] **Step 4: Repair `test_expanding_the_rail_recentres_the_active_unit`**
 
-At `:709-714`, a single `toggle` locator serves both clicks. Change:
+At `:709-714` (**line numbers as of the pre-Task-3 file**; Step 3 has since shifted them by one,
+so verify against the quoted block rather than the numbers). A single `toggle` locator serves
+both clicks. Change:
 
 ```python
     toggle = page.locator("[data-unit-tree-toggle]")
@@ -571,7 +594,8 @@ assertion. Dropping it introduces a flake.
 
 - [ ] **Step 5: Repair `test_centering_is_skipped_when_the_active_group_is_folded`**
 
-At `:877-879`. Change:
+At `:877-879` (**pre-Task-3 numbers**; Steps 3 and 4 have each shifted the file by one line - the
+quoted block is unique, so match on it, not on the numbers). Change:
 
 ```python
     toggle = page.locator("[data-unit-tree-toggle]")
@@ -1450,12 +1474,18 @@ msgid "Show course contents"
 msgstr "Pokaż spis treści"
 ```
 
-In `locale/en/LC_MESSAGES/django.po`:
+In `locale/en/LC_MESSAGES/django.po`, **leave the msgstr empty**:
 
 ```po
 msgid "Show course contents"
-msgstr "Show course contents"
+msgstr ""
 ```
+
+That is this repo's convention, not an oversight: `tests/test_i18n_po_health.py:176-182` states
+"English msgstrs are intentionally empty: gettext falls back to the msgid, so locale/en
+legitimately carries hundreds of blanks." The nearest neighbour proves it -
+`locale/en/LC_MESSAGES/django.po:3856-3857` is `msgid "Open course contents"` / `msgstr ""`.
+Duplicating the msgid here would make this the odd entry out, and the next sweep would revert it.
 
 Keep the tone consistent with the existing `"Expand contents"` / `"Open course contents"` entries — three strings now name the same concept, and divergent phrasing between them is a bug.
 
@@ -1665,11 +1695,15 @@ allow-list — so it needs a concrete seed and a concrete capture path, not a co
 **Seed.** Extend `_seed_text_and_table_unit` (Task 6) into `_seed_sweep_unit` in a throwaway script,
 attaching one of each element root named in the spec's per-root ruling table
 (`docs/superpowers/specs/2026-08-01-unit-tree-toc-pin-design.md`, the table under "Per-root capping
-ruling" — it adds `.el--math`, `.html-el`, `.reveal-gate`, the matrix/filltable roots and switch-grid
-beyond the thirteen allow-list entries), plus one `.el--text` nested inside each of
+ruling" — it adds `.el--math`, `.html-el`, `.reveal-gate`, `.el--choicegrid`, `.filltable` and the
+switch-grid root beyond the thirteen allow-list entries - note there is no matrix element in this
+codebase, the matrix question *is* `choicegridquestionelement`, and the fill-in table's root is
+`.filltable`, not `.el--filltable`), plus one `.el--text` nested inside each of
 `TwoColumnElement`, `SpoilerElement` and `TabsElement`, and — in a **separate unit** — a slide-break pair so
 `slideshow.js` builds a `.slideshow-deck` at runtime (a template grep cannot find that container: it
-does not exist until JS runs). Use `tests/factories.py::seed_slideshow_unit` for that second unit.
+does not exist until JS runs). Use `tests/factories.py::seed_slideshow_unit` for that second unit - `layout` is keyword-only
+with no default, so the call is e.g. `seed_slideshow_unit(course, layout=["t", "brk", "t"])`;
+the token vocabulary (`"t"`, `"q"`, `"brk"`) is documented in that factory's docstring.
 
 **The slideshow must not share the all-roots unit.** `_lesson_article.html:2` adds
 `class="lesson lesson--slideshow"` and `data-slideshow` as soon as `slides|length > 1`, and
@@ -1696,16 +1730,22 @@ Element.objects.create(
 `"t" + secrets.token_hex(3)` (`courses/models.py:1344-1351`) and `default_data()` mints two *random*
 ids, so a literal like `"t000001"` passes `TAB_ID_RE` but matches no tab on the element — the child
 is silently orphaned and never renders, and the sweep would capture an empty tabs panel while the
-nested-prose case it exists to inspect is absent. Two-column ids are random the same way;
+nested-prose case it exists to inspect is absent. Two-column ids are equally random but live at `data["columns"][i]["id"]`, minted as
+`"c" + token_hex(3)` (`courses/models.py:1484-1489`) - copying the tabs line verbatim for a
+two-column parent raises a `KeyError` on `tabs`;
 `SpoilerElement.SLOT_ID` (`"only"`) is genuinely fixed and may stay literal. Follow
 `tests/test_e2e_imagezoom.py:620-637` as the worked idiom — it reads
 `tabs_obj.data["tabs"][1]["id"]` and covers the spoiler form too.
 
 **Capture.** Write it as `tests/capture_toc_pin_sweep.py` — **not** `test_`-prefixed, so
 `python_files = ["test_*.py"]` never collects it in a normal run — mirroring
-`tests/capture_help_screenshots.py`, which establishes this repo's pattern. It needs:
+`tests/capture_help_screenshots.py`, which establishes this repo's pattern. Copy the harness header from `tests/capture_help_screenshots.py:14-34` wholesale. It needs:
 
 - `pytestmark = pytest.mark.django_db(transaction=True)` at module level
+- a **session-scoped autouse `_allow_async_unsafe` fixture** doing
+  `os.environ.setdefault("DJANGO_ALLOW_ASYNC_UNSAFE", "true")` - neither `conftest.py` nor
+  `tests/conftest.py` sets it, and without it the first ORM call raises `SynchronousOnlyOperation`
+- a `_login` helper and a `_make_student`-style user factory, to reach a logged-in unit page
 - the `browser` and `live_server` fixtures
 - `browser.new_context(viewport=…)` per shot
 
@@ -1744,10 +1784,17 @@ allow-list; re-derive the Task 2 coverage floor **only if an entry is removed** 
 
 Judge light and dark separately — dark is not assumed to follow from light. **One concrete defect to
 look for:** Step 4's `border: 1px solid var(--border-default)` on `background: var(--surface-raised)`
-measures ~1.07:1 in the dark palette (`#322E29` on `#2C2925`), i.e. no visible border at all, and the
-plate itself is ~1.55:1 against `--surface-base`. Consider `--border-strong` there. The icon colour is
-fine either way: `--text-tertiary` measures 3.72:1 on white and 3.89:1 on the dark plate, both over
-the 3:1 non-text threshold.
+measures **1.07:1** in the dark palette (`#322E29` on `#2C2925`) - no visible border at all - and the
+plate is **1.22:1** against `--surface-base`.
+
+**`--border-strong` is not the fix**: measured, it is `#4A4036` on `#2C2925` = **1.43:1**, still
+far under 3:1. Either give the pin a dedicated lighter border value in dark, or drop the border
+and let a lifted plate carry the shape.
+
+WCAG 1.4.11's 3:1 bar applies to what *identifies* the control, and here that is the icon, which
+already clears it: `--text-tertiary` measures 3.72:1 on white and 3.89:1 on the dark plate. So
+the border is decorative for conformance purposes - but decorative is not invisible, and a
+control whose only edge vanishes into the page is still a defect worth fixing.
 
 - [ ] **Step 8: Re-run lint and the suites after any change above**
 
