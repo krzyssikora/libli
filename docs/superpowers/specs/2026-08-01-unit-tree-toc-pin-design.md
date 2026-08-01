@@ -532,10 +532,22 @@ elsewhere — `.quiz, .lesson { margin-inline: auto }` at `courses.css:180-181` 
 renders inside every `<section class="lesson-block">` (`_lesson_article.html:40`), which stays 872px.
 `.block-notes__handle` is `margin-left: auto` (`notes/css/notes.css:51-58`) — tucked to the block's
 right edge — so under a 736px-capped text element the handle floats ~136px right of the prose it
-annotates. Two candidate resolutions: cap `.block-notes` too (aligns the handle with prose, but
-misaligns it under a full-width table), or leave it anchored to the block (consistent with today, but
-visually detached from capped prose). **The frontend-design sweep decides this with screenshots and
-records the choice**; it is explicitly in that pass's remit.
+annotates. Two candidate resolutions:
+
+- **Cap `.block-notes` too** — aligns the handle with prose, but misaligns it under a full-width
+  table, **and detaches the note popover.** That third consequence is the non-obvious one:
+  `notes.css:90-101` gives `.notes-js .lesson-block { position: relative }` and opens
+  `.block-notes__pop` at `position: absolute; left: calc(100% + 1rem)`. The popover's containing
+  block is therefore **`.lesson-block`, which stays 872px** — not `.block-notes`. Capping the latter
+  to 736px moves the `margin-left: auto` handle to x≈1012 while its popover still opens at x≈1164:
+  a ~136px gap between the icon and the panel it opens. `notes.js` re-anchors the panel vertically
+  only; nothing re-anchors `left`. Fixing it would mean capping `.lesson-block` itself (which would
+  squeeze tables) or re-anchoring the popover.
+- **Leave it anchored to the block** — consistent with today, but visually detached from capped prose.
+
+**The frontend-design sweep decides this with screenshots and records the choice**; it is explicitly
+in that pass's remit. **The sweep must view it with a note panel *open* at ≥1200px**, or the popover
+consequence is invisible: it needs that breakpoint, JS on, and an open panel simultaneously.
 
 **Unanchored notes are the same deferred question.** `_lesson_article.html:45` includes
 `notes/_unanchored.html` as the last child of `<article class="lesson">` — outside every
@@ -827,7 +839,16 @@ that has nothing to do with the rule under test.
    So test 6 carries a **third assertion, which is the one that actually guards the precondition**:
    walk every ancestor of `.unit-shell` up to `<html>` and assert each has computed
    `overflow-x: visible`. Deterministic, and it expresses the precondition directly rather than hoping
-   a rendering side-effect exposes it. Optionally pair it with a hit-test at
+   a rendering side-effect exposes it.
+
+   **`body` and `<html>` are included as a deliberate tripwire, not because they can clip.** The
+   analysis above rules both out — `body` has no margin so its box spans the viewport, and the root's
+   overflow propagates to the viewport rather than clipping a descendant. They are walked anyway
+   because `getComputedStyle` returns the *computed* value, so a future scroll-lock on either (the
+   pattern `html.imgzoom-open` already establishes at `courses.css:1585`) would turn this red. **A red
+   on `body`/`html` means "re-check whether this propagates to the viewport", not "the pin is
+   clipped"** — say so in the assertion message, or the next person will chase a phantom. Only
+   `.app-main` (and any future intermediate wrapper) can actually clip. Optionally pair it with a hit-test at
    `(pinRect.left + 3, centreY)` — a point inside the clipped region — which does go red under
    `.app-main { overflow: hidden }`.
 
@@ -904,14 +925,30 @@ that has nothing to do with the rule under test.
    - **Load B — enrolled student, unsubmitted**: `.lesson-unit__title`, `.el--question` and
      `.quiz-finish` each ≤736px. No banner on the page.
 
-   **Load A's actor must reach the page by ownership, not by "no relationship".**
+   **Both loads use ONE actor — the course owner — and differ only by an ORM write between them.**
+   This is stated explicitly because "two loads" invites two users, and two users would need an
+   identity switch that `test_e2e_unit_nav.py` cannot perform (see below).
+
    `quiz_unit` (`courses/views.py:1230`) raises `PermissionDenied` unless
-   `can_access_course(user, course)`, which is "enrolled OR staff OR owner"
-   (`courses/access.py:32-34`). A user with no enrolment *and* no other relationship gets a 403 and
-   never renders the banner the load exists to measure. So Load A's actor is the course **owner** (or
-   `is_staff`) and is **not** enrolled — that combination is exactly what makes
-   `previewing = not enrolled` true while the page still loads. Load B's actor gets an
-   `EnrollmentFactory` instead.
+   `can_access_course(user, course)` = "enrolled OR staff OR owner" (`courses/access.py:32-34`), so an
+   actor with no relationship at all gets a 403 and never renders the banner. The owner satisfies
+   access **without** being enrolled, which is exactly what makes `previewing = not enrolled` true.
+   Sequence:
+
+   1. **Load A** — owner, no `Enrollment`: `previewing` is true, `read_only` is true, banner renders,
+      no `.quiz-finish`.
+   2. Create `EnrollmentFactory(course=course, student=actor)` **via the ORM**, then `page.reload()`.
+   3. **Load B** — same session, now enrolled: `previewing` false, `read_only` false, `.quiz-finish`
+      renders, no banner.
+
+   **Do not use two users.** `_login()` (`tests/test_e2e_unit_nav.py:50-56`) navigates to
+   `/accounts/login/` and fills `input[name='login']`; `ACCOUNT_AUTHENTICATED_LOGIN_REDIRECTS` is
+   never set, so allauth redirects an already-authenticated visitor away from that page and the
+   locator never resolves. `test_e2e_unit_nav.py` has no `_logout` helper. If a future change forces
+   two identities, the repo's two established routes are `_logout()`
+   (`tests/test_e2e_review.py:36-43`, a real allauth gesture) or a second
+   `browser.new_context()` (`tests/test_e2e_questions.py`) — and a second context inherits test 9's
+   duty to size *every* context identically.
 
    **The quiz unit needs a question element attached.** `make_quiz_unit()` (`tests/factories.py:235`)
    returns a bare `ContentNodeFactory(kind="unit", unit_type="quiz")` with no elements, so
@@ -991,9 +1028,11 @@ that has nothing to do with the rule under test.
    assertion could never go red and would be guaranteed-green boilerplate. **The prose-cap family is
    guarded by test 11 instead.**
 10. **e2e — the content column aligns with the strip above it (≥1040px).** At 1440px collapsed,
-    assert `.unit-shell__main`'s left edge equals `.unit-strip`'s left edge (within 1px), and that
-    the pin's left edge is ~38.4px left of both. Pins the negative-margin arithmetic against a future
-    change to either box.
+    assert `.unit-shell__main`'s left edge equals `.unit-strip`'s left edge **within 1px**, and that
+    the pin's left edge is 38.4px left of both, **also within 1px** — the tolerance is named for both
+    clauses, not just the first. At 1440px the figures are exact (strip left 252.5, pin left 214.1),
+    so nothing forces a looser bound, and this is the only assertion pinning the lane offset at
+    ≥1040px. Pins the negative-margin arithmetic against a future change to either box.
 11. **Source guard — the sliver rules are gone, and every new rule is scoped.** Two assertions over
     comment-stripped `courses.css`. This carries more weight than a typical source test: it is the
     *only* guard for the prose-cap family (test 9 cannot falsify it) and the *only* guard for the
@@ -1125,6 +1164,7 @@ and tests 4, 5, 6 and 10; changing it without re-deriving all of them would sile
 
 The sweep covers every element type at top level, prose nested inside **all four** containers
 (`two_column`, `spoiler`, `tabs`, `.slideshow-deck`), the quiz page's article chrome (title, previewer
-banner, finish divider), the block-notes handle, and unanchored notes. Screenshots in light **and**
-dark, judged
+banner, finish divider), unanchored notes, and **the block-notes handle with a panel open at
+≥1200px** (the only configuration in which the popover-detachment consequence is visible).
+Screenshots in light **and** dark, judged
 separately, at 1440px and ~900px (the reserved-lane branch), in both collapsed and expanded states.
