@@ -205,7 +205,19 @@ Expected: 2 passed.
 
 Change one `display: true` to `display: false` in `DEFAULT_DELIMITERS`, re-run, confirm RED, then change it back and confirm GREEN again. A drift test that cannot redden is worthless.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 6: Lint before committing**
+
+```
+uv run ruff check tests/test_math_reflow_defaults.py && uv run ruff format --check tests/test_math_reflow_defaults.py
+```
+
+Run this at the end of **every** task that adds a Python file, not only at Task 10 —
+the repo selects `["E","F","I","UP","B","S"]` and `tests/**` is exempted only for
+`S105/S106/S107`. In particular `UP031` forbids `"…%s…" % x` (use an f-string), `E741`
+forbids `l` as a name, and `E501` caps lines at 88. Fixing six files' worth of lint at
+Task 10, five commits after the fact, is the failure mode this step exists to prevent.
+
+- [ ] **Step 7: Commit**
 
 ```bash
 git add courses/static/courses/js/math_reflow.js tests/test_math_reflow_defaults.py
@@ -311,7 +323,10 @@ def test_math_reflow_registers_no_domcontentloaded_retry():
     )
     # Anti-vacuity: prove comment-stripping left real code behind, not an empty
     # string that would make the negative assertion below pass trivially.
-    assert "IGNORE_SELECTOR" in src
+    # Anchor on something the Task 1 SKELETON already defines: IGNORE_SELECTOR is
+    # not written until Task 3, so anchoring on it makes this test fail at Task 2
+    # for a reason the plan never lists.
+    assert "DEFAULT_DELIMITERS" in src
     assert len(src) > 200, "comment stripping ate the whole module"
     assert not re.search(r"""addEventListener\(\s*["']DOMContentLoaded""", src)
 ```
@@ -424,7 +439,12 @@ def _reflow_html(page, html, options="undefined"):
 IGNORED = [
     ("pre", "<pre><div>\\[a</div><div>b\\]</div></pre>"),
     ("code", "<code><div>\\[a</div><div>b\\]</div></code>"),
-    ("textarea", "<textarea><div>\\[a</div><div>b\\]</div></textarea>"),
+    # NOT a <textarea>: its content is RCDATA, so the parser stores it as one text
+    # node and the serializer escapes it back out — `_reflow_html(html) == html`
+    # FAILS for parsing reasons that have nothing to do with the reflow, and the
+    # markup never becomes elements so the case would pass with `textarea` deleted
+    # from IGNORE_SELECTOR anyway. `pre` and `code` do redden; `textarea` is covered
+    # by its own assertion below.
     ("contenteditable", '<div contenteditable="true"><div>\\[a</div><div>b\\]</div></div>'),
     ("katex", '<span class="katex"><div>\\[a</div><div>b\\]</div></span>'),
     ("katex-error", '<span class="katex-error">\\(a<br>b\\)</span>'),
@@ -434,6 +454,23 @@ IGNORED = [
 @pytest.mark.parametrize("name,html", IGNORED, ids=[n for n, _ in IGNORED])
 def test_ignored_subtrees_are_untouched(page, name, html):
     assert _reflow_html(page, html) == html
+
+
+def test_textarea_is_ignored(page):
+    """Asserted against the PARSED baseline, not the source string: <textarea>
+    holds RCDATA, so innerHTML does not round-trip it. Wrapping it in a <section>
+    keeps the walk descending until it meets the textarea."""
+    page.set_content(
+        "<!DOCTYPE html><section id='root'>"
+        "<textarea><div>\\[a</div><div>b\\]</div></textarea></section>"
+    )
+    page.add_script_tag(path=SCRIPT)
+    before = page.evaluate("() => document.getElementById('root').innerHTML")
+    after = page.evaluate(
+        "() => { const r = document.getElementById('root');"
+        "        window.libliMathReflow(r); return r.innerHTML; }"
+    )
+    assert after == before
 
 
 def test_contenteditable_false_is_not_ignored(page):
@@ -541,7 +578,7 @@ and replace `reflow`'s body:
     if (root.closest && root.closest(IGNORE_SELECTOR)) return;
     if (extra && root.closest && root.closest(extra)) return;
     walk(root, extra, function (element) {
-      mergeChildren(element, options);   // Task 4
+      mergeChildren(element, options, extra);   // Task 4
     });
   }
 ```
@@ -549,7 +586,7 @@ and replace `reflow`'s body:
 and add a stub so the module still parses:
 
 ```js
-  function mergeChildren(element, options) { /* Task 4 */ }
+  function mergeChildren(element, options, extraSelector) { /* Task 4 */ }
 ```
 
 - [ ] **Step 4: Run and watch them pass**
@@ -582,7 +619,7 @@ The core. Mergeable/barrier classification, run partition, run-text build with t
 
 **Interfaces:**
 - Consumes: `walk`, `IGNORE_SELECTOR` (Task 3); `DEFAULT_DELIMITERS` (Task 1).
-- Produces: `mergeChildren(element, options)`; internal `findEndOfMath(delim, text, from)`, `findSpans(text, delimiters)`, `buildRun(children)`.
+- Produces: `mergeChildren(element, options, extraSelector)`; internal `findEndOfMath(delim, text, from)`, `findSpans(text, delimiters)`, `buildRun(children)`.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -864,8 +901,12 @@ Replace the `mergeChildren` stub in `math_reflow.js`:
     return node.nodeType === 1 && node.tagName === "BR" && noEffectiveAttributes(node);
   }
 
-  function isMergeableBlock(node) {
+  // extraSelector must reach CLASSIFICATION, not just descent: walk() refusing to
+  // descend into an extra-ignored child does not stop mergeChildren from folding
+  // that child away, which is exactly what the union exists to prevent.
+  function isMergeableBlock(node, extraSelector) {
     if (node.nodeType !== 1) return false;
+    if (isIgnored(node, extraSelector)) return false;
     if (node.tagName !== "DIV" && node.tagName !== "P") return false;
     if (!noEffectiveAttributes(node)) return false;
     for (var i = 0; i < node.childNodes.length; i++) {
@@ -877,8 +918,10 @@ Replace the `mergeChildren` stub in `math_reflow.js`:
     return true;
   }
 
-  function isMergeable(node) {
-    return node.nodeType === 3 || isBareBr(node) || isMergeableBlock(node);
+  function isMergeable(node, extraSelector) {
+    if (node.nodeType === 3) return true;
+    if (isIgnored(node, extraSelector)) return false;
+    return isBareBr(node) || isMergeableBlock(node, extraSelector);
   }
 
   // ---- run text + offset->child map ------------------------------------------
@@ -962,14 +1005,14 @@ Replace the `mergeChildren` stub in `math_reflow.js`:
     return nodes;
   }
 
-  function mergeChildren(element, options) {
+  function mergeChildren(element, options, extraSelector) {
     var doc = element.ownerDocument || document;
     var children = [].slice.call(element.childNodes);
     var runs = [];
     var current = [];
     var i;
     for (i = 0; i < children.length; i++) {
-      if (isMergeable(children[i])) current.push(i);
+      if (isMergeable(children[i], extraSelector)) current.push(i);
       else { if (current.length) runs.push(current); current = []; }
     }
     if (current.length) runs.push(current);
@@ -1023,13 +1066,20 @@ Replace the `mergeChildren` stub in `math_reflow.js`:
         }
         replacement = replacement.concat(textFragment(doc, run, cursor, endOffset));
 
-        var anchor = children[group.first];
+        // MUST index `nodes` (the run), NOT `children` (all of the element's
+        // children). buildRun pushes childIndex from its own loop over `nodes`, so
+        // run.map values are RUN-LOCAL. Indexing `children` with them diverges the
+        // moment a run does not start at child 0 — measured, that destroys author
+        // content: <span>hi</span><div>\[a</div><div>b\]</div> came out as
+        // "\[a\nb\]<div>b\]</div>", losing the <span> and leaving a stale <div>.
+        // A heading or an image above a split display block is exactly that shape.
+        var anchor = nodes[group.first];
         for (i = 0; i < replacement.length; i++) {
           element.insertBefore(replacement[i], anchor);
         }
         for (i = group.first; i <= group.last; i++) {
-          if (children[i] && children[i].parentNode === element) {
-            element.removeChild(children[i]);
+          if (nodes[i] && nodes[i].parentNode === element) {
+            element.removeChild(nodes[i]);
           }
         }
       }
@@ -1050,7 +1100,13 @@ Delete `.katex-error` from `IGNORE_SELECTOR` → `test_ignored_subtrees_are_unto
 
 - [ ] **Step 6: Falsify rule 4**
 
-Change rule 4 to compare text-node segments instead of child indices (the superseded wording). `test_single_child_span_is_never_rewritten` must go RED. Restore.
+Write the mutant out rather than describing a discarded design. In `buildRun`, add a
+parallel `textNodeIds` array that increments only when a *text node* starts
+contributing, and in rule 4 compare `textNodeIds[span.start] !== textNodeIds[span.end - 1]`
+instead of `run.map[...]`. Under that mutant a span inside one mergeable `<p>` spans a
+single *child* but zero *text-node segments*, so it is rewritten and the paragraph is
+unwrapped. `test_single_child_span_is_never_rewritten` is the only case that may change
+colour — it must go RED. Restore.
 
 - [ ] **Step 7: Falsify the empty-attribute allowance**
 
@@ -1126,6 +1182,11 @@ def _reflow_text(page, text):
 ```
 uv run pytest tests/test_e2e_math_reflow_dom.py -m e2e -k phase_1b --verbosity=0
 ```
+
+Expected: `test_phase_1b_converts_literal_br_inside_a_span` and all four
+`test_phase_1b_matches_every_br_form` cases go RED. `test_phase_1b_leaves_p_alone`
+asserts "unchanged" and is **green by design** before `phase1b` exists — Step 5's
+falsification is what pins it.
 
 - [ ] **Step 3: Implement phase 1b**
 
@@ -1387,6 +1448,18 @@ def test_hook_b_passes_a_non_string_through_untouched(page):
 
 - [ ] **Step 2: Run and watch them fail**
 
+```
+uv run pytest tests/test_e2e_math_reflow_dom.py -m e2e -k hook_b --verbosity=0
+```
+
+Expected RED: `test_hook_b_strips_a_display_wrapper`,
+`test_hook_b_strips_an_inline_wrapper`, `test_hook_b_skips_leading_whitespace`,
+`test_hook_b_tolerates_row_spacing`. **Green by design** against Task 1's
+pass-through wrapper: `test_hook_b_refuses_two_adjacent_spans` and
+`test_hook_b_passes_a_non_string_through_untouched` — both assert the expression
+arrives unchanged, which a pass-through trivially satisfies. Step 5's falsifications
+pin those two.
+
 - [ ] **Step 3: Implement the strip**
 
 Replace the Hook B wrapper body from Task 1:
@@ -1446,7 +1519,7 @@ The `try/catch` around the reflow is the only safety net for an implementation b
 - [ ] **Step 1: Write the failing tests**
 
 ```python
-def test_a_poisoned_delimiter_set_still_lets_the_renderer_run(page):
+def test_a_poisoned_delimiter_set_does_not_throw(page):
     _page(page, "<div>\\[x</div><div>y\\]</div>")
     ok = page.evaluate(
         "() => { try { window.libliMathReflow("
@@ -1491,7 +1564,45 @@ element's failure cannot abort the traversal:
       try { visit(node); } catch (e) { /* per-element atomicity; see the spec */ }
 ```
 
-Second, harden `delimitersFor` against a malformed set:
+Second, harden `delimitersFor` against a malformed set. **Both hardenings need a test
+whose outcome depends on them** — measured, neither existing case reddens when either is
+reverted, so committing them untested would violate the repo's own falsification rule:
+
+```python
+def test_a_throw_mid_walk_does_not_abort_the_rest_of_the_traversal(page):
+    """Pins the per-element try/catch inside walk. The first element's visit throws;
+    the SECOND element must still be merged. Falsify by removing that try/catch —
+    this must go RED while test_a_mid_walk_throw_leaves_ignored_subtrees_untouched
+    stays green, which is why that one is not sufficient on its own."""
+    page.set_content(
+        "<!DOCTYPE html><section id='root'>"
+        "<section id='a'><div>\\[x</div><div>y\\]</div></section>"
+        "<section id='b'><div>\\[p</div><div>q\\]</div></section></section>"
+    )
+    page.add_script_tag(path=SCRIPT)
+    out = page.evaluate(
+        "() => { const orig = Element.prototype.insertBefore; let n = 0;"
+        "        Element.prototype.insertBefore = function () {"
+        "          if (++n === 1) { throw new Error('boom'); }"
+        "          return orig.apply(this, arguments); };"
+        "        try { window.libliMathReflow(document.getElementById('root')); }"
+        "        finally { Element.prototype.insertBefore = orig; }"
+        "        return document.getElementById('b').innerHTML; }"
+    )
+    assert out == "\\[p\nq\\]"
+
+
+def test_a_malformed_delimiter_entry_falls_back_to_the_defaults(page):
+    """Pins the delimitersFor type guard. [1, 2] is a non-empty array of non-objects;
+    without the guard `delimiters[i].left` throws, and the reflow is swallowed by its
+    own catch, so nothing merges. Falsify by reverting to
+    `(options && options.delimiters) || DEFAULT_DELIMITERS`."""
+    out = _reflow_html(page, "<div>\\[x</div><div>y\\]</div>",
+                       options={"delimiters": [1, 2]})
+    assert out == "\\[x\ny\\]"
+```
+
+Then apply the guard:
 
 ```js
   function delimitersFor(options) {
@@ -1531,32 +1642,48 @@ def _hooka(page, html, *, twice=False):
 
 
 def test_hook_a_reflows_before_delegating_and_forwards_the_return(page):
-    calls, ret = _hooka(page, "<div>\[x</div><div>y\]</div>")
-    assert calls == ["\[x\ny\]"]   # the original saw the MERGED dom
+    calls, ret = _hooka(page, "<div>\\[x</div><div>y\\]</div>")
+    assert calls == ["\\[x\\ny\\]"]   # the original saw the MERGED dom
     assert ret == "sentinel"             # and its return value came back
 
 
 def test_hook_a_still_delegates_when_the_reflow_throws(page):
-    page.set_content("<!DOCTYPE html><section id='root'><div>\[x</div></section>")
+    page.set_content("<!DOCTYPE html><section id='root'><div>\\[x</div></section>")
     page.evaluate(
         "() => { window.__ran = false;"
         "        window.renderMathInElement = () => { window.__ran = true; };"
         "        window.katex = { render: () => {} }; }"
     )
     page.add_script_tag(path=SCRIPT)
+    # MEASURED: {ignoredTags: {bad: 1}} does NOT throw — extraIgnoreSelector reads
+    # .length, which is undefined on a plain object, so the loop never runs and it
+    # returns null. An invalid CSS selector does throw: node.matches("[") raises
+    # SyntaxError inside the walk.
     page.evaluate(
         "() => window.renderMathInElement(document.getElementById('root'),"
-        "                                 {ignoredTags: {bad: 1}})"
+        "                                 {ignoredTags: ['[']})"
     )
     assert page.evaluate("() => window.__ran") is True
 
 
-def test_double_include_reflows_only_once(page):
-    calls, _ = _hooka(page, "<div>\[x</div><div>y\]</div>", twice=True)
-    assert len(calls) == 1
+def test_double_include_installs_only_one_wrapper(page):
+    """MEASURED: asserting `len(calls) == 1` CANNOT redden. __calls records the
+    innermost fake, and a double wrap is wrapper2 -> reflow -> wrapper1 -> reflow
+    -> fake, so the fake is still called exactly once even with the guard deleted.
+    Assert on the wrapper IDENTITY instead, which is what a second install changes."""
+    page.set_content("<!DOCTYPE html><section id='root'></section>")
+    page.evaluate(
+        "() => { window.renderMathInElement = function () {};"
+        "        window.katex = { render: () => {} }; }"
+    )
+    page.add_script_tag(path=SCRIPT)
+    page.evaluate("() => { window.__first = window.renderMathInElement; }")
+    page.add_script_tag(path=SCRIPT)
+    assert page.evaluate("() => window.renderMathInElement === window.__first")
+    assert page.evaluate("() => window.__libliMathReflowWrapped") is True
 ```
 
-Falsify: delete the `window.__libliMathReflowWrapped` guard → `test_double_include_reflows_only_once` must go RED. Restore.
+Falsify: delete the `window.__libliMathReflowWrapped` guard → `test_double_include_installs_only_one_wrapper` must go RED (the second include replaces the global, so the identity check fails). Restore.
 
 - [ ] **Step 4: Commit**
 
@@ -1628,7 +1755,7 @@ Each case needs a concrete terminal assertion, not a pointer back at the spec:
 | 2a | Block in a **callout body** | `CalloutElement(body=BLOCK)` | `.callout__body .katex` == 1, `.katex-error` == 0 |
 | 2b | **Table cell** in the shape `sanitize_cell` really stores — the `<br>` arrives as escaped text | `TableElement` cell html = `\[a&lt;br&gt;b\]` | `.el--table .katex` == 1, and the rendered text holds no literal `<br>` |
 | 3a | **Math element** carrying the `\[…\]` wrapper | `MathElement` | `.el--math .katex` == 1 **and** `.katex-error` == 0 |
-| 3b | Math element carrying `\(x\)` | `MathElement` | one `.katex`, rendered as display (`.katex-display` present) |
+| 3b | Math element carrying `\(x\)` | `MathElement` | one `.katex`, rendered as display. **Not a contradiction of Hook B**: display mode comes from `math.js:6`'s hardcoded `displayMode: true`, not from the stripped delimiter, so a Math element always renders display |
 | 4 | `\(\begin{align*}…\)` in a text element | `TextElement` | one `.katex`, zero `.katex-error`, `.katex-display` present |
 | 5 | `\[a\] + \[b\]` in a Math element | `MathElement` | `.katex-error` == 1 — the strip is correctly refused, KaTeX rejects the literal `\[`, and that is today's behaviour which must not change |
 | 6 | Display block containing `\\[2ex]` | `MathElement` | one `.katex`, zero `.katex-error` |
@@ -1668,7 +1795,10 @@ git commit -m "test(math): end-to-end display-math authoring through real pages"
 ```
 uv run pytest --verbosity=0
 ```
-Expected: green. Baseline was 4559 passed / 1 skipped; record the new total in the PR body.
+Expected: **4565 passed, 1 skipped.** The baseline was 4559/1 and this plan adds exactly six
+non-e2e tests (2 in Task 1, 4 in Task 2). Any other number must be explained before proceeding —
+in particular a higher count means an e2e file landed in the default run for want of a
+`pytestmark`, which is the risk the Global Constraints call out.
 
 - [ ] **Step 2: Full e2e suite**
 
@@ -1714,7 +1844,7 @@ PR body must list: the new non-e2e count, the `<p>` screenshots, the centred-for
 
 **Known gap, deliberately left to the implementer:** Task 9's fixtures are described rather than written, because the repo's authoring-test helpers must be read from the existing suite rather than invented — the spec's own build-lessons record that invented fixtures are a recurring failure here. Task 9 Step 1 names the helpers to look up.
 
-**Type consistency.** `findEndOfMath(delim, text, startIndex)`, `findSpans(text, delimiters)`, `delimitersFor(options)`, `buildRun(children) → {text, map, synthetic}`, `mergeChildren(element, options)`, `phase1b(element, options)`, `phase2(element, options)`, `stripWrapper(expr)`, `walk(node, extraSelector, visit)`, `isIgnored(node, extraSelector)` — each defined once and used with the same signature throughout.
+**Type consistency.** `findEndOfMath(delim, text, startIndex)`, `findSpans(text, delimiters)`, `delimitersFor(options)`, `buildRun(children) → {text, map, synthetic}`, `mergeChildren(element, options, extraSelector)`, `isMergeable(node, extraSelector)`, `phase1b(element, options)`, `phase2(element, options)`, `stripWrapper(expr)`, `walk(node, extraSelector, visit)`, `isIgnored(node, extraSelector)` — each defined once and used with the same signature throughout.
 
 ## Sample-code verification
 
