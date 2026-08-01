@@ -1887,3 +1887,45 @@ Task 9 is the last task — anything left unstaged here never reaches the PR.
 **Placeholder scan:** none — every code step carries complete code, every command its expected output. The one former offender, `TabsElement.objects.create(...)` in Task 9's nesting snippet, now spells out `data=TabsElement.default_data()` and reads the tab id from the container.
 
 **Type consistency:** `[data-unit-tree-pin]` and `.unit-toc-pin` are used identically in Tasks 1-7. `_collapse(page)` is defined once in Task 5 and reused in Task 6. `id="unit-tree"` matches `aria-controls` in Tasks 1 and 4. The coverage floor of 17 in Task 2 matches the thirteen allow-list entries plus four structural selectors written in the same task.
+
+---
+
+## Deferred decisions — resolved
+
+Both were deferred to the frontend-design pass and are settled here, from screenshots at 1440px and
+900px in light and dark. Both resolve to **no CSS change** — a real outcome of looking, not a skipped
+step.
+
+### `.block-notes` — NOT capped
+
+Observed at 1440px collapsed: the prose block's note handle sits at the block's right edge (~872px)
+while its prose ends at the 736px cap, a ~136px gap. The table block's handle sits at the same x.
+
+Capping `.block-notes` would align the handle with prose, but it would also (a) misalign it under a
+full-width table, and (b) detach each handle from its own popover by the same 136px —
+`.block-notes__pop` is `position: absolute; left: calc(100% + 1rem)` against `.lesson-block`
+(`notes.css:90-101`), which stays 872px whatever `.block-notes` does.
+
+Leaving it uncapped keeps every handle on one vertical line at the content's right edge, aligned with
+each other **and** with the popovers they open. The consistent notes gutter is worth more than
+per-block alignment, and it is the only option that does not break the popover.
+
+### Unanchored notes — NOT capped
+
+`notes/_unanchored.html` renders a dashed-border disclosure at the end of the article whose content is
+a short label ("1 note whose block was removed"), not reading prose. It is an affordance panel, and it
+sits directly beneath the full-width `.unit-foot`. Capping it to 46rem would leave it ragged against
+that footer for no readability gain, since there is no long-form text in it to measure.
+
+### Pin visual treatment — chrome dropped at rest
+
+Not a deferred decision, but a change of direction from the plan's minimum treatment, recorded for the
+same reason. The plan borrowed `.unit-tree__toggle`'s bordered plate. Measured against
+`--surface-base`, which is what the pin actually sits on: the raised plate is 1.13:1 light / 1.22:1
+dark, `--border-default` 1.15:1 / 1.31:1, `--border-strong` only 1.37:1 / 1.75:1. All invisible. The
+icon alone carries 3.30:1 / 4.76:1.
+
+So the chrome was decoration that could not be seen — and it partly reinstated the stripe this change
+exists to remove. The pin is now a bare mark at rest and grows its plate and edge on hover, where the
+chrome is feedback rather than permanent noise. `.unit-tree__toggle` keeps its border because it sits
+on a panel where a border reads; matching backdrops matters more than matching tokens.

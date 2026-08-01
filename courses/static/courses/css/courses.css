@@ -866,21 +866,33 @@ a.unit-crumbs__label:focus-visible { outline: 2px solid var(--primary); outline-
 /* Base: the TOC pin is inert until the collapsed state reveals it (Task 2). */
 .unit-toc-pin { display: none; }
 
-/* Visual treatment. Borrows .unit-tree__toggle's so the two read as one control
-   that moved. No :focus-visible rule here — reset.css:24 already applies
-   `outline: 2px solid var(--primary); outline-offset: 2px` to :focus-visible
-   globally, so an element-specific copy would be a byte-for-byte duplicate. */
+/* Visual treatment: a mark at rest, a button on interaction.
+   Deliberately NOT a copy of .unit-tree__toggle's chrome. That control sits on a
+   panel (--surface-sunken) where a border reads; the pin stands alone on the page
+   (--surface-base), where the same tokens vanish. Measured against --surface-base:
+   the raised plate is 1.13:1 light / 1.22:1 dark and --border-default 1.15:1 /
+   1.31:1 — invisible in both themes, and --border-strong only reaches 1.37 / 1.75.
+   The icon alone carries 3.30:1 / 4.76:1, comfortably over the 3:1 non-text bar.
+   So the plate and border were decoration that could not be seen; dropping them is
+   also truer to the change, which exists to take a stripe OUT of this gutter.
+   The chrome appears on hover, where it is feedback rather than permanent noise.
+   No :focus-visible rule here — reset.css:24 already applies the global ring. */
 .unit-toc-pin {
-  border: 1px solid var(--border-default);
+  border: 1px solid transparent;   /* reserves the hover edge; no layout shift */
   border-radius: .4rem;
-  background: var(--surface-raised);
+  background: transparent;
   color: var(--text-tertiary);
   cursor: pointer;
   padding: 0;
+  transition: color 120ms ease, background-color 120ms ease, border-color 120ms ease;
 }
+/* The icon IS the control now, so it carries a little more weight than the 1em
+   the shared .icon class gives it. Still inside the fixed 2.4rem lane. */
+.unit-toc-pin > .icon { width: 1.15rem; height: 1.15rem; }
 .unit-toc-pin:hover {
-  color: var(--text-secondary);
+  background: var(--surface-raised);
   border-color: var(--border-strong);
+  color: var(--text-secondary);
 }
 
 /* Collapsed desktop rail. State lives on <html> (base.html pre-paint), which is
