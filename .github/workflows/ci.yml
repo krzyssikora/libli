@@ -44,6 +44,12 @@ jobs:
           python-version: "3.13"
           enable-cache: true
       - run: uv sync
+      # Model changes with no migration merge silently otherwise: nothing else here
+      # detects them, and the next unrelated makemigrations absorbs the stray
+      # operation. Lives in `unit`, not `lint`, because makemigrations opens a
+      # connection for its migration-history consistency check — without the
+      # postgres service it hangs on connect rather than failing fast.
+      - run: uv run python manage.py makemigrations --check --dry-run
       - run: uv run python manage.py migrate        # verify the real deploy path (before tests, fail fast)
       - run: uv run python manage.py setup_roles     # asserts seed_roles works post-migrate
       - run: uv run python -m pytest -n auto
