@@ -579,8 +579,18 @@ For each element reached by the walk, over its snapshotted child list:
    it came from was replaced. Inside the span a `\n` character is correct, because there the text is
    LaTeX, not HTML.
 6. **All matches in a run are planned from a single derivation, then applied** — the run text and its
-   offset→child map are built once, every rewrite is computed against that one snapshot, and only
-   then are the DOM mutations performed (right to left, so earlier indices stay valid).
+   offset→child map are built once, and every rewrite is computed against that one snapshot.
+
+   **Covered ranges may overlap, so planned rewrites are coalesced before any mutation.** A child
+   holding the end of one span and the start of the next belongs to *both* ranges — the rule-6 example
+   below is exactly that shape. Applying such rewrites in either order destroys a node the other is
+   planned against, so ordering alone cannot fix it. Instead: union the covered ranges of all planned
+   spans into maximal **disjoint replacement groups**, and replace each group's children with one
+   interleaved node sequence — covered text before span 1, span 1, covered text between spans 1 and 2,
+   span 2, …, trailing covered text — under the same synthetic-newline-dropping and
+   `<br>`-preservation rules rule 5 gives for the preceding and following fragments. Groups are
+   disjoint by construction, so the mutations can then be applied right to left with earlier indices
+   staying valid.
 
    Do **not** re-derive after each rewrite. Rule 5's output is adjacent text nodes, so a re-derivation
    sees boundaries that no element ever justified: for
@@ -588,6 +598,10 @@ For each element reached by the walk, over its snapshotted child list:
    `\(c\nd\)` or `\(cd\)`, because the `<div>`↔text boundary that justified the newline was erased by
    the first rewrite. Planning from one derivation removes the question, and removes the need to argue
    termination — there is no loop over a mutating DOM.
+
+   That same example is also the overlap case: with run text `\[a\nb\] \(c\nd\)`, span 1 covers
+   children {1,2} and span 2 covers {2,3}, so the two ranges share child 2 and coalesce into a single
+   replacement group spanning {1,2,3}.
 
 > **Merge-phase invariant.** A math span that already lies entirely inside a single text node is
 > never *merged*. That is the 23,520 spans measured to render correctly today, so phase 1 cannot
@@ -803,6 +817,14 @@ alone is also the least surprising behaviour.
 **Falsification is the acceptance criterion**: each test must be shown to go **red** when its guard
 is removed.
 
+### Non-automated acceptance item
+
+**Verify the `</p><p>` repair visually, light and dark, and record the paragraph-spacing outcome in
+the PR.** This is the one manual step the spec requires (see `#### Newlines`): all six retroactively
+repaired spans sit at `</p><p>` boundaries, `<p>` carries real block margins in this codebase, and no
+automated case covers how the surrounding spacing looks once the wrappers are folded away. Screenshot
+before and after.
+
 **Baseline** — full non-e2e suite green at **4559 passed, 1 skipped**, measured at branch point
 `0a9c2882`. That is a **floor, not the post-change target**: `test_math_reflow_defaults.py` and the
 new assertions in `test_text_colour_script_order.py` are non-e2e and will raise the total. The
@@ -863,8 +885,12 @@ checking "did the DOM cases run?" against the baseline count would otherwise be 
 Direct DOM-in/DOM-out cases against `window.libliMathReflow`:
 
 - two spans in one run, siblings outside the covered range untouched (rule 5);
-- synthetic-newline placement: `<div>a</div><div>\[x</div><div>y\]</div><div>b</div>` → exactly
-  `a`, `\[x\ny\]`, `b`;
+- synthetic-newline placement: `<div>a</div><div>\[x</div><div>y\]</div><div>b</div>` → exactly three
+  children: `<div>a</div>`, a text node `\[x
+y\]`, `<div>b</div>`. Stating it in node terms also
+  pins "non-covered mergeable siblings survive as elements"; the bare `a`, `\[x
+y\]`, `b` phrasing
+  reads as three text nodes, the reading rule 5 exists to correct;
 - a `<div>` with element content beyond `<br>` acts as a barrier;
 - a `<div class="ta-center">` acts as a barrier and keeps its class;
 - **a span split across two `<div>`s inside a `<td class="ta-center">` merges** — barrier descended;
@@ -884,9 +910,12 @@ Direct DOM-in/DOM-out cases against `window.libliMathReflow`:
 - **Hook B leading whitespace**: `  \[x\]  ` (padded) is still stripped — Hook B skips leading
   whitespace before testing the opener, and that skip is a real, removable guard (phase 2's
   contains-test has none, so the old phase-2 whitespace case pinned nothing);
-- each ignored subtree: `pre`, `code`, `textarea`, `[contenteditable]`, `.katex`. The
+- each ignored subtree: `pre`, `code`, `textarea`, `[contenteditable]`, `.katex`, **and
+  `.katex-error`** — the last carrying a payload that would otherwise be rewritten, e.g.
+  `<span class="katex-error">\(a<br>b\)</span>` asserted byte-identical (phase 1b would convert that
+  literal `<br>`, and a `\(…align*…\)` payload would be promoted by phase 2). The
   `[contenteditable]` case asserts byte-identical `innerHTML` **both** with the surface as `root` and
-  with an ancestor as `root`;
+  with an ancestor as `root`, the latter built from the choicegrid shape;
 - delimiter set derived from `options.delimiters`, plus a `$$` and a `\begin{align}` case under the
   hardcoded defaults;
 - **C3**: `<div>\[oops</div><div>\[a</div><div>b\]</div>` — scanning stops at the unclosed opener,
@@ -895,12 +924,20 @@ Direct DOM-in/DOM-out cases against `window.libliMathReflow`:
 - **C5**: `\(\begin{cases}` + split `\begin{align}` + `\end{cases}\)` — built from the *actual stored
   shape* of `ChoiceQuestionElement` 218 — comes out merged **and** promoted, and renders with zero
   `.katex-error`;
-- `libliMathReflow(document)` and `libliMathReflow(documentFragment)` do not throw (the `matches`
-  guard);
+- `libliMathReflow(document)` does not throw (the `matches` guard);
+- `libliMathReflow(documentFragment)` **actually merges** a span split across two top-level `<div>`
+  children, byte-checking the resulting child sequence. "Does not throw" is precisely the assertion
+  the contract section rules out as vacuous — an implementation that early-returns for any
+  non-Element root would satisfy it while doing nothing;
 - `libliMathReflow` on a root **inside** an ignored subtree is a no-op (the `closest` guard);
-- a forced internal throw (a poisoned `options.delimiters`) still leaves the DOM untouched and lets
-  the original renderer run — the try/catch is the only safety net for an implementation bug, and an
+- a forced internal throw (a poisoned `options.delimiters`) still lets the original renderer run;
+- **a throw *mid-walk*, after at least one rewrite has been applied**, asserting the real
+  post-condition — per-element atomicity, ignored subtrees untouched — which the poisoned-delimiters
+  case cannot reach because it throws before any mutation. The try/catch is the only safety net for an
+  implementation bug, and an
   untested `catch` is exactly what "falsification is the acceptance criterion" exists to prevent;
+- **overlapping covered ranges**: `[<div>\[a</div>, <div>b\] \(c</div>, "d\)"]` — the two spans share
+  child 2 — coalesces into one replacement group; assert the exact resulting child sequence;
 - idempotence: a second call is a no-op.
 
 ### `tests/test_math_reflow_defaults.py` (pytest, static)
@@ -957,5 +994,6 @@ it rather than re-implementing the parser. It must additionally assert:
 | Hardcoded defaults drift from a KaTeX upgrade | `test_math_reflow_defaults.py` |
 | Reflow mutates the RTE surface and is persisted | `[contenteditable]` ignored; byte-identity both root shapes |
 | Double-wrapping with `text_colour.js`, or a double include | No retry; `__libliMathReflowWrapped` marker |
+| Author centres the formula, nothing merges, symptom persists silently | Named limitation; `ta-center` DOM case and e2e 9 pin the failure mode; attribute-homogeneous widening deferred to a follow-up |
 | Script shipped on math-free pages | Containment assertion inside `{% if has_math %}` |
 | MCQ / choice-grid / switch-grid option surfaces unmeasured | Stated in the corpus section; they are `sanitize_cell`-shaped, so phase 1b governs them and behaves as it does for cells |
