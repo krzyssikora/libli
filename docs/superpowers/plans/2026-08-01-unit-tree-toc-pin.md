@@ -153,8 +153,9 @@ Add this **now**, in the same commit as the markup - not in Task 2:
 .unit-toc-pin { display: none; }
 ```
 
-Put it immediately above the `@media (min-width: 641px)` block that Task 2 replaces at
-`courses.css:866-873`.
+Put it immediately above the `@media (min-width: 641px)` block that Task 2 replaces (currently
+`courses.css:866-873`). Note this insertion shifts that block down, which is why Task 2 anchors on
+its content rather than on line numbers.
 
 **Why here and not with the rest of the CSS:** without it, this task's commit ships a `<button>`
 with *no rule at all*, so it renders UA-styled as the first flex item of `.unit-shell` on every
@@ -190,7 +191,7 @@ git commit -m "feat(unit-nav): add the TOC pin button and its aria-controls targ
 ### Task 2: CSS — delete the sliver, add the four scoped blocks, guard both at source
 
 **Files:**
-- Modify: `courses/static/courses/css/courses.css:866-873` (delete and replace in place)
+- Modify: `courses/static/courses/css/courses.css` (delete and replace the sliver block in place)
 - Test: `tests/test_consumption_css.py`
 
 **Interfaces:**
@@ -280,9 +281,15 @@ uv run pytest tests/test_consumption_css.py::test_collapsed_rail_rules_are_delet
 
 Expected: FAIL on assertion (a) — the sliver rules are still present.
 
-- [ ] **Step 3: Replace `courses.css:866-873` in place**
+- [ ] **Step 3: Replace the sliver block in place**
 
-Delete these eight lines **in full** — the comment at `:866`, the `@media` wrapper at `:867`, the rules at `:868-872`, and the closing brace at `:873`:
+**Locate it by content, not by line number.** The numbers `866-873` below are *pre-Task-1*: Task 1
+Step 5 inserted the base rule and its comment immediately above this block in the previous commit,
+so it now sits around `:869-876`. Deleting literal lines 866-873 would take out the base rule you
+just landed plus this block's opening comment and `@media` wrapper, orphan its last rules and
+closing brace, and leave the stylesheet syntactically broken.
+
+Search for `html.unit-tree-collapsed .unit-tree {` and delete these eight lines **in full** — the comment at `:866`, the `@media` wrapper at `:867`, the rules at `:868-872`, and the closing brace at `:873`:
 
 ```css
 /* Collapsed desktop rail — state lives on <html> (pre-paint script), so scope from it. */
@@ -296,7 +303,8 @@ Delete these eight lines **in full** — the comment at `:866`, the `@media` wra
 ```
 
 Line `:871` carries a trailing `  /* ‹ → › */` — reproduced above so the block matches byte-for-byte
-if used as an Edit anchor. If your editor normalises it, delete by line range `866-873` instead.
+if used as an Edit anchor. If your editor normalises it, re-locate the block by searching for
+`html.unit-tree-collapsed .unit-tree {` — do **not** fall back to a literal line range.
 
 Replace with — **the base `.unit-toc-pin { display: none; }` rule already landed in Task 1; leave it
 in place above this block.** What follows is the single positive override that reveals it:
@@ -385,7 +393,7 @@ uv run pytest tests/test_consumption_css.py tests/test_courses_views.py tests/te
 ```
 
 Expected: all PASS. `test_consumption_css.py` already owns `.unit-strip` regex guards over this same
-file, and an in-place splice at `:866-873` sits close enough to them to be worth the wider net.
+file, and an in-place splice at that block sits close enough to them to be worth the wider net.
 
 - [ ] **Step 6: Falsify both assertions**
 
@@ -1234,6 +1242,14 @@ def test_quiz_chrome_is_capped_across_both_page_states(browser, live_server):
     # Load B — same session, now enrolled: finish form renders, no banner.
     EnrollmentFactory(course=course, student=actor)
     page.reload()
+    # Re-assert the collapsed state AFTER the reload. Every assertion below is
+    # one-sided (<= 738), and the EXPANDED quiz column at 1440 is 648px — also
+    # under 738 — so without this guard all six would pass while measuring the
+    # wrong state. Load A is safe because _collapse() waits on the class; Load B
+    # would otherwise rely silently on the pre-paint restore surviving reload.
+    page.wait_for_function(
+        "() => document.documentElement.classList.contains('unit-tree-collapsed')"
+    )
     assert page.locator("[data-quiz-preview-notice]").count() == 0
     assert page.locator(".quiz-finish").count() == 1
     for sel in (".lesson-unit__title", ".quiz-finish", ".el--question"):
