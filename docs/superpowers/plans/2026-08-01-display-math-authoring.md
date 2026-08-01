@@ -21,9 +21,12 @@
   **default** run. Both new e2e files must declare it: the DOM file needs
   `pytestmark = pytest.mark.e2e`, and the page-driving file needs
   `pytestmark = [pytest.mark.e2e, pytest.mark.django_db(transaction=True)]` because it uses
-  `live_server` and the ORM. Omitting `-m e2e` on the command line silently deselects (exit 5).
+  `live_server` and the ORM. **Both must ALSO declare the session-scoped
+  `DJANGO_ALLOW_ASYNC_UNSAFE` autouse fixture** — nothing in `conftest.py` or settings sets
+  it, all 75 existing `test_e2e_*` modules define it themselves, and without it every case
+  errors at setup with `SynchronousOnlyOperation`. Omitting `-m e2e` on the command line silently deselects (exit 5).
 - **Doubled `-q` hides the verdict.** `addopts` already carries `-q`; adding another stacks to quiet-2 and prints no pass/fail line. Pass `--verbosity=0` when you want the summary.
-- **No JS comments containing `addEventListener("DOMContentLoaded"`** in a form the wiring test would match — see Task 2. Write the explanatory comment without that literal call form.
+- **Comments in `math_reflow.js` may use the literal `addEventListener("DOMContentLoaded"` form freely.** Task 2's guard strips comments before matching, precisely so the module can carry the comment explaining why it does not retry. (An earlier draft banned the literal; that was a leftover from a pre-stripping design.)
 - **Baseline:** full non-e2e suite is green at **4559 passed, 1 skipped** at branch point `0a9c2882`. Tasks 1 and 2 add non-e2e tests, so the final count will be higher; Task 10 records the new number.
 - **Browser JS style:** IIFE, `"use strict"`, `var`, no arrow functions, no `let`/`const` — match `text_colour.js` and `math.js`. (`String.prototype.startsWith` is fine; the repo already targets modern Chromium/Firefox.)
 
@@ -369,7 +372,18 @@ Expected: all pass.
 
 Move the `math_reflow.js` line in `lesson_unit.html` outside the `{% if has_math %}` block. Re-run: **both** tests go RED. Measured — the "containment reddens while ordering stays green" contrast is impossible to observe, because `katex.min.js`, `text_colour.js` and `math.js` all live *inside* the block, so every position outside it is either before `katex.min.js` or after `text_colour.js`, both of which the ordering test forbids.
 
-To isolate containment specifically, instead neuter `_has_math_block` to return the whole file and confirm the containment assertion still passes — that proves it is doing real work rather than riding on the ordering guard. Put both back.
+To isolate containment specifically, run the **two-cell** experiment (measured):
+
+| `_has_math_block` | tag position | containment test |
+|---|---|---|
+| intact | outside the block | **RED** |
+| neutered to return the whole file | outside the block | **GREEN** |
+
+That contrast is what shows the helper carries the containment signal. Do **not** use the
+cell an earlier draft prescribed — neutered helper with the tag *inside* — because the whole
+file trivially contains `math_reflow.js`, so it passes for free and demonstrates the
+assertion is *insensitive* to the helper, the opposite of the intended conclusion. Put
+both back afterwards.
 
 - [ ] **Step 7: Falsify the retry guard, both quote styles**
 
@@ -426,7 +440,7 @@ def _allow_sync_orm_under_playwright():
     MUST be session-scoped. tests/conftest.py has an autouse `_enable_db_access(db)`
     giving EVERY test under tests/ DB access, and conftest-level autouse fixtures run
     before module-level ones of the same scope -- so a function-scoped version sets
-    the env var too late and all 62 cases ERROR with SynchronousOnlyOperation at
+    the env var too late and all 63 cases ERROR with SynchronousOnlyOperation at
     setup (measured). As a fixture rather than a module global it activates only when
     an e2e test is actually selected, so the default `-m 'not e2e'` run keeps the
     guard intact. Same shape and name as the one in tests/test_e2e_text_colour.py."""
@@ -1407,8 +1421,12 @@ def test_split_inline_align_comes_out_merged_and_promoted(page):
 - [ ] **Step 2: Run and watch them fail**
 
 ```
-uv run pytest tests/test_e2e_math_reflow_dom.py -m e2e -k phase_2 --verbosity=0
+uv run pytest tests/test_e2e_math_reflow_dom.py -m e2e -k "phase_2 or split_inline_align" --verbosity=0
 ```
+
+The `or split_inline_align` is load-bearing: `test_split_inline_align_comes_out_merged_and_promoted`
+does not contain `phase_2`, so a bare `-k phase_2` deselects it and the run reports
+**2 failed, 8 passed, 40 deselected** — contradicting the expectation below with no hint why.
 
 Expected: the three promotion cases fail. `test_phase_2_does_not_promote_a_both_modes_environment`
 and `test_phase_2_respects_the_effective_span_partition` assert "unchanged" and are
@@ -1613,7 +1631,7 @@ Replace the Hook B wrapper body from Task 1:
 
 - [ ] **Step 5: Falsify**
 
-Replace `stripWrapper` with the greedy regex `/^\s*\\\[([\s\S]*)\\\]\s*$/`. `test_hook_b_refuses_two_adjacent_spans` must go RED. Restore. Then remove the `try/catch` and make `stripWrapper` throw on a non-string → `test_hook_b_passes_a_non_string_through_untouched` must go RED. Restore.
+Replace `stripWrapper` with the greedy regex `/^\s*\\\[([\s\S]*)\\\]\s*$/`. **Two** cases go RED: `test_hook_b_refuses_two_adjacent_spans`, and also `test_hook_b_strips_an_inline_wrapper` — the regex covers only the display pair, so `\(x\)` stops being stripped. Restore. Then remove the `try/catch` and make `stripWrapper` throw on a non-string → `test_hook_b_passes_a_non_string_through_untouched` must go RED. Restore.
 
 - [ ] **Step 6: Lint**
 
@@ -1748,7 +1766,7 @@ says a double wrap would "reflow twice per call", a stated bug class with zero
 coverage.
 
 ```python
-def _hooka(page, html, *, twice=False):
+def _hooka(page, html):
     """Install a recording fake renderMathInElement BEFORE the module loads."""
     page.set_content(f"<!DOCTYPE html><section id='root'>{html}</section>")
     page.evaluate(
@@ -1758,8 +1776,6 @@ def _hooka(page, html, *, twice=False):
         "        window.katex = { render: () => {} }; }"
     )
     page.add_script_tag(path=SCRIPT)
-    if twice:
-        page.add_script_tag(path=SCRIPT)
     ret = page.evaluate(
         "() => window.renderMathInElement(document.getElementById('root'), undefined)"
     )
@@ -1810,7 +1826,28 @@ def test_double_include_installs_only_one_wrapper(page):
 
 Falsify: delete the `window.__libliMathReflowWrapped` guard → `test_double_include_installs_only_one_wrapper` must go RED (the second include replaces the global, so the identity check fails). Restore.
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 4: Run the whole DOM file green**
+
+```
+uv run pytest tests/test_e2e_math_reflow_dom.py -m e2e --verbosity=0
+```
+
+Expected: all 63 cases pass. Every other task has an explicit green run between the
+implementation and the commit; this task introduces two hardenings and five new tests,
+so it needs one too.
+
+- [ ] **Step 5: Lint**
+
+```
+uv run ruff format tests/test_e2e_math_reflow_dom.py && uv run ruff check tests/test_e2e_math_reflow_dom.py
+```
+
+Measured on this task's verbatim blocks: the `html = (...)` tuple in
+`test_a_mid_walk_throw_leaves_ignored_subtrees_untouched` and the `_reflow_html(...)` call
+in `test_a_malformed_delimiter_entry_falls_back_to_the_defaults` both fail
+`ruff format --check` as hand-wrapped.
+
+- [ ] **Step 6: Commit**
 
 ```bash
 git add courses/static/courses/js/math_reflow.js tests/test_e2e_math_reflow_dom.py
@@ -1835,6 +1872,19 @@ pytestmark = [pytest.mark.e2e, pytest.mark.django_db(transaction=True)]
 #   the DEFAULT non-e2e run, break Task 10 Step 1's count, and fail for want of DB
 #   access since they use live_server and the ORM.
 
+
+@pytest.fixture(scope="session", autouse=True)
+def _allow_sync_orm_under_playwright():
+    """ALSO MANDATORY, and needed MORE here than in the DOM file, because this one
+    uses live_server and the ORM in the test bodies. Nothing in conftest.py,
+    tests/conftest.py or settings sets DJANGO_ALLOW_ASYNC_UNSAFE — all 75 existing
+    test_e2e_* modules define it themselves. tests/conftest.py's autouse
+    _enable_db_access(db) hits the ORM at setup while pytest-playwright's session loop
+    is already running, so without this every test here errors with
+    SynchronousOnlyOperation when the file is run alone — the TDD loop you will use."""
+    os.environ.setdefault("DJANGO_ALLOW_ASYNC_UNSAFE", "true")
+    yield
+
 BLOCK = (
     "\\[\\begin{align*}\n"
     "a^n\\cdot a^k&=a^{n+k}\\\\\n"
@@ -1844,9 +1894,12 @@ BLOCK = (
 )
 
 
-def test_multiline_align_block_authored_in_the_rte_renders(page, live_server, seeded_lesson):
-    # `seeded_lesson` stands in for whatever fixture you build from the helpers
-    # named above — the bare `...` in an earlier draft was a SyntaxError.
+def test_multiline_align_block_authored_in_the_rte_renders(
+    page, live_server, seeded_lesson
+):
+    # `seeded_lesson` stands in for whatever fixture you build from the helpers named
+    # above — the bare `...` in an earlier draft was a SyntaxError. Wrapped onto three
+    # lines because the one-line form is 93 columns and trips E501 (88).
     # 1. author it through the REAL RTE, one line per Enter — this gesture is what
     #    produces the split the whole feature exists to repair:
     #        lines = BLOCK.split("\n")
@@ -1926,7 +1979,17 @@ uv run pytest -m e2e --verbosity=0
 ```
 Expected: all pass. Per the repo's recorded lesson, run the **whole** `-m e2e` suite, not just the new file — a per-task e2e written earlier can go stale once rendering behaviour changes.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 5: Lint**
+
+```
+uv run ruff format tests/test_e2e_math_reflow.py && uv run ruff check tests/test_e2e_math_reflow.py
+```
+
+Task 1 Step 6 makes this mandatory for every task that adds Python; Tasks 8 and 9 were the
+two that had drifted. Without it these land at Task 10 Step 3 — inside the definition-of-done
+gate, which is exactly the deferred-lint failure the per-task step exists to prevent.
+
+- [ ] **Step 6: Commit**
 
 ```bash
 git add tests/test_e2e_math_reflow.py
