@@ -188,7 +188,7 @@ Create `courses/static/courses/js/math_reflow.js`:
 
   var originalRender = katexObj.render;
   katexObj.render = function (expr, element, options) {
-    return originalRender.apply(this, arguments);  // Task 8 adds the strip
+    return originalRender.apply(this, arguments);  // Task 7 adds the strip
   };
 
   window.__libliMathReflowWrapped = true;
@@ -648,7 +648,7 @@ Expected: all pass except `test_contenteditable_false_is_not_ignored`, which sti
 
 - [ ] **Step 5: Note the deferred falsification — change nothing**
 
-The ignored-subtree cases cannot be falsified yet: with `mergeChildren` still a stub, removing a selector changes no observable behaviour. **Do not edit `IGNORE_SELECTOR` here.** An earlier draft said to delete `.katex-error` "for now" and gave no restore step before the Step 6 commit — which would have shipped a module missing it and left Task 4's falsification operating on already-broken code. The falsification moves wholesale to Task 4 Step 5, where it has a real outcome. Record in the commit message that these cases are provisionally vacuous.
+The ignored-subtree cases cannot be falsified yet: with `mergeChildren` still a stub, removing a selector changes no observable behaviour. **Do not edit `IGNORE_SELECTOR` here.** An earlier draft said to delete `.katex-error` "for now" and gave no restore step before the commit — which would have shipped a module missing it and left Task 4's falsification operating on already-broken code. The falsification moves wholesale to Task 4 Step 5, where it has a real outcome. Record in the commit message that these cases are provisionally vacuous.
 
 - [ ] **Step 6: Lint**
 
@@ -1334,7 +1334,16 @@ and in `reflow`, run it as its own full pass after phase 1:
     walk(root, extra, function (element) { phase1b(element, options); });
 ```
 
-- [ ] **Step 4: Run and watch them pass**
+- [ ] **Step 4: Run the whole file green**
+
+```
+uv run pytest tests/test_e2e_math_reflow_dom.py -m e2e --verbosity=0
+```
+
+**Unfiltered, not `-k`-filtered.** The `-k` command in Step 2 is for watching the new
+cases redden; carrying it forward hides every other case, and Step 5's mutants can then
+fire invisibly — measured, deleting `textarea` from `IGNORE_SELECTOR` leaves `-k phase_1b`
+reporting `6 passed, 57 deselected` while the unfiltered run correctly reddens.
 
 - [ ] **Step 5: Falsify**
 
@@ -1426,7 +1435,8 @@ uv run pytest tests/test_e2e_math_reflow_dom.py -m e2e -k "phase_2 or split_inli
 
 The `or split_inline_align` is load-bearing: `test_split_inline_align_comes_out_merged_and_promoted`
 does not contain `phase_2`, so a bare `-k phase_2` deselects it and the run reports
-**2 failed, 8 passed, 40 deselected** — contradicting the expectation below with no hint why.
+**2 failed, 2 passed, 46 deselected** (measured at this point in the build, 50 collected) —
+contradicting the expectation below with no hint why.
 
 Expected: the three promotion cases fail. `test_phase_2_does_not_promote_a_both_modes_environment`
 and `test_phase_2_respects_the_effective_span_partition` assert "unchanged" and are
@@ -1492,7 +1502,16 @@ and add the third pass in `reflow`:
     walk(root, extra, function (element) { phase2(element, options); });
 ```
 
-- [ ] **Step 4: Run and watch them pass**
+- [ ] **Step 4: Run the whole file green**
+
+```
+uv run pytest tests/test_e2e_math_reflow_dom.py -m e2e --verbosity=0
+```
+
+**Unfiltered, not `-k`-filtered.** The `-k` command in Step 2 is for watching the new
+cases redden; carrying it forward hides every other case, and Step 5's mutants can then
+fire invisibly — measured, deleting `textarea` from `IGNORE_SELECTOR` leaves `-k phase_1b`
+reporting `6 passed, 57 deselected` while the unfiltered run correctly reddens.
 
 - [ ] **Step 5: Falsify**
 
@@ -1627,7 +1646,16 @@ Replace the Hook B wrapper body from Task 1:
   };
 ```
 
-- [ ] **Step 4: Run and watch them pass**
+- [ ] **Step 4: Run the whole file green**
+
+```
+uv run pytest tests/test_e2e_math_reflow_dom.py -m e2e --verbosity=0
+```
+
+**Unfiltered, not `-k`-filtered.** The `-k` command in Step 2 is for watching the new
+cases redden; carrying it forward hides every other case, and Step 5's mutants can then
+fire invisibly — measured, deleting `textarea` from `IGNORE_SELECTOR` leaves `-k phase_1b`
+reporting `6 passed, 57 deselected` while the unfiltered run correctly reddens.
 
 - [ ] **Step 5: Falsify**
 
@@ -1657,6 +1685,7 @@ git commit -m "feat(math): Hook B strips a surrounding delimiter pair for katex.
 The `try/catch` around the reflow is the only safety net for an implementation bug, and an untested `catch` is exactly what the falsification rule exists to prevent.
 
 **Files:**
+- Modify: `courses/static/courses/js/math_reflow.js`
 - Modify: `tests/test_e2e_math_reflow_dom.py`
 
 - [ ] **Step 1: Write the failing tests**
@@ -1832,9 +1861,9 @@ Falsify: delete the `window.__libliMathReflowWrapped` guard → `test_double_inc
 uv run pytest tests/test_e2e_math_reflow_dom.py -m e2e --verbosity=0
 ```
 
-Expected: all 63 cases pass. Every other task has an explicit green run between the
-implementation and the commit; this task introduces two hardenings and five new tests,
-so it needs one too.
+Expected: all 63 cases pass. Every task from 5 onward runs the file unfiltered at its
+Step 4 for the same reason — a `-k`-filtered run hides regressions in the cases the task
+did not touch, and this task introduces two hardenings and five new tests.
 
 - [ ] **Step 5: Lint**
 
@@ -2048,7 +2077,7 @@ PR body must list: the new non-e2e count, the `<p>` screenshots, the centred-for
 
 ## Self-Review
 
-**Spec coverage.** Purpose/Problems 1, 1b, 2, 3 → Tasks 4, 5, 6, 7. Public contract and root shapes → Task 3. Load order and `has_math` containment → Task 2. Delimiter set and drift → Task 1. Scan port → Task 4. Walk/ignored subtrees/barriers → Task 3 + 4. Phases 1/1b/2 → Tasks 4/5/6. Hook A and Hook B → Tasks 7 and 8. Idempotence → Task 4; failure containment → Task 8. Every Testing subsection maps to a task; the non-automated `<p>` acceptance item is Task 10 Step 4.
+**Spec coverage.** Purpose/Problems 1, 1b, 2, 3 → Tasks 4, 5, 6, 7. Public contract and root shapes → Task 3. Load order and `has_math` containment → Task 2. Delimiter set and drift → Task 1. Scan port → Task 4. Walk/ignored subtrees/barriers → Task 3 + 4. Phases 1/1b/2 → Tasks 4/5/6. Hook B → Task 7; Hook A coverage → Task 8. Idempotence → Task 4; failure containment → Task 8. Every Testing subsection maps to a task; the non-automated `<p>` acceptance item is Task 10 Step 4.
 
 **Deliberately NOT covered: cost.** The spec bounds it at O(nodes × nesting depth) and argues it is the same order as auto-render's own repeated work, but **no task measures anything**, so this plan makes no performance claim. The merge does a `childNodes` snapshot, a per-character `buildRun`, and an O(run length) offset rescan per group on every element on every `renderMathInElement` call — and `filltable.js`/`switchgrid.js` call it repeatedly during interaction. A measurement is a reasonable follow-up; per the repo's "measure the window, not the event" lesson it would need the DOM rebuilt per A/B variant.
 
