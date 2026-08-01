@@ -522,18 +522,49 @@ For each element reached by the walk, over its snapshotted child list:
    error inside `align*`. Collapsing makes that structural rather than relying on KaTeX's whitespace
    handling.
 
+   **Two implementation constraints that are easy to get wrong.**
+
+   *Provenance, not adjacency.* Emit a synthetic newline only where at least one side of the boundary
+   is a mergeable `<div>`/`<p>`/`<br>`. auto-render concatenates consecutive sibling **text** nodes
+   with no separator, so inserting one between two adjacent text-node children would make the reflow
+   scan a string the renderer never sees — violating the port-fidelity rule the scan section rests on.
+
+   *The collapse must preserve the offset→child map.* Rule 5 maps span offsets back to the child that
+   contributed each character, and the collapse removes characters — one surviving newline can come
+   from three children at once (boundary + `<br>` + boundary, for `<div><br></div>`). Building the
+   string and then running `text.replace(/\n+/g, "\n")` discards the map and gives every later span a
+   wrong covered range. So the collapse is applied **during** the build, with the map maintained, and
+   a collapsed newline is attributed to its **first** contributing child. Whitespace-only mergeable
+   text nodes contribute nothing to the run text, so hand-written test markup with indentation
+   between blocks behaves the same as `nh3` output, which carries none.
+
    Net effect: exactly one `\n` per former boundary. `<div>a</div><div>\[x</div><div>y\]</div>` gives
    `"a\n\[x\ny\]"`, so the span text is `\[x\ny\]` — the shape the Purpose section's measurement
    exercised.
 3. Find spans over that text using the scan semantics above.
-4. A span **wholly inside one text-node segment** is skipped.
+4. **A span whose covered range is a single child node is skipped** — equivalently, only spans
+   covering **two or more children** are ever rewritten.
+
+   This must be stated in terms of *child nodes*, not text nodes. An earlier draft said "wholly inside
+   one text-node segment", which is a different and much more destructive rule: a mergeable
+   `<div>`/`<p>` child's contribution is not a *text-node* segment, so a span sitting entirely inside
+   one attribute-free `<p>` would fail the test and be rewritten — unwrapping the paragraph. That is
+   the ordinary shape of authored content: `textelement.html` is
+   `<div class="el el--text">{{ el.body|sanitize }}</div>`, whose top-level children are the RTE's
+   `<p>`/`<div>` blocks, and `math.js:31` hands `.el--text` straight to `renderMathInElement`. Under
+   the old wording `<p>Rozważmy \(x\) …</p>` would lose its paragraph on **every render**, which would
+   also falsify the merge-phase invariant, the "`</p><p>` boundaries are the only markup this change
+   retroactively touches" claim, and the 6-broken/23,520-intact framing.
 5. Any other span is rewritten. Let *covered* be the contiguous child nodes from the one holding the
    span's first character through the one holding its last. Those nodes — and only those; earlier and
-   later siblings in the run are untouched — are replaced by up to three children: the covered text
-   preceding the span, the span itself, and the covered text following it, omitting empties.
+   later siblings in the run are untouched — are replaced by three **fragments**: the covered text
+   preceding the span, the span itself, and the covered text following it, omitting empties. Each
+   fragment may be a *node sequence* rather than a single node (see the `<br>` rule below), so the
+   replacement is not bounded to three nodes.
    **"Synthetic" means only the newlines step 2 manufactures from `<div>`/`<p>` wrapping — never the
    `"\n"` contributed by a real authored `<br>`.** Synthetic newlines are dropped from the preceding
-   and following fragments and retained only where they fall inside the span. So
+   and following fragments and retained only where they fall inside the span.
+
    **Non-covered mergeable siblings are untouched and survive as elements.** In
    `<div>a</div><div>\[x</div><div>y\]</div><div>b</div>` the first and last divs hold no character of
    the span, so the result is `<div>a</div>`, one text node `\[x\ny\]`, `<div>b</div>` — three
@@ -547,9 +578,16 @@ For each element reached by the walk, over its snapshotted child list:
    "synthetic", or kept as a `\n` character that HTML collapses to a space because the `<br>` element
    it came from was replaced. Inside the span a `\n` character is correct, because there the text is
    LaTeX, not HTML.
-6. Matches are processed left to right, re-deriving the run's segments after each rewrite.
-   **This terminates**: after a rewrite the span lies in a single text node, so rule 4 skips it on
-   re-derivation and the scan strictly advances past it.
+6. **All matches in a run are planned from a single derivation, then applied** — the run text and its
+   offset→child map are built once, every rewrite is computed against that one snapshot, and only
+   then are the DOM mutations performed (right to left, so earlier indices stay valid).
+
+   Do **not** re-derive after each rewrite. Rule 5's output is adjacent text nodes, so a re-derivation
+   sees boundaries that no element ever justified: for
+   `[<div>\[a</div>, <div>b\] \(c</div>, "d\)"]` it is undefined whether the second span comes out
+   `\(c\nd\)` or `\(cd\)`, because the `<div>`↔text boundary that justified the newline was erased by
+   the first rewrite. Planning from one derivation removes the question, and removes the need to argue
+   termination — there is no loop over a mutating DOM.
 
 > **Merge-phase invariant.** A math span that already lies entirely inside a single text node is
 > never *merged*. That is the 23,520 spans measured to render correctly today, so phase 1 cannot
@@ -587,8 +625,13 @@ implementer who hangs phase 1b off the rule-5 rewrite path — the only place a 
 matched and acted on — ships a phase 1b that never fires on any cell, and with every corpus count at
 0 there is no test data to reveal it.
 
-**Only `<br>` is rewritten.** Inside a matched span, a literal `<br>` or `<br/>` character sequence,
-matched by tag name case-insensitively, becomes `"\n"`. `<div>` and `<p>` are deliberately **not** in
+**Only `<br>` is rewritten**, matched by the equivalent of `courses/sanitize.py`'s existing `_BR` —
+`(?i)<br\s*/?>`: case-insensitive, optional whitespace, optional slash. Enumerating just `<br>` and
+`<br/>` would miss `<br />` and `<BR>`, and **that miss would be invisible** — the corpus count for
+this shape is 0, and `sanitize_cell` stashes the span *before* `nh3.clean`
+(`_MATH_SPAN.sub(_stash, value)` precedes the clean call), so what survives inside a span is
+**un-normalised author/browser markup**, which is exactly where `<br />` and `<BR>` come from.
+`<div>` and `<p>` are deliberately **not** in
 the list: `CELL_TAGS` (`courses/sanitize.py:104`) is `{strong, b, em, i, u, br, span}`, so they can
 never appear in flattened cell text, and including them would be unreachable code carrying a real
 hazard — `\(a<p>b\)` is a plausible chain of inequalities that would be silently rewritten to
@@ -662,10 +705,12 @@ inside a single text node. It carries its own regression coverage.
 
 #### Newlines
 
-The span's text carries exactly one real `\n` at each former boundary — rule 2 emits a leading
-boundary newline only, so two adjacent mergeable `<div>`s produce one newline, not a blank line. That
-matters: a blank line in real LaTeX is a `\par` and an error inside `align*`. It would be inert here
-anyway, because **KaTeX collapses** whitespace and has no paragraph handling, but the rule avoids
+The span's text carries exactly one real `\n` at each former boundary: rule 2 emits a newline at any
+boundary that does not already carry one, then collapses consecutive newlines to a single one. The
+collapse is what guarantees that two adjacent mergeable `<div>`s — or Chrome's empty-line
+`<div><br></div>` between two blocks — yield one newline rather than a blank line. That matters: a
+blank line in real LaTeX is a `\par` and an error inside `align*`. It would be inert here anyway,
+because **KaTeX collapses** whitespace and has no paragraph handling, but making it structural avoids
 relying on that. State it that way; an implementer must not carry "LaTeX ignores it" anywhere else.
 
 Losing the `<div>` wrapper for attribute-free prose adjacent to a *display* span is intended, and was
@@ -745,11 +790,11 @@ alone is also the least surprising behaviour.
 | `root` itself matches an ignored selector | Returns immediately, does nothing |
 | `renderMathInElement` or `katex` absent | Hooks never install; today's behaviour |
 | Module included twice | Marker guard; installs once |
-| Reflow throws | Caught; the original `renderMathInElement` runs on the untouched DOM |
+| Reflow throws | Caught; typesetting never blocked. The DOM may be left **partially** rewritten — atomicity is per-element |
 | `\[a\] + \[b\]` reaching `katex.render` | `findEndOfMath` stops at the first `\]`, which is not the expression's end; not stripped |
 | `\(x\)` in a Math element | Wrapper stripped; `displayMode` stays as passed (`true`) |
 | `options` undefined at Hook B | Passed through as-is; the hook writes nothing to it |
-| Display-only environment inside `\(…\)`, any leading whitespace | Promoted to `\[…\]` |
+| Display-only environment anywhere inside `\(…\)` | Promoted to `\[…\]` |
 | `cases`, `matrix`, … inside `\(…\)` | Untouched; already works inline |
 | Math typed inside the RTE surface | Deliberately not typeset live; renders after save |
 
@@ -806,6 +851,11 @@ only `test_e2e_math_reflow.py` and `test_e2e_math_reflow_dom.py` stay outside it
 
 ### `tests/test_e2e_math_reflow_dom.py` (e2e-marked; DOM table driven from a Playwright page)
 
+**Harness shape**: follow `tests/test_e2e_text_colour.py:46-47,143-145` — `page.set_content(...)` with
+a bare document, then `page.add_script_tag(path=…)` for the vendored KaTeX and for `math_reflow.js`.
+Do **not** reach for `live_server` plus staticfiles (`static()` no-ops under `DEBUG=False` in this
+repo). This is also why "the export is unconditional" is a contract requirement rather than a nicety.
+
 Named `test_e2e_…` so filename and marker agree: `pyproject.toml` sets `addopts = "-q -m 'not e2e'"`,
 so this file is **excluded from the 4559-test baseline** and runs only under `-m e2e`. A reader
 checking "did the DOM cases run?" against the baseline count would otherwise be misled.
@@ -831,7 +881,9 @@ Direct DOM-in/DOM-out cases against `window.libliMathReflow`:
   delimiter set;
 - a `\(…align*…\)` span split across two `<div>`s comes out **both merged and promoted** — pins the
   phase ordering;
-- phase 2 with leading whitespace: `\( \begin{align*}…\)` promotes;
+- **Hook B leading whitespace**: `  \[x\]  ` (padded) is still stripped — Hook B skips leading
+  whitespace before testing the opener, and that skip is a real, removable guard (phase 2's
+  contains-test has none, so the old phase-2 whitespace case pinned nothing);
 - each ignored subtree: `pre`, `code`, `textarea`, `[contenteditable]`, `.katex`. The
   `[contenteditable]` case asserts byte-identical `innerHTML` **both** with the surface as `root` and
   with an ancestor as `root`;
@@ -864,6 +916,10 @@ two-character string `\(`). The test must parse `{left:…,right:…,display:…
 minified source, map `!0`→`True` and `!1`→`False`, unescape the JS string literals, compare the full
 triples **in order** against the module's list, and **assert exactly eight triples were extracted**
 before comparing anything.
+
+The **module side needs the same treatment**, or the test needs a second unspecified JS parser:
+`math_reflow.js` assigns its default list to a named property the test can read deterministically, and
+the exactly-eight assertion is made on that side too.
 
 ### Wiring — extend `tests/test_text_colour_script_order.py`
 
