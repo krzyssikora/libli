@@ -59,7 +59,13 @@ out  \[\begin{align*}&lt;br&gt;a&amp;=b\\&lt;br&gt;c&amp;=d\end{align*}\]
 The cell therefore stores a **single text node** whose LaTeX body contains the literal characters
 `<br>`. Phase 1's rule 4 skips it — it *is* in one text node — and KaTeX renders `<br>` as glyphs.
 A DOM merge cannot fix this; it needs the textual counterpart, phase 1b below. `CELL_TAGS` has no
-`div`/`p`, so `<br>` is the only shape a cell can present.
+`div`/`p`, so `<br>` is the only *line-boundary* shape a cell can present.
+
+It is **not** the only markup that can arrive as literal text, though: `sanitize_cell` stashes the
+whole span before `nh3.clean`, so any inline emphasis an author put inside cell math — `<strong>`,
+`<em>`, a `tc-*` colour `<span>` — is reinstated as escaped text too and renders as glyphs. Phase 1b
+does not address that, and it is named as an out-of-scope limitation rather than left implied. Only
+the `<br>` shape was counted (0 occurrences); the other six `CELL_TAGS` were not.
 
 **Problem 2 — `\(…\)` cannot host an alignment environment.** Measured against `katex.renderToString`
 for 23 environments, exactly ten are display-only and raise
@@ -116,6 +122,21 @@ not an upper bound**. All six are `</p><p>` boundaries, and they are real author
 (`ChoiceQuestionElement` 218/226/227, `ShortNumericQuestionElement` 76/77) holding
 `\begin{cases}\begin{align}`. They render as nothing today.
 
+**Their delimiter forms are recorded here because phase 2's rule depends on them**: the callout span
+is `\[`-wrapped (`\[\begin{align*}</p><p>…`), and **all five stems are `\(`-wrapped**
+(`\(\begin{cases}</p><p>\begin{align}…`). See phase 2 for why that forces a "contains" test rather
+than a "begins with" one.
+
+**Phase 2's retroactive blast radius, from the same scan:**
+
+| | spans |
+|---|---|
+| intact `\(…\)` spans phase 2 would promote | **0** |
+| intact `\(…\)` spans opening with a both-modes environment name-prefixed by a display-only one (`aligned`, `gathered`, `alignedat`) | **0** |
+| intact `\(…\)` spans containing but not opening with a display-only environment | **0** |
+
+So phase 2 changes **nothing** in the existing corpus beyond the five stems it repairs.
+
 **Total measured: 23,520 intact spans, 6 broken.** The imported *matematyka* content is essentially
 all fine — the LAL importer wrote math into single text nodes — so this is an **authoring-time**
 defect, not an import-time one. This spec repairs six spans retroactively. Its real value is that
@@ -165,6 +186,12 @@ later, plus JS-injected content no server-side filter could ever see.
   The check must be **guarded on the existence of `matches`** — `Document` and `DocumentFragment` have
   none and calling it throws — exactly as `math.js:18` already guards the same hazard with
   `if (scope.matches && scope.matches("[data-katex]"))`;
+- **it also returns immediately if `root` is a *descendant* of an ignored node**, via
+  `root.closest && root.closest(IGNORE_SELECTOR)`. Three shapes exist — root-is-ignored,
+  root-is-an-ancestor, root-is-a-descendant — and an earlier draft handled only the first two. The
+  third is unreachable today (`editor.js` passes only `[data-scope="preview"]` subtrees, while the
+  RTE surface lives under `[data-scope="editor"]`), but that is an unstated invariant carrying the
+  whole data-safety guarantee, and a future caller could break it silently;
 - **the export is unconditional.** Only the two hooks are guarded on the KaTeX globals being present.
   If the export sat inside that guard, every unit case would fail on a harness page that does not also
   load `katex.min.js` and `auto-render.min.js`. The unit-test page needs to load only
@@ -266,7 +293,9 @@ safe design is therefore a **faithful port**, deviating nowhere. Deminified from
 `auto-render.min.js`:
 
 ```js
-// findEndOfMath(delim, text, startIndex)
+// findEndOfMath(e = closing delim, t = text, n = start index)
+let r = n, o = 0;        // r = cursor, o = brace depth
+const i = e.length;      // closer length
 for (; r < t.length; ) {
   const n = t[r];
   if (o <= 0 && t.slice(r, r + i) === e) return r;   // accept only at brace depth <= 0
@@ -278,10 +307,17 @@ return -1;
 
 - **Openings.** Walk left to right; at each position test the delimiters in the caller's array order,
   first match wins. **No escape handling** — auto-render does none on openings
-  (`new RegExp("(" + lefts.join("|") + ")")`), so neither may the reflow.
+  — the opener regex is
+  `new RegExp("("+t.map(e=>e.left.replace(/[-/\^$*+?.()|[\]{}]/g,"\$&")).join("|")+")")`, i.e. each
+  delimiter is regex-escaped but no LaTeX escape handling happens — so neither may the reflow.
 - **Closings.** Port `findEndOfMath` exactly: a backslash **skips the following character** (so an
   escaped `\]` is not accepted as a closer), and a closer is only accepted at **brace depth ≤ 0**.
 - Do not use longest-match, a reordered alternation, or an `indexOf`-style first-literal search.
+- **Scanning stops dead at the first opener that has no closer.** The vendored loop is
+  `for(;r=e.search(a),-1!==r;){ … if(r=n(...), -1===r) break; … }` — on an unclosed opener auto-render
+  breaks out of the whole loop and pushes the entire remainder as text. A reflow that skipped past it
+  and kept scanning would merge a later span the renderer will never treat as math, folding away the
+  author's wrappers for no rendering benefit. Nothing after an unclosed opener is a candidate.
 
 **An earlier draft specified a backslash-parity rule on openings and an `indexOf` closing search.
 Both were wrong and are deliberately removed.** The parity rule was a unilateral deviation: because
@@ -303,10 +339,15 @@ if (3 === r.nodeType) {
   for (; i && i.nodeType === Node.TEXT_NODE; ) o += i.textContent, i = i.nextSibling;
 ```
 
-It joins the entire run of consecutive sibling text nodes and splits *that* string. So the three text
-nodes rule 5 produces are re-joined before parsing: **the split into three nodes is cosmetic and
-confers no isolation whatsoever.** Any argument that a fragment boundary protects a neighbouring span
-is unfounded. What makes the result correct is only that the reflow scans the same concatenated-run
+It joins the entire run of consecutive sibling text nodes and splits *that* string. Two consequences:
+
+- **A text-node boundary confers no isolation.** Wherever rule 5 leaves adjacent text nodes they are
+  re-joined before parsing, so no argument may rest on a fragment boundary separating two spans.
+- **An intervening element does break the run** — the ordinary case after rule 5, since non-covered
+  mergeable siblings survive as elements. The merged span then sits in its own text node between two
+  elements and is scanned on its own.
+
+What makes the result correct in both cases is only that the reflow scans the same concatenated-run
 text, with the same semantics, as the renderer will.
 
 #### The walk, and what stops it
@@ -345,12 +386,21 @@ merely that no node was skipped.
   mutation inside the RTE is therefore a **data** mutation, and would break the render-only
   guarantee. Load-bearing, not hygiene. Its user-visible consequence is deliberate and must be
   documented for testers: **display math is not typeset live inside the editing surface** — the round
-  trip is paste → save → view;
+  trip is paste → save → view. **The guarantee is one-sided and must not be over-read**: the ignore
+  list constrains `libliMathReflow` only. auto-render honours `ignoredTags`/`ignoredClasses` and
+  nothing else, so if a caller ever passed a root containing `.rte-surface`, auto-render would inject
+  `.katex` markup into the editable subtree and `sync()` would persist it. What actually prevents that
+  is that no caller does — `editor.js` renders only `[data-scope="preview"]`;
 - **`.katex`** — after the first pass KaTeX's output holds the original TeX in a MathML
   `<annotation encoding="application/x-tex">`; re-entering would let phase 2 rewrite the string
   screen readers and copy-paste consumers receive. `math` and `annotation` are listed alongside it
   for defence in depth only — KaTeX nests them **inside** `.katex`, so `.katex` already subsumes
-  both; they matter only if KaTeX's output mode ever changes.
+  both; they matter only if KaTeX's output mode ever changes;
+- **`.katex-error`** — with `throwOnError: false` a failing `katex.render` emits
+  `<span class="katex-error" title="…">raw TeX</span>`, which is **not** nested inside `.katex`. A
+  later `renderMathInElement` over an ancestor (a Math element inside `.el--tabs`, which `math.js:31`
+  matches) would otherwise descend into it and let phase 1b or phase 2 rewrite that raw TeX. This is
+  a distinct selector, not covered by `.katex`.
 
 The ignore list is **deliberately fixed** rather than derived from `options.ignoredTags` /
 `ignoredClasses` (which auto-render does honour). No caller passes them today, and a fixed list is a
@@ -386,19 +436,26 @@ For each element reached by the walk, over its snapshotted child list:
 
 1. Partition the children into maximal **runs** of consecutive mergeable nodes. Barriers terminate a
    run. Each run is processed independently.
-2. Build the run's linear text: a text node contributes its data; a `<br>` contributes `"\n"`; a
-   mergeable `<div>`/`<p>` contributes `"\n"` + its text (its own `<br>`s becoming `"\n"`) + `"\n"`.
+2. Build the run's linear text by concatenating per-child contributions: a text node contributes its
+   data; a `<br>` contributes `"\n"`; a mergeable `<div>`/`<p>` contributes **`"\n"` + its text**
+   (its own `<br>`s becoming `"\n"`) — a **leading** boundary newline only, never a trailing one.
+   One newline per boundary, not two: `<div>a</div><div>\[x</div><div>y\]</div>` gives
+   `"\na\n\[x\ny\]"`, so the span text is `\[x\ny\]`. This is the shape the Purpose section's
+   measurement actually exercised.
 3. Find spans over that text using the scan semantics above.
 4. A span **wholly inside one text-node segment** is skipped.
 5. Any other span is rewritten. Let *covered* be the contiguous child nodes from the one holding the
    span's first character through the one holding its last. Those nodes — and only those; earlier and
-   later siblings in the run are untouched — are replaced by up to three text nodes: the covered text
+   later siblings in the run are untouched — are replaced by up to three children: the covered text
    preceding the span, the span itself, and the covered text following it, omitting empties.
    **"Synthetic" means only the newlines step 2 manufactures from `<div>`/`<p>` wrapping — never the
    `"\n"` contributed by a real authored `<br>`.** Synthetic newlines are dropped from the preceding
    and following fragments and retained only where they fall inside the span. So
-   `<div>a</div><div>\[x</div><div>y\]</div><div>b</div>` yields `a`, `\[x\ny\]`, `b` — not
-   `"\na\n"` and a whitespace-only node that "omitting empties" would not remove.
+   **Non-covered mergeable siblings are untouched and survive as elements.** In
+   `<div>a</div><div>\[x</div><div>y\]</div><div>b</div>` the first and last divs hold no character of
+   the span, so the result is `<div>a</div>`, one text node `\[x\ny\]`, `<div>b</div>` — three
+   *children*, of which only the middle is a text node. An earlier draft said "three text nodes"; that
+   was wrong, and no argument may rest on it.
 
    **A real `<br>` inside the covered range but outside the span must survive as an element.** The
    preceding and following fragments are therefore rebuilt as *node sequences* preserving
@@ -437,8 +494,10 @@ surprise.
 Because `sanitize_cell` already flattened cell content at save (Problem 1b), the boundary markers in
 a cell arrive as **literal characters** rather than as DOM nodes.
 
-**Traversal — the part that decides whether phase 1b works at all.** It runs over every text node
-reached by the walk, locating spans with the same faithful `splitAtDelimiters` semantics as phase 1,
+**Traversal — the part that decides whether phase 1b works at all.** It is a **separate full pass
+over the same walk**, run after phase 1 completes for the entire subtree and before phase 2 — the
+same shape as phase 2, pinned for the same reason. Text nodes that rule 5 *created* are therefore in
+scope for it. It runs over every text node reached by the walk, locating spans with the same faithful `splitAtDelimiters` semantics as phase 1,
 and it applies to **every span the scan finds, including — in fact especially — the ones rule 4
 skipped**. The cell case *is* a rule-4 skip: the span already lies inside one text node. An
 implementer who hangs phase 1b off the rule-5 rewrite path — the only place a span is otherwise both
@@ -470,9 +529,26 @@ must, or promotion would rewrite the TeX inside a `.katex` annotation or mutate 
 operates **per text node**, not per run: phase 1's rule-5 output is several adjacent text nodes, and
 a promotion candidate never spans them (a span that spanned nodes would have been merged already).
 
-For every text node reached by that pass, a `\(…\)` span whose content — **after skipping leading
-whitespace**, which a paste plausibly produces — begins with one of the ten display-only environments
-has its delimiters rewritten to `\[…\]`. Specifically:
+For every text node reached by that pass, a `\(…\)` span whose content **contains** any of the ten
+display-only environments has its delimiters rewritten to `\[…\]`. Specifically:
+
+- **the test is "contains", not "begins with", and that distinction is load-bearing.** Five of the six
+  repairable spans in the corpus are `\(`-wrapped and open with `\begin{cases}`, with `\begin{align}`
+  *nested inside* — `\(\begin{cases}</p><p>\begin{align}…`. A begins-with test declines to promote
+  them, phase 1 has already merged them into one text node, and KaTeX then meets `\begin{align}` in
+  inline mode. Measured on the actual stored shape:
+
+  | how the stem reaches KaTeX | result |
+  |---|---|
+  | inline (begins-with test declines) | **FAIL** — `{align} can be used only in display mode` |
+  | display (contains test promotes) | **OK** — renders |
+
+  So a begins-with test would convert five pieces of live content from *inert text* into a *visible
+  red error* — a regression presented as a repair. The contains test renders them.
+
+  The argument that promotion is always safe: a span containing a display-only environment cannot
+  render inline at all, so its only two outcomes are display or `.katex-error`. Promotion is never
+  worse and is usually right;
 
 - **spans are located with the effective delimiter set's partition, not by a raw scan for `\(`.**
   Only a span the effective scan actually *opened with* `\(` may be promoted. On fill-table,
@@ -484,28 +560,41 @@ has its delimiters rewritten to `\[…\]`. Specifically:
 - promotion is a **no-op unless `\[` is in the effective set** for that caller. All ten callers have
   it today, so this is a stated precondition rather than a live branch, but it must not be left
   implicit;
-- the environment set is enumerated literally —
+- the environments are matched as **ten exact literal strings, closing brace included** —
 
 ```
-align  align*  alignat  alignat*  gather  gather*  equation  equation*  CD  split
+\begin{align}   \begin{align*}   \begin{alignat}   \begin{alignat*}   \begin{gather}
+\begin{gather*} \begin{equation} \begin{equation*} \begin{CD}          \begin{split}
 ```
 
-— rather than as `(align|alignat|gather|equation|CD|split)\*?`, which would also admit the
-non-existent `CD*` and `split*`.
+  Not ten *names* and not a prefix match. A prefix match on `\begin{align` also matches
+  `\begin{aligned}`, and on `\begin{gather` also `\begin{gathered}` — environments Problem 2 lists as
+  working in **both** modes. Promoting those would silently convert currently-correct inline math
+  into display blocks. (Measured: **0** such spans exist today, so this is prophylaxis, not a repair —
+  but it costs nothing and the failure would be invisible.) Enumerating literals also avoids the
+  regex `(align|alignat|gather|equation|CD|split)\*?`, which admits the non-existent `CD*`/`split*`.
 
 **The merge-phase invariant does not cover phase 2**: promotion by design rewrites spans that sit
 inside a single text node. It carries its own regression coverage.
 
 #### Newlines
 
-The span's text carries a real `\n` at each former boundary. Two adjacent mergeable `<div>`s produce
-a blank line, which in real LaTeX is a `\par` and an error inside `align*`; it is inert here only
-because **KaTeX collapses** whitespace and has no paragraph handling. State it that way — an
-implementer must not carry "LaTeX ignores it" anywhere else.
+The span's text carries exactly one real `\n` at each former boundary — rule 2 emits a leading
+boundary newline only, so two adjacent mergeable `<div>`s produce one newline, not a blank line. That
+matters: a blank line in real LaTeX is a `\par` and an error inside `align*`. It would be inert here
+anyway, because **KaTeX collapses** whitespace and has no paragraph handling, but the rule avoids
+relying on that. State it that way; an implementer must not carry "LaTeX ignores it" anywhere else.
 
-Losing the `<div>` wrapper for attribute-free prose adjacent to a *display* span is intended and was
-verified visually: KaTeX renders display math as a block, so lead-in and trailing prose each keep
-their own line anyway. For inline spans see the note under phase 1.
+Losing the `<div>` wrapper for attribute-free prose adjacent to a *display* span is intended, and was
+verified visually for `<div>`: KaTeX renders display math as a block, so lead-in and trailing prose
+each keep their own line anyway. For inline spans see the note under phase 1.
+
+**`<p>` was not visually verified, and it is the case that actually matters.** All six repairable
+spans in the corpus sit at `</p><p>` boundaries, so paragraphs — not divs — are the only markup this
+change retroactively touches, and `<p>` carries real block margins in this codebase (`reset.css`'s
+`* { margin: 0 }` and the `app.css form p` rule interact here). Verifying the `<p>` case visually,
+light and dark, and recording what happens to surrounding paragraph spacing, is a **required step of
+the implementation**, not an assumption this spec is entitled to make.
 
 #### Idempotence, failure, cost
 
@@ -519,7 +608,7 @@ converted; phase 2 is idempotent because a promoted span no longer uses `\(`.
 matches nothing and is left as-is. The whole reflow is wrapped so a failure degrades to today's
 behaviour rather than blocking typesetting.
 
-**Cost.** O(nodes under `root`). `math.js:33` calls `renderMathInElement` once per matched element
+**Cost.** `math.js:33` calls `renderMathInElement` once per matched element
 across the nine selectors listed at `math.js:31`. Those selectors nest — a `.el--tabs` holding
 `.el--text` children matches both — so nested content is traversed once per matched ancestor level,
 not once in total. The bound is **O(nodes × nesting depth of matched containers)**, which is small in
@@ -543,8 +632,11 @@ On a match, strip the wrapper. **`displayMode` is left exactly as the caller pas
 wrapper forms.** Both real callers reach `katex.render` through `math.js:6`, which hardcodes
 `displayMode: true`, so a Math element containing `\(x\)` renders as display — correct, since a Math
 element is a display element by design and its inline-looking wrapper is an author's habit, not an
-instruction. The hook **shallow-copies** `options` (creating one when `undefined`) and never mutates
-the caller's object; `text_colour.js` wraps the same function and shares the argument list.
+instruction. The hook writes nothing into `options` — it changes only `expr` — so it passes `options` through
+untouched rather than copying it. (An earlier draft required a shallow copy; that was a leftover from
+a version that forced `displayMode`, and copying an object nothing writes to is dead work.)
+`text_colour.js` wraps the same function and shares the argument list, so leaving the caller's object
+alone is also the least surprising behaviour.
 
 ## Error handling
 
@@ -565,7 +657,7 @@ the caller's object; `text_colour.js` wraps the same function and shares the arg
 | Reflow throws | Caught; the original `renderMathInElement` runs on the untouched DOM |
 | `\[a\] + \[b\]` reaching `katex.render` | `findEndOfMath` stops at the first `\]`, which is not the expression's end; not stripped |
 | `\(x\)` in a Math element | Wrapper stripped; `displayMode` stays as passed (`true`) |
-| `options` undefined at Hook B | Fresh object constructed; caller's argument never mutated |
+| `options` undefined at Hook B | Passed through as-is; the hook writes nothing to it |
 | Display-only environment inside `\(…\)`, any leading whitespace | Promoted to `\[…\]` |
 | `cases`, `matrix`, … inside `\(…\)` | Untouched; already works inline |
 | Math typed inside the RTE surface | Deliberately not typeset live; renders after save |
@@ -576,7 +668,10 @@ the caller's object; `text_colour.js` wraps the same function and shares the arg
 is removed.
 
 **Baseline** — full non-e2e suite green at **4559 passed, 1 skipped**, measured at branch point
-`0a9c2882`.
+`0a9c2882`. That is a **floor, not the post-change target**: `test_math_reflow_defaults.py` and the
+new assertions in `test_text_colour_script_order.py` are non-e2e and will raise the total. The
+implementation must state the new expected count so "did the suite stay green?" has a target number;
+only `test_e2e_math_reflow.py` and `test_e2e_math_reflow_dom.py` stay outside it (`-m e2e`).
 
 ### `tests/test_e2e_math_reflow.py` (e2e-marked, real Chromium)
 
@@ -643,6 +738,18 @@ Direct DOM-in/DOM-out cases against `window.libliMathReflow`:
   with an ancestor as `root`;
 - delimiter set derived from `options.delimiters`, plus a `$$` and a `\begin{align}` case under the
   hardcoded defaults;
+- **C3**: `<div>\[oops</div><div>\[a</div><div>b\]</div>` — scanning stops at the unclosed opener,
+  DOM byte-identical;
+- **C4**: `\(\begin{aligned}a&=1\\b&=2\end{aligned}\)` is **not** promoted (exact-literal match);
+- **C5**: `\(\begin{cases}` + split `\begin{align}` + `\end{cases}\)` — built from the *actual stored
+  shape* of `ChoiceQuestionElement` 218 — comes out merged **and** promoted, and renders with zero
+  `.katex-error`;
+- `libliMathReflow(document)` and `libliMathReflow(documentFragment)` do not throw (the `matches`
+  guard);
+- `libliMathReflow` on a root **inside** an ignored subtree is a no-op (the `closest` guard);
+- a forced internal throw (a poisoned `options.delimiters`) still leaves the DOM untouched and lets
+  the original renderer run — the try/catch is the only safety net for an implementation bug, and an
+  untested `catch` is exactly what "falsification is the acceptance criterion" exists to prevent;
 - idempotence: a second call is a no-op.
 
 ### `tests/test_math_reflow_defaults.py` (pytest, static)
@@ -650,6 +757,14 @@ Direct DOM-in/DOM-out cases against `window.libliMathReflow`:
 The module's hardcoded default-delimiter list matches what the vendored
 `courses/static/courses/vendor/katex/contrib/auto-render.min.js` actually contains, so a KaTeX
 upgrade reddens rather than silently diverging.
+
+**The extraction contract must be stated, or the test passes vacuously** — the exact failure mode
+`test_text_colour_script_order.py` already guards against. The minified file encodes booleans as
+`!0`/`!1`, not `true`/`false`, and encodes each delimiter as JS source (`left:"\("` is the
+two-character string `\(`). The test must parse `{left:…,right:…,display:…}` triples out of the
+minified source, map `!0`→`True` and `!1`→`False`, unescape the JS string literals, compare the full
+triples **in order** against the module's list, and **assert exactly eight triples were extracted**
+before comparing anything.
 
 ### Wiring — extend `tests/test_text_colour_script_order.py`
 
