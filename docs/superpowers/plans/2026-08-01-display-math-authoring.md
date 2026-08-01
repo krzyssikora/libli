@@ -631,6 +631,29 @@ def test_basic_split_span_merges(page):
     assert out == "\\[x\ny\\]"
 
 
+@pytest.mark.parametrize(
+    "lead", ["<span>hi</span>", "<h3>Title</h3>", "<strong>lead</strong>", "<img src='x'>"]
+)
+def test_content_before_the_run_is_not_destroyed(page, lead):
+    """REGRESSION, measured: buildRun's offset->child map is RUN-LOCAL, so indexing
+    the element's FULL children array with it diverges the moment a run does not
+    start at child 0. The buggy form returned '\\[a\nb\\]<div>b\\]</div>' — the lead
+    element destroyed, a stale <div> left behind. A heading or image above a split
+    display block is the ordinary shape of this.
+
+    Every other Task 4 fixture has a mergeable child at index 0 or a barrier that
+    suppresses the rewrite, so nothing else in the table catches it."""
+    page.set_content("<!DOCTYPE html><section id='root'>"
+                     "%s<div>\\[a</div><div>b\\]</div></section>" % lead)
+    page.add_script_tag(path=SCRIPT)
+    out = page.evaluate(
+        "() => { const r = document.getElementById('root');"
+        "        window.libliMathReflow(r); return r.innerHTML; }"
+    )
+    assert out.startswith(lead.replace("'", '"'))
+    assert out.endswith("\\[a\nb\\]")
+
+
 def test_non_covered_siblings_survive_as_elements(page):
     """Three CHILDREN, of which only the middle is a text node — not three text
     nodes. auto-render re-joins adjacent text nodes, so an argument resting on a
