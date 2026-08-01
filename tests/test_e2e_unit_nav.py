@@ -1,17 +1,8 @@
-"""Playwright e2e for batch-2 unit-nav: desktop collapse rail + auto-scroll.
+"""Playwright e2e for batch-2 unit-nav: desktop collapse rail, auto-scroll, the
+pinned table-of-contents icon, and the 46rem prose cap it makes room for.
 
-Tests:
-  1. test_desktop_tree_collapse_persists: toggle collapses the tree;
-     class lands on <html>; reload restores via the pre-paint script (no
-     flash); toggle back removes it; reload confirms expanded.
-  2. test_active_unit_scrolled_into_view: 35-unit course; navigate to
-     the last unit; the tree auto-scrolls so the active item is visible
-     (reduced-motion context makes the JS take the instant "auto" branch
-     so the wait_for_function poll settles deterministically).
-  3. test_prev_next_traverses_lesson_and_quiz: Prev/Next traversal across
-     a lesson→quiz→lesson sequence; pins that the 302 redirect from
-     lesson_unit to quiz_unit is followed correctly and that a disabled
-     prev is rendered on the first unit.
+See the test names below for coverage; this module has grown past a stale
+numbered index (originally 3 tests, now well beyond it).
 
 Marked e2e (excluded from the default run; run with -m e2e).
 Mirrors the harness in test_e2e_quiz.py (_allow_async_unsafe, _login,
@@ -1237,4 +1228,140 @@ def test_content_column_aligns_with_the_strip_above_it(browser, live_server):
         f"the pin must sit exactly one lane left of the strip: "
         f"gap={edges['strip'] - edges['pin']:.1f}, expected 38.4"
     )
+    ctx.close()
+
+
+def _seed_text_and_table_unit(username, slug):
+    """A lesson unit holding one text element and one table element.
+
+    None of this file's existing seeds attach content elements — they build course
+    structure only. Shape follows tests/test_e2e_wide_content_scroll.py.
+    """
+    from django.contrib.auth import get_user_model
+
+    from courses.models import Enrollment
+    from courses.models import TableElement
+    from courses.models import TextElement
+    from tests.factories import ContentNodeFactory
+    from tests.factories import CourseFactory
+    from tests.factories import add_element
+
+    student = get_user_model().objects.get(username=username)
+    course = CourseFactory(slug=slug, owner=student)
+    Enrollment.objects.get_or_create(student=student, course=course)
+    unit = ContentNodeFactory(course=course, kind="unit", unit_type="lesson")
+
+    add_element(
+        unit,
+        TextElement.objects.create(
+            body="<p>" + ("Lorem ipsum dolor sit amet. " * 40) + "</p>"
+        ),
+    )
+
+    # The cell key is "html", NOT "text": TableElement._cell() reads
+    # raw.get("html") (courses/models.py:885), so normalize_data would rewrite a
+    # "text" key to {"html": ""} and every cell would render blank. The width
+    # assertion would still pass — .el--table is a block box that fills the column
+    # whatever the cells hold — so the seed's wrongness would be invisible to this
+    # test and only surface as an empty table in Task 9's screenshot sweep.
+    cells = [[{"html": f"r{r}c{c}"} for c in range(4)] for r in range(3)]
+    add_element(
+        unit, TableElement.objects.create(data={"cells": cells, "border": "grid"})
+    )
+
+    return course, unit
+
+
+@pytest.mark.django_db(transaction=True)
+def test_prose_is_capped_while_the_table_takes_the_full_column(browser, live_server):
+    """46rem = 736px. Measure the ELEMENT roots, not the enclosing
+    <section class="lesson-block"> — that stays 872px either way and would make the
+    assertion vacuous.
+    """
+    _make_student("e2e_pin_cap")
+    course, unit = _seed_text_and_table_unit("e2e_pin_cap", "e2e-pin-cap")
+
+    ctx = browser.new_context(viewport={"width": 1440, "height": 900})
+    page = ctx.new_page()
+    _login(page, live_server, "e2e_pin_cap")
+    page.goto(f"{live_server.url}/courses/{course.slug}/u/{unit.pk}/")
+    _collapse(page)
+
+    text_w = page.evaluate(
+        "() => document.querySelector('.el--text').getBoundingClientRect().width"
+    )
+    table_w = page.evaluate(
+        "() => document.querySelector('.el--table').getBoundingClientRect().width"
+    )
+    assert text_w <= 736 + 2, f"prose must cap at 46rem (736px), got {text_w:.1f}"
+    assert table_w > 736 + 2, (
+        f"the table must take the full column, got {table_w:.1f} — if this equals "
+        f"the prose width the cap has leaked onto wide content"
+    )
+    ctx.close()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_quiz_chrome_is_capped_across_both_page_states(browser, live_server):
+    """The quiz entries (.lesson-unit__title, [data-quiz-preview-notice],
+    .quiz-finish) exist only for _quiz_article.html; without this the whole suite
+    stays green if all three are deleted.
+
+    TWO loads with ONE actor. previewing = not enrolled and read_only =
+    quiz_submitted or not enrolled, and the finish form sits behind
+    {% if not read_only %} — so the banner and the finish form can never coexist.
+    The course OWNER satisfies can_access_course without being enrolled, which is
+    exactly what makes previewing true while the page still loads; enrolling the
+    same user via the ORM and reloading flips to the other state. Do not use two
+    users: _login cannot switch identity, because allauth redirects an already
+    authenticated visitor away from the login page.
+    """
+    from courses.models import Element
+    from courses.models import ShortTextQuestionElement
+    from tests.factories import CourseFactory
+    from tests.factories import EnrollmentFactory
+    from tests.factories import make_quiz_unit
+
+    actor = _make_student("e2e_pin_quiz")
+    course = CourseFactory(slug="e2e-pin-quiz", owner=actor)
+    unit = make_quiz_unit(course=course)
+    q = ShortTextQuestionElement.objects.create(stem="Name a prime.", accepted="7")
+    Element.objects.create(unit=unit, content_object=q)
+
+    ctx = browser.new_context(viewport={"width": 1440, "height": 900})
+    page = ctx.new_page()
+    _login(page, live_server, "e2e_pin_quiz")
+    # The quiz route is /courses/<slug>/u/<node_pk>/quiz/ -- NOT /q/<pk>/.
+    url = f"{live_server.url}/courses/{course.slug}/u/{unit.pk}/quiz/"
+
+    # Load A — owner, NOT enrolled: banner renders, no finish form.
+    page.goto(url)
+    _collapse(page)
+    assert page.locator("[data-quiz-preview-notice]").count() == 1
+    assert page.locator(".quiz-finish").count() == 0
+    for sel in (".lesson-unit__title", "[data-quiz-preview-notice]", ".el--question"):
+        w = page.evaluate(
+            f"() => document.querySelector({sel!r}).getBoundingClientRect().width"
+        )
+        assert w <= 736 + 2, f"{sel} must cap at 736px, got {w:.1f}"
+
+    # Load B — same session, now enrolled: finish form renders, no banner.
+    EnrollmentFactory(course=course, student=actor)
+    page.reload()
+    # Re-assert the collapsed state AFTER the reload. Every assertion below is
+    # one-sided (<= 738), and the EXPANDED quiz column at 1440 is 648px — also
+    # under 738 — so without this guard all six would pass while measuring the
+    # wrong state. Load A is safe because _collapse() waits on the class; Load B
+    # would otherwise rely silently on the pre-paint restore surviving reload.
+    page.wait_for_function(
+        "() => document.documentElement.classList.contains('unit-tree-collapsed')"
+    )
+    assert page.locator("[data-quiz-preview-notice]").count() == 0
+    assert page.locator(".quiz-finish").count() == 1
+    for sel in (".lesson-unit__title", ".quiz-finish", ".el--question"):
+        w = page.evaluate(
+            f"() => document.querySelector({sel!r}).getBoundingClientRect().width"
+        )
+        assert w <= 736 + 2, f"{sel} must cap at 736px, got {w:.1f}"
+
     ctx.close()
