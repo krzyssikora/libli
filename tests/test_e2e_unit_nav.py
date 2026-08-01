@@ -1044,4 +1044,197 @@ def test_pin_is_hidden_at_mobile_width_in_both_states(browser, live_server):
         "drawer owns contents navigation below 641px"
     )
 
+
+def _collapse(page):
+    """Collapse via the real gesture and wait for the state class."""
+    page.locator("[data-unit-tree-toggle]").click()
+    page.wait_for_function(
+        "() => document.documentElement.classList.contains('unit-tree-collapsed')"
+    )
+
+
+@pytest.mark.django_db(transaction=True)
+def test_collapsing_reclaims_the_full_rail_width_above_the_breakpoint(
+    browser, live_server
+):
+    """The test for the PURPOSE of the feature.
+
+    Expected delta is ~224px — the full 14rem rail — NOT 262px. The two 38.4px
+    quantities cancel: the shell gains 38.4px by overhanging and immediately spends
+    38.4px on the pin's lane, so the article column goes 696 -> 920.
+    """
+    _make_student("e2e_pin_width")
+    course, units = _seed_nav_course("e2e_pin_width", "e2e-pin-width")
+
+    ctx = browser.new_context(viewport={"width": 1440, "height": 900})
+    page = ctx.new_page()
+    _login(page, live_server, "e2e_pin_width")
+    page.goto(f"{live_server.url}/courses/{course.slug}/u/{units[0].pk}/")
+    assert page.evaluate("() => matchMedia('(min-width: 1040px)').matches") is True
+
+    before = page.evaluate(
+        "() => document.querySelector('.lesson').getBoundingClientRect().width"
+    )
+    _collapse(page)
+    after = page.evaluate(
+        "() => document.querySelector('.lesson').getBoundingClientRect().width"
+    )
+
+    assert abs((after - before) - 224) <= 2, (
+        f"expected the column to grow by the full 14rem rail (~224px), got "
+        f"{after - before:.1f}px ({before:.1f} -> {after:.1f})"
+    )
+    ctx.close()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_narrow_desktop_band_is_width_neutral(browser, live_server):
+    """Below 1040px there is no overhang, so the lane sits inside the shell. The
+    2.4rem lane exactly equals the sliver it replaces, so this band is neutral
+    against today rather than worse.
+
+    The container is derived at RUNTIME rather than hard-coded, so the assertion
+    survives any future change to scrollbar behaviour or app-main's padding.
+
+    Measure `.unit-shell` with getBoundingClientRect, NOT `.app-main` with
+    getComputedStyle. The shell is the actual containing box of the two flex
+    children, so `main == shell - lane` needs no padding arithmetic at all --
+    and `box-sizing: border-box` is global here (reset.css:2), which makes
+    `getComputedStyle(x).width` ambiguous between the border box and the content
+    box. Sidestep the ambiguity rather than reason about it.
+    """
+    _make_student("e2e_pin_narrow")
+    course, units = _seed_nav_course("e2e_pin_narrow", "e2e-pin-narrow")
+
+    ctx = browser.new_context(viewport={"width": 900, "height": 900})
+    page = ctx.new_page()
+    _login(page, live_server, "e2e_pin_narrow")
+    page.goto(f"{live_server.url}/courses/{course.slug}/u/{units[0].pk}/")
+    assert page.evaluate("() => matchMedia('(min-width: 1040px)').matches") is False
+    assert page.evaluate("() => matchMedia('(min-width: 641px)').matches") is True
+
+    _collapse(page)
+    shell = page.evaluate(
+        "() => document.querySelector('.unit-shell').getBoundingClientRect().width"
+    )
+    main = page.evaluate(
+        "() => document.querySelector('.unit-shell__main')"
+        ".getBoundingClientRect().width"
+    )
+    assert abs(main - (shell - 38.4)) <= 2, (
+        f"expected the main column to be shell-38.4px ({shell - 38.4:.1f}), "
+        f"got {main:.1f} — below 1040px the lane sits INSIDE the shell, so the "
+        f"column loses exactly one lane and nothing else"
+    )
+    ctx.close()
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.parametrize(
+    "width,expect_overhang",
+    [(1440, True), (1060, True), (1010, False)],
+    ids=["wide", "just-above", "just-below"],
+)
+def test_pin_is_never_clipped_or_offscreen(
+    browser, live_server, width, expect_overhang
+):
+    """1060/1010 rather than 1040/1039: the latter pair puts BOTH cases on the same
+    side of the media query once the scrollbar is subtracted, making them identical
+    in behaviour while appearing to test both branches. Each case asserts its
+    matchMedia value before measuring, so an unusual scrollbar fails loudly.
+
+    The containment assertion is EXACT (left >= 0) — the +/-2px used elsewhere would
+    swallow the margins this test measures.
+    """
+    user = f"e2e_pin_clip_{width}"
+    _make_student(user)
+    course, units = _seed_nav_course(user, f"e2e-pin-clip-{width}")
+
+    ctx = browser.new_context(viewport={"width": width, "height": 900})
+    page = ctx.new_page()
+    _login(page, live_server, user)
+    page.goto(f"{live_server.url}/courses/{course.slug}/u/{units[0].pk}/")
+    assert (
+        page.evaluate("() => matchMedia('(min-width: 1040px)').matches")
+        is expect_overhang
+    ), f"window {width} landed on the wrong side of the 1040px breakpoint"
+
+    _collapse(page)
+    rect = page.evaluate(
+        "() => { const r = document.querySelector('[data-unit-tree-pin]')"
+        ".getBoundingClientRect();"
+        " return {l: r.left, t: r.top, w: r.width, h: r.height}; }"
+    )
+    assert rect["l"] >= 0, f"the pin hangs off the left edge: left={rect['l']:.1f}"
+    assert rect["t"] >= 0, f"the pin hangs off the top edge: top={rect['t']:.1f}"
+
+    hit = page.evaluate(
+        "() => { const b = document.querySelector('[data-unit-tree-pin]');"
+        "const r = b.getBoundingClientRect();"
+        "const el = document.elementFromPoint("
+        "r.left + r.width / 2, r.top + r.height / 2);"
+        "return !!el && b.contains(el); }"
+    )
+    assert hit, "the pin is not hit-testable at its centre"
+
+    # The assertion that actually guards the no-overflow:hidden precondition.
+    # A rect or centre hit-test CANNOT detect it: the pin overhangs 38.4px into
+    # .app-main's 20px padding, so under overflow:hidden 20px stays inside the clip
+    # and the centre lands ~0.8px on the visible side.
+    # body and <html> are walked as a deliberate TRIPWIRE, not because they can clip
+    # (body has no margin so its box spans the viewport; the root's overflow
+    # propagates to the viewport). A red on those two means "re-check whether this
+    # propagates to the viewport", NOT "the pin is clipped".
+    clipping = page.evaluate(
+        "() => { const out = [];"
+        "for (let n = document.querySelector('.unit-shell').parentElement;"
+        "     n; n = n.parentElement) {"
+        "  const o = getComputedStyle(n).overflowX;"
+        "  if (o !== 'visible') out.push(n.tagName + '.' + n.className + ':' + o);"
+        "} return out; }"
+    )
+    assert clipping == [], (
+        f"an ancestor of .unit-shell clips overflow-x, which would amputate the "
+        f"overhanging pin: {clipping}"
+    )
+    ctx.close()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_content_column_aligns_with_the_strip_above_it(browser, live_server):
+    """At >=1040px the shell's box starts 38.4px left of the strip, but .unit-shell
+    paints nothing and the pin exactly fills that overhang — so the content COLUMN
+    lands on the strip's left edge. (The visible prose stays inset a further 24px by
+    the article's own padding, unchanged from today; this asserts the column box,
+    which is what the negative margin controls.)
+    """
+    _make_student("e2e_pin_align")
+    course, units = _seed_nav_course("e2e_pin_align", "e2e-pin-align")
+
+    ctx = browser.new_context(viewport={"width": 1440, "height": 900})
+    page = ctx.new_page()
+    _login(page, live_server, "e2e_pin_align")
+    page.goto(f"{live_server.url}/courses/{course.slug}/u/{units[0].pk}/")
+    assert page.evaluate("() => matchMedia('(min-width: 1040px)').matches") is True
+
+    _collapse(page)
+    edges = page.evaluate(
+        "() => ({"
+        " main: document.querySelector('.unit-shell__main')"
+        ".getBoundingClientRect().left,"
+        " strip: document.querySelector('.unit-strip').getBoundingClientRect().left,"
+        " pin: document.querySelector('[data-unit-tree-pin]')"
+        ".getBoundingClientRect().left"
+        "})"
+    )
+    assert abs(edges["main"] - edges["strip"]) <= 1, (
+        f"the content column must align with the strip above it: "
+        f"main={edges['main']:.1f} strip={edges['strip']:.1f}"
+    )
+    assert abs((edges["strip"] - edges["pin"]) - 38.4) <= 1, (
+        f"the pin must sit exactly one lane left of the strip: "
+        f"gap={edges['strip'] - edges['pin']:.1f}, expected 38.4"
+    )
+    ctx.close()
+
     ctx.close()
