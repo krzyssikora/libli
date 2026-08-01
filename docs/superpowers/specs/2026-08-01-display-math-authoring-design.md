@@ -345,13 +345,13 @@ return -1;
 **An earlier draft specified a backslash-parity rule on openings and an `indexOf` closing search.
 Both were wrong and are deliberately removed.** The parity rule was a unilateral deviation: because
 auto-render accepts openings the parity filter rejects, it produced concrete mis-pairings — for
-`<div>\[2ex] \[a</div><div>b\]</div>` the reflow would reject the `\[` inside `\[`, merge
-`\[a
-b\]`, and leave `\[2ex] ` as an adjacent text node, whereupon auto-render (see below)
-re-concatenates and opens at the `\[` inside `\[2ex]`, rendering math the author never wrote where
+`<div>\\[2ex] \[a</div><div>b\]</div>` the reflow would reject the `\[` inside
+`\\[`, merge `\[a` + newline + `b\]`, and leave `\\[2ex] ` as an adjacent text node — whereupon
+auto-render (see below) re-concatenates and opens at the `\[` inside `\\[2ex]`, rendering math the
+author never wrote where
 today the text stays inert. The `indexOf` closing search was wrong on its own terms: the deminified
 source above shows auto-render *does* escape-skip and brace-track. Being a faithful port removes the
-entire divergence class and needs no parity rule — the `\[2ex]` idiom pairs correctly because the
+entire divergence class and needs no parity rule — the `\\[2ex]` idiom pairs correctly because the
 scan opens at the span's real `\[` and never reconsiders the interior.
 
 **auto-render concatenates sibling text nodes before splitting.** Also from the vendored source:
@@ -884,16 +884,20 @@ checking "did the DOM cases run?" against the baseline count would otherwise be 
 
 Direct DOM-in/DOM-out cases against `window.libliMathReflow`:
 
-- two spans in one run, siblings outside the covered range untouched (rule 5);
+- two spans in one run, siblings outside the covered range untouched (rule 5). Measured, the two
+  spans come out **adjacent with no separator** — the boundary newline between them is synthetic and
+  is dropped in the second replacement group. Harmless, since auto-render re-joins adjacent text
+  nodes and parses both, but the assertion must expect the adjacent form;
 - synthetic-newline placement: `<div>a</div><div>\[x</div><div>y\]</div><div>b</div>` → exactly three
-  children: `<div>a</div>`, a text node `\[x
-y\]`, `<div>b</div>`. Stating it in node terms also
-  pins "non-covered mergeable siblings survive as elements"; the bare `a`, `\[x
-y\]`, `b` phrasing
-  reads as three text nodes, the reading rule 5 exists to correct;
+  children: `<div>a</div>`, a text node holding `\[x` + newline + `y\]`, `<div>b</div>`. Stating it in
+  node terms also pins "non-covered mergeable siblings survive as elements"; phrasing it as three
+  bare values reads as three text nodes, the reading rule 5 exists to correct;
 - a `<div>` with element content beyond `<br>` acts as a barrier;
 - a `<div class="ta-center">` acts as a barrier and keeps its class;
-- **a span split across two `<div>`s inside a `<td class="ta-center">` merges** — barrier descended;
+- **a span split across two `<div>`s inside a `<td class="ta-center">` merges** — barrier descended.
+  The `<td>` **must** be wrapped in `<table><tbody><tr>`: measured, a bare `<td>` outside a table is
+  dropped by the HTML parser, leaving the two divs as direct children of the root, so the unwrapped
+  case passes for entirely the wrong reason;
 - **nested split inside a mergeable `<div>` that the parent then folds** — pins post-order traversal;
 - a bystander intact span inside another span's covered range still renders (invariant qualification);
 - a split **inline** `\(…\)` span merges (accepted line collapse);
@@ -918,8 +922,10 @@ y\]`, `b` phrasing
   with an ancestor as `root`, the latter built from the choicegrid shape;
 - delimiter set derived from `options.delimiters`, plus a `$$` and a `\begin{align}` case under the
   hardcoded defaults;
-- **C3**: `<div>\[oops</div><div>\[a</div><div>b\]</div>` — scanning stops at the unclosed opener,
-  DOM byte-identical;
+- **C3**: the unclosed-opener break, which is observable **only with mixed delimiters** — measured,
+  `<div>\[oops</div><div>\[a</div><div>b\]</div>` merely pairs the first `\[` with the only `\]`,
+  which is correct and tests nothing. Use `<div>\(oops</div><div>$$a</div><div>b$$</div>`: the
+  unclosed `\(` must suppress the complete `$$…$$` span that follows, DOM byte-identical;
 - **C4**: `\(\begin{aligned}a&=1\\b&=2\end{aligned}\)` is **not** promoted (exact-literal match);
 - **C5**: `\(\begin{cases}` + split `\begin{align}` + `\end{cases}\)` — built from the *actual stored
   shape* of `ChoiceQuestionElement` 218 — comes out merged **and** promoted, and renders with zero
