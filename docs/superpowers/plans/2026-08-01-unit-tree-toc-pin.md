@@ -493,7 +493,7 @@ with:
 
 - [ ] **Step 3: Repair `test_desktop_tree_collapse_persists`**
 
-At `tests/test_e2e_unit_nav.py:160`, the expand click. Change:
+At `tests/test_e2e_unit_nav.py:159-160` (the comment is `:159`, the click `:160`). Change:
 
 ```python
     # Toggle back → expanded; reload to confirm persistence.
@@ -578,8 +578,19 @@ ctx = browser.new_context(
 )
 ```
 
-Read each call site before editing: `reduced_motion="reduce"` is load-bearing where present (it
-stops `centerActive()`'s smooth scroll racing the assertion), and dropping it would introduce a flake.
+**Edit by line number, not by string match.** `ctx = browser.new_context(reduced_motion="reduce")`
+occurs **ten** times in this file (`:182, :236, :470, :502, :536, :567, :681, :741, :818, :851`), so a
+string-targeted edit is either rejected as ambiguous or, with `replace_all`, silently rewrites nine
+unrelated tests. The three targets are:
+
+| Test | Line | Current |
+|---|---|---|
+| `test_desktop_tree_collapse_persists` | `:138` | `browser.new_context()` |
+| `test_expanding_the_rail_recentres_the_active_unit` | `:681` | `browser.new_context(reduced_motion="reduce")` |
+| `test_centering_is_skipped_when_the_active_group_is_folded` | `:851` | `browser.new_context(reduced_motion="reduce")` |
+
+`reduced_motion="reduce"` is load-bearing where present — it stops `centerActive()`'s smooth scroll
+racing the assertion — so preserve it on `:681` and `:851`.
 
 - [ ] **Step 7: Run the three repaired tests**
 
@@ -1059,7 +1070,10 @@ git commit -m "test(e2e): pin the collapsed geometry across both breakpoint bran
 - Consumes: Tasks 1-3, and `_collapse()` from Task 5.
 - Produces: nothing.
 
-- [ ] **Step 1: Write the seed helper and the failing test**
+- [ ] **Step 1: Write the seed helper and the behaviour tests**
+
+As in Tasks 4 and 5, these pass on first run — Tasks 1-3 already landed the behaviour. Their RED
+evidence is Step 3's falsification, not a pre-implementation run.
 
 Append to `tests/test_e2e_unit_nav.py`:
 
@@ -1208,7 +1222,14 @@ Expected: 2 PASSED.
 2. Add `.el--table` to the prose-cap block → the same test's second assertion MUST fail. Restore.
 3. Delete `.lesson-unit__title`, `[data-quiz-preview-notice]` and `.quiz-finish` → `test_quiz_chrome…` MUST fail. Restore.
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 4: Refresh the module docstring**
+
+`tests/test_e2e_unit_nav.py:1-19` opens with a docstring that enumerates the file's tests ("Tests:
+1. … 2. … 3. …"). Tasks 4, 5 and 6 have appended ten tests and three helpers to it, so that
+enumeration now indexes under a third of the file. Replace the numbered list with a one-line pointer
+("see the test names below"), or extend it — either way it must stop being a stale index.
+
+- [ ] **Step 5: Commit**
 
 ```bash
 git add tests/test_e2e_unit_nav.py
@@ -1228,9 +1249,10 @@ git commit -m "test(e2e): prose caps at 46rem while wide content and quiz chrome
 
 **Why a new file:** this needs a staff-capable actor and a review fixture, neither of which `test_e2e_unit_nav.py` has. The module must carry the repo's e2e boilerplate itself — `conftest.py` supplies none of it.
 
-- [ ] **Step 1: Write the failing test**
+- [ ] **Step 1: Write the behaviour test**
 
-Create `tests/test_e2e_review_shell_isolation.py`:
+As in Tasks 4-6, this passes on first run — Task 2 already landed the scoping. Its RED evidence is
+Step 3's falsification. Create `tests/test_e2e_review_shell_isolation.py`:
 
 ```python
 """The teacher quiz-review page must be unaffected by the student tree's collapse.
@@ -1433,12 +1455,18 @@ git add locale/
 git commit -m "i18n: add the TOC pin's label to the pl and en catalogs"
 ```
 
+**If the branch is rebased onto master before the PR, re-run `compilemessages` and re-commit the
+`.mo` files rather than resolving by hand.** Tracked `.mo` files are binary and have no three-way
+merge, so a branch that sits behind master through nine tasks hits an unmergeable conflict — a
+recurring hazard in this repo.
+
 ---
 
 ### Task 9: Full suite, then the visual pass
 
 **Files:**
 - Modify: `courses/static/courses/css/courses.css` (visual declarations only)
+- Modify: `tests/test_e2e_unit_nav.py` (Step 5 appends the focus-ring assertion)
 - Modify: `docs/superpowers/plans/2026-08-01-unit-tree-toc-pin.md` (append the resolved deferred decisions)
 
 - [ ] **Step 1: Lint**
@@ -1478,7 +1506,7 @@ First record the baseline count, so "the sweep ran" has something to verify agai
 uv run pytest tests/ -m e2e --co --verbosity=0
 ```
 
-Note the collected count `N` from the summary line. Do **not** pipe this through `tail`: `addopts`
+Note the collected count `N` from the summary line (**565** on this tree at time of writing). Do **not** pipe this through `tail`: `addopts`
 already carries `-q`, and a second `-q` stacks to quiet-2 which prints no verdict at all, so the run
 reads as a hang. `-x` is inert under `--co`.
 
@@ -1493,9 +1521,16 @@ uv run pytest tests/test_e2e_h*.py tests/test_e2e_i*.py tests/test_e2e_l*.py tes
 uv run pytest tests/test_e2e_n*.py tests/test_e2e_p*.py tests/test_e2e_q*.py -m e2e --verbosity=0
 uv run pytest tests/test_e2e_r*.py tests/test_e2e_s*.py -m e2e --verbosity=0
 uv run pytest tests/test_e2e_t*.py tests/test_e2e_u*.py tests/test_e2e_w*.py -m e2e --verbosity=0
+uv run pytest tests/test_link_apply.py tests/test_link_dialog_behaviour.py \n              tests/test_table_grid_algebra.py tests/test_tabs_editor_dnd.py -m e2e --verbosity=0
 ```
 
-Expected: every chunk all-PASS, and the six chunk counts summing to `N`. One invocation at a time —
+**That seventh chunk is not optional.** Four e2e modules do not follow the `test_e2e_*` naming
+convention, so the six letter-globs collect only **464** of the 565 — a 101-test gap that CI's
+`pytest -m e2e` *does* run, surfacing after the PR is open. `test_tabs_editor_dnd.py` is the easiest
+to miss: it marks per-function with `@pytest.mark.e2e` rather than a module-level `pytestmark`, so it
+hides from the obvious grep.
+
+Expected: every chunk all-PASS, and the seven chunk counts summing to `N` (464 + 101 = 565). One invocation at a time —
 never two pytest processes at once against the same database. If a chunk fails, A/B it against
 `origin/master` before blaming this diff: this repo has a documented family of e2e flakes that fail
 only under parallel load and pass in isolation.
@@ -1594,10 +1629,29 @@ This step feeds back into code — its output decides whether an element root jo
 allow-list — so it needs a concrete seed and a concrete capture path, not a coverage wish-list.
 
 **Seed.** Extend `_seed_text_and_table_unit` (Task 6) into `_seed_sweep_unit` in a throwaway script,
-attaching one of each element root the ruling table names, plus one `.el--text` nested inside each of
+attaching one of each element root named in the spec's per-root ruling table
+(`docs/superpowers/specs/2026-08-01-unit-tree-toc-pin-design.md`, the table under "Per-root capping
+ruling" — it adds `.el--math`, `.html-el`, `.reveal-gate`, the matrix/filltable roots and switch-grid
+beyond the thirteen allow-list entries), plus one `.el--text` nested inside each of
 `TwoColumnElement`, `SpoilerElement` and `TabsElement`, plus a slide-break pair so `slideshow.js`
 builds a `.slideshow-deck` at runtime (a template grep cannot find that container — it does not exist
 until JS runs). Follow `tests/factories.py::seed_slideshow_unit` for the slide-break idiom.
+
+**`add_element()` cannot nest** — `tests/factories.py:170` is
+`Element.objects.create(unit=unit, content_object=obj)` with no `parent` and no `tab_id`, so it only
+makes top-level rows. Nesting needs the join row spelled out, with a **container-specific** slot id:
+
+```python
+container = add_element(unit, TabsElement.objects.create(...))
+Element.objects.create(
+    unit=unit, content_object=TextElement.objects.create(body="..."),
+    parent=container, tab_id="t000001",
+)
+```
+
+The slot id differs per container — `"t000001"` for tabs, `SpoilerElement.SLOT_ID` for spoiler,
+per-column ids for two-column. Follow `tests/test_e2e_imagezoom.py:627-637` as the worked idiom; it
+covers both the tabs and spoiler forms.
 
 **Capture.** Mirror `tests/capture_help_screenshots.py`, which already establishes this repo's
 pattern — `browser.new_context(viewport=…)` per shot. Loop the four axes:
@@ -1630,8 +1684,12 @@ Judge light and dark separately — dark is not assumed to follow from light.
 uv run ruff check .
 uv run ruff format --check .
 uv run pytest tests/test_consumption_css.py --verbosity=0
-uv run pytest tests/test_e2e_unit_nav.py -m e2e --verbosity=0
+uv run pytest tests/test_e2e_unit_nav.py tests/test_e2e_review_shell_isolation.py -m e2e --verbosity=0
 ```
+
+The review-isolation module is included because Step 7 is authorised to amend the allow-list — i.e.
+to write new `html.unit-tree-collapsed [data-unit-shell] …` selectors *after* every other
+verification has run. It is the behavioural half of the scoping guard.
 
 Lint is re-run because Step 5 added Python, not only CSS — and E501 on the new assertion's string
 literals is exactly the kind of thing Step 1's earlier pass cannot have caught.
@@ -1639,9 +1697,12 @@ literals is exactly the kind of thing Step 1's earlier pass cannot have caught.
 - [ ] **Step 9: Commit**
 
 ```bash
-git add courses/static/courses/css/courses.css docs/superpowers/plans/2026-08-01-unit-tree-toc-pin.md
+git add courses/static/courses/css/courses.css tests/test_e2e_unit_nav.py \n        docs/superpowers/plans/2026-08-01-unit-tree-toc-pin.md
 git commit -m "style(unit-nav): visual treatment for the TOC pin"
 ```
+
+`tests/test_e2e_unit_nav.py` is in that list because Step 5 appends the focus-ring assertion to it.
+Task 9 is the last task — anything left unstaged here never reaches the PR.
 
 ---
 
