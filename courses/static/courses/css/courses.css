@@ -863,6 +863,9 @@ a.unit-crumbs__label:focus-visible { outline: 2px solid var(--primary); outline-
   .lesson-unit__head .lesson-unit__title { flex-basis: 100%; }
 }
 
+/* Base: the TOC pin is inert until the collapsed state reveals it (Task 2). */
+.unit-toc-pin { display: none; }
+
 /* Collapsed desktop rail — state lives on <html> (pre-paint script), so scope from it. */
 @media (min-width: 641px) {
   html.unit-tree-collapsed .unit-tree { flex-basis: 2.4rem; }

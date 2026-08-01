@@ -877,3 +877,44 @@ def test_collapse_breakpoint_is_in_bounds_and_matches_the_stylesheet():
     # Assert the crumb rule is INSIDE that block: a bare "max-width: NNNpx" substring
     # could be satisfied by an unrelated pre-existing query at some values.
     assert ".unit-crumbs__item--mid" in _media_block(css, query)
+
+
+@pytest.mark.django_db
+def test_toc_pin_renders_on_lesson_and_quiz_with_a_unique_aria_controls_target(client):
+    """The pin ships in the DOM server-rendered, not created by JS.
+
+    base.html's pre-paint script sets html.unit-tree-collapsed BEFORE first
+    paint, so a CSS-only reveal is flash-free; a JS-created button would pop in
+    after hydration. Its aria-controls target must exist exactly once.
+    """
+    student = _make_student("pin_render")
+    course = CourseFactory(slug="pin-render", owner=student)
+    EnrollmentFactory(course=course, student=student)
+    lesson = ContentNodeFactory(course=course, kind="unit", unit_type="lesson")
+    quiz = make_quiz_unit(course=course)
+    client.force_login(student)
+
+    for node in (lesson, quiz):
+        url = reverse(
+            "courses:lesson_unit" if node is lesson else "courses:quiz_unit",
+            kwargs={"slug": course.slug, "node_pk": node.pk},
+        )
+        soup = BeautifulSoup(client.get(url, follow=True).content, "html.parser")
+
+        pin = soup.select_one("[data-unit-tree-pin]")
+        assert pin is not None, f"the TOC pin is missing from {url}"
+        assert pin.get("aria-expanded") is not None, "the pin must ship aria-expanded"
+        assert pin.get("aria-controls") == "unit-tree"
+
+        targets = soup.select("#unit-tree")
+        assert len(targets) == 1, (
+            f"aria-controls must resolve to exactly one element, found {len(targets)}"
+        )
+
+        rail_toggle = soup.select_one("[data-unit-tree-toggle]")
+        assert rail_toggle.get("aria-controls") == "unit-tree", (
+            "both controls must describe the same disclosure relationship"
+        )
+
+        pins = soup.select("[data-unit-tree-pin]")
+        assert len(pins) == 1, "the pin must not share a selector with the rail toggle"
