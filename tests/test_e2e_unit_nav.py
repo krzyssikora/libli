@@ -135,7 +135,7 @@ def test_desktop_tree_collapse_persists(browser, live_server):
     course, units = _seed_nav_course("e2e_nav_collapse", "e2e-nav-collapse")
     first_unit = units[0]
 
-    ctx = browser.new_context()
+    ctx = browser.new_context(viewport={"width": 1440, "height": 900})
     page = ctx.new_page()
     _login(page, live_server, "e2e_nav_collapse")
 
@@ -156,8 +156,9 @@ def test_desktop_tree_collapse_persists(browser, live_server):
         "Expected unit-tree-collapsed to persist across reload (pre-paint restore)"
     )
 
-    # Toggle back → expanded; reload to confirm persistence.
-    page.locator("[data-unit-tree-toggle]").click()
+    # Toggle back → expanded. The rail toggle is display:none while collapsed, so
+    # the pin is now the only way back — that IS the feature.
+    page.locator("[data-unit-tree-pin]").click()
     page.reload()
     html_cls = page.locator("html").get_attribute("class") or ""
     assert "unit-tree-collapsed" not in html_cls, (
@@ -678,7 +679,9 @@ def test_expanding_the_rail_recentres_the_active_unit(browser, live_server):
     # test_active_unit_scrolled_into_view targets the last of 35 for the same reason.)
     target = [u for u in units if u.parent == middle.parent][-1]
 
-    ctx = browser.new_context(reduced_motion="reduce")
+    ctx = browser.new_context(
+        reduced_motion="reduce", viewport={"width": 1440, "height": 900}
+    )
     page = ctx.new_page()
     _login(page, live_server, "e2e_recentre")
     page.goto(f"{live_server.url}/courses/{course.slug}/u/{target.pk}/")
@@ -707,11 +710,12 @@ def test_expanding_the_rail_recentres_the_active_unit(browser, live_server):
     )
 
     toggle = page.locator("[data-unit-tree-toggle]")
+    pin = page.locator("[data-unit-tree-pin]")
     toggle.click()  # collapse (real gesture)
     page.wait_for_function(
         "() => document.documentElement.classList.contains('unit-tree-collapsed')"
     )
-    toggle.click()  # expand
+    pin.click()  # expand — the rail toggle is hidden in this state
     page.wait_for_function(
         "() => !document.documentElement.classList.contains('unit-tree-collapsed')"
     )
@@ -848,7 +852,9 @@ def test_centering_is_skipped_when_the_active_group_is_folded(browser, live_serv
     course, _chapters, _units, middle, _sec = _seed_grouped_course(
         "e2e_guard", "e2e-guard", num_chapters=3, units_per_chapter=40
     )
-    ctx = browser.new_context(reduced_motion="reduce")
+    ctx = browser.new_context(
+        reduced_motion="reduce", viewport={"width": 1440, "height": 900}
+    )
     page = ctx.new_page()
     _login(page, live_server, "e2e_guard")
     page.goto(f"{live_server.url}/courses/{course.slug}/u/{middle.pk}/")
@@ -875,8 +881,9 @@ def test_centering_is_skipped_when_the_active_group_is_folded(browser, live_serv
     )
 
     toggle = page.locator("[data-unit-tree-toggle]")
+    pin = page.locator("[data-unit-tree-pin]")
     toggle.click()  # collapse (real gesture)
-    toggle.click()  # expand   (real gesture) -> centerActive() runs
+    pin.click()     # expand   (real gesture) -> centerActive() runs
     assert page.evaluate("() => window.__scrollToCalls") == 0, (
         "centerActive() scrolled the rail for an element with no layout box — the "
         "visibility guard is missing, and the rail will jump to a stale-rect position"
