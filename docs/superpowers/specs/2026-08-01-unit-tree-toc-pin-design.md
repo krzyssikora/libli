@@ -23,9 +23,10 @@ So the deliverable is three things, in order of how much they matter:
    delivers, not a tax it pays.
 
    The justification is deliberately "return to the repo's existing measure", **not** "reach the
-   classic 60–80ch range": 46rem is still ~110ch at this font size, so a ch-based rationale would
-   argue for a much tighter cap than 46rem and would not survive contact with the constant actually
-   chosen. Do not tighten the cap on ch grounds.
+   classic 60–80ch range": 46rem still sits well above that band, so a ch-based rationale would argue
+   for a much tighter cap than 46rem and would not survive contact with the constant actually chosen.
+   Do not tighten the cap on ch grounds. (Character-per-line figures are deliberately not quoted —
+   they vary with the font and were not measured.)
 3. **Reclaim the last ~38px** for tables, images and other wide content.
 
 ### Scope
@@ -67,9 +68,12 @@ new views.
 
 **`courses.css:866-873` is deleted in full — the comment at `:866`, the `@media (min-width: 641px)`
 wrapper opened at `:867`, the rules at `:868-872`, and the closing brace at `:873`.** Deleting only
-`:868-872` would leave an empty media block plus a comment describing rules that no longer exist —
-and that stale comment text would then collide with test 11's source guard. Either delete the whole
-block or replace it in place with the new collapsed rules.
+`:868-872` would leave an empty `@media` block and a comment describing rules that no longer exist.
+Either delete the whole block or replace it in place with the new collapsed rules.
+
+(Those two reasons are the whole case. An earlier draft also claimed the stale comment "would collide
+with test 11's source guard" — that is **false**, and worth recording so nobody reinstates it: test 11
+matches *comment-stripped* CSS, so no leftover comment can affect it either way.)
 
 This is normative, not descriptive. Those five selectors are unscoped (`html.unit-tree-collapsed .unit-tree`, `…__heading`, `…__list`, `…__toggle`, `…__bar`) —
 exactly the pattern the Scoping section forbids — and leaving them would be **behaviourally
@@ -264,8 +268,10 @@ time, so the higher-specificity rule wins over `margin: 0 auto` either way; the 
 mechanism. The app ships `pl` and `en`, both LTR, so the two are equivalent today.
 
 **Verified precondition for the overhang**: no ancestor of `.unit-shell` sets `overflow: hidden`.
-`reset.css`'s only such rule is on `.sr-only`; `.app-main` (`app.css:34`) sets none. A test pins this,
-because a future `overflow` rule would silently amputate the only control that restores the tree.
+`reset.css`'s only such rule is on `.sr-only`; `.app-main` (`app.css:34`) sets none. Test 6 pins this
+with an explicit ancestor `overflow-x` walk — **not** with a rect or hit-test assertion, neither of
+which can detect the mutation (see test 6 for why). A future `overflow` rule would otherwise silently
+amputate part of the only control that restores the tree.
 
 **Expanded**: visually and structurally as today — the rail keeps its `‹`, the sticky tree bar, the
 scrollbar styling and the active-row marker. **One behaviour does change, and it is accepted rather
@@ -385,8 +391,8 @@ border (`courses.css:184-191`), so a capped question card holds **694px of text*
 judges two prose measures, not one.
 
 **The honest reading of that table**: collapsed prose becomes 98px *narrower* than it is today
-(834 → 736). That is deliberate, and it is point 2 of the Purpose — 834px is ~125ch, which is the
-readability problem being fixed, not a benefit being surrendered. An implementer who measures the
+(834 → 736). That is deliberate, and it is point 2 of the Purpose — 834px is the over-long measure
+being fixed, not a benefit being surrendered. An implementer who measures the
 narrowing must not treat it as a bug.
 
 The invariant that *does* hold: **at any viewport, the collapsed measure is never smaller than the
@@ -422,8 +428,16 @@ considered and rejected on inspection of the markup:
    46rem. A missed allow-list entry only leaves prose wider than ideal. The gentler failure belongs
    on the more error-prone list.
 
+`screen and` here too, and for a different reason than the margin block: Chromium evaluates
+`min-width: 641px` against the ~816px print page box, so an unscoped cap would apply on paper —
+prose printing at 736px while tables, math and the containers print at full page width. Printed
+output would then differ between two students purely because one of them had once collapsed a
+sidebar, and the ragged right edge the quiz-chrome entries exist to prevent would reappear in print.
+Screen-scoping is safe on this block because it contains only the cap. Test 11's selector set and its
+floor of 17 are unchanged either way.
+
 ```css
-@media (min-width: 641px) {
+@media screen and (min-width: 641px) {
   html.unit-tree-collapsed [data-unit-shell] .el--text,
   html.unit-tree-collapsed [data-unit-shell] .callout,
   html.unit-tree-collapsed [data-unit-shell] .el--question:not(.el--choicegrid):not(.el--multigrid):not(.el--dragimage):not(.el--matchpair):not(.el--dragfill),
@@ -632,8 +646,10 @@ outcomes** and must not be collapsed into one claim:
 - **`localStorage` unavailable** (private mode, disabled storage). Both the pre-paint script
   (`base.html:36-40`) and `store()` (`unit_nav.js:6-8`) already wrap access in `try/catch`. The toggle
   works for the session; the choice does not persist.
-- **A future `overflow: hidden` on `body` or `.app-main`** would clip the pin where it overhangs at
-  ≥1040px. Covered by a test rather than a comment.
+- **A future `overflow: hidden` on `.app-main`** would clip 18.4px of the pin where it overhangs at
+  ≥1040px, leaving 20px visible — enough that a naive rect or centre hit-test would not notice. Test 6
+  covers it with an ancestor `overflow-x` walk. (`body` is not a real hazard: `reset.css:3` gives it
+  no margin, so its box spans the viewport and cannot clip the pin.)
 - **A pin click during `centerActive()`'s smooth scroll.** `centerActive()` re-queries at call time
   and early-returns when collapsed (`unit_nav.js:26-38`), so a rapid collapse during an expand
   animation cannot act on a stale node.
@@ -774,6 +790,25 @@ that has nothing to do with the rule under test.
 6. **e2e — the pin is not clipped, at 1440px *and* on both sides of the breakpoint.** Assert the
    pin's `getBoundingClientRect()` lies inside the viewport and is hit-testable at its centre
    (`document.elementFromPoint` resolves to the button or a descendant).
+
+   **Those two assertions do not detect an ancestor `overflow: hidden`** — verified, so do not assume
+   otherwise. `getBoundingClientRect()` ignores ancestor clipping entirely; and the centre hit-test
+   survives by construction, because the pin overhangs 38.4px into `.app-main`'s 20px inline padding,
+   so with `.app-main { overflow: hidden }` exactly 20px of the pin stays inside the clip and its
+   centre sits ~0.8px on the visible side. `body { overflow: hidden }` clips nothing at all: `body`
+   has no margin (`reset.css:3`), so its box spans the viewport and the pin at x≈214 is nowhere near
+   an edge.
+
+   So test 6 carries a **third assertion, which is the one that actually guards the precondition**:
+   walk every ancestor of `.unit-shell` up to `<html>` and assert each has computed
+   `overflow-x: visible`. Deterministic, and it expresses the precondition directly rather than hoping
+   a rendering side-effect exposes it. Optionally pair it with a hit-test at
+   `(pinRect.left + 3, centreY)` — a point inside the clipped region — which does go red under
+   `.app-main { overflow: hidden }`.
+
+   **Falsifiers**, named because this test previously had none: lower the 1040px breakpoint constant
+   (drives the pin's left edge negative → the viewport-containment assertion fails), and add
+   `overflow: hidden` to `.app-main` (→ the ancestor walk fails).
 
    Three cases, at **concrete window widths with headroom on both sides of the breakpoint**:
 
@@ -968,11 +1003,12 @@ that has nothing to do with the rule under test.
     Falsify by widening exactly one entry in that list, and separately by breaking the
     at-rule handling (the coverage assertion must then go red).
 
-    **Strip comments before matching.** The existing idiom in this repo
-    (`tests/test_element_state_write_routes.py`, which regexes raw source, and
-    `tests/test_i18n_po_health.py`) is known to trip on prose: a raw-source regex matches text inside
-    `/* … */` too, so a comment that merely *mentions* the old selector reddens the suite. Match
-    comment-stripped CSS and say so in the docstring.
+    **Strip comments before matching — this is mandatory, not defensive.** `courses.css:878` *already*
+    contains `.unit-tree-collapsed` inside the review-roster comment block, which this change does not
+    touch. A raw-source test 11(a) is therefore **red on an untouched file, before anyone writes a
+    line of CSS**. The existing idiom in this repo (`tests/test_element_state_write_routes.py` regexes
+    raw source; `tests/test_i18n_po_health.py` guards catalogs) is known to trip on prose for exactly
+    this reason. Match comment-stripped CSS and say so in the docstring.
 
 **`aria-expanded` agreement is asserted explicitly, not assumed.** It is stated in Behaviour as an
 invariant ("must agree between the two controls at all times, including on first paint"), so it needs
