@@ -214,8 +214,9 @@ parameter (see "Visual verification").
 
 The narrow branch gains no width; it gains the removal of the stripe and the prose cap.
 
-**Breakpoint derivation.** `.app-main` is `max-width: 960px` with `padding-inline: var(--space-5)` =
-20px (`app.css:34`, `tokens.css:76`). Those constants apply here only because `base.html:147` is
+**Breakpoint derivation.** `.app-main` is `max-width: 960px; margin: 0 auto;
+padding: var(--space-8) var(--space-5)` (`app.css:34`) — the physical two-value shorthand, giving
+20px of inline padding (`tokens.css:76`). Those constants apply here only because `base.html:147` is
 `<main class="{% block main_class %}app-main{% endblock %}">` and **neither `lesson_unit.html` nor
 `quiz_unit.html` overrides `main_class`** — the derivation is page-specific, not structural. Given
 that, the shell's left edge sits at `(W − 960)/2 + 20`, where `W`
@@ -256,8 +257,8 @@ box is always the smaller constraint. Specificity: `html.unit-tree-collapsed [da
 (0,3,1) against `.unit-shell`'s (0,1,0), so it wins regardless of source order.
 
 **The property is `margin-inline-start`, not `margin-left`.** This codebase is consistently logical —
-`margin-inline: auto` (`courses.css:180-181`), `margin-inline: 0` (`:538`), `padding-inline`
-(`app.css:34`), `margin-block` on `.unit-strip` — and a lone physical longhand would be a silent
+`margin-inline: auto` (`courses.css:180-181`), `margin-inline: 0` (`:538`), `margin-block` on
+`.unit-strip` (`:1660`) — and a lone physical longhand would be a silent
 inconsistency. Logical and physical longhands cascade together and are resolved at computed-value
 time, so the higher-specificity rule wins over `margin: 0 auto` either way; the choice is idiom, not
 mechanism. The app ships `pl` and `en`, both LTR, so the two are equivalent today.
@@ -301,7 +302,7 @@ and the prose-cap block. This is normative, not incidental: this repo splits con
 two files (`.callout` is in `courses.css`, but `.spoiler` is at `app.css:932`, `.icon` at `:108`), and
 **test 11 reads `courses.css` only**. A rule that landed in `app.css` would leave the family the spec
 designates as "guarded by test 11 instead" with no guard at all, and no signal that anything was
-wrong. The C1 coverage assertion in test 11 is what makes a misplacement redden the suite.
+wrong. Test 11's coverage assertion is what makes a misplacement redden the suite.
 
 The selector *shape* below is normative; the visual declarations are not exhaustive.
 
@@ -319,7 +320,13 @@ The selector *shape* below is normative; the visual declarations are not exhaust
   }
 }
 
-@media (min-width: 1040px) {
+/* `screen and` is required, not decoration. Chromium evaluates print media queries against the
+   page area, which for landscape A4 at default margins is ~1046 CSS px — above 1040. Unscoped,
+   a landscape printout would apply the overhang while the print rule below correctly hides the
+   pin, leaving the article indented 38.4px past an empty lane. Screen-scoping is safe HERE
+   because this block contains only the margin rule; it would NOT be safe on the 641px block,
+   which also carries `.unit-tree { display: none }` and would print the full 224px rail. */
+@media screen and (min-width: 1040px) {
   html.unit-tree-collapsed [data-unit-shell] { margin-inline-start: -2.4rem; }
 }
 
@@ -331,8 +338,7 @@ The selector *shape* below is normative; the visual declarations are not exhaust
    The selector MIRRORS the reveal exactly, and this block MUST come after it. A bare
    `.unit-toc-pin { display: none }` here would be (0,1,0) against the reveal's (0,3,1) —
    media queries add no specificity, so the reveal would simply win and the pin would print
-   anyway, as a 38.4px lane indenting the whole article (`min-width: 1040px` does not match
-   the print page box, so there is no compensating overhang). courses.css:1374-1378 documents
+   anyway as a 38.4px lane indenting the whole article. courses.css:1374-1378 documents
    this same trap for tabs and solves it with !important; matching specificity is cleaner
    here and keeps the selector compliant with test 11(b). */
 @media print {
@@ -504,7 +510,7 @@ ruled on either by the allow-list block or by this table, so none falls into a g
 | Root | Capped? | Why |
 |---|---|---|
 | `.el--math` | no | a wide display equation must be free to use the column or scroll, never be squeezed |
-| tables, grids, media, `.el--table`, `.filltable`, switch-grid | no | the width *is* the content |
+| tables, grids, media, `.el--table`, fill-in table, switch-grid | no | the width *is* the content |
 | the four containers (`two_column`, `spoiler`, `tabs`, `.slideshow-deck`) | no | they hold arbitrary children including tables |
 | `.html-el` | no | arbitrary author HTML; may legitimately be a wide embed or table |
 | `.reveal-gate` | no | a `<button>` — shrink-to-fit, so a cap is a no-op either way |
@@ -944,14 +950,16 @@ that has nothing to do with the rule under test.
 
     **Plus a non-zero-coverage assertion**, expressed as a **formula, not a literal**:
 
-    > floor = 4 structural selectors (rail reveal, pin reveal, margin, print) + one per allow-list
-    > entry — **17 as specified today** (4 + 13).
+    > `coverage >= floor`, where floor = 4 structural selectors (rail reveal, pin reveal, margin,
+    > print) + one per allow-list entry — **17 as specified today** (4 + 13).
+
+    The operator is `>=`, not `==`: adding an allow-list entry must never redden the suite, so the
+    re-derivation duty below applies to **removals only**.
 
     A literal would be wrong the moment the sweep exercises its authority to *remove* a provisional
     entry (`.markdone`, `.fillgate`, `.stepper`, `.switchgate`, `.guessnumber` are all overturnable),
     dropping the count below the floor and reddening the suite with no guidance on whether to lower
-    the floor or revert the removal. **Re-derive the floor in the same PR as any sweep-driven addition
-    *or* removal** — that obligation is part of the sweep's "record the choice in the PR" duty.
+    the floor or revert the removal. **Re-derive the floor in the same PR as any sweep-driven removal** — that obligation is part of the sweep's "record the choice in the PR" duty.
     Without this assertion a tokenisation bug passes
     vacuously, which is exactly how this guard would fail in practice. Note the repo has no whole-file
     precedent to copy: `test_consumption_css.py` uses per-rule regexes
@@ -977,8 +985,15 @@ assertions someone will actually write:
   is the first-paint half: the pin ships `aria-expanded="false"` server-side and `syncToggle()`
   corrects both on boot, so this is what catches a boot call that never ran.
 
-Falsified by deleting the `syncToggle` iteration (test 1) and by moving the boot call back inside the
-control guard (test 2).
+Falsified by deleting the `syncToggle` iteration (test 1) and by **deleting the boot call outright**
+(test 2) — with it gone, `.unit-tree__toggle` keeps the server-rendered `aria-expanded="true"` from
+`_unit_tree.html:6` on a collapsed reload while the assertion expects `"false"`.
+
+**Not** by moving the boot call back inside the control guard: on the pages test 2 drives the control
+list is never empty (`unit_nav.js` is loaded only by `lesson_unit.html:69` and `quiz_unit.html:25`,
+both of which render `_unit_shell.html`), so that mutation is unobservable and the test would stay
+green. The empty-list path is a future-consumer safeguard with **no test coverage**, deliberately —
+stated here so nobody weakens a good first-paint assertion after finding its named falsifier inert.
 
 **Viewport discipline.** Every test whose assertion depends on a breakpoint — not merely every
 *measuring* test — sets its viewport explicitly and, near 1040px, asserts the branch via `matchMedia`
