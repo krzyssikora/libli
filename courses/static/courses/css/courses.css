@@ -2,6 +2,41 @@
 .outline-node { margin: .25rem 0; }
 .rollup { color: var(--text-tertiary); font-size: .85em; margin-left: .5rem; }
 .el { margin: 1rem 0; }
+
+/* --- Authored rich text (the RTE's output) ---------------------------------
+   A <blockquote>'s whole default appearance is `margin: 1em 40px`, and
+   reset.css zeroes every margin -- so the toolbar's Quote button used to render
+   something pixel-identical to a paragraph. Every other block the toolbar emits
+   survives the reset on a non-margin default (h2-h4 on font-size/weight, pre on
+   monospace, ul/ol on padding-left); this one has to carry its own styling. */
+blockquote {
+  margin: var(--space-3) 0;
+  padding: var(--space-1) var(--space-4);
+  border-left: 3px solid var(--accent);
+  color: var(--text-secondary);
+}
+
+/* Prose rhythm, applied to the contenteditable and to every surface that
+   renders its output, so the editor and the lesson agree. Listing the block
+   tags (rather than `> * + *`) keeps this off the inline <input>/<select> that
+   a fill-blank or drag-fill stem drops straight into .question__stem -- those
+   are inline-block, so a margin-top would visibly shift them. <div> is in the
+   first list because Chromium's contenteditable emits <div> (not <p>) for a
+   block made with Enter, and the sanitizer keeps it -- but it stays OUT of the
+   stem list, where a direct-child div is a widget (.dnd__pool), not prose. */
+:is(.rte-surface, .el--text)
+  > :is(p, div, h2, h3, h4, ul, ol, pre, blockquote)
+  + :is(p, div, h2, h3, h4, ul, ol, pre, blockquote),
+.question__stem
+  > :is(p, h2, h3, h4, ul, ol, pre, blockquote)
+  + :is(p, h2, h3, h4, ul, ol, pre, blockquote) { margin-top: var(--space-3); }
+
+/* The RTE surface sits inside <form class="editor-form">, so app.css's
+   `form p { margin-bottom: var(--space-4) }` -- a form-layout rule -- leaked
+   onto every authored paragraph. That gave the editor 16px of spacing the
+   lesson never had, which is what made toggling Quote on look like it *removed*
+   a margin. The rule above owns the rhythm now. */
+.rte-surface p { margin-bottom: 0; }
 .el--video iframe { width: 100%; aspect-ratio: 16 / 9; border: 0; }
 /* Uploaded <video> has no intrinsic width cap -> constrain it like an image, or it
    renders at native pixel size and overflows the panel / preview / a tab. */
