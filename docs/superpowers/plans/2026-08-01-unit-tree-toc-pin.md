@@ -105,7 +105,9 @@ with:
 ```django
 <div class="unit-shell" data-unit-shell>
   {% comment %}FIRST child of the shell, before the tree, so it leads the tab order
-     when visible. Server-rendered rather than JS-created: base.html's pre-paint has
+     within the shell when visible. That ordering is a rationale, not a guarantee —
+     no test exercises keyboard traversal into the shell, so a future reorder of
+     these children would go green. Server-rendered rather than JS-created: base.html's pre-paint has
      already set html.unit-tree-collapsed, so the CSS-only reveal is flash-free.
      Its OWN attribute, never a second [data-unit-tree-toggle] — two elements sharing
      that attribute would break querySelector in unit_nav.js and make every existing
@@ -566,10 +568,14 @@ each test's context, preserving any existing argument:
 ctx = browser.new_context(viewport={"width": 1440, "height": 900})
 
 # test_expanding_the_rail_recentres_the_active_unit — KEEP reduced_motion
-ctx = browser.new_context(reduced_motion="reduce", viewport={"width": 1440, "height": 900})
+ctx = browser.new_context(
+    reduced_motion="reduce", viewport={"width": 1440, "height": 900}
+)
 
-# test_centering_is_skipped_when_the_active_group_is_folded — KEEP any existing kwargs
-ctx = browser.new_context(viewport={"width": 1440, "height": 900})
+# test_centering_is_skipped_when_the_active_group_is_folded (:851)
+ctx = browser.new_context(
+    reduced_motion="reduce", viewport={"width": 1440, "height": 900}
+)
 ```
 
 Read each call site before editing: `reduced_motion="reduce"` is load-bearing where present (it
@@ -678,9 +684,11 @@ def test_collapsing_removes_the_rail_and_the_pin_is_the_way_back(browser, live_s
 def test_collapsed_state_survives_reload_with_the_pin_visible(browser, live_server):
     """Pre-paint restore, plus the FIRST-PAINT half of the aria invariant.
 
-    The pin ships aria-expanded="false" server-side and syncToggle() corrects both
-    controls on boot, so asserting BEFORE any click is what catches a boot call that
-    never ran.
+    Only the .unit-tree__toggle assertion can detect a missing boot call: it is
+    server-rendered aria-expanded="true", so on a collapsed reload the boot call is
+    the only thing that corrects it to "false". The pin's assertion is a same-state
+    consistency check — its server-rendered "false" already matches the collapsed
+    state, so it stays green with the boot call deleted.
     """
     _make_student("e2e_pin_reload")
     course, units = _seed_nav_course("e2e_pin_reload", "e2e-pin-reload")
@@ -700,8 +708,10 @@ def test_collapsed_state_survives_reload_with_the_pin_visible(browser, live_serv
     assert not page.locator("[data-unit-tree]").is_visible()
     assert page.locator("[data-unit-tree-pin]").is_visible()
     # Before any click on the restored page.
-    assert page.locator("[data-unit-tree-toggle]").get_attribute("aria-expanded") == "false"
-    assert page.locator("[data-unit-tree-pin]").get_attribute("aria-expanded") == "false"
+    toggle = page.locator("[data-unit-tree-toggle]")
+    assert toggle.get_attribute("aria-expanded") == "false"
+    pin_el = page.locator("[data-unit-tree-pin]")
+    assert pin_el.get_attribute("aria-expanded") == "false"
 
     ctx.close()
 
@@ -774,17 +784,22 @@ def test_pin_is_hidden_at_mobile_width_in_both_states(browser, live_server):
 - [ ] **Step 2: Run them**
 
 ```
-uv run pytest tests/test_e2e_unit_nav.py -m e2e -k "pin_back or pin_reload or pin_focus or pin_mobile" -v --verbosity=0
+uv run pytest tests/test_e2e_unit_nav.py -m e2e -k "way_back or survives_reload or focus_moves or hidden_at_mobile" -v --verbosity=0
 ```
 
 Expected: 4 PASSED (Tasks 1-3 already landed the behaviour).
+
+Those substrings come from the **test names**, not the seeded usernames. `-k` matches node ids, so
+filtering on `pin_back` / `pin_reload` / `pin_focus` / `pin_mobile` — which appear only inside the
+function bodies as usernames — selects **zero** tests and pytest exits 5. Re-derive any `-k` you
+change against `grep -n "^def test_" tests/test_e2e_unit_nav.py`.
 
 - [ ] **Step 3: Falsify each**
 
 1. Revert `> .unit-tree { display: none }` to `flex-basis: 2.4rem` → `test_collapsing_removes_the_rail…` MUST fail. Restore.
 2. Delete the base `.unit-toc-pin { display: none }` rule → the same test's leading assertion AND `test_pin_is_hidden_at_mobile_width…` MUST fail. Restore.
 3. Delete the `if (next) next.focus({ preventScroll: true });` line → `test_focus_moves…` MUST fail. Restore.
-4. Delete the `syncToggle(collapsed);` call inside `onToggleClick` → the aria assertions in `test_collapsing_removes_the_rail…` MUST fail on the *expand* step. Restore.
+4. Delete the `syncToggle(collapsed);` call inside `onToggleClick` → the aria assertions in `test_collapsing_removes_the_rail…` MUST fail at the **collapse** step, not the expand step: the boot call has already set both controls to `"true"`, so the first click leaves them there while the test expects `"false"`. Restore.
 5. Delete the trailing `syncToggle(isCollapsed());` boot call → `test_collapsed_state_survives_reload…` MUST fail, because `.unit-tree__toggle` keeps its server-rendered `aria-expanded="true"`. Restore.
 
 Note for step 5: do **not** instead try moving the boot call inside a control guard. On these pages the control list is never empty, so that mutation is unobservable and the test would stay green. The empty-list path is a future-consumer safeguard with no coverage, deliberately.
@@ -807,7 +822,9 @@ git commit -m "test(e2e): cover rail removal, persistence, focus movement and ar
 - Consumes: Tasks 1-3.
 - Produces: nothing.
 
-**Preconditions for every test here:** set the viewport explicitly (P1); collapse with a real `[data-unit-tree-toggle]` click and `wait_for_function` on the class (P2); and where a specific side of the 1040px breakpoint matters, **assert `matchMedia` before measuring** (P3). Playwright's `viewport` is the *window* size and the scrollbar comes off it before media queries see it, so a 1040px window yields ~1025px of layout viewport and `(min-width: 1040px)` does **not** match.
+**Preconditions for every test here:** set the viewport explicitly (P1); collapse with a real `[data-unit-tree-toggle]` click and `wait_for_function` on the class (P2); and where a specific side of the 1040px breakpoint matters, **assert `matchMedia` before measuring** (P3).
+
+**On P3, measured rather than assumed:** this Chromium uses *overlay* scrollbars, so the layout viewport equals the Playwright viewport — probed on a genuinely scrolling document, `matchMedia('(min-width: 1040px)')` is `True` at a 1040px window and `False` at 1039px, with no subtraction. The spec's rationale for choosing 1060/1010 over 1040/1039 assumed a ~15px classic scrollbar and is therefore wrong on this platform; the *choice* still stands (extra headroom costs nothing and survives a future headed or classic-scrollbar run), and the `matchMedia` assertions remain as cheap insurance. What the assumption did corrupt are two derived figures — corrected in the falsifier list below.
 
 - [ ] **Step 1: Write the four behaviour tests**
 
@@ -824,7 +841,9 @@ def _collapse(page):
 
 
 @pytest.mark.django_db(transaction=True)
-def test_collapsing_reclaims_the_full_rail_width_above_the_breakpoint(browser, live_server):
+def test_collapsing_reclaims_the_full_rail_width_above_the_breakpoint(
+    browser, live_server
+):
     """The test for the PURPOSE of the feature.
 
     Expected delta is ~224px — the full 14rem rail — NOT 262px. The two 38.4px
@@ -861,9 +880,8 @@ def test_narrow_desktop_band_is_width_neutral(browser, live_server):
     2.4rem lane exactly equals the sliver it replaces, so this band is neutral
     against today rather than worse.
 
-    The container is derived at RUNTIME: a 900px window is ~885px of layout
-    viewport once the scrollbar is subtracted, so a hard-coded literal would fail
-    against a correct implementation.
+    The container is derived at RUNTIME rather than hard-coded, so the assertion
+    survives any future change to scrollbar behaviour or app-main's padding.
 
     Measure `.unit-shell` with getBoundingClientRect, NOT `.app-main` with
     getComputedStyle. The shell is the actual containing box of the two flex
@@ -887,7 +905,8 @@ def test_narrow_desktop_band_is_width_neutral(browser, live_server):
         "() => document.querySelector('.unit-shell').getBoundingClientRect().width"
     )
     main = page.evaluate(
-        "() => document.querySelector('.unit-shell__main').getBoundingClientRect().width"
+        "() => document.querySelector('.unit-shell__main')"
+        ".getBoundingClientRect().width"
     )
     assert abs(main - (shell - 38.4)) <= 2, (
         f"expected the main column to be shell-38.4px ({shell - 38.4:.1f}), "
@@ -903,7 +922,9 @@ def test_narrow_desktop_band_is_width_neutral(browser, live_server):
     [(1440, True), (1060, True), (1010, False)],
     ids=["wide", "just-above", "just-below"],
 )
-def test_pin_is_never_clipped_or_offscreen(browser, live_server, width, expect_overhang):
+def test_pin_is_never_clipped_or_offscreen(
+    browser, live_server, width, expect_overhang
+):
     """1060/1010 rather than 1040/1039: the latter pair puts BOTH cases on the same
     side of the media query once the scrollbar is subtracted, making them identical
     in behaviour while appearing to test both branches. Each case asserts its
@@ -921,13 +942,15 @@ def test_pin_is_never_clipped_or_offscreen(browser, live_server, width, expect_o
     _login(page, live_server, user)
     page.goto(f"{live_server.url}/courses/{course.slug}/u/{units[0].pk}/")
     assert (
-        page.evaluate("() => matchMedia('(min-width: 1040px)').matches") is expect_overhang
+        page.evaluate("() => matchMedia('(min-width: 1040px)').matches")
+        is expect_overhang
     ), f"window {width} landed on the wrong side of the 1040px breakpoint"
 
     _collapse(page)
     rect = page.evaluate(
         "() => { const r = document.querySelector('[data-unit-tree-pin]')"
-        ".getBoundingClientRect(); return {l: r.left, t: r.top, w: r.width, h: r.height}; }"
+        ".getBoundingClientRect();"
+        " return {l: r.left, t: r.top, w: r.width, h: r.height}; }"
     )
     assert rect["l"] >= 0, f"the pin hangs off the left edge: left={rect['l']:.1f}"
     assert rect["t"] >= 0, f"the pin hangs off the top edge: top={rect['t']:.1f}"
@@ -935,7 +958,8 @@ def test_pin_is_never_clipped_or_offscreen(browser, live_server, width, expect_o
     hit = page.evaluate(
         "() => { const b = document.querySelector('[data-unit-tree-pin]');"
         "const r = b.getBoundingClientRect();"
-        "const el = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);"
+        "const el = document.elementFromPoint("
+        "r.left + r.width / 2, r.top + r.height / 2);"
         "return !!el && b.contains(el); }"
     )
     assert hit, "the pin is not hit-testable at its centre"
@@ -983,9 +1007,11 @@ def test_content_column_aligns_with_the_strip_above_it(browser, live_server):
     _collapse(page)
     edges = page.evaluate(
         "() => ({"
-        " main: document.querySelector('.unit-shell__main').getBoundingClientRect().left,"
+        " main: document.querySelector('.unit-shell__main')"
+        ".getBoundingClientRect().left,"
         " strip: document.querySelector('.unit-strip').getBoundingClientRect().left,"
-        " pin: document.querySelector('[data-unit-tree-pin]').getBoundingClientRect().left"
+        " pin: document.querySelector('[data-unit-tree-pin]')"
+        ".getBoundingClientRect().left"
         "})"
     )
     assert abs(edges["main"] - edges["strip"]) <= 1, (
@@ -1012,7 +1038,7 @@ matches the pre-existing `test_active_marker_is_strong_and_width_neutral` (`:735
 
 1. Change the margin rule to `margin-inline-start: 0` → `test_collapsing_reclaims…` and `test_content_column_aligns…` MUST fail. Restore.
 2. Change the lane to `flex: 0 0 4rem` → `test_narrow_desktop_band…` and `test_content_column_aligns…` MUST fail. Restore.
-3. Change the overhang to `-6rem` → the **just-above** clip case MUST fail (pin left ≈ −33.5px). It will NOT fail at wide (+156.5px) or just-below (that block does not match there — the ancestor-walk falsifier is what reaches that case). Restore.
+3. Change the overhang to `-6rem` → the **just-above** clip case MUST fail (pin left ≈ **−26.0px**, measured on this Chromium's overlay scrollbars). It will NOT fail at wide (**+164.0px**) or just-below (that block does not match there — the ancestor-walk falsifier is what reaches that case). Restore.
 4. Add `overflow: hidden` to `.app-main` in `app.css` → the ancestor-walk assertion MUST fail in all three clip cases. Restore.
 
 - [ ] **Step 4: Commit**
@@ -1072,7 +1098,9 @@ def _seed_text_and_table_unit(username, slug):
     # whatever the cells hold — so the seed's wrongness would be invisible to this
     # test and only surface as an empty table in Task 9's screenshot sweep.
     cells = [[{"html": f"r{r}c{c}"} for c in range(4)] for r in range(3)]
-    add_element(unit, TableElement.objects.create(data={"cells": cells, "border": "grid"}))
+    add_element(
+        unit, TableElement.objects.create(data={"cells": cells, "border": "grid"})
+    )
 
     return course, unit
 
@@ -1164,7 +1192,7 @@ def test_quiz_chrome_is_capped_across_both_page_states(browser, live_server):
     ctx.close()
 ```
 
-The quiz route is `/courses/<slug>/u/<node_pk>/quiz/` (`courses/urls.py:70-73`), verified — not `/q/<pk>/`. `ShortTextQuestionElement`'s accepted-answers field is `accepted`, not `answer` (`courses/models.py:1816`).
+The quiz route is `/courses/<slug>/u/<node_pk>/quiz/` (`courses/urls.py:70-73`), verified — not `/q/<pk>/`. `ShortTextQuestionElement`'s accepted-answers field is `accepted`, not `answer` (`courses/models.py:1815`).
 
 - [ ] **Step 2: Run them**
 
@@ -1215,7 +1243,8 @@ a student page.
 This test guards exactly ONE rule family — the margin. It deliberately does not
 attempt an inner-node assertion for the prose cap: this page renders none of the
 thirteen capped selectors (it never calls render_element), so such an assertion
-could never go red. That the prose-cap selectors are correctly SCOPED is guarded by the source
+could never go red. That the prose-cap selectors are correctly SCOPED is guarded by
+the source
 assertion in tests/test_consumption_css.py instead; that four of them cap at the
 right width is guarded behaviourally in test_e2e_unit_nav.py.
 """
@@ -1252,7 +1281,8 @@ def _shell_box(page, url):
         "falsification would shift nothing and this test would pass vacuously"
     )
     return page.evaluate(
-        "() => { const r = document.querySelector('.unit-shell').getBoundingClientRect();"
+        "() => { const r = document.querySelector('.unit-shell')"
+        ".getBoundingClientRect();"
         "return {l: r.left, w: r.width}; }"
     )
 
@@ -1411,7 +1441,20 @@ git commit -m "i18n: add the TOC pin's label to the pl and en catalogs"
 - Modify: `courses/static/courses/css/courses.css` (visual declarations only)
 - Modify: `docs/superpowers/plans/2026-08-01-unit-tree-toc-pin.md` (append the resolved deferred decisions)
 
-- [ ] **Step 1: Run the non-e2e suite**
+- [ ] **Step 1: Lint**
+
+```
+uv run ruff check .
+uv run ruff format --check .
+```
+
+Expected: both clean. `.github/workflows/ci.yml` runs exactly these, so a violation here becomes a
+red PR after everything else has passed. `pyproject.toml:35-36` selects `["E", "F", "I", "UP", "B", "S"]`
+at ruff's default 88-column limit, and **`E501` on a long string literal is not auto-fixable** —
+`ruff format` cannot rewrap a string, so it must be split by hand. Note `force-single-line = true`
+for isort: one import per line, no parenthesised groups.
+
+- [ ] **Step 2: Run the non-e2e suite**
 
 ```
 uv run pytest --verbosity=0
@@ -1419,7 +1462,7 @@ uv run pytest --verbosity=0
 
 Expected: all PASS. This is where a stray comment tripping a source-level guard, or a broken template, surfaces.
 
-- [ ] **Step 2: Run the e2e suite in foreground chunks**
+- [ ] **Step 3: Run the e2e suite in foreground chunks**
 
 ```
 uv run pytest tests/test_e2e_unit_nav.py tests/test_e2e_review_shell_isolation.py -m e2e --verbosity=0
@@ -1429,28 +1472,46 @@ Expected: all PASS. Then sweep the rest — **44 of the 78 e2e modules render `.
 hand-picked subset would be arbitrary. Run the whole suite in foreground chunks, the convention this
 repo already uses, with an explicit all-PASS expectation per chunk:
 
+First record the baseline count, so "the sweep ran" has something to verify against:
+
 ```
-uv run pytest tests/ -m e2e --verbosity=0 -p no:randomly -x --co -q | tail -1   # confirm collection
+uv run pytest tests/ -m e2e --co --verbosity=0
+```
+
+Note the collected count `N` from the summary line. Do **not** pipe this through `tail`: `addopts`
+already carries `-q`, and a second `-q` stacks to quiet-2 which prints no verdict at all, so the run
+reads as a hang. `-x` is inert under `--co`.
+
+Then sweep in chunks. **The e2e modules start with `a b c e f g h i l m n p q r s t u w` — there is no
+`d`.** A non-matching glob is not expanded by bash or PowerShell, so pytest would receive the literal
+path and abort the whole chunk with a usage error before running anything:
+
+```
 uv run pytest tests/test_e2e_a*.py tests/test_e2e_b*.py tests/test_e2e_c*.py -m e2e --verbosity=0
-uv run pytest tests/test_e2e_d*.py tests/test_e2e_e*.py tests/test_e2e_f*.py tests/test_e2e_g*.py -m e2e --verbosity=0
+uv run pytest tests/test_e2e_e*.py tests/test_e2e_f*.py tests/test_e2e_g*.py -m e2e --verbosity=0
 uv run pytest tests/test_e2e_h*.py tests/test_e2e_i*.py tests/test_e2e_l*.py tests/test_e2e_m*.py -m e2e --verbosity=0
 uv run pytest tests/test_e2e_n*.py tests/test_e2e_p*.py tests/test_e2e_q*.py -m e2e --verbosity=0
 uv run pytest tests/test_e2e_r*.py tests/test_e2e_s*.py -m e2e --verbosity=0
 uv run pytest tests/test_e2e_t*.py tests/test_e2e_u*.py tests/test_e2e_w*.py -m e2e --verbosity=0
 ```
 
-One invocation at a time — never two pytest processes at once against the same database. If a chunk
-fails, A/B it against `origin/master` before blaming this diff: this repo has a documented family of
-e2e flakes that fail only under parallel load and pass in isolation.
+Expected: every chunk all-PASS, and the six chunk counts summing to `N`. One invocation at a time —
+never two pytest processes at once against the same database. If a chunk fails, A/B it against
+`origin/master` before blaming this diff: this repo has a documented family of e2e flakes that fail
+only under parallel load and pass in isolation.
 
-- [ ] **Step 3: Land the minimum visual treatment**
+- [ ] **Step 4: Land the minimum visual treatment**
 
-Tasks 1-8 ship a bare `<button>` with a UA border and no colour, radius, hover or focus ring. That
-last one matters most: Task 3's whole focus-move design assumes a keyboard user can *see* where focus
-landed. Land these declarations in `courses.css` next to the pin's reveal, borrowing
-`.unit-tree__toggle`'s treatment so the two read as one control that moved:
+Tasks 1-8 ship a bare `<button>` with a UA border and no colour, radius or hover. Add these as a
+**second, separate** `.unit-toc-pin` rule immediately after the base one — **do not merge into or
+replace the base rule**, which must keep `display: none` as its only declaration. Merging would ship
+a permanently visible pin, the exact regression Task 4's leading assertion exists to catch.
 
 ```css
+/* Visual treatment. Borrows .unit-tree__toggle's so the two read as one control
+   that moved. No :focus-visible rule here — reset.css:24 already applies
+   `outline: 2px solid var(--primary); outline-offset: 2px` to :focus-visible
+   globally, so an element-specific copy would be a byte-for-byte duplicate. */
 .unit-toc-pin {
   border: 1px solid var(--border-default);
   border-radius: .4rem;
@@ -1459,36 +1520,59 @@ landed. Land these declarations in `courses.css` next to the pin's reveal, borro
   cursor: pointer;
   padding: 0;
 }
-.unit-toc-pin:hover { color: var(--text-secondary); border-color: var(--border-strong); }
-.unit-toc-pin:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.unit-toc-pin:hover {
+  color: var(--text-secondary);
+  border-color: var(--border-strong);
+}
 ```
 
-Place these with the base `display: none` rule, not inside a media query — they are state, not layout.
+- [ ] **Step 5: Add the focus-ring assertion**
 
-- [ ] **Step 4: Add the focus-ring assertion**
-
-Without this, "the pin ships unstyled" goes green through the entire suite. Extend
-`test_focus_moves_to_the_control_that_becomes_visible` (Task 4) after the collapse assertion:
+The ring comes free from `reset.css:24`, but nothing currently proves it reaches the pin — and Task
+3's whole focus-move design is pointless if a keyboard user cannot see where focus landed. Extend
+`test_focus_moves_to_the_control_that_becomes_visible` (Task 4), after the collapse assertion:
 
 ```python
+    # Driven by a REAL Tab, mirroring the proven idiom at
+    # tests/test_e2e_unit_nav.py:768-792. Chromium's :focus-visible heuristic does
+    # not reliably arm on a programmatic .focus() with no prior keyboard input, so
+    # blur first and tab in. Bounded, so a regression fails rather than hangs.
+    page.evaluate("() => document.activeElement.blur()")
+    for _ in range(200):
+        page.keyboard.press("Tab")
+        if page.evaluate(
+            "() => !!document.activeElement"
+            " && document.activeElement.hasAttribute('data-unit-tree-pin')"
+        ):
+            break
+    else:
+        raise AssertionError("never reached the pin by tabbing")
+
     ring = page.evaluate(
         "() => { const s = getComputedStyle("
-        "document.querySelector('[data-unit-tree-pin]'), ':focus-visible');"
-        "return parseFloat(s.outlineWidth) || 0; }"
+        "document.querySelector('[data-unit-tree-pin]'));"
+        " return {style: s.outlineStyle, offset: s.outlineOffset}; }"
     )
-    assert ring > 0, (
-        "the focused pin must show a visible focus ring — the focus move is "
-        "pointless if a keyboard user cannot see where focus landed"
+    assert ring["style"] != "none", (
+        f"no focus-visible ring on the pin (outline-style={ring['style']!r})"
+    )
+    assert ring["offset"] not in ("0px", ""), (
+        f"the focus ring has no offset ({ring['offset']}) — it merges into the "
+        f"button border"
     )
 ```
 
-If `:focus-visible` pseudo-element querying proves unreliable in this Chromium build, fall back to
-asserting the resolved `outline-width` on the live focused element after a real `Tab` press. Do not
-drop the assertion.
+**Assert on `outline-style`, never on `outline-width`.** Chromium reports a non-zero
+`outlineWidth` even when `outlineStyle` is `none`, so a width-only assertion passes with no ring
+rendered at all. And **never** pass `':focus-visible'` as `getComputedStyle`'s second argument — that
+parameter takes a pseudo-*element*, and `:focus-visible` is a pseudo-*class*, so it returns an empty
+string and the assertion fails unconditionally.
 
-Run it, then falsify by deleting the `:focus-visible` rule — it MUST go red.
+**Falsify by adding**, temporarily, `.unit-toc-pin:focus-visible { outline: none; }` — it MUST go red.
+Do **not** try to falsify by deleting a `.unit-toc-pin:focus-visible` rule: there isn't one, and the
+global `reset.css:24` ring would keep the assertion green.
 
-- [ ] **Step 5: Invoke the frontend-design skill for the rest**
+- [ ] **Step 6: Invoke the frontend-design skill for the rest**
 
 With the minimum landed, the skill's remit is **refinement**: colour, weight, iconography,
 border/radius, and resting/hover/focus/active states, within the fixed 2.4rem lane. It may **not**
@@ -1504,20 +1588,55 @@ executable action.
 1. **Whether `.block-notes` is capped.** Capping aligns the handle with prose but misaligns it under a full-width table **and detaches the note popover**: `.block-notes__pop` is absolutely positioned against `.lesson-block`, which stays 872px, so the handle would move ~136px away from the panel it opens. View this with a **note panel open at ≥1200px** — the only configuration where it is visible.
 2. **Whether unanchored notes are capped** (`notes/_unanchored.html`, the last child of `.lesson`).
 
-- [ ] **Step 6: Screenshot sweep**
+- [ ] **Step 7: Screenshot sweep**
 
-Light **and** dark, judged separately — dark is not assumed to follow from light. At 1440px and ~900px, in both collapsed and expanded states. Cover every element type at top level, prose nested inside all four containers (`two_column`, `spoiler`, `tabs`, `.slideshow-deck` — the last is JS-built and a template grep cannot find it), the quiz page's chrome, unanchored notes, and the block-notes handle with a panel open.
+This step feeds back into code — its output decides whether an element root joins the Task 2
+allow-list — so it needs a concrete seed and a concrete capture path, not a coverage wish-list.
 
-Add any element root that reads badly at full width to the prose-cap allow-list, and re-derive the Task 2 coverage floor **only if an entry is removed** (the assertion is `>=`, so additions never redden it).
+**Seed.** Extend `_seed_text_and_table_unit` (Task 6) into `_seed_sweep_unit` in a throwaway script,
+attaching one of each element root the ruling table names, plus one `.el--text` nested inside each of
+`TwoColumnElement`, `SpoilerElement` and `TabsElement`, plus a slide-break pair so `slideshow.js`
+builds a `.slideshow-deck` at runtime (a template grep cannot find that container — it does not exist
+until JS runs). Follow `tests/factories.py::seed_slideshow_unit` for the slide-break idiom.
 
-- [ ] **Step 7: Re-run the suites after any CSS change**
+**Capture.** Mirror `tests/capture_help_screenshots.py`, which already establishes this repo's
+pattern — `browser.new_context(viewport=…)` per shot. Loop the four axes:
 
 ```
+viewport   ∈ {1440×900, 900×900}
+state      ∈ {expanded, collapsed}   # collapsed via a real [data-unit-tree-toggle] click
+theme      ∈ {light, dark}
+page       ∈ {lesson unit, quiz unit}
+```
+
+**Dark mode is set on the user, not by a cookie** — `user.theme = "dark"; user.save()` before the
+context opens. The cookie route does not survive a server-rendered page in this app, and a sweep that
+silently captured light twice would be worse than no sweep.
+
+Add the block-notes case separately: ≥1200px, JS on, a note panel **open** — the only configuration
+in which the popover-detachment consequence is visible.
+
+**Pass criterion, so the allow-list edit has a decidable trigger:** an element root fails if, in the
+collapsed state, its text runs the full 872px directly beside a 736px-capped sibling — that is the
+ragged right edge the quiz-chrome entries were added to prevent. Anything failing that joins the
+allow-list; re-derive the Task 2 coverage floor **only if an entry is removed** (the assertion is
+`>=`, so additions never redden it).
+
+Judge light and dark separately — dark is not assumed to follow from light.
+
+- [ ] **Step 8: Re-run lint and the suites after any change above**
+
+```
+uv run ruff check .
+uv run ruff format --check .
 uv run pytest tests/test_consumption_css.py --verbosity=0
 uv run pytest tests/test_e2e_unit_nav.py -m e2e --verbosity=0
 ```
 
-- [ ] **Step 8: Commit**
+Lint is re-run because Step 5 added Python, not only CSS — and E501 on the new assertion's string
+literals is exactly the kind of thing Step 1's earlier pass cannot have caught.
+
+- [ ] **Step 9: Commit**
 
 ```bash
 git add courses/static/courses/css/courses.css docs/superpowers/plans/2026-08-01-unit-tree-toc-pin.md
