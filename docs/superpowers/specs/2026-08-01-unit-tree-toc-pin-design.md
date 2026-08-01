@@ -78,7 +78,17 @@ matches *comment-stripped* CSS, so no leftover comment can affect it either way.
 This is normative, not descriptive. Those five selectors are unscoped (`html.unit-tree-collapsed .unit-tree`, `…__heading`, `…__list`, `…__toggle`, `…__bar`) —
 exactly the pattern the Scoping section forbids — and leaving them would be **behaviourally
 invisible**: `display: none` removes the rail's box entirely, so `flex-basis`, `transform` and the bar
-padding all become inert regardless of specificity. (They do not lose a cascade contest; `display` and
+padding all become inert regardless of specificity.
+
+That covers four of the five selectors. The fifth — `…__heading, …__list` — also matches nodes
+**outside** the rail: the mobile drawer inlines `<span class="unit-tree__heading">` and
+`<ul class="unit-tree__list unit-drawer__list">` at `_unit_shell.html:17` and `:21`. Those are
+invisible for a different reason: `.unit-drawer` is `display: none` (`courses.css:823`) and is
+revealed only inside `@media (max-width: 640px)`, while the deleted rules live in a
+`min-width: 641px` block — the two never overlap. Spelled out because a reader who notices the
+drawer's `unit-tree__*` classes would otherwise conclude the invisibility argument is wrong.
+
+(They do not lose a cascade contest; `display` and
 `flex-basis` are different properties and never compete. The conclusion is the same, but the mechanism
 matters — a reader who believes this is a specificity race might conclude a lower-specificity new rule
 would fail to hide the rail.) Because nothing behavioural can detect the leftovers, **test 11 is a
@@ -174,8 +184,9 @@ before `.unit-tree`, so it leads the tab order when visible.
 ### Geometry
 
 **The lane is 2.4rem (38.4px) — exactly the width of the sliver it replaces.** That equality is
-deliberate: it makes the narrow-desktop branch (below) width-neutral against today rather than 3.2px
-worse. 2.4rem is a **fixed geometric constant**: the `-2.4rem` overhang, the 1040px breakpoint
+deliberate: it is what makes the narrow-desktop branch (below) width-neutral against today's 38.4px
+sliver. Any wider lane would make that band *narrower* than it is now, which the Purpose's invariant
+forbids. 2.4rem is a **fixed geometric constant**: the `-2.4rem` overhang, the 1040px breakpoint
 derivation, the 920px content figure and tests 4, 5, 6 and 10 all depend on it. It is not a visual-taste
 parameter (see "Visual verification").
 
@@ -806,9 +817,22 @@ that has nothing to do with the rule under test.
    `(pinRect.left + 3, centreY)` — a point inside the clipped region — which does go red under
    `.app-main { overflow: hidden }`.
 
-   **Falsifiers**, named because this test previously had none: lower the 1040px breakpoint constant
-   (drives the pin's left edge negative → the viewport-containment assertion fails), and add
-   `overflow: hidden` to `.app-main` (→ the ancestor walk fails).
+   **The containment assertion is exact** — `rect.left >= 0`, with **no** tolerance. The ±2px allowed
+   for tests 4/5/10 must not be copied here; it would swallow the very margins this test measures.
+
+   **Falsifiers**, named because this test previously had none:
+
+   - **Widen the overhang constant** (`-2.4rem` → `-6rem`). This drives the pin's left edge negative
+     at *both* near-breakpoint cases by a wide margin, so it fires regardless of scrollbar width.
+   - **Add `overflow: hidden` to `.app-main`** → the ancestor walk fails.
+
+   Deliberately **not** "lower the 1040px breakpoint": worked through, that mutation leaves the pin's
+   left edge at ~214px (wide) and ~24px ("just above") — both comfortably positive — and reaches only
+   **−0.9px** at "just below", and only if a 15px classic scrollbar is present. With an overlay or
+   narrower scrollbar it lands at +6.6px and the falsifier is inert. Its ability to fire would rest on
+   exactly the scrollbar-width dependency P3 forbids relying on. (Test 5, at a 900px window, already
+   catches a breakpoint lowered below ~885px robustly, so this test only needs to cover the
+   995–1045px window — which the overhang mutation does.)
 
    Three cases, at **concrete window widths with headroom on both sides of the breakpoint**:
 
@@ -831,9 +855,17 @@ that has nothing to do with the rule under test.
 7. **e2e — prose is capped, tables are not; on both page types.** Requires a unit containing **both**
    a text element and a table element. No existing helper in `test_e2e_unit_nav.py` seeds content
    elements (`_seed_nav_course`, `_seed_traversal_course`, `_seed_grouped_course` build structure
-   only), so a new seed helper is **part of the deliverable**, built on `add_element()` from
-   `tests/factories.py` with `TextElement` + `TableElement` instances (see `tests/test_align_render.py`
-   for the idiom). At 1440px collapsed, assert `.el--text` ≤736px and `.el--table` >736px. Measure
+   only), so a new seed helper is **part of the deliverable**. Follow
+   `tests/test_e2e_wide_content_scroll.py:57-88`, which builds exactly this shape —
+   `TableElement.objects.create(data={"cells": cells, "border": "grid"})` then
+   `Element.objects.create(unit=unit, content_object=t)`, alongside a
+   `CourseFactory(slug=…, owner=student)` and an `Enrollment`. (`tests/test_align_render.py` is **not**
+   the right pointer: it exercises `TextElement`, `SpoilerElement` and `CalloutElement` only and never
+   constructs a `TableElement`, whose `data` JSON shape would then have to be guessed.) The table's
+   *contents* are irrelevant to the assertion — `.el--table` is a block box that fills the column
+   whatever the cells hold.
+
+   At 1440px collapsed, assert `.el--text` ≤736px and `.el--table` >736px. Measure
    those nodes specifically — **not** the enclosing `<section class="lesson-block">`, which is 872px
    either way and would make the assertion vacuous.
 
