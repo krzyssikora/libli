@@ -86,7 +86,7 @@ _TRIPLE = re.compile(
 def _js_unescape(value):
     """Decode a JS double-quoted string body. `\\\\(` in source is the two-character
     string `\\(`; json.loads applies exactly the same escape rules."""
-    return json.loads('"%s"' % value)
+    return json.loads(f'"{value}"')
 
 
 def _triples(source):
@@ -106,9 +106,7 @@ def test_vendored_defaults_are_exactly_eight_triples():
 def test_module_defaults_match_the_vendored_defaults_in_order():
     vendored = _triples(VENDOR.read_text(encoding="utf-8"))
     module_src = MODULE.read_text(encoding="utf-8")
-    block = re.search(
-        r"DEFAULT_DELIMITERS\s*=\s*(\[[\s\S]*?\]);", module_src
-    )
+    block = re.search(r"DEFAULT_DELIMITERS\s*=\s*(\[[\s\S]*?\]);", module_src)
     assert block, "DEFAULT_DELIMITERS array not found in math_reflow.js"
     mine = [
         (_js_unescape(m.group(1)), _js_unescape(m.group(2)), m.group(3) == "true")
@@ -127,7 +125,7 @@ def test_module_defaults_match_the_vendored_defaults_in_order():
 ```
 uv run pytest tests/test_math_reflow_defaults.py --verbosity=0
 ```
-Expected: `test_vendored_defaults_are_exactly_eight_triples` PASSES (the vendored file already has them); `test_module_defaults_match_the_vendored_defaults_in_order` **ERRORS** with `FileNotFoundError` — `math_reflow.js` does not exist. (pytest reports an exception raised in the body as an ERROR, not a FAILURE; match the printed summary accordingly.)
+Expected: `test_vendored_defaults_are_exactly_eight_triples` PASSES (the vendored file already has them); `test_module_defaults_match_the_vendored_defaults_in_order` **FAILS** with `FileNotFoundError` — `math_reflow.js` does not exist. Summary: `1 failed, 1 passed`. (pytest reserves ERROR for exceptions raised during fixture setup/teardown — which is what bites in Task 3, see the session-scope note there — not for exceptions in a test body.)
 
 - [ ] **Step 3: Create the module**
 
@@ -208,7 +206,7 @@ Change one `display: true` to `display: false` in `DEFAULT_DELIMITERS`, re-run, 
 - [ ] **Step 6: Lint before committing**
 
 ```
-uv run ruff check tests/test_math_reflow_defaults.py && uv run ruff format --check tests/test_math_reflow_defaults.py
+uv run ruff format tests/test_math_reflow_defaults.py && uv run ruff check tests/test_math_reflow_defaults.py
 ```
 
 Run this at the end of **every** task that adds a Python file, not only at Task 10 —
@@ -274,27 +272,39 @@ def test_math_reflow_load_order():
         assert order.index("katex.min.js") < i, page
         assert order.index("auto-render.min.js") < i, page
         assert i < order.index("text_colour.js"), page
-        if "math.js" in order:
-            assert i < order.index("math.js"), page
+        # Generalised to the CALLERS tuple already defined at the top of this module.
+        # quiz_results.html and review_submission.html load question.js, NOT math.js,
+        # so an `if "math.js" in order` branch silently skips both -- and question.js
+        # is the module whose ordering actually matters on those two pages.
+        for caller in CALLERS:
+            if caller in order:
+                assert i < order.index(caller), (page, caller)
 
 
 def _has_math_block(path):
     """The `{% if has_math %}` block that holds the SCRIPTS.
 
-    MEASURED TRAP: every gated template's FIRST `{% if has_math %}` is the
-    single-line stylesheet link (lesson_unit.html:36, quiz_unit.html:7,
-    quiz_results.html:7, review_submission.html:6). Taking the first match slices
-    the CSS conditional, which contains no auto-render.min.js at all — so the
-    anti-vacuity assert below fires and the test is RED wherever the tag sits,
-    making the falsification step unexecutable."""
+    MEASURED TRAP, two layers deep. Every gated template's FIRST `{% if has_math %}`
+    is the single-line stylesheet link (lesson_unit.html:36, quiz_unit.html:7,
+    quiz_results.html:7, review_submission.html:6). Taking the first match slices the
+    CSS conditional, which on three of the four contains no auto-render.min.js — the
+    anti-vacuity assert fires and the test is RED wherever the tag sits.
+
+    quiz_unit.html is worse: its `{% endif %}` sits on the SAME line as the `{% if %}`,
+    and searching from `start + 1` skips it, so the "block" runs lines 7-20 and swallows
+    unconditional markup including unit_done.js. That block DOES contain
+    auto-render.min.js, so the anti-vacuity assert stays quiet and the guard passes with
+    the tag placed fully outside any conditional — measured. Hence the single-line skip."""
     lines = (TEMPLATES / path).read_text(encoding="utf-8").splitlines()
-    starts = [i for i, l in enumerate(lines) if "{% if has_math %}" in l]
+    starts = [i for i, line in enumerate(lines) if "{% if has_math %}" in line]
     for start in starts:
+        if "{% endif %}" in lines[start]:
+            continue  # single-line conditional (the stylesheet link) -- not a block
         end = next(i for i in range(start + 1, len(lines)) if "{% endif %}" in lines[i])
         block = "\n".join(lines[start:end])
         if "auto-render.min.js" in block:
             return block
-    raise AssertionError("no has_math block containing auto-render.min.js in %s" % path)
+    raise AssertionError(f"no has_math block containing auto-render.min.js in {path}")
 
 
 def test_math_reflow_sits_inside_the_has_math_block():
@@ -357,7 +367,9 @@ Expected: all pass.
 
 - [ ] **Step 6: Falsify the containment guard**
 
-Move the `math_reflow.js` line in `lesson_unit.html` outside the `{% if has_math %}` block. Re-run: `test_math_reflow_sits_inside_the_has_math_block` must go RED while `test_math_reflow_load_order` stays GREEN — that contrast is the whole point of the containment assertion. Put it back.
+Move the `math_reflow.js` line in `lesson_unit.html` outside the `{% if has_math %}` block. Re-run: **both** tests go RED. Measured — the "containment reddens while ordering stays green" contrast is impossible to observe, because `katex.min.js`, `text_colour.js` and `math.js` all live *inside* the block, so every position outside it is either before `katex.min.js` or after `text_colour.js`, both of which the ordering test forbids.
+
+To isolate containment specifically, instead neuter `_has_math_block` to return the whole file and confirm the containment assertion still passes — that proves it is doing real work rather than riding on the ordering guard. Put both back.
 
 - [ ] **Step 7: Falsify the retry guard, both quote styles**
 
@@ -406,17 +418,24 @@ SCRIPT = str(ROOT / "courses/static/courses/js/math_reflow.js")
 pytestmark = pytest.mark.e2e
 
 
-@pytest.fixture(autouse=True)
-def _async_unsafe():
-    # Only here for symmetry with the sibling e2e modules; these cases touch no ORM,
-    # so the escape hatch is not actually required. tests/test_e2e_text_colour.py
-    # scopes its copy to the session deliberately, with a comment explaining why.
+@pytest.fixture(scope="session", autouse=True)
+def _allow_sync_orm_under_playwright():
+    """Playwright's sync API runs an event loop, which trips Django's async-safety
+    guard on every ORM call.
+
+    MUST be session-scoped. tests/conftest.py has an autouse `_enable_db_access(db)`
+    giving EVERY test under tests/ DB access, and conftest-level autouse fixtures run
+    before module-level ones of the same scope -- so a function-scoped version sets
+    the env var too late and all 62 cases ERROR with SynchronousOnlyOperation at
+    setup (measured). As a fixture rather than a module global it activates only when
+    an e2e test is actually selected, so the default `-m 'not e2e'` run keeps the
+    guard intact. Same shape and name as the one in tests/test_e2e_text_colour.py."""
     os.environ.setdefault("DJANGO_ALLOW_ASYNC_UNSAFE", "true")
     yield
 
 
 def _page(page, html):
-    page.set_content("<!DOCTYPE html><div id='root'>%s</div>" % html)
+    page.set_content(f"<!DOCTYPE html><div id='root'>{html}</div>")
     page.add_script_tag(path=SCRIPT)
     return page
 
@@ -445,10 +464,21 @@ IGNORED = [
     # markup never becomes elements so the case would pass with `textarea` deleted
     # from IGNORE_SELECTOR anyway. `pre` and `code` do redden; `textarea` is covered
     # by its own assertion below.
-    ("contenteditable", '<div contenteditable="true"><div>\\[a</div><div>b\\]</div></div>'),
+    (
+        "contenteditable",
+        '<div contenteditable="true"><div>\\[a</div><div>b\\]</div></div>',
+    ),
     ("katex", '<span class="katex"><div>\\[a</div><div>b\\]</div></span>'),
     ("katex-error", '<span class="katex-error">\\(a<br>b\\)</span>'),
+    # option: RCDATA-ish like textarea, so use the escaped-<br> payload that makes
+    # PHASE 1B the thing being suppressed, not the merge.
+    ("option", "<select><option>\\[a&lt;br&gt;b\\]</option></select>"),
 ]
+
+# script, noscript and style are in IGNORE_SELECTOR too, copied verbatim from
+# auto-render's defaults. They are deliberately untested: none can hold authored
+# prose in this app, and a fixture for them would assert on markup the sanitiser
+# never emits. Named here so the omission is a decision, not an oversight.
 
 
 @pytest.mark.parametrize("name,html", IGNORED, ids=[n for n, _ in IGNORED])
@@ -457,12 +487,18 @@ def test_ignored_subtrees_are_untouched(page, name, html):
 
 
 def test_textarea_is_ignored(page):
-    """Asserted against the PARSED baseline, not the source string: <textarea>
-    holds RCDATA, so innerHTML does not round-trip it. Wrapping it in a <section>
-    keeps the walk descending until it meets the textarea."""
+    """Asserted against the PARSED baseline, not the source string: <textarea> holds
+    RCDATA, so innerHTML does not round-trip it.
+
+    The payload is an ESCAPED <br> inside a span, so PHASE 1B is the thing being
+    suppressed. MEASURED: with a plain <div>-split payload this case stays GREEN even
+    with `textarea` deleted from IGNORE_SELECTOR — RCDATA makes it one text node, rule 4
+    skips it, and there is nothing for phase 1b to touch. With this payload, deleting
+    `textarea` rewrites the POSTed value, turning the escaped br into a real
+    newline -- exactly the data-mutation class the ignore list exists to prevent."""
     page.set_content(
         "<!DOCTYPE html><section id='root'>"
-        "<textarea><div>\\[a</div><div>b\\]</div></textarea></section>"
+        "<textarea>\\[a&lt;br&gt;b\\]</textarea></section>"
     )
     page.add_script_tag(path=SCRIPT)
     before = page.evaluate("() => document.getElementById('root').innerHTML")
@@ -600,7 +636,19 @@ Expected: all pass except `test_contenteditable_false_is_not_ignored`, which sti
 
 The ignored-subtree cases cannot be falsified yet: with `mergeChildren` still a stub, removing a selector changes no observable behaviour. **Do not edit `IGNORE_SELECTOR` here.** An earlier draft said to delete `.katex-error` "for now" and gave no restore step before the Step 6 commit — which would have shipped a module missing it and left Task 4's falsification operating on already-broken code. The falsification moves wholesale to Task 4 Step 5, where it has a real outcome. Record in the commit message that these cases are provisionally vacuous.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 6: Lint**
+
+```
+uv run ruff format tests/test_e2e_math_reflow_dom.py && uv run ruff check tests/test_e2e_math_reflow_dom.py
+```
+
+**Format first, then check** — the snippets in this plan are hand-wrapped and ruff will
+restyle some continuations; that is expected and not a defect to chase. Per-task, not
+deferred to Task 10 — `UP031` (no `%`-format), `E741` (no `l`) and
+`E501` (88 cols) are all selected repo-wide, and fixing six files' worth five commits
+later is the failure mode this prevents.
+
+- [ ] **Step 7: Commit**
 
 ```bash
 git add courses/static/courses/js/math_reflow.js tests/test_e2e_math_reflow_dom.py
@@ -632,7 +680,13 @@ def test_basic_split_span_merges(page):
 
 
 @pytest.mark.parametrize(
-    "lead", ["<span>hi</span>", "<h3>Title</h3>", "<strong>lead</strong>", "<img src='x'>"]
+    "lead",
+    [
+        "<span>hi</span>",
+        "<h3>Title</h3>",
+        "<strong>lead</strong>",
+        "<img src='x'>",
+    ],
 )
 def test_content_before_the_run_is_not_destroyed(page, lead):
     """REGRESSION, measured: buildRun's offset->child map is RUN-LOCAL, so indexing
@@ -644,7 +698,7 @@ def test_content_before_the_run_is_not_destroyed(page, lead):
     Every other Task 4 fixture has a mergeable child at index 0 or a barrier that
     suppresses the rewrite, so nothing else in the table catches it."""
     page.set_content("<!DOCTYPE html><section id='root'>"
-                     "%s<div>\\[a</div><div>b\\]</div></section>" % lead)
+                     f"{lead}<div>\\[a</div><div>b\\]</div></section>")
     page.add_script_tag(path=SCRIPT)
     out = page.evaluate(
         "() => { const r = document.getElementById('root');"
@@ -756,7 +810,9 @@ def test_two_spans_in_one_run(page):
     group, and textFragment drops it there. Harmless — auto-render re-joins
     adjacent text nodes and parses both spans — but the assertion must match
     reality rather than the tidier-looking value."""
-    out = _reflow_html(page, "<div>\\[a</div><div>b\\]</div><div>\\[c</div><div>d\\]</div>")
+    out = _reflow_html(
+        page, "<div>\\[a</div><div>b\\]</div><div>\\[c</div><div>d\\]</div>"
+    )
     assert out == "\\[a\nb\\]\\[c\nd\\]"
 
 
@@ -1123,19 +1179,35 @@ Delete `.katex-error` from `IGNORE_SELECTOR` → `test_ignored_subtrees_are_unto
 
 - [ ] **Step 6: Falsify rule 4**
 
-Write the mutant out rather than describing a discarded design. In `buildRun`, add a
-parallel `textNodeIds` array that increments only when a *text node* starts
-contributing, and in rule 4 compare `textNodeIds[span.start] !== textNodeIds[span.end - 1]`
-instead of `run.map[...]`. Under that mutant a span inside one mergeable `<p>` spans a
-single *child* but zero *text-node segments*, so it is rewritten and the paragraph is
-unwrapped. `test_single_child_span_is_never_rewritten` is the only case that may change
-colour — it must go RED. Restore.
+Disable rule 4 outright — that is the mutant verified to fire:
+
+```js
+        if (true) planned.push({ span: spans[i], first: first, last: last });
+```
+
+**Two** cases must go RED: `test_single_child_span_is_never_rewritten` **and**
+`test_nested_split_merges_after_post_order_folding`. Restore afterwards.
+
+(An earlier draft proposed a `textNodeIds` mutant. Measured, it does not fire at all:
+the fixture `<p>Let \(x\) be, so \[y\] holds</p>` holds a *single* text node, so the
+text-node comparison gives the same answer as the child comparison and the run comes out
+byte-identical to the unmutated one.)
 
 - [ ] **Step 7: Falsify the empty-attribute allowance**
 
 Replace `noEffectiveAttributes` with `el.attributes.length === 0`. `test_empty_class_attribute_still_merges` must go RED while `test_barriers_are_not_merged_across` stays GREEN. Restore.
 
-- [ ] **Step 8: Commit**
+- [ ] **Step 8: Lint**
+
+```
+uv run ruff format tests/test_e2e_math_reflow_dom.py && uv run ruff check tests/test_e2e_math_reflow_dom.py
+```
+
+Per-task, not deferred to Task 10 — `UP031` (no `%`-format), `E741` (no `l`) and
+`E501` (88 cols) are all selected repo-wide, and fixing six files' worth five commits
+later is the failure mode this prevents.
+
+- [ ] **Step 9: Commit**
 
 ```bash
 git add courses/static/courses/js/math_reflow.js tests/test_e2e_math_reflow_dom.py
@@ -1169,7 +1241,7 @@ def test_phase_1b_converts_literal_br_inside_a_span(page):
 def test_phase_1b_matches_every_br_form(page, form):
     """sanitize_cell stashes the span BEFORE nh3.clean, so what survives inside it
     is un-normalised author/browser markup."""
-    assert _reflow_text(page, "\\[a%sb\\]" % form) == "\\[a\nb\\]"
+    assert _reflow_text(page, f"\\[a{form}b\\]") == "\\[a\nb\\]"
 
 
 def test_phase_1b_leaves_p_alone(page):
@@ -1252,9 +1324,19 @@ and in `reflow`, run it as its own full pass after phase 1:
 
 - [ ] **Step 5: Falsify**
 
-Change `LITERAL_BR` to the literal string `"<br>"` → the `<br />` and `<BR>` parametrised cases must go RED. Restore.
+Change `LITERAL_BR` to the literal string `"<br>"` → **three** parametrised cases go RED: `<br/>`, `<br />` and `<BR>`. A plain `.replace("<br>", "\n")` matches neither the self-closing nor the spaced nor the uppercase form. Also delete `textarea` from `IGNORE_SELECTOR` → `test_textarea_is_ignored` must go RED. Restore both.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 6: Lint**
+
+```
+uv run ruff format tests/test_e2e_math_reflow_dom.py && uv run ruff check tests/test_e2e_math_reflow_dom.py
+```
+
+Per-task, not deferred to Task 10 — `UP031` (no `%`-format), `E741` (no `l`) and
+`E501` (88 cols) are all selected repo-wide, and fixing six files' worth five commits
+later is the failure mode this prevents.
+
+- [ ] **Step 7: Commit**
 
 ```bash
 git add courses/static/courses/js/math_reflow.js tests/test_e2e_math_reflow_dom.py
@@ -1398,7 +1480,17 @@ and add the third pass in `reflow`:
 
 Change `containsDisplayOnlyEnv` to test `body.indexOf(env) === 0` (begins-with). `test_phase_2_tests_contains_not_begins_with` must go RED. Restore. Then strip the closing braces from `DISPLAY_ONLY_ENVS` → `test_phase_2_does_not_promote_a_both_modes_environment` must go RED. Restore.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 6: Lint**
+
+```
+uv run ruff format tests/test_e2e_math_reflow_dom.py && uv run ruff check tests/test_e2e_math_reflow_dom.py
+```
+
+Per-task, not deferred to Task 10 — `UP031` (no `%`-format), `E741` (no `l`) and
+`E501` (88 cols) are all selected repo-wide, and fixing six files' worth five commits
+later is the failure mode this prevents.
+
+- [ ] **Step 7: Commit**
 
 ```bash
 git add courses/static/courses/js/math_reflow.js tests/test_e2e_math_reflow_dom.py
@@ -1523,7 +1615,17 @@ Replace the Hook B wrapper body from Task 1:
 
 Replace `stripWrapper` with the greedy regex `/^\s*\\\[([\s\S]*)\\\]\s*$/`. `test_hook_b_refuses_two_adjacent_spans` must go RED. Restore. Then remove the `try/catch` and make `stripWrapper` throw on a non-string → `test_hook_b_passes_a_non_string_through_untouched` must go RED. Restore.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 6: Lint**
+
+```
+uv run ruff format tests/test_e2e_math_reflow_dom.py && uv run ruff check tests/test_e2e_math_reflow_dom.py
+```
+
+Per-task, not deferred to Task 10 — `UP031` (no `%`-format), `E741` (no `l`) and
+`E501` (88 cols) are all selected repo-wide, and fixing six files' worth five commits
+later is the failure mode this prevents.
+
+- [ ] **Step 7: Commit**
 
 ```bash
 git add courses/static/courses/js/math_reflow.js tests/test_e2e_math_reflow_dom.py
@@ -1648,7 +1750,7 @@ coverage.
 ```python
 def _hooka(page, html, *, twice=False):
     """Install a recording fake renderMathInElement BEFORE the module loads."""
-    page.set_content("<!DOCTYPE html><section id='root'>%s</section>" % html)
+    page.set_content(f"<!DOCTYPE html><section id='root'>{html}</section>")
     page.evaluate(
         "() => { window.__calls = [];"
         "        window.renderMathInElement = function (r, o) {"
@@ -1666,7 +1768,7 @@ def _hooka(page, html, *, twice=False):
 
 def test_hook_a_reflows_before_delegating_and_forwards_the_return(page):
     calls, ret = _hooka(page, "<div>\\[x</div><div>y\\]</div>")
-    assert calls == ["\\[x\\ny\\]"]   # the original saw the MERGED dom
+    assert calls == ["\\[x\ny\\]"]   # the original saw the MERGED dom
     assert ret == "sentinel"             # and its return value came back
 
 
@@ -1742,8 +1844,16 @@ BLOCK = (
 )
 
 
-def test_multiline_align_block_authored_in_the_rte_renders(page, live_server, ...):
-    # 1. author it through the REAL RTE: type the block with Enter between lines
+def test_multiline_align_block_authored_in_the_rte_renders(page, live_server, seeded_lesson):
+    # `seeded_lesson` stands in for whatever fixture you build from the helpers
+    # named above — the bare `...` in an earlier draft was a SyntaxError.
+    # 1. author it through the REAL RTE, one line per Enter — this gesture is what
+    #    produces the split the whole feature exists to repair:
+    #        lines = BLOCK.split("\n")
+    #        for i, line in enumerate(lines):
+    #            surface.type(line)
+    #            if i < len(lines) - 1:
+    #                surface.press("Enter")   # no trailing Enter
     # 2. save
     # 3. THE SPLIT ASSERTION — before asserting the render, prove the stored HTML
     #    really contains a boundary between the \[ and the \]. Without this the
@@ -1782,17 +1892,31 @@ Each case needs a concrete terminal assertion, not a pointer back at the spec:
 | 4 | `\(\begin{align*}…\)` in a text element | `TextElement` | one `.katex`, zero `.katex-error`, `.katex-display` present |
 | 5 | `\[a\] + \[b\]` in a Math element | `MathElement` | `.katex-error` == 1 — the strip is correctly refused, KaTeX rejects the literal `\[`, and that is today's behaviour which must not change |
 | 6 | Display block containing `\\[2ex]` | `MathElement` | one `.katex`, zero `.katex-error` |
-| 7 | **Regression**: single-line `\(x^2\)` and single-line `\[y\]` | two `TextElement`s | `.katex` == 2, zero `.katex-error`; capture `innerHTML` and assert it matches a run with the script tag removed from the template |
+| 7 | **Regression**: single-line `\(x^2\)` and single-line `\[y\]` | two `TextElement`s | `.el--text .katex` == 2, `.katex-error` == 0, exactly one `.katex-display` (the `\[\]` one) and one inline. **No A/B against a modified template** — an earlier draft asked for that and named no mechanism (no `override_settings`, no loader patch), so it was not executable. These four counts pin the same property directly: an intact single-node span is untouched by rule 4. |
 | 8 | **Idempotence** on a re-rendering surface | a quiz with feedback, or a tabs element | after the swap/reveal, `.katex` is still 1, not 2 |
 
 - [ ] **Step 3: Add the named-limitation case**
 
 ```python
-def test_centred_display_math_is_not_reflowed(page, ...):
+def test_centred_display_math_is_not_reflowed(page, live_server, seeded_lesson):
     """KNOWN LIMITATION, pinned deliberately. class="ta-center" on every line div
     makes every line a barrier. The fix (attribute-homogeneous merging) is a
     scheduled follow-up; this test documents the boundary so it is a decision
-    rather than a bug report."""
+    rather than a bug report.
+
+    A docstring alone would ALWAYS PASS and would stay green if that follow-up
+    shipped tomorrow — it must carry real assertions."""
+    body = (
+        '<div class="ta-center">\\[\\begin{align*}</div>'
+        '<div class="ta-center">a&amp;=b\\\\</div>'
+        '<div class="ta-center">\\end{align*}\\]</div>'
+    )
+    # seed a TextElement with `body`, open the lesson, then:
+    assert page.locator(".el--text .katex").count() == 0
+    assert page.locator(".katex-error").count() == 0
+    html = page.locator(".el--text").inner_html()
+    assert 'class="ta-center"' in html   # the barrier survived
+    assert "</div><div" in html           # and the split was never merged
 ```
 
 - [ ] **Step 4: Run the full e2e suite**
