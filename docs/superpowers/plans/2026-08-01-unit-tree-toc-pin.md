@@ -510,6 +510,19 @@ to:
 
 Leave the collapse click at `:147` on `[data-unit-tree-toggle]`.
 
+**Also set the viewport in this same edit.** After the repair this test depends on
+`[data-unit-tree-pin]` being *visible*, which holds only above 641px — the dependency precondition P1
+exists to make explicit — and it currently relies on Playwright's 1280px default. Doing it here, in
+the same step that already edits this test, is deliberate: every repair step shifts the file by one
+line, so a later step working from fixed anchors would edit the wrong lines. Never string-match
+`browser.new_context(reduced_motion="reduce")` — it occurs **ten** times in this file.
+
+In the same test, change `ctx = browser.new_context()` (`:138`) to:
+
+```python
+    ctx = browser.new_context(viewport={"width": 1440, "height": 900})
+```
+
 - [ ] **Step 4: Repair `test_expanding_the_rail_recentres_the_active_unit`**
 
 At `:709-714`, a single `toggle` locator serves both clicks. Change:
@@ -537,6 +550,25 @@ to:
 
 Do **not** repoint the existing `toggle` variable: its collapse click must stay on the rail toggle, which is the control visible while expanded.
 
+**Also set the viewport in this same edit.** After the repair this test depends on
+`[data-unit-tree-pin]` being *visible*, which holds only above 641px — the dependency precondition P1
+exists to make explicit — and it currently relies on Playwright's 1280px default. Doing it here, in
+the same step that already edits this test, is deliberate: every repair step shifts the file by one
+line, so a later step working from fixed anchors would edit the wrong lines. Never string-match
+`browser.new_context(reduced_motion="reduce")` — it occurs **ten** times in this file.
+
+In the same test, change `ctx = browser.new_context(reduced_motion="reduce")` — the one inside
+`test_expanding_the_rail_recentres_the_active_unit` — to:
+
+```python
+    ctx = browser.new_context(
+        reduced_motion="reduce", viewport={"width": 1440, "height": 900}
+    )
+```
+
+`reduced_motion="reduce"` is load-bearing: it stops `centerActive()`'s smooth scroll racing the
+assertion. Dropping it introduces a flake.
+
 - [ ] **Step 5: Repair `test_centering_is_skipped_when_the_active_group_is_folded`**
 
 At `:877-879`. Change:
@@ -556,43 +588,26 @@ to:
     pin.click()     # expand   (real gesture) -> centerActive() runs
 ```
 
-- [ ] **Step 6: Pin an explicit viewport on all three repaired tests**
+**Also set the viewport in this same edit.** After the repair this test depends on
+`[data-unit-tree-pin]` being *visible*, which holds only above 641px — the dependency precondition P1
+exists to make explicit — and it currently relies on Playwright's 1280px default. Doing it here, in
+the same step that already edits this test, is deliberate: every repair step shifts the file by one
+line, so a later step working from fixed anchors would edit the wrong lines. Never string-match
+`browser.new_context(reduced_motion="reduce")` — it occurs **ten** times in this file.
 
-Each of the three now depends on `[data-unit-tree-pin]` being *visible*, which holds only above
-641px — the exact dependency precondition P1 (Task 5) exists to make explicit. All three currently
-rely on Playwright's 1280px default, which P1 calls out as accidental. Add an explicit viewport to
-each test's context, preserving any existing argument:
+In the same test, change `ctx = browser.new_context(reduced_motion="reduce")` — the one inside
+`test_centering_is_skipped_when_the_active_group_is_folded` — to:
 
 ```python
-# test_desktop_tree_collapse_persists (~:138)
-ctx = browser.new_context(viewport={"width": 1440, "height": 900})
-
-# test_expanding_the_rail_recentres_the_active_unit — KEEP reduced_motion
-ctx = browser.new_context(
-    reduced_motion="reduce", viewport={"width": 1440, "height": 900}
-)
-
-# test_centering_is_skipped_when_the_active_group_is_folded (:851)
-ctx = browser.new_context(
-    reduced_motion="reduce", viewport={"width": 1440, "height": 900}
-)
+    ctx = browser.new_context(
+        reduced_motion="reduce", viewport={"width": 1440, "height": 900}
+    )
 ```
 
-**Edit by line number, not by string match.** `ctx = browser.new_context(reduced_motion="reduce")`
-occurs **ten** times in this file (`:182, :236, :470, :502, :536, :567, :681, :741, :818, :851`), so a
-string-targeted edit is either rejected as ambiguous or, with `replace_all`, silently rewrites nine
-unrelated tests. The three targets are:
+Keep `reduced_motion="reduce"`: this test counts `rail.scrollTo` calls, and a smooth scroll would
+race the assertion.
 
-| Test | Line | Current |
-|---|---|---|
-| `test_desktop_tree_collapse_persists` | `:138` | `browser.new_context()` |
-| `test_expanding_the_rail_recentres_the_active_unit` | `:681` | `browser.new_context(reduced_motion="reduce")` |
-| `test_centering_is_skipped_when_the_active_group_is_folded` | `:851` | `browser.new_context(reduced_motion="reduce")` |
-
-`reduced_motion="reduce"` is load-bearing where present — it stops `centerActive()`'s smooth scroll
-racing the assertion — so preserve it on `:681` and `:851`.
-
-- [ ] **Step 7: Run the three repaired tests**
+- [ ] **Step 6: Run the three repaired tests**
 
 ```
 uv run pytest tests/test_e2e_unit_nav.py -m e2e -k "collapse_persists or recentres or group_is_folded" -v --verbosity=0
@@ -600,7 +615,7 @@ uv run pytest tests/test_e2e_unit_nav.py -m e2e -k "collapse_persists or recentr
 
 Expected: 3 PASSED.
 
-- [ ] **Step 8: Run the whole nav e2e file for regressions**
+- [ ] **Step 7: Run the whole nav e2e file for regressions**
 
 ```
 uv run pytest tests/test_e2e_unit_nav.py -m e2e --verbosity=0
@@ -608,7 +623,7 @@ uv run pytest tests/test_e2e_unit_nav.py -m e2e --verbosity=0
 
 Expected: all PASSED.
 
-- [ ] **Step 9: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
 git add courses/static/courses/js/unit_nav.js tests/test_e2e_unit_nav.py
@@ -1247,7 +1262,7 @@ git commit -m "test(e2e): prose caps at 46rem while wide content and quiz chrome
 - Consumes: Task 2's scoping.
 - Produces: nothing.
 
-**Why a new file:** this needs a staff-capable actor and a review fixture, neither of which `test_e2e_unit_nav.py` has. The module must carry the repo's e2e boilerplate itself — `conftest.py` supplies none of it.
+**Why a new file:** this needs a review fixture and its own actor, neither of which `test_e2e_unit_nav.py` has. `tests/conftest.py` does supply a good deal — autouse DB access, cache clearing, the session-scoped TRUNCATE deadlock retry, the live-server quiesce barrier — so do **not** duplicate those. The three things it does *not* supply, and this module must carry itself, are `pytestmark = pytest.mark.e2e`, the session-scoped `_allow_async_unsafe` fixture, and a `_login` helper.
 
 - [ ] **Step 1: Write the behaviour test**
 
@@ -1416,7 +1431,17 @@ git diff locale/ | grep -n "fuzzy" || echo "no fuzzy markers"
 
 `makemessages` pre-fills a near-match translation and marks it `#, fuzzy`. Clearing one means **two** deletions — the `#, fuzzy` line **and** the `#| msgid` line above it. Leaving either ships a wrong translation silently. The likely near-neighbours here are `"Expand contents"` and `"Open course contents"`.
 
-- [ ] **Step 3: Translate**
+- [ ] **Step 3: Confirm the msgid was actually extracted**
+
+```bash
+grep -n "Show course contents" locale/pl/LC_MESSAGES/django.po locale/en/LC_MESSAGES/django.po
+```
+
+Expected: two hits, one per catalog. Without this, Step 4 reads as "fill in an entry that isn't
+there", and `test_i18n_po_health.py` cannot catch it either — its untranslated guard flags an empty
+`msgstr`, not an absent `msgid`.
+
+- [ ] **Step 4: Translate**
 
 In `locale/pl/LC_MESSAGES/django.po`, set the Polish string:
 
@@ -1434,13 +1459,13 @@ msgstr "Show course contents"
 
 Keep the tone consistent with the existing `"Expand contents"` / `"Open course contents"` entries — three strings now name the same concept, and divergent phrasing between them is a bug.
 
-- [ ] **Step 4: Compile**
+- [ ] **Step 5: Compile**
 
 ```bash
 uv run python manage.py compilemessages
 ```
 
-- [ ] **Step 5: Verify the catalogs are healthy**
+- [ ] **Step 6: Verify the catalogs are healthy**
 
 ```
 uv run pytest tests/test_i18n_po_health.py -v --verbosity=0
@@ -1448,7 +1473,7 @@ uv run pytest tests/test_i18n_po_health.py -v --verbosity=0
 
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
 git add locale/
@@ -1496,7 +1521,10 @@ Expected: all PASS. This is where a stray comment tripping a source-level guard,
 uv run pytest tests/test_e2e_unit_nav.py tests/test_e2e_review_shell_isolation.py -m e2e --verbosity=0
 ```
 
-Expected: all PASS. Then sweep the rest — **44 of the 78 e2e modules render `.unit-shell`**, so a
+Expected: all PASS. These two also run again inside the sweep below (`test_e2e_review_shell_isolation.py`
+matches `r*`, `test_e2e_unit_nav.py` matches `u*`) — that redundancy is intended: it puts the two
+modules this branch actually changed first, so a break in them is seen before ~450 unrelated browser
+tests have run. Then sweep the rest — **44 of the 78 e2e modules render `.unit-shell`**, so a
 hand-picked subset would be arbitrary. Run the whole suite in foreground chunks, the convention this
 repo already uses, with an explicit all-PASS expectation per chunk:
 
@@ -1521,7 +1549,7 @@ uv run pytest tests/test_e2e_h*.py tests/test_e2e_i*.py tests/test_e2e_l*.py tes
 uv run pytest tests/test_e2e_n*.py tests/test_e2e_p*.py tests/test_e2e_q*.py -m e2e --verbosity=0
 uv run pytest tests/test_e2e_r*.py tests/test_e2e_s*.py -m e2e --verbosity=0
 uv run pytest tests/test_e2e_t*.py tests/test_e2e_u*.py tests/test_e2e_w*.py -m e2e --verbosity=0
-uv run pytest tests/test_link_apply.py tests/test_link_dialog_behaviour.py \n              tests/test_table_grid_algebra.py tests/test_tabs_editor_dnd.py -m e2e --verbosity=0
+uv run pytest tests/test_link_apply.py tests/test_link_dialog_behaviour.py tests/test_table_grid_algebra.py tests/test_tabs_editor_dnd.py -m e2e --verbosity=0
 ```
 
 **That seventh chunk is not optional.** Four e2e modules do not follow the `test_e2e_*` naming
@@ -1530,7 +1558,13 @@ convention, so the six letter-globs collect only **464** of the 565 — a 101-te
 to miss: it marks per-function with `@pytest.mark.e2e` rather than a module-level `pytestmark`, so it
 hides from the obvious grep.
 
-Expected: every chunk all-PASS, and the seven chunk counts summing to `N` (464 + 101 = 565). One invocation at a time —
+Expected: every chunk all-PASS, and the seven chunk counts summing to the `N` recorded above.
+
+Do **not** hard-code today's numbers. 565 is the count *before* this branch; Tasks 4-7 add 13 tests
+(12 to `test_e2e_unit_nav.py`, which lands in the `u*` chunk, and 1 in the new
+`test_e2e_review_shell_isolation.py`, which lands in `r*`), so at the point this step runs the real
+figures are 477 + 101 = 578. Re-record `N` at Step 3 time rather than trusting a literal — a stale
+criterion is worse than none, because it invites "correcting" a healthy run. One invocation at a time —
 never two pytest processes at once against the same database. If a chunk fails, A/B it against
 `origin/master` before blaming this diff: this repo has a documented family of e2e flakes that fail
 only under parallel load and pass in isolation.
@@ -1633,28 +1667,58 @@ attaching one of each element root named in the spec's per-root ruling table
 (`docs/superpowers/specs/2026-08-01-unit-tree-toc-pin-design.md`, the table under "Per-root capping
 ruling" — it adds `.el--math`, `.html-el`, `.reveal-gate`, the matrix/filltable roots and switch-grid
 beyond the thirteen allow-list entries), plus one `.el--text` nested inside each of
-`TwoColumnElement`, `SpoilerElement` and `TabsElement`, plus a slide-break pair so `slideshow.js`
-builds a `.slideshow-deck` at runtime (a template grep cannot find that container — it does not exist
-until JS runs). Follow `tests/factories.py::seed_slideshow_unit` for the slide-break idiom.
+`TwoColumnElement`, `SpoilerElement` and `TabsElement`, and — in a **separate unit** — a slide-break pair so
+`slideshow.js` builds a `.slideshow-deck` at runtime (a template grep cannot find that container: it
+does not exist until JS runs). Use `tests/factories.py::seed_slideshow_unit` for that second unit.
+
+**The slideshow must not share the all-roots unit.** `_lesson_article.html:2` adds
+`class="lesson lesson--slideshow"` and `data-slideshow` as soon as `slides|length > 1`, and
+`slideshow.js` moves the slides into a deck showing exactly one at a time — so a slide break in the
+all-roots unit would hide every root not on the current slide, and the sweep would silently cover a
+fraction of what it claims.
 
 **`add_element()` cannot nest** — `tests/factories.py:170` is
 `Element.objects.create(unit=unit, content_object=obj)` with no `parent` and no `tab_id`, so it only
 makes top-level rows. Nesting needs the join row spelled out, with a **container-specific** slot id:
 
 ```python
-container = add_element(unit, TabsElement.objects.create(...))
+tabs_obj = TabsElement.objects.create(data=TabsElement.default_data())
+container = add_element(unit, tabs_obj)
 Element.objects.create(
-    unit=unit, content_object=TextElement.objects.create(body="..."),
-    parent=container, tab_id="t000001",
+    unit=unit,
+    content_object=TextElement.objects.create(body="nested prose"),
+    parent=container,
+    tab_id=tabs_obj.data["tabs"][0]["id"],
 )
 ```
 
-The slot id differs per container — `"t000001"` for tabs, `SpoilerElement.SLOT_ID` for spoiler,
-per-column ids for two-column. Follow `tests/test_e2e_imagezoom.py:627-637` as the worked idiom; it
-covers both the tabs and spoiler forms.
+**The tab id must be READ from the container, never hard-coded.** `TabsElement.new_tab_id()` is
+`"t" + secrets.token_hex(3)` (`courses/models.py:1344-1351`) and `default_data()` mints two *random*
+ids, so a literal like `"t000001"` passes `TAB_ID_RE` but matches no tab on the element — the child
+is silently orphaned and never renders, and the sweep would capture an empty tabs panel while the
+nested-prose case it exists to inspect is absent. Two-column ids are random the same way;
+`SpoilerElement.SLOT_ID` (`"only"`) is genuinely fixed and may stay literal. Follow
+`tests/test_e2e_imagezoom.py:620-637` as the worked idiom — it reads
+`tabs_obj.data["tabs"][1]["id"]` and covers the spoiler form too.
 
-**Capture.** Mirror `tests/capture_help_screenshots.py`, which already establishes this repo's
-pattern — `browser.new_context(viewport=…)` per shot. Loop the four axes:
+**Capture.** Write it as `tests/capture_toc_pin_sweep.py` — **not** `test_`-prefixed, so
+`python_files = ["test_*.py"]` never collects it in a normal run — mirroring
+`tests/capture_help_screenshots.py`, which establishes this repo's pattern. It needs:
+
+- `pytestmark = pytest.mark.django_db(transaction=True)` at module level
+- the `browser` and `live_server` fixtures
+- `browser.new_context(viewport=…)` per shot
+
+Run it explicitly:
+
+```
+uv run python -m pytest tests/capture_toc_pin_sweep.py --verbosity=0
+```
+
+**Delete the file before Step 9.** It is scaffolding, not a deliverable, and Step 9's `git add` does
+not include it — left in place it would sit untracked in the tree when the PR opens.
+
+Loop the four axes:
 
 ```
 viewport   ∈ {1440×900, 900×900}
@@ -1671,12 +1735,19 @@ Add the block-notes case separately: ≥1200px, JS on, a note panel **open** —
 in which the popover-detachment consequence is visible.
 
 **Pass criterion, so the allow-list edit has a decidable trigger:** an element root fails if, in the
-collapsed state, its text runs the full 872px directly beside a 736px-capped sibling — that is the
-ragged right edge the quiz-chrome entries were added to prevent. Anything failing that joins the
+collapsed state, its box is **as wide as the article column** while a capped sibling beside it stops
+at 736px — that is the ragged right edge the quiz-chrome entries were added to prevent. State it
+relatively, not as a literal: the column is 872px at 1440 but **773.6px at 900**, so a hard-coded
+872 would never fire at half the sweep's viewports. Anything failing that joins the
 allow-list; re-derive the Task 2 coverage floor **only if an entry is removed** (the assertion is
 `>=`, so additions never redden it).
 
-Judge light and dark separately — dark is not assumed to follow from light.
+Judge light and dark separately — dark is not assumed to follow from light. **One concrete defect to
+look for:** Step 4's `border: 1px solid var(--border-default)` on `background: var(--surface-raised)`
+measures ~1.07:1 in the dark palette (`#322E29` on `#2C2925`), i.e. no visible border at all, and the
+plate itself is ~1.55:1 against `--surface-base`. Consider `--border-strong` there. The icon colour is
+fine either way: `--text-tertiary` measures 3.72:1 on white and 3.89:1 on the dark plate, both over
+the 3:1 non-text threshold.
 
 - [ ] **Step 8: Re-run lint and the suites after any change above**
 
@@ -1697,7 +1768,7 @@ literals is exactly the kind of thing Step 1's earlier pass cannot have caught.
 - [ ] **Step 9: Commit**
 
 ```bash
-git add courses/static/courses/css/courses.css tests/test_e2e_unit_nav.py \n        docs/superpowers/plans/2026-08-01-unit-tree-toc-pin.md
+git add courses/static/courses/css/courses.css tests/test_e2e_unit_nav.py docs/superpowers/plans/2026-08-01-unit-tree-toc-pin.md
 git commit -m "style(unit-nav): visual treatment for the TOC pin"
 ```
 
@@ -1710,6 +1781,6 @@ Task 9 is the last task — anything left unstaged here never reaches the PR.
 
 **Spec coverage:** Scoping → Task 2. Geometry (lane, breakpoint, sticky, z-index, strip interaction) → Tasks 2, 5. Content width incl. all thirteen allow-list entries → Tasks 2, 6. The `courses.css:866-873` deletion → Task 2, guarded by its source test. Behaviour (null-guards, module-scope `syncToggle`, unconditional boot call, flip-before-focus, `preventScroll`) → Task 3, falsified in Task 4. Error handling — the JS-off and `unit_nav.js`-fails branches are accepted degradations with no test, by design; the `scrollTop` reset is accepted; the `overflow: hidden` precondition → Task 5's ancestor walk. All eleven spec tests map: 1→Task 4, 2→Task 4, 3→Task 4, 4→Task 5, 5→Task 5, 6→Task 5, 7→Task 6, 8→Task 1, 9→Task 7, 10→Task 5, 11→Task 2. i18n → Task 8. Visual verification → Task 9.
 
-**Placeholder scan:** none — every code step carries complete code, every command its expected output.
+**Placeholder scan:** none — every code step carries complete code, every command its expected output. The one former offender, `TabsElement.objects.create(...)` in Task 9's nesting snippet, now spells out `data=TabsElement.default_data()` and reads the tab id from the container.
 
 **Type consistency:** `[data-unit-tree-pin]` and `.unit-toc-pin` are used identically in Tasks 1-7. `_collapse(page)` is defined once in Task 5 and reused in Task 6. `id="unit-tree"` matches `aria-controls` in Tasks 1 and 4. The coverage floor of 17 in Task 2 matches the thirteen allow-list entries plus four structural selectors written in the same task.
