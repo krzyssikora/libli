@@ -889,3 +889,159 @@ def test_centering_is_skipped_when_the_active_group_is_folded(browser, live_serv
         "visibility guard is missing, and the rail will jump to a stale-rect position"
     )
     ctx.close()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_collapsing_removes_the_rail_and_the_pin_is_the_way_back(browser, live_server):
+    """The rail LEAVES the layout; the pin is the only route back.
+
+    The leading assertion (pin hidden while expanded) is not padding: omitting the
+    base `.unit-toc-pin { display: none }` rule, or writing the reveal unscoped,
+    would render the pin permanently — beside an expanded rail, and on mobile beside
+    the drawer trigger. Every other test in this set stays green through that, which
+    is probably the single most likely CSS mistake in the change.
+    """
+    _make_student("e2e_pin_back")
+    course, units = _seed_nav_course("e2e_pin_back", "e2e-pin-back")
+
+    ctx = browser.new_context(viewport={"width": 1440, "height": 900})
+    page = ctx.new_page()
+    _login(page, live_server, "e2e_pin_back")
+    page.goto(f"{live_server.url}/courses/{course.slug}/u/{units[0].pk}/")
+
+    rail = page.locator("[data-unit-tree]")
+    pin = page.locator("[data-unit-tree-pin]")
+    toggle = page.locator("[data-unit-tree-toggle]")
+
+    assert rail.is_visible(), "the rail should start expanded"
+    assert not pin.is_visible(), (
+        "the pin must be hidden while the tree is expanded — its base rule is "
+        "display:none and only the collapsed reveal shows it"
+    )
+    assert toggle.get_attribute("aria-expanded") == "true"
+    assert pin.get_attribute("aria-expanded") == "true", (
+        "both controls must agree on aria-expanded, including the hidden one"
+    )
+
+    toggle.click()
+    page.wait_for_function(
+        "() => document.documentElement.classList.contains('unit-tree-collapsed')"
+    )
+    assert not rail.is_visible(), (
+        "the rail must be display:none when collapsed, not a 2.4rem sliver"
+    )
+    assert pin.is_visible(), "the pin must be the visible way back"
+    assert toggle.get_attribute("aria-expanded") == "false"
+    assert pin.get_attribute("aria-expanded") == "false"
+
+    pin.click()
+    page.wait_for_function(
+        "() => !document.documentElement.classList.contains('unit-tree-collapsed')"
+    )
+    assert rail.is_visible(), "clicking the pin must restore the rail"
+    assert not pin.is_visible(), "the pin must hide again once the rail is back"
+    assert toggle.get_attribute("aria-expanded") == "true"
+    assert pin.get_attribute("aria-expanded") == "true"
+
+    ctx.close()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_collapsed_state_survives_reload_with_the_pin_visible(browser, live_server):
+    """Pre-paint restore, plus the FIRST-PAINT half of the aria invariant.
+
+    Only the .unit-tree__toggle assertion can detect a missing boot call: it is
+    server-rendered aria-expanded="true", so on a collapsed reload the boot call is
+    the only thing that corrects it to "false". The pin's assertion is a same-state
+    consistency check — its server-rendered "false" already matches the collapsed
+    state, so it stays green with the boot call deleted.
+    """
+    _make_student("e2e_pin_reload")
+    course, units = _seed_nav_course("e2e_pin_reload", "e2e-pin-reload")
+
+    ctx = browser.new_context(viewport={"width": 1440, "height": 900})
+    page = ctx.new_page()
+    _login(page, live_server, "e2e_pin_reload")
+    page.goto(f"{live_server.url}/courses/{course.slug}/u/{units[0].pk}/")
+
+    page.locator("[data-unit-tree-toggle]").click()
+    page.wait_for_function(
+        "() => document.documentElement.classList.contains('unit-tree-collapsed')"
+    )
+    page.reload()
+
+    assert "unit-tree-collapsed" in (page.locator("html").get_attribute("class") or "")
+    assert not page.locator("[data-unit-tree]").is_visible()
+    assert page.locator("[data-unit-tree-pin]").is_visible()
+    # Before any click on the restored page.
+    toggle = page.locator("[data-unit-tree-toggle]")
+    assert toggle.get_attribute("aria-expanded") == "false"
+    pin_el = page.locator("[data-unit-tree-pin]")
+    assert pin_el.get_attribute("aria-expanded") == "false"
+
+    ctx.close()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_focus_moves_to_the_control_that_becomes_visible(browser, live_server):
+    """Whichever control was clicked becomes display:none, so focus must move or
+    the browser drops it to <body> and a keyboard user loses their place."""
+    _make_student("e2e_pin_focus")
+    course, units = _seed_nav_course("e2e_pin_focus", "e2e-pin-focus")
+
+    ctx = browser.new_context(viewport={"width": 1440, "height": 900})
+    page = ctx.new_page()
+    _login(page, live_server, "e2e_pin_focus")
+    page.goto(f"{live_server.url}/courses/{course.slug}/u/{units[0].pk}/")
+
+    page.locator("[data-unit-tree-toggle]").click()
+    page.wait_for_function(
+        "() => document.documentElement.classList.contains('unit-tree-collapsed')"
+    )
+    assert page.evaluate(
+        "() => document.activeElement.hasAttribute('data-unit-tree-pin')"
+    ), "collapsing must focus the pin"
+
+    page.locator("[data-unit-tree-pin]").click()
+    page.wait_for_function(
+        "() => !document.documentElement.classList.contains('unit-tree-collapsed')"
+    )
+    assert page.evaluate(
+        "() => document.activeElement.hasAttribute('data-unit-tree-toggle')"
+    ), "expanding must focus the rail toggle"
+
+    ctx.close()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_pin_is_hidden_at_mobile_width_in_both_states(browser, live_server):
+    """At <=640px there is NO clickable control: courses.css hides .unit-tree (so
+    the rail toggle is unclickable) and the pin's base rule hides it. So the
+    expanded half is taken before any gesture, and the collapsed half is reached by
+    collapsing at desktop width and resizing down — which exercises the resize path
+    for free. Do not substitute a page.evaluate class flip.
+    """
+    _make_student("e2e_pin_mobile")
+    course, units = _seed_nav_course("e2e_pin_mobile", "e2e-pin-mobile")
+    url = f"{live_server.url}/courses/{course.slug}/u/{units[0].pk}/"
+
+    ctx = browser.new_context(viewport={"width": 480, "height": 800})
+    page = ctx.new_page()
+    _login(page, live_server, "e2e_pin_mobile")
+    page.goto(url)
+    assert not page.locator("[data-unit-tree-pin]").is_visible(), (
+        "expanded at mobile width: the pin must be hidden"
+    )
+
+    page.set_viewport_size({"width": 1440, "height": 900})
+    page.locator("[data-unit-tree-toggle]").click()
+    page.wait_for_function(
+        "() => document.documentElement.classList.contains('unit-tree-collapsed')"
+    )
+    page.set_viewport_size({"width": 480, "height": 800})
+    assert not page.locator("[data-unit-tree-pin]").is_visible(), (
+        "collapsed at mobile width: the pin must still be hidden — the footer "
+        "drawer owns contents navigation below 641px"
+    )
+
+    ctx.close()
