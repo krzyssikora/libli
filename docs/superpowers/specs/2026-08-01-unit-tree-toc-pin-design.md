@@ -80,7 +80,8 @@ exactly the pattern the Scoping section forbids — and leaving them would be **
 invisible**: `display: none` removes the rail's box entirely, so `flex-basis`, `transform` and the bar
 padding all become inert regardless of specificity.
 
-That covers four of the five selectors. The fifth — `…__heading, …__list` — also matches nodes
+That covers three of the five selectors (`.unit-tree`, `…__toggle`, `…__bar`). The remaining two —
+`…__heading` and `…__list` — also match nodes
 **outside** the rail: the mobile drawer inlines `<span class="unit-tree__heading">` and
 `<ul class="unit-tree__list unit-drawer__list">` at `_unit_shell.html:17` and `:21`. Those are
 invisible for a different reason: `.unit-drawer` is `display: none` (`courses.css:823`) and is
@@ -278,11 +279,24 @@ inconsistency. Logical and physical longhands cascade together and are resolved 
 time, so the higher-specificity rule wins over `margin: 0 auto` either way; the choice is idiom, not
 mechanism. The app ships `pl` and `en`, both LTR, so the two are equivalent today.
 
-**Verified precondition for the overhang**: no ancestor of `.unit-shell` sets `overflow: hidden`.
-`reset.css`'s only such rule is on `.sr-only`; `.app-main` (`app.css:34`) sets none. Test 6 pins this
-with an explicit ancestor `overflow-x` walk — **not** with a rect or hit-test assertion, neither of
-which can detect the mutation (see test 6 for why). A future `overflow` rule would otherwise silently
-amputate part of the only control that restores the tree.
+**Verified precondition for the overhang**: no ancestor of `.unit-shell` sets `overflow: hidden`
+*unconditionally*. `reset.css`'s only such rule is on `.sr-only`; `.app-main` (`app.css:34`) sets
+none. Test 6 pins this with an explicit ancestor `overflow-x` walk — **not** with a rect or hit-test
+assertion, neither of which can detect the mutation (see test 6 for why). A future `overflow` rule
+would otherwise silently amputate part of the only control that restores the tree.
+
+**One class-gated exception exists and is accepted**: `courses.css:1585` is
+`html.imgzoom-open { overflow: hidden }`, toggled by `imagezoom.js` while an image-zoom dialog is
+open (loaded on both in-scope pages). `<html>` *is* an ancestor of `.unit-shell`, so the enumeration
+above would be wrong without this clause. Two consequences, both accepted:
+
+- **It cannot clip the pin.** The root's clip is the viewport, and the pin's minimum left edge in this
+  design is ~24px (the "just above" case), so there is nothing to clip.
+- **It removes the classic scrollbar**, widening the layout viewport by ~15px for as long as the
+  dialog is open. For windows in roughly 1040–1055px that flips `(min-width: 1040px)`, so opening a
+  zoom overlay shifts the article 38.4px sideways and closing it shifts back. A narrow, transient,
+  self-inflicted window; not worth a rule. Note test 6's ancestor walk cannot see this — it samples
+  computed style with no dialog open, and class-gated rules are invisible to it.
 
 **Expanded**: visually and structurally as today — the rail keeps its `‹`, the sticky tree bar, the
 scrollbar styling and the active-row marker. **One behaviour does change, and it is accepted rather
@@ -407,9 +421,9 @@ being fixed, not a benefit being surrendered. An implementer who measures the
 narrowing must not treat it as a bug.
 
 The invariant that *does* hold: **at any viewport, the collapsed measure is never smaller than the
-expanded measure at that same viewport** (648px expanded vs ≥736px collapsed above 1000px). It is
-stated per-viewport rather than as a universal 648px floor, because below ~1000px the expanded measure
-is smaller. That constraint fixes the cap from below; readability fixes it from above.
+expanded measure at that same viewport** (648px expanded vs ≥736px collapsed above 960px). It is
+stated per-viewport rather than as a universal 648px floor, because below 960px the expanded measure
+is `W − 312` and shrinks with the viewport. That constraint fixes the cap from below; readability fixes it from above.
 
 **The cap is 46rem** = 736px — `.lesson`'s own standalone `max-width` (`courses.css:181`), the measure
 this repo already treats as correct for a lesson article. `.lesson` inside the shell overrides it to
@@ -822,9 +836,14 @@ that has nothing to do with the rule under test.
 
    **Falsifiers**, named because this test previously had none:
 
-   - **Widen the overhang constant** (`-2.4rem` → `-6rem`). This drives the pin's left edge negative
-     at *both* near-breakpoint cases by a wide margin, so it fires regardless of scrollbar width.
-   - **Add `overflow: hidden` to `.app-main`** → the ancestor walk fails.
+   - **Widen the overhang constant** (`-2.4rem` → `-6rem`) → reddens the **"just above" case only**,
+     at −33.5px with a 15px classic scrollbar or −26px with an overlay scrollbar. Comfortably
+     negative either way, so unlike the rejected alternative below it does not depend on scrollbar
+     width. It is inert at "wide" (+156.5px) and inert at "just below", where the overhang lives
+     inside `@media screen and (min-width: 1040px)` and simply does not apply (pin left stays
+     +37.5px).
+   - **Add `overflow: hidden` to `.app-main`** → the ancestor walk fails. This is the falsifier that
+     reaches the **"just below"** case, which the overhang mutation cannot touch.
 
    Deliberately **not** "lower the 1040px breakpoint": worked through, that mutation leaves the pin's
    left edge at ~214px (wide) and ~24px ("just above") — both comfortably positive — and reaches only
@@ -1035,12 +1054,23 @@ that has nothing to do with the rule under test.
     Falsify by widening exactly one entry in that list, and separately by breaking the
     at-rule handling (the coverage assertion must then go red).
 
-    **Strip comments before matching — this is mandatory, not defensive.** `courses.css:878` *already*
-    contains `.unit-tree-collapsed` inside the review-roster comment block, which this change does not
-    touch. A raw-source test 11(a) is therefore **red on an untouched file, before anyone writes a
-    line of CSS**. The existing idiom in this repo (`tests/test_element_state_write_routes.py` regexes
-    raw source; `tests/test_i18n_po_health.py` guards catalogs) is known to trip on prose for exactly
-    this reason. Match comment-stripped CSS and say so in the docstring.
+    **Strip comments before matching — this is mandatory, not defensive, and the reason is the
+    braces, not the prose.** `courses.css` contains **nine** comments carrying a `{` or `}`
+    (lines 34, 136, 161, 261, 348, 532, 617, 1587, 1644). Test 11's recipe splits the whole file on
+    `}`; left unstripped, those braces desynchronise the chunking and can absorb or split a real
+    prelude, silently dropping selectors from the coverage count. That is the load-bearing reason.
+
+    An earlier draft justified this differently — that `courses.css:878`'s review-roster comment
+    already contains `.unit-tree-collapsed`, so a raw-source guard would be red on an untouched file.
+    **That is false and was checked by running the regex**: the comment reads `…lesson tree's <html>`
+    / newline / `.unit-tree-collapsed state (a separate localStorage key) nor the .unit-tree mobile`,
+    so the literal `html.` never occurs and `\s+\.unit-tree` is interrupted by prose. Deleting
+    `:866-873` and re-running `r"html\.unit-tree-collapsed\s+\.unit-tree"` over the **raw** source
+    returns no match. Recorded so the wrong justification is not reinstated.
+
+    The existing idiom in this repo (`tests/test_element_state_write_routes.py` regexes raw source;
+    `tests/test_i18n_po_health.py` guards catalogs) is known to trip on prose, so stripping is the
+    house style regardless. Match comment-stripped CSS and say so in the docstring.
 
 **`aria-expanded` agreement is asserted explicitly, not assumed.** It is stated in Behaviour as an
 invariant ("must agree between the two controls at all times, including on first paint"), so it needs
