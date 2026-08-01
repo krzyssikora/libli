@@ -104,11 +104,13 @@ tests that cannot fail:
   `.unit-crumbs`, none of the eight capped selectors**. Widening every prose-cap selector to
   `.unit-shell` would change that page by exactly zero pixels.
 
-  The confirmed page that renders the full element surface outside `[data-unit-shell]` is
+  The **one** page that renders the full element surface outside `[data-unit-shell]` is
   `templates/courses/manage/editor/_preview.html:16` (`{% render_element el %}` in the builder's live
-  preview). `courses.css:179`'s own comment also flags `quiz_results.html` as rendering
-  `.el--question`, though that page's markup shows no `el--` class directly — confirm at
-  implementation rather than trusting either the comment or this sentence.
+  preview). `courses.css:179`'s comment claims `quiz_results.html` "also renders `.el--question`";
+  that comment is **stale** — verified, `quiz_results.html` renders
+  `<article class="quiz-results result">` with `.quiz-results__item` / `.question__stem` /
+  `.question__feedback-panel` and carries no `el--` class anywhere. Settled here so it is not
+  re-investigated at implementation time.
 
 Because the prose-cap family has no cheap behavioural victim, **its guard is a source assertion, not
 a browser test** (test 11). That is deliberate: a behavioural test on the builder preview would cost a
@@ -170,7 +172,7 @@ before `.unit-tree`, so it leads the tab order when visible.
 **The lane is 2.4rem (38.4px) — exactly the width of the sliver it replaces.** That equality is
 deliberate: it makes the narrow-desktop branch (below) width-neutral against today rather than 3.2px
 worse. 2.4rem is a **fixed geometric constant**: the `-2.4rem` overhang, the 1040px breakpoint
-derivation, the 920px content figure and tests 4, 5 and 10 all depend on it. It is not a visual-taste
+derivation, the 920px content figure and tests 4, 5, 6 and 10 all depend on it. It is not a visual-taste
 parameter (see "Visual verification").
 
 **Collapsed** (`html.unit-tree-collapsed [data-unit-shell]`, ≥641px):
@@ -226,8 +228,14 @@ is worth stating because the negative margin makes it look like a misalignment h
 
 - **≥1040px collapsed** — the shell's box starts 38.4px left of the strip, but `.unit-shell` paints
   nothing (no background, no border, `courses.css:535`), and the pin exactly fills that overhang. So
-  `.unit-shell__main` begins at the strip's left edge: the content column and the strip align
-  **perfectly**, which is better than today.
+  `.unit-shell__main` begins at the strip's left edge: the content **column box** and the strip align
+  perfectly, which is better than today.
+
+  The *visible prose* still starts 24px right of the strip's left edge, because
+  `.unit-shell__main > .lesson/.quiz` carries `padding: 1.25rem 1.5rem` (`courses.css:537-538`) —
+  unchanged from today. Stated so the visual sweep does not read that 24px offset as a failed
+  implementation of this paragraph. Test 10 asserts the column box, which is the thing the negative
+  margin controls.
 - **641–1039px collapsed** — the main column is indented 38.4px relative to the strip. That is
   **exactly today's behaviour** (the sliver occupies the same 38.4px), so it is not a regression; and
   the expanded state indents it 224px, so an indented main column is this page's normal look.
@@ -283,6 +291,13 @@ complexity for a control used a handful of times per session.
 
 ### CSS shape
 
+**All new rules land in `courses.css`** — the base `.unit-toc-pin` rule, both collapsed media blocks,
+and the prose-cap block. This is normative, not incidental: this repo splits consumption CSS across
+two files (`.callout` is in `courses.css`, but `.spoiler` is at `app.css:932`, `.icon` at `:108`), and
+**test 11 reads `courses.css` only**. A rule that landed in `app.css` would leave the family the spec
+designates as "guarded by test 11 instead" with no guard at all, and no signal that anything was
+wrong. The C1 coverage assertion in test 11 is what makes a misplacement redden the suite.
+
 The selector *shape* below is normative; the visual declarations are not exhaustive.
 
 ```css
@@ -302,6 +317,12 @@ The selector *shape* below is normative; the visual declarations are not exhaust
 @media (min-width: 1040px) {
   html.unit-tree-collapsed [data-unit-shell] { margin-inline-start: -2.4rem; }
 }
+
+/* A navigation affordance is noise on paper — the same reasoning, and the same
+   treatment, as `@media print { .unit-strip__edit { display: none } }` at courses.css:1685.
+   Needed because Chromium evaluates `min-width: 641px` against the ~816px print page box,
+   so a collapsed page would otherwise print the pin in the margin. */
+@media print { .unit-toc-pin { display: none; } }
 ```
 
 **Every selector above contains `[data-unit-shell]`. Test 11 asserts that mechanically** — it is the
@@ -310,18 +331,26 @@ only guard the prose-cap family has (see Scoping).
 ### Content width
 
 **The three rows have two different domains — do not read the table as one.** Rows 1 and 2 hold at any
-layout viewport ≥1000px, where `.app-main`'s 960px cap binds. Row 3 additionally needs the negative
-margin, which only applies at **≥1040px**:
+layout viewport ≥960px, where `.app-main`'s 960px cap binds (`box-sizing: border-box` is global, so
+the cap binds from 960px exactly, not from 1000px). Row 3 additionally needs the negative margin,
+which only applies at **≥1040px**:
 
 | | Prose | Tables / media | Domain |
 |---|---|---|---|
-| Expanded (today, and unchanged by this change) | 648px | 648px | ≥1000px |
-| Collapsed (today, sliver) | 834px | 834px | ≥1000px |
+| Expanded (today, and unchanged by this change) | 648px | 648px | ≥960px |
+| Collapsed (today, sliver) | 834px | 834px | ≥960px |
 | **Collapsed (this change)** | **736px** | **872px** | **≥1040px** |
 
-In the **1000–1039px sub-band** the cap binds but there is no overhang, so the main column is 881.6px:
+In the **960–1039px sub-band** the cap binds but there is no overhang, so the main column is 881.6px:
 prose 736px, tables/media **833.6px** — not 872px. That band is width-neutral against today's sliver
 (833.6px both ways), exactly as the geometry table states for 641–1039px.
+
+**How the column figures become the content figures.** The 48px gap between the geometry table's
+"main column" and this table is `.unit-shell__main > .lesson, .unit-shell__main > .quiz`
+(`courses.css:537-538`), which sets **`padding: 1.25rem 1.5rem`** — 24px each side — alongside the
+`max-width: none` that section quotes elsewhere. So `920 − 2×24 = 872` (this change),
+`696 − 2×24 = 648` (expanded), `881.6 − 2×24 = 833.6` (today's sliver). Without that constant every
+row here reads 48px off the geometry table.
 
 All figures below are the **border box**. `box-sizing: border-box` is global (`reset.css:2`), and
 `.quiz .el--question` / `.lesson .el--question` carry `padding: var(--space-5)` (20px) plus a 1px
@@ -438,11 +467,25 @@ records the choice**; it is explicitly in that pass's remit.
 prose. It is deferred to the same sweep decision as `.block-notes`, and appears on the sweep's
 coverage list.
 
-Explicitly **not** capped, and why: `.el--math` (a wide display equation must be free to use the
-column or scroll rather than be squeezed), all tables/grids/media, and all four containers.
+**Explicitly not capped, and why.** Every element root named in the heterogeneous-roots paragraph
+above is ruled on here, so none falls into a gap:
 
-The list is a starting point, not a claim of completeness. The visual sweep, not this list, is the
-completeness mechanism.
+| Root | Capped? | Why |
+|---|---|---|
+| `.el--math` | no | a wide display equation must be free to use the column or scroll, never be squeezed |
+| tables, grids, media, `.el--table`, `.filltable`, switch-grid | no | the width *is* the content |
+| the four containers (`two_column`, `spoiler`, `tabs`, `.slideshow-deck`) | no | they hold arbitrary children including tables |
+| `.html-el` | no | arbitrary author HTML; may legitimately be a wide embed or table |
+| `.reveal-gate` | no | a `<button>` — shrink-to-fit, so a cap is a no-op either way |
+| `.markdone`, `.fillgate`, `.stepper`, `.switchgate`, guess-number | **yes — add to the allow-list** | prose-bearing block surfaces; uncapped they render at 872px directly beside 736px `.el--text`, which is the same ragged edge that justified the quiz-chrome entries |
+
+The last row is a **provisional ruling made from each element's root class and role, not from
+measuring its rendered width**; the visual sweep confirms or overturns it.
+
+**The sweep is explicitly authorised to amend the allow-list.** Calling the sweep "the completeness
+mechanism" while its remit covered only colour and states left nobody able to complete the list — a
+real gap. Its remit therefore includes *adding or removing prose entries*, with each change recorded
+in the PR.
 
 ### Behaviour
 
@@ -617,9 +660,16 @@ must size its context above 1040px and assert the branch per precondition 3.
    pin visible, which is true only above 641px, so they depend on a breakpoint just as much as the
    measuring tests do. They would pass today only because Playwright's 1280px default happens to sit
    above it — the exact anti-pattern this rule exists to forbid.
-2. **Collapse with a real `[data-unit-tree-toggle]` click**, then `wait_for_function` on
-   `document.documentElement.classList.contains('unit-tree-collapsed')` before asserting. Without it
-   every one of these measures the expanded layout and either fails or passes vacuously.
+2. **Collapse with a real `[data-unit-tree-toggle]` click** — **tests 1–7 and 10 only** — then
+   `wait_for_function` on `document.documentElement.classList.contains('unit-tree-collapsed')` before
+   asserting. Without it every one of these measures the expanded layout and either fails or passes
+   vacuously.
+
+   **Test 9 is exempt and must not attempt this.** `review_submission.html` contains no
+   `[data-unit-tree-toggle]` (its control is `[data-roster-toggle]`, `:34`) and its
+   `{% block extra_js %}` (`:129-140`) never loads `unit_nav.js`, so the gesture is unsatisfiable
+   there. Test 9 reaches the collapsed state by the `localStorage` route in its own recipe; it is on
+   this precondition list solely for items 1 and 3.
 3. **Assert the branch before measuring it.** Any test targeting a specific side of the 1040px
    breakpoint must first assert
    `page.evaluate("() => matchMedia('(min-width: 1040px)').matches")` is the expected boolean.
@@ -648,7 +698,12 @@ must size its context above 1040px and assert the branch per precondition 3.
    would not catch it either, since the pin precedes the tree in DOM order and its forward-tab loop
    never reaches it.
 
-   **Plus a mobile case**: at a ≤640px viewport, assert the pin is not visible in *either* state.
+   **Plus a mobile case**: collapse at a desktop width with a real click, then
+   `page.set_viewport_size()` down to ≤640px and assert the pin is still not visible — then expand
+   and assert again, covering *both* states. The resize route is required rather than optional:
+   `courses.css:827` sets `.unit-tree { display: none }` below 641px, so `[data-unit-tree-toggle]` is
+   unclickable there and the mandated collapse gesture cannot run at mobile width. (Collapsing first
+   and resizing down also exercises the resize path for free.)
 2. **e2e — persistence.** Collapsed state survives a reload via the pre-paint path, with the pin
    visible and the rail absent on the restored page.
 3. **e2e — focus moves.** After collapsing, `document.activeElement` is the pin; after expanding, it
@@ -731,6 +786,13 @@ must size its context above 1040px and assert the branch per precondition 3.
    `ShortTextQuestionElement`).
 8. **Render test** — the pin is present in the DOM on both the lesson page and the quiz page, carries
    `aria-expanded`, and its `aria-controls="unit-tree"` target exists exactly once.
+
+   **The quiz half has the same access and redirect traps test 7 documents**, and the assigned file
+   already contains a working precedent: follow
+   `test_all_quiz_group_renders_no_counter_and_no_check`
+   (`tests/test_unit_nav_render.py:322-350`) — `CourseFactory(owner=student)` + `EnrollmentFactory` +
+   `force_login` + `client.get(..., follow=True)`. `follow=True` is load-bearing there for the reason
+   its comment gives: without it a redirect yields an empty body and the assertions pass vacuously.
 9. **Non-regression — the review page is untouched.** Load
    `/manage/courses/<slug>/review/<submission_pk>/` seeded via `make_review_submission()`
    (`tests/factories.py:271`) and assert the page renders identically with and without the collapsed
@@ -818,10 +880,29 @@ must size its context above 1040px and assert the branch per precondition 3.
     **The tokenisation is load-bearing and must be spelled out**, because the prose-cap rule is a
     *single* comma-separated list of eight selectors. A test that checks each rule's whole prelude as
     one string would see `[data-unit-shell]` in seven correct siblings and pass while one widened
-    entry (`html.unit-tree-collapsed .unit-shell .el--text`) shipped green — destroying the only
-    guard this family has. Recipe: strip comments → split the file on `}` → take each rule's prelude
-    → split that on `,` → apply the implication to **each** resulting selector. Falsify by widening
-    exactly one entry in the eight-selector list.
+    entry (`html.unit-tree-collapsed .unit-shell .el--text`) shipped green.
+
+    **At-rules must be handled explicitly — this is the failure mode that would silently disable the
+    whole guard.** Every new rule in this change lives inside an `@media` block, and the *first* rule
+    after each `@media …{` fuses with the at-rule prelude when the file is split on `}`. The naive
+    `chunk.split("{")[0]` then yields `"@media (min-width: 641px) "`, which contains no
+    `html.unit-tree-collapsed`, so the implication is skipped — and since the prose-cap rule is the
+    only rule in its media block, **the entire eight-selector list would go unexamined**. The same
+    swallows `[data-unit-shell] { margin-inline-start: -2.4rem }` and `> .unit-tree { display: none }`.
+
+    Recipe: strip comments → **drop any prelude fragment beginning with `@`** (or use
+    `rsplit("{", 1)`) → split the file on `}` → take each rule's prelude → split that on `,` → apply
+    the implication to **each** resulting selector.
+
+    **Plus a non-zero-coverage assertion**: the test must assert it examined **at least 11** selectors
+    carrying `html.unit-tree-collapsed` (the count implied by the CSS shape above — one rail rule, one
+    pin rule, one margin rule, eight prose-cap entries). Without it a tokenisation bug passes
+    vacuously, which is exactly how this guard would fail in practice. Note the repo has no whole-file
+    precedent to copy: `test_consumption_css.py` uses per-rule regexes
+    (`r"\.unit-strip\s*\{([^}]*)\}"`), never a file-wide split.
+
+    Falsify by widening exactly one entry in the eight-selector list, and separately by breaking the
+    at-rule handling (the coverage assertion must then go red).
 
     **Strip comments before matching.** The existing idiom in this repo
     (`tests/test_element_state_write_routes.py`, which regexes raw source, and
