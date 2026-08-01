@@ -421,7 +421,13 @@ def test_a_mutation_landing_mid_toggle_leaves_no_detached_scope(page, live_serve
     down.click()  # a reorder returns _render_scope, replacing the row
     page.wait_for_selector(f'li[data-node="{ch.pk}"]')  # the fresh row
     held[0].continue_()  # now let it land
-    page.wait_for_timeout(300)
+    # The toggle sets data-submitting at issue and deletes it in its `.then`, so
+    # its DISAPPEARANCE is the happens-after for "the held response has been
+    # processed" -- the same marker whose APPEARANCE this test already waits on
+    # above. The 300 ms sleep this replaces was a guess that lost the race under
+    # `-n 4` load, and both assertions below are the tolerant kind (`<= 1`, and a
+    # negated isConnected) that pass trivially if the response has not landed yet.
+    page.wait_for_function("() => !document.querySelector('[data-submitting]')")
     assert page.locator(f'ol[data-scope="{ch.pk}"]').count() <= 1
     # The pre-mutation row must be detached AND must not have gained a scope.
     # (`querySelectorAll(...).every(o => o.isConnected)` is vacuous -- that API
