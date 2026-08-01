@@ -866,13 +866,71 @@ a.unit-crumbs__label:focus-visible { outline: 2px solid var(--primary); outline-
 /* Base: the TOC pin is inert until the collapsed state reveals it (Task 2). */
 .unit-toc-pin { display: none; }
 
-/* Collapsed desktop rail — state lives on <html> (pre-paint script), so scope from it. */
+/* Collapsed desktop rail. State lives on <html> (base.html pre-paint), which is
+   GLOBAL to every page — so every rule below is additionally scoped to
+   [data-unit-shell], present only on the student unit shell. */
+
 @media (min-width: 641px) {
-  html.unit-tree-collapsed .unit-tree { flex-basis: 2.4rem; }
-  html.unit-tree-collapsed .unit-tree__heading,
-  html.unit-tree-collapsed .unit-tree__list { display: none; }
-  html.unit-tree-collapsed .unit-tree__toggle { transform: scaleX(-1); }  /* ‹ → › */
-  html.unit-tree-collapsed .unit-tree__bar { justify-content: center; padding: .55rem .35rem; }
+  html.unit-tree-collapsed [data-unit-shell] > .unit-tree { display: none; }
+  /* min-height squares the button: flex-basis fixes only the MAIN size, and the
+     icon is 1em on a 16px font, giving a ~38x20 control under the 24x24 minimum.
+     The container's align-items: flex-start is load-bearing — under the flex
+     default (stretch) the pin would fill the shell's height and sticky would have
+     no room to move. gap: 0 on the shell is what makes the lane abut the column.
+     z-index 21 is one above .unit-foot's 20 — the footer is inside
+     .unit-shell__main, which sets no z-index and so creates no stacking context,
+     leaving the footer competing in the ROOT context. The two are horizontally
+     disjoint today, so this only matters if future full-bleed or negative-margin
+     content appears in the column. Task 9 may not change it. */
+  html.unit-tree-collapsed [data-unit-shell] > .unit-toc-pin {
+    display: flex; align-items: center; justify-content: center;
+    flex: 0 0 2.4rem; min-height: 2.4rem;
+    position: sticky; top: .6rem; z-index: 21;
+  }
+}
+
+/* `screen and` is required. Chromium evaluates print media queries against the
+   page area, ~1046 CSS px for landscape A4 at default margins — above 1040.
+   Unscoped, a landscape printout would apply the overhang while the print block
+   below correctly hides the pin, indenting the article past an empty lane.
+   Safe HERE because this block holds only the margin rule; it would NOT be safe
+   on the 641px block, which also hides the rail and would print the full rail. */
+@media screen and (min-width: 1040px) {
+  html.unit-tree-collapsed [data-unit-shell] { margin-inline-start: -2.4rem; }
+}
+
+/* A navigation affordance is noise on paper. The selector MIRRORS the reveal and
+   this block MUST stay after it: a bare `.unit-toc-pin { display: none }` here is
+   (0,1,0) against the reveal's (0,3,1), and media queries add no specificity, so
+   the reveal would win and the pin would print anyway. */
+@media print {
+  html.unit-tree-collapsed [data-unit-shell] > .unit-toc-pin { display: none; }
+}
+
+/* Prose cap. 46rem is the value in the shared `.quiz, .lesson` rule near the top
+   of this file, reintroduced at element level in the collapsed
+   state only. An allow-list, NOT cap-by-default: element root classes are
+   heterogeneous, and a missed opt-out BREAKS layout (a squeezed table) whereas a
+   missed allow-list entry only leaves prose wide. Left alignment needs no
+   declaration — the global `* { margin: 0 }` leaves no auto margins to centre.
+   `screen and` because printed output must not depend on a per-browser collapse
+   preference. */
+@media screen and (min-width: 641px) {
+  html.unit-tree-collapsed [data-unit-shell] .el--text,
+  html.unit-tree-collapsed [data-unit-shell] .callout,
+  html.unit-tree-collapsed [data-unit-shell] .el--question:not(.el--choicegrid):not(.el--multigrid):not(.el--dragimage):not(.el--matchpair):not(.el--dragfill),
+  html.unit-tree-collapsed [data-unit-shell] .lesson-unit__head,
+  html.unit-tree-collapsed [data-unit-shell] .lesson-unit__title,
+  html.unit-tree-collapsed [data-unit-shell] [data-quiz-preview-notice],
+  html.unit-tree-collapsed [data-unit-shell] .quiz-finish,
+  html.unit-tree-collapsed [data-unit-shell] .unit-crumbs,
+  html.unit-tree-collapsed [data-unit-shell] .markdone,
+  html.unit-tree-collapsed [data-unit-shell] .fillgate,
+  html.unit-tree-collapsed [data-unit-shell] .stepper,
+  html.unit-tree-collapsed [data-unit-shell] .switchgate,
+  html.unit-tree-collapsed [data-unit-shell] .guessnumber {
+    max-width: 46rem;
+  }
 }
 
 /* ── Quiz-review roster (batch 3) ───────────────────────────────────────────────
