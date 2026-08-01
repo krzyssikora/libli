@@ -883,7 +883,7 @@ def test_centering_is_skipped_when_the_active_group_is_folded(browser, live_serv
     toggle = page.locator("[data-unit-tree-toggle]")
     pin = page.locator("[data-unit-tree-pin]")
     toggle.click()  # collapse (real gesture)
-    pin.click()     # expand   (real gesture) -> centerActive() runs
+    pin.click()  # expand   (real gesture) -> centerActive() runs
     assert page.evaluate("() => window.__scrollToCalls") == 0, (
         "centerActive() scrolled the rail for an element with no layout box — the "
         "visibility guard is missing, and the rail will jump to a stale-rect position"
@@ -1043,6 +1043,8 @@ def test_pin_is_hidden_at_mobile_width_in_both_states(browser, live_server):
         "collapsed at mobile width: the pin must still be hidden — the footer "
         "drawer owns contents navigation below 641px"
     )
+
+    ctx.close()
 
 
 def _collapse(page):
@@ -1235,6 +1237,4 @@ def test_content_column_aligns_with_the_strip_above_it(browser, live_server):
         f"the pin must sit exactly one lane left of the strip: "
         f"gap={edges['strip'] - edges['pin']:.1f}, expected 38.4"
     )
-    ctx.close()
-
     ctx.close()
