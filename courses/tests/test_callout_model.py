@@ -41,7 +41,7 @@ def test_display_heading_falls_back_to_kind_default():
     assert str(CalloutElement(kind="example").display_heading) == "Example"
     assert str(CalloutElement(kind="note").display_heading) == "Note"
     assert str(CalloutElement(kind="tip").display_heading) == "Tip"
-    assert str(CalloutElement(kind="warning").display_heading) == "Warning"
+    assert str(CalloutElement(kind="warning").display_heading) == "Important"
 
 
 def test_display_heading_survives_stray_unsaved_kind():

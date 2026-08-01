@@ -93,7 +93,7 @@ controls. **Description position** places each caption **Below image** or
 **Above image**.
 
 {el:callout} **Callout** — a framed, always-visible aside for a note that should stand out
-from the surrounding text. Choose a **Kind** (Example, Note, Tip, or Warning —
+from the surrounding text. Choose a **Kind** (Example, Note, Tip, or Important —
 each with its own accent colour and icon), an optional **Heading** (falls back
 to a default per kind when left blank), and rich-text body content.
 

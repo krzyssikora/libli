@@ -102,7 +102,7 @@ umieszcza podpis **Pod obrazem** lub **Nad obrazem**.
 
 {el:callout} **Ramka** — zawsze widoczna, oprawiona wstawka na notatkę, która ma się
 wyróżnić na tle otaczającego tekstu. Wybierz **Rodzaj** (Przykład, Notatka,
-Wskazówka lub Uwaga — każdy z własnym kolorem akcentu i ikoną), opcjonalny
+Wskazówka lub Ważne — każdy z własnym kolorem akcentu i ikoną), opcjonalny
 **Nagłówek** (jeśli pozostawiony pusty, używany jest domyślny nagłówek dla
 danego rodzaju) oraz treść w tekście sformatowanym.
 

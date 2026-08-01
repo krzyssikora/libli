@@ -8,7 +8,7 @@ pytestmark = pytest.mark.django_db
 def test_render_carries_kind_modifier_class_and_heading_default():
     html = CalloutElement(kind="warning", body="<p>hi</p>").render()
     assert "callout--warning" in html
-    assert "Warning" in html  # default heading
+    assert "Important" in html  # default heading
     assert "hi" in html
 
 

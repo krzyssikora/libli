@@ -1439,7 +1439,7 @@ a.unit-crumbs__label:focus-visible { outline: 2px solid var(--primary); outline-
 .reset-confirm__safe { margin: 0 0 var(--space-4); color: var(--text-secondary); font-size: .9rem; }
 
 /* --- Callout element (student consumption). A framed, always-visible aside
-   (Example / Note / Tip / Warning) holding rich text + math. Zero JS: the
+   (Example / Note / Tip / Important) holding rich text + math. Zero JS: the
    static render IS the behaviour.
 
    Design: a textbook-style "category marker", not a coloured alert box. The
