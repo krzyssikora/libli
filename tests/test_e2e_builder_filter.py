@@ -426,10 +426,27 @@ def test_a_MUTATION_while_filtered_discards_the_stash(page, live_server):
     page.wait_for_selector(f'ol[data-scope="{chap.pk}"]')  # the chain opened
     row = page.locator(f'li[data-node="{hit.pk}"] input.tree__title')
     row.fill("Trygonometria II")
-    row.press("Enter")
-    page.wait_for_timeout(400)
-    page.click("[data-filter-clear]")
-    page.wait_for_timeout(400)
+    # The rename is a real network mutation, so wait for it to LAND. The 400 ms
+    # sleep this replaces was a guess, and on a loaded machine the clear below
+    # raced it -- the mutation had not happened yet, so there was no stash to
+    # discard and the test failed for a reason it does not describe.
+    with page.expect_response(lambda r: "/node/rename/" in r.url and r.status == 200):
+        row.press("Enter")
+
+    # The clear re-fetches the whole tree and re-paints it. `data-busy` goes on at
+    # issue and comes off only AFTER the fragment has painted (builder.js busyEnd
+    # via afterPaint), so its removal is the happens-after this assertion needs.
+    #
+    # Waiting on chap's scope instead would be VACUOUS: it is already on the page,
+    # and the bug being guarded REMOVES it. There is no DOM condition that becomes
+    # true on success here -- success is the absence of a change -- which is
+    # precisely when you need a happens-after barrier rather than a state wait.
+    with page.expect_response(
+        lambda r: "/build/tree/" in r.url and "q=" not in r.url and r.status == 200
+    ):
+        page.click("[data-filter-clear]")
+    page.wait_for_selector("[data-busy]", state="detached")
+
     assert page.locator(f'ol[data-scope="{chap.pk}"]').count() == 1, (
         "the clear replayed a stash the mutation should have discarded"
     )

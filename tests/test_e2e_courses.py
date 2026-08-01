@@ -55,10 +55,16 @@ def test_lesson_autocompletes_on_view(page, live_server):
     _login(page, live_server, username)
     failures = []
     page.on("response", lambda r: failures.append(r.url) if r.status >= 400 else None)
-    page.goto(f"{live_server.url}/courses/{slug}/u/{node_pk}/")
-    assert page.locator(f'[data-element-id="{el_pk}"]').is_visible()
     # The single element is on-screen at load -> progress.js flushes -> auto-complete.
-    page.wait_for_timeout(1200)  # > 500ms debounce + request
+    # Wait for that POST's RESPONSE rather than for a fixed 1200 ms: the sleep had to
+    # cover a 500 ms debounce plus a round trip plus the commit, and under `-n 4` on a
+    # loaded machine it did not. The view commits before it responds, so once the
+    # response is in, the row below is readable.
+    with page.expect_response(
+        lambda r: "/seen/" in r.url and r.request.method == "POST" and r.status == 200
+    ):
+        page.goto(f"{live_server.url}/courses/{slug}/u/{node_pk}/")
+    assert page.locator(f'[data-element-id="{el_pk}"]').is_visible()
     from courses.models import UnitProgress
 
     assert UnitProgress.objects.get(unit_id=node_pk).completed is True

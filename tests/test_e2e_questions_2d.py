@@ -25,6 +25,7 @@ import os
 import urllib.parse
 
 import pytest
+from playwright.sync_api import expect
 
 from courses.models import ContentNode
 from courses.models import Course
@@ -187,10 +188,20 @@ def test_dragfill_quiz_withhold_reveal_resume_js(live_server, browser):
 
     # Wrong on the last attempt → reveal.
     _set_slots("Rome", "Rome")
-    page.locator('.question__form button[type="submit"]').first.click()
-    page.locator("[data-question-feedback] .is-incorrect").wait_for(timeout=6000)
-    page.wait_for_timeout(500)
-    assert "Correct token:" in page.content()
+    # Waiting on `.is-incorrect` here is VACUOUS: quiz.js swaps the whole feedback
+    # box atomically, and the PREVIOUS attempt already rendered an `.is-incorrect`,
+    # so that selector is satisfied before this submit is even answered. The 500 ms
+    # sleep was doing the real waiting, and lost the race under `-n 4` load.
+    # Bracket the submit with its own response instead.
+    with page.expect_response(
+        lambda r: "/answer/" in r.url and r.request.method == "POST" and r.status == 200
+    ):
+        page.locator('.question__form button[type="submit"]').first.click()
+    # Then assert on the text the reveal ADDS, with an auto-retrying expectation, so
+    # the check cannot outrun the box swap that follows the response.
+    expect(page.locator("[data-question-feedback]").first).to_contain_text(
+        "Correct token:"
+    )
 
     # Resume: reload and confirm the last submitted placement rehydrates.
     page.goto(quiz_url)
