@@ -597,7 +597,7 @@ For each element reached by the walk, over its snapshotted child list:
    planned against, so ordering alone cannot fix it. Instead: union the covered ranges of all planned
    spans into maximal **disjoint replacement groups**, and replace each group's children with one
    interleaved node sequence — covered text before span 1, span 1, covered text between spans 1 and 2,
-   span 2, …, trailing covered text — under the same synthetic-newline-dropping and
+   span 2, …, trailing covered text — under the same synthetic-newline-as-literal-`"\n"` and
    `<br>`-preservation rules rule 5 gives for the preceding and following fragments. Groups are
    disjoint by construction, so the mutations can then be applied right to left with earlier indices
    staying valid.
