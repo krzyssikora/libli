@@ -143,3 +143,73 @@ def test_unit_strip_rules_are_present_and_load_bearing():
     # wrapped in all of {1280, 900, 600, 400}; `1 1 0` stayed same-row and
     # right-pinned in all of them. So do NOT weaken this to a bare "flex:" check.
     assert "flex: 1 1 0" in block, f"flex: 1 1 0 missing (right-pin): {block!r}"
+
+
+def test_collapsed_rail_rules_are_deleted_and_every_new_rule_is_scoped():
+    """Two source-level guards over COMMENT-STRIPPED courses.css.
+
+    Stripping is mandatory, and the reason is braces, not prose: nine comments in
+    this file carry a `{` or `}`, and the recipe below splits the whole file on
+    `}`. Left unstripped, those braces desynchronise the chunking and can absorb
+    a real prelude, silently dropping selectors from the coverage count.
+
+    This test carries more weight than a typical source guard. It is the only
+    guard that the prose-cap selectors are SCOPED to [data-unit-shell] (the
+    teacher review page renders none of the thirteen capped selectors, so no
+    behavioural test there can falsify a widened one), and the only guard for the
+    deletion at all (display:none removes the rail's box, so leftover rules are
+    behaviourally invisible).
+
+    Note the narrower claim: Task 6 DOES give behavioural coverage that four of
+    the thirteen entries cap at 46rem. Do not delete those assertions believing
+    this test subsumes them, and do not weaken this test believing it carries
+    more than scoping.
+    """
+    import re
+
+    css = CSS.read_text(encoding="utf-8")
+    stripped = re.sub(r"/\*.*?\*/", "", css, flags=re.S)
+
+    # (a) The old sliver rules are gone. The pattern is deliberately LOOSE: four
+    # of the five deleted selectors were .unit-tree__heading / __list / __toggle
+    # / __bar, and they are caught only because `.unit-tree` is a prefix of each.
+    # Anchoring on a following `,` or `{` would catch one and let four ship green.
+    assert not re.search(r"html\.unit-tree-collapsed\s+\.unit-tree", stripped), (
+        "the old unscoped sliver rules are still present; courses.css:866-873 must "
+        "be deleted in full. The new form is "
+        "`html.unit-tree-collapsed [data-unit-shell] > .unit-tree`, which does not "
+        "match this pattern."
+    )
+
+    # (b) Every new collapsed rule is scoped, checked PER INDIVIDUAL SELECTOR.
+    # rsplit is mandatory: every new rule lives inside an @media block, and the
+    # first rule after `@media ... {` fuses with the at-rule prelude when the file
+    # is split on `}`. A naive `split("{")[0]` yields "@media (min-width: 641px) ",
+    # which contains no `html.unit-tree-collapsed`, so the check is skipped -- and
+    # since the prose-cap rule is the only rule in its block, the entire
+    # thirteen-selector list would go unexamined.
+    examined = 0
+    for chunk in stripped.split("}"):
+        if "{" not in chunk:
+            continue
+        prelude = chunk.rsplit("{", 1)[0]
+        for selector in prelude.split(","):
+            if "html.unit-tree-collapsed" not in selector:
+                continue
+            examined += 1
+            assert "[data-unit-shell]" in selector, (
+                f"collapsed-state selector is not scoped to the student shell: "
+                f"{selector.strip()!r}. html.unit-tree-collapsed is set by "
+                f"base.html on EVERY page from one global localStorage key, and "
+                f"review_submission.html reuses the .unit-shell class -- an "
+                f"unscoped rule deforms the teacher review page."
+            )
+
+    # Coverage floor, so a tokenisation bug fails loudly instead of passing
+    # vacuously. 4 structural (rail reveal, pin reveal, margin, print) + one per
+    # allow-list entry (13) = 17. The operator is >=, so ADDING an allow-list
+    # entry never reddens the suite; re-derive this number only on a removal.
+    assert examined >= 17, (
+        f"only {examined} collapsed-state selectors were examined, expected >= 17. "
+        f"The tokenisation is broken -- a naive prelude split yields 1."
+    )

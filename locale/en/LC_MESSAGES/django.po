@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-01 23:30+0200\n"
+"POT-Creation-Date: 2026-08-02 02:13+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: English\n"
@@ -3857,17 +3857,22 @@ msgid "Open course contents"
 msgstr ""
 
 #: .\templates\courses\_unit_footer.html:33
-#: .\templates\courses\_unit_shell.html:18
+#: .\templates\courses\_unit_shell.html:37
 #: .\templates\courses\_unit_tree.html:4
 msgid "Contents"
 msgstr ""
 
 #: .\templates\courses\_unit_shell.html:14
+#: .\templates\courses\_unit_shell.html:15
+msgid "Show course contents"
+msgstr ""
+
+#: .\templates\courses\_unit_shell.html:33
 #: .\templates\courses\_unit_tree.html:2
 msgid "Course contents"
 msgstr ""
 
-#: .\templates\courses\_unit_shell.html:20 .\templates\courses\catalog.html:60
+#: .\templates\courses\_unit_shell.html:39 .\templates\courses\catalog.html:60
 msgid "Close"
 msgstr ""
 
@@ -3879,11 +3884,11 @@ msgstr ""
 msgid "(opens in a new tab)"
 msgstr ""
 
-#: .\templates\courses\_unit_tree.html:6 .\templates\courses\_unit_tree.html:7
+#: .\templates\courses\_unit_tree.html:7 .\templates\courses\_unit_tree.html:8
 msgid "Collapse contents"
 msgstr ""
 
-#: .\templates\courses\_unit_tree.html:8
+#: .\templates\courses\_unit_tree.html:9
 msgid "Expand contents"
 msgstr ""
 

@@ -1,5 +1,23 @@
 {% load i18n %}
 <div class="unit-shell" data-unit-shell>
+  {% comment %}FIRST child of the shell, before the tree, so it leads the tab order
+     within the shell when visible. That ordering is a rationale, not a guarantee —
+     no test exercises keyboard traversal into the shell, so a future reorder of
+     these children would go green. Server-rendered rather than JS-created: base.html's pre-paint has
+     already set html.unit-tree-collapsed, so the CSS-only reveal is flash-free.
+     Its OWN attribute, never a second [data-unit-tree-toggle] — two elements sharing
+     that attribute would break querySelector in unit_nav.js and make every existing
+     Playwright locator a strict-mode violation.{% endcomment %}
+  <button type="button" class="unit-toc-pin" data-unit-tree-pin
+          aria-controls="unit-tree" aria-expanded="false"
+          aria-label="{% trans 'Show course contents' %}"
+          title="{% trans 'Show course contents' %}">
+    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <circle cx="4" cy="6" r="1.6" fill="currentColor" stroke="none"/><path d="M9 6h11"/>
+      <circle cx="4" cy="12" r="1.6" fill="currentColor" stroke="none"/><path d="M9 12h11"/>
+      <circle cx="4" cy="18" r="1.6" fill="currentColor" stroke="none"/><path d="M9 18h11"/>
+    </svg>
+  </button>
   {% include "courses/_unit_tree.html" %}
   <div class="unit-shell__main">
     {% include content_partial %}

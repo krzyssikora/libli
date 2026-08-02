@@ -1,17 +1,7 @@
-"""Playwright e2e for batch-2 unit-nav: desktop collapse rail + auto-scroll.
-
-Tests:
-  1. test_desktop_tree_collapse_persists: toggle collapses the tree;
-     class lands on <html>; reload restores via the pre-paint script (no
-     flash); toggle back removes it; reload confirms expanded.
-  2. test_active_unit_scrolled_into_view: 35-unit course; navigate to
-     the last unit; the tree auto-scrolls so the active item is visible
-     (reduced-motion context makes the JS take the instant "auto" branch
-     so the wait_for_function poll settles deterministically).
-  3. test_prev_next_traverses_lesson_and_quiz: Prev/Next traversal across
-     a lesson→quiz→lesson sequence; pins that the 302 redirect from
-     lesson_unit to quiz_unit is followed correctly and that a disabled
-     prev is rendered on the first unit.
+"""Playwright e2e for batch-2 unit-nav: desktop collapse rail, auto-scroll, the
+mobile drawer, folding chapter groups, the pinned table-of-contents icon (its
+visibility, focus handling, and layout across breakpoints), and the 46rem prose
+cap it makes room for. See the test names below for coverage.
 
 Marked e2e (excluded from the default run; run with -m e2e).
 Mirrors the harness in test_e2e_quiz.py (_allow_async_unsafe, _login,
@@ -54,6 +44,14 @@ def _login(page, live_server, username):
     form.locator("input[name='login']").fill(username)
     form.locator("input[name='password']").fill(TEST_PASSWORD)
     form.locator("button[type='submit']").click()
+
+
+def _collapse(page):
+    """Collapse via the real gesture and wait for the state class."""
+    page.locator("[data-unit-tree-toggle]").click()
+    page.wait_for_function(
+        "() => document.documentElement.classList.contains('unit-tree-collapsed')"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -123,6 +121,47 @@ def _seed_nav_course(username, slug, num_units=35):
     return course, units
 
 
+def _seed_text_and_table_unit(username, slug):
+    """A lesson unit holding one text element and one table element.
+
+    None of this file's existing seeds attach content elements — they build course
+    structure only. Shape follows tests/test_e2e_wide_content_scroll.py.
+    """
+    from django.contrib.auth import get_user_model
+
+    from courses.models import Enrollment
+    from courses.models import TableElement
+    from courses.models import TextElement
+    from tests.factories import ContentNodeFactory
+    from tests.factories import CourseFactory
+    from tests.factories import add_element
+
+    student = get_user_model().objects.get(username=username)
+    course = CourseFactory(slug=slug, owner=student)
+    Enrollment.objects.get_or_create(student=student, course=course)
+    unit = ContentNodeFactory(course=course, kind="unit", unit_type="lesson")
+
+    add_element(
+        unit,
+        TextElement.objects.create(
+            body="<p>" + ("Lorem ipsum dolor sit amet. " * 40) + "</p>"
+        ),
+    )
+
+    # The cell key is "html", NOT "text": TableElement._cell() reads
+    # raw.get("html") (courses/models.py:885), so normalize_data would rewrite a
+    # "text" key to {"html": ""} and every cell would render blank. The width
+    # assertion would still pass — .el--table is a block box that fills the column
+    # whatever the cells hold — so the seed's wrongness would be invisible to this
+    # test and only surface as an empty table in Task 9's screenshot sweep.
+    cells = [[{"html": f"r{r}c{c}"} for c in range(4)] for r in range(3)]
+    add_element(
+        unit, TableElement.objects.create(data={"cells": cells, "border": "grid"})
+    )
+
+    return course, unit
+
+
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
@@ -135,7 +174,7 @@ def test_desktop_tree_collapse_persists(browser, live_server):
     course, units = _seed_nav_course("e2e_nav_collapse", "e2e-nav-collapse")
     first_unit = units[0]
 
-    ctx = browser.new_context()
+    ctx = browser.new_context(viewport={"width": 1440, "height": 900})
     page = ctx.new_page()
     _login(page, live_server, "e2e_nav_collapse")
 
@@ -156,8 +195,9 @@ def test_desktop_tree_collapse_persists(browser, live_server):
         "Expected unit-tree-collapsed to persist across reload (pre-paint restore)"
     )
 
-    # Toggle back → expanded; reload to confirm persistence.
-    page.locator("[data-unit-tree-toggle]").click()
+    # Toggle back → expanded. The rail toggle is display:none while collapsed, so
+    # the pin is now the only way back — that IS the feature.
+    page.locator("[data-unit-tree-pin]").click()
     page.reload()
     html_cls = page.locator("html").get_attribute("class") or ""
     assert "unit-tree-collapsed" not in html_cls, (
@@ -678,7 +718,9 @@ def test_expanding_the_rail_recentres_the_active_unit(browser, live_server):
     # test_active_unit_scrolled_into_view targets the last of 35 for the same reason.)
     target = [u for u in units if u.parent == middle.parent][-1]
 
-    ctx = browser.new_context(reduced_motion="reduce")
+    ctx = browser.new_context(
+        reduced_motion="reduce", viewport={"width": 1440, "height": 900}
+    )
     page = ctx.new_page()
     _login(page, live_server, "e2e_recentre")
     page.goto(f"{live_server.url}/courses/{course.slug}/u/{target.pk}/")
@@ -707,11 +749,12 @@ def test_expanding_the_rail_recentres_the_active_unit(browser, live_server):
     )
 
     toggle = page.locator("[data-unit-tree-toggle]")
+    pin = page.locator("[data-unit-tree-pin]")
     toggle.click()  # collapse (real gesture)
     page.wait_for_function(
         "() => document.documentElement.classList.contains('unit-tree-collapsed')"
     )
-    toggle.click()  # expand
+    pin.click()  # expand — the rail toggle is hidden in this state
     page.wait_for_function(
         "() => !document.documentElement.classList.contains('unit-tree-collapsed')"
     )
@@ -848,7 +891,9 @@ def test_centering_is_skipped_when_the_active_group_is_folded(browser, live_serv
     course, _chapters, _units, middle, _sec = _seed_grouped_course(
         "e2e_guard", "e2e-guard", num_chapters=3, units_per_chapter=40
     )
-    ctx = browser.new_context(reduced_motion="reduce")
+    ctx = browser.new_context(
+        reduced_motion="reduce", viewport={"width": 1440, "height": 900}
+    )
     page = ctx.new_page()
     _login(page, live_server, "e2e_guard")
     page.goto(f"{live_server.url}/courses/{course.slug}/u/{middle.pk}/")
@@ -875,10 +920,478 @@ def test_centering_is_skipped_when_the_active_group_is_folded(browser, live_serv
     )
 
     toggle = page.locator("[data-unit-tree-toggle]")
+    pin = page.locator("[data-unit-tree-pin]")
     toggle.click()  # collapse (real gesture)
-    toggle.click()  # expand   (real gesture) -> centerActive() runs
+    pin.click()  # expand   (real gesture) -> centerActive() runs
     assert page.evaluate("() => window.__scrollToCalls") == 0, (
         "centerActive() scrolled the rail for an element with no layout box — the "
         "visibility guard is missing, and the rail will jump to a stale-rect position"
     )
+    ctx.close()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_collapsing_removes_the_rail_and_the_pin_is_the_way_back(browser, live_server):
+    """The rail LEAVES the layout; the pin is the only route back.
+
+    The leading assertion (pin hidden while expanded) is not padding: omitting the
+    base `.unit-toc-pin { display: none }` rule, or writing the reveal unscoped,
+    would render the pin permanently — beside an expanded rail, and on mobile beside
+    the drawer trigger. Every other test in this set stays green through that, which
+    is probably the single most likely CSS mistake in the change.
+    """
+    _make_student("e2e_pin_back")
+    course, units = _seed_nav_course("e2e_pin_back", "e2e-pin-back")
+
+    ctx = browser.new_context(viewport={"width": 1440, "height": 900})
+    page = ctx.new_page()
+    _login(page, live_server, "e2e_pin_back")
+    page.goto(f"{live_server.url}/courses/{course.slug}/u/{units[0].pk}/")
+
+    rail = page.locator("[data-unit-tree]")
+    pin = page.locator("[data-unit-tree-pin]")
+    toggle = page.locator("[data-unit-tree-toggle]")
+
+    assert rail.is_visible(), "the rail should start expanded"
+    assert not pin.is_visible(), (
+        "the pin must be hidden while the tree is expanded — its base rule is "
+        "display:none and only the collapsed reveal shows it"
+    )
+    assert toggle.get_attribute("aria-expanded") == "true"
+    assert pin.get_attribute("aria-expanded") == "true", (
+        "both controls must agree on aria-expanded, including the hidden one"
+    )
+
+    toggle.click()
+    page.wait_for_function(
+        "() => document.documentElement.classList.contains('unit-tree-collapsed')"
+    )
+    assert not rail.is_visible(), (
+        "the rail must be display:none when collapsed, not a 2.4rem sliver"
+    )
+    assert pin.is_visible(), "the pin must be the visible way back"
+    assert toggle.get_attribute("aria-expanded") == "false"
+    assert pin.get_attribute("aria-expanded") == "false"
+
+    pin.click()
+    page.wait_for_function(
+        "() => !document.documentElement.classList.contains('unit-tree-collapsed')"
+    )
+    assert rail.is_visible(), "clicking the pin must restore the rail"
+    assert not pin.is_visible(), "the pin must hide again once the rail is back"
+    assert toggle.get_attribute("aria-expanded") == "true"
+    assert pin.get_attribute("aria-expanded") == "true"
+
+    ctx.close()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_collapsed_state_survives_reload_with_the_pin_visible(browser, live_server):
+    """Pre-paint restore, plus the FIRST-PAINT half of the aria invariant.
+
+    Only the .unit-tree__toggle assertion can detect a missing boot call: it is
+    server-rendered aria-expanded="true", so on a collapsed reload the boot call is
+    the only thing that corrects it to "false". The pin's assertion is a same-state
+    consistency check — its server-rendered "false" already matches the collapsed
+    state, so it stays green with the boot call deleted.
+    """
+    _make_student("e2e_pin_reload")
+    course, units = _seed_nav_course("e2e_pin_reload", "e2e-pin-reload")
+
+    ctx = browser.new_context(viewport={"width": 1440, "height": 900})
+    page = ctx.new_page()
+    _login(page, live_server, "e2e_pin_reload")
+    page.goto(f"{live_server.url}/courses/{course.slug}/u/{units[0].pk}/")
+
+    page.locator("[data-unit-tree-toggle]").click()
+    page.wait_for_function(
+        "() => document.documentElement.classList.contains('unit-tree-collapsed')"
+    )
+    page.reload()
+
+    assert "unit-tree-collapsed" in (page.locator("html").get_attribute("class") or "")
+    assert not page.locator("[data-unit-tree]").is_visible()
+    assert page.locator("[data-unit-tree-pin]").is_visible()
+    # Before any click on the restored page.
+    toggle = page.locator("[data-unit-tree-toggle]")
+    assert toggle.get_attribute("aria-expanded") == "false"
+    pin_el = page.locator("[data-unit-tree-pin]")
+    assert pin_el.get_attribute("aria-expanded") == "false"
+
+    ctx.close()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_focus_moves_to_the_control_that_becomes_visible(browser, live_server):
+    """Whichever control was clicked becomes display:none, so focus must move or
+    the browser drops it to <body> and a keyboard user loses their place."""
+    _make_student("e2e_pin_focus")
+    course, units = _seed_nav_course("e2e_pin_focus", "e2e-pin-focus")
+
+    ctx = browser.new_context(viewport={"width": 1440, "height": 900})
+    page = ctx.new_page()
+    _login(page, live_server, "e2e_pin_focus")
+    page.goto(f"{live_server.url}/courses/{course.slug}/u/{units[0].pk}/")
+
+    page.locator("[data-unit-tree-toggle]").click()
+    page.wait_for_function(
+        "() => document.documentElement.classList.contains('unit-tree-collapsed')"
+    )
+    assert page.evaluate(
+        "() => document.activeElement.hasAttribute('data-unit-tree-pin')"
+    ), "collapsing must focus the pin"
+
+    # Driven by a REAL Tab, mirroring the proven idiom at
+    # tests/test_e2e_unit_nav.py:768-792. Chromium's :focus-visible heuristic does
+    # not reliably arm on a programmatic .focus() with no prior keyboard input, so
+    # blur first and tab in. Bounded, so a regression fails rather than hangs.
+    page.evaluate("() => document.activeElement.blur()")
+    for _ in range(200):
+        page.keyboard.press("Tab")
+        if page.evaluate(
+            "() => !!document.activeElement"
+            " && document.activeElement.hasAttribute('data-unit-tree-pin')"
+        ):
+            break
+    else:
+        raise AssertionError("never reached the pin by tabbing")
+
+    ring = page.evaluate(
+        "() => { const s = getComputedStyle("
+        "document.querySelector('[data-unit-tree-pin]'));"
+        " return {style: s.outlineStyle, offset: s.outlineOffset}; }"
+    )
+    assert ring["style"] != "none", (
+        f"no focus-visible ring on the pin (outline-style={ring['style']!r})"
+    )
+    assert ring["offset"] not in ("0px", ""), (
+        f"the focus ring has no offset ({ring['offset']}) — it merges into the "
+        f"button border"
+    )
+
+    page.locator("[data-unit-tree-pin]").click()
+    page.wait_for_function(
+        "() => !document.documentElement.classList.contains('unit-tree-collapsed')"
+    )
+    assert page.evaluate(
+        "() => document.activeElement.hasAttribute('data-unit-tree-toggle')"
+    ), "expanding must focus the rail toggle"
+
+    ctx.close()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_pin_is_hidden_at_mobile_width_in_both_states(browser, live_server):
+    """At <=640px there is NO clickable control: courses.css hides .unit-tree (so
+    the rail toggle is unclickable) and the pin's base rule hides it. So the
+    expanded half is taken before any gesture, and the collapsed half is reached by
+    collapsing at desktop width and resizing down — which exercises the resize path
+    for free. Do not substitute a page.evaluate class flip.
+    """
+    _make_student("e2e_pin_mobile")
+    course, units = _seed_nav_course("e2e_pin_mobile", "e2e-pin-mobile")
+    url = f"{live_server.url}/courses/{course.slug}/u/{units[0].pk}/"
+
+    ctx = browser.new_context(viewport={"width": 480, "height": 800})
+    page = ctx.new_page()
+    _login(page, live_server, "e2e_pin_mobile")
+    page.goto(url)
+    assert page.locator("[data-unit-tree-pin]").count() == 1, (
+        "the pin must exist in the DOM (hidden, not absent) at mobile width"
+    )
+    assert not page.locator("[data-unit-tree-pin]").is_visible(), (
+        "expanded at mobile width: the pin must be hidden"
+    )
+
+    page.set_viewport_size({"width": 1440, "height": 900})
+    page.locator("[data-unit-tree-toggle]").click()
+    page.wait_for_function(
+        "() => document.documentElement.classList.contains('unit-tree-collapsed')"
+    )
+    page.set_viewport_size({"width": 480, "height": 800})
+    assert not page.locator("[data-unit-tree-pin]").is_visible(), (
+        "collapsed at mobile width: the pin must still be hidden — the footer "
+        "drawer owns contents navigation below 641px"
+    )
+
+    ctx.close()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_collapsing_reclaims_the_full_rail_width_above_the_breakpoint(
+    browser, live_server
+):
+    """The test for the PURPOSE of the feature.
+
+    Expected delta is ~224px — the full 14rem rail — NOT 262px. The two 38.4px
+    quantities cancel: the shell gains 38.4px by overhanging and immediately spends
+    38.4px on the pin's lane, so the article column goes 696 -> 920.
+    """
+    _make_student("e2e_pin_width")
+    course, units = _seed_nav_course("e2e_pin_width", "e2e-pin-width")
+
+    ctx = browser.new_context(viewport={"width": 1440, "height": 900})
+    page = ctx.new_page()
+    _login(page, live_server, "e2e_pin_width")
+    page.goto(f"{live_server.url}/courses/{course.slug}/u/{units[0].pk}/")
+    assert page.evaluate("() => matchMedia('(min-width: 1040px)').matches") is True
+
+    before = page.evaluate(
+        "() => document.querySelector('.lesson').getBoundingClientRect().width"
+    )
+    _collapse(page)
+    after = page.evaluate(
+        "() => document.querySelector('.lesson').getBoundingClientRect().width"
+    )
+
+    assert abs((after - before) - 224) <= 2, (
+        f"expected the column to grow by the full 14rem rail (~224px), got "
+        f"{after - before:.1f}px ({before:.1f} -> {after:.1f})"
+    )
+    ctx.close()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_narrow_desktop_band_is_width_neutral(browser, live_server):
+    """Below 1040px there is no overhang, so the lane sits inside the shell. The
+    2.4rem lane exactly equals the sliver it replaces, so this band is neutral
+    against today rather than worse.
+
+    The container is derived at RUNTIME rather than hard-coded, so the assertion
+    survives any future change to scrollbar behaviour or app-main's padding.
+
+    Measure `.unit-shell` with getBoundingClientRect, NOT `.app-main` with
+    getComputedStyle. The shell is the actual containing box of the two flex
+    children, so `main == shell - lane` needs no padding arithmetic at all --
+    and `box-sizing: border-box` is global here (reset.css:2), which makes
+    `getComputedStyle(x).width` ambiguous between the border box and the content
+    box. Sidestep the ambiguity rather than reason about it.
+    """
+    _make_student("e2e_pin_narrow")
+    course, units = _seed_nav_course("e2e_pin_narrow", "e2e-pin-narrow")
+
+    ctx = browser.new_context(viewport={"width": 900, "height": 900})
+    page = ctx.new_page()
+    _login(page, live_server, "e2e_pin_narrow")
+    page.goto(f"{live_server.url}/courses/{course.slug}/u/{units[0].pk}/")
+    assert page.evaluate("() => matchMedia('(min-width: 1040px)').matches") is False
+    assert page.evaluate("() => matchMedia('(min-width: 641px)').matches") is True
+
+    _collapse(page)
+    shell = page.evaluate(
+        "() => document.querySelector('.unit-shell').getBoundingClientRect().width"
+    )
+    main = page.evaluate(
+        "() => document.querySelector('.unit-shell__main')"
+        ".getBoundingClientRect().width"
+    )
+    assert abs(main - (shell - 38.4)) <= 2, (
+        f"expected the main column to be shell-38.4px ({shell - 38.4:.1f}), "
+        f"got {main:.1f} — below 1040px the lane sits INSIDE the shell, so the "
+        f"column loses exactly one lane and nothing else"
+    )
+    ctx.close()
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.parametrize(
+    "width,expect_overhang",
+    [(1440, True), (1060, True), (1010, False)],
+    ids=["wide", "just-above", "just-below"],
+)
+def test_pin_is_never_clipped_or_offscreen(
+    browser, live_server, width, expect_overhang
+):
+    """1060/1010 rather than 1040/1039: the latter pair puts BOTH cases on the same
+    side of the media query once the scrollbar is subtracted, making them identical
+    in behaviour while appearing to test both branches. Each case asserts its
+    matchMedia value before measuring, so an unusual scrollbar fails loudly.
+
+    The containment assertion is EXACT (left >= 0) — the +/-2px used elsewhere would
+    swallow the margins this test measures.
+    """
+    user = f"e2e_pin_clip_{width}"
+    _make_student(user)
+    course, units = _seed_nav_course(user, f"e2e-pin-clip-{width}")
+
+    ctx = browser.new_context(viewport={"width": width, "height": 900})
+    page = ctx.new_page()
+    _login(page, live_server, user)
+    page.goto(f"{live_server.url}/courses/{course.slug}/u/{units[0].pk}/")
+    assert (
+        page.evaluate("() => matchMedia('(min-width: 1040px)').matches")
+        is expect_overhang
+    ), f"window {width} landed on the wrong side of the 1040px breakpoint"
+
+    _collapse(page)
+    rect = page.evaluate(
+        "() => { const r = document.querySelector('[data-unit-tree-pin]')"
+        ".getBoundingClientRect();"
+        " return {l: r.left, t: r.top, w: r.width, h: r.height}; }"
+    )
+    assert rect["l"] >= 0, f"the pin hangs off the left edge: left={rect['l']:.1f}"
+    assert rect["t"] >= 0, f"the pin hangs off the top edge: top={rect['t']:.1f}"
+
+    hit = page.evaluate(
+        "() => { const b = document.querySelector('[data-unit-tree-pin]');"
+        "const r = b.getBoundingClientRect();"
+        "const el = document.elementFromPoint("
+        "r.left + r.width / 2, r.top + r.height / 2);"
+        "return !!el && b.contains(el); }"
+    )
+    assert hit, "the pin is not hit-testable at its centre"
+
+    # The assertion that actually guards the no-overflow:hidden precondition.
+    # A rect or centre hit-test CANNOT detect it: the pin overhangs 38.4px into
+    # .app-main's 20px padding, so under overflow:hidden 20px stays inside the clip
+    # and the centre lands ~0.8px on the visible side.
+    # body and <html> are walked as a deliberate TRIPWIRE, not because they can clip
+    # (body has no margin so its box spans the viewport; the root's overflow
+    # propagates to the viewport). A red on those two means "re-check whether this
+    # propagates to the viewport", NOT "the pin is clipped".
+    clipping = page.evaluate(
+        "() => { const out = [];"
+        "for (let n = document.querySelector('.unit-shell').parentElement;"
+        "     n; n = n.parentElement) {"
+        "  const o = getComputedStyle(n).overflowX;"
+        "  if (o !== 'visible') out.push(n.tagName + '.' + n.className + ':' + o);"
+        "} return out; }"
+    )
+    assert clipping == [], (
+        f"an ancestor of .unit-shell clips overflow-x, which would amputate the "
+        f"overhanging pin: {clipping}"
+    )
+    ctx.close()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_content_column_aligns_with_the_strip_above_it(browser, live_server):
+    """At >=1040px the shell's box starts 38.4px left of the strip, but .unit-shell
+    paints nothing and the pin exactly fills that overhang — so the content COLUMN
+    lands on the strip's left edge. (The visible prose stays inset a further 24px by
+    the article's own padding, unchanged from today; this asserts the column box,
+    which is what the negative margin controls.)
+    """
+    _make_student("e2e_pin_align")
+    course, units = _seed_nav_course("e2e_pin_align", "e2e-pin-align")
+
+    ctx = browser.new_context(viewport={"width": 1440, "height": 900})
+    page = ctx.new_page()
+    _login(page, live_server, "e2e_pin_align")
+    page.goto(f"{live_server.url}/courses/{course.slug}/u/{units[0].pk}/")
+    assert page.evaluate("() => matchMedia('(min-width: 1040px)').matches") is True
+
+    _collapse(page)
+    edges = page.evaluate(
+        "() => ({"
+        " main: document.querySelector('.unit-shell__main')"
+        ".getBoundingClientRect().left,"
+        " strip: document.querySelector('.unit-strip').getBoundingClientRect().left,"
+        " pin: document.querySelector('[data-unit-tree-pin]')"
+        ".getBoundingClientRect().left"
+        "})"
+    )
+    assert abs(edges["main"] - edges["strip"]) <= 1, (
+        f"the content column must align with the strip above it: "
+        f"main={edges['main']:.1f} strip={edges['strip']:.1f}"
+    )
+    assert abs((edges["strip"] - edges["pin"]) - 38.4) <= 1, (
+        f"the pin must sit exactly one lane left of the strip: "
+        f"gap={edges['strip'] - edges['pin']:.1f}, expected 38.4"
+    )
+    ctx.close()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_prose_is_capped_while_the_table_takes_the_full_column(browser, live_server):
+    """46rem = 736px. Measure the ELEMENT roots, not the enclosing
+    <section class="lesson-block"> — that stays 872px either way and would make the
+    assertion vacuous.
+    """
+    _make_student("e2e_pin_cap")
+    course, unit = _seed_text_and_table_unit("e2e_pin_cap", "e2e-pin-cap")
+
+    ctx = browser.new_context(viewport={"width": 1440, "height": 900})
+    page = ctx.new_page()
+    _login(page, live_server, "e2e_pin_cap")
+    page.goto(f"{live_server.url}/courses/{course.slug}/u/{unit.pk}/")
+    _collapse(page)
+
+    text_w = page.evaluate(
+        "() => document.querySelector('.el--text').getBoundingClientRect().width"
+    )
+    table_w = page.evaluate(
+        "() => document.querySelector('.el--table').getBoundingClientRect().width"
+    )
+    assert text_w <= 736 + 2, f"prose must cap at 46rem (736px), got {text_w:.1f}"
+    assert table_w > 736 + 2, (
+        f"the table must take the full column, got {table_w:.1f} — if this equals "
+        f"the prose width the cap has leaked onto wide content"
+    )
+    ctx.close()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_quiz_chrome_is_capped_across_both_page_states(browser, live_server):
+    """The quiz entries (.lesson-unit__title, [data-quiz-preview-notice],
+    .quiz-finish) exist only for _quiz_article.html; without this the whole suite
+    stays green if all three are deleted.
+
+    TWO loads with ONE actor. previewing = not enrolled and read_only =
+    quiz_submitted or not enrolled, and the finish form sits behind
+    {% if not read_only %} — so the banner and the finish form can never coexist.
+    The course OWNER satisfies can_access_course without being enrolled, which is
+    exactly what makes previewing true while the page still loads; enrolling the
+    same user via the ORM and reloading flips to the other state. Do not use two
+    users: _login cannot switch identity, because allauth redirects an already
+    authenticated visitor away from the login page.
+    """
+    from courses.models import ShortTextQuestionElement
+    from tests.factories import CourseFactory
+    from tests.factories import EnrollmentFactory
+    from tests.factories import add_element
+    from tests.factories import make_quiz_unit
+
+    actor = _make_student("e2e_pin_quiz")
+    course = CourseFactory(slug="e2e-pin-quiz", owner=actor)
+    unit = make_quiz_unit(course=course)
+    q = ShortTextQuestionElement.objects.create(stem="Name a prime.", accepted="7")
+    add_element(unit, q)
+
+    ctx = browser.new_context(viewport={"width": 1440, "height": 900})
+    page = ctx.new_page()
+    _login(page, live_server, "e2e_pin_quiz")
+    # The quiz route is /courses/<slug>/u/<node_pk>/quiz/ -- NOT /q/<pk>/.
+    url = f"{live_server.url}/courses/{course.slug}/u/{unit.pk}/quiz/"
+
+    # Load A — owner, NOT enrolled: banner renders, no finish form.
+    page.goto(url)
+    _collapse(page)
+    assert page.locator("[data-quiz-preview-notice]").count() == 1
+    assert page.locator(".quiz-finish").count() == 0
+    for sel in (".lesson-unit__title", "[data-quiz-preview-notice]", ".el--question"):
+        w = page.evaluate(
+            f"() => document.querySelector({sel!r}).getBoundingClientRect().width"
+        )
+        assert w <= 736 + 2, f"{sel} must cap at 736px, got {w:.1f}"
+
+    # Load B — same session, now enrolled: finish form renders, no banner.
+    EnrollmentFactory(course=course, student=actor)
+    page.reload()
+    # Re-assert the collapsed state AFTER the reload. Every assertion below is
+    # one-sided (<= 738), and the EXPANDED quiz column at 1440 is 648px — also
+    # under 738 — so without this guard all six would pass while measuring the
+    # wrong state. Load A is safe because _collapse() waits on the class; Load B
+    # would otherwise rely silently on the pre-paint restore surviving reload.
+    page.wait_for_function(
+        "() => document.documentElement.classList.contains('unit-tree-collapsed')"
+    )
+    assert page.locator("[data-quiz-preview-notice]").count() == 0
+    assert page.locator(".quiz-finish").count() == 1
+    for sel in (".lesson-unit__title", ".quiz-finish", ".el--question"):
+        w = page.evaluate(
+            f"() => document.querySelector({sel!r}).getBoundingClientRect().width"
+        )
+        assert w <= 736 + 2, f"{sel} must cap at 736px, got {w:.1f}"
+
     ctx.close()

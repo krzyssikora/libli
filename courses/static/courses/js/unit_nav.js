@@ -45,26 +45,56 @@
     tree.scrollTo({ top: target, behavior: reduce ? "auto" : "smooth" });
   }
 
-  // Desktop collapse toggle.
-  var toggle = document.querySelector("[data-unit-tree-toggle]");
-  if (toggle) {
-    var EXPAND = toggle.getAttribute("data-label-expand");
-    var COLLAPSE = toggle.getAttribute("data-label-collapse");
-    function syncToggle(collapsed) {
-      toggle.setAttribute("aria-expanded", collapsed ? "false" : "true");
-      // Announce the ACTION the button performs in its current state.
-      if (EXPAND && COLLAPSE) toggle.setAttribute("aria-label", collapsed ? EXPAND : COLLAPSE);
-    }
-    toggle.addEventListener("click", function () {
-      var collapsed = html.classList.toggle("unit-tree-collapsed");
-      store(collapsed ? "1" : "0");
-      syncToggle(collapsed);
-      // Expanding restores the labels — re-centre, or the student lands at scroll-top
-      // with the active unit an arbitrary distance away. Nothing to centre when collapsing.
-      if (!collapsed) centerActive();
+  // TWO desktop collapse controls, each visible in exactly one state: the in-rail
+  // `‹` while expanded, the gutter pin while collapsed. Looked up INDEPENDENTLY
+  // and null-guarded. Note there is no `if (...) { ... }` wrapper and no early
+  // return: centerActive() below and the whole mobile-drawer block after it must
+  // run regardless, which an early return would silently kill (see the comment at
+  // the top of this file for the same hazard from a different cause).
+  var railToggle = document.querySelector("[data-unit-tree-toggle]");
+  var pin = document.querySelector("[data-unit-tree-pin]");
+  var controls = [railToggle, pin].filter(Boolean);
+
+  // Module scope, and it ITERATES: both controls must report the same state. The
+  // label swap applies only to controls carrying BOTH data-label-* attributes, so
+  // the pin's static label is left alone — it is only ever visible collapsed, so
+  // it has nothing to swap to.
+  function syncToggle(collapsed) {
+    controls.forEach(function (el) {
+      el.setAttribute("aria-expanded", collapsed ? "false" : "true");
+      var expand = el.getAttribute("data-label-expand");
+      var collapse = el.getAttribute("data-label-collapse");
+      if (expand && collapse) {
+        el.setAttribute("aria-label", collapsed ? expand : collapse);
+      }
     });
-    syncToggle(isCollapsed());
   }
+
+  function onToggleClick() {
+    // ORDER IS LOAD-BEARING. Flip first: the control we are about to focus is
+    // display:none until the class changes, and .focus() on a display:none element
+    // is a silent no-op that drops focus to <body> — exactly the failure the focus
+    // move exists to prevent.
+    var collapsed = html.classList.toggle("unit-tree-collapsed");
+    store(collapsed ? "1" : "0");
+    syncToggle(collapsed);
+    // Whichever control was clicked is now display:none, so move focus to the one
+    // that just became visible, or a keyboard user is stranded. preventScroll:
+    // focus() otherwise scrolls .unit-tree (overflow-y:auto) into view right before
+    // centerActive() issues its own scrollTo — and a UA scroll does NOT pass through
+    // the rail.scrollTo monkeypatch that the folded-group test counts.
+    var next = collapsed ? pin : railToggle;
+    if (next) next.focus({ preventScroll: true });
+    // Expanding restores the labels — re-centre, or the student lands at scroll-top
+    // with the active unit an arbitrary distance away. Nothing to centre when collapsing.
+    if (!collapsed) centerActive();
+  }
+
+  controls.forEach(function (el) {
+    el.addEventListener("click", onToggleClick);
+  });
+  // Unconditional: with an empty list this is a no-op, so a guard would buy nothing.
+  syncToggle(isCollapsed());
 
   centerActive();   // on load
 
