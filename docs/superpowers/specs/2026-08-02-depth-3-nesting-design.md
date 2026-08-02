@@ -98,7 +98,7 @@ load-bearing — clauses 3 and 4 comparing against the constant are. (Verified b
 `element_depth` returns `[1,2,3,4,4]` for chains of depth 1–5 and `4` for both a 2-cycle
 and a self-cycle.)
 
-**Query cost.** `resolve_scope` currently fetches the parent join at `builder.py:120` with
+**Query cost.** `resolve_scope` currently fetches the parent join at `builder.py:122` with
 `Element.objects.filter(pk=..., unit=unit).first()` and no `select_related` at all.
 `select_related("parent")` would cover only one hop, leaving `parent.parent` as a fresh
 query for exactly the depth-2 parents this slice newly enables. Use
@@ -159,16 +159,35 @@ reads the **non-destructive** normalizer only. The comment recording this at
 After the refactor, `resolve_scope` has no `isinstance(parent_obj, SpoilerElement)`
 branch, and neither do `validate_nesting` nor `walk_unit_joins`.
 
+**The other two sites keep their isinstance dispatch in this slice**, and saying so matters
+because a coverage-table mutant targets one of them:
+
+- `_element_row.html:136` keeps its `content_type.model == "spoilerelement"` branch; only
+  the `and el.parent_id is None` clause is removed (see Defect 4).
+- `_spoiler_has_math` (`views.py:245-256`) and its dispatch at `views.py:202` are left
+  **as-is**. Folding math detection into the registry is a tempting but separate
+  refactor; doing it here would delete the line a named mutant points at.
+
 ### Components touched
 
 - `courses/builder.py` — `MAX_NEST_DEPTH`, `element_depth`, the canonical registry,
-  `resolve_scope` (incl. `select_related("parent__parent")` at `:120`), the recursive
+  `resolve_scope` (incl. `select_related("parent__parent")` at `:122`), the recursive
   subtree delete, the tab-removal cleanup.
 - `courses/transfer/export.py` — recursive, cycle-safe `walk_unit_joins`.
 - `courses/transfer/payloads.py` — hop-bounded `validate_nesting`; delete
   `_CONTAINER_SLOT_KEY`; three message changes plus one new message (see Error handling).
 - `courses/views.py` — `has_html` in both context builders; remove the now-unused
-  `html_ct_id`.
+  `html_ct_id`. `_spoiler_has_math` and its dispatch are deliberately NOT touched.
+- **Stale comments and docstrings that become false**, all of which must be rewritten
+  rather than left in place — this repo has a test that regexes raw source including
+  comments, and an earlier slice already had to retarget stale comments as a follow-up:
+
+  | Site | What becomes false |
+  |---|---|
+  | `payloads.py:754-757` (`validate_nesting` docstring) | "a parent chain deeper than one level -- that depth bound is what lets the editor's recursive row template terminate without a guard" |
+  | `builder.py:404-407` (`delete_element` docstring) | "If it is a tabs element, its children's CONCRETE rows must go first" — now every container, at every level |
+  | `builder.py:58-63` (the `SPOILER_CHILD_TYPES` header) | deleted with the constant; describes "the depth-1 leaf-only scope" |
+  | `views_manage.py:1534-1539` | "'choicequestion' and 'tabs' are the cases here that actually reach resolve_scope and **prove nesting is blocked**" — `tabs` becomes an accept |
 - `templates/courses/manage/editor/_element_row.html` — depth threading, spoiler branch,
   and **`:177` must drop `in_spoiler=True` and add `depth=depth`**; that line is the sole
   producer of the flag every consumer of which is being deleted, and leaving it behind
@@ -184,7 +203,11 @@ branch, and neither do `validate_nesting` nor `walk_unit_joins`.
   Columns". Every one of those sentences becomes false and these docs are served to
   authors. New wording must state: three container types (Tabs, Columns, Spoiler);
   containers admissible at depth 1–2; depth 3 is leaves only; fill-in-the-blanks now
-  offered in any nested menu.
+  offered in any nested menu. Two further passages in `content-editors.md` also become
+  false and must be rewritten: `:123-129` says the nested menu "offers only the **nine**
+  non-container Content types" and enumerates them (Tabs and Columns join that group at
+  depth 1), and `:131-133` says "inside a quiz a Tabs or Columns container's add-menu
+  offers Content types only". Both have Polish twins.
 
 ### Seeding `depth` (the silent-failure trap)
 
@@ -283,12 +306,19 @@ surfaced to the author**. This is the highest-severity item in the slice.
 before children — the import's payload-order pass depends on that ordering to reproduce
 within-slot order without serializing `order`.
 
-**The export recursion must be cycle-safe too**, and this is the one recursion easiest to
-leave unbounded: it reads the same rows the delete walk does, and `duplicate_unit` runs it
-on live data in a request-serving path, so a corrupt `parent` cycle would hang a request.
-Carry a `seen` set of visited join pks and **omit** an already-visited join — matching the
-existing convention that a child whose `tab_id` matches no slot is deliberately omitted
-rather than exported into an unimportable archive.
+**Carry a `seen` set of visited join pks in the export walk too**, omitting an
+already-visited join — matching the existing convention that a child whose `tab_id` matches
+no slot is deliberately omitted rather than exported into an unimportable archive.
+
+**But be honest about why: a cycle is NOT reachable here today.** `export.py:539` builds
+`joins_by_unit` from `Element.objects.filter(unit_id__in=..., parent__isnull=True)`, and
+the walk descends only through the slot accessors, which read `join.children`. Because
+`Element.parent` is a single-valued FK, every node in a cycle has a non-null parent and is
+therefore never a root, so the subgraph reachable from `parent__isnull=True` roots is
+acyclic by construction. The `seen` set here is defence for a future non-root entry point,
+not a live hang. **No test is expected to cover the export cycle branch** — the reachable
+cycle is on the delete path (see Defect 1), which starts from an arbitrary request-supplied
+`element_pk` and therefore *can* sit inside a cycle.
 
 The existing docstring rule stays true and must be preserved: children are reached ONLY
 through the slot accessors, never `join.children.all()`.
@@ -357,7 +387,9 @@ top-level list only:
 
 - `courses/views.py:346` — `any(el.content_type_id == html_ct_id for el in elements)`,
   where `elements` is filtered `parent__isnull=True`
-- `courses/views.py:1198` — the quiz context's own copy
+- `courses/views.py:1198` — the quiz context's equivalent, in a **different shape**:
+  `any(isinstance(el.content_object, HtmlElement) for el in elements)`, an isinstance walk
+  rather than a CT-id compare
 
 So an HTML element authored inside a tab today never loads `html_element.js`
 (`lesson_unit.html:67`, `quiz_unit.html:23`) unless an unrelated top-level HTML element
@@ -367,14 +399,25 @@ sibling flag (`has_questions`, `has_reveal_gate`, `has_switch_grid`, `has_steppe
 `has_markdone`, `has_guess_number`, `has_stateful_elements`) is already a flat unit-wide
 query for exactly this reason.
 
-**Fix:** both sites become flat `node.elements.filter(...)` queries. `courses/views.py:328`
-computes `html_ct_id` whose **only** consumer is line 346, so it must be **removed** in the
-same change — an assigned-but-unused local trips ruff F841 against the "ruff clean" DoD
-gate. Check whether the `HtmlElement` import becomes unused at either site and remove it
-too. Note that CT-id lookups were deliberately preferred here once before, to avoid
-cold-cache ContentType SELECTs breaking a query-count assertion; the replacement filter
-should therefore use `content_type__model="htmlelement"` pinned by
-`content_type__app_label="courses"`, the same shape `has_stateful_elements` already uses.
+**Fix:** both sites become flat `node.elements.filter(...)` queries. The two removals are
+separate, because the two sites are not the same shape:
+
+- Lesson site: `courses/views.py:328` computes `html_ct_id` whose **only** consumer is line
+  346, so it must be **removed** in the same change — an assigned-but-unused local trips
+  ruff F841 against the "ruff clean" DoD gate.
+- Quiz site: line 1198's isinstance walk may leave the `HtmlElement` import unused at that
+  site; check and remove it.
+
+The CT-id caveat applies to the lesson site only: CT-id lookups were deliberately preferred
+there once before, to avoid cold-cache ContentType SELECTs breaking a query-count
+assertion. The replacement filter should therefore use `content_type__model="htmlelement"`
+pinned by `content_type__app_label="courses"`, the same shape `has_stateful_elements`
+already uses.
+
+**The quiz site is a real, reachable bug too, and needs its own test.** The HTML card
+(`_add_menu.html:20`) sits in the Content group, **outside** the `{% if not unit_is_quiz %}`
+at `:27`, so an HTML element nested in a tab inside a **quiz** unit is authorable today, and
+`quiz_unit.html:23` gates `html_element.js` on `has_html`.
 
 **Correction to an earlier draft of this spec, recorded so it is not re-introduced:** it is
 NOT true that `tests/test_html_element.py` carries an expected query *number* that needs
@@ -430,8 +473,16 @@ depended on the abort; it does not — that test calls `parse_lesson(...)` and a
 parsed dicts, never reaching `builders.py`, and the guard's message
 `"not allowed inside a spoiler"` appears nowhere in the test suite. The plan must therefore
 **add** a loader-level test that constructs a spoiler dict containing a now-widened child
-type (e.g. `stepper`) and asserts `LoaderError`, so the narrow constant has an actual
-guard.
+type and asserts the gate fires, so the narrow constant has an actual guard.
+
+**The child type must be one the loader can actually build, and the assertion must name the
+message.** `build_element` has 21 `etype ==` branches and ends at `builders.py:391` with
+`raise LoaderError(f"unknown element type {etype!r} …")`. So a type the loader does not know
+— `stepper` is not among its branches — raises `LoaderError` from that fallthrough whether
+or not the gate fired, and a test asserting only the exception class would pass under the
+very mutant it exists to catch. Use `mark_done` (`builders.py:299`) or `guess_number`
+(`:306`), which the loader can build, and assert the substring
+`"not allowed inside a spoiler"`.
 
 ## Error handling
 
@@ -443,7 +494,8 @@ guard.
   produce a validation error rather than a hang or a `RecursionError`.
 - **Delete path:** the subtree walk terminates on a `seen` set; it never recurses on
   unbounded data and never truncates legal data.
-- **Export path:** same `seen`-set termination; an already-visited join is omitted.
+- **Export path:** same `seen`-set termination; an already-visited join is omitted. Not
+  reachable today (see Defect 2) — defence for a future non-root entry point.
 - **Editor:** the add-menu never offers a card that `resolve_scope` would reject, so an
   author cannot reach a 400 through the normal UI.
 
@@ -468,8 +520,13 @@ named file and line, that must be verified RED before the test counts as written
 "delete the feature and see"; not "same as above"; not a description of a behaviour to
 break. A test whose named mutant does not go red is rewritten, not explained away. On an
 earlier slice a falsification table was vacuous in six successive drafts before this rule
-was applied — and in this spec's own review, three successive mutant proposals were found
+was applied — and in this spec's own review, four successive mutant proposals were found
 vacuous before landing on the ones below.
+
+**"Verified RED" means the NAMED test goes red — not merely that the suite does.** Several
+mutants below also break pre-existing tests; that is fine and expected, but it proves
+nothing about the new test. Verification is: apply the mutant, run *that test by node id*,
+observe it fail, revert.
 
 One row below is deliberately exempt and says so.
 
@@ -482,18 +539,20 @@ One row below is deliberately exempt and says so.
 | Delete | delete a depth-3 subtree → zero orphan concretes at every level | `builder.py:411` → `_delete_element_content_objects(Element.objects.filter(parent=el))` (the pre-change one-level form) |
 | Tab removal | remove a tab holding a container holding a leaf → no orphans | `builder.py:670` → `Element.objects.filter(parent=join, tab_id__in=removed)` without the subtree walk |
 | **Duplicate unit** | duplicate a unit with leaf-in-spoiler-in-tab → the copy has the leaf | `export.py:walk_unit_joins` → drop the recursive descent, yield one level only |
-| Export / import | full round trip at depth 3 | same edit as the row above, asserted on the archive payload rather than the duplicate |
+| Export / import | full round trip at depth 3 | `export.py:walk_unit_joins` → yield all top-level joins first and grandchildren afterwards, breaking parents-before-children. The import's payload-order pass depends on that ordering, so the round trip's within-slot order changes; the duplicate test would not catch this. |
+| Delete, cycle | an ORM-constructed `A.parent=B, B.parent=A` pair passed to `delete_element` completes — no hang, no `RecursionError`. **This is the one genuinely reachable cycle**: `delete_element` starts from a request-supplied `element_pk` (`_locked_element`), so an element inside a corrupt cycle IS reachable, unlike the export walk (Defect 2). | remove the `seen` guard from the subtree collector |
 | Import validator, clause 4 | depth-4 archive listed **parents-first**, asserting the clause-4 message | delete the clause-4 branch in `validate_nesting` |
 | Import validator, clause 3 | depth-4 archive listed **child-before-parent** (see Defect 3 for the exact shape), asserting the clause-3 message | delete the clause-3 branch in `validate_nesting` |
-| Import validator, cycle | **parent-cycle archive raises the validation error rather than hanging or `RecursionError`** | replace the hop-bounded loop in `validate_nesting` with a recursive helper carrying no bound, so the cycle raises `RecursionError` and the test's `pytest.raises(TransferError)` fails. **`while parent is not None` remains forbidden as a mutant** — it hangs instead of failing, and `pytest-timeout` is not installed, so the run would wedge. Raising the bound to a large finite number is also forbidden: the walk still terminates and still raises, so that mutant is vacuous. |
+| Import validator, cycle | **parent-cycle archive raises the validation error rather than hanging or `RecursionError`.** This test asserts the exception TYPE only, deliberately: a hop-bounded walk reports a cycle as a parent at depth > MAX, so it fires clause 3 and emits the identical "nested too deeply" message an ordinary depth-4 archive does. That collision is accepted rather than papered over with a distinct "cycle detected" message, because distinguishing them would require the very unbounded traversal this bound exists to avoid. Note the exemption here so it does not read as an oversight against Defect 3's "assert the specific message" rule. | replace the hop-bounded loop in `validate_nesting` with a recursive helper carrying no bound, so the cycle raises `RecursionError` and the test's `pytest.raises(TransferError)` fails. **`while parent is not None` remains forbidden as a mutant** — it hangs instead of failing, and `pytest-timeout` is not installed, so the run would wedge. Raising the bound to a large finite number is also forbidden: the walk still terminates and still raises, so that mutant is vacuous. |
 | Editor — nested spoiler | a spoiler nested in a tab renders its children and its add-menu | restore `and el.parent_id is None` on `_element_row.html:136` |
 | Editor — top-level menu | the top-level add menu still offers Tabs and Columns (the `depth`-seeding regression) | delete `depth=1` / `depth=0` from `_editor_scope.html`, leaving `depth` unseeded |
 | Editor — depth 2 | in a **lesson** unit, the add-menu inside a depth-1 container offers Tabs/Columns/Spoiler; the one inside a depth-2 container does not | delete the depth predicate on the Tabs card in `_add_menu.html` |
-| Editor — depth 3 | no add-menu is emitted inside a depth-3 element (ORM-constructed fixture, see above) | delete the depth guard around the `_add_menu.html` include in `_element_row.html` |
+| Editor — depth 3 | no add-menu is emitted inside a depth-3 element (ORM-constructed fixture, see above) | `_element_row.html` includes `_add_menu.html` at **three** sites — `:85` (tabs), `:131` (two-column), `:177` (spoiler) — which all carry the same guard. Name the container the fixture uses and delete the guard at that site only; deleting a different one leaves the test green. |
 | Editor — no duplicate card | in a **lesson**, the top-level menu emits exactly one `fillblankquestion` card | `_add_menu.html:39` → delete the guard entirely instead of changing it to `{% if nested %}` |
-| LAL loader gate | a spoiler dict containing a now-widened child type (e.g. `stepper`) raises `LoaderError` | repoint `builders.py:111` at `NESTABLE_TYPE_KEYS` (the naive widening this spec rejects) |
-| `has_html` | unit whose ONLY html element is inside a tab loads `html_element.js` | `views.py:346` → the pre-change `any(el.content_type_id == html_ct_id for el in elements)` |
-| `has_math` | unit whose ONLY math sits at depth 3 | `views.py:202` `return _spoiler_has_math(obj)` → `return False` |
+| LAL loader gate | a spoiler dict containing `mark_done` (a type the loader CAN build, and one the naive widening would admit) fails with a `LoaderError` whose message contains `"not allowed inside a spoiler"` | repoint `builders.py:111` at `NESTABLE_TYPE_KEYS` (the naive widening this spec rejects). Asserting the message, not just the class, is what makes this lethal — an unknown type would raise `LoaderError` from the `builders.py:391` fallthrough regardless. |
+| `has_html`, lesson | lesson unit whose ONLY html element is inside a tab loads `html_element.js` | `views.py:346` → `any(isinstance(el.content_object, HtmlElement) for el in elements)` — the top-level-only shape. Do **not** name "revert to the pre-change line": `html_ct_id` is deleted by the fix, so reverting line 346 alone raises `NameError` and every lesson render 500s, which is noise rather than signal. |
+| `has_html`, quiz | **quiz** unit whose ONLY html element is inside a tab loads `html_element.js` | `views.py:1198` → the pre-change `any(isinstance(el.content_object, HtmlElement) for el in elements)` (self-contained; no deleted local involved) |
+| `has_math` | unit whose ONLY math sits at depth 3, via the pinned chain **tabs → spoiler → math**, with no other math anywhere in the unit | `views.py:239-242` (`_tabs_has_math` body) → `return False`. Not `views.py:202`: that line is already killed by pre-existing top-level-spoiler tests, and a depth-3 chain such as tabs → two_column → math never reaches it at all, so it proves nothing about this fixture. |
 | Student render | a depth-3 leaf renders inside its nested container | **Exempt, deliberately.** The render path is unchanged by this slice (see Data flow), so this is a characterization test pinning existing behaviour at a new depth, not a test of new logic. |
 
 ### Vacuity traps
@@ -584,17 +643,33 @@ gate that cannot be executed as written is itself a defect.
 ### Mechanism claims are claims, not facts
 
 Every file:line and mechanism in this spec was read from the tree at master `901f6cf0` on
-2026-08-02, and two spec-review rounds re-verified them by execution. Three claims were
-found false and are corrected in place: the `test_html_element.py` query-count claim, the
-"clause 3 is unreachable on the import path" claim, and the
-`tests/lal_import/test_lesson.py:1483` guard claim. The plan must still verify each
-load-bearing claim by execution before depending on it: a confident false mechanism
-survived 26 review rounds on an earlier slice.
+2026-08-02, and three spec-review rounds re-verified them by execution. **Six claims were
+found false and are corrected in place** — note that three of them were introduced by an
+*earlier round's own fix*, which is why the plan must re-verify rather than assume the
+reviewed spec is settled:
+
+| Claim | Verdict |
+|---|---|
+| `tests/test_html_element.py` carries an expected query number needing a bump | False — it is a relative invariant |
+| Clause 3 is unreachable-by-construction on the import path | False — payload ordering reaches it |
+| `tests/lal_import/test_lesson.py:1483` guards the loader gate | False — it never reaches the loader; nothing tests the gate |
+| A corrupt parent cycle could hang the export walk / a request | False — the walk starts from `parent__isnull=True` roots, so its reachable subgraph is acyclic |
+| `stepper` exercises the loader gate | False — the loader has no `stepper` branch, so it raises from the unknown-type fallthrough regardless |
+| All DoD gates pass on the unmodified tree | False — two of them must fail beforehand |
+
+The plan must still verify each load-bearing claim by execution before depending on it: a
+confident false mechanism survived 26 review rounds on an earlier slice.
 
 ## Definition of done
 
-Every gate below must be runnable exactly as written. All were executed against this
-worktree during spec review and pass on the unmodified tree.
+Every gate below must be runnable exactly as written. They fall into two groups, and
+conflating them produces a false "verified" claim — an earlier draft of this spec asserted
+all of them passed on the unmodified tree, which was false for the last three, two of which
+*must* fail beforehand.
+
+**Group A — gates that pass on the unmodified tree** (each was executed against this
+worktree during spec review and does pass today; a failure here is a regression this slice
+introduced):
 
 - **Full non-e2e suite green, run serially:** `uv run pytest --verbosity=0` (no `-n`; the
   Windows xdist DB-setup race produces spurious failures at ~98%). **Do not add a second
@@ -608,13 +683,34 @@ worktree during spec review and pass on the unmodified tree.
 - `uv run python manage.py makemigrations --check --dry-run` clean. Expected: **no new
   migration** — depth is computed, no model field changes. A migration appearing here means
   the design was not followed.
+
+**Group B — gates that can only pass after the change** (two of these MUST fail on the
+unmodified tree; if one passes before the work starts, the gate is inert and is itself a
+defect):
+
 - `.po` catalogs zero-fuzzy, regenerated with `-l pl -l en --no-obsolete` (the message
   table above includes one deletion, which leaves an obsolete entry otherwise).
-- **No help doc asserts the old cap:** a search of `docs/help/` for "two container types",
-  "cannot hold another container", "dwa typy kontenerów" and "nie może zawierać innego
-  kontenera" returns nothing.
-- Every test in the coverage table has its named mutant recorded and verified RED, except
-  the one row marked exempt.
+- **No help doc asserts the old cap.** A line-oriented search of `docs/help/` for all six
+  phrases below returns nothing. Each was verified to match on a **single line** of the
+  unmodified tree — a phrase that spans a line wrap can never match and would make that
+  part of the gate inert in both directions:
+
+  | Phrase | Matches today at |
+  |---|---|
+  | `two container types` | `content-editors.md:123` |
+  | `cannot hold another container` | `content-editors.md:128` |
+  | `dwa typy kontenerów` | `content-editors.pl.md:133` |
+  | `może zawierać innego kontenera` | `content-editors.pl.md:140` — note: NOT `nie może zawierać innego kontenera`, which spans the `:139`/`:140` wrap and matches nothing |
+  | `nestable inside Tabs and Columns` | `interactive-elements.md:9` |
+  | `wewnątrz Zakładek` | `interactive-elements.pl.md:10` |
+
+  The last two exist because the four phrases from `content-editors` alone would let an
+  implementer edit that file, pass the gate, and ship two stale `interactive-elements`
+  files.
+
+- Every test in the coverage table has its named mutant recorded and verified RED — meaning
+  *that named test*, run by node id, fails under the mutant — except the one row marked
+  exempt.
 
 ## Out of scope
 
