@@ -66,12 +66,10 @@ def test_every_katex_page_loads_text_colour_in_the_right_place():
     assert not failures, "\n".join(failures)
 
 
-GATED_PAGES = [
-    "lesson_unit.html",
-    "quiz_unit.html",
-    "quiz_results.html",
-    "manage/review_submission.html",
-]
+# Every PAGES entry except the editor, which renders unconditionally (no has_math
+# gate). Derived rather than restated so a new PAGES entry is checked by default
+# instead of silently skipping this test.
+GATED_PAGES = [p for p in PAGES if p != "manage/editor/editor.html"]
 
 
 def test_math_reflow_present_on_every_katex_page():

@@ -72,7 +72,13 @@
       if (isIgnored(child, extraSelector)) continue;
       walk(child, extraSelector, visit);
     }
-    try { visit(node); } catch (e) { /* per-element atomicity; see the spec */ }
+    try { visit(node); } catch (e) {
+      // per-element atomicity; see the spec. mergeChildren inserts replacement
+      // nodes THEN removes the originals, so a throw between those two loops can
+      // leave both in the DOM (duplicated content) with no other signal anywhere
+      // -- warn so that window is at least diagnosable.
+      if (window.console && window.console.warn) window.console.warn(e);
+    }
   }
 
   // ---- scan: a faithful port of auto-render's splitAtDelimiters ---------------
@@ -237,8 +243,15 @@
   // ---- phase 1 ---------------------------------------------------------------
 
   function textFragment(doc, run, from, to) {
-    // Drops synthetic newlines; keeps authored ones as <br> elements, because a \n
-    // character outside a math span is HTML whitespace and collapses to a space.
+    // A synthetic newline is kept as a literal "\n" character (not dropped, not a
+    // <br>): HTML collapses a bare \n to a single space, which is exactly the word
+    // separation a synthetic boundary stands in for. Dropping it instead glues the
+    // author's prose across the boundary -- e.g. "tail" / "head" -> "tailhead" --
+    // whenever the neighbour is a bare text node or another group's replacement
+    // text, rather than a surviving element (which keeps its own break). MEASURED
+    // over 15 shapes; see docs/superpowers/specs/2026-08-01-display-math-authoring-
+    // design.md rule 5 for the fix history. An AUTHORED newline still becomes a
+    // real <br> element, because that break must survive further reflow passes.
     //
     // FIX (round 1): a "covered but not spanned" range can contain a \n that is
     // NEITHER synthetic NOR a still-live authored <br> element — it can be a real
@@ -259,7 +272,7 @@
     for (var i = from; i < to; i++) {
       var ch = run.text.charAt(i);
       if (ch === "\n" && !run.leaf[i]) {
-        if (run.synthetic[i]) continue;
+        if (run.synthetic[i]) { buffer += "\n"; continue; }
         if (buffer) { nodes.push(doc.createTextNode(buffer)); buffer = ""; }
         nodes.push(doc.createElement("br"));
         continue;
@@ -417,6 +430,13 @@
     "\\begin{CD}", "\\begin{split}"
   ];
 
+  // katex.render's stripWrapper hook checks both pairs on every call; hoisted so
+  // a hot render loop does not re-allocate this literal each time.
+  var STRIP_WRAPPER_PAIRS = [
+    { left: "\\[", right: "\\]" },
+    { left: "\\(", right: "\\)" }
+  ];
+
   function containsDisplayOnlyEnv(body) {
     for (var i = 0; i < DISPLAY_ONLY_ENVS.length; i++) {
       if (body.indexOf(DISPLAY_ONLY_ENVS[i]) !== -1) return true;
@@ -512,9 +532,8 @@
     var end = expr.length;
     while (end > start && /\s/.test(expr.charAt(end - 1))) end--;
     var body = expr.slice(start, end);
-    var pairs = [{ left: "\\[", right: "\\]" }, { left: "\\(", right: "\\)" }];
-    for (var i = 0; i < pairs.length; i++) {
-      var pair = pairs[i];
+    for (var i = 0; i < STRIP_WRAPPER_PAIRS.length; i++) {
+      var pair = STRIP_WRAPPER_PAIRS[i];
       if (body.indexOf(pair.left) !== 0) continue;
       var close = findEndOfMath(pair.right, body, pair.left.length);
       if (close === -1) continue;

@@ -562,14 +562,24 @@ For each element reached by the walk, over its snapshotted child list:
    fragment may be a *node sequence* rather than a single node (see the `<br>` rule below), so the
    replacement is not bounded to three nodes.
    **"Synthetic" means only the newlines step 2 manufactures from `<div>`/`<p>` wrapping — never the
-   `"\n"` contributed by a real authored `<br>`.** Synthetic newlines are dropped from the preceding
-   and following fragments and retained only where they fall inside the span.
+   `"\n"` contributed by a real authored `<br>`.** Synthetic newlines are **kept as a literal `"\n"`
+   character** in the preceding and following fragments — never dropped, never rebuilt as a `<br>`
+   element there — because HTML collapses a bare `"\n"` to a single space, which is exactly the word
+   separation the boundary stands in for. An earlier version of this rule dropped them instead, on the
+   reasoning that auto-render re-joins adjacent text nodes and parses both spans regardless — true for
+   *parsing*, but never checked against *rendering*. Measured: the drop silently concatenates the
+   author's own prose whenever the neighbour at a group's edge is another group's replacement text or
+   a bare text node (not a surviving element, which keeps its own break) — e.g. `...b] tail</div><div>
+   head [c...` renders as `tailhead`. Keeping the newline as text fixes this and was verified
+   idempotent over 15 shapes.
 
    **Non-covered mergeable siblings are untouched and survive as elements.** In
    `<div>a</div><div>\[x</div><div>y\]</div><div>b</div>` the first and last divs hold no character of
-   the span, so the result is `<div>a</div>`, one text node `\[x\ny\]`, `<div>b</div>` — three
-   *children*, of which only the middle is a text node. An earlier draft said "three text nodes"; that
-   was wrong, and no argument may rest on it.
+   the span, so the result is `<div>a</div>`, one text node `\[x\ny\]`, a second text node holding the
+   trailing synthetic `\n` (kept per the rule above), `<div>b</div>` — four *children*, of which only
+   the two in the middle are text nodes. That trailing `\n` collapses away against the following block
+   element with no visible effect. An earlier draft said "three text nodes"; that was wrong, and no
+   argument may rest on it.
 
    **A real `<br>` inside the covered range but outside the span must survive as an element.** The
    preceding and following fragments are therefore rebuilt as *node sequences* preserving
@@ -885,13 +895,15 @@ checking "did the DOM cases run?" against the baseline count would otherwise be 
 Direct DOM-in/DOM-out cases against `window.libliMathReflow`:
 
 - two spans in one run, siblings outside the covered range untouched (rule 5). Measured, the two
-  spans come out **adjacent with no separator** — the boundary newline between them is synthetic and
-  is dropped in the second replacement group. Harmless, since auto-render re-joins adjacent text
-  nodes and parses both, but the assertion must expect the adjacent form;
-- synthetic-newline placement: `<div>a</div><div>\[x</div><div>y\]</div><div>b</div>` → exactly three
-  children: `<div>a</div>`, a text node holding `\[x` + newline + `y\]`, `<div>b</div>`. Stating it in
-  node terms also pins "non-covered mergeable siblings survive as elements"; phrasing it as three
-  bare values reads as three text nodes, the reading rule 5 exists to correct;
+  spans come out **separated by a bare `\n`** — the boundary newline between them is synthetic and is
+  kept as a literal `"\n"` character rather than dropped, because the drop is NOT harmless in general:
+  it silently concatenates adjacent author prose whenever the neighbour at a group's edge is another
+  group's replacement text or a bare text node, not merely re-joined by auto-render's own parsing;
+- synthetic-newline placement: `<div>a</div><div>\[x</div><div>y\]</div><div>b</div>` → exactly four
+  children: `<div>a</div>`, a text node holding `\[x` + newline + `y\]`, a second text node holding the
+  trailing synthetic `\n`, `<div>b</div>`. Stating it in node terms also pins "non-covered mergeable
+  siblings survive as elements"; phrasing it as three bare values reads as three text nodes, the
+  reading rule 5 exists to correct;
 - a `<div>` with element content beyond `<br>` acts as a barrier;
 - a `<div class="ta-center">` acts as a barrier and keeps its class;
 - **a span split across two `<div>`s inside a `<td class="ta-center">` merges** — barrier descended.

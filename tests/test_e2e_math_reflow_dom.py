@@ -194,9 +194,14 @@ def test_content_before_the_run_is_not_destroyed(page, lead):
 def test_non_covered_siblings_survive_as_elements(page):
     """Three CHILDREN, of which only the middle is a text node — not three text
     nodes. auto-render re-joins adjacent text nodes, so an argument resting on a
-    text-node boundary would be unfounded."""
+    text-node boundary would be unfounded.
+
+    The trailing "\\n" (kept, not dropped, per the textFragment fix) sits right
+    before the surviving `<div>b</div>` and collapses away with identical rendered
+    output — a block element's own layout already suppresses adjacent inter-block
+    whitespace — but the exact innerHTML gains that literal character."""
     out = _reflow_html(page, "<div>a</div><div>\\[x</div><div>y\\]</div><div>b</div>")
-    assert out == "<div>a</div>\\[x\ny\\]<div>b</div>"
+    assert out == "<div>a</div>\\[x\ny\\]\n<div>b</div>"
 
 
 def test_empty_class_attribute_still_merges(page):
@@ -290,15 +295,32 @@ def test_scanning_stops_at_an_unclosed_opener(page):
 
 
 def test_two_spans_in_one_run(page):
-    """MEASURED: the two spans come out ADJACENT with no separator, because the
-    boundary newline between them is synthetic, belongs to the second replacement
-    group, and textFragment drops it there. Harmless — auto-render re-joins
-    adjacent text nodes and parses both spans — but the assertion must match
-    reality rather than the tidier-looking value."""
+    """MEASURED: the boundary newline between the two spans is synthetic and is
+    kept as a literal "\\n" character (not dropped), so the two replacement groups
+    come out separated by a bare newline rather than glued together. HTML collapses
+    that "\\n" to a single space when rendered, so innerText reads
+    "\\[a b\\] \\[c d\\]" -- stays visually separated, unlike pre-fix
+    "\\[a b\\]\\[c d\\]"."""
     out = _reflow_html(
         page, "<div>\\[a</div><div>b\\]</div><div>\\[c</div><div>d\\]</div>"
     )
-    assert out == "\\[a\nb\\]\\[c\nd\\]"
+    assert out == "\\[a\nb\\]\n\\[c\nd\\]"
+
+
+def test_prose_survives_on_both_sides_of_a_group_boundary(page):
+    """Regression for the round-final review fix. The math-only fixture above
+    (test_two_spans_in_one_run) cannot catch this: with no prose around either
+    span, dropping the boundary newline is invisible. Here it is not: BEFORE the
+    fix this produced "\\[a\nb\\] tailhead \\[c\nd\\]", silently concatenating the
+    author's "tail" and "head" into one word, because the synthetic newline
+    between the two groups was dropped instead of kept. The kept literal "\\n"
+    keeps them apart; HTML collapses it to a single space on render."""
+    out = _reflow_html(
+        page,
+        "<div>\\[a</div><div>b\\] tail</div><div>head \\[c</div><div>d\\]</div>",
+    )
+    assert out == "\\[a\nb\\] tail\nhead \\[c\nd\\]"
+    assert "tailhead" not in out
 
 
 def test_overlapping_covered_ranges_coalesce(page):
