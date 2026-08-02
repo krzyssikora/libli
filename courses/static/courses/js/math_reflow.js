@@ -75,7 +75,254 @@
     visit(node);
   }
 
-  function mergeChildren(element, options, extraSelector) { /* Task 4 */ }
+  // ---- scan: a faithful port of auto-render's splitAtDelimiters ---------------
+
+  // Port of findEndOfMath: a backslash SKIPS the following character (so an escaped
+  // \] is not a closer), and a closer is only accepted at brace depth <= 0.
+  function findEndOfMath(delim, text, startIndex) {
+    var index = startIndex;
+    var braceLevel = 0;
+    var delimLength = delim.length;
+    while (index < text.length) {
+      var ch = text[index];
+      if (braceLevel <= 0 && text.slice(index, index + delimLength) === delim) {
+        return index;
+      }
+      if (ch === "\\") index++;
+      else if (ch === "{") braceLevel++;
+      else if (ch === "}") braceLevel--;
+      index++;
+    }
+    return -1;
+  }
+
+  // Openings: left to right, first delimiter in the CALLER'S ARRAY ORDER that
+  // matches at this position wins. No escape handling — auto-render does none.
+  // An unclosed opener stops the scan dead, exactly as auto-render's loop breaks.
+  function findSpans(text, delimiters) {
+    var spans = [];
+    var pos = 0;
+    while (pos < text.length) {
+      var chosen = null;
+      for (var i = 0; i < delimiters.length; i++) {
+        if (text.startsWith(delimiters[i].left, pos)) { chosen = delimiters[i]; break; }
+      }
+      if (!chosen) { pos++; continue; }
+      var end = findEndOfMath(chosen.right, text, pos + chosen.left.length);
+      if (end === -1) break;
+      spans.push({ start: pos, end: end + chosen.right.length, delim: chosen });
+      pos = end + chosen.right.length;
+    }
+    return spans;
+  }
+
+  function delimitersFor(options) {
+    return (options && options.delimiters) || DEFAULT_DELIMITERS;
+  }
+
+  // ---- mergeable / barrier ---------------------------------------------------
+
+  // "No effective attributes" = none, or only an EMPTY class and/or style. nh3
+  // emits class="" on div/p when every class value is rejected, which is what a
+  // pasted formula carries on every line; treating that as attributed would make
+  // the feature a no-op on the dominant authoring path.
+  function noEffectiveAttributes(el) {
+    for (var i = 0; i < el.attributes.length; i++) {
+      var attr = el.attributes[i];
+      if ((attr.name === "class" || attr.name === "style") && attr.value === "") continue;
+      return false;
+    }
+    return true;
+  }
+
+  function isBareBr(node) {
+    return node.nodeType === 1 && node.tagName === "BR" && noEffectiveAttributes(node);
+  }
+
+  // extraSelector must reach CLASSIFICATION, not just descent: walk() refusing to
+  // descend into an extra-ignored child does not stop mergeChildren from folding
+  // that child away, which is exactly what the union exists to prevent.
+  function isMergeableBlock(node, extraSelector) {
+    if (node.nodeType !== 1) return false;
+    if (isIgnored(node, extraSelector)) return false;
+    if (node.tagName !== "DIV" && node.tagName !== "P") return false;
+    if (!noEffectiveAttributes(node)) return false;
+    for (var i = 0; i < node.childNodes.length; i++) {
+      var child = node.childNodes[i];
+      if (child.nodeType === 3) continue;
+      if (isBareBr(child)) continue;
+      return false;
+    }
+    return true;
+  }
+
+  function isMergeable(node, extraSelector) {
+    if (node.nodeType === 3) return true;
+    if (isIgnored(node, extraSelector)) return false;
+    return isBareBr(node) || isMergeableBlock(node, extraSelector);
+  }
+
+  // ---- run text + offset->child map ------------------------------------------
+
+  // The collapse is applied DURING the build so the map stays intact: one surviving
+  // newline can come from three children at once, and a post-hoc regex collapse
+  // would give every later span a wrong covered range.
+  function buildRun(children) {
+    var text = "";
+    var map = [];          // map[i] = index into `children` for text[i]
+    var synthetic = [];    // synthetic[i] = true when text[i] is a manufactured \n
+
+    function pushChar(ch, childIndex, isSynthetic) {
+      text += ch;
+      map.push(childIndex);
+      synthetic.push(!!isSynthetic);
+    }
+
+    function pushText(str, childIndex) {
+      for (var i = 0; i < str.length; i++) pushChar(str[i], childIndex, false);
+    }
+
+    function pushBoundary(childIndex) {
+      if (!text.length) return;                                  // never lead the run
+      if (text.charAt(text.length - 1) === "\n") return;         // collapse
+      pushChar("\n", childIndex, true);
+    }
+
+    function pushBlockText(node, childIndex) {
+      for (var i = 0; i < node.childNodes.length; i++) {
+        var child = node.childNodes[i];
+        if (child.nodeType === 3) pushText(child.data, childIndex);
+        else if (isBareBr(child)) {
+          if (text.length && text.charAt(text.length - 1) !== "\n") {
+            pushChar("\n", childIndex, false);   // an AUTHORED break, not synthetic
+          }
+        }
+      }
+    }
+
+    for (var i = 0; i < children.length; i++) {
+      var node = children[i];
+      if (node.nodeType === 3) {
+        // Whitespace-only text nodes contribute nothing, so hand-written test
+        // markup with indentation behaves like nh3 output, which carries none.
+        if (/\S/.test(node.data)) pushText(node.data, i);
+      } else if (isBareBr(node)) {
+        if (text.length && text.charAt(text.length - 1) !== "\n") {
+          pushChar("\n", i, false);
+        }
+      } else {
+        pushBoundary(i);
+        pushBlockText(node, i);
+        pushBoundary(i);
+      }
+    }
+    while (text.length && text.charAt(text.length - 1) === "\n") {
+      text = text.slice(0, -1); map.pop(); synthetic.pop();
+    }
+    return { text: text, map: map, synthetic: synthetic };
+  }
+
+  // ---- phase 1 ---------------------------------------------------------------
+
+  function textFragment(doc, run, from, to) {
+    // Drops synthetic newlines; keeps authored ones as <br> elements, because a \n
+    // character outside a math span is HTML whitespace and collapses to a space.
+    var nodes = [];
+    var buffer = "";
+    for (var i = from; i < to; i++) {
+      var ch = run.text.charAt(i);
+      if (ch === "\n") {
+        if (run.synthetic[i]) continue;
+        if (buffer) { nodes.push(doc.createTextNode(buffer)); buffer = ""; }
+        nodes.push(doc.createElement("br"));
+        continue;
+      }
+      buffer += ch;
+    }
+    if (buffer) nodes.push(doc.createTextNode(buffer));
+    return nodes;
+  }
+
+  function mergeChildren(element, options, extraSelector) {
+    var doc = element.ownerDocument || document;
+    var children = [].slice.call(element.childNodes);
+    var runs = [];
+    var current = [];
+    var i;
+    for (i = 0; i < children.length; i++) {
+      if (isMergeable(children[i], extraSelector)) current.push(i);
+      else { if (current.length) runs.push(current); current = []; }
+    }
+    if (current.length) runs.push(current);
+
+    for (var r = runs.length - 1; r >= 0; r--) {
+      var indices = runs[r];
+      var nodes = [];
+      for (i = 0; i < indices.length; i++) nodes.push(children[indices[i]]);
+      var run = buildRun(nodes);
+      var spans = findSpans(run.text, delimitersFor(options));
+
+      // Rule 4: only spans covering TWO OR MORE children are rewritten.
+      var planned = [];
+      for (i = 0; i < spans.length; i++) {
+        var first = run.map[spans[i].start];
+        var last = run.map[spans[i].end - 1];
+        if (first !== last) planned.push({ span: spans[i], first: first, last: last });
+      }
+      if (!planned.length) continue;
+
+      // Covered ranges may OVERLAP (a child can hold the end of one span and the
+      // start of the next), so coalesce into maximal disjoint replacement groups.
+      var groups = [];
+      for (i = 0; i < planned.length; i++) {
+        var g = groups.length ? groups[groups.length - 1] : null;
+        if (g && planned[i].first <= g.last) {
+          g.last = Math.max(g.last, planned[i].last);
+          g.spans.push(planned[i].span);
+        } else {
+          groups.push({ first: planned[i].first, last: planned[i].last,
+                        spans: [planned[i].span] });
+        }
+      }
+
+      for (var gi = groups.length - 1; gi >= 0; gi--) {
+        var group = groups[gi];
+        var startOffset = run.text.length, endOffset = 0;
+        for (i = 0; i < run.map.length; i++) {
+          if (run.map[i] >= group.first && run.map[i] <= group.last) {
+            if (i < startOffset) startOffset = i;
+            if (i + 1 > endOffset) endOffset = i + 1;
+          }
+        }
+        var replacement = [];
+        var cursor = startOffset;
+        for (i = 0; i < group.spans.length; i++) {
+          var span = group.spans[i];
+          replacement = replacement.concat(textFragment(doc, run, cursor, span.start));
+          replacement.push(doc.createTextNode(run.text.slice(span.start, span.end)));
+          cursor = span.end;
+        }
+        replacement = replacement.concat(textFragment(doc, run, cursor, endOffset));
+
+        // MUST index `nodes` (the run), NOT `children` (all of the element's
+        // children). buildRun pushes childIndex from its own loop over `nodes`, so
+        // run.map values are RUN-LOCAL. Indexing `children` with them diverges the
+        // moment a run does not start at child 0 — measured, that destroys author
+        // content: <span>hi</span><div>\[a</div><div>b\]</div> came out as
+        // "\[a\nb\]<div>b\]</div>", losing the <span> and leaving a stale <div>.
+        // A heading or an image above a split display block is exactly that shape.
+        var anchor = nodes[group.first];
+        for (i = 0; i < replacement.length; i++) {
+          element.insertBefore(replacement[i], anchor);
+        }
+        for (i = group.first; i <= group.last; i++) {
+          if (nodes[i] && nodes[i].parentNode === element) {
+            element.removeChild(nodes[i]);
+          }
+        }
+      }
+    }
+  }
 
   function reflow(root, options) {
     if (!root) return;  // three callers pass an unguarded root; leave auto-render's
