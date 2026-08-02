@@ -371,6 +371,39 @@
     }
   }
 
+  // ---- phase 1b ---------------------------------------------------------------
+
+  // Matches courses/sanitize.py's _BR: case-insensitive, optional whitespace,
+  // optional slash. Enumerating only <br> and <br/> would miss <br /> and <BR>,
+  // and that miss would be invisible — the corpus count for this shape is 0.
+  var LITERAL_BR = /<br\s*\/?>/gi;
+
+  // Separate full pass over the same walk, run after phase 1 completes for the
+  // entire subtree. sanitize_cell flattens cell content at save, so a table
+  // cell's math span already lies inside a single text node — a rule-4 SKIP in
+  // mergeChildren, never a rule-5 rewrite target. Hanging this off the rule-5
+  // path would ship a phase 1b that never fires on any cell.
+  function phase1b(element, options) {
+    var delimiters = delimitersFor(options);
+    for (var i = 0; i < element.childNodes.length; i++) {
+      var node = element.childNodes[i];
+      if (node.nodeType !== 3) continue;
+      var spans = findSpans(node.data, delimiters);
+      if (!spans.length) continue;
+      var out = "";
+      var cursor = 0;
+      for (var s = 0; s < spans.length; s++) {
+        out += node.data.slice(cursor, spans[s].start);
+        out += node.data
+          .slice(spans[s].start, spans[s].end)
+          .replace(LITERAL_BR, "\n");
+        cursor = spans[s].end;
+      }
+      out += node.data.slice(cursor);
+      if (out !== node.data) node.data = out;
+    }
+  }
+
   function reflow(root, options) {
     if (!root) return;  // three callers pass an unguarded root; leave auto-render's
                         // own "No element provided to render" error unchanged
@@ -382,6 +415,9 @@
     if (extra && root.closest && root.closest(extra)) return;
     walk(root, extra, function (element) {
       mergeChildren(element, options, extra);   // phase 1
+    });
+    walk(root, extra, function (element) {
+      phase1b(element, options);                // phase 1b
     });
   }
 

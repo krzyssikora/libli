@@ -48,6 +48,25 @@ def _reflow_html(page, html, options="undefined"):
     )
 
 
+def _reflow_text(page, text):
+    """Inject `text` as a TEXT NODE, so a literal <br> stays literal.
+
+    MEASURED TRAP: `_reflow_html(page, "\\[a<br>b\\]")` sets innerHTML, so the
+    browser PARSES the <br> into a real BR element — which phase 1's isBareBr
+    handles, meaning LITERAL_BR is never consulted. All five cases still pass with
+    the entire phase1b pass deleted from reflow, and all four parametrised forms
+    still pass with LITERAL_BR degraded to /<br>/g, so Step 5's falsification
+    cannot fire. The stored cell shape is escaped TEXT (`&lt;br&gt;`), never an
+    element — that is exactly why phase 1b exists."""
+    _page(page, "")
+    return page.evaluate(
+        "(t) => { const r = document.getElementById('root');"
+        "         r.appendChild(document.createTextNode(t));"
+        "         window.libliMathReflow(r); return r.textContent; }",
+        text,
+    )
+
+
 # Every case uses the NESTED <div>…</div> shape so the walk must actually DESCEND
 # for a merge to be possible. MEASURED: with the flat shape
 # (<pre>\[a</pre><pre>b\]</pre>) the outer tags are barriers at the parent level
@@ -378,3 +397,21 @@ def test_caller_ignored_tags_are_unioned_in(page):
         "        return r.innerHTML; }"
     )
     assert after == before
+
+
+def test_phase_1b_converts_literal_br_inside_a_span(page):
+    """The cell case is a RULE-4 SKIP — the span already sits in one text node.
+    Hanging phase 1b off the rule-5 rewrite path would make it never fire."""
+    assert _reflow_text(page, "\\[a<br>b\\]") == "\\[a\nb\\]"
+
+
+@pytest.mark.parametrize("form", ["<br>", "<br/>", "<br />", "<BR>"])
+def test_phase_1b_matches_every_br_form(page, form):
+    """sanitize_cell stashes the span BEFORE nh3.clean, so what survives inside it
+    is un-normalised author/browser markup."""
+    assert _reflow_text(page, f"\\[a{form}b\\]") == "\\[a\nb\\]"
+
+
+def test_phase_1b_leaves_p_alone(page):
+    r"""CELL_TAGS has no p, and \(a<p>b\) is a plausible chain of inequalities."""
+    assert _reflow_text(page, "\\(a<p>b\\)") == "\\(a<p>b\\)"
