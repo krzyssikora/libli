@@ -460,3 +460,56 @@ def test_split_inline_align_comes_out_merged_and_promoted(page):
     )
     assert out.startswith("\\[") and out.endswith("\\]")
     assert "\n" in out
+
+
+def _hookb(page, expr):
+    """Install a fake katex BEFORE the module loads, then read what it received."""
+    page.set_content("<!DOCTYPE html><div id='root'></div>")
+    page.evaluate(
+        "() => { window.__seen = null;"
+        "        window.katex = { render: (e) => { window.__seen = e; } };"
+        "        window.renderMathInElement = () => {}; }"
+    )
+    page.add_script_tag(path=SCRIPT)
+    page.evaluate("(e) => window.katex.render(e, null, {})", expr)
+    return page.evaluate("() => window.__seen")
+
+
+def test_hook_b_strips_a_display_wrapper(page):
+    assert (
+        _hookb(page, "\\[\\begin{align*}a&=1\\end{align*}\\]")
+        == "\\begin{align*}a&=1\\end{align*}"
+    )
+
+
+def test_hook_b_strips_an_inline_wrapper(page):
+    assert _hookb(page, "\\(x\\)") == "x"
+
+
+def test_hook_b_skips_leading_whitespace(page):
+    assert _hookb(page, "  \\[x\\]  ") == "x"
+
+
+def test_hook_b_refuses_two_adjacent_spans(page):
+    r"""findEndOfMath stops at the first \], which is not the expression's end."""
+    assert _hookb(page, "\\[a\\] + \\[b\\]") == "\\[a\\] + \\[b\\]"
+
+
+def test_hook_b_tolerates_row_spacing(page):
+    r"""A legitimate \\[2ex] in the body neither opens nor closes anything."""
+    expr = "\\[\\begin{align*}a&=1\\\\[2ex]b&=2\\end{align*}\\]"
+    assert _hookb(page, expr) == "\\begin{align*}a&=1\\\\[2ex]b&=2\\end{align*}"
+
+
+def test_hook_b_passes_a_non_string_through_untouched(page):
+    """expr is not guaranteed to be a string at every call site, and an exception
+    here is swallowed by math.js renderOne's catch, leaving no diagnostic."""
+    page.set_content("<!DOCTYPE html><div id='root'></div>")
+    page.evaluate(
+        "() => { window.__seen = 'unset';"
+        "        window.katex = { render: (e) => { window.__seen = e; } };"
+        "        window.renderMathInElement = () => {}; }"
+    )
+    page.add_script_tag(path=SCRIPT)
+    page.evaluate("() => window.katex.render(42, null, {})")
+    assert page.evaluate("() => window.__seen") == 42

@@ -501,9 +501,33 @@
     return autoRender.apply(this, arguments);
   };
 
+  // Reuses the ported findEndOfMath rather than a regex: /^\s*\\\[([\s\S]*)\\\]\s*$/
+  // is greedy and would strip `\[a\] + \[b\]` — the one case that must be refused.
+  function stripWrapper(expr) {
+    if (typeof expr !== "string") return expr;
+    var start = 0;
+    while (start < expr.length && /\s/.test(expr.charAt(start))) start++;
+    var end = expr.length;
+    while (end > start && /\s/.test(expr.charAt(end - 1))) end--;
+    var body = expr.slice(start, end);
+    var pairs = [{ left: "\\[", right: "\\]" }, { left: "\\(", right: "\\)" }];
+    for (var i = 0; i < pairs.length; i++) {
+      var pair = pairs[i];
+      if (body.indexOf(pair.left) !== 0) continue;
+      var close = findEndOfMath(pair.right, body, pair.left.length);
+      if (close === -1) continue;
+      if (close + pair.right.length !== body.length) continue;  // not the outermost
+      return body.slice(pair.left.length, close);
+    }
+    return expr;
+  }
+
   var originalRender = katexObj.render;
   katexObj.render = function (expr, element, options) {
-    return originalRender.apply(this, arguments);  // Task 7 adds the strip
+    var stripped = expr;
+    try { stripped = stripWrapper(expr); } catch (e) { stripped = expr; }
+    // options is passed through untouched — the hook writes nothing into it.
+    return originalRender.call(this, stripped, element, options);
   };
 
   window.__libliMathReflowWrapped = true;
