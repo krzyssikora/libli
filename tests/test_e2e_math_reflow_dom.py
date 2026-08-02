@@ -666,3 +666,125 @@ def test_double_include_installs_only_one_wrapper(page):
     page.add_script_tag(path=SCRIPT)
     assert page.evaluate("() => window.renderMathInElement === window.__first")
     assert page.evaluate("() => window.__libliMathReflowWrapped") is True
+
+
+def test_centred_siblings_merge_into_one_wrapper(page):
+    out = _reflow_html(
+        page,
+        '<div class="ta-center">\\[a</div><div class="ta-center">b\\]</div>',
+    )
+    assert out == '<div class="ta-center">\\[a\nb\\]</div>'
+
+
+def test_centred_paragraphs_merge_and_keep_the_p_tag(page):
+    """Tag equality is load-bearing in the compatibility table, and the only other
+    <p> case is a barrier — without this, restricting the reuse path to DIV would
+    pass every other test."""
+    out = _reflow_html(
+        page,
+        '<p class="ta-center">\\[a</p><p class="ta-center">b\\]</p>',
+    )
+    assert out == '<p class="ta-center">\\[a\nb\\]</p>'
+
+
+@pytest.mark.parametrize("token", ["ta-left", "ta-right"])
+def test_other_align_tokens_merge_too(page, token):
+    """Nothing may be hardcoded to centre."""
+    out = _reflow_html(
+        page, f'<div class="{token}">\\[a</div><div class="{token}">b\\]</div>'
+    )
+    assert out == f'<div class="{token}">\\[a\nb\\]</div>'
+
+
+def test_unsigned_mixed_tag_run_still_merges(page):
+    """<p>…</p><div>…</div> is ordinary Chromium contenteditable output (courses.css
+    :24-25): Enter emits a <div> while the first block may be a <p>. It is also the
+    ONLY shape that distinguishes "tag equality when signed" from "tag equality
+    always" — the </p><p> repairs that motivate the rule are same-tag."""
+    assert _reflow_html(page, "<p>\\[a</p><div>b\\]</div>") == "\\[a\nb\\]"
+
+
+def test_whitespace_between_centred_blocks_is_transparent(page):
+    """The corpus shape: nh3 preserves inter-tag newlines, and scripts/lal_import/out
+    has 505 of them between sibling divs. Anchored to the SIGNED shape deliberately —
+    an unsigned whitespace fixture passes on master and under every mutant."""
+    out = _reflow_html(
+        page,
+        '<div class="ta-center">\\[a</div>\n<div class="ta-center">b\\]</div>',
+    )
+    assert out == '<div class="ta-center">\\[a\nb\\]</div>'
+
+
+def test_empty_centred_line_between_the_lines_collapses(page):
+    """<div><br></div> is Chromium's empty line, and centring a multi-line selection
+    aligns it too. It contributes zero characters to run.text, so it appears in
+    `nodes` and in the group range but never in run.map — the index-based removal
+    loop is what takes it out."""
+    out = _reflow_html(
+        page,
+        '<div class="ta-center">\\[a</div>'
+        '<div class="ta-center"><br></div>'
+        '<div class="ta-center">b\\]</div>',
+    )
+    assert out == '<div class="ta-center">\\[a\nb\\]</div>'
+
+
+def test_whitespace_only_class_merges(page):
+    """alignToken parses a token SET, so class=" " yields "" and is mergeable, where
+    noEffectiveAttributes (value === "") called it a barrier. Deliberate widening."""
+    assert _reflow_html(page, '<div class=" ">\\[a</div><div class=" ">b\\]</div>') == (
+        "\\[a\nb\\]"
+    )
+
+
+def test_padded_align_class_matches_the_unpadded_one(page):
+    """The OTHER half of parsing a token set rather than the raw attribute string:
+    class=" ta-center " and class="ta-center" must compare equal. The surviving
+    wrapper keeps its own original, un-normalised class string — the reuse path
+    never re-serialises the attribute."""
+    out = _reflow_html(
+        page,
+        '<div class=" ta-center ">\\[a</div><div class="ta-center">b\\]</div>',
+    )
+    assert out == '<div class=" ta-center ">\\[a\nb\\]</div>'
+
+
+def test_partial_coverage_leaves_the_uncovered_block(page):
+    out = _reflow_html(
+        page,
+        '<div class="ta-center">x</div>'
+        '<div class="ta-center">\\[a</div>'
+        '<div class="ta-center">b\\]</div>',
+    )
+    assert out == (
+        '<div class="ta-center">x</div><div class="ta-center">\\[a\nb\\]</div>'
+    )
+
+
+def test_two_spans_in_one_signed_run_keep_the_boundary_newline(page):
+    """Group 1's endOffset extends past the span to include the synthetic boundary
+    newline mapping to child 1, so on the reuse path that newline lands INSIDE the
+    first wrapper rather than staying a bare text node between the groups. It is
+    deliberately not trimmed: dropping a synthetic newline is what glued author
+    prose together in the predecessor's "tailhead" defect."""
+    out = _reflow_html(
+        page,
+        '<div class="ta-center">\\[a</div><div class="ta-center">b\\]</div>'
+        '<div class="ta-center">\\[c</div><div class="ta-center">d\\]</div>',
+    )
+    assert out == (
+        '<div class="ta-center">\\[a\nb\\]\n</div>'
+        '<div class="ta-center">\\[c\nd\\]</div>'
+    )
+
+
+def test_nested_signed_run_preserves_one_nesting_level(page):
+    """The unsigned rewrite hoists content into the parent, so one nesting level
+    disappears; the reuse path keeps the wrapper, so the level count is preserved.
+    The wrapper MUST survive to carry the alignment — this is the price of the
+    feature, and it is asserted so it stays a decision."""
+    out = _reflow_html(
+        page,
+        '<div><div class="ta-center">\\[a</div><div class="ta-center">b\\]</div></div>',
+    )
+    assert out == '<div><div class="ta-center">\\[a\nb\\]</div></div>'

@@ -171,6 +171,20 @@
     return found;
   }
 
+  // The block-level attribute test. Differs from noEffectiveAttributes (which stays
+  // as-is for isBareBr) in exactly one way: a `class` is judged by alignToken rather
+  // than required to be empty. `style` must still be empty, and any other attribute
+  // is still disqualifying.
+  function blockAttributesOk(el) {
+    for (var i = 0; i < el.attributes.length; i++) {
+      var attr = el.attributes[i];
+      if (attr.name === "style" && attr.value === "") continue;
+      if (attr.name === "class") continue;      // validity decided by alignToken
+      return false;
+    }
+    return alignToken(el) !== null;
+  }
+
   function isBareBr(node) {
     return node.nodeType === 1 && node.tagName === "BR" && noEffectiveAttributes(node);
   }
@@ -182,7 +196,7 @@
     if (node.nodeType !== 1) return false;
     if (isIgnored(node, extraSelector)) return false;
     if (node.tagName !== "DIV" && node.tagName !== "P") return false;
-    if (!noEffectiveAttributes(node)) return false;
+    if (!blockAttributesOk(node)) return false;
     for (var i = 0; i < node.childNodes.length; i++) {
       var child = node.childNodes[i];
       if (child.nodeType === 3) continue;
@@ -478,13 +492,48 @@
         // content: <span>hi</span><div>\[a</div><div>b\]</div> came out as
         // "\[a\nb\]<div>b\]</div>", losing the <span> and leaving a stale <div>.
         // A heading or an image above a split display block is exactly that shape.
-        var anchor = nodes[group.first];
-        for (i = 0; i < replacement.length; i++) {
-          element.insertBefore(replacement[i], anchor);
-        }
-        for (i = group.first; i <= group.last; i++) {
-          if (nodes[i] && nodes[i].parentNode === element) {
-            element.removeChild(nodes[i]);
+        if (runToken) {
+          // SIGNED run: reuse the first covered block as the wrapper so the align
+          // class survives. run.map never holds a zero-character member (buildRun
+          // skips whitespace-only text nodes), and in a signed run every non-BLOCK
+          // member is exactly such a node -- so nodes[group.first] is always a block.
+          //
+          // The ORDER below is a fault-tolerance requirement, not an arbitrary
+          // choice. Snapshot first: after the insert, the replacement nodes are
+          // themselves children of the wrapper, so "the original children" is only
+          // recoverable from a snapshot -- a `while (wrapper.firstChild) remove()`
+          // reading empties the wrapper and loses the merged line. Insert before
+          // removing: today's unsigned path inserts then removes, so a throw between
+          // the loops leaves duplicated content, which is survivable; clearing first
+          // would lose the line outright.
+          var wrapper = nodes[group.first];
+          var original = [].slice.call(wrapper.childNodes);
+          for (i = 0; i < replacement.length; i++) {
+            wrapper.appendChild(replacement[i]);
+          }
+          for (i = 0; i < original.length; i++) {
+            // Removed unconditionally, NOT "those represented in the replacement": a
+            // child contributing zero characters (a leading <br> whose newline
+            // pushBlockText suppressed) is represented nowhere and must still go,
+            // exactly as the unsigned path drops it by deleting the whole block.
+            if (original[i].parentNode === wrapper) wrapper.removeChild(original[i]);
+          }
+          for (i = group.first + 1; i <= group.last; i++) {
+            // first + 1, never first: removing the wrapper would delete the content
+            // just placed in it.
+            if (nodes[i] && nodes[i].parentNode === element) {
+              element.removeChild(nodes[i]);
+            }
+          }
+        } else {
+          var anchor = nodes[group.first];
+          for (i = 0; i < replacement.length; i++) {
+            element.insertBefore(replacement[i], anchor);
+          }
+          for (i = group.first; i <= group.last; i++) {
+            if (nodes[i] && nodes[i].parentNode === element) {
+              element.removeChild(nodes[i]);
+            }
           }
         }
       }
