@@ -130,10 +130,12 @@
 
   // ---- mergeable / barrier ---------------------------------------------------
 
-  // "No effective attributes" = none, or only an EMPTY class and/or style. nh3
-  // emits class="" on div/p when every class value is rejected, which is what a
-  // pasted formula carries on every line; treating that as attributed would make
-  // the feature a no-op on the dominant authoring path.
+  // "No effective attributes" = none, or only an EMPTY class and/or style. Reachable
+  // only from isBareBr below, so in practice this only ever judges a <br> element,
+  // which carries no class/style at all in nh3's output. The div/p rationale (nh3
+  // emitting class="" when every class value is rejected on a pasted formula's
+  // lines) now lives on blockAttributesOk/alignToken, which decide block merging;
+  // do not read this function as governing that path.
   function noEffectiveAttributes(el) {
     for (var i = 0; i < el.attributes.length; i++) {
       var attr = el.attributes[i];
@@ -141,6 +143,48 @@
       return false;
     }
     return true;
+  }
+
+  // The three values courses/sanitize.py's ALIGN_CLASS_VALUES permits on a block.
+  var ALIGN_TOKENS = { "ta-left": true, "ta-center": true, "ta-right": true };
+
+  // "" = no align class; one of the three = exactly one; null = INELIGIBLE (two or
+  // more align tokens, or any token outside the three). nh3 filters class values
+  // token-wise, so <p class="ta-center ta-left"> survives sanitising with BOTH
+  // tokens -- measured against this repo's real config -- and has to be decided
+  // rather than assumed away.
+  //
+  // Parsed as a token SET, never as the raw attribute string, so class=" ta-center "
+  // and class="ta-center" agree. One deliberate side effect: class=" " yields an
+  // empty set and therefore "", where noEffectiveAttributes (value === "") made it a
+  // barrier. A whitespace-only class has no rendering effect, so the widening is
+  // harmless; it is pinned by a test rather than left to be rediscovered.
+  function alignToken(el) {
+    var raw = el.getAttribute("class");
+    if (raw === null) return "";
+    var parts = raw.split(/\s+/);
+    var found = "";
+    for (var i = 0; i < parts.length; i++) {
+      if (!parts[i]) continue;
+      if (!ALIGN_TOKENS[parts[i]]) return null;
+      if (found) return null;
+      found = parts[i];
+    }
+    return found;
+  }
+
+  // The block-level attribute test. Differs from noEffectiveAttributes (which stays
+  // as-is for isBareBr) in exactly one way: a `class` is judged by alignToken rather
+  // than required to be empty. `style` must still be empty, and any other attribute
+  // is still disqualifying.
+  function blockAttributesOk(el) {
+    for (var i = 0; i < el.attributes.length; i++) {
+      var attr = el.attributes[i];
+      if (attr.name === "style" && attr.value === "") continue;
+      if (attr.name === "class") continue;      // validity decided by alignToken
+      return false;
+    }
+    return alignToken(el) !== null;
   }
 
   function isBareBr(node) {
@@ -154,7 +198,7 @@
     if (node.nodeType !== 1) return false;
     if (isIgnored(node, extraSelector)) return false;
     if (node.tagName !== "DIV" && node.tagName !== "P") return false;
-    if (!noEffectiveAttributes(node)) return false;
+    if (!blockAttributesOk(node)) return false;
     for (var i = 0; i < node.childNodes.length; i++) {
       var child = node.childNodes[i];
       if (child.nodeType === 3) continue;
@@ -164,10 +208,21 @@
     return true;
   }
 
-  function isMergeable(node, extraSelector) {
-    if (node.nodeType === 3) return true;
-    if (isIgnored(node, extraSelector)) return false;
-    return isBareBr(node) || isMergeableBlock(node, extraSelector);
+  // Five kinds, because the partition now needs more than isMergeable's single
+  // boolean: compatibility is pairwise, and WS_TEXT / TEXT / BR / BLOCK each behave
+  // differently when they meet a signed run.
+  //
+  // The leading isIgnored test is load-bearing, and specifically for BR: a bare <br>
+  // is classified via isBareBr and never reaches isMergeableBlock, so this guard is
+  // the ONLY thing keeping an ignored <br> out of a run. isMergeable used to provide
+  // it at its own check; this function replaces isMergeable's only call site.
+  function classifyChild(node, extraSelector) {
+    if (node.nodeType === 3) return /\S/.test(node.data) ? "TEXT" : "WS_TEXT";
+    if (node.nodeType !== 1) return "BARRIER";
+    if (isIgnored(node, extraSelector)) return "BARRIER";
+    if (isBareBr(node)) return "BR";
+    if (isMergeableBlock(node, extraSelector)) return "BLOCK";
+    return "BARRIER";
   }
 
   // ---- run text + offset->child map ------------------------------------------
@@ -286,17 +341,87 @@
   function mergeChildren(element, options, extraSelector) {
     var doc = element.ownerDocument || document;
     var children = [].slice.call(element.childNodes);
+    // A run now carries a SIGNATURE: the (alignToken, tagName) pair of its first
+    // BLOCK member. `token === null` means not yet established; `""` means
+    // established-unsigned; a non-empty string means signed. Membership rules M1-M5
+    // are spelled out in the spec's Architecture section.
     var runs = [];
-    var current = [];
+    var current = null;
     var i;
-    for (i = 0; i < children.length; i++) {
-      if (isMergeable(children[i], extraSelector)) current.push(i);
-      else { if (current.length) runs.push(current); current = []; }
+
+    function endRun() {
+      if (current && current.indices.length) runs.push(current);
+      current = null;
     }
-    if (current.length) runs.push(current);
+
+    function newRun(index, token, tag, sawTextOrBr) {
+      return { indices: [index], token: token, tag: tag, sawTextOrBr: sawTextOrBr };
+    }
+
+    for (i = 0; i < children.length; i++) {
+      var kind = classifyChild(children[i], extraSelector);
+      if (kind === "BARRIER") { endRun(); continue; }
+      if (!current) {
+        current = { indices: [], token: null, tag: null, sawTextOrBr: false };
+      }
+
+      if (kind === "WS_TEXT") {
+        // M4: transparent. Never establishes a signature, never ends a run. nh3
+        // preserves inter-tag newlines and the imported corpus has 505 of them
+        // between sibling divs, so treating these as breaks would make the whole
+        // feature a no-op on real content while every fixture stayed green.
+        current.indices.push(i);
+        continue;
+      }
+
+      if (kind === "TEXT" || kind === "BR") {
+        if (current.token) {
+          // M3: ends a signed run AND becomes the first member of a new one -- it is
+          // not excluded from every run. Excluding it would regress a shape that
+          // merges on master: <div class="ta-center">x</div>\[a<div>b\]</div>.
+          endRun();
+          current = newRun(i, null, null, true);
+        } else {
+          current.indices.push(i);
+          current.sawTextOrBr = true;
+        }
+        continue;
+      }
+
+      var tok = alignToken(children[i]);
+      var tag = children[i].tagName;
+      if (current.token === null) {
+        if (tok !== "" && current.sawTextOrBr) {
+          // M5: a SIGNED block arriving into a run that already accumulated TEXT/BR
+          // members breaks it rather than signing it retroactively. WS_TEXT is
+          // deliberately NOT in that condition -- a run holding only transparent
+          // whitespace stays joinable, which is the corpus shape.
+          endRun();
+          current = newRun(i, tok, tag, false);
+        } else {
+          current.indices.push(i);                  // M1: establishes the signature
+          current.token = tok;
+          // Recorded even when tok === "" (unsigned run), but the M2 check below
+          // only ever consults current.tag when current.token is non-empty --
+          // an unsigned run mixes DIV/P freely. See
+          // test_unsigned_mixed_tag_run_still_merges.
+          current.tag = tag;
+        }
+      } else {
+        // M2: compatible iff both unsigned (tag irrelevant, so DIV/P may mix), or
+        // same token AND same tag.
+        var ok = current.token === ""
+          ? tok === ""
+          : (tok === current.token && tag === current.tag);
+        if (ok) current.indices.push(i);
+        else { endRun(); current = newRun(i, tok, tag, false); }
+      }
+    }
+    endRun();
 
     for (var r = runs.length - 1; r >= 0; r--) {
-      var indices = runs[r];
+      var indices = runs[r].indices;
+      var runToken = runs[r].token;
       var nodes = [];
       for (i = 0; i < indices.length; i++) nodes.push(children[indices[i]]);
       var run = buildRun(nodes);
@@ -373,13 +498,71 @@
         // content: <span>hi</span><div>\[a</div><div>b\]</div> came out as
         // "\[a\nb\]<div>b\]</div>", losing the <span> and leaving a stale <div>.
         // A heading or an image above a split display block is exactly that shape.
-        var anchor = nodes[group.first];
-        for (i = 0; i < replacement.length; i++) {
-          element.insertBefore(replacement[i], anchor);
-        }
-        for (i = group.first; i <= group.last; i++) {
-          if (nodes[i] && nodes[i].parentNode === element) {
-            element.removeChild(nodes[i]);
+        // Governs BOTH branches below (signed and unsigned) — every `nodes[...]`
+        // access in either one relies on this.
+        if (runToken) {
+          // SIGNED run: reuse the first covered block as the wrapper so the align
+          // class survives. run.map never holds a zero-character member (buildRun
+          // skips whitespace-only text nodes), and in a signed run every non-BLOCK
+          // member is exactly such a node -- so nodes[group.first] is always a block.
+          //
+          // The ORDER below is a fault-tolerance requirement, not an arbitrary
+          // choice. Snapshot first: after the insert, the replacement nodes are
+          // themselves children of the wrapper, so "the original children" is only
+          // recoverable from a snapshot -- a `while (wrapper.firstChild) remove()`
+          // reading empties the wrapper and loses the merged line. Insert before
+          // removing: today's unsigned path inserts then removes, so a throw between
+          // the loops leaves duplicated content, which is survivable; clearing first
+          // would lose the line outright.
+          var wrapper = nodes[group.first];
+          // Guard is currently UNREACHABLE: groups within a run are disjoint with
+          // non-decreasing `first`, runs are disjoint with increasing indices, both
+          // are applied in reverse, and a nested mergeChildren call only ever
+          // touches its own element's children -- so wrapper can never already be
+          // detached from `element` here. Kept anyway because the failure mode on
+          // the other side is silent: appendChild on a detached node succeeds
+          // without throwing, so the merged line would simply vanish with no
+          // console.warn from walk's catch. Falling through to the unsigned branch
+          // makes the same situation throw loudly instead (insertBefore against a
+          // detached anchor throws), which is diagnosable.
+          if (wrapper.parentNode !== element) {
+            for (i = 0; i < replacement.length; i++) {
+              element.insertBefore(replacement[i], wrapper);
+            }
+            for (i = group.first; i <= group.last; i++) {
+              if (nodes[i] && nodes[i].parentNode === element) {
+                element.removeChild(nodes[i]);
+              }
+            }
+            continue;
+          }
+          var original = [].slice.call(wrapper.childNodes);
+          for (i = 0; i < replacement.length; i++) {
+            wrapper.appendChild(replacement[i]);
+          }
+          for (i = 0; i < original.length; i++) {
+            // Removed unconditionally, NOT "those represented in the replacement": a
+            // child contributing zero characters (a leading <br> whose newline
+            // pushBlockText suppressed) is represented nowhere and must still go,
+            // exactly as the unsigned path drops it by deleting the whole block.
+            if (original[i].parentNode === wrapper) wrapper.removeChild(original[i]);
+          }
+          for (i = group.first + 1; i <= group.last; i++) {
+            // first + 1, never first: removing the wrapper would delete the content
+            // just placed in it.
+            if (nodes[i] && nodes[i].parentNode === element) {
+              element.removeChild(nodes[i]);
+            }
+          }
+        } else {
+          var anchor = nodes[group.first];
+          for (i = 0; i < replacement.length; i++) {
+            element.insertBefore(replacement[i], anchor);
+          }
+          for (i = group.first; i <= group.last; i++) {
+            if (nodes[i] && nodes[i].parentNode === element) {
+              element.removeChild(nodes[i]);
+            }
           }
         }
       }

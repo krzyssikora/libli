@@ -5,7 +5,7 @@ auto-render.min.js + math_reflow.js + math.js wired exactly as the five
 templates ship them.
 
 `tests/test_e2e_math_reflow_dom.py` already proves the module's DOM mechanics in
-isolation (65 cases). What that harness cannot see is wiring: does the script
+isolation (170 cases). What that harness cannot see is wiring: does the script
 actually load on the real page, in the real order, ahead of the real callers, and
 does the real RTE actually produce the split shape the whole feature exists to
 repair. That is this file's job, and only this file's.
@@ -301,18 +301,13 @@ def test_katex_stays_idempotent_across_nested_tabs_and_text_selectors(
     assert page.locator(".el--tabs .katex").count() == 1
 
 
-# ---- Step 3: the named-limitation case ----------------------------------------
+# ---- Step 3: centred display math ---------------------------------------------
 
 
-def test_centred_display_math_is_not_reflowed(page, live_server):
-    """KNOWN LIMITATION, pinned deliberately. class="ta-center" on every line div
-    makes every line a barrier. The fix (attribute-homogeneous merging) is a
-    scheduled follow-up; this test documents the boundary so it is a decision
-    rather than a bug report.
-
-    Real assertions, not a docstring: the .katex/.katex-error counts and the
-    surviving markup must be checked, or this would always pass and would stay
-    green if the follow-up shipped tomorrow."""
+def test_centred_display_math_is_reflowed(page, live_server):
+    """The limitation PR #206 pinned deliberately, now closed. Every line div carries
+    class="ta-center", so each was a barrier and the formula never reflowed; sibling
+    blocks sharing an align token now merge into one wrapper that keeps the class."""
     unit = _open_pa_session(page, live_server, "mr_centred", "mr-centred")
     body = (
         '<div class="ta-center">\\[\\begin{align*}</div>'
@@ -323,8 +318,8 @@ def test_centred_display_math_is_not_reflowed(page, live_server):
 
     page.goto(_lesson_url(live_server, unit))
     page.wait_for_selector(".el--text")
-    assert page.locator(".el--text .katex").count() == 0
+    assert page.locator(".el--text .katex").count() == 1
     assert page.locator(".katex-error").count() == 0
     html = page.locator(".el--text").inner_html()
-    assert 'class="ta-center"' in html  # the barrier survived
-    assert "</div><div" in html  # and the split was never merged
+    assert 'class="ta-center"' in html  # the alignment survived the merge
+    assert "</div><div" not in html  # and the three lines became one block
