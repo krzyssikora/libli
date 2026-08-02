@@ -66,10 +66,15 @@ These bound the design; each was verified against the code on `master` at `671c5
   repo's real nh3 config: `<p class="ta-center ta-left">x</p>` → `<p class="ta-center ta-left">x</p>`,
   both tokens kept, order preserved. Any subset of the three can appear.
 
-So a stored `<div>`/`<p>` can present: no attributes, `class=""`, `style=""`, a single align token,
-**or two or three align tokens together**. The multi-token case is nonsense that no editor gesture
-produces, but it is reachable through hand-authored or pasted HTML, so the design must decide it
-rather than assume it away.
+So a stored `<div>`/`<p>` can present: no attributes, `class=""`, a single align token, **or two or
+three align tokens together**. The multi-token case is nonsense that no editor gesture produces, but
+it is reachable through hand-authored or pasted HTML, so the design must decide it rather than assume
+it away.
+
+`style=""` is **not** in that list: the attribute is removed entirely, not emptied — measured,
+`sanitize_html('<div style="">x</div>')` → `<div>x</div>`. It is a DOM-level shape only, reachable
+from hand-written test markup, and it stays in the §2 eligibility table because
+`test_empty_class_attribute_still_merges` asserts on it.
 
 **Colour never competes for the same attribute.** `courses/colour.py` sets
 `TC_CLASS_TAGS = {"span", "b", "i", "em", "strong", "u", "a"}` — disjoint from `ALIGN_CLASS_TAGS` —
@@ -131,13 +136,16 @@ reference, in `math_reflow.js:153-165` the attribute test precedes the child-sha
    `alignToken(node) !== null`.
 5. every child is a text node or a bare `<br>`
 
-**A note on check 2, because a proposed mutant depended on getting this wrong.**
-`isMergeableBlock` has exactly one caller — `isMergeable` (`math_reflow.js:170`) — and `isMergeable`
-already returns `false` on `isIgnored(node, extraSelector)` at line 169, *before* delegating. So
-`isMergeableBlock`'s own `isIgnored` call is **redundant on the only live call path**. The code
-comment about `extraSelector` reaching "classification, not just descent" is describing
-`isMergeable`, not `isMergeableBlock`. Keep check 2 for defence in depth, but do not believe a test
-that claims to pin it through `isMergeableBlock`.
+**A note on check 2, because two successive drafts of the mutant table got it wrong.**
+*Today*, `isMergeableBlock`'s only caller is `isMergeable` (`math_reflow.js:170`), which already
+returns `false` on `isIgnored(node, extraSelector)` at line 169 before delegating. For a `DIV`/`P`
+the two checks are therefore **mutually** redundant — deleting *either one alone* changes nothing
+observable, which is why no single-deletion mutant can redden an ignore test.
+
+*After this slice*, that inverts: §4's classifier replaces `isMergeable`'s only call site, so
+`isMergeableBlock`'s own `isIgnored` becomes the **sole** ignore check on the live path for blocks —
+load-bearing, not defence in depth. A mutant that means to exercise it must remove the check from the
+live path (see the falsification table), not merely delete one of two redundant calls.
 
 Worked table:
 
@@ -190,16 +198,26 @@ node (line 168, before the `isIgnored` check) and folds `isBareBr` and `isMergea
 single boolean. That is too coarse for these rules, which need five outcomes. Introduce a classifier
 used by the partition loop that returns one of:
 
+The classifier's **first test, for element nodes, is `isIgnored(node, extraSelector) → BARRIER`.**
+That is not decoration: today the ignore check lives in `isMergeable` (line 169) and runs *before*
+`isBareBr`, so an ignored `<br>` is a barrier. A classifier that tested `isBareBr` alone would newly
+admit a `<br>` under `{ignoredTags:['br']}` into a run — making
+`<div>\[a</div><br><div>b\]</div>` merge where it does not today. With the guard, the classifier's
+behaviour is identical to `isMergeable`'s.
+
 | kind | test |
 |---|---|
 | `WS_TEXT` | text node, no `/\S/` |
 | `TEXT` | text node with `/\S/` |
-| `BR` | `isBareBr(node)` |
-| `BLOCK` | `isMergeableBlock(node, extraSelector)`, carrying `alignToken(node)` and `tagName` |
+| `BR` | element, not ignored, `isBareBr(node)` |
+| `BLOCK` | element, not ignored, `isMergeableBlock(node, extraSelector)`, carrying `alignToken(node)` and `tagName` |
 | `BARRIER` | anything else |
 
-`isMergeable` is retained unchanged as the barrier test used elsewhere; `alignToken` is called only
-from the classifier and from `isMergeableBlock`'s attribute check.
+The classifier **replaces `isMergeable`'s only call site.** `isMergeable` is referenced exactly twice
+in `courses/static/courses/js/` — its definition (line 167) and the partition loop (line 293) — so
+once the loop calls the classifier the function is dead. Delete it rather than leaving a dead
+predicate that a future reader will assume is authoritative. `alignToken` is called only from the
+classifier and from `isMergeableBlock`'s attribute check.
 
 **The run signature** is the ordered pair `(alignToken, tagName)` taken from the run's **first
 `BLOCK` member**. A run whose token is non-empty is **signed**. A signed run therefore has a tag as
@@ -207,19 +225,24 @@ well as a token, which is what makes §3's tag column evaluable.
 
 **Membership rules**, applied left to right:
 
-1. A `BLOCK` joins iff it is compatible with the run's signature: when the run's token is `""`, the
-   block's token must be `""` (tag irrelevant, so `DIV`/`P` may mix); when the run's token is
-   non-empty, the block's `(alignToken, tagName)` must equal the run's pair. Otherwise it ends the
-   run and starts a new one, carrying its own signature.
-2. `TEXT` and `BR` may join a run whose signature is not yet established, or an **unsigned** run
+1. A `BLOCK` arriving into a run whose signature is **not yet established** always joins, and
+   establishes the run's signature. (Rule 5 is the one exception: a *signed* block arriving into a
+   run that already holds `TEXT`/`BR` members breaks it instead.) This clause matters — a literal
+   "not compatible with a signature that does not exist ⇒ break the run" reading would break the
+   ordinary `prose <div>\[a</div><div>b\]</div>` shape.
+2. A `BLOCK` arriving into a run whose signature **is** established joins iff it is compatible with
+   that signature: when the run's token is `""`, the block's token must be `""` (tag irrelevant, so
+   `DIV`/`P` may mix); when the run's token is non-empty, the block's `(alignToken, tagName)` must
+   equal the run's pair. Otherwise it ends the run and starts a new one, carrying its own signature.
+3. `TEXT` and `BR` may join a run whose signature is not yet established, or an **unsigned** run
    (today's behaviour). They **end a signed run**.
-3. `WS_TEXT` is **transparent**: it never establishes a signature and never ends a run whose
+4. `WS_TEXT` is **transparent**: it never establishes a signature and never ends a run whose
    signature is already established — signed or not. This mirrors `buildRun`, which already ignores
    such nodes, and is what keeps the feature working on real nh3 output rather than only on
    whitespace-free fixtures.
-4. Before a signature is established, a run may have accumulated `WS_TEXT`, `TEXT` and `BR` members.
+5. Before a signature is established, a run may have accumulated `WS_TEXT`, `TEXT` and `BR` members.
    If a **signed** `BLOCK` then arrives, it **ends that run and starts a new one**; it does not
-   retroactively sign the run it arrived into. This is what rules 2 and 3 defer to, and it is why
+   retroactively sign the run it arrived into. This is what rules 3 and 4 defer to, and it is why
    transparent whitespace can never *precede* the first block of a signed run.
 
 **The invariant the rewrite depends on, and its actual derivation.** In a signed run every member is
@@ -383,8 +406,15 @@ signed one. The wrapper *must* survive to carry the alignment, so this is the pr
 **Unsigned — today's behaviour, unchanged:**
 
 ```
-<p>\[a</p><p>b\]</p>   ⇒ \[a\nb\]        (content into the parent, both blocks removed)
+<p>\[a</p><p>b\]</p>            ⇒ \[a\nb\]   (content into the parent, both blocks removed)
+<p>\[a</p><div>b\]</div>        ⇒ \[a\nb\]   (MIXED TAG — unsigned runs ignore the tag)
 ```
+
+The mixed-tag case is not a curiosity: `courses.css:24-25` records that Chromium's contenteditable
+emits `<div>` for Enter while the first block may be a `<p>`, so `<p>…</p><div>…</div>` is ordinary
+RTE output. It is also the only shape that exercises §3's "tag equality is required **only** when the
+token is non-empty" rule — the `</p><p>` repairs that motivate the rule are same-tag and therefore
+prove nothing about it.
 
 ### Idempotence
 
@@ -428,12 +458,18 @@ not committed, so treat the rule as standing on the port's purpose, not on the f
 
 - `tests/test_e2e_math_reflow.py::test_centred_display_math_is_not_reflowed` becomes its positive
   twin: `.katex` count 1, `.katex-error` count 0, one surviving `ta-center` block, and no
-  `</div><div` in the markup. Its section header `# ---- Step 3: the named-limitation case ----`
-  becomes stale and must be updated with it.
+  `</div><div` in the markup. **Rename the function** (e.g. `test_centred_display_math_is_reflowed`)
+  and rewrite its docstring, which currently opens "KNOWN LIMITATION, pinned deliberately" and would
+  otherwise describe the opposite of what it asserts. Its section header
+  `# ---- Step 3: the named-limitation case ----` becomes stale too.
 - In `tests/test_e2e_math_reflow_dom.py::test_barriers_are_not_merged_across`, the `ta-center` case
   moves out. Because deleting a barrier case **weakens** that test, the barrier cases below replace
-  it. That file's module docstring states a case count ("65 cases") which this slice invalidates —
-  update it.
+  it.
+- **Two stale case counts, in two different files** — both move when this slice lands, and neither
+  is where a careless reading would look. `tests/test_e2e_math_reflow.py`'s **module docstring**
+  says "already proves the module's DOM mechanics in isolation (65 cases)";
+  `tests/test_e2e_math_reflow_dom.py` has no count in its module docstring, but line 27, inside the
+  `_allow_sync_orm_under_playwright` fixture docstring, says "63 cases". Recompute both.
 
 ### Barrier cases — each must come out byte-identical
 
@@ -455,6 +491,11 @@ not committed, so treat the rule as standing on the port's purpose, not on the f
 - **two `<p class="ta-center">` blocks** merging into a single surviving `<p class="ta-center">`,
   exact-equality. Tag equality is load-bearing in §3 and the only other `<p>` case is a barrier, so
   without this an implementation that restricted the reuse path to `DIV` would pass everything else.
+- **`<p>\[a</p><div>b\]</div> ⇒ \[a\nb\]`** — unsigned, mixed tag, exact-equality. This is the only
+  case that exercises "tag equality only when the token is non-empty", and it is ordinary Chromium
+  RTE output (`courses.css:24-25`). Without it, an implementation that applies tag equality
+  unconditionally — the simpler reading of "the signature is a pair" — passes every other happy-path,
+  barrier, idempotence and regression case while silently regressing a shipped shape.
 - the same shape **with a real newline text node between the blocks** — the corpus shape; this is the
   case that fails if whitespace transparency is missed
 - an empty centred line (`<div class="ta-center"><br></div>`) between two centred lines
@@ -479,7 +520,11 @@ satisfies the test trivially:
 - a signed block holding an intra-block `<br>`-split span
 - two spans with prose between the groups, inside signed blocks
 - the signed analogue of the `map`-vs-`leaf` discriminating shape recorded in `math_reflow.js`'s
-  rule-4 comment
+  rule-4 comment. **Verify it still discriminates rather than assuming it does:** the recorded shape
+  was measured against the *unsigned* rewrite, which hoists into the parent, whereas the reuse path
+  leaves a different node layout going into pass 2. If the signed analogue does not go RED under the
+  map-based rule-4 mutant, search for a shape that does and use that instead — keeping an
+  unfalsifiable fixture here would be a third vacuous entry in the table below.
 
 ### Falsification — a mutant per test, because the obvious one is vacuous twice over
 
@@ -491,15 +536,24 @@ names the mutant that must redden it, and the RED output of each is recorded:
 | test group | mutant that must redden it |
 |---|---|
 | happy path | revert the change (blocks with a token are barriers again) |
+| mixed-tag unsigned case | require tag equality even when the token is `""` |
 | barrier 1–3 | a run adopts the signature of its first block instead of requiring compatibility |
 | barrier 4–5 | signed runs admit `TEXT` and `BR` members |
 | barrier 6 | `alignToken` returns the first token instead of `null` for multi-token |
 | barrier 7 | drop the child-shape loop from `isMergeableBlock` |
-| barrier 8 | delete the `isIgnored(node, extraSelector)` line from **`isMergeable`** — not from `isMergeableBlock`, whose own call is redundant on the only live path (§2), so removing it changes nothing observable |
-| idempotence | revert rule 4 to the `map`-based comparison (`if (first !== last)`); and separately, reorder §5 to remove the wrapper's children before inserting |
+| barrier 8 | **drop `extraSelector` at the classifier's `isMergeableBlock` call site** (equivalently, delete *both* `isIgnored` calls). Deleting either single call is vacuous: today the two are mutually redundant for a `DIV`/`P`, so the block stays a barrier either way — see §2. Verify RED before recording it. |
+| idempotence | revert rule 4 to the `map`-based comparison (`if (first !== last)`) |
 | whitespace happy-path case | whitespace-only text nodes end a signed run |
 | two-span case | trim the trailing synthetic newline from the wrapper |
 | nested case | (documents behaviour; reverting changes it) |
+
+**§5's ordering has no black-box mutant, and that is not an oversight.** Every replacement node is
+freshly created (`textFragment`'s `createTextNode`/`createElement`, and the `doc.createTextNode` of
+the sliced run text), so none aliases a wrapper child; "append then remove originals" and "remove
+originals then append" leave the wrapper holding identical children. The ordering only changes what
+survives a throw landing *between* the two loops, so it is a fault-tolerance requirement verified by
+inspection. If it is to be tested at all, it needs fault injection — stub the removal loop to throw
+and assert the line survives duplicated rather than vanishing — and that is optional.
 
 ### Idempotence beyond the fixtures
 
@@ -513,6 +567,17 @@ exists only as a claim in a code comment and a docstring. Do not plan around reu
   unchanged from the input, **and**, for the shapes expected to merge, that pass 1 changed the
   markup. The last clause is what stops the whole enumeration passing vacuously under a mutant that
   suppresses merging.
+
+  **The merge-expected predicate is stated here as data, not derived from the implementation's
+  output** — deriving it from what the code does would make the anti-vacuity clause circular, which
+  is precisely what it exists to prevent. A shape is expected to merge iff:
+
+  > `placement == intra-block <br>` (merges regardless of separator, since the span never crosses
+  > the block boundary) **OR** `token == ""` **OR** `separator ∈ {none, whitespace}`.
+
+  Equivalently: only a *signed* run with a `<br>` or non-whitespace-text separator is expected not to
+  merge. If an implementation disagrees with this table, the table is the spec and the implementation
+  is wrong until argued otherwise.
 - **One-shot, recorded in the PR body only:** a larger randomised run may be performed for
   confidence, but if so its generator, seed and shape count must be stated in the PR body so the
   claim is reproducible. An unreproducible "fuzzed at N documents" claim is worth nothing.
@@ -523,6 +588,9 @@ whitespace-normalised `textContent` of the root differs before vs after any pass
 ### Regression surface
 
 - The six real `</p><p>` repairs — unsigned runs, unchanged path.
+- **Unsigned mixed-tag runs** (`<p>…</p><div>…</div>`) must still merge. Ordinary Chromium RTE
+  output, and the only shape that distinguishes "tag equality when signed" from "tag equality
+  always".
 - The `data-x="1"` barrier case: attributes outside the align vocabulary still block.
 - `test_empty_class_attribute_still_merges` — `<div style="">` and `<div class="">` still merge.
 - `tests/test_e2e_math_reflow_dom.py::test_walk_descends_into_barriers` merges inside a
