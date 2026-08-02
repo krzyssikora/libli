@@ -936,7 +936,7 @@ therefore defective, if they pass before the work starts:
   | `dwa typy kontenerów` | `content-editors.pl.md:133` |
   | `może zawierać innego kontenera` | `content-editors.pl.md:140` — note: NOT `nie może zawierać innego kontenera`, which spans the `:139`/`:140` wrap and matches nothing |
   | `nestable inside Tabs and Columns` | **two** sites: `interactive-elements.md:9` AND `content-editors.md:151` (the EN *See also* passage) |
-  | `wewnątrz Zakładek i Kolumn` | `interactive-elements.pl.md:10` — deliberately the **two-container** phrase, not the shorter `wewnątrz Zakładek`: the correct rewrite is "zagnieżdżalne wewnątrz Zakładek, Kolumn i Spoilera", which still contains the shorter substring, so the shorter phrase would fail the gate on a correct fix |
+  | `wewnątrz Zakładek` | `interactive-elements.pl.md:10`. **Do not "improve" this to `wewnątrz Zakładek i Kolumn`** — the source wraps as `…wewnątrz Zakładek` / `i Kolumn.`, so the longer phrase spans the wrap and matches nothing, making the gate inert. This is the same line-wrap trap that made the original `nie może zawierać innego kontenera` phrase useless. Instead, the Polish rewrite must **avoid the substring**: use a construction like `można je zagnieżdżać w kontenerach: Zakładki, Kolumny i Rozwijana treść.` rather than appending to `wewnątrz Zakładek…`. |
   | `zagnieżdżalne w Zakładkach i Kolumnach` | `content-editors.pl.md:166` |
 
   The `interactive-elements` phrases exist because the `content-editors` phrases alone would
