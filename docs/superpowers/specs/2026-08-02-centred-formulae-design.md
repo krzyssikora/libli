@@ -136,16 +136,20 @@ reference, in `math_reflow.js:153-165` the attribute test precedes the child-sha
    `alignToken(node) !== null`.
 5. every child is a text node or a bare `<br>`
 
-**A note on check 2, because two successive drafts of the mutant table got it wrong.**
-*Today*, `isMergeableBlock`'s only caller is `isMergeable` (`math_reflow.js:170`), which already
-returns `false` on `isIgnored(node, extraSelector)` at line 169 before delegating. For a `DIV`/`P`
-the two checks are therefore **mutually** redundant — deleting *either one alone* changes nothing
-observable, which is why no single-deletion mutant can redden an ignore test.
+**A note on check 2, because three successive drafts of the mutant table got it wrong.**
+`isIgnored` is checked **twice** on the live path for a `DIV`/`P`, both before and after this slice,
+and the two checks are **mutually redundant** — so no single-deletion mutant can ever redden an
+ignore test.
 
-*After this slice*, that inverts: §4's classifier replaces `isMergeable`'s only call site, so
-`isMergeableBlock`'s own `isIgnored` becomes the **sole** ignore check on the live path for blocks —
-load-bearing, not defence in depth. A mutant that means to exercise it must remove the check from the
-live path (see the falsification table), not merely delete one of two redundant calls.
+- *Today:* `isMergeableBlock`'s only caller is `isMergeable` (`math_reflow.js:170`), which returns
+  `false` on `isIgnored(node, extraSelector)` at line 169 before delegating.
+- *After this slice:* §4's classifier replaces that call site, but the classifier's own first test is
+  the same `isIgnored → BARRIER` guard, and check 2 below is retained. So the pair persists; only its
+  members change.
+
+A mutant that means to exercise the ignore path must therefore remove **both** checks (see the
+falsification table). Dropping either one alone leaves the other short-circuiting the case, which is
+how three separate drafts of that row shipped vacuous.
 
 Worked table:
 
@@ -235,15 +239,26 @@ well as a token, which is what makes §3's tag column evaluable.
    `DIV`/`P` may mix); when the run's token is non-empty, the block's `(alignToken, tagName)` must
    equal the run's pair. Otherwise it ends the run and starts a new one, carrying its own signature.
 3. `TEXT` and `BR` may join a run whose signature is not yet established, or an **unsigned** run
-   (today's behaviour). They **end a signed run**.
+   (today's behaviour). They **end a signed run and become the first member of a new, unestablished
+   run** — they are not excluded from every run. The distinction is not cosmetic: excluding them
+   would regress a shape that merges on master today, e.g.
+   `<div class="ta-center">x</div>\[a<div>b\]</div>`, where the run is
+   `[TEXT("\[a"), <div>]`. None of the barrier cases discriminates the two readings, so this has its
+   own fixture.
 4. `WS_TEXT` is **transparent**: it never establishes a signature and never ends a run whose
    signature is already established — signed or not. This mirrors `buildRun`, which already ignores
    such nodes, and is what keeps the feature working on real nh3 output rather than only on
    whitespace-free fixtures.
-5. Before a signature is established, a run may have accumulated `WS_TEXT`, `TEXT` and `BR` members.
-   If a **signed** `BLOCK` then arrives, it **ends that run and starts a new one**; it does not
-   retroactively sign the run it arrived into. This is what rules 3 and 4 defer to, and it is why
-   transparent whitespace can never *precede* the first block of a signed run.
+5. Before a signature is established, a run may have accumulated `TEXT` and `BR` members. If a
+   **signed** `BLOCK` then arrives, it **ends that run and starts a new one**; it does not
+   retroactively sign the run it arrived into. This is what rule 3 defers to.
+
+   `WS_TEXT` is deliberately **not** in that list, so a run holding only transparent whitespace stays
+   unestablished and an arriving signed block simply joins it (rule 1). A leading newline text node
+   before the first centred block — the corpus shape, and the shape of every indented hand-written
+   fixture — therefore does not break the run. Both readings produce identical DOM output, since
+   `WS_TEXT` contributes no characters; this one is chosen because it keeps the common case on the
+   ordinary path rather than the exception path.
 
 **The invariant the rewrite depends on, and its actual derivation.** In a signed run every member is
 either a `BLOCK` matching the run's signature or a `WS_TEXT`. It is tempting to argue "the first
@@ -278,6 +293,9 @@ The ordering is specified, not incidental, because it decides the failure mode (
    "only remove represented children" guard here ships duplicated content.
 3. **Remove** the sibling blocks — from `nodes[group.first + 1]` through `nodes[group.last]`, never
    from `group.first`, which would delete the wrapper along with the content just placed in it.
+   **Only the start index changes**: the existing loop's `nodes[i] && nodes[i].parentNode === element`
+   guard (`math_reflow.js:380-384`) is retained. Dropping it turns any unexpected detachment into a
+   thrown `NotFoundError`, and Error handling below depends on the throw window staying narrow.
 
 Members contributing zero characters — a `WS_TEXT`, or an empty line
 `<div class="ta-center"><br></div>` — appear in `nodes` and inside `[group.first, group.last]` but
@@ -469,7 +487,14 @@ not committed, so treat the rule as standing on the port's purpose, not on the f
   is where a careless reading would look. `tests/test_e2e_math_reflow.py`'s **module docstring**
   says "already proves the module's DOM mechanics in isolation (65 cases)";
   `tests/test_e2e_math_reflow_dom.py` has no count in its module docstring, but line 27, inside the
-  `_allow_sync_orm_under_playwright` fixture docstring, says "63 cases". Recompute both.
+  `_allow_sync_orm_under_playwright` fixture docstring, says "63 cases".
+  **Both are already wrong on master** — `pytest --collect-only` on the DOM file reports **66** — and
+  they disagree with each other despite describing the same quantity. So do not adjust them by this
+  slice's delta: run `--collect-only` and set both to the measured number, which must end up equal.
+- **A stale reference to a function this slice deletes:** `tests/test_e2e_math_reflow_dom.py:410`,
+  in `test_caller_ignored_tags_are_unioned_in`'s docstring, says "the divs merge unless extraSelector
+  is threaded into `isMergeable`". §4 deletes `isMergeable`, and this is the very test barrier 8 is
+  modelled on. Retarget the sentence at the classifier and `isMergeableBlock`.
 
 ### Barrier cases — each must come out byte-identical
 
@@ -496,8 +521,15 @@ not committed, so treat the rule as standing on the port's purpose, not on the f
   RTE output (`courses.css:24-25`). Without it, an implementation that applies tag equality
   unconditionally — the simpler reading of "the signature is a pair" — passes every other happy-path,
   barrier, idempotence and regression case while silently regressing a shipped shape.
-- the same shape **with a real newline text node between the blocks** — the corpus shape; this is the
-  case that fails if whitespace transparency is missed
+- the **homogeneous signed** shape with a real newline text node between the blocks
+  (`<div class="ta-center">\[a</div>␤<div class="ta-center">b\]</div>`) — the corpus shape, and the
+  case that fails if whitespace transparency is missed. It must be anchored to the *signed* shape,
+  not the mixed-tag one above it: in an unsigned run every text node is already mergeable on master,
+  so an unsigned whitespace fixture passes today and under every mutant, proving nothing.
+- a signed run **followed by** a non-whitespace text node that begins a new merging run
+  (`<div class="ta-center">x</div>\[a<div>b\]</div> ⇒ <div class="ta-center">x</div>\[a\nb\]`) —
+  pins that `TEXT` ending a signed run starts a new one rather than being excluded (rule 3)
+- a signed run **preceded** by a newline text node, merging normally (rule 5's `WS_TEXT` carve-out)
 - an empty centred line (`<div class="ta-center"><br></div>`) between two centred lines
 - `ta-left` and `ta-right` as well as `ta-center`, so nothing is hardcoded to centre
 - `<div class=" ">` merging — the deliberate widening in §1
@@ -530,19 +562,24 @@ satisfies the test trivially:
 
 "Revert the change and watch it redden" is **unsatisfiable for the barrier cases** (with the change
 reverted every `ta-*` block is already a barrier, so all eight stay green) **and for the idempotence
-cases** (reverting makes every signed fixture a no-op, so pass 1 trivially equals pass 2). Each test
-names the mutant that must redden it, and the RED output of each is recorded:
+cases** (reverting leaves every signed *cross-block* merge suppressed, so pass 1 is either a no-op or
+is already idempotent on its own — either way pass 1 == pass 2 holds trivially. Note it is not always
+a no-op: an intra-block `\(x<br>y\)` span still merges during the block's own `mergeChildren` visit,
+which is unaffected by that block's attributes). Each test names the mutant that must redden it, and
+the RED output of each is recorded:
 
 | test group | mutant that must redden it |
 |---|---|
-| happy path | revert the change (blocks with a token are barriers again) |
-| mixed-tag unsigned case | require tag equality even when the token is `""` |
+| happy path (**signed** cases only) | revert the change (blocks with a token are barriers again) |
+| mixed-tag unsigned case | require tag equality even when the token is `""`. Listed separately because it passes on master, so "revert the change" cannot redden it. |
+| rule-3 case (`TEXT` after a signed run) | a `TEXT`/`BR` that ends a signed run is excluded from every run instead of starting a new one |
 | barrier 1–3 | a run adopts the signature of its first block instead of requiring compatibility |
 | barrier 4–5 | signed runs admit `TEXT` and `BR` members |
 | barrier 6 | `alignToken` returns the first token instead of `null` for multi-token |
 | barrier 7 | drop the child-shape loop from `isMergeableBlock` |
-| barrier 8 | **drop `extraSelector` at the classifier's `isMergeableBlock` call site** (equivalently, delete *both* `isIgnored` calls). Deleting either single call is vacuous: today the two are mutually redundant for a `DIV`/`P`, so the block stays a barrier either way — see §2. Verify RED before recording it. |
-| idempotence | revert rule 4 to the `map`-based comparison (`if (first !== last)`) |
+| barrier 8 | delete (or drop `extraSelector` from) **both** the classifier's `isIgnored → BARRIER` guard **and** `isMergeableBlock`'s own `isIgnored` check. Removing either alone is vacuous — the other short-circuits the case and the block stays a barrier, which is how three drafts of this row shipped unfalsifiable (§2). Verify RED before recording it. |
+| idempotence, signed analogues of fixtures 1–2 | remove the `!run.leaf[i]` guard from `textFragment`, so an already-merged `\n` is re-split into `text` / `<br>` / `text` |
+| idempotence, map-vs-leaf analogue | revert rule 4 to the `map`-based comparison (`if (first !== last)`). This mutant reddens **only** this fixture: `test_reflow_is_idempotent`'s existing docstring records as measured that the other two "do NOT pin rule 4 itself", and the signed analogues inherit that. |
 | whitespace happy-path case | whitespace-only text nodes end a signed run |
 | two-span case | trim the trailing synthetic newline from the wrapper |
 | nested case | (documents behaviour; reverting changes it) |
@@ -582,8 +619,23 @@ exists only as a claim in a code comment and a docstring. Do not plan around reu
   confidence, but if so its generator, seed and shape count must be stated in the PR body so the
   claim is reproducible. An unreproducible "fuzzed at N documents" claim is worth nothing.
 
-Define both terms: **divergence** = pass N+1 output HTML differs from pass N; **text loss** =
-whitespace-normalised `textContent` of the root differs before vs after any pass.
+Define both terms precisely, because the obvious reading of the second is wrong:
+
+- **divergence** = pass N+1 output HTML differs from pass N.
+- **text loss** = the root's `textContent` with **all whitespace removed** (`"".join(s.split())`)
+  differs before vs after any pass.
+
+"All whitespace removed" is deliberate and is **not** the usual "collapse runs to a single space".
+A merge legitimately *introduces* characters that were never in `textContent` — `buildRun`'s
+synthetic boundary newlines. `<div class="ta-center">\[a</div><div class="ta-center">b\]</div>` has
+`textContent == "\[ab\]"` before and `"\[a\nb\]"` after; under collapse-to-single-space those are
+`"\[ab\]"` vs `"\[a b\]"`, so the assertion would redden on **every merging shape in the
+cross-product** against a perfectly correct implementation. Stripping whitespace entirely is what
+makes the check mean "no authored character was lost".
+
+The cost is that this check is blind to the "tailhead" glue class — two words joined without a
+separator. That is accepted: glue has its own dedicated exact-equality tests, inherited from the
+predecessor.
 
 ### Regression surface
 
