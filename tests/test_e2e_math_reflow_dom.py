@@ -217,7 +217,6 @@ def test_empty_class_attribute_still_merges(page):
 @pytest.mark.parametrize(
     "html",
     [
-        '<div class="ta-center">\\[x</div><div class="ta-center">y\\]</div>',
         '<div data-x="1">\\[x</div><div data-x="1">y\\]</div>',
         "<div>\\[a</div><strong>x</strong><div>b\\]</div>",
         '<div>\\[a</div><span class="tc-red">x</span><div>b\\]</div>',
@@ -788,3 +787,137 @@ def test_nested_signed_run_preserves_one_nesting_level(page):
         '<div><div class="ta-center">\\[a</div><div class="ta-center">b\\]</div></div>',
     )
     assert out == '<div><div class="ta-center">\\[a\nb\\]</div></div>'
+
+
+@pytest.mark.parametrize(
+    "html",
+    [
+        # 1. signed + unsigned
+        '<div class="ta-center">\\[a</div><div>b\\]</div>',
+        # 2. two different tokens
+        '<div class="ta-center">\\[a</div><div class="ta-right">b\\]</div>',
+        # 3. same token, different tag
+        '<p class="ta-center">\\[a</p><div class="ta-center">b\\]</div>',
+        # 4. signed run interrupted by NON-whitespace text
+        '<div class="ta-center">\\[a</div>stray<div class="ta-center">b\\]</div>',
+        # 5. signed run interrupted by a bare <br>
+        '<div class="ta-center">\\[a</div><br><div class="ta-center">b\\]</div>',
+        # 6. ineligible multi-token class (nh3 keeps BOTH tokens -- measured)
+        '<div class="ta-center ta-left">\\[a</div>'
+        '<div class="ta-center ta-left">b\\]</div>',
+        # 7. signed block holding an element child -- the child-shape check
+        '<div class="ta-center">\\[a<em>x</em></div><div class="ta-center">b\\]</div>',
+        # 8. NON-EMPTY style -- blockAttributesOk's one novel clause, and the RTE's
+        #    own representation of alignment (text_toolbar.js converts ta-* back to
+        #    style="text-align:…" on load). Without this case, weakening the clause
+        #    to `if (attr.name === "style") continue;` is invisible to the entire
+        #    suite once Task 3 deletes the old ta-center barrier entry -- measured.
+        '<div style="text-align:center">\\[a</div>'
+        '<div style="text-align:center">b\\]</div>',
+    ],
+)
+def test_signed_barriers_are_not_merged_across(page, html):
+    assert _reflow_html(page, html) == html
+
+
+def test_ignored_tag_suppresses_a_signed_block(page):
+    """Barrier 9 (the parametrize list above holds 1-8). The root must be <section>,
+    not <div>: reflow's root guard
+    (`root.closest(extra)`) would make a <div> root pass for the wrong reason — the
+    same trap test_caller_ignored_tags_are_unioned_in records."""
+    html = '<div class="ta-center">\\[a</div><div class="ta-center">b\\]</div>'
+    page.set_content(f"<!DOCTYPE html><section id='root'>{html}</section>")
+    page.add_script_tag(path=SCRIPT)
+    out = page.evaluate(
+        "() => { const r = document.getElementById('root');"
+        "        window.libliMathReflow(r, {ignoredTags: ['div']});"
+        "        return r.innerHTML; }"
+    )
+    assert out == html
+
+
+def test_ignored_br_still_breaks_a_run(page):
+    """Barrier 10 — the ONLY case that reaches the classifier's isIgnored guard. A
+    bare <br> is classified via isBareBr and never reaches isMergeableBlock, so that
+    guard is the sole thing keeping an ignored <br> out of a run; case 9's <div> is
+    still caught by isMergeableBlock's own check. Deleting isMergeable removed the
+    line that used to enforce this, so without this test the regression ships with
+    every other case green."""
+    html = "<div>\\[a</div><br><div>b\\]</div>"
+    page.set_content(f"<!DOCTYPE html><section id='root'>{html}</section>")
+    page.add_script_tag(path=SCRIPT)
+    out = page.evaluate(
+        "() => { const r = document.getElementById('root');"
+        "        window.libliMathReflow(r, {ignoredTags: ['br']});"
+        "        return r.innerHTML; }"
+    )
+    assert out == html
+
+
+def test_text_after_a_signed_run_starts_a_new_run(page):
+    """M3: a TEXT that ends a signed run becomes the first member of a NEW run
+    rather than being excluded from every run. Excluding it regresses a shape that
+    merges on master."""
+    out = _reflow_html(page, '<div class="ta-center">x</div>\\[a<div>b\\]</div>')
+    assert out == '<div class="ta-center">x</div>\\[a\nb\\]'
+
+
+def test_text_leading_a_signed_run_is_untouched(page):
+    """M5's only coverage. An M5 violation moves the synthetic boundary newline
+    INSIDE the wrapper — a single whitespace character, which a startswith/endswith
+    assertion would not catch. Hence exact equality."""
+    out = _reflow_html(
+        page,
+        'lead <div class="ta-center">\\[a</div><div class="ta-center">b\\]</div>',
+    )
+    assert out == 'lead <div class="ta-center">\\[a\nb\\]</div>'
+
+
+def test_text_trailing_a_signed_run_is_untouched(page):
+    """Pinned by a DIFFERENT mutant from the leading case: here the run is already
+    signed when the text arrives, so the text is ended by M3, not M5. Discriminating
+    against "signed runs admit TEXT and BR members"."""
+    out = _reflow_html(
+        page,
+        '<div class="ta-center">\\[a</div><div class="ta-center">b\\]</div> trail',
+    )
+    assert out == '<div class="ta-center">\\[a\nb\\]</div> trail'
+
+
+def test_br_leading_a_signed_run_is_untouched(page):
+    """M5's condition is "TEXT and BR members" and sawTextOrBr covers both — but a
+    leading BR is NOT observable, so this is a REGRESSION GUARD, not a falsifiable
+    fixture. Measured: a leading bare <br> contributes zero characters (buildRun's
+    `text.length && …` is false at position 0), so it never enters run.map,
+    group.first is still the first block, and the wrapper is byte-identical whether
+    or not M5 fired. Mutant L leaves it green; only mutant A (revert) reddens it."""
+    out = _reflow_html(
+        page,
+        '<br><div class="ta-center">\\[a</div><div class="ta-center">b\\]</div>',
+    )
+    assert out == '<br><div class="ta-center">\\[a\nb\\]</div>'
+
+
+def test_whitespace_leading_a_signed_run_does_not_break_it(page):
+    """M5's WS_TEXT carve-out. REGRESSION GUARD ONLY — no mutant of the PARTITION
+    RULES can redden it, because every reading of a leading WS_TEXT yields identical
+    DOM; only mutant A (reverting the feature) does. Listed here so its
+    unfalsifiability is a recorded decision rather than an oversight."""
+    out = _reflow_html(
+        page,
+        '\n<div class="ta-center">\\[a</div><div class="ta-center">b\\]</div>',
+    )
+    assert out == '\n<div class="ta-center">\\[a\nb\\]</div>'
+
+
+def test_centred_inline_align_comes_out_merged_and_promoted(page):
+    """Phase 2 interaction. Uses align*, NOT cases: DISPLAY_ONLY_ENVS is ten exact
+    literals and `cases` is deliberately not among them, so a \\(\\begin{align*}…\\)
+    span merges but never promotes."""
+    out = _reflow_html(
+        page,
+        '<div class="ta-center">\\(\\begin{align*}a&amp;=1</div>'
+        '<div class="ta-center">\\end{align*}\\)</div>',
+    )
+    assert out.startswith('<div class="ta-center">\\[')
+    assert out.endswith("\\]</div>")
