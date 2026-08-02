@@ -143,6 +143,34 @@
     return true;
   }
 
+  // The three values courses/sanitize.py's ALIGN_CLASS_VALUES permits on a block.
+  var ALIGN_TOKENS = { "ta-left": true, "ta-center": true, "ta-right": true };
+
+  // "" = no align class; one of the three = exactly one; null = INELIGIBLE (two or
+  // more align tokens, or any token outside the three). nh3 filters class values
+  // token-wise, so <p class="ta-center ta-left"> survives sanitising with BOTH
+  // tokens -- measured against this repo's real config -- and has to be decided
+  // rather than assumed away.
+  //
+  // Parsed as a token SET, never as the raw attribute string, so class=" ta-center "
+  // and class="ta-center" agree. One deliberate side effect: class=" " yields an
+  // empty set and therefore "", where noEffectiveAttributes (value === "") made it a
+  // barrier. A whitespace-only class has no rendering effect, so the widening is
+  // harmless; it is pinned by a test rather than left to be rediscovered.
+  function alignToken(el) {
+    var raw = el.getAttribute("class");
+    if (raw === null) return "";
+    var parts = raw.split(/\s+/);
+    var found = "";
+    for (var i = 0; i < parts.length; i++) {
+      if (!parts[i]) continue;
+      if (!ALIGN_TOKENS[parts[i]]) return null;
+      if (found) return null;
+      found = parts[i];
+    }
+    return found;
+  }
+
   function isBareBr(node) {
     return node.nodeType === 1 && node.tagName === "BR" && noEffectiveAttributes(node);
   }
@@ -164,10 +192,21 @@
     return true;
   }
 
-  function isMergeable(node, extraSelector) {
-    if (node.nodeType === 3) return true;
-    if (isIgnored(node, extraSelector)) return false;
-    return isBareBr(node) || isMergeableBlock(node, extraSelector);
+  // Five kinds, because the partition now needs more than isMergeable's single
+  // boolean: compatibility is pairwise, and WS_TEXT / TEXT / BR / BLOCK each behave
+  // differently when they meet a signed run.
+  //
+  // The leading isIgnored test is load-bearing, and specifically for BR: a bare <br>
+  // is classified via isBareBr and never reaches isMergeableBlock, so this guard is
+  // the ONLY thing keeping an ignored <br> out of a run. isMergeable used to provide
+  // it at its line-169 check; this function replaces isMergeable's only call site.
+  function classifyChild(node, extraSelector) {
+    if (node.nodeType === 3) return /\S/.test(node.data) ? "TEXT" : "WS_TEXT";
+    if (node.nodeType !== 1) return "BARRIER";
+    if (isIgnored(node, extraSelector)) return "BARRIER";
+    if (isBareBr(node)) return "BR";
+    if (isMergeableBlock(node, extraSelector)) return "BLOCK";
+    return "BARRIER";
   }
 
   // ---- run text + offset->child map ------------------------------------------
@@ -286,17 +325,83 @@
   function mergeChildren(element, options, extraSelector) {
     var doc = element.ownerDocument || document;
     var children = [].slice.call(element.childNodes);
+    // A run now carries a SIGNATURE: the (alignToken, tagName) pair of its first
+    // BLOCK member. `token === null` means not yet established; `""` means
+    // established-unsigned; a non-empty string means signed. Membership rules M1-M5
+    // are spelled out in the spec's Architecture section.
     var runs = [];
-    var current = [];
+    var current = null;
     var i;
-    for (i = 0; i < children.length; i++) {
-      if (isMergeable(children[i], extraSelector)) current.push(i);
-      else { if (current.length) runs.push(current); current = []; }
+
+    function endRun() {
+      if (current && current.indices.length) runs.push(current);
+      current = null;
     }
-    if (current.length) runs.push(current);
+
+    function newRun(index, token, tag, sawTextOrBr) {
+      return { indices: [index], token: token, tag: tag, sawTextOrBr: sawTextOrBr };
+    }
+
+    for (i = 0; i < children.length; i++) {
+      var kind = classifyChild(children[i], extraSelector);
+      if (kind === "BARRIER") { endRun(); continue; }
+      if (!current) {
+        current = { indices: [], token: null, tag: null, sawTextOrBr: false };
+      }
+
+      if (kind === "WS_TEXT") {
+        // M4: transparent. Never establishes a signature, never ends a run. nh3
+        // preserves inter-tag newlines and the imported corpus has 505 of them
+        // between sibling divs, so treating these as breaks would make the whole
+        // feature a no-op on real content while every fixture stayed green.
+        current.indices.push(i);
+        continue;
+      }
+
+      if (kind === "TEXT" || kind === "BR") {
+        if (current.token) {
+          // M3: ends a signed run AND becomes the first member of a new one -- it is
+          // not excluded from every run. Excluding it would regress a shape that
+          // merges on master: <div class="ta-center">x</div>\[a<div>b\]</div>.
+          endRun();
+          current = newRun(i, null, null, true);
+        } else {
+          current.indices.push(i);
+          current.sawTextOrBr = true;
+        }
+        continue;
+      }
+
+      var tok = alignToken(children[i]);
+      var tag = children[i].tagName;
+      if (current.token === null) {
+        if (tok !== "" && current.sawTextOrBr) {
+          // M5: a SIGNED block arriving into a run that already accumulated TEXT/BR
+          // members breaks it rather than signing it retroactively. WS_TEXT is
+          // deliberately NOT in that condition -- a run holding only transparent
+          // whitespace stays joinable, which is the corpus shape.
+          endRun();
+          current = newRun(i, tok, tag, false);
+        } else {
+          current.indices.push(i);                  // M1: establishes the signature
+          current.token = tok;
+          current.tag = tag;
+        }
+      } else {
+        // M2: compatible iff both unsigned (tag irrelevant, so DIV/P may mix), or
+        // same token AND same tag.
+        var ok = current.token === ""
+          ? tok === ""
+          : (tok === current.token && tag === current.tag);
+        if (ok) current.indices.push(i);
+        else { endRun(); current = newRun(i, tok, tag, false); }
+      }
+    }
+    endRun();
 
     for (var r = runs.length - 1; r >= 0; r--) {
-      var indices = runs[r];
+      var indices = runs[r].indices;
+      var runToken = runs[r].token;
       var nodes = [];
       for (i = 0; i < indices.length; i++) nodes.push(children[indices[i]]);
       var run = buildRun(nodes);
