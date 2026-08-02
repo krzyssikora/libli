@@ -21,7 +21,7 @@
 - **Do not run the full suite during tasks 1–5.** It exceeds the tool timeout. Task 6 owns it.
 - **Browser JS style:** IIFE, `"use strict"`, `var`, no arrow functions, no `let`/`const` — match the surrounding file.
 - **Ruff:** the repo selects `["E","F","I","UP","B","S"]`; `UP031` forbids `"…%s…" % x`, `E741` forbids `l` as a name, `E501` caps lines at 88. Lint every Python file you touch before committing.
-- **Baseline:** `master` at `671c57f0`; full non-e2e **4566 passed**; `tests/test_e2e_math_reflow_dom.py` collects **66**; `tests/test_e2e_math_reflow.py` collects 11.
+- **Baseline:** `master` at `671c57f0`; full non-e2e **4568** (`4568/5226 tests collected, 658 deselected`, all passing, ~3m41s at `-n 4`); `tests/test_e2e_math_reflow_dom.py` collects **66**; `tests/test_e2e_math_reflow.py` collects 11. Re-measured in this worktree — an earlier draft said 4566, taken from a different commit, which would have made the Task 6 gate unpassable.
 
 ---
 
@@ -206,9 +206,11 @@ with:
 It is now referenced nowhere. Leaving a dead predicate behind invites a future reader to treat it as authoritative. Confirm before deleting:
 
 ```
-grep -n "isMergeable\b" courses/static/courses/js/math_reflow.js
+grep -n "function isMergeable\b" courses/static/courses/js/math_reflow.js
 ```
-Expected after the delete: **no output at all**, and the command exits 1. `\b` is a word boundary and there is none between the `e` of `isMergeable` and the `B` of `isMergeableBlock`, so this pattern never matches `isMergeableBlock` — empty output is success here, not evidence you deleted too much. Before the delete it prints exactly two lines (the definition and the partition-loop call).
+Expected after the delete: **no output**, exit 1.
+
+Two traps in that one command. `\b` is a word boundary and there is none between the `e` of `isMergeable` and the `B` of `isMergeableBlock`, so the pattern never matches `isMergeableBlock` — empty output is success, not evidence you deleted too much. And the `function ` prefix is load-bearing: **Step 2's `classifyChild` comment spells `isMergeable` three times**, so a bare `grep -n "isMergeable\b"` prints those comment lines too and never goes empty, making a correct delete look failed.
 
 - [ ] **Step 6: Run both math-reflow files and confirm NO behaviour change**
 
@@ -371,7 +373,7 @@ def test_nested_signed_run_preserves_one_nesting_level(page):
 ```
 uv run pytest tests/test_e2e_math_reflow_dom.py -m e2e --verbosity=0
 ```
-Expected, measured: the full run is **78 collected, 67 passed, 11 failed** — i.e. **11 of the 12 new cases fail**, each returning the input unchanged because a `ta-*` block is still a barrier. Note `test_other_align_tokens_merge_too` is parametrized and contributes **two** failing cells, which is why 12 test functions yield 11 failures against 1 pass. The single pass is `test_unsigned_mixed_tag_run_still_merges`, because mixed-tag unsigned already merges on master. `test_whitespace_only_class_merges` is *not* an exception — it fails like the rest, since `class=" "` is a barrier until Step 3.
+Expected, measured: the full run is **78 collected, 67 passed, 11 failed** — i.e. **11 of the 12 new cases fail**, each returning the input unchanged because a `ta-*` block is still a barrier. Note `test_other_align_tokens_merge_too` is parametrized and contributes **two** cells, which is why Step 1's **11 test functions** yield 12 cells: 11 failures against 1 pass. The single pass is `test_unsigned_mixed_tag_run_still_merges`, because mixed-tag unsigned already merges on master. `test_whitespace_only_class_merges` is *not* an exception — it fails like the rest, since `class=" "` is a barrier until Step 3.
 
 - [ ] **Step 3: Widen the attribute test**
 
@@ -666,7 +668,8 @@ Expected: all pass. If barrier 9 fails, the classifier's `isIgnored` guard is mi
 Each mutant is given as an exact edit, not prose. That is deliberate: prose mutants are how a table goes vacuous — an earlier draft of this plan described one in English and it was transcribed backwards, which silently turned its own vacuity check into a no-op.
 
 **A. Revert the feature.** In `isMergeableBlock`: `if (!blockAttributesOk(node)) return false;` → `if (!noEffectiveAttributes(node)) return false;`
-Reddens: the signed Task-2 happy-path cases, and **every Task-3 signed-shape test** — `test_centred_inline_align_comes_out_merged_and_promoted`, both text-lead/trail cases, the BR-lead case and the whitespace-lead case. Measured: 16 tests at Task-3 time.
+Reddens 16 cells at Task-3 time, measured — listed rather than described, because two of them are not "signed" shapes at all (they redden because the revert restores `noEffectiveAttributes`):
+the 11 failing Task-2 cells (every Task-2 case except `test_unsigned_mixed_tag_run_still_merges`, counting `test_other_align_tokens_merge_too` twice — this includes `test_whitespace_only_class_merges` and `test_padded_align_class_matches_the_unpadded_one`), plus `test_text_leading_a_signed_run_is_untouched`, `test_text_trailing_a_signed_run_is_untouched`, `test_br_leading_a_signed_run_is_untouched`, `test_whitespace_leading_a_signed_run_does_not_break_it`, and `test_centred_inline_align_comes_out_merged_and_promoted`.
 
 **B. Tag equality even when unsigned.** In M2: `? tok === ""` → `? (tok === "" && tag === current.tag)`
 Reddens: `test_unsigned_mixed_tag_run_still_merges`.
@@ -690,7 +693,7 @@ Reddens: signed barrier 7, and also the pre-existing unsigned `<em>` barrier ent
 Reddens: signed barrier 8.
 
 **I. Remove BOTH ignore checks.** Delete `if (isIgnored(node, extraSelector)) return "BARRIER";` from `classifyChild` **and** `if (isIgnored(node, extraSelector)) return false;` from `isMergeableBlock`.
-Reddens: `test_ignored_tag_suppresses_a_signed_block`. Deleting either alone is vacuous — the other short-circuits the case.
+Reddens **three** tests (measured): `test_ignored_tag_suppresses_a_signed_block`, `test_ignored_br_still_breaks_a_run`, and the pre-existing `test_caller_ignored_tags_are_unioned_in`. Deleting either check alone is vacuous — the other short-circuits the case.
 
 **J. Remove the classifier's ignore check only.** Delete `if (isIgnored(node, extraSelector)) return "BARRIER";` from `classifyChild`.
 Reddens: `test_ignored_br_still_breaks_a_run`. One deletion suffices here because the classifier routes a `<br>` to `BR` and never consults `isMergeableBlock`.
@@ -712,7 +715,7 @@ Reddens: `test_two_spans_in_one_signed_run_keep_the_boundary_newline`.
 - `test_br_leading_a_signed_run_is_untouched` — a leading `<br>` contributes zero characters, so M5's BR half is not observable (measured).
 - `test_nested_signed_run_preserves_one_nesting_level` — documents behaviour.
 
-**Measured collateral, so the RED set you see matches the one recorded here:** mutant A reddens 16 tests at Task-3 time, not 12 — every Task-3 signed-shape test as well as the Task-2 happy-path ones. Mutant E also reddens `test_text_after_a_signed_run_starts_a_new_run` (with M3 disabled the trailing `\[a` is absorbed into the signed run and the following unsigned `<div>` breaks it, so nothing merges). Mutant G also reddens the pre-existing `<div>\[a</div><div><em>x</em></div><div>b\]</div>` barrier entry — signed barrier 7 could be deleted and G would still be caught, so case 7 documents the signed path rather than uniquely falsifying G.
+**Measured collateral, so the RED set you see matches the one recorded here:** mutant I reddens three tests, including the pre-existing `test_caller_ignored_tags_are_unioned_in`. Mutant E also reddens `test_text_after_a_signed_run_starts_a_new_run` (with M3 disabled the trailing `\[a` is absorbed into the signed run and the following unsigned `<div>` breaks it, so nothing merges). Mutant G also reddens the pre-existing `<div>\[a</div><div><em>x</em></div><div>b\]</div>` barrier entry — signed barrier 7 could be deleted and G would still be caught, so case 7 documents the signed path rather than uniquely falsifying G.
 
 - [ ] **Step 4: Lint and commit**
 
@@ -794,7 +797,11 @@ with:
         if (first === last) continue;
 ```
 
-**Note the direction: `===`, not `!==`.** Rule 4 *skips* a span whose ends share a node, so `if (first !== last) continue;` is the mutant written backwards — and measured, that inverted form disables cross-child merging entirely, reddening the large majority of cases including `test_basic_split_span_merges`. Fixture 3 would then "go RED" only because the anti-vacuity assertion fired, so the check this step exists to perform would never actually happen. Both wrong readings (two-line, and inverted direction) present as mass reddening, so if you see that, check which one you made rather than flipping the operator.
+**Note the direction: `===`, not `!==`.** Rule 4 *skips* a span whose ends share a node, so `if (first !== last) continue;` is the mutant written backwards. Measured, the two wrong readings have **distinguishable fingerprints**, so use them to tell which mistake you made:
+
+- **inverted direction (`!==`):** ~78 cases redden, including `test_basic_split_span_merges` — but **all three idempotence fixtures stay GREEN** (fixture 3's intra-block span is same-child either way, so it merges and stays idempotent). Mass reddening *with the fixtures green* means you flipped the operator.
+- **two-line literal reading** (replacing only the two `var` lines): 104 cases redden **including all three fixtures**, because the surviving `if` references undeclared names and throws under `"use strict"`.
+- **correct form:** only fixture 3 reddens among the three.
 
 Confirm fixture 3 goes RED under the correct form while fixtures 1 and 2 stay green. Measured on the signed fixture 3:
 
@@ -803,7 +810,11 @@ pass 1: <div class="ta-center">c<br>z$$x\n$$c\n$$x<br> x$$c</div>
 pass 2: <div class="ta-center">c<br>z$$x\n$$c\n$$x\n x$$c</div>
 ```
 
+Collateral, measured: this mutant also reddens the pre-existing `test_reflow_is_idempotent[2]`.
+
 **If fixture 3 does not redden, search for a shape that does and replace it** — keeping an unfalsifiable fixture here would defeat the task.
+
+**Then restore `math_reflow.js` and re-confirm fixture 3 is green before continuing.** Step 3 applies a *different* mutant on top; if this one is still in place its restore will not undo it, and the rule-4 mutation survives into Tasks 5 and 6.
 
 - [ ] **Step 3: Falsify fixtures 1 and 2**
 
@@ -822,6 +833,8 @@ with
 so an already-merged `\n` sitting inside an existing Text node is re-split into `text` / `<br>` / `text`. Confirm RED for fixtures 1 and 2, then restore.
 
 Both fixtures carry an intra-block `<br>` precisely so this guard fires: it only executes from an enclosing merge's covered-but-unspanned range, over a `\n` that an earlier *nested* merge planted. A fixture without that `<br>` stays green here — measured, and the reason fixture 2 is written the way it is.
+
+Collateral, measured: this mutant also reddens the pre-existing `test_reflow_is_idempotent[0]` and `[1]`.
 
 - [ ] **Step 4: Add the committed cross-product enumeration**
 
@@ -870,6 +883,14 @@ def test_idempotent_across_the_cross_product(page, tag, token, sep_name, placeme
 
     if merge_expected:
         assert out[1] != html, "expected a merge, markup unchanged"
+    else:
+        # The NEGATIVE half of the normative predicate. Without it the 16 signed x
+        # {br, text}-separator cells assert only idempotence and no-text-loss, so a
+        # merge that should have been refused goes unnoticed -- and those cells are
+        # the only place <p> and ta-right non-merge are pinned at all (Task 3's
+        # barriers 4-5 cover div/ta-center only). Measured: exact equality holds for
+        # all 16 on the built module, so the assertion is free.
+        assert out[1] == html, "expected no merge, markup changed"
 ```
 
 - [ ] **Step 5: Run everything**
@@ -976,7 +997,11 @@ git commit -m "test(math-reflow): invert the centred-formula limitation test"
 ```
 uv run pytest -n 4 --verbosity=0
 ```
-Expected: **4566 total (passed + skipped)**, unchanged — every test this slice adds is e2e. Treat the **total** as the invariant, not the pass/skip split: `test_db_quiesce.py` carries a dynamic skip that runs as a pass depending on session state, so both "4566 passed, 0 skipped" and "4565 passed, 1 skipped" are clean. A higher total means an e2e file landed in the default run for want of a `pytestmark` — that is the regression this count guards.
+Expected: **4568 total (passed + skipped)**, unchanged — every test this slice adds is e2e. Measured at `671c57f0`: `4568/5226 tests collected (658 deselected)`, then 4568 passed / 0 skipped in 221 s at `-n 4`.
+
+Treat the **total** as the invariant, not the pass/skip split: `test_db_quiesce.py` carries a dynamic skip that runs as a pass depending on session state, so both "4568 passed, 0 skipped" and "4567 passed, 1 skipped" are clean. A higher total means an e2e file landed in the default run for want of a `pytestmark` — that is the regression this count guards.
+
+Note `--collect-only -q` prints **nothing**: `addopts` already carries `-q`, so a second stacks to quiet-2 and suppresses the summary. Use `--verbosity=0`.
 
 - [ ] **Step 2: Full e2e suite**
 
@@ -1008,9 +1033,16 @@ uv run ruff check . && uv run ruff format --check .
 
 - [ ] **Step 4: The required visual verification**
 
-Render a centred three-line formula in the browser, **light and dark**, before and after, and record the measured paragraph spacing.
+**Capture the two "before" shots first, at the start of Task 1, on the unmodified tree** — by Task 6 the branch carries six commits and there is no "before" left to photograph. If you reach Task 6 without them, get a clean tree with `git worktree add <scratch-dir> master` outside the repo rather than stashing the branch.
 
-**Capture the two "before" shots first, at the start of Task 1, on the unmodified tree** — by Task 6 the branch carries five commits and there is no "before" left to photograph. If you reach Task 6 without them, get a clean tree with `git worktree add <scratch-dir> master` outside the repo rather than stashing the branch. Three centred line divs currently receive `margin-top: var(--space-3)` between them from the adjacent-sibling rule at `courses/static/courses/css/courses.css:27-32`; collapsing them to one block removes those gaps and substitutes KaTeX's own `.katex-display { margin: 1em 0 }`. That is the intended outcome, but it is a real spacing change and no automated test covers it. Save the four screenshots outside the repo and attach them to the PR.
+**The route** — reuse the harness `tests/test_e2e_math_reflow.py` already provides, rather than inventing one. Seed a `TextElement` whose body is the three centred line divs from Task 5 Step 1, via `_open_pa_session(page, live_server, …)` and `add_element`, then `page.goto(_lesson_url(live_server, unit))`. Screenshot the `.el--text` element. Drive dark mode by setting the **user's theme preference**, not a cookie — the repo has a recorded lesson that the cookie alone does not apply the theme in e2e.
+
+**The pass criterion, so this can be failed and not merely claimed:**
+
+- **before:** three separate centred blocks, with two `var(--space-3)` gaps between them (the adjacent-sibling rule at `courses/static/courses/css/courses.css:26-31`), and no `.katex` node.
+- **after:** one `.katex-display` block, its own `margin: 1em 0`, zero internal inter-line gaps, and the surrounding paragraph spacing unchanged above and below.
+
+Measure the gaps with `getBoundingClientRect()` rather than eyeballing the images, and record the numbers in the PR body alongside the four screenshots. A spacing change *inside* the formula is expected; a change to the spacing *around* it is a regression. Three centred line divs currently receive `margin-top: var(--space-3)` between them from the adjacent-sibling rule at `courses/static/courses/css/courses.css:26-31`; collapsing them to one block removes those gaps and substitutes KaTeX's own `.katex-display { margin: 1em 0 }`. That is the intended outcome, but it is a real spacing change and no automated test covers it. Save the four screenshots outside the repo and attach them to the PR.
 
 - [ ] **Step 5: Confirm no regression on the shapes the predecessor repaired**
 
@@ -1043,11 +1075,24 @@ def test_predecessor_repaired_shapes_still_merge(page, html):
     assert "\n" in out
 ```
 
-Run it with the rest of the DOM file, then return to Task 5 Step 2 and set the two case counts from a fresh `--collect-only`. This is a real gate; "confirm it does not" was not.
+Run it with the rest of the DOM file, then return to Task 5 Step 2 and set the two case counts from a fresh `--collect-only --verbosity=0`. This is a real gate; "confirm it does not" was not.
+
+- [ ] **Step 5b: Lint and commit the deferred edits**
+
+Task 5's commit fired before its Step 2 ran, and Task 6 has added a test — so at this point the tree carries real, uncommitted source changes: the new parametrize above and the two case-count docstrings. Without this step the branch is pushed without them.
+
+```bash
+uv run ruff format tests/test_e2e_math_reflow_dom.py tests/test_e2e_math_reflow.py
+uv run ruff check tests/test_e2e_math_reflow_dom.py tests/test_e2e_math_reflow.py
+git add tests/test_e2e_math_reflow_dom.py tests/test_e2e_math_reflow.py
+git commit -m "test(math-reflow): pin the predecessor's repaired shapes; refresh case counts"
+```
+
+This is also the only lint of Task 6's new Python — Step 3 ran before it existed. Re-run Step 3's repo-wide check after this commit.
 
 - [ ] **Step 6: Push and open the PR**
 
-The DoD artefacts belong in the PR body, not the repo, so there may be nothing left to commit — do not run a bare `git commit` that exits 1, and do not use `git add -A`.
+The DoD artefacts (screenshots, counts) belong in the PR body, not the repo. The last code commit was Step 5b — if `git status --porcelain` is not clean here, something from Step 5b was missed. Do not run a bare `git commit` that exits 1, and do not use `git add -A`.
 
 PR body must record: the non-e2e count, the light/dark screenshots, the deliberate `class=" "` widening, the nested-cascade asymmetry (one nesting level is preserved on the signed path), and the two-span trailing-newline behaviour.
 
