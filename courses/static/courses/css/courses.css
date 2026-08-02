@@ -863,10 +863,8 @@ a.unit-crumbs__label:focus-visible { outline: 2px solid var(--primary); outline-
   .lesson-unit__head .lesson-unit__title { flex-basis: 100%; }
 }
 
-/* Base: the TOC pin is inert until the collapsed state reveals it (Task 2). */
-.unit-toc-pin { display: none; }
-
-/* Visual treatment: a mark at rest, a button on interaction.
+/* Base: the TOC pin is inert until the collapsed state reveals it (Task 2).
+   Visual treatment: a mark at rest, a button on interaction.
    Deliberately NOT a copy of .unit-tree__toggle's chrome. That control sits on a
    panel (--surface-sunken) where a border reads; the pin stands alone on the page
    (--surface-base), where the same tokens vanish. Measured against --surface-base:
@@ -876,8 +874,14 @@ a.unit-crumbs__label:focus-visible { outline: 2px solid var(--primary); outline-
    So the plate and border were decoration that could not be seen; dropping them is
    also truer to the change, which exists to take a stripe OUT of this gutter.
    The chrome appears on hover, where it is feedback rather than permanent noise.
-   No :focus-visible rule here — reset.css:24 already applies the global ring. */
+   No :focus-visible rule here — reset.css:24 already applies the global ring.
+   align-items/justify-content live here (not in the reveal block below) because
+   they are inert under display: none and only matter once display: flex applies —
+   but they belong with the pin's other appearance rules, not the reveal. */
 .unit-toc-pin {
+  display: none;
+  align-items: center;
+  justify-content: center;
   border: 1px solid transparent;   /* reserves the hover edge; no layout shift */
   border-radius: .4rem;
   background: transparent;
@@ -910,9 +914,9 @@ a.unit-crumbs__label:focus-visible { outline: 2px solid var(--primary); outline-
      .unit-shell__main, which sets no z-index and so creates no stacking context,
      leaving the footer competing in the ROOT context. The two are horizontally
      disjoint today, so this only matters if future full-bleed or negative-margin
-     content appears in the column. Task 9 may not change it. */
+     content appears in the column. */
   html.unit-tree-collapsed [data-unit-shell] > .unit-toc-pin {
-    display: flex; align-items: center; justify-content: center;
+    display: flex;
     flex: 0 0 2.4rem; min-height: 2.4rem;
     position: sticky; top: .6rem; z-index: 21;
   }

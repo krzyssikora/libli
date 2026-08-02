@@ -1,8 +1,7 @@
 """Playwright e2e for batch-2 unit-nav: desktop collapse rail, auto-scroll, the
-pinned table-of-contents icon, and the 46rem prose cap it makes room for.
-
-See the test names below for coverage; this module has grown past a stale
-numbered index (originally 3 tests, now well beyond it).
+mobile drawer, folding chapter groups, the pinned table-of-contents icon (its
+visibility, focus handling, and layout across breakpoints), and the 46rem prose
+cap it makes room for. See the test names below for coverage.
 
 Marked e2e (excluded from the default run; run with -m e2e).
 Mirrors the harness in test_e2e_quiz.py (_allow_async_unsafe, _login,
@@ -45,6 +44,14 @@ def _login(page, live_server, username):
     form.locator("input[name='login']").fill(username)
     form.locator("input[name='password']").fill(TEST_PASSWORD)
     form.locator("button[type='submit']").click()
+
+
+def _collapse(page):
+    """Collapse via the real gesture and wait for the state class."""
+    page.locator("[data-unit-tree-toggle]").click()
+    page.wait_for_function(
+        "() => document.documentElement.classList.contains('unit-tree-collapsed')"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -112,6 +119,47 @@ def _seed_nav_course(username, slug, num_units=35):
         )
         units.append(unit)
     return course, units
+
+
+def _seed_text_and_table_unit(username, slug):
+    """A lesson unit holding one text element and one table element.
+
+    None of this file's existing seeds attach content elements — they build course
+    structure only. Shape follows tests/test_e2e_wide_content_scroll.py.
+    """
+    from django.contrib.auth import get_user_model
+
+    from courses.models import Enrollment
+    from courses.models import TableElement
+    from courses.models import TextElement
+    from tests.factories import ContentNodeFactory
+    from tests.factories import CourseFactory
+    from tests.factories import add_element
+
+    student = get_user_model().objects.get(username=username)
+    course = CourseFactory(slug=slug, owner=student)
+    Enrollment.objects.get_or_create(student=student, course=course)
+    unit = ContentNodeFactory(course=course, kind="unit", unit_type="lesson")
+
+    add_element(
+        unit,
+        TextElement.objects.create(
+            body="<p>" + ("Lorem ipsum dolor sit amet. " * 40) + "</p>"
+        ),
+    )
+
+    # The cell key is "html", NOT "text": TableElement._cell() reads
+    # raw.get("html") (courses/models.py:885), so normalize_data would rewrite a
+    # "text" key to {"html": ""} and every cell would render blank. The width
+    # assertion would still pass — .el--table is a block box that fills the column
+    # whatever the cells hold — so the seed's wrongness would be invisible to this
+    # test and only surface as an empty table in Task 9's screenshot sweep.
+    cells = [[{"html": f"r{r}c{c}"} for c in range(4)] for r in range(3)]
+    add_element(
+        unit, TableElement.objects.create(data={"cells": cells, "border": "grid"})
+    )
+
+    return course, unit
 
 
 # ---------------------------------------------------------------------------
@@ -1048,6 +1096,9 @@ def test_pin_is_hidden_at_mobile_width_in_both_states(browser, live_server):
     page = ctx.new_page()
     _login(page, live_server, "e2e_pin_mobile")
     page.goto(url)
+    assert page.locator("[data-unit-tree-pin]").count() == 1, (
+        "the pin must exist in the DOM (hidden, not absent) at mobile width"
+    )
     assert not page.locator("[data-unit-tree-pin]").is_visible(), (
         "expanded at mobile width: the pin must be hidden"
     )
@@ -1064,14 +1115,6 @@ def test_pin_is_hidden_at_mobile_width_in_both_states(browser, live_server):
     )
 
     ctx.close()
-
-
-def _collapse(page):
-    """Collapse via the real gesture and wait for the state class."""
-    page.locator("[data-unit-tree-toggle]").click()
-    page.wait_for_function(
-        "() => document.documentElement.classList.contains('unit-tree-collapsed')"
-    )
 
 
 @pytest.mark.django_db(transaction=True)
@@ -1259,47 +1302,6 @@ def test_content_column_aligns_with_the_strip_above_it(browser, live_server):
     ctx.close()
 
 
-def _seed_text_and_table_unit(username, slug):
-    """A lesson unit holding one text element and one table element.
-
-    None of this file's existing seeds attach content elements — they build course
-    structure only. Shape follows tests/test_e2e_wide_content_scroll.py.
-    """
-    from django.contrib.auth import get_user_model
-
-    from courses.models import Enrollment
-    from courses.models import TableElement
-    from courses.models import TextElement
-    from tests.factories import ContentNodeFactory
-    from tests.factories import CourseFactory
-    from tests.factories import add_element
-
-    student = get_user_model().objects.get(username=username)
-    course = CourseFactory(slug=slug, owner=student)
-    Enrollment.objects.get_or_create(student=student, course=course)
-    unit = ContentNodeFactory(course=course, kind="unit", unit_type="lesson")
-
-    add_element(
-        unit,
-        TextElement.objects.create(
-            body="<p>" + ("Lorem ipsum dolor sit amet. " * 40) + "</p>"
-        ),
-    )
-
-    # The cell key is "html", NOT "text": TableElement._cell() reads
-    # raw.get("html") (courses/models.py:885), so normalize_data would rewrite a
-    # "text" key to {"html": ""} and every cell would render blank. The width
-    # assertion would still pass — .el--table is a block box that fills the column
-    # whatever the cells hold — so the seed's wrongness would be invisible to this
-    # test and only surface as an empty table in Task 9's screenshot sweep.
-    cells = [[{"html": f"r{r}c{c}"} for c in range(4)] for r in range(3)]
-    add_element(
-        unit, TableElement.objects.create(data={"cells": cells, "border": "grid"})
-    )
-
-    return course, unit
-
-
 @pytest.mark.django_db(transaction=True)
 def test_prose_is_capped_while_the_table_takes_the_full_column(browser, live_server):
     """46rem = 736px. Measure the ELEMENT roots, not the enclosing
@@ -1344,17 +1346,17 @@ def test_quiz_chrome_is_capped_across_both_page_states(browser, live_server):
     users: _login cannot switch identity, because allauth redirects an already
     authenticated visitor away from the login page.
     """
-    from courses.models import Element
     from courses.models import ShortTextQuestionElement
     from tests.factories import CourseFactory
     from tests.factories import EnrollmentFactory
+    from tests.factories import add_element
     from tests.factories import make_quiz_unit
 
     actor = _make_student("e2e_pin_quiz")
     course = CourseFactory(slug="e2e-pin-quiz", owner=actor)
     unit = make_quiz_unit(course=course)
     q = ShortTextQuestionElement.objects.create(stem="Name a prime.", accepted="7")
-    Element.objects.create(unit=unit, content_object=q)
+    add_element(unit, q)
 
     ctx = browser.new_context(viewport={"width": 1440, "height": 900})
     page = ctx.new_page()
