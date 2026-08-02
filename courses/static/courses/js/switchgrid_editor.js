@@ -286,9 +286,14 @@
       cyc.appendChild(msg);
     }
     msg.textContent = i18nBlankError(editor, pos);
-    cyc.scrollIntoView({ block: "center" });
+    // Pane-scoped, never scrollIntoView: `center` re-centres the element in EVERY
+    // scrollport including the page viewport, which is overflow:hidden on this page —
+    // the author would be left unable to scroll the unit header back into view.
+    if (window.libliAlignTopInPane) window.libliAlignTopInPane(cyc);
     var firstText = cyc.querySelector('input[type="text"]');
-    if (firstText) firstText.focus();
+    // preventScroll for the same reason: the align above already put the cycler in the
+    // pane's viewport, and a bare focus() would scroll every ancestor scrollport again.
+    if (firstText) firstText.focus({ preventScroll: true });
   }
 
   document.addEventListener("click", onClick);

@@ -166,6 +166,15 @@
     body.scrollTo({ top: body.scrollTop + delta, behavior: behavior || "auto" });
   }
 
+  // Exposed for the sibling authoring modules (filltable_editor.js,
+  // switchgrid_editor.js) that need to bring a validation message into view. They must
+  // NOT reach for scrollIntoView for the reason above — it scrolls every scrollport up
+  // the chain, the page viewport included, and that one is overflow:hidden. Both load
+  // before editor.js but only call this from a submit handler, so it is always defined
+  // by then; they still guard, so a missing helper degrades to "no scroll", never a
+  // TypeError that would swallow their validation.
+  window.libliAlignTopInPane = alignTopInPane;
+
   // Align the selected element to the top of the preview. The rebuilt preview grows AFTER
   // layout (sandboxed HTML iframes, images, KaTeX), so align now for feedback, then re-align
   // as that async content loads and once more shortly after.
