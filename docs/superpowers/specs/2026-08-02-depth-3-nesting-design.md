@@ -248,7 +248,6 @@ coverage-table mutant targets one of them:
   | `views_manage.py:1534-1539` | "'choicequestion' and 'tabs' are the cases here that actually reach resolve_scope and **prove nesting is blocked**" — `tabs` becomes an accept |
   | `export.py:473-486` (`walk_unit_joins` docstring) | "a container element's (**tabs or two-column**) children are expanded **inline here**" — the walk becomes registry-driven, includes spoiler, and recurses |
   | `export.py:534-536` (`build_export` comment) | "walk_unit_joins expands each **tabs** element's children inline … no child needs a recursive query here" |
-  | `payloads.py:747-749` (`_CONTAINER_SLOT_KEY` header) | deleted with the constant; also cross-references `courses.builder._CONTAINER_REGISTRY` by its old model-keyed identity |
   | `payloads.py:771-773` | "every other container reads its slot list from `data` via `_CONTAINER_SLOT_KEY`" |
   | `payloads.py:776-781` | the `SPOILER_CHILD_TYPES` defence-in-depth rationale, deleted with the constant |
   | `builder.py:95-98` (`_CONTAINER_REGISTRY` header) | the model-class key and three-tuple contract SURVIVE, but the header must note that a single-slot container supplies a constant slot list rather than reading `data` |
