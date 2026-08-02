@@ -518,9 +518,11 @@ not committed, so treat the rule as standing on the port's purpose, not on the f
    wrong reason.
 9. two divs holding a split span separated by a bare `<br>`, under `{ignoredTags: ['br']}`, from a
    `<section>` root. **This is the only case that reaches the classifier's `isIgnored → BARRIER`
-   guard.** For a `<br>` that guard is the *sole* ignore check — `isMergeableBlock` short-circuits on
-   `tagName` before it ever consults `isIgnored` — whereas case 8's `<div>` is still caught by
-   `isMergeableBlock`'s own check. So an implementer who transcribes the classifier's kind table but
+   guard.** The reason is the classifier's own dispatch, not a check order inside
+   `isMergeableBlock`: a bare `<br>` is classified as `BR` via `isBareBr`, so `isMergeableBlock` is
+   never on that path at all (and would return `false` for a `<br>` regardless, ignored or not).
+   Nothing can therefore re-impose the barrier, unlike case 8's `<div>`, which `isMergeableBlock`'s
+   own `isIgnored` still catches. So an implementer who transcribes the classifier's kind table but
    omits its leading guard ships exactly the regression §4 warns about, with cases 1–8 all green.
    The slice makes this sharper by deleting `isMergeable`, whose line-169 guard is currently the only
    thing enforcing it. No test in the suite uses an ignored `<br>` today (`ignoredTags`/
@@ -559,11 +561,13 @@ not committed, so treat the rule as standing on the port's purpose, not on the f
 - `<div class=" ">` merging — the deliberate widening in §1
 - text leading a signed run, and text trailing it, each untouched — **exact-equality** against the
   two outputs written out in Data flow (`lead <div class="ta-center">\[a\nb\]</div>` and
-  `<div class="ta-center">\[a\nb\]</div> trail`). These are **M5's only coverage**, and the
-  divergence an M5 violation produces is a single whitespace character —
-  `lead <div class="ta-center">\n\[a\nb\]</div>`, the synthetic boundary newline landing inside the
-  wrapper. A `startswith`/`endswith` assertion, the natural shape here, would not catch it. Barriers
-  4 and 5 stay green under an M5 violation, so nothing else pins it.
+  `<div class="ta-center">\[a\nb\]</div> trail`). The two are pinned by **different** mutants, which
+  is why they get separate rows in the table below: the **leading** fixture is M5's only coverage,
+  while the **trailing** one is ended by M3 (the run is already signed when the text arrives) and is
+  discriminating against the admit-`TEXT`-into-signed-runs mutant instead. In both cases the
+  divergence is a single whitespace character — `lead <div class="ta-center">\n\[a\nb\]</div>` and
+  `<div class="ta-center">\[a\nb\]\n</div> trail`, the synthetic boundary newline landing inside the
+  wrapper — so a `startswith`/`endswith` assertion, the natural shape here, would not catch either.
 - partial coverage: a span covering only the last two of three centred divs, first block surviving
 - two spans in one signed run, exact-equality **including the trailing `\n` inside the first wrapper**
 - the nested case, asserting one nesting level is preserved
@@ -608,9 +612,10 @@ the RED output of each is recorded:
 |---|---|
 | happy path (**signed** cases only) | revert the change (blocks with a token are barriers again) |
 | mixed-tag unsigned case | require tag equality even when the token is `""`. Listed separately because it passes on master, so "revert the change" cannot redden it. |
-| barrier 9 | delete the classifier's `isIgnored → BARRIER` guard. A **single** deletion suffices here, unlike barrier 8, because `isMergeableBlock` short-circuits on `tagName` for a `<br>` and so never provides a second check. |
+| barrier 9 | delete the classifier's `isIgnored → BARRIER` guard. A **single** deletion suffices here, unlike barrier 8, because the classifier routes a bare `<br>` to `BR` via `isBareBr` and never consults `isMergeableBlock` at all, so nothing re-imposes the barrier. |
 | M3 case (`TEXT` after a signed run) | a `TEXT`/`BR` that ends a signed run is excluded from every run instead of starting a new one |
-| leading/trailing text cases | remove M5: a signed block joins a run that already holds a `TEXT` member instead of breaking it |
+| **leading**-text case | remove M5: a signed block joins a run that already holds a `TEXT` member instead of breaking it |
+| **trailing**-text case | signed runs admit `TEXT` and `BR` members (barrier 4–5's mutant). **Not** the M5 mutant: in the trailing shape the run is already signed by the first block when the text arrives, so the text is ended by M3, not M5, and the M5 mutant leaves this fixture byte-identical and green. |
 | `<div class=" ">` case | `alignToken` compares the raw class attribute string instead of a parsed token set, restoring `class=" "` as a barrier |
 | leading-`WS_TEXT` case | **none — regression guard only.** M5 records that every reading of a leading `WS_TEXT` yields identical DOM, so no mutant exists. Listed explicitly rather than omitted, so its absence is a decision. |
 | barrier 1–3 | a run adopts the signature of its first block instead of requiring compatibility |
