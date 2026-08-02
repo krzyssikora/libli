@@ -25,9 +25,70 @@
     { left: "\\[", right: "\\]", display: true }
   ];
 
+  // auto-render's own default ignore list, plus four this module adds:
+  //  * the RTE surface — text_toolbar.js sync() writes its innerHTML back into the
+  //    POSTed textarea, so a DOM mutation there is a DATA mutation. Scoped with
+  //    :not([contenteditable="false"]) because a false value is not editable.
+  //  * .katex — KaTeX's output holds the original TeX in a MathML annotation.
+  //  * .katex-error — NOT nested inside .katex; holds raw TeX with throwOnError:false.
+  //  * math/annotation — defence in depth if KaTeX's output mode ever changes.
+  var IGNORE_SELECTOR =
+    "script,noscript,style,textarea,pre,code,option," +
+    '[contenteditable]:not([contenteditable="false"]),' +
+    ".katex,.katex-error,math,annotation";
+
+  function isIgnored(node, extraSelector) {
+    if (!node || node.nodeType !== 1) return false;
+    if (node.matches && node.matches(IGNORE_SELECTOR)) return true;
+    return !!(extraSelector && node.matches && node.matches(extraSelector));
+  }
+
+  // Caller-supplied ignoredTags/ignoredClasses are UNIONED into the fixed list.
+  // Ignoring more than the renderer never changes what renders; ignoring less
+  // would let the reflow fold away wrappers in a subtree the renderer skips.
+  function extraIgnoreSelector(options) {
+    var parts = [];
+    var i;
+    if (options && options.ignoredTags) {
+      for (i = 0; i < options.ignoredTags.length; i++) {
+        parts.push(String(options.ignoredTags[i]));
+      }
+    }
+    if (options && options.ignoredClasses) {
+      for (i = 0; i < options.ignoredClasses.length; i++) {
+        parts.push("." + String(options.ignoredClasses[i]));
+      }
+    }
+    return parts.length ? parts.join(",") : null;
+  }
+
+  // Post-order: every descendant is processed before its parent may fold it away,
+  // and a parent classifies its children on their POST-processing state.
+  function walk(node, extraSelector, visit) {
+    var children = [].slice.call(node.childNodes);  // snapshot: visit() mutates
+    for (var i = 0; i < children.length; i++) {
+      var child = children[i];
+      if (child.nodeType !== 1) continue;
+      if (isIgnored(child, extraSelector)) continue;
+      walk(child, extraSelector, visit);
+    }
+    visit(node);
+  }
+
+  function mergeChildren(element, options, extraSelector) { /* Task 4 */ }
+
   function reflow(root, options) {
-    // Filled in by later tasks.
-    return undefined;
+    if (!root) return;  // three callers pass an unguarded root; leave auto-render's
+                        // own "No element provided to render" error unchanged
+    var extra = extraIgnoreSelector(options);
+    // matches/closest are absent on Document and DocumentFragment, exactly as
+    // math.js:18 already guards for [data-katex].
+    if (isIgnored(root, extra)) return;
+    if (root.closest && root.closest(IGNORE_SELECTOR)) return;
+    if (extra && root.closest && root.closest(extra)) return;
+    walk(root, extra, function (element) {
+      mergeChildren(element, options, extra);   // Task 4
+    });
   }
 
   // The export is UNCONDITIONAL — only the hooks below are guarded on the KaTeX
