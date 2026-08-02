@@ -315,18 +315,31 @@ def test_nested_split_merges_after_post_order_folding(page):
     [
         "<div>\\(x<br>y\\) prose \\[a</div><div>b\\]</div>",
         "<div>p \\[a<br>b\\] q \\[c</div><div>d\\]</div>",
+        "<div>c<br>z$$x</div><div>$$c<br><br>$$x<br> x$$c</div>",
     ],
 )
 def test_reflow_is_idempotent(page, html):
-    """REGRESSION, measured by review: a span split by an authored <br> INSIDE one
-    mergeable block was rejected by rule 4 on pass 1 (start and end mapped to the
-    SAME run child), so the first call left it unrewritten; only a second call —
-    after an unrelated cross-block rewrite had already split that block into
-    text/<br>/text — reclassified the span correctly and merged it. The old fixture
-    `<div>\\[x</div><div>y\\]</div>` cannot catch this: it is a no-op on pass 2 BY
-    CONSTRUCTION, so it can never exercise a first pass whose output differs from
-    its second. Both fixtures here have a first pass that actually rewrites the DOM
-    and feeds a real span back through rule 4."""
+    """REGRESSION, measured by review. The old fixture `<div>\\[x</div><div>y\\]</div>`
+    cannot catch any of this: it is a no-op on pass 2 BY CONSTRUCTION, so it can never
+    exercise a first pass whose output differs from its second.
+
+    The first two fixtures pin `textFragment`: post-order walk merges an intra-block
+    `<br>`-split span at its OWN element's mergeChildren call first, embedding a real
+    `\\n` inside a Text node; an ENCLOSING mergeChildren call's covered-but-unspanned
+    range used to re-split that already-good `\\n` back into text/<br>/text, because
+    the old `textFragment` only checked whether a `\\n` was synthetic, not whether it
+    already lived inside an existing Text node. MEASURED: these two do NOT pin rule 4
+    itself — a `map`-based (run-child) rule 4 already agrees with the `leaf`-based one
+    at every call site these two fixtures exercise, because the `<br>` there splits a
+    span within one element's OWN direct children, where `map` already distinguishes
+    them regardless of leaf.
+
+    The third fixture pins rule 4. MEASURED discriminating: with rule 4 reverted to
+    `if (first !== last)` (comparing `map`) and `textFragment` left at HEAD, pass 1
+    gives `...$$x<br> x$$c` (a live, unconverted `<br>`) while pass 2 gives
+    `...$$x\\n x$$c` — non-idempotent. Fuzzed at 500 structured random documents:
+    `map`-based rule 4 alone (`textFragment` fixed) was non-idempotent on 14/500
+    shapes; `leaf`-based rule 4 fixed all of them."""
     _page(page, html)
     out = page.evaluate(
         "() => { const r = document.getElementById('root');"

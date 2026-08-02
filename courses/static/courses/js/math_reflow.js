@@ -292,9 +292,21 @@
       // single run CHILD. A mergeable div/p can hold two real text nodes split by an
       // authored <br>, and a span crossing that internal <br> must be rewritten on
       // the FIRST pass so pass 1 already produces pass 2's output, not just self-heal
-      // by a later idempotent call. Measured against
-      // <div>\(x<br>y\) prose \[a</div><div>b\]</div>: comparing `map` (child index)
-      // let the \(x<br>y\) span survive one extra pass unrewritten.
+      // by a later idempotent call.
+      //
+      // MEASURED discriminating case (comparing `map`, i.e. run-child index, instead
+      // of `leaf`, i.e. text-node identity, is non-idempotent HERE specifically):
+      // <div>c<br>z$$x</div><div>$$c<br><br>$$x<br> x$$c</div> — with `map`-based rule
+      // 4 and the leaf-aware textFragment fix both otherwise in place, pass 1 leaves
+      // `$$x<br> x$$c` with a live <br>; pass 2 gives `$$x\n x$$c`. Fuzzed at 500
+      // structured random documents: map-based rule 4 alone (textFragment fixed) was
+      // non-idempotent on 14/500 shapes; leaf-based rule 4 fixed it on all of them.
+      // NOTE: <div>\(x<br>y\) prose \[a</div><div>b\]</div> — the fixture that
+      // motivated the textFragment fix below — does NOT discriminate rule 4 itself:
+      // map and leaf agree at every call site that fixture exercises, because the
+      // <br> there splits a span within one element's OWN direct children, where
+      // map already distinguishes them regardless of leaf. Do not cite that fixture
+      // as evidence for THIS rule.
       var planned = [];
       for (i = 0; i < spans.length; i++) {
         var startLeaf = run.leaf[spans[i].start];
@@ -369,7 +381,7 @@
     if (root.closest && root.closest(IGNORE_SELECTOR)) return;
     if (extra && root.closest && root.closest(extra)) return;
     walk(root, extra, function (element) {
-      mergeChildren(element, options, extra);   // Task 4
+      mergeChildren(element, options, extra);   // phase 1
     });
   }
 
