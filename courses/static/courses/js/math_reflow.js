@@ -404,6 +404,64 @@
     }
   }
 
+  // ---- phase 2 -----------------------------------------------------------
+
+  // Ten EXACT literals, closing brace included. Not ten names, and not a prefix
+  // match: \begin{align} would prefix-match \begin{aligned}, which works in both
+  // modes, and promoting it would convert correct inline math to a display block.
+  var DISPLAY_ONLY_ENVS = [
+    "\\begin{align}", "\\begin{align*}", "\\begin{alignat}", "\\begin{alignat*}",
+    "\\begin{gather}", "\\begin{gather*}", "\\begin{equation}", "\\begin{equation*}",
+    "\\begin{CD}", "\\begin{split}"
+  ];
+
+  function containsDisplayOnlyEnv(body) {
+    for (var i = 0; i < DISPLAY_ONLY_ENVS.length; i++) {
+      if (body.indexOf(DISPLAY_ONLY_ENVS[i]) !== -1) return true;
+    }
+    return false;
+  }
+
+  // Separate full pass over the same walk, run after phase 1 and phase 1b have
+  // completed for the entire subtree: promote-then-merge would leave a split
+  // \(\begin{align*}…\end{align*}\) unpromoted, because it is not yet inside a
+  // single text node. Operates per text node, not per run: rule 5's output is
+  // several adjacent text nodes, and a promotion candidate never spans them (a
+  // span that spanned nodes would already have been merged).
+  function phase2(element, options) {
+    var delimiters = delimitersFor(options);
+    var hasDisplay = false;
+    for (var d = 0; d < delimiters.length; d++) {
+      if (delimiters[d].left === "\\[") hasDisplay = true;
+    }
+    if (!hasDisplay) return;   // no-op unless \[ is in the effective set
+    for (var i = 0; i < element.childNodes.length; i++) {
+      var node = element.childNodes[i];
+      if (node.nodeType !== 3) continue;
+      // Spans come from the EFFECTIVE partition, so a \(...\) sequence sitting
+      // inside a $$...$$ span is correctly not a candidate.
+      var spans = findSpans(node.data, delimiters);
+      var out = "";
+      var cursor = 0;
+      var changed = false;
+      for (var s = 0; s < spans.length; s++) {
+        var span = spans[s];
+        out += node.data.slice(cursor, span.start);
+        var raw = node.data.slice(span.start, span.end);
+        if (span.delim.left === "\\(" &&
+            containsDisplayOnlyEnv(raw.slice(2, raw.length - 2))) {
+          out += "\\[" + raw.slice(2, raw.length - 2) + "\\]";
+          changed = true;
+        } else {
+          out += raw;
+        }
+        cursor = span.end;
+      }
+      out += node.data.slice(cursor);
+      if (changed) node.data = out;
+    }
+  }
+
   function reflow(root, options) {
     if (!root) return;  // three callers pass an unguarded root; leave auto-render's
                         // own "No element provided to render" error unchanged
@@ -418,6 +476,9 @@
     });
     walk(root, extra, function (element) {
       phase1b(element, options);                // phase 1b
+    });
+    walk(root, extra, function (element) {
+      phase2(element, options);                 // phase 2
     });
   }
 

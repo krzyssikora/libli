@@ -415,3 +415,48 @@ def test_phase_1b_matches_every_br_form(page, form):
 def test_phase_1b_leaves_p_alone(page):
     r"""CELL_TAGS has no p, and \(a<p>b\) is a plausible chain of inequalities."""
     assert _reflow_text(page, "\\(a<p>b\\)") == "\\(a<p>b\\)"
+
+
+def test_phase_2_promotes_an_inline_display_only_environment(page):
+    out = _reflow_html(page, "\\(\\begin{align*}a&=1\\end{align*}\\)")
+    assert out.startswith("\\[") and out.endswith("\\]")
+
+
+def test_phase_2_tests_contains_not_begins_with(page):
+    r"""All five repairable question stems are \(-wrapped and OPEN with
+    \begin{cases}, with \begin{align} nested inside. Measured: inline FAILS with
+    '{align} can be used only in display mode'; display renders."""
+    out = _reflow_html(
+        page, "\\(\\begin{cases}\\begin{align}a&=1\\end{align}\\end{cases}\\)"
+    )
+    assert out.startswith("\\[") and out.endswith("\\]")
+
+
+def test_phase_2_does_not_promote_a_both_modes_environment(page):
+    r"""A prefix match on \begin{align} would also match \begin{aligned}, which
+    works in BOTH modes — promoting it would convert correct inline math to a
+    display block.
+
+    NO `&` IN THE FIXTURE: innerHTML serialises `&` as `&amp;`, so an
+    `out == html` equality over a fixture containing `a&=1` can never hold — both
+    of these assertions failed for exactly that reason before it was removed. The
+    promotion decision does not depend on the alignment marker."""
+    html = "\\(\\begin{aligned}a=1\\end{aligned}\\)"
+    assert _reflow_html(page, html) == html
+
+
+def test_phase_2_respects_the_effective_span_partition(page):
+    r"""A \(...\) sequence INSIDE a $$...$$ span is not a span at all; a raw scan
+    would rewrite its delimiters and corrupt the enclosing formula. (Again no `&`
+    in the fixture — see the note above.)"""
+    html = "$$x \\(\\begin{align}a=1\\end{align}\\) y$$"
+    assert _reflow_html(page, html) == html
+
+
+def test_split_inline_align_comes_out_merged_and_promoted(page):
+    """Pins the phase ordering: promote-then-merge would leave this unpromoted."""
+    out = _reflow_html(
+        page, "<div>\\(\\begin{align*}a&=1</div><div>\\end{align*}\\)</div>"
+    )
+    assert out.startswith("\\[") and out.endswith("\\]")
+    assert "\n" in out
