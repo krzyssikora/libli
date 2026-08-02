@@ -406,7 +406,8 @@ def test_caller_ignored_tags_are_unioned_in(page):
     """MEASURED: with the default <div id="root"> harness this passes for the WRONG
     reason — root.closest("div") matches the root itself and reflow bails before the
     walk ever runs. Verified against a <section> root, the divs merge unless
-    extraSelector is threaded into isMergeable. The non-div root is mandatory."""
+    extraSelector is threaded into classifyChild and isMergeableBlock. The non-div
+    root is mandatory."""
     page.set_content(
         "<!DOCTYPE html><section id='root'><div>\\[x</div><div>y\\]</div></section>"
     )
