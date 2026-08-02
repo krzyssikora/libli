@@ -435,7 +435,7 @@ signed one. The wrapper *must* survive to carry the alignment, so this is the pr
 <p>\[a</p><div>b\]</div>        ⇒ \[a\nb\]   (MIXED TAG — unsigned runs ignore the tag)
 ```
 
-The mixed-tag case is not a curiosity: `courses.css:22-24` records that Chromium's contenteditable
+The mixed-tag case is not a curiosity: `courses.css:24-25` records that Chromium's contenteditable
 emits `<div>` for Enter while the first block may be a `<p>`, so `<p>…</p><div>…</div>` is ordinary
 RTE output. It is also the only shape that exercises §3's "tag equality is required **only** when the
 token is non-empty" rule — the `</p><p>` repairs that motivate the rule are same-tag and therefore
@@ -540,7 +540,7 @@ not committed, so treat the rule as standing on the port's purpose, not on the f
   without this an implementation that restricted the reuse path to `DIV` would pass everything else.
 - **`<p>\[a</p><div>b\]</div> ⇒ \[a\nb\]`** — unsigned, mixed tag, exact-equality. This is the only
   case that exercises "tag equality only when the token is non-empty", and it is ordinary Chromium
-  RTE output (`courses.css:22-24`). Without it, an implementation that applies tag equality
+  RTE output (`courses.css:24-25`). Without it, an implementation that applies tag equality
   unconditionally — the simpler reading of "the signature is a pair" — passes every other happy-path,
   barrier, idempotence and regression case while silently regressing a shipped shape.
 - the **homogeneous signed** shape with a real newline text node between the blocks
@@ -725,7 +725,7 @@ predecessor.
 - `ruff check .` and `ruff format --check .` clean.
 - **Light and dark before/after screenshots of a centred formula.** Three centred line divs currently
   receive `margin-top: var(--space-3)` between them from the adjacent-sibling rule at
-  `courses/static/courses/css/courses.css:26-31`. Collapsing them to one block removes those gaps and
+  `courses/static/courses/css/courses.css:27-32`. Collapsing them to one block removes those gaps and
   substitutes KaTeX's own `.katex-display { margin: 1em 0 }`. That is the intended outcome — the same
   collapse the predecessor verified for `</p><p>` — but it is a real spacing change and is verified
   visually, not assumed.
