@@ -312,6 +312,18 @@ def test_whitespace_only_class_merges(page):
     )
 
 
+def test_padded_align_class_matches_the_unpadded_one(page):
+    """The OTHER half of parsing a token set rather than the raw attribute string:
+    class=" ta-center " and class="ta-center" must compare equal. The surviving
+    wrapper keeps its own original, un-normalised class string — the reuse path
+    never re-serialises the attribute."""
+    out = _reflow_html(
+        page,
+        '<div class=" ta-center ">\\[a</div><div class="ta-center">b\\]</div>',
+    )
+    assert out == '<div class=" ta-center ">\\[a\nb\\]</div>'
+
+
 def test_partial_coverage_leaves_the_uncovered_block(page):
     out = _reflow_html(
         page,
@@ -359,7 +371,7 @@ def test_nested_signed_run_preserves_one_nesting_level(page):
 ```
 uv run pytest tests/test_e2e_math_reflow_dom.py -m e2e --verbosity=0
 ```
-Expected: the 11 new cases FAIL (each returns the input unchanged, because a `ta-*` block is still a barrier), the existing 66 pass. `test_unsigned_mixed_tag_run_still_merges` and `test_whitespace_only_class_merges` are the exceptions — mixed-tag unsigned already passes on master, and `class=" "` fails until Step 3.
+Expected, measured: **10 of the 12 new cases fail**, each returning the input unchanged because a `ta-*` block is still a barrier. The one exception is `test_unsigned_mixed_tag_run_still_merges`, which passes because mixed-tag unsigned already merges on master. `test_whitespace_only_class_merges` is *not* an exception — it fails like the rest, since `class=" "` is a barrier until Step 3.
 
 - [ ] **Step 3: Widen the attribute test**
 
@@ -463,7 +475,12 @@ with:
 ```
 uv run pytest tests/test_e2e_math_reflow_dom.py tests/test_e2e_math_reflow.py -m e2e --verbosity=0
 ```
-Expected: **87 passed, 1 failed.** The single failure is `test_centred_display_math_is_not_reflowed` — the page-level test that deliberately pins the old limitation. That failure is the feature working; Task 5 inverts that test. Do not "fix" it by weakening the new behaviour, and do not invert it early — Task 5 owns it so the inversion lands with the stale docstrings and section header it belongs to.
+Expected, measured: **86 passed, 2 failed.** Both failures are the feature working, and each is owned by a later task:
+
+1. `test_barriers_are_not_merged_across[<div class="ta-center">\[x</div><div class="ta-center">y\]</div>]` — now returns `'<div class="ta-center">\[x\ny\]</div>'`. **Task 3 Step 1 deletes that parametrize entry.**
+2. `test_centred_display_math_is_not_reflowed` — the page-level test pinning the old limitation. **Task 5 inverts it.**
+
+Do not "fix" either by weakening the new behaviour, and do not resolve them early — the later tasks own them so each inversion lands with the stale docstrings and section headers it belongs to. If you see a *third* failure, that is a real regression in the reuse branch.
 
 - [ ] **Step 6: Lint and commit**
 
@@ -515,6 +532,13 @@ Deleting a barrier case weakens that test, so replace it with these, appended to
         # 7. signed block holding an element child -- the child-shape check
         '<div class="ta-center">\\[a<em>x</em></div>'
         '<div class="ta-center">b\\]</div>',
+        # 8. NON-EMPTY style -- blockAttributesOk's one novel clause, and the RTE's
+        #    own representation of alignment (text_toolbar.js converts ta-* back to
+        #    style="text-align:…" on load). Without this case, weakening the clause
+        #    to `if (attr.name === "style") continue;` is invisible to the entire
+        #    suite once Task 3 deletes the old ta-center barrier entry -- measured.
+        '<div style="text-align:center">\\[a</div>'
+        '<div style="text-align:center">b\\]</div>',
     ],
 )
 def test_signed_barriers_are_not_merged_across(page, html):
@@ -588,6 +612,16 @@ def test_text_trailing_a_signed_run_is_untouched(page):
     assert out == '<div class="ta-center">\\[a\nb\\]</div> trail'
 
 
+def test_br_leading_a_signed_run_is_untouched(page):
+    """M5's condition is "TEXT and BR members", and sawTextOrBr covers both — but
+    the TEXT half alone would leave the BR half unpinned."""
+    out = _reflow_html(
+        page,
+        '<br><div class="ta-center">\\[a</div><div class="ta-center">b\\]</div>',
+    )
+    assert out == '<br><div class="ta-center">\\[a\nb\\]</div>'
+
+
 def test_whitespace_leading_a_signed_run_does_not_break_it(page):
     """M5's WS_TEXT carve-out. REGRESSION GUARD ONLY — no mutant can redden it,
     because every reading of a leading WS_TEXT yields identical DOM. Listed here so
@@ -623,25 +657,52 @@ Expected: all pass. If barrier 9 fails, the classifier's `isIgnored` guard is mi
 
 "Revert the change" is **vacuous** for barriers (with the feature reverted every `ta-*` block is already a barrier, so all of them stay green). Apply each mutant below, record the RED output, then restore and re-confirm GREEN. Six drafts of this table were wrong before it stopped being vacuous — verify each row rather than assuming it.
 
-| test(s) | mutant |
-|---|---|
-| the 11 Task-2 happy-path cases (signed ones) | revert Task 2's Step 3 (`blockAttributesOk` → `noEffectiveAttributes`) |
-| `test_unsigned_mixed_tag_run_still_merges` | in M2, require `tag === current.tag` even when `current.token === ""` |
-| `test_whitespace_only_class_merges` | make `alignToken` compare the raw class string instead of a parsed token set |
-| signed barriers 1–3 | in M2, always accept — a run adopts its first block's signature |
-| signed barriers 4–5 | in M3, let `TEXT`/`BR` join a signed run instead of ending it |
-| signed barrier 6 | make `alignToken` return the first token instead of `null` for multi-token |
-| signed barrier 7 | delete the child-shape loop from `isMergeableBlock` |
-| `test_ignored_tag_suppresses_a_signed_block` | delete **both** the classifier's `isIgnored` guard and `isMergeableBlock`'s own check — either alone is vacuous, since the other short-circuits the case |
-| `test_ignored_br_still_breaks_a_run` | delete the classifier's `isIgnored` guard **only** — a single deletion suffices here, because the classifier routes a `<br>` to `BR` and never consults `isMergeableBlock` |
-| `test_text_after_a_signed_run_starts_a_new_run` | in M3, drop the ended `TEXT` instead of starting a new run with it |
-| `test_text_leading_a_signed_run_is_untouched` | delete M5 (a signed block joins a run already holding `TEXT`) |
-| `test_text_trailing_a_signed_run_is_untouched` | in M3, let `TEXT`/`BR` join a signed run |
-| `test_whitespace_between_centred_blocks_is_transparent` | in M4, let `WS_TEXT` end a signed run |
-| `test_two_spans_in_one_signed_run_keep_the_boundary_newline` | trim a trailing synthetic newline from the wrapper |
-| `test_whitespace_leading_a_signed_run_does_not_break_it` | **none — regression guard.** Record that no mutant exists. |
+Each mutant is given as an exact edit, not prose. That is deliberate: prose mutants are how a table goes vacuous — an earlier draft of this plan described one in English and it was transcribed backwards, which silently turned its own vacuity check into a no-op.
 
-`test_nested_signed_run_preserves_one_nesting_level` documents behaviour; reverting Task 2 changes it, which is coverage enough.
+**A. Revert the feature.** In `isMergeableBlock`: `if (!blockAttributesOk(node)) return false;` → `if (!noEffectiveAttributes(node)) return false;`
+Reddens: the signed Task-2 happy-path cases, and Task 3's `test_centred_inline_align_comes_out_merged_and_promoted`.
+
+**B. Tag equality even when unsigned.** In M2: `? tok === ""` → `? (tok === "" && tag === current.tag)`
+Reddens: `test_unsigned_mixed_tag_run_still_merges`.
+
+**C. Raw class string instead of a token set.** In `alignToken`, replace the body after the `null` check with `return ALIGN_TOKENS[raw] ? raw : (raw === "" ? "" : null);`
+Reddens: `test_whitespace_only_class_merges`, `test_padded_align_class_matches_the_unpadded_one`.
+
+**D. A run adopts its first block's signature.** In M2: `if (ok) current.indices.push(i);` → `current.indices.push(i);` (delete the `else` branch).
+Reddens: signed barriers 1–3.
+
+**E. Signed runs admit TEXT and BR.** In M3: `if (current.token) {` → `if (false) {`
+Reddens: signed barriers 4–5, `test_text_trailing_a_signed_run_is_untouched`.
+
+**F. Multi-token takes the first token.** In `alignToken`: `if (found) return null;` → `if (found) return found;`
+Reddens: signed barrier 6.
+
+**G. Drop the child-shape check.** In `isMergeableBlock`, delete the `for` loop over `node.childNodes` and its `return false`.
+Reddens: signed barrier 7.
+
+**H. Allow a non-empty style.** In `blockAttributesOk`: `if (attr.name === "style" && attr.value === "") continue;` → `if (attr.name === "style") continue;`
+Reddens: signed barrier 8.
+
+**I. Remove BOTH ignore checks.** Delete `if (isIgnored(node, extraSelector)) return "BARRIER";` from `classifyChild` **and** `if (isIgnored(node, extraSelector)) return false;` from `isMergeableBlock`.
+Reddens: `test_ignored_tag_suppresses_a_signed_block`. Deleting either alone is vacuous — the other short-circuits the case.
+
+**J. Remove the classifier's ignore check only.** Delete `if (isIgnored(node, extraSelector)) return "BARRIER";` from `classifyChild`.
+Reddens: `test_ignored_br_still_breaks_a_run`. One deletion suffices here because the classifier routes a `<br>` to `BR` and never consults `isMergeableBlock`.
+
+**K. Drop the ended TEXT.** In M3's signed branch: replace `endRun(); current = newRun(i, null, null, true);` with `endRun(); continue;`
+Reddens: `test_text_after_a_signed_run_starts_a_new_run`.
+
+**L. Delete M5.** In the `current.token === null` branch: `if (tok !== "" && current.sawTextOrBr) {` → `if (false) {`
+Reddens: `test_text_leading_a_signed_run_is_untouched`, `test_br_leading_a_signed_run_is_untouched`.
+
+**M. WS_TEXT ends a signed run.** In `classifyChild`: `return /\S/.test(node.data) ? "TEXT" : "WS_TEXT";` → `return "TEXT";`
+Reddens: `test_whitespace_between_centred_blocks_is_transparent`.
+
+**N. Trim the wrapper's trailing synthetic newline.** After the wrapper's insert loop, add: `while (wrapper.lastChild && wrapper.lastChild.nodeType === 3 && /^\s+$/.test(wrapper.lastChild.data)) wrapper.removeChild(wrapper.lastChild);`
+Reddens: `test_two_spans_in_one_signed_run_keep_the_boundary_newline`.
+
+**No mutant — regression guards, recorded so their unfalsifiability is a decision:**
+`test_whitespace_leading_a_signed_run_does_not_break_it` (every reading of a leading `WS_TEXT` yields identical DOM) and `test_nested_signed_run_preserves_one_nesting_level` (documents behaviour; mutant A changes it, which is coverage enough).
 
 - [ ] **Step 4: Lint and commit**
 
@@ -675,9 +736,13 @@ git commit -m "test(math-reflow): barrier set and per-mutant falsification for s
         #    its own mutant while still looking like it merged.
         '<div class="ta-center">\\(x<br>y\\) prose \\[a</div>'
         '<div class="ta-center">b\\]</div>',
-        # 2. two spans with prose between the groups
-        '<div class="ta-center">\\[a</div><div class="ta-center">b\\] mid</div>'
-        '<div class="ta-center">\\[c</div><div class="ta-center">d\\]</div>',
+        # 2. two spans with prose between them AND an intra-block <br>. The <br> is
+        #    load-bearing, not decoration: without it no earlier nested merge ever
+        #    plants a \n inside a Text node, the leaf guard never fires, and the
+        #    fixture is green under its own mutant -- measured. The predecessor's
+        #    fixture 2 has the <br> for exactly this reason.
+        '<div class="ta-center">p \\[a<br>b\\] q \\[c</div>'
+        '<div class="ta-center">d\\]</div>',
         # 3. the signed analogue of the map-vs-leaf discriminating shape recorded in
         #    math_reflow.js's rule-4 comment
         '<div class="ta-center">c<br>z$$x</div>'
@@ -699,11 +764,37 @@ def test_signed_reflow_is_idempotent(page, html):
 
 - [ ] **Step 2: Verify fixture 3 actually discriminates**
 
-The recorded shape was measured against the *unsigned* rewrite, which hoists into the parent; the reuse path leaves a different node layout going into pass 2. Apply the map-based rule-4 mutant (`if (first !== last) continue;` in place of the leaf comparison) and confirm fixture 3 goes RED. **If it does not, search for a shape that does and replace it** — keeping an unfalsifiable fixture here would defeat the task.
+The recorded shape was measured against the *unsigned* rewrite, which hoists into the parent; the reuse path leaves a different node layout going into pass 2.
+
+The mutant replaces the two `startLeaf`/`endLeaf` lines in rule 4 with the map-based comparison:
+
+```js
+        var first = run.map[spans[i].start];
+        var last = run.map[spans[i].end - 1];
+        if (first === last) continue;
+```
+
+**Note the direction: `===`, not `!==`.** Rule 4 *skips* a span whose ends share a node, so `if (first !== last) continue;` is the mutant written backwards — and measured, that inverted form disables cross-child merging entirely, reddening 64 of 125 cases. Fixture 3 would then "go RED" only because the anti-vacuity assertion fired, so the check this step exists to perform would never actually happen.
+
+Confirm fixture 3 goes RED under the correct form (measured: pass 1 `…$$c<br>$$x\n x$$c`, pass 2 `…$$c\n$$x\n x$$c`) while fixtures 1 and 2 stay green. **If fixture 3 does not redden, search for a shape that does and replace it** — keeping an unfalsifiable fixture here would defeat the task.
 
 - [ ] **Step 3: Falsify fixtures 1 and 2**
 
-Their mutant is different from fixture 3's: remove the `!run.leaf[i]` guard from `textFragment`, so an already-merged `\n` is re-split into `text` / `<br>` / `text`. Confirm RED for 1 and 2, then restore.
+Their mutant is different from fixture 3's. In `textFragment`, replace
+
+```js
+      if (ch === "\n" && !run.leaf[i]) {
+```
+
+with
+
+```js
+      if (ch === "\n") {
+```
+
+so an already-merged `\n` sitting inside an existing Text node is re-split into `text` / `<br>` / `text`. Confirm RED for fixtures 1 and 2, then restore.
+
+Both fixtures carry an intra-block `<br>` precisely so this guard fires: it only executes from an enclosing merge's covered-but-unspanned range, over a `\n` that an earlier *nested* merge planted. A fixture without that `<br>` stays green here — measured, and the reason fixture 2 is written the way it is.
 
 - [ ] **Step 4: Add the committed cross-product enumeration**
 
@@ -720,7 +811,9 @@ _SEPARATORS = {"none": "", "ws": "\n", "br": "<br>", "text": "sep"}
 @pytest.mark.parametrize("sep_name", sorted(_SEPARATORS))
 @pytest.mark.parametrize("token", ["", "ta-center", "ta-right"])
 @pytest.mark.parametrize("tag", ["div", "p"])
-def test_idempotent_across_the_shape_cross_product(page, tag, token, sep_name, placement):
+def test_idempotent_across_the_cross_product(
+    page, tag, token, sep_name, placement
+):
     """The merge-expected predicate is DATA, stated in the spec, not derived from the
     implementation's output — deriving it from what the code does would make the
     anti-vacuity assertion circular, which is the whole reason it exists."""
@@ -856,11 +949,17 @@ git commit -m "test(math-reflow): invert the centred-formula limitation test"
 ```
 uv run pytest -n 4 --verbosity=0
 ```
-Expected: **4566 passed**, unchanged — every test this slice adds is e2e. A higher number means an e2e file landed in the default run for want of a `pytestmark`.
+Expected: **4566 total (passed + skipped)**, unchanged — every test this slice adds is e2e. Treat the **total** as the invariant, not the pass/skip split: `test_db_quiesce.py` carries a dynamic skip that runs as a pass depending on session state, so both "4566 passed, 0 skipped" and "4565 passed, 1 skipped" are clean. A higher total means an e2e file landed in the default run for want of a `pytestmark` — that is the regression this count guards.
 
 - [ ] **Step 2: Full e2e suite**
 
-Run in chunks; the whole suite exceeds the tool timeout even at `-n 4`:
+Run in chunks; the whole suite exceeds the tool timeout even at `-n 4`. **These are Bash commands** (`ls | awk | tr`), not PowerShell — use the Bash tool. First confirm the chunk boundaries still cover every file, since they are pinned to the file count at the time of writing (81):
+
+```bash
+ls tests/test_e2e_*.py | wc -l    # expect 81; if it differs, re-balance the ranges below
+```
+
+An empty chunk makes pytest exit 5, which reads as a pass — hence the pre-check.
 
 ```
 uv run pytest -m e2e -n 4 --verbosity=0 $(ls tests/test_e2e_*.py | awk 'NR<=27' | tr '\n' ' ')
@@ -882,11 +981,37 @@ uv run ruff check . && uv run ruff format --check .
 
 - [ ] **Step 4: The required visual verification**
 
-Render a centred three-line formula in the browser, **light and dark**, before and after, and record the measured paragraph spacing. Three centred line divs currently receive `margin-top: var(--space-3)` between them from the adjacent-sibling rule at `courses/static/courses/css/courses.css:27-32`; collapsing them to one block removes those gaps and substitutes KaTeX's own `.katex-display { margin: 1em 0 }`. That is the intended outcome, but it is a real spacing change and no automated test covers it. Save the four screenshots outside the repo and attach them to the PR.
+Render a centred three-line formula in the browser, **light and dark**, before and after, and record the measured paragraph spacing.
 
-- [ ] **Step 5: Confirm no regression against real data**
+**Capture the two "before" shots first, at the start of Task 1, on the unmodified tree** — by Task 6 the branch carries five commits and there is no "before" left to photograph. If you reach Task 6 without them, get a clean tree with `git worktree add <scratch-dir> master` outside the repo rather than stashing the branch. Three centred line divs currently receive `margin-top: var(--space-3)` between them from the adjacent-sibling rule at `courses/static/courses/css/courses.css:27-32`; collapsing them to one block removes those gaps and substitutes KaTeX's own `.katex-display { margin: 1em 0 }`. That is the intended outcome, but it is a real spacing change and no automated test covers it. Save the four screenshots outside the repo and attach them to the PR.
 
-The six records the predecessor repaired (`CalloutElement` 86, `ChoiceQuestionElement` 218/226/227, `ShortNumericQuestionElement` 76/77) are all unsigned `</p><p>` shapes and must still render merged with zero `.katex-error`. This slice should not touch them; confirm it does not.
+- [ ] **Step 5: Confirm no regression on the shapes the predecessor repaired**
+
+The six records the predecessor fixed (`CalloutElement` 86, `ChoiceQuestionElement` 218/226/227, `ShortNumericQuestionElement` 76/77) are all unsigned `</p><p>` shapes. They live in the real mat-pp dataset, which this worktree's database does **not** contain and which nothing in this plan establishes how to load — so "check the six records" is not an executable instruction here.
+
+What actually needs proving is that their *shape* still merges unchanged, and that is executable. Add to `tests/test_e2e_math_reflow_dom.py`:
+
+```python
+@pytest.mark.parametrize(
+    "html",
+    [
+        # The stored shape of CalloutElement 86: a display span split at </p><p>.
+        "<p>\\[\\begin{align*}</p><p>a&amp;=b\\\\</p><p>\\end{align*}\\]</p>",
+        # The stored shape of the five question stems: \( … \) split at </p><p>,
+        # opening with \begin{cases} and nesting \begin{align} inside.
+        "<p>\\(\\begin{cases}\\begin{align}</p>"
+        "<p>a&amp;=1\\end{align}\\end{cases}\\)</p>",
+    ],
+)
+def test_predecessor_repaired_shapes_still_merge(page, html):
+    """Unsigned runs, so this slice must not touch them. The reuse path is gated on
+    a non-empty run token; if that gate is ever inverted, these regress first."""
+    out = _reflow_html(page, html)
+    assert "</p><p>" not in out
+    assert "\n" in out
+```
+
+Run it with the rest of the DOM file. This is a real gate; "confirm it does not" was not.
 
 - [ ] **Step 6: Push and open the PR**
 
@@ -903,5 +1028,7 @@ PR body must record: the non-e2e count, the light/dark screenshots, the delibera
 **Deliberately NOT covered: performance.** The predecessor makes no performance claim and neither does this plan. The partition loop now allocates a small object per run instead of an array, and `alignToken` runs a split per block per pass — both trivially bounded, neither measured. A measurement is a reasonable follow-up; per the repo's "measure the window, not the event" lesson it would need the DOM rebuilt per A/B variant.
 
 **Known risk, stated rather than hidden:** Task 1 claims to be behaviour-preserving and its whole gate is "77 tests still pass". If the partition rewrite has a defect that no existing test covers, Task 1 will pass and Task 2 will inherit it. The mitigation is Task 3's mutant table, which targets the partition rules directly — but a reviewer should treat Task 1's diff as the highest-risk change in this plan, not the lowest.
+
+**Falsification coverage.** Every test added by Tasks 2–5 appears in Task 3 Step 3's mutant list (A–N) or in Task 4 Steps 2–3, except two explicitly recorded as regression guards with no possible mutant. Task 6 Step 5's shapes are covered by mutant A inverted (they must merge, and do on master).
 
 **Type consistency.** `alignToken(el) → string|null`, `blockAttributesOk(el) → bool`, `classifyChild(node, extraSelector) → string`, `isMergeableBlock(node, extraSelector) → bool`, `isBareBr(node) → bool`, `noEffectiveAttributes(el) → bool`, and `runs[r] = {indices: number[], token: string|null, tag: string|null, sawTextOrBr: bool}` — each defined once and used with the same signature throughout. `runToken` is read only in Task 2's rewrite branch.
