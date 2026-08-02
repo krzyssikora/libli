@@ -167,34 +167,44 @@
   // The collapse is applied DURING the build so the map stays intact: one surviving
   // newline can come from three children at once, and a post-hoc regex collapse
   // would give every later span a wrong covered range.
+  //
+  // `leaf` tracks, per character, the actual DOM Text node it came from — or null for
+  // a manufactured (synthetic-boundary or authored-<br>) newline. Rule 4 keys off
+  // `leaf`, not `map`: `map` only identifies the covered RUN CHILD, but a mergeable
+  // div/p can itself hold two real text nodes split by an authored <br>, so comparing
+  // `map` alone wrongly treats a span crossing that internal <br> as "already inside
+  // one text node" — the exact granularity KaTeX's own auto-render uses, since it
+  // matches only within a single text node's .data.
   function buildRun(children) {
     var text = "";
     var map = [];          // map[i] = index into `children` for text[i]
     var synthetic = [];    // synthetic[i] = true when text[i] is a manufactured \n
+    var leaf = [];         // leaf[i] = the DOM Text node text[i] came from, or null
 
-    function pushChar(ch, childIndex, isSynthetic) {
+    function pushChar(ch, childIndex, isSynthetic, leafNode) {
       text += ch;
       map.push(childIndex);
       synthetic.push(!!isSynthetic);
+      leaf.push(leafNode || null);
     }
 
-    function pushText(str, childIndex) {
-      for (var i = 0; i < str.length; i++) pushChar(str[i], childIndex, false);
+    function pushText(str, childIndex, leafNode) {
+      for (var i = 0; i < str.length; i++) pushChar(str[i], childIndex, false, leafNode);
     }
 
     function pushBoundary(childIndex) {
       if (!text.length) return;                                  // never lead the run
       if (text.charAt(text.length - 1) === "\n") return;         // collapse
-      pushChar("\n", childIndex, true);
+      pushChar("\n", childIndex, true, null);
     }
 
     function pushBlockText(node, childIndex) {
       for (var i = 0; i < node.childNodes.length; i++) {
         var child = node.childNodes[i];
-        if (child.nodeType === 3) pushText(child.data, childIndex);
+        if (child.nodeType === 3) pushText(child.data, childIndex, child);
         else if (isBareBr(child)) {
           if (text.length && text.charAt(text.length - 1) !== "\n") {
-            pushChar("\n", childIndex, false);   // an AUTHORED break, not synthetic
+            pushChar("\n", childIndex, false, null);   // an AUTHORED break, not synthetic
           }
         }
       }
@@ -205,10 +215,10 @@
       if (node.nodeType === 3) {
         // Whitespace-only text nodes contribute nothing, so hand-written test
         // markup with indentation behaves like nh3 output, which carries none.
-        if (/\S/.test(node.data)) pushText(node.data, i);
+        if (/\S/.test(node.data)) pushText(node.data, i, node);
       } else if (isBareBr(node)) {
         if (text.length && text.charAt(text.length - 1) !== "\n") {
-          pushChar("\n", i, false);
+          pushChar("\n", i, false, null);
         }
       } else {
         pushBoundary(i);
@@ -217,9 +227,9 @@
       }
     }
     while (text.length && text.charAt(text.length - 1) === "\n") {
-      text = text.slice(0, -1); map.pop(); synthetic.pop();
+      text = text.slice(0, -1); map.pop(); synthetic.pop(); leaf.pop();
     }
-    return { text: text, map: map, synthetic: synthetic };
+    return { text: text, map: map, synthetic: synthetic, leaf: leaf };
   }
 
   // ---- phase 1 ---------------------------------------------------------------
@@ -227,11 +237,26 @@
   function textFragment(doc, run, from, to) {
     // Drops synthetic newlines; keeps authored ones as <br> elements, because a \n
     // character outside a math span is HTML whitespace and collapses to a space.
+    //
+    // FIX (round 1): a "covered but not spanned" range can contain a \n that is
+    // NEITHER synthetic NOR a still-live authored <br> element — it can be a real
+    // newline already sitting inside an existing Text node, put there by an EARLIER,
+    // NESTED mergeChildren call in this same walk (post-order visits a child block
+    // before its parent, so a span entirely inside one block is merged there first).
+    // `run.leaf[i]` is set exactly for such a character. Rebuilding it as a fresh
+    // <br> element here would tear apart a merge that already happened one level
+    // down and was already correct — measured against
+    // <div>\(x<br>y\) prose \[a</div><div>b\]</div>: the intra-div \(x<br>y\) merges
+    // correctly INSIDE the div on this same pass, but the outer merge of the
+    // \[a…b\] span (which covers the whole div as its "covered" range) used to
+    // re-split that already-good text node back into text/<br>/text, so pass 1
+    // differed from pass 2. Only a \n with leaf === null — a manufactured boundary
+    // or a genuine, not-yet-processed <br> element — is a candidate for conversion.
     var nodes = [];
     var buffer = "";
     for (var i = from; i < to; i++) {
       var ch = run.text.charAt(i);
-      if (ch === "\n") {
+      if (ch === "\n" && !run.leaf[i]) {
         if (run.synthetic[i]) continue;
         if (buffer) { nodes.push(doc.createTextNode(buffer)); buffer = ""; }
         nodes.push(doc.createElement("br"));
@@ -262,12 +287,22 @@
       var run = buildRun(nodes);
       var spans = findSpans(run.text, delimitersFor(options));
 
-      // Rule 4: only spans covering TWO OR MORE children are rewritten.
+      // Rule 4: a span is skipped only when it lies wholly inside a single existing
+      // TEXT NODE — the granularity auto-render itself uses — not merely inside a
+      // single run CHILD. A mergeable div/p can hold two real text nodes split by an
+      // authored <br>, and a span crossing that internal <br> must be rewritten on
+      // the FIRST pass so pass 1 already produces pass 2's output, not just self-heal
+      // by a later idempotent call. Measured against
+      // <div>\(x<br>y\) prose \[a</div><div>b\]</div>: comparing `map` (child index)
+      // let the \(x<br>y\) span survive one extra pass unrewritten.
       var planned = [];
       for (i = 0; i < spans.length; i++) {
+        var startLeaf = run.leaf[spans[i].start];
+        var endLeaf = run.leaf[spans[i].end - 1];
+        if (startLeaf && startLeaf === endLeaf) continue;
         var first = run.map[spans[i].start];
         var last = run.map[spans[i].end - 1];
-        if (first !== last) planned.push({ span: spans[i], first: first, last: last });
+        planned.push({ span: spans[i], first: first, last: last });
       }
       if (!planned.length) continue;
 

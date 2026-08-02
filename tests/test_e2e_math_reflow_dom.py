@@ -310,8 +310,24 @@ def test_nested_split_merges_after_post_order_folding(page):
     assert out == "<div>\\[a\nb\\]</div>"
 
 
-def test_reflow_is_idempotent(page):
-    _page(page, "<div>\\[x</div><div>y\\]</div>")
+@pytest.mark.parametrize(
+    "html",
+    [
+        "<div>\\(x<br>y\\) prose \\[a</div><div>b\\]</div>",
+        "<div>p \\[a<br>b\\] q \\[c</div><div>d\\]</div>",
+    ],
+)
+def test_reflow_is_idempotent(page, html):
+    """REGRESSION, measured by review: a span split by an authored <br> INSIDE one
+    mergeable block was rejected by rule 4 on pass 1 (start and end mapped to the
+    SAME run child), so the first call left it unrewritten; only a second call —
+    after an unrelated cross-block rewrite had already split that block into
+    text/<br>/text — reclassified the span correctly and merged it. The old fixture
+    `<div>\\[x</div><div>y\\]</div>` cannot catch this: it is a no-op on pass 2 BY
+    CONSTRUCTION, so it can never exercise a first pass whose output differs from
+    its second. Both fixtures here have a first pass that actually rewrites the DOM
+    and feeds a real span back through rule 4."""
+    _page(page, html)
     out = page.evaluate(
         "() => { const r = document.getElementById('root');"
         "        window.libliMathReflow(r); const a = r.innerHTML;"
