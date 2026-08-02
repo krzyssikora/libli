@@ -122,73 +122,83 @@ appear only at depth 4+, which the rule forbids.
 
 ## Architecture / components
 
-### The container registry and its key space
+### Container plumbing: three small additions, deliberately NOT a unification
 
-Three different key spaces exist today and the spec must say which is canonical, or
-clause 4 cannot be implemented at all: `_CONTAINER_REGISTRY` (`courses/builder.py:99-102`)
-is keyed by **model class**; `_CONTAINER_SLOT_KEY` (`courses/transfer/payloads.py:750`) is
-keyed by **transfer type string**; the add-menu needs **form keys** (`tabs`, `twocolumn`,
-`spoiler`).
+Three key spaces exist today: `_CONTAINER_REGISTRY` (`courses/builder.py:99-102`) is keyed by
+**model class**; `_CONTAINER_SLOT_KEY` (`courses/transfer/payloads.py:750`) by **transfer
+key**; the add-menu uses **form keys**. An earlier draft of this spec collapsed them into one
+canonical transfer-keyed registry with a derived by-model index and a five-field entry.
 
-**Decision: the transfer key is canonical.** One registry, keyed by transfer key, whose
-entry carries everything the three call sites need:
+**That unification is descoped, on evidence.** It was an architectural preference, not a
+requirement of any of the three shapes in Purpose, and it generated a disproportionate share
+of this spec's defects across seven review rounds: six of the twelve falsified claims
+originated in it, and the last two rounds' criticals were both fresh consequences of it —
+unifying the *traversal* made the wrong delete edge set attractive, and unifying the *lookup*
+re-created an overloaded `None` sentinel on a second surface. Each new field and index added
+a place where the key-space and sentinel distinctions had to be restated correctly at every
+call site.
 
-**The two call sites need slot ids in two different forms, and an earlier draft of this
-table supplied only one of them.** `resolve_scope` holds a live model instance;
-`validate_nesting` holds raw payload dicts and reads `parent["data"][slot_key]`
-(`payloads.py:794`), where `slot_key` is the *data-dict key* (`"tabs"` / `"columns"`) that
-`_CONTAINER_SLOT_KEY` supplies today. An instance-based accessor cannot serve the dict-based
-caller, so the entry carries both:
+Instead, three targeted additions:
 
-| Entry field | Used by |
-|---|---|
-| transfer key (the dict key) | `validate_nesting`, clause 4 |
-| model class | `resolve_scope`, `walk_unit_joins` (which hold a model instance) |
-| slot ids **for an instance** (via the non-destructive normalizer) | `resolve_scope` clause 2 |
-| payload **slot-list key** (`"tabs"` / `"columns"`, or `None`) | `validate_nesting` clause 2 — this is what the deleted `_CONTAINER_SLOT_KEY` provided |
-| ordered children in a slot | `walk_unit_joins` only. The editor and student templates reach `resolved_tabs` / `resolved_columns` / `resolved_children` off the model instance in hard-coded per-type branches and never consult the registry — do not build a template-facing accessor for them. |
+**1. `_CONTAINER_REGISTRY` keeps its model-class key and three-tuple shape**, and gains a
+`SpoilerElement` entry whose "normalizer" returns a constant single-slot list:
 
-**Spoiler encodes "single implicit slot" in both forms:** its instance accessor returns the
-constant `{SLOT_ID}`, and its payload slot-list key is `None`, meaning "no `data` slot list;
-the only valid slot id is `SLOT_ID`". Any container whose payload slot-list key is `None` is
-single-slot.
+```python
+SpoilerElement: (lambda _data: {"slots": [{"id": SpoilerElement.SLOT_ID}]}, "slots", "id"),
+```
 
-**That makes `None` overloaded, and the naive lookup silently deletes a rejection.** Today
-`payloads.py:788-793` uses `None` as the *miss* sentinel —
-`slot_key = _CONTAINER_SLOT_KEY.get(parent["type"])`, then
-`if slot_key is None: _err("… has a parent that is not a container element.")`. A naive
-translation (`REGISTRY.get(t, {}).get("slot_list_key")`) makes a **text** parent
-indistinguishable from a **spoiler** parent, so the not-a-container rejection quietly dies
-and a text-parented child gets validated against `{SLOT_ID}`. The branch must therefore be
-two steps:
+`resolve_scope` then loses its `isinstance(parent_obj, SpoilerElement)` branch and reads the
+registry like any other container. **No sentinel is overloaded**: `.get(type(parent_obj))`
+returning `None` still means exactly "parent is not a container", so the existing rejection at
+`builder.py:150` survives untouched and needs no membership/lookup two-step.
 
-1. **Membership** in the canonical registry. A miss raises the existing
-   `"… has a parent that is not a container element."` — message unchanged.
-2. **Only then** read the entry's slot-list key, where `None` means single-slot.
+**2. `_CONTAINER_SLOT_KEY` keeps its transfer key** and gains `"spoiler": None`. Here `None`
+*is* overloaded — it already serves as the miss sentinel at `payloads.py:788-793` — so this
+one site needs an explicit two-step, and it is the only place in the slice that does:
 
-This ordering is load-bearing for the `tests/test_tabs_transfer.py` `# depth > 1` inversion
-row, whose middle element is a text element and which depends on that rejection still firing.
+```python
+if parent["type"] not in _CONTAINER_SLOT_KEY:        # membership FIRST
+    _err(_("Element '%(el)s' has a parent that is not a container element."), el=el["id"])
+slot_key = _CONTAINER_SLOT_KEY[parent["type"]]        # then read
+valid_slot_ids = (
+    {SpoilerElement.SLOT_ID} if slot_key is None
+    else {s["id"] for s in parent["data"][slot_key]}
+)
+```
 
-One derived lookup is built at module level: **by model class**, for the call sites holding a
-`content_object`. `_CONTAINER_SLOT_KEY` in `payloads.py` is **deleted** and its caller reads
-the canonical registry.
+Without the membership test first, a **text** parent becomes indistinguishable from a spoiler
+parent and the not-a-container rejection silently dies — which the
+`tests/test_tabs_transfer.py` `# depth > 1` inversion row depends on still firing.
 
-**There is deliberately no by-form-key index and no form-key field.** Clause 4 asks "is this
-type key a container?" by normalizing the incoming form key through
-`_NESTABLE_FORM_KEY_ALIASES` and testing membership in the canonical registry — an alias map
-plus a transfer-key lookup, which needs no form-key index. And the add-menu is a Django
-template whose container cards remain three separate hard-coded per-card guards (lines 24,
-25, 35); no template tag or context variable exposes the registry. A form-key field would
-have no consumer.
+**3. One new constant for clause 4:**
 
-**The destructive/non-destructive distinction is load-bearing and must survive the
-refactor.** `normalize_data` pads, truncates and mints fresh random ids on every call; a
-write path that validated a slot against it could admit an ephemeral phantom id that never
-matches at render time, silently orphaning the child. Slot validation on any write path
-reads the **non-destructive** normalizer only. The comment recording this at
-`builder.py:143-147` must not be lost.
+```python
+CONTAINER_TRANSFER_KEYS = frozenset({"tabs", "two_column", "spoiler"})
+```
 
-### Fold Spoiler into the registry
+Clause 4 normalizes the incoming form key through `_NESTABLE_FORM_KEY_ALIASES` and tests
+membership here. Both `resolve_scope` and `validate_nesting` use it, so the "is this a
+container type?" question has exactly one answer in one place.
+
+**PR2's seam is unaffected.** Callout becomes one line in each of these three structures
+rather than one row in a wide registry table — the same amount of work, without the shared
+protocol that has to be restated at every call site.
+
+**What the templates do NOT get.** No template tag or context variable exposes any of this.
+The editor and student templates keep reaching `resolved_tabs` / `resolved_columns` /
+`resolved_children` off the model instance in hard-coded per-type branches, and the add-menu's
+container cards stay three separate per-card guards (lines 24, 25, 35). Do not build a
+template-facing accessor.
+
+**The destructive/non-destructive distinction is load-bearing and must survive.**
+`normalize_data` pads, truncates and mints fresh random ids on every call; a write path that
+validated a slot against it could admit an ephemeral phantom id that never matches at render
+time, silently orphaning the child. Slot validation on any write path reads the
+**non-destructive** normalizer only. The comment recording this at `builder.py:143-147` must
+not be lost. (This is also why the delete collector must NOT traverse slot accessors — see
+Delete path.)
+
+### Which Spoiler special-cases go away
 
 `SpoilerElement` is special-cased in five runtime places today, plus the LAL loader:
 
@@ -201,11 +211,12 @@ reads the **non-destructive** normalizer only. The comment recording this at
 | math detection | `courses/views.py:245-256` (`_spoiler_has_math`) |
 | (one-time import tool) | `courses/lal_loader/builders.py:90-125` |
 
-After the refactor, `resolve_scope` has no `isinstance(parent_obj, SpoilerElement)`
-branch, and neither do `validate_nesting` nor `walk_unit_joins`.
+Three of the six go away — `resolve_scope` (via the registry entry), `validate_nesting` (via
+the `_CONTAINER_SLOT_KEY` entry) and `walk_unit_joins` (whose existing three arms simply
+recurse, the spoiler arm at `export.py:498-500` already being there).
 
-**The other two sites keep their isinstance dispatch in this slice**, and saying so matters
-because a coverage-table mutant targets one of them:
+**The other three keep their current dispatch in this slice**, and saying so matters because a
+coverage-table mutant targets one of them:
 
 - `_element_row.html:136` keeps its `content_type.model == "spoilerelement"` branch; only
   the `and el.parent_id is None` clause is removed (see Defect 4).
@@ -215,12 +226,14 @@ because a coverage-table mutant targets one of them:
 
 ### Components touched
 
-- `courses/builder.py` — `MAX_NEST_DEPTH`, `element_depth`, the canonical registry,
+- `courses/builder.py` — `MAX_NEST_DEPTH`, `element_depth`, `CONTAINER_TRANSFER_KEYS`, the
+  `SpoilerElement` entry in `_CONTAINER_REGISTRY`,
   `resolve_scope` (incl. `select_related("parent__parent")` at `:122`), the recursive
   subtree delete, the tab-removal cleanup.
 - `courses/transfer/export.py` — recursive, cycle-safe `walk_unit_joins`.
-- `courses/transfer/payloads.py` — hop-bounded `validate_nesting`; delete
-  `_CONTAINER_SLOT_KEY`; three message changes plus one new message (see Error handling).
+- `courses/transfer/payloads.py` — hop-bounded `validate_nesting`; `"spoiler": None` in
+  `_CONTAINER_SLOT_KEY` behind a membership test; three message changes plus one new message
+  (see Error handling).
 - `courses/views.py` — `has_html` in both context builders; remove the now-unused
   `html_ct_id`. `_spoiler_has_math` and its dispatch are deliberately NOT touched.
 - **Stale comments and docstrings that become false**, all of which must be rewritten
@@ -238,7 +251,8 @@ because a coverage-table mutant targets one of them:
   | `payloads.py:747-749` (`_CONTAINER_SLOT_KEY` header) | deleted with the constant; also cross-references `courses.builder._CONTAINER_REGISTRY` by its old model-keyed identity |
   | `payloads.py:771-773` | "every other container reads its slot list from `data` via `_CONTAINER_SLOT_KEY`" |
   | `payloads.py:776-781` | the `SPOILER_CHILD_TYPES` defence-in-depth rationale, deleted with the constant |
-  | `builder.py:95-98` (`_CONTAINER_REGISTRY` header) | states a model-class key and the three-tuple `(normalizer, slot_list_key, slot_id_key)` contract — both changed |
+  | `builder.py:95-98` (`_CONTAINER_REGISTRY` header) | the model-class key and three-tuple contract SURVIVE, but the header must note that a single-slot container supplies a constant slot list rather than reading `data` |
+  | `payloads.py:747-749` (`_CONTAINER_SLOT_KEY` header) | must document that `None` means single-slot and that membership is tested before the lookup |
   | `builder.py:30-33` | "Every type here coincides in both namespaces **except the reveal-gate**" — already false (eight aliases) and worsened by the `twocolumn` alias |
   | `_add_menu.html:2-8` (header comment) | "inside a tabs element (nested=True) … hides the non-nestable groups" — nested menus now come from all three containers, and the hidden set is depth-dependent, not a fixed group |
 - `templates/courses/manage/editor/_element_row.html` — depth threading, spoiler branch,
@@ -345,7 +359,7 @@ at any depth on acyclic data; depth 3 needs no change here.
 ### Transfer path
 
 Export: `walk_unit_joins` yields `(join, parent_join, slot_id)`, parents before children,
-each element exactly once — recursing through the registry's slot accessor.
+each element exactly once — each of its three existing per-type arms recursing.
 
 Import: **needs no change, and this is pinned here so review does not invent work.**
 `courses/transfer/importer.py` pass 1 creates every element join with `parent=None` in
@@ -378,7 +392,7 @@ author did not touch.** State it explicitly:
 | tab removal (`builder.py:670`) | **each element in** `Element.objects.filter(parent=join, tab_id__in=removed)` — NOT the tabs join itself |
 
 **The collector descends through `join.children` — every child row, container or not,
-matched slot or not — NOT through the registry's slot accessors.** This deliberately differs
+matched slot or not — NOT through the slot accessors the export walk uses.** This deliberately differs
 from the export walk, and getting it wrong reintroduces the exact orphan this slice exists to
 fix. `resolved_tabs()` runs the **destructive** `normalize_data` (`models.py:1432`), which
 pads a short or empty `data` with freshly minted random ids; an existing child's `tab_id` can
@@ -469,7 +483,8 @@ sweeps its whole node subtree. Both are already flat over every element regardle
 table inside a spoiler inside a tab produces a copy with the table **missing, with no error
 surfaced to the author**. This is the highest-severity item in the slice.
 
-**Fix:** recurse the walk through the registry's slot accessor. Two **separate** ordering
+**Fix:** make each of `walk_unit_joins`' three existing per-type arms recurse (the spoiler
+arm at `export.py:498-500` already exists). Two **separate** ordering
 invariants apply here, and conflating them produced a vacuous mutant in an earlier draft:
 
 1. **Parents before children — required by the EXPORT side.** `export.py:558-560` does
@@ -888,6 +903,9 @@ reviewed spec is settled:
 | The registry's instance-based slot accessor serves both call sites | False — `validate_nesting` reads payload dicts and needs the data-dict key |
 | Concretes must be deleted deepest-first | False — the prefetch materialises everything before the first delete, and a `pk__in` QuerySet cannot express depth ordering anyway |
 | One editor context builder supplies `max_nest_depth` | False — `views_manage.py` has two, and patching one silently breaks the other path |
+| Slot-accessor traversal is safe for the delete path | False — `resolved_tabs` runs the destructive `normalize_data` and skips children whose `tab_id` matches no slot, so it would REGRESS today's `filter(parent=el)` |
+| A container child of a depth-3 parent violates clauses 3 and 4 at once | False under `==`; clause 4 is now `>=`, which makes the overlap real |
+| `wewnątrz Zakładek i Kolumn` is a usable gate phrase | False — it spans a line wrap, the same trap that made an earlier Polish phrase inert |
 
 The plan must still verify each load-bearing claim by execution before depending on it: a
 confident false mechanism survived 26 review rounds on an earlier slice.
