@@ -707,6 +707,9 @@ Reddens: `test_text_leading_a_signed_run_is_untouched` only. It does **not** red
 **M. WS_TEXT ends a signed run.** In `classifyChild`: `return /\S/.test(node.data) ? "TEXT" : "WS_TEXT";` → `return "TEXT";`
 Reddens: `test_whitespace_between_centred_blocks_is_transparent`.
 
+**O. Restrict the reuse path to `DIV`.** In the rewrite: `if (runToken) {` → `if (runToken && nodes[group.first].tagName === "DIV") {`
+Reddens: `test_centred_paragraphs_merge_and_keep_the_p_tag`. This is the mutant that test's docstring advertises ("restricting the reuse path to DIV"); without it the `<p>` case is pinned only by mutant A, like any other happy-path case, and its stated reason for existing is unfalsifiable.
+
 **N. Trim the wrapper's trailing synthetic newline.** After the wrapper's insert loop, add: `while (wrapper.lastChild && wrapper.lastChild.nodeType === 3 && /^\s+$/.test(wrapper.lastChild.data)) wrapper.removeChild(wrapper.lastChild);`
 Reddens: `test_two_spans_in_one_signed_run_keep_the_boundary_newline`.
 
@@ -1001,7 +1004,7 @@ Expected: **4568 total (passed + skipped)**, unchanged — every test this slice
 
 Treat the **total** as the invariant, not the pass/skip split: `test_db_quiesce.py` carries a dynamic skip that runs as a pass depending on session state, so both "4568 passed, 0 skipped" and "4567 passed, 1 skipped" are clean. A higher total means an e2e file landed in the default run for want of a `pytestmark` — that is the regression this count guards.
 
-Note `--collect-only -q` prints **nothing**: `addopts` already carries `-q`, so a second stacks to quiet-2 and suppresses the summary. Use `--verbosity=0`.
+Note what doubled `-q` does to `--collect-only`: `addopts` already carries `-q`, so `--collect-only -q` runs at quiet-2, where pytest replaces the grand total with **one `path: N` line per file**. That is fine for a single file (`tests/test_e2e_math_reflow_dom.py: 66`) and useless for the whole suite. Use `--verbosity=0` whenever you need a total.
 
 - [ ] **Step 2: Full e2e suite**
 
@@ -1035,14 +1038,27 @@ uv run ruff check . && uv run ruff format --check .
 
 **Capture the two "before" shots first, at the start of Task 1, on the unmodified tree** — by Task 6 the branch carries six commits and there is no "before" left to photograph. If you reach Task 6 without them, get a clean tree with `git worktree add <scratch-dir> master` outside the repo rather than stashing the branch.
 
-**The route** — reuse the harness `tests/test_e2e_math_reflow.py` already provides, rather than inventing one. Seed a `TextElement` whose body is the three centred line divs from Task 5 Step 1, via `_open_pa_session(page, live_server, …)` and `add_element`, then `page.goto(_lesson_url(live_server, unit))`. Screenshot the `.el--text` element. Drive dark mode by setting the **user's theme preference**, not a cookie — the repo has a recorded lesson that the cookie alone does not apply the theme in e2e.
+**The route** — reuse the harness `tests/test_e2e_math_reflow.py` already provides, rather than inventing one. Seed a `TextElement` via `_open_pa_session(page, live_server, …)` and `add_element`, then `page.goto(_lesson_url(live_server, unit))` and screenshot the `.el--text` element. Drive dark mode by setting the **user's theme preference**, not a cookie — the repo has a recorded lesson that the cookie alone does not apply the theme in e2e.
+
+**Seed this body, not the bare three divs:**
+
+```html
+<p>above</p>
+<div class="ta-center">\[\begin{align*}</div>
+<div class="ta-center">a&amp;=b\\</div>
+<div class="ta-center">\end{align*}\]</div>
+<p>below</p>
+```
+
+The surrounding `<p>`s are load-bearing for the criterion below. The cited rule fires only *between siblings inside* `.el--text`, so with the three divs alone the merged result is a single child and there is nothing "around" the formula left to measure — half the criterion would be unevaluable and silently skipped.
 
 **The pass criterion, so this can be failed and not merely claimed:**
 
-- **before:** three separate centred blocks, with two `var(--space-3)` gaps between them (the adjacent-sibling rule at `courses/static/courses/css/courses.css:26-31`), and no `.katex` node.
-- **after:** one `.katex-display` block, its own `margin: 1em 0`, zero internal inter-line gaps, and the surrounding paragraph spacing unchanged above and below.
+- **before:** five sibling blocks with **four** `var(--space-3)` gaps between them (the adjacent-sibling rule at `courses/static/courses/css/courses.css:27-32`), and no `.katex` node.
+- **after:** three siblings — `<p>above</p>`, one merged centred block rendering as `.katex-display` with its own `margin: 1em 0`, and `<p>below</p>` — so **two** gaps remain.
+- **the actual assertion:** the surviving `p|div` and `div|p` gaps are byte-identical before and after; the two internal inter-line gaps go to zero.
 
-Measure the gaps with `getBoundingClientRect()` rather than eyeballing the images, and record the numbers in the PR body alongside the four screenshots. A spacing change *inside* the formula is expected; a change to the spacing *around* it is a regression. Three centred line divs currently receive `margin-top: var(--space-3)` between them from the adjacent-sibling rule at `courses/static/courses/css/courses.css:26-31`; collapsing them to one block removes those gaps and substitutes KaTeX's own `.katex-display { margin: 1em 0 }`. That is the intended outcome, but it is a real spacing change and no automated test covers it. Save the four screenshots outside the repo and attach them to the PR.
+Measure the gaps with `getBoundingClientRect()` rather than eyeballing the images, and record the numbers in the PR body alongside the four screenshots. A spacing change *inside* the formula is expected; a change to the spacing *around* it is a regression. Three centred line divs currently receive `margin-top: var(--space-3)` between them from the adjacent-sibling rule at `courses/static/courses/css/courses.css:27-32`; collapsing them to one block removes those gaps and substitutes KaTeX's own `.katex-display { margin: 1em 0 }`. That is the intended outcome, but it is a real spacing change and no automated test covers it. Save the four screenshots outside the repo and attach them to the PR.
 
 - [ ] **Step 5: Confirm no regression on the shapes the predecessor repaired**
 
@@ -1106,7 +1122,7 @@ PR body must record: the non-e2e count, the light/dark screenshots, the delibera
 
 **Known risk, stated rather than hidden:** Task 1 claims to be behaviour-preserving and its whole gate is "77 tests still pass". If the partition rewrite has a defect that no existing test covers, Task 1 will pass and Task 2 will inherit it. The mitigation is Task 3's mutant table, which targets the partition rules directly — but a reviewer should treat Task 1's diff as the highest-risk change in this plan, not the lowest.
 
-**Falsification coverage.** Every test added by Tasks 2–5 appears in Task 3 Step 3's mutant list (A–N) or in Task 4 Steps 2–3, except **three** recorded as regression guards reddened only by mutant A: the whitespace-lead case, the BR-lead case, and the nested case. Task 6 Step 5's two shapes are pinned by the inverted-reuse-gate mutant (`if (!runToken)`), which their `"<p>" not in out` assertion catches — the weaker `"</p><p>" not in out` form does not, measured.
+**Falsification coverage, stated honestly.** Every test added by Tasks 2–5 appears in Task 3 Step 3's mutant list (A–O) or in Task 4 Steps 2–3. But "appears in the list" is a weak claim, because mutant A (reverting the feature) reddens most of them: measured, **nine functions / ten cells are reddened by A and by no other mutant** — the three regression guards (whitespace-lead, BR-lead, nested) plus `test_centred_siblings_merge_into_one_wrapper`, `test_centred_paragraphs_merge_and_keep_the_p_tag`, both `test_other_align_tokens_merge_too` cells, `test_empty_centred_line_between_the_lines_collapses`, `test_partial_coverage_leaves_the_uncovered_block`, and `test_centred_inline_align_comes_out_merged_and_promoted`. That is expected for happy-path cases — a feature's positive tests are naturally pinned by removing the feature — but it means A is doing most of the work and the specific mutants B–O are what pin the *rules*, not the feature. Task 6 Step 5's two shapes are pinned by the inverted-reuse-gate mutant (`if (!runToken)`), which their `"<p>" not in out` assertion catches — the weaker `"</p><p>" not in out` form does not, measured.
 
 **A note on the counts in this plan.** The Task-2 gate figures were wrong twice before being measured against a real build, both times because `@parametrize` expansion was counted as one test. Any count here that you cannot reproduce should be re-measured with `--collect-only` and reported, not worked around.
 
