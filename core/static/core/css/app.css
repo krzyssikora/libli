@@ -1616,3 +1616,47 @@ a.notif-menu__row:hover { background: var(--surface-sunken); }
 @media (prefers-reduced-motion: reduce) {
   .scroll-x::before, .scroll-x::after { transition: none; }
 }
+
+/* The same affordance on the block axis, for a box that clips DOWNWARD -- the
+   slideshow stage, whose fixed height can cut a slide mid-control. It earns the
+   signal more than the horizontal case does: a clipped table at least shows half
+   a column, whereas a slide can end on whitespace between blocks and read as
+   finished when it is not.
+
+   Same wrapper contract and the same reason for it: the shaded edges must stay
+   pinned while the content moves under them, so they belong to a box that does
+   not itself scroll. .slideshow-stage already is one (the .slide inside it is
+   the scroller), so it wears .scroll-y directly rather than gaining a wrapper.
+
+   is-scroll-top / is-scroll-bottom mean "there is content past this edge",
+   matching is-scroll-start / is-scroll-end on the inline axis. */
+.scroll-y { position: relative; }
+.scroll-y::before,
+.scroll-y::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2rem;
+  z-index: 1;
+  pointer-events: none;   /* never swallow a click on an answer field or button */
+  opacity: 0;
+  transition: opacity .15s ease;
+}
+.scroll-y::before {
+  top: 0;
+  background: linear-gradient(to bottom, var(--scroll-edge), transparent);
+}
+.scroll-y::after {
+  bottom: 0;
+  background: linear-gradient(to top, var(--scroll-edge), transparent);
+}
+.scroll-y.is-scroll-top::before { opacity: 1; }
+.scroll-y.is-scroll-bottom::after { opacity: 1; }
+@media (prefers-reduced-motion: reduce) {
+  .scroll-y::before, .scroll-y::after { transition: none; }
+}
+/* A print sheet has no scrolling to signal, and a gradient over the text is noise. */
+@media print {
+  .scroll-y::before, .scroll-y::after { display: none; }
+}

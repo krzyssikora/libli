@@ -254,9 +254,17 @@ html.js [data-slideshow] > .slide:not(:first-child):not(.is-active) { display: n
   overflow: hidden;
   margin-block: var(--space-6);
 }
+/* The 900px ceiling (not 640px) is what lets a TALL window use its height: at
+   1255px of viewport the 62vh term wants 778px, and the old 640px cap threw the
+   difference away — 176px of empty page below the unit footer while the slide
+   clipped its last control. The cap stays a fixed px rather than becoming
+   calc(100dvh - chrome) because that chrome is not a constant: measured across
+   title length and window width it ranges 325px to 546px, so any single offset
+   either wastes the space again or pushes the deck's own Prev/Next bar below the
+   fold. Short windows are unaffected — there 62vh still governs. */
 .slideshow-stage {
   position: relative;
-  height: clamp(360px, 62vh, 640px);
+  height: clamp(360px, 62vh, 900px);
 }
 /* 2 classes → out-specifies .slide{display:contents}; absolute so slides stack
    for the eventual cross-fade and the stage owns the fixed height. */
