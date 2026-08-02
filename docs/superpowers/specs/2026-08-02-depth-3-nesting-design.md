@@ -120,23 +120,37 @@ keyed by **transfer type string**; the add-menu needs **form keys** (`tabs`, `tw
 **Decision: the transfer key is canonical.** One registry, keyed by transfer key, whose
 entry carries everything the three call sites need:
 
+**The two call sites need slot ids in two different forms, and an earlier draft of this
+table supplied only one of them.** `resolve_scope` holds a live model instance;
+`validate_nesting` holds raw payload dicts and reads `parent["data"][slot_key]`
+(`payloads.py:794`), where `slot_key` is the *data-dict key* (`"tabs"` / `"columns"`) that
+`_CONTAINER_SLOT_KEY` supplies today. An instance-based accessor cannot serve the dict-based
+caller, so the entry carries both:
+
 | Entry field | Used by |
 |---|---|
 | transfer key (the dict key) | `validate_nesting`, clause 4 |
 | model class | `resolve_scope`, `walk_unit_joins` (which hold a model instance) |
-| form key | the add-menu's container-card predicate |
-| slot ids for an instance | `resolve_scope` clause 2, `validate_nesting` clause 2 |
+| slot ids **for an instance** (via the non-destructive normalizer) | `resolve_scope` clause 2 |
+| payload **slot-list key** (`"tabs"` / `"columns"`, or `None`) | `validate_nesting` clause 2 — this is what the deleted `_CONTAINER_SLOT_KEY` provided |
 | ordered children in a slot | `walk_unit_joins`, the editor and student templates |
 
-Two derived lookups are built from it at module level: **by model class** (for the call
-sites holding a `content_object`) and **by form key**. `_CONTAINER_SLOT_KEY` in
-`payloads.py` is **deleted** and its callers read the canonical registry.
+**Spoiler encodes "single implicit slot" in both forms:** its instance accessor returns the
+constant `{SLOT_ID}`, and its payload slot-list key is `None`, which `validate_nesting` reads
+as "no `data` slot list; the only valid slot id is `SLOT_ID`". Any container whose payload
+slot-list key is `None` is single-slot.
 
-Clause 4 asks "is this type key a container?" after normalizing the incoming form key
-through `_NESTABLE_FORM_KEY_ALIASES`, then tests membership in the canonical registry.
+One derived lookup is built at module level: **by model class**, for the call sites holding a
+`content_object`. `_CONTAINER_SLOT_KEY` in `payloads.py` is **deleted** and its caller reads
+the canonical registry.
 
-A multi-slot container derives slot ids from its non-destructive normalizer, as today; a
-single-slot container returns a constant `{SLOT_ID}`.
+**There is deliberately no by-form-key index and no form-key field.** Clause 4 asks "is this
+type key a container?" by normalizing the incoming form key through
+`_NESTABLE_FORM_KEY_ALIASES` and testing membership in the canonical registry — an alias map
+plus a transfer-key lookup, which needs no form-key index. And the add-menu is a Django
+template whose container cards remain three separate hard-coded per-card guards (lines 24,
+25, 35); no template tag or context variable exposes the registry. A form-key field would
+have no consumer.
 
 **The destructive/non-destructive distinction is load-bearing and must survive the
 refactor.** `normalize_data` pads, truncates and mints fresh random ids on every call; a
@@ -190,6 +204,11 @@ because a coverage-table mutant targets one of them:
   | `builder.py:404-407` (`delete_element` docstring) | "If it is a tabs element, its children's CONCRETE rows must go first" — now every container, at every level |
   | `builder.py:58-63` (the `SPOILER_CHILD_TYPES` header) | deleted with the constant; describes "the depth-1 leaf-only scope" |
   | `views_manage.py:1534-1539` | "'choicequestion' and 'tabs' are the cases here that actually reach resolve_scope and **prove nesting is blocked**" — `tabs` becomes an accept |
+  | `export.py:473-486` (`walk_unit_joins` docstring) | "a container element's (**tabs or two-column**) children are expanded **inline here**" — the walk becomes registry-driven, includes spoiler, and recurses |
+  | `export.py:534-536` (`build_export` comment) | "walk_unit_joins expands each **tabs** element's children inline … no child needs a recursive query here" |
+  | `payloads.py:747-749` (`_CONTAINER_SLOT_KEY` header) | deleted with the constant; also cross-references `courses.builder._CONTAINER_REGISTRY` by its old model-keyed identity |
+  | `payloads.py:771-773` | "every other container reads its slot list from `data` via `_CONTAINER_SLOT_KEY`" |
+  | `payloads.py:776-781` | the `SPOILER_CHILD_TYPES` defence-in-depth rationale, deleted with the constant |
 - `templates/courses/manage/editor/_element_row.html` — depth threading, spoiler branch,
   and **`:177` must drop `in_spoiler=True` and add `depth=depth`**; that line is the sole
   producer of the flag every consumer of which is being deleted, and leaving it behind
@@ -230,6 +249,21 @@ left to the implementer:
 - Each container branch in `_element_row.html` includes its child rows with
   `depth=depth|add:1` and its add-menu with `depth=depth`.
 
+**The cap itself must NOT be a template literal.** Writing the guards as `{% if depth < 2 %}`
+and `{% if depth < 3 %}` would hard-code `MAX_NEST_DEPTH` into six template sites, so raising
+the constant later would widen the server rule while the editor kept offering nothing beyond
+depth 3 — precisely the "hard-codes the cap in a second place" failure this spec rejects for
+the write-side check, compounded with the "server accepts it but no author can reach it"
+no-op. Instead the **view** puts `max_nest_depth` into the editor context once, and the
+guards read it:
+
+- container cards: `{% if depth < max_nest_depth|add:-1 %}`
+- add-menu include sites (`:85`, `:131`, `:177`): `{% if depth < max_nest_depth %}`
+
+`max_nest_depth` needs no per-include threading — `{% include %}` passes the full context by
+default, so a single view-level entry reaches every recursion level. Only `depth` changes per
+level and therefore needs the explicit `with` bindings above.
+
 **The seeds must be unquoted numeric literals.** `{% include … with depth=1 %}` parses `1`
 as an int; `depth="1"` binds a string, and while `{{ depth|add:1 }}` still yields `2`,
 `{% if depth < 2 %}` evaluates **False** because smartif swallows the `str < int`
@@ -267,8 +301,32 @@ the same mechanism as a child.
 
 ### Delete path
 
-`delete_element` and the tab-removal branch collect the element's whole subtree and delete
-concretes deepest-first, then let the join rows cascade.
+`delete_element` and the tab-removal branch collect a whole subtree and delete concretes
+deepest-first, then let the join rows cascade.
+
+**The two sites root the collection differently, and getting this wrong destroys content the
+author did not touch.** State it explicitly:
+
+| Site | Root(s) |
+|---|---|
+| `delete_element` | the element being deleted |
+| tab removal (`builder.py:670`) | **each element in** `Element.objects.filter(parent=join, tab_id__in=removed)` — NOT the tabs join itself |
+
+Rooting the tab-removal collection at the tabs join would sweep the subtrees of children in
+**kept** tabs too. Their join rows survive (`builder.py:672` deletes only
+`tab_id__in=removed`), so the result is live `Element` rows pointing at deleted concretes —
+silent destruction of content the author never removed, with no error. The named test must
+therefore assert not only that the removed tab leaves no orphans, but that a **sibling kept
+tab's child and grandchild concretes still exist afterwards**; without that second assertion
+the wrong root ships green.
+
+**Contract with `_delete_element_content_objects`.** That helper
+(`courses/models.py:91-105`) iterates `elements.prefetch_related("content_object")` — it
+requires a **QuerySet**, and a recursive collector naturally produces a list or set. Rather
+than relax the helper (which `Course.delete` and `ContentNode.delete` also call, and which
+this spec otherwise fences off), pin the boundary: **the collector returns join pks**, and
+each call site passes `Element.objects.filter(pk__in=pks)`. The helper's signature and its
+two other callers are untouched.
 
 **Termination is by a `seen` set of visited join pks, NOT by a depth bound.** A depth bound
 would silently truncate on data deeper than the rule permits — and such data is reachable
@@ -317,9 +375,9 @@ surfaced to the author**. This is the highest-severity item in the slice.
 **Fix:** recurse the walk through the registry's slot accessor. Two **separate** ordering
 invariants apply here, and conflating them produced a vacuous mutant in an earlier draft:
 
-1. **Parents before children — required by the EXPORT side.** `export.py:557-559` does
-   `walk_index_by_join_pk[parent_join.pk]`, an unguarded dict subscript that raises
-   `KeyError` on a forward reference. The importer is explicitly order-*robust* here —
+1. **Parents before children — required by the EXPORT side.** `export.py:558-560` does
+   `walk_index_by_join_pk[parent_join.pk]` (the subscript itself is on `:559`), an unguarded
+   dict lookup that raises `KeyError` on a forward reference. The importer is explicitly order-*robust* here —
    `_create_elements`'s own docstring says the two passes "make the import robust to a
    hand-edited archive in which a child precedes its parent" — so this invariant is not the
    importer's at all.
@@ -345,8 +403,11 @@ not a live hang. **No test is expected to cover the export cycle branch** — th
 cycle is on the delete path (see Defect 1), which starts from an arbitrary request-supplied
 `element_pk` and therefore *can* sit inside a cycle.
 
-The existing docstring rule stays true and must be preserved: children are reached ONLY
-through the slot accessors, never `join.children.all()`.
+**One specific rule inside that docstring stays true and must be preserved** — children are
+reached ONLY through the slot accessors, never `join.children.all()`, so a child whose
+`tab_id` matches no slot stays deliberately omitted. The docstring as a *whole* does not
+survive: its first paragraph ("tabs or two-column … expanded inline here") becomes false and
+is listed in the stale-comment table.
 
 ### 3. The import validator must walk — and must be hop-bounded
 
@@ -576,22 +637,30 @@ One row below is deliberately exempt and says so.
 | Depth rule | parametrized `resolve_scope`: (parent at depth 1/2/3) × (leaf, container). **The depth-3-parent parameters must be ORM-constructed** — clause 4 forbids a container at depth 3, so they are unreachable through `resolve_scope` itself; comment this in the test or it will be deleted as dead. | `builder.MAX_NEST_DEPTH 3 → 4` — lethal because clauses 3 and 4 compare against the constant. (`element_depth`'s loop bound is independent and exists only for cycle safety; do not cite it as the reason.) |
 | Depth rule, clause 4 | a container child of a depth-2 parent is rejected; a leaf child of the same parent is accepted | delete the clause-4 branch in `resolve_scope` |
 | Delete | delete a depth-3 subtree → zero orphan concretes at every level | `builder.py:411` → `_delete_element_content_objects(Element.objects.filter(parent=el))` (the pre-change one-level form) |
-| Tab removal | remove a tab holding a container holding a leaf → no orphans | `builder.py:670` → `Element.objects.filter(parent=join, tab_id__in=removed)` without the subtree walk |
+| Tab removal | remove a tab holding a container holding a leaf → no orphans, **AND a sibling kept tab's child and grandchild concretes still exist**. The second assertion is what catches the wrong collection root (see Delete path); without it, rooting at the tabs join ships green while destroying kept-tab content. | `builder.py:670` → `Element.objects.filter(parent=join, tab_id__in=removed)` without the subtree walk. For the kept-tab half, a second mutant: root the collection at the tabs join instead of at each doomed child. |
 | **Duplicate unit** | duplicate a unit with leaf-in-spoiler-in-tab → the copy has the leaf | `export.py:walk_unit_joins` → drop the recursive descent, yield one level only |
 | Export / import | full round trip at depth 3, asserting **within-slot sibling order** survives | `export.py` recursive slot descent → `for child in reversed(children)`. This flips sibling order inside each slot (caught here) while leaving element *presence* intact (so the duplicate-unit row above still does not catch it) — which is the differentiation this row exists to buy. **Not** a BFS/level-order reordering: that preserves every sibling's relative position, so the reconstructed tree is byte-identical and the test stays green. |
-| Export, forward reference | an archive is exported without a `KeyError` when a container's children precede it in the walk | `export.py:557` → hoist the recursive descent so a child is yielded before its parent, tripping the unguarded `walk_index_by_join_pk[parent_join.pk]` subscript |
+| Export, forward reference | an archive is exported without a `KeyError` when a container's children precede it in the walk | `export.py:559` → hoist the recursive descent so a child is yielded before its parent, tripping the unguarded `walk_index_by_join_pk[parent_join.pk]` subscript |
 | Delete, cycle | an ORM-constructed `A.parent=B, B.parent=A` pair passed to `delete_element` completes — no hang, no `RecursionError`. **This is the one genuinely reachable cycle**: `delete_element` starts from a request-supplied `element_pk` (`_locked_element`), so an element inside a corrupt cycle IS reachable, unlike the export walk (Defect 2). | remove the `seen` guard from the **recursive** subtree collector, so the cycle raises `RecursionError` and the test fails. This is why the collector is pinned recursive (see Delete path): dropping `seen` from an iterative worklist would spin forever instead of failing, and `pytest-timeout` is not installed. |
 | Import validator, clause 4 | depth-4 archive listed **parents-first**, asserting the clause-4 message | delete the clause-4 branch in `validate_nesting` |
 | Import validator, clause 3 | depth-4 archive listed **child-before-parent** (see Defect 3 for the exact shape), asserting the clause-3 message | delete the clause-3 branch in `validate_nesting` |
 | Import validator, cycle | **parent-cycle archive raises the validation error rather than hanging or `RecursionError`.** This test asserts the exception TYPE only, deliberately: a hop-bounded walk reports a cycle as a parent at depth > MAX, so it fires clause 3 and emits the identical "nested too deeply" message an ordinary depth-4 archive does. That collision is accepted rather than papered over with a distinct "cycle detected" message, because distinguishing them would require the very unbounded traversal this bound exists to avoid. Note the exemption here so it does not read as an oversight against Defect 3's "assert the specific message" rule. | replace the hop-bounded loop in `validate_nesting` with a recursive helper carrying no bound, so the cycle raises `RecursionError` and the test's `pytest.raises(TransferError)` fails. **`while parent is not None` remains forbidden as a mutant** — it hangs instead of failing, and `pytest-timeout` is not installed, so the run would wedge. Raising the bound to a large finite number is also forbidden: the walk still terminates and still raises, so that mutant is vacuous. |
 | Editor — nested spoiler | a spoiler nested in a tab renders its children and its add-menu | restore `and el.parent_id is None` on `_element_row.html:136` |
 | Editor — top-level menu | the top-level add menu still offers Tabs and Columns (the `depth`-seeding regression) | delete `depth=1` / `depth=0` from `_editor_scope.html`, leaving `depth` unseeded |
+| Editor — cap agreement | with `MAX_NEST_DEPTH` monkeypatched to 4, the add-menu inside a depth-2 container offers the container cards. This is what pins the template guards to the constant rather than to a literal. | write the container-card guard as the literal `{% if depth < 2 %}` instead of `{% if depth < max_nest_depth|add:-1 %}` |
 | Editor — depth 2 | in a **lesson** unit, the add-menu inside a depth-1 container offers Tabs/Columns/Spoiler; the one inside a depth-2 container does not | delete the depth predicate on the Tabs card in `_add_menu.html` |
 | Editor — depth 3 | no add-menu is emitted inside a depth-3 element (ORM-constructed fixture, see above) | `_element_row.html` includes `_add_menu.html` at **three** sites — `:85` (tabs), `:131` (two-column), `:177` (spoiler) — which all carry the same guard. Name the container the fixture uses and delete the guard at that site only; deleting a different one leaves the test green. |
 | Editor — no duplicate card | in a **lesson**, the top-level menu emits exactly one `fillblankquestion` card | `_add_menu.html:39` → delete the guard entirely instead of changing it to `{% if nested %}` |
 | LAL loader gate | a spoiler dict containing `mark_done` (a type the loader CAN build, and one the naive widening would admit) fails with a `LoaderError` whose message contains `"not allowed inside a spoiler"` | repoint `builders.py:111` at `NESTABLE_TYPE_KEYS` (the naive widening this spec rejects). Asserting the message, not just the class, is what makes this lethal — an unknown type would raise `LoaderError` from the `builders.py:392` fallthrough regardless. |
-| `has_html`, lesson | lesson unit whose ONLY html element is inside a tab loads `html_element.js` | `views.py:346` → `any(isinstance(el.content_object, HtmlElement) for el in elements)` — the top-level-only shape. Do **not** name "revert to the pre-change line": `html_ct_id` is deleted by the fix, so reverting line 346 alone raises `NameError` and every lesson render 500s, which is noise rather than signal. |
-| `has_html`, quiz | **quiz** unit whose ONLY html element is inside a tab loads `html_element.js` | `views.py:1198` → the pre-change `any(isinstance(el.content_object, HtmlElement) for el in elements)` (self-contained; no deleted local involved) |
+| `has_html`, lesson | lesson unit whose ONLY html element is inside a tab loads `html_element.js` | `views.py:346` → `node.elements.filter(content_type__app_label="courses", content_type__model="htmlelement", parent__isnull=True).exists()` — the top-level-only shape, expressed **without any deleted symbol**. |
+| `has_html`, quiz | **quiz** unit whose ONLY html element is inside a tab loads `html_element.js` | `views.py:1198` → the same `parent__isnull=True` filter shape. |
+
+**Neither `has_html` mutant may be written as "restore the pre-change expression."** Both
+pre-change forms reference `HtmlElement` (and the lesson one also `html_ct_id`), and this
+change deletes the module-level import at `views.py:51` along with both consumers — so a
+verbatim restore raises `NameError` on every render. That is noise, not signal, and it would
+still be recorded "verified RED" against the DoD gate while proving nothing. The filter-shaped
+mutants above reintroduce the top-level-only *behaviour* with no deleted symbol.
 | `has_math` | unit whose ONLY math sits at depth 3, via the pinned chain **tabs → spoiler → math**, with no other math anywhere in the unit | `views.py:239-242` (`_tabs_has_math` body) → `return False`. Not `views.py:202`: the pinned chain does pass through it, but `:202` is the *spoiler* dispatch, not the tabs recursion this slice must prove reaches depth 3 — mutating it would leave `_tabs_has_math` untested. ("Already killed by pre-existing tests" is NOT a disqualifier; see the falsification rule.) |
 | Student render | a depth-3 leaf renders inside its nested container | **Exempt, deliberately.** The render path is unchanged by this slice (see Data flow), so this is a characterization test pinning existing behaviour at a new depth, not a test of new logic. |
 
@@ -698,6 +767,8 @@ reviewed spec is settled:
 | All DoD gates pass on the unmodified tree | False — two of them must fail beforehand |
 | Parents-before-children is required by the import's payload-order pass | False — the importer is explicitly order-robust; the constraint is `export.py:557`'s unguarded dict subscript |
 | A BFS reordering of the export walk would change the round trip | False — it preserves relative sibling order, so the result is byte-identical |
+| The `has_html` mutants are self-contained one-line reverts | False — both reference `HtmlElement`, whose import this change deletes, so a verbatim restore raises `NameError` |
+| The registry's instance-based slot accessor serves both call sites | False — `validate_nesting` reads payload dicts and needs the data-dict key |
 
 The plan must still verify each load-bearing claim by execution before depending on it: a
 confident false mechanism survived 26 review rounds on an earlier slice.
@@ -745,16 +816,18 @@ therefore defective, if they pass before the work starts:
   | `cannot hold another container` | `content-editors.md:128` |
   | `dwa typy kontenerów` | `content-editors.pl.md:133` |
   | `może zawierać innego kontenera` | `content-editors.pl.md:140` — note: NOT `nie może zawierać innego kontenera`, which spans the `:139`/`:140` wrap and matches nothing |
-  | `nestable inside Tabs and Columns` | `interactive-elements.md:9` |
+  | `nestable inside Tabs and Columns` | **two** sites: `interactive-elements.md:9` AND `content-editors.md:151` (the EN *See also* passage) |
   | `wewnątrz Zakładek` | `interactive-elements.pl.md:10` |
   | `zagnieżdżalne w Zakładkach i Kolumnach` | `content-editors.pl.md:166` |
 
   The `interactive-elements` phrases exist because the `content-editors` phrases alone would
-  let an implementer edit that one file, pass the gate, and ship two stale files. The last
-  phrase exists because the *See also* passage at `content-editors.pl.md:166` is caught by
-  none of the others — `wewnątrz Zakładek` matches only `interactive-elements.pl.md:10`, and
-  both remaining Polish phrases live in the `:133-141` block — so without it a stale Polish
-  sentence ships with the gate green.
+  let an implementer edit that one file, pass the gate, and ship two stale files. The EN
+  *See also* passage needs no phrase of its own — `nestable inside Tabs and Columns` already
+  covers it. Its **Polish twin** does not: `wewnątrz Zakładek` matches only
+  `interactive-elements.pl.md:10`, and both remaining Polish phrases live in the `:133-141`
+  block, so `content-editors.pl.md:166` is caught by none of them. That asymmetry is the
+  whole reason for the seventh phrase; without it a stale Polish sentence ships with the gate
+  green.
 
 - Every test in the coverage table has its named mutant recorded and verified RED — meaning
   *that named test*, run by node id, fails under the mutant — except the one row marked
