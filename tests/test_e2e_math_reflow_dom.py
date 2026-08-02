@@ -24,7 +24,7 @@ def _allow_sync_orm_under_playwright():
     MUST be session-scoped. tests/conftest.py has an autouse `_enable_db_access(db)`
     giving EVERY test under tests/ DB access, and conftest-level autouse fixtures run
     before module-level ones of the same scope -- so a function-scoped version sets
-    the env var too late and all 63 cases ERROR with SynchronousOnlyOperation at
+    the env var too late and all 170 cases ERROR with SynchronousOnlyOperation at
     setup (measured). As a fixture rather than a module global it activates only when
     an e2e test is actually selected, so the default `-m 'not e2e'` run keeps the
     guard intact. Same shape and name as the one in tests/test_e2e_text_colour.py."""
@@ -1014,3 +1014,27 @@ def test_idempotent_across_the_cross_product(page, tag, token, sep_name, placeme
         # barriers 4-5 cover div/ta-center only). Measured: exact equality holds for
         # all 16 on the built module, so the assertion is free.
         assert out[1] == html, "expected no merge, markup changed"
+
+
+@pytest.mark.parametrize(
+    "html",
+    [
+        # The stored shape of CalloutElement 86: a display span split at </p><p>.
+        "<p>\\[\\begin{align*}</p><p>a&amp;=b\\\\</p><p>\\end{align*}\\]</p>",
+        # The stored shape of the five question stems: \( … \) split at </p><p>,
+        # opening with \begin{cases} and nesting \begin{align} inside.
+        "<p>\\(\\begin{cases}\\begin{align}</p>"
+        "<p>a&amp;=1\\end{align}\\end{cases}\\)</p>",
+    ],
+)
+def test_predecessor_repaired_shapes_still_merge(page, html):
+    """Unsigned runs, so this slice must not touch them: the content is hoisted into
+    the parent and BOTH <p> elements are removed.
+
+    `"<p>" not in out` is the load-bearing assertion. Asserting only that
+    "</p><p>" is gone leaves an inverted reuse gate (`if (!runToken)`) green —
+    measured — because the first <p> would survive as a wrapper holding the merged
+    text, which contains no </p><p> either."""
+    out = _reflow_html(page, html)
+    assert "<p>" not in out
+    assert "\n" in out

@@ -5,7 +5,7 @@ auto-render.min.js + math_reflow.js + math.js wired exactly as the five
 templates ship them.
 
 `tests/test_e2e_math_reflow_dom.py` already proves the module's DOM mechanics in
-isolation (65 cases). What that harness cannot see is wiring: does the script
+isolation (170 cases). What that harness cannot see is wiring: does the script
 actually load on the real page, in the real order, ahead of the real callers, and
 does the real RTE actually produce the split shape the whole feature exists to
 repair. That is this file's job, and only this file's.
