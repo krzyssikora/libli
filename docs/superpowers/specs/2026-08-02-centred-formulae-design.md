@@ -227,34 +227,36 @@ classifier and from `isMergeableBlock`'s attribute check.
 `BLOCK` member**. A run whose token is non-empty is **signed**. A signed run therefore has a tag as
 well as a token, which is what makes §3's tag column evaluable.
 
-**Membership rules**, applied left to right:
+**Membership rules**, applied left to right. They are labelled **M1–M5** because this document also
+cites the predecessor's own numbered rules — "rule 4" (the leaf-based span skip) and "rule 5" (the
+rewrite path) — which are different things with colliding numbers.
 
-1. A `BLOCK` arriving into a run whose signature is **not yet established** always joins, and
-   establishes the run's signature. (Rule 5 is the one exception: a *signed* block arriving into a
+M1. A `BLOCK` arriving into a run whose signature is **not yet established** always joins, and
+   establishes the run's signature. (M5 is the one exception: a *signed* block arriving into a
    run that already holds `TEXT`/`BR` members breaks it instead.) This clause matters — a literal
    "not compatible with a signature that does not exist ⇒ break the run" reading would break the
    ordinary `prose <div>\[a</div><div>b\]</div>` shape.
-2. A `BLOCK` arriving into a run whose signature **is** established joins iff it is compatible with
+M2. A `BLOCK` arriving into a run whose signature **is** established joins iff it is compatible with
    that signature: when the run's token is `""`, the block's token must be `""` (tag irrelevant, so
    `DIV`/`P` may mix); when the run's token is non-empty, the block's `(alignToken, tagName)` must
    equal the run's pair. Otherwise it ends the run and starts a new one, carrying its own signature.
-3. `TEXT` and `BR` may join a run whose signature is not yet established, or an **unsigned** run
+M3. `TEXT` and `BR` may join a run whose signature is not yet established, or an **unsigned** run
    (today's behaviour). They **end a signed run and become the first member of a new, unestablished
    run** — they are not excluded from every run. The distinction is not cosmetic: excluding them
    would regress a shape that merges on master today, e.g.
    `<div class="ta-center">x</div>\[a<div>b\]</div>`, where the run is
    `[TEXT("\[a"), <div>]`. None of the barrier cases discriminates the two readings, so this has its
    own fixture.
-4. `WS_TEXT` is **transparent**: it never establishes a signature and never ends a run whose
+M4. `WS_TEXT` is **transparent**: it never establishes a signature and never ends a run whose
    signature is already established — signed or not. This mirrors `buildRun`, which already ignores
    such nodes, and is what keeps the feature working on real nh3 output rather than only on
    whitespace-free fixtures.
-5. Before a signature is established, a run may have accumulated `TEXT` and `BR` members. If a
+M5. Before a signature is established, a run may have accumulated `TEXT` and `BR` members. If a
    **signed** `BLOCK` then arrives, it **ends that run and starts a new one**; it does not
-   retroactively sign the run it arrived into. This is what rule 3 defers to.
+   retroactively sign the run it arrived into. This is what M3 defers to.
 
    `WS_TEXT` is deliberately **not** in that list, so a run holding only transparent whitespace stays
-   unestablished and an arriving signed block simply joins it (rule 1). A leading newline text node
+   unestablished and an arriving signed block simply joins it (M1). A leading newline text node
    before the first centred block — the corpus shape, and the shape of every indented hand-written
    fixture — therefore does not break the run. Both readings produce identical DOM output, since
    `WS_TEXT` contributes no characters; this one is chosen because it keeps the common case on the
@@ -283,9 +285,14 @@ below uses the same run-local indices.
 
 The ordering is specified, not incidental, because it decides the failure mode (see Error handling):
 
+0. **Snapshot** `wrapper.childNodes` into an array *before* step 1. After the insert, the replacement
+   nodes are themselves children of the wrapper, so "the original children" is only recoverable from
+   a snapshot. An implementation that reads step 2 as `while (wrapper.firstChild) wrapper.removeChild(…)`
+   empties the wrapper and loses the merged line — exactly the destructive outcome this ordering
+   exists to prevent.
 1. **Insert** the replacement nodes into the wrapper, appended after its existing children.
-2. **Remove all** of the wrapper's original children — unconditionally, not "those represented in the
-   replacement". Most are represented, since every character mapping to `group.first` lies inside
+2. **Remove all** of the snapshotted original children — unconditionally, not "those represented in
+   the replacement". Most are represented, since every character mapping to `group.first` lies inside
    `[startOffset, endOffset)`; but a child contributing **zero** characters is not represented at all
    — a leading or collapsed `<br>` inside the wrapper, where `pushBlockText`'s `text.length && …`
    guard (`math_reflow.js:214`) suppresses the newline. Such a child is dropped, which is exactly
@@ -528,8 +535,12 @@ not committed, so treat the rule as standing on the port's purpose, not on the f
   so an unsigned whitespace fixture passes today and under every mutant, proving nothing.
 - a signed run **followed by** a non-whitespace text node that begins a new merging run
   (`<div class="ta-center">x</div>\[a<div>b\]</div> ⇒ <div class="ta-center">x</div>\[a\nb\]`) —
-  pins that `TEXT` ending a signed run starts a new one rather than being excluded (rule 3)
-- a signed run **preceded** by a newline text node, merging normally (rule 5's `WS_TEXT` carve-out)
+  pins that `TEXT` ending a signed run starts a new one rather than being excluded (M3)
+- a signed run **preceded** by a newline text node, merging normally (M5's `WS_TEXT` carve-out).
+  **This one is a regression guard, not a discriminating fixture, and that is deliberate** — M5
+  itself records that all readings of a leading `WS_TEXT` produce identical DOM, so no mutant can
+  redden it. It is listed in the table below as such, so the "a mutant per test" contract is not
+  silently broken.
 - an empty centred line (`<div class="ta-center"><br></div>`) between two centred lines
 - `ta-left` and `ta-right` as well as `ta-center`, so nothing is hardcoded to centre
 - `<div class=" ">` merging — the deliberate widening in §1
@@ -549,7 +560,13 @@ Required, each asserting pass 1 == pass 2 **and** a positive precondition that p
 (assert the wrapper count, or that `</div><div` is absent) — without that precondition a no-op
 satisfies the test trivially:
 
-- a signed block holding an intra-block `<br>`-split span
+- **`<div class="ta-center">\(x<br>y\) prose \[a</div><div class="ta-center">b\]</div>`** — given as
+  literal markup, not as "a signed block holding an intra-block `<br>`-split span", because the
+  trailing `prose \[a` **and** the second signed block are what make the `textFragment` leaf guard
+  fire: the guard only executes from an enclosing merge's covered-but-unspanned range. Reduced to
+  `<div class="ta-center">\(x<br>y\)</div>`, both `textFragment` calls are empty, the outer span is a
+  leaf skip, and the fixture stays green under its own mutant while still satisfying the "pass 1
+  actually merged" precondition.
 - two spans with prose between the groups, inside signed blocks
 - the signed analogue of the `map`-vs-`leaf` discriminating shape recorded in `math_reflow.js`'s
   rule-4 comment. **Verify it still discriminates rather than assuming it does:** the recorded shape
@@ -572,7 +589,9 @@ the RED output of each is recorded:
 |---|---|
 | happy path (**signed** cases only) | revert the change (blocks with a token are barriers again) |
 | mixed-tag unsigned case | require tag equality even when the token is `""`. Listed separately because it passes on master, so "revert the change" cannot redden it. |
-| rule-3 case (`TEXT` after a signed run) | a `TEXT`/`BR` that ends a signed run is excluded from every run instead of starting a new one |
+| M3 case (`TEXT` after a signed run) | a `TEXT`/`BR` that ends a signed run is excluded from every run instead of starting a new one |
+| `<div class=" ">` case | `alignToken` compares the raw class attribute string instead of a parsed token set, restoring `class=" "` as a barrier |
+| leading-`WS_TEXT` case | **none — regression guard only.** M5 records that every reading of a leading `WS_TEXT` yields identical DOM, so no mutant exists. Listed explicitly rather than omitted, so its absence is a decision. |
 | barrier 1–3 | a run adopts the signature of its first block instead of requiring compatibility |
 | barrier 4–5 | signed runs admit `TEXT` and `BR` members |
 | barrier 6 | `alignToken` returns the first token instead of `null` for multi-token |
@@ -600,9 +619,19 @@ exists only as a claim in a code comment and a docstring. Do not plan around reu
 - **Committed:** a deterministic parametrized idempotence test over an enumerated cross-product of
   shapes — block tag (`div`/`p`) × token (`""`, `ta-center`, `ta-right`) × separator (none,
   whitespace text, `<br>`, non-whitespace text) × span placement (whole run, trailing prose,
-  intra-block `<br>`) — asserting for each: pass 1 == pass 2, `textContent` (whitespace-normalised)
+  intra-block `<br>`) — asserting for each: pass 1 == pass 2, `textContent` **with all whitespace
+  removed** (see the definition below — *not* "normalised", which would redden every merging shape)
   unchanged from the input, **and**, for the shapes expected to merge, that pass 1 changed the
-  markup. The last clause is what stops the whole enumeration passing vacuously under a mutant that
+  markup.
+
+  **The three placement templates, written out so the predicate below has a fixed domain** — `T` is
+  the block tag, `C` the class attribute (absent for token `""`), `SEP` the separator:
+
+  ```
+  whole run:        <T C>\[a</T>SEP<T C>b\]</T>
+  trailing prose:   <T C>\[a</T>SEP<T C>b\] tail</T>
+  intra-block <br>: <T C>\[a<br>b\]</T>SEP<T C>c</T>
+  ``` The last clause is what stops the whole enumeration passing vacuously under a mutant that
   suppresses merging.
 
   **The merge-expected predicate is stated here as data, not derived from the implementation's
