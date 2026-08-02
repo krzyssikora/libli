@@ -1,7 +1,6 @@
 # Depth-3 nesting
 
-One containment rule for every container: lift the nesting cap from 2 to 3 and replace
-three bespoke container implementations with one registry-driven path.
+Lift the nesting cap from 2 to 3, and fold Spoiler into the existing container plumbing.
 
 **Date:** 2026-08-02
 **Base:** master `901f6cf0`
@@ -29,8 +28,11 @@ This slice states the rule once, enforces it in one place per surface, and fixes
 code paths that silently assume one level of nesting.
 
 The remaining two slice-B cases (tables in callouts, math in callouts) need Callout to
-become a container and ship in the follow-up PR. The registry introduced here is the seam
-that PR plugs into: **Callout must become one registry entry, not a sixth special case.**
+become a container and ship in the follow-up PR. The plumbing this slice adds is the seam
+that PR plugs into: **Callout becomes three coordinated one-line additions** — a
+`_CONTAINER_REGISTRY` entry, a `_CONTAINER_SLOT_KEY` entry and a `CONTAINER_TRANSFER_KEYS`
+member — not a sixth bespoke special case. The drift invariant in the coverage table is what
+stops PR2 adding it to only two of the three.
 
 ## The containment rule
 
@@ -51,10 +53,15 @@ their relative order vacuous.
 
 **Write-side evaluation order is pinned: not-a-container, then 1, 2, 3, 4.** `resolve_scope`
 raises on the first failure, so a parametrized test asserting a specific `NestingError`
-message needs a defined order. The genuine ambiguity is between the structural rejections
-(not-a-container, unknown slot) and the rule clauses — not between clauses 3 and 4, which
-under `>=` overlap only for a container child of a parent at depth ≥ 2, where clause 3 is
-checked first and reports "too deep" (matching the import side).
+message needs a defined order. Clauses 3 and 4 overlap under `>=` only for a container child
+of a parent at depth ≥ 2, where clause 3 is checked first and reports "too deep" (matching the
+import side).
+
+**Note this reorders clauses 1 and 2 relative to today's code**, which checks the slot
+(`builder.py:153-154`) *before* type-nestability (`:156-157`). For a request failing both, the
+reported message changes from "unknown slot" to "may not be nested". That is a deliberate,
+small behaviour change, called out so it is not mistaken for an accident — and so any existing
+test asserting the old message is expected to move.
 
 Clause 4 is the "depth 3 is leaves only" decision. A container placed at depth 3 could
 never hold anything: it would render slots that cannot be filled and an add-menu that 400s
@@ -147,10 +154,27 @@ Instead, three targeted additions:
 SpoilerElement: (lambda _data: {"slots": [{"id": SpoilerElement.SLOT_ID}]}, "slots", "id"),
 ```
 
+**The call site must change too, and this is not optional.** `builder.py:152` reads
+`normalizer(parent_obj.data)[list_key]` — `parent_obj.data` is evaluated **at the call site,
+before the lambda runs**. `SpoilerElement` has no `data` field (its fields are
+`id, label, body, elements`, verified by execution), so the entry alone would raise
+`AttributeError` — an unhandled 500 rather than a `NestingError`/400 — on every nested add to
+a spoiler, and every inverted spoiler accept-case would die. The lambda's unused `_data`
+parameter does not save it.
+
+Change `builder.py:152` to `normalizer(getattr(parent_obj, "data", None))`. This keeps the
+existing three-tuple contract and every current entry working unchanged; only the argument
+fetch becomes tolerant. The `builder.py:95-98` header rewrite must describe the new argument.
+
 `resolve_scope` then loses its `isinstance(parent_obj, SpoilerElement)` branch and reads the
 registry like any other container. **No sentinel is overloaded**: `.get(type(parent_obj))`
 returning `None` still means exactly "parent is not a container", so the existing rejection at
 `builder.py:150` survives untouched and needs no membership/lookup two-step.
+
+`SpoilerElement` must also move from a `resolve_scope`-local import (`builder.py:128`) to a
+module-level one, since the registry uses it as a dict key evaluated at import time. Its
+siblings `TabsElement`/`TwoColumnElement` are already imported there (`:10-11`), so there is
+no cycle risk.
 
 **2. `_CONTAINER_SLOT_KEY` keeps its transfer key** and gains `"spoiler": None`. Here `None`
 *is* overloaded — it already serves as the miss sentinel at `payloads.py:788-793` — so this
@@ -211,13 +235,16 @@ Delete path.)
 | math detection | `courses/views.py:245-256` (`_spoiler_has_math`) |
 | (one-time import tool) | `courses/lal_loader/builders.py:90-125` |
 
-Three of the six go away — `resolve_scope` (via the registry entry), `validate_nesting` (via
-the `_CONTAINER_SLOT_KEY` entry) and `walk_unit_joins` (whose existing three arms simply
-recurse, the spoiler arm at `export.py:498-500` already being there).
+**Two go away:** `resolve_scope` (via the registry entry) and `validate_nesting` (via the
+`_CONTAINER_SLOT_KEY` entry).
 
-**The other three keep their current dispatch in this slice**, and saying so matters because a
-coverage-table mutant targets one of them:
+**The other four keep their current per-type dispatch in this slice.** The export walk belongs
+in this group, not the previous one — under the descope `walk_unit_joins` keeps all three
+`isinstance` arms (`:490`, `:494`, `:498`); the spoiler arm does not disappear, it merely
+gains a recursive call. Saying so matters because a coverage-table mutant targets one of these
+sites:
 
+- `export.py:498-500` keeps its `isinstance(obj, SpoilerElement)` arm; it gains recursion.
 - `_element_row.html:136` keeps its `content_type.model == "spoilerelement"` branch; only
   the `and el.parent_id is None` clause is removed (see Defect 4).
 - `_spoiler_has_math` (`views.py:245-256`) and its dispatch at `views.py:202` are left
@@ -246,7 +273,7 @@ coverage-table mutant targets one of them:
   | `builder.py:404-407` (`delete_element` docstring) | "If it is a tabs element, its children's CONCRETE rows must go first" — now every container, at every level |
   | `builder.py:58-63` (the `SPOILER_CHILD_TYPES` header) | deleted with the constant; describes "the depth-1 leaf-only scope" |
   | `views_manage.py:1534-1539` | "'choicequestion' and 'tabs' are the cases here that actually reach resolve_scope and **prove nesting is blocked**" — `tabs` becomes an accept |
-  | `export.py:473-486` (`walk_unit_joins` docstring) | "a container element's (**tabs or two-column**) children are expanded **inline here**" — the walk becomes registry-driven, includes spoiler, and recurses |
+  | `export.py:473-486` (`walk_unit_joins` docstring) | "a container element's (**tabs or two-column**) children are expanded **inline here**". Required new content: the walk **recurses through each container arm and terminates on a `seen` set**. Do NOT write "registry-driven" — there is no registry on the export path (`_CONTAINER_REGISTRY` is model-keyed and lives in `builder.py`, imported nowhere in `export.py`), and an implementer "fixing" the function to match such a docstring would re-introduce the traversal unification this spec descoped. |
   | `export.py:534-536` (`build_export` comment) | "walk_unit_joins expands each **tabs** element's children inline … no child needs a recursive query here" |
   | `payloads.py:771-773` | "every other container reads its slot list from `data` via `_CONTAINER_SLOT_KEY`" |
   | `payloads.py:776-781` | the `SPOILER_CHILD_TYPES` defence-in-depth rationale, deleted with the constant |
@@ -269,7 +296,12 @@ coverage-table mutant targets one of them:
   Columns". Every one of those sentences becomes false and these docs are served to
   authors. New wording must state: three container types (Tabs, Columns, Spoiler);
   containers admissible at depth 1–2; depth 3 is leaves only; fill-in-the-blanks now
-  offered in any nested menu. Two further passages in `content-editors.md` also become
+  offered in nested **lesson** menus. Two qualifications are load-bearing, because the general
+  list is false in a quiz: the Spoiler card (`_add_menu.html:35`) and the fill-blank card
+  (`:39`) both sit inside the `{% if not unit_is_quiz %}` group at `:27`, so in a quiz unit
+  only Tabs and Columns are ever offered as containers and fill-blank is never offered nested.
+  The quiz passage at `:131-133` therefore needs its **own** replacement sentence rather than
+  being folded into the general list. Two further passages in `content-editors.md` also become
   false and must be rewritten: `:123-129` says the nested menu "offers only the **nine**
   non-container Content types" and enumerates them (Tabs and Columns join that group at
   depth 1), and `:131-133` says "inside a quiz a Tabs or Columns container's add-menu
@@ -549,12 +581,21 @@ mutants are vacuous.
 **The dict-side walk needs its own missing-ancestor contract, which `element_depth` does not
 supply.** `validate_nesting` checks only the *immediate* parent's existence before walking,
 so a hostile archive `[C(parent=B), B(parent="ghost")]` reaches `C` first and the chain walk
-hits `by_id["ghost"]`: a raw `KeyError` (violating the module's "never a raw exception on
-hostile input" rule) or, with `.get()`, a silent `None` that undercounts the depth and lets
-an over-deep chain through. Since child-before-parent ordering is reachable (above), this is
-not hypothetical. **A missing ancestor mid-walk raises the ordinary
-`"… references an unknown parent."` validation error**, the same one the immediate-parent
-check uses. An earlier draft of this spec claimed clause 3 was
+hits `by_id["ghost"]` — a raw `KeyError`, violating the module's "never a raw exception on
+hostile input" rule. Since child-before-parent ordering is reachable (above), this is not
+hypothetical. **A missing ancestor mid-walk raises the ordinary
+`"… references an unknown parent."` validation error, bound to `el=el["id"]` — the element
+under validation (`C`), matching the convention at `payloads.py:770`.**
+
+**The `.get()` variant is NOT a second failure mode, and the test must not be written as
+though it were.** A `.get()` walk returning `None` cannot let an over-deep chain through:
+`by_id` is built from every element, so a parent ref that misses it belongs to no element in
+the payload — meaning the element that *references* the ghost id (`B`) fails its own
+immediate-parent check when the loop reaches it, and `_err` raises with the same message.
+The archive is still rejected. So a test asserting merely "hostile archive → `TransferError`
+mentioning unknown parent" stays **green** under a `.get()` mutant and is vacuous. Only
+asserting the interpolated element id distinguishes the mid-walk raise (`C`) from `B`'s own
+immediate-parent raise. An earlier draft of this spec claimed clause 3 was
 unreachable-by-construction here; that was wrong, and the counterexample above is why.
 
 ### 4. The editor recursion needs a real depth guard
@@ -740,13 +781,11 @@ they are named:
 a named site, that must be verified RED before the test counts as written. Not "delete the
 feature and see"; not "same as above"; not a description of a behaviour to break.
 
-Most are one-liners. **Three are sanctioned multi-line exceptions**, because the property
-under test is an ordering or termination property rather than a guard on a single line: the
-export forward-reference mutant (hoisting the recursive descent), the delete-cycle mutant
-(dropping `seen` from the recursive collector), and the import-cycle mutant (swapping the
-hop-bounded loop for an unbounded recursive helper). These are still specific and named; they
-are simply not single lines, and a DoD check applying "one-line" literally would wrongly
-reject them. A test whose named mutant does not go red is rewritten, not explained away. On an
+Most are one-liners, but the rule is **not** "exactly one line" — enumerating exceptions
+proved unmaintainable (the list said three while the table held at least six: the two
+clause-branch deletions and the `_tabs_has_math` body are all multi-line). The criterion
+instead: **a mutant may span lines when the property under test is ordering, termination, or
+a whole branch.** It must still name a specific site and a specific edit. A test whose named mutant does not go red is rewritten, not explained away. On an
 earlier slice a falsification table was vacuous in six successive drafts before this rule
 was applied — and in this spec's own review, four successive mutant proposals were found
 vacuous before landing on the ones below.
@@ -776,7 +815,10 @@ One row below is deliberately exempt and says so.
 | Editor — nested spoiler | a spoiler nested in a tab renders its children and its add-menu | restore `and el.parent_id is None` on `_element_row.html:136` |
 | Editor — top-level menu | the top-level add menu still offers Tabs and Columns (the `depth`-seeding regression) | delete `depth=1` / `depth=0` from `_editor_scope.html`, leaving `depth` unseeded |
 | Editor — cap agreement, cards | with `MAX_NEST_DEPTH` monkeypatched to 4, the add-menu inside a depth-2 container offers the container cards | write the container-card guard as the literal `{% if depth < 2 %}` instead of `{% if depth < max_nest_depth|add:-1 %}` |
-| Editor — cap agreement, include | with `MAX_NEST_DEPTH` monkeypatched to 4, an add-menu **is emitted inside a depth-3 container** (ORM-built fixture). Without this row the three include guards can be written as the literal `{% if depth < 3 %}` and every other test stays green: at depth 2 the menu is still emitted (`2 < 3`) and the cards still appear (`2 < 4-1`), and the real-cap depth-3 row passes either way since `3 < 3` is false. The include guard is the likelier slip precisely because it is three sites, not one. | write `_element_row.html:85` as `{% if depth < 3 %}` |
+| Editor — fragment swap | an editor op that returns through `_render_editor_fragments` (e.g. `manage_element_move` or `manage_element_add`) still emits the nested add-menu **and** the container cards in its fragment. Every add / save / move / delete returns this way, so if `max_nest_depth` lands only in `_editor_page` the first page load looks perfect and every subsequent swap silently drops both — the exact silent failure the seeding section names, with no other row covering it. | omit `max_nest_depth` from `_render_editor_fragments`'s context dict |
+| Import validator, missing ancestor | a hostile archive `[C(parent=B), B(parent="ghost")]` raises `TransferError` **naming `C`** — the element under validation — rather than a raw `KeyError`. Asserting the id is the only thing that makes this lethal: see the note below the table. | replace the guarded ancestor lookup with a raw `by_id[...]` subscript, so the walk raises `KeyError` instead |
+| Container key-space drift | `CONTAINER_TRANSFER_KEYS == set(_CONTAINER_SLOT_KEY)`, and both equal the transfer keys of `_CONTAINER_REGISTRY`'s models. No test touches either structure today, so PR2 adding Callout to two of the three would silently leave clause 4 permissive — admitting a callout container at depth 2 and producing a depth-3 container with unfillable slots. | add a fourth key to one structure only |
+| Editor — cap agreement, include | with `MAX_NEST_DEPTH` monkeypatched to 4, an add-menu **is emitted inside a depth-3 container**, where the fixture's container is a **tabs** element (matching the `:85` mutant — a spoiler fixture would leave that mutant green, as the adjacent depth-3 row already warns). Without this row the three include guards can be written as the literal `{% if depth < 3 %}` and every other test stays green: at depth 2 the menu is still emitted (`2 < 3`) and the cards still appear (`2 < 4-1`), and the real-cap depth-3 row passes either way since `3 < 3` is false. The include guard is the likelier slip precisely because it is three sites, not one. | write `_element_row.html:85` as `{% if depth < 3 %}` |
 | Editor — depth 2 | in a **lesson** unit, the add-menu inside a depth-1 container offers Tabs/Columns/Spoiler; the one inside a depth-2 container does not | delete the depth predicate on the Tabs card in `_add_menu.html` |
 | Editor — depth 3 | no add-menu is emitted inside a depth-3 element (ORM-constructed fixture, see above) | `_element_row.html` includes `_add_menu.html` at **three** sites — `:85` (tabs), `:131` (two-column), `:177` (spoiler) — which all carry the same guard. Name the container the fixture uses and delete the guard at that site only; deleting a different one leaves the test green. |
 | Editor — no duplicate card | in a **lesson**, the top-level menu emits exactly one `fillblankquestion` card | `_add_menu.html:39` → delete the guard entirely instead of changing it to `{% if nested %}` |
@@ -830,8 +872,8 @@ mutants above reintroduce the top-level-only *behaviour* with no deleted symbol.
 ### Existing guardrail tests to INVERT (not delete)
 
 These assert the old cap and are the tests most likely to be quietly removed. This list
-grew from 3 sites to 9 in review round 1 and to 14 in round 2; **the plan must re-derive it
-by search rather than trust it**, and treat any further site it finds as expected, not
+grew from 3 sites to 9 to 14 to 16 across review rounds — round 8 found a whole *file* the
+previous seven had missed. **The plan must re-derive it by search rather than trust it**, and treat any further site it finds as expected, not
 anomalous.
 
 | Site | Action |
@@ -850,6 +892,8 @@ anomalous.
 | `tests/test_tabs_editor_partial.py:79-90` — `test_nested_add_menu_offers_only_nestable_types`, asserting `'data-add-type="tabs"' not in html` | Inverts: offering Tabs in a nested menu at depth 1 is the point of this slice. **Must pass explicit integer `depth` AND `max_nest_depth`** — `depth=1` alone still leaves the Tabs card hidden, so the inverted assertion cannot pass without both. |
 | `tests/test_tabs_transfer.py:135` — the `# depth > 1` reject case | Its middle element is a **text** element (`_child()` defaults to `type_="text"`), so after this change it is still rejected — by the "parent is not a container" rule, not by any depth rule. It silently stops testing depth. Rebuild it with a container middle element, or retire it in favour of the new clause-3/clause-4 tests. |
 | `tests/test_tabs_transfer.py` — the `tabs`-in-`tabs` reject case | Becomes a **valid** document (parent at depth 1, container child at depth 2). Move it from the reject table into the accept test. |
+| `courses/tests/test_spoiler_transfer.py:114-138` — `test_validate_nesting_accepts_spoiler_slot_and_rejects_depth2` | The depth-2 half inverts: `[tabs(top), spoiler(child), text(grandchild)]` becomes valid — spoiler at depth 2, non-container leaf at depth 3, clauses 3 and 4 both pass. This is the **transfer-side twin of Purpose bullet 3**. Rename the test. |
+| `courses/tests/test_spoiler_transfer.py:141-160` — `test_validate_nesting_rejects_container_spoiler_child` | Inverts: a `tabs` child of a top-level spoiler is now legal (parent depth 1, container child depth 2). Rename the test, and rewrite the comment at `:142-143` ("a native container (tabs) stays rejected"). |
 
 ### Surfaces deliberately left top-level-scoped
 
