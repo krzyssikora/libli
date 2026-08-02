@@ -516,6 +516,19 @@ not committed, so treat the rule as standing on the port's purpose, not on the f
    path. The root must be `<section>`, not `<div>`: the existing
    `test_caller_ignored_tags_are_unioned_in` records that a `<div>` root makes this pass for the
    wrong reason.
+9. two divs holding a split span separated by a bare `<br>`, under `{ignoredTags: ['br']}`, from a
+   `<section>` root. **This is the only case that reaches the classifier's `isIgnored → BARRIER`
+   guard.** For a `<br>` that guard is the *sole* ignore check — `isMergeableBlock` short-circuits on
+   `tagName` before it ever consults `isIgnored` — whereas case 8's `<div>` is still caught by
+   `isMergeableBlock`'s own check. So an implementer who transcribes the classifier's kind table but
+   omits its leading guard ships exactly the regression §4 warns about, with cases 1–8 all green.
+   The slice makes this sharper by deleting `isMergeable`, whose line-169 guard is currently the only
+   thing enforcing it. No test in the suite uses an ignored `<br>` today (`ignoredTags`/
+   `ignoredClasses` appear only at `tests/test_e2e_math_reflow_dom.py:418` and `:649`).
+
+   Scope note: no production caller passes `ignoredTags`/`ignoredClasses` — all fourteen
+   `renderMathInElement` call sites were checked — so this is an API-contract regression, not a live
+   one. It is still worth a test, because the contract is what the next caller will rely on.
 
 ### Happy-path cases
 
@@ -544,7 +557,13 @@ not committed, so treat the rule as standing on the port's purpose, not on the f
 - an empty centred line (`<div class="ta-center"><br></div>`) between two centred lines
 - `ta-left` and `ta-right` as well as `ta-center`, so nothing is hardcoded to centre
 - `<div class=" ">` merging — the deliberate widening in §1
-- text leading a signed run, and text trailing it, each untouched
+- text leading a signed run, and text trailing it, each untouched — **exact-equality** against the
+  two outputs written out in Data flow (`lead <div class="ta-center">\[a\nb\]</div>` and
+  `<div class="ta-center">\[a\nb\]</div> trail`). These are **M5's only coverage**, and the
+  divergence an M5 violation produces is a single whitespace character —
+  `lead <div class="ta-center">\n\[a\nb\]</div>`, the synthetic boundary newline landing inside the
+  wrapper. A `startswith`/`endswith` assertion, the natural shape here, would not catch it. Barriers
+  4 and 5 stay green under an M5 violation, so nothing else pins it.
 - partial coverage: a span covering only the last two of three centred divs, first block surviving
 - two spans in one signed run, exact-equality **including the trailing `\n` inside the first wrapper**
 - the nested case, asserting one nesting level is preserved
@@ -589,7 +608,9 @@ the RED output of each is recorded:
 |---|---|
 | happy path (**signed** cases only) | revert the change (blocks with a token are barriers again) |
 | mixed-tag unsigned case | require tag equality even when the token is `""`. Listed separately because it passes on master, so "revert the change" cannot redden it. |
+| barrier 9 | delete the classifier's `isIgnored → BARRIER` guard. A **single** deletion suffices here, unlike barrier 8, because `isMergeableBlock` short-circuits on `tagName` for a `<br>` and so never provides a second check. |
 | M3 case (`TEXT` after a signed run) | a `TEXT`/`BR` that ends a signed run is excluded from every run instead of starting a new one |
+| leading/trailing text cases | remove M5: a signed block joins a run that already holds a `TEXT` member instead of breaking it |
 | `<div class=" ">` case | `alignToken` compares the raw class attribute string instead of a parsed token set, restoring `class=" "` as a barrier |
 | leading-`WS_TEXT` case | **none — regression guard only.** M5 records that every reading of a leading `WS_TEXT` yields identical DOM, so no mutant exists. Listed explicitly rather than omitted, so its absence is a decision. |
 | barrier 1–3 | a run adopts the signature of its first block instead of requiring compatibility |
