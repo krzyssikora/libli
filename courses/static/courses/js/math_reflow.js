@@ -130,10 +130,12 @@
 
   // ---- mergeable / barrier ---------------------------------------------------
 
-  // "No effective attributes" = none, or only an EMPTY class and/or style. nh3
-  // emits class="" on div/p when every class value is rejected, which is what a
-  // pasted formula carries on every line; treating that as attributed would make
-  // the feature a no-op on the dominant authoring path.
+  // "No effective attributes" = none, or only an EMPTY class and/or style. Reachable
+  // only from isBareBr below, so in practice this only ever judges a <br> element,
+  // which carries no class/style at all in nh3's output. The div/p rationale (nh3
+  // emitting class="" when every class value is rejected on a pasted formula's
+  // lines) now lives on blockAttributesOk/alignToken, which decide block merging;
+  // do not read this function as governing that path.
   function noEffectiveAttributes(el) {
     for (var i = 0; i < el.attributes.length; i++) {
       var attr = el.attributes[i];
@@ -213,7 +215,7 @@
   // The leading isIgnored test is load-bearing, and specifically for BR: a bare <br>
   // is classified via isBareBr and never reaches isMergeableBlock, so this guard is
   // the ONLY thing keeping an ignored <br> out of a run. isMergeable used to provide
-  // it at its line-169 check; this function replaces isMergeable's only call site.
+  // it at its own check; this function replaces isMergeable's only call site.
   function classifyChild(node, extraSelector) {
     if (node.nodeType === 3) return /\S/.test(node.data) ? "TEXT" : "WS_TEXT";
     if (node.nodeType !== 1) return "BARRIER";
@@ -399,6 +401,10 @@
         } else {
           current.indices.push(i);                  // M1: establishes the signature
           current.token = tok;
+          // Recorded even when tok === "" (unsigned run), but the M2 check below
+          // only ever consults current.tag when current.token is non-empty --
+          // an unsigned run mixes DIV/P freely. See
+          // test_unsigned_mixed_tag_run_still_merges.
           current.tag = tag;
         }
       } else {
@@ -492,6 +498,8 @@
         // content: <span>hi</span><div>\[a</div><div>b\]</div> came out as
         // "\[a\nb\]<div>b\]</div>", losing the <span> and leaving a stale <div>.
         // A heading or an image above a split display block is exactly that shape.
+        // Governs BOTH branches below (signed and unsigned) — every `nodes[...]`
+        // access in either one relies on this.
         if (runToken) {
           // SIGNED run: reuse the first covered block as the wrapper so the align
           // class survives. run.map never holds a zero-character member (buildRun
@@ -507,6 +515,27 @@
           // the loops leaves duplicated content, which is survivable; clearing first
           // would lose the line outright.
           var wrapper = nodes[group.first];
+          // Guard is currently UNREACHABLE: groups within a run are disjoint with
+          // non-decreasing `first`, runs are disjoint with increasing indices, both
+          // are applied in reverse, and a nested mergeChildren call only ever
+          // touches its own element's children -- so wrapper can never already be
+          // detached from `element` here. Kept anyway because the failure mode on
+          // the other side is silent: appendChild on a detached node succeeds
+          // without throwing, so the merged line would simply vanish with no
+          // console.warn from walk's catch. Falling through to the unsigned branch
+          // makes the same situation throw loudly instead (insertBefore against a
+          // detached anchor throws), which is diagnosable.
+          if (wrapper.parentNode !== element) {
+            for (i = 0; i < replacement.length; i++) {
+              element.insertBefore(replacement[i], wrapper);
+            }
+            for (i = group.first; i <= group.last; i++) {
+              if (nodes[i] && nodes[i].parentNode === element) {
+                element.removeChild(nodes[i]);
+              }
+            }
+            continue;
+          }
           var original = [].slice.call(wrapper.childNodes);
           for (i = 0; i < replacement.length; i++) {
             wrapper.appendChild(replacement[i]);

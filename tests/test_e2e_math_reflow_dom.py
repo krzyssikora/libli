@@ -729,6 +729,22 @@ def test_empty_centred_line_between_the_lines_collapses(page):
     assert out == '<div class="ta-center">\\[a\nb\\]</div>'
 
 
+def test_leading_br_inside_the_wrapper_is_dropped(page):
+    """Spec Sec5 step 2 decides this ON PURPOSE: a leading (or collapsed) <br> INSIDE
+    the block that becomes the wrapper contributes zero characters to run.text (same
+    reasoning as test_br_leading_a_signed_run_is_untouched), so it is represented
+    nowhere in the replacement -- and mergeChildren's signed-branch removal loop
+    takes it out unconditionally, exactly as the unsigned path drops a whole matching
+    block. This is the one place the signed rewrite DELETES authored markup rather
+    than relocating it. Not a defect; pinned so the decision reads as deliberate
+    rather than undecided."""
+    out = _reflow_html(
+        page,
+        '<div class="ta-center"><br>\\[a</div><div class="ta-center">b\\]</div>',
+    )
+    assert out == '<div class="ta-center">\\[a\nb\\]</div>'
+
+
 def test_whitespace_only_class_merges(page):
     """alignToken parses a token SET, so class=" " yields "" and is mergeable, where
     noEffectiveAttributes (value === "") called it a barrier. Deliberate widening."""
