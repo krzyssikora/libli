@@ -921,3 +921,95 @@ def test_centred_inline_align_comes_out_merged_and_promoted(page):
     )
     assert out.startswith('<div class="ta-center">\\[')
     assert out.endswith("\\]</div>")
+
+
+@pytest.mark.parametrize(
+    "html",
+    [
+        # 1. LITERAL markup, not "a signed block with an intra-block <br>-split
+        #    span". The trailing `prose \[a` AND the second signed block are what
+        #    make the textFragment leaf guard fire -- the guard only executes from an
+        #    enclosing merge's covered-but-unspanned range. Reduced to
+        #    <div class="ta-center">\(x<br>y\)</div> both textFragment calls are
+        #    empty, the outer span is a leaf skip, and the fixture stays green under
+        #    its own mutant while still looking like it merged.
+        '<div class="ta-center">\\(x<br>y\\) prose \\[a</div>'
+        '<div class="ta-center">b\\]</div>',
+        # 2. two spans with prose between them AND an intra-block <br>. The <br> is
+        #    load-bearing, not decoration: without it no earlier nested merge ever
+        #    plants a \n inside a Text node, the leaf guard never fires, and the
+        #    fixture is green under its own mutant -- measured. The predecessor's
+        #    fixture 2 has the <br> for exactly this reason.
+        '<div class="ta-center">p \\[a<br>b\\] q \\[c</div>'
+        '<div class="ta-center">d\\]</div>',
+        # 3. the signed analogue of the map-vs-leaf discriminating shape recorded in
+        #    math_reflow.js's rule-4 comment
+        '<div class="ta-center">c<br>z$$x</div>'
+        '<div class="ta-center">$$c<br><br>$$x<br> x$$c</div>',
+    ],
+)
+def test_signed_reflow_is_idempotent(page, html):
+    _page(page, html)
+    out = page.evaluate(
+        "() => { const r = document.getElementById('root');"
+        "        window.libliMathReflow(r); const a = r.innerHTML;"
+        "        window.libliMathReflow(r); return [r.innerHTML === a, a]; }"
+    )
+    assert out[0], f"pass 2 diverged from pass 1: {out[1]!r}"
+    # Positive precondition: without this a no-op satisfies the test trivially,
+    # which is exactly how a suppress-the-merge mutant would pass.
+    assert out[1] != html, "pass 1 did not change the markup"
+
+
+_TEMPLATES = {
+    "whole": "<{t}{c}>\\[a</{t}>{sep}<{t}{c}>b\\]</{t}>",
+    "trailing": "<{t}{c}>\\[a</{t}>{sep}<{t}{c}>b\\] tail</{t}>",
+    "intra_br": "<{t}{c}>\\[a<br>b\\]</{t}>{sep}<{t}{c}>c</{t}>",
+}
+_SEPARATORS = {"none": "", "ws": "\n", "br": "<br>", "text": "sep"}
+
+
+@pytest.mark.parametrize("placement", sorted(_TEMPLATES))
+@pytest.mark.parametrize("sep_name", sorted(_SEPARATORS))
+@pytest.mark.parametrize("token", ["", "ta-center", "ta-right"])
+@pytest.mark.parametrize("tag", ["div", "p"])
+def test_idempotent_across_the_cross_product(page, tag, token, sep_name, placement):
+    """The merge-expected predicate is DATA, stated in the spec, not derived from the
+    implementation's output -- deriving it from what the code does would make the
+    anti-vacuity assertion circular, which is the whole reason it exists."""
+    cls = f' class="{token}"' if token else ""
+    html = _TEMPLATES[placement].format(t=tag, c=cls, sep=_SEPARATORS[sep_name])
+    merge_expected = (
+        placement == "intra_br" or token == "" or sep_name in ("none", "ws")
+    )
+
+    _page(page, html)
+    out = page.evaluate(
+        "() => { const r = document.getElementById('root');"
+        "        window.libliMathReflow(r); const a = r.innerHTML;"
+        "        window.libliMathReflow(r);"
+        "        return [r.innerHTML === a, a, r.textContent]; }"
+    )
+    assert out[0], f"pass 2 diverged from pass 1: {out[1]!r}"
+
+    # "All whitespace removed", NOT "normalised". A merge legitimately INTRODUCES
+    # characters that were never in textContent -- buildRun's synthetic boundary
+    # newlines -- so collapse-runs-to-one-space would redden every merging shape
+    # against a correct implementation.
+    def squash(s):
+        return "".join(s.split())
+
+    _page(page, html)
+    before = page.evaluate("() => document.getElementById('root').textContent")
+    assert squash(out[2]) == squash(before), "text loss"
+
+    if merge_expected:
+        assert out[1] != html, "expected a merge, markup unchanged"
+    else:
+        # The NEGATIVE half of the normative predicate. Without it the 16 signed x
+        # {br, text}-separator cells assert only idempotence and no-text-loss, so a
+        # merge that should have been refused goes unnoticed -- and those cells are
+        # the only place <p> and ta-right non-merge are pinned at all (Task 3's
+        # barriers 4-5 cover div/ta-center only). Measured: exact equality holds for
+        # all 16 on the built module, so the assertion is free.
+        assert out[1] == html, "expected no merge, markup changed"
