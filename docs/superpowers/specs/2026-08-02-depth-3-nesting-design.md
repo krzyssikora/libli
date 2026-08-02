@@ -826,14 +826,15 @@ One row below is deliberately exempt and says so.
 | `has_html`, lesson | lesson unit whose ONLY html element is inside a tab loads `html_element.js` | `views.py:346` → `node.elements.filter(content_type__app_label="courses", content_type__model="htmlelement", parent__isnull=True).exists()` — the top-level-only shape, expressed **without any deleted symbol**. |
 | `has_html`, quiz | **quiz** unit whose ONLY html element is inside a tab loads `html_element.js` | `views.py:1198` → the same `parent__isnull=True` filter shape. |
 
+| `has_math` | unit whose ONLY math sits at depth 3, via the pinned chain **tabs → spoiler → math**, with no other math anywhere in the unit | `views.py:239-242` (`_tabs_has_math` body) → `return False`. Not `views.py:202`: the pinned chain does pass through it, but `:202` is the *spoiler* dispatch, not the tabs recursion this slice must prove reaches depth 3 — mutating it would leave `_tabs_has_math` untested. ("Already killed by pre-existing tests" is NOT a disqualifier; see the falsification rule.) |
+| Student render | a depth-3 leaf renders inside its nested container | **Exempt, deliberately.** The render path is unchanged by this slice (see Data flow), so this is a characterization test pinning existing behaviour at a new depth, not a test of new logic. |
+
 **Neither `has_html` mutant may be written as "restore the pre-change expression."** Both
 pre-change forms reference `HtmlElement` (and the lesson one also `html_ct_id`), and this
 change deletes the module-level import at `views.py:51` along with both consumers — so a
 verbatim restore raises `NameError` on every render. That is noise, not signal, and it would
-still be recorded "verified RED" against the DoD gate while proving nothing. The filter-shaped
-mutants above reintroduce the top-level-only *behaviour* with no deleted symbol.
-| `has_math` | unit whose ONLY math sits at depth 3, via the pinned chain **tabs → spoiler → math**, with no other math anywhere in the unit | `views.py:239-242` (`_tabs_has_math` body) → `return False`. Not `views.py:202`: the pinned chain does pass through it, but `:202` is the *spoiler* dispatch, not the tabs recursion this slice must prove reaches depth 3 — mutating it would leave `_tabs_has_math` untested. ("Already killed by pre-existing tests" is NOT a disqualifier; see the falsification rule.) |
-| Student render | a depth-3 leaf renders inside its nested container | **Exempt, deliberately.** The render path is unchanged by this slice (see Data flow), so this is a characterization test pinning existing behaviour at a new depth, not a test of new logic. |
+still be recorded "verified RED" against the DoD gate while proving nothing. The
+filter-shaped mutants above reintroduce the top-level-only *behaviour* with no deleted symbol.
 
 ### Vacuity traps
 
