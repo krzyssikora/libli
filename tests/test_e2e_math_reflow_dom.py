@@ -513,3 +513,134 @@ def test_hook_b_passes_a_non_string_through_untouched(page):
     page.add_script_tag(path=SCRIPT)
     page.evaluate("() => window.katex.render(42, null, {})")
     assert page.evaluate("() => window.__seen") == 42
+
+
+# ---- failure containment: the try/catch is the only safety net for an
+# implementation bug, and an untested catch is exactly what falsification exists
+# to prevent. Atomicity here is PER-ELEMENT, not per-subtree: a throw after an
+# earlier element's rewrites leaves the DOM partially rewritten. What must hold
+# is that no IGNORED subtree was ever entered.
+
+
+def test_a_poisoned_delimiter_set_does_not_throw(page):
+    _page(page, "<div>\\[x</div><div>y\\]</div>")
+    ok = page.evaluate(
+        "() => { try { window.libliMathReflow("
+        "          document.getElementById('root'), {delimiters: 'not-an-array'});"
+        "        return true; } catch (e) { return false; } }"
+    )
+    assert ok
+
+
+def test_a_mid_walk_throw_leaves_ignored_subtrees_untouched(page):
+    """Atomicity is PER-ELEMENT, not per-subtree: a try/catch gives no rollback,
+    so a throw after an earlier element's rewrites leaves the DOM partially
+    rewritten. What must hold is that no ignored subtree was entered."""
+    html = (
+        '<div id="a"><div>\\[x</div><div>y\\]</div></div>'
+        '<pre id="b"><div>\\[x</div><div>y\\]</div></pre>'
+    )
+    _page(page, html)
+    before_pre = page.evaluate("() => document.getElementById('b').innerHTML")
+    page.evaluate(
+        "() => { const orig = Node.prototype.removeChild; let n = 0;"
+        "        Node.prototype.removeChild = function () {"
+        "          if (++n > 1) { Node.prototype.removeChild = orig;"
+        "                         throw new Error('boom'); }"
+        "          return orig.apply(this, arguments); };"
+        "        try { window.libliMathReflow(document.getElementById('root')); }"
+        "        catch (e) {} finally { Node.prototype.removeChild = orig; } }"
+    )
+    assert page.evaluate("() => document.getElementById('b').innerHTML") == before_pre
+
+
+def test_a_throw_mid_walk_does_not_abort_the_rest_of_the_traversal(page):
+    """Pins the per-element try/catch inside walk. The first element's visit throws;
+    the SECOND element must still be merged. Falsify by removing that try/catch —
+    this must go RED while test_a_mid_walk_throw_leaves_ignored_subtrees_untouched
+    stays green, which is why that one is not sufficient on its own."""
+    page.set_content(
+        "<!DOCTYPE html><section id='root'>"
+        "<section id='a'><div>\\[x</div><div>y\\]</div></section>"
+        "<section id='b'><div>\\[p</div><div>q\\]</div></section></section>"
+    )
+    page.add_script_tag(path=SCRIPT)
+    out = page.evaluate(
+        "() => { const orig = Element.prototype.insertBefore; let n = 0;"
+        "        Element.prototype.insertBefore = function () {"
+        "          if (++n === 1) { throw new Error('boom'); }"
+        "          return orig.apply(this, arguments); };"
+        "        try { window.libliMathReflow(document.getElementById('root')); }"
+        "        finally { Element.prototype.insertBefore = orig; }"
+        "        return document.getElementById('b').innerHTML; }"
+    )
+    assert out == "\\[p\nq\\]"
+
+
+def test_a_malformed_delimiter_entry_falls_back_to_the_defaults(page):
+    """Pins the delimitersFor type guard. [1, 2] is a non-empty array of non-objects;
+    without the guard `delimiters[i].left` throws, and the reflow is swallowed by its
+    own catch, so nothing merges. Falsify by reverting to
+    `(options && options.delimiters) || DEFAULT_DELIMITERS`."""
+    out = _reflow_html(
+        page, "<div>\\[x</div><div>y\\]</div>", options={"delimiters": [1, 2]}
+    )
+    assert out == "\\[x\ny\\]"
+
+
+def _hooka(page, html):
+    """Install a recording fake renderMathInElement BEFORE the module loads."""
+    page.set_content(f"<!DOCTYPE html><section id='root'>{html}</section>")
+    page.evaluate(
+        "() => { window.__calls = [];"
+        "        window.renderMathInElement = function (r, o) {"
+        "          window.__calls.push(r.innerHTML); return 'sentinel'; };"
+        "        window.katex = { render: () => {} }; }"
+    )
+    page.add_script_tag(path=SCRIPT)
+    ret = page.evaluate(
+        "() => window.renderMathInElement(document.getElementById('root'), undefined)"
+    )
+    return page.evaluate("() => window.__calls"), ret
+
+
+def test_hook_a_reflows_before_delegating_and_forwards_the_return(page):
+    calls, ret = _hooka(page, "<div>\\[x</div><div>y\\]</div>")
+    assert calls == ["\\[x\ny\\]"]  # the original saw the MERGED dom
+    assert ret == "sentinel"  # and its return value came back
+
+
+def test_hook_a_still_delegates_when_the_reflow_throws(page):
+    page.set_content("<!DOCTYPE html><section id='root'><div>\\[x</div></section>")
+    page.evaluate(
+        "() => { window.__ran = false;"
+        "        window.renderMathInElement = () => { window.__ran = true; };"
+        "        window.katex = { render: () => {} }; }"
+    )
+    page.add_script_tag(path=SCRIPT)
+    # MEASURED: {ignoredTags: {bad: 1}} does NOT throw — extraIgnoreSelector reads
+    # .length, which is undefined on a plain object, so the loop never runs and it
+    # returns null. An invalid CSS selector does throw: node.matches("[") raises
+    # SyntaxError inside the walk.
+    page.evaluate(
+        "() => window.renderMathInElement(document.getElementById('root'),"
+        "                                 {ignoredTags: ['[']})"
+    )
+    assert page.evaluate("() => window.__ran") is True
+
+
+def test_double_include_installs_only_one_wrapper(page):
+    """MEASURED: asserting `len(calls) == 1` CANNOT redden. __calls records the
+    innermost fake, and a double wrap is wrapper2 -> reflow -> wrapper1 -> reflow
+    -> fake, so the fake is still called exactly once even with the guard deleted.
+    Assert on the wrapper IDENTITY instead, which is what a second install changes."""
+    page.set_content("<!DOCTYPE html><section id='root'></section>")
+    page.evaluate(
+        "() => { window.renderMathInElement = function () {};"
+        "        window.katex = { render: () => {} }; }"
+    )
+    page.add_script_tag(path=SCRIPT)
+    page.evaluate("() => { window.__first = window.renderMathInElement; }")
+    page.add_script_tag(path=SCRIPT)
+    assert page.evaluate("() => window.renderMathInElement === window.__first")
+    assert page.evaluate("() => window.__libliMathReflowWrapped") is True

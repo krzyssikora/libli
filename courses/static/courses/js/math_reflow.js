@@ -72,7 +72,7 @@
       if (isIgnored(child, extraSelector)) continue;
       walk(child, extraSelector, visit);
     }
-    visit(node);
+    try { visit(node); } catch (e) { /* per-element atomicity; see the spec */ }
   }
 
   // ---- scan: a faithful port of auto-render's splitAtDelimiters ---------------
@@ -117,7 +117,9 @@
   }
 
   function delimitersFor(options) {
-    return (options && options.delimiters) || DEFAULT_DELIMITERS;
+    var given = options && options.delimiters;
+    return (given && given.length && typeof given[0] === "object")
+      ? given : DEFAULT_DELIMITERS;
   }
 
   // ---- mergeable / barrier ---------------------------------------------------
