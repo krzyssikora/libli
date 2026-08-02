@@ -887,7 +887,10 @@
     p.setAttribute("data-answer-error", "");
     p.textContent = text;
     editor.appendChild(p);
-    p.scrollIntoView({ block: "center" });
+    // Pane-scoped, never scrollIntoView: `center` re-centres the element in EVERY
+    // scrollport including the page viewport, which is overflow:hidden on this page —
+    // the author would be left unable to scroll the unit header back into view.
+    if (window.libliAlignTopInPane) window.libliAlignTopInPane(p);
   }
 
   function onSubmit(e) {

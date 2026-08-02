@@ -403,7 +403,20 @@ button.asset-cell:hover { border-color: var(--primary); }
   .editor { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
   .editor-grid { flex: 1 1 auto; min-height: 0; align-items: stretch; }
   .editor-pane, .preview-pane { min-height: 0; display: flex; flex-direction: column; }
-  .editor-pane .pane-body, .preview-pane .pane-body { overflow-y: auto; min-height: 0; }
+  /* position:relative is load-bearing, not decoration: a scroll container only clips
+     absolutely positioned descendants whose CONTAINING BLOCK it is. KaTeX renders an
+     accessibility twin <span class="katex-mathml"> at position:absolute, and display
+     math has no positioned ancestor inside the pane — so with a static .pane-body those
+     twins resolved against the initial containing block, escaped this overflow, and
+     extended the VIEWPORT's scroll box (measured: 2056px against a 900px viewport).
+     That range is a trap rather than a nuisance: `body.editor-page`'s overflow:hidden
+     above propagates to the viewport (html's overflow is visible), so script and the UA
+     can scroll the page but the author has no wheel, scrollbar or key to scroll it back
+     — a single scrollIntoView strands the unit header off-screen until a reload.
+     Making the pane the containing block keeps every such twin clipped where it belongs. */
+  .editor-pane .pane-body, .preview-pane .pane-body {
+    overflow-y: auto; min-height: 0; position: relative;
+  }
 
   /* Split = two columns ONLY here; below 70rem the base 1fr stacks. Scoping the two-column
      template inside the media query is what stops the .is-mode-split class (specificity

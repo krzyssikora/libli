@@ -39,7 +39,15 @@
   var deck = document.createElement("div");
   deck.className = "slideshow-deck";
   var stage = document.createElement("div");
-  stage.className = "slideshow-stage";
+  // .scroll-y: the stage is a fixed height, so a tall slide is clipped at the
+  // bottom — often on whitespace between blocks, which reads as "that's the end of
+  // the slide" rather than "there is more". The shaded edge is the missing signal.
+  // The stage is the right box to carry it precisely because it does NOT scroll
+  // (the .slide inside it does), so the shading stays pinned while content moves
+  // under it. data-scroll-y names the LIVE scroller: which slide that is changes on
+  // every Prev/Next, so the affordance re-resolves it instead of binding one node.
+  stage.className = "slideshow-stage scroll-y";
+  stage.setAttribute("data-scroll-y", ".slide.is-active:not([hidden])");
   slides[0].parentNode.insertBefore(deck, slides[0]); // deck takes the slides' spot
   deck.appendChild(stage);
   slides.forEach(function (s) {
@@ -199,6 +207,14 @@
     e.preventDefault();
     show(idx + (e.key === "ArrowRight" ? 1 : -1));
   });
+
+  // Arm the stage's edge affordance. base.html loads scroll_affordance.js in the
+  // body, BEFORE the {% block extra_js %} that carries this file, so its own
+  // init(document) already ran against a document with no deck in it — the stage
+  // must be handed over explicitly. wireY is idempotent, so the guard is only for
+  // the load-order case where this file somehow runs first and the global init
+  // picks the stage up instead.
+  if (window.libliInitScrollAffordance) window.libliInitScrollAffordance(stage);
 
   show(0); // initial reveal (out === undefined → slide 0 settled active)
 })();
