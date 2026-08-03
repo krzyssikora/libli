@@ -164,8 +164,10 @@ def test_validate_nesting_accepts_container_child_of_a_top_level_spoiler():
 def test_round_trip_interactive_spoiler_children():
     # A spoiler containing a switch_gate child and a fill_blank child survives an
     # export (write_archive, unit-rooted subtree) -> import (import_subtree) round
-    # trip into a fresh course, and validate_nesting still rejects a tabs-in-spoiler
-    # archive (belt-and-suspenders with the test above).
+    # trip into a fresh course. (The test directly above this one now covers the
+    # OPPOSITE case -- validate_nesting ACCEPTING a container, e.g. tabs, nested
+    # inside a top-level spoiler -- so this test no longer doubles as a rejection
+    # check; it is a round-trip test only.)
     import io
 
     from courses.fillblank import SENTINEL

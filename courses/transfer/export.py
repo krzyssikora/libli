@@ -557,9 +557,10 @@ def build_export(
 
         media_ids = MediaIdMap()
         unit_pks = [n.pk for n in nodes if n.kind == "unit"]
-        # Query only TOP-LEVEL joins; walk_unit_joins expands each tabs element's
-        # children inline (parents before children), so every element is visited
-        # EXACTLY ONCE and no child needs a recursive query here.
+        # Query only TOP-LEVEL joins; walk_unit_joins expands each container
+        # element's children inline (tabs, two_column, spoiler -- parents before
+        # children), so every element is visited EXACTLY ONCE and no child needs
+        # a recursive query here.
         joins_by_unit = {}
         for join in (
             Element.objects.filter(unit_id__in=unit_pks, parent__isnull=True)
@@ -657,9 +658,10 @@ def build_export(
             eid_by_walk[wi] = eid
             element_dicts.append({"id": eid, **edict})
         # Resolve each element's `parent` (carried as the parent's walk_index int)
-        # to that parent's e-id. A parent is always a tabs element, which references
-        # no media and so is never dropped, and always precedes its children in the
-        # walk -- so its walk_index is guaranteed present in eid_by_walk.
+        # to that parent's e-id. A parent is always a CONTAINER element (tabs,
+        # two_column, or spoiler) -- none of which reference media -- so it is
+        # never dropped, and it always precedes its children in the walk, so its
+        # walk_index is guaranteed present in eid_by_walk.
         for d in element_dicts:
             if d["parent"] is not None:
                 d["parent"] = eid_by_walk[d["parent"]]

@@ -36,10 +36,11 @@ CONTAINER_TRANSFER_KEYS = frozenset({"tabs", "two_column", "spoiler"})
 #
 # Members are TRANSFER keys (courses.transfer.export.SERIALIZERS), not the
 # element_add/element_save "type" strings -- an invariant test asserts
-# NESTABLE_TYPE_KEYS <= set(SERIALIZERS). Every type here coincides in both
-# namespaces except the reveal-gate, whose transfer key ("reveal_gate") differs
-# from its form key ("revealgate"); resolve_scope() below translates the
-# incoming form key before checking membership.
+# NESTABLE_TYPE_KEYS <= set(SERIALIZERS). Several types' form key differs from
+# their transfer key (fill_blank, fill_gate, fill_table, guess_number, mark_done,
+# reveal_gate, switch_gate, switch_grid, two_column -- see
+# _NESTABLE_FORM_KEY_ALIASES below); resolve_scope() translates the incoming form
+# key before checking membership.
 NESTABLE_TYPE_KEYS = frozenset(
     {
         "text",
@@ -419,6 +420,11 @@ def _collect_subtree_pks(roots):
     not. Deliberately NOT the slot accessors the export walk uses: resolved_tabs()
     runs the destructive normalize_data and skips children whose tab_id matches no
     slot. Export omits those on purpose; delete must not, or their concretes orphan.
+
+    Reads join.children WITHOUT its own select_for_update -- concurrency safety
+    against a grandchild inserted mid-walk comes entirely from the CALLER already
+    holding the unit row's lock (see _locked_element's docstring). Do not treat
+    that lock as incidental to this function.
 
     RECURSIVE and `seen`-guarded, not an iterative worklist: dropping the guard from
     a recursive walk raises RecursionError on a cycle, which a test can assert,
@@ -888,6 +894,22 @@ def _locked_node(course, node_pk):
 
 
 def _locked_element(course, element_pk):
+    """Lock the element row AND its unit row in one query.
+
+    select_for_update() carries no `of=` clause, so on the select_related("unit")
+    join Postgres locks rows in EVERY joined table -- not just Element, but the
+    unit's ContentNode row too. That is load-bearing: delete_element's
+    _collect_subtree_pks (above) walks join.children WITHOUT its own
+    select_for_update, so in isolation a concurrent write could insert a new
+    grandchild after the walk has already passed its parent, orphaning that
+    child's concrete when the delete proceeds. It cannot happen here, because
+    save_element also takes the SAME unit row's lock (via _locked_unit) before it
+    writes anything, so it blocks until this transaction commits or rolls back.
+    Do NOT add `of=("self",)` to this select_for_update() -- Django's own docs
+    recommend `of` as an optimisation that skips locking joined tables, but doing
+    so here would silently reopen the orphaning window described above. Re-check
+    delete_element/_collect_subtree_pks before narrowing this lock.
+    """
     try:
         el = (
             Element.objects.select_for_update()

@@ -756,8 +756,12 @@ _CONTAINER_SLOT_KEY = {"tabs": "tabs", "two_column": "columns", "spoiler": None}
 def validate_nesting(elements):
     """Cross-element checks the per-element validators cannot see. Rejects (never
     repairs) an unknown/ill-typed parent, an unknown tab, a non-nestable child, and a
-    parent chain deeper than MAX_NEST_DEPTH -- that depth bound is what lets the
-    editor's recursive row template terminate without a guard."""
+    parent chain deeper than MAX_NEST_DEPTH -- the transfer-side twin of
+    resolve_scope's depth clauses (see the depth walk and clauses 3/4 below), so an
+    import cannot smuggle in a tree deeper than the editor would ever let an author
+    build. (The editor's own row-template recursion is unbounded and terminates on
+    acyclicity alone -- see _element_row.html; MAX_NEST_DEPTH bounds what CAN be
+    authored, not what the template can render.)"""
     from courses.builder import CONTAINER_TRANSFER_KEYS
     from courses.builder import MAX_NEST_DEPTH
     from courses.builder import NESTABLE_TYPE_KEYS

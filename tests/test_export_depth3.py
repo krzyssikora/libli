@@ -73,10 +73,13 @@ def test_round_trip_preserves_within_slot_sibling_order():
     list would then have length 1 and the mutant would be vacuous again.)
 
     ENTRY POINT: builder.duplicate_unit (-> materialize_duplicate), NOT
-    import_subtree. Task 1 leaves validate_nesting's one-level check in place
-    until Task 5, so validate_document REJECTS a depth-3 archive at this
-    commit; materialize_duplicate skips validation entirely, which is why
-    duplicate_unit works here at all.
+    import_subtree. Before Task 5 landed, validate_nesting's one-level check
+    meant validate_document REJECTED a depth-3 archive, and
+    materialize_duplicate's skipping validation entirely was the ONLY reason
+    duplicate_unit worked here. Task 5 has since made validate_document accept a
+    depth-3 archive too, but the entry point stays duplicate_unit (not
+    import_subtree) regardless -- this test is about the duplicate path, not
+    about which validator would tolerate the shape.
     """
     course, unit = make_course_with_unit()
     top = _mk(unit, "tabs")
