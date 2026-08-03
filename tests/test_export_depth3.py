@@ -15,35 +15,45 @@ def _tok(node):
 
 
 @pytest.mark.django_db
-def test_duplicate_unit_keeps_depth_3_content():
-    """tabs > spoiler > table. Today the table VANISHES from the copy, silently:
-    the pre-fix walk_unit_joins only descends one level into a container's
-    children, so a table sitting inside a spoiler that is itself inside a tabs
-    element is never reached by the export walk that duplicate_unit runs
-    through."""
+@pytest.mark.parametrize(
+    "container_type,slot_list_key",
+    [("tabs", "tabs"), ("two_column", "columns")],
+    ids=["tabs", "two_column"],
+)
+def test_duplicate_unit_keeps_depth_3_content(container_type, slot_list_key):
+    """<container> > spoiler > table. Today the table VANISHES from the copy,
+    silently: the pre-fix walk_unit_joins only descends one level into a
+    container's children, so a table sitting inside a spoiler that is itself
+    inside a tabs/two-column element is never reached by the export walk that
+    duplicate_unit runs through.
+
+    Parametrized over BOTH container types that recurse in walk_unit_joins
+    (tabs and two_column) so each arm's `yield from emit(...)` has its own
+    killing test -- reverting either one loses the table under its own
+    parametrization. The spoiler arm is exercised by both (it sits at depth 2
+    in either fixture).
+    """
     course, unit = make_course_with_unit()
-    top = _mk(unit, "tabs")
-    t1 = top.content_object.data["tabs"][0]["id"]
-    mid = _mk(unit, "spoiler", parent=top, tab=t1)
+    top = _mk(unit, container_type)
+    slot_id = top.content_object.data[slot_list_key][0]["id"]
+    mid = _mk(unit, "spoiler", parent=top, tab=slot_id)
     _mk(unit, "table", parent=mid, tab=SpoilerElement.SLOT_ID)
 
     new_node = builder.duplicate_unit(course, unit.pk, token=_tok(unit))
 
-    tables = [
-        e.content_object
-        for e in new_node.elements.all()
-        if isinstance(e.content_object, TableElement)
-    ]
-    assert len(tables) == 1
-    assert tables[0].data["cells"][0][0]["html"] == "x"
-    # the container chain must have survived too, not just the leaf
-    assert new_node.elements.filter(parent__isnull=True).count() == 1
-    spoilers = [
-        e
-        for e in new_node.elements.all()
-        if isinstance(e.content_object, SpoilerElement)
-    ]
-    assert len(spoilers) == 1
+    # Pin the whole copied CHAIN, not just presence: an implementation that
+    # re-parented the table onto the container root instead of the spoiler
+    # would still pass a bare "does a table exist somewhere" assertion.
+    top_copy = new_node.elements.get(parent__isnull=True)
+    spoiler_copies = list(top_copy.children.all())
+    assert len(spoiler_copies) == 1
+    spoiler_copy = spoiler_copies[0]
+    assert isinstance(spoiler_copy.content_object, SpoilerElement)
+    table_copies = list(spoiler_copy.children.all())
+    assert len(table_copies) == 1
+    table_copy = table_copies[0]
+    assert isinstance(table_copy.content_object, TableElement)
+    assert table_copy.content_object.data["cells"][0][0]["html"] == "x"
 
 
 @pytest.mark.django_db

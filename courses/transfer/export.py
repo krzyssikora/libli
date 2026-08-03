@@ -493,6 +493,14 @@ def walk_unit_joins(unit_pk, joins_by_unit):
     this walk starts from parent__isnull=True roots and Element.parent is a
     single-valued FK, so every node in a cycle has a non-null parent, is never a
     root, and the reachable subgraph is acyclic by construction.
+
+    `seen` also closes a second, narrower case: the traversal edge is really
+    join -> join_row(concrete).children, since every resolved_*() calls
+    self.join_row() = self.elements.order_by("pk").first() rather than reading
+    `join` directly. The GFK is 1:1 by CONVENTION, not by a DB constraint -- if
+    two Element rows ever shared one concrete, emit(join_b) could resolve
+    join_row() back to join_a and re-yield join_b, an infinite recursion only
+    `seen` stops. Not reachable through any current write path.
     """
     seen = set()
 
