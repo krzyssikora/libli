@@ -160,6 +160,17 @@ def test_no_add_menu_inside_a_depth_3_element(client, lesson):
     deep = _mk(unit, "tabs", parent=mid, tab=_tab(mid))
     html = _page(client, course, unit)
     assert f'data-element="{deep.pk}"' in html  # the depth-3 row IS rendered
+    # ...and it still renders its SLOTS. Guarding the whole `resolved_tabs` loop instead
+    # of just the add-menu include would leave the row visible while silently dropping
+    # its tabs and every child row under them -- a legacy/imported depth-4 tree would
+    # then be uneditable and invisible to its author while students still see it.
+    #
+    # The EDITOR-ONLY form of the marker is mandatory. A bare `data-tab-id="..."` is
+    # emitted by the student tabselement.html too (`.tabs__panel`), and this page
+    # carries a live-preview pane that renders that template all the way down -- so the
+    # bare assertion would pass on the preview alone and stay green under its own
+    # mutant. `<details class="tabs-rows"` exists only in _element_row.html.
+    assert f'<details class="tabs-rows" data-tab-id="{_tab(deep)}"' in html
     assert f'data-parent="{deep.pk}"' not in html  # ...but it offers no add-menu
 
 

@@ -247,3 +247,191 @@ def test_author_a_depth_3_text_through_the_ui(page, live_server):
     expect(child).to_have_count(1)
     expect(child).to_contain_text(MARKER)
     expect(child).to_be_visible()
+
+
+# ---------------------------------------------------------------------------
+# SAME-TYPE nesting (final-review Finding 2)
+#
+# Every depth-3 fixture in this slice -- Tasks 7, 8 and 12 -- independently chose
+# `tabs > spoiler > leaf`. Nothing rendered a container inside a container of its OWN
+# type, which is exactly the shape that collides with per-element DOM enhancement: a
+# nested instance's nodes are DESCENDANTS of the outer instance's container, so any
+# unscoped querySelectorAll (or descendant CSS selector) swallows them.
+#
+# These two tests must be e2e, not Django render tests. The defects they pin do not
+# exist in the server's HTML at all:
+#   * the tab strip (.tabs__bar / .tabs__tab) is built entirely by tabs.js in the
+#     browser -- the server emits only sections, labels and panels, byte-identical
+#     before and after the fix, so no assertion on `resp.content` can see the bug;
+#   * the spoiler label swap is pure CSS ([open] descendant vs child combinator), which
+#     needs a real cascade and computed styles.
+# ---------------------------------------------------------------------------
+
+NESTED_TABS_MARKER = "DEPTH3-TABSINTABS-MARKER-7c02"
+NESTED_SPOILER_MARKER = "DEPTH3-SPOILER2-MARKER-a19d"
+
+
+def _tabs_data(labels):
+    """TabsElement.default_data() (two tabs) with the labels renamed.
+
+    Distinct labels per instance are load-bearing: with the default "Tab 1"/"Tab 2" on
+    both elements a leaked-button assertion could not tell WHOSE buttons it found.
+    """
+    from courses.models import TabsElement
+
+    data = TabsElement.default_data()
+    for entry, label in zip(data["tabs"], labels, strict=True):
+        entry["label"] = label
+    return data
+
+
+@pytest.mark.django_db(transaction=True)
+def test_nested_tabs_do_not_leak_into_the_outer_tab_strip(page, live_server):
+    """tabs > tabs > text, read as a student.
+
+    Falsified by reverting tabs.js's `ownSections()` to the bare
+    `container.querySelectorAll(".tabs__section")`: initTabs visits the outer first, so
+    the outer's section list becomes [Outer A, Inner X, Inner Y, Outer B] and the outer
+    strip renders FOUR buttons carrying the inner element's labels. The round trip at
+    the end pins the user-visible consequence -- the outer's `select()` puts `hidden` on
+    panels it does not own, and the inner instance (still `active === 0`) can never take
+    it off again, so the nested element stays blank forever.
+    """
+    from courses import builder
+    from courses.models import Element
+    from courses.models import TabsElement
+    from courses.models import TextElement
+    from tests.factories import EnrollmentFactory
+
+    pa = _make_pa_user("d3_tabs2")
+    course, unit = _seed_unit(pa, "d3-tabs2")
+    EnrollmentFactory(student=pa, course=course)
+
+    outer_obj = TabsElement.objects.create(data=_tabs_data(["Outer A", "Outer B"]))
+    outer = Element.objects.create(
+        unit=unit, content_object=outer_obj, parent=None, tab_id="", order=0
+    )
+    inner_obj = TabsElement.objects.create(data=_tabs_data(["Inner X", "Inner Y"]))
+    outer_obj.refresh_from_db()
+    inner = Element.objects.create(
+        unit=unit,
+        content_object=inner_obj,
+        parent=outer,
+        tab_id=outer_obj.data["tabs"][0]["id"],
+        order=0,
+    )
+    inner_obj.refresh_from_db()
+    leaf_obj = TextElement.objects.create(body=f"<p>{NESTED_TABS_MARKER}</p>")
+    leaf = Element.objects.create(
+        unit=unit,
+        content_object=leaf_obj,
+        parent=inner,
+        tab_id=inner_obj.data["tabs"][0]["id"],
+        order=0,
+    )
+    assert builder.element_depth(inner) == 2
+    assert builder.element_depth(leaf) == 3
+
+    _login(page, live_server, "d3_tabs2")
+    page.goto(_lesson_url(live_server, unit))
+
+    # `data-tabs-eid` is the join-row pk (TabsElement.render), so these two selectors
+    # name the two instances unambiguously. The `>` before .tabs__bar is the whole
+    # point: tabs.js inserts each bar as its container's FIRST CHILD, so a descendant
+    # locator would match the inner strip from the outer container and hide the bug.
+    outer_sel = f"[data-tabs-eid='{outer.pk}']"
+    inner_sel = f"[data-tabs-eid='{inner.pk}']"
+    page.wait_for_selector(f"{outer_sel}.tabs--js")
+    page.wait_for_selector(f"{inner_sel}.tabs--js")
+
+    outer_tabs = page.locator(f"{outer_sel} > .tabs__bar .tabs__tab")
+    inner_tabs = page.locator(f"{inner_sel} > .tabs__bar .tabs__tab")
+
+    # THE pin: each strip carries its OWN tabs and only its own.
+    expect(outer_tabs).to_have_count(2)
+    expect(outer_tabs).to_have_text(["Outer A", "Outer B"])
+    expect(inner_tabs).to_have_count(2)
+    expect(inner_tabs).to_have_text(["Inner X", "Inner Y"])
+
+    # ...and every outer button controls a panel the OUTER owns. Under the bug the
+    # outer stamps ids on the inner's panels and initOne(inner) restamps them, leaving
+    # the outer's aria-controls pointing at ids that no longer exist.
+    dangling = page.evaluate(
+        """(sel) => {
+            const outer = document.querySelector(sel);
+            const btns = outer.querySelectorAll(':scope > .tabs__bar .tabs__tab');
+            return Array.from(btns).filter((b) => {
+                const p = document.getElementById(b.getAttribute('aria-controls'));
+                return !p || p.closest('[data-tabs]') !== outer;
+            }).length;
+        }""",
+        outer_sel,
+    )
+    assert dangling == 0
+
+    # The nested element's content is reachable, and STAYS reachable across a round
+    # trip through the outer strip.
+    marker = page.locator(f"{inner_sel} .tabs__child", has_text=NESTED_TABS_MARKER)
+    expect(marker).to_be_visible()
+    outer_tabs.nth(1).click()  # "Outer B" -- the panel holding the inner is hidden
+    expect(page.locator(inner_sel)).to_be_hidden()
+    outer_tabs.nth(0).click()  # back to "Outer A"
+    expect(page.locator(inner_sel)).to_be_visible()
+    expect(marker).to_be_visible()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_nested_spoiler_keeps_its_own_open_state_affordances(page, live_server):
+    """spoiler > spoiler > text, read as a student.
+
+    Falsified by reverting app.css's
+    `.spoiler[open] > .spoiler__toggle .spoiler__label--*`
+    rules to the descendant form `.spoiler[open] .spoiler__label--*`: opening the OUTER
+    spoiler then matches the CLOSED inner spoiler's labels too, so the inner summary
+    reads "Hide" while its body is still collapsed.
+    """
+    from courses.models import Element
+    from courses.models import SpoilerElement
+    from courses.models import TextElement
+    from tests.factories import EnrollmentFactory
+
+    pa = _make_pa_user("d3_sp2")
+    course, unit = _seed_unit(pa, "d3-sp2")
+    EnrollmentFactory(student=pa, course=course)
+
+    outer_obj = SpoilerElement.objects.create(label="OUTER-REVEAL")
+    outer = Element.objects.create(
+        unit=unit, content_object=outer_obj, parent=None, tab_id="", order=0
+    )
+    inner_obj = SpoilerElement.objects.create(label="INNER-REVEAL")
+    inner = Element.objects.create(
+        unit=unit,
+        content_object=inner_obj,
+        parent=outer,
+        tab_id=SpoilerElement.SLOT_ID,
+        order=0,
+    )
+    leaf_obj = TextElement.objects.create(body=f"<p>{NESTED_SPOILER_MARKER}</p>")
+    Element.objects.create(
+        unit=unit,
+        content_object=leaf_obj,
+        parent=inner,
+        tab_id=SpoilerElement.SLOT_ID,
+        order=0,
+    )
+
+    _login(page, live_server, "d3_sp2")
+    page.goto(_lesson_url(live_server, unit))
+
+    outer_sp = page.locator("details.spoiler").first
+    inner_sp = page.locator("details.spoiler > .spoiler__child > details.spoiler")
+    expect(inner_sp).to_have_count(1)
+
+    outer_sp.locator("summary").first.click()  # real reveal gesture on the OUTER only
+    expect(inner_sp).to_be_visible()
+    # The inner is still CLOSED, so it must advertise ITS OWN state, not its parent's.
+    # (The inner holds only a text element, so these label locators are unambiguous.)
+    assert inner_sp.evaluate("(el) => el.hasAttribute('open')") is False
+    expect(inner_sp.locator(".spoiler__label--show")).to_be_visible()
+    expect(inner_sp.locator(".spoiler__label--hide")).to_be_hidden()
+    expect(inner_sp.locator("summary").first).to_contain_text("INNER-REVEAL")

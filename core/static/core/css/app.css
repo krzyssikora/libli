@@ -959,15 +959,20 @@ a.notif-menu__row:hover { background: var(--surface-sunken); }
   transform: rotate(45deg);
   transition: transform .15s ease;
 }
-.spoiler[open] .spoiler__toggle::after { transform: rotate(-135deg); }
+/* `> .spoiler__toggle`, never a descendant: since the depth-3 lift a spoiler may
+   contain another spoiler, and a descendant selector would let an OPEN outer spoiler
+   flip the state affordances of a CLOSED inner one. */
+.spoiler[open] > .spoiler__toggle::after { transform: rotate(-135deg); }
 @media (prefers-reduced-motion: reduce) {
   .spoiler__toggle::after { transition: none; }
 }
 /* Two-way toggle: show the author/"Reveal" label when collapsed, "Hide" when open
-   (native <details>, no JS). Both labels ship in the DOM; [open] swaps which shows. */
+   (native <details>, no JS). Both labels ship in the DOM; [open] swaps which shows.
+   Scoped with `>` for the nested-spoiler reason above: with a descendant selector a
+   CLOSED spoiler inside an OPEN one reads "Hide" instead of its own reveal label. */
 .spoiler__label--hide { display: none; }
-.spoiler[open] .spoiler__label--show { display: none; }
-.spoiler[open] .spoiler__label--hide { display: inline; }
+.spoiler[open] > .spoiler__toggle .spoiler__label--show { display: none; }
+.spoiler[open] > .spoiler__toggle .spoiler__label--hide { display: inline; }
 /* Revealed panel reads as an aside bound to its toggle (not loose lesson prose):
    an indented, brand-ruled block distinct from the reveal-gate's bodyless divider. */
 .spoiler__body {
