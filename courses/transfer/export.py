@@ -471,33 +471,51 @@ def _node_dict(node, nid, parent_internal):
 
 
 def walk_unit_joins(unit_pk, joins_by_unit):
-    """Yield (join, parent_join_or_None, tab_id) for one unit, parents before
-    children, each element EXACTLY ONCE. `joins_by_unit` holds only top-level joins
-    (parent__isnull=True); a container element's (tabs or two-column) children are
-    expanded inline here via resolved_tabs()/resolved_columns(), so they arrive in
-    their within-slot `order` -- which is what makes the import's payload-order pass
-    reproduce that order without serializing `order` itself.
+    """Yield (join, parent_join_or_None, tab_id) for one unit, PARENTS BEFORE
+    CHILDREN, each element exactly once.
 
-    Children are reached ONLY through resolved_tabs()/resolved_columns(): a child
-    whose tab_id matches no slot (reachable only via a direct DB edit or a read-side
-    truncation) is deliberately OMITTED from the archive. Exporting one would produce
-    a payload whose `tab` ref fails the import validator, so the archive could never
-    be re-imported. Do NOT "fix" this by iterating join.children.all() directly.
+    Recurses through each container arm and terminates on a `seen` set. NOT
+    registry-driven -- _CONTAINER_REGISTRY is model-keyed, lives in builder.py and
+    is imported nowhere here; making this registry-driven would re-introduce the
+    traversal unification this slice deliberately descoped.
+
+    Children are reached ONLY through resolved_tabs()/resolved_columns()/
+    resolved_children(), never join.children.all(): a child whose tab_id matches no
+    slot is deliberately OMITTED, because exporting it would produce a payload the
+    import validator rejects. (The DELETE path differs and must use join.children --
+    see builder._collect_subtree_pks.)
+
+    Parents-before-children is an EXPORT-side requirement: build_export's
+    walk_index_by_join_pk[parent_join.pk] lookup is unguarded and KeyErrors on a
+    forward reference. The importer itself is order-robust.
+
+    The `seen` set is defence for a future non-root entry point, not a live hang:
+    this walk starts from parent__isnull=True roots and Element.parent is a
+    single-valued FK, so every node in a cycle has a non-null parent, is never a
+    root, and the reachable subgraph is acyclic by construction.
     """
-    for join in joins_by_unit.get(unit_pk, []):
-        yield join, None, ""
+    seen = set()
+
+    def emit(join, parent_join, slot_id):
+        if join.pk in seen:
+            return
+        seen.add(join.pk)
+        yield join, parent_join, slot_id  # parent BEFORE children
         obj = join.content_object
         if isinstance(obj, TabsElement):
             for tab, children in obj.resolved_tabs():
                 for child in children:
-                    yield child, join, tab["id"]
+                    yield from emit(child, join, tab["id"])
         elif isinstance(obj, TwoColumnElement):
             for col, children in obj.resolved_columns():
                 for child in children:
-                    yield child, join, col["id"]
+                    yield from emit(child, join, col["id"])
         elif isinstance(obj, SpoilerElement):
             for child in obj.resolved_children():
-                yield child, join, SpoilerElement.SLOT_ID
+                yield from emit(child, join, SpoilerElement.SLOT_ID)
+
+    for join in joins_by_unit.get(unit_pk, []):
+        yield from emit(join, None, "")
 
 
 def build_export(
