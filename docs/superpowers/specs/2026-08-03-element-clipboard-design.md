@@ -152,8 +152,13 @@ admissible iff:
 2. if P is not None:  type(R) ∈ NESTABLE_TYPE_KEYS           [resolve_scope clause 1]
 3. for every n ∈ S:   dest_depth + rel(n) ≤ cap(n)
 4. P ∉ {R} ∪ descendants(R)
-5. if mode == move:   (P, t) != (R.parent, R.tab_id)
+5. if mode == move:   (P.pk if P else None, t) != (R.parent_id, R.tab_id)
 ```
+
+Clause 5 compares **pks, not instances**. Model equality is pk-based so an instance
+comparison happens to work, but `P is None` versus `R.parent_id is None` and the str/int
+trap this spec spends a paragraph on elsewhere make the explicit form the safer one, and it
+matches the `slot_key` discipline used for the template keys.
 
 **Clause 5 suppresses the paste buttons on the slot the element already occupies**, for
 moves only. Without it a move becomes "send myself to the end of my own group", where source
@@ -186,6 +191,15 @@ subsumes `resolve_scope`'s clauses 3 and 4 exactly: for a childless `R`, `S = {R
 clause 4 for a container. **This equivalence is a test, not a comment** (see below): for
 every (parent depth, type) pair, `paste_allowed` on a childless element must agree with
 `resolve_scope`. That is what stops the two rules drifting when the cap next moves.
+
+**The equivalence is over clauses 1–3 only**, and the test must be built accordingly.
+Clauses 4 and 5 have no `resolve_scope` counterpart: an empty Tabs pasted into its own slot
+is rejected by clause 4 while `resolve_scope` accepts it (that is what an *add* into that tab
+does today), and a move into the element's own current slot is rejected by clause 5 while
+`resolve_scope` accepts it. A matrix that happens to use the element's own container as the
+destination therefore produces a false RED, which an implementer would "fix" by weakening a
+clause. Construct the destination parent as a row distinct from the element under test and
+neither its ancestor nor its descendant.
 
 **Clause 4 hides paste buttons inside the marked element's own subtree in both modes.** For
 a move it prevents a cycle. For a copy it is stricter than strictly necessary — copying a
@@ -255,18 +269,40 @@ enumerate_slots(unit) -> [(parent_join_or_None, tab_id)]
 - Uses the registry's **non-destructive** normalizer, as clause 1 validation does. Note this
   is a different id source from the one the *render* uses: the template goes through
   `resolved_tabs()` / `resolved_columns()`, which call the **destructive** `normalize_data`
-  (`courses/models.py:1427-1443`). For well-formed data the two agree. For pathological data
-  — fewer stored tabs than `MIN_TABS`, so every call pads with a freshly minted id — the
-  template renders a slot whose id is not in the enumerated set and that slot silently shows
-  no paste button. That divergence is accepted: it fails **closed**, and it is exactly what
-  `resolve_scope` already does to an *add* aimed at a phantom slot. It is listed in the
-  template tests so the behaviour is pinned rather than discovered.
+  (`courses/models.py:1427-1443`). For well-formed data the two agree. They diverge for a
+  wider class than padding alone: `normalize_labels_and_ids` (`:1369-1394`) and
+  `TwoColumnElement.normalize_ids` (`:1494-1513`) mint a fresh id for **any** entry whose id
+  is missing, malformed or duplicated, and `normalize_data` then pads *or truncates* on top
+  (`:1396-1409`) — with a different id minted on every call. So the divergence covers
+  `< MIN_TABS` padding, `> MAX_TABS` truncation, and malformed or duplicate ids alike.
+
+  **In the padding and malformed-id directions this fails closed**: the template renders a
+  slot whose id is not in the enumerated set, that slot shows no paste button, and this is
+  exactly what `resolve_scope` already does to an *add* aimed at a phantom slot. **In the
+  truncation direction it does not.** The non-destructive normalizer keeps slots the
+  destructive one drops, so no button renders (the UI is safe) but `paste_allowed` would
+  *admit* a hand-crafted POST into a truncated slot and orphan the pasted element.
+  `resolve_scope` has the identical exposure for adds today, so this is a documentation gap
+  rather than new breakage — but the write path is not closed in both directions, and saying
+  "fails closed" without that qualification would be false. The template tests pin one
+  padding case and one malformed/duplicate-id case.
 - The view builds `SubtreeFacts` once, then calls `paste_allowed` per pair per mode and
   passes the two resulting sets to the template. The scalar is `min over n∈S of
   (cap(n) − rel(n))`, **not** a plain subtree height, because `cap` differs per node: a Tabs
   holding a Spoiler has height 2 but a limit of `min(3−0, 3−1) = 2`, and a height-based
   check would admit `dest_depth = 3`, landing the Spoiler at depth 4.
+- **Emits each slot's depth alongside its key**, and `paste_allowed` takes it rather than
+  recomputing `dest_depth`. The FK walk knows the depth for free; without this, every
+  per-slot call re-walks `join.parent` hop by hop through `builder.element_depth`.
 - When nothing is marked, this is skipped entirely: no walk, no cost on the common render.
+
+**The marked-render cost is bounded explicitly**, because it is paid on *every* response for
+as long as a mark is pending, and every editor operation returns a full re-render.
+`_editor_rows` prefetches only top-level joins (`courses/views_manage.py:1235-1239`), so a
+naive enumerator issues a GFK fetch per join plus a depth walk per slot — hundreds of queries
+on a unit with a few hundred elements. The walk therefore carries
+`prefetch_related("content_object")`, reuses the depth it already knows (above), and a
+query-count assertion pins the result so a regression is caught rather than merely felt.
 
 **The FK walk is a superset of the rendered tree, and that is the agreement that matters.**
 The enumerator descends `join.children`; the *renderer* descends
@@ -303,7 +339,7 @@ No mode is stored — move-vs-copy arrives with the paste. Lifecycle:
 
 | Event | Effect |
 |---|---|
-| ⊹ select | Sets the mark. **No DB write, so no token check** — the paste re-validates everything. It does re-render, so it **passes `open_form_pk` through**: an open element form is client-injected into `.el-edit-slot` and would otherwise be destroyed by the swap, losing unsaved edits. ↑ ↓ 🗑 already discard it, but those are mutations the author means to commit; ⊹ is the first purely advisory control, and "open the editor, then decide to move this" is a natural sequence. |
+| ⊹ select | Sets the mark. **No DB write, so no token check** — the paste re-validates everything. It does re-render, and **that discards an open element form along with any unsaved edits**, exactly as ↑ ↓ 🗑 already do. See the note below; this is accepted, not solved. |
 | ⊹ select while another element is marked | **Replaces** the mark. There is exactly one slot; no stack, no multi-select. |
 | ⊹ select on the element that is already marked | Clears it, so the row's own control toggles. |
 | ✕ cancel | Clears it. |
@@ -311,6 +347,18 @@ No mode is stored — move-vs-copy arrives with the paste. Lifecycle:
 | ⧉ Copy here | **Keeps** it, so one original can seed several slots. |
 | Rendering another unit | Ignored; not cleared (you may navigate back). |
 | Marked element gone or not in this unit | Treated as absent and cleared lazily at render. |
+
+**On losing an open form to ⊹.** An open element form is *server*-rendered into
+`.el-edit-slot` — `_render_open_form` returns the whole fragment pair with the form embedded
+via the `open_form` context key (`courses/views_manage.py:1487-1493`; `_element_row.html:42`
+and the matching lines in each branch). It is not client-side state, so **no server-side
+re-render can preserve unsaved edits**: regenerating the form reads the element back from
+the DB and yields a pristine one. Passing `open_form_pk` alone would be worse than nothing —
+it renders an editing-styled row with an empty slot, since `open_form` would be blank. And
+nothing on the page even transports which element is open: `_element_row_controls.html`
+carries `element`, `unit` and `unit_token` only. So ⊹ discards the open form exactly as
+↑ ↓ 🗑 do today. Accepted, and stated because "select is only advisory" invites the
+assumption that it is non-destructive.
 
 ## Operations
 
@@ -341,6 +389,19 @@ unit: the paste re-resolves it through `_locked_element(course, …)`, which fil
 | `manage_element_duplicate` | `element`, `unit`, `unit_token` | `builder.duplicate_element` |
 | `manage_element_clip` | `element`, `unit`, `action=select\|cancel` | session only |
 | `manage_element_paste` | `parent` (blank = top level), `tab`, `mode=move\|copy`, `unit`, `unit_token` | `builder.paste_element` |
+
+**Service signatures and returns**, following the neighbours' convention (`reorder_element`
+→ `(unit, changed)`, `delete_element` → `unit`, `duplicate_unit` → the new node):
+
+```
+duplicate_element(course, element_pk, unit_token)                  -> (unit, new_join)
+paste_element(course, element_pk, parent_ref, tab, mode, unit_token) -> (unit, placed_join)
+```
+
+Both return the join, not just the unit, because the view needs it: `unit` feeds
+`_render_editor_fragments`, and the open-set for the post-operation render is derived by
+walking `placed_join.parent` upward. Without the join returned, the ancestor chain the UI
+section relies on has no source.
 
 URL paths follow the existing shape, `manage/courses/<slug>/build/element/<op>/`
 (`courses/urls.py:209-217`).
@@ -377,9 +438,17 @@ here.** Two independent facts make this so:
   it returns `_render_editor_fragments(..., status=422)` instead.
 
 So **every editor-context error response renders through `_render_editor_fragments(request,
-unit, status=…)` with a new `error` context key** shown inside the editor pane — the shape
-`_editor_page` already uses for its own `error` (`courses/views_manage.py:1285-1300`).
-`_op_error` stays for builder-context callers only. (`element_move` already returns
+unit, status=…)` with a new `error` context key, and that key must be rendered inside
+`_editor_scope.html`** — in the editor pane, above `.pane-body`.
+
+**Do not copy `_editor_page`'s existing `error` shape.** It renders at `editor.html:59`,
+and `_editor_scope.html` — the only source of `[data-scope]` — is included at
+`editor.html:93`. So the existing block sits *outside both panes*: reusing its position
+would ship a 422 exactly as invisible as the `_op_error` div this section rejects. Moving
+the block into `_editor_scope.html` also keeps `_editor_page`'s own error path working
+(it renders `editor.html`, which includes the scope), and the `editor.html:59` block must
+then be removed rather than left in place, or the settings-save 422 renders its message
+twice. `_op_error` stays for builder-context callers only. (`element_move` already returns
 `_op_error` for its "exactly one of direction or position" 422 and is therefore silent in the
 editor today; that is pre-existing, out of scope, and not a licence to copy the pattern.)
 
@@ -415,10 +484,20 @@ a fourth argument, `type_key`, in the *form* namespace, which a paste (holding o
 has no natural value for. Split it explicitly:
 
 - a **parse-only helper** — `parent`/`tab` together-or-neither, the `int()` guard, and the
-  `filter(pk=…, unit=unit)` lookup (`courses/builder.py:127-142`) — raising `NestingError`
-  → 400 for malformed input alone. `resolve_scope` is refactored to call it, so the two
-  parses cannot drift.
+  `filter(pk=…, unit=unit)` lookup (`courses/builder.py:127-142`). `resolve_scope` is
+  refactored to call it, so the two parses cannot drift.
 - **admissibility is `paste_allowed`'s alone**, and always reports 422.
+
+The helper's two failure kinds get **different statuses**, because they differ in
+reachability:
+
+- **Shape errors** — `parent` without `tab`, a non-integer pk, an unknown `mode` — stay
+  **400**. No UI can produce them.
+- **A well-formed but unresolvable parent pk** is **422** with reason `parent_gone`. Today
+  that line raises `NestingError("unknown parent")` (`courses/builder.py:141-142`) and would
+  land on the invisible 400 — yet "the destination container was deleted by another author
+  between the render and the click" is precisely the concurrent-edit case this design
+  deliberately creates. A silent no-op there is the outcome this section exists to rule out.
 
 ### Move semantics
 
@@ -480,11 +559,12 @@ forced by grafting into an existing unit rather than creating one:
 - **It returns the created root join**, not a `ContentNode` — `materialize_duplicate` returns
   `node_map[document["nodes"][0]["id"]]` (`:1117`), which has no meaning here.
   `_create_elements` returns a bare `list(joins.values())` and discards its `{export_id:
-  join}` map (`:911`), so the root is re-derived as **the created join whose payload
-  `parent` is falsy** — the one element an element-scoped document has with no parent. Do
-  not use `created[0]`: it happens to be correct today only because the export emits parents
-  before children and that order survives into the payload, which is an invariant nothing
-  here states or tests.
+  join}` map (`:911`), so the root is re-derived as **the single join in `created` whose
+  `parent_id` is `None`** — its second pass has already set `parent` in memory for every
+  child (`:902-909`), and an element-scoped document has exactly one parentless element.
+  Assert that exactly one matches. Do **not** use `created[0]`, and do not zip the return
+  against `document["elements"]` either: both re-introduce the same unstated assumption,
+  that payload order survives into the returned list.
 - **It does not call `_rewrite_links`.** That function remaps internal content links onto
   newly created nodes; in an element-scoped copy no node is created and `node_map` is a
   fabrication over the existing unit, so running it would rewrite every internal link in the
@@ -573,8 +653,10 @@ source".
 ## UI surface
 
 ```
-Unit editor — "Pochodne"        ⊹ Selected: "Tabs: Case 1"   [✕ cancel]
-
+Unit editor — "Pochodne"                        ← page chrome, NOT swapped
+┌───────────────────────────────────────────────────────────────────┐
+│ Editor · 4 elements     ⊹ Selected: "Tabs: Case 1"   [✕ cancel]   │  ← .pane-head
+├───────────────────────────────────────────────────────────────────┤
   • Text                          ✎ ↑ ↓ ⧉ ⊹ 🗑
   ┌ Spoiler "Rozwiązanie" ────────────────────────┐
   │   • Text                     ✎ ↑ ↓ ⧉ ⊹ 🗑     │
@@ -624,7 +706,10 @@ a slide break has nothing to edit, but duplicating and moving one are perfectly 
   authored data; they diverge only for an over-deep container reachable through legacy or
   direct-ORM rows, where the row recursion is deliberately unbounded while the menu is not —
   and there, a paste that clause 3 permits should be offered even though a fresh *add* is
-  not.
+  not. Concretely: **the tag call goes outside the `{% if depth < max_nest_depth %}` guard**,
+  which sits on the same line as the `_add_menu` include at each of the three nested sites.
+  The consequence is that the buttons can render with no `.addwrap` beside them, so the CSS
+  must define a standalone appearance as well as the grouped-against-the-add-menu one.
 - **Containers force open while a mark is pending.** The `<details>` wrappers are
   `{% if forloop.first %}open{% endif %}` today (`_element_row.html:82`, `:132`), so a legal
   target could otherwise hide inside a collapsed tab.
@@ -637,10 +722,21 @@ a slide break has nothing to edit, but duplicating and moving one are perfectly 
   reach. Resolution: the server stamps forced-open wrappers with `data-force-open` and
   `applyStoredTabs` skips those. This is the one place the feature adds JavaScript, and the
   "no new JavaScript" property in the reuse table is qualified accordingly: it holds for the
-  three operations and their forms, not for PR2's force-open. (Columns are unaffected —
+  three operations and their forms, not for force-open. **The stamp and the skip land in
+  PR1**, together with the open-ancestor mechanism they make work: `applyStoredTabs` runs
+  after a duplicate's swap just as it runs after a paste's, so splitting them across PRs
+  would ship a PR1 mechanism that provably does nothing — and PR1's own template test would
+  pass while the real UI stayed collapsed. (Columns are unaffected —
   `saveTab`/`applyStoredTabs` match `details.tabs-rows` only, an existing asymmetry this
-  spec does not change.) A template/JS test must show that a tab with a stored `"0"` still
-  renders and keeps its paste button.
+  spec does not change.) **This one must be verified in a browser, not by a template test:**
+  the defect lives in `applyStoredTabs`, which a template test never runs, so such a test
+  passes whether or not the JS honours the stamp. Collapse a tab so `saveTab` writes its
+  entry, select an element, then assert the tab is open and its paste buttons visible after
+  the swap. Mutant: remove the skip → RED.
+- **A forced-open container cannot be collapsed while a mark is pending**, and that is
+  intended. With the stamp set, the skip ignores the stored value, so a tab the author
+  collapses snaps open again on the next swap; `saveTab` still records the preference, which
+  takes effect once the mark clears. Stated so it is not read as a bug.
 - **And they stay open for the render that follows a paste.** A *move* clears the mark, so
   the very re-render that shows the result would otherwise have no mark pending and every
   `<details>` would snap back to first-tab-only — the author moves a row into tab 2 and
@@ -825,7 +921,14 @@ PR1 **also carries the open-ancestor mechanism**, not PR2. Duplicating an elemen
 its brand-new copy out of view — the identical trap the paste path spends a paragraph
 preventing. The duplicate's ancestor chain is the source's and is already known, so the
 open-set is a few lines here; PR2 then reuses it for the marked element and for the pasted
-one. Delivers need #2 on its own.
+one.
+
+So PR1's inventory also includes the pieces that mechanism and its error path depend on,
+none of which are PR2's despite being introduced in sections about the clipboard:
+**`slot_key`** (the open-set uses the same key shape), the **`error` context key on
+`_render_editor_fragments`** and its render slot in `_editor_scope.html` (with the
+`editor.html:59` block moved, not duplicated), and the **`data-force-open` stamp plus the
+`applyStoredTabs` skip**. Delivers need #2 on its own.
 
 **PR2 — the clipboard.** `paste_allowed` and `enumerate_slots`, the promotion of the
 model→key helper and the strengthened container-key drift test in
