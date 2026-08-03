@@ -30,9 +30,19 @@ def test_drops_align_class_on_non_block_tag():
     assert "ta-center" not in sanitize_html('<b class="ta-center">x</b>')
 
 
-def test_cell_drops_align_token_and_label_stays_class_free():
+def test_cell_drops_align_token_on_a_tag_that_may_not_carry_it():
     # nh3 filters class TOKENS; it cannot unwrap or delete the attribute once the tag
     # is an allowed_classes key, so a disallowed class leaves class="" behind. What
     # matters is that the align token is gone from a tag that may not carry it.
     assert "ta-center" not in sanitize_cell('<b class="ta-center">x</b>')
-    assert "ta-center" not in sanitize_label('<span class="ta-center">x</span>')
+
+
+def test_label_is_never_parsed_as_markup_so_alignment_cannot_reach_it():
+    """A label is plain TEXT that may carry LaTeX (`\\(a<b\\)` — which an HTML parser
+    would eat), so it is deliberately NOT run through nh3. Alignment still cannot
+    reach the tab strip: the label is kept verbatim and every sink escapes it, so the
+    span is characters on screen, not an element carrying a class. The escaping is
+    pinned by tests/test_tabs_partial.test_a_label_carrying_markup_renders_escaped."""
+    assert sanitize_label('<span class="ta-center">x</span>') == (
+        '<span class="ta-center">x</span>'
+    )

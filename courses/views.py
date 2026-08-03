@@ -232,6 +232,11 @@ def _tabs_has_math(el):
 
     if not isinstance(el, TabsElement):
         return False
+    # The LABELS are content too: math.js typesets them (`.el--tabs` is in its scope
+    # list) and tabs.js copies the typeset nodes onto the strip buttons. A unit whose
+    # only math is a tab label must still arm KaTeX, or the strip ships raw LaTeX.
+    if any(has_math_delimiters(t["label"]) for t in el.normalized_data["tabs"]):
+        return True
     join = el.join_row()
     if join is None:
         return False
@@ -249,6 +254,10 @@ def _spoiler_has_math(el):
 
     if not isinstance(el, SpoilerElement):
         return False
+    # The toggle label is content too — `.spoiler__toggle` is in math.js's scope list
+    # — and it is the ONE part of a nestable spoiler that is not a child element.
+    if has_math_delimiters(el.label):
+        return True
     children = el.resolved_children()
     if not children:
         return has_math_delimiters(el.body)

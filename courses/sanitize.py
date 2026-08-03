@@ -174,9 +174,15 @@ def desc_to_alt(value):
 
 
 def sanitize_label(value, max_length=80):
-    """Plain-text label: strip every tag, unescape entities, collapse whitespace,
-    truncate. Used for tab labels, which are plain text by design (never rich
-    text, never math). Applied on BOTH the save and the read path, so a label
-    dirtied by a direct DB edit never reaches a template as markup."""
-    text = nh3.clean(value or "", tags=set(), attributes={}, link_rel=None)
-    return _WS.sub(" ", html.unescape(text)).strip()[:max_length]
+    """Plain-text label: unescape entities, collapse whitespace, truncate. Used for
+    tab labels, which are plain TEXT (never rich text) but MAY carry inline LaTeX.
+
+    Deliberately NOT run through nh3. An HTML sanitiser reads `<` followed by a
+    letter as a tag start and drops everything to the end of input, so a perfectly
+    ordinary label like `\\(a<b\\)` was silently stored as `\\(a` — data loss on a
+    field whose whole content is authored by hand. Tag-stripping was never the
+    barrier that keeps markup out of the page anyway: every sink escapes the label
+    (`{{ tab.label }}` in tabselement.html and _element_row.html, `value="…"` in
+    _edit_tabs.html, and tabs.js copies the rendered NODES, so a label that is text
+    stays text). tests/test_tabs_partial.py pins that escaping."""
+    return _WS.sub(" ", html.unescape(value or "")).strip()[:max_length]

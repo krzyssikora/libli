@@ -41,6 +41,27 @@ def test_child_renders_inside_its_panel():
     assert "nested" in panel
 
 
+def test_a_label_carrying_markup_renders_escaped():
+    """THE barrier that lets `sanitize_label` keep a label verbatim (so LaTeX with a
+    `<` survives): the template escapes it. Mutant: mark the label `|safe` in
+    tabselement.html and this goes red."""
+    course, unit = make_course_with_unit()
+    obj = TabsElement.objects.create(
+        data={
+            "tabs": [
+                {"id": "t000001", "label": "<img src=x onerror=alert(1)>"},
+                {"id": "t000002", "label": r"\(a<b\)"},
+            ]
+        }
+    )
+    Element.objects.create(unit=unit, content_object=obj)
+    html = obj.render()
+    assert "<img src=x" not in html
+    assert "&lt;img src=x onerror=alert(1)&gt;" in html
+    # The LaTeX survives the round trip, escaped rather than eaten.
+    assert r"\(a&lt;b\)" in html
+
+
 def test_root_carries_the_join_row_pk_for_dom_id_namespacing():
     course, unit = make_course_with_unit()
     obj = TabsElement.objects.create(data=TabsElement.default_data())
