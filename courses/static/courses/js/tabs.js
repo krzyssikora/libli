@@ -18,12 +18,43 @@
     return b;
   }
 
+  // --- scoping ---------------------------------------------------------------
+  // Since the depth-3 lift a tabs element may legally contain ANOTHER tabs element
+  // (outer [data-tabs] > .tabs__section > .tabs__panel > .tabs__child > inner
+  // [data-tabs] > its own .tabs__section). querySelectorAll is DESCENDANT-wide, so an
+  // unscoped lookup from the outer container swallows the inner instance's nodes: the
+  // outer strip grows the inner element's labels as extra buttons, the outer rewrites
+  // the inner's panel ids, and selecting one of those stray buttons hides the outer
+  // panel that CONTAINS it -- the element goes blank. Every lookup below therefore
+  // rejects nodes owned by a nested instance, which also makes initTabs' visit order
+  // irrelevant.
+
+  // The .tabs__section elements belonging to `container` itself.
+  function ownSections(container) {
+    var all = Array.prototype.slice.call(container.querySelectorAll(".tabs__section"));
+    return all.filter(function (s) {
+      return s.closest("[data-tabs]") === container;
+    });
+  }
+
+  // The first node matching `selector` that belongs to `section` itself. Scanning all
+  // matches rather than taking querySelector's first keeps this correct even if the
+  // template ever wraps the label or panel: a nested instance's node is skipped
+  // instead of being mistaken for this section's own.
+  function ownPart(section, selector) {
+    var nodes = section.querySelectorAll(selector);
+    for (var i = 0; i < nodes.length; i++) {
+      if (nodes[i].closest(".tabs__section") === section) return nodes[i];
+    }
+    return null;
+  }
+
   function initOne(container) {
     // Idempotent: the editor preview pane is rebuilt on every fragment swap and re-runs
     // this over the whole pane. Re-entering would append a second tab bar.
     if (container.dataset.tabsReady === "1") return;
 
-    var sections = Array.prototype.slice.call(container.querySelectorAll(".tabs__section"));
+    var sections = ownSections(container);
     if (!sections.length) return;
     container.dataset.tabsReady = "1";
     container.classList.add("tabs--js");
@@ -56,8 +87,8 @@
     var panels = [];
 
     sections.forEach(function (section, k) {
-      var label = section.querySelector("[data-tab-label]");
-      var panel = section.querySelector("[data-tab-panel]");
+      var label = ownPart(section, "[data-tab-label]");
+      var panel = ownPart(section, "[data-tab-panel]");
       if (!label || !panel) return;
       var tid = panel.getAttribute("data-tab-id");
       var tabId = "tabs-" + eid + "-" + tid + "-tab";
@@ -150,6 +181,10 @@
   function initTabs(root) {
     var scope = root || document;
     if (scope.matches && scope.matches("[data-tabs]")) initOne(scope);
+    // DESCENDANT-wide on purpose, and the ONE lookup in this file that must stay so:
+    // a tabs element nested inside another tabs element is itself a [data-tabs] that
+    // needs its own strip. initOne only ever touches its own sections (ownSections),
+    // so visiting outer-before-inner is safe.
     Array.prototype.forEach.call(scope.querySelectorAll("[data-tabs]"), initOne);
   }
 

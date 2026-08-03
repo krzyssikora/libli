@@ -76,10 +76,18 @@ def _editor_url(live_server, unit):
 
 
 def _add_element(page, add_type):
-    """Open the add-menu, click a type card, and wait for the host form to swap in (the
-    per-type editor partial mounts inside the appended new-row's [data-edit-slot])."""
-    page.locator("[data-add-toggle]").click()
-    page.locator(f"[data-add-type='{add_type}']").click()
+    """Open the TOP-LEVEL add-menu, click a type card, and wait for the host form to
+    swap in (the per-type editor partial mounts inside the appended new-row's
+    [data-edit-slot]).
+
+    Scoped to `[data-add-menu]:not(.addwrap--nested)` — the single non-nested menu, from
+    _editor_scope.html — rather than the whole page. Since depth-3 nesting, a container
+    row's nested menu also offers `html` (the `in_spoiler` guards are gone), so an
+    unscoped `[data-add-type='html']` on a unit that holds a container matches more than
+    one button and fails Playwright strict mode. Every caller here adds at top level."""
+    menu = page.locator("[data-add-menu]:not(.addwrap--nested)")
+    menu.locator("[data-add-toggle]").click()
+    menu.locator(f"[data-add-type='{add_type}']").click()
     page.wait_for_selector("[data-edit-slot] form[data-op='element-save']")
 
 

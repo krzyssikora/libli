@@ -471,33 +471,59 @@ def _node_dict(node, nid, parent_internal):
 
 
 def walk_unit_joins(unit_pk, joins_by_unit):
-    """Yield (join, parent_join_or_None, tab_id) for one unit, parents before
-    children, each element EXACTLY ONCE. `joins_by_unit` holds only top-level joins
-    (parent__isnull=True); a container element's (tabs or two-column) children are
-    expanded inline here via resolved_tabs()/resolved_columns(), so they arrive in
-    their within-slot `order` -- which is what makes the import's payload-order pass
-    reproduce that order without serializing `order` itself.
+    """Yield (join, parent_join_or_None, tab_id) for one unit, PARENTS BEFORE
+    CHILDREN, each element exactly once.
 
-    Children are reached ONLY through resolved_tabs()/resolved_columns(): a child
-    whose tab_id matches no slot (reachable only via a direct DB edit or a read-side
-    truncation) is deliberately OMITTED from the archive. Exporting one would produce
-    a payload whose `tab` ref fails the import validator, so the archive could never
-    be re-imported. Do NOT "fix" this by iterating join.children.all() directly.
+    Recurses through each container arm and terminates on a `seen` set. NOT
+    registry-driven -- _CONTAINER_REGISTRY is model-keyed, lives in builder.py and
+    is imported nowhere here; making this registry-driven would re-introduce the
+    traversal unification this slice deliberately descoped.
+
+    Children are reached ONLY through resolved_tabs()/resolved_columns()/
+    resolved_children(), never join.children.all(): a child whose tab_id matches no
+    slot is deliberately OMITTED, because exporting it would produce a payload the
+    import validator rejects. (The DELETE path differs and must use join.children --
+    see builder._collect_subtree_pks.)
+
+    Parents-before-children is an EXPORT-side requirement: build_export's
+    walk_index_by_join_pk[parent_join.pk] lookup is unguarded and KeyErrors on a
+    forward reference. The importer itself is order-robust.
+
+    The `seen` set is defence for a future non-root entry point, not a live hang:
+    this walk starts from parent__isnull=True roots and Element.parent is a
+    single-valued FK, so every node in a cycle has a non-null parent, is never a
+    root, and the reachable subgraph is acyclic by construction.
+
+    `seen` also closes a second, narrower case: the traversal edge is really
+    join -> join_row(concrete).children, since every resolved_*() calls
+    self.join_row() = self.elements.order_by("pk").first() rather than reading
+    `join` directly. The GFK is 1:1 by CONVENTION, not by a DB constraint -- if
+    two Element rows ever shared one concrete, emit(join_b) could resolve
+    join_row() back to join_a and re-yield join_b, an infinite recursion only
+    `seen` stops. Not reachable through any current write path.
     """
-    for join in joins_by_unit.get(unit_pk, []):
-        yield join, None, ""
+    seen = set()
+
+    def emit(join, parent_join, slot_id):
+        if join.pk in seen:
+            return
+        seen.add(join.pk)
+        yield join, parent_join, slot_id  # parent BEFORE children
         obj = join.content_object
         if isinstance(obj, TabsElement):
             for tab, children in obj.resolved_tabs():
                 for child in children:
-                    yield child, join, tab["id"]
+                    yield from emit(child, join, tab["id"])
         elif isinstance(obj, TwoColumnElement):
             for col, children in obj.resolved_columns():
                 for child in children:
-                    yield child, join, col["id"]
+                    yield from emit(child, join, col["id"])
         elif isinstance(obj, SpoilerElement):
             for child in obj.resolved_children():
-                yield child, join, SpoilerElement.SLOT_ID
+                yield from emit(child, join, SpoilerElement.SLOT_ID)
+
+    for join in joins_by_unit.get(unit_pk, []):
+        yield from emit(join, None, "")
 
 
 def build_export(
@@ -531,9 +557,10 @@ def build_export(
 
         media_ids = MediaIdMap()
         unit_pks = [n.pk for n in nodes if n.kind == "unit"]
-        # Query only TOP-LEVEL joins; walk_unit_joins expands each tabs element's
-        # children inline (parents before children), so every element is visited
-        # EXACTLY ONCE and no child needs a recursive query here.
+        # Query only TOP-LEVEL joins; walk_unit_joins expands each container
+        # element's children inline (tabs, two_column, spoiler -- parents before
+        # children), so every element is visited EXACTLY ONCE and no child needs
+        # a recursive query here.
         joins_by_unit = {}
         for join in (
             Element.objects.filter(unit_id__in=unit_pks, parent__isnull=True)
@@ -631,9 +658,10 @@ def build_export(
             eid_by_walk[wi] = eid
             element_dicts.append({"id": eid, **edict})
         # Resolve each element's `parent` (carried as the parent's walk_index int)
-        # to that parent's e-id. A parent is always a tabs element, which references
-        # no media and so is never dropped, and always precedes its children in the
-        # walk -- so its walk_index is guaranteed present in eid_by_walk.
+        # to that parent's e-id. A parent is always a CONTAINER element (tabs,
+        # two_column, or spoiler) -- none of which reference media -- so it is
+        # never dropped, and it always precedes its children in the walk, so its
+        # walk_index is guaranteed present in eid_by_walk.
         for d in element_dicts:
             if d["parent"] is not None:
                 d["parent"] = eid_by_walk[d["parent"]]

@@ -302,10 +302,14 @@ def test_lesson_html_render_query_count_invariant(client):
 
     url1 = build("c-q1", 1)
     url3 = build("c-q3", 3)
-    # Warm the process-global ContentType cache for BOTH models the lesson view
-    # looks up (has_math → MathElement, has_html → HtmlElement). Otherwise the
-    # FIRST captured request pays an uncached CT SELECT the second doesn't, making
-    # len(q1) == len(q3)+1 in isolated runs (e.g. the `-k has_html` invocation).
+    # Warm the process-global ContentType cache for MathElement and HtmlElement.
+    # has_html no longer calls get_for_model(HtmlElement) directly -- Task 6
+    # replaced that lookup with a flat content_type__app_label/model filter (a
+    # JOIN, not a Python-cache read) -- but the render pipeline still resolves
+    # each element's content_object through the GFK, which touches the same
+    # process-global CT cache. Otherwise the FIRST captured request pays an
+    # uncached CT SELECT the second doesn't, making len(q1) == len(q3)+1 in
+    # isolated runs (e.g. the `-k has_html` invocation).
     from django.contrib.contenttypes.models import ContentType
 
     from courses.models import MathElement

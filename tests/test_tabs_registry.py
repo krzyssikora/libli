@@ -73,7 +73,6 @@ def test_nested_add_embeds_parent_and_tab_as_hidden_fields(client):
     [
         {"type": "choicequestion"},  # question inside a tab
         {"type": "slidebreak"},  # slide break inside a tab
-        {"type": "tabs"},  # tabs inside a tab
     ],
 )
 def test_nested_add_of_a_blocked_type_is_400(client, post):
@@ -86,6 +85,25 @@ def test_nested_add_of_a_blocked_type_is_400(client, post):
         HTTP_X_REQUESTED_WITH="fetch",
     )
     assert resp.status_code == 400
+
+
+def test_nested_add_of_a_container_type_is_200(client):
+    # Depth-3 slice: a tabs card inside a top-level tabs element lands at depth 2,
+    # so the add form renders instead of 400ing.
+    course, unit = _managed(client)
+    tabs = TabsElement.objects.create(data=TabsElement.default_data())
+    join = Element.objects.create(unit=unit, content_object=tabs)
+    resp = client.post(
+        reverse("courses:manage_element_add", kwargs={"slug": course.slug}),
+        {
+            "unit": unit.pk,
+            "parent": join.pk,
+            "tab": tabs.data["tabs"][0]["id"],
+            "type": "tabs",
+        },
+        HTTP_X_REQUESTED_WITH="fetch",
+    )
+    assert resp.status_code == 200
 
 
 def test_parent_without_tab_is_400(client):

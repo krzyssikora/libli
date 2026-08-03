@@ -6,6 +6,7 @@ from django.utils.dateparse import parse_datetime
 from courses import ordering
 from courses.models import ContentNode
 from courses.models import Element
+from courses.models import SpoilerElement
 from courses.models import TabsElement
 from courses.models import TwoColumnElement
 from courses.models import _delete_element_content_objects
@@ -21,16 +22,25 @@ class NestingError(Exception):
     """A nested add/save violated the nesting rules -> HTTP 400."""
 
 
+MAX_NEST_DEPTH = 4  # a top-level element has depth 1
+
+# Container TYPE KEYS (transfer namespace). Clause 4 of the containment rule tests
+# membership here. PR2 (Callout as a container) must add its key to THIS set, to
+# _CONTAINER_REGISTRY and to payloads._CONTAINER_SLOT_KEY -- all three. The drift
+# test in test_nesting_rule.py is what stops it landing in only two.
+CONTAINER_TRANSFER_KEYS = frozenset({"tabs", "two_column", "spoiler"})
+
 # Positive allowlist: any type NOT named here is non-nestable, including types added
 # by future slices. Deliberately NOT the element_add/element_save allow-tuples, which
 # admit every question type and slidebreak.
 #
 # Members are TRANSFER keys (courses.transfer.export.SERIALIZERS), not the
 # element_add/element_save "type" strings -- an invariant test asserts
-# NESTABLE_TYPE_KEYS <= set(SERIALIZERS). Every type here coincides in both
-# namespaces except the reveal-gate, whose transfer key ("reveal_gate") differs
-# from its form key ("revealgate"); resolve_scope() below translates the
-# incoming form key before checking membership.
+# NESTABLE_TYPE_KEYS <= set(SERIALIZERS). Several types' form key differs from
+# their transfer key (fill_blank, fill_gate, fill_table, guess_number, mark_done,
+# reveal_gate, switch_gate, switch_grid, two_column -- see
+# _NESTABLE_FORM_KEY_ALIASES below); resolve_scope() translates the incoming form
+# key before checking membership.
 NESTABLE_TYPE_KEYS = frozenset(
     {
         "text",
@@ -52,31 +62,10 @@ NESTABLE_TYPE_KEYS = frozenset(
         "stepper",
         "mark_done",
         "guess_number",
-    }
-)
-
-# Leaf children a spoiler may hold (server-enforced), in CANONICAL (transfer) keys.
-# Static leaves PLUS the interactive leaves (reveal/fill/switch gate, switch grid,
-# fill blank, fill table). Excludes spoiler itself and native containers
-# (tabs/two_column) — the depth-1 leaf-only scope. Non-canonical callers normalize
-# first: editor form keys via _NESTABLE_FORM_KEY_ALIASES, the LAL loader's parser keys
-# via its _PARSER_TO_CANONICAL.
-SPOILER_CHILD_TYPES = frozenset(
-    {
-        "text",
-        "math",
-        "image",
-        "video",
-        "iframe",
-        "table",
-        "gallery",
-        "callout",
-        "reveal_gate",
-        "fill_gate",
-        "switch_gate",
-        "switch_grid",
-        "fill_blank",
-        "fill_table",
+        # Containers, as of the depth-3 slice. Both are already in
+        # transfer.export.SERIALIZERS, so NESTABLE_TYPE_KEYS <= SERIALIZERS holds.
+        "tabs",
+        "two_column",
     }
 )
 
@@ -90,6 +79,7 @@ _NESTABLE_FORM_KEY_ALIASES = {
     "revealgate": "reveal_gate",
     "switchgate": "switch_gate",
     "switchgrid": "switch_grid",
+    "twocolumn": "two_column",
 }
 
 # Container element registry: model class -> (non_destructive_normalizer,
@@ -99,7 +89,29 @@ _NESTABLE_FORM_KEY_ALIASES = {
 _CONTAINER_REGISTRY = {
     TabsElement: (TabsElement.normalize_labels_and_ids, "tabs", "id"),
     TwoColumnElement: (TwoColumnElement.normalize_ids, "columns", "id"),
+    # Single-slot: ignores its argument and returns one fixed slot. SpoilerElement
+    # has no `data` field, which is why the call site below uses getattr().
+    SpoilerElement: (
+        lambda _data: {"slots": [{"id": SpoilerElement.SLOT_ID}]},
+        "slots",
+        "id",
+    ),
 }
+
+
+def element_depth(join):
+    """1 for a top-level element; +1 per parent hop.
+
+    Bounded by MAX_NEST_DEPTH hops so a corrupt parent cycle returns a too-deep
+    value instead of looping. The bound is for cycle safety ONLY -- what makes
+    MAX_NEST_DEPTH load-bearing is clauses 3 and 4 comparing against it.
+    """
+    depth = 1
+    parent = join.parent
+    while parent is not None and depth <= MAX_NEST_DEPTH:
+        depth += 1
+        parent = parent.parent
+    return depth
 
 
 def resolve_scope(unit, parent_ref, tab, type_key):
@@ -119,42 +131,44 @@ def resolve_scope(unit, parent_ref, tab, type_key):
     if not parent_ref or not tab:
         raise NestingError("parent and tab must be supplied together")
     try:
-        join = Element.objects.filter(pk=int(parent_ref), unit=unit).first()
+        join = (
+            Element.objects.select_related("parent__parent__parent")
+            .filter(pk=int(parent_ref), unit=unit)
+            .first()
+        )
     except (TypeError, ValueError):
         raise NestingError("bad parent ref") from None
     if join is None:
         raise NestingError("unknown parent")
-    parent_obj = join.content_object
-    from courses.models import SpoilerElement
 
-    if isinstance(parent_obj, SpoilerElement):
-        # Single-slot container: no `data` slot list to read. A spoiler may receive
-        # children only when it is itself top-level (depth-1 invariant), and only
-        # allowlisted LEAF child types (SPOILER_CHILD_TYPES — static leaves plus the
-        # interactive leaves; native containers and nested spoilers stay excluded).
-        if join.parent_id is not None:
-            raise NestingError("a nested spoiler may not have children")
-        if tab != SpoilerElement.SLOT_ID:
-            raise NestingError("unknown slot")
-        child_key = _NESTABLE_FORM_KEY_ALIASES.get(type_key, type_key)
-        if child_key not in SPOILER_CHILD_TYPES:
-            raise NestingError(f"{type_key} may not be nested inside a spoiler")
-        return join, SpoilerElement.SLOT_ID
-    # normalize_data (behind normalized_data) is DESTRUCTIVE and read-side only: it
-    # pads/truncates and mints fresh random ids on every call, so a slot validated
-    # against it here could be an ephemeral phantom that never matches again at
-    # render time -- silently orphaning the child. A write path must validate
-    # against the ids that actually exist, via the non-destructive normalizer.
+    parent_obj = join.content_object
     container = _CONTAINER_REGISTRY.get(type(parent_obj))
     if container is None:
         raise NestingError("parent is not a container")
-    normalizer, list_key, id_key = container
-    valid_slot_ids = {s[id_key] for s in normalizer(parent_obj.data)[list_key]}
-    if tab not in valid_slot_ids:
-        raise NestingError("unknown slot")
-    nestable_key = _NESTABLE_FORM_KEY_ALIASES.get(type_key, type_key)
-    if nestable_key not in NESTABLE_TYPE_KEYS:
+
+    child_key = _NESTABLE_FORM_KEY_ALIASES.get(type_key, type_key)
+    if child_key not in NESTABLE_TYPE_KEYS:  # clause 1
         raise NestingError(f"{type_key} may not be nested")
+
+    # normalize_data (behind normalized_data) is DESTRUCTIVE and read-side only: it
+    # pads/truncates and mints fresh random ids on every call, so a slot validated
+    # against it could be an ephemeral phantom that never matches again at render
+    # time -- silently orphaning the child. A write path must validate against the
+    # ids that actually exist, via the non-destructive normalizer.
+    normalizer, list_key, id_key = container
+    # getattr: a single-slot container (spoiler) has no `data` field at all, and the
+    # argument is evaluated HERE, before the normalizer runs.
+    slots = normalizer(getattr(parent_obj, "data", None))[list_key]
+    if tab not in {s[id_key] for s in slots}:  # clause 2
+        raise NestingError("unknown slot")
+
+    parent_depth = element_depth(join)
+    if parent_depth >= MAX_NEST_DEPTH:  # clause 3
+        raise NestingError("too deep")
+    if (  # clause 4
+        parent_depth >= MAX_NEST_DEPTH - 1 and child_key in CONTAINER_TRANSFER_KEYS
+    ):
+        raise NestingError("a container may not be nested this deeply")
     return join, tab
 
 
@@ -399,21 +413,60 @@ def reorder_element(course, element_pk, unit_token, *, direction=None, position=
     return unit, True
 
 
+def _collect_subtree_pks(roots):
+    """Join pks of `roots` plus every descendant, ROOT-INCLUSIVE.
+
+    Descends `join.children` -- every child row, container or not, matched slot or
+    not. Deliberately NOT the slot accessors the export walk uses: resolved_tabs()
+    runs the destructive normalize_data and skips children whose tab_id matches no
+    slot. Export omits those on purpose; delete must not, or their concretes orphan.
+
+    Reads join.children WITHOUT its own select_for_update -- concurrency safety
+    against a grandchild inserted mid-walk comes entirely from the CALLER already
+    holding the unit row's lock (see _locked_element's docstring). Do not treat
+    that lock as incidental to this function.
+
+    RECURSIVE and `seen`-guarded, not an iterative worklist: dropping the guard from
+    a recursive walk raises RecursionError on a cycle, which a test can assert,
+    whereas an iterative worklist would spin forever (pytest-timeout is not
+    installed, so a hanging mutant can never be verified RED).
+
+    Returns pks, not instances, so callers can hand
+    _delete_element_content_objects a QuerySet -- it requires one
+    (it calls .prefetch_related). Deletion ORDER is irrelevant: the prefetch
+    materialises every row before the first delete fires.
+    """
+    seen = set()
+
+    def walk(join):
+        if join.pk in seen:
+            return
+        seen.add(join.pk)
+        for child in join.children.all():
+            walk(child)
+
+    for root in roots:
+        walk(root)
+    return seen
+
+
 @transaction.atomic
 def delete_element(course, element_pk, unit_token):
-    """Delete an element. If it is a tabs element, its children's CONCRETE rows must
-    go first: the `parent` FK cascades the child join rows, but a concrete is only
-    reachable through the GFK, which DB cascade cannot traverse -- they would orphan.
+    """Delete an element together with its WHOLE subtree, at every depth. The
+    `parent` FK cascades descendant join rows, but a concrete is only reachable
+    through the GFK, which DB cascade cannot traverse -- one level of collection
+    would orphan every grandchild concrete.
     """
     el, unit = _locked_element(course, element_pk)
     _check_token(unit.updated, unit_token)
     parent, tab_id = el.parent, el.tab_id  # capture before the row disappears
-    _delete_element_content_objects(Element.objects.filter(parent=el))
-    obj = el.content_object
-    if obj is not None:
-        obj.delete()  # cascades the Element join-row via GenericRelation
-    else:
-        el.delete()
+    pks = _collect_subtree_pks([el])
+    _delete_element_content_objects(Element.objects.filter(pk__in=pks))
+    # Unconditional: the collector is root-inclusive, so this element's concrete --
+    # and, via its GenericRelation cascade, this join row -- is already gone. The old
+    # `if obj is not None` branch is therefore dead. A 0-row DELETE in the normal
+    # case; it does real work only when the root carried no concrete at all.
+    el.delete()
     ordering.compact_elements(unit, parent=parent, tab_id=tab_id)
     unit.save(update_fields=["updated"])
     return unit
@@ -666,9 +719,13 @@ def save_element(course, unit_pk, type_key, element_ref, post_data, files):
             new_ids = {t["id"] for t in obj.data["tabs"]}
             removed = old_ids - new_ids
             if removed:
-                # Concretes first -- the join rows cascade, the concretes would orphan.
-                doomed = Element.objects.filter(parent=join, tab_id__in=removed)
-                _delete_element_content_objects(doomed)
+                doomed = list(Element.objects.filter(parent=join, tab_id__in=removed))
+                # Root at each DOOMED CHILD, never at `join`: rooting at the tabs
+                # element would sweep KEPT tabs' descendants, whose join rows survive
+                # (the delete below is tab_id__in=removed only) -- live rows pointing
+                # at deleted concretes.
+                pks = _collect_subtree_pks(doomed)
+                _delete_element_content_objects(Element.objects.filter(pk__in=pks))
                 Element.objects.filter(parent=join, tab_id__in=removed).delete()
     elif type_key == "twocolumn":
         form = FORM_FOR_TYPE["twocolumn"](data=post_data, instance=instance)
@@ -837,6 +894,22 @@ def _locked_node(course, node_pk):
 
 
 def _locked_element(course, element_pk):
+    """Lock the element row AND its unit row in one query.
+
+    select_for_update() carries no `of=` clause, so on the select_related("unit")
+    join Postgres locks rows in EVERY joined table -- not just Element, but the
+    unit's ContentNode row too. That is load-bearing: delete_element's
+    _collect_subtree_pks (above) walks join.children WITHOUT its own
+    select_for_update, so in isolation a concurrent write could insert a new
+    grandchild after the walk has already passed its parent, orphaning that
+    child's concrete when the delete proceeds. It cannot happen here, because
+    save_element also takes the SAME unit row's lock (via _locked_unit) before it
+    writes anything, so it blocks until this transaction commits or rolls back.
+    Do NOT add `of=("self",)` to this select_for_update() -- Django's own docs
+    recommend `of` as an optimisation that skips locking joined tables, but doing
+    so here would silently reopen the orphaning window described above. Re-check
+    delete_element/_collect_subtree_pks before narrowing this lock.
+    """
     try:
         el = (
             Element.objects.select_for_update()

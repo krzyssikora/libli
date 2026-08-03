@@ -120,17 +120,25 @@ a row, never produces an empty slide — it's simply absorbed.
 
 ## Containers and nesting
 
-Tabs and Columns are the two container types. Inside either one, a nested
-**Add element** menu offers only the nine non-container Content types — Text,
-Image, Video, Iframe, Math, HTML, Table, Gallery, Callout — and the nine
-[Interactive elements](interactive-elements) self-checks (Show more, Fill in &
-confirm, Choose & confirm, Switch grid, Fill-in table, Spoiler, Step-by-step,
-Checklist, Guess the number). A container cannot hold another container, a
-question, or a Slide break — those stay top-level.
+Tabs, Columns, and Spoiler are the three container types. A container can
+hold another container, up to three container levels — for example a Spoiler
+holding a Tabs container that holds another Spoiler. Ordinary content sits
+inside that third level, so a nested element can be four levels down. The
+third-level container's own **Add element** menu offers leaves only: no
+further container, question, or Slide break.
+
+Inside any container, a nested **Add element** menu offers the non-container
+Content types — Text, Image, Video, Iframe, Math, HTML, Table, Gallery,
+Callout — plus, where depth still allows it, the Tabs, Columns, and Spoiler
+container cards themselves. In a lesson it also offers the [Interactive
+elements](interactive-elements) self-checks (Show more, Fill in & confirm,
+Choose & confirm, Switch grid, Fill-in table, Step-by-step, Checklist, Guess
+the number) and Fill in the blanks.
 
 Interactive elements are lesson-only: the Interactive group doesn't appear at
-all when editing a quiz, so inside a quiz a Tabs or Columns container's
-add-menu offers Content types only.
+all when editing a quiz. So inside a quiz, a nested add-menu offers the
+Content types plus — where depth allows — Tabs and Columns; Spoiler and Fill
+in the blanks are never offered nested in a quiz.
 
 ## Tips
 
@@ -148,6 +156,7 @@ add-menu offers Content types only.
 - [Quiz editors](quiz-editors) — the question element types, used in both
   lessons (as practice) and quizzes (as assessment).
 - [Interactive elements](interactive-elements) — the lesson-only self-check
-  types nestable inside Tabs and Columns.
+  types; see "Containers and nesting" above for how deep they nest and which
+  containers accept them.
 - [Media manager](media-manager) — uploading and organizing images and videos.
 - [Building a course](builder) — where units live in the course outline.

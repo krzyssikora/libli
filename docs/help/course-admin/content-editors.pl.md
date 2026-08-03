@@ -130,19 +130,28 @@ tworzą pustego slajdu — są po prostu pomijane.
 
 ## Kontenery i zagnieżdżanie
 
-Zakładki i Kolumny to dwa typy kontenerów. Wewnątrz każdego z nich
-zagnieżdżone menu **Dodaj element** oferuje wyłącznie dziewięć niekontenerowych
-typów treści — Tekst, Obraz, Wideo, Iframe, Wzór, HTML, Tabelę, Galerię,
-Ramkę — oraz dziewięć samosprawdzających się elementów z grupy
-[Elementy interaktywne](interactive-elements) (Pokaż więcej, Uzupełnij i
-potwierdź, Wybierz i zatwierdź, Siatka przełączników, Tabela do uzupełnienia,
-Rozwijana treść, Krok po kroku, Lista zadań, Zgadnij liczbę). Kontener nie
-może zawierać innego kontenera, pytania ani Podziału slajdów — te pozostają
-na najwyższym poziomie.
+Zakładki, Kolumny i Rozwijana treść to trzy typy kontenerów. Kontener może
+zawierać inny kontener — aż do trzech poziomów kontenerów, na przykład
+Rozwijana treść zawierająca Zakładki, a w nich kolejna Rozwijana treść.
+Zwykłą treść umieszczasz w tym trzecim poziomie, więc zagnieżdżony element
+może znaleźć się cztery poziomy niżej. Menu **Dodaj element** kontenera
+trzeciego poziomu oferuje już wyłącznie elementy liściowe: żadnego kolejnego
+kontenera, pytania ani Podziału slajdów.
+
+Wewnątrz dowolnego kontenera zagnieżdżone menu **Dodaj element** oferuje
+niekontenerowe typy treści — Tekst, Obraz, Wideo, Iframe, Wzór, HTML,
+Tabelę, Galerię, Ramkę — a tam, gdzie głębokość na to pozwala, także same
+karty kontenerów: Zakładki, Kolumny i Rozwijaną treść. W lekcji oferuje ono
+również samosprawdzające się elementy z grupy [Elementy
+interaktywne](interactive-elements) (Pokaż więcej, Uzupełnij i potwierdź,
+Wybierz i zatwierdź, Siatka przełączników, Tabela do uzupełnienia, Krok po
+kroku, Lista zadań, Zgadnij liczbę) oraz Uzupełnij luki.
 
 Elementy interaktywne są dostępne tylko w lekcjach: grupa Interaktywne w
-ogóle nie pojawia się przy edycji quizu, więc w quizie menu dodawania
-kontenera Zakładki lub Kolumny oferuje wyłącznie typy treści.
+ogóle nie pojawia się przy edycji quizu. Dlatego w quizie zagnieżdżone menu
+oferuje typy treści oraz — tam, gdzie głębokość na to pozwala — Zakładki i
+Kolumny; Rozwijana treść i Uzupełnij luki nigdy nie są oferowane
+zagnieżdżone w quizie.
 
 ## Wskazówki
 
@@ -163,7 +172,9 @@ kontenera Zakładki lub Kolumny oferuje wyłącznie typy treści.
 - [Edytory quizów](quiz-editors) — typy elementów pytań, używane zarówno w
   lekcjach (jako ćwiczenie), jak i w quizach (jako ocena).
 - [Elementy interaktywne](interactive-elements) — typy samosprawdzające
-  dostępne tylko w lekcjach, zagnieżdżalne w Zakładkach i Kolumnach.
+  dostępne tylko w lekcjach; zobacz „Kontenery i zagnieżdżanie” powyżej, by
+  dowiedzieć się, jak głęboko można je zagnieżdżać i które kontenery je
+  przyjmują.
 - [Menedżer mediów](media-manager) — przesyłanie i porządkowanie obrazów oraz
   filmów.
 - [Tworzenie kursu](builder) — gdzie jednostki znajdują się w strukturze

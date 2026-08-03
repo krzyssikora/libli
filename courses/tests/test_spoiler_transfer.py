@@ -68,7 +68,7 @@ def test_walk_unit_joins_expands_spoiler_children():
     assert (child, join, SpoilerElement.SLOT_ID) in yielded
 
 
-def test_validate_nesting_accepts_spoiler_slot_and_rejects_depth2():
+def test_validate_nesting_spoiler_slot_bad_slot_and_depth3_child():
     from courses.models import SpoilerElement
     from courses.transfer.payloads import validate_nesting
     from courses.transfer.schema import TransferError
@@ -111,7 +111,10 @@ def test_validate_nesting_accepts_spoiler_slot_and_rejects_depth2():
     with pytest.raises(TransferError):
         validate_nesting(bad_slot)
 
-    depth2 = [
+    # tabs(depth 1) -> spoiler(depth 2) -> text(depth 3): the depth-3 nesting slice
+    # newly ACCEPTS this shape -- the transfer-side twin of resolve_scope's clause 3
+    # boundary flipping. Formerly rejected as "depth-2 child still rejected".
+    depth3 = [
         {
             "id": "t",
             "type": "tabs",
@@ -134,19 +137,17 @@ def test_validate_nesting_accepts_spoiler_slot_and_rejects_depth2():
             "data": {"body": "x"},
         },
     ]
-    with pytest.raises(TransferError):  # depth-2 child still rejected
-        validate_nesting(depth2)
+    validate_nesting(depth3)  # must not raise
 
 
-def test_validate_nesting_rejects_container_spoiler_child():
-    # reveal_gate is now an allowed spoiler child (Task 1 widening); a native
-    # container (tabs) stays rejected -- retargeted from the old reveal_gate case.
+def test_validate_nesting_accepts_container_child_of_a_top_level_spoiler():
+    # Depth-3 slice: a container (tabs) child of a TOP-LEVEL spoiler lands at depth
+    # 2 and is valid -- the transfer-side twin of resolve_scope's clause 4 boundary.
     from courses.models import SpoilerElement
     from courses.transfer.payloads import validate_nesting
-    from courses.transfer.schema import TransferError
 
     slot = SpoilerElement.SLOT_ID
-    bad = [
+    ok = [
         {
             "id": "sp",
             "type": "spoiler",
@@ -156,16 +157,17 @@ def test_validate_nesting_rejects_container_spoiler_child():
         },
         {"id": "c1", "type": "tabs", "parent": "sp", "tab": slot, "data": {"tabs": []}},
     ]
-    with pytest.raises(TransferError):
-        validate_nesting(bad)
+    validate_nesting(ok)  # must not raise
 
 
 @pytest.mark.django_db
 def test_round_trip_interactive_spoiler_children():
     # A spoiler containing a switch_gate child and a fill_blank child survives an
     # export (write_archive, unit-rooted subtree) -> import (import_subtree) round
-    # trip into a fresh course, and validate_nesting still rejects a tabs-in-spoiler
-    # archive (belt-and-suspenders with the test above).
+    # trip into a fresh course. (The test directly above this one now covers the
+    # OPPOSITE case -- validate_nesting ACCEPTING a container, e.g. tabs, nested
+    # inside a top-level spoiler -- so this test no longer doubles as a rejection
+    # check; it is a round-trip test only.)
     import io
 
     from courses.fillblank import SENTINEL

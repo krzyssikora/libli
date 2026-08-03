@@ -5,7 +5,6 @@ from django.urls import reverse
 
 from courses import builder
 from courses.builder import NESTABLE_TYPE_KEYS
-from courses.builder import SPOILER_CHILD_TYPES
 from courses.builder import NestingError
 from courses.models import Element
 from courses.models import SpoilerElement
@@ -138,7 +137,9 @@ def test_resolve_scope_accepts_leaf_child_in_top_level_spoiler():
     assert tab == SpoilerElement.SLOT_ID
 
 
-def test_resolve_scope_rejects_disallowed_child_type_in_spoiler():
+def test_resolve_scope_child_types_in_a_top_level_spoiler():
+    # Depth-3 slice: a top-level spoiler (depth 1) takes CONTAINER children too --
+    # they land at depth 2. Only genuinely non-nestable types stay rejected.
     import pytest
 
     from courses import builder
@@ -146,12 +147,17 @@ def test_resolve_scope_rejects_disallowed_child_type_in_spoiler():
 
     _course, unit = make_course_with_unit()
     _sp, join = _spoiler_join(unit)
-    for bad in ("tabs", "spoiler", "choicequestion"):
+    for bad in ("choicequestion",):
         with pytest.raises(NestingError):
             builder.resolve_scope(unit, str(join.pk), SpoilerElement.SLOT_ID, bad)
+    for good in ("tabs", "spoiler"):
+        parent_join, tab = builder.resolve_scope(
+            unit, str(join.pk), SpoilerElement.SLOT_ID, good
+        )
+        assert parent_join == join and tab == SpoilerElement.SLOT_ID
 
 
-def test_spoiler_child_types_includes_interactive_leaves():
+def test_nestable_type_keys_includes_interactive_leaves_and_containers():
     for k in (
         "reveal_gate",
         "fill_gate",
@@ -160,9 +166,11 @@ def test_spoiler_child_types_includes_interactive_leaves():
         "fill_blank",
         "fill_table",
     ):
-        assert k in SPOILER_CHILD_TYPES
-    for k in ("tabs", "two_column", "spoiler"):  # containers still excluded
-        assert k not in SPOILER_CHILD_TYPES
+        assert k in NESTABLE_TYPE_KEYS
+    for k in ("tabs", "two_column", "spoiler"):  # containers are nestable now
+        assert k in NESTABLE_TYPE_KEYS
+    for k in ("choicequestion", "slidebreak"):  # genuinely non-nestable
+        assert k not in NESTABLE_TYPE_KEYS
 
 
 def test_nestable_type_keys_includes_fill_blank():
@@ -182,16 +190,38 @@ def test_resolve_scope_accepts_interactive_form_key_in_spoiler(form_key):
 
 
 @pytest.mark.django_db
-def test_resolve_scope_still_rejects_children_of_nested_spoiler():
-    # a spoiler whose OWN join.parent_id is not None (depth-2) takes no children
+def test_resolve_scope_accepts_leaf_child_of_a_nested_spoiler():
+    # A spoiler-in-spoiler sits at depth 2 and takes both a leaf child (depth 3) and a
+    # THIRD spoiler (depth 3). Clause 4 only bites one level further down: the
+    # depth-3 spoiler takes leaves but no fourth container -- the user's
+    # "spoiler with child tabs with child spoiler, but this is it" boundary, read
+    # through the all-spoiler chain.
     _course, unit = make_course_with_unit()
     _outer_sp, outer_join = _spoiler_join(unit)
     _inner_sp, inner_join = _spoiler_join(
         unit, parent=outer_join, tab_id=SpoilerElement.SLOT_ID
     )
+    parent_join, tab = builder.resolve_scope(
+        unit, str(inner_join.pk), SpoilerElement.SLOT_ID, "switchgate"
+    )
+    assert parent_join == inner_join and tab == SpoilerElement.SLOT_ID
+    # ...and a THIRD container level is still accepted here
+    parent_join, tab = builder.resolve_scope(
+        unit, str(inner_join.pk), SpoilerElement.SLOT_ID, "spoiler"
+    )
+    assert parent_join == inner_join and tab == SpoilerElement.SLOT_ID
+
+    # ...but a FOURTH is not, while a leaf at depth 4 still is.
+    _third_sp, third_join = _spoiler_join(
+        unit, parent=inner_join, tab_id=SpoilerElement.SLOT_ID
+    )
+    parent_join, tab = builder.resolve_scope(
+        unit, str(third_join.pk), SpoilerElement.SLOT_ID, "switchgate"
+    )
+    assert parent_join == third_join and tab == SpoilerElement.SLOT_ID
     with pytest.raises(NestingError):
         builder.resolve_scope(
-            unit, str(inner_join.pk), SpoilerElement.SLOT_ID, "switchgate"
+            unit, str(third_join.pk), SpoilerElement.SLOT_ID, "spoiler"
         )
 
 
@@ -207,21 +237,21 @@ def test_resolve_scope_rejects_wrong_slot_for_spoiler():
         builder.resolve_scope(unit, str(join.pk), "wrong", "text")
 
 
-def test_resolve_scope_refuses_children_for_nested_spoiler():
-    import pytest
-
+def test_resolve_scope_accepts_children_for_a_spoiler_inside_a_tab():
     from courses import builder
-    from courses.builder import NestingError
     from courses.models import TabsElement
 
     _course, unit = make_course_with_unit()
     tabs = TabsElement.objects.create(data=TabsElement.default_data())
     tjoin = Element.objects.create(unit=unit, content_object=tabs)
     tab_id = tabs.data["tabs"][0]["id"]
-    # a spoiler nested inside a tab (depth 1) may NOT itself receive children
+    # Purpose bullet 3: a spoiler nested inside a tab (depth 2) DOES take leaf
+    # children -- they land at depth 3.
     _sp, sp_join = _spoiler_join(unit, parent=tjoin, tab_id=tab_id)
-    with pytest.raises(NestingError):
-        builder.resolve_scope(unit, str(sp_join.pk), SpoilerElement.SLOT_ID, "text")
+    parent_join, tab = builder.resolve_scope(
+        unit, str(sp_join.pk), SpoilerElement.SLOT_ID, "text"
+    )
+    assert parent_join == sp_join and tab == SpoilerElement.SLOT_ID
 
 
 def test_spoiler_form_keeps_body_for_legacy_spoiler():
@@ -288,7 +318,10 @@ def test_spoiler_add_menu_hides_disallowed_cards(client):
     unit = _lesson_unit(course)
     _sp, join = _nested_spoiler(unit, ("<p>c</p>",))
     block = _spoiler_menu_block(_editor_html(client, course, unit), join.pk)
-    # allowlisted leaves ARE offered inside the spoiler menu
+    # INVERTED by the depth-3 slice: the `in_spoiler` flag is gone, so html/stepper/
+    # markdone/guessnumber are no longer special-cased away, and `spoiler` is now
+    # governed purely by depth -- this spoiler is TOP-LEVEL (depth 1), so a spoiler
+    # child would land at depth 2, which builder clause 4 accepts.
     for allowed in (
         "text",
         "image",
@@ -298,20 +331,14 @@ def test_spoiler_add_menu_hides_disallowed_cards(client):
         "iframe",
         "gallery",
         "callout",
-    ):
-        assert f'data-add-type="{allowed}"' in block, allowed
-    # disallowed cards are NOT offered inside the spoiler menu (the non-allowed
-    # Interactive cards -- gates/switchgrid/fillblank/filltable are now ALLOWED, see
-    # test_spoiler_add_menu_shows_allowed_interactive_cards below)
-    for banned in (
         "html",
         "spoiler",
         "stepper",
         "markdone",
         "guessnumber",
     ):
-        assert f'data-add-type="{banned}"' not in block, banned
-    # non-fillblank question cards stay hidden in-spoiler
+        assert f'data-add-type="{allowed}"' in block, allowed
+    # non-fillblank question cards stay hidden in every nested menu
     for banned_question in (
         "choice-single",
         "choice-multi",
@@ -341,10 +368,15 @@ def test_spoiler_add_menu_shows_allowed_interactive_cards(client):
         "switchgrid",
         "fillblankquestion",
         "filltable",
+        # INVERTED by the depth-3 slice: these four were hidden by `in_spoiler`, a flag
+        # that no longer exists. `spoiler` is now depth-governed and this spoiler is
+        # top-level (depth 1), so a spoiler child lands at the legal depth 2.
+        "spoiler",
+        "stepper",
+        "markdone",
+        "guessnumber",
     } <= present
-    # the non-allowed interactive/structure cards are ABSENT in-spoiler
-    assert present.isdisjoint({"spoiler", "stepper", "markdone", "guessnumber"})
-    # no other question card leaks in-spoiler
+    # no other question card leaks into a nested menu
     assert present.isdisjoint(
         {"choice-single", "shorttextquestion", "dragfillblankquestion"}
     )
@@ -378,9 +410,11 @@ def test_author_switchgate_into_spoiler_succeeds(client):
     assert child.tab_id == SpoilerElement.SLOT_ID
 
 
-def test_tabs_add_menu_unaffected(client):
-    # PR#126 no-regression: the tabs nested add-menu (nested=True, NOT in_spoiler)
-    # still shows the 4 gates and hides questions.
+def test_tabs_add_menu_offers_fillblank_and_hides_other_questions(client):
+    # PR#126 no-regression, updated by the depth-3 slice: the tabs nested add-menu
+    # still shows the 4 gates and the Spoiler card, and still hides the general
+    # question cards -- but fill-blank is now offered in EVERY nested menu, not only
+    # in-spoiler (the `in_spoiler` flag is gone; the card's guard is `{% if nested %}`).
     from courses.models import TabsElement
 
     pa = make_pa(client, "pa")
@@ -389,12 +423,18 @@ def test_tabs_add_menu_unaffected(client):
     tabs = TabsElement.objects.create(data=TabsElement.default_data())
     tjoin = Element.objects.create(unit=unit, content_object=tabs)
     block = _spoiler_menu_block(_editor_html(client, course, unit), tjoin.pk)
-    for allowed in ("revealgate", "fillgate", "switchgate", "switchgrid", "spoiler"):
+    for allowed in (
+        "revealgate",
+        "fillgate",
+        "switchgate",
+        "switchgrid",
+        "spoiler",
+        "fillblankquestion",  # INVERTED
+    ):
         assert f'data-add-type="{allowed}"' in block, allowed
     for banned_question in (
         "choice-single",
         "shorttextquestion",
-        "fillblankquestion",
     ):
         assert f'data-add-type="{banned_question}"' not in block, banned_question
 

@@ -43,9 +43,20 @@ def _make_gate_join(unit, label="Show more"):
 def _render_row(el_join, unit):
     # The real _element_row.html reads `obj` (the content_object) for the
     # label; the caller passes it explicitly.
+    # depth/max_nest_depth are FUTURE-VACUITY INSURANCE here, not a required fix: a
+    # revealgateelement takes its own dedicated branch in _element_row.html, which has
+    # neither an add-menu include nor a recursive row include, so no depth predicate is
+    # evaluated today. Pass both (as INTEGERS) anyway, so a later branch change cannot
+    # silently turn this render into a no-menu one.
     return render_to_string(
         "courses/manage/editor/_element_row.html",
-        {"el": el_join, "obj": el_join.content_object, "unit": unit},
+        {
+            "el": el_join,
+            "obj": el_join.content_object,
+            "unit": unit,
+            "depth": 1,
+            "max_nest_depth": 4,
+        },
     )
 
 

@@ -46,6 +46,28 @@ class LoaderError(Exception):
 # Every other interactive/static parser type key already equals its canonical key.
 _PARSER_TO_CANONICAL = {"fillblank": "fill_blank"}
 
+# The LAL corpus's permitted spoiler children. Deliberately NARROWER than
+# builder.NESTABLE_TYPE_KEYS: this is a one-time import tool for a fixed corpus,
+# and widening the gate would silently change what a re-run accepts.
+LAL_SPOILER_CHILD_TYPES = frozenset(
+    {
+        "text",
+        "math",
+        "image",
+        "video",
+        "iframe",
+        "table",
+        "gallery",
+        "callout",
+        "reveal_gate",
+        "fill_gate",
+        "switch_gate",
+        "switch_grid",
+        "fill_blank",
+        "fill_table",
+    }
+)
+
 
 def _record_missing(missing, unit, kind, media_src):
     """Note a skipped element whose source media file was absent, so the caller
@@ -92,27 +114,30 @@ def build_element(
             join = Element.objects.create(
                 unit=unit, parent=parent, tab_id=tab_id, content_object=obj
             )
-            from courses.builder import SPOILER_CHILD_TYPES
-
             for child in el["elements"]:
                 ctype = child.get("type")
-                # Enforce the same allowlist resolve_scope() (the editor path)
-                # enforces: permits static leaves AND interactive leaves (reveal/
+                # Enforce this loader's OWN allowlist (LAL_SPOILER_CHILD_TYPES,
+                # above): permits static leaves AND interactive leaves (reveal/
                 # fill/switch gate, switch grid, fill blank -- normalized to their
                 # canonical key via _PARSER_TO_CANONICAL), rejects NATIVE containers
                 # (tabs/two_column/nested spoiler) and question types the parser's
                 # no-nest-container mode never emits but malformed JSON could carry.
+                # Deliberately NARROWER than the editor path's resolve_scope(), which
+                # now admits containers at depths 1-3.
                 # A FLAGGED child is exempt: it follows build_element's own flagged
                 # branch below, which honours --allow-html (HtmlElement under the
                 # flag, LoaderError without) exactly as a top-level flagged element
                 # does — so an unmappable block inside a spoiler isn't newly
                 # hard-blocked relative to the top level.
                 canonical = _PARSER_TO_CANONICAL.get(ctype, ctype)
-                if not child.get("flagged") and canonical not in SPOILER_CHILD_TYPES:
+                if (
+                    not child.get("flagged")
+                    and canonical not in LAL_SPOILER_CHILD_TYPES
+                ):
                     raise LoaderError(
                         f"child ({ctype}) not allowed inside a spoiler in unit "
                         f"{unit.pk}; spoilers hold only leaf types "
-                        f"({', '.join(sorted(SPOILER_CHILD_TYPES))})"
+                        f"({', '.join(sorted(LAL_SPOILER_CHILD_TYPES))})"
                     )
                 build_element(
                     course,

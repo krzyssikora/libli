@@ -67,9 +67,15 @@
 
   {% comment %}
   Nested children, grouped by the SAME resolved_tabs() helper the student template uses.
-  This include is recursive -- a child row is this very partial. It terminates only
-  because tabs-in-tabs is impossible (NESTABLE_TYPE_KEYS + import validation), so the
-  realized depth is always exactly 2. There is no depth guard here.
+  This include is recursive -- a child row is this very partial.
+
+  Why it terminates: the editor enters from _editor_rows' `parent__isnull=True` roots
+  and descends only through the resolved-* accessors. Element.parent is single-valued,
+  so every node in a cycle has a non-null parent and is therefore never a root; the
+  subgraph reachable from the roots is acyclic by construction. The child-row recursion
+  is deliberately UNBOUNDED -- an over-deep tree (legacy data, a direct ORM write) still
+  renders in full rather than silently losing rows. Only the ADD-MENU include below
+  carries the depth guard, so an author cannot author past the cap.
   {% endcomment %}
   <div class="el-row__tabs">
     {% for tab, children in obj.resolved_tabs %}
@@ -77,12 +83,12 @@
         <summary class="tabs-rows__summary">{{ tab.label }} <span class="tabs-rows__count">{{ children|length }}</span></summary>
         <ol class="element-list element-list--nested">
           {% for child in children %}
-            {% include "courses/manage/editor/_element_row.html" with el=child obj=child.content_object unit=unit open_form=open_form open_form_pk=open_form_pk %}
+            {% include "courses/manage/editor/_element_row.html" with el=child obj=child.content_object unit=unit open_form=open_form open_form_pk=open_form_pk depth=depth|add:1 %}
           {% empty %}
             <li class="empty-state">{% trans "This tab is empty." %}</li>
           {% endfor %}
         </ol>
-        {% include "courses/manage/editor/_add_menu.html" with nested=True parent=el.pk tab=tab.id %}
+        {% if depth < max_nest_depth %}{% include "courses/manage/editor/_add_menu.html" with nested=True parent=el.pk tab=tab.id depth=depth %}{% endif %}
       </details>
     {% endfor %}
   </div>
@@ -113,9 +119,13 @@
 
   {% comment %}
   Nested children, grouped by the SAME resolved_columns() helper the student template
-  uses. This include is recursive -- a child row is this very partial. It terminates
-  only because two-column-in-two-column is impossible (NESTABLE_TYPE_KEYS + import
-  validation), so the realized depth is always exactly 2. There is no depth guard here.
+  uses. This include is recursive -- a child row is this very partial.
+
+  Why it terminates: the editor enters from _editor_rows' `parent__isnull=True` roots
+  and descends only through the resolved-* accessors. Element.parent is single-valued,
+  so every node in a cycle has a non-null parent and is therefore never a root; the
+  subgraph reachable from the roots is acyclic by construction. The child-row recursion
+  is deliberately UNBOUNDED; only the ADD-MENU include below carries the depth guard.
   {% endcomment %}
   <div class="el-row__columns">
     {% for column, children in obj.resolved_columns %}
@@ -123,17 +133,17 @@
         <summary class="columns-rows__summary">{% blocktrans with n=forloop.counter %}Column {{ n }}{% endblocktrans %} <span class="columns-rows__count">{{ children|length }}</span></summary>
         <ol class="element-list element-list--nested">
           {% for child in children %}
-            {% include "courses/manage/editor/_element_row.html" with el=child obj=child.content_object unit=unit open_form=open_form open_form_pk=open_form_pk %}
+            {% include "courses/manage/editor/_element_row.html" with el=child obj=child.content_object unit=unit open_form=open_form open_form_pk=open_form_pk depth=depth|add:1 %}
           {% empty %}
             <li class="empty-state">{% trans "This column is empty." %}</li>
           {% endfor %}
         </ol>
-        {% include "courses/manage/editor/_add_menu.html" with nested=True parent=el.pk tab=column.id %}
+        {% if depth < max_nest_depth %}{% include "courses/manage/editor/_add_menu.html" with nested=True parent=el.pk tab=column.id depth=depth %}{% endif %}
       </details>
     {% endfor %}
   </div>
 </li>
-{% elif el.content_type.model == "spoilerelement" and el.parent_id is None %}
+{% elif el.content_type.model == "spoilerelement" %}
 <li class="el-row el-row--spoiler{% if open_form_pk == el.pk|stringformat:'s' %} el-row--editing{% endif %}"
     data-element="{{ el.pk }}" data-updated="{{ unit.updated.isoformat }}" data-unit="{{ unit.pk }}">
   <div class="el-row__head">
@@ -158,14 +168,22 @@
   <div class="el-edit-slot" data-edit-slot>{% if open_form_pk == el.pk|stringformat:'s' %}{{ open_form|safe }}{% endif %}</div>
 
   {% comment %}
-  Single implicit slot. Recursive include terminates: a nested spoiler (el.parent_id
-  set) does NOT match this branch (falls to {% else %}), and the resolve_scope/loader
-  depth guards forbid a container child, so the realized depth is exactly 2.
+  Single implicit slot. This branch now matches a NESTED spoiler too (the
+  `el.parent_id is None` clause is gone), so a spoiler inside a tab or a column shows
+  its children and its own add-menu -- without that, depth 3 through a spoiler was
+  unreachable in the UI.
+
+  Why the recursive include terminates: the editor enters from _editor_rows'
+  `parent__isnull=True` roots and descends only through the resolved-* accessors.
+  Element.parent is single-valued, so every node in a cycle has a non-null parent and
+  is therefore never a root; the reachable subgraph is acyclic by construction. The
+  child-row recursion is deliberately UNBOUNDED; only the ADD-MENU include below
+  carries the depth guard.
   {% endcomment %}
   <div class="el-row__spoiler">
     <ol class="element-list element-list--nested">
       {% for child in obj.resolved_children %}
-        {% include "courses/manage/editor/_element_row.html" with el=child obj=child.content_object unit=unit open_form=open_form open_form_pk=open_form_pk %}
+        {% include "courses/manage/editor/_element_row.html" with el=child obj=child.content_object unit=unit open_form=open_form open_form_pk=open_form_pk depth=depth|add:1 %}
       {% empty %}
         {% if obj.body %}
           <li class="empty-state">{% trans "This spoiler shows saved text (edit it with the pencil). Add an element below to start nesting content." %}</li>
@@ -174,7 +192,7 @@
         {% endif %}
       {% endfor %}
     </ol>
-    {% include "courses/manage/editor/_add_menu.html" with nested=True in_spoiler=True parent=el.pk tab=obj.SLOT_ID %}
+    {% if depth < max_nest_depth %}{% include "courses/manage/editor/_add_menu.html" with nested=True parent=el.pk tab=obj.SLOT_ID depth=depth %}{% endif %}
   </div>
 </li>
 {% else %}

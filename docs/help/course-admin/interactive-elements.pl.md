@@ -7,8 +7,11 @@ quizu. Większość z nich to elementy samosprawdzające: uczeń sam sprawdza
 swoją pracę na miejscu, a rodzinna konwencja tych widżetów to zablokowany
 formularz bez przycisku zatwierdzania — nie ma więc nic do wysłania ani do
 ocenienia, a te elementy **nie przyznają punktów**. Podobnie jak [typy
-elementów treści](content-editors), można je zagnieżdżać wewnątrz Zakładek
-i Kolumn.
+elementów treści](content-editors), większość z nich można zagnieżdżać w
+kontenerze — zobacz „Kontenery i zagnieżdżanie” w [edytorach
+treści](content-editors), gdzie opisano, jak głęboko i które kontenery je
+przyjmują; Rozwijana treść jest tu wyjątkiem, ponieważ sama również jest
+jednym z trzech typów kontenerów.
 
 ![Lekcja z elementem interaktywnym „Pokaż więcej”](static:core/img/help/interactive.pl.png)
 

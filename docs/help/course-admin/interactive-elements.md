@@ -6,7 +6,10 @@ absent when editing a quiz. Most are self-checks: the student checks their
 own work in place, and the family convention is a locked widget with its
 commit button removed, so there is nothing to submit and nothing to grade —
 these elements record **no marks**. Like the [content element
-types](content-editors), they are nestable inside Tabs and Columns.
+types](content-editors), most nest inside a container — see "Containers and
+nesting" in [Content editors](content-editors) for how deep and which
+containers accept them; Spoiler is unusual among them, since it is also one
+of the three container types itself.
 
 ![A lesson with a reveal-gate self-check](static:core/img/help/interactive.en.png)
 

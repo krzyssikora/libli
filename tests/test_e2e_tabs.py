@@ -133,8 +133,13 @@ def test_authoring_add_tabs_previews_a_real_tab_strip(page, live_server):
     page.wait_for_selector('[data-scope="editor"]')
 
     # Real add gesture: open the add-menu, click the Tabs card, wait for the editor.
-    page.locator("[data-add-toggle]").first.click()
-    page.locator("[data-add-type='tabs']").click()
+    # Scoped to the TOP-LEVEL menu (the one without .addwrap--nested). Since depth-3
+    # nesting a container's nested menu offers the Tabs card too, so an unscoped
+    # [data-add-type='tabs'] would match more than one button the moment the unit holds
+    # a container and would fail Playwright strict mode.
+    top_menu = page.locator("[data-add-menu]:not(.addwrap--nested)")
+    top_menu.locator("[data-add-toggle]").click()
+    top_menu.locator("[data-add-type='tabs']").click()
     page.wait_for_selector("[data-edit-slot] [data-tabs-editor]")
 
     # Save with the two default tabs untouched.

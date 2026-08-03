@@ -66,9 +66,19 @@ def test_element_row_renders_nested_children_indented():
         parent=join,
         tab_id=tab,
     )
+    # depth/max_nest_depth are INTEGERS and both are required: the add-menu include
+    # is guarded by `depth < max_nest_depth`, and a missing (or string) value makes
+    # smartif evaluate False, dropping the nested menu this test asserts on.
     html = render_to_string(
         "courses/manage/editor/_element_row.html",
-        {"el": join, "obj": obj, "unit": unit, "open_form_pk": ""},
+        {
+            "el": join,
+            "obj": obj,
+            "unit": unit,
+            "open_form_pk": "",
+            "depth": 1,
+            "max_nest_depth": 4,
+        },
     )
     assert "element-list--nested" in html
     assert "child body" in html  # the child's own row
@@ -77,15 +87,29 @@ def test_element_row_renders_nested_children_indented():
 
 
 def test_nested_add_menu_offers_only_nestable_types():
+    """Depth-3 slice: a nested menu at depth 1 now DOES offer the Tabs card -- a
+    container added there lands at depth 2, which builder clause 4 accepts. The
+    question/structure cards stay blocked (they are not nestable at any depth).
+
+    depth/max_nest_depth are INTEGERS: `depth="1"` would bind a string and smartif
+    swallows the `str < int` TypeError, so every guard would silently read False.
+    """
     course, unit = make_course_with_unit()
     obj = TabsElement.objects.create(data=TabsElement.default_data())
     join = Element.objects.create(unit=unit, content_object=obj)
     html = render_to_string(
         "courses/manage/editor/_add_menu.html",
-        {"nested": True, "parent": join.pk, "tab": obj.data["tabs"][0]["id"]},
+        {
+            "nested": True,
+            "parent": join.pk,
+            "tab": obj.data["tabs"][0]["id"],
+            "depth": 1,
+            "max_nest_depth": 4,
+        },
     )
-    for blocked in ["choice-single", "slidebreak", 'data-add-type="tabs"']:
+    for blocked in ["choice-single", "slidebreak"]:
         assert blocked not in html
+    assert 'data-add-type="tabs"' in html  # INVERTED: legal at depth 1
     assert 'data-add-type="text"' in html
     assert 'data-add-type="gallery"' in html
 

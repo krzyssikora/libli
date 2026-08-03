@@ -747,16 +747,24 @@ def _val_twocolumn(data, elid, media_kinds):
 # Module-level, transfer-type-string keyed (distinct from the model-keyed builder
 # registry in courses.builder._CONTAINER_REGISTRY): the container type's transfer
 # key -> the key its `data` dict uses for the slot list validate_nesting reads.
-_CONTAINER_SLOT_KEY = {"tabs": "tabs", "two_column": "columns"}
+# `None` means SINGLE-SLOT (the only valid id is SpoilerElement.SLOT_ID), NOT
+# "missing". Membership is tested BEFORE this lookup, because `None` already
+# serves as the not-a-container sentinel.
+_CONTAINER_SLOT_KEY = {"tabs": "tabs", "two_column": "columns", "spoiler": None}
 
 
 def validate_nesting(elements):
     """Cross-element checks the per-element validators cannot see. Rejects (never
     repairs) an unknown/ill-typed parent, an unknown tab, a non-nestable child, and a
-    parent chain deeper than one level -- that depth bound is what lets the editor's
-    recursive row template terminate without a guard."""
+    parent chain deeper than MAX_NEST_DEPTH -- the transfer-side twin of
+    resolve_scope's depth clauses (see the depth walk and clauses 3/4 below), so an
+    import cannot smuggle in a tree deeper than the editor would ever let an author
+    build. (The editor's own row-template recursion is unbounded and terminates on
+    acyclicity alone -- see _element_row.html; MAX_NEST_DEPTH bounds what CAN be
+    authored, not what the template can render.)"""
+    from courses.builder import CONTAINER_TRANSFER_KEYS
+    from courses.builder import MAX_NEST_DEPTH
     from courses.builder import NESTABLE_TYPE_KEYS
-    from courses.builder import SPOILER_CHILD_TYPES
     from courses.models import SpoilerElement
 
     # Step 4a applies the v2 shim before _exact_keys, so both keys are present.
@@ -771,40 +779,47 @@ def validate_nesting(elements):
         # Slot-membership: spoiler is a single-slot container with no `data` slot
         # list, so its sole valid slot id is SpoilerElement.SLOT_ID; every other
         # container reads its slot list from `data` via _CONTAINER_SLOT_KEY.
-        if parent["type"] == "spoiler":
-            valid_slot_ids = {SpoilerElement.SLOT_ID}
-            # Defence-in-depth: match resolve_scope()'s spoiler allowlist
-            # (SPOILER_CHILD_TYPES = static + interactive leaves) so a still-disallowed
-            # child — a container like tabs, or a non-fillblank question — that slips
-            # past a hostile/older-loader archive is rejected here too, not just via
-            # the general NESTABLE_TYPE_KEYS check below (which is broader — it also
-            # permits e.g. a container type as a tabs child).
-            if el["type"] not in SPOILER_CHILD_TYPES:
-                _err(
-                    _("Element '%(el)s' may not be nested inside a spoiler."),
-                    el=el["id"],
-                )
-        else:
-            slot_key = _CONTAINER_SLOT_KEY.get(parent["type"])
-            if slot_key is None:
-                _err(
-                    _("Element '%(el)s' has a parent that is not a container element."),
-                    el=el["id"],
-                )
-            valid_slot_ids = {s["id"] for s in parent["data"][slot_key]}
+        if parent["type"] not in _CONTAINER_SLOT_KEY:  # membership FIRST
+            _err(
+                _("Element '%(el)s' has a parent that is not a container element."),
+                el=el["id"],
+            )
+        slot_key = _CONTAINER_SLOT_KEY[parent["type"]]  # then read
+        valid_slot_ids = (
+            {SpoilerElement.SLOT_ID}
+            if slot_key is None
+            else {s["id"] for s in parent["data"][slot_key]}
+        )
         # Depth check runs for EVERY container (must NOT be skipped for spoiler).
-        if parent["parent"] is not None:
-            _err(_("Element '%(el)s' is nested more than one level deep."), el=el["id"])
+        # Hop-bounded chain walk. NOT `while ... is not None`: a corrupt archive with
+        # a parent cycle would hang the import worker.
+        depth, node = 1, parent
+        while node is not None and depth <= MAX_NEST_DEPTH:
+            depth += 1
+            ref = node["parent"]
+            if ref is None:
+                break
+            node = by_id.get(ref)
+            if node is None:
+                # Mid-walk dangling ancestor. Bound to the element UNDER VALIDATION
+                # (matching the immediate-parent check's convention), which is what
+                # lets a test distinguish this raise from that one.
+                _err(_("Element '%(el)s' references an unknown parent."), el=el["id"])
+
+        if depth > MAX_NEST_DEPTH:  # clause 3
+            _err(_("Element '%(el)s' is nested too deeply."), el=el["id"])
+        if depth >= MAX_NEST_DEPTH and el["type"] in CONTAINER_TRANSFER_KEYS:
+            _err(
+                _("Element '%(el)s' is a container and may not be nested this deeply."),
+                el=el["id"],
+            )  # clause 4
         if el["tab"] not in valid_slot_ids:
             _err(
                 _("Element '%(el)s' references a slot its parent does not have."),
                 el=el["id"],
             )
         if el["type"] not in NESTABLE_TYPE_KEYS:
-            _err(
-                _("Element '%(el)s' may not be nested inside a tabs element."),
-                el=el["id"],
-            )
+            _err(_("Element '%(el)s' may not be nested."), el=el["id"])
 
 
 VALIDATORS = {

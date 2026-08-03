@@ -8,11 +8,20 @@
     <div class="pane-head"><h2>{% trans "Editor" %}</h2><span class="pane-head__count">{% blocktranslate count n=rows|length %}{{ n }} element{% plural %}{{ n }} elements{% endblocktranslate %}</span></div>
     <div class="pane-body">
       <ol class="element-list">
-        {% for el, obj in rows %}{% include "courses/manage/editor/_element_row.html" with open_form=open_form open_form_pk=open_form_pk %}{% empty %}
+        {% comment %}
+        depth SEEDS. Both literals are UNQUOTED on purpose: `depth="1"` binds a STRING,
+        and `{% templatetag openblock %} if depth < 2 {% templatetag closeblock %}` then
+        evaluates False because smartif swallows the `str < int` TypeError -- every
+        container card would silently vanish with a seed apparently present.
+        A top-level ROW is at depth 1 (matching builder.element_depth). The top-level
+        add-menu is seeded 0: a menu's depth is its PARENT's, so a child added there
+        lands at depth 1.
+        {% endcomment %}
+        {% for el, obj in rows %}{% include "courses/manage/editor/_element_row.html" with open_form=open_form open_form_pk=open_form_pk depth=1 %}{% empty %}
           {% if open_form_pk != "new" %}<li class="empty-state">{% trans "No elements yet." %}</li>{% endif %}{% endfor %}
         {% if open_form_pk == "new" %}<li class="el-row el-row--editing"><div class="el-row__head"><span class="el-tag">{% trans "New" %}</span></div><div class="el-edit-slot" data-edit-slot>{{ open_form|safe }}</div></li>{% endif %}
       </ol>
-      {% include "courses/manage/editor/_add_menu.html" %}
+      {% include "courses/manage/editor/_add_menu.html" with depth=0 %}
     </div>
   </section>
   {% include "courses/manage/editor/_preview.html" %}
