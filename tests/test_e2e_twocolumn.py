@@ -144,8 +144,13 @@ def test_grow_add_children_shrink_and_student_view(page, live_server):
     page.wait_for_selector('[data-scope="editor"]')
 
     # --- 1. Add the two-column element via the real add-menu gesture. ---
-    page.locator("[data-add-toggle]").first.click()
-    page.locator("[data-add-type='twocolumn']").click()
+    # Scoped to the TOP-LEVEL menu (the one without .addwrap--nested). Since depth-3
+    # nesting a container's nested menu offers the Columns card too, so an unscoped
+    # [data-add-type='twocolumn'] would match more than one button the moment the unit
+    # holds a container and would fail Playwright strict mode.
+    top_menu = page.locator("[data-add-menu]:not(.addwrap--nested)")
+    top_menu.locator("[data-add-toggle]").click()
+    top_menu.locator("[data-add-type='twocolumn']").click()
     page.wait_for_selector("[data-edit-slot] .el-editor--twocolumn")
 
     # Grow to 3 columns via the real <select>, then Save.
