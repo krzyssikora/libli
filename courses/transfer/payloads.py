@@ -756,8 +756,10 @@ _CONTAINER_SLOT_KEY = {"tabs": "tabs", "two_column": "columns", "spoiler": None}
 def validate_nesting(elements):
     """Cross-element checks the per-element validators cannot see. Rejects (never
     repairs) an unknown/ill-typed parent, an unknown tab, a non-nestable child, and a
-    parent chain deeper than one level -- that depth bound is what lets the editor's
-    recursive row template terminate without a guard."""
+    parent chain deeper than MAX_NEST_DEPTH -- that depth bound is what lets the
+    editor's recursive row template terminate without a guard."""
+    from courses.builder import CONTAINER_TRANSFER_KEYS
+    from courses.builder import MAX_NEST_DEPTH
     from courses.builder import NESTABLE_TYPE_KEYS
     from courses.models import SpoilerElement
 
@@ -785,18 +787,35 @@ def validate_nesting(elements):
             else {s["id"] for s in parent["data"][slot_key]}
         )
         # Depth check runs for EVERY container (must NOT be skipped for spoiler).
-        if parent["parent"] is not None:
-            _err(_("Element '%(el)s' is nested more than one level deep."), el=el["id"])
+        # Hop-bounded chain walk. NOT `while ... is not None`: a corrupt archive with
+        # a parent cycle would hang the import worker.
+        depth, node = 1, parent
+        while node is not None and depth <= MAX_NEST_DEPTH:
+            depth += 1
+            ref = node["parent"]
+            if ref is None:
+                break
+            node = by_id.get(ref)
+            if node is None:
+                # Mid-walk dangling ancestor. Bound to the element UNDER VALIDATION
+                # (matching the immediate-parent check's convention), which is what
+                # lets a test distinguish this raise from that one.
+                _err(_("Element '%(el)s' references an unknown parent."), el=el["id"])
+
+        if depth > MAX_NEST_DEPTH:  # clause 3
+            _err(_("Element '%(el)s' is nested too deeply."), el=el["id"])
+        if depth >= MAX_NEST_DEPTH and el["type"] in CONTAINER_TRANSFER_KEYS:
+            _err(
+                _("Element '%(el)s' is a container and may not be nested this deeply."),
+                el=el["id"],
+            )  # clause 4
         if el["tab"] not in valid_slot_ids:
             _err(
                 _("Element '%(el)s' references a slot its parent does not have."),
                 el=el["id"],
             )
         if el["type"] not in NESTABLE_TYPE_KEYS:
-            _err(
-                _("Element '%(el)s' may not be nested inside a tabs element."),
-                el=el["id"],
-            )
+            _err(_("Element '%(el)s' may not be nested."), el=el["id"])
 
 
 VALIDATORS = {

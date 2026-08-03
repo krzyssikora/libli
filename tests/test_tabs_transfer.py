@@ -136,7 +136,6 @@ def test_nesting_validation_accepts_tabs_in_tabs():
         _els(_tabs_el(), _child(parent="e9")),  # unknown parent
         _els(_tabs_el(), _child(tab="tzzzzzz")),  # tab not in parent
         _els(_tabs_el(), _child(type_="choice")),  # non-nestable child
-        _els(_tabs_el(), _child(), _child("e3", parent="e2")),  # depth > 1
         _els(
             {
                 "id": "e1",

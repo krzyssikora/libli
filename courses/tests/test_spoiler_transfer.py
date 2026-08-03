@@ -68,7 +68,7 @@ def test_walk_unit_joins_expands_spoiler_children():
     assert (child, join, SpoilerElement.SLOT_ID) in yielded
 
 
-def test_validate_nesting_accepts_spoiler_slot_and_rejects_depth2():
+def test_validate_nesting_spoiler_slot_bad_slot_and_depth3_child():
     from courses.models import SpoilerElement
     from courses.transfer.payloads import validate_nesting
     from courses.transfer.schema import TransferError
@@ -111,7 +111,10 @@ def test_validate_nesting_accepts_spoiler_slot_and_rejects_depth2():
     with pytest.raises(TransferError):
         validate_nesting(bad_slot)
 
-    depth2 = [
+    # tabs(depth 1) -> spoiler(depth 2) -> text(depth 3): the depth-3 nesting slice
+    # newly ACCEPTS this shape -- the transfer-side twin of resolve_scope's clause 3
+    # boundary flipping. Formerly rejected as "depth-2 child still rejected".
+    depth3 = [
         {
             "id": "t",
             "type": "tabs",
@@ -134,8 +137,7 @@ def test_validate_nesting_accepts_spoiler_slot_and_rejects_depth2():
             "data": {"body": "x"},
         },
     ]
-    with pytest.raises(TransferError):  # depth-2 child still rejected
-        validate_nesting(depth2)
+    validate_nesting(depth3)  # must not raise
 
 
 def test_validate_nesting_accepts_container_child_of_a_top_level_spoiler():
