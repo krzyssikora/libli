@@ -412,21 +412,55 @@ def reorder_element(course, element_pk, unit_token, *, direction=None, position=
     return unit, True
 
 
+def _collect_subtree_pks(roots):
+    """Join pks of `roots` plus every descendant, ROOT-INCLUSIVE.
+
+    Descends `join.children` -- every child row, container or not, matched slot or
+    not. Deliberately NOT the slot accessors the export walk uses: resolved_tabs()
+    runs the destructive normalize_data and skips children whose tab_id matches no
+    slot. Export omits those on purpose; delete must not, or their concretes orphan.
+
+    RECURSIVE and `seen`-guarded, not an iterative worklist: dropping the guard from
+    a recursive walk raises RecursionError on a cycle, which a test can assert,
+    whereas an iterative worklist would spin forever (pytest-timeout is not
+    installed, so a hanging mutant can never be verified RED).
+
+    Returns pks, not instances, so callers can hand
+    _delete_element_content_objects a QuerySet -- it requires one
+    (it calls .prefetch_related). Deletion ORDER is irrelevant: the prefetch
+    materialises every row before the first delete fires.
+    """
+    seen = set()
+
+    def walk(join):
+        if join.pk in seen:
+            return
+        seen.add(join.pk)
+        for child in join.children.all():
+            walk(child)
+
+    for root in roots:
+        walk(root)
+    return seen
+
+
 @transaction.atomic
 def delete_element(course, element_pk, unit_token):
-    """Delete an element. If it is a tabs element, its children's CONCRETE rows must
-    go first: the `parent` FK cascades the child join rows, but a concrete is only
-    reachable through the GFK, which DB cascade cannot traverse -- they would orphan.
+    """Delete an element together with its WHOLE subtree, at every depth. The
+    `parent` FK cascades descendant join rows, but a concrete is only reachable
+    through the GFK, which DB cascade cannot traverse -- one level of collection
+    would orphan every grandchild concrete.
     """
     el, unit = _locked_element(course, element_pk)
     _check_token(unit.updated, unit_token)
     parent, tab_id = el.parent, el.tab_id  # capture before the row disappears
-    _delete_element_content_objects(Element.objects.filter(parent=el))
-    obj = el.content_object
-    if obj is not None:
-        obj.delete()  # cascades the Element join-row via GenericRelation
-    else:
-        el.delete()
+    pks = _collect_subtree_pks([el])
+    _delete_element_content_objects(Element.objects.filter(pk__in=pks))
+    # Unconditional: the collector is root-inclusive, so this element's concrete --
+    # and, via its GenericRelation cascade, this join row -- is already gone. The old
+    # `if obj is not None` branch is therefore dead. A 0-row DELETE in the normal
+    # case; it does real work only when the root carried no concrete at all.
+    el.delete()
     ordering.compact_elements(unit, parent=parent, tab_id=tab_id)
     unit.save(update_fields=["updated"])
     return unit
@@ -679,9 +713,13 @@ def save_element(course, unit_pk, type_key, element_ref, post_data, files):
             new_ids = {t["id"] for t in obj.data["tabs"]}
             removed = old_ids - new_ids
             if removed:
-                # Concretes first -- the join rows cascade, the concretes would orphan.
-                doomed = Element.objects.filter(parent=join, tab_id__in=removed)
-                _delete_element_content_objects(doomed)
+                doomed = list(Element.objects.filter(parent=join, tab_id__in=removed))
+                # Root at each DOOMED CHILD, never at `join`: rooting at the tabs
+                # element would sweep KEPT tabs' descendants, whose join rows survive
+                # (the delete below is tab_id__in=removed only) -- live rows pointing
+                # at deleted concretes.
+                pks = _collect_subtree_pks(doomed)
+                _delete_element_content_objects(Element.objects.filter(pk__in=pks))
                 Element.objects.filter(parent=join, tab_id__in=removed).delete()
     elif type_key == "twocolumn":
         form = FORM_FOR_TYPE["twocolumn"](data=post_data, instance=instance)
