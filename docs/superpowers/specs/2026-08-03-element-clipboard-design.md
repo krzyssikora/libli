@@ -132,18 +132,28 @@ rule:
 
 - `builder._collect_subtree_pks` (`courses/builder.py:416-450`) descends `join.children`.
 - `walk_unit_joins`' `emit` (`courses/transfer/export.py:507-526`) descends only
-  `resolved_tabs()` / `resolved_columns()` / `resolved_children()`, which **omit** a child
-  whose `tab_id` matches no slot. Its own docstring says so, and says the delete path must
-  use the FK walk instead.
+  `resolved_tabs()` / `resolved_columns()` / `resolved_children()`. For **tabs and columns**
+  those group by slot (`by_tab.get(tab["id"], [])`, `courses/models.py:1444`, `:1552`) and so
+  **omit** a child whose `tab_id` matches no slot. Its docstring says so, and says the delete
+  path must use the FK walk instead.
+
+  **That omission does not apply to a spoiler**, whose docstring is the authority:
+  `resolved_children()` returns `join.children.order_by("order", "pk")` with **no `tab_id`
+  filter** at all — "grouped by `parent` alone — the single slot means tab_id is not needed
+  to disambiguate" (`courses/models.py:419-431`) — and `emit` yields each child with the slot
+  forced to `SpoilerElement.SLOT_ID` (`export.py:521-523`). The `walk_unit_joins` docstring
+  over-generalises here; the models are the ground truth.
 
 A move re-parents the root, so an orphaned child travels with it whether or not any slot
 resolves — the FK walk is what actually happens, so it is what clause 3 must measure. Using
 the export walk would let an over-deep orphaned branch through.
 
-The two walks therefore disagree for a *copy*: the export omits an orphan-slot child, so the
-copy silently drops it. That loss is **accepted and stated** (see Copy semantics) rather than
-fixed here — the export's omission is deliberate and long-standing, and reproducing it keeps
-the copy identical to what an export/import round-trip already produces.
+The two walks therefore disagree for a *copy* **of a tabs or two-column container**: the
+export omits an orphan-slot child, so the copy silently drops it. That loss is **accepted and
+stated** (see Copy semantics) rather than fixed here — the export's omission is deliberate
+and long-standing, and reproducing it keeps the copy identical to what an export/import
+round-trip already produces. For a **spoiler** the two walks agree, since its accessor
+filters nothing.
 
 Placing the subtree `S` rooted at `R` into (`P`, slot `t`), for `mode ∈ {move, copy}`, is
 admissible iff:
@@ -352,8 +362,11 @@ on a unit with a few hundred elements.
 the ORM at each node and hanging `prefetch_related("content_object")` off it is *worse* than
 naive — one children query plus one query per distinct content type, per join. Instead:
 fetch `unit.elements.all().select_related("content_type").prefetch_related("content_object")`
-**once**, build the parent→children map in memory, and walk that. It is what `build_export`
-already does (`courses/transfer/export.py:565-570`). The same map also feeds `subtree_facts`,
+**once**, build the parent→children map in memory, and walk that. Note `build_export` is
+**not** a precedent to copy wholesale: it prefetches its *roots* in one query
+(`courses/transfer/export.py:565-570`) and then re-queries children per container through the
+`resolved_*` accessors (`courses/models.py:1437-1441`, `:1545-1549`, `:426-431`) — the second
+half is the shape to avoid. The same map also feeds `subtree_facts`,
 so `is_container` needs no further fetches, and the depth falls out of the walk (above). A
 query-count assertion pins the result so a regression is caught rather than merely felt.
 
@@ -774,12 +787,15 @@ Four further properties are deliberate:
   the converse**: the pks are unchanged, so every progress row follows the element into its
   new scope — which is the whole reason a move is worth having rather than
   delete-and-re-author. Asserted in the move tests.
-- **A child whose `tab_id` matches no slot is NOT copied.** The export walk omits it by
-  design (see The subtree `S`), so the copy reproduces exactly what an export/import
-  round-trip already produces. A *move* keeps such a child, because the FK travels. The two
-  modes therefore differ on this one degenerate case, deliberately: making the copy carry
-  orphans would mean a second walk that disagrees with the export, which is precisely the
-  drift the Risks section warns against.
+- **In a tabs or two-column container, a child whose `tab_id` matches no slot is NOT
+  copied.** The export walk omits it by design (see The subtree `S`), so the copy reproduces
+  exactly what an export/import round-trip already produces. A *move* keeps such a child,
+  because the FK travels. The two modes therefore differ on this one degenerate case,
+  deliberately: making the copy carry orphans would mean a second walk that disagrees with
+  the export, which is precisely the drift the Risks section warns against. **A test pinning
+  this must use a Tabs or TwoColumn fixture** — in a **spoiler** both modes carry the child,
+  with the copy's `tab_id` normalised to `SLOT_ID`, because `resolved_children()` filters on
+  nothing.
 - **A container whose stored slot ids are missing, malformed or duplicated can orphan its
   own children on the copy.** `_ser_tabs` serialises the container's `data` through
   `normalize_labels_and_ids`, while `emit` reaches its children through `resolved_tabs()` →
