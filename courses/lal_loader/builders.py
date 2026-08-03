@@ -123,7 +123,7 @@ def build_element(
                 # (tabs/two_column/nested spoiler) and question types the parser's
                 # no-nest-container mode never emits but malformed JSON could carry.
                 # Deliberately NARROWER than the editor path's resolve_scope(), which
-                # now admits containers at depth 1-2.
+                # now admits containers at depths 1-3.
                 # A FLAGGED child is exempt: it follows build_element's own flagged
                 # branch below, which honours --allow-html (HtmlElement under the
                 # flag, LoaderError without) exactly as a top-level flagged element

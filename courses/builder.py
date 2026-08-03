@@ -22,7 +22,7 @@ class NestingError(Exception):
     """A nested add/save violated the nesting rules -> HTTP 400."""
 
 
-MAX_NEST_DEPTH = 3  # a top-level element has depth 1
+MAX_NEST_DEPTH = 4  # a top-level element has depth 1
 
 # Container TYPE KEYS (transfer namespace). Clause 4 of the containment rule tests
 # membership here. PR2 (Callout as a container) must add its key to THIS set, to
@@ -132,7 +132,7 @@ def resolve_scope(unit, parent_ref, tab, type_key):
         raise NestingError("parent and tab must be supplied together")
     try:
         join = (
-            Element.objects.select_related("parent__parent")
+            Element.objects.select_related("parent__parent__parent")
             .filter(pk=int(parent_ref), unit=unit)
             .first()
         )
