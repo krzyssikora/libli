@@ -37,6 +37,24 @@
 | `templates/courses/manage/editor/_add_menu.html` | drop `in_spoiler`, depth-based card guards |
 | `docs/help/course-admin/*.md` (4 files) | author-facing wording |
 
+### Shared test fixture helper
+
+Tasks 1, 3, 4, 7 and 8 all need to build nested `Element` trees, including depth-3 shapes that `resolve_scope` deliberately refuses. **Task 1 defines `_mk` in `courses/tests/test_nesting_rule.py`; every later task imports it from there** rather than redefining it:
+
+```python
+from courses.tests.test_nesting_rule import _mk
+```
+
+If a later task needs a shape `_mk` cannot build (e.g. a two-column parent), extend `_mk` in place in Task 1's file rather than writing a parallel helper — two divergent builders is how fixture drift starts.
+
+**Test-code conventions for every task below.** The code blocks are abbreviated where a fixture is routine, but they must be written as real, runnable Python:
+
+- Signatures are real (`def test_x():`, or naming the fixtures actually used). A bare `(...)` is a `SyntaxError`.
+- Every DB test carries `@pytest.mark.django_db`.
+- Names like `course`, `unit`, `unit_token` come from `make_course_with_unit()` (`tests/factories.py:133`) — **`tests.factories`, not `courses.tests.factories`**, which does not exist.
+- `unit_token` is `unit.updated.isoformat()`.
+- Before writing any fixture, open the helper and confirm its real signature. Inventing one is how a plan ships test code that cannot run.
+
 ---
 
 ## Task 0: Baseline — verify claims and re-derive the guardrail list
@@ -58,9 +76,9 @@ uv run python manage.py makemigrations --check --dry-run
 
 Record the baseline pass count `N`. Every later task compares against it.
 
-- [ ] **Step 2: Record Group B gates FAILING on the unmodified tree**
+- [ ] **Step 2: Record the Group B phrases still PRESENT on the unmodified tree**
 
-These must fail now. If one passes, it is inert and therefore defective.
+Each phrase must still be **present (count ≥ 1)** now, and **absent (0)** after Task 10. A phrase already at 0 here is inert — it can never detect anything — and is itself a defect to fix before proceeding.
 
 ```bash
 for p in "two container types" "cannot hold another container" "dwa typy kontenerów" \
@@ -101,6 +119,10 @@ Do not trust the spec's 16 rows. Run these and reconcile:
 uv run python -c "print('--- NestingError assertions ---')"
 grep -rn "NestingError" tests/ courses/tests/ --include=*.py
 grep -rn "not in NESTABLE_TYPE_KEYS\|SPOILER_CHILD_TYPES" tests/ courses/tests/ --include=*.py
+# Import sites specifically -- a module-level import of a deleted constant is a
+# COLLECTION-time ImportError that takes a whole file down, and the usage-pattern
+# greps above will not surface it:
+grep -rn "import SPOILER_CHILD_TYPES" . --include=*.py
 grep -rn "data-add-type" tests/ courses/tests/ --include=*.py
 grep -rn "nested more than one level\|may not be nested" tests/ courses/tests/ --include=*.py
 grep -rn "render_to_string" tests/ courses/tests/ --include=*.py | grep -i "element_row\|add_menu"
@@ -122,13 +144,20 @@ git commit -m "chore(depth-3): record baseline gates and re-derived guardrail li
 
 **Files:**
 - Modify: `courses/builder.py` (constants ~`:24-102`, `resolve_scope` `:105-158`)
+- Modify: `courses/transfer/payloads.py` — **imports `:758-760`, `_CONTAINER_SLOT_KEY:750`, and the `parent["type"] == "spoiler"` branch at `:774-785`.** See "Why payloads.py is in THIS task" below; omitting it leaves this task's commit red.
 - Modify: `courses/lal_loader/builders.py:95-115` (keep gate narrow — see Task 2 for its test)
 - Test: `courses/tests/test_nesting_rule.py` (create)
-- Modify (invert): `tests/test_twocolumn_registry.py`, `courses/tests/test_spoiler_nesting.py`, `tests/test_tabs_form_views.py`
+- Modify (invert): `tests/test_twocolumn_registry.py`, `courses/tests/test_spoiler_nesting.py` (**including its module-level import at `:8`**), `tests/test_tabs_form_views.py`, and the two transfer sites listed in Step 5b.
 
 **Interfaces:**
-- Produces: `builder.MAX_NEST_DEPTH: int`, `builder.CONTAINER_TRANSFER_KEYS: frozenset[str]`, `builder.element_depth(join) -> int`. Task 8 reads `MAX_NEST_DEPTH` via the module attribute; Task 5 reads `CONTAINER_TRANSFER_KEYS`.
-- Consumes: nothing.
+- Produces: `builder.MAX_NEST_DEPTH: int`, `builder.CONTAINER_TRANSFER_KEYS: frozenset[str]`, `builder.element_depth(join) -> int`. Task 8 reads `MAX_NEST_DEPTH` via the module attribute; Task 5 extends `validate_nesting`'s walk.
+- Consumes: `payloads._CONTAINER_SLOT_KEY`, which this task itself extends with `"spoiler": None`.
+
+### Why `payloads.py` is in THIS task, not Task 5
+
+Deleting `SPOILER_CHILD_TYPES` from `builder.py` breaks `payloads.py` immediately: `:759` does `from courses.builder import SPOILER_CHILD_TYPES` inside `validate_nesting` and `:782` uses it. Every archive/import/duplicate-unit test touching a nested element would `ImportError` at this task's own commit. Likewise the drift test below compares `CONTAINER_TRANSFER_KEYS` against `set(_CONTAINER_SLOT_KEY)`, so the `"spoiler": None` entry must land here too.
+
+So this task does the **structural** payloads change — imports, the slot-key entry, and the membership two-step that replaces the spoiler branch. Task 5 does the **depth walk**, clauses 3/4 and the message rewording. Each task's commit leaves the suite green.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -141,7 +170,10 @@ from courses import builder
 from courses.builder import NestingError
 from courses.models import Element
 
-from courses.tests.factories import make_course_with_unit  # existing helper
+from tests.factories import make_course_with_unit
+# NOTE the path: `tests.factories`, NOT `courses.tests.factories` (which does not
+# exist). Every file under courses/tests/ imports it this way -- e.g.
+# courses/tests/test_callout_authoring.py:10.
 
 
 def _mk(unit, type_key, parent=None, tab=""):
@@ -360,7 +392,19 @@ def element_depth(join):
     return depth
 ```
 
-Rewrite `resolve_scope`'s body after the parent fetch. **Evaluation order is pinned: not-a-container, then clauses 1, 2, 3, 4.** (This moves clause 1 ahead of clause 2 relative to today's code — a deliberate, small message change.) Also add `select_related`:
+Rewrite `resolve_scope`. **The snippet below replaces `builder.py:121-158` ONLY. Lines 115-120 are unchanged and must be preserved verbatim** — they hold the `.strip()` normalisation, the top-level early return (`if not parent_ref and not tab: return None, ""`) and the both-or-neither check. Dropping the early return would break **every top-level element add**, and no test in this plan supplies a top-level scope, so nothing would catch it:
+
+```python
+    # UNCHANGED, builder.py:115-120 -- reproduced here so the boundary is unambiguous:
+    parent_ref = (parent_ref or "").strip()
+    tab = (tab or "").strip()
+    if not parent_ref and not tab:
+        return None, ""
+    if not parent_ref or not tab:
+        raise NestingError("parent and tab must be supplied together")
+```
+
+**Evaluation order is pinned: not-a-container, then clauses 1, 2, 3, 4.** (This moves clause 1 ahead of clause 2 relative to today's code — a deliberate, small message change.) Also add `select_related`:
 
 ```python
     try:
@@ -406,6 +450,38 @@ Rewrite `resolve_scope`'s body after the parent fetch. **Evaluation order is pin
     return join, tab
 ```
 
+**Fix `payloads.py`'s imports and slot key in the same diff** (see "Why `payloads.py` is in THIS task"). At `payloads.py:758-760`, isort `force-single-line` applies:
+
+```python
+from courses.builder import CONTAINER_TRANSFER_KEYS   # NEW (Task 5 uses it)
+from courses.builder import MAX_NEST_DEPTH            # NEW (Task 5 uses it)
+from courses.builder import NESTABLE_TYPE_KEYS        # unchanged
+from courses.models import SpoilerElement             # unchanged
+# DELETE: from courses.builder import SPOILER_CHILD_TYPES
+```
+
+```python
+# `None` means SINGLE-SLOT (the only valid id is SpoilerElement.SLOT_ID), NOT
+# "missing". Membership is tested BEFORE this lookup, because `None` already
+# serves as the not-a-container sentinel.
+_CONTAINER_SLOT_KEY = {"tabs": "tabs", "two_column": "columns", "spoiler": None}
+```
+
+Replace the `parent["type"] == "spoiler"` branch at `payloads.py:774-785` — note this is a **string comparison on a payload dict**, not an `isinstance` check (the `isinstance` form is `builder.resolve_scope`'s, at `builder.py:130`; conflating them sends you to the wrong file) — with the membership two-step. Delete its two rationale comments (`:771-773`, `:776-781`) along with it:
+
+```python
+        if parent["type"] not in _CONTAINER_SLOT_KEY:          # membership FIRST
+            _err(_("Element '%(el)s' has a parent that is not a container element."),
+                 el=el["id"])
+        slot_key = _CONTAINER_SLOT_KEY[parent["type"]]          # then read
+        valid_slot_ids = (
+            {SpoilerElement.SLOT_ID} if slot_key is None
+            else {s["id"] for s in parent["data"][slot_key]}
+        )
+```
+
+Leave the existing one-level depth check (`if parent["parent"] is not None`) in place for now — Task 5 replaces it with the chain walk.
+
 Point the LAL loader at its own constant (`courses/lal_loader/builders.py:95-115`) so deleting `SPOILER_CHILD_TYPES` does not widen it — see Task 2 for the test:
 
 ```python
@@ -433,13 +509,25 @@ Work from the reconciled list, not from memory. At minimum:
 
 | Site | Action |
 |---|---|
+| `courses/tests/test_spoiler_nesting.py:8` | **`from courses.builder import SPOILER_CHILD_TYPES` at MODULE scope.** Deleting the constant makes this a **collection-time `ImportError`** that takes the whole file down — louder and earlier than the in-body edits below, and invisible to a usage-pattern grep. Repoint to `NESTABLE_TYPE_KEYS`. |
 | `tests/test_twocolumn_registry.py:15` | `not in` → `in`; **rename** `test_two_column_not_nestable_itself` |
 | `tests/test_twocolumn_registry.py:16` | **leave unchanged** — pins the form-key/transfer-key split |
 | `tests/test_twocolumn_registry.py:48` | `"tabs"` case → accept; `"choicequestion"` stays reject; rename |
 | `tests/test_tabs_form_views.py:119-131` | tabs-in-tabs now SUCCEEDS (`data=""` hits `clean_data`'s MIN_TABS default); rename |
 | `courses/tests/test_spoiler_nesting.py:~149` | reject tuple → `("choicequestion",)`; add accepts for `tabs`/`spoiler` |
-| `courses/tests/test_spoiler_nesting.py:163-165` | `SPOILER_CHILD_TYPES` table → `NESTABLE_TYPE_KEYS` table |
+| `courses/tests/test_spoiler_nesting.py:163-165` | The **positive** half (`assert k in SPOILER_CHILD_TYPES`) swaps constant cleanly. The **negative** half at `:164-165` (`for k in ("tabs", "two_column", "spoiler"): assert k not in …`) does NOT: all three are now members, so a mechanical swap produces a failing assertion. Replace the negative tuple with genuinely non-nestable types — `("choicequestion", "slidebreak")` — and assert the three container keys are now **present**. |
 | `courses/tests/test_spoiler_nesting.py:~190`, `:210-224` | both invert to accepts; rename |
+
+- [ ] **Step 5b: Invert the two transfer guardrails THIS task's widening flips**
+
+The allowlist widening changes import validity immediately, before Task 5 touches the depth logic. Both of these go red at this task's commit unless inverted here:
+
+| Site | Why it flips now |
+|---|---|
+| `tests/test_tabs_transfer.py` — the tabs-in-tabs reject case | Parent is a **top-level** tabs element, so the surviving one-level check (`parent["parent"] is not None`) passes; `tabs` is now in `NESTABLE_TYPE_KEYS`; the slot id is valid. The document becomes VALID. Move it to the accept test. |
+| `courses/tests/test_spoiler_transfer.py:141-160` — `test_validate_nesting_rejects_container_spoiler_child` | Same shape: a `tabs` child of a **top-level** spoiler. Valid as of this task. Invert and rename; rewrite the `:142-143` comment. |
+
+**Not yet:** `test_spoiler_transfer.py:114-138`'s depth-2 half and `test_tabs_transfer.py:135` (`# depth > 1`) both stay **rejected** after this task — the first by the surviving one-level check, the second by the new not-a-container rule — so they remain green here and are handled in Task 5.
 
 - [ ] **Step 6: Run the affected files and the full suite**
 
@@ -451,6 +539,8 @@ uv run pytest --verbosity=0
 
 - [ ] **Step 7: Verify the named mutants RED**
 
+Every test in this task's file gets a row. `(…)` in a node id means the parametrized variants.
+
 | Mutant | Node id that must FAIL |
 |---|---|
 | `builder.MAX_NEST_DEPTH` `3 → 4` | `courses/tests/test_nesting_rule.py::test_container_child_rejected_at_depth_2` |
@@ -458,8 +548,15 @@ uv run pytest --verbosity=0
 | delete `"twocolumn"` from `_NESTABLE_FORM_KEY_ALIASES` | `…::test_container_child_accepted_at_depth_1[twocolumn]` |
 | add a 4th key to `CONTAINER_TRANSFER_KEYS` only | `…::test_container_key_spaces_do_not_drift` |
 | revert the `getattr` at the registry call site | `…::test_spoiler_accepts_a_spoiler_child` (expect `AttributeError`) |
+| `element_depth` → `return 1` unconditionally | `…::test_element_depth_counts_hops` |
+| clause 3 `>=` → `>` | `…::test_leaf_child_rejected_at_depth_3` |
+| delete clause 3 entirely | `…::test_leaf_child_accepted_at_depth_2` stays green, but `…::test_leaf_child_rejected_at_depth_3` fails — that asymmetry is the point of having both |
+| restore `isinstance(parent_obj, SpoilerElement)`'s `if join.parent_id is not None: raise` guard | `…::test_nested_spoiler_may_have_children` |
+| remove `"twocolumn": "two_column"` from the aliases | `…::test_twocolumn_form_key_alias_exists` |
 
-For each: apply, `uv run pytest <node-id> --verbosity=0`, confirm FAIL, revert.
+**`test_element_depth_terminates_on_a_cycle` is EXEMPT and must be marked so in the test docstring.** Its only natural mutant — unbounding `element_depth`'s `while` — **hangs**, and `pytest-timeout` is not installed, so it can never be verified RED; attempting it wedges the run. The bound is instead exercised indirectly by the delete-cycle test in Task 3, whose collector mutant raises `RecursionError` rather than looping.
+
+For each row: apply, `uv run pytest <node-id> --verbosity=0`, confirm FAIL, revert.
 
 - [ ] **Step 8: Commit**
 
@@ -489,7 +586,7 @@ from courses.lal_loader.builders import LoaderError, build_element
 
 
 @pytest.mark.django_db
-def test_spoiler_gate_rejects_a_type_the_wider_allowlist_would_admit(...):
+def test_spoiler_gate_rejects_a_type_the_wider_allowlist_would_admit():
     """`mark_done` is in NESTABLE_TYPE_KEYS but NOT in the LAL corpus's narrow set.
 
     It must be a type the loader CAN build (builders.py:299) -- an unknown type
@@ -545,7 +642,7 @@ from courses.models import Element, TextElement
 
 
 @pytest.mark.django_db
-def test_deleting_a_container_removes_grandchild_concretes(...):
+def test_deleting_a_container_removes_grandchild_concretes():
     """Depth-3 subtree: tabs > spoiler > text. The text concrete is reachable only
     through the GFK, which DB cascade cannot traverse."""
     # build tabs > spoiler > text, capture the text concrete's pk
@@ -554,7 +651,7 @@ def test_deleting_a_container_removes_grandchild_concretes(...):
 
 
 @pytest.mark.django_db
-def test_delete_collects_a_child_whose_tab_id_matches_no_slot(...):
+def test_delete_collects_a_child_whose_tab_id_matches_no_slot():
     """resolved_tabs() runs the DESTRUCTIVE normalize_data and SKIPS children whose
     tab_id resolves to no slot. The collector must descend join.children instead, or
     this child's concrete orphans -- a REGRESSION vs today's filter(parent=el)."""
@@ -564,7 +661,7 @@ def test_delete_collects_a_child_whose_tab_id_matches_no_slot(...):
 
 
 @pytest.mark.django_db
-def test_removing_a_tab_keeps_sibling_tab_content(...):
+def test_removing_a_tab_keeps_sibling_tab_content():
     """Two assertions. The second is what catches the wrong collection root:
     rooting at the tabs join sweeps KEPT tabs' descendants too, leaving live
     Element rows pointing at deleted concretes -- silent destruction, no error."""
@@ -575,7 +672,7 @@ def test_removing_a_tab_keeps_sibling_tab_content(...):
 
 
 @pytest.mark.django_db
-def test_delete_terminates_on_a_parent_cycle(...):
+def test_delete_terminates_on_a_parent_cycle():
     """The one genuinely reachable cycle: delete_element starts from a
     request-supplied element_pk, so an element inside a corrupt cycle IS reachable
     (unlike the export walk, which starts from parent__isnull=True roots)."""
@@ -692,14 +789,14 @@ This is the highest-severity item: `duplicate_unit` runs through `build_export`,
 
 ```python
 @pytest.mark.django_db
-def test_duplicate_unit_keeps_depth_3_content(...):
+def test_duplicate_unit_keeps_depth_3_content():
     """tabs > spoiler > table. Today the table VANISHES from the copy, silently."""
     new_node = builder.duplicate_unit(course, unit.pk, token=unit.updated.isoformat())
     # assert the copied tree contains the table at depth 3
 
 
 @pytest.mark.django_db
-def test_round_trip_preserves_within_slot_sibling_order(...):
+def test_round_trip_preserves_within_slot_sibling_order():
     """The fixture MUST place at least TWO siblings in the same NESTED slot -- with
     one leaf in one spoiler in one tab, `reversed(children)` is a no-op and the
     mutant is vacuous."""
@@ -708,7 +805,7 @@ def test_round_trip_preserves_within_slot_sibling_order(...):
 
 
 @pytest.mark.django_db
-def test_export_does_not_keyerror_on_forward_reference(...):
+def test_export_does_not_keyerror_on_forward_reference():
     """export.py:559's walk_index_by_join_pk[parent_join.pk] is an UNGUARDED dict
     lookup. Parents-before-children is required by the EXPORT side (the importer is
     explicitly order-robust)."""
@@ -800,6 +897,26 @@ git commit -m "fix(transfer): recurse the export walk so duplicate-unit keeps de
 
 - [ ] **Step 1: Write the failing tests**
 
+**First define the payload helpers — the existing ones cannot build a nested container.** `tests/test_tabs_transfer.py:105-121` has `_els(*items)`, `_tabs_el(eid="e1", tabs=None)` and `_child(eid, parent, tab, type_)`, but `_tabs_el` hard-codes `"parent": None, "tab": ""` and takes no `parent`/`tab` kwargs. Add to the new file:
+
+```python
+from tests.test_tabs_transfer import _child, _els   # reuse; do NOT redefine
+
+_SLOTS = [{"id": "taaaaaa"}, {"id": "tbbbbbb"}]     # must match _child's default tab
+
+
+def _tabs(eid, parent=None, tab=""):
+    """A tabs element that can itself be nested. `_tabs_el` cannot: it pins
+    parent=None/tab="". The slot ids must match `_child`'s default tab or the slot
+    check fires on the middle element before the depth clause is ever reached."""
+    return {
+        "id": eid, "type": "tabs", "parent": parent, "tab": tab,
+        "data": {"tabs": [dict(s, label=f"T{i}") for i, s in enumerate(_SLOTS)]},
+    }
+```
+
+Confirm `_child`'s default `tab` against the real helper before relying on `_SLOTS`.
+
 Four cases. **Each asserts the specific message** — without that, the clause-3 and clause-4 mutants are indistinguishable and both vacuous.
 
 ```python
@@ -858,7 +975,9 @@ Add the spoiler slot key, and replace the spoiler `isinstance` branch with the t
 _CONTAINER_SLOT_KEY = {"tabs": "tabs", "two_column": "columns", "spoiler": None}
 ```
 
-In `validate_nesting`, per element with a parent:
+The imports and the `_CONTAINER_SLOT_KEY` entry landed in **Task 1** — `MAX_NEST_DEPTH` and `CONTAINER_TRANSFER_KEYS` are already in `validate_nesting`'s local import block, so the names below resolve. If they do not, Task 1 was not completed; stop rather than re-adding them here.
+
+Replace the surviving one-level check (`if parent["parent"] is not None`) with the chain walk. Per element with a parent:
 
 ```python
         if parent["type"] not in _CONTAINER_SLOT_KEY:          # membership FIRST
@@ -943,13 +1062,13 @@ A **pre-existing** defect this slice widens: the HTML card sits in the Content g
 
 ```python
 @pytest.mark.django_db
-def test_lesson_with_only_nested_html_loads_the_bundle(...):
+def test_lesson_with_only_nested_html_loads_the_bundle():
     # tabs > html, and NO top-level html anywhere in the unit
     assert "html_element.js" in response.content.decode()
 
 
 @pytest.mark.django_db
-def test_quiz_with_only_nested_html_loads_the_bundle(...):
+def test_quiz_with_only_nested_html_loads_the_bundle():
     # same shape in a QUIZ unit -- views.py:1198 is a separate code path
     assert "html_element.js" in response.content.decode()
 ```
@@ -1001,14 +1120,14 @@ git commit -m "fix(lesson): arm html_element.js for nested html elements"
 
 ```python
 @pytest.mark.django_db
-def test_has_math_detects_math_at_depth_3(...):
+def test_has_math_detects_math_at_depth_3():
     """Pinned chain: tabs > spoiler > math, with NO other math in the unit.
     Isolation is mandatory -- a unit with top-level math passes either way."""
     assert build_lesson_context(node, user)["has_math"] is True
 
 
 @pytest.mark.django_db
-def test_depth_3_leaf_renders_inside_its_nested_container(...):
+def test_depth_3_leaf_renders_inside_its_nested_container():
     """EXEMPT from the mutant rule, deliberately: the render path is unchanged by
     this slice, so this is a characterization test pinning existing behaviour at a
     new depth, not a test of new logic."""
@@ -1019,7 +1138,7 @@ def test_depth_3_leaf_renders_inside_its_nested_container(...):
 
 - [ ] **Step 3: Verify the `has_math` mutant RED**
 
-Mutant: `views.py:239-242` (`_tabs_has_math` body) → `return False`.
+Mutant: replace **`_tabs_has_math`'s terminal `return any(...)` expression** (`courses/views.py`, the multi-line `return any(_element_has_math(child.content_object) for child in join.children…)`) with `return False`. **Cite the symbol, not a line range** — the expression spans four lines and is preceded by two other `return False` statements (the `isinstance` and `join is None` guards), so any range that splits it leaves an orphaned `)` and a `SyntaxError`. A `SyntaxError` "verified RED" proves nothing.
 Node id: `tests/test_depth3_render.py::test_has_math_detects_math_at_depth_3`
 **Not** `views.py:202` — the pinned chain passes through it, but that is the *spoiler* dispatch, not the tabs recursion this must prove reaches depth 3.
 
@@ -1050,7 +1169,7 @@ The largest task and the one that decides whether the feature is reachable at al
 
 ```python
 @pytest.mark.django_db
-def test_top_level_menu_still_offers_containers(...):
+def test_top_level_menu_still_offers_containers():
     """The depth-SEEDING regression. An unseeded `depth` resolves to '' and smartif
     swallows the TypeError, so every predicate is False and the cards vanish from
     the TOP-LEVEL menu -- silently."""
@@ -1058,7 +1177,7 @@ def test_top_level_menu_still_offers_containers(...):
 
 
 @pytest.mark.django_db
-def test_depth_1_nested_menu_offers_containers(...):
+def test_depth_1_nested_menu_offers_containers():
     """POSITIVE requirement. Use a LESSON unit: the Spoiler card sits inside
     {% if not unit_is_quiz %}."""
     for t in ("tabs", "twocolumn", "spoiler"):
@@ -1066,32 +1185,37 @@ def test_depth_1_nested_menu_offers_containers(...):
 
 
 @pytest.mark.django_db
-def test_depth_2_nested_menu_hides_containers_but_keeps_leaves(...):
+def test_depth_2_nested_menu_hides_containers_but_keeps_leaves():
     assert 'data-add-type="tabs"' not in html
     assert 'data-add-type="callout"' in html       # a legal depth-3 LEAF
 
 
 @pytest.mark.django_db
-def test_no_add_menu_inside_a_depth_3_element(...):
-    """ORM-constructed fixture: clause 4 makes a depth-3 container unreachable
-    through resolve_scope. Defence in depth -- do not delete as dead."""
+def test_no_add_menu_inside_a_depth_3_element():
+    """The depth-3 container MUST be a TABS element, matching the `:85` mutant.
+    _element_row.html includes _add_menu.html at three sites -- :85 (tabs),
+    :131 (two-column), :177 (spoiler) -- so a spoiler or two-column fixture would
+    leave the named mutant green and this row vacuous.
+
+    ORM-constructed: clause 4 makes a depth-3 container unreachable through
+    resolve_scope. Defence in depth -- do not delete as dead."""
     assert "data-add-menu" not in depth3_row_html
 
 
 @pytest.mark.django_db
-def test_nested_spoiler_renders_children_and_menu(...):
+def test_nested_spoiler_renders_children_and_menu():
     """A spoiler inside a tab: today it falls to the leaf branch with no children."""
 
 
 @pytest.mark.django_db
-def test_cap_agreement_cards(monkeypatch, ...):
+def test_cap_agreement_cards(monkeypatch):
     """Guards must read max_nest_depth, not a literal."""
     monkeypatch.setattr("courses.builder.MAX_NEST_DEPTH", 4)
     # depth-2 container's menu now offers the container cards
 
 
 @pytest.mark.django_db
-def test_cap_agreement_include(monkeypatch, ...):
+def test_cap_agreement_include(monkeypatch):
     """The include guard is the likelier slip -- three sites, not one. Fixture's
     container is a TABS element, matching the :85 mutant."""
     monkeypatch.setattr("courses.builder.MAX_NEST_DEPTH", 4)
@@ -1099,14 +1223,14 @@ def test_cap_agreement_include(monkeypatch, ...):
 
 
 @pytest.mark.django_db
-def test_fragment_swap_still_emits_menu_and_cards(...):
+def test_fragment_swap_still_emits_menu_and_cards():
     """Every add/save/move/delete returns through _render_editor_fragments. If
     max_nest_depth lands only in _editor_page the first load looks perfect and every
     later swap silently drops both."""
 
 
 @pytest.mark.django_db
-def test_top_level_lesson_menu_has_exactly_one_fillblank_card(...):
+def test_top_level_lesson_menu_has_exactly_one_fillblank_card():
     """Line 39 becomes {% if nested %}; deleting it outright duplicates line 49's
     card. LESSON fixture -- no duplicate arises in a quiz."""
     assert html.count('data-add-type="fillblankquestion"') == 1
@@ -1157,7 +1281,7 @@ Each must pass explicit **integer** `depth` AND `max_nest_depth`. Omitting `max_
 
 | Site | Note |
 |---|---|
-| `courses/tests/test_reveal_gate_editor_row.py:46-50` | add both |
+| `courses/tests/test_reveal_gate_editor_row.py:46-49` | Future-vacuity insurance only, **not** a required fix: `_render_row` renders a `revealgateelement`, which falls to `_element_row.html`'s `{% else %}` leaf branch (`:180-203`) — no add-menu include, no recursive row include, so no depth predicate is evaluated. Add both keys anyway so a later branch change cannot make it vacuous. |
 | `tests/test_tabs_editor_partial.py:70-72` | **will otherwise go RED** — it asserts the nested add-menu IS emitted |
 | `tests/test_tabs_editor_partial.py:83-86` | add both |
 | `tests/test_gallery_manage.py:26` | renders with no context at all; add both |
@@ -1212,12 +1336,11 @@ This repo has a test that regexes **raw source including comments**, and an earl
 |---|---|
 | `payloads.py:754-757` | "a parent chain deeper than one level — that depth bound is what lets the editor's recursive row template terminate without a guard" |
 | `payloads.py:747-749` | must now document `None` = single-slot and membership-before-lookup |
-| `payloads.py:771-773`, `:776-781` | `_CONTAINER_SLOT_KEY` / `SPOILER_CHILD_TYPES` rationale |
 | `builder.py:404-407` | "If it is a tabs element…" — now every container, every level |
 | `builder.py:95-98` | model-key + 3-tuple contract survive, but a single-slot container supplies a constant slot list |
 | `builder.py:30-33` | "except the reveal-gate" — already false (eight aliases), worse with `twocolumn` |
 | `export.py:473-486` | see Task 4's docstring — **do NOT write "registry-driven"** |
-| `export.py:534-536` | "expands each **tabs** element's children inline … no recursive query here" |
+| `export.py:535-537` | "expands each **tabs** element's children inline … no recursive query here" |
 | `views_manage.py:1534-1539` | "'tabs' … prove nesting is blocked" — `tabs` is now an accept |
 | `_add_menu.html:2-8` | nested menus come from all three containers; hidden set is depth-dependent |
 | `_element_row.html:68-73/114-119/160-164` | done in Task 8 Step 5 |
@@ -1236,12 +1359,12 @@ git commit -am "docs(nesting): retarget comments the depth-3 rule invalidates"
 
 **Files:** `docs/help/course-admin/content-editors.md`, `content-editors.pl.md`, `interactive-elements.md`, `interactive-elements.pl.md`
 
-- [ ] **Step 1: Rewrite all six passages**
+- [ ] **Step 1: Rewrite all nine passages**
 
 | File | Passages |
 |---|---|
 | `content-editors.md` | `:121-133` (two container types / cannot hold another container), `:123-129` (the "**nine** non-container Content types" enumeration), `:131-133` (the quiz sentence), `:151` (*See also*) |
-| `content-editors.pl.md` | twins at `:131-145`, `:133-141`, `:166` |
+| `content-editors.pl.md` | twins at `:131-145`, `:133-141`, **`:143-145` — the twin of the EN quiz sentence** ("menu dodawania kontenera Zakładki lub Kolumny oferuje wyłącznie typy treści"), which becomes false because Tabs/Columns cards now appear in nested quiz menus; it needs its **own** replacement sentence, not folding into the general list — and `:166` |
 | `interactive-elements.md` | `:9` |
 | `interactive-elements.pl.md` | `:10` |
 
@@ -1312,7 +1435,18 @@ git commit -m "i18n(nesting): depth-3 validation messages"
 
 - [ ] **Step 2: Add one e2e that drives the real gesture**
 
-An e2e that bypasses the real UI gesture ships broken UX green. Add: open the editor, add a Tabs element, open its nested add-menu, add a **Spoiler** inside it, then add a **Text** inside that spoiler — asserting the depth-3 text renders in the student view.
+An e2e that bypasses the real UI gesture ships broken UX green. This is the only test in the plan that exercises the whole authoring path, so it gets named specifics rather than a description.
+
+**File:** `tests/test_e2e_depth3.py`. Copy the login/course/editor setup from `tests/test_e2e_tabs.py` (same fixtures, same `pytestmark = pytest.mark.e2e`) rather than inventing one.
+
+**Gesture:** open the editor → add a **Tabs** element → open the nested add-menu inside tab 1 → add a **Spoiler** → open the add-menu inside that spoiler → add a **Text** with a distinctive marker string.
+
+**Every locator must be scoped to its `[data-add-menu]` ancestor** (per Step 1) — an unscoped `[data-add-type='spoiler']` now matches both the top-level and the nested menu and fails Playwright strict mode.
+
+**Assertion:** navigate to the student lesson view and assert the marker string is present inside the spoiler's rendered body, i.e. the depth-3 text actually reaches the reader.
+
+**Named mutant:** delete the depth predicate on the Spoiler card in `_add_menu.html:35`.
+**Node id that must FAIL:** `tests/test_e2e_depth3.py::test_author_a_depth_3_text_through_the_ui` (the nested menu no longer offers Spoiler, so the gesture cannot complete).
 
 - [ ] **Step 3: Run Group A gates**
 
@@ -1338,6 +1472,6 @@ git commit -m "test(e2e): scope add-menu locators and drive depth-3 authoring"
 
 **Spec coverage.** Containment rule → T1. One allowlist → T1. `element_depth` + query cost → T1. Registry entry + call-site `getattr` → T1. `CONTAINER_TRANSFER_KEYS` + drift → T1. LAL loader → T1/T2. Delete path (root, edge set, root-inclusive, `seen`, pk boundary, unconditional `el.delete()`) → T3. Export recursion + both ordering invariants → T4. Import validator (both clauses, cycle, missing ancestor, messages) → T5. `has_html` both sites + import removal → T6. `has_math` + render → T7. Editor (seeds, both context builders, module attr, guards, `in_spoiler` removal, 5 direct-render sites) → T8. Stale comments → T9. Help docs → T10. `.po` → T11. e2e + DoD → T12. All 16 guardrail inversions are assigned (T1: 7, T5: 4, T8: 4, plus `:16` explicitly left alone).
 
-**Placeholders.** Task 2's `build_element(...)` signature and several fixture bodies are marked "read the real helper first" rather than invented — deliberate, because inventing factory signatures is how a plan ships un-runnable test code. Every *production* change carries real code.
+**Placeholders.** Task 2's `build_element(...)` call and a few fixture bodies are marked "read the real helper first" rather than invented — deliberate, because inventing factory signatures is how a plan ships un-runnable test code. That licence covers **fixture construction only**: every test signature is real Python, every production change carries real code, and the one helper path this plan does assert (`tests.factories.make_course_with_unit`) was verified against the tree rather than recalled.
 
 **Type consistency.** `element_depth(join) -> int`, `_collect_subtree_pks(roots) -> set[int]`, `CONTAINER_TRANSFER_KEYS: frozenset[str]`, `max_nest_depth` (context key, int) are used identically across T1/T3/T5/T8.
