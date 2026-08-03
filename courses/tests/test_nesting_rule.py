@@ -213,14 +213,20 @@ def test_canonical_spoiler_tabs_spoiler_text_is_authorable():
 
 @pytest.mark.django_db
 def test_resolve_scope_walks_the_parent_chain_without_extra_queries():
-    """`select_related` must cover MAX_NEST_DEPTH - 1 parent hops.
+    """`select_related` must cover MAX_NEST_DEPTH - 1 = 3 parent hops.
 
-    element_depth walks up to three parents now, so a two-hop select_related
-    (`parent__parent`) makes every depth-3 resolve issue an extra uncached fetch.
-    Comparing a depth-3 parent against a depth-1 parent in the SAME test keeps the
-    ContentType cache warm, so the delta is the parent walk and nothing else.
+    MEASURED, not assumed: a LEGAL parent tops out at depth 3, and walking from there
+    touches only two non-null parents, so `parent__parent` still covers every accepted
+    resolve. The third hop is for the REJECTION path -- an over-deep parent (legacy
+    rows, an import, a direct ORM write, a corrupt cycle) sits at depth 4, and that is
+    the walk a two-hop prefetch pays an uncached fetch for. Using a depth-3 parent
+    here instead would make this test pass under its own mutant.
 
-    Mutant: `select_related("parent__parent")` -> the depth-3 count exceeds the
+    Comparing against a depth-1 parent in the SAME test keeps the ContentType cache
+    warm, so the delta is the parent walk and nothing else. Both calls get past the
+    slot check identically; only the depth clauses differ.
+
+    Mutant: `select_related("parent__parent")` -> the depth-4 count exceeds the
     depth-1 count.
     """
     from django.db import connection
@@ -233,12 +239,15 @@ def test_resolve_scope_walks_the_parent_chain_without_extra_queries():
     t2 = mid.content_object.data["tabs"][0]["id"]
     deep = _mk(unit, "tabs", parent=mid, tab=t2)
     t3 = deep.content_object.data["tabs"][0]["id"]
+    deeper = _mk(unit, "tabs", parent=deep, tab=t3)
+    t4 = deeper.content_object.data["tabs"][0]["id"]
 
     builder.resolve_scope(unit, str(top.pk), t1, "text")  # warm the ContentType cache
     with CaptureQueriesContext(connection) as shallow:
         builder.resolve_scope(unit, str(top.pk), t1, "text")
     with CaptureQueriesContext(connection) as deepest:
-        builder.resolve_scope(unit, str(deep.pk), t3, "text")
+        with pytest.raises(NestingError):  # clause 3 -- this is the rejection path
+            builder.resolve_scope(unit, str(deeper.pk), t4, "text")
     assert len(deepest) == len(shallow)
 
 
