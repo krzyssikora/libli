@@ -10,9 +10,11 @@ bypasses the real gesture proves nothing about the gesture).
 So this file drives the whole chain with real clicks and real typing — no page.evaluate
 shortcut, no ORM-seeded tree, no direct POST:
 
-    top-level add-menu  -> Tabs      (depth 1)
-    tab 1's nested menu -> Spoiler   (depth 2)   <- the card the mutant suppresses
-    the spoiler's menu  -> Text      (depth 3)
+    top-level add-menu   -> Tabs      (depth 1)   container level 1
+    tab 1's nested menu  -> Spoiler   (depth 2)   container level 2 <- the card the
+                                                                       mutant suppresses
+    the spoiler's menu   -> Tabs      (depth 3)   container level 3
+    inner tab 1's menu   -> Text      (depth 4)   the content inside the third level
 
 and then reads the result as a STUDENT: the marker string must be inside the spoiler's
 rendered body on the lesson page. Authoring that the reader never sees is not a feature.
@@ -160,8 +162,11 @@ def _wait_nested_row_count(page, container_selector, expected):
 
 
 @pytest.mark.django_db(transaction=True)
-def test_author_a_depth_3_text_through_the_ui(page, live_server):
-    """Author tabs > spoiler > text with real clicks, then read it as a student.
+def test_author_a_depth_4_text_through_the_ui(page, live_server):
+    """Author tabs > spoiler > tabs > text with real clicks, then read it as a student.
+
+    THREE container levels with content inside the third -- the shape the cap lift
+    exists for ("a spoiler with child tabs with child spoiler, but this is it").
 
     Falsified by reverting the Spoiler card's guard in _add_menu.html to
     `{% if not nested %}`: that suppresses the Spoiler card in EVERY nested menu, so the
@@ -213,13 +218,31 @@ def test_author_a_depth_3_text_through_the_ui(page, live_server):
     assert isinstance(spoiler_join.content_object, SpoilerElement)
     assert builder.element_depth(spoiler_join) == 2
 
-    # --- depth 3: Text, from THE SPOILER's own nested menu -------------------------
+    # --- depth 3: Tabs, from THE SPOILER's own nested menu --------------------------
+    # The THIRD container level. Before the cap lift this menu offered no container
+    # card at all.
     spoiler_menu = _nested_menu(page, spoiler_join.pk, SpoilerElement.SLOT_ID)
     expect(spoiler_menu).to_have_count(1)
-    # A depth-2 menu must NOT offer containers any more (that would be depth 4) — the
-    # same template guard, read from the other side.
-    expect(spoiler_menu.locator("[data-add-type='tabs']")).to_have_count(0)
-    _open_card(spoiler_menu, "text")
+    _open_card(spoiler_menu, "tabs")
+    page.wait_for_selector("[data-edit-slot] [data-tabs-editor]")
+    _save_open_form(page)
+    _wait_nested_row_count(
+        page, '[data-scope="editor"] .el-row--tabs .el-row--spoiler', 1
+    )
+    page.wait_for_selector('[data-scope="editor"] .el-row--spoiler .el-row--tabs')
+
+    inner_tabs_join = Element.objects.get(unit=unit, parent=spoiler_join)
+    assert builder.element_depth(inner_tabs_join) == 3
+    inner_tab_id = inner_tabs_join.content_object.data["tabs"][0]["id"]
+
+    # --- depth 4: Text, from the INNER tabs' own nested menu ------------------------
+    inner_menu = _nested_menu(page, inner_tabs_join.pk, inner_tab_id)
+    expect(inner_menu).to_have_count(1)
+    # A depth-3 menu must NOT offer containers any more (that would be a fourth
+    # container level) — the same template guard, read from the other side.
+    for card in ("tabs", "twocolumn", "spoiler"):
+        expect(inner_menu.locator(f"[data-add-type='{card}']")).to_have_count(0)
+    _open_card(inner_menu, "text")
 
     surface = page.locator("[data-edit-slot] form[data-op='element-save'] .rte-surface")
     surface.wait_for(state="visible")
@@ -227,20 +250,22 @@ def test_author_a_depth_3_text_through_the_ui(page, live_server):
     page.keyboard.type(MARKER)
     _save_open_form(page)
     _wait_nested_row_count(
-        page, '[data-scope="editor"] .el-row--tabs .el-row--spoiler', 1
+        page, '[data-scope="editor"] .el-row--spoiler .el-row--tabs', 1
     )
 
-    # --- it really is depth 3, in the right slots ----------------------------------
-    leaf_join = Element.objects.get(unit=unit, parent=spoiler_join)
+    # --- it really is depth 4, in the right slots ----------------------------------
+    leaf_join = Element.objects.get(unit=unit, parent=inner_tabs_join)
     assert isinstance(leaf_join.content_object, TextElement)
-    assert leaf_join.tab_id == SpoilerElement.SLOT_ID
+    assert leaf_join.tab_id == inner_tab_id
     assert leaf_join.unit_id == unit.pk
-    assert builder.element_depth(leaf_join) == 3
+    assert builder.element_depth(leaf_join) == 4
     assert MARKER in leaf_join.content_object.body
 
     # --- and the reader can actually see it ----------------------------------------
     page.goto(_lesson_url(live_server, unit))
-    page.wait_for_selector("[data-tabs].tabs--js")  # tab 1 is the active panel
+    page.wait_for_selector(
+        f"[data-tabs-eid='{inner_tabs_join.pk}'].tabs--js"
+    )  # the INNER strip is initialised; tab 1 is its active panel
     spoiler = page.locator("[data-tabs] details.spoiler").first
     spoiler.locator("summary").click()  # real reveal gesture
     child = spoiler.locator(".spoiler__child")
@@ -287,15 +312,21 @@ def _tabs_data(labels):
 
 @pytest.mark.django_db(transaction=True)
 def test_nested_tabs_do_not_leak_into_the_outer_tab_strip(page, live_server):
-    """tabs > tabs > text, read as a student.
+    """tabs > tabs > tabs > text, read as a student.
+
+    THREE levels of the same container type, the deepest shape the cap allows. Both
+    client-side scoping fixes are depth-independent, but "should hold one level
+    deeper" is a claim, so it is measured rather than assumed: the middle instance is
+    simultaneously a descendant of the outer and an ancestor of the inner, which is
+    the only position an unscoped walk can corrupt from both sides at once.
 
     Falsified by reverting tabs.js's `ownSections()` to the bare
     `container.querySelectorAll(".tabs__section")`: initTabs visits the outer first, so
-    the outer's section list becomes [Outer A, Inner X, Inner Y, Outer B] and the outer
-    strip renders FOUR buttons carrying the inner element's labels. The round trip at
-    the end pins the user-visible consequence -- the outer's `select()` puts `hidden` on
-    panels it does not own, and the inner instance (still `active === 0`) can never take
-    it off again, so the nested element stays blank forever.
+    the outer's section list becomes [Outer A, Mid P, Inner X, Inner Y, Mid Q, Outer B]
+    and the outer strip renders SIX buttons carrying the nested elements' labels. The
+    round trip at the end pins the user-visible consequence -- the outer's `select()`
+    puts `hidden` on panels it does not own, and the nested instances (still
+    `active === 0`) can never take it off again, so they stay blank forever.
     """
     from courses import builder
     from courses.models import Element
@@ -311,13 +342,22 @@ def test_nested_tabs_do_not_leak_into_the_outer_tab_strip(page, live_server):
     outer = Element.objects.create(
         unit=unit, content_object=outer_obj, parent=None, tab_id="", order=0
     )
-    inner_obj = TabsElement.objects.create(data=_tabs_data(["Inner X", "Inner Y"]))
+    mid_obj = TabsElement.objects.create(data=_tabs_data(["Mid P", "Mid Q"]))
     outer_obj.refresh_from_db()
+    mid = Element.objects.create(
+        unit=unit,
+        content_object=mid_obj,
+        parent=outer,
+        tab_id=outer_obj.data["tabs"][0]["id"],
+        order=0,
+    )
+    inner_obj = TabsElement.objects.create(data=_tabs_data(["Inner X", "Inner Y"]))
+    mid_obj.refresh_from_db()
     inner = Element.objects.create(
         unit=unit,
         content_object=inner_obj,
-        parent=outer,
-        tab_id=outer_obj.data["tabs"][0]["id"],
+        parent=mid,
+        tab_id=mid_obj.data["tabs"][0]["id"],
         order=0,
     )
     inner_obj.refresh_from_db()
@@ -329,27 +369,33 @@ def test_nested_tabs_do_not_leak_into_the_outer_tab_strip(page, live_server):
         tab_id=inner_obj.data["tabs"][0]["id"],
         order=0,
     )
-    assert builder.element_depth(inner) == 2
-    assert builder.element_depth(leaf) == 3
+    assert builder.element_depth(mid) == 2
+    assert builder.element_depth(inner) == 3
+    assert builder.element_depth(leaf) == 4
 
     _login(page, live_server, "d3_tabs2")
     page.goto(_lesson_url(live_server, unit))
 
-    # `data-tabs-eid` is the join-row pk (TabsElement.render), so these two selectors
-    # name the two instances unambiguously. The `>` before .tabs__bar is the whole
-    # point: tabs.js inserts each bar as its container's FIRST CHILD, so a descendant
-    # locator would match the inner strip from the outer container and hide the bug.
+    # `data-tabs-eid` is the join-row pk (TabsElement.render), so these selectors name
+    # the three instances unambiguously. The `>` before .tabs__bar is the whole point:
+    # tabs.js inserts each bar as its container's FIRST CHILD, so a descendant locator
+    # would match a nested strip from an outer container and hide the bug.
     outer_sel = f"[data-tabs-eid='{outer.pk}']"
+    mid_sel = f"[data-tabs-eid='{mid.pk}']"
     inner_sel = f"[data-tabs-eid='{inner.pk}']"
     page.wait_for_selector(f"{outer_sel}.tabs--js")
+    page.wait_for_selector(f"{mid_sel}.tabs--js")
     page.wait_for_selector(f"{inner_sel}.tabs--js")
 
     outer_tabs = page.locator(f"{outer_sel} > .tabs__bar .tabs__tab")
+    mid_tabs = page.locator(f"{mid_sel} > .tabs__bar .tabs__tab")
     inner_tabs = page.locator(f"{inner_sel} > .tabs__bar .tabs__tab")
 
     # THE pin: each strip carries its OWN tabs and only its own.
     expect(outer_tabs).to_have_count(2)
     expect(outer_tabs).to_have_text(["Outer A", "Outer B"])
+    expect(mid_tabs).to_have_count(2)
+    expect(mid_tabs).to_have_text(["Mid P", "Mid Q"])
     expect(inner_tabs).to_have_count(2)
     expect(inner_tabs).to_have_text(["Inner X", "Inner Y"])
 
@@ -369,11 +415,11 @@ def test_nested_tabs_do_not_leak_into_the_outer_tab_strip(page, live_server):
     )
     assert dangling == 0
 
-    # The nested element's content is reachable, and STAYS reachable across a round
-    # trip through the outer strip.
+    # The innermost element's content is reachable, and STAYS reachable across a round
+    # trip through the OUTERMOST strip -- two levels above it.
     marker = page.locator(f"{inner_sel} .tabs__child", has_text=NESTED_TABS_MARKER)
     expect(marker).to_be_visible()
-    outer_tabs.nth(1).click()  # "Outer B" -- the panel holding the inner is hidden
+    outer_tabs.nth(1).click()  # "Outer B" -- the panel holding the nest is hidden
     expect(page.locator(inner_sel)).to_be_hidden()
     outer_tabs.nth(0).click()  # back to "Outer A"
     expect(page.locator(inner_sel)).to_be_visible()
@@ -382,14 +428,20 @@ def test_nested_tabs_do_not_leak_into_the_outer_tab_strip(page, live_server):
 
 @pytest.mark.django_db(transaction=True)
 def test_nested_spoiler_keeps_its_own_open_state_affordances(page, live_server):
-    """spoiler > spoiler > text, read as a student.
+    """spoiler > spoiler > spoiler > text, read as a student.
+
+    THREE levels of the same container type. The CSS fix is depth-independent, but a
+    descendant-combinator regression reaches every generation below the opened
+    element, so the deepest level is where it shows up first and worst -- measured,
+    not assumed.
 
     Falsified by reverting app.css's
     `.spoiler[open] > .spoiler__toggle .spoiler__label--*`
     rules to the descendant form `.spoiler[open] .spoiler__label--*`: opening the OUTER
-    spoiler then matches the CLOSED inner spoiler's labels too, so the inner summary
-    reads "Hide" while its body is still collapsed.
+    spoiler then matches BOTH still-closed descendants' labels, so their summaries read
+    "Hide" while their bodies are collapsed.
     """
+    from courses import builder
     from courses.models import Element
     from courses.models import SpoilerElement
     from courses.models import TextElement
@@ -403,35 +455,62 @@ def test_nested_spoiler_keeps_its_own_open_state_affordances(page, live_server):
     outer = Element.objects.create(
         unit=unit, content_object=outer_obj, parent=None, tab_id="", order=0
     )
-    inner_obj = SpoilerElement.objects.create(label="INNER-REVEAL")
-    inner = Element.objects.create(
+    mid_obj = SpoilerElement.objects.create(label="MID-REVEAL")
+    mid = Element.objects.create(
         unit=unit,
-        content_object=inner_obj,
+        content_object=mid_obj,
         parent=outer,
         tab_id=SpoilerElement.SLOT_ID,
         order=0,
     )
+    inner_obj = SpoilerElement.objects.create(label="INNER-REVEAL")
+    inner = Element.objects.create(
+        unit=unit,
+        content_object=inner_obj,
+        parent=mid,
+        tab_id=SpoilerElement.SLOT_ID,
+        order=0,
+    )
     leaf_obj = TextElement.objects.create(body=f"<p>{NESTED_SPOILER_MARKER}</p>")
-    Element.objects.create(
+    leaf = Element.objects.create(
         unit=unit,
         content_object=leaf_obj,
         parent=inner,
         tab_id=SpoilerElement.SLOT_ID,
         order=0,
     )
+    assert builder.element_depth(inner) == 3
+    assert builder.element_depth(leaf) == 4
 
     _login(page, live_server, "d3_sp2")
     page.goto(_lesson_url(live_server, unit))
 
     outer_sp = page.locator("details.spoiler").first
-    inner_sp = page.locator("details.spoiler > .spoiler__child > details.spoiler")
+    mid_sp = page.locator("details.spoiler > .spoiler__child > details.spoiler").first
+    inner_sp = page.locator(
+        "details.spoiler > .spoiler__child > details.spoiler"
+        " > .spoiler__child > details.spoiler"
+    )
     expect(inner_sp).to_have_count(1)
 
     outer_sp.locator("summary").first.click()  # real reveal gesture on the OUTER only
+    expect(mid_sp).to_be_visible()
+    # Both descendants are still CLOSED, so each must advertise ITS OWN state, not an
+    # ancestor's. (Each holds one child, so these label locators are unambiguous.)
+    assert mid_sp.evaluate("(el) => el.hasAttribute('open')") is False
+    expect(mid_sp.locator(".spoiler__label--show").first).to_be_visible()
+    expect(mid_sp.locator(".spoiler__label--hide").first).to_be_hidden()
+    expect(mid_sp.locator("summary").first).to_contain_text("MID-REVEAL")
+
+    mid_sp.locator("summary").first.click()  # open the SECOND level only
     expect(inner_sp).to_be_visible()
-    # The inner is still CLOSED, so it must advertise ITS OWN state, not its parent's.
-    # (The inner holds only a text element, so these label locators are unambiguous.)
     assert inner_sp.evaluate("(el) => el.hasAttribute('open')") is False
     expect(inner_sp.locator(".spoiler__label--show")).to_be_visible()
     expect(inner_sp.locator(".spoiler__label--hide")).to_be_hidden()
     expect(inner_sp.locator("summary").first).to_contain_text("INNER-REVEAL")
+
+    # ...and opening the third level really does reveal the depth-4 content.
+    inner_sp.locator("summary").first.click()
+    expect(
+        inner_sp.locator(".spoiler__child", has_text=NESTED_SPOILER_MARKER)
+    ).to_be_visible()
