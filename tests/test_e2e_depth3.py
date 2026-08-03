@@ -263,15 +263,22 @@ def test_author_a_depth_4_text_through_the_ui(page, live_server):
 
     # --- and the reader can actually see it ----------------------------------------
     page.goto(_lesson_url(live_server, unit))
-    page.wait_for_selector(
-        f"[data-tabs-eid='{inner_tabs_join.pk}'].tabs--js"
-    )  # the INNER strip is initialised; tab 1 is its active panel
+    # ATTACHED, not visible: the third-level tabs element sits inside a still-CLOSED
+    # spoiler, so tabs.js initialises it while it has no layout box at all. Waiting for
+    # visibility here would time out against correct code.
+    inner_sel = f"[data-tabs-eid='{inner_tabs_join.pk}']"
+    page.wait_for_selector(f"{inner_sel}.tabs--js", state="attached")
+
     spoiler = page.locator("[data-tabs] details.spoiler").first
     spoiler.locator("summary").click()  # real reveal gesture
     child = spoiler.locator(".spoiler__child")
     expect(child).to_have_count(1)
     expect(child).to_contain_text(MARKER)
     expect(child).to_be_visible()
+    # The third level really is a live tabs widget, not just markup: its own strip is
+    # built and shows its own two tabs, and the depth-4 text is in the active panel.
+    expect(page.locator(f"{inner_sel} > .tabs__bar .tabs__tab")).to_have_count(2)
+    expect(page.locator(f"{inner_sel} .tabs__child", has_text=MARKER)).to_be_visible()
 
 
 # ---------------------------------------------------------------------------
