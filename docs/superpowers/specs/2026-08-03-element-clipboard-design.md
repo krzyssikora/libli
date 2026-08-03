@@ -90,8 +90,10 @@ element lands today. Position within the slot is then adjusted with the existing
 other unit. Cross-unit and cross-course movement are out of scope (see below).
 
 **Editor only.** These controls live in
-`templates/courses/manage/editor/_element_row_controls.html`, which the builder's unit panel
-(`_unit_panel.html`) does not include. The builder's inline element list keeps ↑ ↓ 🗑 alone.
+`templates/courses/manage/editor/_element_row_controls.html`, which is included from
+`_element_row.html` and nowhere else. The builder's unit panel renders a **read-only**
+element list (`element-list--readonly`, `_unit_panel.html:11-20`) — a type label and a
+summary per row, no controls at all — so it gains nothing here and needs no exclusion rule.
 
 ## The placement rule
 
@@ -215,9 +217,17 @@ never matches again at render time, silently orphaning the pasted element.
 
 ```
 subtree_facts(marked_join)                                    -> SubtreeFacts
-paste_allowed(unit, marked_join, dest_parent, tab, mode, facts=None)
-                                                              -> (bool, reason_key | None)
+paste_allowed(unit, marked_join, dest_parent, tab, mode,
+              facts=None, dest_depth=None)                    -> (bool, reason_key | None)
 ```
+
+`facts` and `dest_depth` are the two per-render precomputations, and both follow the same
+rule: **the render supplies them, the endpoint omits them, and the authority computes
+whatever it was not given.** That is what lets the one call the endpoint makes and the N
+calls the render makes provably run the same code. `dest_depth` in particular must be
+passed by the render — `enumerate_slots` knows it for free from its own walk, whereas
+recomputing it per slot means climbing `join.parent` hop by hop through
+`builder.element_depth` on joins that carry no `select_related`.
 
 `unit` is a parameter, not an ambient fact, so **clause 0 lives inside the authority** and is
 exercised by the same unit tests as the rest of the rule. `resolve_scope` takes `unit` for
@@ -253,7 +263,7 @@ fetches **top-level** joins only (`unit.elements.filter(parent__isnull=True)`,
 lookup, and it is specified here rather than left as a magic step:
 
 ```
-enumerate_slots(unit) -> [(parent_join_or_None, tab_id)]
+enumerate_slots(unit) -> [(parent_join_or_None, tab_id, dest_depth)]
 ```
 
 - Starts with the synthetic top-level pair `(None, "")`.
@@ -282,10 +292,22 @@ enumerate_slots(unit) -> [(parent_join_or_None, tab_id)]
   truncation direction it does not.** The non-destructive normalizer keeps slots the
   destructive one drops, so no button renders (the UI is safe) but `paste_allowed` would
   *admit* a hand-crafted POST into a truncated slot and orphan the pasted element.
-  `resolve_scope` has the identical exposure for adds today, so this is a documentation gap
-  rather than new breakage — but the write path is not closed in both directions, and saying
-  "fails closed" without that qualification would be false. The template tests pin one
-  padding case and one malformed/duplicate-id case.
+  `resolve_scope` has the identical exposure for adds today — **but the consequence is not
+  identical, so this one gets closed rather than documented.** An add into a truncated slot
+  loses an element the author has just written and can write again. A *move* takes an
+  existing, possibly populated subtree out of a scope where it was visible and lands it where
+  neither `resolved_tabs()` nor the export walk will ever find it: invisible in the editor,
+  invisible to the student, absent from any later course export, with undo out of scope.
+  That is destructive breakage on a path this spec creates.
+
+  **So clause 1 additionally requires the slot to lie within the first `MAX` entries of the
+  non-destructive list** (`MAX_TABS` / `MAX_COLUMNS`), which is exactly the set
+  `normalize_data` will not truncate away. The check is on *position*, not on the minted id,
+  so it is stable across calls — comparing ids against the destructive normalizer's output
+  would compare against freshly minted values. The template tests pin one padding case and
+  one malformed/duplicate-id case; a direct `paste_allowed` test pins the truncation case
+  with a `> MAX_TABS` container as the destination. Mutant: drop the position check → that
+  test goes RED while every other row stays green.
 - The view builds `SubtreeFacts` once, then calls `paste_allowed` per pair per mode and
   passes the two resulting sets to the template. The scalar is `min over n∈S of
   (cap(n) − rel(n))`, **not** a plain subtree height, because `cap` differs per node: a Tabs
@@ -313,9 +335,30 @@ means extra pairs are unreachable rather than wrong — and it is the same fail-
 as the normalizer split above. The direction that would hurt is the reverse, and it cannot
 happen.
 
-**Key shape is pinned as a single flattened string**, `slot_key(parent_pk, tab_id) ->
-f"{parent_pk or ''}:{tab_id}"`, with the top-level slot as `":"`. One helper, used by the
-view when building both sets and by the template tags when testing them.
+**Key shape is pinned as a single flattened string**, with the top-level slot as `":"`:
+
+```python
+def slot_key(parent_pk, tab_id):
+    return f"{'' if parent_pk is None else parent_pk}:{tab_id}"
+```
+
+Written as an explicit `is None` test, not `parent_pk or ''`, which would collapse a pk of 0
+onto the top-level key. Unreachable with Postgres sequences — but this helper exists
+precisely to make a class of type traps impossible, and an `or` doing a None test on a
+numeric value is that class.
+
+**It is registered twice: as this Python helper and as a one-argument template filter.** The
+paste buttons come from an inclusion tag, but the `<details>` open-set test happens inside
+`{% if forloop.first or … %}` at `_element_row.html:82` and `:132`, where a tag cannot be
+used and the key must be built from two values in an expression. The intended condition is:
+
+```
+{% if forloop.first or clip_active or el.pk|slot_key:tab.id|in_set:open_slots %}open{% endif %}
+```
+
+with `in_set` the existing scalar-membership filter in `courses_manage_extras`. One helper,
+two registrations, used by the view when building all three sets and by the template when
+testing them.
 
 The reason is that Django's template language cannot construct a tuple, so a
 `(parent_pk, tab_id)` key would be untestable from the template that needs it — and the
@@ -332,8 +375,19 @@ assert the top-level slot renders its buttons.
 ## Clipboard state
 
 ```python
-request.session["element_clip"] = {"unit": <unit pk>, "element": <element pk>}
+request.session["element_clip"] = {"unit": int(<unit pk>), "element": int(<element pk>)}
 ```
+
+**Both pks are stored as `int`, coerced on write, and that is not incidental.** The natural
+implementation stores `request.POST.get("element")` — a **string** — and the session is JSON,
+so a string stays a string across requests. Then `clip["element"] == el.pk` is False for
+every row: the toggle-off lifecycle row below never fires (⊹ on the marked element re-marks
+it instead of clearing), and the marked-row modifier never renders. Both fail **silently and
+closed** — the same signature as the slot-key trap, which is why the same discipline applies
+here. Ints are the cheaper choice because clauses 4 and 5 compare pks; the template side then
+compares with the repo's existing spelling, `clip_element_pk == el.pk|stringformat:'s'`
+(`_element_row.html:19`), against a value rendered from the same source. Tests for the
+toggle-off row and the marked-row modifier are the ones that go RED under the wrong type.
 
 No mode is stored — move-vs-copy arrives with the paste. Lifecycle:
 
@@ -343,10 +397,19 @@ No mode is stored — move-vs-copy arrives with the paste. Lifecycle:
 | ⊹ select while another element is marked | **Replaces** the mark. There is exactly one slot; no stack, no multi-select. |
 | ⊹ select on the element that is already marked | Clears it, so the row's own control toggles. |
 | ✕ cancel | Clears it. |
-| 📋 Move here | Clears it (the element is now where you put it). |
-| ⧉ Copy here | **Keeps** it, so one original can seed several slots. |
+| 📋 Move here, on success | Clears it (the element is now where you put it). |
+| ⧉ Copy here, on success | **Keeps** it, so one original can seed several slots. |
+| A paste **rejected** (422 — re-check refused, `parent_gone`, or a copy `TransferError`) | **Keeps** it. |
+| A paste **conflicted** (409 — stale token) | **Keeps** it. |
 | Rendering another unit | Ignored; not cleared (you may navigate back). |
 | Marked element gone or not in this unit | Treated as absent and cleared lazily at render. |
+
+**The mark survives every failure, and the session is written only after the service
+returns.** A 422 that says "here is why nothing moved" while having already discarded the
+selection invites a retry that is impossible — and that retry lands on the no-mark 409 path
+above, compounding one confusing response into two. The ordering matters independently: the
+session write is *not* covered by `@transaction.atomic`, so a mark cleared before a rollback
+stays cleared while the database change does not.
 
 **On losing an open form to ⊹.** An open element form is *server*-rendered into
 `.el-edit-slot` — `_render_open_form` returns the whole fragment pair with the form embedded
@@ -486,6 +549,16 @@ has no natural value for. Split it explicitly:
 - a **parse-only helper** — `parent`/`tab` together-or-neither, the `int()` guard, and the
   `filter(pk=…, unit=unit)` lookup (`courses/builder.py:127-142`). `resolve_scope` is
   refactored to call it, so the two parses cannot drift.
+
+  **The unresolvable-parent case raises `ParentGoneError(NestingError)` — a subclass, and
+  that inheritance is load-bearing.** `element_add` (`courses/views_manage.py:1560`) and
+  `element_save` (`:1626`) catch `builder_svc.NestingError` and nothing else, so a new
+  sibling exception class would turn their clean 400 into an uncaught 500 the moment a
+  parent pk vanishes — a regression in two existing views, introduced by a refactor meant to
+  be behaviour-preserving, and invisible to every test in this plan. As a subclass it is
+  caught by construction; only the paste view, which catches it first, maps it to 422.
+  A test asserts `element_add`/`element_save` still return 400 for a vanished parent pk
+  after the refactor.
 - **admissibility is `paste_allowed`'s alone**, and always reports 422.
 
 The helper's two failure kinds get **different statuses**, because they differ in
@@ -634,6 +707,15 @@ Four further properties are deliberate:
   modes therefore differ on this one degenerate case, deliberately: making the copy carry
   orphans would mean a second walk that disagrees with the export, which is precisely the
   drift the Risks section warns against.
+- **A container whose stored slot ids are missing, malformed or duplicated can orphan its
+  own children on the copy.** `_ser_tabs` serialises the container's `data` through
+  `normalize_labels_and_ids`, while `emit` reaches its children through `resolved_tabs()` →
+  `normalize_data`. Both are pure functions over the stored blob and both mint a fresh id for
+  a bad entry — so within one export run they mint **different** ids, and the copied
+  container ends up carrying id X while its copied children carry `tab_id` Y. Children that
+  were visible on the source become orphans on the copy. Pre-existing and shared with
+  `duplicate_unit`, reachable only through a direct DB edit (a `save()` normalises the blob),
+  and listed here so it is not later read as damage this feature introduced.
 
 A duplicate lands at `source_index + 1` **within the source's own group** — so duplicating a
 child of Tab A puts the copy directly below it, still in Tab A. It runs the same
@@ -863,7 +945,10 @@ Assert: every join and concrete row has a fresh pk; rendered content matches; th
 preserved at every depth; **the copied root's `parent`/`tab_id` are the destination's, not
 `None`/`""`** — the graft leaves them unset, so this assertion is what catches the copy
 landing at top level; and **an internal content link in a copied element still resolves to
-its original target**, which is what `_rewrite_links` would have broken.
+its original target**, which is what `_rewrite_links` would have broken. Mutants: skip the
+scope-setting step → the root assertion goes RED; call `_rewrite_links` → the link assertion
+goes RED; share concrete rows instead of copying them → the fresh-pk assertion goes RED while
+content equality stays green.
 
 **Move (unit).** The root is re-parented **and that scope is persisted** — re-read from the
 DB, not asserted on the in-memory instance, since `place_element` writes only `order`;
@@ -871,6 +956,14 @@ include the case where the moved row's old order equals its new index, where `pl
 saves nothing at all. Descendants' `parent`/`unit` rows are byte-identical afterwards; the
 source group is compacted to `0..n-1`; the destination group keeps distinct orders. A
 copy-into-own-slot leaves that single group compacted with the copy last.
+
+**Two of those assertions are vacuous on their own** — "the source group is compacted to
+`0..n-1`" and "the destination keeps distinct orders" are both true of an implementation that
+never moves anything at all. Mutants that make them non-vacuous: delete step 2's
+`save(update_fields=["parent", "tab_id"])` → the re-read-from-DB scope assertion goes RED
+(and only that one, which is the point); swap steps 3 and 4 so the compaction runs before the
+placement → the source-compaction assertion goes RED; read `(parent, tab_id)` after mutating
+instead of before → the source group is left with a hole and the same assertion goes RED.
 
 **`unit.updated` is bumped exactly once by each of duplicate, paste-move and paste-copy** —
 asserted per operation, not only for move. Mutant: drop the bump from the copy path → the
@@ -899,7 +992,13 @@ is pending, on the render following a paste, **and on the render following a dup
 its buttons (the key-shape failure is silent and closed, so this is the test that catches
 it); a Tabs row with fewer stored tabs than `MIN_TABS` renders its padded slot with **no**
 paste button, pinning the fail-closed divergence between the enumerator's non-destructive
-normalizer and the renderer's destructive one. These are meaningful here precisely because
+normalizer and the renderer's destructive one, plus one malformed/duplicate-id case.
+
+**Several of those cases assert a button is *absent*, and would stay green if the tag emitted
+nothing at all.** The pairing is what makes them non-vacuous, so name the mutant: make the tag
+render nothing → the top-level-slot and own-slot-copy cases go RED while every "no button"
+case stays green. A suite that only asserts absence cannot tell a working rule from a dead
+template. These are meaningful here precisely because
 the markup is server-rendered — the "green under the defect" trap applies to JS-built
 markup, not this.
 
@@ -928,7 +1027,14 @@ none of which are PR2's despite being introduced in sections about the clipboard
 **`slot_key`** (the open-set uses the same key shape), the **`error` context key on
 `_render_editor_fragments`** and its render slot in `_editor_scope.html` (with the
 `editor.html:59` block moved, not duplicated), and the **`data-force-open` stamp plus the
-`applyStoredTabs` skip**. Delivers need #2 on its own.
+`applyStoredTabs` skip**.
+
+**PR1 does not deliver need #2 on its own**, and it would be convenient but wrong to claim it
+does. Need #2 is "three tabs whose content differs only in small details" — seeding tab 2
+from tab 1 requires ⧉ Copy here, which is PR2. A duplicate always lands in the *source's own
+slot*. What PR1 delivers is the narrower "one near-identical sibling in the same slot" case,
+plus the whole foundation PR2 stands on. That distinction is the honest basis for judging
+PR1 done.
 
 **PR2 — the clipboard.** `paste_allowed` and `enumerate_slots`, the promotion of the
 model→key helper and the strengthened container-key drift test in
