@@ -418,6 +418,62 @@ def test_student_keyboard_arrow_and_home(live_server, page, lesson_with_tabs):
 
 
 @pytest.fixture
+def lesson_with_math_tab_label(page, live_server):
+    """Enrolled student on a lesson whose FIRST tab label carries inline math and
+    whose children carry none — so the page only arms KaTeX if the label itself is
+    inspected."""
+    from courses.models import TextElement
+    from tests.factories import ContentNodeFactory
+    from tests.factories import CourseFactory
+    from tests.factories import EnrollmentFactory
+
+    student = _seed_student("tabs_label_math")
+    course = CourseFactory()
+    unit = ContentNodeFactory(course=course, kind="unit", unit_type="lesson")
+    _seed_tabs_element(
+        unit,
+        [("t000001", r"Wzór \(x^2\)"), ("t000002", "Plain")],
+        {
+            "t000001": [TextElement.objects.create(body="<p>panel one body</p>")],
+            "t000002": [TextElement.objects.create(body="<p>panel two body</p>")],
+        },
+    )
+    EnrollmentFactory(student=student, course=course)
+    _login(page, live_server, "tabs_label_math")
+    return types.SimpleNamespace(lesson_url=_lesson_url(live_server, unit))
+
+
+@pytest.mark.django_db(transaction=True)
+def test_tab_label_math_is_typeset_in_the_strip(
+    live_server, page, lesson_with_math_tab_label
+):
+    """A tab label's inline math must be TYPESET on the strip button — the only place
+    a reader ever sees the label on screen (the <h3> it is copied from is sr-only once
+    enhanced, surfacing only in print).
+
+    Two independent defects shipped raw source here and both are caught by the same
+    assertion: `has_math` never inspected the label, so KaTeX was not even loaded; and
+    the strip button was built from `label.textContent`, which — after KaTeX HAS run
+    over the <h3> — flattens the rendered math to the mangled "x2x^2x2"."""
+    page.goto(lesson_with_math_tab_label.lesson_url)
+    page.wait_for_selector("[data-tabs].tabs--js")
+
+    first = page.locator("[data-tabs] .tabs__strip .tabs__tab").first
+    # The button holds real KaTeX output, not text.
+    page.wait_for_selector("[data-tabs] .tabs__strip .tabs__tab .katex", timeout=5000)
+    assert first.locator(".katex").count() == 1
+
+    text = first.text_content() or ""
+    assert "\\(" not in text, f"raw math delimiter left in the tab strip: {text!r}"
+    assert "Wzór" in text  # the prose around the math is still there
+
+    # The second label has no math and must be left alone.
+    second = page.locator("[data-tabs] .tabs__strip .tabs__tab").nth(1)
+    assert (second.text_content() or "").strip() == "Plain"
+    assert second.locator(".katex").count() == 0
+
+
+@pytest.fixture
 def lesson_with_two_tabs(page, live_server):
     """Enrolled student on a lesson with TWO tabs elements that deliberately SHARE
     their tab ids — the case the namespaced DOM ids exist to protect."""

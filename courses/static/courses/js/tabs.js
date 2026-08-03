@@ -100,7 +100,17 @@
       btn.id = tabId;
       btn.setAttribute("role", "tab");
       btn.setAttribute("aria-controls", panelId);
-      btn.textContent = label.textContent;
+      // CLONE the heading's child nodes -- never copy its textContent. math.js runs
+      // BEFORE this file in document order on every page that loads both, so by now a
+      // label carrying inline math is already a <span class="katex"> subtree, and
+      // textContent would flatten it to KaTeX's mangled fallback ("x2x^2x2" for x^2).
+      // Cloning also makes the order irrelevant: if math.js has NOT run yet the button
+      // receives the raw text and, since the strip lives inside `.el--tabs`, the later
+      // auto-render pass typesets the button itself. Cloning (not innerHTML) keeps a
+      // label that is plain text plain text -- the escaping the server did survives.
+      Array.prototype.forEach.call(label.childNodes, function (n) {
+        btn.appendChild(n.cloneNode(true));
+      });
       strip.appendChild(btn);
 
       panel.id = panelId;

@@ -21,10 +21,29 @@ def test_default_data_has_min_tabs_with_distinct_ids():
     assert len(set(ids)) == len(ids)
 
 
-def test_sanitize_label_strips_tags_and_truncates():
-    assert sanitize_label("<b>Hi</b> there") == "Hi there"
+def test_sanitize_label_collapses_whitespace_and_truncates():
+    assert sanitize_label("  Hi   there \n") == "Hi there"
     assert len(sanitize_label("x" * 200)) == 80
     assert sanitize_label(None) == ""
+
+
+@pytest.mark.parametrize(
+    "label",
+    [
+        r"\(a<b\)",
+        r"\(x_{1}<x_{2}\)",
+        r"\[a<b<c\]",
+        r"Wzór \(x^2\)",
+        r"Case \(n>1\)",
+    ],
+)
+def test_sanitize_label_keeps_latex_verbatim(label):
+    """`<` followed by a letter is a tag start to an HTML parser, so an HTML
+    sanitiser silently ate the rest of the label: `\\(a<b\\)` was stored as `\\(a`.
+    A label is plain TEXT that may carry LaTeX, and every sink escapes it (see
+    test_tabs_partial.test_a_label_carrying_markup_renders_escaped), so it must
+    survive byte-for-byte."""
+    assert sanitize_label(label) == label
 
 
 def test_normalize_labels_and_ids_is_non_destructive():
