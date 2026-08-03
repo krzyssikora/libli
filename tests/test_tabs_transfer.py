@@ -125,13 +125,17 @@ def test_nesting_validation_accepts_a_wellformed_document():
     validate_nesting(_els(_tabs_el(), _child()))  # must not raise
 
 
+def test_nesting_validation_accepts_tabs_in_tabs():
+    # Depth-3 slice: a container child of a TOP-LEVEL container is depth 2 -- valid.
+    validate_nesting(_els(_tabs_el(), _child(type_="tabs")))  # must not raise
+
+
 @pytest.mark.parametrize(
     "elements",
     [
         _els(_tabs_el(), _child(parent="e9")),  # unknown parent
         _els(_tabs_el(), _child(tab="tzzzzzz")),  # tab not in parent
         _els(_tabs_el(), _child(type_="choice")),  # non-nestable child
-        _els(_tabs_el(), _child(type_="tabs")),  # tabs in tabs
         _els(_tabs_el(), _child(), _child("e3", parent="e2")),  # depth > 1
         _els(
             {

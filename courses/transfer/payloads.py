@@ -747,7 +747,10 @@ def _val_twocolumn(data, elid, media_kinds):
 # Module-level, transfer-type-string keyed (distinct from the model-keyed builder
 # registry in courses.builder._CONTAINER_REGISTRY): the container type's transfer
 # key -> the key its `data` dict uses for the slot list validate_nesting reads.
-_CONTAINER_SLOT_KEY = {"tabs": "tabs", "two_column": "columns"}
+# `None` means SINGLE-SLOT (the only valid id is SpoilerElement.SLOT_ID), NOT
+# "missing". Membership is tested BEFORE this lookup, because `None` already
+# serves as the not-a-container sentinel.
+_CONTAINER_SLOT_KEY = {"tabs": "tabs", "two_column": "columns", "spoiler": None}
 
 
 def validate_nesting(elements):
@@ -756,7 +759,6 @@ def validate_nesting(elements):
     parent chain deeper than one level -- that depth bound is what lets the editor's
     recursive row template terminate without a guard."""
     from courses.builder import NESTABLE_TYPE_KEYS
-    from courses.builder import SPOILER_CHILD_TYPES
     from courses.models import SpoilerElement
 
     # Step 4a applies the v2 shim before _exact_keys, so both keys are present.
@@ -771,27 +773,17 @@ def validate_nesting(elements):
         # Slot-membership: spoiler is a single-slot container with no `data` slot
         # list, so its sole valid slot id is SpoilerElement.SLOT_ID; every other
         # container reads its slot list from `data` via _CONTAINER_SLOT_KEY.
-        if parent["type"] == "spoiler":
-            valid_slot_ids = {SpoilerElement.SLOT_ID}
-            # Defence-in-depth: match resolve_scope()'s spoiler allowlist
-            # (SPOILER_CHILD_TYPES = static + interactive leaves) so a still-disallowed
-            # child — a container like tabs, or a non-fillblank question — that slips
-            # past a hostile/older-loader archive is rejected here too, not just via
-            # the general NESTABLE_TYPE_KEYS check below (which is broader — it also
-            # permits e.g. a container type as a tabs child).
-            if el["type"] not in SPOILER_CHILD_TYPES:
-                _err(
-                    _("Element '%(el)s' may not be nested inside a spoiler."),
-                    el=el["id"],
-                )
-        else:
-            slot_key = _CONTAINER_SLOT_KEY.get(parent["type"])
-            if slot_key is None:
-                _err(
-                    _("Element '%(el)s' has a parent that is not a container element."),
-                    el=el["id"],
-                )
-            valid_slot_ids = {s["id"] for s in parent["data"][slot_key]}
+        if parent["type"] not in _CONTAINER_SLOT_KEY:  # membership FIRST
+            _err(
+                _("Element '%(el)s' has a parent that is not a container element."),
+                el=el["id"],
+            )
+        slot_key = _CONTAINER_SLOT_KEY[parent["type"]]  # then read
+        valid_slot_ids = (
+            {SpoilerElement.SLOT_ID}
+            if slot_key is None
+            else {s["id"] for s in parent["data"][slot_key]}
+        )
         # Depth check runs for EVERY container (must NOT be skipped for spoiler).
         if parent["parent"] is not None:
             _err(_("Element '%(el)s' is nested more than one level deep."), el=el["id"])

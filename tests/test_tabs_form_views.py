@@ -116,20 +116,24 @@ def test_bad_scope_raises_nesting_error(kwargs):
         )
 
 
-def test_non_nestable_child_type_raises():
+def test_tabs_in_tabs_is_saved_at_depth_2():
+    # Depth-3 slice: a tabs child of a top-level tabs element lands at depth 2 and
+    # is legal. `data=""` hits clean_data's MIN_TABS blank-payload default.
     course, unit = make_course_with_unit()
     obj, join = _make_tabs(unit)
     tab = obj.data["tabs"][0]["id"]
     unit.refresh_from_db()
-    with pytest.raises(builder_svc.NestingError):  # tabs-in-tabs
-        builder_svc.save_element(
-            course,
-            unit.pk,
-            "tabs",
-            "new",
-            _post(unit, data="", parent=str(join.pk), tab=tab),
-            {},
-        )
+    builder_svc.save_element(
+        course,
+        unit.pk,
+        "tabs",
+        "new",
+        _post(unit, data="", parent=str(join.pk), tab=tab),
+        {},
+    )
+    child = Element.objects.get(parent=join)
+    assert isinstance(child.content_object, TabsElement)
+    assert child.tab_id == tab
 
 
 def test_resolve_scope_rejects_non_tabs_parent():

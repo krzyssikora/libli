@@ -138,15 +138,14 @@ def test_validate_nesting_accepts_spoiler_slot_and_rejects_depth2():
         validate_nesting(depth2)
 
 
-def test_validate_nesting_rejects_container_spoiler_child():
-    # reveal_gate is now an allowed spoiler child (Task 1 widening); a native
-    # container (tabs) stays rejected -- retargeted from the old reveal_gate case.
+def test_validate_nesting_accepts_container_child_of_a_top_level_spoiler():
+    # Depth-3 slice: a container (tabs) child of a TOP-LEVEL spoiler lands at depth
+    # 2 and is valid -- the transfer-side twin of resolve_scope's clause 4 boundary.
     from courses.models import SpoilerElement
     from courses.transfer.payloads import validate_nesting
-    from courses.transfer.schema import TransferError
 
     slot = SpoilerElement.SLOT_ID
-    bad = [
+    ok = [
         {
             "id": "sp",
             "type": "spoiler",
@@ -156,8 +155,7 @@ def test_validate_nesting_rejects_container_spoiler_child():
         },
         {"id": "c1", "type": "tabs", "parent": "sp", "tab": slot, "data": {"tabs": []}},
     ]
-    with pytest.raises(TransferError):
-        validate_nesting(bad)
+    validate_nesting(ok)  # must not raise
 
 
 @pytest.mark.django_db

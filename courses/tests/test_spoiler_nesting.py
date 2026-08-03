@@ -5,7 +5,6 @@ from django.urls import reverse
 
 from courses import builder
 from courses.builder import NESTABLE_TYPE_KEYS
-from courses.builder import SPOILER_CHILD_TYPES
 from courses.builder import NestingError
 from courses.models import Element
 from courses.models import SpoilerElement
@@ -138,7 +137,9 @@ def test_resolve_scope_accepts_leaf_child_in_top_level_spoiler():
     assert tab == SpoilerElement.SLOT_ID
 
 
-def test_resolve_scope_rejects_disallowed_child_type_in_spoiler():
+def test_resolve_scope_child_types_in_a_top_level_spoiler():
+    # Depth-3 slice: a top-level spoiler (depth 1) takes CONTAINER children too --
+    # they land at depth 2. Only genuinely non-nestable types stay rejected.
     import pytest
 
     from courses import builder
@@ -146,12 +147,17 @@ def test_resolve_scope_rejects_disallowed_child_type_in_spoiler():
 
     _course, unit = make_course_with_unit()
     _sp, join = _spoiler_join(unit)
-    for bad in ("tabs", "spoiler", "choicequestion"):
+    for bad in ("choicequestion",):
         with pytest.raises(NestingError):
             builder.resolve_scope(unit, str(join.pk), SpoilerElement.SLOT_ID, bad)
+    for good in ("tabs", "spoiler"):
+        parent_join, tab = builder.resolve_scope(
+            unit, str(join.pk), SpoilerElement.SLOT_ID, good
+        )
+        assert parent_join == join and tab == SpoilerElement.SLOT_ID
 
 
-def test_spoiler_child_types_includes_interactive_leaves():
+def test_nestable_type_keys_includes_interactive_leaves_and_containers():
     for k in (
         "reveal_gate",
         "fill_gate",
@@ -160,9 +166,11 @@ def test_spoiler_child_types_includes_interactive_leaves():
         "fill_blank",
         "fill_table",
     ):
-        assert k in SPOILER_CHILD_TYPES
-    for k in ("tabs", "two_column", "spoiler"):  # containers still excluded
-        assert k not in SPOILER_CHILD_TYPES
+        assert k in NESTABLE_TYPE_KEYS
+    for k in ("tabs", "two_column", "spoiler"):  # containers are nestable now
+        assert k in NESTABLE_TYPE_KEYS
+    for k in ("choicequestion", "slidebreak"):  # genuinely non-nestable
+        assert k not in NESTABLE_TYPE_KEYS
 
 
 def test_nestable_type_keys_includes_fill_blank():
@@ -182,16 +190,22 @@ def test_resolve_scope_accepts_interactive_form_key_in_spoiler(form_key):
 
 
 @pytest.mark.django_db
-def test_resolve_scope_still_rejects_children_of_nested_spoiler():
-    # a spoiler whose OWN join.parent_id is not None (depth-2) takes no children
+def test_resolve_scope_accepts_leaf_child_of_a_nested_spoiler():
+    # Depth-3 slice: a spoiler-in-spoiler sits at depth 2, and clause 4 blocks only
+    # CONTAINER children there -- a leaf child (depth 3) is now legal.
     _course, unit = make_course_with_unit()
     _outer_sp, outer_join = _spoiler_join(unit)
     _inner_sp, inner_join = _spoiler_join(
         unit, parent=outer_join, tab_id=SpoilerElement.SLOT_ID
     )
+    parent_join, tab = builder.resolve_scope(
+        unit, str(inner_join.pk), SpoilerElement.SLOT_ID, "switchgate"
+    )
+    assert parent_join == inner_join and tab == SpoilerElement.SLOT_ID
+    # ...but a container child of that depth-2 spoiler stays rejected (clause 4)
     with pytest.raises(NestingError):
         builder.resolve_scope(
-            unit, str(inner_join.pk), SpoilerElement.SLOT_ID, "switchgate"
+            unit, str(inner_join.pk), SpoilerElement.SLOT_ID, "spoiler"
         )
 
 
@@ -207,21 +221,21 @@ def test_resolve_scope_rejects_wrong_slot_for_spoiler():
         builder.resolve_scope(unit, str(join.pk), "wrong", "text")
 
 
-def test_resolve_scope_refuses_children_for_nested_spoiler():
-    import pytest
-
+def test_resolve_scope_accepts_children_for_a_spoiler_inside_a_tab():
     from courses import builder
-    from courses.builder import NestingError
     from courses.models import TabsElement
 
     _course, unit = make_course_with_unit()
     tabs = TabsElement.objects.create(data=TabsElement.default_data())
     tjoin = Element.objects.create(unit=unit, content_object=tabs)
     tab_id = tabs.data["tabs"][0]["id"]
-    # a spoiler nested inside a tab (depth 1) may NOT itself receive children
+    # Purpose bullet 3: a spoiler nested inside a tab (depth 2) DOES take leaf
+    # children -- they land at depth 3.
     _sp, sp_join = _spoiler_join(unit, parent=tjoin, tab_id=tab_id)
-    with pytest.raises(NestingError):
-        builder.resolve_scope(unit, str(sp_join.pk), SpoilerElement.SLOT_ID, "text")
+    parent_join, tab = builder.resolve_scope(
+        unit, str(sp_join.pk), SpoilerElement.SLOT_ID, "text"
+    )
+    assert parent_join == sp_join and tab == SpoilerElement.SLOT_ID
 
 
 def test_spoiler_form_keeps_body_for_legacy_spoiler():

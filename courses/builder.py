@@ -6,6 +6,7 @@ from django.utils.dateparse import parse_datetime
 from courses import ordering
 from courses.models import ContentNode
 from courses.models import Element
+from courses.models import SpoilerElement
 from courses.models import TabsElement
 from courses.models import TwoColumnElement
 from courses.models import _delete_element_content_objects
@@ -20,6 +21,14 @@ class ConflictError(Exception):
 class NestingError(Exception):
     """A nested add/save violated the nesting rules -> HTTP 400."""
 
+
+MAX_NEST_DEPTH = 3  # a top-level element has depth 1
+
+# Container TYPE KEYS (transfer namespace). Clause 4 of the containment rule tests
+# membership here. PR2 (Callout as a container) must add its key to THIS set, to
+# _CONTAINER_REGISTRY and to payloads._CONTAINER_SLOT_KEY -- all three. The drift
+# test in test_nesting_rule.py is what stops it landing in only two.
+CONTAINER_TRANSFER_KEYS = frozenset({"tabs", "two_column", "spoiler"})
 
 # Positive allowlist: any type NOT named here is non-nestable, including types added
 # by future slices. Deliberately NOT the element_add/element_save allow-tuples, which
@@ -52,31 +61,10 @@ NESTABLE_TYPE_KEYS = frozenset(
         "stepper",
         "mark_done",
         "guess_number",
-    }
-)
-
-# Leaf children a spoiler may hold (server-enforced), in CANONICAL (transfer) keys.
-# Static leaves PLUS the interactive leaves (reveal/fill/switch gate, switch grid,
-# fill blank, fill table). Excludes spoiler itself and native containers
-# (tabs/two_column) — the depth-1 leaf-only scope. Non-canonical callers normalize
-# first: editor form keys via _NESTABLE_FORM_KEY_ALIASES, the LAL loader's parser keys
-# via its _PARSER_TO_CANONICAL.
-SPOILER_CHILD_TYPES = frozenset(
-    {
-        "text",
-        "math",
-        "image",
-        "video",
-        "iframe",
-        "table",
-        "gallery",
-        "callout",
-        "reveal_gate",
-        "fill_gate",
-        "switch_gate",
-        "switch_grid",
-        "fill_blank",
-        "fill_table",
+        # Containers, as of the depth-3 slice. Both are already in
+        # transfer.export.SERIALIZERS, so NESTABLE_TYPE_KEYS <= SERIALIZERS holds.
+        "tabs",
+        "two_column",
     }
 )
 
@@ -90,6 +78,7 @@ _NESTABLE_FORM_KEY_ALIASES = {
     "revealgate": "reveal_gate",
     "switchgate": "switch_gate",
     "switchgrid": "switch_grid",
+    "twocolumn": "two_column",
 }
 
 # Container element registry: model class -> (non_destructive_normalizer,
@@ -99,7 +88,29 @@ _NESTABLE_FORM_KEY_ALIASES = {
 _CONTAINER_REGISTRY = {
     TabsElement: (TabsElement.normalize_labels_and_ids, "tabs", "id"),
     TwoColumnElement: (TwoColumnElement.normalize_ids, "columns", "id"),
+    # Single-slot: ignores its argument and returns one fixed slot. SpoilerElement
+    # has no `data` field, which is why the call site below uses getattr().
+    SpoilerElement: (
+        lambda _data: {"slots": [{"id": SpoilerElement.SLOT_ID}]},
+        "slots",
+        "id",
+    ),
 }
+
+
+def element_depth(join):
+    """1 for a top-level element; +1 per parent hop.
+
+    Bounded by MAX_NEST_DEPTH hops so a corrupt parent cycle returns a too-deep
+    value instead of looping. The bound is for cycle safety ONLY -- what makes
+    MAX_NEST_DEPTH load-bearing is clauses 3 and 4 comparing against it.
+    """
+    depth = 1
+    parent = join.parent
+    while parent is not None and depth <= MAX_NEST_DEPTH:
+        depth += 1
+        parent = parent.parent
+    return depth
 
 
 def resolve_scope(unit, parent_ref, tab, type_key):
@@ -119,42 +130,44 @@ def resolve_scope(unit, parent_ref, tab, type_key):
     if not parent_ref or not tab:
         raise NestingError("parent and tab must be supplied together")
     try:
-        join = Element.objects.filter(pk=int(parent_ref), unit=unit).first()
+        join = (
+            Element.objects.select_related("parent__parent")
+            .filter(pk=int(parent_ref), unit=unit)
+            .first()
+        )
     except (TypeError, ValueError):
         raise NestingError("bad parent ref") from None
     if join is None:
         raise NestingError("unknown parent")
-    parent_obj = join.content_object
-    from courses.models import SpoilerElement
 
-    if isinstance(parent_obj, SpoilerElement):
-        # Single-slot container: no `data` slot list to read. A spoiler may receive
-        # children only when it is itself top-level (depth-1 invariant), and only
-        # allowlisted LEAF child types (SPOILER_CHILD_TYPES — static leaves plus the
-        # interactive leaves; native containers and nested spoilers stay excluded).
-        if join.parent_id is not None:
-            raise NestingError("a nested spoiler may not have children")
-        if tab != SpoilerElement.SLOT_ID:
-            raise NestingError("unknown slot")
-        child_key = _NESTABLE_FORM_KEY_ALIASES.get(type_key, type_key)
-        if child_key not in SPOILER_CHILD_TYPES:
-            raise NestingError(f"{type_key} may not be nested inside a spoiler")
-        return join, SpoilerElement.SLOT_ID
-    # normalize_data (behind normalized_data) is DESTRUCTIVE and read-side only: it
-    # pads/truncates and mints fresh random ids on every call, so a slot validated
-    # against it here could be an ephemeral phantom that never matches again at
-    # render time -- silently orphaning the child. A write path must validate
-    # against the ids that actually exist, via the non-destructive normalizer.
+    parent_obj = join.content_object
     container = _CONTAINER_REGISTRY.get(type(parent_obj))
     if container is None:
         raise NestingError("parent is not a container")
-    normalizer, list_key, id_key = container
-    valid_slot_ids = {s[id_key] for s in normalizer(parent_obj.data)[list_key]}
-    if tab not in valid_slot_ids:
-        raise NestingError("unknown slot")
-    nestable_key = _NESTABLE_FORM_KEY_ALIASES.get(type_key, type_key)
-    if nestable_key not in NESTABLE_TYPE_KEYS:
+
+    child_key = _NESTABLE_FORM_KEY_ALIASES.get(type_key, type_key)
+    if child_key not in NESTABLE_TYPE_KEYS:  # clause 1
         raise NestingError(f"{type_key} may not be nested")
+
+    # normalize_data (behind normalized_data) is DESTRUCTIVE and read-side only: it
+    # pads/truncates and mints fresh random ids on every call, so a slot validated
+    # against it could be an ephemeral phantom that never matches again at render
+    # time -- silently orphaning the child. A write path must validate against the
+    # ids that actually exist, via the non-destructive normalizer.
+    normalizer, list_key, id_key = container
+    # getattr: a single-slot container (spoiler) has no `data` field at all, and the
+    # argument is evaluated HERE, before the normalizer runs.
+    slots = normalizer(getattr(parent_obj, "data", None))[list_key]
+    if tab not in {s[id_key] for s in slots}:  # clause 2
+        raise NestingError("unknown slot")
+
+    parent_depth = element_depth(join)
+    if parent_depth >= MAX_NEST_DEPTH:  # clause 3
+        raise NestingError("too deep")
+    if (  # clause 4
+        parent_depth >= MAX_NEST_DEPTH - 1 and child_key in CONTAINER_TRANSFER_KEYS
+    ):
+        raise NestingError("a container may not be nested this deeply")
     return join, tab
 
 
