@@ -34,18 +34,40 @@ it; it adds a separate, explicitly-validated placement path beside it.
 |---|---|---|
 | Recursive container rendering with a per-slot add-menu | `templates/courses/manage/editor/_element_row.html:44-197` | The paste buttons hang off the same slots |
 | Nesting validation, clauses 1–4 | `builder.resolve_scope`, `courses/builder.py:117-172` | The placement rule generalises it |
-| Absolute-position insert within a group | `ordering.place_element`, `courses/ordering.py:96-117` | Both paste and duplicate |
+| Absolute-position insert within a group | `ordering.place_element`, `courses/ordering.py:96-117` | Positioning, **after** the caller has persisted the scope — see below |
 | Group compaction after a removal | `ordering.compact_elements`, `courses/ordering.py:58-60` | The source slot after a move |
-| Whole-unit deep copy via the transfer layer | `builder.duplicate_unit`, `courses/builder.py:326-375` | The template for element-level copy |
-| Container child walk (Tabs / TwoColumn / Spoiler) | `courses/transfer/export.py:507-526` | Scoping an export to one element subtree |
+| Whole-unit deep copy via the transfer layer | `builder.duplicate_unit`, `courses/builder.py:326-375` | The shape the element-level copy follows |
+| Container child walk (Tabs / TwoColumn / Spoiler) | `walk_unit_joins`' `emit`, `courses/transfer/export.py:507-526` | The **export** side of a copy only — not the subtree of the placement rule |
 | Two-pass element materialisation | `importer._create_elements`, `courses/transfer/importer.py:872-911` | Grafting a copied subtree into an existing unit |
 | Generic `form[data-op]` interception + fragment swap | `courses/static/courses/js/editor.js:283` | **No new JavaScript is required** |
 
-That last row is load-bearing for the whole design: because every editor operation already
-answers with a re-rendered editor+preview fragment pair (`_render_editor_fragments`,
+**Two of these do less than their names suggest, and the design depends on the difference.**
+
+- `place_element` saves every row with `save(update_fields=["order"])` and only when the
+  order actually changed (`courses/ordering.py:112-116`). It therefore **cannot persist a
+  re-parent**, and it will not save the moved row at all when its old order happens to equal
+  its new index. It also *reads* `element.parent` / `element.tab_id` to pick the sibling
+  group (`:101-102`). Both consequences are specified under Move semantics. Its sibling
+  `place_node` handles the equivalent case with a deliberate full save and a documented
+  precondition assert (`courses/ordering.py:63-93`); `place_element` has neither, and this
+  spec does not change it — the caller carries the obligation.
+- `materialize_duplicate` calls `_create_nodes` and returns a **ContentNode**
+  (`courses/transfer/importer.py:1093-1119`). Grafting into an *existing* unit must not
+  create a node, so it needs its own entry point (see Copy semantics).
+
+The last table row is load-bearing for the whole design: because every editor operation
+already answers with a re-rendered editor+preview fragment pair (`_render_editor_fragments`,
 `courses/views_manage.py:1244-1282`), and because the JS intercepts *any* form carrying
-`data-op`, a new operation is a template form plus a view. Without JS the same form posts
-normally and the no-JS path redirects, exactly as ↑ ↓ 🗑 do today.
+`data-op`, a new operation is a template form plus a view.
+
+**What "works without JavaScript" means here, precisely.** The form posts, the mutation
+happens, and the response is the same fragment pair rendered as a bare page — because
+`element_move` and `element_delete` both test `_editor_ctx` *before* the no-JS redirect
+branch (`courses/views_manage.py:1163-1167`, `:1177-1182`), so a no-JS success in the editor
+today does **not** redirect. Only the conflict path does (`_element_conflict:1206-1209`). The
+new operations copy that existing behaviour exactly rather than fixing it; the bare-fragment
+no-JS response is a pre-existing wart affecting ↑ ↓ 🗑 equally, and changing it would change
+those ops too. Out of scope, recorded here so the claim is not read as stronger than it is.
 
 ## Decisions
 
@@ -90,18 +112,55 @@ would render slots that can never be filled. A leaf may live at depth 1–4.
 
 `is_container` reads the **model-keyed** `_CONTAINER_REGISTRY`, not the transfer-key set
 `CONTAINER_TRANSFER_KEYS`, because the subject here is an existing row rather than an
-incoming request — no model→key hop is needed. The two must agree; the drift test in
-`test_nesting_rule.py` already guards that they do.
+incoming request — no model→key hop is needed.
 
-Placing the subtree `S` rooted at `R` into (`P`, slot `t`) is admissible iff:
+The two must agree, and **the existing drift test is weaker than it looks**: it asserts
+`CONTAINER_TRANSFER_KEYS == set(_CONTAINER_SLOT_KEY)` but only
+`len(CONTAINER_TRANSFER_KEYS) == len(_CONTAINER_REGISTRY)`
+(`courses/tests/test_nesting_rule.py:285-286`). A length equality passes green when a fourth
+model is added to the registry under a *different* fourth key — which is exactly the seam
+`cap(n)` and clause 2 now both sit on. Strengthening it is part of this work, using the
+model→key helper promoted below.
+
+### The subtree `S`
+
+**`S` is the FK walk — `join.children`, every child row, matched slot or not.** The repo has
+two subtree walkers that deliberately disagree, and picking the wrong one silently breaks the
+rule:
+
+- `builder._collect_subtree_pks` (`courses/builder.py:416-450`) descends `join.children`.
+- `walk_unit_joins`' `emit` (`courses/transfer/export.py:507-526`) descends only
+  `resolved_tabs()` / `resolved_columns()` / `resolved_children()`, which **omit** a child
+  whose `tab_id` matches no slot. Its own docstring says so, and says the delete path must
+  use the FK walk instead.
+
+A move re-parents the root, so an orphaned child travels with it whether or not any slot
+resolves — the FK walk is what actually happens, so it is what clause 3 must measure. Using
+the export walk would let an over-deep orphaned branch through.
+
+The two walks therefore disagree for a *copy*: the export omits an orphan-slot child, so the
+copy silently drops it. That loss is **accepted and stated** (see Copy semantics) rather than
+fixed here — the export's omission is deliberate and long-standing, and reproducing it keeps
+the copy identical to what an export/import round-trip already produces.
+
+Placing the subtree `S` rooted at `R` into (`P`, slot `t`), for `mode ∈ {move, copy}`, is
+admissible iff:
 
 ```
-0. every element of S, and P, belong to the posted unit
+0. R.unit == unit, and (P is None or P.unit == unit)
 1. if P is not None:  P is a container and t ∈ slots(P)      [resolve_scope clause 2]
 2. if P is not None:  type(R) ∈ NESTABLE_TYPE_KEYS           [resolve_scope clause 1]
 3. for every n ∈ S:   dest_depth + rel(n) ≤ cap(n)
 4. P ∉ {R} ∪ descendants(R)
+5. if mode == move:   (P, t) != (R.parent, R.tab_id)
 ```
+
+**Clause 5 suppresses the paste buttons on the slot the element already occupies**, for
+moves only. Without it a move becomes "send myself to the end of my own group", where source
+and destination are the same group and a compact-then-place ordering bug has somewhere to
+hide. A *copy* into the element's own slot is meaningful (a sibling copy) and stays allowed —
+which is why clause 5 is the one mode-dependent clause, and why `paste_allowed` takes the
+mode.
 
 **Clause 2 checks the root only, deliberately.** Every descendant is already nested, so it
 already passed clause 1 when it was created. The root is the only node whose nestability is
@@ -135,12 +194,50 @@ never matches again at render time, silently orphaning the pasted element.
 ### One authority, three callers
 
 ```
-paste_allowed(marked_join, dest_parent_join_or_None, tab) -> bool
+paste_allowed(unit, marked_join, dest_parent_join_or_None, tab, mode) -> bool
 ```
 
+`unit` is a parameter, not an ambient fact, so **clause 0 lives inside the authority** and is
+exercised by the same unit tests as the rest of the rule. `resolve_scope` takes `unit` for
+the same reason and uses it to filter the parent (`courses/builder.py:117-138`), which is
+what makes same-unit — and transitively same-course — hold. `mode` is present only for
+clause 5.
+
 Called by the view to build the set of legal slots for the render, called again by the paste
-endpoint to enforce, and exercised directly by the unit tests. The UI cannot offer what the
-server would reject, and a hand-crafted POST cannot beat the UI.
+endpoint inside the transaction to enforce, and exercised directly by the unit tests. The UI
+cannot offer what the server would reject, and a hand-crafted POST cannot beat the UI.
+
+### Enumerating the slots to render
+
+Nothing in the repo enumerates a unit's slots, and the editor never needed one: `_editor_rows`
+fetches **top-level** joins only (`unit.elements.filter(parent__isnull=True)`,
+`courses/views_manage.py:1235-1239`) and the template reaches nested containers lazily through
+`resolved_tabs()` as it renders. So the "precomputed legal-slot set" is new code, not a
+lookup, and it is specified here rather than left as a magic step:
+
+```
+enumerate_slots(unit) -> [(parent_join_or_None, tab_id)]
+```
+
+- Starts with the synthetic top-level pair `(None, "")`.
+- Walks the FK tree (`join.children`, the same walk `S` uses, so the two cannot disagree
+  about what exists), and for every join whose model is in `_CONTAINER_REGISTRY` emits one
+  pair per slot.
+- Reads slots through the registry's **non-destructive** normalizer, for the reason clause 1
+  validation already does (`courses/builder.py:153-157`): the destructive `normalize_data`
+  mints fresh slot ids on every call, so a set built from it would name phantom slots that no
+  longer match at render time.
+- The view calls `paste_allowed` once per pair per mode and passes the two resulting sets to
+  the template. Compute `element_depth` and the subtree height **once** for the marked
+  element — they do not vary per slot — so the render stays one tree walk, not one per slot.
+- When nothing is marked, this is skipped entirely: no walk, no cost on the common render.
+
+**Key shape is pinned:** the pairs are `(parent_pk: int | None, tab_id: str)`. The template
+side passes `data-parent="{{ el.pk }}"` and `data-tab="{{ tab.id }}"` as *strings*
+(`_add_menu.html:24-25`), so the inclusion tag coerces before testing membership. A
+`(str, str)` key tested against an `(int, str)` set matches nothing and fails **closed** —
+every paste button disappears, which reads as "the feature is broken" rather than as a type
+bug, so a template test must assert the top-level pair renders.
 
 ## Clipboard state
 
@@ -153,6 +250,8 @@ No mode is stored — move-vs-copy arrives with the paste. Lifecycle:
 | Event | Effect |
 |---|---|
 | ⊹ select | Sets the mark. **No DB write, so no token check** — the paste re-validates everything. |
+| ⊹ select while another element is marked | **Replaces** the mark. There is exactly one slot; no stack, no multi-select. |
+| ⊹ select on the element that is already marked | Clears it, so the row's own control toggles. |
 | ✕ cancel | Clears it. |
 | 📋 Move here | Clears it (the element is now where you put it). |
 | ⧉ Copy here | **Keeps** it, so one original can seed several slots. |
@@ -173,29 +272,110 @@ so the editor pane and the live preview refresh together.
 URL paths follow the existing shape, `manage/courses/<slug>/build/element/<op>/`
 (`courses/urls.py:209-217`).
 
+**Payload parsing follows `resolve_scope`'s rules exactly.** `parent` and `tab` come
+together or not at all; either alone is a `NestingError` → 400, not a silent fall-through to
+top level (`courses/builder.py:127-132`). Reusing that parse — rather than writing a second
+one — is what stops `parent=""&tab=t3` from being read as an always-admissible top-level
+paste. A `mode` that is neither `move` nor `copy` is likewise a 400; there is no default.
+
+**Both mutating services are `@transaction.atomic`** and take the existing locks before the
+token check, as every element mutation already does (`reorder_element`,
+`delete_element`, `save_element`): `_locked_element` for the subject row, which also yields
+the unit, then `_check_token`. **`paste_allowed` is re-evaluated inside that lock**, after
+it, so a concurrent add into the destination slot cannot interleave between the check and
+the placement. The render-time call is advisory only; the in-transaction call is the
+enforcement.
+
+**All three mutating operations end with one `unit.save(update_fields=["updated"])`.**
+Neither `_create_elements` nor `place_element` touches `unit.updated`, so without an
+explicit bump a duplicate or a paste-copy would leave the optimistic-concurrency token
+unchanged — a later stale-token 409 would fail to fire and a concurrent author's edit would
+silently win.
+
 Error responses reuse the established conventions verbatim:
 
 - stale `unit_token`, or the element vanished → **409** via `_element_conflict`
   (`courses/views_manage.py:1196-1212`), which already recovers the unit from the payload
   and re-renders rather than dumping the author back to the tree.
-- inadmissible placement → **400** `"bad nesting"`, as `element_add`/`element_save` already
-  do for `NestingError` (`courses/views_manage.py:1560`, `:1626`).
+- inadmissible placement, half-supplied scope, or unknown `mode` → **400** `"bad nesting"`,
+  as `element_add`/`element_save` already do for `NestingError`
+  (`courses/views_manage.py:1560`, `:1626`).
 - a copy that fails mid-flight → **422** with `_op_error`, matching `node_duplicate`'s
   `TransferError` path (`courses/views_manage.py:992-998`).
 
 ### Move semantics
 
-Re-parent **the root join row only**: `parent`, `tab_id`, `order`. Descendants keep their
-`parent` FK and their `unit` FK untouched, so the whole subtree travels with the root for
-free — only the root's group membership changes. Then `compact_elements` on the source
-group (the same call `delete_element` already makes, `courses/builder.py:470`) and one
-`unit.save(update_fields=["updated"])`.
+Re-parent **the root join row only**. Descendants keep their `parent` FK and their `unit` FK
+untouched, so the whole subtree travels with the root for free — only the root's group
+membership changes.
+
+The step order is load-bearing, because `place_element` neither writes the scope nor is
+guaranteed to save the moved row at all:
+
+1. **Capture `(old_parent, old_tab_id)` before mutating anything.** `delete_element` does
+   exactly this, with the comment *"capture before the row disappears"*
+   (`courses/builder.py:462`). A move mutates those same fields in place, so reading them
+   afterwards would compact the *destination* twice and leave a hole in the source.
+2. Set `element.parent` / `element.tab_id` to the destination **and persist them**:
+   `save(update_fields=["parent", "tab_id"])`. `place_element` saves only `order`
+   (`courses/ordering.py:112-116`), so a scope left unsaved here is a scope never written.
+3. Call `place_element`. It reads the in-memory `parent`/`tab_id` to pick the sibling group
+   (`courses/ordering.py:101-102`), so step 2 is also its precondition — the same
+   precondition `place_node` states explicitly for nodes (`courses/ordering.py:63-76`).
+   Because it saves only rows whose order changed, the moved row may legitimately not be
+   saved by this call; step 2 is what guarantees the move is persisted regardless.
+4. `compact_elements` on the **captured** source group (the same call `delete_element`
+   makes, `courses/builder.py:470`).
+5. One `unit.save(update_fields=["updated"])`.
 
 ### Copy semantics
 
-Serialise the subtree through the transfer layer and re-materialise it, as
-`duplicate_unit` does. The only new transfer code is an **element-scoped** entry point;
-everything below it is the existing walk. Four properties are deliberate:
+Serialise the subtree through the transfer layer and re-materialise it, following
+`duplicate_unit`'s shape. **This needs two new transfer entry points, one per side** — the
+export side alone is not enough:
+
+```
+export.build_element_export(unit, root_join)      -> (document, media_assets, problems)
+importer.graft_elements(document, media_map, unit) -> the created root Element join row
+```
+
+`graft_elements` mirrors `materialize_duplicate`'s `work()` with three differences, each
+forced by grafting into an existing unit rather than creating one:
+
+- **It does not call `_create_nodes`.** It fabricates `node_map = {<the document's single
+  unit id>: unit}`, because `_create_elements` looks the unit up as `node_map[el["unit"]]`
+  (`courses/transfer/importer.py:887`).
+- **It returns the created root join**, not a `ContentNode` — `materialize_duplicate` returns
+  `node_map[document["nodes"][0]["id"]]` (`:1117`), which has no meaning here.
+- **It does not call `_rewrite_links`.** That function remaps internal content links onto
+  newly created nodes; in an element-scoped copy no node is created and `node_map` is a
+  fabrication over the existing unit, so running it would rewrite every internal link in the
+  copied elements onto that one unit — silently corrupting targets that are in fact
+  unchanged. A copy stays in its own unit, so its links already point where they should.
+  This is the one place where imitating `materialize_duplicate` verbatim produces a bug, so
+  it is called out rather than left to be inferred.
+
+It keeps `_run_import`'s wrapper, so any failure rolls back and is normalised to
+`TransferError` → 422, which is what the error table promises.
+
+**Setting the destination scope is the caller's job, and is easy to miss.**
+`_create_elements`' second pass skips any element with no `parent` in the payload
+(`courses/transfer/importer.py:902-905`), and the root of an element-scoped document is
+exactly that — so the graft returns a root sitting at `parent=None, tab_id=""`, i.e. **top
+level**, regardless of where it is destined. `place_element` will not fix this (see Move
+semantics). The builder service therefore performs the same steps 2–3 as a move on the
+returned root, then bumps `unit.updated`. Without this, duplicating a child of Tab A drops
+the copy at the unit's top level.
+
+**Export flags and a broken subtree.** `build_element_export` runs with
+`drop_missing_media=False`, as `duplicate_unit` does (`courses/builder.py:348`), so a
+missing media file cannot silently thin the copy. If the subtree contains a join whose GFK
+is dangling, the whole paste **fails as a `TransferError` → 422**; it is not partially
+copied. A partial copy would be the worse outcome twice over: the export drops the broken
+element while its children keep pointing at it, which the importer would then resolve
+through `joins[parent_ref]` into a `KeyError` — an opaque 500 in place of the promised 422.
+
+Four further properties are deliberate:
 
 - **`MediaAsset` rows are reused, never re-created.** `duplicate_unit` already passes an
   existing-asset map for exactly this reason. Do not "improve" this into copying assets:
@@ -211,25 +391,44 @@ everything below it is the existing walk. Four properties are deliberate:
 - **No student state carries over.** Progress rows key on the element, and the copy has
   fresh pks, so a duplicated checklist or stepper starts empty for every student. This is
   the wanted behaviour; it is stated so it is not later read as a bug.
+- **A child whose `tab_id` matches no slot is NOT copied.** The export walk omits it by
+  design (see The subtree `S`), so the copy reproduces exactly what an export/import
+  round-trip already produces. A *move* keeps such a child, because the FK travels. The two
+  modes therefore differ on this one degenerate case, deliberately: making the copy carry
+  orphans would mean a second walk that disagrees with the export, which is precisely the
+  drift the Risks section warns against.
 
 A duplicate lands at `source_index + 1` **within the source's own group** — so duplicating a
-child of Tab A puts the copy directly below it, still in Tab A. Depth is unchanged, so a
-duplicate needs no admissibility check at all: it is safe by construction.
+child of Tab A puts the copy directly below it, still in Tab A. It runs the same
+graft-then-set-scope-then-position sequence as a paste-copy, with the destination being the
+source's own scope. Depth is unchanged, so a duplicate needs no admissibility check at all:
+it is safe by construction.
 
 ## UI surface
 
 ```
-Unit editor — "Pochodne"        ⧉ "Tabs: Case 1" is selected   [✕ cancel]
+Unit editor — "Pochodne"        ⊹ Selected: "Tabs: Case 1"   [✕ cancel]
 
   • Text                          ✎ ↑ ↓ ⧉ ⊹ 🗑
   ┌ Spoiler "Rozwiązanie" ────────────────────────┐
   │   • Text                     ✎ ↑ ↓ ⧉ ⊹ 🗑     │
   │   [＋ Add element]  [📋 Move here] [⧉ Copy here]
   └───────────────────────────────────────────────┘
-  • Tabs "Case 1"   ⧉ selected    ✎ ↑ ↓ ⧉ ⊹ 🗑
+  • Tabs "Case 1"   ⊹ selected    ✎ ↑ ↓ ⧉ ⊹ 🗑
 
   [＋ Add element]  [📋 Move here] [⧉ Copy here]
 ```
+
+**Glyph assignment is fixed, one meaning each:** ⧉ is the *copy family* and nothing else
+(duplicate below, Copy here); ⊹ is *select*, and is therefore also what marks the selected
+row and heads the banner; 📋 is *move here*. An earlier draft used ⧉ for all three, which
+left an author unable to tell the row-bar control from the paste-mode one at a glance.
+
+The mock shows the **resting** bar, six controls: ✎ ↑ ↓ ⧉ ⊹ 🗑. ✕ (cancel-edit,
+`_element_row.html:57-58`) belongs to the open-editor state and is the seventh; it is
+counted in the eight-control argument under Decisions because that argument is about the
+worst case. If the resting bar would exceed six, the third source-side button is exactly
+what gets dropped — which is the reasoning that produced this design.
 
 - **`_element_row_controls.html`** gains the ⧉ and ⊹ forms. This one partial is included by
   every branch of `_element_row.html` at every depth, so both controls appear on every row
@@ -242,8 +441,20 @@ Unit editor — "Pochodne"        ⧉ "Tabs: Case 1" is selected   [✕ cancel]
 - **Containers force open while a mark is pending.** The `<details>` wrappers are
   `{% if forloop.first %}open{% endif %}` today (`_element_row.html:82`, `:132`), so a legal
   target could otherwise hide inside a collapsed tab.
+- **And they stay open for the render that follows a paste.** A *move* clears the mark, so
+  the very re-render that shows the result would otherwise have no mark pending and every
+  `<details>` would snap back to first-tab-only — the author moves a row into tab 2 and
+  watches it vanish, which is the exact trap force-open exists to prevent. The paste
+  response therefore also opens the **ancestor chain of the pasted element**: the view
+  passes that chain (a set of `(parent_pk, tab_id)` pairs, same key shape as the slot set)
+  and the `<details>` condition ORs it in. Note the pasted row is not the row the form lives
+  on, so `editor.js`'s existing "keep the op's row in view" anchor (`:286-289`) does not
+  point at it; the scroll target is the pasted element.
 - **The marked row** gets a modifier class, and the pane header shows which element is
-  marked plus a cancel control — a mark that is invisible after scrolling is a trap.
+  marked plus a cancel control — a mark that is invisible after scrolling is a trap. The
+  banner labels it **title-or-type**, falling back exactly as the row label already does
+  (`{% if el.title %}…{% else %}{{ obj|element_summary }}`, `_element_row.html:62-63`);
+  `Element.title` is routinely empty, so a naive label renders `"" is selected`.
 - **Both context builders get the new keys.** `_render_editor_fragments`
   (`courses/views_manage.py:1244`) and `_editor_page` (`:1285`) build the editor context
   independently; the comment at `:1270-1278` records what happens when a key lands in only
@@ -275,27 +486,60 @@ top-level destination always admissible. Mutants: drop clause 2 → the slidebre
 go RED; replace `cap(n)` with a constant 4 → the container-at-depth-4 case must go RED; use
 only the root's depth instead of the subtree max → the populated-container case must go RED.
 
-**The agreement invariant.** For every (parent depth 1..4) × (leaf, container), a childless
-element's `paste_allowed` verdict must equal `resolve_scope`'s. This is the drift guard
-between the two rules; it must fail if either cap is changed in one place only.
+**The agreement invariant.** For a childless element, `paste_allowed`'s verdict must equal
+`resolve_scope`'s. Two things make this test easy to write vacuously:
+
+- **It spans two key namespaces.** `resolve_scope` takes a *form* key and translates it
+  through `_NESTABLE_FORM_KEY_ALIASES` before testing `NESTABLE_TYPE_KEYS`
+  (`courses/builder.py:149`); `paste_allowed` takes a join and reaches the *transfer* key
+  through the promoted model→key helper. A matrix built only from types whose two keys
+  coincide (text, image, tabs) never exercises the nine aliased types — `fill_blank`,
+  `switch_grid`, `two_column` and the rest — which is exactly where a drift would hide.
+  Parametrise over the aliased types, feeding `resolve_scope` the form key and
+  `paste_allowed` the corresponding join. Mutant: break one alias entry → RED.
+- **Parent depth 4 is unconstructible by any legal write.** A parent must be a container,
+  and `cap` says a container never lives at depth 4. Build that row by direct ORM write
+  anyway, precisely to prove both rules reject it identically, and say in the test why it
+  bypasses the normal path.
+
+Also assert the strengthened container-key drift test: `{model_to_key(m) for m in
+_CONTAINER_REGISTRY} == CONTAINER_TRANSFER_KEYS`, replacing today's length equality
+(`courses/tests/test_nesting_rule.py:286`). Mutant: register a fourth container model under
+a key absent from `CONTAINER_TRANSFER_KEYS` → the old assertion stays green, the new one
+goes RED.
 
 **Copy fidelity (unit).** Duplicate a Tabs with two populated tabs, one of them holding a
 Spoiler that itself has a child; plus a question with choices; plus an image element.
 Assert: every join and concrete row has a fresh pk; rendered content matches; the
 `MediaAsset` pk is *identical*, not merely equal; the subtree shape (parent/tab grouping) is
-preserved at every depth.
+preserved at every depth; **the copied root's `parent`/`tab_id` are the destination's, not
+`None`/`""`** — the graft leaves them unset, so this assertion is what catches the copy
+landing at top level; and **an internal content link in a copied element still resolves to
+its original target**, which is what `_rewrite_links` would have broken.
 
-**Move (unit).** The root is re-parented and its descendants' `parent`/`unit` rows are
-byte-identical afterwards; the source group is compacted to `0..n-1`; the destination group
-keeps distinct orders; `unit.updated` is bumped once.
+**Move (unit).** The root is re-parented **and that scope is persisted** — re-read from the
+DB, not asserted on the in-memory instance, since `place_element` writes only `order`;
+include the case where the moved row's old order equals its new index, where `place_element`
+saves nothing at all. Descendants' `parent`/`unit` rows are byte-identical afterwards; the
+source group is compacted to `0..n-1`; the destination group keeps distinct orders. A
+copy-into-own-slot leaves that single group compacted with the copy last.
+
+**`unit.updated` is bumped exactly once by each of duplicate, paste-move and paste-copy** —
+asserted per operation, not only for move. Mutant: drop the bump from the copy path → the
+copy test goes RED (and, without this, a stale-token 409 would never fire after a copy).
 
 **Views.** Each endpoint returns both fragments; 409 on a stale `unit_token`; 400 on an
-inadmissible paste; 422 on a copy failure; and the session lifecycle table above, including
-that a *copy* leaves the mark set and a *move* clears it.
+inadmissible paste, on a half-supplied scope (`parent` without `tab` and vice versa) and on
+an unknown `mode`; 422 on a copy failure; and the session lifecycle table above in full,
+including replace-on-reselect, toggle-off, that a *copy* leaves the mark set and a *move*
+clears it.
 
-**Templates.** A slot that fails `paste_allowed` renders no paste button; containers render
-open while a mark is pending. These are meaningful here precisely because the markup is
-server-rendered — the "green under the defect" trap applies to JS-built markup, not this.
+**Templates.** A slot that fails `paste_allowed` renders no paste button; the marked
+element's own slot offers Copy here but not Move here; containers render open while a mark
+is pending **and** on the render following a paste; the top-level pair renders its buttons
+(the key-shape failure is silent and closed, so this is the test that catches it). These are
+meaningful here precisely because the markup is server-rendered — the "green under the
+defect" trap applies to JS-built markup, not this.
 
 **e2e.** Drive the real buttons, not the endpoints: select a **populated** container, paste
 it into a spoiler, and confirm the student page renders the moved subtree. Per the depth-3
@@ -304,18 +548,25 @@ produce, and therefore the state no existing test covers.
 
 ## Slicing
 
-**PR1 — duplicate in place.** `builder.duplicate_element`, the element-scoped transfer entry
-point, one view, one URL, one ⧉ button. No clipboard, no session state, no new placement
-rule. Delivers need #2 on its own.
+**PR1 — duplicate in place.** `builder.duplicate_element`, **both** new transfer entry points
+(`build_element_export` and `graft_elements` — the graft is not PR2-only; a duplicate needs
+it just as much), the scope-setting step on the grafted root, one view, one URL, one ⧉
+button. No clipboard, no session state, no new placement rule. Delivers need #2 on its own.
 
-**PR2 — the clipboard.** `paste_allowed`, the select/cancel/paste endpoints, the session
-state, the paste buttons and the force-open behaviour. Delivers need #1.
+**PR2 — the clipboard.** `paste_allowed` and `enumerate_slots`, the select/cancel/paste
+endpoints, the session state, the paste buttons and the force-open behaviour. Delivers
+need #1.
 
 ## Risks
 
-- **The element-scoped export is the only genuinely new transfer code.** Mitigation: scope
-  the *existing* `emit` walk (`courses/transfer/export.py:507-526`) rather than writing a
-  second walk that can disagree with it about which children a container has.
+- **New transfer code exists on both sides, not one.** An earlier draft claimed the export
+  was the only new piece; the import-side graft is equally new, because
+  `materialize_duplicate` creates a node and returns one. Mitigation for the export half:
+  give `walk_unit_joins` a `root_join=` parameter rather than extracting or re-writing its
+  `emit` closure — `emit` is defined inside that function and is unreachable from another
+  module, and its docstring already anticipates a non-root entry point (the `seen` set is
+  described as defence for exactly that). One walk, one behaviour; a second walk would be
+  free to disagree about which children a container has.
 - **Newly-legal combinations.** A populated container landing in a slot is a shape adds
   cannot produce, which is exactly how the depth-3 slice shipped two client-side defects
   that thirteen per-task reviews missed. Mitigation: the e2e fixture above, and an explicit
