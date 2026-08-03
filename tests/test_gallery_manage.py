@@ -23,7 +23,11 @@ def _unit(course):
 
 def test_add_menu_has_gallery_card():
     # Partial-independent: the add-menu card is what routes to element_add.
-    html = render_to_string("courses/manage/editor/_add_menu.html")
+    # Both keys are INTEGERS. The Gallery card itself is unguarded, but omitting
+    # max_nest_depth would leave this render one branch change away from vacuity.
+    html = render_to_string(
+        "courses/manage/editor/_add_menu.html", {"depth": 0, "max_nest_depth": 3}
+    )
     assert 'data-add-type="gallery"' in html
     assert "#el-gallery" in html
 

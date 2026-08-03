@@ -1267,6 +1267,15 @@ def _render_editor_fragments(
             # don't offer it. _add_menu.html is included without `only`, so this
             # flows straight through the same context to the nested add-menu too.
             "unit_is_quiz": unit.unit_type == ContentNode.UnitType.QUIZ,
+            # The nesting cap the row/add-menu depth guards compare against. Read as a
+            # MODULE ATTRIBUTE, never `from courses.builder import MAX_NEST_DEPTH` — a
+            # from-import freezes the value at import time and the cap-agreement tests
+            # would then fail against a correct implementation. Must be set HERE as
+            # well as in _editor_page: every add/save/move/delete returns through this
+            # renderer, so if the key landed only on the page path the first load would
+            # look perfect and every later fragment swap would silently drop both the
+            # nested add-menu and its container cards.
+            "max_nest_depth": builder_svc.MAX_NEST_DEPTH,
         },
     )
     resp.status_code = status
@@ -1293,6 +1302,9 @@ def _editor_page(request, unit, *, error="", changed=False, status=200):
             # gates the add-menu's "Interactive" (revealgate) group — see the
             # matching comment in _render_editor_fragments.
             "unit_is_quiz": unit.unit_type == ContentNode.UnitType.QUIZ,
+            # nesting cap for the depth guards — module attribute, see the matching
+            # comment in _render_editor_fragments.
+            "max_nest_depth": builder_svc.MAX_NEST_DEPTH,
         },
     )
     resp.status_code = status

@@ -1,10 +1,24 @@
 {% load i18n %}
 {% comment %}
-Add-element menu. At top level it offers every type; inside a tabs element (nested=True)
-it carries the scope (data-parent/data-tab) so the add posts land the child in the right
-tab, and it hides the non-nestable groups. Hiding the cards is COURTESY only -- the
-server still enforces NESTABLE_TYPE_KEYS on every add/save, so a hand-crafted POST for a
-blocked type is rejected regardless.
+Add-element menu. At top level it offers every type; inside a container (nested=True) it
+carries the scope (data-parent/data-tab) so the add posts land the child in the right
+slot, and it hides the non-nestable groups.
+
+`depth` is the depth of the menu's PARENT -- 0 for the top-level menu, N for a menu
+rendered inside a row at depth N -- so a child added here lands at depth `depth|add:1`.
+`max_nest_depth` comes from the view as builder.MAX_NEST_DEPTH (a module attribute, so a
+monkeypatched cap really reaches this template).
+
+The CONTAINER cards (Tabs, Columns, Spoiler) are guarded by
+`depth < max_nest_depth|add:-1`, which mirrors builder clause 4 exactly: a container
+child is accepted when its parent sits at depth 1 and rejected at depth 2. Leaves stay
+offered at depth 2 because they land at depth 3, which clause 3 accepts. Callout is a
+plain LEAF in this slice and stays unguarded.
+
+Hiding the cards is COURTESY only -- the server still enforces NESTABLE_TYPE_KEYS and
+the depth clauses on every add/save, so a hand-crafted POST for a blocked type or an
+over-deep parent is rejected regardless. A row already at the cap gets no menu at all;
+that guard lives on the include in _element_row.html, not here.
 {% endcomment %}
 <div class="addwrap{% if nested %} addwrap--nested{% endif %}" data-add-menu
      {% if nested %}data-parent="{{ parent }}" data-tab="{{ tab }}"{% endif %}>
@@ -17,12 +31,12 @@ blocked type is rejected regardless.
       <button type="button" class="typecard" data-add-type="video"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-video"/></svg>{% trans "Video" %}</button>
       <button type="button" class="typecard" data-add-type="iframe"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-iframe"/></svg>{% trans "Iframe" %}</button>
       <button type="button" class="typecard" data-add-type="math"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-math"/></svg>{% trans "Math" %}</button>
-      {% if not in_spoiler %}<button type="button" class="typecard" data-add-type="html"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-html"/></svg>{% trans "HTML" %}</button>{% endif %}
+      <button type="button" class="typecard" data-add-type="html"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-html"/></svg>{% trans "HTML" %}</button>
       <button type="button" class="typecard" data-add-type="table"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-table"/></svg>{% trans "Table" %}</button>
       <button type="button" class="typecard" data-add-type="gallery"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-gallery"/></svg>{% trans "Gallery" %}</button>
       <button type="button" class="typecard" data-add-type="callout"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-callout"/></svg>{% trans "Callout" %}</button>
-      {% if not nested %}<button type="button" class="typecard" data-add-type="tabs"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-tabs"/></svg>{% trans "Tabs" %}</button>{% endif %}
-      {% if not nested %}<button type="button" class="typecard" data-add-type="twocolumn"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-twocolumn"/></svg>{% trans "Columns" %}</button>{% endif %}
+      {% if depth < max_nest_depth|add:-1 %}<button type="button" class="typecard" data-add-type="tabs"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-tabs"/></svg>{% trans "Tabs" %}</button>{% endif %}
+      {% if depth < max_nest_depth|add:-1 %}<button type="button" class="typecard" data-add-type="twocolumn"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-twocolumn"/></svg>{% trans "Columns" %}</button>{% endif %}
     </div>
     {% if not unit_is_quiz %}
     <p class="typemenu__group-label">{% trans "Interactive" %}</p>
@@ -32,11 +46,11 @@ blocked type is rejected regardless.
       <button type="button" class="typecard" data-add-type="switchgate"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-switchgate"/></svg>{% trans "Choose & confirm" %}</button>
       <button type="button" class="typecard" data-add-type="switchgrid"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-switchgrid"/></svg>{% trans "Switch grid" %}</button>
       <button type="button" class="typecard" data-add-type="filltable"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-filltable"/></svg>{% trans "Fill-in table" %}</button>
-      {% if not in_spoiler %}<button type="button" class="typecard" data-add-type="spoiler"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-spoiler"/></svg>{% trans "Spoiler" %}</button>{% endif %}
-      {% if not in_spoiler %}<button type="button" class="typecard" data-add-type="stepper"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-stepper"/></svg>{% trans "Step-by-step" %}</button>{% endif %}
-      {% if not in_spoiler %}<button type="button" class="typecard" data-add-type="markdone"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-markdone"/></svg>{% trans "Checklist" %}</button>{% endif %}
-      {% if not in_spoiler %}<button type="button" class="typecard" data-add-type="guessnumber"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-guessnumber"/></svg>{% trans "Guess the number" %}</button>{% endif %}
-      {% if in_spoiler %}<button type="button" class="typecard" data-add-type="fillblankquestion"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-fillblank"/></svg>{% trans "Fill in the blanks" %}</button>{% endif %}
+      {% if depth < max_nest_depth|add:-1 %}<button type="button" class="typecard" data-add-type="spoiler"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-spoiler"/></svg>{% trans "Spoiler" %}</button>{% endif %}
+      <button type="button" class="typecard" data-add-type="stepper"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-stepper"/></svg>{% trans "Step-by-step" %}</button>
+      <button type="button" class="typecard" data-add-type="markdone"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-markdone"/></svg>{% trans "Checklist" %}</button>
+      <button type="button" class="typecard" data-add-type="guessnumber"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-guessnumber"/></svg>{% trans "Guess the number" %}</button>
+      {% if nested %}<button type="button" class="typecard" data-add-type="fillblankquestion"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-fillblank"/></svg>{% trans "Fill in the blanks" %}</button>{% endif %}
     </div>
     {% endif %}
     {% if not nested %}

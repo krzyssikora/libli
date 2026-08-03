@@ -302,7 +302,10 @@ def test_spoiler_add_menu_hides_disallowed_cards(client):
     unit = _lesson_unit(course)
     _sp, join = _nested_spoiler(unit, ("<p>c</p>",))
     block = _spoiler_menu_block(_editor_html(client, course, unit), join.pk)
-    # allowlisted leaves ARE offered inside the spoiler menu
+    # INVERTED by the depth-3 slice: the `in_spoiler` flag is gone, so html/stepper/
+    # markdone/guessnumber are no longer special-cased away, and `spoiler` is now
+    # governed purely by depth -- this spoiler is TOP-LEVEL (depth 1), so a spoiler
+    # child would land at depth 2, which builder clause 4 accepts.
     for allowed in (
         "text",
         "image",
@@ -312,20 +315,14 @@ def test_spoiler_add_menu_hides_disallowed_cards(client):
         "iframe",
         "gallery",
         "callout",
-    ):
-        assert f'data-add-type="{allowed}"' in block, allowed
-    # disallowed cards are NOT offered inside the spoiler menu (the non-allowed
-    # Interactive cards -- gates/switchgrid/fillblank/filltable are now ALLOWED, see
-    # test_spoiler_add_menu_shows_allowed_interactive_cards below)
-    for banned in (
         "html",
         "spoiler",
         "stepper",
         "markdone",
         "guessnumber",
     ):
-        assert f'data-add-type="{banned}"' not in block, banned
-    # non-fillblank question cards stay hidden in-spoiler
+        assert f'data-add-type="{allowed}"' in block, allowed
+    # non-fillblank question cards stay hidden in every nested menu
     for banned_question in (
         "choice-single",
         "choice-multi",
@@ -355,10 +352,15 @@ def test_spoiler_add_menu_shows_allowed_interactive_cards(client):
         "switchgrid",
         "fillblankquestion",
         "filltable",
+        # INVERTED by the depth-3 slice: these four were hidden by `in_spoiler`, a flag
+        # that no longer exists. `spoiler` is now depth-governed and this spoiler is
+        # top-level (depth 1), so a spoiler child lands at the legal depth 2.
+        "spoiler",
+        "stepper",
+        "markdone",
+        "guessnumber",
     } <= present
-    # the non-allowed interactive/structure cards are ABSENT in-spoiler
-    assert present.isdisjoint({"spoiler", "stepper", "markdone", "guessnumber"})
-    # no other question card leaks in-spoiler
+    # no other question card leaks into a nested menu
     assert present.isdisjoint(
         {"choice-single", "shorttextquestion", "dragfillblankquestion"}
     )
@@ -392,9 +394,11 @@ def test_author_switchgate_into_spoiler_succeeds(client):
     assert child.tab_id == SpoilerElement.SLOT_ID
 
 
-def test_tabs_add_menu_unaffected(client):
-    # PR#126 no-regression: the tabs nested add-menu (nested=True, NOT in_spoiler)
-    # still shows the 4 gates and hides questions.
+def test_tabs_add_menu_offers_fillblank_and_hides_other_questions(client):
+    # PR#126 no-regression, updated by the depth-3 slice: the tabs nested add-menu
+    # still shows the 4 gates and the Spoiler card, and still hides the general
+    # question cards -- but fill-blank is now offered in EVERY nested menu, not only
+    # in-spoiler (the `in_spoiler` flag is gone; the card's guard is `{% if nested %}`).
     from courses.models import TabsElement
 
     pa = make_pa(client, "pa")
@@ -403,12 +407,18 @@ def test_tabs_add_menu_unaffected(client):
     tabs = TabsElement.objects.create(data=TabsElement.default_data())
     tjoin = Element.objects.create(unit=unit, content_object=tabs)
     block = _spoiler_menu_block(_editor_html(client, course, unit), tjoin.pk)
-    for allowed in ("revealgate", "fillgate", "switchgate", "switchgrid", "spoiler"):
+    for allowed in (
+        "revealgate",
+        "fillgate",
+        "switchgate",
+        "switchgrid",
+        "spoiler",
+        "fillblankquestion",  # INVERTED
+    ):
         assert f'data-add-type="{allowed}"' in block, allowed
     for banned_question in (
         "choice-single",
         "shorttextquestion",
-        "fillblankquestion",
     ):
         assert f'data-add-type="{banned_question}"' not in block, banned_question
 
