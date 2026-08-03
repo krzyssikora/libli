@@ -72,6 +72,7 @@ uv run pytest --verbosity=0        # expect: "N passed" line + exit 0. RECORD N.
 uv run ruff check .
 uv run ruff format --check .
 uv run python manage.py makemigrations --check --dry-run
+uv run pytest tests/test_i18n_po_health.py --verbosity=0   # 5th gate; Task 12 re-runs it
 ```
 
 Record the baseline pass count `N`. Every later task compares against it.
@@ -125,7 +126,11 @@ grep -rn "not in NESTABLE_TYPE_KEYS\|SPOILER_CHILD_TYPES" tests/ courses/tests/ 
 grep -rn "import SPOILER_CHILD_TYPES" . --include=*.py
 grep -rn "data-add-type" tests/ courses/tests/ --include=*.py
 grep -rn "nested more than one level\|may not be nested" tests/ courses/tests/ --include=*.py
-grep -rn "render_to_string" tests/ courses/tests/ --include=*.py | grep -i "element_row\|add_menu"
+# Search the TEMPLATE NAMES, not the call: three of the five direct-render sites put
+# the template path on the line AFTER `render_to_string(`, so a single-line pipe on
+# the call finds only 2 of 5. This form also surfaces the two file-reading oracles
+# (tests/test_help.py, tests/test_tabs_editor_dnd.py) Task 8 should know about.
+grep -rn "_element_row\.html\|_add_menu\.html" tests/ courses/tests/ --include=*.py
 grep -rn "validate_nesting" tests/ courses/tests/ --include=*.py
 # View-level rejections: a test can guard the old cap with nothing but a bare
 # `assert resp.status_code == 400` -- no constant, no exception, no card. Every grep
@@ -196,7 +201,11 @@ def _mk(unit, type_key, parent=None, tab=""):
     obj = {
         "text": lambda: TextElement.objects.create(body="x"),
         "math": lambda: MathElement.objects.create(latex="x^2"),
-        "table": lambda: TableElement.objects.create(data=TableElement.default_data()),
+        # NB: TableElement has NO default_data() -- only TabsElement (models.py:1355)
+        # and TwoColumnElement (:1487) do. Build the dict literally; check
+        # TableElement.save()'s sanitiser and the shape
+        # tests/test_table_manage_plumbing.py already uses.
+        "table": lambda: TableElement.objects.create(data={"cells": [[{"html": "x"}]]}),
         "tabs": lambda: TabsElement.objects.create(data=TabsElement.default_data()),
         "two_column": lambda: TwoColumnElement.objects.create(
             data=TwoColumnElement.default_data()
@@ -466,12 +475,12 @@ Rewrite `resolve_scope`. **The snippet below replaces `builder.py:121-158` ONLY.
 **Fix `payloads.py`'s imports and slot key in the same diff** (see "Why `payloads.py` is in THIS task"). At `payloads.py:758-760`, isort `force-single-line` applies:
 
 ```python
-from courses.builder import CONTAINER_TRANSFER_KEYS   # NEW (Task 5 uses it)
-from courses.builder import MAX_NEST_DEPTH            # NEW (Task 5 uses it)
 from courses.builder import NESTABLE_TYPE_KEYS        # unchanged
 from courses.models import SpoilerElement             # unchanged
 # DELETE: from courses.builder import SPOILER_CHILD_TYPES
 ```
+
+**Do NOT add `MAX_NEST_DEPTH` / `CONTAINER_TRANSFER_KEYS` here.** Nothing in this task uses them, so ruff reports `F401 imported but unused` on both — and ruff is a Group A gate, so this task's own commit would fail it. Worse, `ruff --fix` would silently delete the very imports Task 5 depends on. Task 5 adds them alongside their first use.
 
 ```python
 # `None` means SINGLE-SLOT (the only valid id is SpoilerElement.SLOT_ID), NOT
@@ -507,7 +516,9 @@ LAL_SPOILER_CHILD_TYPES = frozenset({
     "fill_table",
 })
 ```
-…and replace the two `SPOILER_CHILD_TYPES` references at `:111` and `:113-115` with it.
+…then **delete the function-local import at `:95`** (`from courses.builder import SPOILER_CHILD_TYPES`, inside the spoiler branch) and replace the two usages at `:111` and `:115` with `LAL_SPOILER_CHILD_TYPES`. There are **three** references, not two — leaving `:95` in place makes every nested-spoiler LAL import raise `ImportError`, and Task 2's test would then fail with `ImportError` instead of the `LoaderError` it asserts.
+
+Put the new constant at module scope **before** `build_element`. The longer name pushes `:111` past 88 columns, so rewrap the condition or ruff E501 fails.
 
 - [ ] **Step 4: Run to verify they pass**
 
@@ -763,11 +774,10 @@ def _collect_subtree_pks(roots):
 ```python
     pks = _collect_subtree_pks([el])
     _delete_element_content_objects(Element.objects.filter(pk__in=pks))
-    # Unconditional: the collector is root-inclusive, so it has already deleted this
-    # element's concrete (whose GenericRelation cascade took the join row with it).
-    # `el.content_object` is therefore None on EVERY path -- the old
-    # `if obj is not None` branch is dead. This is a 0-row DELETE in the normal case
-    # and does real work only when the root had no concrete at all.
+    # Unconditional: the collector is root-inclusive, so this element's concrete --
+    # and, via its GenericRelation cascade, this join row -- is already gone. The old
+    # `if obj is not None` branch is therefore dead. A 0-row DELETE in the normal
+    # case; it does real work only when the root carried no concrete at all.
     el.delete()
 ```
 
@@ -1009,7 +1019,14 @@ def test_missing_ancestor_mid_walk_names_the_element_under_validation():
 
 - [ ] **Step 3: Implement**
 
-**Everything structural already landed in Task 1** — the imports (`MAX_NEST_DEPTH`, `CONTAINER_TRANSFER_KEYS`), the `"spoiler": None` slot key, the membership two-step that replaced the `parent["type"] == "spoiler"` branch, and the deletion of the `:784` spoiler msgid along with it. **Do not re-apply any of those here**: pasting the membership block again emits a second copy of it and of `valid_slot_ids`, and hunting for a `:784` message that no longer exists wastes the step. If those names do not resolve, Task 1 was not completed — stop rather than re-adding them.
+**The structural edits already landed in Task 1** — the `"spoiler": None` slot key, the membership two-step that replaced the `parent["type"] == "spoiler"` branch, and the deletion of the `:784` spoiler msgid along with it. **Do not re-apply any of those here**: pasting the membership block again emits a second copy of it and of `valid_slot_ids`, and hunting for a `:784` message that no longer exists wastes the step. If those do not exist, Task 1 was not completed — stop rather than re-doing it.
+
+**Add the two imports this step needs**, at `payloads.py`'s `validate_nesting`-local import block (isort `force-single-line`). Task 1 deliberately left them out: nothing there used them, so ruff would have flagged `F401` on that task's own commit.
+
+```python
+from courses.builder import CONTAINER_TRANSFER_KEYS   # NEW -- clause 4
+from courses.builder import MAX_NEST_DEPTH            # NEW -- the hop bound
+```
 
 This step changes **one thing**: replace the surviving one-level check (`if parent["parent"] is not None`) with the hop-bounded chain walk and clauses 3/4, immediately after the `valid_slot_ids` assignment Task 1 left in place:
 
@@ -1192,6 +1209,16 @@ The largest task and the one that decides whether the feature is reachable at al
 
 - [ ] **Step 1: Write the failing tests**
 
+**Every menu assertion MUST name its render scope, or it is vacuous or wrong.** `_editor_scope.html:15` unconditionally renders the **top-level** menu, which after this task still emits all three container cards (depth 0 < 2). So on a whole-page or fragment render:
+
+- a *negative* assertion (`'data-add-type="tabs"' not in html`) **fails against a correct implementation** — the top-level card is always there;
+- a *positive* assertion **passes no matter what the nested menu emits**, including under its own named mutant.
+
+Use one of these two scopes for every test below, and say which in the test:
+
+1. `render_to_string("courses/manage/editor/_add_menu.html", {"nested": True, "depth": 2, "max_nest_depth": 3, ...})` — renders exactly one menu; or
+2. slice the target menu out of the page first, reusing `courses/tests/test_spoiler_nesting.py`'s existing `_spoiler_menu_block(html, join.pk)` helper, which exists for precisely this reason.
+
 ```python
 @pytest.mark.django_db
 def test_top_level_menu_still_offers_containers():
@@ -1204,15 +1231,22 @@ def test_top_level_menu_still_offers_containers():
 @pytest.mark.django_db
 def test_depth_1_nested_menu_offers_containers():
     """POSITIVE requirement. Use a LESSON unit: the Spoiler card sits inside
-    {% if not unit_is_quiz %}."""
+    {% if not unit_is_quiz %}.
+
+    SCOPE: assert on the NESTED menu only -- the top-level menu always carries
+    these cards, so a whole-page assertion passes under this test's own mutant."""
+    menu = _menu_at_depth(html, depth=1)     # or render _add_menu.html directly
     for t in ("tabs", "twocolumn", "spoiler"):
-        assert f'data-add-type="{t}"' in html
+        assert f'data-add-type="{t}"' in menu
 
 
 @pytest.mark.django_db
 def test_depth_2_nested_menu_hides_containers_but_keeps_leaves():
-    assert 'data-add-type="tabs"' not in html
-    assert 'data-add-type="callout"' in html       # a legal depth-3 LEAF
+    """SCOPE is mandatory here: on a whole-page render the top-level menu's own
+    Tabs card makes the negative assertion fail against a CORRECT implementation."""
+    menu = _menu_at_depth(html, depth=2)     # or render _add_menu.html directly
+    assert 'data-add-type="tabs"' not in menu
+    assert 'data-add-type="callout"' in menu       # a legal depth-3 LEAF
 
 
 @pytest.mark.django_db
@@ -1234,9 +1268,14 @@ def test_nested_spoiler_renders_children_and_menu():
 
 @pytest.mark.django_db
 def test_cap_agreement_cards(monkeypatch):
-    """Guards must read max_nest_depth, not a literal."""
+    """Guards must read max_nest_depth, not a literal.
+
+    BRACKET the change: assert the depth-2 menu LACKS the cards at the real cap and
+    GAINS them at 4. Asserting only the patched side passes vacuously, because the
+    top-level menu satisfies it unconditionally."""
+    assert 'data-add-type="tabs"' not in _menu_at_depth(render(), depth=2)
     monkeypatch.setattr("courses.builder.MAX_NEST_DEPTH", 4)
-    # depth-2 container's menu now offers the container cards
+    assert 'data-add-type="tabs"' in _menu_at_depth(render(), depth=2)
 
 
 @pytest.mark.django_db
@@ -1429,11 +1468,30 @@ git commit -m "docs(help): depth-3 nesting and the third container type"
 uv run python manage.py makemessages -l pl -l en --no-obsolete
 ```
 
-`--no-obsolete` is mandatory: this slice **deletes** a msgid (`payloads.py:784`), which otherwise leaves an obsolete `#~` entry.
+`--no-obsolete` is mandatory. **Three existing msgids change plus one is added**, and the three old ones are near-identical, which makes them prime fuzzy-match bait for the two new ones:
+
+| msgid | Fate | `.po` lines (en / pl) |
+|---|---|---|
+| `"Element '%(el)s' may not be nested inside a spoiler."` | **deleted** (Task 1) | 1825 / 1913 |
+| `"Element '%(el)s' is nested more than one level deep."` | reworded → clause 3 | 1835 / 1924 |
+| `"Element '%(el)s' may not be nested inside a tabs element."` | reworded → generic | 1845 / 1936 |
+| *(new)* clause-4 container message | added | — |
 
 - [ ] **Step 2: Translate the new/changed strings** — the reworded clause-3 and generic-nesting messages, plus the new clause-4 message.
 
-- [ ] **Step 3: De-fuzz**
+- [ ] **Step 3: Compile the catalogs**
+
+```bash
+uv run python manage.py compilemessages -l pl -l en
+```
+
+`locale/{en,pl}/LC_MESSAGES/django.mo` are **tracked binaries** in this repo, and
+`test_i18n_po_health.py` inspects only the `.po` files (its docstring: "Owns every assertion
+about the catalogs AS FILES"). Skip this and the three changed validator messages never reach
+a Polish runtime, with nothing in the suite noticing. `docs/development/conventions.md:50`
+documents this as the repo convention.
+
+- [ ] **Step 4: De-fuzz**
 
 `makemessages` fuzzy-matches new msgids against existing ones and pre-fills **wrong** translations. Clearing one means deleting **two** lines: the `#, fuzzy` line and the `#| msgid` line.
 
@@ -1443,7 +1501,7 @@ grep -c "^#~" locale/*/LC_MESSAGES/django.po           # must be 0
 uv run pytest tests/test_i18n_po_health.py --verbosity=0
 ```
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 5: Commit** (confirm the `.mo` diff is staged, not just the `.po`)
 
 ```bash
 git add locale/
@@ -1456,7 +1514,17 @@ git commit -m "i18n(nesting): depth-3 validation messages"
 
 - [ ] **Step 1: Scope the e2e locators**
 
-`tests/test_e2e_tabs.py:137`, `tests/test_e2e_twocolumn.py:148`, `tests/test_e2e_editor.py:82`, `tests/test_e2e_editor_ws3.py:68` click cards with an unscoped `page.locator("[data-add-type='…']")`. They pass today only because they run against an empty editor. Once nested menus emit container cards, any such click on a page already containing a container matches more than one element and fails Playwright **strict mode**. Scope each to its `[data-add-menu]` ancestor.
+**Derive the list, don't trust this one.** Run:
+
+```bash
+grep -rn "data-add-type" tests/*e2e*.py
+```
+
+That returns **~19 sites across ~15 files**, not the four an earlier draft named — and two of the unnamed ones (`tests/test_e2e_media_picker.py:75`, `tests/test_e2e_questions.py:92`) use byte-for-byte the same parametrized `page.locator(f"[data-add-type='{add_type}']").click()` shape as the named ones, so any four-item list is a sample, not a criterion.
+
+For **each** site, record whether the clicked type newly appears in a nested menu — `tabs`, `twocolumn`, `spoiler`, `html`, `stepper`, `markdone`, `guessnumber`, `fillblankquestion` — or was already nested-visible. Scope the newly-at-risk ones to their `[data-add-menu]` ancestor and **state explicitly which you are leaving alone and why**.
+
+The failure mode: these pass today only because they run against an editor with no container in it. Once nested menus emit the container cards, an unscoped click on a page that already contains a container matches more than one element and fails Playwright **strict mode**. `tests/test_e2e_tabs.py:137` and `tests/test_e2e_twocolumn.py:148` are the two confirmed to click a container card; the rest need the per-site judgement above.
 
 - [ ] **Step 2: Add one e2e that drives the real gesture**
 
@@ -1470,8 +1538,10 @@ An e2e that bypasses the real UI gesture ships broken UX green. This is the only
 
 **Assertion:** navigate to the student lesson view and assert the marker string is present inside the spoiler's rendered body, i.e. the depth-3 text actually reaches the reader.
 
-**Named mutant:** delete the depth predicate on the Spoiler card in `_add_menu.html:35`.
-**Node id that must FAIL:** `tests/test_e2e_depth3.py::test_author_a_depth_3_text_through_the_ui` (the nested menu no longer offers Spoiler, so the gesture cannot complete).
+**Named mutant:** revert `_add_menu.html:35` to `{% if not nested %}` — which **suppresses** the Spoiler card in every nested menu, so step 2 of the gesture cannot complete.
+**Node id that must FAIL:** `tests/test_e2e_depth3.py::test_author_a_depth_3_text_through_the_ui`
+
+**Do NOT use "delete the depth predicate on `:35`" as the mutant.** After Task 8 that line reads `{% if depth < max_nest_depth|add:-1 %}`; deleting the guard makes the card render *unconditionally in every menu*, so the gesture still completes and the e2e stays GREEN. A deleted guard widens availability — it does not remove the card. This is the plan's only e2e mutant, and the one test that proves the feature is reachable through the real UI, so an inverted mutant here would leave it unfalsified.
 
 - [ ] **Step 3: Run Group A gates**
 
@@ -1498,7 +1568,7 @@ git commit -m "test(e2e): scope add-menu locators and drive depth-3 authoring"
 
 ## Self-Review
 
-**Spec coverage.** Containment rule → T1. One allowlist → T1. `element_depth` + query cost → T1. Registry entry + call-site `getattr` → T1. `CONTAINER_TRANSFER_KEYS` + drift → T1. LAL loader → T1/T2. Delete path (root, edge set, root-inclusive, `seen`, pk boundary, unconditional `el.delete()`) → T3. Export recursion + both ordering invariants → T4. Import validator (both clauses, cycle, missing ancestor, messages) → T5. `has_html` both sites + import removal → T6. `has_math` + render → T7. Editor (seeds, both context builders, module attr, guards, `in_spoiler` removal, 5 direct-render sites) → T8. Stale comments → T9. Help docs → T10. `.po` → T11. e2e + DoD → T12. All 16 guardrail inversions are assigned (T1: 7, T5: 4, T8: 4, plus `:16` explicitly left alone).
+**Spec coverage.** Containment rule → T1. One allowlist → T1. `element_depth` + query cost → T1. Registry entry + call-site `getattr` → T1. `CONTAINER_TRANSFER_KEYS` + drift → T1. LAL loader → T1/T2. Delete path (root, edge set, root-inclusive, `seen`, pk boundary, unconditional `el.delete()`) → T3. Export recursion + both ordering invariants → T4. Import validator (both clauses, cycle, missing ancestor, messages) → T5. `has_html` both sites + import removal → T6. `has_math` + render → T7. Editor (seeds, both context builders, module attr, guards, `in_spoiler` removal, 5 direct-render sites) → T8. Stale comments → T9. Help docs → T10. `.po` → T11. e2e + DoD → T12. Guardrail inversions: **17 sites**, all assigned — Task 1 owns eleven (Step 5 plus Step 5b), Task 5 four, Task 8 four, with `test_twocolumn_registry.py:16` explicitly left unchanged. Reconcile against Task 0's derived list rather than this count; round 2 added the 17th and round 3 confirmed by execution that there is no 18th.
 
 **Placeholders.** Task 2's `build_element(...)` call and a few fixture bodies are marked "read the real helper first" rather than invented — deliberate, because inventing factory signatures is how a plan ships un-runnable test code. That licence covers **fixture construction only**: every test signature is real Python, every production change carries real code, and the one helper path this plan does assert (`tests.factories.make_course_with_unit`) was verified against the tree rather than recalled.
 
