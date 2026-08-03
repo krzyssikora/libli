@@ -419,19 +419,55 @@ def test_a_mutation_landing_mid_toggle_leaves_no_detached_scope(page, live_serve
         f"() => document.querySelector('li[data-node=\"{ch.pk}\"]')"
     )
     down.click()  # a reorder returns _render_scope, replacing the row
-    page.wait_for_selector(f'li[data-node="{ch.pk}"]')  # the fresh row
+    # The reorder MUST have landed before the held response is released, or this
+    # test exercises nothing: the toggle's `.then` re-resolves
+    # `li[data-node=pk]`, and while the original row is still attached that
+    # re-resolve returns THAT SAME ROW -- so the guard and a stale-row bug are
+    # indistinguishable, and the test merely samples the reorder-vs-continue_
+    # race. That is the flake: on a loaded runner the reorder loses, the scope is
+    # appended to the still-attached original row, and `!el.isConnected` below
+    # is false.
+    #
+    # `wait_for_selector(f'li[data-node="{ch.pk}"]')` did NOT provide that
+    # barrier. Measured with the reorder POST held in a route handler, it
+    # returned with `handle.isConnected === true` and with
+    # `document.querySelector('li[data-node=…]') === handle`: it matched the
+    # captured row ITSELF and asserted nothing about the swap.
+    #
+    # Wait on the captured handle instead. Both conjuncts are false until
+    # applyFragment's `existing.replaceWith(incoming)` has run -- the first is
+    # the exact negation of the failure state, and the second additionally
+    # demands a genuinely fresh row identity -- so this cannot return early.
+    page.wait_for_function(
+        f"""(el) => {{
+            const live = document.querySelector('li[data-node="{ch.pk}"]');
+            return !el.isConnected && !!live && live !== el;
+        }}""",
+        arg=handle,
+    )
     held[0].continue_()  # now let it land
-    # The toggle sets data-submitting at issue and deletes it in its `.then`, so
-    # its DISAPPEARANCE is the happens-after for "the held response has been
-    # processed" -- the same marker whose APPEARANCE this test already waits on
-    # above. The 300 ms sleep this replaces was a guess that lost the race under
-    # `-n 4` load, and both assertions below are the tolerant kind (`<= 1`, and a
-    # negated isConnected) that pass trivially if the response has not landed yet.
-    page.wait_for_function("() => !document.querySelector('[data-submitting]')")
+    # Wait on the busy COUNTER, not on `data-submitting`. That marker sits on the
+    # toggle INSIDE the row the reorder just detached, and a detached node is not
+    # reachable from `document.querySelector` -- so
+    # `!document.querySelector('[data-submitting]')` is already true at this
+    # line (measured, with the response still held) and waits for nothing.
+    # `data-busy` lives on `.builder`, which no fragment swap ever replaces, so
+    # nothing can satisfy this wait by detaching a node. The counter was raised
+    # by this toggle's own busyStart() and that half is lowered only by its
+    # finish(), so it cannot reach zero until the held response has been
+    # processed -- a true happens-after regardless of where the reorder's own
+    # half of the counter has got to.
+    page.wait_for_selector(".builder[data-busy]", state="detached")
     assert page.locator(f'ol[data-scope="{ch.pk}"]').count() <= 1
     # The pre-mutation row must be detached AND must not have gained a scope.
     # (`querySelectorAll(...).every(o => o.isConnected)` is vacuous -- that API
     # only ever returns attached nodes.)
+    # Detachment is now established by the barrier above rather than discovered
+    # here, which is what makes the second conjunct the load-bearing one: the
+    # guard re-resolved to the FRESH row, found no `submitting` on it, and bailed
+    # instead of appending this response's scope to the row it captured. Deleting
+    # the re-resolve in builder.js and reading the captured `row`/`t` from the
+    # click closure reddens exactly that conjunct.
     assert page.evaluate(
         "(el) => !el.isConnected && !el.querySelector('ol.tree__scope')", handle
     )
