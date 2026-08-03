@@ -183,8 +183,13 @@ the documented import cycle (`courses/builder.py:339-341`).
 A marked row whose own GFK is dangling falls out consistently and by accident, so it is
 worth stating: `type(None)` is in neither the model→key map nor `_CONTAINER_REGISTRY`, so
 clause 2 rejects it for any nested destination and `is_container` reports False. A top-level
-paste passes the rule and then fails at export as a 422, per the `problems` check below. The
-two paths disagree in status code but never in outcome — the broken element is not copied.
+**copy** passes the rule and then fails at export as a 422, per the `problems` check below —
+the broken element is not copied.
+
+A top-level **move** of the same row succeeds with a 200, and correctly so: a move serialises
+nothing, so Move semantics' steps run with no export, no `problems` list and no
+`TransferError`. The distinction matters because "paste" names both modes throughout this
+spec; a test written from the copy sentence alone would assert 422 and fail on the move.
 
 **Clause 3 is the one genuinely new rule.** An *add* always places a single element, so it
 never needed a height check; a paste can place a populated container. Note that clause 3
@@ -301,10 +306,21 @@ enumerate_slots(unit) -> [(parent_join_or_None, tab_id, dest_depth)]
   That is destructive breakage on a path this spec creates.
 
   **So clause 1 additionally requires the slot to lie within the first `MAX` entries of the
-  non-destructive list** (`MAX_TABS` / `MAX_COLUMNS`), which is exactly the set
-  `normalize_data` will not truncate away. The check is on *position*, not on the minted id,
-  so it is stable across calls — comparing ids against the destructive normalizer's output
-  would compare against freshly minted values. The template tests pin one padding case and
+  non-destructive list**, which is exactly the set `normalize_data` will not truncate away.
+  The check is on *position*, not on the minted id, so it is stable across calls — comparing
+  ids against the destructive normalizer's output would compare against freshly minted
+  values.
+
+  **`MAX` needs a source, and the registry has none today.** `_CONTAINER_REGISTRY`'s value is
+  the three-tuple `(normalizer, list_key, id_key)`, unpacked positionally by `resolve_scope`
+  (`courses/builder.py:158`) — a shape the depth-3 slice pinned deliberately — and
+  `SpoilerElement`'s entry is a bare lambda over a model with no bound at all, since its
+  single slot is fixed. So: **add a fourth registry element**, the cap as an `int` or `None`
+  for a fixed-slot container, and update `resolve_scope:158`'s unpack in the same edit. That
+  collateral change is named here because the alternative — an ad-hoc
+  `getattr(type(obj), "MAX_TABS", …)` inside `paste_allowed` — is a second copy of container
+  knowledge outside the registry, which is the drift this spec argues against everywhere
+  else. A `None` cap means "never truncated" and the position check is skipped. The template tests pin one padding case and
   one malformed/duplicate-id case; a direct `paste_allowed` test pins the truncation case
   with a `> MAX_TABS` container as the destination. Mutant: drop the position check → that
   test goes RED while every other row stays green.
@@ -322,8 +338,15 @@ enumerate_slots(unit) -> [(parent_join_or_None, tab_id, dest_depth)]
 as long as a mark is pending, and every editor operation returns a full re-render.
 `_editor_rows` prefetches only top-level joins (`courses/views_manage.py:1235-1239`), so a
 naive enumerator issues a GFK fetch per join plus a depth walk per slot — hundreds of queries
-on a unit with a few hundred elements. The walk therefore carries
-`prefetch_related("content_object")`, reuses the depth it already knows (above), and a
+on a unit with a few hundred elements.
+
+**The fix is one query, not a prefetch on the recursion.** Descending `join.children` from
+the ORM at each node and hanging `prefetch_related("content_object")` off it is *worse* than
+naive — one children query plus one query per distinct content type, per join. Instead:
+fetch `unit.elements.all().select_related("content_type").prefetch_related("content_object")`
+**once**, build the parent→children map in memory, and walk that. It is what `build_export`
+already does (`courses/transfer/export.py:565-570`). The same map also feeds `subtree_facts`,
+so `is_container` needs no further fetches, and the depth falls out of the walk (above). A
 query-count assertion pins the result so a regression is caught rather than merely felt.
 
 **The FK walk is a superset of the rendered tree, and that is the agreement that matters.**
@@ -353,12 +376,25 @@ paste buttons come from an inclusion tag, but the `<details>` open-set test happ
 used and the key must be built from two values in an expression. The intended condition is:
 
 ```
+{# tabs, _element_row.html:82 — loop variable is `tab` #}
 {% if forloop.first or clip_active or el.pk|slot_key:tab.id|in_set:open_slots %}open{% endif %}
+
+{# columns, _element_row.html:132 — loop variable is `column`, NOT `tab` #}
+{% if forloop.first or clip_active or el.pk|slot_key:column.id|in_set:open_slots %}open{% endif %}
 ```
 
-with `in_set` the existing scalar-membership filter in `courses_manage_extras`. One helper,
-two registrations, used by the view when building all three sets and by the template when
-testing them.
+with `in_set` the existing scalar-membership filter in `courses_manage_extras`. **Both are
+written out because copying the tabs form into the columns branch fails silently:** there is
+no `tab` in scope at `:131-132` (`{% for column, children in obj.resolved_columns %}`), so
+`tab.id` resolves to the empty string, the key becomes `"<pk>:"`, and `in_set` returns False
+without complaint. The `clip_active` disjunct hides it while a mark is pending, so the
+symptom appears only *after* a paste into column 2 — every columns `<details>` snaps back to
+first-column-only and the moved row vanishes, which is precisely the failure the open-set
+exists to prevent. The post-paste open-set template test therefore needs a **columns**
+instance as well as a tabs one.
+
+One helper, two registrations, used by the view when building all three sets and by the
+template when testing them.
 
 The reason is that Django's template language cannot construct a tuple, so a
 `(parent_pk, tab_id)` key would be untestable from the template that needs it — and the
@@ -384,10 +420,23 @@ so a string stays a string across requests. Then `clip["element"] == el.pk` is F
 every row: the toggle-off lifecycle row below never fires (⊹ on the marked element re-marks
 it instead of clearing), and the marked-row modifier never renders. Both fail **silently and
 closed** — the same signature as the slot-key trap, which is why the same discipline applies
-here. Ints are the cheaper choice because clauses 4 and 5 compare pks; the template side then
-compares with the repo's existing spelling, `clip_element_pk == el.pk|stringformat:'s'`
-(`_element_row.html:19`), against a value rendered from the same source. Tests for the
-toggle-off row and the marked-row modifier are the ones that go RED under the wrong type.
+here. Ints are the cheaper choice because clauses 4 and 5 compare pks.
+
+**The view stringifies on the way out**: the context key is `str(clip["element"])`, and the
+template compares it with the repo's existing spelling,
+`clip_element_pk == el.pk|stringformat:'s'` (`_element_row.html:19`). Naming the conversion
+point matters — passing the `int` straight into context makes every row's comparison
+`int == str` → False, reproducing the very failure this paragraph exists to prevent, one
+layer later. Tests for the toggle-off row and the marked-row modifier are the ones that go
+RED under either mistake.
+
+**`int()` can fail, and its status is a 400.** `int(request.POST.get("element"))` raises for
+a missing or non-numeric value, and nothing downstream catches it: `element` is deliberately
+not validated at clip time, and `_locked_element` catches only `Element.DoesNotExist`
+(unlike its sibling `_locked_element_in_unit`, which also catches `ValueError`/`TypeError`).
+Left unstated, the one endpoint whose whole job is to be cheap and side-effect-free 500s on a
+malformed payload. It joins the other shape errors at 400, and the Views tests cover it
+alongside the half-supplied-scope case.
 
 No mode is stored — move-vs-copy arrives with the paste. Lifecycle:
 
@@ -440,8 +489,14 @@ unit's element list *and* its live preview. A POST carrying a `unit` pk from cou
 user who manages only course A, would render course B's content. So it resolves the unit as
 `ContentNode.objects.filter(pk=…, course=course, kind=UNIT).first()` — the same filter
 `_element_conflict` already uses (`courses/views_manage.py:1201-1203`) — and returns 409
-when that misses, which also covers a missing, non-numeric or non-unit pk rather than
-letting `_render_editor_fragments` raise.
+when that misses, rather than letting `_render_editor_fragments` raise.
+
+That covers a **missing** pk (`pk=None` becomes `pk__isnull=True`) and a **non-unit** pk, but
+**not a present-and-non-numeric one**: `filter(pk="abc")` raises `ValueError` when the
+queryset is evaluated. So the lookup is wrapped in `try/except (ValueError, TypeError)` →
+409. `_element_conflict` has the same unguarded shape today; that is a pre-existing wart on a
+hand-crafted-only path and is left alone, but new code is not written against an assumption
+of coverage that does not exist.
 
 The *marked element* is deliberately **not** validated at clip time beyond belonging to that
 unit: the paste re-resolves it through `_locked_element(course, …)`, which filters on
@@ -655,7 +710,8 @@ It keeps `_run_import`'s wrapper, so any failure rolls back and is normalised to
 exactly that — so the graft returns a root sitting at `parent=None, tab_id=""`, i.e. **top
 level**, regardless of where it is destined. `place_element` will not fix this (see Move
 semantics). The builder service therefore performs the same steps 2–3 as a move on the
-returned root, then bumps `unit.updated`. Without this, duplicating a child of Tab A drops
+returned root — **with the position argument being the one difference: `None` for a
+paste-copy (append), `source_index + 1` for a duplicate** — then bumps `unit.updated`. Without this, duplicating a child of Tab A drops
 the copy at the unit's top level.
 
 **Export flags and a broken subtree.** `build_element_export` runs with
@@ -858,15 +914,16 @@ a slide break has nothing to edit, but duplicating and moving one are perfectly 
   independently; the comment at `:1270-1278` records what happens when a key lands in only
   one — the first page load looks perfect and every later fragment swap silently drops the
   feature.
-- **The inclusion tag is `takes_context=True`, and that is load-bearing.** Django renders an
-  inclusion tag's template with a *fresh* context otherwise, so `{% csrf_token %}` emits
-  nothing and the no-JS submit 403s. Under JS the failure hides — `post()` sends the token
-  as an `X-CSRFToken` header from the cookie (`editor.js:209-217`) — and a 403 is outside
-  editor.js's `{200, 409, 422}` set, so even the JS-adjacent failure is silent.
-  `courses_manage_extras` has no form-rendering tag to copy, so this is stated rather than
-  inferred. The tag reads `slug`, `unit`, the unit token and the two legal-slot sets from
-  context, and takes the slot's `parent` and `tab` as arguments. A template test asserts the
-  rendered paste form contains a `csrfmiddlewaretoken` input.
+- **The inclusion tag is `takes_context=True`** so it can read `slug`, `unit`, the unit token
+  and the two legal-slot sets off the ambient context, taking only the slot's `parent` and
+  `tab` as arguments. **Not for CSRF:** Django's `InclusionNode.render` copies `csrf_token`
+  into the fresh context unconditionally, `takes_context` or not, with a comment saying it
+  does so "because inclusion tags are often used for forms"
+  (`django/template/library.py:377-383`). An earlier draft of this spec claimed the opposite
+  and hung a test on it; the test would have passed with `takes_context` dropped, falsifying
+  nothing. A `csrfmiddlewaretoken` assertion is still worth having as a plain regression
+  check on the rendered form — with no mutant attached, because there is no wrong choice
+  here for it to catch.
 - New buttons carry translatable `aria-label` + `title` like their neighbours, and use the
   same icon idiom as the rest of the bar.
 - **Styling ships with the feature**, in `courses/static/courses/css/editor.css` (the
