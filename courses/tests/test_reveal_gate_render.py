@@ -236,4 +236,7 @@ def test_lesson_prehide_css_covers_spoiler(client):
 
     html_body = client.get(lesson_url(unit)).content.decode()
 
-    assert ".spoiler > .spoiler__child:has(> [data-reveal-gate])" in html_body
+    # Scoped to `.spoiler__children`, the wrapper that carries the revealed region's
+    # left rule — it, not `.spoiler`, is the parent whose direct children are the
+    # `.spoiler__child` rows. reveal.js `scopeOf` resolves to the same node.
+    assert ".spoiler__children > .spoiler__child:has(> [data-reveal-gate])" in html_body

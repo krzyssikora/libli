@@ -40,8 +40,16 @@
   // The nearest ancestor that defines a reveal cascade's boundary: a slide in
   // a slideshow lesson, a tab panel inside a tabs element, or a spoiler body.
   // The cascade never crosses out of this scope.
+  //
+  // `.spoiler__children` is listed AND `.spoiler` is kept: the scope must be the
+  // element whose DIRECT children are the `.spoiler__child` rows the cascade walks
+  // sibling-by-sibling. Since the rule-wrapper was introduced that is the wrapper,
+  // and closest() returns the NEAREST match, so it wins for every element-based
+  // spoiler. `.spoiler` remains the fallback for a spoiler with no wrapper (the
+  // legacy body-only shape) -- dropping it would make scopeOf return null there and
+  // silently un-scope any gate that ever appears in one.
   function scopeOf(btn) {
-    return btn.closest("[data-tab-panel], .slide, .spoiler");
+    return btn.closest("[data-tab-panel], .slide, .spoiler__children, .spoiler");
   }
 
   // The direct child of `scope` that contains `el` -- i.e. the wrapper node
@@ -58,7 +66,8 @@
   // and the CSS hide-guard must agree on where one gate's territory ends and
   // the next gate's begins. Three scopes exist: a slide's `.lesson-block`
   // wraps its gate one level deeper (`.lesson-block__body`), while a tab
-  // panel's `.tabs__child` and a spoiler's `.spoiler__child` both wrap the
+  // panel's `.tabs__child` and a spoiler's `.spoiler__child` (inside the
+  // `.spoiler__children` rule-wrapper scopeOf resolves to) both wrap the
   // gate directly -- so those two scopes share the same direct-child form.
   function isGateWrapper(wrapper, scope) {
     if (!wrapper) return false;
