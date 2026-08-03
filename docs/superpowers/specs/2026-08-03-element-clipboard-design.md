@@ -208,6 +208,14 @@ destination therefore produces a false RED, which an implementer would "fix" by 
 clause. Construct the destination parent as a row distinct from the element under test and
 neither its ancestor nor its descendant.
 
+**And the destination's slot list must be within bounds** — `MIN ≤ len(slots) ≤ MAX`. Clause 1
+is deliberately *stricter* than `resolve_scope`'s clause 2 (the truncation position check
+below), and `resolve_scope` is left unchanged, so the two provably disagree for a container
+holding more than `MAX` stored slots. An equivalence matrix that wandered into that case
+would produce a false RED whose obvious "fix" is deleting the position check — that is,
+re-opening the destructive orphan hole it exists to close. The out-of-bounds case belongs to
+the direct `paste_allowed` truncation test instead.
+
 **Clause 4 hides paste buttons inside the marked element's own subtree in both modes.** For
 a move it prevents a cycle. For a copy it is stricter than strictly necessary — copying a
 container into its own descendant creates no cycle — but one rule is easier to reason about
@@ -533,10 +541,19 @@ paste. A `mode` that is neither `move` nor `copy` is likewise a 400; there is no
 **Both mutating services are `@transaction.atomic`** and take the existing locks before the
 token check, as every element mutation already does (`reorder_element`,
 `delete_element`, `save_element`): `_locked_element` for the subject row, which also yields
-the unit, then `_check_token`. **`paste_allowed` is re-evaluated inside that lock**, after
-it, so a concurrent add into the destination slot cannot interleave between the check and
-the placement. The render-time call is advisory only; the in-transaction call is the
-enforcement.
+the unit, then `_check_token`. **`builder.paste_element` re-evaluates `paste_allowed` inside
+that lock**, so a concurrent add into the destination slot cannot interleave between the
+check and the placement. The render-time call is advisory only; the in-transaction call is
+the enforcement. (The *view* holds no transaction — the atomic block is the service's.)
+
+**The refusal travels as `PlacementRefused(Exception)` carrying `reason_key`**, raised by
+`paste_element` and caught by the paste view ahead of `NestingError`. Every other failure on
+this path already names its channel — `ConflictError` → 409, `NestingError` → 400,
+`ParentGoneError(NestingError)` → 422, `TransferError` → 422 — and this one, the reachable
+rejection the whole error section exists for, needs one too: `paste_element` returns
+`(unit, placed_join)`, which has no room for a reason. **It must not subclass
+`NestingError`**, or `element_add`/`element_save` would begin answering 400 to a condition
+they never raise, and the `ParentGoneError` handler would swallow it.
 
 **All three mutating operations end with one `unit.save(update_fields=["updated"])`.**
 Neither `_create_elements` nor `place_element` touches `unit.updated`, so without an
@@ -802,8 +819,13 @@ Unit editor — "Pochodne"                        ← page chrome, NOT swapped
   └───────────────────────────────────────────────┘
   • Tabs "Case 1"   ⊹ selected    ✎ ↑ ↓ ⧉ ⊹ 🗑
 
-  [＋ Add element]  [📋 Move here] [⧉ Copy here]
+  [＋ Add element]  [⧉ Copy here]          ← no 📋: this IS the marked element's own slot
 ```
+
+The marked element sits at top level here, so the top-level slot is its own and clause 5
+suppresses 📋 there while leaving ⧉ — which is what the Templates test asserts. The mock is
+what an implementer eyeballs while building the buttons, so it shows the rule rather than
+the general case.
 
 **Glyph assignment is fixed, one meaning each:** ⧉ is the *copy family* and nothing else
 (duplicate below, Copy here); ⊹ is *select*, and is therefore also what marks the selected
@@ -914,9 +936,12 @@ a slide break has nothing to edit, but duplicating and moving one are perfectly 
   independently; the comment at `:1270-1278` records what happens when a key lands in only
   one — the first page load looks perfect and every later fragment swap silently drops the
   feature.
-- **The inclusion tag is `takes_context=True`** so it can read `slug`, `unit`, the unit token
-  and the two legal-slot sets off the ambient context, taking only the slot's `parent` and
-  `tab` as arguments. **Not for CSRF:** Django's `InclusionNode.render` copies `csrf_token`
+- **The inclusion tag is `takes_context=True`** so it can read `course`, `unit`, the unit
+  token and the two legal-slot sets off the ambient context, taking only the slot's `parent`
+  and `tab` as arguments. Note there is no `slug` key in the editor context — neither
+  `_render_editor_fragments` nor `_editor_page` supplies one and no context processor does
+  either; the templates all spell it `unit.course.slug`, and so must the tag when it reverses
+  its form action. **Not for CSRF:** Django's `InclusionNode.render` copies `csrf_token`
   into the fresh context unconditionally, `takes_context` or not, with a comment saying it
   does so "because inclusion tags are often used for forms"
   (`django/template/library.py:377-383`). An earlier draft of this spec claimed the opposite
