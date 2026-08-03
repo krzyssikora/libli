@@ -105,9 +105,8 @@ def test_top_level_menu_still_offers_containers(client, lesson):
 
 
 def test_depth_1_nested_menu_offers_containers(client, lesson):
-    """POSITIVE requirement -- the ACCEPT case, and the assertion that depth 3 is
-    reachable at all. A container added here lands at depth 2, which builder clause 4
-    accepts.
+    """POSITIVE requirement -- the ACCEPT case for the SECOND container level.
+    A container added here lands at depth 2, which builder clause 4 accepts.
 
     LESSON unit: the Spoiler card sits inside `{% if not unit_is_quiz %}`.
 
@@ -122,9 +121,28 @@ def test_depth_1_nested_menu_offers_containers(client, lesson):
         assert f'data-add-type="{t}"' in menu, t
 
 
-def test_depth_2_nested_menu_hides_containers_but_keeps_leaves(client, lesson):
-    """A container child of a depth-2 container would land at depth 3 -- clause 4
-    rejects it, so the card must go. Leaves stay: they land at depth 3, which is legal.
+def test_depth_2_nested_menu_offers_containers(client, lesson):
+    """POSITIVE requirement -- the ACCEPT case for the THIRD container level, and the
+    assertion that the user's canonical shape is reachable through the UI at all. A
+    container added here lands at depth 3, which builder clause 4 accepts.
+
+    This is the ONLY test that kills the container-card off-by-one tightening
+    (`{% if depth < max_nest_depth|add:-2 %}`): at depth 1 that mutant still emits the
+    cards (1 < 2), so `test_depth_1_nested_menu_offers_containers` stays green.
+
+    SCOPE 2: the nested menu of the depth-2 tabs element only.
+    """
+    course, unit = lesson
+    top = _mk(unit, "tabs")
+    mid = _mk(unit, "tabs", parent=top, tab=_tab(top))
+    menu = _menu_block(_page(client, course, unit), mid.pk, _tab(mid))
+    for t in CONTAINER_CARDS:
+        assert f'data-add-type="{t}"' in menu, t
+
+
+def test_depth_3_nested_menu_hides_containers_but_keeps_leaves(client, lesson):
+    """A container child of a depth-3 container would land at depth 4 -- clause 4
+    rejects it, so the card must go. Leaves stay: they land at depth 4, which is legal.
 
     SCOPE 2 is MANDATORY here: on a whole-page render the top-level menu's own Tabs
     card makes the negative assertion fail against a CORRECT implementation.
@@ -132,37 +150,39 @@ def test_depth_2_nested_menu_hides_containers_but_keeps_leaves(client, lesson):
     course, unit = lesson
     top = _mk(unit, "tabs")
     mid = _mk(unit, "tabs", parent=top, tab=_tab(top))
-    menu = _menu_block(_page(client, course, unit), mid.pk, _tab(mid))
+    deep = _mk(unit, "tabs", parent=mid, tab=_tab(mid))
+    menu = _menu_block(_page(client, course, unit), deep.pk, _tab(deep))
     for t in CONTAINER_CARDS:
         assert f'data-add-type="{t}"' not in menu, t
-    assert 'data-add-type="callout"' in menu  # a legal depth-3 LEAF
+    assert 'data-add-type="callout"' in menu  # a legal depth-4 LEAF
     assert 'data-add-type="text"' in menu
 
 
-def test_no_add_menu_inside_a_depth_3_element(client, lesson):
-    """The depth-3 container MUST be a TABS element, matching the `:85` mutant.
+def test_no_add_menu_inside_a_depth_4_element(client, lesson):
+    """The depth-4 container MUST be a TABS element, matching the `:91` mutant.
     _element_row.html includes _add_menu.html at three sites -- tabs, two-column and
     spoiler -- so a spoiler or two-column fixture would leave the named mutant green
     and this row vacuous.
 
-    ORM-constructed: clause 4 makes a depth-3 container unreachable through
+    ORM-constructed: clause 4 makes a depth-4 container unreachable through
     resolve_scope. Defence in depth -- do not delete as dead.
 
     SCOPE 3: neither mandated scope works. Scope 1 renders _add_menu.html itself and
     can never show the ABSENCE of the include; `_menu_block` uses `html.index()`,
     which raises ValueError rather than asserting absence. Use the pk-keyed page
-    assertion, plus a positive check that the depth-3 ROW is rendered so absence is
+    assertion, plus a positive check that the depth-4 ROW is rendered so absence is
     not merely absence-of-everything.
     """
     course, unit = lesson
     top = _mk(unit, "tabs")
     mid = _mk(unit, "tabs", parent=top, tab=_tab(top))
-    deep = _mk(unit, "tabs", parent=mid, tab=_tab(mid))
+    third = _mk(unit, "tabs", parent=mid, tab=_tab(mid))
+    deep = _mk(unit, "tabs", parent=third, tab=_tab(third))
     html = _page(client, course, unit)
-    assert f'data-element="{deep.pk}"' in html  # the depth-3 row IS rendered
+    assert f'data-element="{deep.pk}"' in html  # the depth-4 row IS rendered
     # ...and it still renders its SLOTS. Guarding the whole `resolved_tabs` loop instead
     # of just the add-menu include would leave the row visible while silently dropping
-    # its tabs and every child row under them -- a legacy/imported depth-4 tree would
+    # its tabs and every child row under them -- a legacy/imported depth-5 tree would
     # then be uneditable and invisible to its author while students still see it.
     #
     # The EDITOR-ONLY form of the marker is mandatory. A bare `data-tab-id="..."` is
@@ -191,19 +211,24 @@ def test_nested_spoiler_renders_children_and_menu(client, lesson):
     assert f'data-element="{child.pk}"' in html  # its depth-3 child row is rendered
     menu = _menu_block(html, sp.pk, SpoilerElement.SLOT_ID)
     assert 'data-add-type="text"' in menu  # a depth-3 leaf is still offerable
-    assert 'data-add-type="tabs"' not in menu  # ...but no container at depth 2
+    assert 'data-add-type="tabs"' in menu  # ...and so is a THIRD container level
 
 
 def test_cap_agreement_cards(client, lesson, monkeypatch):
-    """The container-card guard must read `max_nest_depth`, not a literal `2`.
+    """The container-card guard must read `max_nest_depth`, not a literal `3`.
+
+    THE PATCH VALUE MUST NEVER EQUAL THE REAL CAP. `builder.MAX_NEST_DEPTH` is 4, so
+    patching to 4 would patch to the real value: both halves would then measure the
+    same tree, the test would still PASS, and it would prove nothing. Patch to 5, one
+    past the cap, and re-verify the named mutant if the cap ever moves again.
 
     PAGE render both times -- a direct `render_to_string` would put max_nest_depth
     into the context by hand and make the monkeypatch inert, so the second assertion
     would fail against a correct implementation. The whole point is that the value
     reaches the template THROUGH the view.
 
-    BRACKET the change: the depth-2 menu LACKS the cards at the real cap and GAINS
-    them at 4. Asserting only the patched side passes vacuously, because the
+    BRACKET the change: the depth-3 menu LACKS the cards at the real cap and GAINS
+    them at 5. Asserting only the patched side passes vacuously, because the
     top-level menu satisfies it unconditionally.
 
     SCOPE 2 both times.
@@ -211,27 +236,36 @@ def test_cap_agreement_cards(client, lesson, monkeypatch):
     course, unit = lesson
     top = _mk(unit, "tabs")
     mid = _mk(unit, "tabs", parent=top, tab=_tab(top))
-    at_cap = _menu_block(_page(client, course, unit), mid.pk, _tab(mid))
+    deep = _mk(unit, "tabs", parent=mid, tab=_tab(mid))
+    at_cap = _menu_block(_page(client, course, unit), deep.pk, _tab(deep))
     assert 'data-add-type="tabs"' not in at_cap
 
-    monkeypatch.setattr("courses.builder.MAX_NEST_DEPTH", 4)
-    raised = _menu_block(_page(client, course, unit), mid.pk, _tab(mid))
+    monkeypatch.setattr("courses.builder.MAX_NEST_DEPTH", 5)
+    raised = _menu_block(_page(client, course, unit), deep.pk, _tab(deep))
     assert 'data-add-type="tabs"' in raised
 
 
 def test_cap_agreement_include(client, lesson, monkeypatch):
     """The include guard is the likelier slip -- three sites, not one. The fixture's
-    deepest container is a TABS element, matching the `:85` mutant.
+    deepest container is a TABS element, matching the `:91` mutant.
 
-    SCOPE 3: pk-keyed presence assertion on a page render. With the cap raised to 4
-    the depth-3 tabs element MUST get its own add-menu back.
+    THE PATCH VALUE MUST NEVER EQUAL THE REAL CAP -- see test_cap_agreement_cards.
+    Patch to 5, and keep the fixture one level deeper than the cap allows.
+
+    SCOPE 3: pk-keyed presence assertion on a page render. With the cap raised to 5
+    the depth-4 tabs element MUST get its own add-menu back.
     """
     course, unit = lesson
     top = _mk(unit, "tabs")
     mid = _mk(unit, "tabs", parent=top, tab=_tab(top))
-    deep = _mk(unit, "tabs", parent=mid, tab=_tab(mid))
+    third = _mk(unit, "tabs", parent=mid, tab=_tab(mid))
+    deep = _mk(unit, "tabs", parent=third, tab=_tab(third))
 
-    monkeypatch.setattr("courses.builder.MAX_NEST_DEPTH", 4)
+    # At the real cap the depth-4 row has NO menu: without this the test could pass
+    # under a mutant that emits the menu unconditionally.
+    assert f'data-parent="{deep.pk}"' not in _page(client, course, unit)
+
+    monkeypatch.setattr("courses.builder.MAX_NEST_DEPTH", 5)
     html = _page(client, course, unit)
     assert f'data-parent="{deep.pk}"' in html
 
@@ -281,6 +315,6 @@ def test_top_level_lesson_menu_has_exactly_one_fillblank_card():
     the guarded card lives. That is the lesson case.
     """
     html = render_to_string(
-        "courses/manage/editor/_add_menu.html", {"depth": 0, "max_nest_depth": 3}
+        "courses/manage/editor/_add_menu.html", {"depth": 0, "max_nest_depth": 4}
     )
     assert html.count('data-add-type="fillblankquestion"') == 1

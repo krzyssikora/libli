@@ -77,7 +77,7 @@ def test_element_row_renders_nested_children_indented():
             "unit": unit,
             "open_form_pk": "",
             "depth": 1,
-            "max_nest_depth": 3,
+            "max_nest_depth": 4,
         },
     )
     assert "element-list--nested" in html
@@ -104,7 +104,7 @@ def test_nested_add_menu_offers_only_nestable_types():
             "parent": join.pk,
             "tab": obj.data["tabs"][0]["id"],
             "depth": 1,
-            "max_nest_depth": 3,
+            "max_nest_depth": 4,
         },
     )
     for blocked in ["choice-single", "slidebreak"]:

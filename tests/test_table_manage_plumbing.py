@@ -22,7 +22,7 @@ def test_element_summary_reports_dimensions():
 def test_add_menu_exposes_table_card():
     # Both keys are INTEGERS -- see the matching note in tests/test_gallery_manage.py.
     html = render_to_string(
-        "courses/manage/editor/_add_menu.html", {"depth": 0, "max_nest_depth": 3}
+        "courses/manage/editor/_add_menu.html", {"depth": 0, "max_nest_depth": 4}
     )
     assert 'data-add-type="table"' in html
     assert "#el-table" in html

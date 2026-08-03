@@ -191,8 +191,11 @@ def test_resolve_scope_accepts_interactive_form_key_in_spoiler(form_key):
 
 @pytest.mark.django_db
 def test_resolve_scope_accepts_leaf_child_of_a_nested_spoiler():
-    # Depth-3 slice: a spoiler-in-spoiler sits at depth 2, and clause 4 blocks only
-    # CONTAINER children there -- a leaf child (depth 3) is now legal.
+    # A spoiler-in-spoiler sits at depth 2 and takes both a leaf child (depth 3) and a
+    # THIRD spoiler (depth 3). Clause 4 only bites one level further down: the
+    # depth-3 spoiler takes leaves but no fourth container -- the user's
+    # "spoiler with child tabs with child spoiler, but this is it" boundary, read
+    # through the all-spoiler chain.
     _course, unit = make_course_with_unit()
     _outer_sp, outer_join = _spoiler_join(unit)
     _inner_sp, inner_join = _spoiler_join(
@@ -202,10 +205,23 @@ def test_resolve_scope_accepts_leaf_child_of_a_nested_spoiler():
         unit, str(inner_join.pk), SpoilerElement.SLOT_ID, "switchgate"
     )
     assert parent_join == inner_join and tab == SpoilerElement.SLOT_ID
-    # ...but a container child of that depth-2 spoiler stays rejected (clause 4)
+    # ...and a THIRD container level is still accepted here
+    parent_join, tab = builder.resolve_scope(
+        unit, str(inner_join.pk), SpoilerElement.SLOT_ID, "spoiler"
+    )
+    assert parent_join == inner_join and tab == SpoilerElement.SLOT_ID
+
+    # ...but a FOURTH is not, while a leaf at depth 4 still is.
+    _third_sp, third_join = _spoiler_join(
+        unit, parent=inner_join, tab_id=SpoilerElement.SLOT_ID
+    )
+    parent_join, tab = builder.resolve_scope(
+        unit, str(third_join.pk), SpoilerElement.SLOT_ID, "switchgate"
+    )
+    assert parent_join == third_join and tab == SpoilerElement.SLOT_ID
     with pytest.raises(NestingError):
         builder.resolve_scope(
-            unit, str(inner_join.pk), SpoilerElement.SLOT_ID, "spoiler"
+            unit, str(third_join.pk), SpoilerElement.SLOT_ID, "spoiler"
         )
 
 

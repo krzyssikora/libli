@@ -28,29 +28,45 @@ def _tabs(eid, parent=None, tab=_SLOTS[0]["id"]):
     }
 
 
-def test_depth_4_parents_first_reports_the_container_clause():
-    """Parents-first ordering examines the depth-3 container before its child, so
-    CLAUSE 4 fires."""
+def test_depth_4_archive_with_three_container_levels_is_accepted():
+    """The transfer-side twin of the canonical shape: three levels of CONTAINERS with
+    a leaf inside the third. This is the ACCEPT case -- the only thing that kills an
+    off-by-one tightening of either import clause, since both reject-cases below stay
+    red under a cap that is one too small."""
     doc = _els(
         _tabs("a"),
         _tabs("b", parent="a"),
         _tabs("c", parent="b"),
         _child("d", parent="c"),
     )
+    validate_nesting(doc)  # must not raise
+
+
+def test_depth_5_parents_first_reports_the_container_clause():
+    """Parents-first ordering examines the depth-4 container D before its child, so
+    CLAUSE 4 fires -- a FOURTH container level, which the cap forbids."""
+    doc = _els(
+        _tabs("a"),
+        _tabs("b", parent="a"),
+        _tabs("c", parent="b"),
+        _tabs("d", parent="c"),
+        _child("e", parent="d"),
+    )
     with pytest.raises(TransferError) as exc:
         validate_nesting(doc)
     assert "container" in str(exc.value)
 
 
-def test_depth_4_child_before_parent_reports_the_depth_clause():
-    """Child-before-parent ordering reaches D first, whose parent C is already at
-    depth 3, so CLAUSE 3 fires and clause 4 never runs. Both clauses are reachable;
+def test_depth_5_child_before_parent_reports_the_depth_clause():
+    """Child-before-parent ordering reaches E first, whose parent D is already at
+    depth 4, so CLAUSE 3 fires and clause 4 never runs. Both clauses are reachable;
     which one fires is payload-order dependent."""
     doc = _els(
         _tabs("a"),
         _tabs("b", parent="a"),
-        _child("d", parent="c"),
         _tabs("c", parent="b"),
+        _child("e", parent="d"),
+        _tabs("d", parent="c"),
     )
     with pytest.raises(TransferError) as exc:
         validate_nesting(doc)
@@ -60,7 +76,7 @@ def test_depth_4_child_before_parent_reports_the_depth_clause():
 def test_parent_cycle_raises_rather_than_hanging():
     """Asserts the exception TYPE only, deliberately: a hop-bounded walk reports a
     cycle as a too-deep parent, emitting the same clause-3 message an ordinary
-    depth-4 archive does. Distinguishing them would need the unbounded traversal the
+    depth-5 archive does. Distinguishing them would need the unbounded traversal the
     bound exists to avoid."""
     doc = _els(_tabs("a", parent="b"), _tabs("b", parent="a"))
     with pytest.raises(TransferError):

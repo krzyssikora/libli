@@ -13,7 +13,7 @@ from tests.factories import make_course_with_unit
 def _mk(unit, type_key, parent=None, tab=""):
     """Create an element join row directly through the ORM.
 
-    Used for depth-3 parents: clause 4 forbids a container at depth 3, so such a
+    Used for depth-4 parents: clause 4 forbids a container at depth 4, so such a
     fixture is UNREACHABLE through resolve_scope itself. This is deliberate
     defence-in-depth coverage, not dead code -- do not delete it.
     """
@@ -48,10 +48,12 @@ def test_element_depth_counts_hops():
     _course, unit = make_course_with_unit()
     top = _mk(unit, "tabs")
     mid = _mk(unit, "tabs", parent=top, tab="t1")
-    leaf = _mk(unit, "text", parent=mid, tab="t2")
+    inner = _mk(unit, "tabs", parent=mid, tab="t2")
+    leaf = _mk(unit, "text", parent=inner, tab="t3")
     assert builder.element_depth(top) == 1
     assert builder.element_depth(mid) == 2
-    assert builder.element_depth(leaf) == 3
+    assert builder.element_depth(inner) == 3
+    assert builder.element_depth(leaf) == 4
 
 
 @pytest.mark.django_db
@@ -85,20 +87,42 @@ def test_container_child_accepted_at_depth_1(child_form_key):
 
 @pytest.mark.django_db
 @pytest.mark.parametrize("child_form_key", ["tabs", "twocolumn", "spoiler"])
-def test_container_child_rejected_at_depth_2(child_form_key):
-    """Clause 4: a container child of a depth-2 parent would sit at depth 3."""
+def test_container_child_accepted_at_depth_2(child_form_key):
+    """A container inside a depth-2 container lands at depth 3 -- the THIRD level of
+    containers the cap lift exists for.
+
+    This is also the only test that kills the clause-4 off-by-one tightening
+    (`parent_depth >= MAX_NEST_DEPTH - 2`): under that mutant a depth-2 parent
+    rejects every container, while `test_container_child_accepted_at_depth_1` (1 < 2)
+    stays green."""
     _course, unit = make_course_with_unit()
     top = _mk(unit, "tabs")
     tab_id = top.content_object.data["tabs"][0]["id"]
     mid = _mk(unit, "tabs", parent=top, tab=tab_id)
     mid_tab = mid.content_object.data["tabs"][0]["id"]
+    join, slot = builder.resolve_scope(unit, str(mid.pk), mid_tab, child_form_key)
+    assert join == mid and slot == mid_tab
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("child_form_key", ["tabs", "twocolumn", "spoiler"])
+def test_container_child_rejected_at_depth_3(child_form_key):
+    """Clause 4: a container child of a depth-3 parent would sit at depth 4 -- a
+    FOURTH level of containers, which the cap does not allow."""
+    _course, unit = make_course_with_unit()
+    top = _mk(unit, "tabs")
+    t1 = top.content_object.data["tabs"][0]["id"]
+    mid = _mk(unit, "tabs", parent=top, tab=t1)
+    t2 = mid.content_object.data["tabs"][0]["id"]
+    deep = _mk(unit, "tabs", parent=mid, tab=t2)
+    t3 = deep.content_object.data["tabs"][0]["id"]
     with pytest.raises(NestingError):
-        builder.resolve_scope(unit, str(mid.pk), mid_tab, child_form_key)
+        builder.resolve_scope(unit, str(deep.pk), t3, child_form_key)
 
 
 @pytest.mark.django_db
 def test_leaf_child_accepted_at_depth_2():
-    """The same depth-2 parent accepts a LEAF -- this is what makes depth 3 real."""
+    """The same depth-2 parent accepts a LEAF -- it lands at depth 3."""
     _course, unit = make_course_with_unit()
     top = _mk(unit, "tabs")
     tab_id = top.content_object.data["tabs"][0]["id"]
@@ -109,8 +133,28 @@ def test_leaf_child_accepted_at_depth_2():
 
 
 @pytest.mark.django_db
-def test_leaf_child_rejected_at_depth_3():
-    """Clause 3. The depth-3 parent is ORM-built: clause 4 makes it unreachable
+def test_leaf_child_accepted_at_depth_3():
+    """A LEAF inside the THIRD container level lands at depth 4 -- this is what makes
+    three levels of containers with content inside them real.
+
+    Also the only test that kills the clause-3 off-by-one tightening
+    (`parent_depth >= MAX_NEST_DEPTH - 1`): under that mutant a depth-3 parent takes
+    no children at all, while `test_leaf_child_accepted_at_depth_2` (2 < 3) stays
+    green."""
+    _course, unit = make_course_with_unit()
+    top = _mk(unit, "tabs")
+    t1 = top.content_object.data["tabs"][0]["id"]
+    mid = _mk(unit, "tabs", parent=top, tab=t1)
+    t2 = mid.content_object.data["tabs"][0]["id"]
+    deep = _mk(unit, "tabs", parent=mid, tab=t2)
+    t3 = deep.content_object.data["tabs"][0]["id"]
+    join, slot = builder.resolve_scope(unit, str(deep.pk), t3, "text")
+    assert join == deep and slot == t3
+
+
+@pytest.mark.django_db
+def test_leaf_child_rejected_at_depth_4():
+    """Clause 3. The depth-4 parent is ORM-built: clause 4 makes it unreachable
     through resolve_scope, so this is defence-in-depth. Do not delete as dead."""
     _course, unit = make_course_with_unit()
     top = _mk(unit, "tabs")
@@ -119,8 +163,83 @@ def test_leaf_child_rejected_at_depth_3():
     t2 = mid.content_object.data["tabs"][0]["id"]
     deep = _mk(unit, "tabs", parent=mid, tab=t2)
     t3 = deep.content_object.data["tabs"][0]["id"]
+    deeper = _mk(unit, "tabs", parent=deep, tab=t3)
+    t4 = deeper.content_object.data["tabs"][0]["id"]
     with pytest.raises(NestingError):
+        builder.resolve_scope(unit, str(deeper.pk), t4, "text")
+
+
+@pytest.mark.django_db
+def test_canonical_spoiler_tabs_spoiler_text_is_authorable():
+    """THE acceptance criterion for the cap lift, in the user's own words:
+    "a spoiler with child tabs with child spoiler, but this is it".
+
+        spoiler (1) > tabs (2) > spoiler (3) > text (4)
+
+    Every hop goes through resolve_scope, exactly as manage_element_add does -- no ORM
+    shortcut -- so this fails if ANY of the four levels is refused. The closing
+    assertions pin "but this is it": a FOURTH container level is rejected, while the
+    depth-4 leaf really is at depth 4.
+    """
+    from courses.models import SpoilerElement
+
+    _course, unit = make_course_with_unit()
+
+    sp1 = _mk(unit, "spoiler")
+    assert builder.element_depth(sp1) == 1
+
+    join, slot = builder.resolve_scope(
+        unit, str(sp1.pk), SpoilerElement.SLOT_ID, "tabs"
+    )
+    tabs = _mk(unit, "tabs", parent=join, tab=slot)
+    assert builder.element_depth(tabs) == 2
+
+    tab_id = tabs.content_object.data["tabs"][0]["id"]
+    join, slot = builder.resolve_scope(unit, str(tabs.pk), tab_id, "spoiler")
+    sp2 = _mk(unit, "spoiler", parent=join, tab=slot)
+    assert builder.element_depth(sp2) == 3
+
+    join, slot = builder.resolve_scope(
+        unit, str(sp2.pk), SpoilerElement.SLOT_ID, "text"
+    )
+    text = _mk(unit, "text", parent=join, tab=slot)
+    assert builder.element_depth(text) == 4
+
+    # "...but this is it": no fourth container level, whichever container is asked for.
+    for container in ("spoiler", "tabs", "twocolumn"):
+        with pytest.raises(NestingError):
+            builder.resolve_scope(unit, str(sp2.pk), SpoilerElement.SLOT_ID, container)
+
+
+@pytest.mark.django_db
+def test_resolve_scope_walks_the_parent_chain_without_extra_queries():
+    """`select_related` must cover MAX_NEST_DEPTH - 1 parent hops.
+
+    element_depth walks up to three parents now, so a two-hop select_related
+    (`parent__parent`) makes every depth-3 resolve issue an extra uncached fetch.
+    Comparing a depth-3 parent against a depth-1 parent in the SAME test keeps the
+    ContentType cache warm, so the delta is the parent walk and nothing else.
+
+    Mutant: `select_related("parent__parent")` -> the depth-3 count exceeds the
+    depth-1 count.
+    """
+    from django.db import connection
+    from django.test.utils import CaptureQueriesContext
+
+    _course, unit = make_course_with_unit()
+    top = _mk(unit, "tabs")
+    t1 = top.content_object.data["tabs"][0]["id"]
+    mid = _mk(unit, "tabs", parent=top, tab=t1)
+    t2 = mid.content_object.data["tabs"][0]["id"]
+    deep = _mk(unit, "tabs", parent=mid, tab=t2)
+    t3 = deep.content_object.data["tabs"][0]["id"]
+
+    builder.resolve_scope(unit, str(top.pk), t1, "text")  # warm the ContentType cache
+    with CaptureQueriesContext(connection) as shallow:
+        builder.resolve_scope(unit, str(top.pk), t1, "text")
+    with CaptureQueriesContext(connection) as deepest:
         builder.resolve_scope(unit, str(deep.pk), t3, "text")
+    assert len(deepest) == len(shallow)
 
 
 @pytest.mark.django_db

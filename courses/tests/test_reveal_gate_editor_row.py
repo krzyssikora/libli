@@ -55,7 +55,7 @@ def _render_row(el_join, unit):
             "obj": el_join.content_object,
             "unit": unit,
             "depth": 1,
-            "max_nest_depth": 3,
+            "max_nest_depth": 4,
         },
     )
 
