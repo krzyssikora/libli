@@ -18,6 +18,7 @@
 - **No migration is expected.** `makemigrations --check --dry-run` must stay clean. A migration appearing means the design was not followed.
 - **Every test carries a named mutant, verified RED against that test by node id** — apply mutant, run `uv run pytest <node-id> --verbosity=0`, observe FAIL, revert. "The suite went red" proves nothing.
 - **`pytest-timeout` is NOT installed.** A mutant that hangs can never be verified RED — it wedges the run. Where the spec forbids a hanging mutant, that prohibition is load-bearing.
+- **Run `uv run ruff format` at the end of every task**, not just `--check` at Tasks 0 and 12. The code blocks in this plan are illustrative and several are not in the repo's format — the magic trailing comma explodes the set literals one-per-line, and Task 3's `doomed = list(...)` collapses to one line. Formatting only at the end pushes that churn into Task 12's commit, touching files Tasks 1 and 3 own.
 - Commit after every task. Conventional-commit subjects.
 
 ---
@@ -489,7 +490,9 @@ from courses.models import SpoilerElement             # unchanged
 _CONTAINER_SLOT_KEY = {"tabs": "tabs", "two_column": "columns", "spoiler": None}
 ```
 
-Replace the `parent["type"] == "spoiler"` branch at `payloads.py:774-785` — note this is a **string comparison on a payload dict**, not an `isinstance` check (the `isinstance` form is `builder.resolve_scope`'s, at `builder.py:130`; conflating them sends you to the wrong file) — with the membership two-step. Delete its two rationale comments (`:771-773`, `:776-781`) along with it:
+Replace **`payloads.py:771-794` — BOTH arms** — with the membership two-step. That is the comment block at `:771-773`, the `if parent["type"] == "spoiler":` branch through its closing `)` at `:786`, **and** the `else:` arm at `:787-794`, which is what currently supplies `slot_key` and `valid_slot_ids`. Replacing only the if-branch leaves an orphan `)` and a dangling `else:` → `SyntaxError` (the same boundary defect an earlier round fixed for `builder.py:121-158`). The one-level depth check at `:795` survives untouched for Task 5.
+
+Note this is a **string comparison on a payload dict**, not an `isinstance` check — the `isinstance` form is `builder.resolve_scope`'s at `builder.py:130`, and conflating them sends you to the wrong file:
 
 ```python
         if parent["type"] not in _CONTAINER_SLOT_KEY:          # membership FIRST
@@ -703,7 +706,7 @@ def test_removing_a_tab_keeps_sibling_tab_content():
     # Three, not two, because TabsElement.MIN_TABS == 2 (models.py:1337) and
     # TabsElementForm.clean_data (element_forms.py:1690) raises ValidationError on any
     # payload with fewer than 2 tabs. Submitting one surviving tab makes save_element
-    # raise ElementFormInvalid at builder.py:667 BEFORE `old_ids - new_ids` is ever
+    # raise ElementFormInvalid at builder.py:661 BEFORE `old_ids - new_ids` (:667) is
     # computed -- no removal happens, and two of this task's five mutants become
     # unverifiable. Verified by running the two-tab shape: it does not remove anything.
     #
@@ -822,7 +825,7 @@ uv run pytest --verbosity=0
 - [ ] **Step 6: Commit**
 
 ```bash
-git add courses/builder.py courses/tests/test_delete_subtree.py
+git add courses/builder.py courses/tests/test_delete_subtree.py courses/tests/test_nesting_rule.py
 git commit -m "fix(nesting): delete whole subtrees so depth-3 concretes cannot orphan"
 ```
 
@@ -863,8 +866,12 @@ def test_round_trip_preserves_within_slot_sibling_order():
     materialize_duplicate (importer.py:1093) skips validation entirely, which is why
     duplicate_unit works here at all.
     """
-    # tabs > [spoiler_a, spoiler_b]  (two siblings in the TABS slot), each with a leaf
-    # duplicate, then assert the tabs slot's child order is still [a, b]
+    # tabs > [spoiler_a, spoiler_b] BOTH CHILDREN OF THE SAME TAB ID -- one
+    # `children` list of length 2 -- each spoiler holding a leaf. A default
+    # TabsElement has two tabs, so "two siblings in the tabs element" reads
+    # naturally as one per tab; split that way each `children` list has length 1,
+    # reversed() is a no-op and the mutant is vacuous AGAIN. Verified both ways.
+    # Then duplicate and assert that tab's child order is still [a, b].
 
 
 @pytest.mark.django_db
@@ -1083,10 +1090,12 @@ Reword the two surviving messages exactly as the spec's message table specifies 
 
 | Site | Action |
 |---|---|
+**Only TWO sites flip here.** The tabs-in-tabs reject case and `test_spoiler_transfer.py:141-160` both flip at **Task 1's allowlist widening**, not at this task's depth walk, and Task 1 Step 5b already inverted them — verified by running the suite at each task boundary. Do not go hunting for reject cases that no longer exist; verify, don't redo.
+
+| Site | Action |
+|---|---|
 | `tests/test_tabs_transfer.py:135` (`# depth > 1`) | Its middle element is **text**, so it is still rejected — by "parent is not a container", not by depth. Rebuild with a **container** middle element, or retire in favour of the new clause tests. |
-| `tests/test_tabs_transfer.py` tabs-in-tabs reject case | Now VALID; move to the accept test. |
-| `courses/tests/test_spoiler_transfer.py:114-138` | depth-2 half inverts (transfer-side twin of Purpose bullet 3); rename. |
-| `courses/tests/test_spoiler_transfer.py:141-160` | tabs-child-of-spoiler now legal; rename; rewrite the `:142-143` comment. |
+| `courses/tests/test_spoiler_transfer.py:114-138` | The depth-2 half inverts here and **only** here — it is the one guardrail this task's depth walk newly flips (transfer-side twin of Purpose bullet 3). Rename. |
 
 - [ ] **Step 6: Verify the named mutants RED**
 
@@ -1290,6 +1299,13 @@ def test_no_add_menu_inside_a_depth_3_element():
 
     ORM-constructed: clause 4 makes a depth-3 container unreachable through
     resolve_scope. Defence in depth -- do not delete as dead."""
+    # SCOPE: neither mandated scope works here. Scope 1 renders _add_menu.html
+    # itself (it can never show the ABSENCE of the include); scope 2's _menu_block
+    # uses html.index(), which raises ValueError instead of asserting absence. Use a
+    # direct row render:
+    #   render_to_string(".../_element_row.html",
+    #                    {"el": deep_join, ..., "depth": 3, "max_nest_depth": 3})
+    # or the pk-keyed page assertion: f'data-parent="{deep_join.pk}"' not in html.
     assert "data-add-menu" not in depth3_row_html
 
 
@@ -1330,7 +1346,15 @@ def test_fragment_swap_still_emits_menu_and_cards():
 @pytest.mark.django_db
 def test_top_level_lesson_menu_has_exactly_one_fillblank_card():
     """Line 39 becomes {% if nested %}; deleting it outright duplicates line 49's
-    card. LESSON fixture -- no duplicate arises in a quiz."""
+    card. LESSON fixture -- no duplicate arises in a quiz.
+
+    SCOPE (mandatory): after :39 becomes {% if nested %}, EVERY nested menu emits a
+    fill-blank card -- measured count == 6 on a lesson page containing tabs plus a
+    nested spoiler. So either render the top-level menu directly
+    (render_to_string(".../_add_menu.html", {"depth": 0, "max_nest_depth": 3});
+    nested is falsy -> 1, mutant -> 2), or use a page render of a unit with NO
+    container element at all. An unscoped page render fails against correct code AND
+    under its own mutant, making the RED verification meaningless."""
     assert html.count('data-add-type="fillblankquestion"') == 1
 ```
 
