@@ -405,10 +405,14 @@ used and the key must be built from two values in an expression. The intended co
 ```
 
 with `in_set` the existing scalar-membership filter in `courses_manage_extras`. **Both are
-written out because copying the tabs form into the columns branch fails silently:** there is
-no `tab` in scope at `:131-132` (`{% for column, children in obj.resolved_columns %}`), so
-`tab.id` resolves to the empty string, the key becomes `"<pk>:"`, and `in_set` returns False
-without complaint. The `clip_active` disjunct hides it while a mark is pending, so the
+written out because copying the tabs form into the columns branch fails silently.** The
+columns loop binds `column`, not `tab` (`{% for column, children in obj.resolved_columns %}`,
+`:131`), so a copied `tab.id` resolves one of two ways — and neither is a column slot. At top
+level `tab` is unbound and the key becomes `"<pk>:"`. Nested inside a tabs element it is
+*worse*: the recursive include at `:86` passes `with …` and **no `only`**, and Django's
+`IncludeNode` pushes onto the existing context rather than isolating it
+(`django/template/loader_tags.py:204-211`), so the enclosing tab's id leaks in and the key
+silently names a real-but-wrong slot. Either way `in_set` returns False without complaint. The `clip_active` disjunct hides it while a mark is pending, so the
 symptom appears only *after* a paste into column 2 — every columns `<details>` snaps back to
 first-column-only and the moved row vanishes, which is precisely the failure the open-set
 exists to prevent. The post-paste open-set template test therefore needs a **columns**
@@ -967,8 +971,11 @@ a slide break has nothing to edit, but duplicating and moving one are perfectly 
   here for it to catch.
 - New buttons carry translatable `aria-label` + `title` like their neighbours, and use the
   same icon idiom as the rest of the bar.
-- **Styling ships with the feature**, in `courses/static/courses/css/editor.css` (the
-  editor's only sheet, `editor.html:7`): the marked-row modifier, the `.pane-head` banner,
+- **Styling ships with the feature**, in `courses/static/courses/css/editor.css` — the
+  editor's *own* sheet (`editor.html:7`), not its only one: `courses.css` loads first at
+  `:6` with the shared base, so equal-specificity rules here win. `.el-row`, `.el-actions`,
+  `.pane-head`, `.addwrap`, `.iconbtn` and `.tabs-rows` are all defined in `editor.css` and
+  nowhere else on this page, so the new rules belong beside them. It gains: the marked-row modifier, the `.pane-head` banner,
   and the grouping of the two paste buttons against the add-menu. A modifier class with no
   rule is invisible, which for the mark is indistinguishable from the feature being broken.
   Verified with light **and** dark screenshots of a marked row and of a slot showing both
