@@ -5,9 +5,26 @@
     <span class="spoiler__label spoiler__label--hide">{% trans "Hide" %}</span>
   </summary>
   {% if children %}
-    {% for child in children %}
-      <div class="spoiler__child">{% render_element child %}</div>
-    {% endfor %}
+    {% comment %}
+    The children share ONE wrapper so the revealed region can carry a single
+    CONTINUOUS left rule -- the same aside affordance the legacy body-only path gets
+    from `.spoiler__body`. A border on each `.spoiler__child` cannot work: a child's
+    inner element margins collapse THROUGH the child (measured: 16px holes between
+    the child boxes), so the rule would come out segmented. The wrapper deliberately
+    has no vertical margin and no `display:flow-root`, so those same margins still
+    collapse through it and the spoiler's total height is unchanged.
+
+    `.spoiler__child` stays a DIRECT child of this wrapper, and the wrapper is what
+    the reveal cascade now scopes to: reveal.js `scopeOf` matches `.spoiler__children`
+    ahead of `.spoiler`, and the pre-hide CSS in lesson_unit.html walks
+    `.spoiler__children > .spoiler__child`. Those three must agree -- see
+    courses/tests/test_reveal_gate_render.py.
+    {% endcomment %}
+    <div class="spoiler__children">
+      {% for child in children %}
+        <div class="spoiler__child">{% render_element child %}</div>
+      {% endfor %}
+    </div>
   {% elif el.body %}
     <div class="el el--text spoiler__body">{{ el.body|sanitize }}</div>
   {% endif %}

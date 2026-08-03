@@ -974,11 +974,22 @@ a.notif-menu__row:hover { background: var(--surface-sunken); }
 .spoiler[open] > .spoiler__toggle .spoiler__label--show { display: none; }
 .spoiler[open] > .spoiler__toggle .spoiler__label--hide { display: inline; }
 /* Revealed panel reads as an aside bound to its toggle (not loose lesson prose):
-   an indented, brand-ruled block distinct from the reveal-gate's bodyless divider. */
-.spoiler__body {
-  margin: var(--space-3) 0 var(--space-1) var(--space-3);
+   an indented, brand-ruled block distinct from the reveal-gate's bodyless divider.
+   Two shapes get the SAME treatment: the legacy body-only spoiler (`.spoiler__body`)
+   and the element-based one, whose children share the `.spoiler__children` wrapper.
+   The element path had no styling at all, so it lost both the rule and the indent.
+
+   The wrapper carries NO vertical margin and is deliberately not a `flow-root`: the
+   children's own margins keep collapsing through it, so the box hugs the content
+   exactly (first child's top to the last child's bottom, matching the body case) and
+   the spoiler's total height is unchanged — measured 154px before and after. */
+.spoiler__body,
+.spoiler > .spoiler__children {
   padding-left: var(--space-4);
   border-left: 2px solid color-mix(in srgb, var(--primary) 30%, transparent);
+}
+.spoiler__body {
+  margin: var(--space-3) 0 var(--space-1) var(--space-3);
 }
 
 /* Reveal gate — button hide guards (author display must never beat [hidden]) */

@@ -493,10 +493,16 @@ def test_nested_spoiler_keeps_its_own_open_state_affordances(page, live_server):
     page.goto(_lesson_url(live_server, unit))
 
     outer_sp = page.locator("details.spoiler").first
-    mid_sp = page.locator("details.spoiler > .spoiler__child > details.spoiler").first
+    # The `.spoiler__children` hop is the rule-wrapper every element-based spoiler
+    # renders; keeping the chain fully explicit (rather than relaxing to a descendant
+    # combinator) is what makes this assert the NESTING DEPTH and not merely
+    # "a spoiler somewhere inside another spoiler".
+    mid_sp = page.locator(
+        "details.spoiler > .spoiler__children > .spoiler__child > details.spoiler"
+    ).first
     inner_sp = page.locator(
-        "details.spoiler > .spoiler__child > details.spoiler"
-        " > .spoiler__child > details.spoiler"
+        "details.spoiler > .spoiler__children > .spoiler__child > details.spoiler"
+        " > .spoiler__children > .spoiler__child > details.spoiler"
     )
     expect(inner_sp).to_have_count(1)
 
