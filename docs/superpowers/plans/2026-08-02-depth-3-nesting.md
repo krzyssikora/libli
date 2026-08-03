@@ -698,22 +698,27 @@ def test_removing_a_tab_keeps_sibling_tab_content():
     """Two assertions. The second is what catches the wrong collection root:
     rooting at the tabs join sweeps KEPT tabs' descendants too, leaving live
     Element rows pointing at deleted concretes -- silent destruction, no error."""
-    # FIXTURE: tab A: spoiler > text_a  |  tab B: spoiler > text_b
+    # FIXTURE: THREE tabs. tab A: spoiler > text_a | tab B: spoiler > text_b | tab C.
     #
-    # ACT -- this is the test's action, not scaffolding, and it is the hard part:
-    # save_element must receive a `data` payload that DROPS one tab id and keeps the
-    # other, so that `old_ids - new_ids` is non-empty at builder.py:667. Read
-    # save_element's real signature and tests/test_tabs_form_views.py's `_post`
-    # helper before writing this; the shape is roughly:
+    # Three, not two, because TabsElement.MIN_TABS == 2 (models.py:1337) and
+    # TabsElementForm.clean_data (element_forms.py:1690) raises ValidationError on any
+    # payload with fewer than 2 tabs. Submitting one surviving tab makes save_element
+    # raise ElementFormInvalid at builder.py:667 BEFORE `old_ids - new_ids` is ever
+    # computed -- no removal happens, and two of this task's five mutants become
+    # unverifiable. Verified by running the two-tab shape: it does not remove anything.
+    #
+    # ACT -- the test's action, not scaffolding: submit the TWO survivors so exactly
+    # one tab id disappears.
     #
     #   builder.save_element(
     #       course, unit.pk, "tabs", str(tabs_join.pk),
-    #       {"data": json.dumps({"tabs": [kept_tab]}),
+    #       {"data": json.dumps({"tabs": [tab_b, tab_c]}),   # tab A dropped
     #        "unit_token": unit.updated.isoformat()},
     #       {},
     #   )
     #
-    # Two of this task's five mutants are unverifiable until this call is right.
+    # Read save_element's real signature and tests/test_tabs_form_views.py's `_post`
+    # helper before writing this.
     assert not TextElement.objects.filter(pk=text_a_pk).exists()   # removed tab
     assert TextElement.objects.filter(pk=text_b_pk).exists()       # KEPT tab
 
@@ -843,11 +848,23 @@ def test_duplicate_unit_keeps_depth_3_content():
 
 @pytest.mark.django_db
 def test_round_trip_preserves_within_slot_sibling_order():
-    """The fixture MUST place at least TWO siblings in the same NESTED slot -- with
-    one leaf in one spoiler in one tab, `reversed(children)` is a no-op and the
-    mutant is vacuous."""
-    # tabs > spoiler > [text_a, text_b]  (two siblings in the SPOILER's slot)
-    # export, import, assert the spoiler's children order is still [a, b]
+    """The fixture places two siblings in the TABS slot, so the named
+    `reversed(children)` mutant actually bites.
+
+    `children` exists only in the resolved_tabs()/resolved_columns() arms of
+    walk_unit_joins; the spoiler arm is `for child in obj.resolved_children():`. A
+    fixture of tabs > spoiler > [text_a, text_b] puts the two siblings in the
+    SPOILER's slot, leaving the tabs slot holding exactly one child -- so
+    reversed(children) is a no-op and the test PASSES under its own mutant. Verified.
+
+    ENTRY POINT: assert through builder.duplicate_unit / materialize_duplicate, NOT
+    import_subtree. Task 1 leaves validate_nesting's one-level check in place until
+    Task 5, so validate_document REJECTS a depth-3 archive at this task's commit;
+    materialize_duplicate (importer.py:1093) skips validation entirely, which is why
+    duplicate_unit works here at all.
+    """
+    # tabs > [spoiler_a, spoiler_b]  (two siblings in the TABS slot), each with a leaf
+    # duplicate, then assert the tabs slot's child order is still [a, b]
 
 
 @pytest.mark.django_db
@@ -920,7 +937,7 @@ def walk_unit_joins(unit_pk, joins_by_unit):
 | Mutant | Node id that must FAIL |
 |---|---|
 | drop the recursive descent (yield one level only) | `::test_duplicate_unit_keeps_depth_3_content` |
-| `for child in reversed(children)` in the slot descent | `::test_round_trip_preserves_within_slot_sibling_order` |
+| `for child in reversed(children)` in the **`resolved_tabs()` arm** | `::test_round_trip_preserves_within_slot_sibling_order` — lethal only because the fixture puts two siblings in the TABS slot. `children` is unbound in the spoiler arm (`for child in obj.resolved_children():`), so a spoiler-slot fixture leaves the tabs slot single-child and this mutant is a no-op. Verified both ways. |
 | move the parent `yield` to AFTER the slot descent | `::test_export_does_not_keyerror_on_forward_reference` |
 
 **A BFS/level-order reordering is NOT a valid mutant** — it preserves relative sibling order, so the round trip stays byte-identical and the test would stay green.
@@ -1217,7 +1234,22 @@ The largest task and the one that decides whether the feature is reachable at al
 Use one of these two scopes for every test below, and say which in the test:
 
 1. `render_to_string("courses/manage/editor/_add_menu.html", {"nested": True, "depth": 2, "max_nest_depth": 3, ...})` — renders exactly one menu; or
-2. slice the target menu out of the page first, reusing `courses/tests/test_spoiler_nesting.py`'s existing `_spoiler_menu_block(html, join.pk)` helper, which exists for precisely this reason.
+2. slice the target menu out of the page with a **pk-keyed** helper, modelled on `courses/tests/test_spoiler_nesting.py`'s existing `_spoiler_menu_block`:
+
+```python
+def _menu_block(html, join_pk, tab_id):
+    """The one add-menu belonging to (join_pk, tab_id), sliced out of a page render.
+
+    Keyed by PK, not by depth: the rendered menu carries only
+    `data-add-menu data-parent="<pk>" data-tab="<slot>"` -- nothing encodes depth, so
+    a `_menu_at_depth(html, depth=N)` helper cannot be implemented from HTML alone.
+    """
+    start = html.index(f'data-parent="{join_pk}" data-tab="{tab_id}"')
+    end = html.find("addwrap", start + 1)
+    return html[start : end if end != -1 else len(html)]
+```
+
+**`test_cap_agreement_cards` must use a PAGE render, not `render_to_string`.** Passing `max_nest_depth` directly into a template context makes `monkeypatch.setattr("courses.builder.MAX_NEST_DEPTH", 4)` inert, so the bracketed second assertion would fail against a correct implementation — the whole point is that the value reaches the template *through* the view.
 
 ```python
 @pytest.mark.django_db
@@ -1235,7 +1267,7 @@ def test_depth_1_nested_menu_offers_containers():
 
     SCOPE: assert on the NESTED menu only -- the top-level menu always carries
     these cards, so a whole-page assertion passes under this test's own mutant."""
-    menu = _menu_at_depth(html, depth=1)     # or render _add_menu.html directly
+    menu = _menu_block(html, tabs_join.pk, tab_id)   # or render _add_menu.html directly
     for t in ("tabs", "twocolumn", "spoiler"):
         assert f'data-add-type="{t}"' in menu
 
@@ -1244,7 +1276,7 @@ def test_depth_1_nested_menu_offers_containers():
 def test_depth_2_nested_menu_hides_containers_but_keeps_leaves():
     """SCOPE is mandatory here: on a whole-page render the top-level menu's own
     Tabs card makes the negative assertion fail against a CORRECT implementation."""
-    menu = _menu_at_depth(html, depth=2)     # or render _add_menu.html directly
+    menu = _menu_block(html, mid_join.pk, mid_tab)   # the DEPTH-2 container's own menu
     assert 'data-add-type="tabs"' not in menu
     assert 'data-add-type="callout"' in menu       # a legal depth-3 LEAF
 
@@ -1273,9 +1305,11 @@ def test_cap_agreement_cards(monkeypatch):
     BRACKET the change: assert the depth-2 menu LACKS the cards at the real cap and
     GAINS them at 4. Asserting only the patched side passes vacuously, because the
     top-level menu satisfies it unconditionally."""
-    assert 'data-add-type="tabs"' not in _menu_at_depth(render(), depth=2)
+    # PAGE render both times -- a direct render_to_string would make the
+    # monkeypatch inert and the second assertion would fail on correct code.
+    assert 'data-add-type="tabs"' not in _menu_block(page(), mid_join.pk, mid_tab)
     monkeypatch.setattr("courses.builder.MAX_NEST_DEPTH", 4)
-    assert 'data-add-type="tabs"' in _menu_at_depth(render(), depth=2)
+    assert 'data-add-type="tabs"' in _menu_block(page(), mid_join.pk, mid_tab)
 
 
 @pytest.mark.django_db
@@ -1345,7 +1379,7 @@ Each must pass explicit **integer** `depth` AND `max_nest_depth`. Omitting `max_
 
 | Site | Note |
 |---|---|
-| `courses/tests/test_reveal_gate_editor_row.py:46-49` | Future-vacuity insurance only, **not** a required fix: `_render_row` renders a `revealgateelement`, which falls to `_element_row.html`'s `{% else %}` leaf branch (`:180-203`) — no add-menu include, no recursive row include, so no depth predicate is evaluated. Add both keys anyway so a later branch change cannot make it vacuous. |
+| `courses/tests/test_reveal_gate_editor_row.py:46-49` | Future-vacuity insurance only, **not** a required fix: `_render_row` renders a `revealgateelement`, which has its **own** dedicated branch at `_element_row.html:18-43` (it does NOT reach the `{% else %}` at `:180-203`). That branch has no add-menu include and no recursive row include, so no depth predicate is evaluated. Add both keys anyway so a later branch change cannot make it vacuous. |
 | `tests/test_tabs_editor_partial.py:70-72` | **will otherwise go RED** — it asserts the nested add-menu IS emitted |
 | `tests/test_tabs_editor_partial.py:83-86` | add both |
 | `tests/test_gallery_manage.py:26` | renders with no context at all; add both |
@@ -1377,6 +1411,7 @@ uv run pytest --verbosity=0
 | `_element_row.html:85` as literal `{% if depth < 3 %}` | `::test_cap_agreement_include` |
 | delete the depth guard at `:85` | `::test_no_add_menu_inside_a_depth_3_element` |
 | omit `max_nest_depth` from `_render_editor_fragments` | `::test_fragment_swap_still_emits_menu_and_cards` |
+| container-card guard written `{% if depth < max_nest_depth|add:-2 %}` (off-by-one tightening) | `::test_depth_1_nested_menu_offers_containers` — the **accept** case, and the assertion that the feature is reachable at all. None of the other eight mutants kills it: the card-predicate deletion, the `{% if depth < 2 %}` literal and the `:85` guard deletion all leave it green. Same reasoning as Task 1's two extra accept-case rows. |
 | `_add_menu.html:39` → delete the guard entirely | `::test_top_level_lesson_menu_has_exactly_one_fillblank_card` |
 
 - [ ] **Step 11: Commit**
