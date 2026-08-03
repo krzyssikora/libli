@@ -48,7 +48,6 @@ from courses.models import FillBlankQuestionElement
 from courses.models import FillGateElement
 from courses.models import FillTableElement
 from courses.models import GuessNumberElement
-from courses.models import HtmlElement
 from courses.models import MarkDoneElement
 from courses.models import MatchPairQuestionElement
 from courses.models import MathElement
@@ -325,7 +324,6 @@ def build_lesson_context(node, user):
     if markdone_els:
         prefetch_related_objects(markdone_els, "items")
 
-    html_ct_id = ContentType.objects.get_for_model(HtmlElement).id
     question_models = [
         ChoiceQuestionElement,
         ShortTextQuestionElement,
@@ -343,7 +341,13 @@ def build_lesson_context(node, user):
     # Single source of truth: _element_has_math() knows every type. (Previously this
     # was a ~12-clause inlined OR-chain duplicated between here and build_quiz_context.)
     has_math = any(_element_has_math(el.content_object) for el in elements)
-    has_html = any(el.content_type_id == html_ct_id for el in elements)
+    # Flat unit-wide (NOT parent__isnull=True) so an html element nested in a tab,
+    # column or spoiler still arms html_element.js -- children keep their own `unit`
+    # FK. Matches every sibling has_* flag. app_label-pinned like
+    # has_stateful_elements, to avoid cold-cache ContentType SELECTs.
+    has_html = node.elements.filter(
+        content_type__app_label="courses", content_type__model="htmlelement"
+    ).exists()
     # Flat unit-wide (NOT scoped to parent__isnull=True) so a question nested in a
     # spoiler/tab — children keep their own `unit` FK — is still detected, arming
     # question.js/dnd.js. Only fill_blank is nestable today, so this only newly fires
@@ -1195,7 +1199,14 @@ def build_quiz_context(node, user):
     has_math = bool(questions) or any(
         _element_has_math(el.content_object) for el in elements
     )
-    has_html = any(isinstance(el.content_object, HtmlElement) for el in elements)
+    # Flat unit-wide (NOT parent__isnull=True) so an html element nested in a tab,
+    # column or spoiler still arms html_element.js -- children keep their own `unit`
+    # FK. Matches every sibling has_* flag. app_label-pinned like
+    # has_stateful_elements, to avoid cold-cache ContentType SELECTs. Separate code
+    # path from build_lesson_context's has_html -- both must change together.
+    has_html = node.elements.filter(
+        content_type__app_label="courses", content_type__model="htmlelement"
+    ).exists()
     ctx = {
         "course": node.course,
         "unit": node,
