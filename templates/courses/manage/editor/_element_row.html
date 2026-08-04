@@ -88,7 +88,7 @@
             <li class="empty-state">{% trans "This tab is empty." %}</li>
           {% endfor %}
         </ol>
-        {% if depth < max_nest_depth %}{% include "courses/manage/editor/_add_menu.html" with nested=True parent=el.pk tab=tab.id depth=depth %}{% endif %}
+        {% if depth < max_nest_depth %}{% include "courses/manage/editor/_add_menu.html" with nested=True parent=el.pk tab=tab.id depth=depth %}{% endif %}{% paste_buttons el.pk tab.id %}
       </details>
     {% endfor %}
   </div>
@@ -138,7 +138,7 @@
             <li class="empty-state">{% trans "This column is empty." %}</li>
           {% endfor %}
         </ol>
-        {% if depth < max_nest_depth %}{% include "courses/manage/editor/_add_menu.html" with nested=True parent=el.pk tab=column.id depth=depth %}{% endif %}
+        {% if depth < max_nest_depth %}{% include "courses/manage/editor/_add_menu.html" with nested=True parent=el.pk tab=column.id depth=depth %}{% endif %}{% paste_buttons el.pk column.id %}
       </details>
     {% endfor %}
   </div>
@@ -192,7 +192,7 @@
         {% endif %}
       {% endfor %}
     </ol>
-    {% if depth < max_nest_depth %}{% include "courses/manage/editor/_add_menu.html" with nested=True parent=el.pk tab=obj.SLOT_ID depth=depth %}{% endif %}
+    {% if depth < max_nest_depth %}{% include "courses/manage/editor/_add_menu.html" with nested=True parent=el.pk tab=obj.SLOT_ID depth=depth %}{% endif %}{% paste_buttons el.pk obj.SLOT_ID %}
   </div>
 </li>
 {% elif el.content_type.model == "calloutelement" %}
@@ -241,7 +241,7 @@
         {% endif %}
       {% endfor %}
     </ol>
-    {% if depth < max_nest_depth %}{% include "courses/manage/editor/_add_menu.html" with nested=True parent=el.pk tab=obj.SLOT_ID depth=depth %}{% endif %}
+    {% if depth < max_nest_depth %}{% include "courses/manage/editor/_add_menu.html" with nested=True parent=el.pk tab=obj.SLOT_ID depth=depth %}{% endif %}{% paste_buttons el.pk obj.SLOT_ID %}
   </div>
 </li>
 {% else %}

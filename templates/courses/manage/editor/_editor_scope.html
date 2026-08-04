@@ -1,4 +1,4 @@
-{% load i18n %}
+{% load i18n courses_manage_extras %}
 <div class="editor-grid is-mode-split">
   <section class="pane editor-pane" data-scope="editor" data-updated="{{ unit.updated.isoformat }}"
        data-unit="{{ unit.pk }}"
@@ -29,7 +29,7 @@
           {% if open_form_pk != "new" %}<li class="empty-state">{% trans "No elements yet." %}</li>{% endif %}{% endfor %}
         {% if open_form_pk == "new" %}<li class="el-row el-row--editing"><div class="el-row__head"><span class="el-tag">{% trans "New" %}</span></div><div class="el-edit-slot" data-edit-slot>{{ open_form|safe }}</div></li>{% endif %}
       </ol>
-      {% include "courses/manage/editor/_add_menu.html" with depth=0 %}
+      {% include "courses/manage/editor/_add_menu.html" with depth=0 %}{% paste_buttons %}
     </div>
   </section>
   {% include "courses/manage/editor/_preview.html" %}

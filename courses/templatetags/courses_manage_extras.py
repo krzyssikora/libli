@@ -264,3 +264,30 @@ def toggle_href(context, node, is_open):
         params["q"] = q
     query = urlencode(params)
     return f"{context.get('builder_url', '')}?{query}#node-{node.pk}"
+
+
+@register.inclusion_tag("courses/manage/editor/_paste_buttons.html", takes_context=True)
+def paste_buttons(context, parent="", tab=""):
+    """Render the paste controls for ONE slot, if the rule allows them.
+
+    The template never re-derives the rule: it tests this slot's key against the
+    two precomputed sets the view built by calling paste_allowed per slot per mode.
+
+    takes_context so it can read `unit` and the sets off the ambient context. Note
+    there is no `slug` key in the editor context -- the templates all spell it
+    `unit.course.slug`, and so does the form action. NOT for CSRF: Django's
+    InclusionNode.render copies csrf_token into the fresh context unconditionally.
+
+    `parent` is "" for the synthetic top-level slot. The None test is explicit for
+    the same reason builder.slot_key's is -- `parent or None` would collapse a pk
+    of 0 onto the top-level key.
+    """
+    parent_pk = None if parent == "" or parent is None else parent
+    key = builder.slot_key(parent_pk, tab or "")
+    return {
+        "unit": context.get("unit"),
+        "parent": parent if parent_pk is not None else "",
+        "tab": tab or "",
+        "show_move": key in (context.get("move_slots") or set()),
+        "show_copy": key in (context.get("copy_slots") or set()),
+    }
