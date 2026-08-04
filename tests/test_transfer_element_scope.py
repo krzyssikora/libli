@@ -1,9 +1,11 @@
 import pytest
 
+from courses.models import ContentNode
 from courses.models import Element
 from courses.models import TabsElement
 from courses.models import TextElement
 from courses.transfer.export import build_element_export
+from courses.transfer.importer import graft_elements
 from tests.factories import make_course_with_unit
 
 pytestmark = pytest.mark.django_db
@@ -56,3 +58,37 @@ def test_every_exported_element_points_at_the_single_node_id():
 
     node_id = document["nodes"][0]["id"]
     assert {e["unit"] for e in document["elements"]} == {node_id}
+
+
+def test_graft_creates_the_subtree_in_the_same_unit_and_returns_its_root():
+    _course, unit, tabs_join, t2 = _unit_with_tabs()
+    document, media_assets, _problems = build_element_export(unit, tabs_join)
+    media_map = {mid: asset for (mid, asset, _ph) in media_assets}
+    before = unit.elements.count()
+
+    new_root = graft_elements(document, media_map, unit)
+
+    assert unit.elements.count() == before + 2  # container + its child
+    assert new_root.unit_id == unit.pk
+    assert new_root.pk != tabs_join.pk
+    assert isinstance(new_root.content_object, TabsElement)
+    # The graft does NOT place it: the payload root has no parent, and
+    # _create_elements' second pass skips parentless rows. The builder service
+    # is what sets the scope -- this assertion pins that contract.
+    assert new_root.parent_id is None
+    assert new_root.tab_id == ""
+    # The child came across and kept its slot.
+    child = new_root.children.get()
+    assert child.tab_id == t2
+    assert child.content_object.body == "<p>tabbed</p>"
+
+
+def test_graft_does_not_create_a_content_node():
+    _course, unit, tabs_join, _t2 = _unit_with_tabs()
+    document, media_assets, _problems = build_element_export(unit, tabs_join)
+    media_map = {mid: asset for (mid, asset, _ph) in media_assets}
+    nodes_before = ContentNode.objects.count()
+
+    graft_elements(document, media_map, unit)
+
+    assert ContentNode.objects.count() == nodes_before
