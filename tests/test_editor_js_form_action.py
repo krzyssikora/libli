@@ -22,10 +22,17 @@ ROW_CONTROLS = (
     ROOT / "templates" / "courses" / "manage" / "editor" / "_element_row_controls.html"
 )
 
-# `form.action` / `tryForm.action` etc. — the property read, in code. Comments are
-# stripped first because this module's own fix is documented in a comment that names
-# the trap, and the docstring of the rule must not fail the rule.
-PROPERTY_READ = re.compile(r"\b\w*[Ff]orm\.action\b")
+# ANY `.action` property read, in code. Deliberately not `\w*[Ff]orm\.action`: the
+# variable holding the form is not always named for it — `f.action` is live house
+# style in this repo already (courses/static/courses/js/quiz.js:89), and
+# `e.target.action` is the other obvious spelling. A guard keyed on the identifier
+# would pass while the defect was reintroduced under a shorter name.
+# A bare `.action` is viable HERE specifically: editor.js's only other mentions of
+# `.action` are the two comments explaining this very trap, and comments are stripped
+# below — so the rule's own documentation cannot fail the rule. If a legitimate
+# `.action` read ever lands in this file, narrow to the call sites rather than to the
+# identifier shape.
+PROPERTY_READ = re.compile(r"\.action\b")
 
 
 def _code_only(source):
@@ -47,9 +54,10 @@ def test_editor_js_never_reads_the_action_property():
     code = _code_only(EDITOR_JS.read_text(encoding="utf-8"))
     hits = [line.strip() for line in code.splitlines() if PROPERTY_READ.search(line)]
     assert not hits, (
-        "editor.js reads a form's `action` PROPERTY at "
+        "editor.js reads an `action` PROPERTY at "
         f"{hits} — a hidden <input name='action'> shadows it and the POST goes to "
-        '"[object HTMLInputElement]". Use form.getAttribute("action").'
+        '"[object HTMLInputElement]". Use getAttribute("action"). (If this is a '
+        "legitimate non-form `.action`, narrow PROPERTY_READ to the call sites.)"
     )
 
 
