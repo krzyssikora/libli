@@ -7,6 +7,19 @@
   background: var(--danger-subtle); border: 1px solid var(--danger);
   border-radius: var(--radius-sm); color: var(--text-primary);
 }
+/* The editor's own error slot is a DIRECT CHILD of .pane (_editor_scope.html) — it has
+   to be, because editor.js swaps only the [data-scope] panes, so a message rendered in
+   editor.html's chrome is never swapped in. But .pane carries no padding of its own
+   (.pane-head and .pane-body each supply their own var(--space-4) inline padding), so
+   the bare .op-error above renders full-bleed: MEASURED at 1440px, the bar spanned
+   x=21..623 against a pane of 20..624, its 1px border sitting on the pane's border,
+   while the "Editor" heading and every element card start at x=37. Inset it to the same
+   content column and give it air under the pane head; the 12px margin-bottom above plus
+   .pane-body's padding is replaced by that padding alone, so the gaps read even.
+   Scoped with `.editor-pane >` so nothing else moves: builder.html's page-level flash,
+   the sticky .builder__panel > .op-error (builder.css:168) and editor.js's flash(),
+   which prepends to section.editor (the page, not the pane), are all unaffected. */
+.editor-pane > .op-error { margin: var(--space-3) var(--space-4) 0; }
 
 /* --- Editor width model + 3-way view toggle ---
    Tokens scoped to the editor page. NB: the 70rem grid breakpoint is written as a
