@@ -141,3 +141,36 @@ def test_duplicate_unit_preserves_a_table_inside_a_callout():
     assert any(
         "DUP-MARKER" in str(getattr(e.content_object, "data", "")) for e in copied
     ), "the callout's child was dropped by the duplicate"
+
+
+@pytest.mark.django_db
+def test_duplicate_element_preserves_a_table_inside_a_callout():
+    """Same missing emit() arm, reached through duplicate_element instead of
+    duplicate_unit: master's element-clipboard duplicate_element -> _copy_below
+    -> build_element_export routes through the very same walk_unit_joins emit()
+    ladder this branch adds a callout arm to."""
+    from courses import builder as _builder
+    from courses.models import CalloutElement
+    from courses.models import Element
+    from courses.models import TableElement
+    from tests.factories import add_element
+    from tests.factories import make_course_with_unit
+
+    course, unit = make_course_with_unit()
+    co = CalloutElement.objects.create(kind="example")
+    join = add_element(unit, co)
+    Element.objects.create(
+        unit=unit,
+        content_object=TableElement.objects.create(
+            data={"cells": [[{"html": "DUP-MARKER"}]]}
+        ),
+        parent=join,
+        tab_id=CalloutElement.SLOT_ID,
+    )
+    _unit, new_join = _builder.duplicate_element(
+        course, join.pk, unit.updated.isoformat()
+    )
+    child = new_join.children.get()
+    assert "DUP-MARKER" in str(child.content_object.data), (
+        "the callout's child was dropped by the duplicate"
+    )

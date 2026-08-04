@@ -3,8 +3,9 @@
 RENDER SCOPE IS PART OF EVERY ASSERTION HERE.
 
 `_editor_scope.html` renders the TOP-LEVEL add-menu unconditionally, and after this
-slice that menu still carries all three container cards (its depth is 0, and
-0 < max_nest_depth - 1). So on an unscoped whole-page render:
+slice that menu still carries all four container cards (tabs, two-column, spoiler,
+callout -- its depth is 0, and 0 < max_nest_depth - 1). So on an unscoped whole-page
+render:
 
 * a NEGATIVE assertion (`'data-add-type="tabs"' not in html`) fails against a CORRECT
   implementation -- the top-level card is always there;
