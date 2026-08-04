@@ -1040,11 +1040,13 @@ Expected: FAIL — no preset rules exist.
    than the constrained image, which happens two independent ways:
      1. a figcaption — fit-content sizes the figure to the WIDER of {image, caption}
         max-content contributions, so a long caption widens the figure past the image;
-     2. a binding max-height, with NO caption — the img shrinks on both axes while
-        max-width still caps the figure. Desktop `small` + the 297x719 fixture: the
-        figure is 162px, the image renders ~111.5x270. Whether fit-content shrink-wraps
-        to the constrained or the unconstrained contribution here is engine-dependent,
-        which is exactly why this case is measured (Task 9) rather than reasoned about.
+     2. POSSIBLY a binding max-height with NO caption — at 1280x900, `small`, the
+        297x719 fixture, the img shrinks to ~111.5x270 while max-width caps the figure
+        at 162px. Whether fit-content then shrink-wraps the figure to the constrained
+        (111.5px) or the unconstrained (162px) contribution is engine-dependent, so
+        whether reason 2 exists at all is MEASURED in Task 9 step 1, not reasoned about.
+        If that measurement says the figure tracks the image, delete reason 2 from this
+        comment — do not leave a mechanism here that the measurement disproved.
    Scoped to the capped presets so `full` keeps today's flush-left geometry — 1013
    images must render byte-identically.
 
@@ -1194,7 +1196,14 @@ Create `courses/tests/test_image_size_js.py`. Locate the file with the same
 a relative path breaks with the pytest invocation directory, and the Windows default encoding will
 mangle a non-ASCII byte.
 
-Assert: the source contains `data-size-preset` and `data-preview-el`; and
+**Strip comments before scanning**, the same rule Task 5 applies to CSS. `tests/test_imagezoom_render.py`
+already ships the helper for this exact file — two `re.sub`s, block comments then `//` lines — and its
+docstring records why: a source assertion was once satisfied by `imagezoom.js`'s *prose* quoting
+another module's code, and the capture-phase guard passed with capture removed. The JS branch this
+task adds ships a three-line comment block of its own, so the discipline applies here even though
+today's two assertions happen not to be comment-satisfiable.
+
+Assert, against the stripped source: it contains `data-size-preset` and `data-preview-el`; and
 `source.count('addEventListener("change"') == 1`. The count form is the concrete version of "no second
 change listener" — a source scan cannot inspect what an arbitrary listener is *bound to*, but it can
 insist there is still exactly one, which today is `root`'s at `editor.js:462`. (A source scan is weak;
@@ -1279,16 +1288,26 @@ git commit -m "feat(editor): live size preview without a save"
   level, one per line (`force-single-line`):
 
   ```python
+  import os
+
+  import pytest
+
   from courses.models import CalloutElement
   from courses.models import Element
   from courses.models import ImageElement
   from courses.models import SpoilerElement
   from courses.models import TabsElement
   from courses.models import TwoColumnElement
+  from tests.factories import TEST_PASSWORD
   from tests.factories import ContentNodeFactory
   from tests.factories import add_element
   from tests.factories import make_image_asset
+  from tests.factories import make_verified_user
   ```
+
+  (`os` for `_allow_sync_orm_under_playwright`; `pytest` for `pytestmark` and the fixture decorators;
+  `TEST_PASSWORD` / `make_verified_user` are what `_make_pa_user` and `_login` close over — never a
+  hardcoded password.)
 
   This list is exhaustive: Task 9 adds no helpers of its own, so anything it calls that is not here or
   above is a `NameError`. Task 9 drives the **editor**, not
@@ -1469,6 +1488,10 @@ git commit -m "test(image): e2e bounding boxes for all four presets at two viewp
 **Interfaces:**
 - Consumes: the helpers, the `_isolated_media` fixture and the two image assets from Task 8.
 
+**Centring tolerance, once, for every centring assertion in this task:** `abs(left - right) <= 1`.
+Sub-pixel layout makes a bare float `==` flaky, and "roughly equal" left unpinned would hide a real
+off-centre bug — the same 1px discipline Task 8's box assertions use.
+
 **Every case in this task runs at 1280x900**, set explicitly with `page.set_viewport_size` exactly as
 Task 8 does. Playwright's default page viewport is **1280x720**, not 1280x900, and nothing in
 `tests/conftest.py` or the root `conftest.py` overrides it — so an unpinned test silently measures
@@ -1486,7 +1509,7 @@ Create those explicitly before writing any assertion; reuse Task 8's `tall` / `w
 | # | for | element | seeded how |
 |---|---|---|---|
 | 1 | figure-centred (Step 1) | `alt="centred-<preset>"`, one per capped preset, **no caption**, tall fixture | `add_element(unit, …)` — top level |
-| 2 | long-caption centring (Step 1) | `alt="captioned"`, `size="small"`, tall fixture, `figcaption` of ~200 chars (`"x" * 200` is fine — the corpus's real captions are 212/200/132 chars, and only the length matters) | top level |
+| 2 | long-caption centring (Step 1) | `alt="captioned"`, `size="small"`, tall fixture, `figcaption` of ~200 chars **made of ordinary spaced words** — e.g. `("a longer caption about the diagram " * 6)[:200]`. Not `"x" * 200`: nothing in this project's CSS sets `overflow-wrap` or `word-break` on a `figcaption`, so an unbroken 200-char token has a min-content contribution of ~1300px, overflows its figure, and gives the whole page a horizontal scrollbar — harmless for this element's own clamped assertion, but a real side effect on the `full`-captioned element (no `max-width`) and on the print, zoom and nested cases sharing the page. The corpus's real captions are 212/200/132 chars of prose | top level |
 | 3 | height-bound centring (Step 1) | *reuses* row 1's `centred-small` — same element in every respect (tall fixture, `small`, no caption, top level); the two Step 1 bullets simply measure different boxes on it (figure-inside-parent vs image-inside-figure) | no new element |
 | 4 | `full` unchanged (Step 1) | `alt="full-plain"` and `alt="full-captioned"` (~200-char caption), tall fixture, `size="full"` | top level |
 | 5 | live preview (Step 2) | `alt="preview-target"`, `size="full"`, wide fixture | a **second unit in the SAME course** — see the warning below |
@@ -1551,23 +1574,30 @@ editor page then holds exactly one image row — but the *course* must be shared
   3. **If they are equal** (Chromium shrink-wraps to the *constrained* contribution): both offsets are
      0 by construction, the assertion would pass vacuously, and no mutant can redden it. **Delete the
      case** and note the measured finding in the commit message. Do not reshape it — no variation
-     keeps both defining conditions (no caption, height-bound) while making it falsifiable.
+     keeps both defining conditions (no caption, height-bound) while making it falsifiable. **In the
+     same commit, delete reason 2 from Task 5's img `margin-inline` comment** — that comment names
+     the height-bound path as one of "two independent ways" the figure ends up wider than the image,
+     and branch 3 is the measurement disproving it. Leaving it would ship a false mechanism in a
+     comment, which this project has a recorded lesson about.
 
   Branch 2 is the expectation; branch 3 is a legitimate outcome, not a failure. Either way the img
   `margin-inline: auto` rule keeps its captioned-path coverage.
 - **`full` geometry unchanged.** "Same as before the feature" is not something a single run can read —
   there is no earlier state to compare against — so state the property as concrete post-conditions
-  instead. For a `full` image:
-  - the figure's rect width equals its containing block's content width (it did **not** shrink-wrap:
-    `full` is excluded from the `fit-content` group);
-  - the figure's left offset inside `fig.parentElement` is 0 (no `margin-inline: auto`);
-  - the image's own left offset inside the figure is 0 — `full` is excluded from the img
+  instead. Assert PC1 and PC2 on `full-plain`, and PC3 on **`full-captioned`** — a caption is what would widen
+  the figure past the image, so it is the only element on which PC3 can distinguish "the image is
+  flush left" from "the figure is exactly as wide as the image".
+
+  - **PC1:** the figure's rect width equals its containing block's content width (it did **not**
+    shrink-wrap: `full` is excluded from the `fit-content` group);
+  - **PC2:** the figure's left offset inside `fig.parentElement` is 0 (no `margin-inline: auto`);
+  - **PC3:** the image's own left offset inside the figure is 0 — `full` is excluded from the img
     `margin-inline: auto` rule (the `display: block` half of that rule is already global via
-    `reset.css:11`, so `margin-inline` is the only thing that would move it) — even with a long
-    caption present.
+    `reset.css:11`, so `margin-inline` is the only thing that would move it).
 
   Together these are exactly what "byte-identical for the 1013 untouched images" means in layout
-  terms, and each one goes RED if `full` is ever added to either capped-preset group.
+  terms. They take **two** mutants, not one, because two different rules guard them — see the
+  falsify table.
 
 - [ ] **Step 2: Add the live-preview tests**
 
@@ -1727,7 +1757,8 @@ added in Step 3, which the Global Constraint requires just as much as the older 
 |---|---|---|
 | figure centred | delete the figure `margin-inline: auto` | figure-centred cases |
 | long caption | delete the img `margin-inline: auto` | the long-caption case, **and** the no-caption height-bound one *if Step 1 branch 2 applied* (i.e. if it was kept at all). If the height-bound case was kept and does **not** redden, it is not really measuring the image's offset — that means branch 3 was the true outcome and the case should have been deleted |
-| `full` unchanged | add `.el--image--full` to the `fit-content` / `margin-inline` group | all three `full` post-conditions |
+| `full` unchanged (figure) | add `.el--image--full` to the **figure** `width: fit-content; margin-inline: auto` group | PC1 and PC2 RED (the figure shrink-wraps and gains auto margins). **PC3 stays green**, for a known reason: the figure now shrink-wraps to exactly the image's 297px, so the image's offset inside it is still 0 |
+| `full` unchanged (image) | add `.el--image--full img` to the **img** `margin-inline: auto` group | PC3 RED; PC1 and PC2 green. PC3 is guarded only by this second rule, so without this mutant it ships unfalsified |
 | print | move the print block above the presets | the print case |
 | live preview | rebind the JS handler to the **editor** pane: `root.querySelector('[data-scope="editor"]').addEventListener("change", …)` | the after-swap case only — the before-swap one stays **green**, and that contrast is the whole point. Do **not** use the *preview* pane as the mutant: `_editor_scope.html:2-3` and `_preview.html:2` are **siblings** inside `.editor-grid`, so a radio's `change` bubbles editor-pane → `.editor` → document and never enters the preview pane at all; that mutant reddens *both* cases and proves nothing. The editor pane is the right one because `applyFragments` (`editor.js:92-96`) `replaceWith`s exactly that node |
 | no-save recorder | make the radio branch also click the form's submit button | the zero-saves assertion. Run this one: a recorder filtered on the wrong string passes the happy path *and* this mutant, and that is the only way to tell |
