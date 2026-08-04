@@ -221,6 +221,11 @@ urlpatterns = [
         views_manage.element_delete,
         name="manage_element_delete",
     ),
+    path(
+        "manage/courses/<slug:slug>/build/element/duplicate/",
+        views_manage.element_duplicate,
+        name="manage_element_duplicate",
+    ),
     # --- editor｜preview page (Phase 1b-ii, Task 4) ---
     path(
         "manage/courses/<slug:slug>/build/unit/<int:pk>/edit/",

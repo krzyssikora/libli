@@ -1183,6 +1183,37 @@ def element_delete(request, slug):
     return _render_unit_panel(request, unit)
 
 
+@login_required
+def element_duplicate(request, slug):
+    """Editor-only: deep-copy one element below itself.
+
+    Always answers with the editor fragment pair -- there is no builder-context
+    caller, because the builder's unit panel is a read-only list. The no-JS path
+    therefore gets the bare fragment page, exactly as element_move and
+    element_delete already do for ctx=editor.
+    """
+    course = _require_manage(request, slug)
+    try:
+        unit, new_join = builder_svc.duplicate_element(
+            course, request.POST.get("element"), request.POST.get("unit_token")
+        )
+    except builder_svc.ConflictError:
+        return _element_conflict(request, course)
+    except TransferError as exc:
+        # 422 through the FRAGMENT renderer, never _op_error: the latter has no
+        # [data-scope] wrapper, so applyFragments swaps nothing and the author
+        # sees no message at all.
+        unit = ContentNode.objects.filter(
+            pk=request.POST.get("unit"), course=course, kind=ContentNode.Kind.UNIT
+        ).first()
+        if unit is None:
+            return _render_tree(request, course, status=409)
+        return _render_editor_fragments(request, unit, status=422, error=str(exc))
+    return _render_editor_fragments(
+        request, unit, open_slots=builder_svc.ancestor_slots(new_join)
+    )
+
+
 def _editor_ctx(request):
     return request.POST.get("ctx") == "editor"
 
@@ -1242,7 +1273,15 @@ def _editor_rows(unit):
 
 
 def _render_editor_fragments(
-    request, unit, status=200, open_form="", open_form_pk="", refresh=True
+    request,
+    unit,
+    status=200,
+    open_form="",
+    open_form_pk="",
+    refresh=True,
+    error="",
+    open_slots=None,
+    changed=False,
 ):
     """Render editor pane + preview as two data-scope fragments (the single source for
     every editor-context 200/409/422 response). Serialises data-updated from the
@@ -1276,13 +1315,27 @@ def _render_editor_fragments(
             # look perfect and every later fragment swap would silently drop both the
             # nested add-menu and its container cards.
             "max_nest_depth": builder_svc.MAX_NEST_DEPTH,
+            # Editor-context errors render HERE, inside the swapped pane -- see
+            # _editor_scope.html. _op_error cannot be used from this path.
+            "error": error,
+            # Slot keys whose <details> must render open regardless of the
+            # first-tab default, so a just-created element is not born inside a
+            # collapsed tab. Both context builders must carry this key: a key set
+            # on only one makes the first page load look perfect while every
+            # later fragment swap silently drops the feature.
+            "open_slots": open_slots or set(),
+            # Supplied by _editor_page already; added here so the moved banner
+            # block has both of its variables defined on BOTH render paths.
+            "changed": changed,
         },
     )
     resp.status_code = status
     return resp
 
 
-def _editor_page(request, unit, *, error="", changed=False, status=200):
+def _editor_page(
+    request, unit, *, error="", changed=False, open_slots=None, status=200
+):
     """Render the full editor page (not just the swappable scope). Shared by the
     editor view and the unit-settings save path so a 422 can re-render with an
     error banner."""
@@ -1299,6 +1352,7 @@ def _editor_page(request, unit, *, error="", changed=False, status=200):
             "preview_elements": join_rows,
             "changed": changed,
             "error": error,
+            "open_slots": open_slots or set(),
             # gates the add-menu's "Interactive" (revealgate) group — see the
             # matching comment in _render_editor_fragments.
             "unit_is_quiz": unit.unit_type == ContentNode.UnitType.QUIZ,

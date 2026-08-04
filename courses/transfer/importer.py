@@ -1117,3 +1117,46 @@ def materialize_duplicate(
         return node_map[document["nodes"][0]["id"]]
 
     return _run_import(work, created_files=[])
+
+
+def graft_elements(document, media_map, unit):
+    """Graft an element-scoped document's subtree into an EXISTING unit.
+
+    Mirrors materialize_duplicate's work() with three differences, each forced
+    by grafting into a unit that already exists:
+
+    1. No `_create_nodes`. The node_map is fabricated over `unit`, because
+       _create_elements looks the unit up as node_map[el["unit"]].
+    2. No `_rewrite_links`, because for an element-scoped export that call is
+       provably a NO-OP -- not because it would corrupt anything. build_export
+       emits link_nodes filtered to targets INSIDE the exported node set
+       (`{pk: node_ids[pk] for pk in referenced if pk in node_ids}`,
+       export.py:781-783), and here that set is exactly {unit}. So link_nodes
+       names at most unit.pk, the fabricated node_map maps it back to the SAME
+       unit, and _rewrite_links builds the identity mapping {unit.pk: unit.pk}
+       (or an empty one). A link to any node outside the export never enters
+       `mapping` and, under on_missing="keep", is left alone. Skipped as dead
+       work.
+    3. It returns the created root JOIN, not a ContentNode.
+
+    The root is re-derived as the single created join with `parent_id is None`
+    -- _create_elements' second pass has already set `parent` in memory for
+    every child. Deliberately NOT `created[0]`, and deliberately not a zip
+    against document["elements"]: both would rest on payload order surviving
+    into the returned list, which nothing states or tests.
+
+    Keeps _run_import's wrapper, so any failure rolls back and is normalised to
+    TransferError.
+    """
+
+    def work():
+        node_map = {document["nodes"][0]["id"]: unit}
+        created = _create_elements(document, node_map, media_map)
+        roots = [join for join in created if join.parent_id is None]
+        if len(roots) != 1:
+            raise TransferError(
+                _("An element copy must produce exactly one root element.")
+            )
+        return roots[0]
+
+    return _run_import(work, created_files=[])

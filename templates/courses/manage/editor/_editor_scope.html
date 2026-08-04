@@ -6,6 +6,14 @@
        data-save-url="{% url 'courses:manage_element_save' slug=unit.course.slug %}"
        data-move-url="{% url 'courses:manage_element_move' slug=unit.course.slug %}">
     <div class="pane-head"><h2>{% trans "Editor" %}</h2><span class="pane-head__count">{% blocktranslate count n=rows|length %}{{ n }} element{% plural %}{{ n }} elements{% endblocktranslate %}</span></div>
+      {% comment %}
+      The editor's error slot. It MUST live inside [data-scope="editor"]:
+      editor.js's applyFragments replaces only the two [data-scope] panes, so a
+      message rendered in editor.html's chrome (where this block used to live)
+      is swapped in never and seen only on a full page load. _op_error.html has
+      the same defect and is therefore builder-context only.
+      {% endcomment %}
+      {% if error or changed %}<div id="editor-error" class="op-error" role="alert">{% if error %}{{ error }}{% else %}{% trans "This changed elsewhere — reloaded to the latest." %}{% endif %}</div>{% endif %}
     <div class="pane-body">
       <ol class="element-list">
         {% comment %}

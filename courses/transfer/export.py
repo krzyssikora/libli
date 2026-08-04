@@ -527,7 +527,13 @@ def walk_unit_joins(unit_pk, joins_by_unit):
 
 
 def build_export(
-    course, node=None, source_host="", *, drop_missing_media=True, report=None
+    course,
+    node=None,
+    source_host="",
+    *,
+    drop_missing_media=True,
+    report=None,
+    roots_by_unit=None,
 ):
     with transaction.atomic():
         nodes = _ordered_nodes(course, root=node)
@@ -561,13 +567,23 @@ def build_export(
         # element's children inline (tabs, two_column, spoiler -- parents before
         # children), so every element is visited EXACTLY ONCE and no child needs
         # a recursive query here.
-        joins_by_unit = {}
-        for join in (
-            Element.objects.filter(unit_id__in=unit_pks, parent__isnull=True)
-            .order_by("unit_id", "order", "pk")
-            .prefetch_related("content_object")
-        ):
-            joins_by_unit.setdefault(join.unit_id, []).append(join)
+        #
+        # `roots_by_unit` overrides that choice of roots and nothing else. It is
+        # what makes an ELEMENT-scoped export possible without a second walk:
+        # walk_unit_joins already takes its roots as an argument, so handing it
+        # {unit.pk: [one_join]} yields that join as the first emission and its
+        # subtree after it, through the very same `emit` closure. Do not add a
+        # root parameter to walk_unit_joins -- it does not need one.
+        if roots_by_unit is not None:
+            joins_by_unit = dict(roots_by_unit)
+        else:
+            joins_by_unit = {}
+            for join in (
+                Element.objects.filter(unit_id__in=unit_pks, parent__isnull=True)
+                .order_by("unit_id", "order", "pk")
+                .prefetch_related("content_object")
+            ):
+                joins_by_unit.setdefault(join.unit_id, []).append(join)
 
         # Pass 2: walk elements. walk_index counts EVERY join (incl. skipped
         # broken ones) so all problem types share one ordering space (§1).
@@ -855,3 +871,32 @@ def _placeholder_filename(original):
     if not stem.strip("."):  # empty or dots-only ("", ".", "..")
         stem = "image"
     return f"{stem}.png"
+
+
+def build_element_export(unit, root_join):
+    """Export ONE element subtree from `unit`, for an in-process copy.
+
+    A single substitution on build_export -- the roots query -- not a new export
+    path. `node=unit` is what keeps document["nodes"] a single entry, which
+    importer.graft_elements relies on when it fabricates its node_map, so the
+    assertion below guards a real coupling rather than restating the obvious.
+
+    `drop_missing_media=False` matches duplicate_unit: a missing media file must
+    not silently thin the copy. Returns `problems` to the caller rather than
+    discarding it (duplicate_unit drops it) -- with media dropping disabled, a
+    non-empty `problems` means exactly one thing, a dangling GFK, and the caller
+    is expected to refuse the copy.
+    """
+    assert root_join.unit_id == unit.pk, (
+        "an element-scoped export's root element must belong to the unit being exported"
+    )
+    _manifest, document, media_assets, problems = build_export(
+        unit.course,
+        node=unit,
+        drop_missing_media=False,
+        roots_by_unit={unit.pk: [root_join]},
+    )
+    assert len(document["nodes"]) == 1, (
+        "an element-scoped export must contain exactly one unit node"
+    )
+    return document, media_assets, problems

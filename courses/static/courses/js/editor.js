@@ -43,6 +43,12 @@
   function applyStoredTabs(scope) {
     (scope || root).querySelectorAll('[data-scope="editor"] details.tabs-rows, details.tabs-rows')
       .forEach(function (d) {
+        // A server-forced-open container ignores the stored preference. Without
+        // this, the server renders the destination tab open and we immediately
+        // re-collapse it, so a just-duplicated element is born invisible. The
+        // author's toggle is still RECORDED by saveTab and takes effect again as
+        // soon as the force-open stops being rendered.
+        if (d.hasAttribute("data-force-open")) return;
         var v;
         try { v = localStorage.getItem(tabStoreKey(d)); } catch (e) { v = null; }
         if (v !== null) d.open = v === "1";
