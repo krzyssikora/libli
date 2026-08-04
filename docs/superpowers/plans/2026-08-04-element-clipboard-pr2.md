@@ -26,12 +26,12 @@
 - **Module-level translatable strings use `gettext_lazy`;** in-function strings use `gettext as _`. `courses/builder.py` already imports `gettext as _` (`:5`).
 - **`Element.order` is `OrderField(for_fields=["unit"])`** (`courses/models.py:319`) — unit-wide, so a freshly created join is born with `max+1` and sorts last within its group.
 - **Django template comments:** `{# #}` must be single-line; multi-line uses `{% comment %}`.
-- **Slots are read with the NON-DESTRUCTIVE normalizer** from `_CONTAINER_REGISTRY`, always via `normalizer(getattr(obj, "data", None))[list_key]`. `SpoilerElement` has no `data` field at all and the argument is evaluated before the normalizer runs, so `obj.data` is an `AttributeError` — a 500 — on every unit containing a spoiler.
+- **Slots are read with the NON-DESTRUCTIVE normalizer** from `_CONTAINER_REGISTRY`, always via `normalizer(getattr(obj, "data", None))[list_key]`. `SpoilerElement` and `CalloutElement` have no `data` field at all and the argument is evaluated before the normalizer runs, so `obj.data` is an `AttributeError` — a 500 — on every unit containing a spoiler **or a callout**.
 - **`request.session["element_clip"]` stores both pks as `int`**, coerced on write; the view stringifies on the way out (`str(clip["element"])`) because the template compares with `el.pk|stringformat:'s'`.
 - **PR2 adds no JavaScript.** PR1 already shipped the `data-force-open` stamp and the `applyStoredTabs` skip that PR2's force-open depends on.
 - **Callout is a CONTAINER as of PR #214** (merged into master `bdcdb876`, which this branch is rebased onto): `_CONTAINER_REGISTRY` has FOUR entries and `CONTAINER_TRANSFER_KEYS` is `{tabs, two_column, spoiler, callout}`. Callout is single-slot like a spoiler (`CalloutElement.SLOT_ID`), so its cap is `None` and, being a container, `cap(n) = 3`. Any step here that rewrites the registry block must carry all four entries.
 - **`reorder_element` is not touched.** Its "cross-scope move is impossible by construction" guarantee stays exactly as written.
-- **Every line number in this plan is as of master (`e7535af0`) and WILL drift as the plan executes.** Task 2 alone doubles the `_CONTAINER_REGISTRY` block and Tasks 3, 5 and 6 add several hundred lines above `_copy_below`, so by Task 7 the anchors quoted for `courses/builder.py` are simply wrong as numbers. **Locate every insertion point by symbol name** — `resolve_scope`, `_copy_below`, `delete_node`, `_render_editor_fragments`, `_editor_page`, `element_duplicate` — and treat the numbers as a hint about which of several similar-looking places is meant. Report any drift you find rather than editing at the stated line.
+- **Every line number in this plan is as of master `bdcdb876` (the #214 merge, which this branch is rebased onto) and WILL drift as the plan executes.** Task 2 alone doubles the `_CONTAINER_REGISTRY` block and Tasks 3, 5 and 6 add several hundred lines above `_copy_below`, so by Task 7 the anchors quoted for `courses/builder.py` are simply wrong as numbers. **Locate every Python insertion point by symbol name** — `resolve_scope`, `_copy_below`, `delete_node`, `_render_editor_fragments`, `_editor_page`, `element_duplicate` — and treat the numbers as a hint about which of several similar-looking places is meant. **Templates have no symbols**, and `_element_row.html` holds seven near-identical `<li class="el-row…">` lines and four near-identical add-menu includes: locate those by the `{% elif el.content_type.model == "…" %}` guard that opens their branch, never by line number alone. Report any drift you find rather than editing at the stated line.
 
 ---
 
@@ -57,7 +57,7 @@
 - `courses/urls.py` — two paths
 - `courses/templatetags/courses_manage_extras.py` — the `paste_buttons` inclusion tag
 - `templates/courses/manage/editor/_element_row_controls.html` — the ⊹ select form, between the duplicate and delete forms
-- `templates/courses/manage/editor/_element_row.html` — paste-tag call at 3 nested sites, `clip_active` in both `<details>` conditions, marked-row modifier on all 6 branches
+- `templates/courses/manage/editor/_element_row.html` — paste-tag call at 4 nested sites (tabs, columns, spoiler, callout), `clip_active` in both `<details>` conditions, marked-row modifier on all 7 branches
 - `templates/courses/manage/editor/_editor_scope.html` — paste-tag call at the top-level slot, the mark banner in `.pane-head`
 - `courses/static/courses/css/editor.css` — marked row, banner, paste-button grouping
 - `locale/pl/LC_MESSAGES/django.po` + `.mo` and `locale/en/LC_MESSAGES/django.po` + `.mo` — regenerated in Task 11. The `.mo` files are tracked binaries with no 3-way merge, so if this branch lives long enough for master to move under it, merge master in and REGENERATE rather than resolving the conflict by hand
@@ -537,7 +537,7 @@ def test_a_slot_the_renderer_would_truncate_away_is_refused():
     _course, unit = make_course_with_unit()
     # Ids MUST match TabsElement.TAB_ID_RE (`t[0-9a-f]{6}`, fullmatch) or
     # TabsElement.save() -> normalize_labels_and_ids mints a fresh one for each
-    # (courses/models.py:1386-1393). With "t0"-style ids every id here would be
+    # (TabsElement.TAB_ID_RE / normalize_labels_and_ids). With "t0"-style ids every id here would be
     # replaced at create time, the "kept" assertion would fail as unknown_slot and
     # the "dropped" one would pass vacuously.
     over = TabsElement.objects.create(
@@ -891,6 +891,7 @@ different namespaces, and nothing else pins them together.
 import pytest
 
 from courses import builder
+from courses.models import CalloutElement
 from courses.models import Element
 from courses.models import MarkDoneElement
 from courses.models import RevealGateElement
@@ -925,6 +926,12 @@ CASES = [
     ),
     ("markdone", lambda: MarkDoneElement.objects.create()),
     ("revealgate", lambda: RevealGateElement.objects.create()),
+    # A CONTAINER as of #214, and the only row that exercises the container cap on
+    # both sides: resolve_scope decides "is this a container?" from
+    # CONTAINER_TRANSFER_KEYS, paste_allowed from _slot_cap's registry lookup. #214
+    # flipped callout in BOTH structures; nothing else here proves they agree about
+    # its depth ceiling. Admissible at parent_depth 1-2, refused at 3.
+    ("callout", lambda: CalloutElement.objects.create()),
 ]
 
 
@@ -982,7 +989,7 @@ def test_the_two_rules_agree_at_the_unconstructible_parent_depth(form_key, make)
 - [ ] **Step 2: Run it**
 
 Run: `uv run pytest courses/tests/test_paste_rule_agreement.py -v`
-Expected: all **20** PASS (5 types × 3 depths, plus 5 depth-4 rows). If a row fails, do **not** weaken a clause to make it pass — re-read trap 2, check the fixture, and report what you found.
+Expected: all **24** PASS (6 types × 3 depths, plus 6 depth-4 rows). If a row fails, do **not** weaken a clause to make it pass — re-read trap 2, check the fixture, and report what you found.
 
 The three aliased factories are written from the models as they stand. If an `objects.create(...)` raises, fix the call to match the model rather than dropping the row: those rows are the only ones that can catch a broken alias. Report any field you had to change.
 
@@ -991,7 +998,7 @@ The three aliased factories are written from the models as they stand. If an `ob
 Mutate one aliased entry in `_NESTABLE_FORM_KEY_ALIASES` (`courses/builder.py:74-84`).
 Run: `uv run pytest courses/tests/test_paste_rule_agreement.py -v`
 Temporarily change one aliased entry — e.g. `"revealgate": "reveal_gate_BROKEN"`.
-Expected: the `revealgate` rows FAIL (`resolve_scope` now refuses what `paste_allowed` allows) while `text`, `tabs`, `twocolumn` and `markdone` stay green. Revert and confirm `git diff` is clean.
+Expected: the `revealgate` rows FAIL (`resolve_scope` now refuses what `paste_allowed` allows) while `text`, `tabs`, `twocolumn`, `markdone` and `callout` stay green. Revert and confirm `git diff` is clean.
 
 - [ ] **Step 4: Commit**
 
@@ -1969,6 +1976,27 @@ def test_a_move_into_a_third_column_lands_there():
     assert (fresh.parent_id, fresh.tab_id) == (cols.pk, third)
 
 
+def test_a_move_into_a_callout_uses_its_fixed_slot():
+    """Callout became a container in #214. Its slot id is the SAME constant as a
+    spoiler's, so this test and its spoiler twin must each build their own
+    container rather than sharing a fixture.
+    """
+    from courses.models import CalloutElement
+
+    course, unit = make_course_with_unit()
+    callout = Element.objects.create(
+        unit=unit, content_object=CalloutElement.objects.create(body="<p>c</p>")
+    )
+    subject = _text(unit)
+
+    _u, placed = paste_element(
+        course, subject.pk, str(callout.pk), CalloutElement.SLOT_ID, "move", _tok(unit)
+    )
+
+    fresh = Element.objects.get(pk=placed.pk)
+    assert (fresh.parent_id, fresh.tab_id) == (callout.pk, CalloutElement.SLOT_ID)
+
+
 def test_a_move_into_a_spoiler_uses_its_fixed_slot():
     course, unit = make_course_with_unit()
     sp = Element.objects.create(
@@ -2117,7 +2145,7 @@ def _copy_into(el, unit, dest_parent, tab_id):
 - [ ] **Step 5: Run the tests to verify they pass**
 
 Run: `uv run pytest tests/test_builder_paste_element.py -v`
-Expected: all **23** PASS (22 test functions, one parametrised over two modes).
+Expected: all **24** PASS (23 test functions, one parametrised over two modes).
 
 - [ ] **Step 6: Falsify the four move/copy assertions that could be vacuous**
 
@@ -2904,6 +2932,28 @@ def test_a_paste_into_a_column_works_end_to_end(client):
     assert (subject.parent_id, subject.tab_id) == (cols.pk, third)
 
 
+def test_a_paste_into_a_callout_works_end_to_end(client):
+    """The view-level callout case, mirroring the spoiler one. #214 made this a
+    legal destination; nothing else at this level drives it.
+    """
+    from courses.models import CalloutElement
+
+    course, unit = _seed(client)
+    callout = Element.objects.create(
+        unit=unit, content_object=CalloutElement.objects.create(body="<p>c</p>")
+    )
+    subject = _text(unit)
+    unit.refresh_from_db()
+    _mark(client, course, unit, subject)
+    unit.refresh_from_db()
+
+    resp = _paste(client, course, unit, callout, CalloutElement.SLOT_ID)
+
+    assert resp.status_code == 200
+    subject.refresh_from_db()
+    assert (subject.parent_id, subject.tab_id) == (callout.pk, CalloutElement.SLOT_ID)
+
+
 def test_a_user_who_cannot_manage_the_course_is_refused(client):
     from tests.factories import make_teacher
 
@@ -3110,7 +3160,7 @@ def _refused(request, unit, reason_key):
 - [ ] **Step 7: Run the tests to verify they pass**
 
 Run: `uv run pytest tests/test_element_paste_view.py -v`
-Expected: all **18** PASS (17 from Step 1 plus the parent-walk guard added beside the query tripwire).
+Expected: all **19** PASS.
 
 - [ ] **Step 8: Confirm the unmarked render still costs nothing extra**
 
@@ -3139,12 +3189,12 @@ git commit -m "feat(editor): add the paste endpoint and the clipboard render con
 
 ### Task 10: The paste buttons
 
-A small inclusion tag, invoked at the four slot sites. The template never re-derives the rule — it tests the slot's key against the precomputed sets.
+A small inclusion tag, invoked at the five slot sites. The template never re-derives the rule — it tests the slot's key against the precomputed sets.
 
 **Files:**
 - Create: `templates/courses/manage/editor/_paste_buttons.html`
 - Modify: `courses/templatetags/courses_manage_extras.py` — the `paste_buttons` tag
-- Modify: `templates/courses/manage/editor/_element_row.html:91`, `:141`, `:195` (the three nested slots)
+- Modify: `templates/courses/manage/editor/_element_row.html:91` (tabs), `:141` (columns), `:195` (spoiler), `:244` (callout — added by #214) — the four nested slots
 - Modify: `templates/courses/manage/editor/_editor_scope.html:32` (the top-level slot)
 - Test: `tests/test_editor_clip_templates.py`
 
@@ -3152,7 +3202,7 @@ A small inclusion tag, invoked at the four slot sites. The template never re-der
 - Consumes: `move_slots` / `copy_slots` from the context (Task 9), and `builder.slot_key`. NOT `clip_active` — the empty sets already make the tag a no-op when nothing is marked; `clip_active` belongs to the next task's `<details>` conditions and banner.
 - Produces: the author-facing paste controls. `editor.js:289` intercepts any `form[data-op]`, so no JavaScript.
 
-**The tag is invoked at the four include sites, not inside `_add_menu.html`.** Four edits rather than one, bought deliberately: the three nested add-menu includes sit behind `{% if depth < max_nest_depth %}`, so putting the buttons inside the menu would silently inherit that guard and make a slot unpasteable exactly where the menu is suppressed. Paste legality is `paste_allowed`'s business alone. **The tag call therefore goes OUTSIDE that guard**, on the same line. The consequence is that the buttons can render with no `.addwrap` beside them, so Task 12's CSS must define a standalone appearance as well as the grouped one.
+**The tag is invoked at the five include sites, not inside `_add_menu.html`.** Five edits rather than one — four nested slots plus the top-level one — bought deliberately: the three nested add-menu includes sit behind `{% if depth < max_nest_depth %}`, so putting the buttons inside the menu would silently inherit that guard and make a slot unpasteable exactly where the menu is suppressed. Paste legality is `paste_allowed`'s business alone. **The tag call therefore goes OUTSIDE that guard**, on the same line. The consequence is that the buttons can render with no `.addwrap` beside them, so Task 12's CSS must define a standalone appearance as well as the grouped one.
 
 **`takes_context=True`** so the tag can read `unit`, the token and the two sets off the ambient context. Note there is no `slug` key in the editor context — the templates all spell it `unit.course.slug`, and so must the tag. Not for CSRF: Django's `InclusionNode.render` copies `csrf_token` into the fresh context unconditionally, `takes_context` or not.
 
@@ -3165,7 +3215,7 @@ Create `tests/test_editor_clip_templates.py`:
 tag emitted nothing at all. The pairing is what makes them non-vacuous: every
 absence assertion but one sits in a test that ALSO asserts a button present
 somewhere the rule allows. The mutant, named once for the file: make the tag
-render nothing -> seven of the eight tests go RED, and only
+render nothing -> eight of the nine tests go RED, and only
 test_no_paste_buttons_render_when_nothing_is_marked (the one absence-only test)
 stays green.
 """
@@ -3355,6 +3405,32 @@ def test_a_spoiler_slot_offers_its_buttons(client):
     assert sp.pk
 
 
+def test_a_callout_slot_offers_its_buttons(client):
+    """#214 made Callout a container, so its slot is a fifth paste site. This is
+    the test that catches that site being dropped from the template.
+
+    Scoped to the callout ROW, not searched for globally: CalloutElement.SLOT_ID
+    and SpoilerElement.SLOT_ID are the SAME constant (SINGLE_SLOT_ID == "only"),
+    so a global search for `value="only"` would be satisfied by a spoiler's form
+    and pass for the wrong container.
+    """
+    from courses.models import CalloutElement
+
+    course, unit = _seed(client)
+    callout = Element.objects.create(
+        unit=unit, content_object=CalloutElement.objects.create(body="<p>c</p>")
+    )
+    subject = _text(unit)
+    _mark(client, course, unit, subject)
+
+    body = _editor(client, course, unit)
+
+    at = body.index(f'data-element="{callout.pk}"')
+    row = body[at : body.index("</li>", at)]
+    assert 'data-op="element-paste"' in row
+    assert f'name="tab" value="{CalloutElement.SLOT_ID}"' in row
+
+
 def test_a_padded_slot_renders_no_paste_button(client):
     """The enumerator's NON-destructive normalizer and the renderer's destructive
     one diverge for a tabs element with fewer than MIN_TABS stored tabs: the
@@ -3413,7 +3489,7 @@ def test_the_form_carries_the_scope_and_a_csrf_token(client):
 - [ ] **Step 2: Run them to verify they fail**
 
 Run: `uv run pytest tests/test_editor_clip_templates.py -v`
-Expected: `test_no_paste_buttons_render_when_nothing_is_marked` PASSES (nothing renders them yet — it becomes a real guard once the tag exists); the other seven FAIL on a missing `data-op="element-paste"`.
+Expected: `test_no_paste_buttons_render_when_nothing_is_marked` PASSES (nothing renders them yet — it becomes a real guard once the tag exists); the other eight FAIL on a missing `data-op="element-paste"`.
 
 - [ ] **Step 3: Create the tag's template**
 
@@ -3491,6 +3567,12 @@ def paste_buttons(context, parent="", tab=""):
     {% if depth < max_nest_depth %}{% include "courses/manage/editor/_add_menu.html" with nested=True parent=el.pk tab=obj.SLOT_ID depth=depth %}{% endif %}{% paste_buttons el.pk obj.SLOT_ID %}
 ```
 
+`templates/courses/manage/editor/_element_row.html:244` — the **callout**'s fixed slot. #214 made Callout a container; miss this one and a callout is a legal paste destination with no button to reach it, while every Python test stays green:
+
+```html
+    {% if depth < max_nest_depth %}{% include "courses/manage/editor/_add_menu.html" with nested=True parent=el.pk tab=obj.SLOT_ID depth=depth %}{% endif %}{% paste_buttons el.pk obj.SLOT_ID %}
+```
+
 `templates/courses/manage/editor/_editor_scope.html:32` — the top-level slot, which carries no parent and no tab:
 
 ```html
@@ -3502,20 +3584,20 @@ def paste_buttons(context, parent="", tab=""):
 - [ ] **Step 6: Run the tests to verify they pass**
 
 Run: `uv run pytest tests/test_editor_clip_templates.py -v`
-Expected: all **8** PASS.
+Expected: all **9** PASS.
 
 - [ ] **Step 6b: Confirm no existing template test regressed**
 
 These four templates are shared, and several existing suites bind tightly to exactly the lines this task edits — `tests/test_editor_depth.py` asserts on the depth-4 row's `<details class="tabs-rows" data-tab-id=…>` and on `data-parent` being ABSENT there, which is the very site where the paste tag deliberately sits OUTSIDE the depth guard; `tests/test_tabs_editor_dnd.py` regexes the raw template source; `tests/test_tabs_editor_partial.py` and `courses/tests/test_reveal_gate_editor_row.py` both `render_to_string` a row with a bare dict context, so the new inclusion tag runs there with no clip keys present.
 
-Run: `uv run pytest tests/test_editor_depth.py tests/test_tabs_editor_dnd.py tests/test_tabs_editor_partial.py tests/test_editor_count_i18n.py tests/test_editor_styles.py tests/test_link_dialog_markup.py courses/tests/test_reveal_gate_editor_row.py tests/test_editor_open_slots.py -v`
+Run: `uv run pytest tests/test_editor_depth.py tests/test_tabs_editor_dnd.py tests/test_tabs_editor_partial.py tests/test_editor_count_i18n.py tests/test_editor_styles.py tests/test_link_dialog_markup.py courses/tests/test_reveal_gate_editor_row.py courses/tests/test_callout_editor_row.py courses/tests/test_callout_nesting.py courses/tests/test_callout_nesting_css.py tests/test_editor_open_slots.py -v`
 Expected: all PASS. A failure in the bare-dict render tests means the tag or the `<li>` condition assumed a context key that is not always supplied — fix the template/tag to tolerate its absence rather than the test to supply it.
 
 - [ ] **Step 7: Falsify the absence assertions**
 
 Make the tag return `{"show_move": False, "show_copy": False, ...}` unconditionally.
 Run: `uv run pytest tests/test_editor_clip_templates.py -v`
-Expected RED — **seven** of the eight: the five wholly-positive tests (`test_the_top_level_slot_offers_its_buttons`, `test_the_marked_elements_own_slot_offers_copy_but_not_move`, `test_a_columns_slot_gets_its_own_key_not_the_enclosing_tabs_one`, `test_a_spoiler_slot_offers_its_buttons`, `test_the_form_carries_the_scope_and_a_csrf_token`) **and** the two mixed ones, each of which carries a positive assertion beside its absence one — `test_a_slot_that_fails_the_rule_renders_no_buttons` (its closing "the top-level slot still offers them") and `test_a_padded_slot_renders_no_paste_button` (its stored-slot assertion).
+Expected RED — **eight** of the nine: the five wholly-positive tests (`test_the_top_level_slot_offers_its_buttons`, `test_the_marked_elements_own_slot_offers_copy_but_not_move`, `test_a_columns_slot_gets_its_own_key_not_the_enclosing_tabs_one`, `test_a_spoiler_slot_offers_its_buttons`, `test_a_callout_slot_offers_its_buttons`, `test_the_form_carries_the_scope_and_a_csrf_token`) **and** the two mixed ones, each of which carries a positive assertion beside its absence one — `test_a_slot_that_fails_the_rule_renders_no_buttons` (its closing "the top-level slot still offers them") and `test_a_padded_slot_renders_no_paste_button` (its stored-slot assertion).
 Still GREEN: only `test_no_paste_buttons_render_when_nothing_is_marked`, which is the one genuinely absence-only test in the file. That is the contrast that makes the absence assertions mean something. Revert.
 
 - [ ] **Step 8: Commit**
@@ -3530,7 +3612,7 @@ git commit -m "feat(editor): offer move-here and copy-here on every legal slot"
 ### Task 11: The mark's own UI — row modifier, banner, forced-open containers
 
 **Files:**
-- Modify: `templates/courses/manage/editor/_element_row.html` — the `<li class="el-row…">` opening tag in **all six branches** (`:3`, `:19`, `:45`, `:97`, `:147`, `:199`), and the two `<details>` conditions (`:82`, `:132`)
+- Modify: `templates/courses/manage/editor/_element_row.html` — the `<li class="el-row…">` opening tag in **all seven branches** (`:3` slidebreak, `:19` revealgate, `:45` tabs, `:97` twocolumn, `:147` spoiler, `:199` callout, `:248` plain), and the two `<details>` conditions (`:82`, `:132`)
 - Modify: `templates/courses/manage/editor/_editor_scope.html:8` — the banner in `.pane-head`
 - Modify: `templates/courses/manage/editor/_element_row_controls.html` — the ⊹ select form
 - Test: `tests/test_editor_clip_templates.py` (append)
@@ -3539,7 +3621,7 @@ git commit -m "feat(editor): offer move-here and copy-here on every legal slot"
 - Consumes: `clip_active`, `clip_element_pk`, `clip_label` (Task 9).
 - Produces: the ⊹ control and the mark's visible state.
 
-**The row modifier is six edits, not one.** Only the *controls* come from the shared partial; the `<li class="el-row…">` opening tag is written out separately in every branch. A test asserting the modifier on a nested row as well as a top-level one is what stops five branches shipping unmarked.
+**The row modifier is seven edits, not one.** Only the *controls* come from the shared partial; the `<li class="el-row…">` opening tag is written out separately in every branch, and #214 added a seventh (callout). A test asserting the modifier on a nested row, a container row AND a callout row is what stops six branches shipping unmarked.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -3611,6 +3693,29 @@ def test_a_marked_container_row_carries_the_modifier_too(client):
     assert "el-row--marked" in opening
 
 
+def test_a_marked_callout_row_carries_the_modifier(client):
+    """The seventh `<li>` branch, added by #214. The other two modifier tests mark
+    a plain text row and a tabs row, so without this one the callout branch can
+    ship unmarked with the suite green.
+    """
+    from courses.models import CalloutElement
+
+    course, unit = _seed(client)
+    callout = Element.objects.create(
+        unit=unit, content_object=CalloutElement.objects.create(body="<p>c</p>")
+    )
+
+    _mark(client, course, unit, callout)
+    body = _editor(client, course, unit)
+
+    at = body.index(f'data-element="{callout.pk}"')
+    opening = body[body.rindex("<li", 0, at) : at]
+    assert "el-row--marked" in opening
+    # The branch's own class must survive the edit -- pasting the plain branch's
+    # markup here would delete it, and #214's styling depends on it.
+    assert "el-row--callout" in opening
+
+
 def test_the_banner_names_the_marked_element_inside_the_swapped_pane(client):
     """applyFragments replaces only the two [data-scope] panes, so a banner in
     editor.html's chrome would render once on page load and then never reflect a
@@ -3659,7 +3764,7 @@ def test_no_banner_renders_when_nothing_is_marked(client):
 - [ ] **Step 2: Run them to verify they fail**
 
 Run: `uv run pytest tests/test_editor_clip_templates.py -v`
-Expected: the six new positive tests FAIL — the five mark/banner ones plus `test_every_container_renders_open_while_a_mark_is_pending`, whose `clip_active` disjunct does not exist until Step 5. `test_no_banner_renders_when_nothing_is_marked` passes for now and becomes a real guard once the banner exists.
+Expected: the seven new positive tests FAIL — the six mark/banner ones plus `test_every_container_renders_open_while_a_mark_is_pending`, whose `clip_active` disjunct does not exist until Step 5. `test_no_banner_renders_when_nothing_is_marked` passes for now and becomes a real guard once the banner exists.
 
 - [ ] **Step 3: Add the ⊹ select form to the shared partial**
 
@@ -3680,13 +3785,21 @@ Glyph assignment is fixed, one meaning each: ⧉ is the copy family (duplicate b
 
 - [ ] **Step 4: Add the modifier to all six row branches**
 
-In `templates/courses/manage/editor/_element_row.html`, add `{% if clip_element_pk == el.pk|stringformat:'s' %} el-row--marked{% endif %}` inside the `class="…"` attribute of the `<li>` at `:3`, `:19`, `:45`, `:97`, `:147` and `:199`. For example, the slidebreak branch at `:3` becomes:
+In `templates/courses/manage/editor/_element_row.html`, add `{% if clip_element_pk == el.pk|stringformat:'s' %} el-row--marked{% endif %}` inside the `class="…"` attribute of the `<li>` in **all seven** branches: `:3`, `:19`, `:45`, `:97`, `:147`, `:199` and `:248`.
+
+**Locate each one by the `{% elif el.content_type.model == "…" %}` guard above it, not by line number** — the seven opening tags are near-identical, and pasting the wrong branch's markup silently deletes a class that branch's own tests depend on. For example, the slidebreak branch at `:3` becomes:
 
 ```html
 <li class="el-row element-row--slidebreak{% if clip_element_pk == el.pk|stringformat:'s' %} el-row--marked{% endif %}" data-slidebreak-row
 ```
 
-and the plain branch at `:199`:
+the **callout** branch at `:199` — note it keeps `el-row--callout`, which #214's styling and `courses/tests/test_callout_editor_row.py` both depend on:
+
+```html
+<li class="el-row el-row--callout{% if open_form_pk == el.pk|stringformat:'s' %} el-row--editing{% endif %}{% if clip_element_pk == el.pk|stringformat:'s' %} el-row--marked{% endif %}"
+```
+
+and the **plain** branch at `:248`:
 
 ```html
 <li class="el-row{% if open_form_pk == el.pk|stringformat:'s' %} el-row--editing{% endif %}{% if clip_element_pk == el.pk|stringformat:'s' %} el-row--marked{% endif %}"
@@ -3740,13 +3853,13 @@ In `templates/courses/manage/editor/_editor_scope.html`, replace the `.pane-head
 - [ ] **Step 7: Run the tests to verify they pass**
 
 Run: `uv run pytest tests/test_editor_clip_templates.py -v`
-Expected: all **15** PASS (this task's 7 appended tests plus Task 10's 8).
+Expected: all **17** PASS (this task's 8 appended tests plus the previous task's 9).
 
 - [ ] **Step 7b: Confirm no existing template test regressed**
 
 These four templates are shared, and several existing suites bind tightly to exactly the lines this task edits — `tests/test_editor_depth.py` asserts on the depth-4 row's `<details class="tabs-rows" data-tab-id=…>` and on `data-parent` being ABSENT there, which is the very site where the paste tag deliberately sits OUTSIDE the depth guard; `tests/test_tabs_editor_dnd.py` regexes the raw template source; `tests/test_tabs_editor_partial.py` and `courses/tests/test_reveal_gate_editor_row.py` both `render_to_string` a row with a bare dict context, so the new inclusion tag runs there with no clip keys present.
 
-Run: `uv run pytest tests/test_editor_depth.py tests/test_tabs_editor_dnd.py tests/test_tabs_editor_partial.py tests/test_editor_count_i18n.py tests/test_editor_styles.py tests/test_link_dialog_markup.py courses/tests/test_reveal_gate_editor_row.py tests/test_editor_open_slots.py -v`
+Run: `uv run pytest tests/test_editor_depth.py tests/test_tabs_editor_dnd.py tests/test_tabs_editor_partial.py tests/test_editor_count_i18n.py tests/test_editor_styles.py tests/test_link_dialog_markup.py courses/tests/test_reveal_gate_editor_row.py courses/tests/test_callout_editor_row.py courses/tests/test_callout_nesting.py courses/tests/test_callout_nesting_css.py tests/test_editor_open_slots.py -v`
 Expected: all PASS. A failure in the bare-dict render tests means the tag or the `<li>` condition assumed a context key that is not always supplied — fix the template/tag to tolerate its absence rather than the test to supply it.
 
 - [ ] **Step 8: Regenerate translations**
@@ -3809,7 +3922,7 @@ Beside the existing `.el-row` / `.pane-head` / `.addwrap` definitions, using the
 
 - [ ] **Step 1b: Pin the four selectors in the existing style test**
 
-A screenshot pass is a one-off; nothing stops a later refactor deleting a rule and leaving the suite green. The repo already has the idiom — `tests/test_editor_styles.py` asserts `".tree__act"`, `".tree__act--danger"` and `".tree__inline"` appear in `editor.css`, precisely because `builder.css` is not loaded on this page. Append the four new selectors to that same source-level assertion:
+A screenshot pass is a one-off; nothing stops a later refactor deleting a rule and leaving the suite green. The repo already has the idiom — `tests/test_editor_styles.py::test_editor_css_styles_action_buttons` asserts `".tree__act"`, `".tree__act--danger"` and `".tree__inline"` appear in `editor.css`, precisely because `builder.css` is not loaded on this page. Extend **that function** (it already binds `css`) by appending the four new selectors to its existing tuple:
 
 ```python
     for cls in (".el-row--marked", ".clip-banner", ".pastewrap", ".pastebtn"):
@@ -4064,6 +4177,7 @@ and tick each combination against its test:
 | populated container into a **tabs** slot | `test_a_copy_creates_fresh_rows_in_the_destination_slot`, `test_a_move_carries_its_whole_subtree_without_touching_the_children` |
 | into a **columns** slot (incl. a 3rd column) | `test_a_move_into_a_third_column_lands_there`, `test_a_paste_into_a_column_works_end_to_end` |
 | into a **spoiler** slot | `test_a_move_into_a_spoiler_uses_its_fixed_slot`, `test_a_move_into_a_spoiler_works_end_to_end` |
+| into a **callout** slot (a container as of #214) | `test_a_move_into_a_callout_uses_its_fixed_slot`, `test_a_paste_into_a_callout_works_end_to_end`, `test_a_callout_slot_offers_its_buttons` |
 | same type inside itself (Tabs in Tabs) | `test_a_copy_preserves_the_subtree_shape_at_every_depth` places a Tabs subtree into a Tabs slot; `courses/tests/test_paste_rule.py::test_a_leaf_may_land_at_depth_four_but_a_container_may_not` pins the depth limit of that shape |
 | moved **out** of a container to top level | `test_a_healthy_move_out_of_a_container_to_top_level` — asserts the cleared `tab_id` AND the vacated slot's compaction (the damaged-row test only reaches `parent_id is None`, and the e2e moves the other way) |
 | between two slots of the **same** container | `test_a_move_between_two_slots_of_one_container` |
