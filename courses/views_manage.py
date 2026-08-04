@@ -1183,6 +1183,35 @@ def element_delete(request, slug):
     return _render_unit_panel(request, unit)
 
 
+@login_required
+def element_duplicate(request, slug):
+    """Editor-only: deep-copy one element below itself.
+
+    Always answers with the editor fragment pair -- there is no builder-context
+    caller, because the builder's unit panel is a read-only list. The no-JS path
+    therefore gets the bare fragment page, exactly as element_move and
+    element_delete already do for ctx=editor.
+    """
+    course = _require_manage(request, slug)
+    try:
+        unit, new_join = builder_svc.duplicate_element(
+            course, request.POST.get("element"), request.POST.get("unit_token")
+        )
+    except builder_svc.ConflictError:
+        return _element_conflict(request, course)
+    except TransferError as exc:
+        # 422 through the FRAGMENT renderer, never _op_error: the latter has no
+        # [data-scope] wrapper, so applyFragments swaps nothing and the author
+        # sees no message at all.
+        unit = ContentNode.objects.filter(
+            pk=request.POST.get("unit"), course=course, kind=ContentNode.Kind.UNIT
+        ).first()
+        if unit is None:
+            return _render_tree(request, course, status=409)
+        return _render_editor_fragments(request, unit, status=422, error=str(exc))
+    return _render_editor_fragments(request, unit)
+
+
 def _editor_ctx(request):
     return request.POST.get("ctx") == "editor"
 
