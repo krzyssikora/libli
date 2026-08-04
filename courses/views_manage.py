@@ -1214,6 +1214,83 @@ def element_duplicate(request, slug):
     )
 
 
+CLIP_SESSION_KEY = "element_clip"
+
+
+def _clip_unit(request, course):
+    """Resolve the POSTed unit against the course, or None.
+
+    It writes no data, but it ANSWERS through _render_editor_fragments, which
+    renders that unit's element list AND its live preview -- so a POST carrying a
+    unit pk from another course would render that course's content. Wrapped
+    because filter(pk="abc") raises ValueError when the queryset is evaluated:
+    that covers a missing pk (pk=None becomes pk__isnull=True) and a non-unit pk,
+    but not a present-and-non-numeric one.
+    """
+    try:
+        return ContentNode.objects.filter(
+            pk=request.POST.get("unit"), course=course, kind=ContentNode.Kind.UNIT
+        ).first()
+    except (ValueError, TypeError):
+        return None
+
+
+def _no_unit_409(request, course):
+    """The unit could not be resolved, so there is no editor pane to render.
+
+    Deliberately NOT _element_conflict: that helper opens with the SAME unguarded
+    `filter(pk=request.POST.get("unit"), ...)` (courses/views_manage.py:1232-1234),
+    so on a non-numeric `unit` it re-raises the very ValueError this path just
+    caught -- turning the guarded 409 back into a 500. Its unguarded shape is a
+    pre-existing wart on a hand-crafted-only path and is left alone here; new code
+    simply does not route through it.
+    """
+    return _render_tree(request, course, status=409)
+
+
+@login_required
+def element_clip(request, slug):
+    """Editor-only: set or clear the clipboard mark. No DB write, so no token check
+    -- the paste re-validates everything.
+
+    The marked element is deliberately NOT validated beyond belonging to this unit:
+    the paste re-resolves it through _locked_element(course, ...), which filters on
+    unit__course, and a mark is only a session note until then.
+    """
+    course = _require_manage(request, slug)
+    unit = _clip_unit(request, course)
+    if unit is None:
+        return _no_unit_409(request, course)
+
+    action = request.POST.get("action")
+    if action not in ("select", "cancel"):
+        return HttpResponseBadRequest("bad action")
+
+    if action == "cancel":
+        request.session.pop(CLIP_SESSION_KEY, None)
+        return _render_editor_fragments(request, unit)
+
+    try:
+        element_pk = int(request.POST.get("element"))
+    except (TypeError, ValueError):
+        return HttpResponseBadRequest("bad element")
+
+    if not unit.elements.filter(pk=element_pk).exists():
+        return _element_conflict(request, course)
+
+    current = request.session.get(CLIP_SESSION_KEY) or {}
+    if current.get("element") == element_pk and current.get("unit") == unit.pk:
+        # ⊹ on the already-marked element toggles it off.
+        request.session.pop(CLIP_SESSION_KEY, None)
+    else:
+        # BOTH pks as int: the session is JSON, so a string written here stays a
+        # string on every later request and `clip["element"] == el.pk` is then
+        # False for every row -- the toggle above never fires and the marked-row
+        # modifier never renders. Silent and closed, both of them.
+        request.session[CLIP_SESSION_KEY] = {"unit": unit.pk, "element": element_pk}
+    return _render_editor_fragments(request, unit)
+
+
 def _editor_ctx(request):
     return request.POST.get("ctx") == "editor"
 
