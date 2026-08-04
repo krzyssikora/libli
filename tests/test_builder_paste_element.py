@@ -82,9 +82,11 @@ def test_a_move_carries_its_whole_subtree_without_touching_the_children():
 
 
 def test_a_move_compacts_the_source_group_and_appends_to_the_destination():
-    """Mutants: swap steps 3 and 4 so the compaction runs before the placement ->
-    the source assertion goes RED; read (parent, tab_id) AFTER mutating instead of
-    before -> the source group is left with a hole and the same assertion reds."""
+    """Mutant: read (parent, tab_id) AFTER mutating instead of before -> the source
+    group is left with a hole and the source assertion reds. (Swapping steps 3 and 4
+    is NOT a mutant here: the root's scope is already saved by step 2, so
+    place_element and compact_elements operate on disjoint groups regardless of
+    which runs first, and the destination result is identical either way.)"""
     course, unit = make_course_with_unit()
     a, b, c = (
         _text(unit, body="<p>a</p>"),

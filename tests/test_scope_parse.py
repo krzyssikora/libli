@@ -50,7 +50,7 @@ def test_parent_gone_is_a_nesting_error_subclass():
 def test_resolve_scope_still_reports_a_vanished_parent_through_the_same_path():
     _course, unit = make_course_with_unit()
 
-    with pytest.raises(builder.NestingError):
+    with pytest.raises(builder.ParentGoneError):
         builder.resolve_scope(unit, "9999999", "t1", "text")
 
 

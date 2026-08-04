@@ -7,6 +7,7 @@ rendering (light glyph on a light UA button face = invisible in dark mode). Thes
 assert the editor's own stylesheet defines the action-button classes it depends on.
 """
 
+import re
 from pathlib import Path
 
 EDITOR_CSS = (
@@ -19,8 +20,19 @@ EDITOR_CSS = (
 )
 
 
+def _code_only(css):
+    # Strip block comments before searching: editor.css names some of these classes
+    # in PROSE comments explaining their rules (".el-row--marked" and ".clip-banner"
+    # at the .clip-banner comment, ".pastewrap" at the .pastewrap comment), so a bare
+    # substring test against the whole file stays green even after the rule BLOCK
+    # backing one of them is deleted -- the standing guard would be satisfied by its
+    # own documentation. Same idiom as test_editor_js_form_action.py's `_code_only`,
+    # adapted to CSS's only comment syntax (`/* ... */`; no line comments).
+    return re.sub(r"/\*.*?\*/", "", css, flags=re.S)
+
+
 def test_editor_css_styles_action_buttons():
-    css = EDITOR_CSS.read_text(encoding="utf-8")
+    css = _code_only(EDITOR_CSS.read_text(encoding="utf-8"))
     # The classes the editor's _element_row.html relies on must be styled here, since
     # builder.css (their other home) is not loaded on the editor page. Otherwise the
     # buttons fall back to invisible UA defaults in dark mode.
