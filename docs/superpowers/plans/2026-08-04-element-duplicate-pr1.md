@@ -105,7 +105,7 @@ No commit: `.env` is git-ignored.
 
 ### Task 2: Element-scoped export
 
-`build_export` hard-codes "roots are the top-level joins" (`courses/transfer/export.py:565-570`). An element-scoped export is that one query replaced by a single supplied join — everything else (`_ordered_nodes`, the manifest, `link_nodes`, passes 3–5) is reused untouched. `walk_unit_joins` needs **no** change: it already takes its roots as an argument, and its `emit` closure must be neither extracted nor re-implemented.
+`build_export` hard-codes "roots are the top-level joins" (`courses/transfer/export.py:564-570`). An element-scoped export is that one query replaced by a single supplied join — everything else (`_ordered_nodes`, the manifest, `link_nodes`, passes 3–5) is reused untouched. `walk_unit_joins` needs **no** change: it already takes its roots as an argument, and its `emit` closure must be neither extracted nor re-implemented.
 
 **Files:**
 - Modify: `courses/transfer/export.py:529-531` (signature), `:564-570` (roots query), and append `build_element_export`
@@ -166,14 +166,18 @@ def test_element_export_covers_the_subtree_and_nothing_else():
     assert len(child) == 1 and child[0]["tab"] == t2
 
 
-def test_element_export_scopes_to_a_single_unit_node():
-    """graft_elements fabricates node_map from document["nodes"][0], so the
-    export must produce exactly one node entry."""
+def test_every_exported_element_points_at_the_single_node_id():
+    """The coupling graft_elements actually depends on: it fabricates
+    node_map = {document["nodes"][0]["id"]: unit}, and _create_elements then
+    looks each element's "unit" key up in that map. Asserting only
+    len(nodes) == 1 would duplicate build_element_export's own assert, which
+    fires first and would mask this test."""
     _course, unit, tabs_join, _t2 = _unit_with_tabs()
 
     document, _media, _problems = build_element_export(unit, tabs_join)
 
-    assert len(document["nodes"]) == 1
+    node_id = document["nodes"][0]["id"]
+    assert {e["unit"] for e in document["elements"]} == {node_id}
 ```
 
 - [ ] **Step 2: Run the test to verify it fails**
@@ -331,8 +335,6 @@ def test_graft_does_not_create_a_content_node():
 
     assert ContentNode.objects.count() == nodes_before
 ```
-
-Add `from courses.models import ContentNode` to the imports at the top of the file.
 
 - [ ] **Step 2: Run the test to verify it fails**
 
@@ -769,7 +771,9 @@ def test_element_export_scopes_link_nodes_to_the_unit_itself():
 
 def test_duplicate_keeps_an_internal_link_verbatim():
     """A plain regression check on the copy's body -- deliberately WITHOUT a
-    mutant, because per the test above no reachable mutation can break it."""
+    mutant of its own, because no mutation CONFINED TO THE ELEMENT-SCOPED PATH
+    can break it. (Mutating build_export's shared link_nodes filter does red it,
+    along with much else -- see Step 8 mutation 3.)"""
     from courses.richtext import PERMALINK_PREFIX
 
     course, unit = make_course_with_unit()
@@ -804,9 +808,12 @@ Each mutation must turn exactly one test RED. Apply, run, confirm RED, then reve
    `if pk in node_ids` filter.
    Expected: `test_element_export_scopes_link_nodes_to_the_unit_itself` goes RED — as a
    `KeyError` on `node_ids[pk]`, not a changed-dict assertion failure, because the external
-   pk is absent from `node_ids`. Either form is a valid RED; the point is that the filter is
-   what confines `link_nodes` to the export, which is what makes the skip safe. (For an
-   assertion-shaped RED instead, mutate to `node_ids.get(pk, "n?")`.)
+   pk is absent from `node_ids`. It also reds `test_duplicate_keeps_an_internal_link_verbatim`
+   (which links to an external node), and — because the mutated line is on the **shared**
+   `build_export` path — whole-course export tests carrying cross-node links. Expect a broad
+   RED, not a single one. The point is that the filter is what confines `link_nodes` to the
+   export, which is what makes the skip safe. (For an assertion-shaped RED confined to this
+   file, mutate to `node_ids.get(pk, "n?")` instead.)
 4. In `_copy_below`, replace the media map with an empty one: `media_map = {}`.
    Expected: `test_duplicate_deep_copies_related_rows_and_reuses_the_media_row` FAILS —
    with no asset in the map the importer cannot resolve the mid, so the copy either loses
@@ -883,38 +890,6 @@ def test_the_banner_renders_inside_the_swapped_pane(client):
     assert body.index('id="editor-error"') > body.index('data-scope="editor"')
 
 
-def test_a_fragment_409_carries_the_changed_banner(client):
-    """The path the `changed` kwarg exists for: _element_conflict renders
-    FRAGMENTS, and _render_editor_fragments never supplied `changed`, so the
-    moved block would render nothing on the one response that is about a
-    concurrent change. Under JS this is masked by flash(); without JS it is
-    silent. Falsify by dropping `changed=True` from _element_conflict."""
-    from courses.models import TextElement
-    from tests.factories import add_element
-
-    pa = make_pa(client, "pa")
-    course = CourseFactory(owner=pa)
-    unit = _unit(course)
-    join = add_element(unit, TextElement.objects.create(body="<p>hi</p>"))
-
-    resp = client.post(
-        reverse("courses:manage_element_move", kwargs={"slug": course.slug}),
-        {
-            "ctx": "editor",
-            "element": join.pk,
-            "unit": unit.pk,
-            "direction": "down",
-            "unit_token": "2020-01-01T00:00:00+00:00",  # stale
-        },
-        HTTP_X_REQUESTED_WITH="fetch",
-    )
-
-    assert resp.status_code == 409
-    body = resp.content.decode()
-    assert 'data-scope="editor"' in body
-    assert 'id="editor-error"' in body
-
-
 def test_the_banner_is_not_rendered_twice(client):
     """editor.html's old block must be REMOVED, not left beside the new one, or
     every settings-save 422 shows its message twice.
@@ -933,7 +908,7 @@ Run: `uv run pytest tests/test_editor_error_channel.py -v`
 Expected: `test_the_banner_renders_inside_the_swapped_pane` FAILS on
 `assert 'id="editor-error"' in body` — no such slot exists yet.
 `test_the_banner_is_not_rendered_twice` PASSES for now: `editor.html` renders exactly one
-`op-error` div today. It becomes the guard on Step 4, which Step 4b below proves.
+`op-error` div today. It becomes the guard on Step 4, which Step 3b below proves.
 
 - [ ] **Step 3: Add the error slot to `_editor_scope.html`**
 
@@ -974,12 +949,18 @@ In `templates/courses/manage/editor/editor.html`, delete both of these lines (cu
 
 - [ ] **Step 5: Add the three context keys to both builders**
 
-`changed` is one of them, and leaving it out would ship a template variable that one of its
-two renderers never defines. `_editor_page` supplies `changed` (`views_manage.py:1300`);
-`_render_editor_fragments` does not — so on the one fragment path that is *about* a
-concurrent change, `_element_conflict` → `_render_editor_fragments(..., status=409)`
-(`:1209`), the moved block would render nothing. Under JS that is masked by `flash()` on 409;
-without JS it is silent. Add the kwarg and pass it.
+`changed` is one of them, because the moved block references it and
+`_render_editor_fragments` does not currently define it — a template variable that one of its
+two renderers never supplies. It is added as a **kwarg defaulting to False, and nothing sets
+it to True.**
+
+That restraint is deliberate. It is tempting to have `_element_conflict` pass `changed=True`
+so the editor's 409 fragment carries the message — but `editor.js` already calls
+`flash(msg("conflict", "This changed elsewhere — reloaded to the latest."))` on a 409
+(`:293-294`), prepending its own `.op-error` bar. Passing the flag too would show the author
+the identical sentence **twice**, with the in-pane copy persisting until the next swap while
+the flash bar self-removes. PR1 leaves 409 behaviour exactly as it is today; the kwarg exists
+only so the template variable is always defined.
 
 In `courses/views_manage.py`, change `_render_editor_fragments`'s signature to:
 
@@ -997,14 +978,7 @@ def _render_editor_fragments(
 ):
 ```
 
-add the three keys to **`_render_editor_fragments`'s** context dict (below), and in
-`_element_conflict`, change the editor-context fragment return to pass the flag:
-
-```python
-        return _render_editor_fragments(request, unit, status=409, changed=True)
-```
-
-then add to **`_render_editor_fragments`'s** context dict, beside `max_nest_depth`:
+then add to `_render_editor_fragments`'s context dict, beside `max_nest_depth`:
 
 ```python
             # Editor-context errors render HERE, inside the swapped pane -- see
@@ -1026,7 +1000,7 @@ Add the same `"open_slots": open_slots or set(),` line to `_editor_page`'s conte
 - [ ] **Step 6: Run the tests to verify they pass**
 
 Run: `uv run pytest tests/test_editor_error_channel.py -v`
-Expected: both PASS.
+Expected: both PASS (the file has two tests).
 
 - [ ] **Step 7: Verify no existing editor test regressed**
 
@@ -1481,16 +1455,24 @@ and line `:132` with — note the loop variable here is `column`, **not** `tab`;
 
 Ensure `{% load i18n courses_manage_extras %}` is the first line of the file (it already loads `courses_manage_extras`).
 
+**There is no third edit for the spoiler**, and that is not an omission: the spoiler branch
+renders `<div class="el-row__spoiler"><ol>…</ol></div>` (`_element_row.html:183-196`) with no
+`<details>` at all, so its children are never collapsed. `ancestor_slots` still emits a key
+for a spoiler slot; it simply matches nothing, which is harmless.
+
 - [ ] **Step 7: Run the tests to verify they pass**
 
 Run: `uv run pytest tests/test_editor_open_slots.py -v`
-Expected: all three PASS.
+Expected: all **four** PASS.
 
 - [ ] **Step 8: Falsify the open-set test**
 
 Change the view's success return back to `_render_editor_fragments(request, unit)`.
 Run: `uv run pytest tests/test_editor_open_slots.py -v`
-Expected: `test_duplicating_inside_tab_two_renders_that_tab_open` FAILS. Revert.
+Expected: **both** render tests FAIL —
+`test_duplicating_inside_tab_two_renders_that_tab_open` and
+`test_a_column_nested_in_a_tab_opens_its_whole_ancestor_chain` — since both read markers out
+of a response body that depends on this argument. Revert.
 
 - [ ] **Step 9: Commit**
 
@@ -1539,13 +1521,15 @@ def test_every_row_offers_a_duplicate_button_at_every_depth(client):
     )
 
     body = resp.content.decode()
-    # The COUNT is the real guard. `value="<pk>"` and `csrfmiddlewaretoken` appear in
-    # the existing move/delete forms on every row, so asserting them alone would be
-    # green before this task's change; they are checked inside the new form's markup.
+    # The COUNT is the real guard: `csrfmiddlewaretoken` and `value="<pk>"` both appear
+    # in the existing move/delete forms on every row, so either alone would be green
+    # before this task's change. csrf is therefore asserted INSIDE the first new form,
+    # and the child-pk assertion is dropped: the first duplicate form belongs to the Tabs
+    # row (a container renders before its children), so it could never contain the
+    # child's pk anyway.
     assert body.count('data-op="element-duplicate"') >= 2  # the Tabs row and its child
     form_at = body.index('data-op="element-duplicate"')
     new_form = body[form_at : form_at + 700]
-    assert f'value="{child.pk}"' in body
     assert "csrfmiddlewaretoken" in new_form
 ```
 
@@ -1785,7 +1769,13 @@ git commit -m "fix(editor): stored tab state must not re-collapse a forced-open 
 
 ### Task 10: Visual verification
 
-No new CSS rules are expected — the button reuses `.iconbtn` and the error slot reuses `.op-error`, both already defined in `courses/static/courses/css/editor.css`. But `.op-error` has moved *inside* the pane, and the row bar has gained a control, so both need looking at rather than assuming.
+The button reuses `.iconbtn` and needs nothing new. **The error slot probably does need one
+rule.** `.op-error` is `padding: var(--space-2) var(--space-3); margin-bottom: var(--space-3)`
+(`editor.css:5-9`) with no horizontal inset, and it has moved from `editor.html`'s page chrome
+to a direct child of `.pane` — which has no padding of its own, while `.pane-head` and
+`.pane-body` both use `var(--space-4)`. Expect it to render edge-to-edge and out of line with
+the pane's content column, and expect to add an inset. Treat "no change needed" as the
+surprising outcome here, not the default.
 
 **Files:**
 - Modify (only if the screenshots show a problem): `courses/static/courses/css/editor.css`
