@@ -197,14 +197,13 @@ from courses.models import CalloutElement
 from courses.models import Element
 from courses.models import SINGLE_SLOT_ID
 from courses.models import TextElement
+from tests.factories import add_element
 from tests.factories import make_course_with_unit
 
 pytestmark = pytest.mark.django_db
 
 
 def _callout_with_children(unit, bodies, callout_body=""):
-    from tests.factories import add_element
-
     co = CalloutElement.objects.create(kind="example", body=callout_body)
     join = add_element(unit, co)
     for i, b in enumerate(bodies):
@@ -417,13 +416,14 @@ def _top_callout(unit):
     return co, add_element(unit, co)
 
 
-def test_registries_agree_with_callout_added():
-    """The drift guard: all three must gain callout together."""
-    from courses.transfer.payloads import _CONTAINER_SLOT_KEY
-
+def test_callout_is_in_the_container_key_space():
+    """Only the MEMBERSHIP line is new. The generic drift pair
+    (CONTAINER_TRANSFER_KEYS == set(_CONTAINER_SLOT_KEY), and the _CONTAINER_REGISTRY
+    length equality) is already asserted by
+    test_nesting_rule.py::test_container_key_spaces_do_not_drift, which Step 4 runs --
+    duplicating it here would just be a second place to update.
+    """
     assert "callout" in builder.CONTAINER_TRANSFER_KEYS
-    assert builder.CONTAINER_TRANSFER_KEYS == set(_CONTAINER_SLOT_KEY)
-    assert len(builder.CONTAINER_TRANSFER_KEYS) == len(builder._CONTAINER_REGISTRY)
 
 
 def test_resolve_scope_accepts_a_table_into_a_callout():
@@ -628,6 +628,7 @@ git commit -m "test(callout): pin the depth clauses and the D3a import break"
 Append to `courses/tests/test_callout_transfer.py`:
 
 ```python
+@pytest.mark.django_db  # this module marks per-test; there is NO module pytestmark
 def test_export_emits_a_table_inside_a_callout():
     from courses.models import CalloutElement, Element, TableElement
     from tests.factories import add_element
@@ -650,7 +651,9 @@ def test_export_emits_a_table_inside_a_callout():
     # list wired to its parent with tab == the single slot id. (`_ser_table` returns
     # `dict(el.data)` verbatim, so a stringified assertion would also pass with a
     # wrong data key -- see the "cells" vs "rows" trap.)
-    elements = document["units"][0]["elements"]
+    # build_export emits a FLAT document: {"nodes", "elements", "media", ...}.
+    # There is no "units" key (export.py:766-784).
+    elements = document["elements"]
     child = next(e for e in elements if e["type"] == "table")
     parent = next(e for e in elements if e["type"] == "callout")
     assert child["parent"] == parent["id"]
@@ -658,9 +661,10 @@ def test_export_emits_a_table_inside_a_callout():
     assert "CELL-MARKER" in str(child["data"])
 
 
+@pytest.mark.django_db
 def test_duplicate_unit_preserves_a_table_inside_a_callout():
     """Same missing emit() arm; duplicate_unit is the far more common gesture."""
-    from courses.models import CalloutElement, ContentNode, Element, TableElement
+    from courses.models import CalloutElement, Element, TableElement
     from tests.factories import add_element
     from courses import builder as _builder
     from tests.factories import make_course_with_unit
@@ -736,7 +740,13 @@ Both are **silent** failures: no error, no bad status code, just raw LaTeX on th
 
 - [ ] **Step 1: Write the failing test**
 
-Append to `courses/tests/test_callout_has_math.py`:
+Append to `courses/tests/test_callout_has_math.py`. **Append the new test functions
+and only the four NEW model imports** (`SpoilerElement`, `TableElement`, `TabsElement`,
+`TextElement`) — the module already has its docstring, `import pytest`,
+`CalloutElement`, `Element`, `_element_has_math`, `make_course_with_unit` and
+`pytestmark = pytest.mark.django_db` at lines 1-15. Re-adding them is five ruff `F811`s
+plus a stray string expression, and the Definition of done requires `ruff check` clean.
+The snippet below shows the full file header for orientation; do not paste it twice:
 
 ```python
 """KaTeX arming for the newly-legal nesting shapes. A miss here is SILENT."""
@@ -1226,7 +1236,10 @@ def noop_reverse(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-    dependencies = [("courses", "00XX_previous")]
+    # Keep the `dependencies` line `makemigrations --empty` generated and replace only
+    # `operations`. At time of writing the latest is 0052_alter_calloutelement_kind, so
+    # this file is 0053_spoiler_body_cleanup — verify before hand-editing.
+    dependencies = [("courses", "0052_alter_calloutelement_kind")]
     operations = [migrations.RunPython(clear_unreachable_bodies, noop_reverse)]
 ```
 
@@ -1326,7 +1339,9 @@ CONTAINER_CARDS = ("tabs", "twocolumn", "spoiler", "callout")
 ```
 
 Then find the literal line `assert 'data-add-type="callout"' in menu` (around `:158`)
-and flip it, keeping a genuine leaf so the test still proves the menu rendered:
+and flip **only** that line to `not in`. The existing
+`assert 'data-add-type="text"' in menu` on the following line already supplies the
+"the menu really rendered" leg — do not duplicate it:
 
 ```python
     assert 'data-add-type="callout"' not in menu  # now a CONTAINER, depth-guarded
@@ -1476,7 +1491,12 @@ git commit -m "feat(editor): callout container row and depth-guarded palette car
 **Files:**
 - Modify: `courses/static/courses/css/courses.css` (after `:1589-1590`; the allowlist at `:959-975`; a `.katex` reset)
 - Modify: `courses/static/courses/css/editor.css` (beside `:827`)
-- Test: `courses/tests/test_callout_css.py` (create)
+- Test: `courses/tests/test_callout_nesting_css.py` (create) — **not**
+  `test_callout_css.py`: `tests/test_callout_css.py` already exists at repo root and
+  owns the base callout pins (`.callout`, `__header`, `__icon`, `__heading`, `__body`,
+  the four kind modifiers). A duplicate basename across `tests/` and `courses/tests/`
+  would be the first in this repo. That existing file stays green under the
+  `.callout:not(:has(> .callout__children))` narrowing — confirm it in Step 6.
 
 **Interfaces:**
 - Consumes: `.callout__children` / `.callout__child` markup (Task 2), `.el-row--callout` (Task 9).
@@ -1484,7 +1504,7 @@ git commit -m "feat(editor): callout container row and depth-guarded palette car
 
 - [ ] **Step 1: Write the failing test**
 
-`courses/tests/test_callout_css.py`:
+`courses/tests/test_callout_nesting_css.py`:
 
 ```python
 """Structural CSS pins. Computed-style behaviour is covered by e2e (Task 13)."""
@@ -1528,7 +1548,7 @@ def test_callout_heading_katex_resets_the_eyebrow_treatment():
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `uv run pytest courses/tests/test_callout_css.py --verbosity=0`
+Run: `uv run pytest courses/tests/test_callout_nesting_css.py tests/test_callout_css.py --verbosity=0`
 Expected: FAIL — none of those selectors exist.
 
 - [ ] **Step 3: Add the callout child rules**
@@ -1583,13 +1603,13 @@ Leave every other entry untouched. A prose-only callout keeps today's cap byte-f
 
 - [ ] **Step 6: Run tests to verify they pass**
 
-Run: `uv run pytest courses/tests/test_callout_css.py --verbosity=0`
+Run: `uv run pytest courses/tests/test_callout_nesting_css.py tests/test_callout_css.py --verbosity=0`
 Expected: PASS.
 
 - [ ] **Step 7: Commit**
 
 ```bash
-git add courses/static/courses/css/courses.css courses/static/courses/css/editor.css courses/tests/test_callout_css.py
+git add courses/static/courses/css/courses.css courses/static/courses/css/editor.css courses/tests/test_callout_nesting_css.py
 git commit -m "style(callout): nested child spacing, prose-cap opt-out, heading katex reset"
 ```
 
@@ -1687,8 +1707,14 @@ def _print_block(css):
 
 
 def _prehide_block(html):
-    m = re.search(r"has_reveal_gate %\}(.*?)\{% endif %\}", html, re.S)
-    assert m, "no has_reveal_gate style block in lesson_unit.html"
+    """lesson_unit.html has TWO `{% if has_reveal_gate %}` blocks: the prepaint boot
+    guard at :5 and the pre-hide <style> at :37. A non-greedy match from the first
+    `has_reveal_gate` stops at the INNER `{% endif %}` on :11 and returns a JS
+    fragment with none of the four scopes -- red against a correct implementation.
+    Anchor on the <style> tag instead.
+    """
+    m = re.search(r"has_reveal_gate %\}\s*<style>(.*?)</style>", html, re.S)
+    assert m, "no has_reveal_gate <style> block in lesson_unit.html"
     return m.group(1)
 
 
@@ -1828,7 +1854,8 @@ def _render_inline_text_selectors():
     js = Path("courses/static/courses/js/math.js").read_text(encoding="utf-8")
     fn = re.search(r"function renderInlineText\(root\)\s*\{(.*?)\n  \}", js, re.S)
     assert fn, "renderInlineText not found in math.js"
-    sel = re.search(r"querySelectorAll\(\s*"([^"]+)"", fn.group(1))
+    # Single-quoted pattern: the regex itself contains double quotes.
+    sel = re.search(r'querySelectorAll\(\s*"([^"]+)"', fn.group(1))
     assert sel, "no querySelectorAll selector string in renderInlineText"
     return sel.group(1)
 
@@ -1916,9 +1943,11 @@ import os
 
 import pytest
 
+from tests.factories import TEST_PASSWORD  # noqa: F401 -- used by the copied _login
 from tests.factories import ContentNodeFactory
 from tests.factories import CourseFactory
 from tests.factories import add_element
+from tests.factories import make_verified_user  # noqa: F401 -- used by _make_pa_user
 
 pytestmark = pytest.mark.e2e
 
@@ -1931,8 +1960,10 @@ def _allow_sync_orm_under_playwright():
     yield
 
 
-# Copy _make_pa_user / _login / _editor_url / _lesson_url VERBATIM from
-# tests/test_e2e_depth3.py:58-101 -- same PA-user helper, same login form drive.
+# Copy _make_pa_user / _login / _lesson_url VERBATIM from tests/test_e2e_depth3.py
+# (same PA-user helper, same login form drive). They close over TEST_PASSWORD and
+# make_verified_user, which is why both are imported above. `_editor_url` is NOT
+# needed here -- every test in this file reads the lesson as a student.
 
 
 def _seed_unit(username):
@@ -2214,7 +2245,8 @@ git commit -m "docs(callout): update author manuals, comments and catalogs"
 **Spec coverage.** Change-set rows 1–16 map to tasks: 1→T3, 2→T1/T3, 3→T5, 4→T9, 5→T12, 6→T13, 7→T10, 8→T14, 9→T1/T2, 10→T2, 11→T7, 12→T7, 13→T6, 14→T9, 15→T10, 16→T8. Decisions D1→T2/T7, D2→T2, D3→T4, D3a→T4, D4→T3, D5 (one branch) is the plan itself. Every "Cases to pin" row has a task: registry drift→T3, export/duplicate→T5, has_math (4 rows)→T6, editor row (2 rows)→T9, depth+D3a→T4, slot literal→T1, print revert (2 rows)→T12, heading math→T13, prose cap→T13, combined rule→T13, migration (3 rows)→T8, body order→T7, form body→T7.
 
 **Placeholders.** Two remain, both flagged inline at their use site rather than left as
-"TBD": Task 8's `_MIGRATION_PREFIX`, filled from the `makemigrations --empty` output, and
+"TBD": Task 8's `_MIGRATION_PREFIX`, filled from the `makemigrations --empty` output
+(expected `0053`, since the latest migration is `0052_alter_calloutelement_kind`), and
 Task 13's `<TOC_KEY>` localStorage key, read from the TOC-pin JS. Task 13's e2e bodies are
 fully written — seeding, login, navigation and assertions — reusing
 `tests/test_e2e_depth3.py:58-101`'s helpers verbatim; an earlier draft elided them, which
