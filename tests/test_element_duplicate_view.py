@@ -109,3 +109,38 @@ def test_duplicate_refuses_a_user_who_cannot_manage_the_course(client):
 
     assert resp.status_code in (403, 404)
     assert unit.elements.count() == 1
+
+
+def test_every_row_offers_a_duplicate_button_at_every_depth(client):
+    """The control lives in the shared partial, so one edit covers all six row
+    branches -- assert a NESTED row too, or a regression that drops the partial
+    from one branch ships green."""
+    from courses.models import Element
+    from courses.models import TabsElement
+
+    course, unit, _join = _seed(client)
+    tabs = TabsElement.objects.create(data=TabsElement.default_data())
+    tabs_join = Element.objects.create(unit=unit, content_object=tabs)
+    t1 = tabs.data["tabs"][0]["id"]
+    child = Element.objects.create(
+        unit=unit,
+        content_object=TextElement.objects.create(body="<p>nested</p>"),
+        parent=tabs_join,
+        tab_id=t1,
+    )
+
+    resp = client.get(
+        reverse("courses:manage_editor", kwargs={"slug": course.slug, "pk": unit.pk})
+    )
+
+    body = resp.content.decode()
+    # The COUNT is the real guard: `csrfmiddlewaretoken` and `value="<pk>"` both appear
+    # in the existing move/delete forms on every row, so either alone would be green
+    # before this task's change. csrf is therefore asserted INSIDE the first new form,
+    # and the child-pk assertion is dropped: the first duplicate form belongs to the
+    # Text row _seed() creates before this test adds the Tabs element, so it could
+    # never contain the child's pk anyway.
+    assert body.count('data-op="element-duplicate"') >= 2  # the Tabs row and its child
+    form_at = body.index('data-op="element-duplicate"')
+    new_form = body[form_at : form_at + 700]
+    assert "csrfmiddlewaretoken" in new_form
