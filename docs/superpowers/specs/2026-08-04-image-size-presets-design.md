@@ -153,13 +153,18 @@ content box derived in §Purpose — **880px** at the pinned desktop viewport, n
 figure matters only for computing expected pixel values in tests, which is why row 8 measures the
 container at runtime rather than hardcoding a width.
 
-**The base rule is folded into the presets, not left to compete with them.** The existing
-`.el--image img { max-width: 100%; height: auto; }` (`courses.css:46`) has *identical* specificity to
-a new `.el--image--small img` rule (one class + a descendant type selector), so which one won would
-be decided purely by source order — and a future reorganisation of the stylesheet could silently
-revert small/medium/large to unbounded width. The implementation therefore replaces the base rule
-with one rule-set in which each preset carries its own complete box, and `height: auto` is stated
-once for `.el--image img`.
+**The two axes live on different elements, which is what keeps them out of each other's way.**
+`max-width` goes on the **figure** selector (`.el--image--small`, …) as a percentage of `.lesson`'s
+definite content box; `max-height` goes on the **img** selector (`.el--image--small img`, …) in
+`dvh`. The existing base rule `.el--image img { max-width: 100%; height: auto; }`
+(`courses.css:46`) is **retained unchanged** and shared by all four presets.
+
+That split also dissolves a specificity trap that an earlier draft of this spec had to work around:
+`.el--image img` and `.el--image--small img` tie on specificity (one class + a descendant type
+selector), so had per-preset `max-width` stayed on the `img`, which rule won would have been decided
+purely by source order. With `max-width` on the figure there is no competing base rule on that
+property at all, so nothing depends on ordering. (The `@media print` block is a separate matter and
+*does* still depend on source order — see Print below.)
 
 | class | max-width | max-height | tall image (297x719) renders as* |
 |---|---|---|---|
@@ -197,12 +202,31 @@ The remedy, and one subtlety that dictates its shape:
 .el--image--medium,
 .el--image--large  { width: fit-content; margin-inline: auto; }
 
+/* Centre the image WITHIN the figure. Load-bearing whenever a figcaption is
+   present: `fit-content` sizes the figure to the WIDER of {image, caption}
+   max-content contributions, so a long caption widens the figure past the
+   image and the image would otherwise sit flush left inside it. Scoped to the
+   capped presets so `full` keeps today's flush-left geometry. */
+.el--image--small  img,
+.el--image--medium img,
+.el--image--large  img { display: block; margin-inline: auto; }
+
 .el--image img { max-width: 100%; height: auto; }
 .el--image--small  img { max-height: 30dvh; }
 .el--image--medium img { max-height: 45dvh; }
 .el--image--large  img { max-height: 60dvh; }
 .el--image--full   img { max-height: 100dvh; }
 ```
+
+**Why the image needs its own centring, measured.** `width: fit-content` resolves to the *maximum*
+of the children's max-content contributions, clamped by the figure's `max-width`. A `<figcaption>`
+has no width constraint of its own, so its contribution is its **unwrapped** text width. Measured
+across the corpus: **104 of 1068 images (9.7%) carry a caption**, median length **9 characters**
+(~63px, narrower than any capped image, so the figure tracks the image) — but the tail is real, with
+captions of **212, 200, 132, 123 and 122 characters**. At `small`, a 200-character caption's
+max-content (~1400px) is clamped to the 220px preset cap, so the figure becomes 220px while a tall
+image renders 112px — leaving the image flush left with a ~108px gap. `margin-inline: auto` on the
+image removes that in every case, whichever child drives the width.
 
 **`full` is deliberately excluded from the `fit-content` / `margin-inline` rule.** Today a 297px-wide
 image sits flush left inside a full-width figure; giving `full` a shrink-wrapped, centred figure
@@ -473,7 +497,7 @@ and name the mutant. A passing test proves nothing on its own.
 | 12 | a nested image scales to its container in **all four** containers — spoiler, tabs, two-column, callout | render or e2e, one case each |
 | 13 | print CSS defines all four presets | source-scan, block-extracted |
 | 13b | **under print media the RESOLVED `max-height` is the mm value, not the `dvh` one** | **e2e**, `page.emulate_media(media="print")` then read the computed style per preset |
-| 17 | **a `<figcaption>`'s rendered width tracks the image, not the container**, under a capped preset | **e2e** — the figure-box gap; assert caption width ≈ image width, not ≈ container width |
+| 17 | under a capped preset the image is **centred within its figure**, with a **long** caption present | **e2e** — must use a caption long enough to drive `fit-content` past the image (the corpus has 212/200/132-char captions); a short caption cannot exercise this |
 | 18 | **`full` figure geometry is unchanged** — same box and offset as before the feature | **e2e**, the guard on the byte-identical promise for the 1013 untouched images |
 | 14 | the radios carry `data-size-preset` and `data-for-element` | render test — the §4/§5 contract |
 | 15 | the stored preset renders as the `checked` radio; a fresh element shows `full` checked | render test — the §4b contract |
