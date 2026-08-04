@@ -727,13 +727,22 @@ forced by grafting into an existing unit rather than creating one:
   Assert that exactly one matches. Do **not** use `created[0]`, and do not zip the return
   against `document["elements"]` either: both re-introduce the same unstated assumption,
   that payload order survives into the returned list.
-- **It does not call `_rewrite_links`.** That function remaps internal content links onto
-  newly created nodes; in an element-scoped copy no node is created and `node_map` is a
-  fabrication over the existing unit, so running it would rewrite every internal link in the
-  copied elements onto that one unit — silently corrupting targets that are in fact
-  unchanged. A copy stays in its own unit, so its links already point where they should.
-  This is the one place where imitating `materialize_duplicate` verbatim produces a bug, so
-  it is called out rather than left to be inferred.
+- **It does not call `_rewrite_links` — because for an element-scoped export that call is
+  provably a no-op, not because it would corrupt anything.** An earlier draft of this spec
+  claimed the latter; it was wrong, and the correction matters because it changes what can be
+  tested. `build_export` emits
+  `link_nodes = {str(pk): node_ids[pk] for pk in sorted(referenced) if pk in node_ids}`
+  (`courses/transfer/export.py:781-783`) — targets **inside** the exported node set only —
+  and an element-scoped export's node set is exactly `{unit}`. So `link_nodes` names at most
+  `unit.pk`, the fabricated `node_map` maps that back to the same unit, and `_rewrite_links`
+  builds the identity mapping `{unit.pk: unit.pk}` (or an empty one). A link to a node
+  outside the export never enters `mapping`, and under `on_missing="keep"` `rewrite_instance`
+  leaves it alone. The call is skipped as dead work.
+
+  **Consequence for the test plan:** "assert a copied link still points at its original
+  target" is unfalsifiable — green whether or not the call runs. The falsifiable assertion is
+  the *scoping* fact the skip rests on: `link_nodes` contains the source unit and nothing
+  else. Mutant: drop `build_export`'s `if pk in node_ids` filter → RED.
 
 It keeps `_run_import`'s wrapper, so any failure rolls back and is normalised to
 `TransferError` → 422, which is what the error table promises.
@@ -1049,11 +1058,12 @@ Assert: every join and concrete row has a fresh pk; rendered content matches; th
 `MediaAsset` pk is *identical*, not merely equal; the subtree shape (parent/tab grouping) is
 preserved at every depth; **the copied root's `parent`/`tab_id` are the destination's, not
 `None`/`""`** — the graft leaves them unset, so this assertion is what catches the copy
-landing at top level; and **an internal content link in a copied element still resolves to
-its original target**, which is what `_rewrite_links` would have broken. Mutants: skip the
-scope-setting step → the root assertion goes RED; call `_rewrite_links` → the link assertion
-goes RED; share concrete rows instead of copying them → the fresh-pk assertion goes RED while
-content equality stays green.
+landing at top level; and **`link_nodes` names the source unit and nothing else** — the
+scoping fact the `_rewrite_links` skip rests on, and the only falsifiable statement in that
+area (see Copy semantics: "a copied link still resolves to its target" is green either way).
+Mutants: skip the scope-setting step → the root assertion goes RED; drop `build_export`'s
+`if pk in node_ids` filter → the `link_nodes` assertion goes RED; share concrete rows instead
+of copying them → the fresh-pk assertion goes RED while content equality stays green.
 
 **Move (unit).** The root is re-parented **and that scope is persisted** — re-read from the
 DB, not asserted on the in-memory instance, since `place_element` writes only `order`;
