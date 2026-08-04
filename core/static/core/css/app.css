@@ -992,6 +992,19 @@ a.notif-menu__row:hover { background: var(--surface-sunken); }
   margin: var(--space-3) 0 var(--space-1) var(--space-3);
 }
 
+/* COMBINED SHAPE (body AND children, newly possible): the two 2px rules must read
+   as ONE continuous line. The gap has TWO symmetric sources -- `.spoiler__body` has
+   no bottom padding or border, so its own last child's margin-bottom collapses
+   THROUGH it and survives a margin-bottom:0 on the body itself; and the wrapper is
+   deliberately not a flow-root, so the first child's margin-top collapses through
+   it too.
+   These rules MUST stay below the shared `.spoiler__body, .spoiler >
+   .spoiler__children` block above: test_spoiler_css.py splits the concatenated CSS
+   on the FIRST occurrence of `.spoiler__children`. */
+.spoiler__body:has(+ .spoiler__children) { margin-left: 0; margin-bottom: 0; }
+.spoiler__body:has(+ .spoiler__children) > :last-child { margin-bottom: 0; }
+.spoiler__body + .spoiler__children > .spoiler__child:first-child > :first-child { margin-top: 0; }
+
 /* Reveal gate — button hide guards (author display must never beat [hidden]) */
 .reveal-gate[hidden] { display: none !important; }
 .lesson-block[hidden], .tabs__child[hidden] { display: none !important; }
