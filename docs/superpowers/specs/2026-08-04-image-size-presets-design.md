@@ -1,4 +1,4 @@
-# Image size presets
+﻿# Image size presets
 
 ## Purpose
 
@@ -80,14 +80,14 @@ cases. Capping only at the viewport changes exactly the images that are already 
 ### 2. Rendering — a class, not an inline style
 
 ```html
-<figure class="el el--image el--image--{{ el.size }}" data-size-el="{{ el.pk }}">
+<figure class="el el--image el--image--{{ el.size }}" data-preview-el="{{ el.pk }}">
   <img src="…" alt="…" data-zoomable>
 ```
 
 A class, because the values are `%` of the column plus `dvh` of the viewport — not expressible as a
 per-element inline style — and because it keeps all four boxes in one place.
 
-**`data-size-el`, and deliberately NOT `data-element-id`.** The editor keys on `data-element-id`
+**`data-preview-el`, and deliberately NOT `data-element-id`.** The editor keys on `data-element-id`
 (`_preview.html`'s `.prev-el`, `_element_row.html`, `editor.js` `:149`/`:189`/`:382`), so reusing it
 here looks like the consistent choice. It is not, because that attribute has a **second consumer on
 student pages**:
@@ -108,7 +108,7 @@ would make this the first element to break that invariant: every image would be 
 today only by server-side filtering, not by design — and a latent trap if that filter ever changes.
 
 A distinct name avoids all of it: the purposes genuinely differ (element identity for progress
-tracking vs. a preview-target hook), and `data-size-el` is invisible to every existing consumer.
+tracking vs. a preview-target hook), and `data-preview-el` is invisible to every existing consumer.
 **Do not "unify" these two attributes later** — that is the bug, not the cleanup.
 
 ### 3. CSS — four bounding boxes
@@ -191,19 +191,29 @@ and the Error-handling row "a bad value submitted through the form → rejected 
 validation" could never fire, because the form would never look at `size` at all.
 
 **4b. The control.** `templates/courses/manage/editor/_edit_image.html` gains a radio group beside
-the existing alt and caption fields. Radios, not a `<select>`, and they work with JS disabled —
-matching the pattern that file already documents for its media control ("works no-JS, and
-`media_picker.js` sets/extends it with JS").
+the existing alt and caption fields.
 
-The group **must reflect the stored value as `checked`**, looping over the field's own choices so
-the four presets are never duplicated between Python and template:
+**Radios rather than a `<select>`** because all four options stay visible at once and a single click
+both selects and triggers the live preview — with a dropdown the author would open it, scrub through
+options, and only see the result after committing. (This is *not* justified by the file's media
+control: that is itself a `<select>` — `_edit_image.html:3` says so explicitly — and a `<select>`
+works with JS disabled exactly as well as radios do. Both widgets are no-JS-safe; the reason to pick
+radios here is the at-a-glance comparison, not progressive enhancement.)
+
+The group is wrapped in a `<fieldset>` with a `<legend>`, so a screen-reader user hears the group's
+name and not just four bare option labels, and it **must reflect the stored value as `checked`**,
+looping over the field's own choices so the four presets are never duplicated between Python and
+template:
 
 ```html
-{% for value, label in form.fields.size.choices %}
-  <label><input type="radio" name="size" value="{{ value }}"
-    {% if form.size.value|stringformat:"s" == value|stringformat:"s" %} checked{% endif %}
-    data-size-preset data-for-element="{{ form.instance.pk }}"> {{ label }}</label>
-{% endfor %}
+<fieldset class="size-presets">
+  <legend>{% trans "Size" %}</legend>
+  {% for value, label in form.fields.size.choices %}
+    <label><input type="radio" name="size" value="{{ value }}"
+      {% if form.size.value|stringformat:"s" == value|stringformat:"s" %} checked{% endif %}
+      data-size-preset data-for-element="{{ form.instance.pk }}"> {{ label }}</label>
+  {% endfor %}
+</fieldset>
 ```
 
 The `stringformat:"s"` comparison mirrors `_edit_callout.html:6`, which reflects the stored
@@ -220,7 +230,7 @@ default `full` already checked via `form.instance.size`.
 
 - `data-size-preset` — the hook the delegated listener matches on (a marker attribute, no value).
 - `data-for-element` — the element pk, so the listener can find the matching rendered `<figure>`
-  by its `data-size-el` (see §2 for why that is not `data-element-id`).
+  by its `data-preview-el` (see §2 for why that is not `data-element-id`).
 
 Without both attributes the enhancement in §5 silently does nothing, so they are part of this
 section's contract, not an implementation detail.
@@ -230,7 +240,7 @@ section's contract, not an implementation detail.
 The preview pane wraps each **top-level** element as
 `<section class="prev-el" data-element-id="{{ el.pk }}">` (`_preview.html`), but a **nested** image —
 inside a spoiler, tabs, two-column or callout — has no such wrapper. Nesting is the common case here
-(the originating image is inside a spoiler), which is why §2 puts `data-size-el` on the figure
+(the originating image is inside a spoiler), which is why §2 puts `data-preview-el` on the figure
 itself, where it is present at every nesting depth.
 
 **On the create flow the live preview is inertly a no-op.** `views_manage.py:1437-1446` builds the
@@ -251,7 +261,7 @@ pane is within its subtree. Reusing it keeps one change-handler in the file:
 var preset = e.target.closest("[data-size-preset]");
 if (preset) {
   var fig = document.querySelector(
-    '.el--image[data-size-el="' + preset.dataset.forElement + '"]'
+    '.el--image[data-preview-el="' + preset.dataset.forElement + '"]'
   );
   if (fig) {
     fig.classList.remove(
@@ -289,7 +299,7 @@ Three call sites, all in the image trio:
 - **Import** — `_build_image` (`courses/transfer/importer.py:491-495`).
 
 The house pattern for exactly this already exists in the same file, for iframe `width`/`height` added
-in FORMAT_VERSION 2 (`payloads.py:153-156`):
+in FORMAT_VERSION 2 (`payloads.py:153-157` — the rationale comment at `:153`, the two `setdefault` calls at `:156-157`):
 
 > `data.setdefault("width", None)` — *"so a legacy v1 archive (which has neither) gains them and
 > passes the exact-keys check, and so downstream `_build_iframe` never KeyErrors."*
@@ -322,7 +332,11 @@ media registration or id remapping is involved.
 
 ## Error handling
 
-Every failure path degrades to `full`, i.e. today's rendering:
+Three of the rows below degrade to `full` (today's rendering); the other three are **not** failures
+and must not be conflated with them — a bad form value is *rejected*, not silently coerced, and the
+JS-disabled and print rows are simply different valid rendering paths. The distinction matters: a
+reader who took "everything degrades to `full`" literally might make the form coerce instead of
+validate, which would let a typo in a POST silently resize an image.
 
 | condition | behaviour |
 |---|---|
@@ -350,7 +364,7 @@ and name the mutant. A passing test proves nothing on its own.
 |---|---|---|
 | 1 | default is `full`; `choices` rejects junk | model test |
 | 2 | each of the four presets renders its class | render test, one per preset |
-| 3 | `data-size-el` is present and correct on the figure, including on a **nested** image | render test through a spoiler/callout |
+| 3 | `data-preview-el` is present and correct on the figure, including on a **nested** image | render test through a spoiler/callout |
 | 3b | **the figure does NOT carry `data-element-id`** on a student page | render test — guards the `progress.js` invariant against a future "unify the attributes" cleanup |
 | 3c | a nested image's pk is absent from `_seen_current_ids` | pins the `parent__isnull=True` filter that makes 3b's invariant safe |
 | 4 | export writes `size` | transfer unit test |
@@ -372,9 +386,13 @@ Rows 8-10 are load-bearing and cannot be replaced by source scans.
 - **Row 8's two viewports are pinned**, so its expected values are computable and reviewable rather
   than left to the implementer: **desktop 1280x900** (the 900px height the §3 table is footnoted
   against) and **phone 360x640**. At the phone viewport the `dvh` caps resolve to
-  small 192px / medium 288px / large 384px / full 640px. The width caps resolve against the
-  *containing block*, not the viewport, so the test asserts **whichever constraint binds** for the
-  fixture image rather than a fixed width number.
+  small 192px / medium 288px / large 384px / full 640px.
+- **Row 8 needs TWO fixtures — one tall, one wide — or the width caps are never tested.** For the
+  tall fixture (297x719) the height cap binds first at *every* preset, so `max-width` is dead weight
+  in the measurement: shipping `small` as `35%` instead of `25%` would not move the rendered box by
+  a pixel. Pair it with a wide fixture — **948x719**, the real sibling image from the same spoiler in
+  unit 1095 — where the width cap binds instead. One tall + one wide per preset per viewport is what
+  makes both numbers in each bounding box load-bearing.
 - **Row 8** must run at **two** viewports. A single-viewport test passes even if the cap were
   silently authored as a fixed `px`, which is that row's specific target.
 - **Row 8 must exercise all four presets, not one representative.** Row 2 only asserts that the
