@@ -2151,7 +2151,7 @@ def _copy_into(el, unit, dest_parent, tab_id):
 Run: `uv run pytest tests/test_builder_paste_element.py -v`
 Expected: all **24** PASS (23 test functions, one parametrised over two modes).
 
-- [ ] **Step 6: Falsify the four move/copy assertions that could be vacuous**
+- [ ] **Step 6: Falsify the five move/copy assertions that could be vacuous**
 
 Apply, run, confirm RED, revert. "The source group is compacted" and "the destination keeps distinct orders" are both true of an implementation that never moves anything, so these mutations are what make them mean something.
 
@@ -3206,7 +3206,7 @@ A small inclusion tag, invoked at the five slot sites. The template never re-der
 - Consumes: `move_slots` / `copy_slots` from the context (Task 9), and `builder.slot_key`. NOT `clip_active` — the empty sets already make the tag a no-op when nothing is marked; `clip_active` belongs to the next task's `<details>` conditions and banner.
 - Produces: the author-facing paste controls. `editor.js:289` intercepts any `form[data-op]`, so no JavaScript.
 
-**The tag is invoked at the five include sites, not inside `_add_menu.html`.** Five edits rather than one — four nested slots plus the top-level one — bought deliberately: the three nested add-menu includes sit behind `{% if depth < max_nest_depth %}`, so putting the buttons inside the menu would silently inherit that guard and make a slot unpasteable exactly where the menu is suppressed. Paste legality is `paste_allowed`'s business alone. **The tag call therefore goes OUTSIDE that guard**, on the same line. The consequence is that the buttons can render with no `.addwrap` beside them, so Task 12's CSS must define a standalone appearance as well as the grouped one.
+**The tag is invoked at the five include sites, not inside `_add_menu.html`.** Five edits rather than one — four nested slots plus the top-level one — bought deliberately: the four nested add-menu includes sit behind `{% if depth < max_nest_depth %}`, so putting the buttons inside the menu would silently inherit that guard and make a slot unpasteable exactly where the menu is suppressed. Paste legality is `paste_allowed`'s business alone. **The tag call therefore goes OUTSIDE that guard**, on the same line. The consequence is that the buttons can render with no `.addwrap` beside them, so Task 12's CSS must define a standalone appearance as well as the grouped one.
 
 **`takes_context=True`** so the tag can read `unit`, the token and the two sets off the ambient context. Note there is no `slug` key in the editor context — the templates all spell it `unit.course.slug`, and so must the tag. Not for CSRF: Django's `InclusionNode.render` copies `csrf_token` into the fresh context unconditionally, `takes_context` or not.
 
@@ -3837,7 +3837,13 @@ In the same file, add the `clip_active` disjunct to both `<details>` conditions.
 In `templates/courses/manage/editor/_editor_scope.html`, replace the `.pane-head` div (`:8`) with:
 
 ```html
-    <div class="pane-head"><h2>{% trans "Editor" %}</h2><span class="pane-head__count">{% blocktranslate count n=rows|length %}{{ n }} element{% plural %}{{ n }} elements{% endblocktranslate %}</span>
+    <div class="pane-head"><h2>{% trans "Editor" %}</h2><span class="pane-head__count">{% blocktranslate count n=rows|length %}{{ n }} element{% plural %}{{ n }} elements{% endblocktranslate %}</span>{% comment %}
+      `.pane-head` is `display:flex; justify-content:space-between` with exactly TWO
+      children today, which is what pins the count to the right edge. The banner
+      below becomes a THIRD child, so without the CSS in the styling task the row
+      re-distributes and the count drifts to the centre whenever a mark is pending
+      -- a visible change to existing chrome, not just to the new element.
+      {% endcomment %}
       {% comment %}
       The mark banner MUST live inside [data-scope="editor"]: applyFragments
       replaces only the two panes, and editor.html's header region sits outside
@@ -3875,14 +3881,17 @@ Expected: all PASS. A failure in the bare-dict render tests means the tag or the
 
 Run: `uv run python manage.py makemessages -l pl -l en --no-obsolete`
 
-**Expect exactly 14 new msgids** — `Select`, `Cancel selection`, `Move here`, `Copy here`, `Selected: %(clip_label)s`, the eight entries of `PASTE_REFUSAL_MESSAGES`, and `_refused`'s fallback `That placement is not allowed.` Check the count against the diff; a different number means something was missed or something unexpected drifted in. Every one of them is new to this branch.
+**Expect exactly 13 NEW msgids** — `Select`, `Cancel selection`, `Copy here`, `Selected: %(clip_label)s`, the eight entries of `PASTE_REFUSAL_MESSAGES`, and `_refused`'s fallback `That placement is not allowed.`
+
+**`Move here` is NOT new.** It already exists in both catalogues (`locale/pl/LC_MESSAGES/django.po:4406`, translated `Przenieś tutaj`, sourced from `templates/courses/manage/_move_picker.html`). This run only adds a second source reference to it — leave its `msgstr` alone. Reusing the string is deliberate: the two controls mean the same thing to an author.
+
+Check 13 against the diff; a different number means something was missed or something unexpected drifted in. Every one of them is new to this branch.
 
 Then, before compiling:
 - **Check the diff for `#, fuzzy` markers.** A fuzzy entry carries a WRONG pre-filled translation from an unrelated msgid and is ignored until the marker is cleared — and clearing it is TWO deletions, the `#, fuzzy` line **and** the `#| msgid "…"` provenance comment. Read every new `msgstr` rather than trusting it.
 - Fill in a Polish translation for each new entry. Suggested, all to be flagged in your report for a native-speaker check:
   - `Select` → `Zaznacz`
   - `Cancel selection` → `Anuluj zaznaczenie`
-  - `Move here` → `Przenieś tutaj`
   - `Copy here` → `Kopiuj tutaj`
   - `Selected: %(clip_label)s` → `Zaznaczono: %(clip_label)s`
   - `That element is not part of this unit.` → `Ten element nie należy do tej lekcji.`
@@ -3919,17 +3928,7 @@ A modifier class with no rule is invisible, which for the mark is indistinguisha
 
 `.el-row`, `.el-actions`, `.pane-head`, `.addwrap`, `.iconbtn` and `.tabs-rows` are all defined in `editor.css` and nowhere else on this page, so the new rules belong beside them. `courses.css` loads first with the shared base, so equal-specificity rules here win.
 
-- [ ] **Step 1: Add the three rule groups**
-
-Beside the existing `.el-row` / `.pane-head` / `.addwrap` definitions, using the project's `--space-*` and colour tokens rather than raw pixels:
-
-1. `.el-row--marked` — a visible but non-shouty selected state (an accent left border or ring plus a faint background tint). It must read as "selected", distinct from `.el-row--editing`.
-2. `.clip-banner` — sits in `.pane-head` beside the element count; must not push the count onto a second line at a narrow pane width, and its ✕ button aligns with the text.
-3. `.pastewrap` / `.pastebtn` — grouped against `.addwrap`, since in practice an add-menu is always beside them.
-
-   **On the "standalone" appearance:** the tag call sits outside the `{% if depth < max_nest_depth %}` guard on purpose (paste legality is `paste_allowed`'s business, not the menu's), but that guard compares the CONTAINER's depth against 4 — and a container may only live at depths 1–3, so `depth < 4` holds at every legally reachable slot and the menu is never actually suppressed beside a paste button. A standalone rule is therefore defensive-only, reachable solely through a corrupt depth-4 container written directly by the ORM. Add one if it costs a line, but do not treat it as a shipping requirement and do not go hunting for the screenshot.
-
-- [ ] **Step 1b: Pin the four selectors in the existing style test**
+- [ ] **Step 1: Pin the four selectors in the existing style test (RED first)**
 
 A screenshot pass is a one-off; nothing stops a later refactor deleting a rule and leaving the suite green. The repo already has the idiom — `tests/test_editor_styles.py::test_editor_css_styles_action_buttons` asserts `".tree__act"`, `".tree__act--danger"` and `".tree__inline"` appear in `editor.css`, precisely because `builder.css` is not loaded on this page. Extend **that function** (it already binds `css`) by appending the four new selectors to its existing tuple:
 
@@ -3939,11 +3938,28 @@ A screenshot pass is a one-off; nothing stops a later refactor deleting a rule a
 ```
 
 Run: `uv run pytest tests/test_editor_styles.py -v`
-Expected: PASS once Step 1's rules exist; RED before them, which is the point.
+Expected: **RED** — none of the four selectors exists yet. That is the point, and it is why this step comes BEFORE the CSS rather than after: written afterwards the assertion could never be observed failing, which is the one discipline every other task in this plan follows.
+
+- [ ] **Step 1b: Add the three rule groups (GREEN)**
+
+Beside the existing `.el-row` / `.pane-head` / `.addwrap` definitions, using the project's `--space-*` and colour tokens rather than raw pixels:
+
+1. `.el-row--marked` — a visible but non-shouty selected state (an accent left border or ring plus a faint background tint). It must read as "selected", distinct from `.el-row--editing`.
+2. `.clip-banner` — sits in `.pane-head` beside the element count. **Two things to get right, and the first is a regression risk rather than a cosmetic one:**
+   - `.pane-head` is `display:flex; justify-content:space-between` (`editor.css:396`) with exactly two children today, so the count sits hard right. The banner is a third child and will otherwise push the count to the centre *whenever a mark is pending*. Pin it with `margin-inline-start:auto` on `.clip-banner` so the count stays adjacent to the `h2` and the banner takes the right edge — or wrap `h2`+count in one flex child. Either way, verify the UNMARKED pane head is byte-identical to before.
+   - It must not push the count onto a second line at a narrow pane width, and its ✕ button aligns with the text.
+3. `.pastewrap` / `.pastebtn` — **its own row directly under `.addwrap`**, e.g. `.pastewrap { margin-top: var(--space-2); display: flex; gap: var(--space-2); }`.
+
+   Do NOT try to sit the buttons *beside* the add menu. `.addwrap` is a plain block whose `.addbtn` child is `display:flex; width:100%` (`editor.css:523-524`), and `.pastewrap` is a block-level SIBLING inside a `<details>` / `.el-row__spoiler` / `.el-row__callout` / `.pane-body` — none of which is a flex container. Getting them side by side would mean either shrink-wrapping `.addwrap` (squashing the full-width add button and the type-card grid) or making those parents flex (breaking the sibling `<ol class="element-list">`). Neither is authorised by this plan.
+
+   **On the "standalone" appearance:** the tag call sits outside the `{% if depth < max_nest_depth %}` guard on purpose (paste legality is `paste_allowed`'s business, not the menu's), but that guard compares the CONTAINER's depth against 4 — and a container may only live at depths 1–3, so `depth < 4` holds at every legally reachable slot and the menu is never actually suppressed beside a paste button. A standalone rule is therefore defensive-only, reachable solely through a corrupt depth-4 container written directly by the ORM. Add one if it costs a line, but do not treat it as a shipping requirement and do not go hunting for the screenshot.
+
+Run: `uv run pytest tests/test_editor_styles.py -v`
+Expected: PASS — the assertion from Step 1 now finds all four selectors.
 
 - [ ] **Step 2: Screenshot a marked row and a slot's paste buttons, light mode**
 
-Use the `/run` skill or the project's documented dev-server steps, drive a real browser, and capture: a marked top-level row, a marked nested row, and a slot showing both paste buttons beside its add-menu. Check the row bar does not wrap now that it holds ✎ ✕ ↑ ↓ ⧉ ⊹ 🗑 — that is the highest-risk item here, since this task adds the seventh control.
+Use the `/run` skill or the project's documented dev-server steps, drive a real browser, and capture: a marked top-level row, a marked nested row, a slot showing both paste buttons beside its add-menu, **and the `.pane-head` in both states — marked (banner present) and unmarked** — so the flex re-distribution described in Step 1 is actually looked at rather than reasoned about. Check the row bar does not wrap now that it holds ✎ ✕ ↑ ↓ ⧉ ⊹ 🗑 — that is the highest-risk item here, since this task adds the seventh control.
 
 Do **not** try to screenshot a paste button with no add-menu beside it: as Step 1 explains, that state is unreachable for any legally authored container.
 
@@ -3958,7 +3974,7 @@ If nothing is wrong, change nothing and say so explicitly with the evidence that
 - [ ] **Step 5: Commit**
 
 ```bash
-git add courses/static/courses/css/editor.css
+git add courses/static/courses/css/editor.css tests/test_editor_styles.py
 git commit -m "style(editor): style the clipboard mark, its banner and the paste controls"
 ```
 
