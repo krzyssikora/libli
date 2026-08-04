@@ -4,5 +4,24 @@
     {% include "courses/elements/_callout_icon.html" %}
     <span class="callout__heading">{{ el.display_heading }}</span>
   </div>
-  <div class="el el--text callout__body">{{ el.body|sanitize }}</div>
+  {% if el.body %}
+    <div class="el el--text callout__body">{{ el.body|sanitize }}</div>
+  {% endif %}
+  {% if children %}
+    {% comment %}
+    One wrapper, for three reasons of its own (NOT the #212 continuous-rule
+    argument, which is about .spoiler__children's 2px left rule -- this wrapper
+    carries no rule): it is the node reveal.js `scopeOf` resolves to, the anchor for
+    `.callout__body + .callout__children`, and the subject of the
+    `:has(> .callout__children)` predicate the prose-cap narrowing keys on.
+    `.callout__child` must carry NO `display` declaration -- if one is ever added,
+    `.callout__child[hidden]` must join the app.css [hidden] guard, or the reveal
+    cascade's `gateWrap.hidden = true` stops working.
+    {% endcomment %}
+    <div class="callout__children">
+      {% for child in children %}
+        <div class="callout__child">{% render_element child %}</div>
+      {% endfor %}
+    </div>
+  {% endif %}
 </aside>
