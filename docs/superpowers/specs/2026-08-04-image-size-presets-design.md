@@ -195,6 +195,19 @@ image height today), so the values are stated here rather than left to the imple
 | `.el--image--large` | 110mm |
 | `.el--image--full` | 170mm |
 
+**Placement is load-bearing: the `@media print` block MUST come after the preset rule-set.**
+`@media print { .el--image--small img { max-height: 45mm } }` has *identical* specificity to the
+screen rule `.el--image--small img { max-height: 30dvh }` — **a media query adds no specificity** —
+so the winner is decided purely by source order. Put the print block first and every preset prints
+at its `dvh` value, which on paper resolves against nothing useful.
+
+This is not hypothetical: `courses.css:942-945` carries a comment about precisely this trap —
+*"this block MUST stay after it: … media queries add no specificity, so the reveal would win and the
+pin would print anyway."* And `@media print` blocks in this stylesheet are scattered (`:822`,
+`:947`, `:1476`, `:1813`), so there is no ambient end-of-file convention to fall back on. The
+implementation must place the block after the presets and carry a comment saying why, in the style
+of `:942-945`.
+
 Derivation: A4 is 297mm tall; with this project's page margins roughly 250mm is printable. `full` at
 170mm leaves ~80mm for surrounding text so an image never monopolises a page. The three smaller
 presets step down from it in the same *order and rough spacing* as on screen — deliberately not an
@@ -418,6 +431,7 @@ and name the mutant. A passing test proves nothing on its own.
 | 11 | the zoom overlay shows the image unaffected by the preset | e2e |
 | 12 | a nested image scales to its container in **all four** containers — spoiler, tabs, two-column, callout | render or e2e, one case each |
 | 13 | print CSS defines all four presets | source-scan, block-extracted |
+| 13b | **under print media the RESOLVED `max-height` is the mm value, not the `dvh` one** | **e2e**, `page.emulate_media(media="print")` then read the computed style per preset |
 | 14 | the radios carry `data-size-preset` and `data-for-element` | render test — the §4/§5 contract |
 | 15 | the stored preset renders as the `checked` radio; a fresh element shows `full` checked | render test — the §4b contract |
 | 16 | an alt-text-only save of an image element still succeeds | regression pin for §4b's required-field trap |
@@ -459,6 +473,10 @@ Rows 8-10 are load-bearing and cannot be replaced by source scans.
 - **Row 13** must extract the `@media print` block before scanning it. A file-wide scan for
   `.el--image--small` passes while the print block is empty, because the selector also appears in the
   screen rules — the exact defect shape found in #214's reveal-scope agreement test.
+- **Row 13 alone is not sufficient, which is why 13b exists.** A source-scan proves the print rule is
+  *present*; it cannot prove the print rule *wins*. Since the print and screen declarations tie on
+  specificity, a print block placed above the presets would leave row 13 green while every image
+  printed at its `dvh` height. Only reading the resolved value under emulated print media catches it.
 
 ## Out of scope
 
