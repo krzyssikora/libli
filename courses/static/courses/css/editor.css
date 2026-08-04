@@ -397,6 +397,59 @@ button.asset-cell:hover { border-color: var(--primary); }
   padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--border-subtle); }
 .pane-head h2 { font-size: .78rem; text-transform: uppercase; letter-spacing: .05em; color: var(--text-tertiary); }
 .pane-head__count { font-size: .72rem; color: var(--text-tertiary); }
+/* Clipboard mark banner ("⊹ Selected: <label>" + a ✕ cancel), rendered into the
+   editor pane head only while a mark is pending.
+   margin-inline-start:auto is load-bearing, not spacing: .pane-head above is
+   justify-content:space-between with exactly TWO children, which is what pins the
+   count to the right edge. The banner is a THIRD child, so without the auto margin
+   the free space redistributes and the count drifts to the middle of the head
+   *whenever a mark is pending* — a visible change to existing chrome. With it, the
+   count stays adjacent to the h2 and the banner takes the right edge.
+   Accent family (not --primary) so it reads as the same "marked" colour as
+   .el-row--marked and never as the editing/primary state.
+   The label is a bare text node (no element to hang an ellipsis on), so the banner
+   itself does the truncating: display:block + nowrap + hidden + ellipsis. The cancel
+   form is taken OUT OF FLOW and parked in reserved padding at the trailing edge —
+   the ellipsis lands at the content edge, i.e. before the ✕, which therefore can
+   never be pushed away or clipped. (Measured: floating it instead drops the ✕ onto a
+   second line the moment the label overflows, because a float cannot sit beside a
+   line box wider than its container — that doubled the pane head's height.) */
+.clip-banner {
+  margin-inline-start: auto; position: relative;
+  display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  /* min-width:0 lets the banner shrink as a flex item instead of squeezing the
+     count; max-width caps it so a 60-char element label cannot claim the head. */
+  min-width: 0; max-width: 60%;
+  padding: var(--space-1) var(--space-2);
+  /* the ✕'s reserved lane: its own width plus one gap */
+  padding-inline-end: calc(1.4rem + var(--space-3));
+  border: 1px solid var(--accent); border-radius: var(--radius-full);
+  background: var(--accent-subtle); color: var(--text-secondary);
+  font-size: .72rem; line-height: 1.3;
+}
+.clip-banner .tree__inline {
+  position: absolute; inset-inline-end: var(--space-1);
+  top: 50%; transform: translateY(-50%);
+}
+/* Smaller than a row-bar .iconbtn (1.9rem): at that size the button alone would be
+   taller than the h2 and would drive the pane head's height. */
+.clip-banner .iconbtn {
+  min-width: 1.4rem; min-height: 1.4rem; padding: 0; line-height: 1;
+  font-size: .72rem; border-color: transparent; color: var(--text-secondary);
+}
+.clip-banner .iconbtn:hover { color: var(--text-primary); border-color: var(--border-strong); }
+/* Only while a mark is pending. .pane-head is justify-content:space-between, so with
+   its usual two children the gap is swallowed by free space and this is a no-op — but
+   the auto margin above packs the h2 and the count together, and without a gap they
+   render as "EDITOR4 elements" (measured). :has() scopes it so the unmarked head
+   cannot be affected even in principle. */
+.pane-head:has(.clip-banner) { gap: var(--space-2); }
+/* ...and the count must not pay for the banner: at the narrowest split it was the
+   only shrinkable item left, so "4 elements" broke onto two lines and made the head
+   59px tall (measured). flex:none hands the shrinking to the banner, which has
+   min-width:0 and an ellipsis and can absorb it. Also :has()-scoped: unmarked, the
+   count is never under pressure and this rule does not exist. */
+.pane-head:has(.clip-banner) .pane-head__count { flex: none; }
 .pane-body { padding: var(--space-4); }
 /* Two-pane editor (wide screens): editor + preview fill the viewport below the unit
    header and each column scrolls INSIDE itself, so the page height is fixed by
@@ -478,8 +531,45 @@ button.asset-cell:hover { border-color: var(--primary); }
 .el-row__label { max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .el-row:hover { border-color: var(--border-strong); }
 .el-row--editing { border-color: var(--primary); background: var(--surface-raised); box-shadow: var(--shadow-sm); }
+/* The clipboard mark: this row is the pending selection. Deliberately a different
+   colour family from .el-row--editing above (primary/teal border + raised surface)
+   so "selected for a paste" and "open in the editor" never read as the same state —
+   a row can be both at once. The accent bar is an INSET box-shadow rather than a
+   border-inline-start: a wider border would add its width to the box and nudge a
+   marked row's content sideways relative to its unmarked neighbours. */
+.el-row--marked {
+  border-color: var(--accent);
+  /* Mixed against --surface-sunken, the row's OWN background, not against the
+     --accent-subtle token (which is mixed with --surface-raised): measured in dark,
+     the token landed a mid-brown block far louder than the pale peach the same token
+     gives in light, because the two themes mix different percentages against
+     different surfaces. Mixing here keeps the tint the same distance from the row it
+     tints in both themes; the 4px bar and the border carry the loud part. */
+  background: color-mix(in srgb, var(--accent) 14%, var(--surface-sunken));
+  box-shadow: inset var(--space-1) 0 0 0 var(--accent);
+}
+/* The type pill's --border-strong is a near-match for the dark tint above and the
+   pill simply disappeared there (measured: visible on every neighbouring row, gone on
+   the marked one). Accent keeps it drawn in both themes and reads as part of the
+   marked treatment rather than a second colour. */
+.el-row--marked .el-tag { border-color: var(--accent); }
 .el-actions { display: inline-flex; gap: 2px; margin-left: auto; opacity: .4; transition: opacity .12s; align-items: center; }
 .el-row:hover .el-actions, .el-row--editing .el-actions { opacity: 1; }
+/* A marked row is the one row whose controls the author is about to use, so its
+   action bar does not wait for a hover to become legible — the same exemption
+   .el-row--editing gets on the line above. */
+.el-row--marked .el-actions { opacity: 1; }
+/* The bar now holds seven controls (✎/✕ ↑ ↓ ⧉ ⊹ 🗑, six visible at a time) and stops
+   fitting beside the type tag at the narrowest split. MEASURED at a 1130px viewport
+   (the editor pane's floor): .el-row__top offers 196px, the bar wants 250px, and
+   because every child is a nowrap inline-flex form the bar could not shrink — it
+   overflowed, and 🗑 rendered 41px OUTSIDE the card's rounded border, clipped by the
+   pane. The same A/B with the ⊹ hidden overflowed by 22px, so this is a pre-existing
+   defect that the seventh control makes glaring rather than one it creates.
+   Wrapping is the graceful degradation: allowing a break makes the bar's min-content
+   one form wide, so it shrinks and takes a second right-aligned line instead of
+   losing controls. At any width where it already fits, nothing moves. */
+.el-actions { flex-wrap: wrap; justify-content: flex-end; }
 /* While editing, the row's ✎ becomes a ✕ (cancel) so you can close the form without
    scrolling to the in-form Cancel. Toggled by .el-row--editing so a client-side cancel
    (which only flips that class) reverts the icon without a re-render. */
@@ -536,6 +626,28 @@ button.asset-cell:hover { border-color: var(--primary); }
 .typecard:hover { border-color: var(--primary); color: var(--text-primary); background: var(--primary-subtle); }
 .typecard .ic { width: 1.2rem; height: 1.2rem; fill: currentColor; }
 @media (max-width: 720px) { .typemenu__group { grid-template-columns: repeat(3, 1fr); } }
+
+/* Paste controls (📋 Move here / ⧉ Copy here) for one slot. Their own row directly
+   UNDER the slot's add-menu, never beside it: .addwrap is a plain block whose
+   .addbtn is width:100%, and .pastewrap is a block-level sibling inside a
+   <details> / .el-row__spoiler / .el-row__callout / .pane-body — none of them flex.
+   Side by side would mean shrink-wrapping the add button (squashing it and the
+   type-card grid) or making those parents flex (which would break the sibling
+   <ol class="element-list">).
+   The base margin is the standalone one (an add-menu-less slot sits as far from the
+   list as .addwrap would); the adjacent-sibling rule tightens it to a half step when
+   the paste row really is the add menu's second row, which is every legally
+   reachable slot. Standalone is defensive only: the add-menu's guard compares the
+   CONTAINER's depth against 4 and a container may only live at depths 1–3, so
+   `depth < 4` holds everywhere and the menu is never actually suppressed beside a
+   paste row — it costs one line to not look broken behind an ORM-written depth-4
+   container. */
+.pastewrap { margin-top: var(--space-4); display: flex; gap: var(--space-2); }
+.addwrap + .pastewrap { margin-top: var(--space-2); }
+/* Accent, matching .el-row--marked and .clip-banner: these buttons exist only while
+   a mark is pending, and their colour is what ties them to the marked row. */
+.pastebtn { border-color: var(--accent); color: var(--accent); }
+.pastebtn:hover { background: var(--accent-subtle); border-color: var(--accent); color: var(--text-primary); }
 
 /* --- Drag-to-image authoring: zone label rows --- */
 /* Each row = a numbered badge + the label input. The raw x/y/w/h/order inputs are

@@ -26,6 +26,12 @@ def test_editor_css_styles_action_buttons():
     # buttons fall back to invisible UA defaults in dark mode.
     for cls in (".tree__act", ".tree__act--danger", ".tree__inline"):
         assert cls in css, f"editor.css must style {cls}"
+    # Same argument for the clipboard's four classes: _element_row.html,
+    # _editor_scope.html and _paste_buttons.html reference them and nothing else
+    # styles them, so an unstyled .el-row--marked is indistinguishable from a
+    # broken mark. A screenshot pass is a one-off; this is the standing guard.
+    for cls in (".el-row--marked", ".clip-banner", ".pastewrap", ".pastebtn"):
+        assert cls in css, f"editor.css must style {cls}"
 
 
 BUILDER_CSS = (
