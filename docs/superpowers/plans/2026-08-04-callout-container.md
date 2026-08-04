@@ -23,6 +23,12 @@
 - **Module-level translatable strings** must use `gettext_lazy`.
 - **`makemigrations --check --dry-run` must stay clean** (CI guards this since #204).
 - **A passing test proves nothing** — for every test, delete the code it guards and confirm it goes RED before moving on.
+- **Lint at the task that introduces the code, not at Task 14.** `ruff` runs with
+  `select = ["E", "F", "I", "UP", "B", "S"]` at line-length 88, so `E501` is live and the
+  repo is currently clean. Every task's "Run tests" step must also run
+  `uv run ruff check <files this task touched>` and `uv run ruff format --check <same>`.
+  Otherwise a long line or an unformatted snippet surfaces only at Task 14 Step 4, after
+  eight commits have landed. Keep every snippet under 88 columns; never semicolon-chain.
 
 ## File Structure
 
@@ -46,7 +52,8 @@ Production files, in dependency order:
 | `courses/static/courses/js/reveal.js` | `scopeOf` gains `.callout__children` |
 | `templates/courses/lesson_unit.html` | 4th pre-hide selector |
 | `courses/static/courses/js/math.js` | `renderInlineText` gains `.callout__heading` |
-| `courses/migrations/00XX_*.py` | `RunPython` spoiler body cleanup |
+| `courses/migrations_support.py` | **new module** — the `body_is_empty_ish` predicate, in a leaf module a migration can import without touching live models |
+| `courses/migrations/0053_spoiler_body_cleanup.py` | `RunPython` spoiler body cleanup |
 | `docs/help/course-admin/{content-editors,interactive-elements}{,.pl}.md` | author documentation |
 
 ---
@@ -246,7 +253,9 @@ def test_render_emits_children_in_order():
 
 def test_render_emits_body_ABOVE_children():
     _course, unit = make_course_with_unit()
-    co, join = _callout_with_children(unit, ("<p>CHILD</p>",), callout_body="<p>BODY</p>")
+    co, join = _callout_with_children(
+        unit, ("<p>CHILD</p>",), callout_body="<p>BODY</p>"
+    )
     html = co.render(element=join, state={}, slug="x", node_pk=unit.pk)
     # Source ORDER, not mere presence -- a presence-only assertion is green under
     # the wrong order.
@@ -429,7 +438,9 @@ def test_callout_is_in_the_container_key_space():
 def test_resolve_scope_accepts_a_table_into_a_callout():
     _course, unit = make_course_with_unit()
     _co, join = _top_callout(unit)
-    parent, tab = builder.resolve_scope(unit, str(join.pk), CalloutElement.SLOT_ID, "table")
+    parent, tab = builder.resolve_scope(
+        unit, str(join.pk), CalloutElement.SLOT_ID, "table"
+    )
     assert (parent, tab) == (join, CalloutElement.SLOT_ID)
 
 
@@ -444,14 +455,19 @@ def test_callout_in_callout_is_authorable():
     """Same-type nesting -- the shape a fixture monoculture hides (PR #209)."""
     _course, unit = make_course_with_unit()
     _co, join = _top_callout(unit)
-    parent, tab = builder.resolve_scope(unit, str(join.pk), CalloutElement.SLOT_ID, "callout")
+    parent, tab = builder.resolve_scope(
+        unit, str(join.pk), CalloutElement.SLOT_ID, "callout"
+    )
     assert parent == join
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `uv run pytest courses/tests/test_callout_nesting.py --verbosity=0`
-Expected: FAIL — `NestingError: parent is not a container`, and the drift assertion fails.
+Expected: FAIL — `test_callout_is_in_the_container_key_space` fails on membership and
+the three `resolve_scope` tests fail with `NestingError: parent is not a container`.
+(The generic drift test lives in `test_nesting_rule.py`, is not in this command, and is
+green before the change anyway — all three registries are consistent without `callout`.)
 
 - [ ] **Step 3: Implement**
 
@@ -483,7 +499,12 @@ Add `from courses.models import CalloutElement` to the imports at the top of `bu
 `courses/transfer/payloads.py:753`:
 
 ```python
-_CONTAINER_SLOT_KEY = {"tabs": "tabs", "two_column": "columns", "spoiler": None, "callout": None}
+_CONTAINER_SLOT_KEY = {
+    "tabs": "tabs",
+    "two_column": "columns",
+    "spoiler": None,
+    "callout": None,
+}
 ```
 
 - [ ] **Step 4: Run tests to verify they pass**
@@ -533,7 +554,9 @@ def test_canonical_spoiler_tabs_callout_table_is_authorable():
     sp = SpoilerElement.objects.create(label="s")
     sp_join = add_element(unit, sp)
 
-    tabs = TabsElement.objects.create(data={"tabs": [{"id": "t000001", "label": "One"}]})
+    tabs = TabsElement.objects.create(
+        data={"tabs": [{"id": "t000001", "label": "One"}]}
+    )
     tabs_join = Element.objects.create(
         unit=unit, content_object=tabs, parent=sp_join, tab_id=SpoilerElement.SLOT_ID
     )
@@ -556,7 +579,9 @@ def test_a_container_may_not_be_nested_at_depth_4():
     _course, unit = make_course_with_unit()
     sp = SpoilerElement.objects.create(label="s")
     sp_join = add_element(unit, sp)
-    tabs = TabsElement.objects.create(data={"tabs": [{"id": "t000001", "label": "One"}]})
+    tabs = TabsElement.objects.create(
+        data={"tabs": [{"id": "t000001", "label": "One"}]}
+    )
     tabs_join = Element.objects.create(
         unit=unit, content_object=tabs, parent=sp_join, tab_id=SpoilerElement.SLOT_ID
     )
@@ -816,7 +841,9 @@ def test_math_TWO_containers_deep_inside_a_callout_is_detected():
     _course, unit = make_course_with_unit()
     co = CalloutElement.objects.create(kind="example")
     join = add_element(unit, co)
-    tabs = TabsElement.objects.create(data={"tabs": [{"id": "t000001", "label": "One"}]})
+    tabs = TabsElement.objects.create(
+        data={"tabs": [{"id": "t000001", "label": "One"}]}
+    )
     tabs_join = Element.objects.create(
         unit=unit, content_object=tabs, parent=join, tab_id=CalloutElement.SLOT_ID
     )
@@ -1170,7 +1197,9 @@ _TAG = re.compile(r"<[^>]*>")
 def body_is_empty_ish(body):
     """True when a rich-text body carries no visible content.
 
-    strip tags -> unescape entities -> strip whitespace (str.strip() covers U+00A0 — it is `.isspace()`). Must catch
+    strip tags -> unescape entities -> strip whitespace. `str.strip()` with no
+    argument removes U+00A0 too ('\xa0'.isspace() is True), so no explicit nbsp
+    pass is needed. Must catch
     `<br>`, `<p><br></p>`, `<div>&nbsp;</div>` and a decoded-nbsp body: both `div`
     and `p` are in ALLOWED_TAGS, and the RTE's normal empty output is `<p><br></p>`,
     not a bare `<br>`.
@@ -1292,7 +1321,10 @@ def test_migration_clears_A_and_B_but_preserves_C():
     mod = import_module(f"courses.migrations.{_MIGRATION_PREFIX}_spoiler_body_cleanup")
     mod.clear_unreachable_bodies(live_apps, None)
 
-    a.refresh_from_db(); b.refresh_from_db(); c.refresh_from_db(); childless_a.refresh_from_db()
+    a.refresh_from_db()
+    b.refresh_from_db()
+    c.refresh_from_db()
+    childless_a.refresh_from_db()
     assert a.body == ""
     assert b.body == ""
     assert c.body == "<p>GENUINELY STRANDED</p>", "category C must be preserved"
@@ -1337,17 +1369,18 @@ Two failure modes, both silent server-side: omit the branch and a callout falls 
 
 - [ ] **Step 1: Invert the existing depth tests**
 
-`tests/test_editor_depth.py` — **anchor by content, not line number**; several cited
-numbers in this plan drift by 1–6 lines and the `:157` one points at the
-`CONTAINER_CARDS` loop rather than the callout assertion. Find the literal
+`tests/test_editor_depth.py` — **anchor by content, not line number.** A few citations
+elsewhere in this plan drift by a line or two, so locate every edit by its text. (For
+the record `:157` *is* the callout assertion and `:82` *is* `CONTAINER_CARDS`; an
+earlier draft of this plan asserted otherwise and was simply wrong.) Find the literal
 `CONTAINER_CARDS = ` line:
 
 ```python
 CONTAINER_CARDS = ("tabs", "twocolumn", "spoiler", "callout")
 ```
 
-Then find the literal line `assert 'data-add-type="callout"' in menu` (around `:158`)
-and flip **only** that line to `not in`. The existing
+Then find the literal line `assert 'data-add-type="callout"' in menu` (at `:157`) and
+flip **only** that line to `not in`. The existing
 `assert 'data-add-type="text"' in menu` on the following line already supplies the
 "the menu really rendered" leg — do not duplicate it:
 
@@ -1629,8 +1662,9 @@ The two shapes were mutually exclusive until Task 7, so nobody has seen them sta
 
 **Files:**
 - Modify: `core/static/core/css/app.css` — **below** `:986-993`
-- Test: `courses/tests/test_spoiler_combined_shape.py` (create — the placement
-  guard below); the *behaviour* is pinned only by Task 13's first e2e
+- Test: no new file. The **placement** guard is Step 3's falsification of the existing
+  `courses/tests/test_spoiler_css.py`; the **behaviour** is pinned only by Task 13's
+  first e2e — which is why that e2e is not optional.
 
 **Interfaces:** none.
 
@@ -1778,10 +1812,22 @@ Expected: FAIL — `.callout__children` missing from all three; `.spoiler__child
 
 - [ ] **Step 4: Add the 4th pre-hide selector**
 
-`templates/courses/lesson_unit.html:39-41`:
+`templates/courses/lesson_unit.html` — the pre-hide `<style>` block. **Insert the new
+selector BEFORE the existing `.spoiler__children` line**, not after it. That line is the
+last in the list and ends with ` {`, so appending verbatim leaves a dangling comma before
+the block, which invalidates the ENTIRE selector list — the pre-hide rule then silently
+stops working for all four scopes. The structural agreement test in this same task would
+still pass (it only scans for tokens); only Task 13's gate e2e would catch it. Result:
 
 ```css
+  <style>
+    .reveal-armed .slide > .lesson-block:has(> .lesson-block__body > [data-reveal-gate]) ~ .lesson-block:not(.reveal-shown),
+    .reveal-armed [data-tab-panel] > .tabs__child:has(> [data-reveal-gate]) ~ .tabs__child:not(.reveal-shown),
     .reveal-armed .callout__children > .callout__child:has(> [data-reveal-gate]) ~ .callout__child:not(.reveal-shown),
+    .reveal-armed .spoiler__children > .spoiler__child:has(> [data-reveal-gate]) ~ .spoiler__child:not(.reveal-shown) {
+      display: none;
+    }
+  </style>
 ```
 
 - [ ] **Step 5: Fix the print revert (both scopes)**
@@ -1826,6 +1872,7 @@ git commit -m "fix(reveal): callout is a cascade scope in all three scope lists"
 **Files:**
 - Modify: `courses/static/courses/js/math.js:31`
 - Modify: `courses/tests/test_render_seam.py:25-36`, `:178-208`
+- Create: `courses/tests/test_math_selectors.py` (Step 1b)
 - Test: `tests/test_e2e_callout_container.py` (create)
 
 **Interfaces:** none importable.
@@ -1898,7 +1945,9 @@ Then add both currently-absent concretes to `CONCRETES`:
 `:180` — add both placements:
 
 ```python
-@pytest.mark.parametrize("placement", ["top", "tabs", "twocolumn", "callout", "spoiler"])
+@pytest.mark.parametrize(
+    "placement", ["top", "tabs", "twocolumn", "callout", "spoiler"]
+)
 ```
 
 **The ids alone are worse than useless**: the dispatch ends in `else:` = the two-column branch, so a new id with no branch silently builds a `TwoColumnElement` parent and passes. Add explicit branches before the `else`:
@@ -2050,7 +2099,8 @@ def test_a_table_in_a_callout_is_not_squeezed_by_the_prose_cap(page, live_server
     # CONTROL ARM first: proves the cap is live before the negative arm is trusted.
     prose_box = page.locator(".callout:not(:has(> .callout__children))").bounding_box()
     assert abs(prose_box["width"] - 736) < 2, (
-        f"control: a prose-only callout must stay capped at 46rem, got {prose_box['width']}"
+        "control: a prose-only callout must stay capped at 46rem, got "
+        f"{prose_box['width']}"
     )
     wide_box = page.locator(".callout:has(> .callout__children)").bounding_box()
     assert wide_box["width"] > 736, (
@@ -2080,7 +2130,9 @@ def test_callout_heading_math_is_not_uppercased_or_letter_spaced(page, live_serv
         " return {t: c.textTransform, l: c.letterSpacing, f: parseFloat(c.fontSize)}; }"
     )
     assert style["t"] == "none", f"heading math is being uppercased: {style['t']}"
-    assert style["l"] in ("normal", "0px"), f"heading math is letter-spaced: {style['l']}"
+    assert style["l"] in ("normal", "0px"), (
+        f"heading math is letter-spaced: {style['l']}"
+    )
     head_size = page.locator(".callout__heading").evaluate(
         "e => parseFloat(getComputedStyle(e).fontSize)"
     )
@@ -2121,7 +2173,9 @@ def test_a_gate_in_a_callout_cascades_without_hiding_the_callout(page, live_serv
     _login(page, live_server, user.username)
     page.goto(_lesson_url(live_server, unit))
     # (a) gated content hidden BEFORE the click -- what the 4th pre-hide selector buys
-    assert not page.locator(f"text={MARKER}").is_visible(), "gated content leaked pre-click"
+    assert not page.locator(f"text={MARKER}").is_visible(), (
+        "gated content leaked pre-click"
+    )
     page.click(".callout__children [data-reveal-gate]")
     page.wait_for_selector(f"text={MARKER}", state="visible")
     # (b) the callout itself survives the cascade
@@ -2148,7 +2202,8 @@ Remove the two new `elif` branches from `test_render_seam.py` (keep the ids). Ex
 - [ ] **Step 6: Commit**
 
 ```bash
-git add courses/static/courses/js/math.js courses/tests/test_render_seam.py tests/test_e2e_callout_container.py
+git add courses/static/courses/js/math.js courses/tests/test_math_selectors.py \
+        courses/tests/test_render_seam.py tests/test_e2e_callout_container.py
 git commit -m "feat(callout): typeset the heading; extend the render-seam matrix; e2e"
 ```
 
