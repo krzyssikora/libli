@@ -60,14 +60,21 @@ def test_resolved_children_empty_when_no_join_row():
     assert sp.resolved_children() == []
 
 
-def test_render_prefers_children_over_body():
+def test_render_shows_body_ABOVE_children():
+    """D1: content a CA enters must stay reachable. Both render; body first.
+
+    Assert source ORDER -- a presence-only assertion is green under the wrong order,
+    and the current template puts `{% if children %}` FIRST, so a bare elif->if
+    conversion produces children-above-body.
+    """
     _course, unit = make_course_with_unit()
     sp, join = _nested_spoiler(unit, ("<p>CHILD-BODY</p>",))
     sp.body = "<p>LEGACY-BODY</p>"
     sp.save()
     html = sp.render(element=join, state={}, slug="x", node_pk=unit.pk)
     assert "CHILD-BODY" in html
-    assert "LEGACY-BODY" not in html
+    assert "LEGACY-BODY" in html
+    assert html.index("LEGACY-BODY") < html.index("CHILD-BODY")
 
 
 def test_render_falls_back_to_body_when_no_children():
@@ -263,13 +270,15 @@ def test_spoiler_form_keeps_body_for_legacy_spoiler():
     assert "label" in form.fields
 
 
-def test_spoiler_form_drops_body_when_instance_has_children():
+def test_spoiler_form_keeps_body_when_instance_has_children():
+    """The `fields.pop` protected data nobody could reach: not rendered (template
+    elif) and not editable (this pop), with no signal anywhere."""
     from courses.element_forms import SpoilerElementForm
 
     _course, unit = make_course_with_unit()
     sp, _join = _nested_spoiler(unit, ("<p>c</p>",))
     form = SpoilerElementForm(instance=sp)
-    assert "body" not in form.fields
+    assert "body" in form.fields
     assert "label" in form.fields
 
 
@@ -475,3 +484,27 @@ def test_reorder_and_delete_spoiler_child_via_generic_element_ops(client):
     remaining = sp.resolved_children()
     assert [c.pk for c in remaining] == [b_pk]
     assert remaining[0].content_object.body == "<p>B</p>"
+
+
+def test_bodied_spoiler_nesting_a_spoiler_keeps_body_above_children_at_both_levels():
+    """Same-type nesting with a bodied outer -- the fixture-monoculture gap PR #209
+    root-caused. Both levels must render body first."""
+    _course, unit = make_course_with_unit()
+    outer = SpoilerElement.objects.create(label="outer", body="<p>OUTER-BODY</p>")
+    outer_join = add_element(unit, outer)
+    inner = SpoilerElement.objects.create(label="inner", body="<p>INNER-BODY</p>")
+    inner_join = Element.objects.create(
+        unit=unit,
+        content_object=inner,
+        parent=outer_join,
+        tab_id=SpoilerElement.SLOT_ID,
+    )
+    Element.objects.create(
+        unit=unit,
+        content_object=TextElement.objects.create(body="<p>INNER-CHILD</p>"),
+        parent=inner_join,
+        tab_id=SpoilerElement.SLOT_ID,
+    )
+    html = outer.render(element=outer_join, state={}, slug="x", node_pk=unit.pk)
+    assert html.index("OUTER-BODY") < html.index("INNER-BODY")
+    assert html.index("INNER-BODY") < html.index("INNER-CHILD")

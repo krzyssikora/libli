@@ -958,7 +958,7 @@ a.unit-crumbs__label:focus-visible { outline: 2px solid var(--primary); outline-
    preference. */
 @media screen and (min-width: 641px) {
   html.unit-tree-collapsed [data-unit-shell] .el--text,
-  html.unit-tree-collapsed [data-unit-shell] .callout,
+  html.unit-tree-collapsed [data-unit-shell] .callout:not(:has(> .callout__children)),
   html.unit-tree-collapsed [data-unit-shell] .el--question:not(.el--choicegrid):not(.el--multigrid):not(.el--dragimage):not(.el--matchpair):not(.el--dragfill),
   html.unit-tree-collapsed [data-unit-shell] .lesson-unit__head,
   html.unit-tree-collapsed [data-unit-shell] .lesson-unit__title,
@@ -1588,6 +1588,32 @@ a.unit-crumbs__label:focus-visible { outline: 2px solid var(--primary); outline-
 .callout__body { color: var(--text-primary); line-height: 1.6; }
 .callout__body > :first-child { margin-top: 0; }
 .callout__body > :last-child { margin-bottom: 0; }
+
+/* Nested children. `.callout` has padding, which BLOCKS margin collapsing -- the
+   spoiler's "margins collapse through, height unchanged" rationale does NOT
+   transfer, which is why `.callout__body > :first-child/:last-child` already exist
+   above and why the children need the same treatment.
+   `.callout__child` deliberately carries NO `display` declaration: app.css's
+   `[hidden] { display: none !important }` guard lists only .lesson-block and
+   .tabs__child, and the reveal cascade sets `gateWrap.hidden = true`. If a display
+   is ever added here, `.callout__child[hidden]` must join that guard. */
+.callout__body + .callout__children { margin-top: var(--space-3); }
+.callout__children > .callout__child:first-child > :first-child { margin-top: 0; }
+.callout__children > .callout__child:last-child > :last-child { margin-bottom: 0; }
+.callout__children > .callout__child + .callout__child { margin-top: var(--space-5); }
+
+/* KaTeX inside the heading. The heading is the house eyebrow (0.75rem / 700 /
+   0.08em / uppercase), and KaTeX emits glyphs as ordinary inherited-style spans --
+   so without this reset `\(x^2\)` renders UPPERCASED and letter-spaced. KaTeX's own
+   sheet sets `.katex { font-size: 1.21em }`, i.e. 0.9075rem against a 0.75rem
+   label; 1em matches the label exactly. */
+.callout__heading .katex {
+  text-transform: none;
+  letter-spacing: normal;
+  font-size: 1em;
+  color: inherit;
+  font-weight: inherit;
+}
 
 .callout--example { --callout-accent: #2563c9; }
 .callout--note    { --callout-accent: #55606b; }

@@ -95,7 +95,10 @@ controls. **Description position** places each caption **Below image** or
 {el:callout} **Callout** — a framed, always-visible aside for a note that should stand out
 from the surrounding text. Choose a **Kind** (Example, Note, Tip, or Important —
 each with its own accent colour and icon), an optional **Heading** (falls back
-to a default per kind when left blank), and rich-text body content.
+to a default per kind when left blank), and rich-text body content. A callout
+is also a container: it can hold nested elements added below the body from
+its own **Add element** menu — see "Containers and nesting" below for what
+can go inside.
 
 {el:tabs} **Tabs** — a container that splits its content into labelled tabs a student
 switches between; add, remove, reorder, and label tabs from the editor's row
@@ -120,16 +123,16 @@ a row, never produces an empty slide — it's simply absorbed.
 
 ## Containers and nesting
 
-Tabs, Columns, and Spoiler are the three container types. A container can
-hold another container, up to three container levels — for example a Spoiler
-holding a Tabs container that holds another Spoiler. Ordinary content sits
-inside that third level, so a nested element can be four levels down. The
-third-level container's own **Add element** menu offers leaves only: no
+Tabs, Columns, Spoiler, and Callout are the four container types. A container
+can hold another container, up to three container levels — for example a
+Spoiler holding a Tabs container that holds another Spoiler. Ordinary content
+sits inside that third level, so a nested element can be four levels down.
+The third-level container's own **Add element** menu offers leaves only: no
 further container, question, or Slide break.
 
 Inside any container, a nested **Add element** menu offers the non-container
-Content types — Text, Image, Video, Iframe, Math, HTML, Table, Gallery,
-Callout — plus, where depth still allows it, the Tabs, Columns, and Spoiler
+Content types — Text, Image, Video, Iframe, Math, HTML, Table, Gallery —
+plus, where depth still allows it, the Tabs, Columns, Spoiler, and Callout
 container cards themselves. In a lesson it also offers the [Interactive
 elements](interactive-elements) self-checks (Show more, Fill in & confirm,
 Choose & confirm, Switch grid, Fill-in table, Step-by-step, Checklist, Guess
@@ -137,8 +140,8 @@ the number) and Fill in the blanks.
 
 Interactive elements are lesson-only: the Interactive group doesn't appear at
 all when editing a quiz. So inside a quiz, a nested add-menu offers the
-Content types plus — where depth allows — Tabs and Columns; Spoiler and Fill
-in the blanks are never offered nested in a quiz.
+Content types plus — where depth allows — Tabs, Columns, and Callout; Spoiler
+and Fill in the blanks are never offered nested in a quiz.
 
 ## Tips
 

@@ -838,6 +838,8 @@ button.asset-cell:hover { border-color: var(--primary); }
 
 /* The nested-children region under a spoiler row's edit slot. */
 .el-row--spoiler .el-row__spoiler { margin-top: var(--space-3); }
+/* The nested-children region under a callout row's edit slot. */
+.el-row--callout .el-row__callout { margin-top: var(--space-3); }
 .tabs-rows { border-radius: var(--radius-sm); }
 .tabs-rows__summary {
   cursor: pointer; list-style: none;

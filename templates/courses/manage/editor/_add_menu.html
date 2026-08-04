@@ -9,12 +9,11 @@ rendered inside a row at depth N -- so a child added here lands at depth `depth|
 `max_nest_depth` comes from the view as builder.MAX_NEST_DEPTH (a module attribute, so a
 monkeypatched cap really reaches this template).
 
-The CONTAINER cards (Tabs, Columns, Spoiler) are guarded by
+The CONTAINER cards (Tabs, Columns, Spoiler, Callout) are guarded by
 `depth < max_nest_depth|add:-1`, which mirrors builder clause 4 exactly: a container
 child is accepted while its parent sits at depth 1 or 2 (so the child lands at depth 2
 or 3) and rejected from depth 3 down. Leaves stay offered at depth 3 because they land
-at depth 4, which clause 3 accepts. Callout is a plain LEAF in this slice and stays
-unguarded.
+at depth 4, which clause 3 accepts.
 
 Hiding the cards is COURTESY only -- the server still enforces NESTABLE_TYPE_KEYS and
 the depth clauses on every add/save, so a hand-crafted POST for a blocked type or an
@@ -35,7 +34,7 @@ that guard lives on the include in _element_row.html, not here.
       <button type="button" class="typecard" data-add-type="html"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-html"/></svg>{% trans "HTML" %}</button>
       <button type="button" class="typecard" data-add-type="table"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-table"/></svg>{% trans "Table" %}</button>
       <button type="button" class="typecard" data-add-type="gallery"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-gallery"/></svg>{% trans "Gallery" %}</button>
-      <button type="button" class="typecard" data-add-type="callout"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-callout"/></svg>{% trans "Callout" %}</button>
+      {% if depth < max_nest_depth|add:-1 %}<button type="button" class="typecard" data-add-type="callout"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-callout"/></svg>{% trans "Callout" %}</button>{% endif %}
       {% if depth < max_nest_depth|add:-1 %}<button type="button" class="typecard" data-add-type="tabs"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-tabs"/></svg>{% trans "Tabs" %}</button>{% endif %}
       {% if depth < max_nest_depth|add:-1 %}<button type="button" class="typecard" data-add-type="twocolumn"><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-twocolumn"/></svg>{% trans "Columns" %}</button>{% endif %}
     </div>

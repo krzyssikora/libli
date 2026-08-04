@@ -394,15 +394,23 @@ class TextElement(ElementBase):
         super().save(*args, **kwargs)
 
 
+# The single implicit child slot shared by every single-slot container
+# (SpoilerElement, CalloutElement). This is a STORED Element.tab_id value on every
+# existing nested-spoiler child -- changing it would orphan them. One home, so the
+# write path (builder.resolve_scope) and the import path
+# (transfer.payloads.validate_nesting) cannot drift apart.
+SINGLE_SLOT_ID = "only"
+
+
 class SpoilerElement(ElementBase):
     """A self-contained show/hide disclosure: an author-labelled button that
-    expands/collapses either legacy rich-text `body` OR (nestable-spoiler) an
-    ordered list of native child elements. Rendered as a native <details>;
+    expands/collapses rich-text `body` and (nestable-spoiler) an ordered list of
+    native child elements, body rendered first. Rendered as a native <details>;
     two-way, repeatable, ungraded. Single-slot container: its children live in
     Element rows whose `parent` is this element's join row and whose `tab_id` is
     the one fixed slot id SLOT_ID. Mirrors the TabsElement join-row substrate."""
 
-    SLOT_ID = "only"  # the single implicit child slot; child Element.tab_id value
+    SLOT_ID = SINGLE_SLOT_ID  # the single implicit child slot; child Element.tab_id
 
     label = models.CharField(max_length=120, blank=True)
     body = models.TextField(blank=True)
@@ -458,6 +466,8 @@ class CalloutElement(ElementBase):
         # archives); only the author-facing label reads "Important".
         WARNING = "warning", _("Important")
 
+    SLOT_ID = SINGLE_SLOT_ID  # the single implicit child slot; child Element.tab_id
+
     kind = models.CharField(max_length=12, choices=Kind.choices, default=Kind.EXAMPLE)
     heading = models.CharField(max_length=120, blank=True)
     body = models.TextField(blank=True)
@@ -475,6 +485,39 @@ class CalloutElement(ElementBase):
         # class and would resolve against module globals (undefined -> NameError).
         return self.heading or KIND_DEFAULT_HEADING.get(
             self.kind, KIND_DEFAULT_HEADING["example"]
+        )
+
+    def join_row(self):
+        """This concrete's single Element join row (the GFK is effectively 1:1)."""
+        return self.elements.order_by("pk").first()
+
+    def resolved_children(self):
+        """Ordered child Element join rows (order_by('order','pk')); [] when the
+        join row is transient/mid-create. Grouped by `parent` alone — the single
+        slot means tab_id is not needed to disambiguate."""
+        join = self.join_row()
+        if join is None:
+            return []
+        return list(
+            join.children.order_by("order", "pk")
+            .select_related("content_type")
+            .prefetch_related("content_object")
+        )
+
+    def render(self, *, element=None, state=None, slug=None, node_pk=None):
+        from django.template.loader import render_to_string
+
+        return render_to_string(
+            "courses/elements/calloutelement.html",
+            {
+                "el": self,
+                "children": self.resolved_children(),
+                # `element_state`, NOT `state`: courses_extras.render_element reads
+                # context.get("element_state") for the recursive child render.
+                "element_state": state,
+                "slug": slug,
+                "node_pk": node_pk,
+            },
         )
 
 

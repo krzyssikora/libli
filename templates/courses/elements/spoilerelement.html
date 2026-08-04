@@ -4,6 +4,9 @@
     <span class="spoiler__label spoiler__label--show">{% if el.label %}{{ el.label }}{% else %}{% trans "Reveal" %}{% endif %}</span>
     <span class="spoiler__label spoiler__label--hide">{% trans "Hide" %}</span>
   </summary>
+  {% if el.body %}
+    <div class="el el--text spoiler__body">{{ el.body|sanitize }}</div>
+  {% endif %}
   {% if children %}
     {% comment %}
     The children share ONE wrapper so the revealed region can carry a single
@@ -19,13 +22,14 @@
     ahead of `.spoiler`, and the pre-hide CSS in lesson_unit.html walks
     `.spoiler__children > .spoiler__child`. Those three must agree -- see
     courses/tests/test_reveal_gate_render.py.
+
+    Both blocks can now render together (body FIRST). See app.css for the combined
+    shape's rule alignment.
     {% endcomment %}
     <div class="spoiler__children">
       {% for child in children %}
         <div class="spoiler__child">{% render_element child %}</div>
       {% endfor %}
     </div>
-  {% elif el.body %}
-    <div class="el el--text spoiler__body">{{ el.body|sanitize }}</div>
   {% endif %}
 </details>

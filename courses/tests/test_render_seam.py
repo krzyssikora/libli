@@ -1,11 +1,13 @@
 import pytest
 
+from courses.models import CalloutElement
 from courses.models import FillGateElement
 from courses.models import FillTableElement
 from courses.models import GalleryElement
 from courses.models import GuessNumberElement
 from courses.models import MarkDoneElement
 from courses.models import MarkDoneItem
+from courses.models import SpoilerElement
 from courses.models import SwitchGateElement
 from courses.models import SwitchGridElement
 from courses.models import TableElement
@@ -33,6 +35,8 @@ CONCRETES = [
     (GalleryElement, {}),
     (TabsElement, {}),
     (TwoColumnElement, {}),
+    (SpoilerElement, {}),
+    (CalloutElement, {}),
 ]
 
 
@@ -177,7 +181,9 @@ def test_markdone_tolerates_a_drifted_blob_and_renders_fresh():
 @pytest.mark.parametrize(
     "model,kwargs", CONCRETES, ids=[m.__name__ for m, _ in CONCRETES]
 )
-@pytest.mark.parametrize("placement", ["top", "tabs", "twocolumn"])
+@pytest.mark.parametrize(
+    "placement", ["top", "tabs", "twocolumn", "callout", "spoiler"]
+)
 def test_lesson_renders_200_with_each_concrete(client, model, kwargs, placement):
     """The spec's [S1] gate: render a LESSON containing each concrete, top-level AND
     nested, asserting 200. The direct render() test above cannot catch a
@@ -202,6 +208,24 @@ def test_lesson_renders_200_with_each_concrete(client, model, kwargs, placement)
         Element.objects.create(
             unit=unit, content_object=obj, parent=parent, tab_id="t000001"
         )
+    elif placement == "callout":
+        parent_obj = CalloutElement.objects.create(kind="example")
+        parent = add_element(unit, parent_obj)
+        Element.objects.create(
+            unit=unit,
+            content_object=obj,
+            parent=parent,
+            tab_id=CalloutElement.SLOT_ID,
+        )
+    elif placement == "spoiler":
+        parent_obj = SpoilerElement.objects.create(label="s")
+        parent = add_element(unit, parent_obj)
+        Element.objects.create(
+            unit=unit,
+            content_object=obj,
+            parent=parent,
+            tab_id=SpoilerElement.SLOT_ID,
+        )
     else:
         parent_obj = TwoColumnElement.objects.create(
             data={"columns": [{"id": "c000001"}, {"id": "c000002"}]}
@@ -215,3 +239,12 @@ def test_lesson_renders_200_with_each_concrete(client, model, kwargs, placement)
     client.force_login(student)
     r = client.get(reverse("courses:lesson_unit", args=[course.slug, unit.pk]))
     assert r.status_code == 200
+    # Match the CLASS ATTRIBUTE as it appears on the rendered wrapper, not a bare
+    # substring: lesson_unit.html's pre-hide <style> block also emits the literals
+    # ".callout__children" / ".spoiler__children" whenever the placed element sets
+    # has_reveal_gate (FillGateElement, SwitchGateElement), which would satisfy a
+    # bare `in` check from the <head> alone, regardless of where the element render.
+    if placement == "callout":
+        assert 'class="callout__children"' in r.content.decode()
+    if placement == "spoiler":
+        assert 'class="spoiler__children"' in r.content.decode()

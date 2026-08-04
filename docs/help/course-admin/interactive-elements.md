@@ -9,7 +9,7 @@ these elements record **no marks**. Like the [content element
 types](content-editors), most nest inside a container — see "Containers and
 nesting" in [Content editors](content-editors) for how deep and which
 containers accept them; Spoiler is unusual among them, since it is also one
-of the three container types itself.
+of the four container types itself.
 
 ![A lesson with a reveal-gate self-check](static:core/img/help/interactive.en.png)
 
@@ -78,7 +78,10 @@ native `<details>` toggle with no JavaScript. Use it to tuck away a hint, a work
 answer, or an aside a student can open when they choose. Set an optional
 **Button text** (default *Reveal*) and write the hidden body with the same
 rich-text toolbar (bold/italic/underline, headings, lists, links, quote,
-code, alignment) as other rich-text fields.
+code, alignment) as other rich-text fields. A spoiler is also a container: it
+can hold nested elements added below the body from its own **Add element**
+menu — body and children are revealed together, body first, when the
+student clicks the toggle.
 
 ## {el:stepper} Step-by-step
 
