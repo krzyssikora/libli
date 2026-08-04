@@ -117,8 +117,15 @@ def test_filltable_answer_error_does_not_strand_the_page(page, live_server):
     _open_editor(page, live_server, unit)
     assert page.evaluate("() => document.documentElement.scrollTop") == 0
 
-    page.locator("[data-add-toggle]").click()
-    page.locator("[data-add-type='filltable']").click()
+    # The 8 seeded top-level callouts each carry their own add-menu (a callout
+    # is now a single-slot container), so an unscoped [data-add-toggle] hits
+    # strict mode. Scope to the single non-nested menu, mirroring
+    # tests/test_e2e_depth3.py's _top_menu/_open_card pattern: _editor_scope.html
+    # includes the top-level menu with no `nested`, so its wrapper carries no
+    # .addwrap--nested.
+    top_menu = page.locator("[data-add-menu]:not(.addwrap--nested)")
+    top_menu.locator("[data-add-toggle]").click()
+    top_menu.locator("[data-add-type='filltable']").click()
     page.wait_for_selector("[data-edit-slot] form[data-op='element-save']")
 
     page.locator("[data-edit-slot] button[type='submit']").first.click()
