@@ -49,3 +49,55 @@ def test_callout_in_callout_is_authorable():
         unit, str(join.pk), CalloutElement.SLOT_ID, "callout"
     )
     assert parent == join
+
+
+def test_canonical_spoiler_tabs_callout_table_is_authorable():
+    """spoiler(1) > tabs(2) > callout(3) > table(4) -- the deepest legal shape."""
+    from courses.models import Element
+    from courses.models import SpoilerElement
+    from courses.models import TabsElement
+    from tests.factories import add_element
+
+    _course, unit = make_course_with_unit()
+    sp = SpoilerElement.objects.create(label="s")
+    sp_join = add_element(unit, sp)
+
+    tabs = TabsElement.objects.create(
+        data={"tabs": [{"id": "t000001", "label": "One"}]}
+    )
+    tabs_join = Element.objects.create(
+        unit=unit, content_object=tabs, parent=sp_join, tab_id=SpoilerElement.SLOT_ID
+    )
+    co = CalloutElement.objects.create(kind="example")
+    co_join = Element.objects.create(
+        unit=unit, content_object=co, parent=tabs_join, tab_id="t000001"
+    )
+    # depth(co_join) == 3, so a LEAF child at depth 4 is legal...
+    parent, _tab = builder.resolve_scope(
+        unit, str(co_join.pk), CalloutElement.SLOT_ID, "table"
+    )
+    assert parent == co_join
+
+
+def test_a_container_may_not_be_nested_at_depth_4():
+    """Clause 4: callout is now a container, so it is refused where a leaf is fine."""
+    from courses.models import Element
+    from courses.models import SpoilerElement
+    from courses.models import TabsElement
+    from tests.factories import add_element
+
+    _course, unit = make_course_with_unit()
+    sp = SpoilerElement.objects.create(label="s")
+    sp_join = add_element(unit, sp)
+    tabs = TabsElement.objects.create(
+        data={"tabs": [{"id": "t000001", "label": "One"}]}
+    )
+    tabs_join = Element.objects.create(
+        unit=unit, content_object=tabs, parent=sp_join, tab_id=SpoilerElement.SLOT_ID
+    )
+    sp2 = SpoilerElement.objects.create(label="s2")
+    sp2_join = Element.objects.create(
+        unit=unit, content_object=sp2, parent=tabs_join, tab_id="t000001"
+    )
+    with pytest.raises(builder.NestingError):
+        builder.resolve_scope(unit, str(sp2_join.pk), SpoilerElement.SLOT_ID, "callout")

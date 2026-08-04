@@ -61,3 +61,20 @@ def test_validator_rejects_overlong_heading():
         VALIDATORS["callout"](
             {"kind": "note", "heading": "z" * 121, "body": ""}, "e1", set()
         )
+
+
+def test_import_rejects_a_depth_4_callout_archive():
+    """D3a, a DECIDED break: a depth-4 callout was legal before this slice, so an
+    archive containing one becomes unimportable. Measured exposure: 0 rows.
+    """
+    from courses.transfer.payloads import validate_nesting
+    from courses.transfer.schema import TransferError
+
+    elements = [
+        {"id": "a", "type": "spoiler", "parent": None, "tab": "", "data": {}},
+        {"id": "b", "type": "spoiler", "parent": "a", "tab": "only", "data": {}},
+        {"id": "c", "type": "spoiler", "parent": "b", "tab": "only", "data": {}},
+        {"id": "d", "type": "callout", "parent": "c", "tab": "only", "data": {}},
+    ]
+    with pytest.raises(TransferError):
+        validate_nesting(elements)
