@@ -4,8 +4,9 @@
 
 An author has no way to size an image. `ImageElement` stores `media`, `alt` and `figcaption` and
 nothing else (`courses/models.py:649-655`); the rendered `<figure>` carries no size hook
-(`templates/courses/elements/imageelement.html:1-4`); and the only constraint anywhere is the global
-`max-width: 100%`. Two consequences:
+(`templates/courses/elements/imageelement.html:1-4`); and the only constraint anywhere is
+`.el--image img { max-width: 100%; height: auto; }` (`courses/static/courses/css/courses.css:46`).
+Two consequences:
 
 1. **An author must guess dimensions before seeing the image in context.** The image is whatever size
    it was uploaded at.
@@ -49,62 +50,105 @@ inside it, preserving aspect ratio. The browser does this natively with `max-wid
 
 ### 1. Model — `ImageElement.size`
 
-```python
-class Size(models.TextChoices):
-    SMALL = "small", _("Small")
-    MEDIUM = "medium", _("Medium")
-    LARGE = "large", _("Large")
-    FULL = "full", _("Full")
+Nested inside the existing model, alongside the current fields:
 
-size = models.CharField(max_length=8, choices=Size.choices, default=Size.FULL)
+```python
+class ImageElement(ElementBase):
+    class Size(models.TextChoices):
+        SMALL = "small", _("Small")
+        MEDIUM = "medium", _("Medium")
+        LARGE = "large", _("Large")
+        FULL = "full", _("Full")
+
+    media = models.ForeignKey(...)      # unchanged
+    alt = models.CharField(...)         # unchanged
+    figcaption = models.CharField(...)  # unchanged
+    size = models.CharField(max_length=8, choices=Size.choices, default=Size.FULL)
 ```
 
-Labels use `gettext_lazy` (module-level translatable strings must, per house rule). A schema
-migration adds the column with `default="full"`.
+`Size` is **nested** (referenced elsewhere as `ImageElement.Size.values`), matching
+`CalloutElement.Kind`. Labels use `gettext_lazy` (module-level translatable strings must, per house
+rule). A schema migration adds the column with `default="full"`.
 
-**There is no data migration.** Because `full` carries a `max-height: 100vh` (see below), the 30
+**There is no data migration.** Because `full` carries a `max-height: 100dvh` (see §3), the 30
 over-tall images are corrected by the CSS rule itself, and the other 1037 render byte-identically.
 This is a deliberate reversal of an earlier draft that proposed defaulting to a capped preset: a
-70vh default would have visibly shrunk **207 images (19%)** — 103 mildly, 70 noticeably, 11 by more
-than half — to fix 10 mobile cases. Capping only at the viewport changes exactly the images that are
-already broken.
+70vh default would have visibly changed **207 images (19%)** — 23 imperceptibly (<5%), 103 mildly
+(5-20%), 70 noticeably (20-50%), and 11 by more than half (23+103+70+11 = 207) — to fix 10 mobile
+cases. Capping only at the viewport changes exactly the images that are already broken.
 
 ### 2. Rendering — a class, not an inline style
 
 ```html
-<figure class="el el--image el--image--{{ el.size }}" data-el-pk="{{ ... }}">
+<figure class="el el--image el--image--{{ el.size }}" data-element-id="{{ el.pk }}">
   <img src="…" alt="…" data-zoomable>
 ```
 
-A class, because the values are `%` of the column plus `vh` of the viewport — not expressible as a
+A class, because the values are `%` of the column plus `dvh` of the viewport — not expressible as a
 per-element inline style — and because it keeps all four boxes in one place.
 
-`data-el-pk` exists solely so the editor's live preview can find this figure (see §5). It is inert on
-student pages.
+`data-element-id` (**not** a newly-coined name) is the attribute the editor's live preview uses to
+find this figure. It reuses the convention already pervasive in the editor: `_preview.html`'s
+`.prev-el`, `_element_row.html`, and `editor.js` (e.g. `:149`, `:189`, `:382`) all key on
+`data-element-id`. It is inert on student pages.
 
 ### 3. CSS — four bounding boxes
 
-Applied to the `<img>` inside the figure, with `height: auto` so the browser preserves the ratio.
-The prose column is `46rem` (`courses/static/courses/css/courses.css:181`, `.lesson { max-width:
-46rem }`), i.e. 736px at a 16px root.
+The prose column is `46rem` (`courses.css:181`, `.lesson { max-width: 46rem }`), i.e. 736px at a
+16px root.
 
-| class | max-width | max-height | tall image (297x719) renders as, desktop |
+**The base rule is folded into the presets, not left to compete with them.** The existing
+`.el--image img { max-width: 100%; height: auto; }` (`courses.css:46`) has *identical* specificity to
+a new `.el--image--small img` rule (one class + a descendant type selector), so which one won would
+be decided purely by source order — and a future reorganisation of the stylesheet could silently
+revert small/medium/large to unbounded width. The implementation therefore replaces the base rule
+with one rule-set in which each preset carries its own complete box, and `height: auto` is stated
+once for `.el--image img`.
+
+| class | max-width | max-height | tall image (297x719) renders as* |
 |---|---|---|---|
-| `.el--image--small` | 25% | 30vh | 112 x 270 |
-| `.el--image--medium` | 50% | 45vh | 167 x 405 |
-| `.el--image--large` | 75% | 60vh | 223 x 540 |
-| `.el--image--full` *(default)* | 100% | **100vh** | 297 x 719 (unchanged) |
+| `.el--image--small` | 25% | 30dvh | 112 x 270 |
+| `.el--image--medium` | 50% | 45dvh | 167 x 405 |
+| `.el--image--large` | 75% | 60dvh | 223 x 540 |
+| `.el--image--full` *(default)* | 100% | **100dvh** | 297 x 719 (unchanged) |
 
-`full`'s `100vh` encodes one rule: **an image is never taller than the screen it is displayed on.**
+\* computed at a **900px-tall desktop viewport**, the same window height used in the measurements above.
 
-**Print.** `vh` is meaningless on paper, so an `@media print` block substitutes fixed heights for all
-four presets. This is called out explicitly because this project shipped a print defect of exactly
-this shape — `.spoiler__children` was missing from the `@media print` revert from #212 until #214
-fixed it — where a screen rule had no print counterpart and content was lost in PDF output.
+`full`'s `100dvh` encodes one rule: **an image is never taller than the screen it is displayed on.**
 
-**Widths are percentages of the containing block**, so an image nested in a two-column or a callout
-scales relative to that container rather than the page. That is the desired behaviour and must be
-asserted, not assumed.
+**`dvh`, not `vh` — this codebase has already settled this question.** The imagezoom overlay uses
+`height: 100dvh` with the comment *"vertical from 100dvh, which tracks a mobile collapsing toolbar"*
+(`courses.css:1724-1727`). Plain `vh` resolves against the *toolbar-collapsed* viewport, so on a
+phone with the address bar showing, a `100vh`-capped image can still fall below the fold — exactly
+the 10-case defect this feature exists to fix. Using `vh` here would reintroduce the bug the overlay
+already avoids two rules away in the same file.
+
+This does **not** contradict the slide stage's rejection of viewport units (`courses.css:259-262`).
+That case rejected `calc(100dvh - chrome)` because the *chrome offset* is not a constant (measured
+325-546px across title length and window width). A bare `max-height: Ndvh` subtracts nothing and has
+no such problem.
+
+**Print.** `dvh` is meaningless on paper, so an `@media print` block substitutes physical heights.
+There is no existing print-sizing precedent in this repo to inherit (no `@media print` rule fixes an
+image height today), so the values are stated here rather than left to the implementer:
+
+| class | print max-height |
+|---|---|
+| `.el--image--small` | 45mm |
+| `.el--image--medium` | 75mm |
+| `.el--image--large` | 110mm |
+| `.el--image--full` | 170mm |
+
+Derivation: A4 is 297mm tall; with this project's page margins roughly 250mm is printable. `full` at
+170mm leaves ~80mm for surrounding text so an image never monopolises a page, and the three smaller
+presets keep the same proportions as their screen counterparts. Max-widths stay percentages, which
+behave correctly in print. This is called out explicitly because this project shipped a print defect
+of exactly this shape — `.spoiler__children` was missing from the `@media print` revert from #212
+until #214 fixed it — where a screen rule had no print counterpart and content was lost in PDF.
+
+**Widths are percentages of the containing block**, so an image nested in a spoiler, tabs,
+two-column or callout scales relative to that container rather than the page. That is the desired
+behaviour and must be asserted, not assumed (see testing row 12).
 
 ### 4. Editor control
 
@@ -113,36 +157,61 @@ caption fields. Radios, not a `<select>`, and they work with JS disabled — mat
 file already documents for its media control ("works no-JS, and `media_picker.js` sets/extends it
 with JS").
 
-### 5. Live preview (progressive enhancement)
+**Each radio input carries the two attributes the live preview depends on:**
 
-The preview pane wraps each top-level element as
-`<section class="prev-el" data-element-id="{{ el.pk }}">` (`_preview.html`), but a **nested** image —
-inside a spoiler, tabs, two-column or callout — has no such wrapper. Nesting is the common case here
-(the originating image is inside a spoiler), so the lookup hangs off `data-el-pk` on the figure
-itself, which is present at every nesting depth.
-
-One **delegated** listener on `document` swaps the class:
-
-```js
-document.addEventListener("change", (e) => {
-  const r = e.target.closest("[data-size-preset]");
-  if (!r) return;
-  const fig = document.querySelector(`.el--image[data-el-pk="${r.dataset.forElement}"]`);
-  if (fig) fig.className = `el el--image el--image--${r.value}`;
-});
+```html
+<label><input type="radio" name="size" value="medium"
+              data-size-preset data-for-element="{{ form.instance.pk }}"> {% trans "Medium" %}</label>
 ```
 
-Delegation on `document` is load-bearing: `editor.js`'s `applyFragments` replaces the two
-`[data-scope]` panes wholesale, so anything bound to nodes *inside* a pane dies on the next swap.
-Binding to `document` means there is nothing to re-attach. A listener attached to the pane would work
-until the first save and then silently stop — a defect no server-render test can see.
+- `data-size-preset` — the hook the delegated listener matches on (a marker attribute, no value).
+- `data-for-element` — the element pk, so the listener can find the matching rendered `<figure>`
+  by its `data-element-id`.
+
+Without both attributes the enhancement in §5 silently does nothing, so they are part of this
+section's contract, not an implementation detail.
+
+### 5. Live preview (progressive enhancement)
+
+The preview pane wraps each **top-level** element as
+`<section class="prev-el" data-element-id="{{ el.pk }}">` (`_preview.html`), but a **nested** image —
+inside a spoiler, tabs, two-column or callout — has no such wrapper. Nesting is the common case here
+(the originating image is inside a spoiler), which is why §2 puts `data-element-id` on the figure
+itself, where it is present at every nesting depth.
+
+**The size branch extends the existing delegated handler**, rather than adding a second listener.
+`editor.js` already establishes `var root = document.querySelector(".editor")` (`:3`) and already
+runs a delegated `root.addEventListener("change", …)` (`:462`) which survives `applyFragments`' pane
+swaps. `.editor` (`editor.html:11`) wraps both `[data-scope]` panes, so a radio inside the editor
+pane is within its subtree. Reusing it keeps one change-handler in the file:
+
+```js
+var preset = e.target.closest("[data-size-preset]");
+if (preset) {
+  var fig = document.querySelector(
+    '.el--image[data-element-id="' + preset.dataset.forElement + '"]'
+  );
+  if (fig) {
+    fig.classList.remove(
+      "el--image--small", "el--image--medium", "el--image--large", "el--image--full"
+    );
+    fig.classList.add("el--image--" + preset.value);
+  }
+}
+```
+
+`classList.remove/add` on just the `el--image--*` token, **not** `fig.className = …`, so the swap
+cannot clobber any other class the figure carries now or later.
+
+Delegation is load-bearing: `applyFragments` replaces the two `[data-scope]` panes wholesale, so
+anything bound to nodes *inside* a pane dies on the next swap. A listener attached to a pane would
+work until the first save and then silently stop — a defect no server-render test can see.
 
 ### 6. Click-to-enlarge
 
 `data-zoomable` and `imagezoom.js` already provide a full-size overlay. Capping the inline size makes
 that overlay the way to read a detailed diagram, so the overlay must show the image **unaffected by
-the preset**. The preset classes therefore apply only to the figure's own `<img>`, never to the
-overlay's.
+the preset**. The preset classes apply only to the figure's own `<img>`, never to the overlay's.
 
 ### 7. Transfer
 
@@ -165,7 +234,7 @@ in FORMAT_VERSION 2 (`payloads.py:153-156`):
 
 `_val_image` follows it verbatim: `data.setdefault("size", "full")` **before** `_exact_keys`, then
 `size` joins the exact-keys list, then the value is validated against `ImageElement.Size.values` with
-an unrecognised value coerced to `"full"` rather than raising.
+an unrecognised value coerced to `"full"` (see Error handling for why this differs from `kind`).
 
 **`FORMAT_VERSION` bumps 6 → 7** (`courses/transfer/schema.py:14`). Back-compat is handled by
 `setdefault`, but *forward* compat is not: an older install importing a new archive would hit its own
@@ -196,14 +265,19 @@ Every failure path degrades to `full`, i.e. today's rendering:
 | condition | behaviour |
 |---|---|
 | archive predates the feature (no `size` key) | `setdefault` → `"full"`; passes exact-keys; imports identically to today |
-| archive carries an unrecognised value (hand-edited, or a future fifth preset) | coerced to `"full"`; **must not raise** — an import must not fail on a cosmetic field |
+| archive carries an unrecognised value (hand-edited, or a future fifth preset) | coerced to `"full"`; **must not raise** |
 | a bad value submitted through the form | rejected by model `choices` validation |
 | existing rows at migration time | column default `"full"`; no data migration, no back-fill |
 | JS disabled or the enhancement fails | radios still submit; save-then-see still works |
-| `@media print` | fixed heights substituted for `vh` |
+| `@media print` | physical heights substituted for `dvh` |
 
-The governing principle: **a cosmetic sizing field must never be able to fail an import.** Media
-resolution can fail an import because a missing asset is a real data loss; a bad size string is not.
+**Why `size` coerces where `kind` raises.** `_val_callout` rejects an unknown `CalloutElement.Kind`
+outright (`payloads.py:201-202`). The divergence is deliberate: a callout's `kind` selects a distinct
+visual treatment (colour, icon, semantics) with **no safe fallback** — silently importing an
+"important" callout as a "note" would misrepresent the author's meaning. `size` has a safe fallback
+by construction: `full` *is* the pre-feature rendering, so coercing loses nothing an older install
+would have shown anyway. The governing principle: **a cosmetic field with a lossless default must
+never fail an import; a field whose default changes meaning must.**
 
 ## Testing
 
@@ -214,7 +288,7 @@ and name the mutant. A passing test proves nothing on its own.
 |---|---|---|
 | 1 | default is `full`; `choices` rejects junk | model test |
 | 2 | each of the four presets renders its class | render test, one per preset |
-| 3 | `data-el-pk` is present and correct, including on a **nested** image | render test through a spoiler/callout |
+| 3 | `data-element-id` is present and correct on the figure, including on a **nested** image | render test through a spoiler/callout |
 | 4 | export writes `size` | transfer unit test |
 | 5 | round-trip preserves all four presets | export → import, assert each |
 | 6 | **an archive with no `size` key imports as `full`** | the back-compat pin; build the payload without the key |
@@ -223,15 +297,22 @@ and name the mutant. A passing test proves nothing on its own.
 | 9 | **the live preview changes size with no save** | **e2e**, real gesture on the radio |
 | 10 | the preview enhancement still works **after a fragment swap** | **e2e**: save once, then change the preset again |
 | 11 | the zoom overlay shows the image unaffected by the preset | e2e |
-| 12 | a nested image scales to its container, not the page | render or e2e |
+| 12 | a nested image scales to its container in **all four** containers — spoiler, tabs, two-column, callout | render or e2e, one case each |
 | 13 | print CSS defines all four presets | source-scan, block-extracted |
+| 14 | the radios carry `data-size-preset` and `data-for-element` | render test — the §4/§5 contract |
 
 Rows 8-10 are load-bearing and cannot be replaced by source scans.
 
-- **Row 8** must run at **two** viewports. A single-viewport test passes even if `vh` were silently
-  authored as a fixed `px`, which is the specific bug worth catching.
-- **Row 10** is the fragment-swap seam. It is the difference between a listener bound to `document`
-  and one bound to the pane, and it is invisible to any server-render test.
+- **Row 8** must run at **two** viewports. A single-viewport test passes even if the cap were
+  silently authored as a fixed `px`, which is that row's specific target.
+- **Row 8's known limit:** Playwright's phone viewport is a fixed pixel size and does **not** emulate
+  a collapsing mobile address bar, so this row **cannot** distinguish `dvh` from `vh`. That choice is
+  argued from the `courses.css:1724-1727` precedent, not pinned by a test. Accepted gap; verify once
+  by hand on a real mobile browser with the address bar visible.
+- **Row 10** is the fragment-swap seam — the difference between extending `editor.js`'s `root`
+  handler and binding to a pane. Invisible to any server-render test.
+- **Row 12** enumerates all four containers deliberately. This project's recorded lesson is that
+  newly-legal combinations must be enumerated, not sampled.
 - **Row 13** must extract the `@media print` block before scanning it. A file-wide scan for
   `.el--image--small` passes while the print block is empty, because the selector also appears in the
   screen rules — the exact defect shape found in #214's reveal-scope agreement test.
