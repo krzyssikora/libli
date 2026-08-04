@@ -1013,7 +1013,9 @@ a.notif-menu__row:hover { background: var(--surface-sunken); }
    these rules support the reveal + print sides. */
 @media print {
   .reveal-armed .slide > .lesson-block:has(> .lesson-block__body > [data-reveal-gate]) ~ .lesson-block,
-  .reveal-armed [data-tab-panel] > .tabs__child:has(> [data-reveal-gate]) ~ .tabs__child {
+  .reveal-armed [data-tab-panel] > .tabs__child:has(> [data-reveal-gate]) ~ .tabs__child,
+  .reveal-armed .spoiler__children > .spoiler__child:has(> [data-reveal-gate]) ~ .spoiler__child,
+  .reveal-armed .callout__children > .callout__child:has(> [data-reveal-gate]) ~ .callout__child {
     display: revert !important;
   }
   [data-reveal-gate] { display: none !important; }
