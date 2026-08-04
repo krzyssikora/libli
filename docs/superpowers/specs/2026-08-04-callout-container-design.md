@@ -201,8 +201,10 @@ diverging for a release.
 ## Change set
 
 Registry membership alone does **not** make a callout a working container. **This
-table is the single index of the change set** — every file this slice touches appears
-here, pointing at the section that specifies it. Items 3–8 are the ones a registry-only
+table is the single index of every PRODUCTION file this slice touches**, pointing at the
+section that specifies each. Test files are indexed separately by "Existing tests this
+slice must invert" and the "Cases to pin" table; `locale/en` and `locale/pl` `.po`
+catalogs by the Definition of done. Items 3–8 are the ones a registry-only
 reading would miss, and 5–7 are JS/CSS-seam changes: exactly the class of defect PR #209
 shipped, because its diff contained no JS/CSS files and so they fell outside every
 review surface by construction.
@@ -210,14 +212,14 @@ review surface by construction.
 | # | Site | Why it is in the change set | Specified in |
 |---|---|---|---|
 | 1 | `courses/builder.py` — `_CONTAINER_REGISTRY`, `CONTAINER_TRANSFER_KEYS` | the registries themselves | §1 |
-| 2 | `courses/transfer/payloads.py` — `_CONTAINER_SLOT_KEY` + `SINGLE_SLOT_ID` | registry, plus a hard-coded `SpoilerElement.SLOT_ID` | §2 |
+| 2 | `courses/transfer/payloads.py` — `_CONTAINER_SLOT_KEY`, and reading `SINGLE_SLOT_ID` | registry, plus a hard-coded `SpoilerElement.SLOT_ID` | §2 |
 | 3 | `courses/transfer/export.py` — `walk_unit_joins`'s inner `emit()` | explicit `isinstance` ladder; docstring says **"NOT registry-driven"**. Also fixes `duplicate_unit` | §3 |
 | 4 | `templates/courses/manage/editor/_add_menu.html` | the Callout card is unguarded; clause 4 now applies to it | §4 |
 | 5 | `courses/static/courses/js/reveal.js` + `templates/courses/lesson_unit.html` + `core/static/core/css/app.css` | `scopeOf`, the pre-hide CSS and the `@media print` revert are **three** literal scope lists | §5 |
 | 6 | `courses/static/courses/js/math.js` | `renderInlineText` enumerates selectors literally | §6 |
 | 7 | `courses/static/courses/css/editor.css` | per-container editor-row rules are enumerated literally | §7 |
 | 8 | `docs/help/course-admin/content-editors{,.pl}.md` + `interactive-elements{,.pl}.md` | both state "the three container types"; the quiz add-menu paragraph and the Spoiler section are also falsified | Author documentation |
-| 9 | `courses/models.py` — `CalloutElement` | `SLOT_ID`, `join_row()`, `resolved_children()`, a new `render()` | Model |
+| 9 | `courses/models.py` — `CalloutElement` **and** `SpoilerElement` | new module-level `SINGLE_SLOT_ID`; `CalloutElement` gains `SLOT_ID`, `join_row()`, `resolved_children()`, `render()`; `SpoilerElement.SLOT_ID` switches to reference `SINGLE_SLOT_ID` | Model, §2 |
 | 10 | `templates/courses/elements/calloutelement.html` | body block + `.callout__children` wrapper | Render templates |
 | 11 | `templates/courses/elements/spoilerelement.html` | body block **moved above** children | Render templates |
 | 12 | `courses/element_forms.py` | delete the `fields.pop("body")` guard | Forms |
@@ -379,15 +381,34 @@ asserts a substring of the *rendered lesson HTML* and never reads `reveal.js` or
 `cascadeFrom`/focus behaviour, and nothing reads the `@media print` block at all. Write
 a source-agreement test that reads all three — `reveal.js`'s `scopeOf` selector list,
 the `lesson_unit.html` pre-hide block, and `app.css`'s `@media print` revert — and
-asserts they enumerate the same four scopes.
+asserts they agree on the four cascade scopes:
+
+```
+[data-tab-panel]   .slide   .spoiler__children   .callout__children
+```
+
+**`scopeOf` carries a fifth selector and must be asserted by CONTAINMENT, not
+set-equality.** After adding `.callout__children` it reads
+`closest("[data-tab-panel], .slide, .spoiler__children, .spoiler, .callout__children")`
+— the trailing `.spoiler` is a deliberate legacy fallback for the body-only shape
+(`reveal.js:44-50`: dropping it would make `scopeOf` return `null` there), and it is
+deliberately **absent** from both CSS blocks. A test asserting set-equality across all
+three files goes falsely RED against a correct implementation — the mirror of the
+vacuity trap this section exists to avoid. So: assert the two CSS blocks enumerate
+**exactly** those four, and that `scopeOf` **contains** those four plus `.spoiler`.
+
+Match tokens so containment cannot be satisfied by the wrong selector: `.spoiler` is a
+substring of `.spoiler__children`, and `.callout__child` of `.callout__children`.
 
 **It must EXTRACT each block before scanning, or it is green under its own mutant.**
-The scope tokens already occur elsewhere in the same files: `.spoiler__children` appears
-2× in `app.css` (the shared rule at `:987`) and `.slide` 4×. A test that scans the
-*file* for the four tokens therefore stays GREEN when a scope is missing from the
-`@media print` revert — which is precisely the state `app.css:1001-1005` is in **today**.
-Three of the four tokens would survive the mutant; only `.callout__children` would go
-red, because the spec puts all other callout CSS in `courses.css`.
+The decisive token is `.spoiler__children`: it occurs at **`app.css:987`** (the shared
+`.spoiler__body, .spoiler > .spoiler__children` rule) — *outside* the print block. So a
+test that scans the *file* stays GREEN under the mutant "delete `.spoiler__children`
+from the `@media print` revert", which is precisely the state `app.css:1001-1005` is in
+**today**. (Measured precisely, since a `grep -c` here is misleading: `.slide` occurs
+outside comments only at `:1002`, inside the print block itself, and `.spoiler__children`
+outside comments only at `:987`. Only `.callout__children` would go red under a
+file-wide scan, because the spec puts all other callout CSS in `courses.css`.)
 
 So: slice out the `@media print { … }` block from `app.css` and the
 `{% if has_reveal_gate %}` `<style>` block from `lesson_unit.html` first — the same
@@ -463,6 +484,13 @@ mandatory**, mirroring `_element_row.html:147`: `editor.js` selects rows via
 `:361`, `:384`, `:391`) for selection, alignment and the edit-slot lifecycle. A branch
 emitting only the modifier would silently drop the callout row out of every one of
 those handlers, with no server-side test noticing.
+
+**This failure mode needs its own pins, because every other case in the mutant table
+passes without the branch existing at all** — the depth-3 card test uses tabs fixtures,
+and "a callout accepts a table child" is satisfiable through `resolve_scope`/POST without
+ever rendering the editor. Two rows are added to the table below. Mirror
+`tests/test_e2e_depth3.py:197-253`, which already pins exactly this shape for
+`.el-row--tabs` / `.el-row--spoiler`.
 `courses/static/courses/css/editor.css` has per-container rules only for the three
 existing containers (`:821` tabs, `:827` `.el-row--spoiler .el-row__spoiler`, `:884`
 two-column). Add the matching `.el-row--callout .el-row__callout` rule (mirroring the
@@ -965,6 +993,8 @@ passing test that survives deleting the code it guards is vacuous):
 | Callout card absent from a depth-3 add-menu | drop the `{% if depth < max_nest_depth\|add:-1 %}` guard |
 | Gate in a callout: the callout stays visible after the click, siblings unaffected, gated content hidden before it | drop `.callout__children` from `scopeOf` / the 4th pre-hide selector. **Do not** assert "the button did nothing" — that is green under the defect and RED under the fix |
 | Stateful child in a callout gets its blob + save URL | pass `state=` instead of `element_state=` |
+| The editor renders a callout row with its child list **and** its own nested add-menu (`tab=SLOT_ID`) | omit the `calloutelement` branch from `_element_row.html` — the callout falls through to the generic `{% else %}` leaf row, making its children unauthorable through the UI |
+| That row carries `class="el-row el-row--callout"` **and** `data-element` | emit only the modifier — `editor.js:147/289/391` select `.el-row[data-element]`, so the row silently drops out of selection, alignment and the edit-slot lifecycle |
 | Neither model re-spells the slot literal | source-scan (comments stripped) asserts no bare `"only"` in either class body; mutant: write `SLOT_ID = "only"` in one of them (strip `#` comments AND the class docstring before scanning, or a correct impl whose docstring quotes the literal goes falsely RED) |
 | `spoiler > tabs > callout > table` authorable; `spoiler > tabs > spoiler > callout` rejected | flip a depth clause comparison |
 | Registry drift test passes with callout in all of them | add callout to two of the three |
