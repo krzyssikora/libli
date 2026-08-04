@@ -225,7 +225,9 @@ The remedy, and one subtlety that dictates its shape:
 **Why the image needs its own centring, measured.** `width: fit-content` resolves to the *maximum*
 of the children's max-content contributions, clamped by the figure's `max-width`. A `<figcaption>`
 has no width constraint of its own, so its contribution is its **unwrapped** text width. Measured
-across the corpus: **104 of 1068 images (9.7%) carry a caption**, median length **9 characters**
+across the corpus: **104 of 1068 images (9.7%) carry a caption** — 1068 is every `ImageElement` row,
+one more than the 1067 in the sizing table above, because that one's media file is unreadable and so
+is excluded from pixel measurement but not from a caption count — median length **9 characters**
 (~63px, narrower than any capped image, so the figure tracks the image) — but the tail is real, with
 captions of **212, 200, 132, 123 and 122 characters**. At `small`, a 200-character caption's
 max-content (~1400px) is clamped to the 220px preset cap, so the figure becomes 220px while a tall
