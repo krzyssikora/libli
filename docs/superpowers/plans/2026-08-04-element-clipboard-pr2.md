@@ -59,6 +59,7 @@
 - `templates/courses/manage/editor/_element_row.html` — paste-tag call at 3 nested sites, `clip_active` in both `<details>` conditions, marked-row modifier on all 6 branches
 - `templates/courses/manage/editor/_editor_scope.html` — paste-tag call at the top-level slot, the mark banner in `.pane-head`
 - `courses/static/courses/css/editor.css` — marked row, banner, paste-button grouping
+- `locale/pl/LC_MESSAGES/django.po` + `.mo` and `locale/en/LC_MESSAGES/django.po` + `.mo` — regenerated in Task 11. The `.mo` files are tracked binaries with no 3-way merge, so if this branch lives long enough for master to move under it, merge master in and REGENERATE rather than resolving the conflict by hand
 
 **Responsibility split:** `builder` owns the rule, the transaction, the locks and the ordering; `views_manage` owns HTTP status, the session and rendering; templates own markup only and never re-derive the rule.
 
@@ -1255,9 +1256,9 @@ def enumerate_slots(unit):
 - [ ] **Step 4: Run the tests to verify they pass**
 
 Run: `uv run pytest tests/test_enumerate_slots.py -v`
-Expected: all **8** PASS. If the query-count test reports a different number, do **not** simply edit the expected count to match: first confirm from the captured queries that the extra ones are per-content-type and not per-join, and say so in your report.
+Expected: all **9** PASS. If the query-count test reports a different number, do **not** simply edit the expected count to match: first confirm from the captured queries that the extra ones are per-content-type and not per-join, and say so in your report.
 
-- [ ] **Step 5: Falsify the two traps**
+- [ ] **Step 5: Falsify the three traps**
 
 1. Replace `getattr(obj, "data", None)` with `obj.data`.
    Expected: `test_a_spoiler_nested_in_a_tab_contributes_its_single_slot` FAILS with `AttributeError`.
@@ -1658,6 +1659,36 @@ def test_a_healthy_move_out_of_a_container_to_top_level():
     assert [o for _pk, o in remaining] == [0, 1]
 
 
+def test_a_move_between_two_slots_of_one_container():
+    """Source and destination share a PARENT but differ in tab_id. That is a
+    distinct compaction target -- ordering.element_siblings partitions on
+    (unit, parent, tab_id) -- and no other test in this file exercises it: the
+    mark-lifecycle test that looks similar leaves its subject at top level
+    throughout.
+
+    Mutant: compact the destination group instead of the captured source one ->
+    the vacated-slot assertion goes RED.
+    """
+    course, unit = make_course_with_unit()
+    dest, slots = _tabs(unit)
+    first = _text(unit, parent=dest, tab=slots[0], body="<p>1</p>")
+    subject = _text(unit, parent=dest, tab=slots[0], body="<p>2</p>")
+    sitting = _text(unit, parent=dest, tab=slots[1], body="<p>already there</p>")
+
+    _u, placed = paste_element(
+        course, subject.pk, str(dest.pk), slots[1], "move", _tok(unit)
+    )
+
+    fresh = Element.objects.get(pk=placed.pk)
+    assert (fresh.parent_id, fresh.tab_id) == (dest.pk, slots[1])
+    # The vacated slot is compacted; the destination appends after its sitting row.
+    vacated = _orders(unit, dest, slots[0])
+    assert [pk for pk, _o in vacated] == [first.pk]
+    assert [o for _pk, o in vacated] == [0]
+    arrived = _orders(unit, dest, slots[1])
+    assert [pk for pk, _o in arrived] == [sitting.pk, subject.pk]
+
+
 def test_a_move_whose_old_order_equals_its_new_index_is_still_persisted():
     """place_element saves only rows whose order CHANGED, so it may legitimately
     save the moved row not at all. Step 2 is what guarantees the move regardless --
@@ -2044,7 +2075,7 @@ def _copy_into(el, unit, dest_parent, tab_id):
 - [ ] **Step 5: Run the tests to verify they pass**
 
 Run: `uv run pytest tests/test_builder_paste_element.py -v`
-Expected: all **22** PASS (21 test functions, one parametrised over two modes).
+Expected: all **23** PASS (22 test functions, one parametrised over two modes).
 
 - [ ] **Step 6: Falsify the four move/copy assertions that could be vacuous**
 
@@ -2074,7 +2105,9 @@ git commit -m "feat(builder): move or copy an element subtree into a chosen slot
 
 ### Task 8: The clipboard state and the select/cancel endpoint
 
-The mark lives in the session, so the paste buttons are part of the render every operation already returns — and the feature works without JavaScript.
+The mark lives in the session, so the paste buttons are part of the render every operation already returns — and the feature needs no JavaScript of its own.
+
+**What "works without JavaScript" means here, precisely:** the form posts, the session is written, and the response is the same fragment pair rendered as a bare document — not a redirect back to the editor page. That is exactly what `element_duplicate` already does for `ctx=editor` (its docstring records it), so these endpoints copy the existing behaviour rather than fixing it. The bare-fragment no-JS response is a pre-existing wart shared with ↑ ↓ ⧉ 🗑; changing it would change those too, and it is out of scope.
 
 **Files:**
 - Modify: `courses/views_manage.py` — `element_clip` after `element_duplicate` (which ends at `:1214`)
@@ -2412,7 +2445,7 @@ The render side of the mark (which slots get buttons, which row is marked, what 
 - Test: `tests/test_element_paste_view.py`
 
 **Interfaces:**
-- Consumes: `builder.enumerate_slots`, `builder.subtree_facts`, `builder.paste_allowed`, `builder.paste_element`, `builder.PlacementRefused`, `builder.ParentGoneError`, `builder.ancestor_slots` (PR1).
+- Consumes: `builder.enumerate_slots`, `builder.subtree_facts`, `builder.paste_allowed`, `builder.paste_element`, `builder.PlacementRefused`, `builder.ParentGoneError`, `builder.slot_key` and `builder.ancestor_slots` (both PR1), and `courses.templatetags.courses_manage_extras.element_summary` for the banner label.
 - Produces: URL name `courses:manage_element_paste`, POST fields `parent` (blank = top level), `tab`, `mode=move|copy`, `unit`, `unit_token`; and five context keys on **both** builders: `clip_active` (bool), `clip_element_pk` (str), `clip_label` (str), `move_slots` (set of slot keys), `copy_slots` (set of slot keys).
 
 **Both context builders get the keys.** `_render_editor_fragments` (`:1275`) and `_editor_page` (`:1336`) build the editor context independently; a key on only one makes the first page load look perfect while every later fragment swap silently drops the feature. That is what the comment at `:1309-1317` already records for `max_nest_depth`.
@@ -2737,6 +2770,41 @@ def test_an_unmarked_render_never_walks_the_unit(client, monkeypatch):
     assert resp.status_code == 200
 
 
+def test_a_marked_render_does_not_walk_parents_per_slot(
+    client, django_assert_max_num_queries
+):
+    """The other half of the cost guarantee. `enumerate_slots` does NOT
+    `select_related("parent")`, so if `_clip_context` ever stops passing
+    `dest_depth=` , `paste_allowed` falls back to `element_depth(dest_parent)` and
+    walks `.parent` lazily -- up to three extra queries per slot per mode, on every
+    editor response while a mark is pending.
+
+    The ceiling below is deliberately generous: this test exists to catch an order
+    -of-magnitude regression, not to pin an exact number. If it fails, read the
+    captured queries and check whether the extras are per-slot `parent` fetches
+    before touching the bound.
+
+    Mutant: drop `dest_depth=dest_depth` from `_clip_context`'s paste_allowed call
+    -> RED.
+    """
+    course, unit = _seed(client)
+    outer, oslots = _tabs(unit)
+    mid, mslots = _tabs(unit, parent=outer, tab=oslots[0])
+    _tabs(unit, parent=mid, tab=mslots[0])
+    subject = _text(unit)
+    unit.refresh_from_db()
+    _mark(client, course, unit, subject)
+
+    # max, not exact: this catches an order-of-magnitude regression, and an exact
+    # count would break on any unrelated query added elsewhere in the editor render.
+    with django_assert_max_num_queries(30):
+        client.get(
+            reverse(
+                "courses:manage_editor", kwargs={"slug": course.slug, "pk": unit.pk}
+            )
+        )
+
+
 def test_a_paste_into_a_column_works_end_to_end(client):
     """The view-level column case. `column.id` is a different template expression
     from `tab.id`, and the columns branch is the one where a copied condition fails
@@ -2868,6 +2936,12 @@ def _clip_context(request, unit):
         # -> False, reproducing one layer later the exact failure the int coercion
         # at clip time exists to prevent.
         "clip_element_pk": str(marked.pk),
+        # A dangling GFK gives element_summary(None) -> the literal "NoneType".
+        # Accepted, not fixed: the ROW label already renders exactly that for the
+        # same row (_element_row.html's `{% if el.title %}...{% else %}
+        # {{ obj|element_summary }}`), so the banner matches what the author is
+        # already looking at. Diverging here would be a second spelling of the
+        # same fallback, and a real fix belongs to the row label first.
         "clip_label": marked.title or element_summary(obj),
         "move_slots": move_slots,
         "copy_slots": copy_slots,
@@ -2963,7 +3037,7 @@ def _refused(request, unit, reason_key):
 - [ ] **Step 7: Run the tests to verify they pass**
 
 Run: `uv run pytest tests/test_element_paste_view.py -v`
-Expected: all **16** PASS.
+Expected: all **18** PASS.
 
 - [ ] **Step 8: Confirm the unmarked render still costs nothing extra**
 
@@ -3354,6 +3428,13 @@ def paste_buttons(context, parent="", tab=""):
 Run: `uv run pytest tests/test_editor_clip_templates.py -v`
 Expected: all **8** PASS.
 
+- [ ] **Step 6b: Confirm no existing template test regressed**
+
+These four templates are shared, and several existing suites bind tightly to exactly the lines this task edits — `tests/test_editor_depth.py` asserts on the depth-4 row's `<details class="tabs-rows" data-tab-id=…>` and on `data-parent` being ABSENT there, which is the very site where the paste tag deliberately sits OUTSIDE the depth guard; `tests/test_tabs_editor_dnd.py` regexes the raw template source; `tests/test_tabs_editor_partial.py` and `courses/tests/test_reveal_gate_editor_row.py` both `render_to_string` a row with a bare dict context, so the new inclusion tag runs there with no clip keys present.
+
+Run: `uv run pytest tests/test_editor_depth.py tests/test_tabs_editor_dnd.py tests/test_tabs_editor_partial.py tests/test_editor_count_i18n.py tests/test_editor_styles.py tests/test_link_dialog_markup.py courses/tests/test_reveal_gate_editor_row.py tests/test_editor_open_slots.py -v`
+Expected: all PASS. A failure in the bare-dict render tests means the tag or the `<li>` condition assumed a context key that is not always supplied — fix the template/tag to tolerate its absence rather than the test to supply it.
+
 - [ ] **Step 7: Falsify the absence assertions**
 
 Make the tag return `{"show_move": False, "show_copy": False, ...}` unconditionally.
@@ -3582,6 +3663,13 @@ In `templates/courses/manage/editor/_editor_scope.html`, replace the `.pane-head
 Run: `uv run pytest tests/test_editor_clip_templates.py -v`
 Expected: all **15** PASS (this task's 7 appended tests plus Task 10's 8).
 
+- [ ] **Step 7b: Confirm no existing template test regressed**
+
+These four templates are shared, and several existing suites bind tightly to exactly the lines this task edits — `tests/test_editor_depth.py` asserts on the depth-4 row's `<details class="tabs-rows" data-tab-id=…>` and on `data-parent` being ABSENT there, which is the very site where the paste tag deliberately sits OUTSIDE the depth guard; `tests/test_tabs_editor_dnd.py` regexes the raw template source; `tests/test_tabs_editor_partial.py` and `courses/tests/test_reveal_gate_editor_row.py` both `render_to_string` a row with a bare dict context, so the new inclusion tag runs there with no clip keys present.
+
+Run: `uv run pytest tests/test_editor_depth.py tests/test_tabs_editor_dnd.py tests/test_tabs_editor_partial.py tests/test_editor_count_i18n.py tests/test_editor_styles.py tests/test_link_dialog_markup.py courses/tests/test_reveal_gate_editor_row.py tests/test_editor_open_slots.py -v`
+Expected: all PASS. A failure in the bare-dict render tests means the tag or the `<li>` condition assumed a context key that is not always supplied — fix the template/tag to tolerate its absence rather than the test to supply it.
+
 - [ ] **Step 8: Regenerate translations**
 
 Run: `uv run python manage.py makemessages -l pl -l en --no-obsolete`
@@ -3626,6 +3714,7 @@ A modifier class with no rule is invisible, which for the mark is indistinguisha
 
 **Files:**
 - Modify: `courses/static/courses/css/editor.css`
+- Modify: `tests/test_editor_styles.py` — the four new selectors
 
 `.el-row`, `.el-actions`, `.pane-head`, `.addwrap`, `.iconbtn` and `.tabs-rows` are all defined in `editor.css` and nowhere else on this page, so the new rules belong beside them. `courses.css` loads first with the shared base, so equal-specificity rules here win.
 
@@ -3638,6 +3727,18 @@ Beside the existing `.el-row` / `.pane-head` / `.addwrap` definitions, using the
 3. `.pastewrap` / `.pastebtn` — grouped against `.addwrap`, since in practice an add-menu is always beside them.
 
    **On the "standalone" appearance:** the tag call sits outside the `{% if depth < max_nest_depth %}` guard on purpose (paste legality is `paste_allowed`'s business, not the menu's), but that guard compares the CONTAINER's depth against 4 — and a container may only live at depths 1–3, so `depth < 4` holds at every legally reachable slot and the menu is never actually suppressed beside a paste button. A standalone rule is therefore defensive-only, reachable solely through a corrupt depth-4 container written directly by the ORM. Add one if it costs a line, but do not treat it as a shipping requirement and do not go hunting for the screenshot.
+
+- [ ] **Step 1b: Pin the four selectors in the existing style test**
+
+A screenshot pass is a one-off; nothing stops a later refactor deleting a rule and leaving the suite green. The repo already has the idiom — `tests/test_editor_styles.py` asserts `".tree__act"`, `".tree__act--danger"` and `".tree__inline"` appear in `editor.css`, precisely because `builder.css` is not loaded on this page. Append the four new selectors to that same source-level assertion:
+
+```python
+    for cls in (".el-row--marked", ".clip-banner", ".pastewrap", ".pastebtn"):
+        assert cls in css, f"editor.css must style {cls}"
+```
+
+Run: `uv run pytest tests/test_editor_styles.py -v`
+Expected: PASS once Step 1's rules exist; RED before them, which is the point.
 
 - [ ] **Step 2: Screenshot a marked row and a slot's paste buttons, light mode**
 
@@ -3886,7 +3987,7 @@ and tick each combination against its test:
 | into a **spoiler** slot | `test_a_move_into_a_spoiler_uses_its_fixed_slot`, `test_a_move_into_a_spoiler_works_end_to_end` |
 | same type inside itself (Tabs in Tabs) | `test_a_copy_preserves_the_subtree_shape_at_every_depth` places a Tabs subtree into a Tabs slot; `courses/tests/test_paste_rule.py::test_a_leaf_may_land_at_depth_four_but_a_container_may_not` pins the depth limit of that shape |
 | moved **out** of a container to top level | `test_a_healthy_move_out_of_a_container_to_top_level` — asserts the cleared `tab_id` AND the vacated slot's compaction (the damaged-row test only reaches `parent_id is None`, and the e2e moves the other way) |
-| between two slots of the **same** container | `test_a_move_clears_the_mark_and_a_copy_keeps_it` pastes into `slots[0]` then `slots[1]` of one container |
+| between two slots of the **same** container | `test_a_move_between_two_slots_of_one_container` |
 | a subtree reaching exactly depth 4 | `courses/tests/test_paste_rule.py::test_a_leaf_may_land_at_depth_four_but_a_container_may_not` |
 
 If any row's test is missing or fails, that is a finding: report it rather than adding an untested fixture here — new coverage belongs in Task 7 or Task 9 with a named mutant, not in this task's `chore` commit.
