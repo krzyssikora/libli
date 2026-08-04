@@ -18,6 +18,7 @@
 - **`pyproject.toml` already sets `addopts = "-q -m 'not e2e'"`.** Do not pass a second `-q` — it suppresses the summary line entirely. e2e tests are deselected by default and need an explicit `-m e2e`.
 - **`MAX_NEST_DEPTH = 4`** (`courses/builder.py:25`), a top-level element is depth 1. PR1 changes no nesting rule — a duplicate lands in the source's own slot, so depth is unchanged and no admissibility check applies.
 - **No hardcoded test passwords.** Use `tests.factories.TEST_PASSWORD`.
+- **Run `uv run ruff format` before every commit step**, not only in Task 10. `ruff format --check .` runs at the end, and it fails on code committed six tasks earlier just as readily as on the last task's.
 - **Module-level translatable strings use `gettext_lazy`;** in-function strings use `gettext as _`.
 - **`Element.order` is `OrderField(for_fields=["unit"])`** (`courses/models.py:319`) — unit-wide, so a freshly created join is born with `max+1` and sorts last within its group.
 - **Editor-context errors never use `_op_error`.** `editor.js` swaps only `[data-scope]` elements and `_op_error.html` has no such wrapper, so an `_op_error` 422 is invisible in the editor. Every editor-context error renders through `_render_editor_fragments(..., status=…, error=…)`.
@@ -59,18 +60,36 @@ The worktree has no `.env`, so every test run fails to connect. Each worktree ne
 **Files:**
 - Create: `.env` (git-ignored; `.env.example` is the template)
 
-- [ ] **Step 1: Copy the sibling worktree's env file**
+- [ ] **Step 1: Create `.env`**
+
+The sibling worktree's file is the better source — it carries working local credentials that
+`.env.example` does not:
 
 ```bash
 cp "C:/Users/krzys/Documents/Python/own/libli/.claude/worktrees/spoiler-rule/.env" \
    "C:/Users/krzys/Documents/Python/own/libli/.claude/worktrees/element-clipboard/.env"
 ```
 
+If that file is gone, fall back to `cp .env.example .env` and fill in the database
+credentials by hand — the example ships placeholders, so the copy above is the fast path,
+not the only one.
+
 - [ ] **Step 2: Give this worktree a unique database name**
 
-Edit `.env` and change the database name at the end of `DATABASE_URL` from `libli_spoiler` to `libli_elclip`. Leave user, password, host and port exactly as they are. The line should end `/libli_elclip`.
+Edit `.env` and change the database name at the end of `DATABASE_URL` to `libli_elclip`
+(the copied file ends `/libli_spoiler`; a from-`.env.example` file will differ). Leave user,
+password, host and port as they are. Two worktrees sharing one name means each run drops the
+other's databases mid-flight.
 
-- [ ] **Step 3: Verify the environment works by running an existing test**
+- [ ] **Step 3: Check the connection before running any test**
+
+Run: `uv run python manage.py check --database default`
+Expected: `System check identified no issues`. A `connection refused` means Postgres is not
+running; `role ... does not exist` or `password authentication failed` means the copied
+credentials are wrong for this machine — fix `.env` before going further, because pytest's
+failure mode for both is a wall of errors that looks like broken code.
+
+- [ ] **Step 3b: Verify the test environment by running an existing test**
 
 Run: `uv run pytest tests/test_builder_duplicate_unit.py -v`
 Expected: all tests PASS. If you see `DuplicateDatabase`, a previous run left an idle connection — find and kill the stray pytest process, then re-run.
@@ -178,7 +197,9 @@ def build_export(
 ):
 ```
 
-Then replace the roots query block at `:564-570` with:
+Then replace `:560-570` with the block below. **The range starts at 560, not 564** — the
+four-line `# Query only TOP-LEVEL joins;` comment sits at `:560-563` and is re-emitted inside
+the replacement, so replacing only 564-570 leaves it duplicated:
 
 ```python
         # Query only TOP-LEVEL joins; walk_unit_joins expands each container
@@ -329,10 +350,16 @@ def graft_elements(document, media_map, unit):
 
     1. No `_create_nodes`. The node_map is fabricated over `unit`, because
        _create_elements looks the unit up as node_map[el["unit"]].
-    2. No `_rewrite_links`. That function remaps internal links onto NEWLY
-       CREATED nodes; here nothing was re-homed, so running it would rewrite
-       every internal link in the copied elements onto this one unit and
-       silently corrupt targets that are in fact unchanged.
+    2. No `_rewrite_links`, because for an element-scoped export that call is
+       provably a NO-OP -- not because it would corrupt anything. build_export
+       emits link_nodes filtered to targets INSIDE the exported node set
+       (`{pk: node_ids[pk] for pk in referenced if pk in node_ids}`,
+       export.py:781-783), and here that set is exactly {unit}. So link_nodes
+       names at most unit.pk, the fabricated node_map maps it back to the SAME
+       unit, and _rewrite_links builds the identity mapping {unit.pk: unit.pk}
+       (or an empty one). A link to any node outside the export never enters
+       `mapping` and, under on_missing="keep", is left alone. Skipped as dead
+       work.
     3. It returns the created root JOIN, not a ContentNode.
 
     The root is re-derived as the single created join with `parent_id is None`
@@ -395,7 +422,9 @@ from courses.builder import ConflictError
 from courses.builder import duplicate_element
 from courses.models import Choice
 from courses.models import ChoiceQuestionElement
+from courses.models import ContentNode
 from courses.models import Element
+from courses.models import ImageElement
 from courses.models import MediaAsset
 from courses.models import TabsElement
 from courses.models import TextElement
@@ -432,9 +461,7 @@ def _unit_with_populated_tabs():
 
 
 def _top_level(unit):
-    return list(
-        unit.elements.filter(parent__isnull=True).order_by("order", "pk")
-    )
+    return list(unit.elements.filter(parent__isnull=True).order_by("order", "pk"))
 
 
 def test_duplicate_lands_directly_below_the_source():
@@ -444,6 +471,28 @@ def test_duplicate_lands_directly_below_the_source():
 
     order = [e.pk for e in _top_level(unit)]
     assert order == [first.pk, tabs_join.pk, new_join.pk, last.pk]
+
+
+def test_duplicate_of_the_first_element_lands_second():
+    """Boundary: idx + 1 == 1, with nothing above the source."""
+    course, unit, first, tabs_join, last, _t2 = _unit_with_populated_tabs()
+
+    _unit, new_join = duplicate_element(course, first.pk, _tok(unit))
+
+    order = [e.pk for e in _top_level(unit)]
+    assert order == [first.pk, new_join.pk, tabs_join.pk, last.pk]
+
+
+def test_duplicate_of_the_last_element_lands_last():
+    """Boundary: idx + 1 == len(others), which place_element clamps to the end --
+    and the branch where el.order already equals its new index, so place_element
+    saves nothing at all."""
+    course, unit, first, tabs_join, last, _t2 = _unit_with_populated_tabs()
+
+    _unit, new_join = duplicate_element(course, last.pk, _tok(unit))
+
+    order = [e.pk for e in _top_level(unit)]
+    assert order == [first.pk, tabs_join.pk, last.pk, new_join.pk]
 
 
 def test_duplicate_copies_the_whole_subtree_with_fresh_rows():
@@ -477,20 +526,40 @@ def test_duplicate_of_a_nested_child_stays_in_its_own_slot():
     assert siblings == [source_child.pk, new_join.pk]
 
 
-def test_duplicate_deep_copies_related_rows_and_shares_media():
+def test_duplicate_deep_copies_related_rows_and_reuses_the_media_row():
+    """The image must live INSIDE the duplicated subtree. An asset created beside
+    it is never serialised, so media_map is empty and both media assertions are
+    true before duplicate_element is even called."""
     course, unit = make_course_with_unit()
     asset = make_image_asset(course, "pic.png")
+    tabs = TabsElement.objects.create(data=TabsElement.default_data())
+    tabs_join = Element.objects.create(unit=unit, content_object=tabs)
+    t1, t2 = [t["id"] for t in tabs.data["tabs"]]
     question = ChoiceQuestionElement.objects.create(stem="Q", multiple=True)
     Choice.objects.create(question=question, text="a", is_correct=True)
     Choice.objects.create(question=question, text="b")
-    join = Element.objects.create(unit=unit, content_object=question)
+    Element.objects.create(
+        unit=unit, content_object=question, parent=tabs_join, tab_id=t1
+    )
+    Element.objects.create(
+        unit=unit,
+        content_object=ImageElement.objects.create(media=asset, alt="a", figcaption=""),
+        parent=tabs_join,
+        tab_id=t2,
+    )
     choices_before = Choice.objects.count()
 
-    duplicate_element(course, join.pk, _tok(unit))
+    _unit, new_join = duplicate_element(course, tabs_join.pk, _tok(unit))
 
-    assert Choice.objects.count() == choices_before * 2
-    assert MediaAsset.objects.filter(course=course).count() == 1  # row REUSED
-    assert asset.pk == MediaAsset.objects.get(course=course).pk
+    assert Choice.objects.count() == choices_before * 2  # related rows deep-copied
+    assert MediaAsset.objects.filter(course=course).count() == 1  # ROW reused
+    copied_image = next(
+        child.content_object
+        for child in new_join.children.all()
+        if isinstance(child.content_object, ImageElement)
+    )
+    assert copied_image.pk != asset.pk  # a fresh ImageElement...
+    assert copied_image.media_id == asset.pk  # ...pointing at the SAME asset row
 
 
 def test_duplicate_bumps_the_unit_token():
@@ -527,7 +596,40 @@ def test_duplicate_refuses_a_damaged_subtree_rather_than_copying_it_partially():
 Run: `uv run pytest tests/test_builder_duplicate_element.py -v`
 Expected: FAIL — `ImportError: cannot import name 'duplicate_element'`.
 
-- [ ] **Step 3: Add the gettext import to `courses/builder.py`**
+- [ ] **Step 3: Widen `_locked_element`'s except clause**
+
+`courses/builder.py:919` catches only `Element.DoesNotExist`, so `Element.objects.get(pk="abc")`
+raises `ValueError` and escapes as a 500. Its sibling `_locked_element_in_unit` (`:882-886`)
+already catches `(Element.DoesNotExist, ValueError, TypeError)`. Make them consistent:
+
+```python
+    except (Element.DoesNotExist, ValueError, TypeError):
+        raise ConflictError() from None
+```
+
+This also hardens the existing `element_move` / `element_delete` paths, which 500 on the same
+input today. Add to `tests/test_element_duplicate_view.py` (Task 6):
+
+```python
+def test_duplicate_409s_on_a_non_numeric_element_pk(client):
+    """_locked_element used to catch only DoesNotExist, so a garbage pk was a 500."""
+    course, unit, _join = _seed(client)
+
+    resp = client.post(
+        reverse("courses:manage_element_duplicate", kwargs={"slug": course.slug}),
+        {
+            "ctx": "editor",
+            "element": "abc",
+            "unit": unit.pk,
+            "unit_token": unit.updated.isoformat(),
+        },
+        HTTP_X_REQUESTED_WITH="fetch",
+    )
+
+    assert resp.status_code == 409
+```
+
+- [ ] **Step 4: Add the gettext import to `courses/builder.py`**
 
 The module does not currently import it — `builder.py`'s existing exception messages are
 untranslated plain strings, but this one reaches the author through the editor's error slot.
@@ -540,7 +642,7 @@ from django.utils.translation import gettext as _
 Use `gettext`, not `gettext_lazy`: the string is built inside a function at call time, so the
 active language is already correct and a lazy proxy would only defer the same result.
 
-- [ ] **Step 4: Implement `duplicate_element` in `courses/builder.py`**
+- [ ] **Step 5: Implement `duplicate_element` in `courses/builder.py`**
 
 Insert immediately after `duplicate_unit` (which ends at `:375`):
 
@@ -562,6 +664,26 @@ def duplicate_element(course, element_pk, unit_token):
     from courses.transfer import importer as _importer
     from courses.transfer.schema import TransferError
 
+    try:
+        return _copy_below(el, unit, _export, _importer, TransferError)
+    except ConflictError:
+        # Defensive only: _check_token already ran above, so no ConflictError
+        # normally reaches here. Keep the 409 path unwrapped -- never normalize
+        # it to 422. (duplicate_unit carries the same guard for the same reason.)
+        raise
+    except TransferError:
+        raise  # already normalized by graft_elements' _run_import
+    except Exception as exc:
+        # build_element_export is NOT wrapped by _run_import, so a serializer
+        # edge or the export's own assert would otherwise escape as a 500 --
+        # element_duplicate catches only ConflictError and TransferError.
+        raise TransferError(str(exc) or "Duplicate failed.") from exc
+
+
+def _copy_below(el, unit, _export, _importer, TransferError):
+    """The export/graft/place region of duplicate_element, split out so the
+    caller's try/except reads as one block. Runs inside the caller's atomic
+    transaction and its element+unit lock."""
     document, media_assets, problems = _export.build_element_export(unit, el)
     if problems:
         # build_export RECORDS a dangling GFK and continues, dropping the broken
@@ -599,27 +721,63 @@ def duplicate_element(course, element_pk, unit_token):
     return unit, new_join
 ```
 
-- [ ] **Step 5: Run the tests to verify they pass**
+- [ ] **Step 6: Run the tests to verify they pass**
 
 Run: `uv run pytest tests/test_builder_duplicate_element.py -v`
 Expected: all seven PASS.
 
-- [ ] **Step 6: Add the internal-link test**
+- [ ] **Step 7: Pin the scoping fact the `_rewrite_links` skip rests on**
 
-`graft_elements` deliberately skips `_rewrite_links`, and nothing above would notice if a
-later edit put it back. Append to `tests/test_builder_duplicate_element.py`:
+An earlier draft of this plan guarded the skip with "a copied link still points at its
+original target". **That test cannot fail**, and it is worth knowing why before writing
+another one like it: `rewrite_instance` only touches hrefs matching
+`_PERMALINK` = `^/courses/n/(\d{1,12})/$` (`courses/richtext.py:62`) and only when the pk is
+in `mapping`; `mapping` is built from `link_nodes`, which `build_export` has already filtered
+to `pk in node_ids`. For an element export `node_ids` is `{unit.pk: "n1"}`, so a link to an
+external node never enters `mapping` at all and a link to the source unit maps to itself.
+Every variant of "assert the link survived" is green whether or not `_rewrite_links` runs.
+
+So pin the **scoping fact** instead, which is falsifiable. Append to
+`tests/test_builder_duplicate_element.py`:
 
 ```python
-def test_duplicate_leaves_an_internal_link_pointing_at_its_original_target():
-    """materialize_duplicate calls _rewrite_links; graft_elements must NOT.
-    Here node_map is a fabrication over the existing unit, so rewriting would
-    re-point every internal link in the copy onto this one unit -- corrupting
-    targets that were never re-homed."""
+def test_element_export_scopes_link_nodes_to_the_unit_itself():
+    """The reason graft_elements may skip _rewrite_links: link_nodes can only
+    ever name nodes INSIDE the export, and an element-scoped export contains
+    exactly one node -- the source unit. So the rewrite is provably an identity.
+    If this ever stops holding, the skip stops being safe."""
+    from courses.richtext import PERMALINK_PREFIX
+    from courses.transfer.export import build_element_export
+
     course, unit = make_course_with_unit()
     other = ContentNode.objects.create(
         course=course, kind="unit", unit_type="lesson", parent=None, title="Target"
     )
-    href = f"/courses/{course.slug}/learn/{other.pk}/"
+    external = f"{PERMALINK_PREFIX}{other.pk}/"
+    self_link = f"{PERMALINK_PREFIX}{unit.pk}/"
+    join = Element.objects.create(
+        unit=unit,
+        content_object=TextElement.objects.create(
+            body=f'<p><a href="{external}">out</a><a href="{self_link}">self</a></p>'
+        ),
+    )
+
+    document, _media, _problems = build_element_export(unit, join)
+
+    # The external target is filtered out; the self-link maps to the one node.
+    assert document["link_nodes"] == {str(unit.pk): document["nodes"][0]["id"]}
+
+
+def test_duplicate_keeps_an_internal_link_verbatim():
+    """A plain regression check on the copy's body -- deliberately WITHOUT a
+    mutant, because per the test above no reachable mutation can break it."""
+    from courses.richtext import PERMALINK_PREFIX
+
+    course, unit = make_course_with_unit()
+    other = ContentNode.objects.create(
+        course=course, kind="unit", unit_type="lesson", parent=None, title="Target"
+    )
+    href = f"{PERMALINK_PREFIX}{other.pk}/"
     join = Element.objects.create(
         unit=unit,
         content_object=TextElement.objects.create(
@@ -634,7 +792,7 @@ def test_duplicate_leaves_an_internal_link_pointing_at_its_original_target():
 
 Add `from courses.models import ContentNode` to the file's imports.
 
-- [ ] **Step 7: Falsify the three assertions that could be vacuous**
+- [ ] **Step 8: Falsify the four assertions that could be vacuous**
 
 
 Each mutation must turn exactly one test RED. Apply, run, confirm RED, then revert.
@@ -643,12 +801,18 @@ Each mutation must turn exactly one test RED. Apply, run, confirm RED, then reve
    Expected: `test_duplicate_of_a_nested_child_stays_in_its_own_slot` FAILS.
 2. Change `raise TransferError(...)` to `pass` in the `if problems:` branch.
    Expected: `test_duplicate_refuses_a_damaged_subtree_rather_than_copying_it_partially` FAILS.
-3. In `graft_elements` (Task 3), add a `_rewrite_links(document, node_map, created, on_missing="keep", report=None)` call before the return.
-   Expected: `test_duplicate_leaves_an_internal_link_pointing_at_its_original_target` FAILS.
+3. Change the `link_nodes` comprehension in `build_export` (`export.py:781-783`) to drop its
+   `if pk in node_ids` filter.
+   Expected: `test_element_export_scopes_link_nodes_to_the_unit_itself` FAILS — the external
+   target now appears, which is exactly the condition under which the `_rewrite_links` skip
+   would stop being safe.
+4. Replace the `ImageElement` in `test_duplicate_deep_copies_related_rows_and_shares_media`
+   with a fresh `make_image_asset(course, "other.png")` in `graft_elements`' media map.
+   Expected: that test FAILS on the `media_id` assertion.
 
 Run each with `uv run pytest tests/test_builder_duplicate_element.py -v`.
 
-- [ ] **Step 8: Commit**
+- [ ] **Step 9: Commit**
 
 ```bash
 git add courses/builder.py tests/test_builder_duplicate_element.py
@@ -718,16 +882,23 @@ def test_the_banner_renders_inside_the_swapped_pane(client):
 
 def test_the_banner_is_not_rendered_twice(client):
     """editor.html's old block must be REMOVED, not left beside the new one, or
-    every settings-save 422 shows its message twice."""
+    every settings-save 422 shows its message twice.
+
+    Counts `class="op-error"`, NOT the new block's id: editor.html:58-59 render
+    the div with no id at all, so an id-based count returns 1 whether or not
+    Step 4 was done -- vacuous, and the removal would ship unguarded."""
     resp = _editor_with_banner(client)
 
-    assert resp.content.decode().count('id="editor-error"') == 1
+    assert resp.content.decode().count('class="op-error"') == 1
 ```
 
 - [ ] **Step 2: Run the test to verify it fails**
 
 Run: `uv run pytest tests/test_editor_error_channel.py -v`
-Expected: FAIL on `assert "editor-error" in body` — no such slot exists yet.
+Expected: `test_the_banner_renders_inside_the_swapped_pane` FAILS on
+`assert 'id="editor-error"' in body` — no such slot exists yet.
+`test_the_banner_is_not_rendered_twice` PASSES for now: `editor.html` renders exactly one
+`op-error` div today. It becomes the guard on Step 4, which Step 4b below proves.
 
 - [ ] **Step 3: Add the error slot to `_editor_scope.html`**
 
@@ -748,6 +919,13 @@ One element, not two: `error` and `changed` can both be set on the same response
 blocks would then emit a duplicate `id`. `error` wins because it is the more specific
 message.
 
+- [ ] **Step 3b: Confirm the duplicate now exists**
+
+Run: `uv run pytest tests/test_editor_error_channel.py -v`
+Expected: `test_the_banner_is_not_rendered_twice` now FAILS with a count of 2 — the new slot
+and the old chrome block both render. That RED is what makes it a real guard on Step 4 rather
+than a test that was green all along.
+
 - [ ] **Step 4: Remove the superseded blocks from `editor.html`**
 
 In `templates/courses/manage/editor/editor.html`, delete both of these lines (currently `:58-59`):
@@ -759,7 +937,14 @@ In `templates/courses/manage/editor/editor.html`, delete both of these lines (cu
 
 `editor.html` includes `_editor_scope.html` at `:93` **without** `only`, so `error` and `changed` flow through from `_editor_page`'s context unchanged.
 
-- [ ] **Step 5: Add the two context keys to both builders**
+- [ ] **Step 5: Add the three context keys to both builders**
+
+`changed` is one of them, and leaving it out would ship a template variable that one of its
+two renderers never defines. `_editor_page` supplies `changed` (`views_manage.py:1300`);
+`_render_editor_fragments` does not — so on the one fragment path that is *about* a
+concurrent change, `_element_conflict` → `_render_editor_fragments(..., status=409)`
+(`:1209`), the moved block would render nothing. Under JS that is masked by `flash()` on 409;
+without JS it is silent. Add the kwarg and pass it.
 
 In `courses/views_manage.py`, change `_render_editor_fragments`'s signature to:
 
@@ -773,7 +958,14 @@ def _render_editor_fragments(
     refresh=True,
     error="",
     open_slots=None,
+    changed=False,
 ):
+```
+
+and in `_element_conflict`, change the editor-context fragment return to pass it:
+
+```python
+        return _render_editor_fragments(request, unit, status=409, changed=True)
 ```
 
 and add to its context dict, beside `max_nest_depth`:
@@ -788,9 +980,12 @@ and add to its context dict, beside `max_nest_depth`:
             # on only one makes the first page load look perfect while every
             # later fragment swap silently drops the feature.
             "open_slots": open_slots or set(),
+            # Supplied by _editor_page already; added here so the moved banner
+            # block has both of its variables defined on BOTH render paths.
+            "changed": changed,
 ```
 
-Add the same `"open_slots": open_slots or set(),` line to `_editor_page`'s context, and give `_editor_page` an `open_slots=None` keyword argument. `_editor_page` already has `error`.
+Add the same `"open_slots": open_slots or set(),` line to `_editor_page`'s context, and give `_editor_page` an `open_slots=None` keyword argument. `_editor_page` already has `error` and `changed`.
 
 - [ ] **Step 6: Run the tests to verify they pass**
 
@@ -826,9 +1021,11 @@ git commit -m "fix(editor): render errors inside the swapped pane, not the page 
 
 Create `tests/test_element_duplicate_view.py`:
 
-Auth here follows `tests/test_element_editor_ops.py`, not the builder tests: a manage view
-needs a user who can manage the course, so log in a Platform Admin with `make_pa` and make
-them the course owner. A plain `make_login` user gets a 403.
+Auth here follows `tests/test_element_editor_ops.py`. `can_manage_course` grants on
+**ownership or** the Platform Admin group, so `make_login(client, "owner")` + `owner=` would
+work equally well (`tests/factories.py:133-136` documents exactly that); `make_pa` is chosen
+here only to match the neighbouring editor-ops tests. What does *not* work is a logged-in user
+who neither owns the course nor holds the group — that is the 403 case, exercised below.
 
 ```python
 import pytest
@@ -1083,7 +1280,64 @@ def test_duplicating_inside_tab_two_renders_that_tab_open(client):
     tag = body[at : at + 200]
     assert " open" in tag
     assert "data-force-open" in tag
+
+
+def test_a_column_nested_in_a_tab_opens_its_whole_ancestor_chain(client):
+    """The `:132` edit uses `column.id`, not `tab.id`. Copying the tabs line
+    verbatim there fails SILENTLY -- nested inside a tabs element, `tab` is still
+    in scope (the recursive include at :86 passes no `only`), so the key names
+    the enclosing TAB and matches nothing. Without this test that ships green,
+    and it also gives ancestor_slots its only two-hop exercise."""
+    from courses.models import TwoColumnElement
+
+    pa = make_pa(client, "pa")
+    course = CourseFactory(owner=pa)
+    unit = ContentNodeFactory(
+        course=course, parent=None, kind="unit", unit_type="lesson"
+    )
+    tabs = TabsElement.objects.create(data=TabsElement.default_data())
+    tabs_join = Element.objects.create(unit=unit, content_object=tabs)
+    _t1, t2 = [t["id"] for t in tabs.data["tabs"]]
+    cols = TwoColumnElement.objects.create(data=TwoColumnElement.default_data())
+    cols_join = Element.objects.create(
+        unit=unit, content_object=cols, parent=tabs_join, tab_id=t2
+    )
+    _c1, c2 = [c["id"] for c in cols.data["columns"]]
+    child = Element.objects.create(
+        unit=unit,
+        content_object=TextElement.objects.create(body="<p>deep</p>"),
+        parent=cols_join,
+        tab_id=c2,
+    )
+
+    # Two hops: the column slot AND the tab slot above it.
+    assert ancestor_slots(child) == {
+        slot_key(cols_join.pk, c2),
+        slot_key(tabs_join.pk, t2),
+    }
+
+    resp = client.post(
+        reverse("courses:manage_element_duplicate", kwargs={"slug": course.slug}),
+        {
+            "ctx": "editor",
+            "element": child.pk,
+            "unit": unit.pk,
+            "unit_token": unit.updated.isoformat(),
+        },
+        HTTP_X_REQUESTED_WITH="fetch",
+    )
+
+    assert resp.status_code == 200
+    body = resp.content.decode()
+    for marker in (f'data-column-id="{c2}"', f'data-tab-id="{t2}"'):
+        tag = body[body.index(marker) : body.index(marker) + 200]
+        assert "data-force-open" in tag, marker
+        assert " open" in tag, marker
 ```
+
+`TwoColumnElement.default_data()` returns `{"columns": [{"id": first}, {"id": second}]}`
+(`courses/models.py:1487-1491`) — two columns, keyed `"columns"`, which is what the unpacking
+above relies on.
 
 - [ ] **Step 2: Run the test to verify it fails**
 
@@ -1262,7 +1516,12 @@ Expected: all five PASS.
 - [ ] **Step 5: Regenerate translations**
 
 Run: `uv run python manage.py makemessages -l pl -l en --no-obsolete`
-Then translate the new `Duplicate` string in `locale/pl/LC_MESSAGES/django.po` (Polish: `Duplikuj`) and **clear any `#, fuzzy` marker** on it — a fuzzy entry is pre-filled with a wrong translation and is not used until the marker is removed. Then:
+
+`msgid "Duplicate"` / `msgstr "Duplikuj"` **already exists** in
+`locale/pl/LC_MESSAGES/django.po` (the builder's node-duplicate control uses it), so this run
+should only add a reference comment pointing at `_element_row_controls.html`. Confirm that:
+no new untranslated entry, and no `#, fuzzy` marker anywhere in the diff — a fuzzy entry
+carries a wrong pre-filled translation and is ignored until the marker is cleared. Then:
 
 ```bash
 uv run python manage.py compilemessages
@@ -1404,12 +1663,15 @@ def test_a_stored_collapse_does_not_hide_a_just_duplicated_element(page, live_se
     with page.expect_response(lambda r: "element/duplicate/" in r.url):
         row.locator("form[data-op='element-duplicate'] button[type=submit]").click()
 
-    # After the swap the destination tab must still be open and hold BOTH rows.
-    # Under the defect applyStoredTabs has just re-collapsed it and the count is
-    # unobservable because the rows are hidden.
     tab2_after = page.locator(f"details.tabs-rows[data-tab-id='{t2}']")
     expect(tab2_after).to_have_attribute("data-force-open", "")
+    # THIS is the assertion the defect breaks: applyStoredTabs has just re-applied
+    # the stored "0" over the server's `open`.
     expect(tab2_after).to_have_attribute("open", "")
+    # And this one proves the copy landed in the right slot. Note it does NOT
+    # detect the defect: to_have_count matches DOM nodes regardless of visibility,
+    # and a closed <details> keeps its children in the DOM (it hides them via
+    # content-visibility), so the count is 2 either way.
     expect(tab2_after.locator(".el-row")).to_have_count(2)
 ```
 
@@ -1472,7 +1734,11 @@ Use the `/run` skill, or follow the project's documented dev-server steps, and n
 
 - [ ] **Step 2: Screenshot the row bar in light mode**
 
-Capture a top-level row and a nested row. Check: ⧉ sits between ↓ and 🗑; the six-control bar does not wrap or overflow; the slidebreak row (five controls, no ✎/✕) still lines up.
+Capture a top-level row and a nested row. Check: ⧉ sits between ↓ and 🗑; the bar does not
+wrap or overflow; the slidebreak row still lines up. Counts, on one consistent basis — inside
+`.el-actions`, a normal row now holds ✎ ✕ ↑ ↓ ⧉ 🗑 (six) and a slidebreak row holds ↑ ↓ ⧉ 🗑
+(four). The drag grip is a seventh/fifth control visually but lives in `.el-row__head`,
+*outside* `.el-actions` (`_element_row.html:6-7`, `:48-49`, `:202-203`).
 
 - [ ] **Step 3: Screenshot the same in dark mode**
 
