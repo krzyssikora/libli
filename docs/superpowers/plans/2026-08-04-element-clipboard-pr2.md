@@ -1131,7 +1131,18 @@ def test_the_children_map_is_returned_for_reuse():
     assert [j.pk for j in children_map[None]] == [outer.pk]
 
 
-def test_a_parent_cycle_terminates():
+def test_rows_in_a_parent_cycle_are_simply_unreachable():
+    """Named for what it actually pins. `Element.parent` is single-valued, so a
+    node inside a cycle always has a non-null parent and is therefore never a root
+    -- the walk starts from `children_map[None]` and never enters the cycle at all.
+    (`_element_row.html:176-181` makes the same argument for the template
+    recursion.)
+
+    So `seen` CANNOT be falsified from this entry point: deleting the guard leaves
+    this test green. It is defence-in-depth for a future caller that walks from an
+    arbitrary node, and `subtree_facts` -- which does exactly that -- is where the
+    guard IS exercised (see test_subtree_facts_terminates_on_a_parent_cycle).
+    """
     _course, unit = make_course_with_unit()
     a, aslots = _tabs(unit)
     b, _bslots = _tabs(unit, parent=a, tab=aslots[0])
@@ -1139,9 +1150,8 @@ def test_a_parent_cycle_terminates():
 
     pairs, _map = builder.enumerate_slots(unit)
 
-    # Both rows are now unreachable from the roots (neither has parent None), so
-    # only the synthetic pair survives. What matters is that this RETURNS.
     assert pairs == [(None, "", 1)]
+
 
 
 def test_the_walk_costs_a_bounded_number_of_queries(django_assert_num_queries):
@@ -1245,7 +1255,7 @@ def enumerate_slots(unit):
 - [ ] **Step 4: Run the tests to verify they pass**
 
 Run: `uv run pytest tests/test_enumerate_slots.py -v`
-Expected: all **9** PASS. If the query-count test reports a different number, do **not** simply edit the expected count to match: first confirm from the captured queries that the extra ones are per-content-type and not per-join, and say so in your report.
+Expected: all **8** PASS. If the query-count test reports a different number, do **not** simply edit the expected count to match: first confirm from the captured queries that the extra ones are per-content-type and not per-join, and say so in your report.
 
 - [ ] **Step 5: Falsify the two traps**
 
@@ -1619,6 +1629,33 @@ def test_a_move_compacts_the_source_group_and_appends_to_the_destination():
     dst = _orders(unit, dest, slots[0])
     assert [pk for pk, _o in dst] == [existing.pk, b.pk]
     assert len({o for _pk, o in dst}) == 2
+
+
+def test_a_healthy_move_out_of_a_container_to_top_level():
+    """The reverse direction, which nothing else covers: the damaged-row test that
+    also lands at top level uses a dangling GFK and asserts only `parent_id is
+    None`. Here the row is healthy and BOTH halves are checked -- the destination
+    scope is fully cleared (`tab_id` back to ""), and the vacated slot is compacted
+    rather than left with a hole.
+
+    Mutant: compact the destination group instead of the captured source one ->
+    the sibling-orders assertion goes RED.
+    """
+    course, unit = make_course_with_unit()
+    dest, slots = _tabs(unit)
+    first = _text(unit, parent=dest, tab=slots[0], body="<p>1</p>")
+    subject = _text(unit, parent=dest, tab=slots[0], body="<p>2</p>")
+    last = _text(unit, parent=dest, tab=slots[0], body="<p>3</p>")
+
+    _u, placed = paste_element(course, subject.pk, "", "", "move", _tok(unit))
+
+    fresh = Element.objects.get(pk=placed.pk)
+    assert fresh.parent_id is None
+    assert fresh.tab_id == ""
+    # The vacated slot is compacted to 0..n-1 with no hole where the row was.
+    remaining = _orders(unit, dest, slots[0])
+    assert [pk for pk, _o in remaining] == [first.pk, last.pk]
+    assert [o for _pk, o in remaining] == [0, 1]
 
 
 def test_a_move_whose_old_order_equals_its_new_index_is_still_persisted():
@@ -2007,14 +2044,15 @@ def _copy_into(el, unit, dest_parent, tab_id):
 - [ ] **Step 5: Run the tests to verify they pass**
 
 Run: `uv run pytest tests/test_builder_paste_element.py -v`
-Expected: all **21** PASS (20 test functions, one parametrised over two modes).
+Expected: all **22** PASS (21 test functions, one parametrised over two modes).
 
 - [ ] **Step 6: Falsify the four move/copy assertions that could be vacuous**
 
 Apply, run, confirm RED, revert. "The source group is compacted" and "the destination keeps distinct orders" are both true of an implementation that never moves anything, so these mutations are what make them mean something.
 
 1. Delete step 2's `el.save(update_fields=["parent", "tab_id"])` in `_move_into`.
-   Expected RED — three tests, because an unpersisted scope leaves the row in its old group: `test_a_move_reparents_the_root_and_persists_the_scope`, `test_a_move_compacts_the_source_group_and_appends_to_the_destination` (the moved row never leaves the source list) and `test_a_move_whose_old_order_equals_its_new_index_is_still_persisted`. Still GREEN: `test_a_move_into_a_third_column_lands_there` and `test_a_move_into_a_spoiler_uses_its_fixed_slot`, which read the in-memory `placed` — which is precisely why the three above re-read from the DB.
+   Expected RED — **five** tests, because an unpersisted scope leaves the row in its old group and every one of these re-reads it from the DB: `test_a_move_reparents_the_root_and_persists_the_scope`, `test_a_move_compacts_the_source_group_and_appends_to_the_destination` (the moved row never leaves the source list), `test_a_move_whose_old_order_equals_its_new_index_is_still_persisted`, `test_a_move_into_a_third_column_lands_there` and `test_a_move_into_a_spoiler_uses_its_fixed_slot`.
+   Still GREEN: `test_a_move_carries_its_whole_subtree_without_touching_the_children` and `test_a_move_keeps_the_elements_pk_so_student_state_follows_it`, neither of which looks at the moved row's own scope.
 2. In `_move_into`, compact the DESTINATION group instead of the captured source one — `ordering.compact_elements(unit, parent=dest_parent, tab_id=tab_id)`.
    Expected RED: `test_a_move_compacts_the_source_group_and_appends_to_the_destination`, on the source orders — the hole the moved row left is never closed.
    (Do **not** try "swap steps 3 and 4" as a mutation: `place_element` works on the destination group and `compact_elements` on the captured source group, and clause 5 guarantees those are disjoint for a move, so the two calls commute and nothing reds. Only the capture in step 1 and the save in step 2 are order-critical.)
@@ -2379,7 +2417,9 @@ The render side of the mark (which slots get buttons, which row is marked, what 
 
 **Both context builders get the keys.** `_render_editor_fragments` (`:1275`) and `_editor_page` (`:1336`) build the editor context independently; a key on only one makes the first page load look perfect while every later fragment swap silently drops the feature. That is what the comment at `:1309-1317` already records for `max_nest_depth`.
 
-**When nothing is marked, no walk happens** — `enumerate_slots` is skipped entirely, so the common render pays nothing.
+**When nothing is marked, no walk happens** — `enumerate_slots` is skipped entirely, so the common render pays nothing. That guarantee has its own test (`test_an_unmarked_render_never_walks_the_unit`), because nothing else would catch a refactor that hoists the call above the empty return.
+
+**The marked render's query budget is the enumerator's count PLUS a few, not equal to it.** `marked` is fetched separately from the prefetched list, so `_slot_cap(marked)` costs one GFK query and `element_summary(obj)` can cost another (an image or video summary reads its media row). Picking `marked` out of `children_map` would avoid the first; the plan does not, because the lookup also serves as the lazy staleness check. State the real number if you measure it — do not read "one query" as the whole cost of a marked render.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -2668,6 +2708,35 @@ def test_a_move_into_a_spoiler_works_end_to_end(client):
     assert (subject.parent_id, subject.tab_id) == (sp.pk, SpoilerElement.SLOT_ID)
 
 
+def test_an_unmarked_render_never_walks_the_unit(client, monkeypatch):
+    """The cost guarantee the whole design rests on: the enumerator runs on EVERY
+    editor response while a mark is pending, so `_clip_context` MUST return before
+    calling it when nothing is marked. Nothing else pins this -- the enumerator's
+    own query-count test measures it in isolation, so a refactor that hoists
+    `enumerate_slots(unit)` above the empty return ships green and silently doubles
+    the query cost of every add, save, move and delete.
+
+    Mutant: move the `enumerate_slots` call above `_clip_context`'s empty return ->
+    RED with the RuntimeError below.
+    """
+    from courses import builder as builder_mod
+
+    course, unit = _seed(client)
+    _tabs(unit)
+    _text(unit)
+
+    def _boom(_unit):
+        raise RuntimeError("enumerate_slots must not run on an unmarked render")
+
+    monkeypatch.setattr(builder_mod, "enumerate_slots", _boom)
+
+    resp = client.get(
+        reverse("courses:manage_editor", kwargs={"slug": course.slug, "pk": unit.pk})
+    )
+
+    assert resp.status_code == 200
+
+
 def test_a_paste_into_a_column_works_end_to_end(client):
     """The view-level column case. `column.id` is a different template expression
     from `tab.id`, and the columns branch is the one where a copied condition fails
@@ -2894,7 +2963,7 @@ def _refused(request, unit, reason_key):
 - [ ] **Step 7: Run the tests to verify they pass**
 
 Run: `uv run pytest tests/test_element_paste_view.py -v`
-Expected: all **15** PASS.
+Expected: all **16** PASS.
 
 - [ ] **Step 8: Confirm the unmarked render still costs nothing extra**
 
@@ -2945,10 +3014,13 @@ A small inclusion tag, invoked at the four slot sites. The template never re-der
 Create `tests/test_editor_clip_templates.py`:
 
 ```python
-"""Several cases here assert a button is ABSENT and would stay green if the tag
-emitted nothing at all. The pairing is what makes them non-vacuous, so the mutant
-is named once for the file: make the tag render nothing -> the top-level-slot and
-own-slot-copy cases go RED while every "no button" case stays green.
+"""Several assertions here check a button is ABSENT and would stay green if the
+tag emitted nothing at all. The pairing is what makes them non-vacuous: every
+absence assertion but one sits in a test that ALSO asserts a button present
+somewhere the rule allows. The mutant, named once for the file: make the tag
+render nothing -> seven of the eight tests go RED, and only
+test_no_paste_buttons_render_when_nothing_is_marked (the one absence-only test)
+stays green.
 """
 
 import pytest
@@ -3018,6 +3090,10 @@ def _slot_section(body, marker):
     paste form starts thousands of characters past the marker. A 1500-char slice
     would make every presence assertion fail against a correct implementation and,
     worse, every ABSENCE assertion pass regardless of what the tag emits.
+
+    LIMITATION: this stops at the FIRST `</details>`, so it truncates early for a
+    slot that itself holds a nested container. No fixture in this file does that;
+    if you add one, count opening tags rather than widening the window.
     """
     at = body.index(marker)
     end = body.index("</details>", at)
@@ -3149,7 +3225,13 @@ def test_a_padded_slot_renders_no_paste_button(client):
 
     body = _editor(client, course, unit)
 
-    rendered = _re.findall(r'data-tab-id="([^"]+)"', body)
+    # Match the EDITOR's <details> only. `data-tab-id` is also emitted by the
+    # preview pane (templates/courses/elements/tabselement.html:17), which
+    # _editor_scope.html renders after the editor -- and because normalize_data
+    # mints a fresh padding id on EVERY call, the preview's padding id differs
+    # from the editor's. A bare attribute regex therefore harvests a phantom id
+    # that has no <details> after it, and _slot_section's index() raises.
+    rendered = _re.findall(r'<details class="tabs-rows" data-tab-id="([^"]+)"', body)
     assert "t000001" in rendered  # the stored slot survived
     minted = [t for t in rendered if t != "t000001"]
     assert minted, "the renderer must have padded to MIN_TABS"
@@ -3276,7 +3358,8 @@ Expected: all **8** PASS.
 
 Make the tag return `{"show_move": False, "show_copy": False, ...}` unconditionally.
 Run: `uv run pytest tests/test_editor_clip_templates.py -v`
-Expected: `test_the_top_level_slot_offers_its_buttons`, `test_the_marked_elements_own_slot_offers_copy_but_not_move`, `test_a_columns_slot_gets_its_own_key_not_the_enclosing_tabs_one`, `test_a_spoiler_slot_offers_its_buttons` and `test_the_form_carries_the_scope_and_a_csrf_token` FAIL, while every "renders no button" case stays green. That contrast is what makes the absence assertions mean something. Revert.
+Expected RED — **seven** of the eight: the five wholly-positive tests (`test_the_top_level_slot_offers_its_buttons`, `test_the_marked_elements_own_slot_offers_copy_but_not_move`, `test_a_columns_slot_gets_its_own_key_not_the_enclosing_tabs_one`, `test_a_spoiler_slot_offers_its_buttons`, `test_the_form_carries_the_scope_and_a_csrf_token`) **and** the two mixed ones, each of which carries a positive assertion beside its absence one — `test_a_slot_that_fails_the_rule_renders_no_buttons` (its closing "the top-level slot still offers them") and `test_a_padded_slot_renders_no_paste_button` (its stored-slot assertion).
+Still GREEN: only `test_no_paste_buttons_render_when_nothing_is_marked`, which is the one genuinely absence-only test in the file. That is the contrast that makes the absence assertions mean something. Revert.
 
 - [ ] **Step 8: Commit**
 
@@ -3503,7 +3586,7 @@ Expected: all **15** PASS (this task's 7 appended tests plus Task 10's 8).
 
 Run: `uv run python manage.py makemessages -l pl -l en --no-obsolete`
 
-**Expect several new msgids** — `Select`, `Cancel selection`, `Move here`, `Copy here`, `Selected: %(clip_label)s`, and the eight refusal messages from Task 9. Every one of them is new to this branch.
+**Expect exactly 14 new msgids** — `Select`, `Cancel selection`, `Move here`, `Copy here`, `Selected: %(clip_label)s`, the eight entries of `PASTE_REFUSAL_MESSAGES`, and `_refused`'s fallback `That placement is not allowed.` Check the count against the diff; a different number means something was missed or something unexpected drifted in. Every one of them is new to this branch.
 
 Then, before compiling:
 - **Check the diff for `#, fuzzy` markers.** A fuzzy entry carries a WRONG pre-filled translation from an unrelated msgid and is ignored until the marker is cleared — and clearing it is TWO deletions, the `#, fuzzy` line **and** the `#| msgid "…"` provenance comment. Read every new `msgstr` rather than trusting it.
@@ -3521,6 +3604,7 @@ Then, before compiling:
   - `This element is too deep to fit there.` → `Ten element jest zbyt zagnieżdżony, aby się tam zmieścić.`
   - `It is already there.` → `Element już tam jest.`
   - `The destination was removed while you were working.` → `Miejsce docelowe zostało usunięte w trakcie pracy.`
+  - `That placement is not allowed.` → `Nie można umieścić elementu w tym miejscu.`
 - A placeholder must survive verbatim: `%(clip_label)s` in the Polish string too, or the render raises.
 
 Then: `uv run python manage.py compilemessages`
@@ -3748,7 +3832,12 @@ def test_a_populated_container_moves_into_a_spoiler_and_reaches_the_student(
     # The mark is cleared by a move, so the banner is gone.
     expect(page.locator("#clip-banner")).to_have_count(0)
 
-    # 4. The student sees it. A move the student page cannot render is worthless.
+    # 4. The moved subtree reaches the student page's MARKUP. Deliberately a
+    #    count, not a visibility check: after the move the child sits in tab 2 of
+    #    a tabs element nested inside a closed spoiler, so it is present but not
+    #    visible -- which is correct, and asserting to_be_visible() here would
+    #    fail for the right reasons. What this pins is that the move did not lose
+    #    the subtree somewhere between the editor and the student render.
     page.goto(_lesson_url(live_server, unit))
     expect(page.get_by_text("CLIPMARKER-child")).to_have_count(1)
 ```
@@ -3796,7 +3885,7 @@ and tick each combination against its test:
 | into a **columns** slot (incl. a 3rd column) | `test_a_move_into_a_third_column_lands_there`, `test_a_paste_into_a_column_works_end_to_end` |
 | into a **spoiler** slot | `test_a_move_into_a_spoiler_uses_its_fixed_slot`, `test_a_move_into_a_spoiler_works_end_to_end` |
 | same type inside itself (Tabs in Tabs) | `test_a_copy_preserves_the_subtree_shape_at_every_depth` places a Tabs subtree into a Tabs slot; `courses/tests/test_paste_rule.py::test_a_leaf_may_land_at_depth_four_but_a_container_may_not` pins the depth limit of that shape |
-| moved **out** of a container to top level | `test_a_move_of_a_damaged_row_to_top_level_succeeds` (structural), plus the e2e's student-page assertion |
+| moved **out** of a container to top level | `test_a_healthy_move_out_of_a_container_to_top_level` — asserts the cleared `tab_id` AND the vacated slot's compaction (the damaged-row test only reaches `parent_id is None`, and the e2e moves the other way) |
 | between two slots of the **same** container | `test_a_move_clears_the_mark_and_a_copy_keeps_it` pastes into `slots[0]` then `slots[1]` of one container |
 | a subtree reaching exactly depth 4 | `courses/tests/test_paste_rule.py::test_a_leaf_may_land_at_depth_four_but_a_container_may_not` |
 
