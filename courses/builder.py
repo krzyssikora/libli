@@ -1,5 +1,7 @@
 """Course-builder tree mutations with optimistic-concurrency token checks."""
 
+from dataclasses import dataclass
+
 from django.db import transaction
 from django.utils.dateparse import parse_datetime
 from django.utils.translation import gettext as _
@@ -228,6 +230,156 @@ def resolve_scope(unit, parent_ref, tab, type_key):
     ):
         raise NestingError("a container may not be nested this deeply")
     return join, tab
+
+
+@dataclass(frozen=True)
+class SubtreeFacts:
+    """The two facts about a marked element that do NOT depend on the destination.
+
+    Computed once per render and passed to every per-slot paste_allowed call; the
+    endpoint omits it and paste_allowed computes it itself. That parameter is what
+    makes the N advisory calls and the one enforcing call provably the same code --
+    the alternative, a view applying `dest_depth <= scalar` on its own, would put a
+    second copy of clause 3 outside the authority.
+    """
+
+    min_headroom: int
+    subtree_pks: frozenset
+
+
+def _slot_cap(join):
+    """cap(n): a container may live at depth 1..MAX_NEST_DEPTH-1, a leaf at 1..MAX.
+
+    A container at depth 4 would render slots that can never be filled. Reads the
+    MODEL-keyed registry, not CONTAINER_TRANSFER_KEYS, because the subject is an
+    existing row rather than an incoming request -- no model->key hop is needed. A
+    dangling GFK gives type(None), which is in neither, so it counts as a leaf.
+    """
+    if type(join.content_object) in _CONTAINER_REGISTRY:
+        return MAX_NEST_DEPTH - 1
+    return MAX_NEST_DEPTH
+
+
+def subtree_facts(join, children_map=None):
+    """Facts about the subtree rooted at `join`, over the FK walk.
+
+    `S` is `join.children` -- EVERY child row, matched slot or not. Deliberately
+    NOT the export walk's resolved_tabs()/resolved_columns(), which group by slot
+    and omit a child whose tab_id matches no slot: a move re-parents the root, so
+    an orphaned child travels with it whether or not any slot resolves. Measuring
+    with the export walk would let an over-deep orphaned branch through.
+
+    `children_map` is the render's prefetched {parent_pk: [joins]} map (see
+    enumerate_slots). Omitted, each level costs a query -- fine for the single call
+    the endpoint makes, ruinous for the per-render walk.
+
+    Cycle-guarded by `seen`, for the same reason _collect_subtree_pks is.
+    """
+    seen = set()
+    headroom = [MAX_NEST_DEPTH]
+
+    def walk(node, rel):
+        if node.pk in seen:
+            return
+        seen.add(node.pk)
+        headroom[0] = min(headroom[0], _slot_cap(node) - rel)
+        if children_map is not None:
+            kids = children_map.get(node.pk, [])
+        else:
+            kids = node.children.all()
+        for child in kids:
+            walk(child, rel + 1)
+
+    walk(join, 0)
+    return SubtreeFacts(min_headroom=headroom[0], subtree_pks=frozenset(seen))
+
+
+def paste_allowed(
+    unit, marked_join, dest_parent, tab, mode, facts=None, dest_depth=None
+):
+    """Is placing `marked_join`'s subtree into (`dest_parent`, `tab`) admissible?
+
+    Returns `(True, None)` or `(False, reason_key)`. The reason exists because the
+    422 has to say what was wrong; a bare bool would force the endpoint to invent a
+    generic message.
+
+    THE authority: called per slot by the render to decide which buttons exist, and
+    again inside the paste transaction to enforce. The render-time call is advisory;
+    the in-transaction call is what a hand-crafted POST cannot beat.
+
+    `facts` and `dest_depth` follow one rule: the render supplies them, the endpoint
+    omits them, and this function computes whatever it was not given.
+
+    Reason precedence, fixed and depended on by every caller's tests: wrong_unit,
+    into_own_subtree, not_a_container, unknown_slot, type_not_nestable, too_deep,
+    own_slot. Clause 4 is tested before the container checks so that "into your own
+    child" reports that rather than "not a container" when the child is a leaf.
+    """
+    if marked_join.unit_id != unit.pk:  # clause 0
+        return False, "wrong_unit"
+    if dest_parent is not None and dest_parent.unit_id != unit.pk:  # clause 0
+        return False, "wrong_unit"
+
+    if facts is None:
+        facts = subtree_facts(marked_join)
+
+    if dest_parent is None:
+        # The synthetic top-level slot. A non-empty tab here cannot come from the
+        # UI -- the parse helper rejects tab-without-parent with a 400 before this
+        # runs -- so this is defence, not a reachable branch.
+        if tab:
+            return False, "unknown_slot"
+        if dest_depth is None:
+            dest_depth = 1
+    else:
+        if dest_parent.pk in facts.subtree_pks:  # clause 4 ({R} U descendants(R))
+            return False, "into_own_subtree"
+
+        container = _CONTAINER_REGISTRY.get(type(dest_parent.content_object))
+        if container is None:  # clause 1
+            return False, "not_a_container"
+        normalizer, list_key, id_key, max_slots = container
+        # getattr: a single-slot container (spoiler) has no `data` field at all,
+        # and the argument is evaluated HERE, before the normalizer runs.
+        slots = normalizer(getattr(dest_parent.content_object, "data", None))[list_key]
+        ids = [s[id_key] for s in slots]
+        if max_slots is not None:
+            # Clause 1 is deliberately STRICTER than resolve_scope's clause 2: the
+            # non-destructive normalizer keeps slots the render-side destructive one
+            # truncates away, and a paste into one of those lands a populated
+            # subtree where nothing will ever render or export it. The check is on
+            # POSITION, not on the minted id, so it is stable across calls --
+            # comparing ids against the destructive normalizer's output would
+            # compare against freshly minted values.
+            ids = ids[:max_slots]
+        if tab not in ids:  # clause 1
+            return False, "unknown_slot"
+
+        # Clause 2 checks the ROOT only, deliberately: every descendant is already
+        # nested, so it passed this when it was created. The root is the only node
+        # whose nestability is unproven -- it may have been sitting at top level,
+        # where non-nestable types legally live.
+        #
+        # Function-local import for the reason duplicate_element's transfer imports
+        # are (see :599-603): the transfer package pulls courses.forms /
+        # courses.media, so a module-level edge risks an import cycle.
+        from courses.transfer.export import model_to_key
+
+        if model_to_key(type(marked_join.content_object)) not in NESTABLE_TYPE_KEYS:
+            return False, "type_not_nestable"
+
+        if dest_depth is None:
+            dest_depth = element_depth(dest_parent) + 1
+
+    if dest_depth > facts.min_headroom:  # clause 3
+        return False, "too_deep"
+
+    if mode == "move":  # clause 5 -- pks, never instances
+        here = (dest_parent.pk if dest_parent is not None else None, tab)
+        if here == (marked_join.parent_id, marked_join.tab_id):
+            return False, "own_slot"
+
+    return True, None
 
 
 def _check_token(current_dt, token):
