@@ -5,6 +5,7 @@ from django.utils.dateparse import parse_datetime
 from django.utils.translation import gettext as _
 
 from courses import ordering
+from courses.models import CalloutElement
 from courses.models import ContentNode
 from courses.models import Element
 from courses.models import SpoilerElement
@@ -26,10 +27,10 @@ class NestingError(Exception):
 MAX_NEST_DEPTH = 4  # a top-level element has depth 1
 
 # Container TYPE KEYS (transfer namespace). Clause 4 of the containment rule tests
-# membership here. PR2 (Callout as a container) must add its key to THIS set, to
+# membership here. Any new container must be added to THIS set, to
 # _CONTAINER_REGISTRY and to payloads._CONTAINER_SLOT_KEY -- all three. The drift
 # test in test_nesting_rule.py is what stops it landing in only two.
-CONTAINER_TRANSFER_KEYS = frozenset({"tabs", "two_column", "spoiler"})
+CONTAINER_TRANSFER_KEYS = frozenset({"tabs", "two_column", "spoiler", "callout"})
 
 # Positive allowlist: any type NOT named here is non-nestable, including types added
 # by future slices. Deliberately NOT the element_add/element_save allow-tuples, which
@@ -94,6 +95,14 @@ _CONTAINER_REGISTRY = {
     # has no `data` field, which is why the call site below uses getattr().
     SpoilerElement: (
         lambda _data: {"slots": [{"id": SpoilerElement.SLOT_ID}]},
+        "slots",
+        "id",
+    ),
+    # Single-slot, like SpoilerElement: ignores its argument and returns one fixed
+    # slot. CalloutElement has no `data` field, which is why the call site uses
+    # getattr(parent_obj, "data", None).
+    CalloutElement: (
+        lambda _data: {"slots": [{"id": CalloutElement.SLOT_ID}]},
         "slots",
         "id",
     ),

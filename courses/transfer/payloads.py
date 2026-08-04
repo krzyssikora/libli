@@ -750,7 +750,12 @@ def _val_twocolumn(data, elid, media_kinds):
 # `None` means SINGLE-SLOT (the only valid id is SINGLE_SLOT_ID), NOT
 # "missing". Membership is tested BEFORE this lookup, because `None` already
 # serves as the not-a-container sentinel.
-_CONTAINER_SLOT_KEY = {"tabs": "tabs", "two_column": "columns", "spoiler": None}
+_CONTAINER_SLOT_KEY = {
+    "tabs": "tabs",
+    "two_column": "columns",
+    "spoiler": None,
+    "callout": None,
+}
 
 
 def validate_nesting(elements):
