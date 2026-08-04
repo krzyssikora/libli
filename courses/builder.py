@@ -2,6 +2,7 @@
 
 from django.db import transaction
 from django.utils.dateparse import parse_datetime
+from django.utils.translation import gettext as _
 
 from courses import ordering
 from courses.models import ContentNode
@@ -373,6 +374,80 @@ def duplicate_unit(course, node_pk, *, token):
         raise  # already normalized by materialize's _run_import
     except Exception as exc:
         raise TransferError(str(exc) or "Duplicate failed.") from exc
+
+
+@transaction.atomic
+def duplicate_element(course, element_pk, unit_token):
+    """Deep-copy one element and its whole subtree into the SOURCE's own group,
+    directly below the source. Returns (unit, new_join).
+
+    Depth is unchanged -- the copy lands where the source already lives -- so a
+    duplicate needs no admissibility check at all; it is safe by construction.
+    """
+    el, unit = _locked_element(course, element_pk)
+    _check_token(unit.updated, unit_token)
+
+    # Lazy imports: the transfer package pulls courses.forms / courses.media,
+    # so a top-level edge here risks an import cycle (builder.py convention).
+    from courses.transfer import export as _export
+    from courses.transfer import importer as _importer
+    from courses.transfer.schema import TransferError
+
+    try:
+        return _copy_below(el, unit, _export, _importer, TransferError)
+    except ConflictError:
+        # Defensive only: _check_token already ran above, so no ConflictError
+        # normally reaches here. Keep the 409 path unwrapped -- never normalize
+        # it to 422. (duplicate_unit carries the same guard for the same reason.)
+        raise
+    except TransferError:
+        raise  # already normalized by graft_elements' _run_import
+    except Exception as exc:
+        # build_element_export is NOT wrapped by _run_import, so a serializer
+        # edge or the export's own assert would otherwise escape as a 500 --
+        # element_duplicate catches only ConflictError and TransferError.
+        raise TransferError(str(exc) or "Duplicate failed.") from exc
+
+
+def _copy_below(el, unit, _export, _importer, TransferError):
+    """The export/graft/place region of duplicate_element, split out so the
+    caller's try/except reads as one block. Runs inside the caller's atomic
+    transaction and its element+unit lock."""
+    document, media_assets, problems = _export.build_element_export(unit, el)
+    if problems:
+        # build_export RECORDS a dangling GFK and continues, dropping the broken
+        # join and its entire subtree from the payload; duplicate_unit discards
+        # this list outright. Copy that shape here and a damaged element yields a
+        # silently thinned copy with a 200. drop_missing_media=False means no
+        # media problem can be produced, so a non-empty list means exactly one
+        # thing.
+        raise TransferError(_("This element is damaged and cannot be copied."))
+
+    media_map = {mid: asset for (mid, asset, _ph) in media_assets}
+    new_join = _importer.graft_elements(document, media_map, unit)
+
+    # The graft returns a PARENTLESS root: the payload root has no `parent`, and
+    # _create_elements' second pass skips exactly those rows. place_element will
+    # not fix it either -- it saves only `order`. So the scope is set and SAVED
+    # here, or a copy of a nested element silently lands at top level.
+    new_join.parent = el.parent
+    new_join.tab_id = el.tab_id
+    new_join.save(update_fields=["parent", "tab_id"])
+
+    # Read the sibling list AFTER the graft. Element.order is
+    # OrderField(for_fields=["unit"]), so the copy is born with a unit-wide max+1
+    # and sorts last in its group -- the source's index is therefore unaffected
+    # by the copy's presence. Do not "fix" this by excluding the copy from the
+    # list or by reading the group before the graft: both change which index
+    # means "below the source".
+    siblings = list(
+        ordering.element_siblings(unit, el.parent, el.tab_id).order_by("order", "pk")
+    )
+    idx = next(i for i, s in enumerate(siblings) if s.pk == el.pk)
+    ordering.place_element(new_join, unit, idx + 1)
+
+    unit.save(update_fields=["updated"])
+    return unit, new_join
 
 
 @transaction.atomic
@@ -916,6 +991,6 @@ def _locked_element(course, element_pk):
             .select_related("unit")
             .get(pk=element_pk, unit__course=course)
         )
-    except Element.DoesNotExist:
+    except (Element.DoesNotExist, ValueError, TypeError):
         raise ConflictError() from None
     return el, el.unit
