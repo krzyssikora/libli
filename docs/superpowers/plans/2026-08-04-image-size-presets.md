@@ -43,9 +43,11 @@
 - **No hardcoded test passwords** — use `tests.factories.TEST_PASSWORD`.
 - **Never create `courses/tests/__init__.py`** — it renames every module under that directory.
 - **Fixtures live inline, per module.** `courses/tests/` has **no `conftest.py`** and this slice does
-  **not** add one: `tests/conftest.py` (which holds `_enable_db_access`, `course`, `image_asset`)
-  applies only to the `tests/` subtree and is invisible from `courses/tests/`, and the root
-  `conftest.py` defines exactly one fixture (`_reset_active_language`). Every fixture a
+  **not** add one: `tests/conftest.py` (which holds `_enable_db_access` and three other autouse
+  fixtures) applies only to the `tests/` subtree and is invisible from `courses/tests/`, and the root
+  `conftest.py` defines exactly one fixture (`_reset_active_language`). Note that even inside `tests/`
+  the house style is module-local — `course` and `image_asset` live in
+  `tests/test_transfer_export.py:47-52`, not in any conftest. Every fixture a
   `courses/tests/` module needs is written **in that module**, matching the house style
   (`test_question_restore.py`'s local `_image(course)` helper, `test_callout_nesting.py`'s local
   `_top_callout`). Shared *helpers* come from `tests.factories` — `make_course_with_unit`,
@@ -417,8 +419,11 @@ def test_the_create_flow_renders_an_empty_for_element(image_media):
 - [ ] **Step 6: Style the control**
 
 The fieldset ships with the raw UA border and no spacing otherwise — `reset.css` zeroes every margin
-and this project has no global `fieldset`/`legend` rule (only `.analytics__export-form fieldset` at
-`app.css:789-794` and `.roster > legend` at `:188`, both scoped elsewhere). "Every view ships styled"
+and this project has no global `fieldset`/`legend` rule that sets **border, padding or spacing**. The
+one global fieldset rule, `reset.css:22`'s `fieldset { min-inline-size: 0 }`, touches none of those
+(it exists to stop the UA's `min-inline-size: min-content` defeating nested scroll boxes); the only
+rules that do style a fieldset are `.analytics__export-form fieldset` at `app.css:789-794` and
+`.roster > legend` at `:188`, both scoped elsewhere. "Every view ships styled"
 is a standing project rule. The editor's other `.el-editor__*` chrome lives in
 `core/static/core/css/app.css` (see `.el-editor__option-row` at `:1222`), so put it there, beside it:
 
@@ -1556,8 +1561,10 @@ table.
 
 **Rows 1-4 (and therefore 3, 7 and 8) go on a fresh lesson unit in Task 8's course**, not on Task 8's
 eight-image unit — mixing them in would make Task 8's own strict-mode-safe `alt` locators share a page
-with six more images for no benefit, and the print case wants a page with exactly one image per
-preset. Create it the same way as row 5:
+with six more images for no benefit. (`geom_unit` ends up holding ten images itself: three
+`centred-*`, one captioned, two `full`, four nested. That is fine — every assertion locates by a
+unique `alt` — but it is *not* "one image per preset", so do not write a locator that assumes it.)
+Create it the same way as row 5:
 
 ```python
 geom_unit = ContentNodeFactory(
