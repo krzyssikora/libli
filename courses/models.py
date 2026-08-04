@@ -404,8 +404,8 @@ SINGLE_SLOT_ID = "only"
 
 class SpoilerElement(ElementBase):
     """A self-contained show/hide disclosure: an author-labelled button that
-    expands/collapses either legacy rich-text `body` OR (nestable-spoiler) an
-    ordered list of native child elements. Rendered as a native <details>;
+    expands/collapses rich-text `body` and (nestable-spoiler) an ordered list of
+    native child elements, body rendered first. Rendered as a native <details>;
     two-way, repeatable, ungraded. Single-slot container: its children live in
     Element rows whose `parent` is this element's join row and whose `tab_id` is
     the one fixed slot id SLOT_ID. Mirrors the TabsElement join-row substrate."""
