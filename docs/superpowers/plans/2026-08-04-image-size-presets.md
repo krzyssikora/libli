@@ -1297,17 +1297,25 @@ git commit -m "feat(editor): live size preview without a save"
   cannot reach any of it:
 
   ```python
+  PA_USERNAME = "pa-imgsize"
+
+
   @pytest.fixture
   def seeded(_isolated_media):
-      """(course, unit, tall, wide). Depends on _isolated_media so MEDIA_ROOT is
+      """(owner, course, unit, tall, wide). Depends on _isolated_media so MEDIA_ROOT is
       redirected BEFORE make_image_asset writes any bytes."""
-      owner = _make_pa_user("pa-imgsize")
+      owner = _make_pa_user(PA_USERNAME)
       course, unit = _seed_unit(owner, "imgsize")
       tall = make_image_asset(course, "tall.png", size=(297, 719), color="magenta")
       wide = make_image_asset(course, "wide.png", size=(948, 719), color="magenta")
       # ... seed the eight elements on `unit` (Step 2)
-      return course, unit, tall, wide
+      return owner, course, unit, tall, wide
   ```
+
+  **`owner` is part of the return tuple, not a local.** Every test in both tasks must log in as it
+  (see Step 2's navigation preamble), and Task 9 builds two more units in the same course; without it
+  each test re-types the literal username, which is exactly the reachability problem this fixture
+  exists to solve.
 
 - Also produces the module's **import block**. `_seed_unit` imports `ContentNodeFactory` /
   `CourseFactory` *inside its own body*, so copying it verbatim does **not** put those names in the
@@ -1398,6 +1406,19 @@ per preset, whichever fixture you picked decides which axis is measured and the 
 untested.
 
 - tall fixture **297x719** (ratio 0.413), wide fixture **948x719** (ratio 1.319).
+
+**Every test opens with this preamble — logging in is a STEP, not just a listed helper.**
+`courses/views.py:651-654` decorates `lesson_unit` with `@login_required` *and* raises
+`PermissionDenied` unless `can_access_course(request.user, course)`. A `page.goto(_lesson_url(...))`
+without a prior login lands on `/accounts/login/`, so every `img[alt='…']` locator times out with no
+hint as to why:
+
+```python
+owner, course, unit, tall, wide = seeded
+_login(page, live_server, owner.username)
+page.set_viewport_size({"width": 1280, "height": 900})   # or 360x640
+page.goto(_lesson_url(live_server, unit))
+```
 
 **Give each of the eight an identifying `alt`, or they are unaddressable.** `.el--image--small img`
 matches two nodes and Playwright raises a strict-mode violation; there is also no other way to pair a
@@ -1543,10 +1564,32 @@ fixture renders ~89px wide rather than ~111.5px. Every orientation figure quoted
 
 Task 8 seeds eight **captionless, top-level** images on one lesson unit. Most of Task 9's cases need
 elements Task 8 never creates — a captioned image, an editor-reachable element, four nested children.
-Create those explicitly before writing any assertion. Take `course`, `unit`, `tall` and `wide` from
-Task 8's **`seeded`** fixture (which already depends on `_isolated_media`) — request `seeded` and
-unpack it; do not re-seed assets of your own. The two cases that need no new elements say so in the
-table.
+Create those explicitly before writing any assertion. Take `owner`, `course`, `unit`, `tall` and
+`wide` from Task 8's **`seeded`** fixture (which already depends on `_isolated_media`) — request
+`seeded` and unpack it; do not re-seed assets of your own. The two cases that need no new elements say
+so in the table.
+
+**Put this seed in a fixture too, for the reason Task 8 gives.** Steps 1-3 are several test functions
+— Step 4's falsify table alone names seven distinct assertion groups, and the live-preview and print
+cases cannot share one test — so an ~11-element seed written inline would be copy-pasted per test or
+stranded as locals. Pin it the same way `seeded` is pinned:
+
+```python
+@pytest.fixture
+def geom(seeded):
+    """(owner, course, geom_unit, preview_unit, nested_joins).
+
+    geom_unit  — rows 1-4 + row 6 (ten images; located by alt)
+    preview_unit — row 5 only, so the editor page holds exactly one image row
+    nested_joins — {"spoiler": join, "tabs": join, "twocolumn": join, "callout": join},
+                   the CONTAINER join rows, so Step 3 can locate each container's
+                   wrapper without re-deriving it
+    """
+```
+
+Consumers: Steps 1, 3 (print, zoom, nested) take `geom_unit`; Step 2 takes `preview_unit`; Step 3's
+nested cases take `nested_joins`. Every element is located by its unique `alt`, so no other member
+needs to be returned.
 
 | # | for | element | seeded how |
 |---|---|---|---|
@@ -1666,8 +1709,10 @@ pane (`editor.html` mounts the student templates there), which is why the JS's u
    `templates/courses/manage/editor/_element_row.html` gives two equivalent triggers, both stamped
    `data-form-url="/manage/courses/<slug>/build/element/<pk>/form/"` (the rendered value of
    `{% url 'courses:manage_element_form' … %}` — the *name* never appears in the DOM, same trap as the
-   save URL in item 4) **and both carrying `class="el-select"` with the same `data-element-id`** — the
-   ✎ icon button at `:54` and the row label at `:62`. So `button.el-select[data-element-id="…"]` matches **two** nodes and Playwright
+   save URL in item 4) **and both carrying `class="el-select"` with the same `data-element-id`** — for a plain image element the ✎ icon button is at `:257` and the row label at
+   `:265`. (The file is a five-way `{% if el.content_type.model == … %}` chain and an image falls
+   through to the final `{% else %}`; the same two-node pair repeats in every branch — `:54`/`:62` is
+   the *tabs* one — so the hazard is structural, not branch-specific.) So `button.el-select[data-element-id="…"]` matches **two** nodes and Playwright
    raises a strict-mode violation. Use the label's own class:
    `button.el-row__label[data-element-id="<Element join pk>"]`. **Note the pk**: this editor-side
    attribute is the `Element` **join-row** pk, unlike `data-for-element` / `data-preview-el`, which are
@@ -1819,8 +1864,24 @@ Restore each and re-run.
 uv run ruff check tests/test_e2e_image_size.py
 uv run ruff format --check tests/test_e2e_image_size.py
 git add tests/test_e2e_image_size.py
-git commit -m "test(image): e2e figure geometry, live preview, print and zoom"
+# Branch 3 of Step 1 ONLY — it edits the CSS comment, and nothing else in this plan
+# ever stages courses.css again, so omitting this leaves the mandated correction
+# uncommitted in the working tree. Under branch 2 the file is deliberately untouched.
+git add courses/static/courses/css/courses.css   # if and only if branch 3 applied
+
+git commit -F - <<'MSG'
+test(image): e2e figure geometry, live preview, print and zoom
+
+fit-content measurement (Step 1, 1280x900, small, tall fixture):
+  figure width: <measured>px
+  image  width: <measured>px
+  -> branch <2|3>: Chromium shrink-wraps to the <unconstrained|constrained> contribution
+  <under branch 3: reason 2 deleted from the Task 5 img margin-inline comment>
+MSG
 ```
+
+The body is not decoration: that measurement is the one piece of engine-dependent evidence this slice
+produces, and Step 1 asks for it to be recorded. A bare `-m` subject has nowhere to put it.
 
 ---
 
@@ -1844,14 +1905,7 @@ Describe the four presets as bounding boxes ("the image scales to fit inside a b
 uv run python manage.py makemessages -l pl -l en --no-obsolete
 ```
 
-Then inspect both catalogs by path:
-
-```bash
-grep -c '#, fuzzy' locale/pl/LC_MESSAGES/django.po locale/en/LC_MESSAGES/django.po
-grep -c '^#~'      locale/pl/LC_MESSAGES/django.po locale/en/LC_MESSAGES/django.po
-```
-
-Every count must be **0**. `makemessages` fuzzy-prefills WRONG translations on this repo — clearing one is TWO deletions (the flag line and the bogus `msgstr`).
+`makemessages` fuzzy-prefills WRONG translations on this repo — clearing one is TWO deletions (the flag line and the bogus `msgstr`). Clear every one before continuing.
 
 - [ ] **Step 3: Write the five Polish translations**
 
@@ -1877,7 +1931,19 @@ collision; if `makemessages` produces no `msgctxt` entry, the model is still usi
 that in `courses/models.py` before continuing. Verify explicitly: `grep -c 'msgstr "Pełna"'` is
 unchanged, and the new `msgctxt "image size"` block exists with a non-empty `msgstr`.
 
-Then verify none of the five is left blank, and only then run `uv run python manage.py compilemessages`.
+Then run the catalog guard — **this repo already owns it, so do not hand-roll greps**:
+
+```bash
+uv run pytest tests/test_i18n_po_health.py --verbosity=0
+```
+
+`test_no_fuzzy_entries`, `test_no_obsolete_entries` and `test_pl_has_no_untranslated_msgid` are
+exactly the three checks this step needs, and the third is one a `grep` **cannot** perform: a cleared
+fuzzy flag leaves an *empty* `msgstr`, which no `#, fuzzy` / `^#~` scan can see. It parses
+continuation lines and plural forms and prints the offending msgids. Task 10 step 4's full-suite run
+would reach it eventually, but four steps later — run it here, where a red is cheapest to act on.
+
+Only once it is green, run `uv run python manage.py compilemessages`.
 
 - [ ] **Step 4: Full verification**
 
