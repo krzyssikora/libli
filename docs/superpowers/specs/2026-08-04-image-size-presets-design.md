@@ -198,6 +198,10 @@ The remedy, and one subtlety that dictates its shape:
 .el--image--small  { max-width: 25%; }
 .el--image--medium { max-width: 50%; }
 .el--image--large  { max-width: 75%; }
+/* MUST be appended AFTER `.el { margin: 1rem 0 }` (courses.css:4): `.el` and
+   `.el--image--small` are both single-class selectors on this same figure, so
+   they tie on specificity and `margin-inline: auto` wins the horizontal margin
+   only on source order — the same trap as the print block below. */
 .el--image--small,
 .el--image--medium,
 .el--image--large  { width: fit-content; margin-inline: auto; }
@@ -497,11 +501,12 @@ and name the mutant. A passing test proves nothing on its own.
 | 12 | a nested image scales to its container in **all four** containers — spoiler, tabs, two-column, callout | render or e2e, one case each |
 | 13 | print CSS defines all four presets | source-scan, block-extracted |
 | 13b | **under print media the RESOLVED `max-height` is the mm value, not the `dvh` one** | **e2e**, `page.emulate_media(media="print")` then read the computed style per preset |
-| 17 | under a capped preset the image is **centred within its figure**, with a **long** caption present | **e2e** — must use a caption long enough to drive `fit-content` past the image (the corpus has 212/200/132-char captions); a short caption cannot exercise this |
-| 18 | **`full` figure geometry is unchanged** — same box and offset as before the feature | **e2e**, the guard on the byte-identical promise for the 1013 untouched images |
 | 14 | the radios carry `data-size-preset` and `data-for-element` | render test — the §4/§5 contract |
 | 15 | the stored preset renders as the `checked` radio; a fresh element shows `full` checked | render test — the §4b contract |
 | 16 | an alt-text-only save of an image element still succeeds | regression pin for §4b's required-field trap |
+| 17 | under a capped preset the image is **centred within its figure**, with a **long** caption present | **e2e** — must use a caption long enough to drive `fit-content` past the image (the corpus has 212/200/132-char captions); a short caption cannot exercise this |
+| 18 | **`full` figure geometry is unchanged** — same box and offset as before the feature | **e2e**, the guard on the byte-identical promise for the 1013 untouched images |
+| 19 | under a capped preset the **`<figure>` itself is centred in the column**, on a fixture with **no caption** | **e2e** — assert roughly equal left/right offset from the `.lesson` edges. This is the only row covering the round-7 fix; rows 8/17/18 all pass with the figure rule missing entirely |
 
 Rows 8-10 are load-bearing and cannot be replaced by source scans.
 
