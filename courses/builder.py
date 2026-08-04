@@ -382,6 +382,70 @@ def paste_allowed(
     return True, None
 
 
+def enumerate_slots(unit):
+    """Every container slot in `unit`, as (parent_join | None, tab_id, dest_depth).
+
+    Returns `(pairs, children_map)`. The map is `{parent_pk_or_None: [joins]}` and
+    is returned so the caller can hand it to subtree_facts rather than pay for a
+    second walk.
+
+    ONE query builds the map, plus one per distinct content type for the GFK
+    prefetch. Descending `join.children` from the ORM at each node instead -- even
+    with prefetch_related hung off it -- is WORSE than naive: one children query
+    plus one per content type, per join. build_export is not a precedent to copy
+    wholesale; it prefetches its roots in one query and then re-queries children per
+    container through the resolved_* accessors, and that second half is the shape to
+    avoid.
+
+    The walk is the FK tree, the same walk subtree_facts uses, so the two cannot
+    disagree about what exists. It is a SUPERSET of the rendered tree: a container
+    that is itself an orphan-slot child is reached here but never rendered, so this
+    can emit pairs no template asks about. Harmless in that direction -- extra pairs
+    are unreachable rather than wrong -- and the reverse cannot happen.
+
+    Skipped entirely when nothing is marked: no walk, no cost on the common render.
+    """
+    joins = list(
+        unit.elements.all()
+        .select_related("content_type")
+        .prefetch_related("content_object")
+        .order_by("order", "pk")
+    )
+    children_map = {}
+    for join in joins:
+        children_map.setdefault(join.parent_id, []).append(join)
+
+    pairs = [(None, "", 1)]
+    seen = set()
+
+    def walk(join, depth):
+        if join.pk in seen:  # a corrupt parent cycle must terminate, not spin
+            return
+        seen.add(join.pk)
+        obj = join.content_object  # None when the GFK dangles -- skipped below
+        container = _CONTAINER_REGISTRY.get(type(obj))
+        if container is not None:
+            normalizer, list_key, id_key, max_slots = container
+            # getattr: a single-slot container (spoiler) has no `data` field, and
+            # the argument is evaluated HERE, before the normalizer runs.
+            slots = normalizer(getattr(obj, "data", None))[list_key]
+            ids = [s[id_key] for s in slots]
+            if max_slots is not None:
+                # Same position check as clause 1, so the UI never offers a slot
+                # the rule would then refuse. Non-destructive normalizer here,
+                # destructive one at render time: for well-formed data they agree,
+                # and where they diverge this fails closed.
+                ids = ids[:max_slots]
+            for sid in ids:
+                pairs.append((join, sid, depth + 1))
+        for child in children_map.get(join.pk, []):
+            walk(child, depth + 1)
+
+    for root in children_map.get(None, []):
+        walk(root, 1)
+    return pairs, children_map
+
+
 def _check_token(current_dt, token):
     expected = parse_datetime(token) if token else None
     if expected is None or expected != current_dt:
