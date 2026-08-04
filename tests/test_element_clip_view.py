@@ -172,6 +172,27 @@ def test_a_non_numeric_unit_is_a_409_not_a_500(client):
     assert resp.status_code == 409
 
 
+def test_a_non_numeric_session_element_does_not_break_the_editor_render(client):
+    """element_clip always writes element_clip["element"] through int(), so this
+    shape is unreachable through that endpoint -- but _clip_context's marked lookup
+    (unit.elements.filter(pk=clip.get("element"))) is unguarded, and filter(pk="abc")
+    raises ValueError when the queryset is evaluated. A session written any other
+    way would then 500 on EVERY editor render for that user until the cookie is
+    cleared -- a sticky failure, unlike _clip_unit's analogous guard a few lines
+    above. This is the regression that guard closes."""
+    course, unit, _join = _seed(client)
+    session = client.session
+    session["element_clip"] = {"unit": unit.pk, "element": "abc"}
+    session.save()
+
+    resp = client.get(
+        reverse("courses:manage_editor", kwargs={"slug": course.slug, "pk": unit.pk})
+    )
+
+    assert resp.status_code == 200
+    assert resp.context["clip_active"] is False
+
+
 def test_a_user_who_cannot_manage_the_course_is_refused(client):
     from tests.factories import make_teacher
 

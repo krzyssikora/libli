@@ -1274,7 +1274,16 @@ def _clip_context(request, unit):
         # Rendering ANOTHER unit: ignored, not cleared -- you may navigate back.
         return empty
 
-    marked = unit.elements.filter(pk=clip.get("element")).first()
+    # Wrapped for the same reason as _clip_unit above: filter(pk=...) raises
+    # ValueError/TypeError when a non-numeric pk is evaluated. element_clip always
+    # writes an int() here, so this is unreachable through that path today -- but a
+    # session written any other way would otherwise raise on EVERY editor render for
+    # that user until the cookie is cleared, which is a sticky failure worth guarding
+    # cheaply rather than trusting the only writer forever.
+    try:
+        marked = unit.elements.filter(pk=clip.get("element")).first()
+    except (ValueError, TypeError):
+        marked = None
     if marked is None:
         request.session.pop(CLIP_SESSION_KEY, None)
         return empty
