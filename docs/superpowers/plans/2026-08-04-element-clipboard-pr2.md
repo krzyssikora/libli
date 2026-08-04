@@ -31,7 +31,7 @@
 - **PR2 adds no JavaScript.** PR1 already shipped the `data-force-open` stamp and the `applyStoredTabs` skip that PR2's force-open depends on.
 - **Callout is a CONTAINER as of PR #214** (merged into master `bdcdb876`, which this branch is rebased onto): `_CONTAINER_REGISTRY` has FOUR entries and `CONTAINER_TRANSFER_KEYS` is `{tabs, two_column, spoiler, callout}`. Callout is single-slot like a spoiler (`CalloutElement.SLOT_ID`), so its cap is `None` and, being a container, `cap(n) = 3`. Any step here that rewrites the registry block must carry all four entries.
 - **`reorder_element` is not touched.** Its "cross-scope move is impossible by construction" guarantee stays exactly as written.
-- **Every line number in this plan is as of master `bdcdb876` (the #214 merge, which this branch is rebased onto) and WILL drift as the plan executes.** Task 2 alone doubles the `_CONTAINER_REGISTRY` block and Tasks 3, 5 and 6 add several hundred lines above `_copy_below`, so by Task 7 the anchors quoted for `courses/builder.py` are simply wrong as numbers. **Locate every Python insertion point by symbol name** — `resolve_scope`, `_copy_below`, `delete_node`, `_render_editor_fragments`, `_editor_page`, `element_duplicate` — and treat the numbers as a hint about which of several similar-looking places is meant. **Templates have no symbols**, and `_element_row.html` holds seven near-identical `<li class="el-row…">` lines and four near-identical add-menu includes: locate those by the `{% elif el.content_type.model == "…" %}` guard that opens their branch, never by line number alone. Report any drift you find rather than editing at the stated line.
+- **Line numbers are indicative only; symbols are authoritative.** The `courses/builder.py` citations were written against the PRE-#214 master and are now stale by one revision — #214 grew the container registry, so everything below it shifted down by roughly 1–13 lines (`MAX_NEST_DEPTH` is `:27` not `:26`, `resolve_scope` opens at `:158`, `_copy_below` runs `:452-490`). They have deliberately NOT been re-derived one by one, because they drift again as this plan's own tasks add code. Treat every Python number as a hint about *which* of several similar places is meant, never as an edit target. The template numbers WERE re-derived against `bdcdb876` and are exact. The three anchors where a wrong line causes real damage are called out in place, with current numbers. Task 2 alone doubles the `_CONTAINER_REGISTRY` block and Tasks 3, 5 and 6 add several hundred lines above `_copy_below`, so by Task 7 the anchors quoted for `courses/builder.py` are simply wrong as numbers. **Locate every Python insertion point by symbol name** — `resolve_scope`, `_copy_below`, `delete_node`, `_render_editor_fragments`, `_editor_page`, `element_duplicate` — and treat the numbers as a hint about which of several similar-looking places is meant. **Templates have no symbols**, and `_element_row.html` holds seven near-identical `<li class="el-row…">` lines and four near-identical add-menu includes: locate those by the `{% elif el.content_type.model == "…" %}` guard that opens their branch, never by line number alone. Report any drift you find rather than editing at the stated line.
 
 ---
 
@@ -104,7 +104,7 @@ Clause 2 needs the marked element's **transfer** key, and the map exists only as
 
 **Files:**
 - Modify: `courses/transfer/export.py:402` — add the public helper beside `_MODEL_TO_KEY`
-- Modify: `courses/builder.py:86-100` — the `_CONTAINER_REGISTRY` block, comment included; `:190` — `resolve_scope`'s unpack
+- Modify: `courses/builder.py:87-110` — the `_CONTAINER_REGISTRY` block, from its `# Container element registry:` comment through the dict's closing brace; and `resolve_scope`'s unpack line (`normalizer, list_key, id_key = container`)
 - Append to: `courses/tests/test_nesting_rule.py` — two new tests. The existing length assertion at `:286` is deliberately left untouched; Task 2's falsification depends on it still passing.
 
 **Interfaces:**
@@ -179,7 +179,7 @@ def model_to_key(model):
 
 - [ ] **Step 4: Give every registry entry a slot cap**
 
-In `courses/builder.py`, replace the `_CONTAINER_REGISTRY` block (`:86-100`) with:
+In `courses/builder.py`, replace the `_CONTAINER_REGISTRY` block — currently `:87-110`, i.e. from the `# Container element registry:` comment through the dict's closing brace. **Verify the closing brace before you cut:** #214 added the fourth (Callout) entry, and a range that stops short of it orphans that entry plus the `}` at module level, which is a `SyntaxError` on the next import. Replace with:
 
 ```python
 # Container element registry: model class -> (non_destructive_normalizer,
@@ -224,7 +224,7 @@ _CONTAINER_REGISTRY = {
 }
 ```
 
-Then update `resolve_scope`'s unpack (`:190`) — it currently reads `normalizer, list_key, id_key = container`:
+Then update `resolve_scope`'s unpack — the single line reading `normalizer, list_key, id_key = container`:
 
 ```python
     normalizer, list_key, id_key, _max_slots = container
@@ -841,7 +841,7 @@ Each expectation below is stated as the **exact set** of tests that must red —
 1. Delete the `type_not_nestable` check.
    Expected RED — two tests: `test_a_non_nestable_root_is_refused_by_a_nested_slot`, and `test_a_dangling_gfk_root_is_refused_below_but_allowed_at_top_level`, whose nested assertion names that same reason (a dangling GFK gives `type(None)`, which no key map knows).
 2. In `_slot_cap`, `return MAX_NEST_DEPTH` unconditionally.
-   Expected RED: `test_a_leaf_may_land_at_depth_four_but_a_container_may_not` and `test_a_container_inside_the_subtree_tightens_the_bound_more_than_height_does` (its bound also depends on a container's cap).
+   Expected RED — three tests: `test_a_leaf_may_land_at_depth_four_but_a_container_may_not`, `test_a_container_inside_the_subtree_tightens_the_bound_more_than_height_does` (its bound also depends on a container's cap) and `test_a_callout_is_a_fixed_slot_container`, which asserts `_slot_cap` directly.
 3. In `subtree_facts`, ignore `rel`: `headroom[0] = min(headroom[0], _slot_cap(node))`.
    Expected RED — three tests: `test_depth_within_the_subtree_counts_not_just_the_roots`, `test_a_container_inside_the_subtree_tightens_the_bound_more_than_height_does` (both subtrees bind below the root) and `test_subtree_facts_reports_the_pks_and_the_headroom`, which asserts the arithmetic directly.
 4. Replace the headroom with a plain subtree height — track `max(rel)` in the walk and return `MAX_NEST_DEPTH - max_rel` as `min_headroom`.
@@ -911,12 +911,16 @@ def _tabs_at(unit, parent=None, tab=""):
     return join, [t["id"] for t in obj.data["tabs"]]
 
 
-# (form key as element_add sends it, factory for the concrete). The first two have
-# IDENTICAL form and transfer keys; the last three are ALIASED -- twocolumn ->
-# two_column, markdone -> mark_done, revealgate -> reveal_gate -- and they are the
-# only rows that can catch a broken alias entry. All three concretes construct with
-# no arguments (every field carries a default or is blank), which is why they were
-# chosen over the more elaborate question types.
+# (form key as element_add sends it, factory for the concrete).
+#
+# Rows 1-2 (text, tabs) have IDENTICAL form and transfer keys.
+# Rows 3-5 (twocolumn -> two_column, markdone -> mark_done, revealgate ->
+#   reveal_gate) are ALIASED, and are the only rows that can catch a broken alias
+#   entry. All three concretes construct with no arguments, which is why they were
+#   chosen over the more elaborate question types.
+# Row 6 (callout) is NOT aliased -- it is here for the container-cap seam #214
+#   moved: it is the only case where both rules must agree that a single-slot
+#   container's ceiling is 3 rather than 4.
 CASES = [
     ("text", lambda: TextElement.objects.create(body="<p>t</p>")),
     ("tabs", lambda: TabsElement.objects.create(data=TabsElement.default_data())),
@@ -1142,7 +1146,7 @@ def test_a_slot_the_renderer_would_truncate_away_is_not_emitted():
     _course, unit = make_course_with_unit()
     # Ids MUST match TabsElement.TAB_ID_RE (`t[0-9a-f]{6}`, fullmatch) or
     # TabsElement.save() -> normalize_labels_and_ids mints a fresh one for each
-    # (courses/models.py:1386-1393). With "t0"-style ids every id here would be
+    # (see TabsElement.TAB_ID_RE). With "t0"-style ids every id here would be
     # replaced at create time, the "kept" assertion would fail as unknown_slot and
     # the "dropped" one would pass vacuously.
     over = TabsElement.objects.create(
@@ -1557,7 +1561,7 @@ git commit -m "refactor(builder): share the scope parse and name the vanished-pa
 The service. Locks, re-checks the rule inside the transaction, then either re-parents the root (move) or grafts a copy (copy), positions it at the end of the destination slot, and bumps the unit token.
 
 **Files:**
-- Modify: `courses/builder.py` — `PlacementRefused` beside the other exceptions; `paste_element` after `duplicate_element`'s helper `_copy_below`, which ends at `:481` — before the `@transaction.atomic` decorator on `delete_node` at `:484`
+- Modify: `courses/builder.py` — `PlacementRefused` beside the other exceptions; `paste_element` after `duplicate_element`'s helper `_copy_below` (currently `:452-490`) — before the `@transaction.atomic` at `:493` that decorates `delete_node`
 - Test: `tests/test_builder_paste_element.py`
 
 **Interfaces:**
@@ -2039,7 +2043,7 @@ class PlacementRefused(Exception):
 
 - [ ] **Step 4: Implement `paste_element`**
 
-Insert after `_copy_below`, which ends at `:481`. Do NOT insert "after :484" — that line is the `@transaction.atomic` decorator belonging to `delete_node` at `:485`, and splitting a decorator from its `def` is a syntax error.
+Insert after `_copy_below`'s closing `return unit, new_join` (currently `:490`), and BEFORE the `@transaction.atomic` at `:493` that decorates `delete_node` at `:494`. Splitting that decorator from its `def` is a syntax error. Anchor on the `return unit, new_join` text rather than the number — `_copy_below` runs `:452-490` today and every earlier task in this plan pushes it further down.
 
 ```python
 @transaction.atomic
@@ -2152,7 +2156,7 @@ Expected: all **24** PASS (23 test functions, one parametrised over two modes).
 Apply, run, confirm RED, revert. "The source group is compacted" and "the destination keeps distinct orders" are both true of an implementation that never moves anything, so these mutations are what make them mean something.
 
 1. Delete step 2's `el.save(update_fields=["parent", "tab_id"])` in `_move_into`.
-   Expected RED — **seven** tests, because an unpersisted scope leaves the row in its old group and every one of these re-reads it from the DB: `test_a_move_reparents_the_root_and_persists_the_scope`, `test_a_move_compacts_the_source_group_and_appends_to_the_destination` (the moved row never leaves the source list), `test_a_move_whose_old_order_equals_its_new_index_is_still_persisted`, `test_a_move_into_a_third_column_lands_there`, `test_a_move_into_a_spoiler_uses_its_fixed_slot`, `test_a_healthy_move_out_of_a_container_to_top_level` and `test_a_move_between_two_slots_of_one_container`.
+   Expected RED — **eight** tests, because an unpersisted scope leaves the row in its old group and every one of these re-reads it from the DB: `test_a_move_reparents_the_root_and_persists_the_scope`, `test_a_move_compacts_the_source_group_and_appends_to_the_destination` (the moved row never leaves the source list), `test_a_move_whose_old_order_equals_its_new_index_is_still_persisted`, `test_a_move_into_a_third_column_lands_there`, `test_a_move_into_a_spoiler_uses_its_fixed_slot`, `test_a_move_into_a_callout_uses_its_fixed_slot`, `test_a_healthy_move_out_of_a_container_to_top_level` and `test_a_move_between_two_slots_of_one_container`.
    Still GREEN: `test_a_move_carries_its_whole_subtree_without_touching_the_children` and `test_a_move_keeps_the_elements_pk_so_student_state_follows_it`, neither of which looks at the moved row's own scope.
 2. In `_move_into`, compact the DESTINATION group instead of the captured source one — `ordering.compact_elements(unit, parent=dest_parent, tab_id=tab_id)`.
    Expected RED — three tests, each asserting a vacated group is compacted: `test_a_move_compacts_the_source_group_and_appends_to_the_destination`, `test_a_healthy_move_out_of_a_container_to_top_level` and `test_a_move_between_two_slots_of_one_container` (whose own docstrings name this same mutant).
@@ -3425,10 +3429,15 @@ def test_a_callout_slot_offers_its_buttons(client):
 
     body = _editor(client, course, unit)
 
-    at = body.index(f'data-element="{callout.pk}"')
-    row = body[at : body.index("</li>", at)]
-    assert 'data-op="element-paste"' in row
-    assert f'name="tab" value="{CalloutElement.SLOT_ID}"' in row
+    # Assert on the form's OWN scope fields rather than slicing the row. The
+    # callout branch emits `<li class="empty-state">` inside its nested <ol>
+    # BEFORE the add-menu/paste site, so a slice to the first `</li>` stops short
+    # of the form entirely. The parent pk is unambiguous where the slot id is not.
+    assert f'name="parent" value="{callout.pk}"' in body
+    at = body.index(f'name="parent" value="{callout.pk}"')
+    form = body[body.rindex("<form", 0, at) : body.index("</form>", at)]
+    assert 'data-op="element-paste"' in form
+    assert f'name="tab" value="{CalloutElement.SLOT_ID}"' in form
 
 
 def test_a_padded_slot_renders_no_paste_button(client):
@@ -3547,7 +3556,7 @@ def paste_buttons(context, parent="", tab=""):
 
 `builder` is already imported in this module (PR1's `slot_key` filter delegates to it).
 
-- [ ] **Step 5: Invoke it at the four slot sites**
+- [ ] **Step 5: Invoke it at the five slot sites** (four nested, plus the top-level one)
 
 `templates/courses/manage/editor/_element_row.html:91` — **outside** the depth guard:
 
@@ -3597,7 +3606,7 @@ Expected: all PASS. A failure in the bare-dict render tests means the tag or the
 
 Make the tag return `{"show_move": False, "show_copy": False, ...}` unconditionally.
 Run: `uv run pytest tests/test_editor_clip_templates.py -v`
-Expected RED — **eight** of the nine: the five wholly-positive tests (`test_the_top_level_slot_offers_its_buttons`, `test_the_marked_elements_own_slot_offers_copy_but_not_move`, `test_a_columns_slot_gets_its_own_key_not_the_enclosing_tabs_one`, `test_a_spoiler_slot_offers_its_buttons`, `test_a_callout_slot_offers_its_buttons`, `test_the_form_carries_the_scope_and_a_csrf_token`) **and** the two mixed ones, each of which carries a positive assertion beside its absence one — `test_a_slot_that_fails_the_rule_renders_no_buttons` (its closing "the top-level slot still offers them") and `test_a_padded_slot_renders_no_paste_button` (its stored-slot assertion).
+Expected RED — **eight** of the nine: the six wholly-positive tests (`test_the_top_level_slot_offers_its_buttons`, `test_the_marked_elements_own_slot_offers_copy_but_not_move`, `test_a_columns_slot_gets_its_own_key_not_the_enclosing_tabs_one`, `test_a_spoiler_slot_offers_its_buttons`, `test_a_callout_slot_offers_its_buttons`, `test_the_form_carries_the_scope_and_a_csrf_token`) **and** the two mixed ones, each of which carries a positive assertion beside its absence one — `test_a_slot_that_fails_the_rule_renders_no_buttons` (its closing "the top-level slot still offers them") and `test_a_padded_slot_renders_no_paste_button` (its stored-slot assertion).
 Still GREEN: only `test_no_paste_buttons_render_when_nothing_is_marked`, which is the one genuinely absence-only test in the file. That is the contrast that makes the absence assertions mean something. Revert.
 
 - [ ] **Step 8: Commit**
@@ -3650,9 +3659,9 @@ def test_every_container_renders_open_while_a_mark_is_pending(client):
 
 
 def test_every_row_offers_a_select_control(client):
-    """The control lives in the shared partial, so one edit covers all six
-    branches -- assert a NESTED row too, or a regression that drops the partial
-    from one branch ships green."""
+    """The control lives in the shared partial, which all seven branches include,
+    so one edit covers them all -- assert a NESTED row too, or a regression that
+    drops the partial from one branch ships green."""
     course, unit = _seed(client)
     dest, slots = _tabs(unit)
     _text(unit, parent=dest, tab=slots[0], body="<p>nested</p>")
@@ -3667,8 +3676,8 @@ def test_every_row_offers_a_select_control(client):
 
 
 def test_the_marked_row_carries_its_modifier_at_every_depth(client):
-    """Six edits, not one: the <li class="el-row..."> tag is written out separately
-    in every branch of _element_row.html."""
+    """Seven edits, not one: the <li class="el-row..."> tag is written out
+    separately in every branch of _element_row.html, and #214 added a seventh."""
     course, unit = _seed(client)
     dest, slots = _tabs(unit)
     nested = _text(unit, parent=dest, tab=slots[0], body="<p>nested</p>")
@@ -3783,7 +3792,7 @@ In `templates/courses/manage/editor/_element_row_controls.html`, insert **betwee
 
 Glyph assignment is fixed, one meaning each: ⧉ is the copy family (duplicate below, Copy here), ⊹ is select, 📋 is move here.
 
-- [ ] **Step 4: Add the modifier to all six row branches**
+- [ ] **Step 4: Add the modifier to all seven row branches**
 
 In `templates/courses/manage/editor/_element_row.html`, add `{% if clip_element_pk == el.pk|stringformat:'s' %} el-row--marked{% endif %}` inside the `class="…"` attribute of the `<li>` in **all seven** branches: `:3`, `:19`, `:45`, `:97`, `:147`, `:199` and `:248`.
 
@@ -4167,8 +4176,10 @@ git commit -m "test(e2e): move a populated container into a spoiler through the 
 A move can produce shapes an add never could — that is how the depth-3 slice shipped two client-side defects thirteen per-task reviews missed. This enumeration is **already resolved**; your job is to confirm each named test exists and passes, not to audit afresh. Run:
 
 ```bash
-uv run pytest tests/test_builder_paste_element.py tests/test_element_paste_view.py -v
+uv run pytest tests/test_builder_paste_element.py tests/test_element_paste_view.py tests/test_editor_clip_templates.py courses/tests/test_paste_rule.py -v
 ```
+
+(All four files, because the table's callout row names a template test and its same-type and depth-4 rows name rule tests — a narrower command would report them as missing and manufacture false findings.)
 
 and tick each combination against its test:
 
