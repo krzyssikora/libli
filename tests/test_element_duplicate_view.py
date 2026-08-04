@@ -122,7 +122,7 @@ def test_every_row_offers_a_duplicate_button_at_every_depth(client):
     tabs = TabsElement.objects.create(data=TabsElement.default_data())
     tabs_join = Element.objects.create(unit=unit, content_object=tabs)
     t1 = tabs.data["tabs"][0]["id"]
-    child = Element.objects.create(
+    _child = Element.objects.create(
         unit=unit,
         content_object=TextElement.objects.create(body="<p>nested</p>"),
         parent=tabs_join,
