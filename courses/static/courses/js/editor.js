@@ -215,7 +215,15 @@
   function post(form, submitter) {
     var body = new FormData(form);
     if (submitter && submitter.name) body.append(submitter.name, submitter.value);
-    return fetch(form.action, {
+    // getAttribute, NOT `form.action`: HTMLFormElement's named-property getter is
+    // [LegacyOverrideBuiltIns], so a control NAMED "action" shadows the action-URL
+    // property and `form.action` returns that input element. The clipboard's select
+    // and cancel forms both carry <input name="action" value="select|cancel">, so
+    // fetch() received the string "[object HTMLInputElement]", resolved it against
+    // the editor URL and 404'd -- selecting an element did nothing in a real browser
+    // while every server-side test stayed green. `|| location.href` mirrors HTML's
+    // own default for an absent action (every data-op form has one today).
+    return fetch(form.getAttribute("action") || location.href, {
       method: "POST",
       headers: { "X-CSRFToken": csrf(), "X-Requested-With": "fetch" },
       body: body,
@@ -236,7 +244,10 @@
       var body = new FormData(tryForm);
       if (e.submitter && e.submitter.name) body.append(e.submitter.name, e.submitter.value);
       body.append("attempt", String(made + 1));  // quiz gating; ignored by lessons
-      fetch(tryForm.action, {
+      // Attribute, not property — same shadowing trap as post() above. No question
+      // form carries a control named "action" today, so this is prophylactic; it is
+      // also what lets the invariant be a simple blanket rule for this file.
+      fetch(tryForm.getAttribute("action") || location.href, {
         method: "POST",
         headers: { "X-CSRFToken": csrf(), "X-Requested-With": "fetch" },
         body: body,
