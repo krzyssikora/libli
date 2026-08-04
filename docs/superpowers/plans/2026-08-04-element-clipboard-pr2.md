@@ -18,7 +18,7 @@
 - **`pyproject.toml` already sets `addopts = "-q -m 'not e2e'"`.** Do not pass a second `-q` — it suppresses the summary line entirely. e2e tests are deselected by default and need an explicit `-m e2e`; without it pytest exits 5 with no tests run, which reads like a pass.
 - **`MAX_NEST_DEPTH = 4`** (`courses/builder.py:26`), a top-level element is depth 1.
 - **`cap(n)` = `MAX_NEST_DEPTH - 1` for a container, `MAX_NEST_DEPTH` for a leaf** → 3 or 4. A container may live at depth 1–3 and never at 4.
-- **Reason keys are a fixed set:** `wrong_unit`, `into_own_subtree`, `not_a_container`, `unknown_slot`, `type_not_nestable`, `too_deep`, `own_slot`. No others; each maps to one translatable string at the view.
+- **Reason keys are a fixed set:** `paste_allowed` returns exactly one of `wrong_unit`, `into_own_subtree`, `not_a_container`, `unknown_slot`, `type_not_nestable`, `too_deep`, `own_slot` — and no others. The view adds one more of its own, `parent_gone`, which it synthesises from `ParentGoneError` rather than receiving from the rule. Each of the eight maps to one translatable string at the view.
 - **Status mapping is fixed:** `ConflictError` → 409, `NestingError` → 400, `ParentGoneError` → 422, `PlacementRefused` → 422, `TransferError` → 422.
 - **Editor-context errors never use `_op_error`.** `editor.js` swaps only `[data-scope]` elements and `_op_error.html` has no such wrapper. Every editor-context error renders through `_render_editor_fragments(..., status=…, error=…)`, whose slot PR1 already added to `_editor_scope.html:16`.
 - **No hardcoded test passwords.** Use `tests.factories.TEST_PASSWORD`.
@@ -44,6 +44,7 @@
 - `tests/test_element_paste_view.py` — the paste endpoint's status matrix and bodies
 - `tests/test_editor_clip_templates.py` — paste buttons, marked row, banner, forced-open
 - `templates/courses/manage/editor/_paste_buttons.html` — the inclusion tag's template
+- `tests/test_scope_parse.py` — the shared scope parse, `ParentGoneError`, and the `element_add` regression guard
 - `tests/test_e2e_clipboard.py` — the one browser-only behaviour
 
 **Modified:**
@@ -53,6 +54,7 @@
 - `courses/views_manage.py` — `_clip_context` helper; `element_clip`; `element_paste`; both context builders gain the clip keys
 - `courses/urls.py` — two paths
 - `courses/templatetags/courses_manage_extras.py` — the `paste_buttons` inclusion tag
+- `templates/courses/manage/editor/_element_row_controls.html` — the ⊹ select form, between the duplicate and delete forms
 - `templates/courses/manage/editor/_element_row.html` — paste-tag call at 3 nested sites, `clip_active` in both `<details>` conditions, marked-row modifier on all 6 branches
 - `templates/courses/manage/editor/_editor_scope.html` — paste-tag call at the top-level slot, the mark banner in `.pane-head`
 - `courses/static/courses/css/editor.css` — marked row, banner, paste-button grouping
@@ -74,8 +76,8 @@ Expected: `feat/element-clipboard-pr2`. Anything else means you are in the wrong
 
 - [ ] **Step 2: Confirm the database name is this worktree's own**
 
-Run: `uv run python -c "import os;print(os.environ.get('DATABASE_URL','(unset)'))"` — or read `.env`.
-Expected: the URL ends `/libli_elclip2`. A shared name means two worktrees' test runs drop each other's databases mid-flight.
+Run: `grep DATABASE_URL .env`
+Expected: the URL ends `/libli_elclip2`. Read it from `.env`, not from `os.environ` — the settings module loads that file, but it is never exported into the shell, so an `os.environ` probe prints `(unset)` on a correctly configured worktree. A shared name means two worktrees' test runs drop each other's databases mid-flight.
 
 - [ ] **Step 3: Check the connection**
 
@@ -122,7 +124,10 @@ def test_container_registry_carries_a_slot_cap():
     reg = builder._CONTAINER_REGISTRY
     assert len(reg[TabsElement]) == 4
     assert reg[TabsElement][3] == TabsElement.MAX_TABS
-    assert reg[TwoColumnElement][3] == 2
+    # MAX_COLUMNS, not the DEFAULT column count: normalize_data truncates at 4 and
+    # the author may pick 2, 3 or 4. A cap of 2 would silently make columns 3 and 4
+    # unpasteable while the renderer still shows them.
+    assert reg[TwoColumnElement][3] == TwoColumnElement.MAX_COLUMNS
     # A fixed-slot container is never truncated, so its cap is None -- not 1.
     # `None` is what makes paste_allowed SKIP the position check rather than
     # apply it with a bound that happens to work.
@@ -186,7 +191,12 @@ _CONTAINER_REGISTRY = {
         "id",
         TabsElement.MAX_TABS,
     ),
-    TwoColumnElement: (TwoColumnElement.normalize_ids, "columns", "id", 2),
+    TwoColumnElement: (
+        TwoColumnElement.normalize_ids,
+        "columns",
+        "id",
+        TwoColumnElement.MAX_COLUMNS,
+    ),
     # Single-slot: ignores its argument and returns one fixed slot. SpoilerElement
     # has no `data` field, which is why the call site below uses getattr().
     SpoilerElement: (
@@ -206,10 +216,22 @@ Then update `resolve_scope`'s unpack (`:190`) — it currently reads `normalizer
 
 `resolve_scope` deliberately does **not** apply the truncation check: the spec keeps it unchanged so the two rules provably disagree only in the documented direction, and the agreement test in Task 4 is built around that.
 
-- [ ] **Step 5: Confirm `TwoColumnElement` really has two columns**
+- [ ] **Step 5: Confirm the two truncation bounds are what the registry now claims**
 
-Run: `uv run python -c "from courses.models import TwoColumnElement as T; print(len(T.default_data()['columns']))"`
-Expected: `2`. The literal `2` above is that fact; if this prints anything else, stop and report — the registry entry and `test_container_registry_carries_a_slot_cap` must both use the real bound.
+The cap is the bound the **destructive** `normalize_data` truncates at — NOT the number of slots a freshly-added element is born with. Those differ for two-column: `default_data()` yields 2 columns, but `MIN_COLUMNS = 2` / `MAX_COLUMNS = 4` and an author may pick 3 or 4.
+
+Run:
+```bash
+uv run python -c "
+import django, os
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings.local')
+django.setup()
+from courses.models import TabsElement, TwoColumnElement
+print('MAX_TABS', TabsElement.MAX_TABS)
+print('MAX_COLUMNS', TwoColumnElement.MAX_COLUMNS)
+"
+```
+Expected: `MAX_TABS 10`, `MAX_COLUMNS 4`. If either differs, stop and report — the registry entry and `test_container_registry_carries_a_slot_cap` must both name the attribute, never a literal.
 
 - [ ] **Step 6: Run the tests to verify they pass**
 
@@ -374,17 +396,24 @@ def test_a_leaf_may_land_at_depth_four_but_a_container_may_not():
     )
 
 
-def test_a_populated_container_needs_room_for_its_children():
-    """Mutant: use only the ROOT's depth instead of the subtree minimum -> RED.
-    The root here is a container (cap 3) holding a leaf (cap 4, rel 1), so its
-    headroom is min(3-0, 4-1) = 3 and a destination at depth 3 is one too far --
-    while an EMPTY tabs, headroom 3, fits exactly."""
+def test_depth_within_the_subtree_counts_not_just_the_roots():
+    """`rel` must be subtracted per node. Subtree: Spoiler(cap 3, rel 0) ->
+    Spoiler(cap 3, rel 1) -> Text(cap 4, rel 2), so the headroom is
+    min(3, 2, 2) = 2 and a destination at dest_depth 3 is one too far -- while an
+    EMPTY tabs (headroom 3) fits there exactly.
+
+    Mutant: ignore `rel` -> min(3, 3, 4) = 3, the destination is admitted, RED.
+    This subtree is deliberately NOT the one the height mutant catches: a
+    height-based bound computes 4 - 2 = 2 here, the same answer, so this case stays
+    GREEN under that mutation. That contrast is what separates the two mutations.
+    """
     _course, unit = make_course_with_unit()
     d1, s1 = _tabs(unit)
     d2, s2 = _tabs(unit, parent=d1, tab=s1[0])  # its slots are at dest_depth 3
 
-    root, rslots = _tabs(unit)
-    _text(unit, parent=root, tab=rslots[0])
+    root = _spoiler(unit)
+    mid = _spoiler(unit, parent=root, tab=SpoilerElement.SLOT_ID)
+    _text(unit, parent=mid, tab=SpoilerElement.SLOT_ID)
 
     empty, _eslots = _tabs(unit)
     assert builder.paste_allowed(unit, empty, d2, s2[0], "move") == (True, None)
@@ -393,20 +422,24 @@ def test_a_populated_container_needs_room_for_its_children():
 
 def test_a_container_inside_the_subtree_tightens_the_bound_more_than_height_does():
     """THE row that distinguishes min(cap(n) - rel(n)) from a plain subtree height.
-    Mutant: use subtree HEIGHT instead -> ONLY this case goes RED.
 
-    Subtree: Tabs(root, cap 3, rel 0) -> Spoiler(cap 3, rel 1). Its height is 2, so
-    a height-based rule admits dest_depth 2. The correct bound is min(3-0, 3-1) = 2,
-    so dest_depth 2 must be REFUSED: the spoiler would land at depth 3 and its own
-    slot would sit at depth 4, which a container may never occupy.
+    Subtree: Tabs(root, cap 3, rel 0) -> Spoiler(cap 3, rel 1). The correct bound is
+    min(3-0, 3-1) = 2; a height-based bound computes MAX - max_rel = 4 - 1 = 3. At
+    dest_depth 3 the two therefore disagree: the correct rule REFUSES (the spoiler
+    would land at depth 4, which a container may never occupy) and the height-based
+    one admits.
+
+    Mutant: use subtree HEIGHT -> RED. The destination must be at dest_depth 3, not
+    2: at 2 both bounds admit and the mutation is unobservable.
     """
     _course, unit = make_course_with_unit()
-    outer, oslots = _tabs(unit)  # depth 1; its slots are dest_depth 2
+    d1, s1 = _tabs(unit)
+    d2, s2 = _tabs(unit, parent=d1, tab=s1[0])  # its slots are at dest_depth 3
 
     root, rslots = _tabs(unit)
     _spoiler(unit, parent=root, tab=rslots[0])
 
-    ok, reason = builder.paste_allowed(unit, root, outer, oslots[0], "move")
+    ok, reason = builder.paste_allowed(unit, root, d2, s2[0], "move")
 
     assert (ok, reason) == (False, "too_deep")
 
@@ -486,10 +519,15 @@ def test_a_slot_the_renderer_would_truncate_away_is_refused():
     Mutant: drop the `[:max_slots]` slice -> this goes RED and nothing else does.
     """
     _course, unit = make_course_with_unit()
+    # Ids MUST match TabsElement.TAB_ID_RE (`t[0-9a-f]{6}`, fullmatch) or
+    # TabsElement.save() -> normalize_labels_and_ids mints a fresh one for each
+    # (courses/models.py:1386-1393). With "t0"-style ids every id here would be
+    # replaced at create time, the "kept" assertion would fail as unknown_slot and
+    # the "dropped" one would pass vacuously.
     over = TabsElement.objects.create(
         data={
             "tabs": [
-                {"id": f"t{i}", "label": f"L{i}"}
+                {"id": f"t{i:06x}", "label": f"L{i}"}
                 for i in range(TabsElement.MAX_TABS + 2)
             ]
         }
@@ -497,8 +535,8 @@ def test_a_slot_the_renderer_would_truncate_away_is_refused():
     dest = Element.objects.create(unit=unit, content_object=over)
     leaf = _text(unit)
 
-    kept = f"t{TabsElement.MAX_TABS - 1}"  # last slot that survives truncation
-    dropped = f"t{TabsElement.MAX_TABS}"  # first one normalize_data throws away
+    kept = f"t{TabsElement.MAX_TABS - 1:06x}"  # last slot surviving truncation
+    dropped = f"t{TabsElement.MAX_TABS:06x}"  # first one normalize_data throws away
 
     assert builder.paste_allowed(unit, leaf, dest, kept, "move") == (True, None)
     assert builder.paste_allowed(unit, leaf, dest, dropped, "move") == (
@@ -533,11 +571,14 @@ def test_a_dangling_gfk_root_is_refused_below_but_allowed_at_top_level():
     """
     _course, unit = make_course_with_unit()
     dest, slots = _tabs(unit)
-    broken = _text(unit)
+    # NESTED, not top level: a top-level row's own slot IS the top-level slot, so
+    # clause 5 would answer own_slot and the second assertion below would be
+    # testing the wrong rule. This is a genuine relocation.
+    broken = _text(unit, parent=dest, tab=slots[0])
     Element.objects.filter(pk=broken.pk).update(object_id=9_999_999)
     broken.refresh_from_db()
 
-    assert builder.paste_allowed(unit, broken, dest, slots[0], "move") == (
+    assert builder.paste_allowed(unit, broken, dest, slots[1], "move") == (
         False,
         "type_not_nestable",
     )
@@ -761,20 +802,23 @@ def paste_allowed(
 - [ ] **Step 4: Run the tests to verify they pass**
 
 Run: `uv run pytest courses/tests/test_paste_rule.py -v`
-Expected: all **18** PASS.
+Expected: all **19** PASS.
 
 - [ ] **Step 5: Falsify the rule, one mutation at a time**
 
 Apply each, run, confirm the named test goes RED, then revert before the next. Record every observation in your report — a mutation that reds nothing means the rule has an untested clause, which is a finding, not a nuisance.
 
+Each expectation below is stated as the **exact set** of tests that must red — not as "only this one", which would be false for two of them. A mutation that reds a different set than stated means either the mutation or a fixture is wrong; work out which before continuing, and report it.
+
 1. Delete the `type_not_nestable` check.
-   Expected: `test_a_non_nestable_root_is_refused_by_a_nested_slot` FAILS.
+   Expected RED: `test_a_non_nestable_root_is_refused_by_a_nested_slot`, and no other.
 2. In `_slot_cap`, `return MAX_NEST_DEPTH` unconditionally.
-   Expected: `test_a_leaf_may_land_at_depth_four_but_a_container_may_not` FAILS.
+   Expected RED: `test_a_leaf_may_land_at_depth_four_but_a_container_may_not` and `test_a_container_inside_the_subtree_tightens_the_bound_more_than_height_does` (its bound also depends on a container's cap).
 3. In `subtree_facts`, ignore `rel`: `headroom[0] = min(headroom[0], _slot_cap(node))`.
-   Expected: `test_a_populated_container_needs_room_for_its_children` FAILS.
+   Expected RED: `test_depth_within_the_subtree_counts_not_just_the_roots` **and** `test_a_container_inside_the_subtree_tightens_the_bound_more_than_height_does`. Both subtrees bind below the root.
 4. Replace the headroom with a plain subtree height — track `max(rel)` in the walk and return `MAX_NEST_DEPTH - max_rel` as `min_headroom`.
-   Expected: **only** `test_a_container_inside_the_subtree_tightens_the_bound_more_than_height_does` FAILS. If another test also reds, the mutation was written wrong — the entire point of that case is that it is the one row a height-based rule breaks. Re-derive the mutation before concluding anything.
+   Expected RED: `test_a_container_inside_the_subtree_tightens_the_bound_more_than_height_does` and `test_a_leaf_may_land_at_depth_four_but_a_container_may_not`.
+   Expected still GREEN, and this is the discriminating observation: `test_depth_within_the_subtree_counts_not_just_the_roots`, whose all-leaf-capped subtree gives the same answer either way (`min(cap−rel) = 2 = MAX − max_rel`). If that test also reds, the mutation was mis-written; if it reds under mutation 3 but not 4, the two rules are genuinely distinguished, which is what this pair exists to show.
 5. Delete the clause 5 block.
    Expected: the move assertions in `test_the_elements_own_slot_refuses_a_move_and_allows_a_copy` and `test_the_top_level_slot_is_the_own_slot_of_a_top_level_element` FAIL; every copy assertion stays green.
 6. Drop the `ids = ids[:max_slots]` slice.
@@ -1049,10 +1093,15 @@ def test_a_slot_the_renderer_would_truncate_away_is_not_emitted():
     """The same position check clause 1 applies, here so the UI never offers a
     button the rule would then refuse. Mutant: drop the [:max_slots] slice -> RED."""
     _course, unit = make_course_with_unit()
+    # Ids MUST match TabsElement.TAB_ID_RE (`t[0-9a-f]{6}`, fullmatch) or
+    # TabsElement.save() -> normalize_labels_and_ids mints a fresh one for each
+    # (courses/models.py:1386-1393). With "t0"-style ids every id here would be
+    # replaced at create time, the "kept" assertion would fail as unknown_slot and
+    # the "dropped" one would pass vacuously.
     over = TabsElement.objects.create(
         data={
             "tabs": [
-                {"id": f"t{i}", "label": f"L{i}"}
+                {"id": f"t{i:06x}", "label": f"L{i}"}
                 for i in range(TabsElement.MAX_TABS + 2)
             ]
         }
@@ -1062,8 +1111,8 @@ def test_a_slot_the_renderer_would_truncate_away_is_not_emitted():
     pairs, _map = builder.enumerate_slots(unit)
 
     emitted = {t for p, t, _d in pairs if p is not None}
-    assert f"t{TabsElement.MAX_TABS - 1}" in emitted
-    assert f"t{TabsElement.MAX_TABS}" not in emitted
+    assert f"t{TabsElement.MAX_TABS - 1:06x}" in emitted
+    assert f"t{TabsElement.MAX_TABS:06x}" not in emitted
     assert join.pk  # the fixture row, referenced so the name is not unused
 
 
@@ -1451,7 +1500,7 @@ git commit -m "refactor(builder): share the scope parse and name the vanished-pa
 The service. Locks, re-checks the rule inside the transaction, then either re-parents the root (move) or grafts a copy (copy), positions it at the end of the destination slot, and bumps the unit token.
 
 **Files:**
-- Modify: `courses/builder.py` — `PlacementRefused` beside the other exceptions; `paste_element` after `duplicate_element`'s helper `_copy_below` (which ends at `:484`)
+- Modify: `courses/builder.py` — `PlacementRefused` beside the other exceptions; `paste_element` after `duplicate_element`'s helper `_copy_below`, which ends at `:481` — before the `@transaction.atomic` decorator on `delete_node` at `:484`
 - Test: `tests/test_builder_paste_element.py`
 
 **Interfaces:**
@@ -1785,6 +1834,28 @@ def test_every_paste_bumps_the_unit_token_exactly_once(mode):
     assert unit.updated > before
 
 
+def test_a_move_into_a_third_column_lands_there():
+    """Columns are the one container whose slot id key is `column.id` rather than
+    `tab.id`, and the one whose cap is MAX_COLUMNS (4), not the default count (2).
+    A third column is ordinary authored data -- element_forms lets an author pick
+    2..4 -- so a cap of 2 would refuse this with `unknown_slot` while the renderer
+    happily shows the column. Nothing else in the service tests reaches a column."""
+    from courses.models import TwoColumnElement
+
+    course, unit = make_course_with_unit()
+    cols_obj = TwoColumnElement.objects.create(
+        data={"columns": [{"id": "c1"}, {"id": "c2"}, {"id": "c3"}]}
+    )
+    cols = Element.objects.create(unit=unit, content_object=cols_obj)
+    cols_obj.refresh_from_db()
+    third = cols_obj.data["columns"][2]["id"]
+    subject = _text(unit)
+
+    _u, placed = paste_element(course, subject.pk, str(cols.pk), third, "move", _tok(unit))
+
+    assert (placed.parent_id, placed.tab_id) == (cols.pk, third)
+
+
 def test_a_move_into_a_spoiler_uses_its_fixed_slot():
     course, unit = make_course_with_unit()
     sp = Element.objects.create(
@@ -1826,7 +1897,7 @@ class PlacementRefused(Exception):
 
 - [ ] **Step 4: Implement `paste_element`**
 
-Insert after `_copy_below` (which ends at `:484`):
+Insert after `_copy_below`, which ends at `:481`. Do NOT insert "after :484" — that line is the `@transaction.atomic` decorator belonging to `delete_node` at `:485`, and splitting a decorator from its `def` is a syntax error.
 
 ```python
 @transaction.atomic
@@ -1932,7 +2003,7 @@ def _copy_into(el, unit, dest_parent, tab_id):
 - [ ] **Step 5: Run the tests to verify they pass**
 
 Run: `uv run pytest tests/test_builder_paste_element.py -v`
-Expected: all **20** PASS (the token test is parametrised over two modes).
+Expected: all **22** PASS (the token test is parametrised over two modes).
 
 - [ ] **Step 6: Falsify the four move/copy assertions that could be vacuous**
 
@@ -1968,7 +2039,7 @@ The mark lives in the session, so the paste buttons are part of the render every
 - Test: `tests/test_element_clip_view.py`
 
 **Interfaces:**
-- Consumes: `_require_manage`, `_render_editor_fragments`, `_element_conflict` — all already imported in `courses/views_manage.py`.
+- Consumes: `_require_manage`, `_render_editor_fragments`, `_element_conflict`, `_render_tree` — all already defined in `courses/views_manage.py`.
 - Produces: URL name `courses:manage_element_clip`, POST fields `element`, `unit`, `action=select|cancel`; and the session shape `request.session["element_clip"] = {"unit": int, "element": int}`.
 
 **Both pks are stored as `int`, coerced on write, and that is not incidental.** The natural implementation stores `request.POST.get("element")` — a **string** — and the session is JSON, so a string stays a string across requests. Then `clip["element"] == el.pk` is False for every row: the toggle-off lifecycle never fires and the marked-row modifier never renders. Both fail silently and closed.
@@ -2139,8 +2210,11 @@ def test_a_unit_from_another_course_renders_no_foreign_content(client):
 
 def test_a_non_numeric_unit_is_a_409_not_a_500(client):
     """filter(pk="abc") raises ValueError when the queryset is evaluated.
-    _element_conflict has the same unguarded shape today; new code is not written
-    against an assumption of coverage that does not exist."""
+
+    Guarding _clip_unit alone is NOT enough: _element_conflict opens with the same
+    unguarded filter on the same POST field, so routing the failure there would
+    re-raise the ValueError and answer 500. That is why this path returns
+    _no_unit_409 instead, and why this test exists rather than being assumed."""
     course, unit, join = _seed(client)
 
     resp = client.post(
@@ -2207,6 +2281,19 @@ def _clip_unit(request, course):
         return None
 
 
+def _no_unit_409(request, course):
+    """The unit could not be resolved, so there is no editor pane to render.
+
+    Deliberately NOT _element_conflict: that helper opens with the SAME unguarded
+    `filter(pk=request.POST.get("unit"), ...)` (courses/views_manage.py:1232-1234),
+    so on a non-numeric `unit` it re-raises the very ValueError this path just
+    caught -- turning the guarded 409 back into a 500. Its unguarded shape is a
+    pre-existing wart on a hand-crafted-only path and is left alone here; new code
+    simply does not route through it.
+    """
+    return _render_tree(request, course, status=409)
+
+
 @login_required
 def element_clip(request, slug):
     """Editor-only: set or clear the clipboard mark. No DB write, so no token check
@@ -2219,7 +2306,7 @@ def element_clip(request, slug):
     course = _require_manage(request, slug)
     unit = _clip_unit(request, course)
     if unit is None:
-        return _element_conflict(request, course)
+        return _no_unit_409(request, course)
 
     action = request.POST.get("action")
     if action not in ("select", "cancel"):
@@ -2576,6 +2663,32 @@ def test_a_move_into_a_spoiler_works_end_to_end(client):
     assert (subject.parent_id, subject.tab_id) == (sp.pk, SpoilerElement.SLOT_ID)
 
 
+def test_a_paste_into_a_column_works_end_to_end(client):
+    """The view-level column case. `column.id` is a different template expression
+    from `tab.id`, and the columns branch is the one where a copied condition fails
+    silently -- so the endpoint needs its own column row, not just the template
+    tests."""
+    from courses.models import TwoColumnElement
+
+    course, unit = _seed(client)
+    cols_obj = TwoColumnElement.objects.create(
+        data={"columns": [{"id": "c1"}, {"id": "c2"}, {"id": "c3"}]}
+    )
+    cols = Element.objects.create(unit=unit, content_object=cols_obj)
+    cols_obj.refresh_from_db()
+    third = cols_obj.data["columns"][2]["id"]
+    subject = _text(unit)
+    unit.refresh_from_db()
+    _mark(client, course, unit, subject)
+    unit.refresh_from_db()
+
+    resp = _paste(client, course, unit, cols, third)
+
+    assert resp.status_code == 200
+    subject.refresh_from_db()
+    assert (subject.parent_id, subject.tab_id) == (cols.pk, third)
+
+
 def test_a_user_who_cannot_manage_the_course_is_refused(client):
     from tests.factories import make_teacher
 
@@ -2687,7 +2800,7 @@ def _clip_context(request, unit):
     }
 ```
 
-Two imports this needs at the top of `courses/views_manage.py`, added only if absent: `from django.utils.translation import gettext_lazy as _lazy` (module-level strings must be lazy) and `from courses.templatetags.courses_manage_extras import element_summary` (the banner labels title-or-summary exactly as the row label does — `Element.title` is routinely empty, so a naive label renders `"" is selected`).
+One import this needs at the top of `courses/views_manage.py`, added only if absent: `from courses.templatetags.courses_manage_extras import element_summary` (the banner labels title-or-summary exactly as the row label does — `Element.title` is routinely empty, so a naive label renders `"" is selected`).
 
 - [ ] **Step 5: Wire the keys into both context builders**
 
@@ -2722,7 +2835,7 @@ def element_paste(request, slug):
     course = _require_manage(request, slug)
     unit = _clip_unit(request, course)
     if unit is None:
-        return _element_conflict(request, course)
+        return _no_unit_409(request, course)
 
     clip = request.session.get(CLIP_SESSION_KEY) or {}
     if clip.get("unit") != unit.pk or not clip.get("element"):
@@ -2776,7 +2889,7 @@ def _refused(request, unit, reason_key):
 - [ ] **Step 7: Run the tests to verify they pass**
 
 Run: `uv run pytest tests/test_element_paste_view.py -v`
-Expected: all **14** PASS.
+Expected: all **15** PASS.
 
 - [ ] **Step 8: Confirm the unmarked render still costs nothing extra**
 
@@ -2999,9 +3112,17 @@ def test_a_spoiler_slot_offers_its_buttons(client):
     _mark(client, course, unit, subject)
 
     body = _editor(client, course, unit)
-    section = body[body.index("el-row__spoiler") :]
 
-    assert 'data-op="element-paste"' in section
+    # Assert on a SPOILER-SPECIFIC marker, not merely on a paste form appearing
+    # somewhere after "el-row__spoiler": that slice runs to the end of the document
+    # and always contains the top-level slot's own form (rendered after the element
+    # list), so a bare substring check passes even when the spoiler site emits
+    # nothing -- which is exactly the key-shape defect this test exists to catch,
+    # since that site passes `obj.SLOT_ID` rather than `tab.id`.
+    assert f'name="tab" value="{SpoilerElement.SLOT_ID}"' in body
+    at = body.index(f'name="tab" value="{SpoilerElement.SLOT_ID}"')
+    form = body[body.rindex("<form", 0, at) : at]
+    assert 'data-op="element-paste"' in form
     assert sp.pk
 
 
@@ -3009,19 +3130,33 @@ def test_a_padded_slot_renders_no_paste_button(client):
     """The enumerator's NON-destructive normalizer and the renderer's destructive
     one diverge for a tabs element with fewer than MIN_TABS stored tabs: the
     renderer pads with a freshly minted id that is not in the enumerated set. That
-    fails CLOSED -- no button -- which is what this pins."""
+    fails CLOSED -- no button on the padding slot -- which is what this pins.
+
+    The stored id must match TabsElement.TAB_ID_RE (`t[0-9a-f]{6}`) or save()
+    replaces it and the test loses its anchor. The minted padding id is not known
+    in advance, so it is read back out of the rendered DOM rather than guessed.
+    """
+    import re as _re
+
     course, unit = _seed(client)
-    thin = TabsElement.objects.create(data={"tabs": [{"id": "only1", "label": "A"}]})
+    thin = TabsElement.objects.create(data={"tabs": [{"id": "t000001", "label": "A"}]})
     join = Element.objects.create(unit=unit, content_object=thin)
     subject = _text(unit)
     _mark(client, course, unit, subject)
 
     body = _editor(client, course, unit)
 
-    # The stored slot keeps its buttons; the minted padding slot gets none.
-    section = body[body.index('data-tab-id="only1"') :]
-    assert 'data-op="element-paste"' in section[:1500]
-    assert body.count('data-op="element-paste"') < 1 + 2 * 2  # not one per rendered tab
+    rendered = _re.findall(r'data-tab-id="([^"]+)"', body)
+    assert "t000001" in rendered  # the stored slot survived
+    minted = [t for t in rendered if t != "t000001"]
+    assert minted, "the renderer must have padded to MIN_TABS"
+
+    # The stored slot offers its buttons; every minted padding slot offers none.
+    stored_section = body[body.index('data-tab-id="t000001"') :][:1500]
+    assert 'data-op="element-paste"' in stored_section
+    for mid in minted:
+        section = body[body.index(f'data-tab-id="{mid}"') :][:1500]
+        assert 'data-op="element-paste"' not in section, mid
     assert join.pk
 
 
@@ -3542,9 +3677,18 @@ def test_a_populated_container_moves_into_a_spoiler_and_reaches_the_student(
     )
 
     # 1. Select the POPULATED container, through the real button.
+    #
+    # The locator must be scoped to the row's OWN control bar. A tabs row nests its
+    # child rows inside its own <li class="el-row" data-element=...> (_element_row
+    # .html:80-95), and every row carries its own element-clip form -- so a plain
+    # descendant locator matches the container's button AND its child's, and
+    # Playwright's strict mode raises before anything is clicked.
     tabs_row = page.locator(f".el-row[data-element='{tabs_join.pk}']")
+    tabs_controls = tabs_row.locator(
+        "> .el-row__head .el-actions form[data-op='element-clip'] button"
+    )
     with page.expect_response(lambda r: "element/clip/" in r.url):
-        tabs_row.locator("form[data-op='element-clip'] button[type=submit]").click()
+        tabs_controls.click()
 
     expect(page.locator("#clip-banner")).to_be_visible()
     expect(page.locator(f".el-row[data-element='{tabs_join.pk}']")).to_have_class(
@@ -3555,11 +3699,13 @@ def test_a_populated_container_moves_into_a_spoiler_and_reaches_the_student(
         "open", ""
     )
 
-    # 2. Paste it into the spoiler's slot, through the real button.
+    # 2. Paste it into the spoiler's slot, through the real button. Scoped to the
+    #    spoiler's own slot container for the same strict-mode reason: once the
+    #    tabs element lands inside it, that subtree carries paste forms of its own.
     spoiler_row = page.locator(f".el-row[data-element='{spoiler.pk}']")
     with page.expect_response(lambda r: "element/paste/" in r.url):
         spoiler_row.locator(
-            "form[data-op='element-paste'] button[value='move']"
+            "> .el-row__spoiler > form[data-op='element-paste'] button[value='move']"
         ).click()
 
     # 3. The container and its child are now inside the spoiler.
@@ -3595,7 +3741,7 @@ Expected: PASS, with the summary line showing **1** test actually ran. `-m e2e` 
 
 Restore both, re-run to confirm GREEN, and record all three observations. The second falsification is the one a template test can never perform.
 
-- [ ] **Step 3: Commit**
+- [ ] **Step 4: Commit**
 
 ```bash
 git add tests/test_e2e_clipboard.py
@@ -3606,15 +3752,27 @@ git commit -m "test(e2e): move a populated container into a spoiler through the 
 
 ### Task 14: Full suite, lint, and the newly-legal combinations
 
-- [ ] **Step 1: Enumerate what a move newly permits**
+- [ ] **Step 1: Confirm the newly-legal combinations are covered**
 
-A move can produce shapes an add never could. Before running the suite, walk this list and confirm each is covered by a test that already exists in this plan — or add the missing one and say which:
+A move can produce shapes an add never could — that is how the depth-3 slice shipped two client-side defects thirteen per-task reviews missed. This enumeration is **already resolved**; your job is to confirm each named test exists and passes, not to audit afresh. Run:
 
-- a populated container inside a **tabs** slot, a **columns** slot and a **spoiler** slot;
-- a container of the **same type** nested inside itself (Tabs inside Tabs) — the depth-3 lesson's X-inside-X case;
-- an element moved **out** of a container back to top level;
-- an element moved **between two slots of the same container**;
-- a subtree that reaches exactly depth 4 after the move.
+```bash
+uv run pytest tests/test_builder_paste_element.py tests/test_element_paste_view.py -v
+```
+
+and tick each combination against its test:
+
+| Newly-legal shape | Covering test |
+|---|---|
+| populated container into a **tabs** slot | `test_a_copy_creates_fresh_rows_in_the_destination_slot`, `test_a_move_carries_its_whole_subtree_without_touching_the_children` |
+| into a **columns** slot (incl. a 3rd column) | `test_a_move_into_a_third_column_lands_there`, `test_a_paste_into_a_column_works_end_to_end` |
+| into a **spoiler** slot | `test_a_move_into_a_spoiler_uses_its_fixed_slot`, `test_a_move_into_a_spoiler_works_end_to_end` |
+| same type inside itself (Tabs in Tabs) | `test_a_copy_preserves_the_subtree_shape_at_every_depth` places a Tabs subtree into a Tabs slot; `courses/tests/test_paste_rule.py::test_a_leaf_may_land_at_depth_four_but_a_container_may_not` pins the depth limit of that shape |
+| moved **out** of a container to top level | `test_a_move_of_a_damaged_row_to_top_level_succeeds` (structural), plus the e2e's student-page assertion |
+| between two slots of the **same** container | `test_a_move_clears_the_mark_and_a_copy_keeps_it` pastes into `slots[0]` then `slots[1]` of one container |
+| a subtree reaching exactly depth 4 | `courses/tests/test_paste_rule.py::test_a_leaf_may_land_at_depth_four_but_a_container_may_not` |
+
+If any row's test is missing or fails, that is a finding: report it rather than adding an untested fixture here — new coverage belongs in Task 7 or Task 9 with a named mutant, not in this task's `chore` commit.
 
 - [ ] **Step 2: Run the full suite**
 
