@@ -13,18 +13,50 @@ Two consequences:
 2. **Nothing constrains image HEIGHT.** A tall, narrow image is never touched by `max-width` — it is
    already narrower than the column — so it renders at full natural height and overflows the screen.
 
+### The real content width — derive it from the shell, not from `.lesson`
+
+Every measurement below depends on the width of the box an image actually renders into, and the
+obvious answer is wrong. `courses.css:181` says `.lesson { max-width: 46rem }` (736px), but
+`lesson_unit.html:55` routes **every** unit through `_unit_shell.html`, and `courses.css:545-546`
+then overrides it: `.unit-shell__main > .lesson, .unit-shell__main > .quiz { max-width: none;
+margin-inline: 0; padding: 1.25rem 1.5rem; }`. The 46rem cap is reintroduced only under
+`html.unit-tree-collapsed [data-unit-shell]` for a selector allow-list (`courses.css:960-973`) that
+does **not** include `.el--image` — so an image is never prose-capped, in either TOC state.
+
+The real content box, at the pinned 1280px desktop viewport with the TOC shown:
+
+```
+.unit-shell   max-width 72rem      = 1152px   (courses.css:543)
+.unit-tree    flex 0 0 14rem       =  224px   (courses.css:548)
+.lesson       padding 1.5rem x 2   =   48px   (courses.css:546)
+                                     -------
+content box                           880px
+```
+
+On a phone (≤640px) `.unit-shell` becomes `display: block`, `.unit-tree` is hidden, and `.lesson`
+padding drops to `1rem`, giving **328px** at a 360px viewport.
+
+**Use 880px, not 736px.** An earlier draft of this spec measured against 736px and understated the
+problem by nearly half.
+
 ### Measured evidence (1067 images with a readable file, local `libli` DB, 2026-08-04)
+
+Measured at the **880px** content box above:
 
 | fact | count |
 |---|---|
 | wide or square | 1042 |
 | tall (h/w > 1.5) | 25 |
-| naturally narrower than the 736px prose column | 162 |
-| **render taller than a 900px desktop window** | **30** |
+| **render taller than a 900px desktop window** | **54** |
 | **overflow a 640px phone viewport** | **10** |
 
-Rendered-height percentiles at the 736px column: p50 466px, p75 591px, p90 736px, p95 804px,
-p99 1306px, max 1492px. The worst are `494x1492` (h/w 3.0).
+Rendered-height percentiles at the 880px column: p50 550px, p75 690px, p90 835px, p95 903px,
+p99 1306px, max 1546px. The worst source images are `494x1492` (h/w 3.0).
+
+For contrast, the same query against the wrong 736px figure reported only **30** over-tall images and
+p50 466 / p95 804 / max 1492 — the wider real column stretches tall images taller, so measuring
+against `.lesson`'s nominal cap **undercounts the defect by 24 images**. The phone figure (10) is
+unaffected, because 328px was derived from the shell correctly.
 
 The originating report was unit 1095 ("Pierwiastek - wyłączanie i włączanie"), whose first spoiler
 holds `czynnik_przed_pierwiastek_1.png` at **297x719** (h/w 2.42, element pk 1082) — fine on desktop,
@@ -35,12 +67,12 @@ whole problem in one spoiler: **width-only constraints do not bound a tall image
 ### Why presets are bounding boxes, not widths
 
 A width-only preset does not produce comparable visual sizes across aspect ratios. At "medium = 50%
-of a 736px column" (368px):
+of the 880px column" (440px):
 
 | aspect | renders as | verdict |
 |---|---|---|
-| 1:3 tall | 368 x 1104 | dominates the page |
-| 2:1 wide | 368 x 184 | fine |
+| 1:3 tall | 440 x 1320 | dominates the page — taller than any laptop screen |
+| 2:1 wide | 440 x 220 | fine |
 
 So each preset is a **bounding box** — a max-width *and* a max-height — with the image scaled to fit
 inside it, preserving aspect ratio. The browser does this natively with `max-width` + `max-height` +
@@ -70,12 +102,14 @@ class ImageElement(ElementBase):
 `CalloutElement.Kind`. Labels use `gettext_lazy` (module-level translatable strings must, per house
 rule). A schema migration adds the column with `default="full"`.
 
-**There is no data migration.** Because `full` carries a `max-height: 100dvh` (see §3), the 30
-over-tall images are corrected by the CSS rule itself, and the other 1037 render byte-identically.
-This is a deliberate reversal of an earlier draft that proposed defaulting to a capped preset: a
-70vh default would have visibly changed **207 images (19%)** — 23 imperceptibly (<5%), 103 mildly
-(5-20%), 70 noticeably (20-50%), and 11 by more than half (23+103+70+11 = 207) — to fix 10 mobile
-cases. Capping only at the viewport changes exactly the images that are already broken.
+**There is no data migration.** Because `full` carries a `max-height: 100dvh` (see §3), the 54
+over-tall images are corrected by the CSS rule itself, and the other 1013 render byte-identically.
+This is a deliberate reversal of an earlier draft that proposed defaulting to a capped preset: at the
+real 880px column a 70vh default would have visibly changed **370 images (35%)** — 43 imperceptibly
+(<5%), 156 mildly (5-20%), 159 noticeably (20-50%), and 12 by more than half (43+156+159+12 = 370) —
+to fix 10 mobile cases. Capping only at the viewport changes exactly the images that are already
+broken. (Re-measuring at the correct column made this argument *stronger*: against the wrong 736px
+figure the same comparison read 207 images / 19%.)
 
 ### 2. Rendering — a class, not an inline style
 
@@ -113,8 +147,11 @@ tracking vs. a preview-target hook), and `data-preview-el` is invisible to every
 
 ### 3. CSS — four bounding boxes
 
-The prose column is `46rem` (`courses.css:181`, `.lesson { max-width: 46rem }`), i.e. 736px at a
-16px root.
+Percentages resolve against the **containing block**, which for a top-level image is the `.lesson`
+content box derived in §Purpose — **880px** at the pinned desktop viewport, not `.lesson`'s nominal
+`46rem`. The percentages below are correct regardless (they are relative by construction); the
+figure matters only for computing expected pixel values in tests, which is why row 8 measures the
+container at runtime rather than hardcoding a width.
 
 **The base rule is folded into the presets, not left to compete with them.** The existing
 `.el--image img { max-width: 100%; height: auto; }` (`courses.css:46`) has *identical* specificity to
@@ -224,7 +261,11 @@ non-`blank` `CharField`, so its form field is `required=True`. A radio group wit
 submits **no** `size` key, so the form fails validation on *any* save of an image element — even an
 alt-text-only edit — once 4a is applied. Two independent reasons this must be specified: an author
 must see the element's current preset, and a freshly-opened element must render with the model
-default `full` already checked via `form.instance.size`.
+default `full` already checked — via **`form.size.value`**, the same path the snippet above compares
+against. On an unbound `ModelForm` that resolves through a freshly-constructed `ImageElement()`
+whose `size` already carries the field default, so no extra initial-value logic is needed. (Do not
+reach for `form.instance.size` here; the template compares `form.size.value`, and mixing the two is
+how the checked state and the submitted value drift apart.)
 
 **4c. The two live-preview attributes**, carried by every radio above:
 
@@ -393,6 +434,13 @@ Rows 8-10 are load-bearing and cannot be replaced by source scans.
   a pixel. Pair it with a wide fixture — **948x719**, the real sibling image from the same spoiler in
   unit 1095 — where the width cap binds instead. One tall + one wide per preset per viewport is what
   makes both numbers in each bounding box load-bearing.
+- **Row 8 must read the container width at runtime**, not hardcode one.
+  `.unit-shell__main > .lesson` overrides `.lesson`'s nominal `46rem` (§Purpose), so the content box
+  is ~880px on desktop and ~328px on a phone — and both depend on the shell, the TOC state and the
+  padding, all of which can change. Assert the image against
+  `container.getBoundingClientRect().width * <preset fraction>`, so the test keeps testing the
+  preset rather than silently re-encoding today's layout. A hardcoded 736 or 880 would make this
+  row fail the next time the shell is touched, for a reason that has nothing to do with sizing.
 - **Row 8** must run at **two** viewports. A single-viewport test passes even if the cap were
   silently authored as a fixed `px`, which is that row's specific target.
 - **Row 8 must exercise all four presets, not one representative.** Row 2 only asserts that the
