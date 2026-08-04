@@ -3,7 +3,10 @@ from django.db import migrations
 from courses.migrations_support import body_is_empty_ish
 
 # Inlined, NEVER imported from the live model: a migration must not depend on
-# today's value of a constant.
+# today's value of a constant. Documents the historical slot literal only --
+# NOT used as a filter below, which groups children by `parent` alone (see the
+# comment at the child_ids query), mirroring resolved_children()'s handling of
+# a single-slot container.
 SLOT_ID = "only"
 
 

@@ -19,7 +19,7 @@ pytestmark = pytest.mark.django_db
         "<p><br></p>",  # the RTE's normal "empty" output
         "<div><br></div>",
         "<div>&nbsp;</div>",
-        "<p> </p>",  # decoded nbsp
+        "<p>\xa0</p>",  # decoded nbsp
         "   ",
     ],
 )
