@@ -1209,7 +1209,9 @@ def element_duplicate(request, slug):
         if unit is None:
             return _render_tree(request, course, status=409)
         return _render_editor_fragments(request, unit, status=422, error=str(exc))
-    return _render_editor_fragments(request, unit)
+    return _render_editor_fragments(
+        request, unit, open_slots=builder_svc.ancestor_slots(new_join)
+    )
 
 
 def _editor_ctx(request):

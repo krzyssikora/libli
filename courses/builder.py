@@ -115,6 +115,37 @@ def element_depth(join):
     return depth
 
 
+def slot_key(parent_pk, tab_id):
+    """Flattened '<parent_pk>:<tab_id>' key for one container slot; the
+    top-level slot is ':'.
+
+    A single flattened string rather than a tuple, because Django's template
+    language cannot construct a tuple and the <details> open test has to build
+    this key from two values inside an expression. One helper for the view and
+    the template so the two can never disagree about the shape.
+
+    The `is None` test is explicit on purpose: `parent_pk or ""` would collapse a
+    pk of 0 onto the top-level key.
+    """
+    return f"{'' if parent_pk is None else parent_pk}:{tab_id}"
+
+
+def ancestor_slots(join):
+    """Slot keys of every container slot ABOVE `join`, so a render can force
+    those <details> open and a newly created element is not born inside a
+    collapsed tab.
+
+    Bounded by MAX_NEST_DEPTH hops for the same reason element_depth is: a
+    corrupt parent cycle must terminate rather than spin.
+    """
+    keys, cur, hops = set(), join, 0
+    while cur.parent_id is not None and hops <= MAX_NEST_DEPTH:
+        keys.add(slot_key(cur.parent_id, cur.tab_id))
+        cur = cur.parent
+        hops += 1
+    return keys
+
+
 def resolve_scope(unit, parent_ref, tab, type_key):
     """Validate and resolve a nested element's scope.
 

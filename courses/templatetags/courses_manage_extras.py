@@ -11,6 +11,7 @@ from django.utils.text import Truncator
 from django.utils.translation import gettext_lazy as _
 from django.utils.translation import ngettext
 
+from courses import builder
 from courses.models import ContentNode
 from courses.models import FillTableElement
 from courses.models import GalleryElement
@@ -219,6 +220,20 @@ def in_set(value, container):
         return value in (container or ())
     except TypeError:
         return False
+
+
+@register.filter
+def slot_key(parent_pk, tab_id):
+    """Template-side twin of builder.slot_key, registered as a FILTER because the
+    <details> open test builds its key from two values inside an expression,
+    where an inclusion tag cannot be used:
+
+        {% if el.pk|slot_key:tab.id|in_set:open_slots %}
+
+    Delegates rather than re-deriving, so the key shape has exactly one
+    definition.
+    """
+    return builder.slot_key(parent_pk, tab_id)
 
 
 @register.simple_tag(takes_context=True)
