@@ -186,9 +186,58 @@
         {% include "courses/manage/editor/_element_row.html" with el=child obj=child.content_object unit=unit open_form=open_form open_form_pk=open_form_pk depth=depth|add:1 %}
       {% empty %}
         {% if obj.body %}
-          <li class="empty-state">{% trans "This spoiler shows saved text (edit it with the pencil). Add an element below to start nesting content." %}</li>
+          <li class="empty-state">{% trans "This spoiler shows its text above. Add an element below to nest more content." %}</li>
         {% else %}
           <li class="empty-state">{% trans "This spoiler is empty." %}</li>
+        {% endif %}
+      {% endfor %}
+    </ol>
+    {% if depth < max_nest_depth %}{% include "courses/manage/editor/_add_menu.html" with nested=True parent=el.pk tab=obj.SLOT_ID depth=depth %}{% endif %}
+  </div>
+</li>
+{% elif el.content_type.model == "calloutelement" %}
+<li class="el-row el-row--callout{% if open_form_pk == el.pk|stringformat:'s' %} el-row--editing{% endif %}"
+    data-element="{{ el.pk }}" data-updated="{{ unit.updated.isoformat }}" data-unit="{{ unit.pk }}">
+  <div class="el-row__head">
+    <button type="button" class="iconbtn ica--grip" draggable="true"
+            aria-label="{% trans 'Drag to reorder' %}" title="{% trans 'Drag to reorder' %}">⠿</button>
+    <div class="el-row__body">
+      <div class="el-row__top">
+        <span class="el-tag">{% element_type_label el.content_type obj %}</span>
+        <span class="el-actions">
+          <button type="button" class="iconbtn el-select el-act-edit" data-element-id="{{ el.pk }}"
+                  data-form-url="{% url 'courses:manage_element_form' slug=unit.course.slug pk=el.pk %}"
+                  aria-label="{% trans 'Edit' %}" title="{% trans 'Edit' %}">✎</button>
+          <button type="button" class="iconbtn el-act-cancel" data-cancel-edit
+                  aria-label="{% trans 'Cancel' %}" title="{% trans 'Cancel' %}">✕</button>
+          {% include "courses/manage/editor/_element_row_controls.html" with el=el unit=unit %}
+        </span>
+      </div>
+      <button type="button" class="el-select el-row__label" data-element-id="{{ el.pk }}"
+              data-form-url="{% url 'courses:manage_element_form' slug=unit.course.slug pk=el.pk %}">{% if el.title %}{{ el.title }}{% else %}{{ obj|element_summary }}{% endif %}</button>
+    </div>
+  </div>
+  <div class="el-edit-slot" data-edit-slot>{% if open_form_pk == el.pk|stringformat:'s' %}{{ open_form|safe }}{% endif %}</div>
+
+  {% comment %}
+  Single implicit slot, the same substrate as the spoiler branch above.
+
+  Why the recursive include terminates: the editor enters from _editor_rows'
+  `parent__isnull=True` roots and descends only through the resolved-* accessors.
+  Element.parent is single-valued, so every node in a cycle has a non-null parent and
+  is therefore never a root; the reachable subgraph is acyclic by construction. The
+  child-row recursion is deliberately UNBOUNDED; only the ADD-MENU include below
+  carries the depth guard.
+  {% endcomment %}
+  <div class="el-row__callout">
+    <ol class="element-list element-list--nested">
+      {% for child in obj.resolved_children %}
+        {% include "courses/manage/editor/_element_row.html" with el=child obj=child.content_object unit=unit open_form=open_form open_form_pk=open_form_pk depth=depth|add:1 %}
+      {% empty %}
+        {% if obj.body %}
+          <li class="empty-state">{% trans "This callout shows its text above. Add an element below to nest content inside it." %}</li>
+        {% else %}
+          <li class="empty-state">{% trans "This callout is empty." %}</li>
         {% endif %}
       {% endfor %}
     </ol>
