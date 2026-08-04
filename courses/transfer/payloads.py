@@ -781,9 +781,9 @@ def validate_nesting(elements):
         parent = by_id.get(parent_ref)
         if parent is None:
             _err(_("Element '%(el)s' references an unknown parent."), el=el["id"])
-        # Slot-membership: spoiler is a single-slot container with no `data` slot
-        # list, so its sole valid slot id is SINGLE_SLOT_ID; every other
-        # container reads its slot list from `data` via _CONTAINER_SLOT_KEY.
+        # Slot-membership: spoiler and callout are single-slot containers with no
+        # `data` slot list, so their sole valid slot id is SINGLE_SLOT_ID; every
+        # other container reads its slot list from `data` via _CONTAINER_SLOT_KEY.
         if parent["type"] not in _CONTAINER_SLOT_KEY:  # membership FIRST
             _err(
                 _("Element '%(el)s' has a parent that is not a container element."),
@@ -795,7 +795,8 @@ def validate_nesting(elements):
             if slot_key is None
             else {s["id"] for s in parent["data"][slot_key]}
         )
-        # Depth check runs for EVERY container (must NOT be skipped for spoiler).
+        # Depth check runs for EVERY container (must NOT be skipped for
+        # spoiler or callout).
         # Hop-bounded chain walk. NOT `while ... is not None`: a corrupt archive with
         # a parent cycle would hang the import worker.
         depth, node = 1, parent

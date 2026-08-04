@@ -11,7 +11,7 @@ elementów treści](content-editors), większość z nich można zagnieżdżać 
 kontenerze — zobacz „Kontenery i zagnieżdżanie” w [edytorach
 treści](content-editors), gdzie opisano, jak głęboko i które kontenery je
 przyjmują; Rozwijana treść jest tu wyjątkiem, ponieważ sama również jest
-jednym z trzech typów kontenerów.
+jednym z czterech typów kontenerów.
 
 ![Lekcja z elementem interaktywnym „Pokaż więcej”](static:core/img/help/interactive.pl.png)
 
@@ -90,7 +90,10 @@ rozwiązanie zadania lub dygresję, którą uczeń otworzy, gdy zechce. Ustaw
 opcjonalny **Tekst przycisku** (domyślnie *Pokaż*) i wpisz ukrytą treść
 tym samym paskiem narzędzi tekstu sformatowanego (pogrubienie/kursywa/
 podkreślenie, nagłówki, listy, linki, cytat, kod, wyrównanie) co w innych
-polach tekstowych.
+polach tekstowych. Rozwijana treść jest też kontenerem: może zawierać
+zagnieżdżone elementy dodawane poniżej treści z jej własnego menu **Dodaj
+element** — treść i elementy zagnieżdżone odsłaniają się razem, treść
+jako pierwsza, gdy uczeń kliknie przełącznik.
 
 ## {el:stepper} Krok po kroku
 
