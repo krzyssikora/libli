@@ -80,17 +80,36 @@ cases. Capping only at the viewport changes exactly the images that are already 
 ### 2. Rendering — a class, not an inline style
 
 ```html
-<figure class="el el--image el--image--{{ el.size }}" data-element-id="{{ el.pk }}">
+<figure class="el el--image el--image--{{ el.size }}" data-size-el="{{ el.pk }}">
   <img src="…" alt="…" data-zoomable>
 ```
 
 A class, because the values are `%` of the column plus `dvh` of the viewport — not expressible as a
 per-element inline style — and because it keeps all four boxes in one place.
 
-`data-element-id` (**not** a newly-coined name) is the attribute the editor's live preview uses to
-find this figure. It reuses the convention already pervasive in the editor: `_preview.html`'s
-`.prev-el`, `_element_row.html`, and `editor.js` (e.g. `:149`, `:189`, `:382`) all key on
-`data-element-id`. It is inert on student pages.
+**`data-size-el`, and deliberately NOT `data-element-id`.** The editor keys on `data-element-id`
+(`_preview.html`'s `.prev-el`, `_element_row.html`, `editor.js` `:149`/`:189`/`:382`), so reusing it
+here looks like the consistent choice. It is not, because that attribute has a **second consumer on
+student pages**:
+
+- `progress.js:52` runs `document.querySelectorAll("[data-element-id]")` — **unscoped by class,
+  across the whole document** — and observes each match to build the "seen" set POSTed to `/seen/`.
+- `slideshow.js:119-120` does the same per slide.
+- `views.py:709-713` states the invariant outright: *"the frontend only reports
+  `.lesson-block[data-element-id]` ids, which `_lesson_article.html` emits for top-level elements
+  only. A nested pk here could never be satisfied, so the unit would never complete."*
+
+**No element template emits `data-element-id` today** — verified by grep across
+`templates/courses/elements/*.html`. `imageelement.html` renders on student lesson and quiz pages
+via the same `render_element` tag as the preview pane, so putting `data-element-id` on the figure
+would make this the first element to break that invariant: every image would be observed by
+`progress.js`, top-level images would be reported twice, and a *nested* image's pk would enter the
+`/seen/` payload where `_seen_current_ids` (`parent__isnull=True`) silently discards it. Harmless
+today only by server-side filtering, not by design — and a latent trap if that filter ever changes.
+
+A distinct name avoids all of it: the purposes genuinely differ (element identity for progress
+tracking vs. a preview-target hook), and `data-size-el` is invisible to every existing consumer.
+**Do not "unify" these two attributes later** — that is the bug, not the cleanup.
 
 ### 3. CSS — four bounding boxes
 
@@ -201,7 +220,7 @@ default `full` already checked via `form.instance.size`.
 
 - `data-size-preset` — the hook the delegated listener matches on (a marker attribute, no value).
 - `data-for-element` — the element pk, so the listener can find the matching rendered `<figure>`
-  by its `data-element-id`.
+  by its `data-size-el` (see §2 for why that is not `data-element-id`).
 
 Without both attributes the enhancement in §5 silently does nothing, so they are part of this
 section's contract, not an implementation detail.
@@ -211,8 +230,16 @@ section's contract, not an implementation detail.
 The preview pane wraps each **top-level** element as
 `<section class="prev-el" data-element-id="{{ el.pk }}">` (`_preview.html`), but a **nested** image —
 inside a spoiler, tabs, two-column or callout — has no such wrapper. Nesting is the common case here
-(the originating image is inside a spoiler), which is why §2 puts `data-element-id` on the figure
+(the originating image is inside a spoiler), which is why §2 puts `data-size-el` on the figure
 itself, where it is present at every nesting depth.
+
+**On the create flow the live preview is inertly a no-op.** `views_manage.py:1437-1446` builds the
+create form as `FORM_FOR_TYPE[type_key](initial=…)` with **no `instance`**, so `form.instance.pk` is
+`None` and the radios render `data-for-element=""`. There is also no `<figure>` in the preview pane
+yet, because the element does not exist in the DB. The `if (fig)` guard makes this a silent no-op,
+which is the correct behaviour — the author sees the chosen size on first save. Testing rows 9 and
+10 therefore exercise the **edit-an-existing-element** flow; a test written against the create flow
+expecting a visible size change would be asserting a bug.
 
 **The size branch extends the existing delegated handler**, rather than adding a second listener.
 `editor.js` already establishes `var root = document.querySelector(".editor")` (`:3`) and already
@@ -224,7 +251,7 @@ pane is within its subtree. Reusing it keeps one change-handler in the file:
 var preset = e.target.closest("[data-size-preset]");
 if (preset) {
   var fig = document.querySelector(
-    '.el--image[data-element-id="' + preset.dataset.forElement + '"]'
+    '.el--image[data-size-el="' + preset.dataset.forElement + '"]'
   );
   if (fig) {
     fig.classList.remove(
@@ -323,7 +350,9 @@ and name the mutant. A passing test proves nothing on its own.
 |---|---|---|
 | 1 | default is `full`; `choices` rejects junk | model test |
 | 2 | each of the four presets renders its class | render test, one per preset |
-| 3 | `data-element-id` is present and correct on the figure, including on a **nested** image | render test through a spoiler/callout |
+| 3 | `data-size-el` is present and correct on the figure, including on a **nested** image | render test through a spoiler/callout |
+| 3b | **the figure does NOT carry `data-element-id`** on a student page | render test — guards the `progress.js` invariant against a future "unify the attributes" cleanup |
+| 3c | a nested image's pk is absent from `_seen_current_ids` | pins the `parent__isnull=True` filter that makes 3b's invariant safe |
 | 4 | export writes `size` | transfer unit test |
 | 5 | round-trip preserves all four presets | export → import, assert each |
 | 6 | **an archive with no `size` key imports as `full`** | the back-compat pin; build the payload without the key |
@@ -335,9 +364,17 @@ and name the mutant. A passing test proves nothing on its own.
 | 12 | a nested image scales to its container in **all four** containers — spoiler, tabs, two-column, callout | render or e2e, one case each |
 | 13 | print CSS defines all four presets | source-scan, block-extracted |
 | 14 | the radios carry `data-size-preset` and `data-for-element` | render test — the §4/§5 contract |
+| 15 | the stored preset renders as the `checked` radio; a fresh element shows `full` checked | render test — the §4b contract |
+| 16 | an alt-text-only save of an image element still succeeds | regression pin for §4b's required-field trap |
 
 Rows 8-10 are load-bearing and cannot be replaced by source scans.
 
+- **Row 8's two viewports are pinned**, so its expected values are computable and reviewable rather
+  than left to the implementer: **desktop 1280x900** (the 900px height the §3 table is footnoted
+  against) and **phone 360x640**. At the phone viewport the `dvh` caps resolve to
+  small 192px / medium 288px / large 384px / full 640px. The width caps resolve against the
+  *containing block*, not the viewport, so the test asserts **whichever constraint binds** for the
+  fixture image rather than a fixed width number.
 - **Row 8** must run at **two** viewports. A single-viewport test passes even if the cap were
   silently authored as a fixed `px`, which is that row's specific target.
 - **Row 8 must exercise all four presets, not one representative.** Row 2 only asserts that the
