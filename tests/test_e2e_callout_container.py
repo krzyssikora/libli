@@ -74,10 +74,15 @@ def _seed_unit(username):
 
 
 def test_spoiler_body_and_children_show_one_continuous_rule(page, live_server):
-    """MUST open the <details> first: a closed one is not rendered, so BOTH rects come
-    back all-zeros and `equal left` (0==0) / `zero gap` (0-0) hold WITH and WITHOUT the
-    fix -- green under the named mutant. On the BROKEN build the two `left` values
-    differ by var(--space-3) and the gap is non-zero; check that before trusting green.
+    """MUST open the <details> first: a closed one is not rendered, so the rect comes
+    back all-zeros and `zero gap` (0-0) holds WITH and WITHOUT the fix -- green under
+    the named mutant. On the BROKEN build the gap is non-zero; check that before
+    trusting green.
+
+    No left-offset assertion: `.el { margin: 1rem 0 }` already zeroes
+    `.spoiler__body`'s margin-left independently of the combined-shape rule, so both
+    boxes sit at x=0 with or without the fix -- that comparison cannot fail and would
+    read as a second pin while proving nothing.
     """
     from courses.models import Element
     from courses.models import SpoilerElement
@@ -99,7 +104,6 @@ def test_spoiler_body_and_children_show_one_continuous_rule(page, live_server):
     page.wait_for_selector(".spoiler__children", state="visible")
     body = page.locator(".spoiler__body").bounding_box()
     kids = page.locator(".spoiler__children").bounding_box()
-    assert abs(body["x"] - kids["x"]) < 1, "rules sit at different left offsets"
     gap = kids["y"] - (body["y"] + body["height"])
     assert abs(gap) < 1, f"vertical gap between the two rules: {gap}px"
 

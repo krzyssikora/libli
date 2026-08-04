@@ -239,9 +239,12 @@ def test_lesson_renders_200_with_each_concrete(client, model, kwargs, placement)
     client.force_login(student)
     r = client.get(reverse("courses:lesson_unit", args=[course.slug, unit.pk]))
     assert r.status_code == 200
-    # NB the existing local is `r` (see the pre-existing `assert r.status_code == 200`
-    # two lines above) -- there is no `resp` in this function.
+    # Match the CLASS ATTRIBUTE as it appears on the rendered wrapper, not a bare
+    # substring: lesson_unit.html's pre-hide <style> block also emits the literals
+    # ".callout__children" / ".spoiler__children" whenever the placed element sets
+    # has_reveal_gate (FillGateElement, SwitchGateElement), which would satisfy a
+    # bare `in` check from the <head> alone, regardless of where the element render.
     if placement == "callout":
-        assert "callout__children" in r.content.decode()
+        assert 'class="callout__children"' in r.content.decode()
     if placement == "spoiler":
-        assert "spoiler__children" in r.content.decode()
+        assert 'class="spoiler__children"' in r.content.decode()
