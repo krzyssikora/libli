@@ -200,21 +200,31 @@ diverging for a release.
 
 ## Change set
 
-Registry membership alone does **not** make a callout a working container. Several
-dispatch sites are hard-coded by model or type and each needs its own edit — six of
-them, per the table below. Three of the eight are JS/CSS-seam changes — exactly the class of defect PR #209 shipped
-because the diff contained no JS/CSS files.
+Registry membership alone does **not** make a callout a working container. **This
+table is the single index of the change set** — every file this slice touches appears
+here, pointing at the section that specifies it. Items 3–8 are the ones a registry-only
+reading would miss, and 5–7 are JS/CSS-seam changes: exactly the class of defect PR #209
+shipped, because its diff contained no JS/CSS files and so they fell outside every
+review surface by construction.
 
-| # | Site | Why registry membership is not enough |
-|---|---|---|
-| 1 | `courses/builder.py` — `_CONTAINER_REGISTRY`, `CONTAINER_TRANSFER_KEYS` | registry, see below |
-| 2 | `courses/transfer/payloads.py` — `_CONTAINER_SLOT_KEY` + the single-slot constant | registry + a hard-coded `SpoilerElement.SLOT_ID` |
-| 3 | `courses/transfer/export.py` — `walk_unit_joins`'s inner `emit()` | explicit `isinstance` ladder; docstring says **"NOT registry-driven"** |
-| 4 | `templates/courses/manage/editor/_add_menu.html` | the Callout card is unguarded; clause 4 now applies to it |
-| 5 | `courses/static/courses/js/reveal.js` + `templates/courses/lesson_unit.html` + `core/static/core/css/app.css` | `scopeOf`, the pre-hide CSS and the `@media print` revert are **three** literal scope lists |
-| 6 | `courses/static/courses/js/math.js` | `renderInlineText` enumerates selectors literally |
-| 7 | `courses/static/courses/css/editor.css` | per-container editor-row rules are enumerated literally |
-| 8 | `docs/help/course-admin/content-editors{,.pl}.md` + `interactive-elements{,.pl}.md` | both state "the three container types"; the quiz add-menu paragraph and the Spoiler section are also falsified |
+| # | Site | Why it is in the change set | Specified in |
+|---|---|---|---|
+| 1 | `courses/builder.py` — `_CONTAINER_REGISTRY`, `CONTAINER_TRANSFER_KEYS` | the registries themselves | §1 |
+| 2 | `courses/transfer/payloads.py` — `_CONTAINER_SLOT_KEY` + `SINGLE_SLOT_ID` | registry, plus a hard-coded `SpoilerElement.SLOT_ID` | §2 |
+| 3 | `courses/transfer/export.py` — `walk_unit_joins`'s inner `emit()` | explicit `isinstance` ladder; docstring says **"NOT registry-driven"**. Also fixes `duplicate_unit` | §3 |
+| 4 | `templates/courses/manage/editor/_add_menu.html` | the Callout card is unguarded; clause 4 now applies to it | §4 |
+| 5 | `courses/static/courses/js/reveal.js` + `templates/courses/lesson_unit.html` + `core/static/core/css/app.css` | `scopeOf`, the pre-hide CSS and the `@media print` revert are **three** literal scope lists | §5 |
+| 6 | `courses/static/courses/js/math.js` | `renderInlineText` enumerates selectors literally | §6 |
+| 7 | `courses/static/courses/css/editor.css` | per-container editor-row rules are enumerated literally | §7 |
+| 8 | `docs/help/course-admin/content-editors{,.pl}.md` + `interactive-elements{,.pl}.md` | both state "the three container types"; the quiz add-menu paragraph and the Spoiler section are also falsified | Author documentation |
+| 9 | `courses/models.py` — `CalloutElement` | `SLOT_ID`, `join_row()`, `resolved_children()`, a new `render()` | Model |
+| 10 | `templates/courses/elements/calloutelement.html` | body block + `.callout__children` wrapper | Render templates |
+| 11 | `templates/courses/elements/spoilerelement.html` | body block **moved above** children | Render templates |
+| 12 | `courses/element_forms.py` | delete the `fields.pop("body")` guard | Forms |
+| 13 | `courses/views.py` | `_callout_has_math` + the `_spoiler_has_math` body OR | Error handling |
+| 14 | `templates/courses/manage/editor/_element_row.html` | the `calloutelement` branch + reworded empty-states | Editor |
+| 15 | `courses/static/courses/css/courses.css` | `.callout__children`/`__child`, the prose-cap narrowing, the `.katex` heading reset | CSS |
+| 16 | migration `courses/migrations/00XX_*.py` | the `RunPython` body cleanup | Cleanup migration |
 
 ### 1 — builder registries
 
@@ -243,16 +253,26 @@ That is a write/import divergence waiting to happen: the write path validates ag
 design:** a single shared `SINGLE_SLOT_ID` constant that both models reference — one
 design, not "either a constant or a mapping", so the pinned test below is unambiguous.
 
-**Do not pin this with `CalloutElement.SLOT_ID is SpoilerElement.SLOT_ID`.** `"only"`
-is identifier-shaped, so CPython interns it at compile time: two classes that
-*independently* write `SLOT_ID = "only"` yield the **same object** and `is` returns
-`True` under exactly the divergence this item exists to prevent. Verified —
-`class A: SLOT_ID='only'` / `class B: SLOT_ID='only'` → `A.SLOT_ID is B.SLOT_ID` is
-`True`. The pin must be **behavioural**: monkeypatch `CalloutElement.SLOT_ID`
-in-process and assert the import path then rejects `tab="only"` for a callout child,
-proving `validate_nesting` reads the callout's constant. An in-process patch is not the
-forbidden thing — the "`only` must never change" constraint is about persisted
-`Element.tab_id` values, which a unit test never touches.
+`validate_nesting` reads `SINGLE_SLOT_ID` **directly**, and both models set
+`SLOT_ID = SINGLE_SLOT_ID`. Under this design drift is structurally impossible — there
+is exactly one object — which is the point.
+
+**Pinning this needs care, because two obvious tests are both vacuous:**
+
+- `CalloutElement.SLOT_ID is SpoilerElement.SLOT_ID` — `"only"` is identifier-shaped,
+  so CPython interns it at compile time and two classes that *independently* write
+  `SLOT_ID = "only"` yield the **same object**; `is` returns `True` under exactly the
+  divergence this item exists to prevent. Verified: `class A: SLOT_ID='only'` /
+  `class B: SLOT_ID='only'` → `A.SLOT_ID is B.SLOT_ID` is `True`.
+- Monkeypatching `CalloutElement.SLOT_ID` and asserting the import path rejects
+  `tab="only"` — under *this* design `validate_nesting` never reads the model attribute,
+  so the patch has no effect and the test would fail against a **correct**
+  implementation.
+
+**The pin that bites is source-level** (this repo already uses source-scanning tests):
+assert that neither `SpoilerElement`'s nor `CalloutElement`'s class body contains a bare
+`"only"` literal — i.e. both must reference `SINGLE_SLOT_ID`. Mutant: re-spell either as
+`SLOT_ID = "only"` → RED. Note `comments-can-fail-tests`: strip comments before scanning.
 
 Update the now-false comment at `payloads.py:750-752`.
 
@@ -296,10 +316,19 @@ absent from a depth-3 add-menu.
 become legal callout children. Today:
 
 - `scopeOf` is `btn.closest("[data-tab-panel], .slide, .spoiler__children, .spoiler")`
-  (`courses/static/courses/js/reveal.js:51-52`). A gate inside a top-level callout
-  resolves to `null` → `cascadeFrom` returns immediately → **dead button**. Inside a
-  slideshow it resolves to `.slide` and cascades *out of* the callout across sibling
-  lesson blocks.
+  (`courses/static/courses/js/reveal.js:51-52`). **It never returns `null`**:
+  `templates/courses/_lesson_article.html:35-36` wraps every lesson's elements in
+  `{% for slide in slides %}<div class="slide">` — slideshow or not (only
+  `lesson--slideshow` and `data-slideshow` are conditional on `slides|length > 1`), and
+  `closest()` matches regardless of `display`. So a gate inside a top-level callout
+  resolves to `.slide` in **every** lesson.
+
+  The actual pre-fix behaviour is worse than inaction: `ownWrapper` resolves to the
+  enclosing `.lesson-block`, so `gateWrap.hidden = true` **hides the entire callout**,
+  and because `isGateWrapper` under a `.slide` scope requires
+  `:scope > .lesson-block__body > [data-reveal-gate]`, the cascade never finds a
+  stopping point and marks **every following top-level `.lesson-block`**
+  `.reveal-shown` — content leakage plus the callout disappearing.
 - The pre-hide CSS at `templates/courses/lesson_unit.html:39-41` has exactly three
   selectors, none matching `.callout__child`, so gated content is **fully visible
   before the click** either way.
@@ -331,8 +360,18 @@ this defect; fix both while here.
 `isGateWrapper` (`reveal.js:72-78`) needs no new branch — like `.tabs__child` and
 `.spoiler__child`, a `.callout__child` wraps its gate directly, so it takes the
 existing `:scope > [data-reveal-gate]` form. Extend
-`courses/tests/test_reveal_gate_render.py`'s agreement check to cover all four scopes
-across all **three** files.
+the reveal-scope agreement check to cover all four scopes across all **three** files.
+
+**This is a new test, not an extension.** `courses/tests/test_reveal_gate_render.py`
+contains no cross-file check — its `test_lesson_prehide_css_covers_spoiler` (`:225`)
+asserts a substring of the *rendered lesson HTML* and never reads `reveal.js` or
+`app.css`; `test_reveal_refactor_static.py` reads `reveal.js` but only for
+`cascadeFrom`/focus behaviour, and nothing reads the `@media print` block at all. Write
+a source-agreement test that reads all three — `reveal.js`'s `scopeOf` selector list,
+the `lesson_unit.html` pre-hide block, and `app.css`'s `@media print` revert — and
+asserts they enumerate the same four scopes. Mutant: remove one scope from any one of
+the three files → RED. This test is the slice's central defence against the
+"three literal scope lists" defect class, so it must exist.
 
 ### 6 — math.js must typeset the callout heading
 
@@ -358,12 +397,24 @@ inside typeset math:
 .callout__heading .katex { text-transform: none; letter-spacing: normal; font-size: 1rem; }
 ```
 
-verified light+dark. The `1rem` is a **starting point to be measured, not a fixed
-value**: the eyebrow is `0.75rem / 700 / line-height 1.1`, so an absolute `1rem` makes
-the math run visibly larger than the label beside it and may overflow that line box —
-prefer an `em`-relative value tuned against a screenshot. State explicitly whether
-`--callout-accent` and the 700 weight are intended to carry into the typeset run
-(KaTeX overrides weight only partly).
+verified light+dark. **Decided values**, so the pin below is writable from the spec
+rather than restating whatever the implementer happened to pick:
+
+```css
+.callout__heading .katex {
+  text-transform: none;
+  letter-spacing: normal;
+  font-size: 1em;      /* match the eyebrow exactly; KaTeX's own sheet sets 1.21em */
+  color: inherit;      /* carry --callout-accent */
+  font-weight: inherit;/* carry the 700 eyebrow weight where KaTeX allows */
+}
+```
+
+`font-size: 1em` is deliberate: KaTeX's stylesheet sets `.katex { font-size: 1.21em }`,
+so un-reset heading math renders at 0.9075rem against a 0.75rem label — visibly larger
+and liable to overflow the 1.1 line box. Assert the size **relatively** (computed size
+of `.callout__heading .katex .mord` equals the computed size of `.callout__heading`
+within 1px), so the test does not hard-code a literal.
 
 And the e2e pin must assert something that actually **changes** under the defect.
 `text-transform` is a paint-time transformation and never alters `textContent`, so a
@@ -492,6 +543,14 @@ And a second file, `docs/help/course-admin/interactive-elements.md` (plus its `.
 Neither file is matched by the three-container grep above, which is why they are named
 explicitly.
 
+**Polish anchors, given separately because the inflection differs** and the prescribed
+grep has holes exactly there: `content-editors.pl.md:133-134` ("trzy typy kontenerów")
+and `:141-144` ("karty kontenerów: Zakładki, Kolumny i Rozwijaną treść" — the twin of
+the English `:130-133`); `interactive-elements.pl.md:11-14` ("jednym z **trzech typów**
+kontenerów", which `trzy typy kontener` does **not** match). Use a stem-level sweep
+scoped to the docs — `rg -ni "kontener" docs/help` — rather than trusting a fixed
+phrase.
+
 State explicitly that a callout consumes a nesting level (D3), since that is the
 surprising part for an author who reads a callout as a frame. Check for a matching help
 screenshot. "Help docs updated — **both files**, both languages" joins the Definition
@@ -572,6 +631,17 @@ byte-for-byte and only a callout that actually holds children un-caps. Blast rad
 existing content is zero. Pin with a computed-width e2e assertion in the
 `unit-tree-collapsed` state, covering both a prose-only and a table-bearing callout.
 
+**The setup is what makes this pin non-vacuous.** The cap lives under
+`@media screen and (min-width: 641px)` and is scoped
+`html.unit-tree-collapsed [data-unit-shell] …`, and `unit-tree-collapsed` is applied to
+`<html>` by the TOC-pin JS from `localStorage` — never by the server. A run that simply
+loads the lesson measures the *uncapped* state in both arms, so "the table-bearing
+callout is wider than 46rem" is green with and without the narrowing. Require the test
+to: enter the collapsed state explicitly (seed `localStorage` or click the pin) and
+assert `html.unit-tree-collapsed` is present; run at a viewport ≥ 641px; and include the
+**control** arm — the prose-only callout must measure exactly 46rem on the same page —
+so the setup is proven live before the negative assertion is trusted.
+
 **Spoiler combined shape.** `core/static/core/css/app.css:986-993` gives
 `.spoiler__body` and `.spoiler > .spoiler__children` the same `padding-left` and 2px
 left rule, but `.spoiler__body` additionally carries
@@ -602,13 +672,17 @@ parent and child). Hence the second rule above, the mirror of
 **Placement constraint (a real trap).** `courses/tests/test_spoiler_css.py:34` reads
 the rule block as `css.split(".spoiler__children")[1].split("}")[0]` over the
 concatenated, comment-stripped CSS, then asserts `border-left` and `padding-left` are
-in it. That is a *first-occurrence* split. Any new rule whose selector mentions
-`.spoiler__children` placed **above** the shared
-`.spoiler__body, .spoiler > .spoiler__children` block at `app.css:986` makes the split
-land on the new declarations and fails the test for a reason unrelated to this change.
-Either place all new `.spoiler__children`-mentioning rules **after** that block, or
-harden the test to select by full selector instead of substring split — choose the
-placement constraint, and say so in a comment beside the new rules.
+in it. That is a *first-occurrence* split — and `_all_css()` concatenates
+`courses/static/courses/css/*.css` **first**, then `core/static/core/css/*.css`.
+
+So the constraint is **cross-file and absolute**, not a within-`app.css` ordering nicety:
+every new selector mentioning `.spoiler__children` must live in `app.css`, positioned
+**below** the shared `.spoiler__body, .spoiler > .spoiler__children` block at `:986`, and
+**none may appear in `courses.css` or `editor.css` at all** — any placement there sorts
+ahead of `app.css` in the glob and makes the split read the new declarations, failing the
+test for a reason unrelated to this change. That is a real temptation, since the new
+callout rules do belong in `courses.css` and co-locating the spoiler ones beside them
+would look tidy. Say so in a comment beside the new rules.
 
 Note what does **not** work and why: `.spoiler > .spoiler__children` declares no margin
 and `reset.css` zeroes margins, so a `margin-top: 0` on the wrapper itself is inert.
@@ -619,7 +693,17 @@ closes it. This is exactly the treatment the callout side already specifies; the
 analogue was missing here.
 
 Pin with a computed-style e2e assertion on the outcome (equal `left`, zero vertical
-gap), not on the presence of particular declarations.
+gap), not on the presence of particular declarations — **and the `<details>` must be
+opened first.** A `.spoiler` is closed by default, so its contents are not rendered and
+`getBoundingClientRect()` returns all-zeros for both `.spoiler__body` and
+`.spoiler__children`: "equal `left`" (0 == 0) and "zero vertical gap" (0 − 0) both hold
+**with and without** the fix, leaving the named mutant green. This is the same
+closed-`<details>` trap already recorded in this repo.
+
+Require the test to open the element (click the summary or set `open`), assert
+visibility before measuring, and — so the author proves the setup is live — record what
+the **broken** build produces: the two `left` values differ by `var(--space-3)` and the
+vertical gap is non-zero.
 
 Per-kind accent handling is untouched. `editor.css` gains the row rule per change-set
 item 7.
@@ -705,8 +789,13 @@ make a transient callout carrying `\(x^2\)` in its heading or body report no mat
 `_spoiler_has_math` deliberately has no such guard — it relies on `resolved_children()`
 returning `[]` — and `test_spoiler_nesting.py`'s
 `test_legacy_body_spoiler_math_still_detected` exercises exactly that join-row-less
-shape and expects `True`. Either place the guard on the children walk, or omit it and
-rely on `resolved_children() == []`.
+shape and expects `True`.
+
+**Chosen: keep the guard, on the children walk only** — not "either/or". The
+alternative (omit it, relying on `resolved_children() == []`) leaves the mutant table
+row "move the `join_row() is None` guard to the top" inapplicable, because there would
+be no guard to move, and the invariant this paragraph calls load-bearing would have no
+test that can go red.
 
 It self-guards with its own `isinstance` check purely for symmetry — not because the
 fallback chain dispatches it.
@@ -761,7 +850,18 @@ only where children exist (it is defined against them).
 Measured scope: `libli` 1×A + 1×B + 0×C; `libli_mat` 0. Reversible: the migration only
 clears fields that were unreachable, and its reverse is a documented no-op.
 
-`CalloutElement` needs no cleanup — it has no children today by construction.
+**`CalloutElement` needs no cleanup — on measurement, not on principle.** "It has no
+children today" is precisely the reasoning rejected above for spoilers, since this slice
+is what enables children. The real justification is the count:
+
+| DB | callouts | with body | **empty-ish body** |
+|---|---|---|---|
+| `libli` | 83 | 82 | **0** |
+| `libli_mat` | 0 | 0 | 0 |
+
+Zero callouts carry an empty-ish body, so there is nothing for a category-A pass to
+clear and no blank-paragraph hazard when an author adds the first child. If that count
+were non-zero the migration would have to cover `CalloutElement` too.
 
 ## Testing
 
@@ -810,9 +910,9 @@ passing test that survives deleting the code it guards is vacuous):
 | Callout accepts a table child; `callout > callout` authorable | drop `CalloutElement` from `_CONTAINER_REGISTRY` |
 | Table in a callout round-trips export → import | drop the `emit()` callout arm |
 | Callout card absent from a depth-3 add-menu | drop the `{% if depth < max_nest_depth\|add:-1 %}` guard |
-| Gate in a callout cascades and is pre-hidden | drop `.callout__children` from `scopeOf` / the 4th pre-hide selector |
+| Gate in a callout: the callout stays visible after the click, siblings unaffected, gated content hidden before it | drop `.callout__children` from `scopeOf` / the 4th pre-hide selector. **Do not** assert "the button did nothing" — that is green under the defect and RED under the fix |
 | Stateful child in a callout gets its blob + save URL | pass `state=` instead of `element_state=` |
-| Import validates callout slot via the **callout's** constant, not the spoiler's | monkeypatch `CalloutElement.SLOT_ID` in-process to a different value and assert `validate_nesting` now REJECTS a callout child with `tab="only"` |
+| Neither model re-spells the slot literal | source-scan (comments stripped) asserts no bare `"only"` in either class body; mutant: write `SLOT_ID = "only"` in one of them |
 | `spoiler > tabs > callout > table` authorable; `spoiler > tabs > spoiler > callout` rejected | flip a depth clause comparison |
 | Registry drift test passes with callout in all of them | add callout to two of the three |
 | Import of a hand-crafted depth-4-callout archive 422s (D3a, decided break) | drop `"callout"` from `CONTAINER_TRANSFER_KEYS` |
@@ -836,6 +936,12 @@ wrong:
 |---|---|---|
 | `courses/tests/test_spoiler_nesting.py:63` `test_render_prefers_children_over_body` | `"LEGACY-BODY" not in html` | **both** `CHILD-BODY` and `LEGACY-BODY` present, body before children by source offset; rename (it no longer "prefers") |
 | `courses/tests/test_spoiler_nesting.py:266` `test_spoiler_form_drops_body_when_instance_has_children` | `"body" not in form.fields` | `"body" in form.fields` with children present; rename |
+| `tests/test_editor_depth.py:157` `test_depth_3_nested_menu_hides_containers_but_keeps_leaves` | `'data-add-type="callout"' in menu  # a legal depth-4 LEAF` | flips to `not in`; keep a genuine leaf (e.g. `text`) asserted present so the test still proves the menu rendered |
+| `tests/test_editor_depth.py:82` `CONTAINER_CARDS = ("tabs", "twocolumn", "spoiler")` | drives five loops (`:103`, `:120`, `:139`, `:155`, `:299`) | must become four-membered with `"callout"` — otherwise the depth-3 negative assertion never covers the new card |
+
+**The mutant for "Callout card absent from a depth-3 add-menu" is killed by the flipped
+`:157` assertion plus the widened `CONTAINER_CARDS`, not by a new test.** Note this file
+is `tests/test_editor_depth.py` (repo-root `tests/`), not `courses/tests/`.
 
 Sweep `test_spoiler_render.py`, `test_spoiler_css.py` and `test_spoiler_context.py` in
 the same pass for the same either/or assumption.
@@ -848,22 +954,35 @@ signature guard that exists for exactly this failure mode.
 **`CONCRETES` parametrizes two tests, not one**: `test_render_accepts_the_state_kwargs`
 (`:39`) and `test_lesson_renders_200_with_each_concrete` (`:178`), the latter crossed
 with `placement ∈ {top, tabs, twocolumn}` (`:180`). Add `"callout"` (and `"spoiler"`) to
-that `placement` list. That single parametrize renders **every** concrete inside a
-callout for free, and is the mechanical backbone of the client-enhancer audit above —
-the prose audit then only has to cover what a 200-check cannot: computed style and
-cascade behaviour.
+that `placement` list — **but adding the ids alone is worse than useless.**
+`test_lesson_renders_200_with_each_concrete` (`:180-208`) dispatches with
+`if placement == "top": … elif placement == "tabs": … else:` — and that `else` is the
+**two-column** branch. New ids with no new branch would silently construct a
+`TwoColumnElement` parent and pass, doubling the test count while adding zero coverage,
+in the very parametrize the spec leans on as the audit's backbone.
+
+So the two new branches must be written explicitly: a `CalloutElement` parent plus
+`Element.objects.create(unit=unit, content_object=obj, parent=parent, tab_id=CalloutElement.SLOT_ID)`,
+and the same for `SpoilerElement`. **Falsification:** with the branches omitted, the
+`callout` id must be distinguishable from `twocolumn` — assert the response contains
+`callout__children` for the callout placement.
+
+With the branches present, that parametrize renders every concrete inside a callout and
+is the mechanical backbone of the client-enhancer audit above — the prose audit then
+only has to cover what a 200-check cannot: computed style and cascade behaviour.
 
 The cap-agreement trap from #209 applies here too — never monkeypatch a constant to
 its real value; the test goes vacuous while still passing.
 
 **Comment updates are part of the change set** (`comments-can-fail-tests`: at least
-one test in this repo regexes raw source including comments). At minimum these ten
+one test in this repo regexes raw source including comments). At minimum these twelve
 sites become false:
 
 | Site | False claim |
 |---|---|
-| `_add_menu.html:16-17` | "Callout is a plain LEAF in this slice and stays unguarded" |
+| `_add_menu.html:12-17` | ":12-13" — "The CONTAINER cards (**Tabs, Columns, Spoiler**) are guarded by …"; and ":16-17" — "Callout is a plain LEAF in this slice and stays unguarded". The prescribed `rg` misses `:12-13` (no "and" before Spoiler) |
 | `payloads.py:750-752` | "the only valid id is `SpoilerElement.SLOT_ID`" |
+| `payloads.py:779-781` | "spoiler is a single-slot container … its sole valid slot id is `SpoilerElement.SLOT_ID`" — a second, distinct claim |
 | `builder.py:27-30` | the PR2 to-do — now done |
 | `_spoiler_has_math` docstring | "A nested spoiler has an empty body" |
 | `models.py:399-401` | `SpoilerElement` expands "**either** legacy rich-text `body` **OR** … child elements" — now both |
@@ -873,15 +992,21 @@ sites become false:
 | `export.py:660-663` | "A parent is always a CONTAINER element (tabs, two_column, or spoiler)" |
 | `reveal.js:41-50` | the `scopeOf` comment enumerating three scopes |
 | `reveal.js:68-78` | `isGateWrapper`'s "**Three scopes exist**" — now four, with callout a third member of the direct-child family |
+| `tests/test_editor_depth.py:161` | "`_element_row.html` includes `_add_menu.html` at **three** sites -- tabs, two-column and spoiler" — now four; the fixture-choice rationale needs a callout clause. Test docstrings are in scope for this sweep |
 
 Not a closed list: grep for the three-container enumeration
 (`rg -n "tabs.*two_column.*spoiler|Tabs, Columns,? and Spoiler"`), **and** a second
-grep for the scope/count enumeration (`rg -ni "three scopes|three container types|trzy typy kontener"`),
-and update every hit.
+grep for the scope/count enumeration (`rg -ni "three scopes|three container types"`), plus the Polish stem sweep
+`rg -ni "kontener" docs/help`, and update every hit.
 
 **Definition of done:** full non-e2e suite green serial, e2e green, `ruff` clean,
 `makemigrations --check --dry-run` clean (the CI guard added in #204), `.po` catalogs
-zero-fuzzy with the three changed/new msgids translated, and
+zero-fuzzy with the three changed/new msgids translated — note the spoiler reword is a
+**deletion plus an addition**: the old "This spoiler shows saved text (edit it with the
+pencil). Add an element below to start nesting content." must be removed from both
+`locale/en` and `locale/pl`, which `makemessages -l pl -l en --no-obsolete` handles and
+a bare `makemessages` does not (it would leave an obsolete entry and fuzzy-prefill the
+new one) — and
 `docs/help/course-admin/content-editors{,.pl}.md` **and**
 `docs/help/course-admin/interactive-elements{,.pl}.md` updated per "Author
 documentation".
@@ -901,7 +1026,7 @@ documentation".
 - **The duplicate-render hazard is the sharp edge.** Shipping D1 without the cleanup
   migration silently doubles content on any body+children row. The migration and the
   template change must land together.
-- **Three of the eight change-set items are JS/CSS.** They are invisible to any test
+- **Items 5–7 are JS/CSS.** They are invisible to any test
   that asserts only server-rendered HTML, and they are the exact class PR #209 shipped
   broken. e2e coverage for them is mandatory, not preferred.
 - **A `has_math` miss is silent.** No error, no bad status code — just unrendered math.
