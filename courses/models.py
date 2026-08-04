@@ -394,6 +394,14 @@ class TextElement(ElementBase):
         super().save(*args, **kwargs)
 
 
+# The single implicit child slot shared by every single-slot container
+# (SpoilerElement, CalloutElement). This is a STORED Element.tab_id value on every
+# existing nested-spoiler child -- changing it would orphan them. One home, so the
+# write path (builder.resolve_scope) and the import path
+# (transfer.payloads.validate_nesting) cannot drift apart.
+SINGLE_SLOT_ID = "only"
+
+
 class SpoilerElement(ElementBase):
     """A self-contained show/hide disclosure: an author-labelled button that
     expands/collapses either legacy rich-text `body` OR (nestable-spoiler) an
@@ -402,7 +410,7 @@ class SpoilerElement(ElementBase):
     Element rows whose `parent` is this element's join row and whose `tab_id` is
     the one fixed slot id SLOT_ID. Mirrors the TabsElement join-row substrate."""
 
-    SLOT_ID = "only"  # the single implicit child slot; child Element.tab_id value
+    SLOT_ID = SINGLE_SLOT_ID  # the single implicit child slot; child Element.tab_id
 
     label = models.CharField(max_length=120, blank=True)
     body = models.TextField(blank=True)

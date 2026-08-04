@@ -747,7 +747,7 @@ def _val_twocolumn(data, elid, media_kinds):
 # Module-level, transfer-type-string keyed (distinct from the model-keyed builder
 # registry in courses.builder._CONTAINER_REGISTRY): the container type's transfer
 # key -> the key its `data` dict uses for the slot list validate_nesting reads.
-# `None` means SINGLE-SLOT (the only valid id is SpoilerElement.SLOT_ID), NOT
+# `None` means SINGLE-SLOT (the only valid id is SINGLE_SLOT_ID), NOT
 # "missing". Membership is tested BEFORE this lookup, because `None` already
 # serves as the not-a-container sentinel.
 _CONTAINER_SLOT_KEY = {"tabs": "tabs", "two_column": "columns", "spoiler": None}
@@ -765,7 +765,7 @@ def validate_nesting(elements):
     from courses.builder import CONTAINER_TRANSFER_KEYS
     from courses.builder import MAX_NEST_DEPTH
     from courses.builder import NESTABLE_TYPE_KEYS
-    from courses.models import SpoilerElement
+    from courses.models import SINGLE_SLOT_ID
 
     # Step 4a applies the v2 shim before _exact_keys, so both keys are present.
     by_id = {el["id"]: el for el in elements}
@@ -777,7 +777,7 @@ def validate_nesting(elements):
         if parent is None:
             _err(_("Element '%(el)s' references an unknown parent."), el=el["id"])
         # Slot-membership: spoiler is a single-slot container with no `data` slot
-        # list, so its sole valid slot id is SpoilerElement.SLOT_ID; every other
+        # list, so its sole valid slot id is SINGLE_SLOT_ID; every other
         # container reads its slot list from `data` via _CONTAINER_SLOT_KEY.
         if parent["type"] not in _CONTAINER_SLOT_KEY:  # membership FIRST
             _err(
@@ -786,7 +786,7 @@ def validate_nesting(elements):
             )
         slot_key = _CONTAINER_SLOT_KEY[parent["type"]]  # then read
         valid_slot_ids = (
-            {SpoilerElement.SLOT_ID}
+            {SINGLE_SLOT_ID}
             if slot_key is None
             else {s["id"] for s in parent["data"][slot_key]}
         )
