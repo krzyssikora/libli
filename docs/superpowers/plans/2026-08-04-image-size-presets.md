@@ -134,9 +134,13 @@ def test_size_choices_are_the_four_presets():
 
 
 def test_size_rejects_an_unknown_value():
+    """`size` in error_dict, not a bare raises: full_clean aggregates errors across
+    every field and the model's own clean(), so a bare pytest.raises passes if ANY
+    field fails — including for reasons that have nothing to do with the choices."""
     el = ImageElement(size="enormous")
-    with pytest.raises(ValidationError):
+    with pytest.raises(ValidationError) as exc:
         el.full_clean(exclude=["media"])
+    assert "size" in exc.value.error_dict
 ```
 
 - [ ] **Step 2: Run the test to verify it fails**
@@ -189,7 +193,7 @@ Expected: 3 passed.
 
 - [ ] **Step 6: Falsify**
 
-Change the field's `default=Size.FULL` to `default=Size.SMALL`; confirm `test_size_defaults_to_full` goes RED. Restore. Remove `"large"` from the choices; confirm `test_size_choices_are_the_four_presets` goes RED. Restore, re-run, confirm 3 passed.
+Change the field's `default=Size.FULL` to `default=Size.SMALL`; confirm `test_size_defaults_to_full` goes RED. Restore. Remove `"large"` from the choices; confirm `test_size_choices_are_the_four_presets` goes RED. Restore. Drop `choices=Size.choices` from the field entirely; confirm `test_size_rejects_an_unknown_value` goes RED (nothing validates the value any more). Restore, re-run, confirm 3 passed.
 
 - [ ] **Step 7: Lint and commit**
 
@@ -441,6 +445,29 @@ exists to prevent, and no test in Tasks 7-8 touches `app.css` to catch it. Confi
 property used here against `core/static/core/css/tokens.css` (**not** `app.css`, which has no `:root`
 block); if one is missing, substitute a defined token rather than inventing a name.
 
+**Assert it, don't eyeball it.** Every other step in this plan ends in a test; a manual check is the
+one thing a tired implementer skips, and the failure is invisible (a missing border looks like a
+design choice). Add to `courses/tests/test_image_size_editor.py`:
+
+```python
+def test_size_preset_css_uses_only_declared_tokens():
+    """An UNDEFINED custom property invalidates the whole declaration at
+    computed-value time, so `var(--border)` would ship a borderless fieldset with
+    nothing red anywhere."""
+    app_css = (REPO / "core" / "static" / "core" / "css" / "app.css").read_text(encoding="utf-8")
+    tokens = (REPO / "core" / "static" / "core" / "css" / "tokens.css").read_text(encoding="utf-8")
+    block = re.search(r"\.size-presets\b.*?(?=\n\.(?!size-presets))", app_css, re.S)
+    assert block, ".size-presets rules not found in app.css"
+    used = set(re.findall(r"var\((--[\w-]+)\)", block.group(0)))
+    assert used, "the block declares no tokens — did it hardcode a colour?"
+    declared = set(re.findall(r"(--[\w-]+)\s*:", tokens))
+    assert used <= declared, f"undeclared tokens: {sorted(used - declared)}"
+```
+
+(`REPO` is the same `Path(__file__).resolve().parents[2]` anchor Task 5 uses; hoist it to the top of
+whichever module holds this.) **Mutant:** change one `var(--border-default)` to `var(--border)` and
+confirm RED.
+
 - [ ] **Step 7: Run tests to verify they pass**
 
 Run: `uv run pytest courses/tests/test_image_size_editor.py --verbosity=0`
@@ -463,8 +490,9 @@ Expected: all green (unchanged). If any goes red, it is this task's regression �
 Remove `"size"` from `Meta.fields`; confirm `test_form_saves_a_chosen_size` goes RED. Restore. Delete
 the `{% if %}…checked{% endif %}` clause; confirm **both** `test_editor_checks_the_stored_preset_and_only_that_one`
 and `test_a_fresh_element_checks_full` go RED. Restore. Delete the `|default_if_none:''` filter; confirm
-`test_the_create_flow_renders_an_empty_for_element` goes RED with `data-for-element="None"`. Restore,
-re-run, confirm all pass.
+`test_the_create_flow_renders_an_empty_for_element` goes RED with `data-for-element="None"`. Restore.
+Change one `var(--border-default)` in the `.size-presets` block to `var(--border)`; confirm
+`test_size_preset_css_uses_only_declared_tokens` goes RED. Restore, re-run, confirm all pass.
 
 - [ ] **Step 9: Lint and commit**
 
@@ -723,7 +751,9 @@ def test_archive_without_a_size_key_imports_as_full(image_media):
 
 
 @pytest.mark.django_db
-def test_archive_with_a_junk_size_imports_as_full(image_media):
+def test_a_junk_size_is_coerced_to_full(image_media):
+    """Named for what it does: this one pins COERCION, not import — unlike its
+    sibling above it never calls BUILDERS."""
     data = {"media": "m1", "alt": "a", "figcaption": "", "size": "enormous"}
     _validate(data)  # must NOT raise
     assert data["size"] == "full"
@@ -801,14 +831,17 @@ verification command never ran, so they would otherwise surface four tasks later
 | File | Line | Change |
 |---|---|---|
 | `tests/test_transfer_schema.py` | 57 | `assert FORMAT_VERSION == 6` → `== 7` |
-| `tests/test_link_transfer.py` | 54 | `assert FORMAT_VERSION == 6` → `== 7` |
-| `tests/test_tabs_transfer.py` | 58 | `assert FORMAT_VERSION == 6` → `== 7` |
+| `tests/test_link_transfer.py` | 54 | `assert FORMAT_VERSION == 6` → `== 7`, **and rename the enclosing `test_format_version_is_6` → `test_format_version_is_7`** |
+| `tests/test_tabs_transfer.py` | 58 | `assert FORMAT_VERSION == 6` → `== 7`, **and rename `test_format_version_is_6` → `test_format_version_is_7`** |
 | `tests/test_transfer_export.py` | 220 | `assert manifest["format_version"] == 6` → `== 7` |
 | `tests/test_transfer_export.py` | 76 | `assert data == {"media": "m1", "alt": "a", "figcaption": "c"}` → add `"size": "full"` |
 | `tests/test_table_transfer.py` | 265 | comment `4 <= FORMAT_VERSION=6` → `=7` (prose only) |
 
-Re-grep before editing (`grep -rn "FORMAT_VERSION == 6\|format_version\"\] == 6" tests courses`) in
-case another lands on `master` first; the line numbers are a convenience, the grep is the authority.
+**This six-row table is the authority**, not a grep. The obvious re-grep
+(`grep -rn "FORMAT_VERSION == 6\|format_version\"\] == 6" tests courses`) finds only the first four:
+it misses the exact-dict row at `test_transfer_export.py:76` — which Step 3, not Step 6, breaks — and
+the prose comment. Run the grep anyway, as a guard against a *new* `FORMAT_VERSION == 6` landing on
+`master` in the meantime, but never as the definition of "done".
 
 - [ ] **Step 8: Pin that duplicate-and-paste now carries `size`**
 
@@ -861,7 +894,7 @@ the point of Step 7, not a surprise.)
 
 - [ ] **Step 10: Falsify**
 
-Delete the `data.setdefault("size", "full")` line; confirm `test_archive_without_a_size_key_imports_as_full` goes RED — the observed error is **`KeyError: 'size'`** raised by the very next line (`if data["size"] not in …`), *not* an exact-keys `TransferError`, because that line runs before `_exact_keys` is reached. To see the exact-keys path instead, delete the `setdefault` **and** the whole junk-value block: then `_exact_keys` rejects the legacy payload with a `TransferError`. Restore. Delete only the junk-value coercion; confirm `test_archive_with_a_junk_size_imports_as_full` goes RED. Restore. Drop `"size"` from `_ser_image`; confirm the round-trip cases go RED. Restore, re-run, confirm all pass.
+Delete the `data.setdefault("size", "full")` line; confirm `test_archive_without_a_size_key_imports_as_full` goes RED — the observed error is **`KeyError: 'size'`** raised by the very next line (`if data["size"] not in …`), *not* an exact-keys `TransferError`, because that line runs before `_exact_keys` is reached. To see the exact-keys path instead, delete the `setdefault` **and** the whole junk-value block: then `_exact_keys` rejects the legacy payload with a `TransferError`. Restore. Delete only the junk-value coercion; confirm `test_a_junk_size_is_coerced_to_full` goes RED. Restore. Drop `"size"` from `_ser_image`; confirm the round-trip cases go RED. Restore, re-run, confirm all pass.
 
 - [ ] **Step 11: Lint and commit**
 
@@ -946,7 +979,9 @@ For each: assert exactly one match; assert its captured selector list mentions `
 file-wide scan could never do.
 
 Also assert `.el--image img { max-width: 100%; height: auto; }` is still present unchanged — Task 5
-retains it, and nothing else in this slice would notice its removal.
+retains it, and nothing else in this slice would notice its removal. (Only `height: auto` is actually
+load-bearing there: `reset.css:11` already declares `img, picture, svg { display: block; max-width:
+100%; }` app-wide. The assertion pins the rule as written regardless.)
 
 - [ ] **Step 2: Run the test to verify it fails**
 
@@ -977,16 +1012,24 @@ Expected: FAIL — no preset rules exist.
 .el--image--medium,
 .el--image--large  { width: fit-content; margin-inline: auto; }
 
-/* Centre the image WITHIN the figure. Load-bearing whenever a figcaption exists:
-   fit-content sizes the figure to the WIDER of {image, caption} max-content
-   contributions, so a long caption widens the figure past the image and the image
-   would otherwise sit flush left. Scoped to the capped presets so `full` keeps
-   today's flush-left geometry — 1013 images must render byte-identically.
+/* Centre the image WITHIN the figure. Load-bearing whenever the figure ends up WIDER
+   than the constrained image, which happens two independent ways:
+     1. a figcaption — fit-content sizes the figure to the WIDER of {image, caption}
+        max-content contributions, so a long caption widens the figure past the image;
+     2. a binding max-height, with NO caption — the img shrinks on both axes while
+        max-width still caps the figure. Desktop `small` + the 297x719 fixture: the
+        figure is 162px, the image renders ~111.5x270. Whether fit-content shrink-wraps
+        to the constrained or the unconstrained contribution here is engine-dependent,
+        which is exactly why this case is measured (Task 9) rather than reasoned about.
+   Scoped to the capped presets so `full` keeps today's flush-left geometry — 1013
+   images must render byte-identically.
 
    `margin-inline` is the ONLY differentiator here: reset.css:11 already sets
-   `img, picture, svg { display: block }` app-wide, so restating display:block keeps
-   this rule self-contained but changes nothing. Do not read it as the thing `full`
-   is being excluded from. */
+   `img, picture, svg { display: block; max-width: 100%; }` app-wide, so restating
+   display:block keeps this rule self-contained but changes nothing. Do not read it as
+   the thing `full` is being excluded from. (That reset also makes the `max-width: 100%`
+   half of the retained `.el--image img` rule below redundant — only its `height: auto`
+   is doing work. Both are kept as-is; this slice changes no existing rule.) */
 .el--image--small  img,
 .el--image--medium img,
 .el--image--large  img { display: block; margin-inline: auto; }
@@ -1229,6 +1272,21 @@ untested.
 
 - tall fixture **297x719** (ratio 0.413), wide fixture **948x719** (ratio 1.319).
 
+**Give each of the eight an identifying `alt`, or they are unaddressable.** `.el--image--small img`
+matches two nodes and Playwright raises a strict-mode violation; there is also no other way to pair a
+measured node with the preset and fixture the formula needs. Seed them as:
+
+```python
+for shape, asset in (("tall", tall), ("wide", wide)):
+    for preset in ("small", "medium", "large", "full"):
+        el = ImageElement.objects.create(media=asset, alt=f"{shape}-{preset}", size=preset)
+        add_element(unit, el)
+```
+
+and locate each with `page.locator(f"img[alt='{shape}-{preset}']")` — exactly one node per pair.
+Derive `ratio` from that node's own `naturalWidth / naturalHeight` rather than from `shape`, so the
+assertion cannot drift from the fixture.
+
 Run the whole set at **1280x900** and again at **360x640**. For each image read
 `getBoundingClientRect()` and assert against the **bounding box computed in the test**, so no
 per-combination table has to be maintained and no axis has to be guessed:
@@ -1236,7 +1294,8 @@ per-combination table has to be maintained and no axis has to be guessed:
 ```
 container = fig.parentElement                  # div.lesson-block__body — see below
 cw   = parseFloat(getComputedStyle(container).width)   # CONTENT box, at RUNTIME
-vh   = viewport height
+vh   = page.evaluate("window.innerHeight")             # at RUNTIME, not the number
+                                                       # passed to set_viewport_size
 wcap = cw * {small:.25, medium:.50, large:.75, full:1.0}
 hcap = vh * {small:.30, medium:.45, large:.60, full:1.00}
 h    = min(hcap, wcap / ratio, img.naturalHeight)   # the binding axis falls out of the min()
@@ -1312,7 +1371,26 @@ git commit -m "test(image): e2e bounding boxes for all four presets at two viewp
 - Modify: `tests/test_e2e_image_size.py`
 
 **Interfaces:**
-- Consumes: the helpers from Task 8.
+- Consumes: the helpers, the `_isolated_media` fixture and the two image assets from Task 8.
+
+- [ ] **Step 0: Seed this task's own fixtures**
+
+Task 8 seeds eight **captionless, top-level** images on one lesson unit. Not one of Task 9's cases can
+run on that seed alone — every one below needs an element Task 8 never creates. Create them explicitly
+before writing any assertion; reuse Task 8's `tall` / `wide` assets and its `_isolated_media` fixture.
+
+| # | for | element | seeded how |
+|---|---|---|---|
+| 1 | figure-centred (Step 1) | `alt="centred-<preset>"`, one per capped preset, **no caption**, tall fixture | `add_element(unit, …)` — top level |
+| 2 | long-caption centring (Step 1) | `alt="captioned"`, `size="small"`, tall fixture, `figcaption` of ~200 chars (`"x" * 200` is fine — the corpus's real captions are 212/200/132 chars, and only the length matters) | top level |
+| 3 | height-bound centring (Step 1, see I4 below) | `alt="nocaption-small"`, `size="small"`, tall fixture, **no caption** | top level |
+| 4 | `full` unchanged (Step 1) | `alt="full-plain"` and `alt="full-captioned"` (~200-char caption), tall fixture, `size="full"` | top level |
+| 5 | live preview (Step 2) | `alt="preview-target"`, `size="full"`, wide fixture | its own unit, so the editor page holds exactly one image row |
+| 6 | nested (Step 3) | `alt="nested-<container>"`, `size="small"`, wide fixture, one per container | child rows under each of the four containers — see Step 3 for each `tab_id` |
+
+Rows 1-4 may share one lesson unit; row 5 gets its own unit (`_seed_unit`) so the editor's element
+list is unambiguous; row 6 may share the lesson unit with 1-4 or take a third — state which in the
+module and keep it consistent.
 
 - [ ] **Step 1: Add the figure-geometry tests**
 
@@ -1323,7 +1401,8 @@ git commit -m "test(image): e2e bounding boxes for all four presets at two viewp
   so `fig.parentElement` there is `.prev-el`. Every geometry measurement in this task stays on the
   lesson page; Step 2's editor-side cases compare **classes only**, never boxes, precisely so this
   difference cannot bite.
-- **Image centred under a LONG caption:** with a caption of ~200 characters (the corpus has 212/200/132-char captions), assert the image is centred within the now caption-widened figure. A short caption cannot exercise this.
+- **Image centred under a LONG caption:** with a caption of ~200 characters (the corpus has 212/200/132-char captions), assert the image is centred within the now caption-widened figure. A short caption cannot exercise this. (Seed row 2.)
+- **Image centred with NO caption, height-bound:** the caption is not the only way the figure ends up wider than the image. At desktop `small` with the tall fixture the figure is 162px while the image renders ~111.5px wide, because `max-height` binds and shrinks it on both axes. Assert the image's left and right offsets inside the figure are equal here too. (Seed row 3.) Without this case the img `margin-inline: auto` rule is covered only by the captioned path, and the height-bound path — the more common one, since every capped preset on a tall image hits it — ships unmeasured.
 - **`full` geometry unchanged.** "Same as before the feature" is not something a single run can read —
   there is no earlier state to compare against — so state the property as concrete post-conditions
   instead. For a `full` image:
@@ -1350,10 +1429,13 @@ editor page is `_editor_url(live_server, course, unit)`; the rendered figure liv
 pane (`editor.html` mounts the student templates there), which is why the JS's unscoped
 `document.querySelector('.el--image[data-preview-el=…]')` finds it. Steps:
 
-1. `page.goto(_editor_url(...))`, then make sure the preview pane is on screen — the view toggle
-   (`templates/courses/manage/editor/editor.html:88`, `[data-view]` with modes editor / split /
-   preview) must be `split` or `preview`,
-   not `editor`, or the figure is not rendered to measure.
+1. `page.goto(_editor_url(...))`. **No view-mode gesture is needed.** The preview pane is always in
+   the DOM — the view toggle
+   (`templates/courses/manage/editor/editor.html:88`) only swaps an `is-mode-*` class that *hides* a
+   pane — and this step's assertions read `classList`, never boxes, so a hidden pane answers them
+   correctly. (If a later case ever measures a box on the editor page it would need
+   `page.locator("[data-view='split']").click()` plus a wait for `.editor-grid.is-mode-split`; none
+   does today.)
 2. Open the element's form: click its row's edit control.
    `templates/courses/manage/editor/_element_row.html` gives two equivalent triggers, both stamped
    `data-form-url="…manage_element_form…"` **and both carrying `class="el-select"` with the same
@@ -1386,13 +1468,23 @@ pane (`editor.html` mounts the student templates there), which is why the JS's u
   `mm * 96 / 25.4` → **45mm ≈ 170.1px, 75mm ≈ 283.5px, 110mm ≈ 415.7px, 170mm ≈ 642.5px**, tolerance
   1px. Also assert it is *not* the screen value for that preset, so a browser that ignored the print
   block could not pass by coincidence.
+
+  **Run this case at 1280x900 only.** The "not the screen value" guard needs headroom, and at 360x640
+  it barely has any: `medium`'s screen value is 45dvh = 288px against a print value of 283.5px — 4.5px
+  apart, so one tolerance widening erases the guard entirely. At 1280x900 the closest pair is 170.1 vs
+  270px.
 - **The zoom overlay is unaffected by the preset**, stated as a measurement rather than a mood. Open a
   `small` image's overlay (the `[data-zoomable]` click path, dialog selector per
-  `tests/test_e2e_imagezoom.py`) and assert: (a) the overlay image's computed `max-height` is **not**
-  `30dvh`-derived — the preset classes live on the in-page `<figure>`, which is not an ancestor of the
-  overlay node, so they cannot reach it; and (b) the overlay image's rendered height is **greater than**
-  the in-page figure's height. (b) is the one that would catch a future refactor that moved the overlay
-  inside the figure, which (a) alone would not.
+  `tests/test_e2e_imagezoom.py`) and assert: (a) the overlay image carries **no** `el--image--*` class
+  and has no `.el--image` ancestor — `imagezoom.js` `build()` creates a fresh
+  `img.imgzoom__img` appended to `document.body`, so this pins the *structural* reason the presets
+  cannot reach it; and (b) the overlay image's rendered height is **greater than** the in-page
+  figure's height.
+
+  Do **not** phrase (a) as "the computed `max-height` is not the preset's `dvh` value": that is a
+  tautology no mutant can break, because `courses.css:1771` gives `.imgzoom__img { max-height: 100% }`
+  at (0,1,0), which beats any `dialog img`-style rule at (0,0,2) regardless of source order. (b) is
+  what a real mutant moves — see the falsify table.
 - A nested image scales to its container — one case each for **spoiler, tabs, two-column and callout**.
 
   **Split the two axes; only width is container-relative.** `max-width` is a percentage of the
@@ -1410,9 +1502,11 @@ pane (`editor.html` mounts the student templates there), which is why the JS's u
   and `CalloutElement` both set `SLOT_ID = SINGLE_SLOT_ID` (`"only"`, `models.py:402,413,469`). The
   other two key their children on a generated id, so read it off the parent after creating it:
   - **tabs:** `tab_id = tabs.data["tabs"][0]["id"]` (the `test_e2e_depth3.py:202` pattern);
-  - **two-column:** `tab_id = twocol.data["columns"][0]` — `TwoColumnElement` stores ordered **column
-    ids** (`models.py:1505-1528`); confirm the key name against `default_data()` before writing it,
-    and never call `normalize_data` on the way (it mints phantom ids and orphans children).
+  - **two-column:** `tab_id = twocol.data["columns"][0]["id"]` — same shape as tabs.
+    `TwoColumnElement.default_data()` returns `{"columns": [{"id": …}, {"id": …}]}`, a list of
+    **dicts**, not of bare ids (`models.py:1530-1534`); `data["columns"][0]` alone would write a
+    stringified dict into `Element.tab_id` (`CharField(max_length=12)`) and orphan the child. Never
+    call `normalize_data` on the way — it mints phantom ids and orphans children.
 
   **Two of the four containers hide their contents until acted on**, and a hidden box measures zero:
   a closed `<details>` hides via `content-visibility` (so `getBoundingClientRect()` returns zeros and
@@ -1428,11 +1522,11 @@ added in Step 3, which the Global Constraint requires just as much as the older 
 | assertion group | mutant | expected RED |
 |---|---|---|
 | figure centred | delete the figure `margin-inline: auto` | figure-centred cases |
-| long caption | delete the img `margin-inline: auto` | the long-caption case only |
+| long caption | delete the img `margin-inline: auto` | **both** image-centring cases — the long-caption one AND the no-caption height-bound one. If only the captioned one reddens, the height-bound case is not really measuring the image's offset; fix the test, not the mutant |
 | `full` unchanged | add `.el--image--full` to the `fit-content` / `margin-inline` group | all three `full` post-conditions |
 | print | move the print block above the presets | the print case |
 | live preview | rebind the JS handler to the preview pane instead of `root` | the after-swap case (the before-swap one stays **green** — that contrast is the point) |
-| zoom overlay | re-scope the preset height rule so it also reaches the overlay node (e.g. `.el--image--small img, dialog img { max-height: 30dvh }`) | assertion (b), the overlay-taller-than-figure one |
+| zoom overlay | change `.imgzoom__img`'s own `max-height: 100%` (`courses.css:1771`) to `30dvh` | assertion (b), the overlay-taller-than-figure one. A `dialog img` rule would **not** work as a mutant: at (0,0,2) it loses to `.imgzoom__img` (0,1,0) and nothing would move |
 | nested containers | change one preset's `max-width` (e.g. `small` → 35%) | that container's **width** assertion only — its height assertion must stay green, which is what proves the two axes really were split |
 
 Restore each and re-run.
