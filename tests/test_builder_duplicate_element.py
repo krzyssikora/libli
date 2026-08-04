@@ -8,6 +8,7 @@ from courses.models import ContentNode
 from courses.models import Element
 from courses.models import ImageElement
 from courses.models import MediaAsset
+from courses.models import SpoilerElement
 from courses.models import TabsElement
 from courses.models import TextElement
 from courses.transfer.schema import TransferError
@@ -204,6 +205,33 @@ def test_element_export_scopes_link_nodes_to_the_unit_itself():
 
     # The external target is filtered out; the self-link maps to the one node.
     assert document["link_nodes"] == {str(unit.pk): document["nodes"][0]["id"]}
+
+
+def test_duplicate_copies_a_populated_spoiler_with_its_child():
+    """SpoilerElement is the third container type walk_unit_joins descends
+    into (tabs and two_column are both exercised elsewhere). Its slot
+    convention differs from tabs': a single fixed tab_id (SpoilerElement.SLOT_ID),
+    not a per-tab id drawn from the container's own data -- so this is not a
+    copy-paste of the tabs fixture."""
+    course, unit = make_course_with_unit()
+    spoiler = SpoilerElement.objects.create(label="Reveal")
+    spoiler_join = Element.objects.create(unit=unit, content_object=spoiler)
+    source_child = Element.objects.create(
+        unit=unit,
+        content_object=TextElement.objects.create(body="<p>hidden</p>"),
+        parent=spoiler_join,
+        tab_id=SpoilerElement.SLOT_ID,
+    )
+
+    _unit, new_join = duplicate_element(course, spoiler_join.pk, _tok(unit))
+
+    assert new_join.pk != spoiler_join.pk  # a distinct row...
+    assert isinstance(new_join.content_object, SpoilerElement)
+    assert new_join.content_object.pk != spoiler.pk  # ...with a distinct concrete
+    child = new_join.children.get()
+    assert child.pk != source_child.pk  # ...carrying a distinct copy of its child
+    assert child.tab_id == SpoilerElement.SLOT_ID
+    assert child.content_object.body == "<p>hidden</p>"
 
 
 def test_duplicate_keeps_an_internal_link_verbatim():

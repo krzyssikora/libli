@@ -887,6 +887,9 @@ def build_element_export(unit, root_join):
     non-empty `problems` means exactly one thing, a dangling GFK, and the caller
     is expected to refuse the copy.
     """
+    assert root_join.unit_id == unit.pk, (
+        "an element-scoped export's root element must belong to the unit being exported"
+    )
     _manifest, document, media_assets, problems = build_export(
         unit.course,
         node=unit,

@@ -115,7 +115,6 @@ def test_every_row_offers_a_duplicate_button_at_every_depth(client):
     """The control lives in the shared partial, so one edit covers all six row
     branches -- assert a NESTED row too, or a regression that drops the partial
     from one branch ships green."""
-    from courses.models import Element
     from courses.models import TabsElement
 
     course, unit, _join = _seed(client)

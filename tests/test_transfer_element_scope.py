@@ -11,6 +11,25 @@ from tests.factories import make_course_with_unit
 pytestmark = pytest.mark.django_db
 
 
+def test_export_refuses_a_root_from_a_different_unit():
+    """build_element_export(unit, root_join) never checked that root_join
+    actually belongs to `unit`. Left unchecked, the walk would emit the OTHER
+    unit's subtree while every element dict is labelled with THIS unit's node
+    id -- and graft_elements would then materialise it into `unit`, across
+    units (or courses). Construct exactly that mismatched pair."""
+    course, unit = make_course_with_unit()
+    other_unit = ContentNode.objects.create(
+        course=course, kind="unit", unit_type="lesson", parent=None, title="Other"
+    )
+    join_in_other_unit = Element.objects.create(
+        unit=other_unit,
+        content_object=TextElement.objects.create(body="<p>elsewhere</p>"),
+    )
+
+    with pytest.raises(AssertionError):
+        build_element_export(unit, join_in_other_unit)
+
+
 def _unit_with_tabs():
     """A unit holding: a loose Text, and a Tabs whose second tab has one Text child."""
     course, unit = make_course_with_unit()
