@@ -172,6 +172,47 @@ once for `.el--image img`.
 
 `full`'s `100dvh` encodes one rule: **an image is never taller than the screen it is displayed on.**
 
+#### The `<figure>` box must be constrained too, or a capped image sits in a full-width shell
+
+Bounding only the `<img>` is not enough. `<figure>` is a block box, and **no rule in this stylesheet
+sizes it** — the only two rules touching `.el--image` today are `.el { margin: 1rem 0 }`
+(`courses.css:4`) and `.el--image img { max-width: 100%; height: auto }` (`:46`), and there is **no
+`figcaption` rule anywhere**. So a `small` image would render at 25% width flush against the *left*
+edge of a figure still spanning the full 880px, with a lake of white space to its right — and a
+`<figcaption>`, an unconstrained sibling in that full-width figure, would wrap at 880px while sitting
+under a 220px image. This project has already been bitten by the same shape: the imagezoom overlay's
+comment at `courses.css:1729-1734` describes a dialog that "collapses to a fit-content box flush
+LEFT."
+
+The remedy, and one subtlety that dictates its shape:
+
+```css
+/* max-width lives on the FIGURE, not the img: a percentage on the img would resolve
+   against a figure that is itself being sized to fit the img — circular. On the figure
+   it resolves against .lesson's content box, which has a definite width. */
+.el--image--small  { max-width: 25%; }
+.el--image--medium { max-width: 50%; }
+.el--image--large  { max-width: 75%; }
+.el--image--small,
+.el--image--medium,
+.el--image--large  { width: fit-content; margin-inline: auto; }
+
+.el--image img { max-width: 100%; height: auto; }
+.el--image--small  img { max-height: 30dvh; }
+.el--image--medium img { max-height: 45dvh; }
+.el--image--large  img { max-height: 60dvh; }
+.el--image--full   img { max-height: 100dvh; }
+```
+
+**`full` is deliberately excluded from the `fit-content` / `margin-inline` rule.** Today a 297px-wide
+image sits flush left inside a full-width figure; giving `full` a shrink-wrapped, centred figure
+would *move* it — silently re-laying-out images this spec promises render byte-identically, and
+voiding the "no data migration" guarantee that rests on exactly that. `full` keeps today's geometry;
+only the three capped presets, which are opt-in and new, get the shrink-wrapped centred figure.
+
+This is **not** the deferred author-controlled alignment feature. It is what an image looks like the
+moment any capped preset is applied, which is not optional.
+
 **`dvh`, not `vh` — this codebase has already settled this question.** The imagezoom overlay uses
 `height: 100dvh` with the comment *"vertical from 100dvh, which tracks a mobile collapsing toolbar"*
 (`courses.css:1724-1727`). Plain `vh` resolves against the *toolbar-collapsed* viewport, so on a
@@ -432,6 +473,8 @@ and name the mutant. A passing test proves nothing on its own.
 | 12 | a nested image scales to its container in **all four** containers — spoiler, tabs, two-column, callout | render or e2e, one case each |
 | 13 | print CSS defines all four presets | source-scan, block-extracted |
 | 13b | **under print media the RESOLVED `max-height` is the mm value, not the `dvh` one** | **e2e**, `page.emulate_media(media="print")` then read the computed style per preset |
+| 17 | **a `<figcaption>`'s rendered width tracks the image, not the container**, under a capped preset | **e2e** — the figure-box gap; assert caption width ≈ image width, not ≈ container width |
+| 18 | **`full` figure geometry is unchanged** — same box and offset as before the feature | **e2e**, the guard on the byte-identical promise for the 1013 untouched images |
 | 14 | the radios carry `data-size-preset` and `data-for-element` | render test — the §4/§5 contract |
 | 15 | the stored preset renders as the `checked` radio; a fresh element shows `full` checked | render test — the §4b contract |
 | 16 | an alt-text-only save of an image element still succeeds | regression pin for §4b's required-field trap |
