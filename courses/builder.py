@@ -85,26 +85,43 @@ _NESTABLE_FORM_KEY_ALIASES = {
 }
 
 # Container element registry: model class -> (non_destructive_normalizer,
-# slot_list_key, slot_id_key). CONTRACT: each normalizer returns
+# slot_list_key, slot_id_key, max_slots). CONTRACT: each normalizer returns
 # {slot_list_key: [{slot_id_key: <id>}, ...]}. resolve_scope indexes the normalizer
 # output by slot_list_key, so slot_list_key MUST equal the key the normalizer emits.
+#
+# max_slots is the number of slots the DESTRUCTIVE normalize_data will keep; the
+# non-destructive normalizer keeps more. paste_allowed uses it to refuse a slot that
+# render-time truncation would drop -- see its clause 1. None means "never truncated"
+# (a fixed-slot container) and skips that check entirely.
 _CONTAINER_REGISTRY = {
-    TabsElement: (TabsElement.normalize_labels_and_ids, "tabs", "id"),
-    TwoColumnElement: (TwoColumnElement.normalize_ids, "columns", "id"),
+    TabsElement: (
+        TabsElement.normalize_labels_and_ids,
+        "tabs",
+        "id",
+        TabsElement.MAX_TABS,
+    ),
+    TwoColumnElement: (
+        TwoColumnElement.normalize_ids,
+        "columns",
+        "id",
+        TwoColumnElement.MAX_COLUMNS,
+    ),
     # Single-slot: ignores its argument and returns one fixed slot. SpoilerElement
     # has no `data` field, which is why the call site below uses getattr().
     SpoilerElement: (
         lambda _data: {"slots": [{"id": SpoilerElement.SLOT_ID}]},
         "slots",
         "id",
+        None,
     ),
-    # Single-slot, like SpoilerElement: ignores its argument and returns one fixed
-    # slot. CalloutElement has no `data` field, which is why the call site uses
-    # getattr(parent_obj, "data", None).
+    # Single-slot, like SpoilerElement -- added by PR #214, which made Callout a
+    # container. Keep this entry: rewriting the block without it silently
+    # un-registers a live container.
     CalloutElement: (
         lambda _data: {"slots": [{"id": CalloutElement.SLOT_ID}]},
         "slots",
         "id",
+        None,
     ),
 }
 
@@ -196,7 +213,7 @@ def resolve_scope(unit, parent_ref, tab, type_key):
     # against it could be an ephemeral phantom that never matches again at render
     # time -- silently orphaning the child. A write path must validate against the
     # ids that actually exist, via the non-destructive normalizer.
-    normalizer, list_key, id_key = container
+    normalizer, list_key, id_key, _max_slots = container
     # getattr: a single-slot container (spoiler) has no `data` field at all, and the
     # argument is evaluated HERE, before the normalizer runs.
     slots = normalizer(getattr(parent_obj, "data", None))[list_key]
