@@ -225,6 +225,7 @@ Create `courses/tests/test_image_size_editor.py`:
 
 ```python
 import re
+from pathlib import Path
 
 import pytest
 
@@ -234,6 +235,9 @@ from courses.models import MediaAsset
 from tests.factories import make_course_with_unit
 
 pytestmark = pytest.mark.django_db
+
+# Anchor for the CSS token test in Step 6. Same pattern Task 5 uses.
+REPO = Path(__file__).resolve().parents[2]
 
 
 @pytest.fixture
@@ -464,9 +468,9 @@ def test_size_preset_css_uses_only_declared_tokens():
     assert used <= declared, f"undeclared tokens: {sorted(used - declared)}"
 ```
 
-(`REPO` is the same `Path(__file__).resolve().parents[2]` anchor Task 5 uses; hoist it to the top of
-whichever module holds this.) **Mutant:** change one `var(--border-default)` to `var(--border)` and
-confirm RED.
+`REPO` and the `pathlib` import are already at the top of
+`courses/tests/test_image_size_editor.py` from Step 1 — that is the module this test belongs to.
+**Mutant:** change one `var(--border-default)` to `var(--border)` and confirm RED.
 
 - [ ] **Step 7: Run tests to verify they pass**
 
@@ -1091,7 +1095,11 @@ would then pass for the wrong reason):
   braces** to the matching close, and return `(block_text, start_index)`.
 
 The ordering test then asserts that `start_index` (of the selected block) is greater than the index of
-`.el--image--full img` in the comment-stripped source.
+the `full` height declaration in the comment-stripped source. Anchor it with a **regex**, not a
+literal: Task 5's block is column-aligned (`.el--image--full   img { max-height: 100dvh; }`, three
+spaces), so `css.index(".el--image--full img")` raises `ValueError` instead of failing an assertion.
+Use `re.search(r"\.el--image--full\s+img\s*\{[^}]*100dvh", css).start()`, matching the
+declaration-regex discipline Task 5 already mandates.
 
 - [ ] **Step 2: Run the test to verify it fails**
 
@@ -1202,7 +1210,12 @@ Expected: pass.
 
 - [ ] **Step 5: Falsify**
 
-Delete the branch; confirm the source scan goes RED. Restore.
+Delete the branch; confirm the `data-size-preset` scan goes RED. Restore.
+
+The `source.count('addEventListener("change"') == 1` assertion needs its **own** mutant — it is green
+both before and after this task (there is exactly one such listener today, at `editor.js:462`), so the
+mutant above never exercises it. Add a second `root.addEventListener("change", function () {});` to the
+file; confirm the count assertion goes RED. Restore, re-run, confirm pass.
 
 - [ ] **Step 6: Lint and commit**
 
@@ -1225,8 +1238,10 @@ git commit -m "feat(editor): live size preview without a save"
 - Consumes: everything from Tasks 1-6.
 - Produces, all copied **verbatim** from `tests/test_e2e_depth3.py` (they close over `TEST_PASSWORD`
   and `make_verified_user`) and all reused by Task 9: `_make_pa_user`, `_login`, `_seed_unit`,
-  `_lesson_url`, `_editor_url`, **and the session-scoped autouse `_allow_sync_orm_under_playwright`**
-  (`test_e2e_depth3.py:47-52`, setting `DJANGO_ALLOW_ASYNC_UNSAFE`). Task 9 drives the **editor**, not
+  `_lesson_url`, `_editor_url`, `_save_open_form` (`:133-137` — three lines, depends only on `page`;
+  Task 9 Step 2 calls it), **and the session-scoped autouse `_allow_sync_orm_under_playwright`**
+  (`test_e2e_depth3.py:47-52`, setting `DJANGO_ALLOW_ASYNC_UNSAFE`). This list is exhaustive: Task 9
+  adds no helpers of its own, so anything it calls that is not here is a `NameError`. Task 9 drives the **editor**, not
   just the lesson page, so `_seed_unit` and `_editor_url` are part of this task's contract, not
   optional extras.
 
@@ -1352,7 +1367,26 @@ Expected: pass. **An exit-5 deselection is a failure, not a pass** — report th
 
 - [ ] **Step 4: Falsify**
 
-Change `.el--image--large img` to `max-height: 45dvh`; confirm the large cases go RED at both viewports. Restore. Change `.el--image--small` to `max-width: 35%`; confirm the **wide** fixture's small case goes RED (and note that the tall fixture stays green — that is why both exist). Restore. Point `_isolated_media` at a bogus path; confirm the harness guard goes RED with `naturalWidth == 0` **before** any box assertion reports — that is the guard earning its place. Restore, re-run, confirm pass.
+Each mutant below states exactly which cases redden — the counts are load-bearing, because a case that
+stays green for a *known* reason looks identical to a broken assertion. Work out nothing by hand; the
+predictions here are what the `min()` gives.
+
+- **`.el--image--large img` → `max-height: 45dvh`:** the **tall** fixture's `large` cases go RED at
+  both viewports. The **wide** fixture's stay **green**, and that is correct: it is width-bound at
+  `large` at both sizes (desktop `486/1.319 = 368.5 < 540`; phone `222/1.319 = 168.3 < 384`), so
+  lowering `hcap` changes neither `min()`. Restore.
+- **`.el--image--large img` → `max-height: 20dvh`** (optional second pass): now *both* fixtures redden
+  at both viewports, since 180/128px is below every width-derived height. Use this one if you want a
+  single mutant that moves all four `large` cases. Restore.
+- **`.el--image--small` → `max-width: 35%`:** the **wide** fixture's `small` case reddens at both
+  viewports, **and so does the tall fixture's phone `small` case** — at 360x640 the tall fixture is
+  width-bound at `small` (`74/0.413 = 179 < 192`), and 35% lifts it past the height cap
+  (`103.6/0.413 = 251 > 192`), moving the predicted height from 179 to 192. Only the tall fixture's
+  **desktop** `small` case stays green. Restore.
+- **Point `_isolated_media` at a bogus path:** the harness guard goes RED with `naturalWidth == 0`
+  **before** any box assertion reports — that is the guard earning its place. Restore.
+
+Re-run and confirm pass.
 
 - [ ] **Step 5: Lint and commit**
 
@@ -1373,11 +1407,19 @@ git commit -m "test(image): e2e bounding boxes for all four presets at two viewp
 **Interfaces:**
 - Consumes: the helpers, the `_isolated_media` fixture and the two image assets from Task 8.
 
+**Every case in this task runs at 1280x900**, set explicitly with `page.set_viewport_size` exactly as
+Task 8 does. Playwright's default page viewport is **1280x720**, not 1280x900, and nothing in
+`tests/conftest.py` or the root `conftest.py` overrides it — so an unpinned test silently measures
+against a 720px-tall viewport, where the `small` height cap is 216px rather than 270px and the tall
+fixture renders ~89px wide rather than ~111.5px. Every orientation figure quoted in this task assumes
+1280x900. (The print case in Step 3 restates this because it has a second reason for it.)
+
 - [ ] **Step 0: Seed this task's own fixtures**
 
-Task 8 seeds eight **captionless, top-level** images on one lesson unit. Not one of Task 9's cases can
-run on that seed alone — every one below needs an element Task 8 never creates. Create them explicitly
-before writing any assertion; reuse Task 8's `tall` / `wide` assets and its `_isolated_media` fixture.
+Task 8 seeds eight **captionless, top-level** images on one lesson unit. Most of Task 9's cases need
+elements Task 8 never creates — a captioned image, an editor-reachable element, four nested children.
+Create those explicitly before writing any assertion; reuse Task 8's `tall` / `wide` assets and its
+`_isolated_media` fixture. The two cases that need no new elements say so in the table.
 
 | # | for | element | seeded how |
 |---|---|---|---|
@@ -1385,12 +1427,32 @@ before writing any assertion; reuse Task 8's `tall` / `wide` assets and its `_is
 | 2 | long-caption centring (Step 1) | `alt="captioned"`, `size="small"`, tall fixture, `figcaption` of ~200 chars (`"x" * 200` is fine — the corpus's real captions are 212/200/132 chars, and only the length matters) | top level |
 | 3 | height-bound centring (Step 1, see I4 below) | `alt="nocaption-small"`, `size="small"`, tall fixture, **no caption** | top level |
 | 4 | `full` unchanged (Step 1) | `alt="full-plain"` and `alt="full-captioned"` (~200-char caption), tall fixture, `size="full"` | top level |
-| 5 | live preview (Step 2) | `alt="preview-target"`, `size="full"`, wide fixture | its own unit, so the editor page holds exactly one image row |
-| 6 | nested (Step 3) | `alt="nested-<container>"`, `size="small"`, wide fixture, one per container | child rows under each of the four containers — see Step 3 for each `tab_id` |
+| 5 | live preview (Step 2) | `alt="preview-target"`, `size="full"`, wide fixture | a **second unit in the SAME course** — see the warning below |
+| 6 | nested (Step 3) | `alt="nested-<container>"`, `size="small"`, wide fixture, one per container | child rows under each of the four containers — see Step 3 for each container's creation recipe and `tab_id` |
+| 7 | print (Step 3) | reuse rows 1 and 4 — `centred-{small,medium,large}` plus `full-plain` cover all four presets on one page | no new elements |
+| 8 | zoom (Step 3) | reuse `centred-small` from row 1 | no new elements |
 
-Rows 1-4 may share one lesson unit; row 5 gets its own unit (`_seed_unit`) so the editor's element
-list is unambiguous; row 6 may share the lesson unit with 1-4 or take a third — state which in the
-module and keep it consistent.
+Rows 1-4 (and therefore 7-8) share one lesson unit; row 6 may share that unit or take its own — state
+which in the module and keep it consistent.
+
+**Row 5 must NOT use `_seed_unit`.** `_seed_unit(owner, slug)` (`tests/test_e2e_depth3.py:80-90`)
+calls `CourseFactory(...)` — it creates a whole new **Course**, not just a unit. `MediaAsset` is
+course-scoped, and `builder.save_element` passes `course=course` for `type_key == "image"`
+(`courses/builder.py:953-961`), so `_CourseScopedMediaForm` filters the `media` queryset to the unit's
+own course. Seed row 5 in a fresh course and its media (Task 8's `wide`) is absent from the rendered
+`<select name="media">`; Step 2's `_save_open_form` then posts a `media` value outside the queryset →
+`ElementFormInvalid` → 422 → no fragment swap → **the after-swap case, the only one that distinguishes
+a `root`-delegated handler from a pane-bound one, can never pass**. Instead give row 5 its own unit
+inside Task 8's course:
+
+```python
+preview_unit = ContentNodeFactory(
+    course=course, kind="unit", unit_type="lesson", parent=None, title="Preview"
+)
+```
+
+(`ContentNodeFactory` is what `_seed_unit` itself uses.) A separate *unit* is still worth it — the
+editor page then holds exactly one image row — but the *course* must be shared.
 
 - [ ] **Step 1: Add the figure-geometry tests**
 
@@ -1402,7 +1464,7 @@ module and keep it consistent.
   lesson page; Step 2's editor-side cases compare **classes only**, never boxes, precisely so this
   difference cannot bite.
 - **Image centred under a LONG caption:** with a caption of ~200 characters (the corpus has 212/200/132-char captions), assert the image is centred within the now caption-widened figure. A short caption cannot exercise this. (Seed row 2.)
-- **Image centred with NO caption, height-bound:** the caption is not the only way the figure ends up wider than the image. At desktop `small` with the tall fixture the figure is 162px while the image renders ~111.5px wide, because `max-height` binds and shrinks it on both axes. Assert the image's left and right offsets inside the figure are equal here too. (Seed row 3.) Without this case the img `margin-inline: auto` rule is covered only by the captioned path, and the height-bound path — the more common one, since every capped preset on a tall image hits it — ships unmeasured.
+- **Image centred with NO caption, height-bound:** the caption is not the only way the figure ends up wider than the image. At 1280x900, `small`, tall fixture, the figure is 162px while the image renders ~111.5px wide, because `max-height` binds and shrinks it on both axes. Assert the image's left and right offsets inside the figure are equal here too. (Seed row 3.) Without this case the img `margin-inline: auto` rule is covered only by the captioned path, and the height-bound path — the more common one, since every capped preset on a tall image hits it — ships unmeasured.
 - **`full` geometry unchanged.** "Same as before the feature" is not something a single run can read —
   there is no earlier state to compare against — so state the property as concrete post-conditions
   instead. For a `full` image:
@@ -1438,8 +1500,10 @@ pane (`editor.html` mounts the student templates there), which is why the JS's u
    does today.)
 2. Open the element's form: click its row's edit control.
    `templates/courses/manage/editor/_element_row.html` gives two equivalent triggers, both stamped
-   `data-form-url="…manage_element_form…"` **and both carrying `class="el-select"` with the same
-   `data-element-id`** — the ✎ icon button at `:54` and the row label at `:62`. So `button.el-select[data-element-id="…"]` matches **two** nodes and Playwright
+   `data-form-url="/manage/courses/<slug>/build/element/<pk>/form/"` (the rendered value of
+   `{% url 'courses:manage_element_form' … %}` — the *name* never appears in the DOM, same trap as the
+   save URL in item 4) **and both carrying `class="el-select"` with the same `data-element-id`** — the
+   ✎ icon button at `:54` and the row label at `:62`. So `button.el-select[data-element-id="…"]` matches **two** nodes and Playwright
    raises a strict-mode violation. Use the label's own class:
    `button.el-row__label[data-element-id="<Element join pk>"]`. **Note the pk**: this editor-side
    attribute is the `Element` **join-row** pk, unlike `data-for-element` / `data-preview-el`, which are
@@ -1449,12 +1513,24 @@ pane (`editor.html` mounts the student templates there), which is why the JS's u
 4. Click a radio: `page.locator("[data-edit-slot] input[data-size-preset][value='small']").click()`.
    Assert the preview figure gained `el--image--small` and lost `el--image--full`.
 
-   **Assert "no save" on REQUESTS, not on a DB read.** Install a recorder before the click —
-   `page.on("request", lambda r: seen.append(r.url))` — and require zero entries matching
-   `manage_element_save`. A post-click DB read samples a race window: if a save *had* fired, the read
-   can land before the POST commits and the test passes for the wrong reason. This project has the
-   recorded lesson (assert on requests, never a DB read mid-flight). Keep the DB re-read only as a
-   secondary check, never as the primary signal.
+   **Assert "no save" on REQUESTS, not on a DB read.** Install a recorder before the click and require
+   zero matches:
+
+   ```python
+   saves = []
+   page.on("request", lambda r: saves.append(r.url)
+           if r.method == "POST" and "/build/element/save/" in r.url else None)
+   ```
+
+   **Filter on the PATH, never the URL name.** `manage_element_save` is the `path(...)` *name*
+   (`courses/urls.py:241-245`); the URL itself is `/manage/courses/<slug>/build/element/save/` and
+   contains no such substring. A recorder filtered on `manage_element_save` matches nothing and the
+   assertion is **vacuously true** — it would stay green even if every radio click fired a save, which
+   is precisely the false-green this whole item exists to prevent.
+
+   A post-click DB read is the other false-green: it samples a race window, so if a save *had* fired
+   the read can land before the POST commits. This project has the recorded lesson (assert on
+   requests, never a DB read mid-flight). Keep the DB re-read only as a secondary check.
 5. For the after-swap case, save with `_save_open_form(page)` (depth3's helper), wait for the row to
    re-render, re-open the form per steps 2-3, and flip to a different preset. The assertion is the
    same; only the preceding fragment swap differs.
@@ -1487,26 +1563,52 @@ pane (`editor.html` mounts the student templates there), which is why the JS's u
   what a real mutant moves — see the falsify table.
 - A nested image scales to its container — one case each for **spoiler, tabs, two-column and callout**.
 
-  **Split the two axes; only width is container-relative.** `max-width` is a percentage of the
-  *containing block*, so the width assertion is `parseFloat(getComputedStyle(fig.parentElement).width)
-  * fraction` — the **content box** of the figure's actual parent, for the same two reasons Task 8
-  spells out (border-box vs content-box, and these containers definitely carry padding, unlike
-  `.lesson-block__body`). `max-height` is authored in `dvh`, which resolves against the **viewport** at
-  every nesting depth — so the height assertion stays `viewport height * dvh fraction`, exactly as at
-  top level. A test written as "scales to its container, not the page" on both axes asserts a false
-  invariant and will fail for the wrong reason. The intrinsic clamp from Task 8 applies here too: use
-  the same `min(hcap, wcap / ratio, naturalHeight)`.
+  **Split the two axes; only `wcap` is container-relative.** `max-width` is a percentage of the
+  *containing block*, so `cw = parseFloat(getComputedStyle(fig.parentElement).width)` — the **content
+  box** of the figure's actual parent, for the same two reasons Task 8 spells out (border-box vs
+  content-box, and these containers definitely carry padding, unlike `.lesson-block__body`).
+  `max-height` is authored in `dvh`, which resolves against the **viewport** at every nesting depth, so
+  `hcap` stays `vh * fraction` exactly as at top level — it does **not** shrink with the container.
+  A test written as "scales to its container, not the page" on both axes asserts a false invariant.
+
+  **Then use Task 8's formula unchanged** — one height assertion, not two:
+  `h = min(hcap, wcap / ratio, naturalHeight)`, `w = h * ratio`. Do **not** additionally assert
+  `height == vh * fraction`: that is only true when the height axis binds, and inside a nesting
+  container it essentially never does. With Step 0 row 6's parameters (wide fixture, ratio 1.319,
+  `small`) the height would bind only if `0.25 × cw / 1.319 > 0.30 × 900`, i.e. `cw > ~1424px` — wider
+  than the entire 648px column. The container-relative `wcap` inside the `min()` is what carries the
+  "scales to its container" claim; the un-shrunk `hcap` is what carries the `dvh` claim.
 
   **The four containers do not share one seeding recipe.** Global Constraints gives
   `tab_id=<Parent>.SLOT_ID`, which only exists for the **single-slot** containers — `SpoilerElement`
-  and `CalloutElement` both set `SLOT_ID = SINGLE_SLOT_ID` (`"only"`, `models.py:402,413,469`). The
-  other two key their children on a generated id, so read it off the parent after creating it:
-  - **tabs:** `tab_id = tabs.data["tabs"][0]["id"]` (the `test_e2e_depth3.py:202` pattern);
-  - **two-column:** `tab_id = twocol.data["columns"][0]["id"]` — same shape as tabs.
-    `TwoColumnElement.default_data()` returns `{"columns": [{"id": …}, {"id": …}]}`, a list of
-    **dicts**, not of bare ids (`models.py:1530-1534`); `data["columns"][0]` alone would write a
-    stringified dict into `Element.tab_id` (`CharField(max_length=12)`) and orphan the child. Never
-    call `normalize_data` on the way — it mints phantom ids and orphans children.
+  and `CalloutElement` both set `SLOT_ID = SINGLE_SLOT_ID` (`"only"`, `models.py:402,413,469`), so
+  `SpoilerElement.objects.create(label="s")` / `CalloutElement.objects.create(kind="note")` is the
+  whole recipe.
+
+  The other two key their children on a **generated** id, and must be created **with
+  `default_data()`** — this is not optional:
+
+  ```python
+  tabs   = TabsElement.objects.create(data=TabsElement.default_data())
+  twocol = TwoColumnElement.objects.create(data=TwoColumnElement.default_data())
+  tab_id = tabs.data["tabs"][0]["id"]
+  col_id = twocol.data["columns"][0]["id"]
+  ```
+
+  - `data` is `JSONField(default=dict)` and `save()` runs the **non-destructive** normalizer
+    (`normalize_labels_and_ids` / `normalize_ids`, `models.py:1412+, 1537+`), which maps `{}` to
+    `{"tabs": []}` / `{"columns": []}`. So a bare `TabsElement.objects.create()` gives an **empty**
+    list and `data["tabs"][0]` raises `IndexError`.
+  - Hardcoding a slot id is worse than useless: `resolved_tabs()` / `resolved_columns()` render
+    through the **destructive** `normalize_data`, which pads an empty list by minting *brand-new* ids
+    at read time — the child's `tab_id` then matches nothing and is silently skipped, so the image
+    never appears on the page and the test fails with an empty locator rather than a wrong number.
+  - Read the id off the **saved** instance (the normalizer ran in `save()`), and never call
+    `normalize_data` yourself.
+  - Note the shape: `default_data()` returns a list of **dicts**
+    (`{"columns": [{"id": …}, {"id": …}]}`, `models.py:1530-1534`), so `data["columns"][0]` alone
+    would write a stringified dict into `Element.tab_id` (`CharField(max_length=12)`) and orphan the
+    child. The `["id"]` is load-bearing.
 
   **Two of the four containers hide their contents until acted on**, and a hidden box measures zero:
   a closed `<details>` hides via `content-visibility` (so `getBoundingClientRect()` returns zeros and
@@ -1526,8 +1628,10 @@ added in Step 3, which the Global Constraint requires just as much as the older 
 | `full` unchanged | add `.el--image--full` to the `fit-content` / `margin-inline` group | all three `full` post-conditions |
 | print | move the print block above the presets | the print case |
 | live preview | rebind the JS handler to the preview pane instead of `root` | the after-swap case (the before-swap one stays **green** — that contrast is the point) |
+| no-save recorder | make the radio branch also click the form's submit button | the zero-saves assertion. Run this one: a recorder filtered on the wrong string passes the happy path *and* this mutant, and that is the only way to tell |
 | zoom overlay | change `.imgzoom__img`'s own `max-height: 100%` (`courses.css:1771`) to `30dvh` | assertion (b), the overlay-taller-than-figure one. A `dialog img` rule would **not** work as a mutant: at (0,0,2) it loses to `.imgzoom__img` (0,1,0) and nothing would move |
-| nested containers | change one preset's `max-width` (e.g. `small` → 35%) | that container's **width** assertion only — its height assertion must stay green, which is what proves the two axes really were split |
+| nested containers, width axis | change `small`'s `max-width` (25% → 35%) | all four nested cases. Both the width **and** the height assertion redden together, because the nested cases are width-bound and `h` is derived from `wcap` — that coupling is expected, not a bug |
+| nested containers, height axis | change `.el--image--small img`'s `max-height` (30dvh → 5dvh) | all four nested cases again — this is the mutant that proves `hcap` is still viewport-derived rather than silently shrunk to the container: at 5dvh (45px) the height axis binds even inside a nested container, which no container-relative `hcap` would reproduce |
 
 Restore each and re-run.
 
