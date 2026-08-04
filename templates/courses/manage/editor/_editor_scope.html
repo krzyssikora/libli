@@ -5,7 +5,30 @@
        data-add-url="{% url 'courses:manage_element_add' slug=unit.course.slug %}"
        data-save-url="{% url 'courses:manage_element_save' slug=unit.course.slug %}"
        data-move-url="{% url 'courses:manage_element_move' slug=unit.course.slug %}">
-    <div class="pane-head"><h2>{% trans "Editor" %}</h2><span class="pane-head__count">{% blocktranslate count n=rows|length %}{{ n }} element{% plural %}{{ n }} elements{% endblocktranslate %}</span></div>
+    <div class="pane-head"><h2>{% trans "Editor" %}</h2><span class="pane-head__count">{% blocktranslate count n=rows|length %}{{ n }} element{% plural %}{{ n }} elements{% endblocktranslate %}</span>{% comment %}
+      `.pane-head` is `display:flex; justify-content:space-between` with exactly TWO
+      children today, which is what pins the count to the right edge. The banner
+      below becomes a THIRD child, so without the CSS in the styling task the row
+      re-distributes and the count drifts to the centre whenever a mark is pending
+      -- a visible change to existing chrome, not just to the new element.
+      {% endcomment %}
+      {% comment %}
+      The mark banner MUST live inside [data-scope="editor"]: applyFragments
+      replaces only the two panes, and editor.html's header region sits outside
+      both -- a banner there would render once on page load and then never reflect
+      a select, a cancel or a paste.
+      {% endcomment %}
+      {% if clip_active %}<span id="clip-banner" class="clip-banner">⊹ {% blocktranslate %}Selected: {{ clip_label }}{% endblocktranslate %}
+        <form class="tree__inline" method="post" action="{% url 'courses:manage_element_clip' slug=unit.course.slug %}" data-op="element-clip">
+          {% csrf_token %}
+          <input type="hidden" name="ctx" value="editor">
+          <input type="hidden" name="element" value="{{ clip_element_pk }}">
+          <input type="hidden" name="unit" value="{{ unit.pk }}">
+          <input type="hidden" name="action" value="cancel">
+          <button class="iconbtn" type="submit" aria-label="{% trans 'Cancel selection' %}" title="{% trans 'Cancel selection' %}">✕</button>
+        </form>
+      </span>{% endif %}
+    </div>
       {% comment %}
       The editor's error slot. It MUST live inside [data-scope="editor"]:
       editor.js's applyFragments replaces only the two [data-scope] panes, so a

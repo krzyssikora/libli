@@ -276,3 +276,136 @@ def test_the_form_carries_the_scope_and_a_csrf_token(client):
     assert "csrfmiddlewaretoken" in form
     assert 'name="mode"' in form
     assert 'name="unit_token"' in form
+
+
+def test_every_container_renders_open_while_a_mark_is_pending(client):
+    """A legal target could otherwise hide inside a collapsed tab. This test lives
+    in THIS task, not with the paste-button tests: the `{% elif clip_active %}`
+    disjunct it depends on is added in Step 5 below, so at the end of the previous
+    task only `forloop.first` is open and this would be RED for a correct
+    implementation."""
+    course, unit = _seed(client)
+    dest, slots = _tabs(unit)
+    _text(unit, parent=dest, tab=slots[1])
+    subject = _text(unit)
+    _mark(client, course, unit, subject)
+
+    body = _editor(client, course, unit)
+
+    for sid in slots:
+        marker = f'data-tab-id="{sid}"'
+        tag = body[body.index(marker) : body.index(marker) + 200]
+        assert " open" in tag, sid
+        assert "data-force-open" in tag, sid
+
+
+def test_every_row_offers_a_select_control(client):
+    """The control lives in the shared partial, which all seven branches include,
+    so one edit covers them all -- assert a NESTED row too, or a regression that
+    drops the partial from one branch ships green."""
+    course, unit = _seed(client)
+    dest, slots = _tabs(unit)
+    _text(unit, parent=dest, tab=slots[0], body="<p>nested</p>")
+
+    body = _editor(client, course, unit)
+
+    assert body.count('data-op="element-clip"') >= 2
+    at = body.index('data-op="element-clip"')
+    form = body[at : at + 700]
+    assert "csrfmiddlewaretoken" in form
+    assert 'name="action" value="select"' in form
+
+
+def test_the_marked_row_carries_its_modifier_at_every_depth(client):
+    """Seven edits, not one: the <li class="el-row..."> tag is written out
+    separately in every branch of _element_row.html, and #214 added a seventh."""
+    course, unit = _seed(client)
+    dest, slots = _tabs(unit)
+    nested = _text(unit, parent=dest, tab=slots[0], body="<p>nested</p>")
+
+    _mark(client, course, unit, nested)
+    body = _editor(client, course, unit)
+
+    at = body.index(f'data-element="{nested.pk}"')
+    opening = body[body.rindex("<li", 0, at) : at]
+    assert "el-row--marked" in opening
+
+
+def test_a_marked_container_row_carries_the_modifier_too(client):
+    course, unit = _seed(client)
+    dest, _slots = _tabs(unit)
+
+    _mark(client, course, unit, dest)
+    body = _editor(client, course, unit)
+
+    at = body.index(f'data-element="{dest.pk}"')
+    opening = body[body.rindex("<li", 0, at) : at]
+    assert "el-row--marked" in opening
+
+
+def test_a_marked_callout_row_carries_the_modifier(client):
+    """The seventh `<li>` branch, added by #214. The other two modifier tests mark
+    a plain text row and a tabs row, so without this one the callout branch can
+    ship unmarked with the suite green.
+    """
+    from courses.models import CalloutElement
+
+    course, unit = _seed(client)
+    callout = Element.objects.create(
+        unit=unit, content_object=CalloutElement.objects.create(body="<p>c</p>")
+    )
+
+    _mark(client, course, unit, callout)
+    body = _editor(client, course, unit)
+
+    at = body.index(f'data-element="{callout.pk}"')
+    opening = body[body.rindex("<li", 0, at) : at]
+    assert "el-row--marked" in opening
+    # The branch's own class must survive the edit -- pasting the plain branch's
+    # markup here would delete it, and #214's styling depends on it.
+    assert "el-row--callout" in opening
+
+
+def test_the_banner_names_the_marked_element_inside_the_swapped_pane(client):
+    """applyFragments replaces only the two [data-scope] panes, so a banner in
+    editor.html's chrome would render once on page load and then never reflect a
+    select, a cancel or a paste."""
+    course, unit = _seed(client)
+    subject = _text(unit)
+    subject.title = "My favourite paragraph"
+    subject.save(update_fields=["title"])
+
+    resp = _mark(client, course, unit, subject)
+    body = resp.content.decode()
+
+    assert 'id="clip-banner"' in body
+    # BRACKETED by the editor pane, not merely "after its opening tag": a banner
+    # rendered inside [data-scope="preview"] would also satisfy a bare > test.
+    assert body.index('data-scope="editor"') < body.index('id="clip-banner"')
+    assert body.index('id="clip-banner"') < body.index('data-scope="preview"')
+    assert "My favourite paragraph" in body
+    assert 'data-op="element-clip"' in body
+    assert 'value="cancel"' in body
+
+
+def test_the_banner_falls_back_to_the_type_summary_when_the_title_is_empty(client):
+    """Element.title is routinely empty, so a naive label renders `"" is selected`."""
+    course, unit = _seed(client)
+    subject = _text(unit, body="<p>Some prose here</p>")
+    assert subject.title == ""
+
+    resp = _mark(client, course, unit, subject)
+    body = resp.content.decode()
+    banner = body[body.index('id="clip-banner"') : body.index('id="clip-banner"') + 400]
+
+    assert banner.strip() != ""
+    assert "Some prose" in banner or "Text" in banner
+
+
+def test_no_banner_renders_when_nothing_is_marked(client):
+    course, unit = _seed(client)
+    _text(unit)
+
+    body = _editor(client, course, unit)
+
+    assert 'id="clip-banner"' not in body
