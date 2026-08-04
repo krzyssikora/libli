@@ -1075,12 +1075,17 @@ Expected: all pass.
 
 - [ ] **Step 5: Falsify**
 
-Step 1 mandates roughly eight assertions; every one needs its own mutant, including the two group
-regexes the step itself calls "harder than they look". Apply and restore each in turn:
+Step 1 mandates about eleven assertions — three width regexes, four height regexes, two group regexes
+with two sub-claims each, and the retained rule — and **every one gets its own named mutant**,
+including the two group regexes the step itself calls "harder than they look". Apply and restore each
+in turn:
 
 | mutant | expected RED |
 |---|---|
+| **delete `.el--image--full img { max-height: 100dvh }`** | the `full` height assertion. **Do not skip this one** — it is the declaration the Architecture section credits with fixing all 54 measured over-tall images, i.e. the entire reason this feature ships without a data migration, and it is otherwise the only assertion in the plan whose subject has no mutant anywhere. It has a second predicted RED site in Task 8: the **phone `full` tall** case, where `hcap = 640` currently binds against `wcap/ratio = 716.7` and `naturalHeight = 719`, so removing the cap moves the predicted height from 640 to 716.7 |
 | delete `.el--image--medium img { max-height: 45dvh }` | the medium height assertion |
+| delete `.el--image--small img { max-height: 30dvh }` and `.el--image--large img { max-height: 60dvh }` (one at a time) | the corresponding height assertion. Listed for completeness: with `full` and `medium` above, all four height regexes then have a named mutant |
+| change `.el--image--medium`'s `max-width` to `55%`, then `.el--image--large`'s to `80%` (one at a time) | the corresponding width assertion — completing the three percentage regexes |
 | change `.el--image--small`'s `max-width` to `35%` | the small width assertion (proves the three percentage regexes are declaration-scoped, not substring scans) |
 | add `.el--image--full` to the `fit-content` group | the FIG_GROUP "excludes `full`" assertion — and *not* the "exactly one match" one |
 | delete the whole IMG_GROUP `margin-inline: auto` rule | the IMG_GROUP "exactly one match" assertion |
@@ -1282,35 +1287,55 @@ git commit -m "feat(editor): live size preview without a save"
   Task 9 Step 2 calls it), **and the session-scoped autouse `_allow_sync_orm_under_playwright`**
   (`test_e2e_depth3.py:47-52`, setting `DJANGO_ALLOW_ASYNC_UNSAFE`). Plus, from
   `tests/test_e2e_imagezoom.py:163-176`, **`_await_decoded(page, locator)`** — see Step 1.
-- Also produces the module's **import block**, which both tasks draw on. `_seed_unit` imports
-  `ContentNodeFactory` / `CourseFactory` *inside its own body*, so copying it verbatim does **not**
-  put those names in the module namespace, and Task 9 uses several models directly. Import at module
-  level, one per line (`force-single-line`):
+- Also produces the **`seeded` fixture** — the interface Task 9 leans on hardest, so it is named here
+  rather than left as locals. It must be a **fixture**, not locals inside a test function, or Task 9
+  cannot reach any of it:
 
   ```python
-  import os
+  @pytest.fixture
+  def seeded(_isolated_media):
+      """(course, unit, tall, wide). Depends on _isolated_media so MEDIA_ROOT is
+      redirected BEFORE make_image_asset writes any bytes."""
+      owner = _make_pa_user("pa-imgsize")
+      course, unit = _seed_unit(owner, "imgsize")
+      tall = make_image_asset(course, "tall.png", size=(297, 719), color="magenta")
+      wide = make_image_asset(course, "wide.png", size=(948, 719), color="magenta")
+      # ... seed the eight elements on `unit` (Step 2)
+      return course, unit, tall, wide
+  ```
 
-  import pytest
+- Also produces the module's **import block**. `_seed_unit` imports `ContentNodeFactory` /
+  `CourseFactory` *inside its own body*, so copying it verbatim does **not** put those names in the
+  module namespace. Import at module level, one per line (`force-single-line`) — but **only what the
+  file actually uses at that point**, because `ruff`'s `F401` is on for `tests/**` (the per-file
+  ignores grant just `S105/S106/S107`), so a name imported for Task 9's benefit reddens **Task 8's own
+  lint step**:
 
+  ```python
+  # Task 8 needs exactly these:
+  import os                                            # _allow_sync_orm_under_playwright
+  import pytest                                        # pytestmark + fixture decorators
+  from courses.models import ImageElement
+  from tests.factories import TEST_PASSWORD            # closed over by _login
+  from tests.factories import add_element
+  from tests.factories import make_image_asset
+  from tests.factories import make_verified_user       # closed over by _make_pa_user
+  ```
+
+  **Task 9 adds these when it first needs them** (Step 0 / Step 3), not before:
+
+  ```python
   from courses.models import CalloutElement
   from courses.models import Element
-  from courses.models import ImageElement
   from courses.models import SpoilerElement
   from courses.models import TabsElement
   from courses.models import TwoColumnElement
-  from tests.factories import TEST_PASSWORD
   from tests.factories import ContentNodeFactory
-  from tests.factories import add_element
-  from tests.factories import make_image_asset
-  from tests.factories import make_verified_user
   ```
 
-  (`os` for `_allow_sync_orm_under_playwright`; `pytest` for `pytestmark` and the fixture decorators;
-  `TEST_PASSWORD` / `make_verified_user` are what `_make_pa_user` and `_login` close over — never a
-  hardcoded password.)
-
-  This list is exhaustive: Task 9 adds no helpers of its own, so anything it calls that is not here or
-  above is a `NameError`. Task 9 drives the **editor**, not
+  Between the two blocks the list is exhaustive: Task 9 adds no *helpers* of its own, so anything it
+  calls that is not here or above is a `NameError`. `TEST_PASSWORD` / `make_verified_user` are what
+  `_make_pa_user` and `_login` close over — never a hardcoded password. Task 9 drives the **editor**, not
   just the lesson page, so `_seed_unit` and `_editor_url` are part of this task's contract, not
   optional extras.
 
@@ -1329,8 +1354,9 @@ git commit -m "feat(editor): live size preview without a save"
 - [ ] **Step 1: Set up the media harness**
 
 Copy `_isolated_media` verbatim from `tests/test_e2e_imagezoom.py:56-69` — `autouse=True`,
-`(settings, tmp_path)`, assigning `settings.MEDIA_ROOT` — and make every seeding fixture depend on it
-so it is ordered **before** any asset is created. Seed the two assets with the house factory:
+`(settings, tmp_path)`, assigning `settings.MEDIA_ROOT` — and have the `seeded` fixture (see
+Interfaces) depend on it explicitly so it is ordered **before** any asset is created. Seed the two
+assets with the house factory, inside `seeded`:
 
 ```python
 tall = make_image_asset(course, "tall.png", size=(297, 719), color="magenta")
@@ -1413,15 +1439,23 @@ answers are not intuitive — at the phone viewport, for instance, the *tall* fi
 `small` and height-bound at the other three. Every assertion is written against the formula, so no
 per-combination table exists to fall out of date.
 
-**Name the container, and measure its content box.** The `<figure>`'s containing block is
+**Measure `fig.parentElement`, not `.lesson`.** The `<figure>`'s containing block is
 `div.lesson-block__body` inside `section.lesson-block` (`templates/courses/_lesson_article.html:38-39`)
-— i.e. `fig.parentElement`, *not* `.lesson`. Two different mistakes are possible here and both are
-silent: (a) using `.lesson` measures the wrong element, and (b) `getBoundingClientRect().width` is the
-**border box** while a `max-width` percentage resolves against the containing block's **content box**.
-`.unit-shell__main > .lesson` carries `padding: 1.25rem 1.5rem` (`courses.css:545-546`), so `.lesson`'s
-rect is 696px at desktop against a real 648px column — 25% of the wrong number is 174px instead of
-162px, a 12px error that no tolerance would forgive and no reviewer would spot. `getComputedStyle`'s
-`width` is the content box; use it. Read it **at runtime** — never hardcode 648 or 880 — so the test
+— *not* `.lesson`. A `max-width` percentage resolves against the containing block's **content box**,
+and `.unit-shell__main > .lesson` carries `padding: 1.25rem 1.5rem` (`courses.css:545-546`), so
+measuring `.lesson` gives 696px against a real 648px column — 25% of the wrong number is 174px instead
+of 162px, a 12px error that no tolerance would forgive and no reviewer would spot.
+
+**`getComputedStyle(...).width` is *not* the content box in this app** — `reset.css:2` sets
+`*, *::before, *::after { box-sizing: border-box }` globally, so the computed `width` of any element
+is its **border** box. It is nonetheless the right thing to read here, for a specific reason:
+`.lesson-block__body` has **no CSS rule anywhere** in the project, and the nested wrappers Task 9 uses
+(`.spoiler__child`, `.callout__child`, `.tabs__child`, `.twocolumn__child`) carry only margins — the
+padding lives on their *ancestors* (`.callout`, `.spoiler__children`, `.twocolumn__column`,
+`.tabs__panel`). With zero padding and zero border, border box == content box, so the two agree by
+accident rather than by rule. **If a future case ever measures a padded element, that equality
+breaks** and the test must subtract `paddingLeft/Right` and `borderLeftWidth/RightWidth` explicitly.
+Read it **at runtime** — never hardcode 648 or 880 — so the test
 keeps testing the preset rather than re-encoding today's shell layout. (For orientation only, never as
 literals in the test: the **height** caps are 270/405/540/900px at 1280x900 and 192/288/384/640px at
 360x640; the **width** caps are 162/324/486/648px and 74/148/222/296px respectively.)
@@ -1435,8 +1469,9 @@ load-bearing.
 296px at a 360px viewport (see Global Constraints — 880/328 was the pre-`.app-main` figure), so the
 four percentage **caps** are **74 / 148 / 222 / 296px**. Those are caps, not measurements: which of
 the two axes actually binds is the `min()`'s job per fixture and preset, and the answers are not
-uniform — the wide fixture reaches the width cap at `small` and `medium` (a 74x56 thumbnail), the tall
-fixture only at `small`. Do not restate the caps as expected widths; let them fall out of the formula.
+uniform — at the phone viewport the wide fixture is width-bound at **all four** presets (at `small`
+that is a 74x56 thumbnail; even `full` gives `296/1.319 = 224.4 < 640`), while the tall fixture is
+width-bound only at `small`. Do not restate the caps as expected widths; let them fall out of the formula.
 The spec ships no phone breakpoint and no floor — the presets are uniform percentages at every
 viewport by design — so the ~74px thumbnail is *recorded as decided* rather than silently encoded by
 whoever writes the test.
@@ -1503,8 +1538,10 @@ fixture renders ~89px wide rather than ~111.5px. Every orientation figure quoted
 
 Task 8 seeds eight **captionless, top-level** images on one lesson unit. Most of Task 9's cases need
 elements Task 8 never creates — a captioned image, an editor-reachable element, four nested children.
-Create those explicitly before writing any assertion; reuse Task 8's `tall` / `wide` assets and its
-`_isolated_media` fixture. The two cases that need no new elements say so in the table.
+Create those explicitly before writing any assertion. Take `course`, `unit`, `tall` and `wide` from
+Task 8's **`seeded`** fixture (which already depends on `_isolated_media`) — request `seeded` and
+unpack it; do not re-seed assets of your own. The two cases that need no new elements say so in the
+table.
 
 | # | for | element | seeded how |
 |---|---|---|---|
@@ -1696,9 +1733,12 @@ pane (`editor.html` mounts the student templates there), which is why the JS's u
 - A nested image scales to its container — one case each for **spoiler, tabs, two-column and callout**.
 
   **Split the two axes; only `wcap` is container-relative.** `max-width` is a percentage of the
-  *containing block*, so `cw = parseFloat(getComputedStyle(fig.parentElement).width)` — the **content
-  box** of the figure's actual parent, for the same two reasons Task 8 spells out (border-box vs
-  content-box, and these containers definitely carry padding, unlike `.lesson-block__body`).
+  *containing block*, so `cw = parseFloat(getComputedStyle(fig.parentElement).width)` — the figure's
+  actual parent, which here is the per-child wrapper (`.spoiler__child`, `.callout__child`,
+  `.tabs__child`, `.twocolumn__child`). Those wrappers carry only margins — the padding sits on their
+  ancestors — so under the app's global `border-box` their computed `width` still equals their content
+  width, exactly as Task 8 explains for `.lesson-block__body`. Measure the **wrapper**, never the
+  padded container above it.
   `max-height` is authored in `dvh`, which resolves against the **viewport** at every nesting depth, so
   `hcap` stays `vh * fraction` exactly as at top level — it does **not** shrink with the container.
   A test written as "scales to its container, not the page" on both axes asserts a false invariant.
@@ -1757,7 +1797,7 @@ added in Step 3, which the Global Constraint requires just as much as the older 
 |---|---|---|
 | figure centred | delete the figure `margin-inline: auto` | figure-centred cases |
 | long caption | delete the img `margin-inline: auto` | the long-caption case, **and** the no-caption height-bound one *if Step 1 branch 2 applied* (i.e. if it was kept at all). If the height-bound case was kept and does **not** redden, it is not really measuring the image's offset — that means branch 3 was the true outcome and the case should have been deleted |
-| `full` unchanged (figure) | add `.el--image--full` to the **figure** `width: fit-content; margin-inline: auto` group | PC1 and PC2 RED (the figure shrink-wraps and gains auto margins). **PC3 stays green**, for a known reason: the figure now shrink-wraps to exactly the image's 297px, so the image's offset inside it is still 0 |
+| `full` unchanged (figure) | add `.el--image--full` to the **figure** `width: fit-content; margin-inline: auto` group | PC1 and PC2 RED (the figure shrink-wraps and gains auto margins). **PC3 stays green**, for a known reason — and note the reason is about `full-captioned`, the element PC3 is measured on, not `full-plain`: the ~200-char caption's max-content contribution exceeds the 648px column, so `fit-content` still resolves to the full column width and the image's offset inside it remains 0 |
 | `full` unchanged (image) | add `.el--image--full img` to the **img** `margin-inline: auto` group | PC3 RED; PC1 and PC2 green. PC3 is guarded only by this second rule, so without this mutant it ships unfalsified |
 | print | move the print block above the presets | the print case |
 | live preview | rebind the JS handler to the **editor** pane: `root.querySelector('[data-scope="editor"]').addEventListener("change", …)` | the after-swap case only — the before-swap one stays **green**, and that contrast is the whole point. Do **not** use the *preview* pane as the mutant: `_editor_scope.html:2-3` and `_preview.html:2` are **siblings** inside `.editor-grid`, so a radio's `change` bubbles editor-pane → `.editor` → document and never enters the preview pane at all; that mutant reddens *both* cases and proves nothing. The editor pane is the right one because `applyFragments` (`editor.js:92-96`) `replaceWith`s exactly that node |
@@ -1872,7 +1912,9 @@ assertion are stated once and referenced from both tasks: caps only *shrink*, so
 648/296px, not the spec's 880/328, because `.app-main` caps and pads the page outside `.unit-shell`;
 a `max-width` percentage resolves against the **content box** of `fig.parentElement`
 (`div.lesson-block__body` on the lesson page, `section.prev-el` in the editor preview), never
-`.lesson`'s border box; and `dvh` resolves against the viewport at every nesting depth, so only the
+`.lesson` — and because `reset.css:2` makes every box `border-box`, `getComputedStyle().width` is only
+equal to that content box because those particular wrappers have zero padding and border, which the
+tasks state rather than assume; and `dvh` resolves against the viewport at every nesting depth, so only the
 width axis is container-relative. No expected pixel value is written as a literal — every one is
 derived from the formula at runtime. The fixtures are real PNGs via `make_image_asset`, served through
 the mandatory `_isolated_media` redirect, with a `naturalWidth`/`naturalHeight` harness guard so "the
