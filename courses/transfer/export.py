@@ -521,6 +521,9 @@ def walk_unit_joins(unit_pk, joins_by_unit):
         elif isinstance(obj, SpoilerElement):
             for child in obj.resolved_children():
                 yield from emit(child, join, SpoilerElement.SLOT_ID)
+        elif isinstance(obj, CalloutElement):
+            for child in obj.resolved_children():
+                yield from emit(child, join, CalloutElement.SLOT_ID)
 
     for join in joins_by_unit.get(unit_pk, []):
         yield from emit(join, None, "")
@@ -564,9 +567,9 @@ def build_export(
         media_ids = MediaIdMap()
         unit_pks = [n.pk for n in nodes if n.kind == "unit"]
         # Query only TOP-LEVEL joins; walk_unit_joins expands each container
-        # element's children inline (tabs, two_column, spoiler -- parents before
-        # children), so every element is visited EXACTLY ONCE and no child needs
-        # a recursive query here.
+        # element's children inline (tabs, two_column, spoiler, callout --
+        # parents before children), so every element is visited EXACTLY ONCE
+        # and no child needs a recursive query here.
         #
         # `roots_by_unit` overrides that choice of roots and nothing else. It is
         # what makes an ELEMENT-scoped export possible without a second walk:
@@ -675,9 +678,9 @@ def build_export(
             element_dicts.append({"id": eid, **edict})
         # Resolve each element's `parent` (carried as the parent's walk_index int)
         # to that parent's e-id. A parent is always a CONTAINER element (tabs,
-        # two_column, or spoiler) -- none of which reference media -- so it is
-        # never dropped, and it always precedes its children in the walk, so its
-        # walk_index is guaranteed present in eid_by_walk.
+        # two_column, spoiler, or callout) -- none of which reference media --
+        # so it is never dropped, and it always precedes its children in the
+        # walk, so its walk_index is guaranteed present in eid_by_walk.
         for d in element_dicts:
             if d["parent"] is not None:
                 d["parent"] = eid_by_walk[d["parent"]]

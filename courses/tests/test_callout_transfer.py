@@ -78,3 +78,66 @@ def test_import_rejects_a_depth_4_callout_archive():
     ]
     with pytest.raises(TransferError):
         validate_nesting(elements)
+
+
+@pytest.mark.django_db  # this module marks per-test; there is NO module pytestmark
+def test_export_emits_a_table_inside_a_callout():
+    from courses.models import CalloutElement
+    from courses.models import Element
+    from courses.models import TableElement
+    from courses.transfer import export as _export
+    from tests.factories import add_element
+    from tests.factories import make_course_with_unit
+
+    course, unit = make_course_with_unit()
+    co = CalloutElement.objects.create(kind="example", body="<p>intro</p>")
+    join = add_element(unit, co)
+    Element.objects.create(
+        unit=unit,
+        content_object=TableElement.objects.create(
+            data={"cells": [[{"html": "CELL-MARKER"}]]}
+        ),
+        parent=join,
+        tab_id=CalloutElement.SLOT_ID,
+    )
+    _manifest, document, _media, _problems = _export.build_export(course)
+    # Assert STRUCTURALLY, not on str(document): the child must appear in the element
+    # list wired to its parent with tab == the single slot id. (`_ser_table` returns
+    # `dict(el.data)` verbatim, so a stringified assertion would also pass with a
+    # wrong data key -- see the "cells" vs "rows" trap.)
+    # build_export emits a FLAT document: {"nodes", "elements", "media", ...}.
+    # There is no "units" key (export.py:766-784).
+    elements = document["elements"]
+    child = next(e for e in elements if e["type"] == "table")
+    parent = next(e for e in elements if e["type"] == "callout")
+    assert child["parent"] == parent["id"]
+    assert child["tab"] == CalloutElement.SLOT_ID
+    assert "CELL-MARKER" in str(child["data"])
+
+
+@pytest.mark.django_db
+def test_duplicate_unit_preserves_a_table_inside_a_callout():
+    """Same missing emit() arm; duplicate_unit is the far more common gesture."""
+    from courses import builder as _builder
+    from courses.models import CalloutElement
+    from courses.models import Element
+    from courses.models import TableElement
+    from tests.factories import add_element
+    from tests.factories import make_course_with_unit
+
+    course, unit = make_course_with_unit()
+    co = CalloutElement.objects.create(kind="example")
+    join = add_element(unit, co)
+    Element.objects.create(
+        unit=unit,
+        content_object=TableElement.objects.create(
+            data={"cells": [[{"html": "DUP-MARKER"}]]}
+        ),
+        parent=join,
+        tab_id=CalloutElement.SLOT_ID,
+    )
+    new_node = _builder.duplicate_unit(course, unit.pk, token=unit.updated.isoformat())
+    copied = Element.objects.filter(unit=new_node, parent__isnull=False)
+    assert any(
+        "DUP-MARKER" in str(getattr(e.content_object, "data", "")) for e in copied
+    ), "the callout's child was dropped by the duplicate"
