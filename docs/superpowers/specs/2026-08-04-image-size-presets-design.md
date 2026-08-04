@@ -140,9 +140,11 @@ image height today), so the values are stated here rather than left to the imple
 | `.el--image--full` | 170mm |
 
 Derivation: A4 is 297mm tall; with this project's page margins roughly 250mm is printable. `full` at
-170mm leaves ~80mm for surrounding text so an image never monopolises a page, and the three smaller
-presets keep the same proportions as their screen counterparts. Max-widths stay percentages, which
-behave correctly in print. This is called out explicitly because this project shipped a print defect
+170mm leaves ~80mm for surrounding text so an image never monopolises a page. The three smaller
+presets step down from it in the same *order and rough spacing* as on screen — deliberately not an
+exact ratio transfer (as fractions of `full` they are 26%/44%/65% against the screen's 30%/45%/60%),
+because these are round millimetre values chosen to be sensible on paper rather than derived
+arithmetically from the screen boxes. Max-widths stay percentages, which behave correctly in print. This is called out explicitly because this project shipped a print defect
 of exactly this shape — `.spoiler__children` was missing from the `@media print` revert from #212
 until #214 fixed it — where a screen rule had no print counterpart and content was lost in PDF.
 
@@ -152,17 +154,50 @@ behaviour and must be asserted, not assumed (see testing row 12).
 
 ### 4. Editor control
 
-`templates/courses/manage/editor/_edit_image.html` gains a radio group beside the existing alt and
-caption fields. Radios, not a `<select>`, and they work with JS disabled — matching the pattern that
-file already documents for its media control ("works no-JS, and `media_picker.js` sets/extends it
-with JS").
+**4a. The form must accept the field, or nothing else in this section matters.**
+`ImageElementForm.Meta.fields` is a hardcoded literal `["media", "alt", "figcaption"]`
+(`courses/element_forms.py:118-120`), consumed via `FORM_FOR_TYPE["image"]` on both the render path
+(`views_manage.py:1446`, `:1728`) and the save path (`builder.py:959`). A Django `ModelForm`
+binds, validates and persists **only** the fields named there; POST data for any other name is
+silently discarded. So the list must become:
 
-**Each radio input carries the two attributes the live preview depends on:**
+```python
+fields = ["media", "alt", "figcaption", "size"]
+```
+
+mirroring `CalloutElementForm.Meta.fields = ["kind", "heading", "body"]` (`element_forms.py:228`),
+the directly analogous choice field. Without this edit the radios render, the author picks one,
+the save succeeds — and `size` is silently dropped. The feature would no-op with no error anywhere,
+and the Error-handling row "a bad value submitted through the form → rejected by model `choices`
+validation" could never fire, because the form would never look at `size` at all.
+
+**4b. The control.** `templates/courses/manage/editor/_edit_image.html` gains a radio group beside
+the existing alt and caption fields. Radios, not a `<select>`, and they work with JS disabled —
+matching the pattern that file already documents for its media control ("works no-JS, and
+`media_picker.js` sets/extends it with JS").
+
+The group **must reflect the stored value as `checked`**, looping over the field's own choices so
+the four presets are never duplicated between Python and template:
 
 ```html
-<label><input type="radio" name="size" value="medium"
-              data-size-preset data-for-element="{{ form.instance.pk }}"> {% trans "Medium" %}</label>
+{% for value, label in form.fields.size.choices %}
+  <label><input type="radio" name="size" value="{{ value }}"
+    {% if form.size.value|stringformat:"s" == value|stringformat:"s" %} checked{% endif %}
+    data-size-preset data-for-element="{{ form.instance.pk }}"> {{ label }}</label>
+{% endfor %}
 ```
+
+The `stringformat:"s"` comparison mirrors `_edit_callout.html:6`, which reflects the stored
+`CalloutElement.kind` the same way.
+
+**`checked` is not cosmetic — omitting it breaks every image save.** `size` derives from a
+non-`blank` `CharField`, so its form field is `required=True`. A radio group with nothing checked
+submits **no** `size` key, so the form fails validation on *any* save of an image element — even an
+alt-text-only edit — once 4a is applied. Two independent reasons this must be specified: an author
+must see the element's current preset, and a freshly-opened element must render with the model
+default `full` already checked via `form.instance.size`.
+
+**4c. The two live-preview attributes**, carried by every radio above:
 
 - `data-size-preset` — the hook the delegated listener matches on (a marker attribute, no value).
 - `data-for-element` — the element pk, so the listener can find the matching rendered `<figure>`
@@ -293,7 +328,7 @@ and name the mutant. A passing test proves nothing on its own.
 | 5 | round-trip preserves all four presets | export → import, assert each |
 | 6 | **an archive with no `size` key imports as `full`** | the back-compat pin; build the payload without the key |
 | 7 | an archive with a junk `size` imports as `full` and does not raise | error-path pin |
-| 8 | **rendered height obeys the cap at two viewport sizes** | **e2e**, `getBoundingClientRect()` at a desktop and a phone viewport |
+| 8 | **each of the four presets' computed box is correct, at two viewport sizes** | **e2e**, `getBoundingClientRect()` per preset at a desktop and a phone viewport |
 | 9 | **the live preview changes size with no save** | **e2e**, real gesture on the radio |
 | 10 | the preview enhancement still works **after a fragment swap** | **e2e**: save once, then change the preset again |
 | 11 | the zoom overlay shows the image unaffected by the preset | e2e |
@@ -305,6 +340,11 @@ Rows 8-10 are load-bearing and cannot be replaced by source scans.
 
 - **Row 8** must run at **two** viewports. A single-viewport test passes even if the cap were
   silently authored as a fixed `px`, which is that row's specific target.
+- **Row 8 must exercise all four presets, not one representative.** Row 2 only asserts that the
+  right *class* is applied; it cannot see a wrong *value* in the CSS. Row 8 is the only row that
+  measures computed pixels, so if it exercised only `full` (the preset tied to the original bug), a
+  transposed number in `small`, `medium` or `large` — `45dvh` where `60dvh` was meant, or `50%` for
+  `75%` — would ship with no coverage anywhere in the suite.
 - **Row 8's known limit:** Playwright's phone viewport is a fixed pixel size and does **not** emulate
   a collapsing mobile address bar, so this row **cannot** distinguish `dvh` from `vh`. That choice is
   argued from the `courses.css:1724-1727` precedent, not pinned by a test. Accepted gap; verify once
