@@ -26,6 +26,18 @@ class NestingError(Exception):
     """A nested add/save violated the nesting rules -> HTTP 400."""
 
 
+class ParentGoneError(NestingError):
+    """A well-formed parent pk that resolves to nothing in this unit.
+
+    A SUBCLASS on purpose: element_add and element_save catch NestingError and
+    nothing else, so a sibling class would turn their clean 400 into an uncaught
+    500 the moment a parent pk vanishes. Only the paste view, which catches this
+    first, treats it differently -- as a 422, because "the destination container
+    was deleted by another author between the render and the click" is a
+    concurrent-edit case the author must see, not a malformed payload.
+    """
+
+
 MAX_NEST_DEPTH = 4  # a top-level element has depth 1
 
 # Container TYPE KEYS (transfer namespace). Clause 4 of the containment rule tests
@@ -174,15 +186,15 @@ def ancestor_slots(join):
     return keys
 
 
-def resolve_scope(unit, parent_ref, tab, type_key):
-    """Validate and resolve a nested element's scope.
+def _parse_scope_ref(unit, parent_ref, tab):
+    """Parse a (parent, tab) payload pair into (parent_join | None, tab_id).
 
-    Returns (parent_join|None, tab_id).
+    PARSE ONLY -- no admissibility. resolve_scope calls this and then applies its
+    clauses; the paste path calls it and then applies paste_allowed instead. Two
+    parses would be free to drift, which is the whole reason this is one function.
 
-    `parent` and `tab` come together or not at all; neither means top-level. Any
-    violation raises NestingError, which the view turns into a 400. Filtering the
-    parent by `unit` enforces same-unit and (transitively) same-course, because `unit`
-    was already resolved against the course by the caller.
+    Shape errors raise NestingError (400): a UI cannot produce them. A well-formed
+    but unresolvable parent raises ParentGoneError (422 on the paste path).
     """
     parent_ref = (parent_ref or "").strip()
     tab = (tab or "").strip()
@@ -199,7 +211,26 @@ def resolve_scope(unit, parent_ref, tab, type_key):
     except (TypeError, ValueError):
         raise NestingError("bad parent ref") from None
     if join is None:
-        raise NestingError("unknown parent")
+        raise ParentGoneError("unknown parent")
+    return join, tab
+
+
+def resolve_scope(unit, parent_ref, tab, type_key):
+    """Validate and resolve a nested element's scope.
+
+    Returns (parent_join|None, tab_id).
+
+    `parent` and `tab` come together or not at all; neither means top-level. Any
+    violation raises NestingError, which the view turns into a 400. Filtering the
+    parent by `unit` enforces same-unit and (transitively) same-course, because `unit`
+    was already resolved against the course by the caller.
+
+    Parsing lives in _parse_scope_ref, shared with the paste path; the clauses below
+    are this function's alone.
+    """
+    join, tab = _parse_scope_ref(unit, parent_ref, tab)
+    if join is None:
+        return None, ""
 
     parent_obj = join.content_object
     container = _CONTAINER_REGISTRY.get(type(parent_obj))
