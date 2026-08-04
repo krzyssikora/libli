@@ -200,7 +200,7 @@ def _element_has_math(obj):
     if isinstance(obj, SpoilerElement):
         return _spoiler_has_math(obj)
     if isinstance(obj, CalloutElement):
-        return has_math_delimiters(obj.body)
+        return _callout_has_math(obj)
     if isinstance(obj, SwitchGridElement):
         return _switch_grid_has_math(obj)
     if isinstance(obj, StepperElement):
@@ -246,10 +246,42 @@ def _tabs_has_math(el):
     )
 
 
+def _callout_has_math(el):
+    """COLLECT + MUST RECURSE, mirrors _tabs_has_math. Children are dispatched
+    through _element_has_math, never has_math_delimiters directly: callout > tabs >
+    table is legal, and a non-recursive walk passes a depth-1 test while silently
+    missing math two containers deep.
+
+    ORDER IS LOAD-BEARING: heading -> body -> children, with the transient guard on
+    the CHILDREN walk only. A top-of-function `join_row() is None` guard (correct in
+    _twocolumn_has_math, which has no text of its own) would make a transient callout
+    carrying math in its heading or body report False.
+
+    `heading` is the STORED field, never `display_heading` -- the per-kind defaults
+    are translated labels and can never carry math.
+    """
+    from courses.models import CalloutElement
+
+    if not isinstance(el, CalloutElement):
+        return False
+    if has_math_delimiters(el.heading):
+        return True
+    if has_math_delimiters(el.body):
+        return True
+    # The transient guard sits HERE, after heading/body -- never at the top. A
+    # top-of-function guard (correct in _twocolumn_has_math, which has no text of its
+    # own) would make a transient callout with heading/body math report False. The
+    # spec chose to KEEP the guard rather than rely on resolved_children() == [], so
+    # the "move it to the top" mutant stays applicable.
+    if el.join_row() is None:
+        return False
+    return any(_element_has_math(c.content_object) for c in el.resolved_children())
+
+
 def _spoiler_has_math(el):
-    """COLLECT + MUST RECURSE, mirrors _tabs_has_math. A nested spoiler has an
-    empty body, so math lives in its children; a legacy body-only spoiler has no
-    children and falls back to its body."""
+    """COLLECT + MUST RECURSE, mirrors _tabs_has_math. The body always renders now
+    (alongside any children), so it is OR'd in unconditionally rather than only as a
+    childless fallback."""
     from courses.models import SpoilerElement
 
     if not isinstance(el, SpoilerElement):
@@ -258,10 +290,9 @@ def _spoiler_has_math(el):
     # — and it is the ONE part of a nestable spoiler that is not a child element.
     if has_math_delimiters(el.label):
         return True
-    children = el.resolved_children()
-    if not children:
-        return has_math_delimiters(el.body)
-    return any(_element_has_math(c.content_object) for c in children)
+    if has_math_delimiters(el.body):
+        return True
+    return any(_element_has_math(c.content_object) for c in el.resolved_children())
 
 
 def _twocolumn_has_math(el):
