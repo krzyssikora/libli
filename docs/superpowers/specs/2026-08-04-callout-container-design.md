@@ -32,9 +32,10 @@ The code anticipated this work by name at `courses/builder.py:28`:
 > `PR2 (Callout as a container) must add its key to THIS set, to _CONTAINER_REGISTRY`
 > `and to payloads._CONTAINER_SLOT_KEY -- all three.`
 
-**That comment is incomplete and must not be treated as the change set.** Three
-further sites are model- or type-dispatched rather than registry-driven and each
-needs its own edit; they are enumerated in "Change set" below.
+**That comment is incomplete and must not be treated as the change set.** Six
+further sites are model- or type-dispatched rather than registry-driven — plus the
+author documentation — and each needs its own edit; they are enumerated in "Change
+set" below.
 
 ### Problem 2 — a spoiler's body becomes unreachable once it has children
 
@@ -96,6 +97,20 @@ Zero rows are category C (genuinely stranded, non-duplicate content). Because
 production has not yet taken the mat-pp cutover, the shapes *not* observed locally
 are the ones the predicate must still handle — see "Cleanup migration".
 
+### Callout nesting depth today
+
+Recursive walk of `courses_element.parent_id`:
+
+| DB | depth 1 | depth 2 | depth >= 3 |
+|---|---|---|---|
+| `libli` | 71 | 12 | **0** |
+| `libli_mat` | no callouts at all | — | — |
+
+This measures the blast radius of D3a below: today `callout` is not in
+`CONTAINER_TRANSFER_KEYS`, so clause 4 never fires for it and a callout is legally
+authorable at depth 4 — and `_add_menu.html:38` actively offers the unguarded Callout
+card at depth 3. **Zero such rows exist**, with two levels of headroom.
+
 ### Math already renders in callouts and table cells
 
 Rendered with a real session against `libli`. `.katex-error` counts DOM nodes
@@ -152,6 +167,24 @@ Rejected — *exempting callouts from the depth count*: needs a genuinely new ru
 `resolve_scope` **and** its transfer twin in `payloads.py`, which is precisely the
 pair where a divergence stays invisible until an import.
 
+### D3a — Arming clause 4 is a breaking change for archives; accepted on measurement
+
+Adding `"callout"` to `CONTAINER_TRANSFER_KEYS` makes
+`payloads.validate_nesting`'s clause 4 (`payloads.py:810-814`) **reject** a callout at
+depth 4 — a shape that is legal today. So the change is **not** purely additive:
+
+- an existing archive containing a depth-4 callout becomes unimportable;
+- `builder.duplicate_unit` round-trips through `build_export` -> `materialize_duplicate`
+  -> `_run_import`, so duplicating any unit containing one would 422.
+
+Editing and viewing are unaffected — `save_element` never re-runs `resolve_scope` on
+the update path, and export itself does not validate. Only import and duplicate break.
+
+**Accepted**, because the measurement above shows zero affected rows in either
+database and two levels of headroom. Pin the behaviour with a test asserting the
+import 422 for a hand-crafted depth-4-callout archive, so it is a decided outcome
+rather than an accident. Do **not** claim "old archives import unchanged".
+
 ### D4 — Callout-in-callout is allowed
 
 Falls out of the existing allowlist at no code cost and keeps every container
@@ -169,7 +202,7 @@ diverging for a release.
 
 Registry membership alone does **not** make a callout a working container. Four
 dispatch sites are hard-coded by model or type and each needs its own edit. Three of
-the four are JS/CSS-seam changes — exactly the class of defect PR #209 shipped
+the eight are JS/CSS-seam changes — exactly the class of defect PR #209 shipped
 because the diff contained no JS/CSS files.
 
 | # | Site | Why registry membership is not enough |
@@ -178,9 +211,10 @@ because the diff contained no JS/CSS files.
 | 2 | `courses/transfer/payloads.py` — `_CONTAINER_SLOT_KEY` + the single-slot constant | registry + a hard-coded `SpoilerElement.SLOT_ID` |
 | 3 | `courses/transfer/export.py` — `walk_unit_joins`'s inner `emit()` | explicit `isinstance` ladder; docstring says **"NOT registry-driven"** |
 | 4 | `templates/courses/manage/editor/_add_menu.html` | the Callout card is unguarded; clause 4 now applies to it |
-| 5 | `courses/static/courses/js/reveal.js` + `templates/courses/lesson_unit.html` | `scopeOf` and the pre-hide CSS both enumerate scopes literally |
+| 5 | `courses/static/courses/js/reveal.js` + `templates/courses/lesson_unit.html` + `core/static/core/css/app.css` | `scopeOf`, the pre-hide CSS and the `@media print` revert are **three** literal scope lists |
 | 6 | `courses/static/courses/js/math.js` | `renderInlineText` enumerates selectors literally |
 | 7 | `courses/static/courses/css/editor.css` | per-container editor-row rules are enumerated literally |
+| 8 | `docs/help/course-admin/content-editors{,.pl}.md` | states "Tabs, Columns, and Spoiler are the three container types" |
 
 ### 1 — builder registries
 
@@ -224,7 +258,11 @@ elif isinstance(obj, CalloutElement):
         yield from emit(child, join, CalloutElement.SLOT_ID)
 ```
 
-The export → import round-trip test is what falsifies its absence.
+`builder.duplicate_unit` (`courses/builder.py:326-351`) reuses `build_export` +
+`materialize_duplicate`, so the same missing arm **also silently drops callout children
+from every unit duplication** — a far more common author gesture than export. Pin both:
+the export → import round trip, and "duplicating a unit preserves a table nested in a
+callout".
 
 ### 4 — the palette card must be guarded
 
@@ -255,17 +293,35 @@ become legal callout children. Today:
   selectors, none matching `.callout__child`, so gated content is **fully visible
   before the click** either way.
 
-Add `.callout__children` to `scopeOf` (ahead of `.spoiler` for the same
-nearest-match reason) and a fourth pre-hide selector:
+Add `.callout__children` to `scopeOf` and a fourth pre-hide selector. (Placement
+within the selector list is cosmetic — `closest()` returns the nearest matching
+ancestor regardless of the order selectors appear in; do not attach meaning to it.)
 
 ```css
 .reveal-armed .callout__children > .callout__child:has(> [data-reveal-gate]) ~ .callout__child:not(.reveal-shown)
 ```
 
+**And a third list: the print revert.** `core/static/core/css/app.css:1001-1005`
+re-reveals gated content for printing, and enumerates only two scopes:
+
+```css
+@media print {
+  .reveal-armed .slide > .lesson-block:has(> .lesson-block__body > [data-reveal-gate]) ~ .lesson-block,
+  .reveal-armed [data-tab-panel] > .tabs__child:has(> [data-reveal-gate]) ~ .tabs__child {
+    display: revert !important;
+  }
+```
+
+Adding a fourth pre-hide selector **without** a matching print revert makes every
+post-gate sibling inside a callout `display:none` in print/PDF — permanent content loss
+in that output mode. Note it is already missing `.spoiler__children`, so #212 shipped
+this defect; fix both while here.
+
 `isGateWrapper` (`reveal.js:72-78`) needs no new branch — like `.tabs__child` and
 `.spoiler__child`, a `.callout__child` wraps its gate directly, so it takes the
 existing `:scope > [data-reveal-gate]` form. Extend
-`courses/tests/test_reveal_gate_render.py`'s three-way agreement check to four.
+`courses/tests/test_reveal_gate_render.py`'s agreement check to cover all four scopes
+across all **three** files.
 
 ### 6 — math.js must typeset the callout heading
 
@@ -276,12 +332,35 @@ PR #211's tab-label fix was two-sided: the label joined the has-math walk **and*
 
 Arming KaTeX off the heading without this leaves the heading showing raw `\(x^2\)` —
 "the math renders" ≠ "the reader sees math". Add `.callout__heading` to the selector
-list and pin it with an e2e assertion that a heading carrying `\(...\)` yields a
-`.katex` node inside `.callout__heading`.
+list.
+
+**But the selector alone is not enough.** `.callout__heading` is the house *eyebrow*:
+`font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase`
+(`courses.css:1581-1588`). KaTeX emits glyphs as ordinary inherited-style spans, so
+`text-transform` would uppercase every math letter (`\(x^2\)` → `X²`) and
+`letter-spacing` would pull glyph and rule positioning apart, at 0.75rem.
+`.spoiler__toggle` — the PR #211 precedent — carries none of those, so the precedent
+does **not** transfer. A required companion rule neutralises the eyebrow treatment
+inside typeset math:
+
+```css
+.callout__heading .katex { text-transform: none; letter-spacing: normal; font-size: 1rem; }
+```
+
+verified light+dark. And the e2e pin must assert the **rendered result**, not merely
+that a `.katex` node exists: the text content is not uppercased, and computed
+`text-transform`/`letter-spacing` on the `.katex` subtree are neutral. "A `.katex` node
+exists" is green under every one of these defects.
 
 ### 7 — editor.css
 
-The editor branch below emits `el-row--callout` / `el-row__callout` markup.
+The editor branch below emits an `<li class="el-row el-row--callout" data-element="…">`
+with an inner `.el-row__callout`. **The base `.el-row` class and `data-element` are
+mandatory**, mirroring `_element_row.html:147`: `editor.js` selects rows via
+`root.querySelectorAll(".el-row[data-element]")` (`:147`, and again at `:289`, `:296`,
+`:361`, `:384`, `:391`) for selection, alignment and the edit-slot lifecycle. A branch
+emitting only the modifier would silently drop the callout row out of every one of
+those handlers, with no server-side test noticing.
 `courses/static/courses/css/editor.css` has per-container rules only for the three
 existing containers (`:821` tabs, `:827` `.el-row--spoiler .el-row__spoiler`, `:884`
 two-column). Add the matching `.el-row--callout .el-row__callout` rule (mirroring the
@@ -348,6 +427,21 @@ continue to agree (now four-way, per change-set item 5).
 `courses/element_forms.py:224-230` — delete the `fields.pop("body", None)` guard from
 `SpoilerElementForm.__init__`. `CalloutElementForm` gains no equivalent guard.
 
+### Author documentation
+
+`docs/help/course-admin/content-editors.md` (and its `.pl` twin) ships author-facing
+statements this slice makes false, so they are part of the change set, not a follow-up:
+
+- `:123` — "Tabs, Columns, and Spoiler are the three container types." Now four.
+- `:130-133` — the nested add-menu "offers the non-container … Callout — plus, where
+  depth still allows it, the Tabs, Columns, and Spoiler container cards themselves."
+  Callout moves from the non-container list into the depth-guarded list.
+- `:95` — describes Callout purely as a leaf aside.
+
+State explicitly that a callout consumes a nesting level (D3), since that is the
+surprising part for an author who reads a callout as a frame. Check for a matching help
+screenshot. "Help doc updated, both languages" joins the Definition of done.
+
 ### Editor
 
 `templates/courses/manage/editor/_element_row.html` — a `calloutelement` branch
@@ -387,15 +481,41 @@ collapsing** — this is why `.callout__body > :first-child {margin-top:0}` and
   and the `:last-child` mirror, matching the existing body pair.
 - Separation when both render: `.callout__body + .callout__children { margin-top: var(--space-3) }`.
   Stated as a value, not as "unchanged height".
+- **Gap between adjacent children:**
+  `.callout__children > .callout__child + .callout__child { margin-top: var(--space-5) }`,
+  mirroring the tabs precedent at `courses.css:1471`
+  (`.el--tabs .tabs__child + .tabs__child`). Without it two margin-less children — the
+  primary use case, e.g. two tables, or a table then an image — abut with zero gap. The
+  spoiler gets away with having no such rule only because its children's own margins
+  collapse through; a padded callout gives no such guarantee.
+- **`.callout__child` must carry no `display` declaration.** `app.css:997` reads
+  `.lesson-block[hidden], .tabs__child[hidden] { display: none !important; }` — an
+  explicit guard so an author-facing `display` cannot beat `[hidden]`, which is how the
+  reveal cascade consumes a gate (`reveal.js:137` sets `gateWrap.hidden = true`).
+  `.spoiler__child` is absent from that guard only because it declares no `display`.
+  If a `display` (flex/grid — a tempting way to get the sibling gap above) is ever
+  added, `.callout__child[hidden]` MUST join the `app.css:997` guard.
 
 **Prose cap.** `.callout` is in the collapsed-TOC prose-cap allowlist at
 `max-width: 46rem` (`courses/static/courses/css/courses.css:959-975`), whose own
 comment names the hazard: *"a missed opt-out BREAKS layout (a squeezed table)"*. A
 table is deliberately absent from that allowlist at top level, but a table nested in a
 callout would inherit the cap and render narrower than the identical table outside
-one — in the primary use case driving this slice. **Scope the cap to `.callout__body`
-rather than `.callout`**, so prose stays capped and nested content does not. Pin with
-a computed-width e2e assertion in the `unit-tree-collapsed` state.
+one — in the primary use case driving this slice.
+
+Two facts make the naive fix wrong. (a) Adding a `.callout__body` selector is a
+**no-op**: `.callout__body` already carries `el--text` (`calloutelement.html:7`) and
+`html.unit-tree-collapsed [data-unit-shell] .el--text` is already in the allowlist at
+`courses.css:961`. The only load-bearing edit is to the `.callout` entry. (b) Simply
+**deleting** `.callout` would send the callout *frame* (border, tint, padding)
+full-shell-width in the collapsed state for all 83 existing prose-only callouts — a
+visible change to content that has nothing to do with nesting.
+
+**Chosen:** narrow the existing entry to
+`.callout:not(:has(> .callout__children))`, so a prose-only callout keeps today's cap
+byte-for-byte and only a callout that actually holds children un-caps. Blast radius on
+existing content is zero. Pin with a computed-width e2e assertion in the
+`unit-tree-collapsed` state, covering both a prose-only and a table-bearing callout.
 
 **Spoiler combined shape.** `core/static/core/css/app.css:986-993` gives
 `.spoiler__body` and `.spoiler > .spoiler__children` the same `padding-left` and 2px
@@ -403,16 +523,28 @@ left rule, but `.spoiler__body` additionally carries
 `margin: var(--space-3) 0 var(--space-1) var(--space-3)`. The two shapes were mutually
 exclusive until now, so nobody has seen them stacked: the both-present state D1
 creates renders **two rules at different left offsets with a vertical gap** — breaking
-the continuous-rule invariant PR #212 established. Required treatment:
+the continuous-rule invariant PR #212 established.
+
+**The requirement is an outcome, driven by measurement, not a fixed rule set:** in the
+body+children shape the two rules must share one `left` offset and show zero vertical
+gap, so they read as a single continuous line; the body-only shape keeps its current
+indent. Starting point:
 
 ```css
 .spoiler__body:has(+ .spoiler__children) { margin-left: 0; margin-bottom: 0; }
-.spoiler__body + .spoiler__children { margin-top: 0; }
+.spoiler__body + .spoiler__children > .spoiler__child:first-child > :first-child { margin-top: 0 }
 ```
 
-so the two rules align and abut into one continuous line. The body-only shape keeps
-its current indent. Pin with a computed-style e2e assertion that a body+children
-spoiler shows a single continuous rule (equal `left` offsets, no vertical gap).
+Note what does **not** work and why: `.spoiler > .spoiler__children` declares no margin
+and `reset.css` zeroes margins, so a `margin-top: 0` on the wrapper itself is inert.
+PR #212 deliberately made the wrapper *not* a flow-root so "the children's own margins
+keep collapsing through it" (`app.css:981-985`) — which means the gap is opened by the
+first child's own collapsed-through top margin, and only the deeper selector above
+closes it. This is exactly the treatment the callout side already specifies; the
+analogue was missing here.
+
+Pin with a computed-style e2e assertion on the outcome (equal `left`, zero vertical
+gap), not on the presence of particular declarations.
 
 Per-kind accent handling is untouched. `editor.css` gains the row rule per change-set
 item 7.
@@ -442,8 +574,9 @@ is deliberate and documented on both sides: `resolved_tabs()` runs the destructi
 `normalize_data` and skips children whose `tab_id` matches no slot, so export omits
 those on purpose while delete must not, or their concretes orphan. The existing
 `_ser_callout` / `_val_callout` / `_build_callout` trio keeps `kind`/`heading`/`body`
-unchanged, so old archives import unchanged and **no `FORMAT_VERSION` bump** is needed
-(additive, exactly as the spoiler-nesting slice was).
+unchanged, so no payload key changes and **no `FORMAT_VERSION` bump** is needed. This
+is *not* the same as "old archives import unchanged" — see D3a for the depth-4 callout
+break.
 
 **Import validation.** `payloads.py`'s `validate_nesting` is the transfer-side twin of
 `resolve_scope`: it walks the parent chain, reads a container's slot list via
@@ -479,11 +612,17 @@ only asserts a 200.
    with no explicit branch, and adding a fifth entry would be permanently unreachable
    dead code.
 
-`_callout_has_math` covers `heading`, `body`, and children, and self-guards with its
-own `isinstance` check (returning `False` for a non-match) purely for symmetry with
-its siblings — not because the fallback chain dispatches it. Including `heading`
-is only correct together with change-set item 6; arming KaTeX for a heading that
-`math.js` never visits produces raw LaTeX on screen.
+`_callout_has_math` covers `heading`, `body`, and children. **COLLECT + MUST
+RECURSE**, mirroring `_tabs_has_math` verbatim: each child is dispatched through
+`_element_has_math`, never through `has_math_delimiters` directly. That is the whole
+risk — `callout > tabs > table` and `callout > callout > text` are newly legal, and a
+non-recursive implementation that special-cases tables passes a depth-1 test while
+silently missing math two containers deep. Include the `join_row() is None` (transient)
+guard returning `False`, as its siblings do. It self-guards with its own `isinstance`
+check purely for symmetry — not because the fallback chain dispatches it.
+
+Including `heading` is only correct together with change-set item 6; arming KaTeX for a
+heading that `math.js` never visits produces raw LaTeX on screen.
 
 **Malformed / tampered data.** `CalloutElement.save()` already coerces an unknown
 `kind` to `example`. `resolved_children()` returns `[]` when the join row is
@@ -492,8 +631,16 @@ raising.
 
 ### Cleanup migration
 
-A `RunPython` data migration over `SpoilerElement` rows having both a non-empty `body`
-and at least one child.
+A `RunPython` data migration over **every** `SpoilerElement` row with a non-empty
+`body` — not only those that also have children.
+
+Why the wider filter: of the 14 bodied spoilers in `libli`, only 2 have children, so
+~12 carry a body and none. Those are harmless today, but the moment an author adds a
+child to one, an empty-ish body (`<p><br></p>`, `<div>&nbsp;</div>`) starts rendering
+as a blank paragraph above the children — the exact cosmetic defect category A exists
+to prevent, arriving *after* the migration has already run. Category A is safe to clear
+regardless of children, so restricting the filter buys nothing. Category B is evaluated
+only where children exist (it is defined against them).
 
 **Historical-model constraints.** `apps.get_model` returns models with fields but
 **no custom methods** — `join_row()` and `resolved_children()` do not exist there, and
@@ -568,16 +715,22 @@ passing test that survives deleting the code it guards is vacuous):
 | Spoiler edit form exposes `body` when children exist | restore `fields.pop("body", None)` |
 | Spoiler with math in its **body** and a math-free child arms KaTeX | restore `if not children: return has_math_delimiters(el.body)` |
 | Math in a table in a callout arms KaTeX | flatten `_callout_has_math` to `has_math_delimiters(obj.body)` |
+| Math **two containers deep** — `callout > tabs > table` — arms KaTeX | walk children with `has_math_delimiters` instead of `_element_has_math` |
 | Callout heading with `\(...\)` yields `.katex` in `.callout__heading` | remove `.callout__heading` from `math.js` |
 | Callout accepts a table child; `callout > callout` authorable | drop `CalloutElement` from `_CONTAINER_REGISTRY` |
 | Table in a callout round-trips export → import | drop the `emit()` callout arm |
 | Callout card absent from a depth-3 add-menu | drop the `{% if depth < max_nest_depth\|add:-1 %}` guard |
 | Gate in a callout cascades and is pre-hidden | drop `.callout__children` from `scopeOf` / the 4th pre-hide selector |
 | Stateful child in a callout gets its blob + save URL | pass `state=` instead of `element_state=` |
-| Import validates callout slot via the shared constant | change one model's `SLOT_ID` and assert the other follows |
+| Import validates callout slot via the shared constant | assert `CalloutElement.SLOT_ID is SpoilerElement.SLOT_ID` (both `is SINGLE_SLOT_ID`) — a construction test, **not** a value-change experiment: `"only"` is a stored `Element.tab_id` value on every existing nested-spoiler child and must never change |
 | `spoiler > tabs > callout > table` authorable; `spoiler > tabs > spoiler > callout` rejected | flip a depth clause comparison |
 | Registry drift test passes with callout in all of them | add callout to two of the three |
+| Import of a hand-crafted depth-4-callout archive 422s (D3a, decided break) | drop `"callout"` from `CONTAINER_TRANSFER_KEYS` |
+| Duplicating a unit preserves a table nested in a callout | drop the `emit()` callout arm |
+| Gated content inside a callout is visible in print | omit the `@media print` revert selector |
+| Callout heading math is not uppercased or letter-spaced | drop the `.callout__heading .katex` reset |
 | Migration: A, B and C rows — **C preserved** | broaden the predicate to clear C |
+| Migration clears an empty-ish body on a **childless** spoiler | narrow the row filter to body+children |
 | Migration A predicate: `<p><br></p>`, `<div>&nbsp;</div>`, decoded-nbsp | narrow the predicate to a bare `<br>` |
 
 Also extend `courses/tests/test_render_seam.py`'s `CONCRETES` list — described in-file
@@ -585,19 +738,41 @@ as "Every concrete `render()` the generic branch can reach" — with `CalloutEle
 **and** `SpoilerElement`, both currently absent, so the new override is covered by the
 signature guard that exists for exactly this failure mode.
 
+**`CONCRETES` parametrizes two tests, not one**: `test_render_accepts_the_state_kwargs`
+(`:39`) and `test_lesson_renders_200_with_each_concrete` (`:178`), the latter crossed
+with `placement ∈ {top, tabs, twocolumn}` (`:180`). Add `"callout"` (and `"spoiler"`) to
+that `placement` list. That single parametrize renders **every** concrete inside a
+callout for free, and is the mechanical backbone of the client-enhancer audit above —
+the prose audit then only has to cover what a 200-check cannot: computed style and
+cascade behaviour.
+
 The cap-agreement trap from #209 applies here too — never monkeypatch a constant to
 its real value; the test goes vacuous while still passing.
 
 **Comment updates are part of the change set** (`comments-can-fail-tests`: at least
-one test in this repo regexes raw source including comments). The change falsifies
-`_add_menu.html:16-17` ("Callout is a plain LEAF in this slice and stays unguarded"),
-`payloads.py:750-752` ("the only valid id is `SpoilerElement.SLOT_ID`"),
-`builder.py:27-30` (the PR2 to-do, now done), and `_spoiler_has_math`'s docstring
-("A nested spoiler has an empty body").
+one test in this repo regexes raw source including comments). At minimum these ten
+sites become false:
+
+| Site | False claim |
+|---|---|
+| `_add_menu.html:16-17` | "Callout is a plain LEAF in this slice and stays unguarded" |
+| `payloads.py:750-752` | "the only valid id is `SpoilerElement.SLOT_ID`" |
+| `builder.py:27-30` | the PR2 to-do — now done |
+| `_spoiler_has_math` docstring | "A nested spoiler has an empty body" |
+| `models.py:399-401` | `SpoilerElement` expands "**either** legacy rich-text `body` **OR** … child elements" — now both |
+| `spoilerelement.html:8-24` | the block comment describing the two shapes as mutually exclusive |
+| `app.css:978-985` | "Two shapes get the SAME treatment"; "total height is unchanged — measured 154px" |
+| `export.py:560-562` | "tabs, two_column, spoiler" |
+| `export.py:660-663` | "A parent is always a CONTAINER element (tabs, two_column, or spoiler)" |
+| `reveal.js:41-50` | the `scopeOf` comment enumerating three scopes |
+
+Not a closed list: grep for the three-container enumeration
+(`rg -n "tabs.*two_column.*spoiler|Tabs, Columns,? and Spoiler"`) and update every hit.
 
 **Definition of done:** full non-e2e suite green serial, e2e green, `ruff` clean,
 `makemigrations --check --dry-run` clean (the CI guard added in #204), `.po` catalogs
-zero-fuzzy with the three changed/new msgids translated.
+zero-fuzzy with the three changed/new msgids translated, and
+`docs/help/course-admin/content-editors{,.pl}.md` updated per "Author documentation".
 
 ## Out of scope
 
@@ -614,10 +789,11 @@ zero-fuzzy with the three changed/new msgids translated.
 - **The duplicate-render hazard is the sharp edge.** Shipping D1 without the cleanup
   migration silently doubles content on any body+children row. The migration and the
   template change must land together.
-- **Three of the seven change-set items are JS/CSS.** They are invisible to any test
+- **Three of the eight change-set items are JS/CSS.** They are invisible to any test
   that asserts only server-rendered HTML, and they are the exact class PR #209 shipped
   broken. e2e coverage for them is mandatory, not preferred.
 - **A `has_math` miss is silent.** No error, no bad status code — just unrendered math.
 - A callout consuming a nesting level (D3) may surprise an author who thinks of it as
-  a frame rather than a container. Accepted; the help documentation should say so.
+  a frame rather than a container. Accepted, and the help doc rewrite below is the
+  mitigation — not an optional nicety.
 - Three msgids change; the Polish fuzzy-prefill trap needs a native-speaker check.
