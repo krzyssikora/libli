@@ -29,6 +29,7 @@
 - **Slots are read with the NON-DESTRUCTIVE normalizer** from `_CONTAINER_REGISTRY`, always via `normalizer(getattr(obj, "data", None))[list_key]`. `SpoilerElement` has no `data` field at all and the argument is evaluated before the normalizer runs, so `obj.data` is an `AttributeError` — a 500 — on every unit containing a spoiler.
 - **`request.session["element_clip"]` stores both pks as `int`**, coerced on write; the view stringifies on the way out (`str(clip["element"])`) because the template compares with `el.pk|stringformat:'s'`.
 - **PR2 adds no JavaScript.** PR1 already shipped the `data-force-open` stamp and the `applyStoredTabs` skip that PR2's force-open depends on.
+- **Callout is a CONTAINER as of PR #214** (merged into master `bdcdb876`, which this branch is rebased onto): `_CONTAINER_REGISTRY` has FOUR entries and `CONTAINER_TRANSFER_KEYS` is `{tabs, two_column, spoiler, callout}`. Callout is single-slot like a spoiler (`CalloutElement.SLOT_ID`), so its cap is `None` and, being a container, `cap(n) = 3`. Any step here that rewrites the registry block must carry all four entries.
 - **`reorder_element` is not touched.** Its "cross-scope move is impossible by construction" guarantee stays exactly as written.
 - **Every line number in this plan is as of master (`e7535af0`) and WILL drift as the plan executes.** Task 2 alone doubles the `_CONTAINER_REGISTRY` block and Tasks 3, 5 and 6 add several hundred lines above `_copy_below`, so by Task 7 the anchors quoted for `courses/builder.py` are simply wrong as numbers. **Locate every insertion point by symbol name** — `resolve_scope`, `_copy_below`, `delete_node`, `_render_editor_fragments`, `_editor_page`, `element_duplicate` — and treat the numbers as a hint about which of several similar-looking places is meant. Report any drift you find rather than editing at the stated line.
 
@@ -119,6 +120,7 @@ def test_container_registry_carries_a_slot_cap():
     """Clause 1's truncation check needs each container's MAX. A registry entry
     without one forces an ad-hoc getattr(type(obj), "MAX_TABS", ...) inside
     paste_allowed -- a second copy of container knowledge outside the registry."""
+    from courses.models import CalloutElement
     from courses.models import SpoilerElement
     from courses.models import TabsElement
     from courses.models import TwoColumnElement
@@ -134,6 +136,9 @@ def test_container_registry_carries_a_slot_cap():
     # `None` is what makes paste_allowed SKIP the position check rather than
     # apply it with a bound that happens to work.
     assert reg[SpoilerElement][3] is None
+    # Callout became a container in PR #214 and is the second fixed-slot one.
+    assert reg[CalloutElement][3] is None
+    assert len(reg) == 4
 
 
 def test_container_keys_agree_by_key_not_by_count():
@@ -207,6 +212,15 @@ _CONTAINER_REGISTRY = {
         "id",
         None,
     ),
+    # Single-slot, like SpoilerElement -- added by PR #214, which made Callout a
+    # container. Keep this entry: rewriting the block without it silently
+    # un-registers a live container.
+    CalloutElement: (
+        lambda _data: {"slots": [{"id": CalloutElement.SLOT_ID}]},
+        "slots",
+        "id",
+        None,
+    ),
 }
 ```
 
@@ -242,19 +256,19 @@ Expected: all PASS, including the two new ones.
 
 - [ ] **Step 7: Falsify the strengthened drift test**
 
-The mutation has to keep the registry's **length** at 3, or the old assertion fails too and proves nothing. So *substitute* rather than add: temporarily replace the `SpoilerElement` entry in `_CONTAINER_REGISTRY` with a `CalloutElement` one — `callout` is a real transfer key (`courses/transfer/export.py:378`) that is deliberately absent from `CONTAINER_TRANSFER_KEYS`:
+The mutation has to keep the registry's **length** unchanged, or the old length assertion fails too and proves nothing. So *substitute* rather than add: temporarily replace the `SpoilerElement` entry in `_CONTAINER_REGISTRY` with one keyed on a model whose transfer key is NOT in `CONTAINER_TRANSFER_KEYS`. Since PR #214 every registered container's key IS in that set, so pick any non-container nestable model — `TableElement` (transfer key `table`) works:
 
 ```python
-    # TEMPORARY MUTATION — replaces the SpoilerElement entry, keeping len() at 3
-    CalloutElement: (lambda _data: {"slots": [{"id": "c"}]}, "slots", "id", None),
+    # TEMPORARY MUTATION — replaces the SpoilerElement entry, keeping len() at 4
+    TableElement: (lambda _data: {"slots": [{"id": "x"}]}, "slots", "id", None),
 ```
 
-(add `from courses.models import CalloutElement` for the moment, and comment out the `SpoilerElement` entry).
+(add `from courses.models import TableElement` for the moment, and comment out the `SpoilerElement` entry).
 
 Run: `uv run pytest courses/tests/test_nesting_rule.py -v`
 Expected, and record all three in your report:
-- `test_container_keys_agree_by_key_not_by_count` **FAILS** — `{tabs, two_column, callout} != {tabs, two_column, spoiler}`.
-- The old length assertion inside `test_container_key_spaces_do_not_drift` (`:286`) **still passes** — 3 == 3. That contrast is the entire justification for the new test.
+- `test_container_keys_agree_by_key_not_by_count` **FAILS** — the registry now yields `table` where `CONTAINER_TRANSFER_KEYS` has `spoiler`.
+- The old length assertion inside `test_container_key_spaces_do_not_drift` **still passes** — 4 == 4. That contrast is the entire justification for the new test.
 - `test_container_registry_carries_a_slot_cap` — the test you just wrote — raises `KeyError: SpoilerElement` on its `reg[SpoilerElement][3] is None` line, and the file's other spoiler-scope tests fail too, because the mutation genuinely unregisters the spoiler container. All of that is expected noise, not a signal: the two assertions above are the result.
 
 Revert the entry, the comment-out and the import, and confirm `git diff` shows no trace.
@@ -587,21 +601,30 @@ def test_a_dangling_gfk_root_is_refused_below_but_allowed_at_top_level():
     assert builder.paste_allowed(unit, broken, None, "", "move") == (True, None)
 
 
-def test_a_callout_is_a_leaf_here_not_a_container():
-    """Guards Task 2's registry edit against a stray fourth entry: callout is in
-    NESTABLE_TYPE_KEYS but NOT in CONTAINER_TRANSFER_KEYS, so it may be pasted
-    INTO a slot and may not BE one."""
+def test_a_callout_is_a_fixed_slot_container():
+    """PR #214 made Callout the FOURTH container, with one fixed slot like a
+    spoiler. So it is both a legal destination (via its SLOT_ID) and a legal
+    subject, and -- being a container -- its cap is 3, not 4.
+
+    This test is what catches a registry edit that drops the Callout entry while
+    rewriting the block for the slot cap.
+    """
     _course, unit = make_course_with_unit()
     dest = Element.objects.create(
         unit=unit, content_object=CalloutElement.objects.create(body="<p>c</p>")
     )
     leaf = _text(unit)
 
+    # A legal destination through its fixed slot, and only through that slot.
+    assert builder.paste_allowed(
+        unit, leaf, dest, CalloutElement.SLOT_ID, "move"
+    ) == (True, None)
     assert builder.paste_allowed(unit, leaf, dest, "x", "move") == (
         False,
-        "not_a_container",
+        "unknown_slot",
     )
 
+    # And a legal subject: `callout` is in NESTABLE_TYPE_KEYS.
     tabs_join, slots = _tabs(unit)
     callout_join = Element.objects.create(
         unit=unit, content_object=CalloutElement.objects.create(body="<p>c</p>")
@@ -610,6 +633,9 @@ def test_a_callout_is_a_leaf_here_not_a_container():
         True,
         None,
     )
+    # Its cap is a container's: at dest_depth 3 an empty callout still fits (3 <= 3),
+    # but one holding a container does not.
+    assert builder._slot_cap(callout_join) == builder.MAX_NEST_DEPTH - 1
 
 
 def test_subtree_facts_reports_the_pks_and_the_headroom():
@@ -1063,6 +1089,22 @@ def test_a_spoiler_nested_in_a_tab_contributes_its_single_slot():
     assert (sp, SpoilerElement.SLOT_ID, 3) in pairs
 
 
+def test_a_callout_contributes_its_fixed_slot():
+    """Callout became a container in PR #214. The enumerator walks the registry, so
+    it needs no callout-specific code -- but nothing else in this file would notice
+    if the registry entry were dropped while rewriting the block for the slot cap."""
+    _course, unit = make_course_with_unit()
+    from courses.models import CalloutElement
+
+    join = Element.objects.create(
+        unit=unit, content_object=CalloutElement.objects.create(body="<p>c</p>")
+    )
+
+    pairs, _map = builder.enumerate_slots(unit)
+
+    assert (join, CalloutElement.SLOT_ID, 2) in pairs
+
+
 def test_a_two_column_element_contributes_both_columns():
     _course, unit = make_course_with_unit()
     obj = TwoColumnElement.objects.create(data=TwoColumnElement.default_data())
@@ -1256,7 +1298,7 @@ def enumerate_slots(unit):
 - [ ] **Step 4: Run the tests to verify they pass**
 
 Run: `uv run pytest tests/test_enumerate_slots.py -v`
-Expected: all **9** PASS. If the query-count test reports a different number, do **not** simply edit the expected count to match: first confirm from the captured queries that the extra ones are per-content-type and not per-join, and say so in your report.
+Expected: all **10** PASS. If the query-count test reports a different number, do **not** simply edit the expected count to match: first confirm from the captured queries that the extra ones are per-content-type and not per-join, and say so in your report.
 
 - [ ] **Step 5: Falsify the three traps**
 
@@ -2082,13 +2124,13 @@ Expected: all **23** PASS (22 test functions, one parametrised over two modes).
 Apply, run, confirm RED, revert. "The source group is compacted" and "the destination keeps distinct orders" are both true of an implementation that never moves anything, so these mutations are what make them mean something.
 
 1. Delete step 2's `el.save(update_fields=["parent", "tab_id"])` in `_move_into`.
-   Expected RED — **five** tests, because an unpersisted scope leaves the row in its old group and every one of these re-reads it from the DB: `test_a_move_reparents_the_root_and_persists_the_scope`, `test_a_move_compacts_the_source_group_and_appends_to_the_destination` (the moved row never leaves the source list), `test_a_move_whose_old_order_equals_its_new_index_is_still_persisted`, `test_a_move_into_a_third_column_lands_there` and `test_a_move_into_a_spoiler_uses_its_fixed_slot`.
+   Expected RED — **seven** tests, because an unpersisted scope leaves the row in its old group and every one of these re-reads it from the DB: `test_a_move_reparents_the_root_and_persists_the_scope`, `test_a_move_compacts_the_source_group_and_appends_to_the_destination` (the moved row never leaves the source list), `test_a_move_whose_old_order_equals_its_new_index_is_still_persisted`, `test_a_move_into_a_third_column_lands_there`, `test_a_move_into_a_spoiler_uses_its_fixed_slot`, `test_a_healthy_move_out_of_a_container_to_top_level` and `test_a_move_between_two_slots_of_one_container`.
    Still GREEN: `test_a_move_carries_its_whole_subtree_without_touching_the_children` and `test_a_move_keeps_the_elements_pk_so_student_state_follows_it`, neither of which looks at the moved row's own scope.
 2. In `_move_into`, compact the DESTINATION group instead of the captured source one — `ordering.compact_elements(unit, parent=dest_parent, tab_id=tab_id)`.
-   Expected RED: `test_a_move_compacts_the_source_group_and_appends_to_the_destination`, on the source orders — the hole the moved row left is never closed.
+   Expected RED — three tests, each asserting a vacated group is compacted: `test_a_move_compacts_the_source_group_and_appends_to_the_destination`, `test_a_healthy_move_out_of_a_container_to_top_level` and `test_a_move_between_two_slots_of_one_container` (whose own docstrings name this same mutant).
    (Do **not** try "swap steps 3 and 4" as a mutation: `place_element` works on the destination group and `compact_elements` on the captured source group, and clause 5 guarantees those are disjoint for a move, so the two calls commute and nothing reds. Only the capture in step 1 and the save in step 2 are order-critical.)
 3. Read `old_parent, old_tab` *after* the mutation instead of before.
-   Expected: the same test FAILS — the source group keeps a hole.
+   Expected RED: the same three tests as mutation 2 — the source group keeps a hole in each.
 4. Delete `new_join.save(update_fields=["parent", "tab_id"])` in `_copy_into`.
    Expected: `test_a_copy_leaves_the_grafted_root_in_the_destination_not_at_top_level` FAILS.
 5. Change `if problems:` to `pass`.
@@ -2424,7 +2466,7 @@ Expected: all **12** PASS.
 
 Store the raw POST value instead: `request.session[CLIP_SESSION_KEY] = {"unit": unit.pk, "element": request.POST.get("element")}`.
 Run: `uv run pytest tests/test_element_clip_view.py -v`
-Expected: `test_both_pks_are_stored_as_ints` FAILS **and** `test_selecting_the_marked_element_again_clears_it` FAILS — the toggle stops working, which is the user-visible half of the same defect. Revert.
+Expected RED — **four** tests. The two that name the defect: `test_both_pks_are_stored_as_ints`, and `test_selecting_the_marked_element_again_clears_it` (the toggle stops working — the user-visible half). Plus two that red as collateral, because they compare the stored dict against int pks: `test_select_marks_the_element_and_returns_both_fragments` and `test_selecting_a_second_element_replaces_the_mark`. Revert.
 
 - [ ] **Step 7: Commit**
 
@@ -2773,19 +2815,20 @@ def test_an_unmarked_render_never_walks_the_unit(client, monkeypatch):
 def test_a_marked_render_does_not_walk_parents_per_slot(
     client, django_assert_max_num_queries
 ):
-    """The other half of the cost guarantee. `enumerate_slots` does NOT
-    `select_related("parent")`, so if `_clip_context` ever stops passing
-    `dest_depth=` , `paste_allowed` falls back to `element_depth(dest_parent)` and
-    walks `.parent` lazily -- up to three extra queries per slot per mode, on every
-    editor response while a mark is pending.
+    """An order-of-magnitude tripwire on the marked render, and nothing more.
 
-    The ceiling below is deliberately generous: this test exists to catch an order
-    -of-magnitude regression, not to pin an exact number. If it fails, read the
-    captured queries and check whether the extras are per-slot `parent` fetches
-    before touching the bound.
+    MEASURED BASELINE: this exact fixture costs 27 queries on master with no
+    clipboard feature at all. A correct marked render adds _clip_context's cost --
+    the `marked` lookup, enumerate_slots (1 for the joins plus 1 per distinct
+    content type) and one GFK for _slot_cap(marked) -- landing around 32. The
+    ceiling is set well above that so unrelated query churn elsewhere in the
+    editor render does not red it.
 
-    Mutant: drop `dest_depth=dest_depth` from `_clip_context`'s paste_allowed call
-    -> RED.
+    HONEST LIMITATION: dropping `dest_depth=` is NOT detectable here. `pairs`
+    hands the same join instances to every call and Django caches a resolved FK on
+    the instance, so the element_depth fallback costs about three queries in total
+    for this tree -- 32 vs 35, which no sane ceiling separates. That guarantee is
+    pinned by the next test instead, which fails outright if the fallback is taken.
     """
     course, unit = _seed(client)
     outer, oslots = _tabs(unit)
@@ -2797,12 +2840,42 @@ def test_a_marked_render_does_not_walk_parents_per_slot(
 
     # max, not exact: this catches an order-of-magnitude regression, and an exact
     # count would break on any unrelated query added elsewhere in the editor render.
-    with django_assert_max_num_queries(30):
+    with django_assert_max_num_queries(45):
         client.get(
             reverse(
                 "courses:manage_editor", kwargs={"slug": course.slug, "pk": unit.pk}
             )
         )
+
+
+def test_a_marked_render_never_falls_back_to_walking_parents(client, monkeypatch):
+    """The real guard on `dest_depth=`. A query-count bound cannot separate the
+    fallback's handful of extra queries from noise, so forbid the call outright:
+    _clip_context passes dest_depth for every slot, therefore element_depth must
+    never run during a marked render.
+
+    Mutant: drop `dest_depth=dest_depth` from _clip_context's paste_allowed call
+    -> RED with the RuntimeError below.
+    """
+    from courses import builder as builder_mod
+
+    course, unit = _seed(client)
+    outer, oslots = _tabs(unit)
+    _tabs(unit, parent=outer, tab=oslots[0])
+    subject = _text(unit)
+    unit.refresh_from_db()
+    _mark(client, course, unit, subject)
+
+    def _boom(_join):
+        raise RuntimeError("paste_allowed must receive dest_depth from the render")
+
+    monkeypatch.setattr(builder_mod, "element_depth", _boom)
+
+    resp = client.get(
+        reverse("courses:manage_editor", kwargs={"slug": course.slug, "pk": unit.pk})
+    )
+
+    assert resp.status_code == 200
 
 
 def test_a_paste_into_a_column_works_end_to_end(client):
@@ -3037,7 +3110,7 @@ def _refused(request, unit, reason_key):
 - [ ] **Step 7: Run the tests to verify they pass**
 
 Run: `uv run pytest tests/test_element_paste_view.py -v`
-Expected: all **18** PASS.
+Expected: all **18** PASS (17 from Step 1 plus the parent-walk guard added beside the query tripwire).
 
 - [ ] **Step 8: Confirm the unmarked render still costs nothing extra**
 
@@ -3076,7 +3149,7 @@ A small inclusion tag, invoked at the four slot sites. The template never re-der
 - Test: `tests/test_editor_clip_templates.py`
 
 **Interfaces:**
-- Consumes: `move_slots` / `copy_slots` / `clip_active` from the context (Task 9), `builder.slot_key`.
+- Consumes: `move_slots` / `copy_slots` from the context (Task 9), and `builder.slot_key`. NOT `clip_active` — the empty sets already make the tag a no-op when nothing is marked; `clip_active` belongs to the next task's `<details>` conditions and banner.
 - Produces: the author-facing paste controls. `editor.js:289` intercepts any `form[data-op]`, so no JavaScript.
 
 **The tag is invoked at the four include sites, not inside `_add_menu.html`.** Four edits rather than one, bought deliberately: the three nested add-menu includes sit behind `{% if depth < max_nest_depth %}`, so putting the buttons inside the menu would silently inherit that guard and make a slot unpasteable exactly where the menu is suppressed. Paste legality is `paste_allowed`'s business alone. **The tag call therefore goes OUTSIDE that guard**, on the same line. The consequence is that the buttons can render with no `.addwrap` beside them, so Task 12's CSS must define a standalone appearance as well as the grouped one.
@@ -3165,9 +3238,12 @@ def _slot_section(body, marker):
     would make every presence assertion fail against a correct implementation and,
     worse, every ABSENCE assertion pass regardless of what the tag emits.
 
-    LIMITATION: this stops at the FIRST `</details>`, so it truncates early for a
-    slot that itself holds a nested container. No fixture in this file does that;
-    if you add one, count opening tags rather than widening the window.
+    LIMITATION: this stops at the FIRST `</details>`, so it truncates early if
+    anchored on a slot that itself holds a nested container. One fixture here DOES
+    have such a slot -- the columns test nests a two-column element inside the
+    outer tabs' first slot -- and stays safe only because it anchors on
+    `data-column-id`, never on the enclosing `data-tab-id`. Never anchor on that
+    outer slot; if you must, count opening tags instead of widening the window.
     """
     at = body.index(marker)
     end = body.index("</details>", at)
@@ -3421,7 +3497,7 @@ def paste_buttons(context, parent="", tab=""):
       {% include "courses/manage/editor/_add_menu.html" with depth=0 %}{% paste_buttons %}
 ```
 
-`_element_row.html` already loads `courses_manage_extras`; confirm `_editor_scope.html` does too and add it to its `{% load %}` line if not.
+`_element_row.html` already loads `courses_manage_extras`. **`_editor_scope.html` does NOT** — its first line is `{% load i18n %}` — so change it to `{% load i18n courses_manage_extras %}`. Without that edit every editor render raises `TemplateSyntaxError: Invalid block tag 'paste_buttons'`.
 
 - [ ] **Step 6: Run the tests to verify they pass**
 
@@ -3548,7 +3624,10 @@ def test_the_banner_names_the_marked_element_inside_the_swapped_pane(client):
     body = resp.content.decode()
 
     assert 'id="clip-banner"' in body
-    assert body.index('id="clip-banner"') > body.index('data-scope="editor"')
+    # BRACKETED by the editor pane, not merely "after its opening tag": a banner
+    # rendered inside [data-scope="preview"] would also satisfy a bare > test.
+    assert body.index('data-scope="editor"') < body.index('id="clip-banner"')
+    assert body.index('id="clip-banner"') < body.index('data-scope="preview"')
     assert "My favourite paragraph" in body
     assert 'data-op="element-clip"' in body
     assert 'value="cancel"' in body
@@ -3629,7 +3708,7 @@ In the same file, add the `clip_active` disjunct to both `<details>` conditions.
       <details class="columns-rows" data-column-id="{{ column.id }}"{% if el.pk|slot_key:column.id|in_set:open_slots %} open data-force-open{% elif clip_active %} open data-force-open{% elif forloop.first %} open{% endif %}>
 ```
 
-`data-force-open` is stamped in the `clip_active` branch too, because PR1's `applyStoredTabs` skip is keyed on that attribute — without it the author's stored collapse re-collapses the destination immediately after the swap and hides the very paste button the mark exists to reach.
+`data-force-open` is stamped in the `clip_active` branch too, because PR1's `applyStoredTabs` skip is keyed on that attribute — without it the author's stored collapse re-collapses the destination immediately after the swap and hides the very paste button the mark exists to reach. **That reasoning covers the TABS branch only:** `applyStoredTabs` selects `details.tabs-rows` and `tabStoreKey` resolves through `.closest(".el-row--tabs")`, so a columns `<details>` is never stored or restored and the stamp there is inert. Keep it for symmetry, but do not infer a client-side dependency that does not exist.
 
 - [ ] **Step 6: Add the banner to the pane head**
 
@@ -3953,7 +4032,7 @@ Expected: PASS, with the summary line showing **1** test actually ran. `-m e2e` 
 - [ ] **Step 3: Falsify it — twice**
 
 1. Make `_clip_context` return its `empty` dict unconditionally.
-   Expected: FAIL at the paste step — no paste button exists to click.
+   Expected: FAIL at the `#clip-banner` visibility assertion — that is the first thing the mark drives, several steps before the paste. (Were it reached, the paste step would fail too: no button to click.)
 2. Restore that, then remove the `{% elif clip_active %} open data-force-open` branch from the tabs `<details>` condition.
    Expected: FAIL at the `to_have_attribute("open", "")` assertion — the stored collapse wins and the destination hides.
 
