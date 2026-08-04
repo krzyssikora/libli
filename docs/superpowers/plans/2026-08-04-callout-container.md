@@ -493,7 +493,11 @@ Expected: PASS.
 
 - [ ] **Step 5: Falsify the drift guard**
 
-Remove `"callout"` from `_CONTAINER_SLOT_KEY` only. Expected: `test_registries_agree_with_callout_added` RED. Revert.
+Remove `"callout"` from `_CONTAINER_SLOT_KEY` only. Expected:
+`courses/tests/test_nesting_rule.py::test_container_key_spaces_do_not_drift` (line 280)
+RED — that is the generic drift guard, which Step 4 already runs. The new
+`test_callout_is_in_the_container_key_space` only asserts membership in
+`CONTAINER_TRANSFER_KEYS` and stays green under this mutant, by design. Revert.
 
 - [ ] **Step 6: Commit**
 
@@ -742,9 +746,13 @@ Both are **silent** failures: no error, no bad status code, just raw LaTeX on th
 
 Append to `courses/tests/test_callout_has_math.py`. **Append the new test functions
 and only the four NEW model imports** (`SpoilerElement`, `TableElement`, `TabsElement`,
-`TextElement`) — the module already has its docstring, `import pytest`,
-`CalloutElement`, `Element`, `_element_has_math`, `make_course_with_unit` and
-`pytestmark = pytest.mark.django_db` at lines 1-15. Re-adding them is five ruff `F811`s
+`TextElement`) — lines 1-15 already carry `import pytest`, ten
+`from` imports (`CalloutElement`, `Element`, `_element_has_math`,
+`build_lesson_context`, `build_quiz_context`, `ContentNodeFactory`, `CourseFactory`,
+`make_course_with_unit`, `make_pa`, `make_verified_user`) and
+`pytestmark = pytest.mark.django_db`. There is **no** module docstring — line 1 is
+`import pytest` — so the docstring shown in the snippet below is new and would have to
+go above it, or be dropped. Re-adding them is five ruff `F811`s
 plus a stray string expression, and the Definition of done requires `ruff check` clean.
 The snippet below shows the full file header for orientation; do not paste it twice:
 
@@ -1915,10 +1923,12 @@ Then add both currently-absent concretes to `CONCRETES`:
 and, so both new ids are provably distinguishable from the fallthrough, assert the marker at the end of the test:
 
 ```python
+    # NB the existing local is `r` (see the pre-existing `assert r.status_code == 200`
+    # two lines above) -- there is no `resp` in this function.
     if placement == "callout":
-        assert "callout__children" in resp.content.decode()
+        assert "callout__children" in r.content.decode()
     if placement == "spoiler":
-        assert "spoiler__children" in resp.content.decode()
+        assert "spoiler__children" in r.content.decode()
 ```
 
 - [ ] **Step 3: Write the e2e**
