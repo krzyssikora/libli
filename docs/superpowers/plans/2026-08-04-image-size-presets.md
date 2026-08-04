@@ -16,7 +16,7 @@
 - **e2e tests need `-m e2e`** or they are silently deselected (exit 5). An exit-5 run is NOT a pass.
 - **`--verbosity=0`, never a second `-q`** — `addopts` already has `-q`; doubling it prints no verdict.
 - **Never run two pytest invocations at once** — test-DB contention across runs. Never background pytest or let a timeout kill it; an abandoned run makes the next die with `DuplicateDatabase`.
-- **The real content column is 880px desktop / 328px phone**, derived from the shell (`.unit-shell` 72rem − `.unit-tree` 14rem − `.lesson` padding 3rem). **Not** `.lesson`'s nominal 46rem — `.unit-shell__main > .lesson` overrides it to `max-width: none` at `courses.css:545-546`.
+- **The real content column is 880px desktop / 328px phone.** Desktop: `.unit-shell` 72rem − `.unit-tree` 14rem − `.lesson` padding 3rem (`1.5rem` each side) = 880. **Not** `.lesson`'s nominal 46rem — `.unit-shell__main > .lesson` overrides it to `max-width: none` at `courses.css:545-546`. Phone is a *different* rule set, not the same arithmetic: at `max-width: 640px` (`courses.css:833-837`) `.unit-shell` becomes `display: block` and `.unit-tree` `display: none`, and the lesson padding drops to `1rem` each side — so 360 − 32 = 328. (Subtracting 3rem from 360 would give 312 and is wrong.)
 - **Pinned e2e viewports:** desktop **1280x900**, phone **360x640**.
 - **Pinned fixtures:** tall **297x719**, wide **948x719** (both real images from unit 1095).
 - **Token-driven CSS** — no hardcoded colours; use existing custom properties. `core/static/core/css/app.css` is GLOBAL.
@@ -32,10 +32,18 @@
   (`test_question_restore.py`'s local `_image(course)` helper, `test_callout_nesting.py`'s local
   `_top_callout`). Shared *helpers* come from `tests.factories` — `make_course_with_unit`,
   `add_element`, `TEST_PASSWORD` — which import fine from anywhere.
-- **A `MediaAsset` of kind `image`** is built as
+- **A `MediaAsset` of kind `image`, in the unit tests (Tasks 1-5 only)**, is built as
   `MediaAsset.objects.create(course=course, kind="image", file="courses/media/x.png",
-  original_filename="x.png")` (the `test_question_restore.py:364-370` pattern). No real file is
-  needed — nothing in this slice reads the bytes.
+  original_filename="x.png")` (the `test_question_restore.py:364-370` pattern). No real file is needed
+  **there** — nothing in Tasks 1-5 reads the bytes, and the raw `create()` skips a Pillow round-trip.
+- **The e2e tasks (8 and 9) are the exception and need real bytes.** Every assertion there depends on
+  the browser loading a file whose intrinsic ratio is 0.413 / 1.319, so they use the house factory
+  `tests.factories.make_image_asset(course, filename, size=(w, h), color=…)` (`tests/factories.py:145`),
+  which writes a real PNG at a given size — **and** the `_isolated_media` fixture, which is mandatory
+  rather than hygienic: `live_server`'s `_MediaFilesHandler` reads `settings.MEDIA_ROOT` *per request*,
+  so pointing it at `tmp_path` before any asset exists is what makes `/media/<path>` resolve at all
+  (`tests/test_e2e_imagezoom.py:8-16, 56-69`). Without it the `<img>` 404s and collapses to the
+  broken-image box, and every measurement is meaningless.
 - **A nested element** is `Element.objects.create(unit=unit, content_object=obj, parent=<parent join>,
   tab_id=<Parent>.SLOT_ID)`; a top-level one is `add_element(unit, obj)` from `tests.factories`.
 - **`makemigrations --check --dry-run` must stay clean** (CI guards this since #204).
@@ -127,8 +135,18 @@ In `courses/models.py`, inside `class ImageElement(ElementBase):`, above the exi
         SMALL = "small", _("Small")
         MEDIUM = "medium", _("Medium")
         LARGE = "large", _("Large")
-        FULL = "full", _("Full")
+        # pgettext, not plain _: the bare msgid "Full" is ALREADY taken by the
+        # structure-preset label at courses/forms.py:166, and Django's catalog is keyed
+        # by msgid alone. Its Polish translation is "Pełna" (feminine, agreeing with the
+        # noun there); an image size wants the masculine "Pełny". Sharing the msgid means
+        # one of the two ships ungrammatical, and no test would see it. The context
+        # string forks the entry.
+        FULL = "full", pgettext_lazy("image size", "Full")
 ```
+
+Import it beside the existing `_`: `from django.utils.translation import pgettext_lazy` (one import
+per line — `force-single-line` is on). `SMALL`/`MEDIUM`/`LARGE` need no context; re-grep
+`locale/pl/LC_MESSAGES/django.po` for each before committing in case another lands first.
 
 and after the existing `figcaption` field:
 
@@ -297,6 +315,13 @@ In `templates/courses/manage/editor/_edit_image.html`, after the caption `<label
 ```
 
 - [ ] **Step 5: Add the template assertions**
+
+**These four assertions are deliberately not red-first**, unlike Step 1's form tests: they land after
+Step 4 has already added the control, because a rendering assertion written before the template exists
+fails on a missing radio rather than on the property under test, which is a weaker signal than it
+looks. The red signal for them is recovered in Step 8's falsify pass, which deletes the `checked`
+clause and the `default_if_none` filter and requires each to go RED. That is the trade, made on
+purpose — not an oversight.
 
 **There is no per-element edit PAGE in this app.** `courses:manage_element_edit` does not exist
 (`courses/urls.py` has `manage_element_form` / `_save` / `_add`, no `_edit`), so `reverse` would raise
@@ -628,15 +653,19 @@ class _Ids:
         return "m1"
 
 
-@pytest.fixture
-def image_media():
-    course, _unit = make_course_with_unit()
+def _media(course):
     return MediaAsset.objects.create(
         course=course,
         kind="image",
         file="courses/media/x.png",
         original_filename="x.png",
     )
+
+
+@pytest.fixture
+def image_media():
+    course, _unit = make_course_with_unit()
+    return _media(course)
 
 
 def _validate(data):
@@ -756,7 +785,37 @@ verification command never ran, so they would otherwise surface four tasks later
 Re-grep before editing (`grep -rn "FORMAT_VERSION == 6\|format_version\"\] == 6" tests courses`) in
 case another lands on `master` first; the line numbers are a convenience, the grep is the authority.
 
-- [ ] **Step 8: Run tests to verify they pass**
+- [ ] **Step 8: Pin that duplicate-and-paste now carries `size`**
+
+Task 1's preamble asserts as a *mechanism* that `duplicate_element` round-trips through
+`export.py` + `importer.py` and therefore starts preserving `size` the moment this task lands
+(`courses/builder.py:420-449` confirms it: `_copy_below(el, unit, _export, _importer, …)`). Nothing
+verifies it — the tests above drive the three registries directly, and Task 2's re-run of
+`tests/test_builder_duplicate_element.py` knows nothing about `size`. Close the loop:
+
+```python
+@pytest.mark.django_db
+def test_duplicating_an_image_preserves_its_preset():
+    """The hole Task 1 opened and this task closes, asserted rather than assumed."""
+    from courses import builder
+    from tests.factories import add_element
+
+    course, unit = make_course_with_unit()
+    el = ImageElement.objects.create(
+        media=_media(course), alt="a", figcaption="", size="small"
+    )
+    join = add_element(unit, el)
+    _unit, new_join = builder.duplicate_element(course, join.pk, unit.updated.isoformat())
+    assert new_join.content_object.size == "small"
+```
+
+It takes no `image_media` fixture: the asset must belong to the **same course as the unit**, so the
+test builds both together via the module's `_media(course)` helper. `unit.updated.isoformat()` is the
+conflict token `duplicate_element` checks.
+
+**Mutant:** drop `"size"` from `_ser_image`; confirm this goes RED alongside the round-trip cases.
+
+- [ ] **Step 9: Run tests to verify they pass**
 
 Run:
 
@@ -769,11 +828,11 @@ uv run pytest courses/tests/test_image_size_transfer.py tests/test_transfer_expo
 Expected: all pass. (Before Step 7 they do **not** — five assertions are red by construction. That is
 the point of Step 7, not a surprise.)
 
-- [ ] **Step 9: Falsify**
+- [ ] **Step 10: Falsify**
 
 Delete the `data.setdefault("size", "full")` line; confirm `test_archive_without_a_size_key_imports_as_full` goes RED — the observed error is **`KeyError: 'size'`** raised by the very next line (`if data["size"] not in …`), *not* an exact-keys `TransferError`, because that line runs before `_exact_keys` is reached. To see the exact-keys path instead, delete the `setdefault` **and** the whole junk-value block: then `_exact_keys` rejects the legacy payload with a `TransferError`. Restore. Delete only the junk-value coercion; confirm `test_archive_with_a_junk_size_imports_as_full` goes RED. Restore. Drop `"size"` from `_ser_image`; confirm the round-trip cases go RED. Restore, re-run, confirm all pass.
 
-- [ ] **Step 10: Lint and commit**
+- [ ] **Step 11: Lint and commit**
 
 ```bash
 uv run ruff check courses/transfer/export.py courses/transfer/payloads.py courses/transfer/importer.py courses/transfer/schema.py courses/tests/test_image_size_transfer.py
@@ -918,7 +977,22 @@ git commit -m "style(image): four bounding-box size presets"
 
 - [ ] **Step 1: Write the failing test**
 
-Extend `courses/tests/test_image_size_css.py` with a `_print_block(css)` helper that regex-extracts the `@media print` block **in isolation** (a file-wide scan passes while the print block is empty, because the selectors also appear in the screen rules), then asserts all four `mm` values inside it. Add a second test asserting the print block's start index is greater than the index of `.el--image--full img`.
+Extend `courses/tests/test_image_size_css.py` with a `_print_block(css)` helper that extracts the
+`@media print` block **in isolation** — a file-wide scan passes while the print block is empty,
+because the selectors also appear in the screen rules — then asserts all four `mm` values inside it.
+
+Two traps make the obvious one-line regex wrong, and both fail *silently* (the falsify step in Step 5
+would then pass for the wrong reason):
+
+- **`courses.css` already holds several `@media print` blocks** (`:822`, `:947`, `:1476`, `:1813`), so
+  "the" print block is ambiguous and a first-match regex picks the breadcrumbs one. Select **by
+  content**: the block whose body contains `.el--image--`. Assert exactly one such block exists.
+- **`@media` bodies contain nested rule braces**, so `@media print\s*\{[^}]*\}` truncates at the first
+  inner `}` — extracting only the `small` rule. Scan forward from the `@media print` match **counting
+  braces** to the matching close, and return `(block_text, start_index)`.
+
+The ordering test then asserts that `start_index` (of the selected block) is greater than the index of
+`.el--image--full img` in the comment-stripped source.
 
 - [ ] **Step 2: Run the test to verify it fails**
 
@@ -977,7 +1051,16 @@ git commit -m "style(image): print bounds for the size presets"
 
 - [ ] **Step 1: Write the failing test**
 
-Create `courses/tests/test_image_size_js.py` asserting the source of `editor.js` contains `data-size-preset` and `data-preview-el`, and that it does NOT contain a second `addEventListener("change"` bound to anything other than `root`. (A source scan is weak; the behaviour is pinned by Task 9's e2e.)
+Create `courses/tests/test_image_size_js.py`. Locate the file with the same
+`REPO = Path(__file__).resolve().parents[2]` pattern and explicit `encoding="utf-8"` Task 5 uses —
+a relative path breaks with the pytest invocation directory, and the Windows default encoding will
+mangle a non-ASCII byte.
+
+Assert: the source contains `data-size-preset` and `data-preview-el`; and
+`source.count('addEventListener("change"') == 1`. The count form is the concrete version of "no second
+change listener" — a source scan cannot inspect what an arbitrary listener is *bound to*, but it can
+insist there is still exactly one, which today is `root`'s at `editor.js:462`. (A source scan is weak;
+the behaviour is pinned by Task 9's e2e.)
 
 - [ ] **Step 2: Run the test to verify it fails**
 
@@ -1041,11 +1124,35 @@ git commit -m "feat(editor): live size preview without a save"
 
 **Interfaces:**
 - Consumes: everything from Tasks 1-6.
-- Produces: `_make_pa_user` / `_login` / `_lesson_url` helpers copied **verbatim** from `tests/test_e2e_depth3.py` (they close over `TEST_PASSWORD` and `make_verified_user`), reused by Task 9.
+- Produces, all copied **verbatim** from `tests/test_e2e_depth3.py` (they close over `TEST_PASSWORD`
+  and `make_verified_user`) and all reused by Task 9: `_make_pa_user`, `_login`, `_seed_unit`,
+  `_lesson_url`, `_editor_url`. Task 9 drives the **editor**, not just the lesson page, so
+  `_seed_unit` and `_editor_url` are part of this task's contract, not optional extras.
 
 **This is the load-bearing row.** The CSS source tests only prove a rule is *present*; only these measure what the browser computes.
 
-- [ ] **Step 1: Write the test**
+- [ ] **Step 1: Set up the media harness**
+
+Copy `_isolated_media` verbatim from `tests/test_e2e_imagezoom.py:56-69` — `autouse=True`,
+`(settings, tmp_path)`, assigning `settings.MEDIA_ROOT` — and make every seeding fixture depend on it
+so it is ordered **before** any asset is created. Seed the two assets with the house factory:
+
+```python
+tall = make_image_asset(course, "tall.png", size=(297, 719), color="magenta")
+wide = make_image_asset(course, "wide.png", size=(948, 719), color="magenta")
+```
+
+`color` is deliberately not the factory's default black — the same reason
+`tests/test_e2e_imagezoom.py` gives: black is indistinguishable from the near-black overlay scrim, so
+a later occlusion assertion could pass for the wrong reason.
+
+Then add the **harness guard** before any measurement, following
+`test_harness_serves_the_real_fixture_image`: assert each `<img>`'s `naturalWidth`/`naturalHeight`
+equal 297x719 / 948x719. A 404'd image reports 0x0, so this one assertion distinguishes "the preset is
+wrong" from "the fixture never loaded" — without it every box assertion below fails identically and
+uninformatively.
+
+- [ ] **Step 2: Write the test**
 
 Seed the lesson with **eight image elements — each of the two fixtures at each of the four presets**
 (spec: *"One tall + one wide per preset per viewport"*). Not two elements total: with only one image
@@ -1059,41 +1166,62 @@ Run the whole set at **1280x900** and again at **360x640**. For each image read
 per-combination table has to be maintained and no axis has to be guessed:
 
 ```
-cw   = container.getBoundingClientRect().width      # read at RUNTIME, never hardcoded
+container = fig.parentElement                  # div.lesson-block__body — see below
+cw   = parseFloat(getComputedStyle(container).width)   # CONTENT box, at RUNTIME
 vh   = viewport height
 wcap = cw * {small:.25, medium:.50, large:.75, full:1.0}
 hcap = vh * {small:.30, medium:.45, large:.60, full:1.00}
-h    = min(hcap, wcap / ratio)      # the binding axis falls out of the min()
+h    = min(hcap, wcap / ratio, img.naturalHeight)   # the binding axis falls out of the min()
 w    = h * ratio
 assert abs(rect.height - h) <= 1 and abs(rect.width - w) <= 1
 ```
 
-Read the container width **at runtime** — never hardcode 736 or 880 — so the test keeps testing the
-preset rather than re-encoding today's shell layout. (For orientation only, not as literals in the
-test: at 1280x900 the caps are 270/405/540/900px tall; at 360x640 they are 192/288/384/640px tall,
-which is what the spec pins.)
+**The intrinsic clamp is not decoration.** `max-width`/`max-height` only ever *shrink* — neither
+upscales — so a preset whose box is larger than the image renders it at its natural size. Of the
+sixteen (fixture × preset × viewport) combinations exactly one is decided this way: **desktop `full`
+with the tall fixture**, where wcap 880 and hcap 900 both exceed 297x719, so the browser renders
+297x719. Without `img.naturalHeight` in the `min()` the formula predicts 900px tall and the *correct*
+implementation fails by 181px — the shape of failure a hurried implementer "fixes" by widening the
+tolerance. Read `naturalWidth`/`naturalHeight` at runtime rather than restating 297/948, so the
+assertion cannot drift from the fixture.
 
-**Both fixtures are required.** For the tall image the height cap binds at every preset, so
-`max-width` is never exercised: shipping `small` as `35%` would not move a pixel. The wide fixture is
-the only one that binds on width.
+**Name the container, and measure its content box.** The `<figure>`'s containing block is
+`div.lesson-block__body` inside `section.lesson-block` (`templates/courses/_lesson_article.html:38-39`)
+— i.e. `fig.parentElement`, *not* `.lesson`. Two different mistakes are possible here and both are
+silent: (a) using `.lesson` measures the wrong element, and (b) `getBoundingClientRect().width` is the
+**border box** while a `max-width` percentage resolves against the containing block's **content box**.
+`.unit-shell__main > .lesson` carries `padding: 1.25rem 1.5rem` (`courses.css:545-546`), so `.lesson`'s
+rect is 928px at desktop against a real 880px column — 25% of the wrong number is 232px instead of
+220px, a 12px error that no tolerance would forgive and no reviewer would spot. `getComputedStyle`'s
+`width` is the content box; use it. Read it **at runtime** — never hardcode 736 or 880 — so the test
+keeps testing the preset rather than re-encoding today's shell layout. (For orientation only, not as
+literals in the test: at 1280x900 the caps are 270/405/540/900px tall; at 360x640 they are
+192/288/384/640px tall, which is what the spec pins.)
+
+**Both fixtures are required.** For the tall image the height cap binds at every preset except desktop
+`full` (where the intrinsic size does), so `max-width` is never exercised by it: shipping `small` as
+`35%` would not move a pixel. The wide fixture is the only one that binds on width.
 
 **On a phone `small` really is ~82px wide, and that is the intended behaviour.** The content column is
-328px at a 360px viewport, so the four percentage caps give **82 / 164 / 246 / 328px**; for the wide
-fixture the width cap binds at `small` and `medium`, producing an 82x62 thumbnail. The spec ships no
-phone breakpoint and no floor — the presets are uniform percentages at every viewport by design.
-Assert these phone widths explicitly (they fall out of the formula above; no extra literals needed),
-so the number is *recorded as decided* rather than silently encoded by whoever writes the test.
+328px at a 360px viewport, so the four percentage **caps** are **82 / 164 / 246 / 328px**. Those are
+caps, not measurements: only the **wide** fixture reaches them (its width cap binds at `small` and
+`medium`, producing an 82x62 thumbnail). For the **tall** fixture the height cap binds at all four
+phone presets, so its widths are *derived* — 79.3 / 118.9 / 158.6 / 264.3px — and asserting 82/164/246/328
+against it would be red by construction. Pin the cap figures to the wide fixture only; the tall
+fixture's numbers fall out of the same `min()` with no extra literals. The spec ships no phone
+breakpoint and no floor — the presets are uniform percentages at every viewport by design — so the
+82px thumbnail is *recorded as decided* rather than silently encoded by whoever writes the test.
 
-- [ ] **Step 2: Run it**
+- [ ] **Step 3: Run it**
 
 Run: `uv run pytest tests/test_e2e_image_size.py -m e2e --verbosity=0`
 Expected: pass. **An exit-5 deselection is a failure, not a pass** — report the verdict line verbatim.
 
-- [ ] **Step 3: Falsify**
+- [ ] **Step 4: Falsify**
 
-Change `.el--image--large img` to `max-height: 45dvh`; confirm the large cases go RED at both viewports. Restore. Change `.el--image--small` to `max-width: 35%`; confirm the **wide** fixture's small case goes RED (and note that the tall fixture stays green — that is why both exist). Restore, re-run, confirm pass.
+Change `.el--image--large img` to `max-height: 45dvh`; confirm the large cases go RED at both viewports. Restore. Change `.el--image--small` to `max-width: 35%`; confirm the **wide** fixture's small case goes RED (and note that the tall fixture stays green — that is why both exist). Restore. Point `_isolated_media` at a bogus path; confirm the harness guard goes RED with `naturalWidth == 0` **before** any box assertion reports — that is the guard earning its place. Restore, re-run, confirm pass.
 
-- [ ] **Step 4: Lint and commit**
+- [ ] **Step 5: Lint and commit**
 
 ```bash
 uv run ruff check tests/test_e2e_image_size.py
@@ -1114,9 +1242,19 @@ git commit -m "test(image): e2e bounding boxes for all four presets at two viewp
 
 - [ ] **Step 1: Add the figure-geometry tests**
 
-- **Figure centred (no caption):** for each capped preset, the `<figure>`'s own box has roughly equal left/right offsets inside `.lesson`. This is the ONLY coverage of the figure rule — the box tests in Task 8 check dimensions, not position, so they all pass with the figure rule deleted.
+- **Figure centred (no caption):** for each capped preset, the `<figure>`'s own box has roughly equal left/right offsets inside its containing block (`fig.parentElement`, i.e. `div.lesson-block__body` — the same element Task 8 measures, never `.lesson`). This is the ONLY coverage of the figure rule — the box tests in Task 8 check dimensions, not position, so they all pass with the figure rule deleted.
 - **Image centred under a LONG caption:** with a caption of ~200 characters (the corpus has 212/200/132-char captions), assert the image is centred within the now caption-widened figure. A short caption cannot exercise this.
-- **`full` geometry unchanged:** same box and offset as before the feature — the guard on the byte-identical promise for the 1013 untouched images.
+- **`full` geometry unchanged.** "Same as before the feature" is not something a single run can read —
+  there is no earlier state to compare against — so state the property as concrete post-conditions
+  instead. For a `full` image:
+  - the figure's rect width equals its containing block's content width (it did **not** shrink-wrap:
+    `full` is excluded from the `fit-content` group);
+  - the figure's left offset inside `fig.parentElement` is 0 (no `margin-inline: auto`);
+  - the image's own left offset inside the figure is 0 (`full` is excluded from the img
+    `display:block; margin-inline:auto` rule too), even with a long caption present.
+
+  Together these are exactly what "byte-identical for the 1013 untouched images" means in layout
+  terms, and each one goes RED if `full` is ever added to either capped-preset group.
 
 - [ ] **Step 2: Add the live-preview tests**
 
@@ -1124,6 +1262,28 @@ git commit -m "test(image): e2e bounding boxes for all four presets at two viewp
 - It still works **after a fragment swap**: save once, then change the preset again. This is the seam between a handler on `root` and one bound to a pane; invisible to any server-render test.
 
 Both scope to the **edit-an-existing-element** flow — on the create flow `data-for-element` is `""` and the preview is inertly a no-op.
+
+**The locator chain, since no existing helper covers "open an existing element's edit form".** The
+editor page is `_editor_url(live_server, course, unit)`; the rendered figure lives in the **preview**
+pane (`editor.html` mounts the student templates there), which is why the JS's unscoped
+`document.querySelector('.el--image[data-preview-el=…]')` finds it. Steps:
+
+1. `page.goto(_editor_url(...))`, then make sure the preview pane is on screen — the view toggle
+   (`editor.html:88`, `[data-view]` with modes editor / split / preview) must be `split` or `preview`,
+   not `editor`, or the figure is not rendered to measure.
+2. Open the element's form: click its row's edit control. `_element_row.html:62-63` gives two
+   equivalent triggers, both stamped `data-form-url="…manage_element_form…"` — the row label button
+   `button.el-select[data-element-id="<Element join pk>"]` is the stable one. **Note the pk**: this
+   editor-side attribute is the `Element` **join-row** pk, unlike `data-for-element` /
+   `data-preview-el`, which are `ImageElement` pks. Seed the element and keep both objects.
+3. `page.wait_for_selector("[data-edit-slot] form[data-op='element-save']")` — the form mounts into
+   `[data-edit-slot]` by fetch (`tests/test_e2e_editor_ws3.py:69` uses exactly this wait).
+4. Click a radio: `page.locator("[data-edit-slot] input[data-size-preset][value='small']").click()`.
+   Assert the preview figure gained `el--image--small` and lost `el--image--full`, **and** that no
+   save request fired (the element's stored `size` is unchanged when re-read from the DB).
+5. For the after-swap case, save with `_save_open_form(page)` (depth3's helper), wait for the row to
+   re-render, re-open the form per steps 2-3, and flip to a different preset. The assertion is the
+   same; only the preceding fragment swap differs.
 
 - [ ] **Step 3: Add the print and zoom tests**
 
@@ -1134,15 +1294,24 @@ Both scope to the **edit-an-existing-element** flow — on the create flow `data
   `mm * 96 / 25.4` → **45mm ≈ 170.1px, 75mm ≈ 283.5px, 110mm ≈ 415.7px, 170mm ≈ 642.5px**, tolerance
   1px. Also assert it is *not* the screen value for that preset, so a browser that ignored the print
   block could not pass by coincidence.
-- The zoom overlay shows the image unaffected by the preset.
+- **The zoom overlay is unaffected by the preset**, stated as a measurement rather than a mood. Open a
+  `small` image's overlay (the `[data-zoomable]` click path, dialog selector per
+  `tests/test_e2e_imagezoom.py`) and assert: (a) the overlay image's computed `max-height` is **not**
+  `30dvh`-derived — the preset classes live on the in-page `<figure>`, which is not an ancestor of the
+  overlay node, so they cannot reach it; and (b) the overlay image's rendered height is **greater than**
+  the in-page figure's height. (b) is the one that would catch a future refactor that moved the overlay
+  inside the figure, which (a) alone would not.
 - A nested image scales to its container — one case each for **spoiler, tabs, two-column and callout**.
 
   **Split the two axes; only width is container-relative.** `max-width` is a percentage of the
-  *containing block*, so the width assertion is `container.getBoundingClientRect().width * fraction`.
-  `max-height` is authored in `dvh`, which resolves against the **viewport** at every nesting depth —
-  so the height assertion stays `viewport height * dvh fraction`, exactly as at top level. A test
-  written as "scales to its container, not the page" on both axes asserts a false invariant and will
-  fail for the wrong reason.
+  *containing block*, so the width assertion is `parseFloat(getComputedStyle(fig.parentElement).width)
+  * fraction` — the **content box** of the figure's actual parent, for the same two reasons Task 8
+  spells out (border-box vs content-box, and these containers definitely carry padding, unlike
+  `.lesson-block__body`). `max-height` is authored in `dvh`, which resolves against the **viewport** at
+  every nesting depth — so the height assertion stays `viewport height * dvh fraction`, exactly as at
+  top level. A test written as "scales to its container, not the page" on both axes asserts a false
+  invariant and will fail for the wrong reason. The intrinsic clamp from Task 8 applies here too: use
+  the same `min(hcap, wcap / ratio, naturalHeight)`.
 
   **Two of the four containers hide their contents until acted on**, and a hidden box measures zero:
   a closed `<details>` hides via `content-visibility` (so `getBoundingClientRect()` returns zeros and
@@ -1183,19 +1352,40 @@ Describe the four presets as bounding boxes ("the image scales to fit inside a b
 uv run python manage.py makemessages -l pl -l en --no-obsolete
 ```
 
-Then inspect: `grep -c '#, fuzzy'` and `grep -c '^#~'` must both be **0** in both `.po` files. `makemessages` fuzzy-prefills WRONG translations on this repo — clearing one is TWO deletions (the flag line and the bogus `msgstr`).
+Then inspect both catalogs by path:
+
+```bash
+grep -c '#, fuzzy' locale/pl/LC_MESSAGES/django.po locale/en/LC_MESSAGES/django.po
+grep -c '^#~'      locale/pl/LC_MESSAGES/django.po locale/en/LC_MESSAGES/django.po
+```
+
+Every count must be **0**. `makemessages` fuzzy-prefills WRONG translations on this repo — clearing one is TWO deletions (the flag line and the bogus `msgstr`).
 
 - [ ] **Step 3: Write the five Polish translations**
 
 Clearing a fuzzy flag leaves an **empty** `msgstr`, which passes both greps above and compiles
-without complaint — and ships English to Polish readers. This slice introduces exactly five msgids:
-`"Size"`, `"Small"`, `"Medium"`, `"Large"`, `"Full"`. Fill each in
-`locale/pl/LC_MESSAGES/django.po` (`Rozmiar`, `Mały`, `Średni`, `Duży`, `Pełny` — check the
-surrounding entries and match their register; the four size labels describe an image, so keep the
-masculine form agreeing with *obraz*).
+without complaint — and ships English to Polish readers. This slice adds five catalog entries, of
+which **four are new bare msgids and one is context-qualified**:
 
-Then verify none is left blank — for each of the five msgids the following `msgstr` must be
-non-empty — and only then run `uv run python manage.py compilemessages`.
+| entry | Polish |
+|---|---|
+| `msgid "Size"` | `Rozmiar` |
+| `msgid "Small"` | `Mały` |
+| `msgid "Medium"` | `Średni` |
+| `msgid "Large"` | `Duży` |
+| `msgctxt "image size"` + `msgid "Full"` | `Pełny` |
+
+The four size labels describe an *obraz* (masculine), hence the masculine forms.
+
+**Do not touch the existing bare `msgid "Full"` / `msgstr "Pełna"` at
+`locale/pl/LC_MESSAGES/django.po:690-692`.** That entry belongs to `courses/forms.py:166`'s
+structure-preset label and its feminine form is correct there. Task 1's `pgettext_lazy("image size",
+"Full")` is what makes the image label a *separate* entry (`msgctxt "image size"`) rather than a
+collision; if `makemessages` produces no `msgctxt` entry, the model is still using plain `_()` — fix
+that in `courses/models.py` before continuing. Verify explicitly: `grep -c 'msgstr "Pełna"'` is
+unchanged, and the new `msgctxt "image size"` block exists with a non-empty `msgstr`.
+
+Then verify none of the five is left blank, and only then run `uv run python manage.py compilemessages`.
 
 - [ ] **Step 4: Full verification**
 
@@ -1229,4 +1419,13 @@ git commit -m "docs(image): document the size presets"
 
 **The two pk namespaces, stated once.** `data-preview-el` (Task 3) and `data-for-element` (Task 2) both carry the **`ImageElement`** pk — that is what makes Task 7's `querySelector` match. `_seen_current_ids` (Task 3, step 4) deals in **`Element` join-row** pks, a different namespace; no test conflates them, and no test treats an `ImageElement` as if it had `unit` or `content_object` (those are `Element` fields).
 
-**Blast radius outside this slice.** Widening `ImageElementForm.Meta.fields` and rewriting `imageelement.html`'s root tag are re-verified against the existing suites in Task 2 step 7 and Task 3 step 5; bumping `FORMAT_VERSION` invalidates five existing assertions, all re-pinned in Task 4 step 7. The migration is generated as `0054_imageelement_size` but staged via `git add courses/migrations/`, so a different number cannot break the commit.
+**Blast radius outside this slice.** Widening `ImageElementForm.Meta.fields` and rewriting `imageelement.html`'s root tag are re-verified against the existing suites in Task 2 step 7 and Task 3 step 5; bumping `FORMAT_VERSION` invalidates five existing assertions, all re-pinned in Task 4 step 7; duplicate-and-paste is pinned in Task 4 step 8. The one shared-namespace hazard is the msgid `"Full"`, already owned by `courses/forms.py:166` with a feminine Polish translation — Task 1 forks it with `pgettext_lazy("image size", …)` and Task 10 step 3 requires the existing `msgstr "Pełna"` to be left untouched. The migration is generated as `0054_imageelement_size` but staged via `git add courses/migrations/`, so a different number cannot break the commit.
+
+**Measurement discipline in the two e2e tasks.** Three facts that would each silently corrupt a
+box assertion are stated once and referenced from both tasks: caps only *shrink*, so the `min()`
+carries `img.naturalHeight` (desktop-`full`-tall is the single case it decides); a `max-width`
+percentage resolves against the **content box** of `fig.parentElement` (`div.lesson-block__body`),
+never `.lesson`'s border box; and `dvh` resolves against the viewport at every nesting depth, so only
+the width axis is container-relative. The fixtures are real PNGs via `make_image_asset`, served
+through the mandatory `_isolated_media` redirect, with a `naturalWidth`/`naturalHeight` harness guard
+so "the fixture never loaded" can never masquerade as "the preset is wrong."
