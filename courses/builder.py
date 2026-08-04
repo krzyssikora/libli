@@ -38,6 +38,21 @@ class ParentGoneError(NestingError):
     """
 
 
+class PlacementRefused(Exception):
+    """The in-transaction re-check refused a placement the render had offered.
+
+    Deliberately NOT a NestingError: element_add and element_save catch that and
+    would begin answering 400 to a condition they never raise, and the
+    ParentGoneError handler would swallow this one. Carries the reason because
+    paste_element returns (unit, placed_join), which has no room for one, and the
+    422 has to say what was wrong.
+    """
+
+    def __init__(self, reason_key):
+        super().__init__(reason_key)
+        self.reason_key = reason_key
+
+
 MAX_NEST_DEPTH = 4  # a top-level element has depth 1
 
 # Container TYPE KEYS (transfer namespace). Clause 4 of the containment rule tests
@@ -752,6 +767,106 @@ def _copy_below(el, unit, _export, _importer, TransferError):
 
     unit.save(update_fields=["updated"])
     return unit, new_join
+
+
+@transaction.atomic
+def paste_element(course, element_pk, parent_ref, tab, mode, unit_token):
+    """Move or copy the marked element's subtree into (parent_ref, tab).
+
+    Returns (unit, placed_join) -- the join, not just the unit, because the view
+    derives the post-paste open-set by walking placed_join.parent upward.
+
+    Locks first, token second, rule third: paste_allowed is re-evaluated INSIDE
+    this transaction and this lock, so a concurrent add into the destination slot
+    cannot interleave between the render-time check and the placement. The
+    render-time call is advisory; this one is the enforcement.
+    """
+    if mode not in ("move", "copy"):
+        raise NestingError("unknown mode")
+
+    el, unit = _locked_element(course, element_pk)
+    _check_token(unit.updated, unit_token)
+
+    dest_parent, tab_id = _parse_scope_ref(unit, parent_ref, tab)
+    ok, reason = paste_allowed(unit, el, dest_parent, tab_id, mode)
+    if not ok:
+        raise PlacementRefused(reason)
+
+    if mode == "move":
+        placed = _move_into(el, unit, dest_parent, tab_id)
+    else:
+        placed = _copy_into(el, unit, dest_parent, tab_id)
+
+    unit.save(update_fields=["updated"])
+    return unit, placed
+
+
+def _move_into(el, unit, dest_parent, tab_id):
+    """Re-parent the ROOT join row only; descendants keep their parent and unit
+    FKs, so the whole subtree travels with it for free.
+
+    The step order is load-bearing -- see the comments inline. Runs inside
+    paste_element's transaction and its element+unit lock.
+    """
+    # 1. Capture BEFORE mutating: a move overwrites these same fields in place, so
+    #    reading them afterwards would compact the DESTINATION twice and leave a
+    #    hole in the source. delete_element captures for the same reason.
+    old_parent, old_tab = el.parent, el.tab_id
+
+    # 2. Persist the scope. place_element saves only `order`, so a scope left
+    #    unsaved here is never written -- and it is also place_element's
+    #    precondition, since it reads the in-memory parent/tab_id to pick the
+    #    sibling group.
+    el.parent = dest_parent
+    el.tab_id = tab_id
+    el.save(update_fields=["parent", "tab_id"])
+
+    # 3. None clamps to the end of the group: a paste APPENDS, and position is then
+    #    adjusted with the existing arrows.
+    ordering.place_element(el, unit, None)
+
+    # 4. Compact the CAPTURED source group, as delete_element does.
+    ordering.compact_elements(unit, parent=old_parent, tab_id=old_tab)
+    return el
+
+
+def _copy_into(el, unit, dest_parent, tab_id):
+    """Serialise the subtree and re-materialise it in the destination slot.
+
+    The same three-step shape duplicate_element uses, with the destination being
+    the caller's rather than the source's own scope. Runs inside paste_element's
+    transaction and lock.
+    """
+    from courses.transfer import export as _export
+    from courses.transfer import importer as _importer
+    from courses.transfer.schema import TransferError
+
+    try:
+        document, media_assets, problems = _export.build_element_export(unit, el)
+        if problems:
+            # build_export RECORDS a dangling GFK and continues, dropping the broken
+            # join and its ENTIRE subtree from the payload. With
+            # drop_missing_media=False no media problem can be produced, so a
+            # non-empty list means exactly one thing -- and copying anyway would
+            # yield a silently thinned subtree with a 200.
+            raise TransferError(_("This element is damaged and cannot be copied."))
+        media_map = {mid: asset for (mid, asset, _ph) in media_assets}
+        new_join = _importer.graft_elements(document, media_map, unit)
+    except TransferError:
+        raise  # already normalized by graft_elements' _run_import
+    except Exception as exc:
+        # build_element_export is NOT wrapped by _run_import, so a serializer edge
+        # or the export's own assert would otherwise escape as a 500.
+        raise TransferError(str(exc) or "Copy failed.") from exc
+
+    # The graft returns a PARENTLESS root: the payload root has no `parent`, and
+    # _create_elements' second pass skips exactly those rows. place_element will not
+    # fix it either -- it saves only `order`.
+    new_join.parent = dest_parent
+    new_join.tab_id = tab_id
+    new_join.save(update_fields=["parent", "tab_id"])
+    ordering.place_element(new_join, unit, None)
+    return new_join
 
 
 @transaction.atomic
