@@ -295,7 +295,7 @@ from courses.models import ContentNode
 from courses.transfer.importer import graft_elements
 ```
 
-Then append the tests:
+Then append the tests (both imports are already added above — do not repeat them):
 
 ```python
 def test_graft_creates_the_subtree_in_the_same_unit_and_returns_its_root():
@@ -484,9 +484,9 @@ def test_duplicate_of_the_first_element_lands_second():
 
 
 def test_duplicate_of_the_last_element_lands_last():
-    """Boundary: idx + 1 == len(others), which place_element clamps to the end --
-    and the branch where el.order already equals its new index, so place_element
-    saves nothing at all."""
+    """Boundary: the copy lands at the tail of the group. Note place_element
+    still renumbers -- with unit-wide orders the copy is born at max+1 and the
+    top-level group is compacted to 0..3 -- so this is not a no-write case."""
     course, unit, first, tabs_join, last, _t2 = _unit_with_populated_tabs()
 
     _unit, new_join = duplicate_element(course, last.pk, _tok(unit))
@@ -541,11 +541,9 @@ def test_duplicate_deep_copies_related_rows_and_reuses_the_media_row():
     Element.objects.create(
         unit=unit, content_object=question, parent=tabs_join, tab_id=t1
     )
+    src_image = ImageElement.objects.create(media=asset, alt="a", figcaption="")
     Element.objects.create(
-        unit=unit,
-        content_object=ImageElement.objects.create(media=asset, alt="a", figcaption=""),
-        parent=tabs_join,
-        tab_id=t2,
+        unit=unit, content_object=src_image, parent=tabs_join, tab_id=t2
     )
     choices_before = Choice.objects.count()
 
@@ -558,7 +556,9 @@ def test_duplicate_deep_copies_related_rows_and_reuses_the_media_row():
         for child in new_join.children.all()
         if isinstance(child.content_object, ImageElement)
     )
-    assert copied_image.pk != asset.pk  # a fresh ImageElement...
+    # Compare ImageElement to ImageElement. Comparing it to `asset.pk` would be
+    # comparing pks from two unrelated sequences -- vacuous, and able to collide.
+    assert copied_image.pk != src_image.pk  # a fresh ImageElement...
     assert copied_image.media_id == asset.pk  # ...pointing at the SAME asset row
 
 
@@ -608,26 +608,25 @@ already catches `(Element.DoesNotExist, ValueError, TypeError)`. Make them consi
 ```
 
 This also hardens the existing `element_move` / `element_delete` paths, which 500 on the same
-input today. Add to `tests/test_element_duplicate_view.py` (Task 6):
+input today.
 
-```python
-def test_duplicate_409s_on_a_non_numeric_element_pk(client):
-    """_locked_element used to catch only DoesNotExist, so a garbage pk was a 500."""
-    course, unit, _join = _seed(client)
+**The guard for this lives in Task 6**, not here: it needs
+`tests/test_element_duplicate_view.py`, which does not exist until Task 6 Step 1 creates it,
+and it needs the endpoint. Task 6's listing already contains
+`test_duplicate_409s_on_a_non_numeric_element_pk` — do not add it here, and do not skip it
+there. The token path is deliberately left alone: `_check_token`'s `parse_datetime`
+(`courses/builder.py:175-178`) raises `ValueError` on a well-formed-but-invalid timestamp and
+runs outside this service's `try`, so a garbage `unit_token` is still a 500. That is a
+pre-existing wart on a hand-crafted-only path, shared with every element op, and out of scope
+for PR1.
 
-    resp = client.post(
-        reverse("courses:manage_element_duplicate", kwargs={"slug": course.slug}),
-        {
-            "ctx": "editor",
-            "element": "abc",
-            "unit": unit.pk,
-            "unit_token": unit.updated.isoformat(),
-        },
-        HTTP_X_REQUESTED_WITH="fetch",
-    )
+- [ ] **Step 3b: Run the shared helper's existing callers before going further**
 
-    assert resp.status_code == 409
-```
+`_locked_element` is used by `reorder_element`, `delete_element` and `save_element` as well.
+Widening its `except` must not change their behaviour.
+
+Run: `uv run pytest tests/test_element_editor_ops.py tests/test_manage_element_ops.py tests/test_builder_duplicate_unit.py -v`
+Expected: all PASS.
 
 - [ ] **Step 4: Add the gettext import to `courses/builder.py`**
 
@@ -724,7 +723,7 @@ def _copy_below(el, unit, _export, _importer, TransferError):
 - [ ] **Step 6: Run the tests to verify they pass**
 
 Run: `uv run pytest tests/test_builder_duplicate_element.py -v`
-Expected: all seven PASS.
+Expected: all **nine** PASS (Step 7 then appends two more, for eleven).
 
 - [ ] **Step 7: Pin the scoping fact the `_rewrite_links` skip rests on**
 
@@ -790,7 +789,7 @@ def test_duplicate_keeps_an_internal_link_verbatim():
     assert href in new_join.content_object.body
 ```
 
-Add `from courses.models import ContentNode` to the file's imports.
+`ContentNode` is already imported by Step 1's listing — no import change is needed here.
 
 - [ ] **Step 8: Falsify the four assertions that could be vacuous**
 
@@ -803,12 +802,16 @@ Each mutation must turn exactly one test RED. Apply, run, confirm RED, then reve
    Expected: `test_duplicate_refuses_a_damaged_subtree_rather_than_copying_it_partially` FAILS.
 3. Change the `link_nodes` comprehension in `build_export` (`export.py:781-783`) to drop its
    `if pk in node_ids` filter.
-   Expected: `test_element_export_scopes_link_nodes_to_the_unit_itself` FAILS — the external
-   target now appears, which is exactly the condition under which the `_rewrite_links` skip
-   would stop being safe.
-4. Replace the `ImageElement` in `test_duplicate_deep_copies_related_rows_and_shares_media`
-   with a fresh `make_image_asset(course, "other.png")` in `graft_elements`' media map.
-   Expected: that test FAILS on the `media_id` assertion.
+   Expected: `test_element_export_scopes_link_nodes_to_the_unit_itself` goes RED — as a
+   `KeyError` on `node_ids[pk]`, not a changed-dict assertion failure, because the external
+   pk is absent from `node_ids`. Either form is a valid RED; the point is that the filter is
+   what confines `link_nodes` to the export, which is what makes the skip safe. (For an
+   assertion-shaped RED instead, mutate to `node_ids.get(pk, "n?")`.)
+4. In `_copy_below`, replace the media map with an empty one: `media_map = {}`.
+   Expected: `test_duplicate_deep_copies_related_rows_and_reuses_the_media_row` FAILS —
+   with no asset in the map the importer cannot resolve the mid, so the copy either loses
+   its `media_id` or the graft raises. This is what pins "reuse the existing rows"; without
+   it, a change that re-created assets would still satisfy the count assertion.
 
 Run each with `uv run pytest tests/test_builder_duplicate_element.py -v`.
 
@@ -833,7 +836,7 @@ An editor-context 422 must be *visible*. `editor.js` swaps only `[data-scope]` e
 
 **Interfaces:**
 - Consumes: nothing.
-- Produces: `_render_editor_fragments(request, unit, status=200, open_form="", open_form_pk="", refresh=True, error="", open_slots=None)`. `open_slots` is added here so both context builders gain both keys in one edit; Task 7 gives it meaning.
+- Produces: `_render_editor_fragments(request, unit, status=200, open_form="", open_form_pk="", refresh=True, error="", open_slots=None, changed=False)`. `open_slots` is added here so both context builders gain all three keys in one edit; Task 7 gives it meaning.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -878,6 +881,38 @@ def test_the_banner_renders_inside_the_swapped_pane(client):
     body = resp.content.decode()
     assert 'id="editor-error"' in body
     assert body.index('id="editor-error"') > body.index('data-scope="editor"')
+
+
+def test_a_fragment_409_carries_the_changed_banner(client):
+    """The path the `changed` kwarg exists for: _element_conflict renders
+    FRAGMENTS, and _render_editor_fragments never supplied `changed`, so the
+    moved block would render nothing on the one response that is about a
+    concurrent change. Under JS this is masked by flash(); without JS it is
+    silent. Falsify by dropping `changed=True` from _element_conflict."""
+    from courses.models import TextElement
+    from tests.factories import add_element
+
+    pa = make_pa(client, "pa")
+    course = CourseFactory(owner=pa)
+    unit = _unit(course)
+    join = add_element(unit, TextElement.objects.create(body="<p>hi</p>"))
+
+    resp = client.post(
+        reverse("courses:manage_element_move", kwargs={"slug": course.slug}),
+        {
+            "ctx": "editor",
+            "element": join.pk,
+            "unit": unit.pk,
+            "direction": "down",
+            "unit_token": "2020-01-01T00:00:00+00:00",  # stale
+        },
+        HTTP_X_REQUESTED_WITH="fetch",
+    )
+
+    assert resp.status_code == 409
+    body = resp.content.decode()
+    assert 'data-scope="editor"' in body
+    assert 'id="editor-error"' in body
 
 
 def test_the_banner_is_not_rendered_twice(client):
@@ -962,13 +997,14 @@ def _render_editor_fragments(
 ):
 ```
 
-and in `_element_conflict`, change the editor-context fragment return to pass it:
+add the three keys to **`_render_editor_fragments`'s** context dict (below), and in
+`_element_conflict`, change the editor-context fragment return to pass the flag:
 
 ```python
         return _render_editor_fragments(request, unit, status=409, changed=True)
 ```
 
-and add to its context dict, beside `max_nest_depth`:
+then add to **`_render_editor_fragments`'s** context dict, beside `max_nest_depth`:
 
 ```python
             # Editor-context errors render HERE, inside the swapped pane -- see
@@ -1101,6 +1137,26 @@ def test_duplicate_422s_with_a_visible_message_on_a_damaged_element(client):
     assert 'id="editor-error"' in body
 
 
+def test_duplicate_409s_on_a_non_numeric_element_pk(client):
+    """Guards Task 4 Step 3's widened except clause: _locked_element caught only
+    DoesNotExist, so Element.objects.get(pk="abc") raised ValueError and the
+    author got a 500."""
+    course, unit, _join = _seed(client)
+
+    resp = client.post(
+        reverse("courses:manage_element_duplicate", kwargs={"slug": course.slug}),
+        {
+            "ctx": "editor",
+            "element": "abc",
+            "unit": unit.pk,
+            "unit_token": unit.updated.isoformat(),
+        },
+        HTTP_X_REQUESTED_WITH="fetch",
+    )
+
+    assert resp.status_code == 409
+
+
 def test_duplicate_refuses_a_user_who_cannot_manage_the_course(client):
     """Drive the surface AS the wrong role rather than asserting the decorator
     exists."""
@@ -1174,7 +1230,7 @@ def element_duplicate(request, slug):
 - [ ] **Step 5: Run the tests to verify they pass**
 
 Run: `uv run pytest tests/test_element_duplicate_view.py -v`
-Expected: all four PASS.
+Expected: all **five** PASS.
 
 - [ ] **Step 6: Commit**
 
@@ -1483,9 +1539,14 @@ def test_every_row_offers_a_duplicate_button_at_every_depth(client):
     )
 
     body = resp.content.decode()
+    # The COUNT is the real guard. `value="<pk>"` and `csrfmiddlewaretoken` appear in
+    # the existing move/delete forms on every row, so asserting them alone would be
+    # green before this task's change; they are checked inside the new form's markup.
     assert body.count('data-op="element-duplicate"') >= 2  # the Tabs row and its child
+    form_at = body.index('data-op="element-duplicate"')
+    new_form = body[form_at : form_at + 700]
     assert f'value="{child.pk}"' in body
-    assert "csrfmiddlewaretoken" in body
+    assert "csrfmiddlewaretoken" in new_form
 ```
 
 - [ ] **Step 2: Run the test to verify it fails**
@@ -1511,7 +1572,7 @@ In `templates/courses/manage/editor/_element_row_controls.html`, insert this **b
 - [ ] **Step 4: Run the tests to verify they pass**
 
 Run: `uv run pytest tests/test_element_duplicate_view.py -v`
-Expected: all five PASS.
+Expected: all **six** PASS (Task 6's five plus this one).
 
 - [ ] **Step 5: Regenerate translations**
 
@@ -1585,6 +1646,7 @@ def _allow_sync_orm_under_playwright():
 
 def _make_pa_user(username):
     from django.contrib.auth.models import Group
+
     from institution.roles import PLATFORM_ADMIN
     from institution.roles import seed_roles
 
