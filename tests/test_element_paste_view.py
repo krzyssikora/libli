@@ -1,6 +1,7 @@
 import pytest
 from django.urls import reverse
 
+from courses.builder import slot_key
 from courses.models import Element
 from courses.models import SpoilerElement
 from courses.models import TabsElement
@@ -193,6 +194,9 @@ def test_a_refused_placement_is_a_422_with_a_VISIBLE_reason(client):
     body = resp.content.decode()
     assert 'data-scope="editor"' in body
     assert 'id="editor-error"' in body
+    # The MESSAGE, not just the marker: mapping into_own_subtree to any other
+    # reason's string (e.g. unknown_slot's) would still satisfy an id-only check.
+    assert "An element cannot be placed inside itself." in body
     # The mark survives a refusal, or the retry the message invites is impossible.
     assert "element_clip" in client.session
 
@@ -280,6 +284,43 @@ def test_a_move_into_a_spoiler_works_end_to_end(client):
     assert (subject.parent_id, subject.tab_id) == (sp.pk, SpoilerElement.SLOT_ID)
 
 
+def test_the_clip_context_keys_reach_both_render_paths(client):
+    """The headline guarantee this task exists to deliver: BOTH context builders
+    must carry the five clip keys, or a fragment swap silently drops the feature
+    the very next time the page renders -- exactly the trap `_clip_context`'s own
+    docstring and the `max_nest_depth` precedent comment both warn about. Nothing
+    else in this suite would catch their absence: Django templates ignore a
+    missing context variable, so every status/body/DB assertion elsewhere would
+    stay green with the keys gone from either builder.
+
+    Mutant: delete the `**_clip_context(request, unit)` splat from EITHER
+    _render_editor_fragments or _editor_page -> RED, independently, both ways.
+    """
+    course, unit = _seed(client)
+    dest, slots = _tabs(unit)
+    subject = _text(unit)
+    unit.refresh_from_db()
+    expected_key = slot_key(dest.pk, slots[0])
+
+    # The fragment-POST path (_render_editor_fragments): the clip POST itself is
+    # the cheapest way to reach it with a mark already pending.
+    resp = _mark(client, course, unit, subject)
+    assert resp.status_code == 200
+    assert resp.context["clip_active"] is True
+    assert resp.context["clip_element_pk"] == str(subject.pk)  # a STRING, not an int
+    assert expected_key in resp.context["copy_slots"]
+
+    # The full-page GET path (_editor_page).
+    unit.refresh_from_db()
+    resp = client.get(
+        reverse("courses:manage_editor", kwargs={"slug": course.slug, "pk": unit.pk})
+    )
+    assert resp.status_code == 200
+    assert resp.context["clip_active"] is True
+    assert resp.context["clip_element_pk"] == str(subject.pk)
+    assert expected_key in resp.context["copy_slots"]
+
+
 def test_an_unmarked_render_never_walks_the_unit(client, monkeypatch):
     """The cost guarantee the whole design rests on: the enumerator runs on EVERY
     editor response while a mark is pending, so `_clip_context` MUST return before
@@ -333,7 +374,10 @@ def test_a_marked_render_does_not_walk_parents_per_slot(
     _tabs(unit, parent=mid, tab=mslots[0])
     subject = _text(unit)
     unit.refresh_from_db()
-    _mark(client, course, unit, subject)
+    # Guards against a vacuous pass: if the clip POST regressed to a 409, no mark
+    # would be set, _clip_context would take its empty-return path, and this test
+    # would pass with NO walk having happened at all.
+    assert _mark(client, course, unit, subject).status_code == 200
 
     # max, not exact: this catches an order-of-magnitude regression, and an exact
     # count would break on any unrelated query added elsewhere in the editor render.
@@ -361,7 +405,10 @@ def test_a_marked_render_never_falls_back_to_walking_parents(client, monkeypatch
     _tabs(unit, parent=outer, tab=oslots[0])
     subject = _text(unit)
     unit.refresh_from_db()
-    _mark(client, course, unit, subject)
+    # Guards against a vacuous pass: if the clip POST regressed to a 409, no mark
+    # would be set, _clip_context would take its empty-return path, and this test
+    # would pass with element_depth never having had the chance to run.
+    assert _mark(client, course, unit, subject).status_code == 200
 
     def _boom(_join):
         raise RuntimeError("paste_allowed must receive dest_depth from the render")
