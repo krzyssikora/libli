@@ -587,7 +587,13 @@ def test_duplicate_refuses_a_damaged_subtree_rather_than_copying_it_partially():
     everything under it, and still returns 200."""
     course, unit, _first, tabs_join, _last, _t2 = _unit_with_populated_tabs()
     child = tabs_join.children.get()
-    TextElement.objects.filter(pk=child.object_id).delete()  # dangle the GFK
+    # Repoint object_id; do NOT delete the concrete row. Every concrete element
+    # declares GenericRelation(Element), so deleting it CASCADES the join away --
+    # leaving no join at all rather than a dangling one, an export with no
+    # `problems`, and a test that fails for the wrong reason. This is the
+    # `_make_broken_join` idiom from tests/test_transfer_export.py:342-351, whose
+    # docstring documents the same trap.
+    Element.objects.filter(pk=child.pk).update(object_id=9_999_999)
 
     with pytest.raises(TransferError):
         duplicate_element(course, tabs_join.pk, _tok(unit))
@@ -624,8 +630,10 @@ for PR1.
 
 - [ ] **Step 3b: Run the shared helper's existing callers before going further**
 
-`_locked_element` is used by `reorder_element`, `delete_element` and `save_element` as well.
-Widening its `except` must not change their behaviour.
+`_locked_element` has exactly two other callers: `reorder_element` (`courses/builder.py:395`)
+and `delete_element` (`:460`). (`save_element` uses the *sibling* `_locked_element_in_unit`,
+whose `except` is already wide, so it is unaffected.) Widening this one must not change the
+two real callers' behaviour.
 
 Run: `uv run pytest tests/test_element_editor_ops.py tests/test_manage_element_ops.py tests/test_builder_duplicate_unit.py -v`
 Expected: all PASS.
@@ -1041,6 +1049,7 @@ who neither owns the course nor holds the group — that is the 403 case, exerci
 import pytest
 from django.urls import reverse
 
+from courses.models import Element
 from courses.models import TextElement
 from tests.factories import ContentNodeFactory
 from tests.factories import CourseFactory
@@ -1101,7 +1110,11 @@ def test_duplicate_422s_with_a_visible_message_on_a_damaged_element(client):
     div passes a status-only assertion and is still invisible to the author.
     That is exactly how this error path was got wrong once already."""
     course, unit, join = _seed(client)
-    TextElement.objects.filter(pk=join.object_id).delete()
+    # Repoint, don't delete: GenericRelation(Element) cascades, so deleting the
+    # concrete would remove `join` itself -- _locked_element would then raise
+    # ConflictError and the endpoint would answer 409, never reaching the 422
+    # path this test exists to check. See tests/test_transfer_export.py:342-351.
+    Element.objects.filter(pk=join.pk).update(object_id=9_999_999)
 
     resp = _post(client, course, unit, join)
 
@@ -1524,9 +1537,9 @@ def test_every_row_offers_a_duplicate_button_at_every_depth(client):
     # The COUNT is the real guard: `csrfmiddlewaretoken` and `value="<pk>"` both appear
     # in the existing move/delete forms on every row, so either alone would be green
     # before this task's change. csrf is therefore asserted INSIDE the first new form,
-    # and the child-pk assertion is dropped: the first duplicate form belongs to the Tabs
-    # row (a container renders before its children), so it could never contain the
-    # child's pk anyway.
+    # and the child-pk assertion is dropped: the first duplicate form belongs to the
+    # Text row _seed() creates before this test adds the Tabs element, so it could
+    # never contain the child's pk anyway.
     assert body.count('data-op="element-duplicate"') >= 2  # the Tabs row and its child
     form_at = body.index('data-op="element-duplicate"')
     new_form = body[form_at : form_at + 700]
@@ -1798,7 +1811,16 @@ Judge dark separately — do not infer it from the light pass. Check the glyph's
 
 - [ ] **Step 4: Screenshot the error slot**
 
-Trigger a 422 (duplicate an element whose concrete row you have deleted via the shell) and confirm the message renders inside the editor pane, above the element list, and is legible in both themes.
+Trigger a 422 and confirm the message renders inside the editor pane, above the element list,
+and is legible in both themes. To reach that state, **repoint a join's `object_id`** — do not
+delete the concrete row, which cascades the join away and removes the row (and its ⧉ button)
+from the editor entirely:
+
+```bash
+uv run python manage.py shell -c "from courses.models import Element; Element.objects.filter(pk=<pk>).update(object_id=9999999)"
+```
+
+Then reload the editor and click ⧉ on that row.
 
 - [ ] **Step 5: Fix any spacing or contrast problem in `editor.css`**
 
