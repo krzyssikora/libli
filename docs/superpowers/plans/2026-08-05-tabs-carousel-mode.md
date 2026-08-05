@@ -2239,10 +2239,21 @@ with focus on `<body>` returns *before* `show()` is ever called. That makes most
 mutants named here unobservable: the build under test never reaches the code the mutant
 damaged, and the case ships green. Worse, the natural setup — focusing the `›` button — also
 makes `rescueFocus` return early (its guard is `out.contains(document.activeElement)`), which
-silently neuters every case about focus movement. So each case states its own precondition,
-and a case whose mutant lives in `show()` or in the rescue **must** start with focus inside a
-slide, not on the nav bar. Where a slide must be focused, remember it is `inert` until it is
-active: activate it first, or `.focus()` is a silent no-op.
+silently neuters every case about focus movement. So **each case states its own precondition**,
+and the two families need opposite ones:
+
+- **Focus starts inside a SLIDE** for every case whose mutant lives in the rescue path or in
+  `show()`'s focus-movement/ordering steps — steps 5/7/8, and step 4 preceding step 7. On the
+  nav bar these all return early and go green under their own mutants.
+- **Focus starts on the ENABLED ARROW** for the two arrow-state cases, *Boundaries* (mutant:
+  `clamp`) and *Boundary focus* (mutant: step 4b). Their mutants also live in `show()`, but
+  slide-focus makes them vacuous or unreachable — and for *Boundary focus* it is
+  **non-negotiable**: with focus inside a slide, `focusedArrow` is `null`, 4b never runs, and
+  the rescue's nav-bar fallback picks `prev` anyway (because `next` is disabled at the last
+  slide), so `activeElement` is `prev` *with 4b deleted too*.
+
+Where a slide must be focused, remember it is `inert` until it is active: activate it first,
+or `.focus()` is a silent no-op.
 
 
 Each bullet is one test. Sync on conditions, never on sleeps.
@@ -2288,7 +2299,7 @@ page.add_init_script("""
 """)
 ```
 
-A bare `window.TABS_I18N = {...}` init script does **not** work — all three templates assign the global wholesale in an inline script before the deferred `tabs.js`, so a document-start write is simply overwritten and the carousel initialises normally, failing these assertions against a *correct* implementation. Then assert: every section non-`inert`, not `aria-hidden`, content reachable by tabbing, **no `.tabs__cbar`**, `.tabs--js` removed, and the stage carries no inline `min-height`. Then press ArrowRight and assert the state is **still** clean. ⚠️ Those state assertions alone cannot fail the keydown-guard mutant: `show()` has its own `if (dead) return;`, so removing the handler's guard changes no DOM at all — the only observable difference is that the key gets **swallowed**. So also assert `event.defaultPrevented === false` for ArrowRight/Home after the bail (or that Home still scrolls the page). *(Mutants: empty the `catch` body → the state assertions go RED; delete `if (dead) return;` from the container keydown handler → the `defaultPrevented` assertion goes RED.)*
+A bare `window.TABS_I18N = {...}` init script does **not** work — all three templates assign the global wholesale in an inline script before the deferred `tabs.js`, so a document-start write is simply overwritten and the carousel initialises normally, failing these assertions against a *correct* implementation. Then assert: every section non-`inert`, not `aria-hidden`, content reachable by tabbing, **no `.tabs__cbar`**, `.tabs--js` removed, and the stage carries no inline `min-height`. Then press ArrowRight and assert the state is **still** clean. ⚠️ Those state assertions alone cannot fail the keydown-guard mutant: `show()` has its own `if (dead) return;`, so removing the handler's guard changes no DOM at all — the only observable difference is that the key gets **swallowed**. So also assert `event.defaultPrevented === false` for ArrowRight/Home after the bail. ⚠️ **Focus precondition — mandatory here, and easy to miss because the bail removes the nav bar:** after the bail the only in-container focusable left is slide content, and nothing has been focused, so `document.activeElement` is `<body>` and `body.closest("[data-tabs], [data-gallery]")` is `null` — guard 3 returns *before* `preventDefault()` on the mutant exactly as it does on correct code, and the mutant ships green. The fixture already needs a link in a slide for the "content reachable by tabbing" assertion: `focus()` it after the bail, then press. *(Mutants: empty the `catch` body → the state assertions go RED; delete `if (dead) return;` from the container keydown handler → the `defaultPrevented` assertion goes RED.)*
 
 - [ ] **Step 3: Screenshots — light and dark, judged separately**
 
