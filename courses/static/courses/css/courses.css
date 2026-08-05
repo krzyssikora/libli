@@ -95,6 +95,21 @@ blockquote {
 .el--image--large  img { max-height: 60dvh; }
 .el--image--full   img { max-height: 100dvh; }
 
+/* dvh is meaningless on paper. These mm values are chosen to be sensible on A4
+   (297mm tall, ~250mm printable): `full` at 170mm leaves ~80mm for surrounding
+   text so an image never monopolises a page. NOT ratio-transferred from the screen
+   boxes — as fractions of full they are 26/44/65% against the screen's 30/45/60%.
+
+   This block MUST stay after the screen presets above: media queries add no
+   specificity, so an earlier print block would lose the tie and every image would
+   print at its dvh height. Same trap as the TOC-pin print block at :1009-1012. */
+@media print {
+  .el--image--small  img { max-height: 45mm; }
+  .el--image--medium img { max-height: 75mm; }
+  .el--image--large  img { max-height: 110mm; }
+  .el--image--full   img { max-height: 170mm; }
+}
+
 .unit-progress { margin: 0; }
 
 /* --- Responsive embed: wrapper uses the pasted aspect ratio when known, else 16:9 --- */

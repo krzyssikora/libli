@@ -41,6 +41,70 @@ RETAINED_DECL = re.compile(
     r"\.el--image\s+img\s*\{[^}]*max-width:\s*100%;\s*height:\s*auto;?[^}]*\}"
 )
 
+PRINT_MM_DECL = {
+    "small": re.compile(r"\.el--image--small\s+img\s*\{[^}]*max-height:\s*45mm"),
+    "medium": re.compile(r"\.el--image--medium\s+img\s*\{[^}]*max-height:\s*75mm"),
+    "large": re.compile(r"\.el--image--large\s+img\s*\{[^}]*max-height:\s*110mm"),
+    "full": re.compile(r"\.el--image--full\s+img\s*\{[^}]*max-height:\s*170mm"),
+}
+
+
+def _print_block(css):
+    """Extract the `@media print { ... }` block whose BODY mentions
+    `.el--image--`, along with its start index in `css`.
+
+    Two traps make the obvious one-liner wrong:
+
+    1. `courses.css` holds several `@media print` blocks (breadcrumbs, the TOC
+       pin, ...), so "the" block is ambiguous. A first-match regex would grab
+       an unrelated one. Selecting by CONTENT (does the body mention
+       `.el--image--`) is what makes this unambiguous.
+    2. `@media` bodies contain nested rule braces, so a naive
+       `@media print\\s*\\{[^}]*\\}` truncates at the FIRST inner `}` -- it
+       would extract only the `small` declaration and silently pass a test
+       that only ever checked one of the four values. Counting braces forward
+       from the `@media print` match to its true matching close is what
+       avoids that.
+    """
+    matches = []
+    for m in re.finditer(r"@media\s+print\s*\{", css):
+        depth = 1
+        pos = m.end()
+        while depth and pos < len(css):
+            ch = css[pos]
+            if ch == "{":
+                depth += 1
+            elif ch == "}":
+                depth -= 1
+            pos += 1
+        block = css[m.start() : pos]
+        if ".el--image--" in block:
+            matches.append((block, m.start()))
+    assert len(matches) == 1, (
+        f"expected exactly one @media print block mentioning .el--image--, "
+        f"got {len(matches)}"
+    )
+    return matches[0]
+
+
+def test_print_block_bounds_all_four_presets_in_mm():
+    css = _css()
+    block, _ = _print_block(css)
+    for name, rx in PRINT_MM_DECL.items():
+        assert rx.search(block), f"missing print max-height (mm) for {name}"
+
+
+def test_print_block_comes_after_screen_presets():
+    css = _css()
+    _, print_start = _print_block(css)
+    full_dvh_match = re.search(r"\.el--image--full\s+img\s*\{[^}]*100dvh", css)
+    assert full_dvh_match, "could not locate the screen `full` max-height rule"
+    assert print_start > full_dvh_match.start(), (
+        "the @media print block must come AFTER the screen presets -- a media "
+        "query adds no specificity, so an earlier print block loses the "
+        "source-order tie and every image prints at its dvh height"
+    )
+
 
 def test_width_declarations():
     css = _css()
