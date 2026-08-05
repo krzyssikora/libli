@@ -1080,8 +1080,9 @@ Expected: all pass.
 
 - [ ] **Step 5: Falsify**
 
-Step 1 mandates about eleven assertions — three width regexes, four height regexes, two group regexes
-with two sub-claims each, and the retained rule — and **every one gets its own named mutant**,
+Step 1 mandates fourteen sub-claims — three width regexes, four height regexes, two group regexes
+carrying three sub-claims each (exactly-one-match, mentions the three capped presets, excludes
+`full`), and the retained rule — and **every one gets its own named mutant**,
 including the two group regexes the step itself calls "harder than they look". Apply and restore each
 in turn:
 
@@ -1093,7 +1094,8 @@ in turn:
 | change `.el--image--medium`'s `max-width` to `55%`, then `.el--image--large`'s to `80%` (one at a time) | the corresponding width assertion — completing the three percentage regexes |
 | change `.el--image--small`'s `max-width` to `35%` | the small width assertion (proves the three percentage regexes are declaration-scoped, not substring scans) |
 | add `.el--image--full` to the `fit-content` group | the FIG_GROUP "excludes `full`" assertion — and *not* the "exactly one match" one |
-| delete the whole IMG_GROUP `margin-inline: auto` rule | the IMG_GROUP "exactly one match" assertion |
+| delete the whole IMG_GROUP `margin-inline: auto` rule | the IMG_GROUP "exactly one match" assertion, and its "mentions small/medium/large" sub-claim |
+| delete the whole `.el--image--small, .el--image--medium, .el--image--large { width: fit-content; margin-inline: auto }` figure rule | the FIG_GROUP "exactly one match" assertion, and its "mentions small/medium/large" sub-claim. **Task 9's "delete the figure `margin-inline: auto`" does not cover this** — FIG_GROUP matches on `width: fit-content`, which that mutant leaves in place, so without this row the group's existence ships unfalsified |
 | delete `height: auto` from the retained `.el--image img` rule | the retained-rule assertion |
 
 Restore each, re-run, confirm all pass.
@@ -1577,26 +1579,28 @@ stranded as locals. Pin it the same way `seeded` is pinned:
 ```python
 @pytest.fixture
 def geom(seeded):
-    """(owner, course, geom_unit, preview_unit, nested_joins).
+    """(owner, course, geom_unit, preview_unit, preview_join).
 
-    geom_unit  — rows 1-4 + row 6 (ten images; located by alt)
+    geom_unit    — rows 1-4 + row 6 (ten images; every one located by its unique alt)
     preview_unit — row 5 only, so the editor page holds exactly one image row
-    nested_joins — {"spoiler": join, "tabs": join, "twocolumn": join, "callout": join},
-                   the CONTAINER join rows, so Step 3 can locate each container's
-                   wrapper without re-deriving it
+    preview_join — row 5's ELEMENT join row. Step 2's editor locator keys on
+                   data-element-id, which is the join pk, NOT the alt and NOT the
+                   ImageElement pk — so it cannot be derived from anything else here.
     """
 ```
 
-Consumers: Steps 1, 3 (print, zoom, nested) take `geom_unit`; Step 2 takes `preview_unit`; Step 3's
-nested cases take `nested_joins`. Every element is located by its unique `alt`, so no other member
-needs to be returned.
+Consumers: Steps 1 and 3 take `geom_unit`; Step 2 takes `preview_unit` **and** `preview_join`; every
+test takes `owner` for the login preamble. No container objects are returned: Step 3 locates each
+container by a structural selector (`details.spoiler`, `aside.callout`, `.el--tabs`, `.el--twocolumn`),
+which is unique because `geom_unit` holds exactly one of each, and it locates each nested *figure* by
+its `alt`.
 
 | # | for | element | seeded how |
 |---|---|---|---|
-| 1 | figure-centred (Step 1) | `alt="centred-<preset>"`, one per capped preset, **no caption**, tall fixture | `add_element(unit, …)` — top level |
-| 2 | long-caption centring (Step 1) | `alt="captioned"`, `size="small"`, tall fixture, `figcaption` of ~200 chars **made of ordinary spaced words** — e.g. `("a longer caption about the diagram " * 6)[:200]`. Not `"x" * 200`: nothing in this project's CSS sets `overflow-wrap` or `word-break` on a `figcaption`, so an unbroken 200-char token has a min-content contribution of ~1300px, overflows its figure, and gives the whole page a horizontal scrollbar — harmless for this element's own clamped assertion, but a real side effect on the `full`-captioned element (no `max-width`) and on the print, zoom and nested cases sharing the page. The corpus's real captions are 212/200/132 chars of prose | top level |
+| 1 | figure-centred (Step 1) | `alt="centred-<preset>"`, one per capped preset, **no caption**, tall fixture | `add_element(geom_unit, …)` — top level. **Not `unit`**: that name is live in scope (it is `seeded`'s third member, Task 8's eight-image unit) and is exactly the unit the paragraph below forbids |
+| 2 | long-caption centring (Step 1) | `alt="captioned"`, `size="small"`, tall fixture, `figcaption` of ~200 chars **made of ordinary spaced words** — e.g. `("a longer caption about the diagram " * 6)[:200]`. Not `"x" * 200`: nothing in this project's CSS sets `overflow-wrap` or `word-break` on a `figcaption`, so an unbroken 200-char token has a min-content contribution of ~1300px, overflows its figure, and gives the whole page a horizontal scrollbar — harmless for this element's own clamped assertion, but a real side effect on the `full`-captioned element (no `max-width`) and on the print, zoom and nested cases sharing the page. The corpus's real captions are 212/200/132 chars of prose | `add_element(geom_unit, …)` — top level |
 | 3 | height-bound centring (Step 1) | *reuses* row 1's `centred-small` — same element in every respect (tall fixture, `small`, no caption, top level); the two Step 1 bullets simply measure different boxes on it (figure-inside-parent vs image-inside-figure) | no new element |
-| 4 | `full` unchanged (Step 1) | `alt="full-plain"` and `alt="full-captioned"` (~200-char caption), tall fixture, `size="full"` | top level |
+| 4 | `full` unchanged (Step 1) | `alt="full-plain"` and `alt="full-captioned"` (~200-char caption), tall fixture, `size="full"` | `add_element(geom_unit, …)` — top level |
 | 5 | live preview (Step 2) | `alt="preview-target"`, `size="full"`, wide fixture | a **second unit in the SAME course** — see the warning below |
 | 6 | nested (Step 3) | `alt="nested-<container>"`, `size="small"`, wide fixture, one per container | child rows under each of the four containers, on the same unit as rows 1-4 — see Step 3 for each container's creation recipe and `tab_id` |
 | 7 | print (Step 3) | reuse rows 1 and 4 — `centred-{small,medium,large}` plus `full-plain` cover all four presets on one page | no new elements |
@@ -1671,9 +1675,12 @@ editor page then holds exactly one image row — but the *course* must be shared
   `margin-inline: auto` rule keeps its captioned-path coverage.
 - **`full` geometry unchanged.** "Same as before the feature" is not something a single run can read —
   there is no earlier state to compare against — so state the property as concrete post-conditions
-  instead. Assert PC1 and PC2 on `full-plain`, and PC3 on **`full-captioned`** — a caption is what would widen
-  the figure past the image, so it is the only element on which PC3 can distinguish "the image is
-  flush left" from "the figure is exactly as wide as the image".
+  instead. Assert PC1 and PC2 on `full-plain`, and PC3 on **`full-captioned`**. PC3 would be
+  falsifiable on either element — `full` is excluded from the `fit-content` group (that is precisely
+  what PC1 asserts), so even `full-plain`'s figure spans the whole 648px column against a 297px-wide
+  image, and the figure is never "exactly as wide as the image". `full-captioned` is chosen for a
+  different reason: it is what keeps PC3 **green** under Step 4's figure-group mutant, which is what
+  proves PC3 is guarded by the *img* rule rather than the figure rule.
 
   - **PC1:** the figure's rect width equals its containing block's content width (it did **not**
     shrink-wrap: `full` is excluded from the `fit-content` group);
@@ -1698,7 +1705,11 @@ editor page is `_editor_url(live_server, course, unit)`; the rendered figure liv
 pane (`editor.html` mounts the student templates there), which is why the JS's unscoped
 `document.querySelector('.el--image[data-preview-el=…]')` finds it. Steps:
 
-1. `page.goto(_editor_url(...))`. **No view-mode gesture is needed.** The preview pane is always in
+1. `_login(page, live_server, owner.username)` **first** — the editor view is manage-gated
+   (`_require_manage`), so an unauthenticated `goto` lands on `/accounts/login/` and every locator in
+   items 2-5 times out with no hint, the same failure Task 8's preamble prevents. (Steps 1 and 3
+   navigate to the lesson page and need the same login line, per that preamble.) Then
+   `page.goto(_editor_url(...))`. **No view-mode gesture is needed.** The preview pane is always in
    the DOM — the view toggle
    (`templates/courses/manage/editor/editor.html:88`) only swaps an `is-mode-*` class that *hides* a
    pane — and this step's assertions read `classList`, never boxes, so a hidden pane answers them
@@ -1714,9 +1725,9 @@ pane (`editor.html` mounts the student templates there), which is why the JS's u
    through to the final `{% else %}`; the same two-node pair repeats in every branch — `:54`/`:62` is
    the *tabs* one — so the hazard is structural, not branch-specific.) So `button.el-select[data-element-id="…"]` matches **two** nodes and Playwright
    raises a strict-mode violation. Use the label's own class:
-   `button.el-row__label[data-element-id="<Element join pk>"]`. **Note the pk**: this editor-side
+   `button.el-row__label[data-element-id="{preview_join.pk}"]`. **Note the pk**: this editor-side
    attribute is the `Element` **join-row** pk, unlike `data-for-element` / `data-preview-el`, which are
-   `ImageElement` pks. Seed the element and keep both objects.
+   `ImageElement` pks — which is exactly why `geom` returns `preview_join` as a pinned member.
 3. `page.wait_for_selector("[data-edit-slot] form[data-op='element-save']")` — the form mounts into
    `[data-edit-slot]` by fetch (`tests/test_e2e_editor_ws3.py:69` uses exactly this wait).
 4. Click a radio: `page.locator("[data-edit-slot] input[data-size-preset][value='small']").click()`.
