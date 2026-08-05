@@ -1,10 +1,12 @@
 from decimal import Decimal
+from fractions import Fraction
 
 import pytest
 
 from courses.marking import blank_matches
 from courses.marking import normalize_text
 from courses.marking import parse_number
+from courses.marking import parse_numeric_value
 
 
 def test_normalize_text_trims_collapses_and_casefolds():
@@ -43,6 +45,91 @@ def test_normalize_text_case_sensitive_keeps_case_but_still_trims():
 )
 def test_parse_number_grammar(raw, expected):
     assert parse_number(raw) == expected
+
+
+@pytest.mark.parametrize(
+    "raw,expected",
+    [
+        # Plain decimals still parse — same grammar as parse_number, exact value.
+        ("0.5", Fraction(1, 2)),
+        ("0,5", Fraction(1, 2)),
+        ("3.140", Fraction(157, 50)),
+        ("42", Fraction(42)),
+        # Fractions, the new form.
+        ("1/2", Fraction(1, 2)),
+        ("-1/2", Fraction(-1, 2)),
+        ("+3/4", Fraction(3, 4)),
+        ("2/4", Fraction(1, 2)),  # value equality, not simplest-form equality
+        ("1 / 2", Fraction(1, 2)),  # spaces around the slash are an unambiguous token
+        ("10/5", Fraction(2)),
+        # Mixed numbers: the space is what separates the whole part.
+        ("1 1/2", Fraction(3, 2)),
+        ("1  1/2", Fraction(3, 2)),
+        ("1 1 / 2", Fraction(3, 2)),
+        ("-1 1/2", Fraction(-3, 2)),  # sign applies to the WHOLE quantity
+        ("+2 3/4", Fraction(11, 4)),
+        ("2 0/3", Fraction(2)),
+        ("11/2", Fraction(11, 2)),  # NO space → eleven halves, never 1 + 1/2
+        # Rejected forms.
+        ("1/0", None),  # zero denominator must not raise
+        ("0/0", None),
+        ("1 1/0", None),
+        ("1/", None),
+        ("/2", None),
+        ("1/2/3", None),
+        ("1 1/2/3", None),
+        ("1.5/2", None),  # decimal numerator out of scope
+        ("1 1.5/2", None),
+        ("1.5 1/2", None),  # decimal whole part out of scope
+        ("1/-2", None),  # sign belongs in front, not on the denominator
+        ("1 -1/2", None),  # ...nor in the middle of a mixed number
+        ("1 2 1/2", None),
+        ("a/b", None),
+        ("and/or", None),
+        ("", None),
+    ],
+)
+def test_parse_numeric_value_grammar(raw, expected):
+    assert parse_numeric_value(raw) == expected
+
+
+def test_parse_number_still_rejects_fractions():
+    # The Decimal-returning parser is the persistence path (short-numeric value,
+    # guess-the-number target). It must stay lossless, so fractions stay out.
+    assert parse_number("1/2") is None
+
+
+def test_blank_matches_fraction_and_decimal_are_equal():
+    # The unit-207 case: an authored "1/2" accepts a decimal entry, either separator.
+    assert blank_matches("0.5", ["1/2"]) is True
+    assert blank_matches("0,5", ["1/2"]) is True
+    # ...and symmetrically, an authored decimal accepts a fraction.
+    assert blank_matches("1/2", ["0.5"]) is True
+    assert blank_matches("2/4", ["1/2"]) is True
+    assert blank_matches("1/3", ["1/3"]) is True
+    assert blank_matches("-1/2", ["-0.5"]) is True
+    # Exact rational equality: a truncated decimal is NOT the fraction.
+    assert blank_matches("0.333", ["1/3"]) is False
+    assert blank_matches("1/3", ["1/2"]) is False
+
+
+def test_blank_matches_mixed_numbers():
+    # An authored mixed number accepts the decimal and the improper fraction...
+    assert blank_matches("1,5", ["1 1/2"]) is True
+    assert blank_matches("1.5", ["1 1/2"]) is True
+    assert blank_matches("3/2", ["1 1/2"]) is True
+    # ...and symmetrically a student may answer an authored decimal that way.
+    assert blank_matches("1 1/2", ["1.5"]) is True
+    assert blank_matches("-1 1/2", ["-1.5"]) is True
+    assert blank_matches("1 1/2", ["2.5"]) is False
+
+
+def test_blank_matches_fraction_does_not_cross_match_text():
+    # A slash in a text answer must not drag it into the numeric branch.
+    assert blank_matches("and/or", ["and/or"]) is True
+    assert blank_matches("0.5", ["and/or"]) is False
+    assert blank_matches("1/2", ["one half"]) is False
+    assert blank_matches("1/0", ["1/0"]) is True  # unparseable both sides → text
 
 
 def test_blank_matches_text_and_whitespace():
@@ -87,6 +174,21 @@ def test_fillblank_mark_accepts_comma_for_dot_authored_number():
 
     result = q.mark(["3,14", "  paris "])
     assert result.correct is True and result.fraction == pytest.approx(1.0)
+
+
+@pytest.mark.django_db
+def test_fillblank_mark_accepts_decimal_for_fraction_authored_answer():
+    # Mirrors unit 207's log_9 3 blank, authored as "1/2".
+    from courses.models import Blank
+    from courses.models import FillBlankQuestionElement
+
+    q = FillBlankQuestionElement.objects.create(stem="ignored-for-mark")
+    Blank.objects.create(question=q, accepted="1/2")
+
+    assert q.mark(["0.5"]).correct is True
+    assert q.mark(["0,5"]).correct is True
+    assert q.mark(["1/2"]).correct is True
+    assert q.mark(["0.6"]).correct is False
 
 
 @pytest.mark.django_db
