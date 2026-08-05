@@ -412,8 +412,9 @@ distinguishes the two *enhanced* modes; it does not replace the JS gate.
   button is `disabled` — the gallery's boundary behaviour and its `:disabled` styling.
   **Because disabling the focused element blurs it to `<body>`**, when the button that was
   just activated becomes disabled, focus moves to the opposite arrow. Two things this
-  requires: the "was this arrow focused" test is captured **before** the `disabled`
-  assignment (afterwards the information is gone), and the transfer applies **only when
+  requires: the "was this arrow focused" test is **read into a local before step 2 reassigns
+  `disabled`** (afterwards the information is gone — this is a capture, not a reordering of
+  step 2, which must still run before `rescueFocus`), and the transfer applies **only when
   focus was on the nav bar** — i.e. exactly when `rescueFocus` returns early. That makes the
   two focus mechanisms mutually exclusive by construction; without the restriction both fire
   on one activation and the reader sees a visible focus jump.
@@ -421,10 +422,24 @@ distinguishes the two *enhanced* modes; it does not replace the JS gate.
 - **`show()` order of operations is normative, not incidental.** `rescueFocus` is a no-op in
   any other sequence, so the steps are:
 
-  1. clear `inert` and `aria-hidden` on the **incoming** section;
-  2. call `rescueFocus(outgoing, incoming)`;
-  3. set `inert` and `aria-hidden` on the **outgoing** section;
-  4. start the fade / settle timer.
+  1. `finalizePending()`, then advance the index;
+  2. update the dots (`.is-active` + `aria-current`) **and the arrows'
+     `disabled` / `aria-disabled`** to the *incoming* index;
+  3. clear `inert` and `aria-hidden` on the **incoming** section;
+  4. call `rescueFocus(outgoing, incoming)`;
+  5. set `inert` and `aria-hidden` on the **outgoing** section;
+  6. start the fade / settle timer.
+
+  **Step 2 must precede step 4**, and this is not cosmetic ordering: `rescueFocus`'s second
+  link is "the first **enabled** control in the nav bar", so it is only correct if `disabled`
+  already reflects the incoming index. `gallery.js` does exactly this (`prev.disabled` /
+  `next.disabled` at :143-146, `rescueFocus` at :154). Assign `disabled` *after* the rescue
+  and the headline case breaks: focus a link in slide 2, press ArrowLeft; slide 1 is a plain
+  table, so no candidate passes the four filters; the fallback picks
+  `bar.querySelector("button:not([disabled])")`, which returns `prev` because it is still
+  enabled at that instant; `prev.focus()`; then `prev.disabled = true` blurs focus to
+  `<body>`; the next keypress fails guard 3 and navigation dies — "dies after exactly one
+  step" again, reached through the fallback.
 
   The guard is `if (!out.contains(document.activeElement)) return;`, so inerting the outgoing
   section first (the natural reading of "at rest every section is inert") pushes focus to
@@ -657,8 +672,18 @@ Four existing rules encode tabs-mode assumptions and must each be scoped or pair
    both `[data-display="tabs"]` and `.tabs__panel-label`. Changing the helper is in scope for
    this task, exactly as widening `_print_block()`'s slice is. Once both rules are
    child-chained the carousel's hidden-label rule can no longer collide with the helper's
-   matcher at all, so there is **no** "identical property set" requirement between them —
-   the carousel caption rule declares only what a caption needs.
+   matcher at all, so there is no *ordering* constraint between them and the carousel's
+   visible caption rule declares only what a caption needs.
+
+   ⚠️ **But the `[data-label-pos="hidden"]` rule is still property-constrained**, for a
+   different reason. The promise that print always reveals a hidden caption rests entirely on
+   the existing unscoped print reveal, which resets exactly seven properties — `position`,
+   `width`, `height`, `clip`, `overflow`, `white-space`, `display`, each `!important`. So the
+   carousel's hidden-label rule must declare a **subset of those seven**. An ordinary modern
+   sr-only implementation (`clip-path: inset(50%)`, or adding `margin: -1px; border: 0;
+   padding: 0`) is *not* reset by that rule, and a printed `label_pos: "hidden"` carousel
+   would silently lose every caption. Mutant to name: swap the rule to
+   `clip-path: inset(50%)` and require RED.
 
    ⚠️ **Both rules must also stay on ONE physical line, selector and declarations together.**
    The helper then does `line.split("{")[1].split("}")[0]` on whatever line it matched. The
@@ -964,8 +989,22 @@ content-loss failure with no error, and a human running a print preview is not a
 against a later tidy-up stripping an `!important`. Add to `tests/test_tabs_partial.py`: the
 print block contains a `[data-display="carousel"]` reset covering `.tabs__stage`
 (`position`, `min-height`) and `.tabs__section` (`position`, `opacity`, `display`), each rule
-uses the child chain, and **every declaration in both rules carries `!important`**. The
-manual print preview stays as a supplement.
+uses the child chain, and **every declaration in both rules carries `!important`**. Extend
+the same test to the `[data-label-pos="hidden"]` caption rule: every property it declares
+must appear in the existing print reveal's seven-property reset (mutant: `clip-path:
+inset(50%)` → RED). The manual print preview stays as a supplement.
+
+**The `.tabs--carousel` late gate needs its own source assertions** — it is the spec's
+central safety property and every behavioural test drives a *successful* init, so the mutant
+survives them all. Two assertions over source, each with a named mutant:
+
+- every `courses.css` rule that sets `position: absolute` or `opacity: 0` on a
+  `.tabs__section` also carries `.tabs--carousel` (mutant: swap it for `.tabs--js` → RED);
+- in `tabs.js`, the `classList.add("tabs--carousel")` statement appears **after** the
+  `show(0)` call in the carousel branch (mutant: hoist it above `show(0)` → RED).
+
+Without these, a later tidy-up can restore the blank-on-JS-error behaviour with the whole
+suite green — the same argument that justifies the source-level print test above.
 
 **Nesting — all three directions.** A tabs element inside a carousel slide, a carousel inside
 a carousel slide, **and a carousel inside a tabs panel** each render visible and operable.
@@ -975,9 +1014,13 @@ completely blank inner element); the third is the regression test for the label 
 rule).
 
 **Source references.** `tests/test_e2e_imagezoom.py` documents the tab-order contract with
-three `tabs.js:<line>` citations (the strip-building loop, `panel.tabIndex = 0`, the roving
-tabindex). Inserting the carousel branch shifts all three, so re-point them — preferably to
-symbol names rather than line numbers — in the same task.
+**four** `tabs.js:<line>` citations: the strip-building loop (`tabs.js:66-73`),
+`panel.tabIndex = 0` (`:77`), the roving tabindex (`:94`), and the `hidden`-attribute
+re-application (`:96-99`). All four are **already stale** against the current file (the strip
+loop is at 89–127, `tabIndex` at 119, the roving tabindex at 138, the `hidden` toggle at
+142) — so inserting the carousel branch is not what breaks them, it merely guarantees they
+stay broken. Re-point all four to **symbol names rather than line numbers** in the same task,
+which is the only version that survives the next edit.
 
 **Transfer, duplicate and paste.** Round-trip a carousel-mode element through export →
 validate → import and compare; import an archive whose tabs payload **lacks** both keys and
@@ -1014,6 +1057,10 @@ height assertion against similar slides passes trivially on a broken build. Then
   reserved only slide 1's height passes a stability check while the tall slide overflows the
   nav bar. Assert the nav bar's `y` is identical on both slides as a second angle.
 - assert prev is `disabled` on slide 1 and next on the last;
+- **walk backwards, not only forwards**: from a focusable in slide 2, ArrowLeft to slide 1
+  (whose slide deliberately holds no focusable content), then ArrowRight must still advance.
+  Every other keyboard case here moves forward and would stay green on a build that assigns
+  the arrows' `disabled` after `rescueFocus` instead of before it;
 - assert `.tabs__status` reads "Slide 2 of N";
 - assert Left/Right inside a wide table's scroll box scrolls the table and does **not**
   advance the carousel;
