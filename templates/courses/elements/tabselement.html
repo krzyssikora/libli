@@ -1,25 +1,47 @@
 {% load courses_extras %}
 {% comment %}
-Student-facing tabs. `tabs` is [(tab, [child Element rows])] from
+Student-facing tabs, in TWO display modes. `tabs` is [(tab, [child Element rows])] from
 TabsElement.resolved_tabs(); EVERY tab is emitted, including empty ones, because a new
-tabs element is born with two empty tabs and the enhancer builds one strip button per
-label heading. This markup IS the no-JS fallback (all panels visible, each under its
-heading) and is also exactly what @media print shows. tabs.js upgrades it in place to a
-role=tablist and hides the inactive panels with the `hidden` ATTRIBUTE -- never an inline
-display:none, which a print rule could not override. DOM ids are namespaced with the join
-row pk (`eid`), because a tab id is unique only WITHIN one element and two tabs elements
-on one page may legitimately share one.
+tabs element is born with two empty tabs.
+
+THE SERVER EMITS ONE LAYOUT FOR BOTH MODES -- all sections visible, each under its
+heading. That markup IS the no-JS fallback and is exactly what @media print shows;
+`data-display` only tells the enhancer which way to upgrade it.
+
+  display="tabs"     -> tabs.js builds a role=tablist strip and hides inactive panels
+                        with the `hidden` ATTRIBUTE (never an inline display:none, which
+                        a print rule could not override).
+  display="carousel" -> tabs.js builds a ‹ › + dots nav and hides inactive SECTIONS with
+                        position:absolute + opacity:0 + aria-hidden + inert, so they stay
+                        laid out and measurable. NOT the `hidden` attribute: display:none
+                        would zero offsetHeight and collapse the height reservation.
+
+.tabs__stage is server-rendered in BOTH modes even though only the carousel styles it.
+Having the JS create it and re-parent the sections would RELOAD any <iframe> inside a
+slide (a video or GeoGebra embed is a legal child), and the editor preview re-enhances
+after every save/add/reorder swap.
+
+DOM ids are namespaced with the join row pk (`eid`): a tab id is unique only WITHIN one
+element and two tabs elements on one page may legitimately share one.
+
+data-label-pos here, NOT data-tab-label-pos: test_tabs_partial counts the
+"data-tab-label" substring to assert the caption count, and the longer name would
+inflate it. The editor partial uses the data-tab-* prefix for its own controls; the two
+namespaces are deliberately NOT harmonised.
 {% endcomment %}
-<div class="el el--tabs" data-tabs data-tabs-eid="{{ eid }}">
-  {% for tab, children in tabs %}
-    <section class="tabs__section">
-      <h3 class="tabs__panel-label" data-tab-label id="tabs-{{ eid }}-{{ tab.id }}-label">{{ tab.label }}</h3>
-      <div class="tabs__panel" data-tab-panel data-tab-id="{{ tab.id }}"
-           id="tabs-{{ eid }}-{{ tab.id }}-panel">
-        {% for child in children %}
-          <div class="tabs__child">{% render_element child %}</div>
-        {% endfor %}
-      </div>
-    </section>
-  {% endfor %}
+<div class="el el--tabs" data-tabs data-tabs-eid="{{ eid }}"
+     data-display="{{ display }}" data-label-pos="{{ label_pos }}">
+  <div class="tabs__stage">
+    {% for tab, children in tabs %}
+      <section class="tabs__section">
+        <h3 class="tabs__panel-label" data-tab-label id="tabs-{{ eid }}-{{ tab.id }}-label">{{ tab.label }}</h3>
+        <div class="tabs__panel" data-tab-panel data-tab-id="{{ tab.id }}"
+             id="tabs-{{ eid }}-{{ tab.id }}-panel">
+          {% for child in children %}
+            <div class="tabs__child">{% render_element child %}</div>
+          {% endfor %}
+        </div>
+      </section>
+    {% endfor %}
+  </div>
 </div>

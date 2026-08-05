@@ -16,6 +16,15 @@ SPRITE = ROOT / "templates/courses/manage/_icon_sprite.html"
 MATH_JS = ROOT / "courses/static/courses/js/math.js"
 
 
+def _unit():
+    return make_course_with_unit()[1]
+
+
+def _strip_tab_ids(html):
+    """Tab ids are minted randomly per element, so two renders never match literally."""
+    return re.sub(r"t[0-9a-f]{6}", "TID", html)
+
+
 def test_empty_tabs_still_render_a_label_and_panel_each():
     course, unit = make_course_with_unit()
     obj = TabsElement.objects.create(data=TabsElement.default_data())
@@ -143,3 +152,104 @@ def test_sprite_defines_el_tabs_at_16x16():
 
 def test_math_js_scopes_inline_rendering_to_tabs():
     assert ".el--tabs" in MATH_JS.read_text(encoding="utf-8")
+
+
+@pytest.mark.django_db
+def test_render_emits_both_data_attributes():
+    obj = TabsElement.objects.create(
+        data={**TabsElement.default_data(), "display": "carousel", "label_pos": "below"}
+    )
+    Element.objects.create(unit=_unit(), content_object=obj)
+    html = obj.render()
+    assert 'data-display="carousel"' in html
+    assert 'data-label-pos="below"' in html
+
+
+@pytest.mark.django_db
+def test_the_stage_wrapper_is_present_in_both_modes():
+    for display in ("tabs", "carousel"):
+        obj = TabsElement.objects.create(
+            data={**TabsElement.default_data(), "display": display}
+        )
+        Element.objects.create(unit=_unit(), content_object=obj)
+        assert 'class="tabs__stage"' in obj.render()
+
+
+@pytest.mark.django_db
+def test_markup_is_identical_between_modes_apart_from_the_two_attributes():
+    """This is what pins the no-JS and print fallback: the server emits ONE layout."""
+    rendered = {}
+    for display in ("tabs", "carousel"):
+        obj = TabsElement.objects.create(
+            data={**TabsElement.default_data(), "display": display}
+        )
+        Element.objects.create(unit=_unit(), content_object=obj)
+        rendered[display] = obj.render().replace(
+            f'data-display="{display}"', "DISPLAY"
+        )
+    # tab ids are random per element; normalise them before comparing
+    assert _strip_tab_ids(rendered["tabs"]) == _strip_tab_ids(rendered["carousel"])
+
+
+@pytest.mark.django_db
+def test_the_caption_node_is_present_in_all_three_label_positions():
+    """Hidden by CSS, never omitted -- dropping it would strip the title from print."""
+    for pos in ("above", "below", "hidden"):
+        obj = TabsElement.objects.create(
+            data={
+                **TabsElement.default_data(),
+                "display": "carousel",
+                "label_pos": pos,
+            }
+        )
+        Element.objects.create(unit=_unit(), content_object=obj)
+        assert obj.render().count("data-tab-label") == 2
+
+
+@pytest.mark.django_db
+def test_render_calls_the_destructive_normalizer_exactly_once(monkeypatch):
+    obj = TabsElement.objects.create(data=TabsElement.default_data())
+    Element.objects.create(unit=_unit(), content_object=obj)
+    calls = []
+    original = TabsElement.normalize_data
+    monkeypatch.setattr(
+        TabsElement,
+        "normalize_data",
+        staticmethod(lambda d: (calls.append(1), original(d))[1]),
+    )
+    obj.render()
+    assert len(calls) == 1, (
+        "render must read the enums via display_settings(), not normalize_data"
+    )
+
+
+@pytest.mark.django_db
+def test_a_nested_instance_emits_its_own_stage_and_sections():
+    """Both directions. The failure modes are CSS-selector defects (a descendant
+    selector blanking the inner element; the outer sr-only rule clipping an inner
+    carousel's captions), so the structural precondition -- two independent
+    stage>section chains -- is worth pinning cheaply."""
+    for outer_display, inner_display in (
+        ("carousel", "tabs"),
+        ("tabs", "carousel"),
+        ("carousel", "carousel"),  # the spec names this one explicitly
+    ):
+        unit = _unit()
+        outer = TabsElement.objects.create(
+            data={**TabsElement.default_data(), "display": outer_display}
+        )
+        outer_join = Element.objects.create(unit=unit, content_object=outer)
+        tab_id = outer.normalized_data["tabs"][0]["id"]
+        inner = TabsElement.objects.create(
+            data={**TabsElement.default_data(), "display": inner_display}
+        )
+        Element.objects.create(
+            unit=unit, content_object=inner, parent=outer_join, tab_id=tab_id
+        )
+        html = outer.render(element=outer_join)
+        assert html.count('class="tabs__stage"') == 2  # one per instance
+        assert html.count("data-tab-panel") == 4  # 2 sections x 2 instances
+        # Count both attributes rather than asserting == 1 on the inner value: the
+        # carousel-in-carousel case has outer and inner sharing it.
+        expected = 2 if outer_display == inner_display else 1
+        assert html.count(f'data-display="{inner_display}"') == expected

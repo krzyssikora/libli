@@ -1586,6 +1586,10 @@ class TabsElement(ElementBase):
                 "element_state": state,
                 "slug": slug,
                 "node_pk": node_pk,
+                # display_settings(), NOT normalized_data: resolved_tabs() already runs
+                # normalize_data once, and running the DESTRUCTIVE normalizer twice per
+                # response would re-mint ids on a damaged blob.
+                **self.display_settings(),
             },
         )
 
