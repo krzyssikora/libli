@@ -99,21 +99,40 @@ def _print_block():
     own block was inserted earlier in the file), so pick the chunk that actually
     contains the tabs selectors rather than just the first split."""
     css = CSS.read_text(encoding="utf-8")
+    # Keep the original split token AND the [1:] -- dropping either would admit the
+    # stylesheet's pre-@media-print prefix as a candidate chunk.
     for chunk in css.split("@media print {")[1:]:
         if ".el--tabs" in chunk[:1200]:
-            return chunk[:1200]
+            # Clip at the media block's closing brace, NOT at a character count: past
+            # that brace the chunk is ordinary SCREEN css, and a fixed window would let
+            # the carousel's screen rules satisfy a "the print block contains ..."
+            # assertion -- a silent green with no print reset at all. Precedent:
+            # courses/tests/test_reveal_scope_agreement.py::_print_block.
+            m = re.search(r"(.*?)\n\}", chunk, re.S)
+            assert m, "could not find the closing brace of the .el--tabs print block"
+            return m.group(1)
     raise AssertionError("no @media print block found for .el--tabs")
 
 
 def _screen_label_rule():
-    """The rule that hides the per-panel labels on screen once JS enhances."""
+    """The rule that hides the per-panel labels on screen once JS enhances.
+    Matched by [data-display="tabs"] + .tabs__panel-label rather than by the old
+    ".tabs--js .tabs__panel-label" substring: the rule now takes an explicit child
+    chain (so it cannot reach a carousel nested inside a tabs panel), which the old
+    matcher could never find."""
     css = CSS.read_text(encoding="utf-8")
-    line = next(ln for ln in css.splitlines() if ".tabs--js .tabs__panel-label" in ln)
-    return {
-        p.split(":")[0].strip()
-        for p in line.split("{")[1].split("}")[0].split(";")
-        if ":" in p
-    }
+    line = next(
+        ln
+        for ln in css.splitlines()
+        if '[data-display="tabs"]' in ln and ".tabs__panel-label" in ln
+    )
+    decls = line.split("{")[1].split("}")[0]
+    props = {p.split(":")[0].strip() for p in decls.split(";") if p.strip()}
+    assert props, (
+        "the screen label rule must stay on ONE physical line, declarations included"
+    )
+    assert {"position", "clip"} <= props, f"unexpected screen label rule: {props}"
+    return props
 
 
 def test_print_stylesheet_reveals_hidden_panels_and_labels():
@@ -253,3 +272,132 @@ def test_a_nested_instance_emits_its_own_stage_and_sections():
         # carousel-in-carousel case has outer and inner sharing it.
         expected = 2 if outer_display == inner_display else 1
         assert html.count(f'data-display="{inner_display}"') == expected
+
+
+def test_carousel_print_reset_is_present_and_fully_important():
+    """Printing a carousel must not silently lose every slide but the current one.
+    A human running print preview is not a defence against a later tidy-up."""
+    block = _print_block()
+    assert '[data-display="carousel"]' in block
+
+    # WHICH properties, not just "all of them carry !important": a section reset written
+    # as `{ position: static !important; }` alone passes an important-only check, while
+    # the screen rule's `opacity: 0` still applies in print and the carousel loses every
+    # slide but the current one -- the exact content loss this test exists to prevent.
+    def _props(subject):
+        line = next(
+            ln
+            for ln in block.splitlines()
+            if '[data-display="carousel"]' in ln
+            and ln.split("{")[0].rstrip().endswith(subject)
+        )
+        decls = line.split("{")[1].split("}")[0]
+        return {d.split(":")[0].strip() for d in decls.split(";") if d.strip()}
+
+    assert {"position", "min-height"} <= _props(".tabs__stage")
+    assert {"position", "opacity", "display"} <= _props(".tabs__section")
+    for line in block.splitlines():
+        if '[data-display="carousel"]' not in line or "{" not in line:
+            continue  # a comment mentioning the attribute would IndexError on the split
+        decls = line.split("{")[1].split("}")[0]
+        for decl in [d for d in decls.split(";") if d.strip()]:
+            assert "!important" in decl, (
+                f"print reset declaration lacks !important: {decl.strip()}"
+            )
+
+
+def test_every_slide_hiding_rule_carries_the_carousel_gate():
+    """The gate must be .tabs--carousel (added only after a successful show(0)), never
+    .tabs--js (added before the branch is even entered) -- otherwise a throw part-way
+    through init leaves every slide at opacity 0 with nothing to re-show it: blank.
+
+    Keyed on the selector SUBJECT plus the opacity/pointer-events pair unique to the
+    slide rule. A substring predicate would flag the legitimate tabs-mode label rule,
+    which also contains ".tabs__section" and "position: absolute" on one line."""
+    css = CSS.read_text(encoding="utf-8")
+    matched = False
+    for line in css.splitlines():
+        if "{" not in line:
+            continue
+        selector, decls = line.split("{", 1)
+        if not selector.rstrip().endswith(".tabs__section"):
+            continue
+        if "opacity: 0" in decls and "pointer-events: none" in decls:
+            matched = True
+            assert ".tabs--carousel" in selector, (
+                f"slide rule missing the gate: {selector.strip()}"
+            )
+    assert matched, "no carousel slide rule found at all"
+
+
+def test_the_hidden_caption_rule_declares_only_properties_print_resets():
+    """label_pos:"hidden" is screen-only -- the unscoped !important print reveal must
+    undo it. That reveal resets exactly seven properties, so a modern sr-only idiom
+    (clip-path: inset(50%), or margin/border/padding) would NOT be undone and a printed
+    carousel would silently lose every caption."""
+    css = CSS.read_text(encoding="utf-8")
+    line = next(
+        ln
+        for ln in css.splitlines()
+        if '[data-label-pos="hidden"]' in ln and ".tabs__panel-label" in ln
+    )
+    decls = line.split("{")[1].split("}")[0]
+    props = {p.split(":")[0].strip() for p in decls.split(";") if p.strip()}
+    assert props, "the hidden-caption rule must stay on ONE physical line"
+    seven = {
+        "position",
+        "width",
+        "height",
+        "clip",
+        "overflow",
+        "white-space",
+        "display",
+    }
+    assert props <= seven, f"not undone by the print reveal: {props - seven}"
+
+
+def test_carousel_rules_use_child_combinators():
+    """A descendant selector would match a NESTED tabs element's sections and render it
+    completely blank (the inner instance hides panels with `hidden`, never adds
+    .is-active to a section, so nothing restores opacity)."""
+    css = CSS.read_text(encoding="utf-8")
+    matched = False
+    nav = (
+        ".tabs__cbar",
+        ".tabs__cprev",
+        ".tabs__cnext",
+        ".tabs__dots",
+        ".tabs__dot",
+        ".tabs__status",
+    )
+    subjects = (".tabs__section", ".tabs__panel", ".tabs__panel-label", ".tabs__stage")
+    for line in css.splitlines():
+        if "{" not in line:
+            continue
+        selector = line.split("{")[0]
+        # Mode-scoped rules only, by EITHER token -- keying solely on .tabs--carousel
+        # would skip the four rules the spec identifies as the hazard: the two
+        # tabs-mode rules scoped by [data-display="tabs"], and the two attribute-only
+        # carousel rules (caption typography, panel spacing). Any of them can regress
+        # to a descendant selector and blank a nested carousel's captions or
+        # double-pad its panels.
+        if ".tabs--carousel" not in selector and "[data-display=" not in selector:
+            continue
+        if any(n in selector for n in nav):
+            continue  # nav styling may stay descendant-scoped; it cannot blank a slide
+        if not any(x in selector for x in subjects):
+            continue
+        # Pin the FULL chain per subject. `"> .tabs__stage" in selector` alone passes
+        # for `> .tabs__stage .tabs__section` -- a descendant selector that still
+        # reaches a NESTED instance's sections and blanks them, i.e. exactly the hazard.
+        if ".tabs__panel-label" in selector:
+            need = "> .tabs__stage > .tabs__section > .tabs__panel-label"
+        elif ".tabs__panel" in selector:
+            need = "> .tabs__stage > .tabs__section > .tabs__panel"
+        elif ".tabs__section" in selector:
+            need = "> .tabs__stage > .tabs__section"
+        else:
+            need = "> .tabs__stage"
+        matched = True
+        assert need in selector, f"missing child chain ({need}): {selector.strip()}"
+    assert matched, "no mode-scoped slide/caption rule found at all"
