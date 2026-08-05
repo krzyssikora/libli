@@ -241,6 +241,25 @@ outright** — keeping a no-op rule invites a future author to re-add `max-width
 trap. The **class stays on the element** (`tests/test_filltable_render.py` asserts on it); only the
 CSS rule goes.
 
+**Alignment needs its own mechanism, or the halign control ships inert.** `courses.css` implements
+halign as `.ta-center { text-align: center }` on the `<td>`, which has **no effect on a
+`display: block` child**. Today that is invisible because `max-width: 100%` makes the image fill
+its cell; with absolute caps of 80/160/240px inside a 648px column the image is almost always
+narrower than its cell, so it would sit flush left whatever the author picks — while the align
+buttons stay enabled, `serialize()` faithfully writes `halign`, and the spec elsewhere insists that
+attribute must survive. So `.cell-img` keeps `display: block` and gains margin-driven alignment
+from the cell's existing class:
+
+```
+.ta-center > .cell-img { margin-inline: auto; }
+.ta-right  > .cell-img { margin-inline: auto 0; }
+```
+
+(`ta-left` is the `margin-inline: 0` default and needs no rule.) The same pair is required for the
+two **editor preview** classes, or the editor and the student view disagree. Pinned by a measured
+assertion that a `ta-center` image cell centres its preset-bounded image — the C1 precedent, where
+centring `fit-content` figures was exactly this class of bug.
+
 CSS lives in `courses/static/courses/css/courses.css` alongside the existing `.el--table` and
 `.filltable__img` rules (not `editor.css` — that is where the shared `.table-editor__grid` cell
 styles live, a distinction that has already caused one misdiagnosis).
@@ -352,10 +371,20 @@ loop changes:** `{% with d=form.grid_data %}` still feeds the controls strip (`d
 `d.header_col`, `d.border`), so `d` is kept and only the row iteration switches — matching how
 `_edit_filltable.html` already does it, and avoiding a second `normalize_data` pass per render.
 
+**`serialize()`'s image branch short-circuits before `mapColours`.** The line immediately above the
+cell build is `if (window.libliColour) window.libliColour.mapColours(td, { dropUnmapped: true });`,
+which mutates the cell's subtree on every serialize. On a non-contenteditable image cell that is
+both wasted work and DOM mutation inside a node the author cannot edit, so the image branch returns
+before it — stated as a decision rather than left an accident.
+
 **`serialize()` must gain a kind branch.** `table_editor.js`'s `serialize()` unconditionally emits
 `{html: td.innerHTML, halign, valign}` for every cell. An image cell would serialize as
 `html: "<img …>"`, which `sanitize_cell` then strips to `""` on save — **the image is lost with no
-error**. The image branch emits `{kind, media, alt, size, halign, valign}` and **no** `html` key. It reads
+error**. The image branch replaces **only** the `{html, halign, valign}` literal: it emits
+`{kind, media, alt, size, halign, valign}` and **no** `html` key, and the existing
+`colspan`/`rowspan`/`header` suffix — appended *after* the cell object is built — still applies to
+both branches. Writing the image branch as an early `row.push({...})` inside the `forEach` would
+drop all three. It reads
 the size as **`td.dataset.size || "full"`** (the shared default constant): a bare
 `td.dataset.size` is `undefined` when the attribute is missing, `JSON.stringify` then drops the key
 entirely, and the model coerces it back to `full` — silently demoting a `medium` cell if any path
@@ -394,6 +423,15 @@ item on the editor task, alongside the five `FORMAT_VERSION` sites.
   site serving conversion *and* re-pick, so a literal `td.dataset.size = "medium"` would demote an
   author's `full` cell on every re-pick, while a literal "preserve" would leave a converted cell
   with no `data-size` at all. The rule is **`td.dataset.size = td.dataset.size || EDITOR_INSERT`**.
+  **`setImageCell` must also emit the preview's modifier class.** It rebuilds the preview with
+  `img.className = "filltable-editor__img"` — base only. Once `max-width` is stripped from that
+  base rule, an in-session conversion or re-pick renders the asset at its intrinsic width (**DB**
+  p50 1192px) and drags the editing grid — a regression to an already-shipped feature. Emit the
+  base as a lone `className =` assignment plus `classList.add("filltable-editor__img--" + size)`,
+  the same shape as the plain table's. **Nothing currently guards this**: `tests/test_table_css.py`
+  reads only `TABLE_JS`, so the fill-table editor's class emissions are unguarded — extend that
+  guard to `FILL_JS`/`courses.css`, or add a test asserting the class pair on a freshly converted
+  fill-table cell.
   Correspondingly, `data-size` must be added to the attributes removed by `toggleAnswerCell`'s
   image→static branch (which today drops `data-media`/`data-alt`/`tabindex`), or a stale `data-size`
   lingers on the static cell and is inherited by a later reconversion.
@@ -410,7 +448,10 @@ item on the editor task, alongside the five `FORMAT_VERSION` sites.
   without ever having converted one in-session.
 
 **Per-cell controls**, shown only while an image cell is focused: the **alt** input, the new
-**size** select, and **Remove image**. The fill-table editor gains the same size select.
+**size** select (`[data-image-size]`), and **Remove image** (`[data-image-remove]`) — named here
+once, mirroring the existing `[data-image-alt]`/`[data-answer-toggle]` spelling, because two
+templates, two JS files and their tests must all agree on them. The fill-table editor gains the
+same size select.
 Remove image needs a sprite glyph: the sprite defines no trash/remove symbol today (`ed-minus` is
 the nearest and means "delete row/column"), so **add a new monochrome `currentColor`
 `ed-image-remove` symbol** rather than overloading an existing one; the "every `#ed-*` reference
@@ -445,7 +486,14 @@ Per-option literals would both duplicate the "one ordered place" constant and re
 collision: a bare `{% trans "Full" %}` resolves to the msgid already owned by `courses/forms.py`
 (feminine `"Pełna"`), so the model would carry the correct `pgettext_lazy("image size", …)` label
 while the shipped select rendered the wrong gender — and a source-level test on the model constant
-would still pass. The choices reach the templates via a **property on each form**
+would still pass. **Neither the size select nor the alt input carries a `name` attribute.** `_edit_table.html`'s own
+header comment establishes that the hidden `name="data"` field is the sole authoritative input and
+the controls strip is name-less JS UI; a named control inside the element `<form>` would post an
+extra field, and — per this project's recorded `form.action` shadowing incident — a badly chosen
+name can shadow a form property and silently disable the form in a browser while every server test
+stays green. Pinned by a source-level assertion in the editor-partial test.
+
+The choices reach the templates via a **property on each form**
 (`form.cell_image_sizes`, returning `CellImageSize.choices`), since the forms otherwise expose only
 `data`. The context test therefore asserts the **rendered select's Full option**, not just the
 model constant. Per editor:
@@ -527,6 +575,16 @@ already recorded:
 compares the two bodies. Its `focusCell`-null fix must land **byte-identically in both files** and
 stay in `TWINS`. Patching only `table_editor.js` reddens the guard, and "fixing" that by
 reclassifying it would leave the fill-table toolbar painting a stale alignment.
+
+**Fixing the body is not enough for the fill table — its call site makes the fix unreachable.**
+`filltable_editor.js` invokes `refreshAlignButtons()` from exactly three places: inside
+`refreshToolbarState()` *after* the `if (!focusCell) return;` gate, and from the two
+`[data-halign]`/`[data-valign]` click handlers, which only run with a cell focused. So in the
+null-focus state — which this slice newly manufactures via the required disconnect-clearing, and
+newly exposes because the toolbar no longer hides — the function is never called and the stale
+`is-on` survives. **Hoist the `refreshAlignButtons()` call above that early return too**, alongside
+the `[data-cmd]` loop and the `isAnswer`/`isImage` derivations. Pinned by a test that deletes the
+row holding the focused cell and asserts no `[data-halign]` button carries `is-on`.
 
 ### Server side
 
@@ -634,7 +692,7 @@ does not.
 | `_val_table` | widen the per-cell `allowed` set with `kind`/`media`/`alt`/`size`; validate per the reject/tolerate table below; return media refs via `_require_media` |
 | `_ser_table` | currently `return dict(el.data)`; must walk cells and register each image cell's asset |
 | `_element_mids` | routes **by type key**; `table` currently falls through to the scalar `data.get("media")` and returns nothing — without a `table` branch the file is omitted from the zip and import then `KeyError`s |
-| `_build_table` | remap each image cell's local string id → the real asset pk, as `_build_fill_table` does |
+| `_build_table` | remap each image cell's local string id → the real asset pk, as `_build_fill_table` does. **Ordering is load-bearing: remap the raw archive dict FIRST, then `normalize_data`.** Reversed, the string local id has already failed `_cell`'s `isinstance(media, int)` test and degraded the cell to an empty text cell — a silent, total loss of every imported cell image with no error. The round-trip test pins it. |
 | **`_ser_fill_table`** | **does not copy the cell** — it builds an explicit `out_cell` literal of `{kind, media, alt, halign, valign}` and then carries `header`/`colspan`/`rowspan`. `size` is not in that literal, so without this change every fill-table export (and therefore **duplicate-unit**, which runs export in-process) silently reverts every image cell to `full` |
 
 `FORMAT_VERSION` **7 → 8**. **Five existing tests hard-assert the old value and go red**; they
@@ -642,7 +700,10 @@ are Definition-of-Done updates on the transfer task, listed here because the "sc
 narrowly" discipline means an implementer running only `test_table_transfer.py` would see none of
 them: `tests/test_link_transfer.py`, `tests/test_tabs_transfer.py`, `tests/test_transfer_schema.py`
 and `courses/tests/test_image_size_transfer.py` (all `assert FORMAT_VERSION == 7`), plus
-`tests/test_transfer_export.py` (`manifest["format_version"] == 7`).
+`tests/test_transfer_export.py` (`manifest["format_version"] == 7`). A sixth site is a **comment**,
+not an assertion, so nothing reddens: `tests/test_table_transfer.py` carries "table imports through
+the full gate (4 <= FORMAT_VERSION=7) …" — in the one file the transfer task certainly opens.
+Update it too; this spec treats stale comments as first-class artifacts.
 
 **`_ser_table` must NOT call `normalize_data`, and must NOT mutate `el.data`.** Two traps, both
 specific to this function:
@@ -657,6 +718,13 @@ specific to this function:
   instance. Assigning `cell["media"] = ids.register(asset)` in place would replace real pks with
   local string ids on the in-memory element, and duplicate-unit would then persist that. Build
   fresh rows, exactly as `_ser_fill_table`'s "never mutate `el.data`" comment demands.
+
+**`_ser_table` reassembles the top-level dict by shallow copy**, replacing `cells` only when the
+stored value is already a list and leaving every other top-level key — and their order — untouched.
+Copying `_ser_fill_table`'s explicit five-key literal would inject `header_row`/`header_col`/`border`
+defaults into a legacy row that lacks them (the same byte-changing failure the no-normalize rule
+exists to prevent), while an unconditional `{**dict(el.data), "cells": rows}` would append a `cells`
+key to stored data that has none.
 
 **`_ser_table` needs the two guards `normalize_data` would otherwise have provided.** Forbidding
 that call means the walk sees raw stored shapes:
@@ -673,10 +741,15 @@ that call means the walk sees raw stored shapes:
   matching both `_ser_fill_table` and the new render-side fallback.
   **Read those keys with `.get`, not subscripting.** `_ser_fill_table` can safely write
   `"halign": c["halign"]` only because it normalised first; `_ser_table` must not, so it uses
-  `c.get("halign", "left")` / `c.get("valign", "top")` in both the fallback and the image branch —
-  otherwise it reintroduces a `KeyError` on exactly the raw stored cells the traversal guards
-  exist for. The export test covering a ragged row and a non-dict cell also covers a cell missing
-  `halign`.
+  `.get` for **every key it reads** — `kind`, `media`, `size`, `alt`, `halign`, `valign` — not just
+  the alignment pair. The natural implementation copies `_ser_fill_table`'s opening line
+  (`img_pks = [c["media"] for … if c.get("kind") == "image"]`), which is safe there only because it
+  normalised first. By this spec's own argument, a stored `{"kind": "image"}` with no `media`, or an
+  image cell written straight to the model without `size`, is reachable — and subscripting either
+  500s export *and* duplicate-unit. **A `kind:"image"` cell whose `media` is missing or not an int
+  takes the same empty-text-cell fallback as an unresolved pk.** The export test fixture therefore
+  covers a ragged row, a non-dict cell, a cell missing `halign`, an image cell missing `media`, and
+  one missing `size`.
 
 **Per-field import policy for `_val_table`** (resolving the reject-vs-tolerate ambiguity; the
 precedent is that `_val_table` already **rejects** an out-of-enum `halign`/`valign` even though
@@ -686,13 +759,22 @@ the model coerces them):
 |---|---|
 | `kind` | reject if present and not the literal `"image"` |
 | `media` | reject via `_require_media` if absent or not a known ref on a `kind:"image"` cell |
-| `alt` | tolerate as a type, but bound its length via `check_str(..., max_length=100000)`, mirroring the neighbouring gallery validator's `desc` — otherwise an arbitrarily large string imports straight into a `JSONField` |
-| `size` | **reject** if present and outside the four tokens — matches the `halign`/`valign` precedent; the model's coercion remains the defence for non-archive paths |
+| `alt` | tolerate as a type, bounded by `check_str(..., max_length=255)` — parity with `_val_image`'s own `alt`, which is the closest field by meaning (the gallery's `desc` is rich text and uses a far looser bound) |
+| `size` | **coerce** to `full` via `data.setdefault`-style repair, matching `_val_image` |
 
 **The allowlist stays flat** (not partitioned by kind), so an archive text cell may legally carry
 `media`/`alt`/`size`. That is harmless — `TableElement._cell`'s text branch drops them, and
 `_element_mids`/`_build_table` key on `kind == "image"` — and is stated so nobody adds per-kind
 key partitioning the model does not need.
+
+**Why coerce rather than reject.** The nearest precedent is not `halign`/`valign` but `_val_image`,
+added by C1 for a field of the **same name with the same lossless default**, which coerces and
+carries the comment: "A cosmetic field with a lossless default must never fail an import: `full` IS
+the pre-feature rendering. (Contrast `_val_callout`, which rejects an unknown `kind` — a kind has
+no safe fallback.)" That reads as a general rule about cosmetic fields, so rejecting here would
+leave it standing as a false statement about the codebase. Coercing also removes the model-vs-archive
+asymmetry an earlier draft introduced: **both layers now coerce `size`**, and only genuinely
+unrecoverable input (a bad `media` ref, an unknown cell key) is rejected.
 
 **`_val_fill_table` stays lenient on `size`** and gains no symmetric rejection. Its docstring
 commits it to being "intentionally more lenient than `_val_table`", leaving value-enum drift for
@@ -733,13 +815,14 @@ Every degradation is silent and lossless-leaning, never a 500 and never a broken
 | `alt` non-string | coerced to `""` |
 | asset pk does not resolve at render | blank cell, **spans preserved** |
 | asset belongs to another course, or is not `kind="image"` | fails to resolve → same blank-cell path; the form rejects it at save with a field error |
-| archive carries `size` outside the four tokens | **rejected** by `_val_table` (see the per-field table above) |
+| archive carries `size` outside the four tokens | coerced to `full` by `_val_table`, matching `_val_image` |
 | archive carries an unknown cell key | rejected (exact allowlist, unchanged) |
 | merge would absorb an image cell | `absorbedNonEmpty` raises the existing confirmation; on confirm the image cell **is discarded**, on cancel nothing changes. It does **not** block. |
 
-The model-path and archive-path rows differ **by design**: the model coerces because it defends
-non-archive paths where no rejection channel exists; `_val_table` rejects because an archive is a
-machine-generated artifact and silent repair hides corruption. This mirrors `halign`/`valign`.
+`size` behaves identically on both the model and archive paths — always coerced, never rejected —
+matching `_val_image`'s stated rule for cosmetic fields with a lossless default. Rejection is
+reserved for genuinely unrecoverable input: a bad `media` ref, an unknown cell key, an out-of-enum
+`halign`/`valign`.
 
 `_table_has_math` reads `cell.get("html", "")`, so an image cell with no `html` key cannot raise
 there — **verified, no change needed**.
