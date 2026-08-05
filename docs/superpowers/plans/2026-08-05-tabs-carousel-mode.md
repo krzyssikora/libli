@@ -1049,6 +1049,20 @@ Open `locale/pl/LC_MESSAGES/django.po` and fill in every new msgid. ⚠️ `make
 uv run python manage.py compilemessages -l pl
 ```
 
+⚠️ **Three of the twelve msgids above already exist in the catalog**, contributed by the
+slideshow element: `Previous slide`, `Next slide` and `Slide {n} of {total}`. Their existing
+Polish matches this table, so `makemessages` only appends occurrence references — but they are
+now **shared between slideshow and tabs carousel**, so rewording either side silently changes
+the other. Only nine msgids actually need translating.
+
+⚠️ **The fuzzy warning is load-bearing, not boilerplate.** In practice six entries came back
+fuzzy and four carried genuinely wrong translations pre-filled from near-matches:
+`Above`→`Nad obrazem`, `Below`→`Pod obrazem`, `Display`→`Nazwa wyświetlana` (from "Display
+name"), and `Go to slide {n}`→`Przejdź do obrazu {n}` (*image*, not slide). Each removal must
+delete the `#, fuzzy` flag **and** the `#| msgid` previous-msgid comment **and** the wrong
+`msgstr`. Verify `fuzzy` count is 0 and the empty-`msgstr` count is unchanged versus HEAD
+before committing.
+
 - [ ] **Step 5: Run to verify pass**
 
 ```bash
