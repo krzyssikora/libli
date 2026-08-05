@@ -1400,10 +1400,10 @@ this slice exists to retire. Existing e2e cannot catch it (`make_image_asset` de
 Task 8 would ship the regression. **Leave `.filltable-editor__img { max-width: 120px; height:
 auto; display: block; }` exactly as it is in this task.**
 
-**Delete the existing `.filltable-editor__img { max-width: 120px; height: auto; display:
-block; }` rule outright** (it is one line in `courses.css`, just after `.filltable__img`).
-The new base rule above replaces it - stripping only `max-width` from the old rule while
-also adding the new one leaves a duplicate no-op rule that nothing catches.
+(**Task 8**, not this task, deletes that one-line rule outright and replaces it with the
+max-width-less base plus its four modifiers — see Task 8 Step 2b. Stripping only
+`max-width` from it while also adding a new base rule would leave a duplicate no-op rule
+that nothing catches, which is why Task 8 replaces the whole line rather than editing it.)
 
 - [ ] **Step 7: Run the tests to verify they pass**
 
