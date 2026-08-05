@@ -393,7 +393,8 @@ Change its image branch's alt line to match the plain table's:
 - [ ] **Step 8: Run the tests to verify they pass**
 
 Run: `uv run pytest tests/test_table_cell_images.py -v`
-Expected: PASS (all tests).
+Run: `uv run ruff check courses/models.py tests/test_table_cell_images.py`
+Expected: PASS.
 
 - [ ] **Step 9: Falsify — delete the guard, require RED**
 
@@ -860,7 +861,6 @@ Create `tests/test_table_cell_image_form.py`:
 import json
 
 import pytest
-from django import forms
 
 from courses.element_forms import TableElementForm
 from courses.models import MediaAsset, TableElement
@@ -1102,6 +1102,7 @@ Add the same `cell_image_sizes` property to `FillTableElementForm`.
 - [ ] **Step 7: Run the tests to verify they pass**
 
 Run: `uv run pytest tests/test_table_cell_image_form.py -v`
+Run: `uv run ruff check courses/element_forms.py courses/builder.py tests/test_table_cell_image_form.py`
 Expected: PASS.
 
 - [ ] **Step 8: Falsify — require RED**
@@ -1386,16 +1387,18 @@ single-class modifier:
   .cell-img--full { max-height: 170mm; }
 }
 
-/* Fill-table editor preview modifiers live here beside their base. max-width is
-   stripped from the base for the same equal-specificity reason as above. */
-.filltable-editor__img { height: auto; display: block; }
-.filltable-editor__img--small  { max-width: 40px;            max-height: 40px; }
-.filltable-editor__img--medium { max-width: 80px;            max-height: 80px; }
-.filltable-editor__img--large  { max-width: 120px;           max-height: 120px; }
-.filltable-editor__img--full   { max-width: min(100%, 200px); max-height: 200px; }
-.ta-center > .filltable-editor__img { margin-inline: auto; }
-.ta-right  > .filltable-editor__img { margin-inline: auto 0; }
 ```
+
+**The fill-table EDITOR preview rules are deliberately NOT in this task — they move to
+Task 8.** Deleting `.filltable-editor__img { max-width: 120px }` here while its replacement
+modifier is only emitted in Task 8 (template Step 3, `setImageCell` Step 5) would leave
+**four intermediate commits** in which nothing caps the fill-table editor preview:
+`setImageCell` still writes only `img.className = "filltable-editor__img"`, and `reset.css`'s
+`img { max-width: 100% }` is a type selector against an auto-layout cell - the very non-bound
+this slice exists to retire. Existing e2e cannot catch it (`make_image_asset` defaults to
+`size=(1, 1)`), and Task 8 is explicitly designed to be gate-able on its own, so rejecting
+Task 8 would ship the regression. **Leave `.filltable-editor__img { max-width: 120px; height:
+auto; display: block; }` exactly as it is in this task.**
 
 **Delete the existing `.filltable-editor__img { max-width: 120px; height: auto; display:
 block; }` rule outright** (it is one line in `courses.css`, just after `.filltable__img`).
@@ -2234,7 +2237,7 @@ and then calls `refreshAlignButtons`, and the file has **zero** occurrences of
 `imageAlt`/`isImage`. So it *acquires* what the fill table *relocates*. Without this
 step nothing mandates the plain table's disable loops or per-cell painting at all, and
 Task 9's `test_cell_scoped_buttons_are_disabled_before_any_focus` and
-`test_clicking_an_image_cell_reveals_and_populates_the_per_cell_controls` would depend
+`test_clicking_an_image_cell_reveals_and_populates_the_controls` would depend
 on code no step writes.
 
 First, acquire the handles **beside `var toolbar = editor.querySelector("[data-table-toolbar]")`**
@@ -2483,9 +2486,12 @@ five functions in `table_editor.js` (`refreshToolbarState`, `refreshAlignButtons
 deletion) and nothing so far executes the plain-table editor at all, so a null-deref there
 would ship to Task 7 undetected:
 
-Run: `uv run pytest -m e2e tests/test_e2e_table_editor.py tests/test_e2e_filltable.py -v`
-Expected: PASS. Both modules drive exactly these paths (click a cell, `[data-cmd='bold']`,
-`[data-halign='center']`, `[data-row-insert]`).
+Run: `uv run pytest -m e2e tests/test_e2e_table_editor.py tests/test_e2e_filltable.py tests/test_e2e_spanning_merge.py tests/test_e2e_spanning_roundtrip.py -v`
+Expected: PASS. The first two drive click-a-cell, `[data-cmd='bold']`, `[data-halign='center']`
+and `[data-row-insert]`. **The two spanning modules matter specifically because they reach
+`afterStructuralEdit()` with NO cell ever clicked** (`[data-col-insert]` / `[data-col-delete]`
+straight after `_reopen`), which is the only place Step 8's new disconnect block runs with
+`focusCell === null`.
 
 - [ ] **Step 11: Falsify — require RED**
 
@@ -2505,12 +2511,18 @@ Expected: FAIL — `make_image_cell` does `[data-image-alt]`.`fill()` right afte
 click, and Playwright's `fill()` requires a visible element. Restore it. This existing,
 currently-green test is the falsifier for the whole two-way rewrite.
 
-**The disconnect-predicate mutant is NOT falsifiable here.** Both scenarios in
-`tests/test_e2e_table_editor.py` go through `_format_first_cell_and_add_row`, which
-**clicks the first cell and types into it** before clicking `[data-row-insert]` — so
-`focusCell` is non-null and the bare `!focusCell.isConnected` never throws. Its only
-falsifier is Task 9's `test_a_row_insert_before_any_focus_does_not_throw`; run the mutant
-there, not here.
+**Mutant 3 - the disconnect predicate. It IS falsifiable here** (an earlier draft claimed
+otherwise, reasoning only from `tests/test_e2e_table_editor.py`, whose two scenarios both
+click and type into a cell first). `tests/test_e2e_spanning_merge.py::test_column_insert_through_a_colspan_widens_it`
+and `test_column_delete_inside_a_colspan_shrinks_it` do `_reopen(...)` and then click
+`[data-col-insert]` / `[data-col-delete]` with **no cell click at all**, so they reach
+`afterStructuralEdit()` with `focusCell === null` - exactly the window Step 8's new block
+first executes in. Change the predicate to the bare `!focusCell.isConnected` and run
+`uv run pytest -m e2e tests/test_e2e_spanning_merge.py -v`. Expected: FAIL. Restore.
+
+That also means a genuine (non-mutant) error in the new block would abort those handlers
+and skip `serialize()`, which is why those modules join Step 10's run list. Task 9's
+`test_a_row_insert_before_any_focus_does_not_throw` remains the direct, dedicated pin.
 
 - [ ] **Step 12: Commit**
 
@@ -2980,8 +2992,10 @@ reason would need maintaining.
 8. **`cellIsNonEmpty`** — add a `data-image` clause as **defence-in-depth /
    twin-parity**, not a fix for a reachable state (every producer of
    `td[data-image]` also produces the child `<img>` synchronously, so
-   `querySelector("img")` already covers every live case; the test must therefore
-   *synthesise* the state by removing the `<img>`):
+   `querySelector("img")` already covers every live case). **It is therefore deliberately
+   UNPINNED** — the same treatment the `contenteditable` clause and both picker-callback
+   guards get. Do **not** write a test that synthesises the state by deleting the `<img>`:
+   it would assert a property of a state no code path produces.
 
 ```javascript
       return c.textContent.trim() !== ""
@@ -3193,17 +3207,22 @@ def test_size_select_is_present_beside_the_alt_input():
     assert "form.cell_image_sizes" in src
 
 
-def test_filltable_size_select_is_hidden_named_and_unnamed():
+def test_filltable_per_cell_controls_are_hidden_named_and_unnamed():
     """Mirrors the plain table's test_per_cell_controls_are_hidden_named_and_unnamed. A
     presence check alone is not enough: a select without markup `hidden` renders visible
     on every fill-table editor load until wire() runs, and Task 9's fill-table e2e asserts
     visibility only AFTER the image cell is clicked, so it would stay green."""
     src = PARTIAL.read_text(encoding="utf-8")
-    i = src.index("data-image-size")
-    tag = src[src.rindex("<", 0, i):src.index(">", i)]
-    assert "hidden" in tag
-    assert "name=" not in tag
-    assert "aria-label" in tag
+    for attr in ("data-image-alt", "data-image-size"):
+        i = src.index(attr)
+        tag = src[src.rindex("<", 0, i):src.index(">", i)]
+        assert "hidden" in tag, attr
+        assert "name=" not in tag, attr
+        assert "aria-label" in tag, attr
+    # maxlength is half of the spec's "255 at both ends" decision, which is what keeps an
+    # authorable table re-importable. Task 7 Step 3 adds it here; nothing else pins it.
+    i = src.index("data-image-alt")
+    assert 'maxlength="255"' in src[src.rindex("<", 0, i):src.index(">", i)]
 
 
 def test_serialize_image_branch_emits_size():
@@ -3228,13 +3247,15 @@ would stay green through it.
 
 ```python
 @pytest.mark.django_db
-def test_untouched_image_cell_round_trips_size_through_an_editor_save(
-    tmp_path, settings
-):
-    """Simulates what serialize() posts when the author opens a fill table, edits
-    NOTHING, and saves. If either site (data-size in the template, size in
-    serialize()) is missing, the payload carries no size and every image cell
-    silently reverts to `full`."""
+def test_form_and_model_preserve_a_submitted_size(tmp_path, settings):
+    """Pins the FORM + MODEL path only: a payload carrying `size` survives clean_data,
+    normalize_data and save().
+
+    It hand-builds its JSON and posts it, so it never runs JS - it is green with or
+    without `size:` in serialize() and with or without `data-size` in the template. Those
+    two JS sites are pinned by the source-level tests above and, behaviourally, by Task 9's
+    fill-table e2e. Do not point a serialize() mutant at this test.
+    """
     import json
 
     from courses.element_forms import FillTableElementForm
@@ -3272,6 +3293,29 @@ reference for any other required key.
 Run: `uv run pytest tests/test_filltable_editor_partial.py -v -k "size"`
 Expected: FAIL.
 
+- [ ] **Step 2b: Fill-table editor preview CSS (deferred from Task 4)**
+
+Do this **before** Step 3, so the base rule and its modifiers land in the same commit as
+the template and JS that emit them - no window in which the preview is uncapped. In
+`courses/static/courses/css/courses.css`, replace the single existing
+`.filltable-editor__img { max-width: 120px; height: auto; display: block; }` line with:
+
+```css
+/* Fill-table editor preview. max-width leaves the BASE for the same equal-specificity
+   reason as the student rules, so every size lives on a modifier. Bounded ABSOLUTELY in
+   both axes: `max-width: 100%` is not a bound in an auto-layout editor grid. */
+.filltable-editor__img { height: auto; display: block; }
+.filltable-editor__img--small  { max-width: 40px;             max-height: 40px; }
+.filltable-editor__img--medium { max-width: 80px;             max-height: 80px; }
+.filltable-editor__img--large  { max-width: 120px;            max-height: 120px; }
+.filltable-editor__img--full   { max-width: min(100%, 200px); max-height: 200px; }
+.ta-center > .filltable-editor__img { margin-inline: auto; }
+.ta-right  > .filltable-editor__img { margin-inline: auto 0; }
+```
+
+Add `courses/static/courses/css/courses.css` to this task's Files list and Step 10's
+`git add`.
+
 - [ ] **Step 3: Template — `data-size` and the preview modifier on both branches**
 
 In `_edit_filltable.html`, add `data-size="{{ cell.size|default:'full' }}"` to
@@ -3296,6 +3340,29 @@ shape to the plain table's (Task 7 Step 3) — `hidden`, no `name`, `title` +
 Add `size: td.dataset.size || CELL_IMAGE_DEFAULT,` to the image branch's cell literal,
 and add a `CELL_IMG_CLASS` map for `filltable-editor__img--*` (same shape as Task 7's).
 **The two constants already exist** from Task 6 Step 5b — do not re-declare them.
+
+**And rewrite the `forEach` callback's opening, which Task 7 did only for the plain table.**
+`filltable_editor.js`'s callback still calls `mapColours` unconditionally as its first
+statement and branches inline on `td.hasAttribute(...)`. The spec requires **both** files to
+derive the locals and guard the call, and **nothing reddens if this is skipped** — because
+`test_colour_glue_drift.py::_line` strips indentation, the shared needle line compares equal
+either way, so the asymmetric result the spec calls "honest rather than a coincidence" would
+silently not land:
+
+```javascript
+        Array.prototype.forEach.call(dataCells(tr), function (td) {
+          var isAnswer = td.hasAttribute("data-answer");
+          var isImage  = td.hasAttribute("data-image");
+          if (!isAnswer && !isImage) {
+            if (window.libliColour) window.libliColour.mapColours(td, { dropUnmapped: true });
+          }
+          …
+```
+
+The `mapColours` line itself stays **byte-identical** to the plain table's — that is what
+keeps `test_colour_glue_drift.py` green untouched — and the three existing branch conditions
+are re-expressed as `if (isImage) … else if (isAnswer) … else …`, so the attribute is read
+once per cell and the guard cannot drift from the branch it mirrors.
 
 - [ ] **Step 5: JS — `setImageCell` emits the modifier**
 
@@ -3957,6 +4024,56 @@ def test_filltable_size_select_reveals_populates_and_swaps_the_preview(
     classes = editor.locator("td[data-image] img").first.get_attribute("class")
     mods = [c for c in classes.split() if c.startswith("filltable-editor__img--")]
     assert mods == ["filltable-editor__img--small"]
+
+
+def test_typing_in_the_alt_input_updates_the_cell_and_the_preview(
+    page, live_server, _isolated_media
+):
+    """The plain table's alt-input listener is created FROM SCRATCH in Task 7 Step 8 item 4
+    (`table_editor.js` has zero occurrences of `imageAlt` today), and nothing else in the
+    plan exercises it - the reveal test pins refreshToolbarState's POPULATION, not the
+    listener. The fill table's twin is already covered by
+    tests/test_e2e_filltable.py::test_author_two_image_cells_with_distinct_alts, so the
+    plain table was the only unguarded side.
+
+    The preview assertion is the load-bearing half: it catches an implementer copying the
+    fill table's `.filltable-editor__img` lookup verbatim, which is exactly the divergence
+    the plan flags.
+    """
+    _unit_, _el, editor = _open_editor_with_image_cell(page, live_server, "c2-alt")
+    editor.locator("td[data-image]").first.click()
+    editor.locator("[data-image-alt]").fill("a new description")
+    td = editor.locator("td[data-image]").first
+    assert td.get_attribute("data-alt") == "a new description"
+    assert td.locator("img").get_attribute("alt") == "a new description"
+
+
+def test_header_toggle_then_remove_image_restores_the_stashed_text(
+    page, live_server, _isolated_media
+):
+    """toggleHeaderCell builds a NEW element and calls td.replaceWith(next); attributes are
+    copied but a Map stash key is not, so without Task 7 Step 8 item 9's re-keying the stash
+    is orphaned and Remove image restores "" instead of the author's text. Silent data loss
+    on a reachable path - [data-header-toggle] is enabled whenever a non-locked cell is
+    focused - and test_editor_twin_drift.py cannot see it (toggleHeaderCell stays DIVERGENT).
+    """
+    _make_pa_user(PA_USERNAME)
+    _login(page, live_server, PA_USERNAME)
+    unit = _unit(PA_USERNAME, "c2-hdr")
+    make_image_asset(unit.course, filename="h.png", size=(800, 600))
+    _add_table(page, live_server, unit)
+    editor = page.locator("[data-edit-slot] [data-table-editor]").first
+    cell = editor.locator("td[contenteditable]").first
+    cell.click()
+    cell.type("stashed words")
+    editor.locator("[data-image-toggle]").click()
+    page.wait_for_selector(".picker-overlay")
+    page.locator(".picker-overlay .asset-pick").first.click()
+    editor.locator("td[data-image]").first.click()
+    editor.locator("[data-header-toggle]").click()
+    editor.locator("th[data-image]").first.click()
+    editor.locator("[data-image-remove]").click()
+    assert "stashed words" in editor.locator("th").first.inner_html()
 
 
 def test_an_image_cell_survives_a_save_and_reopen(page, live_server, _isolated_media):
