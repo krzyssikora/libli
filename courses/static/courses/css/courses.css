@@ -44,6 +44,57 @@ blockquote {
 /* .el--iframe iframe fills its .embed-frame wrapper (which owns the aspect-ratio) */
 .el--iframe iframe { width: 100%; border: 0; }
 .el--image img { max-width: 100%; height: auto; }
+
+/* Image size presets. Each is a BOUNDING BOX: max-width on the figure (a % of
+   .lesson's definite content box) and max-height on the img (dvh). A % on the img
+   would resolve circularly against a fit-content figure, which is why the two axes
+   live on different elements.
+
+   dvh not vh: vh resolves against the toolbar-COLLAPSED viewport, so a vh-capped
+   image can still fall below the fold on a phone with the address bar showing —
+   the exact defect this feature exists to fix. Same reasoning as the imagezoom
+   overlay at :1724.
+
+   This block MUST stay after `.el { margin: 1rem 0 }` (:4): `.el` and
+   `.el--image--small` tie on specificity, so margin-inline:auto wins only on
+   source order. */
+.el--image--small  { max-width: 25%; }
+.el--image--medium { max-width: 50%; }
+.el--image--large  { max-width: 75%; }
+
+.el--image--small,
+.el--image--medium,
+.el--image--large  { width: fit-content; margin-inline: auto; }
+
+/* Centre the image WITHIN the figure. Load-bearing whenever the figure ends up WIDER
+   than the constrained image, which happens two independent ways:
+     1. a figcaption — fit-content sizes the figure to the WIDER of {image, caption}
+        max-content contributions, so a long caption widens the figure past the image;
+     2. POSSIBLY a binding max-height with NO caption — at 1280x900, `small`, the
+        297x719 fixture, the img shrinks to ~111.5x270 while max-width caps the figure
+        at 162px. Whether fit-content then shrink-wraps the figure to the constrained
+        (111.5px) or the unconstrained (162px) contribution is engine-dependent, so
+        whether reason 2 exists at all is MEASURED in Task 9 step 1, not reasoned about.
+        If that measurement says the figure tracks the image, delete reason 2 from this
+        comment — do not leave a mechanism here that the measurement disproved.
+   Scoped to the capped presets so `full` keeps today's flush-left geometry — 1013
+   images must render byte-identically.
+
+   `margin-inline` is the ONLY differentiator here: reset.css:11 already sets
+   `img, picture, svg { display: block; max-width: 100%; }` app-wide, so restating
+   display:block keeps this rule self-contained but changes nothing. Do not read it as
+   the thing `full` is being excluded from. (That reset also makes the `max-width: 100%`
+   half of the retained `.el--image img` rule below redundant — only its `height: auto`
+   is doing work. Both are kept as-is; this slice changes no existing rule.) */
+.el--image--small  img,
+.el--image--medium img,
+.el--image--large  img { display: block; margin-inline: auto; }
+
+.el--image--small  img { max-height: 30dvh; }
+.el--image--medium img { max-height: 45dvh; }
+.el--image--large  img { max-height: 60dvh; }
+.el--image--full   img { max-height: 100dvh; }
+
 .unit-progress { margin: 0; }
 
 /* --- Responsive embed: wrapper uses the pasted aspect ratio when known, else 16:9 --- */
