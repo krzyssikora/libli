@@ -41,7 +41,12 @@ wyjaśnień, instrukcji i dowolnej treści między innymi elementami.
 plik lub prześlij nowy od razu (zobacz [Menedżer mediów](media-manager));
 dodaj opcjonalny **tekst alternatywny** dla dostępności (pozostaw go pusty
 tylko dla obrazu czysto dekoracyjnego) oraz opcjonalny **podpis** wyświetlany
-pod obrazem.
+pod obrazem. Wybierz **Rozmiar** — Mały, Średni, Duży lub Pełny — aby ustawić
+wielkość obrazu: każdy z nich to ramka ograniczająca, więc obraz skaluje się,
+by zmieścić się w ramce tej wielkości, zachowując swój kształt, nigdy się nie
+rozciąga ani nie przycina. **Pełny** jest domyślny i odpowiada dotychczasowemu
+zachowaniu; przy każdym rozmiarze obraz nigdy nie jest wyższy niż ekran
+czytelnika.
 
 {el:video} **Wideo** — osadza film na dwa sposoby: wybierz przesłany plik wideo z
 biblioteki mediów *albo* wklej link do filmu hostowanego (YouTube, Vimeo i
