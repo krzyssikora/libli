@@ -1399,8 +1399,42 @@ class TabsElement(ElementBase):
     LABEL_MAX = 80
     TAB_ID_RE = re.compile(r"t[0-9a-f]{6}")
 
+    # Ordered (value, lazy_label) pairs are the SINGLE declaration of each enum; the
+    # membership collection is derived from it. A bare set plus a separate label map
+    # would be two declarations that can silently disagree -- a member with no label
+    # renders a blank <option>, a label with no member coerces to the default on save.
+    #
+    # pgettext_lazy, not gettext_lazy: these are one-word adjectives whose Polish forms
+    # are gendered ("Ukryta" agrees with *etykieta*) and would be wrong the moment the
+    # bare msgid is reused for a masculine noun. Same reasoning as ImageElement.Size.
+    DISPLAY_CHOICES = (
+        ("tabs", pgettext_lazy("tabs display", "Tabs")),
+        ("carousel", pgettext_lazy("tabs display", "Carousel")),
+    )
+    # TUPLE, deliberately not frozenset: `[] in frozenset(...)` raises TypeError on an
+    # unhashable value, which would make the "never raises" normalizer raise and would
+    # 500 _val_tabs on a hostile archive. `in` against a tuple uses == and never hashes.
+    DISPLAYS = tuple(v for v, _label in DISPLAY_CHOICES)
+    DEFAULT_DISPLAY = "tabs"
+
+    LABEL_POS_CHOICES = (
+        ("above", pgettext_lazy("tabs label position", "Above")),
+        ("below", pgettext_lazy("tabs label position", "Below")),
+        ("hidden", pgettext_lazy("tabs label position", "Hidden")),
+    )
+    LABEL_POSITIONS = tuple(v for v, _label in LABEL_POS_CHOICES)
+    DEFAULT_LABEL_POS = "above"
+
     data = models.JSONField(default=dict)
     elements = GenericRelation(Element)
+
+    @staticmethod
+    def _coerce_enum(value, allowed, default):
+        """The ONE place the enum coercion lives. Called by normalize_labels_and_ids,
+        display_settings and the form's editor accessors -- three hand-copied versions
+        would be the same drift hazard the *_CHOICES single source exists to prevent.
+        The isinstance guard is belt-and-braces over the tuple membership."""
+        return value if isinstance(value, str) and value in allowed else default
 
     @staticmethod
     def new_tab_id(taken=()):
@@ -1422,7 +1456,9 @@ class TabsElement(ElementBase):
             "tabs": [
                 {"id": first, "label": "Tab 1"},
                 {"id": second, "label": "Tab 2"},
-            ]
+            ],
+            "display": TabsElement.DEFAULT_DISPLAY,
+            "label_pos": TabsElement.DEFAULT_LABEL_POS,
         }
 
     @staticmethod
@@ -1452,7 +1488,19 @@ class TabsElement(ElementBase):
                 tid = TabsElement.new_tab_id(taken)
             taken.add(tid)
             tabs.append({"id": tid, "label": label})
-        return {"tabs": tabs}
+        return {
+            "tabs": tabs,
+            # save() assigns this return to self.data, so a key omitted HERE is
+            # silently dropped on every write -- no exception, no log.
+            "display": TabsElement._coerce_enum(
+                data.get("display"), TabsElement.DISPLAYS, TabsElement.DEFAULT_DISPLAY
+            ),
+            "label_pos": TabsElement._coerce_enum(
+                data.get("label_pos"),
+                TabsElement.LABEL_POSITIONS,
+                TabsElement.DEFAULT_LABEL_POS,
+            ),
+        }
 
     @staticmethod
     def normalize_data(data):
@@ -1467,7 +1515,12 @@ class TabsElement(ElementBase):
             tid = TabsElement.new_tab_id(taken)
             taken.add(tid)
             tabs.append({"id": tid, "label": f"Tab {len(tabs) + 1}"})
-        return {"tabs": tabs}
+        # Builds its OWN literal from norm["tabs"], so it inherits nothing for free.
+        return {
+            "tabs": tabs,
+            "display": norm["display"],
+            "label_pos": norm["label_pos"],
+        }
 
     def save(self, *args, **kwargs):
         self.data = self.normalize_labels_and_ids(self.data)
@@ -1476,6 +1529,24 @@ class TabsElement(ElementBase):
     @property
     def normalized_data(self):
         return self.normalize_data(self.data)
+
+    def display_settings(self):
+        """The two enums, coerced, with NO tab-list work at all.
+
+        render() uses this rather than normalized_data: it already passes
+        resolved_tabs(), which calls normalize_data internally, so reading the enums
+        from normalize_data too would run the DESTRUCTIVE normalizer twice per
+        response -- re-minting ids and re-padding a damaged blob, producing two
+        disagreeing tab lists in one render."""
+        data = self.data if isinstance(self.data, dict) else {}
+        return {
+            "display": self._coerce_enum(
+                data.get("display"), self.DISPLAYS, self.DEFAULT_DISPLAY
+            ),
+            "label_pos": self._coerce_enum(
+                data.get("label_pos"), self.LABEL_POSITIONS, self.DEFAULT_LABEL_POS
+            ),
+        }
 
     def join_row(self):
         """This concrete's single Element join row (the GFK is effectively 1:1).

@@ -102,3 +102,85 @@ def test_element_defaults_to_top_level():
     f = Element._meta.get_field("parent")
     assert f.null is True
     assert Element._meta.get_field("tab_id").default == ""
+
+
+def test_normalizers_default_the_new_keys_on_an_empty_blob():
+    norm = TabsElement.normalize_labels_and_ids({})
+    assert norm["display"] == "tabs"
+    assert norm["label_pos"] == "above"
+
+
+@pytest.mark.parametrize("hostile", [None, 42, True, "CAROUSEL", [], {}, ["carousel"]])
+def test_normalizers_coerce_hostile_values_without_raising(hostile):
+    norm = TabsElement.normalize_labels_and_ids(
+        {"display": hostile, "label_pos": hostile}
+    )
+    assert norm["display"] == "tabs"
+    assert norm["label_pos"] == "above"
+
+
+def test_the_membership_collections_accept_an_unhashable_probe():
+    """⚠️ This — NOT the hostile-value test above — is the guard for the
+    tuple-not-frozenset decision. `_coerce_enum` is
+    `isinstance(value, str) and value in allowed`, and `and` SHORT-CIRCUITS: for `[]`
+    the membership test is never evaluated, so swapping the tuple for a frozenset
+    leaves that test green. Only a direct membership probe observes the collection's
+    type."""
+    assert [] not in TabsElement.DISPLAYS  # TypeError under a frozenset
+    assert {} not in TabsElement.LABEL_POSITIONS
+
+
+@pytest.mark.parametrize("display", ["tabs", "carousel"])
+@pytest.mark.parametrize("pos", ["above", "below", "hidden"])
+def test_every_enum_member_round_trips(display, pos):
+    norm = TabsElement.normalize_labels_and_ids({"display": display, "label_pos": pos})
+    assert (norm["display"], norm["label_pos"]) == (display, pos)
+
+
+def test_normalize_data_carries_the_keys_through_padding_and_truncation():
+    padded = TabsElement.normalize_data(
+        {"tabs": [], "display": "carousel", "label_pos": "below"}
+    )
+    assert len(padded["tabs"]) == TabsElement.MIN_TABS
+    assert padded["display"] == "carousel"
+    assert padded["label_pos"] == "below"
+
+    over = [
+        {"id": f"t{i:06x}", "label": f"T{i}"} for i in range(TabsElement.MAX_TABS + 3)
+    ]
+    truncated = TabsElement.normalize_data(
+        {"tabs": over, "display": "carousel", "label_pos": "hidden"}
+    )
+    assert len(truncated["tabs"]) == TabsElement.MAX_TABS
+    assert truncated["display"] == "carousel"
+    assert truncated["label_pos"] == "hidden"
+
+
+@pytest.mark.django_db
+def test_save_round_trip_preserves_both_keys():
+    """THE critical one. save() calls normalize_labels_and_ids and assigns its return
+    to self.data, so a key missing from that literal is silently dropped on write."""
+    obj = TabsElement.objects.create(
+        data={**TabsElement.default_data(), "display": "carousel", "label_pos": "below"}
+    )
+    obj.refresh_from_db()
+    assert obj.data["display"] == "carousel"
+    assert obj.data["label_pos"] == "below"
+
+
+def test_default_data_is_self_describing():
+    d = TabsElement.default_data()
+    assert d["display"] == "tabs"
+    assert d["label_pos"] == "above"
+
+
+@pytest.mark.django_db
+def test_display_settings_agrees_with_the_normalizer_on_hostile_input():
+    """One _coerce_enum helper, three call sites — they must not drift."""
+    for hostile in (None, 42, "CAROUSEL", [], {}):
+        obj = TabsElement(data={"tabs": [], "display": hostile, "label_pos": hostile})
+        norm = TabsElement.normalize_labels_and_ids(obj.data)
+        assert obj.display_settings() == {
+            "display": norm["display"],
+            "label_pos": norm["label_pos"],
+        }
