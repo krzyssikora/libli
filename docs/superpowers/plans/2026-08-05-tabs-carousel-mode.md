@@ -20,6 +20,7 @@
 - **Scope every test run narrowly.** Use `-k` or an explicit file path. A whole-repo sweep is a branch-level gate, never a per-task step. Never run two pytest invocations at once, and never background a pytest run (it orphans the test DB and the next run dies with `DuplicateDatabase`).
 - **e2e needs `-m e2e`** or the tests silently deselect and pytest exits 5. Run e2e in the **foreground**, one file at a time.
 - **Falsify, don't just run.** Every test in this plan names a mutant. Apply the mutant, confirm RED, revert, confirm GREEN. A passing test proves nothing on its own.
+- ⚠️ **Revert a mutant by reversing the mutated lines — NOT with `git checkout <file>`.** Mid-task the file also holds that task's own uncommitted work, and `git checkout` discards all of it along with the mutant, silently, because the file was clean at HEAD. (This happened in Task 3 and was caught only by a later `git diff --stat`.) If you do use `git checkout`, re-check `git diff --stat` before committing and re-apply whatever was lost.
 - **`MIN_TABS = 2`, `MAX_TABS = 10`, `LABEL_MAX = 80`** are unchanged.
 - **No migration.** `TabsElement.data` is a `JSONField`; defaults are supplied on read.
 - **Enum values, verbatim:** `display` ∈ `("tabs", "carousel")`, default `"tabs"`. `label_pos` ∈ `("above", "below", "hidden")`, default `"above"`.
