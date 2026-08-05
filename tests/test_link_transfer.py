@@ -50,8 +50,8 @@ def test_export_leaves_bodies_byte_identical():
     assert bodies == [f'<a href="/courses/n/{chapter.pk}/">ch</a>']
 
 
-def test_format_version_is_7():
-    assert FORMAT_VERSION == 7
+def test_format_version_is_8():
+    assert FORMAT_VERSION == 8
 
 
 def test_subtree_documents_carry_link_nodes_too():

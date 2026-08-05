@@ -226,12 +226,17 @@ def _ser_fill_table(el, ids):
 
 
 def _ser_tabs(el, ids):
-    # Labels + stable ids only. The children are separate elements carrying `parent`
-    # and `tab` refs; a tabs element itself references no media. Use the
-    # NON-DESTRUCTIVE normalizer (mirrors save()): never pad/truncate the tab list,
-    # so the serialized `tabs` is always a superset of the tabs resolved_tabs() walks,
-    # and every emitted child's `tab` ref is present in this list.
-    return {"tabs": [dict(t) for t in el.normalize_labels_and_ids(el.data)["tabs"]]}
+    # Labels + stable ids + the two display settings. The children are separate
+    # elements carrying `parent` and `tab` refs; a tabs element itself references no
+    # media. Use the NON-DESTRUCTIVE normalizer (mirrors save()): never pad/truncate
+    # the tab list, so the serialized `tabs` is always a superset of the tabs
+    # resolved_tabs() walks, and every emitted child's `tab` ref is present in it.
+    norm = el.normalize_labels_and_ids(el.data)
+    return {
+        "tabs": [dict(t) for t in norm["tabs"]],
+        "display": norm["display"],
+        "label_pos": norm["label_pos"],
+    }
 
 
 def _ser_twocolumn(el, ids):
