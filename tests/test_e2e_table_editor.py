@@ -101,6 +101,103 @@ def _reopen(page, live_server, unit, element):
     page.wait_for_selector("[data-edit-slot] [data-table-editor]")
 
 
+def _seed_wide_table(unit, cols=8, rows=3):
+    """Attach a `rows` x `cols` table to `unit` directly via the model.
+
+    Wide enough that the grid's min-content width (cols x the 4rem cell floor
+    plus padding/borders) exceeds the editor card — clicking "add column" six
+    times would only reach the same state far more slowly."""
+    from courses.models import TableElement
+    from tests.factories import add_element
+
+    cells = [
+        [{"html": f"r{r}c{c}", "halign": "left", "valign": "top"} for c in range(cols)]
+        for r in range(rows)
+    ]
+    table = TableElement.objects.create(data={"cells": cells, "border": "grid"})
+    return add_element(unit, table)
+
+
+def _box(page, selector):
+    """(scrollWidth, clientWidth) of the first match, as ints."""
+    return page.locator(selector).first.evaluate(
+        "el => [el.scrollWidth, el.clientWidth]"
+    )
+
+
+@pytest.mark.django_db(transaction=True)
+def test_wide_table_editor_scrolls_inside_its_card(page, live_server):
+    """Regression: a wide table's grid must SCROLL inside the editor card, not
+    escape it sideways.
+
+    .scroll-x (decoration only) is a direct child of .el-editor, which is
+    display: grid — and a grid item's default min-width: auto pins it to the
+    table's min-content width. The card then overflows instead of
+    .table-editor__grid's overflow-x engaging. `.el-editor > .scroll-x
+    { min-width: 0 }` in editor.css is what releases it.
+
+    Both halves matter: assertion 2 catches the bug; assertion 1 stops a
+    future "fix" that merely hides the overflow (e.g. overflow: hidden)."""
+    _make_pa_user("tbl_wide")
+    _login(page, live_server, "tbl_wide")
+    unit = _unit("tbl_wide", "tbl-wide")
+    element = _seed_wide_table(unit)
+
+    _reopen(page, live_server, unit, element)
+    grid = page.locator("[data-edit-slot] [data-table-grid]").first
+    grid.wait_for(state="visible")
+
+    # The editor card itself does NOT overflow (1px for sub-pixel rounding).
+    card_scroll, card_client = _box(page, "[data-edit-slot] .el-editor--table")
+    assert card_scroll <= card_client + 1, (
+        f"the table editor card overflows horizontally: scrollWidth="
+        f"{card_scroll} clientWidth={card_client}"
+    )
+
+    # ...and the nested .table-editor__grid IS the scroller.
+    grid_scroll, grid_client = _box(page, "[data-edit-slot] [data-table-grid]")
+    assert grid_scroll > grid_client, (
+        f"the grid is not scrolling: scrollWidth={grid_scroll} "
+        f"clientWidth={grid_client}"
+    )
+
+
+@pytest.mark.django_db(transaction=True)
+def test_wide_filltable_editor_scrolls_inside_its_card(page, live_server):
+    """The fill-in table editor puts .scroll-x in exactly the same place under
+    .el-editor--filltable, so it shared the bug and shares the fix. Same two
+    assertions as the table case."""
+    from courses.models import FillTableElement
+    from tests.factories import add_element
+
+    _make_pa_user("ftbl_wide")
+    _login(page, live_server, "ftbl_wide")
+    unit = _unit("ftbl_wide", "ftbl-wide")
+    cells = [
+        [{"kind": "static", "html": f"r{r}c{c}"} for c in range(8)] for r in range(3)
+    ]
+    el = FillTableElement(data={"cells": cells})
+    el.save()
+    element = add_element(unit, el)
+
+    page.goto(_editor_url(live_server, unit))
+    page.wait_for_selector('[data-scope="editor"]')
+    page.locator(f"[data-element='{element.pk}'] .el-act-edit").click()
+    page.wait_for_selector("[data-edit-slot] [data-filltable-editor]")
+    page.locator("[data-edit-slot] [data-table-grid]").first.wait_for(state="visible")
+
+    card_scroll, card_client = _box(page, "[data-edit-slot] .el-editor--filltable")
+    assert card_scroll <= card_client + 1, (
+        f"the fill-in table editor card overflows horizontally: scrollWidth="
+        f"{card_scroll} clientWidth={card_client}"
+    )
+    grid_scroll, grid_client = _box(page, "[data-edit-slot] [data-table-grid]")
+    assert grid_scroll > grid_client, (
+        f"the fill-in grid is not scrolling: scrollWidth={grid_scroll} "
+        f"clientWidth={grid_client}"
+    )
+
+
 @pytest.mark.django_db(transaction=True)
 def test_table_editor_add_format_align_row_and_roundtrip(page, live_server):
     """Add a table, format+align a cell, add a row via the real insert
