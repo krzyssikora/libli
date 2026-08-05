@@ -21,7 +21,7 @@
 - **Enum values, verbatim:** `display` ∈ `("tabs", "carousel")`, default `"tabs"`. `label_pos` ∈ `("above", "below", "hidden")`, default `"above"`.
 - **Class names, verbatim, and no seventh:** `tabs__stage` (server-rendered), and JS-built `tabs__cbar`, `tabs__cprev`, `tabs__cnext`, `tabs__dots`, `tabs__dot`, `tabs__status`.
 - **Gate class is `.tabs--carousel`**, added as the last step of a successful carousel init — never `.tabs--js`.
-- **Every carousel CSS rule uses an explicit child chain** (`> .tabs__stage > .tabs__section`), never a descendant selector.
+- **Every carousel rule that hides, positions, reorders or clips a SLIDE or CAPTION uses an explicit child chain** (`> .tabs__stage > .tabs__section[ > .tabs__panel-label]`), never a descendant selector. Nav-bar styling (`.tabs__cbar`, `.tabs__dot`, `.tabs__status`) may stay descendant-scoped: identical styling reaching a nested instance's nav is harmless, and only slide/caption geometry can blank an inner element.
 - **Polish translations** for every new user-facing string, and `django.mo` regenerated before the PR.
 - **Never hardcode a test password**; use the existing factories/fixtures.
 
@@ -52,9 +52,9 @@
 ### Task 1: Model — enums, coercion, the three key-drop sites, `display_settings()`
 
 **Files:**
-- Modify: `courses/models.py` (`TabsElement`, ~line 1369-1505)
+- Modify: `courses/models.py` (`TabsElement`)
 - Modify: `courses/builder.py` (`_CONTAINER_REGISTRY` comment only)
-- Test: `tests/test_tabs_element.py` (existing file — append)
+- Test: `tests/test_tabs_model.py` (existing file — append). The pre-existing model suite lives here; do NOT create a new file
 
 **Interfaces:**
 - Consumes: nothing.
@@ -62,7 +62,7 @@
 
 - [ ] **Step 1: Write the failing tests**
 
-Append to `tests/test_tabs_element.py`:
+Append to `tests/test_tabs_model.py`:
 
 ```python
 import pytest
@@ -137,19 +137,13 @@ def test_display_settings_agrees_with_the_normalizer_on_hostile_input():
 - [ ] **Step 2: Run the tests to verify they fail**
 
 ```bash
-uv run pytest tests/test_tabs_element.py -k "new_keys or hostile or round_trips or carries_the_keys or save_round_trip or self_describing or display_settings" -v
+uv run pytest tests/test_tabs_model.py -k "new_keys or hostile or round_trips or carries_the_keys or save_round_trip or self_describing or display_settings" -v
 ```
 Expected: FAIL — `AttributeError: type object 'TabsElement' has no attribute 'display_settings'` and `KeyError: 'display'`.
 
 - [ ] **Step 3: Add the constants and the coercion helper**
 
-At the top of `courses/models.py`, add to the existing translation imports:
-
-```python
-from django.utils.translation import pgettext_lazy
-```
-
-(`pgettext_lazy` is already imported at line 18 — verify before adding a duplicate.)
+`pgettext_lazy` is **already imported** in `courses/models.py` — no import change is needed.
 
 Inside `class TabsElement(ElementBase)`, immediately after `TAB_ID_RE`:
 
@@ -265,7 +259,7 @@ In `courses/builder.py`, the registry's docstring says "CONTRACT: each normalize
 - [ ] **Step 7: Run the tests to verify they pass**
 
 ```bash
-uv run pytest tests/test_tabs_element.py -k "new_keys or hostile or round_trips or carries_the_keys or save_round_trip or self_describing or display_settings" -v
+uv run pytest tests/test_tabs_model.py -k "new_keys or hostile or round_trips or carries_the_keys or save_round_trip or self_describing or display_settings" -v
 ```
 Expected: PASS (all).
 
@@ -280,14 +274,14 @@ Record each observed failure before reverting. If any mutant leaves the file gre
 - [ ] **Step 9: Run the existing tabs tests for regressions**
 
 ```bash
-uv run pytest tests/test_tabs_element.py tests/test_tabs_partial.py -q
+uv run pytest tests/test_tabs_model.py tests/test_tabs_invariant.py tests/test_tabs_partial.py -q
 ```
-Expected: PASS.
+Expected: PASS. `test_tabs_invariant.py` is included deliberately: the three-site key-drop change is the highest-risk edit in this plan, and that file holds the cross-cutting `TabsElement` invariants.
 
 - [ ] **Step 10: Commit**
 
 ```bash
-git add courses/models.py courses/builder.py tests/test_tabs_element.py
+git add courses/models.py courses/builder.py tests/test_tabs_model.py
 git commit -m "feat(tabs): add display/label_pos to the TabsElement data model
 
 Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
@@ -298,14 +292,17 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 ### Task 2: Form — thread both keys, including the early-return branch
 
 **Files:**
-- Modify: `courses/element_forms.py` (`TabsElementForm`, ~line 1654-1720)
-- Test: `tests/test_tabs_form.py` (existing file — append; create if absent)
+- Modify: `courses/element_forms.py` (`TabsElementForm`)
+- Test: `tests/test_tabs_form_views.py` (existing file — append). Do NOT create a new file — this is where the form/view suite that exercises `clean_data` through the real save path already lives
 
 **Interfaces:**
 - Consumes: `TabsElement.DISPLAYS`, `.LABEL_POSITIONS`, `._coerce_enum`, `.default_data()` from Task 1.
 - Produces: `TabsElementForm.editor_display -> str` and `.editor_label_pos -> str` (both `cached_property`), read by the template in Task 3.
 
 - [ ] **Step 1: Write the failing tests**
+
+Append to `tests/test_tabs_form_views.py` (it already imports `TabsElementForm` and
+`TabsElement`; keep only the imports it lacks).
 
 ```python
 import pytest
@@ -378,7 +375,7 @@ def test_editor_accessors_read_the_instance_when_unbound():
 - [ ] **Step 2: Run to verify failure**
 
 ```bash
-uv run pytest tests/test_tabs_form.py -k "threads_both or early_return or out_of_enum or bounds_still or editor_accessors" -v
+uv run pytest tests/test_tabs_form_views.py -k "threads_both or early_return or out_of_enum or bounds_still or editor_accessors" -v
 ```
 Expected: FAIL — `KeyError: 'display'` / `AttributeError: 'TabsElementForm' object has no attribute 'editor_display'`.
 
@@ -449,9 +446,9 @@ Immediately after the `editor_rows` `cached_property`:
 - [ ] **Step 5: Run to verify pass**
 
 ```bash
-uv run pytest tests/test_tabs_form.py -v
+uv run pytest tests/test_tabs_form_views.py -v
 ```
-Expected: PASS (all, including the pre-existing tests).
+Expected: PASS — the new tests **and** the pre-existing form/view tests in the same file, which drive `clean_data` through the real save path that the `**extras` change touches.
 
 - [ ] **Step 6: Falsify**
 
@@ -461,7 +458,7 @@ Delete `**extras` from the final return → `test_clean_data_threads_both_keys` 
 - [ ] **Step 7: Commit**
 
 ```bash
-git add courses/element_forms.py tests/test_tabs_form.py
+git add courses/element_forms.py tests/test_tabs_form_views.py
 git commit -m "feat(tabs): thread display/label_pos through TabsElementForm
 
 Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
@@ -472,7 +469,7 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 ### Task 3: Editor UI — the two selects, the serializer, and `editor.css`
 
 **Files:**
-- Modify: `courses/templatetags/courses_manage_extras.py` (`tabs_bounds`, ~line 177)
+- Modify: `courses/templatetags/courses_manage_extras.py` (`tabs_bounds`)
 - Modify: `templates/courses/manage/editor/_edit_tabs.html`
 - Modify: `courses/static/courses/js/tabs_editor.js`
 - Modify: `courses/static/courses/css/editor.css`
@@ -484,9 +481,21 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 
 - [ ] **Step 1: Write the failing tests**
 
+First add the helper — `tests/test_tabs_editor_partial.py` has `EDITOR_CSS` but **no**
+`_served_tabs_form` (only a *test* of that name). It must serve a **fresh/unbound** tabs
+form, so `form.editor_display` is `"tabs"` and the label-position row is expected hidden:
+
+```python
+def _served_tabs_form(client):
+    """The tabs editor partial as the server renders it for a NEW element (unbound),
+    modelled on test_served_tabs_form_carries_the_bounds_the_js_reads. Assert on the
+    SERVED form, not a hand-instantiated one: the wiring lives in the response."""
+    ...  # same client/login/URL sequence as that existing test; return response text
+```
+
 ```python
 def test_tabs_editor_renders_both_setting_selects(client):
-    html = _served_tabs_form(client)          # reuse the existing helper in this file
+    html = _served_tabs_form(client)
     assert "data-tab-display" in html
     assert "data-tab-label-pos" in html
     # No name= : the hidden name="data" field is the sole authoritative input.
@@ -508,8 +517,9 @@ def test_tabs_mode_renders_the_label_position_row_hidden_from_first_paint(client
     """Server-rendered, not JS-only: a JS-only toggle means the row flashes visible
     until wire() runs, and this assertion would have nothing to assert."""
     html = _served_tabs_form(client)          # a fresh element defaults to display=tabs
-    row = html.split('data-tab-label-pos-row')[0].rsplit("<", 1)[1]
-    assert "hidden" in html.split("data-tab-label-pos-row")[0][-200:]
+    # AFTER the marker: the template emits `data-tab-label-pos-row {% if %}hidden{% endif %}`,
+    # so looking at the text before it would fail against a correct implementation.
+    assert "hidden" in html.split("data-tab-label-pos-row", 1)[1][:80]
 
 
 def test_editor_css_pairs_a_hidden_rule_for_every_flex_setting_row():
@@ -521,7 +531,20 @@ def test_editor_css_pairs_a_hidden_rule_for_every_flex_setting_row():
     assert "display: none" in css.split(".tabs-editor__setting[hidden]")[1][:80]
 ```
 
-Reuse the file's existing `_served_tabs_form` / `EDITOR_CSS` helpers; if the served-form helper does not exist, model it on `test_served_tabs_form_carries_the_bounds_the_js_reads`.
+Also add a **source assertion** over the serializer — the cheap half of the round-trip guard
+the e2e in Task 11 covers slowly:
+
+```python
+def test_serialize_reads_both_select_elements():
+    """The no-op re-save defect lives in serialize(). The e2e catches it in seconds of
+    wall-clock; this catches a later refactor in milliseconds."""
+    js = (ROOT / "courses/static/courses/js/tabs_editor.js").read_text(encoding="utf-8")
+    body = js[js.index("function serialize"):js.index("function refreshControlState")]
+    assert "display:" in body and "label_pos:" in body
+    assert "displaySel.value" in body and "labelPosSel.value" in body
+```
+
+Mutant: change `serialize()` to emit a captured constant instead of `displaySel.value` → RED.
 
 - [ ] **Step 2: Run to verify failure**
 
@@ -737,7 +760,21 @@ def test_render_calls_the_destructive_normalizer_exactly_once(monkeypatch):
     assert len(calls) == 1, "render must read the enums via display_settings(), not normalize_data"
 ```
 
-Add a module-level `_strip_tab_ids(html)` helper using `re.sub(r"t[0-9a-f]{6}", "TID", html)`.
+Add **both** module-level helpers to `tests/test_tabs_partial.py` — the file has neither, and
+every existing test there does `course, unit = make_course_with_unit()` (already imported):
+
+```python
+def _unit():
+    return make_course_with_unit()[1]
+
+
+def _strip_tab_ids(html):
+    """Tab ids are minted randomly per element, so two renders never match literally."""
+    return re.sub(r"t[0-9a-f]{6}", "TID", html)
+```
+
+`_unit()` creates a **fresh** unit per call — the byte-identical comparison test builds two
+elements and must not have them share a unit.
 
 - [ ] **Step 2: Run to verify failure**
 
@@ -839,9 +876,11 @@ Remove the `<div class="tabs__stage">` wrapper → `test_the_stage_wrapper_is_pr
 The wrapper is new markup inside a container that other suites render.
 
 ```bash
-uv run pytest tests/test_tabs_partial.py tests/test_nesting_rule.py tests/test_tabs_transfer.py -q
+uv run pytest tests/test_tabs_partial.py courses/tests/test_nesting_rule.py tests/test_tabs_transfer.py -q
 ```
-Expected: PASS.
+Expected: PASS. Note this run spans **both** test roots (`tests/` and `courses/tests/`) —
+`test_nesting_rule.py` lives under `courses/tests/`, and naming it `tests/…` makes pytest
+exit with a usage error and run nothing at all.
 
 - [ ] **Step 8: Commit**
 
@@ -866,7 +905,13 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 
 - [ ] **Step 1: Write the failing test**
 
+`tests/test_tabs_css.py` currently imports only `re` and `pathlib.Path` — **add
+`import pytest`**, or the parametrized test below raises `NameError` at import and takes the
+whole module down.
+
 ```python
+import pytest
+
 TABS_I18N_TEMPLATES = [           # the SAME three paths the loads-tabs-js test walks
     TEMPLATES / "courses/lesson_unit.html",
     TEMPLATES / "courses/quiz_unit.html",
@@ -953,7 +998,7 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 ### Task 6: CSS — carousel styles, the four scoped rules, and the print resets
 
 **Files:**
-- Modify: `courses/static/courses/css/courses.css` (`.el--tabs` block ~1488-1548)
+- Modify: `courses/static/courses/css/courses.css` (the `.el--tabs` block)
 - Modify: `tests/test_tabs_partial.py` (`_print_block`, `_screen_label_rule` helpers + new assertions)
 
 **Interfaces:**
@@ -969,14 +1014,17 @@ def _print_block():
     """The @media print body for .el--tabs. Split on the literal brace so a prose
     comment merely mentioning "@media print" cannot masquerade as the rule."""
     css = CSS.read_text(encoding="utf-8")
-    for chunk in css.split("@media print"):
+    # Keep the original split token AND the [1:] — dropping either would admit the
+    # stylesheet's pre-@media-print prefix as a candidate chunk. Only the [:1200] slice
+    # changes.
+    for chunk in css.split("@media print {")[1:]:
         if ".el--tabs" in chunk[:1200]:
             # Clip at the media block's closing brace, NOT at a character count: past
             # that brace the chunk is ordinary SCREEN css, and a fixed window would let
             # the carousel's screen rules satisfy a "the print block contains …"
             # assertion — a silent green with no print reset at all. Precedent:
             # courses/tests/test_reveal_scope_agreement.py::_print_block.
-            m = re.search(r"\{(.*?)\n\}", chunk, re.S)
+            m = re.search(r"(.*?)\n\}", chunk, re.S)
             assert m, "could not find the closing brace of the .el--tabs print block"
             return m.group(1)
     raise AssertionError("no @media print block found for .el--tabs")
@@ -1036,6 +1084,23 @@ def test_every_slide_hiding_rule_carries_the_carousel_gate():
             continue
         if "opacity: 0" in decls and "pointer-events: none" in decls:
             assert ".tabs--carousel" in selector, f"slide rule missing the gate: {selector.strip()}"
+
+
+def test_the_hidden_caption_rule_declares_only_properties_print_resets():
+    """label_pos:"hidden" is screen-only — the unscoped !important print reveal must undo
+    it. That reveal resets exactly seven properties, so a modern sr-only idiom
+    (clip-path: inset(50%), or margin/border/padding) would NOT be undone and a printed
+    carousel would silently lose every caption."""
+    css = CSS.read_text(encoding="utf-8")
+    line = next(
+        ln for ln in css.splitlines()
+        if '[data-label-pos="hidden"]' in ln and ".tabs__panel-label" in ln
+    )
+    decls = line.split("{")[1].split("}")[0]
+    props = {p.split(":")[0].strip() for p in decls.split(";") if p.strip()}
+    assert props, "the hidden-caption rule must stay on ONE physical line"
+    seven = {"position", "width", "height", "clip", "overflow", "white-space", "display"}
+    assert props <= seven, f"not undone by the print reveal: {props - seven}"
 
 
 def test_carousel_rules_use_child_combinators():
@@ -1161,8 +1226,8 @@ Inside the existing `.el--tabs` `@media print` block, **after** its current thre
      stage's min-height is set INLINE by measure(), which no author rule can override
      without it. `display: block` also neutralises the label_pos:"below" flex order, so
      a printed slide always shows its title above its content. */
-  .el--tabs[data-display="carousel"] > .tabs__stage { position: static !important; min-height: 0 !important; }
-  .el--tabs[data-display="carousel"] > .tabs__stage > .tabs__section { position: static !important; opacity: 1 !important; display: block !important; }
+  .el--tabs.tabs--carousel[data-display="carousel"] > .tabs__stage { position: static !important; min-height: 0 !important; }
+  .el--tabs.tabs--carousel[data-display="carousel"] > .tabs__stage > .tabs__section { position: static !important; opacity: 1 !important; display: block !important; }
   .el--tabs .tabs__cbar, .el--tabs .tabs__status { display: none !important; }
 ```
 
@@ -1179,6 +1244,7 @@ Expected: PASS (all, including the two pre-existing print tests).
 2. Change the slide rule's gate from `.tabs--carousel` to `.tabs--js` → `test_every_slide_hiding_rule_carries_the_carousel_gate` FAILS.
 3. Change a carousel selector's `> .tabs__stage >` to a descendant space → `test_carousel_rules_use_child_combinators` FAILS.
 4. Reflow the tabs-mode label rule onto two lines → `_screen_label_rule`'s non-vacuity assertion FAILS (this is the guard that stops the print-reset test passing vacuously).
+5. Rewrite the `[data-label-pos="hidden"]` caption rule as `clip-path: inset(50%)` → `test_the_hidden_caption_rule_declares_only_properties_print_resets` FAILS. This is the one that stops a printed carousel silently losing its captions.
 
 Revert each.
 
@@ -1208,36 +1274,38 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 - [ ] **Step 1: Write the failing source assertions**
 
 ```python
-JS = STATIC / "courses/js/tabs.js"
-
-
 def test_the_carousel_gate_class_is_added_after_show_zero():
     """The gate must go on LAST. .tabs--js is applied before the branch is entered, so
     gating on it would leave a half-initialised carousel blank rather than stacked."""
-    js = JS.read_text(encoding="utf-8")
+    js = TABS_JS.read_text(encoding="utf-8")
     assert 'classList.add("tabs--carousel")' in js
     assert js.index("show(0)") < js.index('classList.add("tabs--carousel")'), \
         "the gate class must be added after show(0) succeeds"
 
 
-def test_the_carousel_branch_has_a_catch_that_clears_inert_and_aria_hidden():
+def test_the_error_bail_clears_inert_aria_hidden_and_both_classes():
     """A class gate closes only the CSS half. inert/aria-hidden are JS-written
     ATTRIBUTES — no class can un-apply them, and the rest-init loop sets both on every
-    section before show(0) runs."""
-    js = JS.read_text(encoding="utf-8")
-    assert "catch" in js
-    tail = js[js.index("catch"):]
-    assert 'removeAttribute("inert")' in tail
-    assert 'removeAttribute("aria-hidden")' in tail
-    assert 'classList.remove("tabs--js")' in tail
-    assert 'classList.remove("tabs--carousel")' in tail
+    section before show(0) runs.
+
+    Sliced from `function bail`, NOT from the first `catch` token: bail() is DEFINED
+    above the try/catch, so a catch-anchored slice would contain only `bail();` and
+    none of the statements below — the assertion would fail on correct code."""
+    js = TABS_JS.read_text(encoding="utf-8")
+    body = js[js.index("function bail"):]
+    assert 'removeAttribute("inert")' in body
+    assert 'removeAttribute("aria-hidden")' in body
+    assert 'classList.remove("tabs--js")' in body
+    assert 'classList.remove("tabs--carousel")' in body
+    assert "teardownMeasure()" in body
+    assert "bail();" in js[js.index("catch"):]     # …and the catch actually calls it
 
 
 def test_every_new_carousel_class_is_a_single_token_literal():
     """The drift guard is re.findall(r'className = "([\\w-]*tabs__[\\w-]+)"'). A space is
     not in [\\w-], so a base+modifier literal matches NOTHING and both classes ship
     unguarded. Also: no classList.add for a styled base class."""
-    js = JS.read_text(encoding="utf-8")
+    js = TABS_JS.read_text(encoding="utf-8")
     emitted = set(re.findall(r'className = "([\w-]*tabs__[\w-]+)"', js))
     for cls in ["tabs__cbar", "tabs__cprev", "tabs__cnext", "tabs__dots", "tabs__dot", "tabs__status"]:
         assert cls in emitted, f"{cls} is invisible to the style-drift guard"
@@ -1246,7 +1314,7 @@ def test_every_new_carousel_class_is_a_single_token_literal():
 - [ ] **Step 2: Run to verify failure**
 
 ```bash
-uv run pytest tests/test_tabs_css.py -k "gate_class or catch_that_clears or single_token" -v
+uv run pytest tests/test_tabs_css.py -k "gate_class or error_bail or single_token" -v
 ```
 Expected: FAIL.
 
@@ -1261,8 +1329,12 @@ At the top of `tabs.js`, replace the `i18n` line:
   // throw on .replace. Read every key through t().
   var i18n = window.TABS_I18N || {};
   function t(key, fallback) {
-    var v = i18n[key];
-    return typeof v === "string" ? v : fallback;
+    // `|| fallback`, deliberately NOT a typeof check. A type guard would be marginally
+    // safer at runtime but would swallow the ONE injection the error-bail e2e uses to
+    // force a throw (a truthy non-string that passes the default and then dies on
+    // .replace) — leaving the try/catch with no test that can go RED. Spec wording:
+    // "Read every new key as `i18n.x || "…"`".
+    return i18n[key] || fallback;
   }
   var FADE_MS = 320;  // MUST match the .el--tabs carousel transition in courses.css
 ```
@@ -1278,8 +1350,12 @@ Immediately after `container.classList.add("tabs--js");`:
     // fall through to the tab strip. There is no undefined third path. (The CSS keys
     // tabs-mode rules on the literal [data-display="tabs"] — a deliberate asymmetry,
     // since a blank element is a worse failure than a duplicated label.)
+    //
+    // No `eid` argument: the carousel branch does NO id work (the template already emits
+    // both the -panel and -label ids, namespaced). Passing it here would also read the
+    // variable before `var eid = …` assigns it a few lines below.
     if (container.getAttribute("data-display") === "carousel") {
-      initCarousel(container, sections, eid);
+      initCarousel(container, sections);
       return;
     }
 ```
@@ -1289,10 +1365,13 @@ Immediately after `container.classList.add("tabs--js");`:
 Add above `initTabs`. Transcribe `show` from `gallery.js`; the annotated departures are marked.
 
 ```js
-  function iconBtn(cls, pathD, label) {
+  // NOTE: this helper does NOT set the class — `b.className = cls` would be a parameter,
+  // and the drift guard only matches a string LITERAL on the right of `className =`. The
+  // caller assigns it literally (see initCarousel), exactly the trap the existing
+  // chevron(cls, …) helper falls into for .tabs__chev.
+  function iconBtn(pathD, label) {
     var b = document.createElement("button");
     b.type = "button";
-    b.className = cls;              // single-token literal: the drift guard needs it
     b.setAttribute("aria-label", label);
     b.title = label;
     b.innerHTML = '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
@@ -1301,9 +1380,17 @@ Add above `initTabs`. Transcribe `show` from `gallery.js`; the annotated departu
     return b;
   }
 
-  function initCarousel(container, sections, eid) {
+  function initCarousel(container, sections) {
     var stage = container.querySelector(".tabs__stage");
-    if (!stage || sections.length < 2) return;
+    if (!stage || sections.length < 2) {
+      // Route the degenerate case through the same undo as a bail: initOne has already
+      // added .tabs--js, and courses.css separates stacked slides with
+      // `:not(.tabs--js) .tabs__section + .tabs__section { margin-top }` — leaving the
+      // class here makes the slides butt together. Reachable from a stale cached
+      // fragment served before the template change.
+      container.classList.remove("tabs--js");
+      return;
+    }
 
     // PER-INSTANCE closure state, declared together (gallery.js:31-32). Never at module
     // scope: a shared `pending` would let one carousel finalise another's in-flight
@@ -1314,8 +1401,10 @@ Add above `initTabs`. Transcribe `show` from `gallery.js`; the annotated departu
     var nav = document.createElement("nav");
     nav.className = "tabs__cbar";
     nav.setAttribute("aria-label", t("carouselNav", "Carousel"));
-    var prev = iconBtn("tabs__cprev", "M15 6l-6 6 6 6", t("prevSlide", "Previous slide"));
-    var next = iconBtn("tabs__cnext", "M9 6l6 6-6 6", t("nextSlide", "Next slide"));
+    var prev = iconBtn("M15 6l-6 6 6 6", t("prevSlide", "Previous slide"));
+    prev.className = "tabs__cprev";   // literal, single token: the drift guard needs both
+    var next = iconBtn("M9 6l6 6-6 6", t("nextSlide", "Next slide"));
+    next.className = "tabs__cnext";
     var dotWrap = document.createElement("div");
     dotWrap.className = "tabs__dots";
     var dots = sections.map(function (_s, k) {
@@ -1502,7 +1591,17 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
         if (n.disabled) continue;
         if (n.getAttribute("tabindex") === "-1") continue;
         if (n.closest("[inert]")) continue;                 // a nested carousel's rest slides
-        if (!n.offsetParent && n.offsetHeight === 0) continue;  // a nested tabs' display:none panel
+        // display / visibility / zero-box — OR, not AND. A `visibility: hidden` node has a
+        // non-null offsetParent and a non-zero height, so an && predicate would accept it,
+        // .focus() would silently no-op, focus would stay on <body>, and the keydown
+        // handler would bail: the exact failure this chain exists to prevent, reached
+        // through the fallback. Ancestor OPACITY must NOT be tested — rescueFocus runs
+        // while the incoming slide is still mid-fade at opacity 0, so an opacity-aware
+        // check would reject every candidate and always fall through to the nav bar.
+        if (!n.offsetParent) continue;
+        var r = n.getBoundingClientRect();
+        if (r.width === 0 && r.height === 0) continue;
+        if (getComputedStyle(n).visibility === "hidden") continue;
         // Ownership: a candidate inside a NESTED instance would satisfy the rescue but
         // then fail the keydown guard below, killing navigation after one step.
         if (n.closest("[data-tabs], [data-gallery]") !== container) continue;
@@ -1603,7 +1702,16 @@ Delete the stub declaration from Task 7.
     document.addEventListener("libli:reveal", onDocReveal);
 ```
 
-Call `measure();` immediately after `show(0);` inside the `try`, and add `teardownMeasure();` to `bail()`.
+⚠️ **Insertion point is load-bearing.** Put this whole block — the four functions **and**
+the `ro.observe` / `resize` / two `libli:reveal` registrations — **inside `initCarousel`
+before the `try` block**, so `bail()` can tear it all down. Appended after the `try/catch`
+instead, a bail would run `teardownMeasure()` before any of it exists and the four
+registrations would then execute unconditionally on a dead instance, leaving a live
+`ResizeObserver` and three listeners bound forever. The `dead` flag makes that leak
+**silent** — no test would catch it.
+
+Then call `measure();` immediately after `show(0);` inside the `try`, and add
+`teardownMeasure();` to `bail()`.
 
 - [ ] **Step 4: Re-point the stale source citations**
 
@@ -1624,9 +1732,9 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 ### Task 9: Transfer — serialize, validate, build, and the `FORMAT_VERSION` bump
 
 **Files:**
-- Modify: `courses/transfer/export.py` (`_ser_tabs`, ~line 234)
-- Modify: `courses/transfer/payloads.py` (`_val_tabs`, ~line 707)
-- Modify: `courses/transfer/importer.py` (`_build_tabs`, ~line 783)
+- Modify: `courses/transfer/export.py` (`_ser_tabs`)
+- Modify: `courses/transfer/payloads.py` (`_val_tabs`)
+- Modify: `courses/transfer/importer.py` (`_build_tabs`)
 - Modify: `courses/transfer/schema.py` (`FORMAT_VERSION`, line 14)
 - Modify: 5 test files across **two** roots (see Step 5)
 - Test: `tests/test_tabs_transfer.py` (append)
@@ -1636,6 +1744,9 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 - Produces: the archive payload `{tabs, display, label_pos}` at `FORMAT_VERSION` 8.
 
 - [ ] **Step 1: Write the failing tests**
+
+Add the import this file lacks: `from courses.transfer.payloads import _val_tabs`
+(`FORMAT_VERSION` is already imported there).
 
 ```python
 @pytest.mark.django_db
@@ -1788,7 +1899,7 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 ### Task 10: Builder summary — name the mode in the element list
 
 **Files:**
-- Modify: `courses/templatetags/courses_manage_extras.py` (`element_summary`, ~line 140)
+- Modify: `courses/templatetags/courses_manage_extras.py` (`element_summary`)
 - Modify: `locale/pl/LC_MESSAGES/django.po` + `.mo`
 - Test: `tests/test_tabs_partial.py` (append)
 
@@ -1808,7 +1919,26 @@ def test_a_tabs_summary_is_byte_identical_to_todays():
     """The change must not regress every existing element's row."""
     obj = TabsElement.objects.create(data=TabsElement.default_data())
     assert element_summary(obj) == "2 tabs"
+
+
+@pytest.mark.django_db
+def test_the_polish_plural_still_resolves_and_the_suffix_translates():
+    """This edit wraps the ONE expression carrying Polish's three plural forms. The
+    suffix must not break them, and must itself translate."""
+    from django.utils import translation
+
+    with translation.override("pl"):
+        for n in (1, 2, 5):
+            tabs = [{"id": f"t{i:06x}", "label": f"T{i}"} for i in range(n)]
+            obj = TabsElement.objects.create(data={"tabs": tabs})
+            assert str(n) in element_summary(obj)
+        carousel = TabsElement.objects.create(
+            data={**TabsElement.default_data(), "display": "carousel"}
+        )
+        assert "karuzela" in element_summary(carousel)
 ```
+
+Add the import this file lacks: `from courses.templatetags.courses_manage_extras import element_summary`.
 
 - [ ] **Step 2: Run to verify failure**
 
@@ -1828,11 +1958,15 @@ uv run pytest tests/test_tabs_partial.py -k "summary" -v
         if norm["display"] == "carousel":
             # Display is otherwise an invisible setting: without this the builder tree
             # shows "3 tabs" for a carousel with nothing to distinguish it.
-            summary = _("%(summary)s · carousel") % {"summary": summary}
+                # gettext (eager), NOT the lazy `_`: every other branch of this function
+            # returns a str, and `_(...) % {...}` yields a __proxy__ that behaves
+            # differently under json.dumps / == / %-format for carousel rows only.
+            summary = gettext("%(summary)s · carousel") % {"summary": summary}
         return summary
 ```
 
-This reads the **non-destructive** normalizer, so it depends on trap site 1 from Task 1.
+This reads the **non-destructive** normalizer, so it depends on trap site 1 from Task 1. Add
+`from django.utils.translation import gettext` alongside the existing `ngettext` import.
 
 - [ ] **Step 4: Translate**
 
@@ -1879,7 +2013,8 @@ Each bullet is one test. Sync on conditions, never on sleeps.
 - [ ] **Focus into the slide:** with a slide holding a link, ArrowRight → `document.activeElement` is inside the incoming section, **not** in `.tabs__cbar`. *(Guards against an over-strict `rescueFocus` predicate silently degrading to the fallback.)*
 - [ ] **Two presses:** ArrowRight **twice** — a build broken at steps 5/7/8 survives exactly one press.
 - [ ] **Nested tabs:** a slide holding a tabs element; ArrowRight twice still advances the outer carousel.
-- [ ] **Nested gallery:** a gallery in a slide; one ArrowRight with focus inside it moves the gallery by one and leaves the carousel's index unchanged.
+- [ ] **Nested gallery — arrow ownership:** a gallery in a slide; one ArrowRight with focus inside it moves the gallery by one and leaves the carousel's index unchanged.
+- [ ] **Nested gallery — reveal bubbling:** put the gallery on slide **2**, advance to it, and assert the gallery's own stage height is non-zero (it re-measured). *(Mutant: drop `bubbles: true` from the `libli:reveal` dispatch → RED. A nested consumer's own container listener cannot see an event dispatched on an ancestor section; only the document-delegated listener rescues it, and that needs the event to reach `document`.)*
 - [ ] **Scroll containers:** Left/Right inside a **wide** table's scroll box scrolls the table and does not advance; Left/Right inside a **narrow** table (nothing to scroll) still advances.
 - [ ] **Mid-fade:** click › twice inside the fade window; exactly one slide ends `.is-active` and opaque.
 - [ ] **Nesting, all three directions:** tabs-in-carousel, carousel-in-carousel, and **carousel-in-tabs** each render visible and operable. The third is the regression test for the label rules (failure: the inner carousel silently loses every caption); the first two for the child combinators (failure: a completely blank inner element).
