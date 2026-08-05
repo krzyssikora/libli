@@ -449,6 +449,7 @@ def test_live_preview_updates_without_a_save(page, live_server, geom):
     swap in the other test -- not before/after the seam."""
     owner, course, _geom_unit, preview_unit, preview_join = geom
     _login(page, live_server, owner.username)  # editor is manage-gated
+    page.set_viewport_size(DESKTOP)
     page.goto(_editor_url(live_server, course, preview_unit))
 
     _open_existing_element_form(page, preview_join)
@@ -488,6 +489,7 @@ def test_live_preview_survives_a_save_swap(page, live_server, geom):
     same."""
     owner, course, _geom_unit, preview_unit, preview_join = geom
     _login(page, live_server, owner.username)
+    page.set_viewport_size(DESKTOP)
     page.goto(_editor_url(live_server, course, preview_unit))
 
     _open_existing_element_form(page, preview_join)
