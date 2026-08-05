@@ -147,7 +147,7 @@ def test_display_settings_agrees_with_the_normalizer_on_hostile_input():
 - [ ] **Step 2: Run the tests to verify they fail**
 
 ```bash
-uv run pytest tests/test_tabs_model.py -k "new_keys or hostile or round_trips or carries_the_keys or save_round_trip or self_describing or display_settings" -v
+uv run pytest tests/test_tabs_model.py -k "new_keys or hostile or unhashable_probe or round_trips or carries_the_keys or save_round_trip or self_describing or display_settings" -v
 ```
 Expected: FAIL — `AttributeError: type object 'TabsElement' has no attribute 'display_settings'` and `KeyError: 'display'`.
 
@@ -269,7 +269,7 @@ In `courses/builder.py`, the registry's docstring says "CONTRACT: each normalize
 - [ ] **Step 7: Run the tests to verify they pass**
 
 ```bash
-uv run pytest tests/test_tabs_model.py -k "new_keys or hostile or round_trips or carries_the_keys or save_round_trip or self_describing or display_settings" -v
+uv run pytest tests/test_tabs_model.py -k "new_keys or hostile or unhashable_probe or round_trips or carries_the_keys or save_round_trip or self_describing or display_settings" -v
 ```
 Expected: PASS (all).
 
@@ -277,7 +277,7 @@ Expected: PASS (all).
 
 1. Revert `normalize_labels_and_ids` to `return {"tabs": tabs}` → `test_save_round_trip_preserves_both_keys` must FAIL. Revert the mutant.
 2. Revert `normalize_data` to `return {"tabs": tabs}` → `test_normalize_data_carries_the_keys_through_padding_and_truncation` must FAIL. Revert.
-3. Change `DISPLAYS = tuple(...)` to `frozenset(...)` → **`test_the_membership_collections_accept_an_unhashable_probe`** must FAIL with `TypeError: unhashable type`. Note that `test_normalizers_coerce_hostile_values_without_raising` stays GREEN under this mutant — `_coerce_enum`'s `and` short-circuits before the membership test — which is exactly why the direct probe exists. Revert.
+3. Run `uv run pytest tests/test_tabs_model.py -k unhashable_probe -v`, then change `DISPLAYS = tuple(...)` to `frozenset(...)` → **`test_the_membership_collections_accept_an_unhashable_probe`** must FAIL with `TypeError: unhashable type`. Note that `test_normalizers_coerce_hostile_values_without_raising` stays GREEN under this mutant — `_coerce_enum`'s `and` short-circuits before the membership test — which is exactly why the direct probe exists. Revert.
 
 Record each observed failure before reverting. If any mutant leaves the file green, the test is not guarding what it claims.
 
@@ -964,12 +964,11 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 - [ ] **Step 1: Write the failing test**
 
 `tests/test_tabs_css.py` currently imports only `re` and `pathlib.Path` — **add
-`import pytest`**, or the parametrized test below raises `NameError` at import and takes the
-whole module down.
+`import pytest`** to the module's **existing top-of-file import block** (`import re` /
+`from pathlib import Path`) — not at the append site, which would be `E402`. Then append the
+constants and the test.
 
 ```python
-import pytest
-
 TABS_I18N_TEMPLATES = [           # the SAME three paths the loads-tabs-js test walks
     TEMPLATES / "lesson_unit.html",
     TEMPLATES / "quiz_unit.html",
@@ -1805,11 +1804,11 @@ symbol this task introduces):
 ```python
 def test_the_error_bail_tears_down_the_measurement_wiring():
     js = TABS_JS.read_text(encoding="utf-8")
-    # Call-shaped, not the bare name: "teardownMeasure()" also occurs inside
-    # `function teardownMeasure() {`, so the bare substring passes on the declaration
-    # alone whether or not bail() ever calls it.
-    assert "
-      teardownMeasure();" in js[js.index("function bail"):]
+    # The SEMICOLON is what makes this call-shaped: the declaration reads
+    # `function teardownMeasure() {` with no semicolon, so it cannot satisfy this
+    # substring — whereas a bare "teardownMeasure()" would pass on the declaration
+    # alone, whether or not bail() ever calls it.
+    assert "teardownMeasure();" in js[js.index("function bail"):]
 ```
 
 ⚠️ **Insertion point is load-bearing.** Put this whole block — the four functions **and**
@@ -1944,8 +1943,11 @@ def test_duplicating_a_carousel_keeps_it_a_carousel():
     assert new_join.content_object.data["label_pos"] == "hidden"
 
 
-def test_format_version_is_8():
-    assert FORMAT_VERSION == 8
+# NOTE: do NOT add a `test_format_version_is_8` here. tests/test_tabs_transfer.py
+# ALREADY has `test_format_version_is_7`, and Step 5 renames it in place. Defining a
+# second module-level function of the same name is ruff F811 (live under this repo's
+# select list), fails the commit and the branch gate, and pytest would collect only
+# one of them.
 ```
 
 - [ ] **Step 2: Run to verify failure**
@@ -2115,7 +2117,7 @@ uv run pytest tests/test_tabs_partial.py -k "summary" -v
         if norm["display"] == "carousel":
             # Display is otherwise an invisible setting: without this the builder tree
             # shows "3 tabs" for a carousel with nothing to distinguish it.
-                # gettext (eager), NOT the lazy `_`: every other branch of this function
+            # gettext (eager), NOT the lazy `_`: every other branch of this function
             # returns a str, and `_(...) % {...}` yields a __proxy__ that behaves
             # differently under json.dumps / == / %-format for carousel rows only.
             summary = gettext("%(summary)s · carousel") % {"summary": summary}
