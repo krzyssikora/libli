@@ -490,7 +490,10 @@ def _build_text(data, assets):
 
 def _build_image(data, assets):
     el = ImageElement(
-        media=assets[data["media"]], alt=data["alt"], figcaption=data["figcaption"]
+        media=assets[data["media"]],
+        alt=data["alt"],
+        figcaption=data["figcaption"],
+        size=data["size"],
     )
     return _clean_save(el), ()
 

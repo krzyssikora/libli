@@ -262,7 +262,7 @@ def test_spanning_table_imports_from_legacy_v4_declared_bundle(
     client, settings, tmp_path
 ):
     # Spec test #8: a bundle DECLARING format_version=4 but carrying a spanning
-    # table imports through the full gate (4 <= FORMAT_VERSION=6) AND the spanning
+    # table imports through the full gate (4 <= FORMAT_VERSION=7) AND the spanning
     # branch — proving span handling keys on span-key presence, not the version.
     # Build a real archive via write_archive (emits v5), then downgrade the
     # manifest's declared version to 4 and re-drive it through the importer.
