@@ -990,7 +990,11 @@ is exactly the content-loss failure that test exists to catch.
 Instead, **clip the chunk at the media block's closing brace**, following the in-repo
 precedent `courses/tests/test_reveal_scope_agreement.py::_print_block`
 (`re.search(r"@media print\s*\{(.*?)\n\}", css, re.S)`), so "in the print block" means what it
-says regardless of length or of what follows. Then append the new rules (so ordering is
+says regardless of length or of what follows. ⚠️ Apply that regex to **the already-selected
+`.el--tabs` chunk**, not to the whole stylesheet — `courses.css` has several `@media print`
+blocks and the first one is not this element's, so a literal drop-in of the precedent would
+select the wrong block. Keep the existing chunk-selection loop and replace only the
+`[:1200]` slice. Then append the new rules (so ordering is
 irrelevant) and the 1200-character cliff disappears entirely.
 
 **`label_pos: "below"`** is a **CSS-only reorder**, since the `h3` always precedes the panel
