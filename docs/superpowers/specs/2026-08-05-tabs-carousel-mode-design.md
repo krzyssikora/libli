@@ -437,9 +437,13 @@ progressively rebuilding the "worse than blank" state the `catch` exists to prev
 surviving `ResizeObserver` or `libli:reveal` listener likewise keeps writing
 `stage.style.minHeight` onto a stacked, non-absolute stage.
 
-Simplest sufficient discipline: set a `dead = true` flag that `show()` and `measure()` check
-and return on, **and** disconnect the observer, drop the `resize` and both `libli:reveal`
-listeners, and clear any inline `min-height` already written to the stage. Extend the
+Simplest sufficient discipline: set a `dead = true` flag that `show()`, `measure()` **and the
+keydown handler** check and return on, **and** disconnect the observer, drop the `resize` and
+both `libli:reveal` listeners, and clear any inline `min-height` already written to the stage.
+The keydown handler must bail on `dead` **before** `preventDefault()` — otherwise a post-bail
+Left/Right/Home/End passes all three guards, swallows the key, and only then no-ops, so
+Home/End page-scrolling and horizontal table scrolling stop working inside an element whose
+promised state is a readable stacked fallback. Extend the
 forced-throw e2e: after the bail, press ArrowRight and assert every section is still
 non-`inert`, not `aria-hidden`, and the stage carries no inline `min-height`. Mutant: leave
 the keydown listener bound → RED. Only then is
@@ -482,7 +486,7 @@ distinguishes the two *enhanced* modes; it does not replace the JS gate.
   button is `disabled` — the gallery's boundary behaviour and its `:disabled` styling.
   **Because disabling the focused element blurs it to `<body>`**, when the button that was
   just activated becomes disabled, focus moves to the opposite arrow. Two things this
-  requires: the "was this arrow focused" test is **read into a local before step 2 reassigns
+  requires: the focused arrow is **read into a local before step 4 reassigns
   `disabled`** — the read is **step 2** of the algorithm below, the reassignment is **step 4**,
   and this is a *capture*, not a reordering: step 4 must still run before `rescueFocus` at
   step 7. The transfer itself is step 4b, and it applies **only when focus was on the nav
@@ -490,22 +494,36 @@ distinguishes the two *enhanced* modes; it does not replace the JS gate.
   two focus mechanisms mutually exclusive by construction; without the restriction both fire
   on one activation and the reader sees a visible focus jump.
 
-- **`show(n)` is a normative, ordered algorithm.** Several requirements elsewhere in this
-  spec are correct only at a specific point in it, so it is written out in full. It mirrors
-  `gallery.js::show` step for step; where it departs, the departure is called out.
+- **`show(n)`: PORT `gallery.js::show` — do not re-derive it.** The normative instruction is
+  "transcribe the gallery's function and apply the enumerated departures", not "write a
+  carousel that behaves similarly". The gallery's version is production code that already
+  encodes several non-obvious orderings and guards; every attempt to restate it from
+  intent — including several earlier drafts of this spec — dropped one of them, and each
+  omission produced a silent total failure rather than a visible bug. **Diff your
+  implementation against `gallery.js::show` before calling the task done; any difference not
+  on the departure list below is a defect.**
+
+  The block below is that transcription, written out because several requirements elsewhere
+  in this spec are correct only at a specific point in it. The **departures** from the
+  gallery are exactly: the `dead` guard (step 0), the boundary focus transfer (step 4b), the
+  `.tabs__status` write folded into step 4, the `libli:reveal` dispatch (step 6 and step 10),
+  the four-filter `rescueFocus` candidate predicate, and the absence of the
+  `useDots`/counter branch. Nothing else.
 
   ```
   0.  if (dead) return;                                  // set by the error bail; MUST be first
       target = clamp(n) into [0, N-1]
       if (idx !== -1 && target === idx) return;          // sentinel-aware, see below
   1.  finalizePending()
-  2.  wasFocusedArrow = (activeElement === prev || activeElement === next)   // capture, see 4b
+  2.  focusedArrow = (activeElement === prev) ? prev
+                   : (activeElement === next) ? next : null      // the ELEMENT, see 4b
   3.  out = sections[idx]            // undefined on the first call, because idx === -1
       idx = target
       inn = sections[idx]
   4.  update dots (.is-active + aria-current), the .tabs__status text,
       and prev/next .disabled + aria-disabled — all to the NEW idx
-  4b. if (wasFocusedArrow && the arrow that held focus is now disabled) oppositeArrow.focus()
+  4b. if (focusedArrow && focusedArrow.disabled)
+        (focusedArrow === prev ? next : prev).focus()   // opposite arrow is always enabled
   5.  inn.removeAttribute("aria-hidden"); inn.removeAttribute("inert")
   6.  if (!out) {                                        // first show
         inn.style.opacity = ""; inn.classList.add("is-active")
@@ -518,14 +536,18 @@ distinguishes the two *enhanced* modes; it does not replace the JS gate.
       pending = {out, inn, timer}; timer(FADE_MS or 0) -> settleHidden(out); inn.style.opacity = ""
   10. dispatch libli:reveal on inn (bubbles: true)
 
+  pending = null            // module-local, initialised HERE, not lazily
   settleHidden(el):  el.classList.remove("is-active"); el.style.opacity = "";
                      el.setAttribute("aria-hidden", "true"); el.setAttribute("inert", "")
-  finalizePending(): clears the timer, settleHidden(pending.out) if it is not pending.inn,
-                     adds .is-active to pending.inn and clears its inline opacity
+  finalizePending(): if (!pending) return;              // REQUIRED — see below
+                     clearTimeout(pending.timer)
+                     if (pending.out && pending.out !== pending.inn) settleHidden(pending.out)
+                     pending.inn.classList.add("is-active"); pending.inn.style.opacity = ""
+                     pending = null
   ```
 
-  Eight of those positions are load-bearing, and most have already been the source of a
-  defect:
+  Each of the following positions is load-bearing, and most have already been the source
+  of a defect:
 
   - **`idx` starts at `-1`, and step 0's early return is sentinel-aware** (`idx !== -1 &&
     target === idx`), per `gallery.js:31,137`. Init `inert`s and `aria-hidden`s **every**
@@ -543,8 +565,18 @@ distinguishes the two *enhanced* modes; it does not replace the JS gate.
     sets that flag, and the guard must precede step 4 (which writes to the now-detached nav
     nodes without throwing) and step 8 (which would re-`inert` a section of the stacked
     fallback). `measure()` carries the same guard.
-  - **Step 4b consumes `wasFocusedArrow`.** Capturing it at step 2 and never reading it is
-    not a harmless dangling local: at slide N-1 with focus on `next`, step 4 disables `next`,
+  - **`finalizePending()` opens with `if (!pending) return;`** (`gallery.js:127-128`), and
+    `pending` is initialised to `null` up front. Step 1 runs it unconditionally, but `pending`
+    is only assigned at step 9 — and the init call returns at step 6 — so it is unset for the
+    first *two* `show()` calls. Without the guard the very first `show(0)` throws
+    `TypeError` on `pending.out`, the `try/catch` bails, and **every carousel on every page**
+    renders as the stacked fallback.
+  - **Step 4b consumes `focusedArrow`, which step 2 captures as an ELEMENT, not a boolean.**
+    A boolean is not enough: by step 4b `document.activeElement` is `<body>` — precisely
+    because step 4 disabled the arrow — so both "which arrow held focus" and "the opposite
+    one" are unrecoverable, and the naive repair (re-read `activeElement` at 4b) makes the
+    condition permanently false. Capturing it and never reading it at all is equally fatal:
+    at slide N-1 with focus on `next`, step 4 disables `next`,
     the browser blurs to `<body>`, step 7 returns early (`out` does not contain `<body>`),
     and focus ends outside the container — so the container-bound keydown handler never fires
     again and keyboard navigation dies. 4b and step 7 are mutually exclusive by construction:
@@ -1241,6 +1273,12 @@ height assertion against similar slides passes trivially on a broken build. Then
   each end** (ArrowLeft on slide 1, ArrowRight on slide N): the index must be unchanged with
   no console error. The `disabled` assertions alone read the buttons, and the keyboard path
   never touches them;
+- **click** › repeatedly to the last slide, then assert `document.activeElement` is the
+  `prev` button — **not `<body>`** — and that a following ArrowLeft actually decrements the
+  index. This is the only case that can see step 4b: every other keyboard assertion reads the
+  buttons and the index, so a build that omits 4b (or re-reads `activeElement` inside it,
+  making the condition permanently false) stays green while keyboard navigation dies after
+  one mouse click on the boundary arrow. Mutant: delete step 4b → RED;
 - with a slide that holds a link, ArrowRight and assert `document.activeElement` is inside
   the incoming section rather than in `.tabs__cbar` — the guard against an over-strict
   `rescueFocus` predicate silently degrading to the nav-bar fallback;
