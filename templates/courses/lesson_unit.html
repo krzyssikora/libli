@@ -77,7 +77,7 @@
   <script src="{% static 'courses/js/gallery.js' %}" defer></script>
   <script>window.IMAGEZOOM_I18N = { enlarge: "{% trans 'Enlarge image' %}", dialog: "{% trans 'Enlarged image' %}" };</script>
   <script src="{% static 'courses/js/imagezoom.js' %}" defer></script>
-  <script>window.TABS_I18N = { nav: "{% trans 'Tabs' %}", prev: "{% trans 'Scroll tabs left' %}", next: "{% trans 'Scroll tabs right' %}" };</script>
+  <script>window.TABS_I18N = { nav: "{% trans 'Tabs' %}", prev: "{% trans 'Scroll tabs left' %}", next: "{% trans 'Scroll tabs right' %}", carouselNav: "{% trans 'Carousel' %}", prevSlide: "{% trans 'Previous slide' %}", nextSlide: "{% trans 'Next slide' %}", goToSlide: "{% trans 'Go to slide {n}' %}", slidePos: "{% trans 'Slide {n} of {total}' %}" };</script>
   <script src="{% static 'courses/js/tabs.js' %}" defer></script>
   {% if has_reveal_gate or has_fill_gate or has_switch_gate or has_switch_grid or has_fill_table or has_guess_number or has_stepper %}<script src="{% static 'courses/js/state.js' %}" defer></script>{% endif %}
   {% if has_reveal_gate %}<script src="{% static 'courses/js/reveal.js' %}" defer></script>{% endif %}

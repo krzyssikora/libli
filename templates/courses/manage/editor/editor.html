@@ -165,7 +165,7 @@
   no-JS form is every panel visible; tabs.js is what makes it an actual tab strip there
   too. editor.js re-runs window.libliInitTabs over the pane after each fragment swap.
   {% endcomment %}
-  <script>window.TABS_I18N = { nav: "{% trans 'Tabs' %}", prev: "{% trans 'Scroll tabs left' %}", next: "{% trans 'Scroll tabs right' %}" };</script>
+  <script>window.TABS_I18N = { nav: "{% trans 'Tabs' %}", prev: "{% trans 'Scroll tabs left' %}", next: "{% trans 'Scroll tabs right' %}", carouselNav: "{% trans 'Carousel' %}", prevSlide: "{% trans 'Previous slide' %}", nextSlide: "{% trans 'Next slide' %}", goToSlide: "{% trans 'Go to slide {n}' %}", slidePos: "{% trans 'Slide {n} of {total}' %}" };</script>
   <script src="{% static 'courses/js/tabs.js' %}" defer></script>
   {% comment %}The preview also renders the student reveal-gate button, which ships
   `hidden` (reveal.js un-hides it). Without this the preview shows no button at all.

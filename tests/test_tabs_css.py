@@ -1,6 +1,8 @@
 import re
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).resolve().parent.parent
 TABS_JS = ROOT / "courses/static/courses/js/tabs.js"
 GALLERY_JS = ROOT / "courses/static/courses/js/gallery.js"
@@ -62,3 +64,22 @@ def test_every_tabs_class_the_js_emits_is_styled():
         first = cls.split()[0]
         msg = f"courses.css never styles .{first} (emitted by tabs.js)"
         assert f".{first}" in css, msg
+
+
+TABS_I18N_TEMPLATES = [  # the SAME three paths the loads-tabs-js test walks
+    TEMPLATES / "lesson_unit.html",
+    TEMPLATES / "quiz_unit.html",
+    TEMPLATES / "manage/editor/editor.html",
+]
+CAROUSEL_I18N_KEYS = ["carouselNav", "prevSlide", "nextSlide", "goToSlide", "slidePos"]
+
+
+@pytest.mark.parametrize("path", TABS_I18N_TEMPLATES)
+def test_every_tabs_i18n_template_carries_every_carousel_key(path):
+    """The literal is duplicated in three templates. A template missing a key does NOT
+    fall back to English: tabs.js reads `window.TABS_I18N || {…}`, so the defaults
+    object is used only when the global is ENTIRELY absent — a partial object yields
+    undefined and throws on .replace."""
+    html = path.read_text(encoding="utf-8")
+    for key in CAROUSEL_I18N_KEYS:
+        assert f"{key}:" in html, f"{path.name} is missing TABS_I18N.{key}"

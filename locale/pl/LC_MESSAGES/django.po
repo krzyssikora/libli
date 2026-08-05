@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-05 12:04+0200\n"
+"POT-Creation-Date: 2026-08-05 18:09+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -277,7 +277,7 @@ msgstr "Powiadomienia"
 msgid "Your settings have been saved."
 msgstr "Twoje ustawienia zostały zapisane."
 
-#: .\courses\builder.py:743 .\courses\builder.py:852
+#: .\courses\builder.py:746 .\courses\builder.py:855
 msgid "This element is damaged and cannot be copied."
 msgstr "Ten element jest uszkodzony i nie można go skopiować."
 
@@ -512,35 +512,35 @@ msgstr "Galeria jest ograniczona do %(n)d obrazów."
 msgid "A gallery image is not an image in this course."
 msgstr "Obraz galerii nie jest obrazem należącym do tego kursu."
 
-#: .\courses\element_forms.py:1681
+#: .\courses\element_forms.py:1688
 msgid "A tabs element needs a list of tabs."
 msgstr "Element zakładek wymaga listy zakładek."
 
-#: .\courses\element_forms.py:1684
+#: .\courses\element_forms.py:1691
 #, python-format
 msgid "A tabs element must keep at least %(n)d tabs."
 msgstr "Element zakładek musi zawierać co najmniej %(n)d zakładek."
 
-#: .\courses\element_forms.py:1689
+#: .\courses\element_forms.py:1696
 #, python-format
 msgid "A tabs element is limited to %(n)d tabs."
 msgstr "Element zakładek jest ograniczony do %(n)d zakładek."
 
-#: .\courses\element_forms.py:1736
+#: .\courses\element_forms.py:1771
 #: .\templates\courses\manage\editor\_edit_twocolumn.html:8
 msgid "Number of columns"
 msgstr "Liczba kolumn"
 
-#: .\courses\element_forms.py:1789
+#: .\courses\element_forms.py:1824
 msgid "Add at least one step."
 msgstr "Dodaj co najmniej jeden krok."
 
-#: .\courses\element_forms.py:1792
+#: .\courses\element_forms.py:1827
 #, python-format
 msgid "A stepper can have at most %(n)d steps."
 msgstr "Sekwencja może mieć najwyżej %(n)d kroków."
 
-#: .\courses\element_forms.py:1846
+#: .\courses\element_forms.py:1881
 #, python-format
 msgid "A checklist needs between %(lo)s and %(hi)s items."
 msgstr "Lista musi mieć od %(lo)s do %(hi)s pozycji."
@@ -856,36 +856,61 @@ msgctxt "image size"
 msgid "Full"
 msgstr "Pełny"
 
-#: .\courses\models.py:1644 .\templates\courses\manage\_roster_row.html:18
+#: .\courses\models.py:1411
+msgctxt "tabs display"
+msgid "Tabs"
+msgstr "Zakładki"
+
+#: .\courses\models.py:1412
+msgctxt "tabs display"
+msgid "Carousel"
+msgstr "Karuzela"
+
+#: .\courses\models.py:1421
+msgctxt "tabs label position"
+msgid "Above"
+msgstr "Nad"
+
+#: .\courses\models.py:1422
+msgctxt "tabs label position"
+msgid "Below"
+msgstr "Pod"
+
+#: .\courses\models.py:1423
+msgctxt "tabs label position"
+msgid "Hidden"
+msgstr "Ukryta"
+
+#: .\courses\models.py:1719 .\templates\courses\manage\_roster_row.html:18
 msgid "Auto-marked"
 msgstr "Automatycznie oceniane"
 
-#: .\courses\models.py:1645
+#: .\courses\models.py:1720
 msgid "Not marked"
 msgstr "Nieoceniane"
 
-#: .\courses\models.py:1646
+#: .\courses\models.py:1721
 msgid "Requires review"
 msgstr "Wymaga recenzji"
 
-#: .\courses\models.py:2354
+#: .\courses\models.py:2429
 msgid "Zone position must be within the image."
 msgstr "Pozycja strefy musi mieścić się w obrazie."
 
-#: .\courses\models.py:2356
+#: .\courses\models.py:2431
 msgid "Zone must have a positive size."
 msgstr "Strefa musi mieć dodatni rozmiar."
 
-#: .\courses\models.py:2361
+#: .\courses\models.py:2436
 msgid "Zone must not extend past the image."
 msgstr "Strefa nie może wykraczać poza obraz."
 
-#: .\courses\models.py:2432
+#: .\courses\models.py:2507
 #: .\templates\courses\manage\review_submission.html:45
 msgid "In progress"
 msgstr "W toku"
 
-#: .\courses\models.py:2433
+#: .\courses\models.py:2508
 msgid "Submitted"
 msgstr "Przesłano"
 
@@ -4316,12 +4341,16 @@ msgid "Show next"
 msgstr "Pokaż dalej"
 
 #: .\templates\courses\lesson_unit.html:74
-#: .\templates\courses\quiz_unit.html:27
+#: .\templates\courses\lesson_unit.html:80
+#: .\templates\courses\manage\editor\editor.html:177
+#: .\templates\courses\quiz_unit.html:27 .\templates\courses\quiz_unit.html:33
 msgid "Previous slide"
 msgstr "Poprzedni slajd"
 
 #: .\templates\courses\lesson_unit.html:74
-#: .\templates\courses\quiz_unit.html:27
+#: .\templates\courses\lesson_unit.html:80
+#: .\templates\courses\manage\editor\editor.html:177
+#: .\templates\courses\quiz_unit.html:27 .\templates\courses\quiz_unit.html:33
 msgid "Next slide"
 msgstr "Następny slajd"
 
@@ -4331,7 +4360,9 @@ msgid "Slides"
 msgstr "Slajdy"
 
 #: .\templates\courses\lesson_unit.html:74
-#: .\templates\courses\quiz_unit.html:27
+#: .\templates\courses\lesson_unit.html:80
+#: .\templates\courses\manage\editor\editor.html:177
+#: .\templates\courses\quiz_unit.html:27 .\templates\courses\quiz_unit.html:33
 #, python-brace-format
 msgid "Slide {n} of {total}"
 msgstr "Slajd {n} z {total}"
@@ -4386,6 +4417,19 @@ msgstr "Przewiń zakładki w lewo"
 msgid "Scroll tabs right"
 msgstr "Przewiń zakładki w prawo"
 
+#: .\templates\courses\lesson_unit.html:80
+#: .\templates\courses\manage\editor\editor.html:177
+#: .\templates\courses\quiz_unit.html:33
+msgid "Carousel"
+msgstr "Karuzela"
+
+#: .\templates\courses\lesson_unit.html:80
+#: .\templates\courses\manage\editor\editor.html:177
+#: .\templates\courses\quiz_unit.html:33
+#, python-brace-format
+msgid "Go to slide {n}"
+msgstr "Przejdź do slajdu {n}"
+
 #: .\templates\courses\manage\_add_affordance.html:18
 msgid "New title"
 msgstr "Nowy tytuł"
@@ -4426,7 +4470,7 @@ msgstr "Biblioteka multimediów"
 #: .\templates\courses\manage\_move_buttons.html:14
 #: .\templates\courses\manage\editor\_edit_gallery.html:34
 #: .\templates\courses\manage\editor\_edit_gallery.html:49
-#: .\templates\courses\manage\editor\_edit_tabs.html:28
+#: .\templates\courses\manage\editor\_edit_tabs.html:56
 #: .\templates\courses\manage\editor\_element_row_controls.html:8
 msgid "Move up"
 msgstr "Przenieś wyżej"
@@ -4434,7 +4478,7 @@ msgstr "Przenieś wyżej"
 #: .\templates\courses\manage\_move_buttons.html:15
 #: .\templates\courses\manage\editor\_edit_gallery.html:35
 #: .\templates\courses\manage\editor\_edit_gallery.html:50
-#: .\templates\courses\manage\editor\_edit_tabs.html:29
+#: .\templates\courses\manage\editor\_edit_tabs.html:57
 #: .\templates\courses\manage\editor\_element_row_controls.html:9
 msgid "Move down"
 msgstr "Przenieś niżej"
@@ -5586,7 +5630,7 @@ msgid "Add line"
 msgstr "Dodaj wiersz"
 
 #: .\templates\courses\manage\editor\_edit_tabs.html:17
-#: .\templates\courses\manage\editor\_edit_tabs.html:30
+#: .\templates\courses\manage\editor\_edit_tabs.html:58
 msgid "Remove tab"
 msgstr "Usuń zakładkę"
 
@@ -5594,11 +5638,19 @@ msgstr "Usuń zakładkę"
 msgid "Deleting this tab also deletes everything inside it."
 msgstr "Usunięcie tej zakładki usuwa również całą jej zawartość."
 
-#: .\templates\courses\manage\editor\_edit_tabs.html:26
+#: .\templates\courses\manage\editor\_edit_tabs.html:31
+msgid "Display"
+msgstr "Wyświetlanie"
+
+#: .\templates\courses\manage\editor\_edit_tabs.html:40
+msgid "Label position"
+msgstr "Pozycja etykiety"
+
+#: .\templates\courses\manage\editor\_edit_tabs.html:54
 msgid "Tab label"
 msgstr "Etykieta zakładki"
 
-#: .\templates\courses\manage\editor\_edit_tabs.html:36
+#: .\templates\courses\manage\editor\_edit_tabs.html:64
 msgid "Add tab"
 msgstr "Dodaj zakładkę"
 
