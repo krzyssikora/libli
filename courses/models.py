@@ -876,8 +876,11 @@ class SwitchGridElement(ElementBase):
 
 
 class TableElement(ElementBase):
-    """Styled table: a JSON grid of {html, halign, valign} cells plus header
-    toggles and a border preset. Cell html is sanitised at save()."""
+    """Styled table: a JSON grid of cells plus header toggles and a border
+    preset. A cell is either TEXT ({html, halign, valign}) or an IMAGE
+    ({kind:"image", media, alt, size, halign, valign}); `kind` appears only on
+    image cells, so text cells serialize byte-identically to before slice C2.
+    Text html is sanitised and image alt trimmed at save()."""
 
     DEFAULT_BORDER = "grid"
     BORDERS = {"grid", "rows", "header", "none"}
@@ -885,6 +888,31 @@ class TableElement(ElementBase):
     VALIGN = {"top", "middle", "bottom"}
     MAX_ROWS = 50
     MAX_COLS = 20
+
+    class CellImageSize(models.TextChoices):
+        """Absolute square bounding boxes for an image inside a table cell.
+
+        Deliberately a SECOND enum duplicating ImageElement.Size rather than an
+        alias: the tokens coincide today but the rules behind them do not
+        (percentages of a containing block there, absolute caps here), so the two
+        scales must be free to evolve apart. The four labels intentionally SHARE
+        ImageElement.Size's msgids — that keeps one catalog entry each.
+        """
+
+        SMALL = "small", _("Small")
+        MEDIUM = "medium", _("Medium")
+        LARGE = "large", _("Large")
+        # pgettext, not plain _: the bare msgid "Full" is ALREADY taken by the
+        # structure-preset label in courses/forms.py, whose Polish is "Pełna"
+        # (feminine). An image size is masculine ("Pełny"), so it needs a context.
+        FULL = "full", pgettext_lazy("image size", "Full")
+
+    # Stored default: a cell with no `size` reads as `full`, preserving today's
+    # width exactly for the 31 existing fill-table cell images.
+    DEFAULT_CELL_IMAGE_SIZE = "full"
+    # Editor-insert default: a NEWLY authored cell must not land in the unstable
+    # content-negotiated state this slice exists to fix.
+    EDITOR_INSERT_CELL_IMAGE_SIZE = "medium"
 
     data = models.JSONField(default=dict)
     elements = GenericRelation(Element)
@@ -943,14 +971,39 @@ class TableElement(ElementBase):
         raw = raw if isinstance(raw, dict) else {}
         h = raw.get("halign")
         v = raw.get("valign")
-        cell = {
-            "html": raw.get("html") or "",
-            "halign": h if h in TableElement.HALIGN else "left",
-            "valign": v if v in TableElement.VALIGN else "top",
-        }
-        # Optional fields, present only when set (imported spanning tables): a
-        # header (<th>) cell and colspan/rowspan. The rectangular WYSIWYG editor
-        # ignores them; the render template emits them.
+        halign = h if h in TableElement.HALIGN else "left"
+        valign = v if v in TableElement.VALIGN else "top"
+        # Image branch BEFORE the text fallback, mirroring FillTableElement._cell.
+        # `size` is ALWAYS written here (unlike kind/header/spans, which are
+        # present-only-when-set), so every reader of normalized cells may
+        # subscript cell["size"].
+        if raw.get("kind") == "image":
+            media = raw.get("media")
+            if isinstance(media, int) and not isinstance(media, bool):
+                alt = raw.get("alt")
+                size = raw.get("size")
+                cell = {
+                    "kind": "image",
+                    "media": media,
+                    # isinstance-guarded: str(alt) would store the literal "None".
+                    "alt": alt[:255] if isinstance(alt, str) else "",
+                    "size": (
+                        size
+                        if size in TableElement.CellImageSize.values
+                        else TableElement.DEFAULT_CELL_IMAGE_SIZE
+                    ),
+                    "halign": halign,
+                    "valign": valign,
+                }
+            else:
+                # Invalid/missing media -> an empty TEXT cell with NO `kind` key.
+                # Never raise, never render a broken <img>.
+                cell = {"html": "", "halign": halign, "valign": valign}
+        else:
+            cell = {"html": raw.get("html") or "", "halign": halign, "valign": valign}
+        # Optional fields, present only when set (imported spanning tables), and
+        # applied to BOTH branches: a header image cell and a spanning image cell
+        # are both reachable.
         if raw.get("header"):
             cell["header"] = True
         for key in ("colspan", "rowspan"):
@@ -1009,9 +1062,10 @@ class TableElement(ElementBase):
 
     @staticmethod
     def _sanitized_data(data):
-        """Sanitise every cell's html in place, reading defensively so a
-        malformed legacy shape cannot raise. The real write paths (form, import)
-        normalise first; this is defense-in-depth for all paths."""
+        """Sanitise text cells' html and trim image cells' alt, in place,
+        reading defensively so a malformed legacy shape cannot raise. The real
+        write paths (form, import) normalise first; this is defense-in-depth
+        for all paths."""
         if not isinstance(data, dict):
             return data
         rows = data.get("cells")
@@ -1020,7 +1074,17 @@ class TableElement(ElementBase):
                 if not isinstance(row, list):
                     continue
                 for cell in row:
-                    if isinstance(cell, dict):
+                    if not isinstance(cell, dict):
+                        continue
+                    if cell.get("kind") == "image":
+                        alt = cell.get("alt")
+                        # Defensive form, and the 255 bound must be enforced HERE
+                        # too: save() calls only _sanitized_data, never
+                        # normalize_data, so a bound in _cell alone does not make
+                        # "truncated at save" true.
+                        cell["alt"] = alt.strip()[:255] if isinstance(alt, str) else ""
+                        # leave `media`/`size` untouched; write NO html key
+                    else:
                         cell["html"] = sanitize_cell(cell.get("html", ""))
         return data
 
@@ -1070,10 +1134,16 @@ class FillTableElement(ElementBase):
             media = raw.get("media")
             if isinstance(media, int) and not isinstance(media, bool):
                 alt = raw.get("alt")
+                size = raw.get("size")
                 cell = {
                     "kind": "image",
                     "media": media,
-                    "alt": alt if isinstance(alt, str) else "",
+                    "alt": alt[:255] if isinstance(alt, str) else "",
+                    "size": (
+                        size
+                        if size in TableElement.CellImageSize.values
+                        else TableElement.DEFAULT_CELL_IMAGE_SIZE
+                    ),
                     "halign": halign,
                     "valign": valign,
                 }
@@ -1190,7 +1260,7 @@ class FillTableElement(ElementBase):
                         cell["answer"] = a.strip() if isinstance(a, str) else ""
                     elif cell.get("kind") == "image":
                         alt = cell.get("alt")
-                        cell["alt"] = alt.strip() if isinstance(alt, str) else ""
+                        cell["alt"] = alt.strip()[:255] if isinstance(alt, str) else ""
                         # leave `media` untouched; write NO html key
                     else:
                         cell["html"] = sanitize_cell(cell.get("html", ""))
