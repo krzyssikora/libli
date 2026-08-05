@@ -15,7 +15,8 @@
 - **Line length is 88** (`ruff` `select = ["E","F","I","UP","B","S"]` with no override, so
   `E501` is live). Wrap every Python line you write, including the snippets copied from this
   plan — several exceed 88 verbatim. **End each task that touches Python with
-  `uv run ruff check <the files you edited>`**, not only Task 8.
+  `uv run ruff check <files>` AND `uv run ruff format --check <files>`** — CI runs both, and
+  the second one fails on lines this plan told you to wrap that did not need wrapping.
 - **Tooling is `uv run`** — `ruff`, `pytest` and `python` are NOT on PATH. Always `uv run pytest …`, `uv run ruff …`.
 - **Scope every test run narrowly.** Use `-k` or an explicit file path. A whole-repo sweep is a branch-level gate, never a per-task step. Never run two pytest invocations at once, and never background a pytest run (it orphans the test DB and the next run dies with `DuplicateDatabase`).
 - **e2e needs `-m e2e`** or the tests silently deselect and pytest exits 5. Run e2e in the **foreground**, one file at a time.
@@ -2367,6 +2368,12 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 - [ ] `uv run pytest -q --verbosity=0` — the full non-e2e suite. (Doubled `-q` suppresses the summary; use `--verbosity=0`.)
 - [ ] `uv run pytest -m e2e tests/test_e2e_tabs.py tests/test_e2e_depth3.py tests/test_e2e_imagezoom.py -v` — the carousel plus the two suites that touch `tabs.js`'s shared code.
 - [ ] `uv run ruff check .`
+- [ ] `uv run ruff format --check .` — ⚠️ **CI runs BOTH lint steps and they catch different
+      things.** `check` enforces the rule set (incl. E501); `format --check` enforces canonical
+      formatting, which includes *joining* lines that were wrapped unnecessarily. This plan's
+      "line length is 88, wrap long lines" constraint makes implementers wrap defensively, so
+      `format --check` failures are the expected failure mode of this branch. Running only
+      `check` was what let lint fail on CI the first time.
 - [ ] Manual print preview of a unit containing a carousel, including one with `label_pos: "below"`: every slide appears, in order, each with its title **above** its content, nav bar and status region absent. Not covered by any headless assertion.
 - [ ] Verify `django.mo` is regenerated and committed.
 
