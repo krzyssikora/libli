@@ -68,7 +68,9 @@
   tab_id=<Parent>.SLOT_ID)`; a top-level one is `add_element(unit, obj)` from `tests.factories`.
 - **`makemigrations --check --dry-run` must stay clean** (CI guards this since #204).
 - **A passing test proves nothing** — for every test, delete the code it guards and confirm it goes RED before moving on. Name the mutant.
-- **Lint at the task that introduces the code.** `ruff` runs `select = ["E","F","I","UP","B","S"]` at line-length 88, with `[tool.ruff.lint.isort] force-single-line = true` (so a combined `from x import A, B` must be split one-per-line). Every task's test step must also run `uv run ruff check <files touched>` and `uv run ruff format --check <same>`.
+- **Lint at the task that introduces the code.** `ruff` runs `select = ["E","F","I","UP","B","S"]` at line-length 88 (the default — `pyproject.toml` sets none), with `[tool.ruff.lint.isort] force-single-line = true` (so a combined `from x import A, B` must be split one-per-line). Every task's test step must also run `uv run ruff check <files touched>` and `uv run ruff format --check <same>`.
+- **Run `uv run ruff format` (no `--check`) once before the `--check`.** The Python pasted into this plan is written for readability and is **not** pre-wrapped to 88 columns — several lines exceed it (e.g. Task 2's `data={...}` dicts, Task 2 step 6's `app_css = (REPO / ...)` line, Task 4's `ImageElement.objects.create(...)`). Formatting them by hand wastes a red run on nothing substantive. `F401`/`E501` after that are real findings.
+- **`ruff`'s `F401` applies to `tests/**`** — the per-file-ignores grant only `S105/S106/S107`. An import added for a *later* task's benefit reddens the *current* task's lint step.
 
 ## File Structure
 
@@ -87,7 +89,7 @@
 | `courses/transfer/payloads.py` | `_val_image` `setdefault` + exact-keys + value check |
 | `courses/transfer/importer.py` | `_build_image` reads `size` |
 | `courses/transfer/schema.py` | `FORMAT_VERSION` 6 → 7 |
-| `docs/help/course-admin/{content-editors,interactive-elements}{,.pl}.md` | author documentation |
+| `docs/help/course-admin/content-editors{,.pl}.md` | author documentation — the Image bullet at `:38-41` is its only home |
 
 ---
 
@@ -1096,6 +1098,7 @@ in turn:
 | add `.el--image--full` to the `fit-content` group | the FIG_GROUP "excludes `full`" assertion — and *not* the "exactly one match" one |
 | delete the whole IMG_GROUP `margin-inline: auto` rule | the IMG_GROUP "exactly one match" assertion, and its "mentions small/medium/large" sub-claim |
 | delete the whole `.el--image--small, .el--image--medium, .el--image--large { width: fit-content; margin-inline: auto }` figure rule | the FIG_GROUP "exactly one match" assertion, and its "mentions small/medium/large" sub-claim. **Task 9's "delete the figure `margin-inline: auto`" does not cover this** — FIG_GROUP matches on `width: fit-content`, which that mutant leaves in place, so without this row the group's existence ships unfalsified |
+| add `.el--image--full img` to the **IMG_GROUP** `margin-inline: auto` group | the IMG_GROUP "excludes `full`" assertion — and *not* its "exactly one match" or "mentions small/medium/large" sub-claims, since the captured selector list merely grows by one member. Task 9's identically-shaped mutant does **not** cover this: it lands four tasks later and is named against PC3, not against this regex |
 | delete `height: auto` from the retained `.el--image img` rule | the retained-rule assertion |
 
 Restore each, re-run, confirm all pass.
@@ -1303,9 +1306,15 @@ git commit -m "feat(editor): live size preview without a save"
 
 
   @pytest.fixture
-  def seeded(_isolated_media):
-      """(owner, course, unit, tall, wide). Depends on _isolated_media so MEDIA_ROOT is
-      redirected BEFORE make_image_asset writes any bytes."""
+  def seeded(db, _isolated_media):
+      """(owner, course, unit, tall, wide).
+
+      Both dependencies are declared explicitly rather than relied on for autouse
+      ordering, matching every seeding fixture in tests/test_e2e_imagezoom.py
+      (`zoom_lesson(db, _isolated_media)` at :125, `tall_lesson` at :353, and four
+      more). `_isolated_media` must run BEFORE make_image_asset writes any bytes;
+      `db` must run before any ORM call.
+      """
       owner = _make_pa_user(PA_USERNAME)
       course, unit = _seed_unit(owner, "imgsize")
       tall = make_image_asset(course, "tall.png", size=(297, 719), color="magenta")
@@ -1578,8 +1587,9 @@ stranded as locals. Pin it the same way `seeded` is pinned:
 
 ```python
 @pytest.fixture
-def geom(seeded):
-    """(owner, course, geom_unit, preview_unit, preview_join).
+def geom(db, seeded):
+    """(owner, course, geom_unit, preview_unit, preview_join). `db` declared
+    explicitly, same house precedent as `seeded`.
 
     geom_unit    — rows 1-4 + row 6 (ten images; every one located by its unique alt)
     preview_unit — row 5 only, so the editor page holds exactly one image row
@@ -1899,8 +1909,16 @@ produces, and Step 1 asks for it to be recorded. A bare `-m` subject has nowhere
 ### Task 10: Author documentation and final verification
 
 **Files:**
-- Modify: `docs/help/course-admin/content-editors.md` and `.pl.md`
-- Modify: `docs/help/course-admin/interactive-elements.md` and `.pl.md`
+- Modify: `docs/help/course-admin/content-editors.md` and `.pl.md` — the **Image** bullet at `:38-41`
+  (`{el:image} **Image** — embeds a picture … alt text … caption`). Extend that bullet; do not add a
+  new section.
+
+**`interactive-elements{,.pl}.md` is deliberately NOT touched.** It documents the ten self-check /
+interactive elements (Show more, Fill in & confirm, Choose & confirm, Switch grid, Fill-in table,
+Spoiler, Step-by-step, Checklist, Guess the number) and contains no image content at all — there is no
+heading a size paragraph belongs under, and inventing one would put image sizing in a document about
+interactive widgets. Step 5 stages `docs/help/course-admin/` wholesale, so an accidental edit here
+would ship unnoticed; that is why the exclusion is stated rather than left implicit.
 
 **Interfaces:** none.
 
@@ -1908,7 +1926,11 @@ produces, and Step 1 asks for it to be recorded. A bare `-m` subject has nowhere
 
 - [ ] **Step 1: Document the control**
 
-Describe the four presets as bounding boxes ("the image scales to fit inside a box this big, keeping its shape"), that `full` is the default and matches today, and that a picture is never taller than the reader's screen. Do not describe alignment or text-wrap — neither exists.
+Extend the existing **Image** bullet in `content-editors.md:38-41` — after the alt/caption sentence,
+add the size presets in the same voice: the four presets are bounding boxes ("the image scales to fit
+inside a box this big, keeping its shape"), `full` is the default and matches today's behaviour, and a
+picture is never taller than the reader's screen. Do not describe alignment or text-wrap — neither
+exists. Mirror the addition in `content-editors.pl.md`'s corresponding bullet.
 
 - [ ] **Step 2: Regenerate the catalogs**
 
