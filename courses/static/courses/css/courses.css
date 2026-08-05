@@ -67,16 +67,13 @@ blockquote {
 .el--image--large  { width: fit-content; margin-inline: auto; }
 
 /* Centre the image WITHIN the figure. Load-bearing whenever the figure ends up WIDER
-   than the constrained image, which happens two independent ways:
-     1. a figcaption — fit-content sizes the figure to the WIDER of {image, caption}
-        max-content contributions, so a long caption widens the figure past the image;
-     2. POSSIBLY a binding max-height with NO caption — at 1280x900, `small`, the
-        297x719 fixture, the img shrinks to ~111.5x270 while max-width caps the figure
-        at 162px. Whether fit-content then shrink-wraps the figure to the constrained
-        (111.5px) or the unconstrained (162px) contribution is engine-dependent, so
-        whether reason 2 exists at all is MEASURED in Task 9 step 1, not reasoned about.
-        If that measurement says the figure tracks the image, delete reason 2 from this
-        comment — do not leave a mechanism here that the measurement disproved.
+   than the constrained image — a figcaption: fit-content sizes the figure to the WIDER
+   of {image, caption} max-content contributions, so a long caption widens the figure
+   past the image. (A binding max-height with NO caption was once suspected as a second
+   independent path here, but Task 9 step 1 MEASURED it at 1280x900/`small`/the 297x719
+   fixture: figure ~111.52px vs image ~111.50px, equal within tolerance — Chromium's
+   fit-content figure shrink-wraps to the image's constrained contribution, not its
+   unconstrained one, so that path does not exist and is not listed.)
    Scoped to the capped presets so `full` keeps today's flush-left geometry — 1013
    images must render byte-identically.
 
