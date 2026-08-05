@@ -824,6 +824,7 @@ falsification step as a fourth mutant.
 
 ```bash
 git add courses/tablecells.py courses/models.py courses/element_forms.py \
+        tests/conftest.py \
         tests/test_table_cell_images.py tests/test_filltable_editor_partial.py
 git commit -m "feat(table-cell-images): shared image-cell resolver preserving spans"
 ```
@@ -953,18 +954,12 @@ def test_builder_threads_course_for_table():
     assert "filltable" in COURSE_SCOPED_TYPE_KEYS
 ```
 
-Add the two fixtures, same factory-based shape as Task 1's:
+Add **only** `other_course_image` - `course_with_image` comes from `tests/conftest.py`
+(added in Task 2). Re-declaring it module-locally would shadow the shared one, so this
+module would silently use a different asset and a later edit to the conftest version would
+not reach these tests.
 
 ```python
-@pytest.fixture
-def course_with_image(db, tmp_path, settings):
-    from tests.factories import make_course, make_image_asset
-
-    settings.MEDIA_ROOT = str(tmp_path)
-    course = make_course()
-    return course, make_image_asset(course, filename="a.png")
-
-
 @pytest.fixture
 def other_course_image(db, tmp_path, settings):
     """An image asset belonging to a DIFFERENT course — the crafted-POST case."""
@@ -1451,9 +1446,12 @@ git commit -m "feat(table-cell-images): shared cell partial and absolute size sc
 
 - [ ] **Step 1: Write the failing tests**
 
-Append to `tests/test_table_transfer.py` (it already imports `SERIALIZERS`,
-`VALIDATORS`, `BUILDERS`, `TransferError` and the factories, and sets
-`pytestmark = pytest.mark.django_db`):
+Append to `tests/test_table_transfer.py` (it already imports `SERIALIZERS`, `VALIDATORS`,
+`BUILDERS`, `TransferError` and the factories, and sets
+`pytestmark = pytest.mark.django_db`). **Move the four imports below into that file's
+existing top import block, one per line** - appended module-level imports after a function
+definition are `E402`, and `from tests.factories import make_course, make_image_asset`
+violates `force-single-line`:
 
 ```python
 from courses.transfer.export import MediaIdMap
@@ -1751,14 +1749,34 @@ about an unreferenced media entry. Concretely:
 
 ```python
 def test_a_table_with_a_cell_image_passes_whole_archive_validation(tmp_path, settings):
-    """The refs return is only observable from validate_archive_document: it is what
-    stops schema.py rejecting the bundled asset as "not referenced by any element"."""
-    # build a course containing one table with an image cell, write_archive it, then
-    # open_archive + validate_archive_document over the result. tests/test_table_transfer.py
-    # already imports write_archive, open_archive and validate_archive_document.
+    """The `refs` return is observable ONLY from validate_archive_document: it is what
+    stops schema.py rejecting the bundled asset as "not referenced by any element".
+
+    Every other test in this task calls VALIDATORS["table"](...) directly and so bypasses
+    the caller that consumes the return - which is exactly why a missed `return refs` would
+    otherwise ship green.
+    """
+    settings.MEDIA_ROOT = str(tmp_path)
+    course = CourseFactory()
+    unit = ContentNodeFactory(course=course, kind="unit")
+    asset = make_image_asset(course)
+    add_element(unit, TableElement.objects.create(
+        data=TableElement.normalize_data(_tbl([[_img(asset.pk, size="medium")]]))
+    ))
+
+    buf = io.BytesIO()
+    write_archive(course, None, buf)
+    buf.seek(0)
+    with open_archive(buf, expected_kind="course") as (zf, mani, doc, media):
+        validate_archive_document(doc, media)      # must NOT raise
 ```
 
-Fill that body against the existing whole-archive test in the same file.
+Check `write_archive`'s and `validate_archive_document`'s exact argument lists against the
+whole-archive test already in this file (around lines 56-80) and against
+`ContentNodeFactory`'s required `kind` value — the shape above mirrors it but the
+signatures are the authority. `io`, `CourseFactory`, `ContentNodeFactory`, `add_element`,
+`write_archive`, `open_archive` and `validate_archive_document` are all already imported
+at the top of this module.
 
 Leave `_val_fill_table` untouched — its docstring commits it to being
 "intentionally more lenient than `_val_table`", and that asymmetry is pre-existing.
@@ -1933,6 +1951,7 @@ An implementer running only `test_table_transfer.py` sees none of these:
 - [ ] **Step 10: Run the tests to verify they pass**
 
 Run: `uv run pytest tests/test_table_transfer.py tests/test_transfer_schema.py tests/test_transfer_export.py tests/test_link_transfer.py tests/test_tabs_transfer.py courses/tests/test_image_size_transfer.py -v`
+Run: `uv run ruff check courses/transfer/ tests/test_table_transfer.py`
 Expected: PASS.
 
 - [ ] **Step 11: Falsify — require RED (three mutants)**
@@ -1945,6 +1964,10 @@ Expected: PASS.
 3. Remove `"size"` from `_ser_fill_table`'s `out_cell`; run
    `uv run pytest tests/test_table_transfer.py::test_filltable_image_cell_round_trips_size -v`.
    Expected: FAIL. Restore.
+4. **The `refs` return** - the one defect in this task with no other falsifier. Revert
+   `_val_table`'s `return refs` to `return set()` and run
+   `uv run pytest tests/test_table_transfer.py::test_a_table_with_a_cell_image_passes_whole_archive_validation -v`.
+   Expected: FAIL with "Media entry ... is not referenced by any element". Restore.
 
 - [ ] **Step 12: Commit**
 
@@ -2406,14 +2429,19 @@ of this task the two bodies still differ by one line and a `TWINS` entry would r
 Task 7 Step 7, so classifying it now reddens `test_no_stale_classification`, which
 asserts every classified name **is** a function in both files.
 
-**In this task:** re-derive `EXPECTED_COUNTS`, and fix the four `DIVERGENT` reasons above
-that go stale from Task 6's own edits (`serialize`'s wording can also be updated now —
-its two-kinds change lands in Task 7, but no test reads the string).
+**In this task:** re-derive `EXPECTED_COUNTS`, and fix only the **two** reasons Task 6's
+own edits actually invalidate - `serialize` and `refreshToolbarState`. **Leave
+`toggleHeaderCell` and `cellIsNonEmpty` alone until Task 7 Step 8 item 10:**
+`table_editor.js` has no `cellStash` and no `data-image` clause until then, so their
+replacement reasons would be false at the end of this task. That is the same
+"encode a later task's classification early" pattern already corrected two rows above for
+`afterStructuralEdit`/`stashFor`.
 
 **Deferred to Task 7 Step 8 item 10** (once the plain table has `cellStash`): move
 `afterStructuralEdit` to `TWINS`, add `stashFor` to `TWINS`, update the module
-docstring's counts ("the 20 functions", "163 lines … 11 at file scope, 9 nested inside
-`wire()`", "a 21st unguarded twin") to **22** twins / 11 file-scope + 11 nested, update
+docstring's counts to **22** twins / **11 file-scope + 11 nested**, "a 21st unguarded
+twin" to "a **23rd**", and the "163 lines" figure **re-derived** from the twin bodies
+rather than guessed (two implementers would otherwise write two different numbers), update
 the `TWINS` inline comment, and delete the fill table's now-false `// fill-table only`
 trailing comment. For that move to hold, `test_twins_are_identical` compares
 comment-stripped, indent-stripped token lines — so the plain table's map must be named
@@ -3035,7 +3063,13 @@ and its own comment documents the hazard: **if** the selector is line-wrapped, t
 needle no longer lands on the `focusin` site and is instead satisfied by unrelated
 single-line `keydown`/`input` calls, leaving the widened site **unguarded with the
 test still green**. Add the plain table's bespoke full-literal entry
-unconditionally, mirroring the fill table's — correct whether or not the widened
+unconditionally, mirroring the fill table's. **The guard matches line by line
+(`needle in ln`), so the widened `closest(...)` argument literal must itself stay on ONE
+source line** — that is precisely why the fill table's entry works
+(`filltable_editor.js:546` holds the whole literal on one line). Wrapping *inside* the
+literal makes the entry report "inventory line vanished" on a correct build. The exact
+needle is `"td[contenteditable], th[contenteditable], td[data-image], th[data-image]"`.
+The entry is correct whether or not the widened
 selector happens to wrap. A Definition-of-Done item on **this** task, alongside
 `test_editor_twin_drift.py`'s `EXPECTED_COUNTS`, `test_colour_glue_drift.py` and
 `NEVER_ARMED`.
@@ -3075,6 +3109,7 @@ nowhere, and a `pytest` "not found" error reads deceptively like a caught mutant
 
 ```bash
 git add templates/courses/manage/editor/_edit_table.html \
+        templates/courses/manage/editor/_edit_filltable.html \
         templates/courses/manage/editor/editor.html \
         courses/static/courses/js/table_editor.js \
         courses/static/courses/js/filltable_editor.js \
@@ -3395,6 +3430,7 @@ transfer verbatim — read them before writing a line:
 | `_isolated_media` | `test_e2e_image_size.py` | `live_server`'s `_MediaFilesHandler` reads `MEDIA_ROOT` **per request**, so this is what makes `/media/<path>` resolve at all — not hygiene |
 | `_make_pa_user` + `_login` | either file | a lesson page and an editor page both require an authenticated platform admin; nothing renders anonymously |
 | `_lesson_url(live_server, unit)` | `test_e2e_image_size.py:106` | `reverse("courses:lesson_unit", kwargs={"slug": unit.course.slug, "node_pk": unit.pk})`. **`TableElement` has no `get_absolute_url`** — `courses/models.py` has zero occurrences, so any `el.get_absolute_url()` raises `AttributeError` before the browser is touched |
+| `_goto_editor`, `_open_edit` | `test_e2e_filltable.py` (~368, ~398) | the FILL-table opener. `_open_edit(page, element_pk)` locates `.el-act-edit[data-element-id="<pk>"]` and waits for the fill-table root; it needs a prior `_goto_editor`. The plain table's `_reopen` cannot substitute - its wait selector is `[data-table-editor]` |
 | `_unit`, `_editor_url`, `_add_table`, `_save`, `_reopen` | `test_e2e_table_editor.py` | the editor-side path. **All five are used:** `_reopen` opens the element edit form (a bare `goto(_editor_url)` lands on the unit BUILDER, where `[data-table-editor]` does not exist), and `_save` + `_reopen` together drive the save/reopen round-trip that pins the two silent image-loss modes |
 
 Also import `add_element` from `tests.factories`: a bare `TableElement.objects.create(...)`
@@ -3600,11 +3636,17 @@ def test_no_shape_produces_horizontal_scroll(page, live_server, _isolated_media)
         page.set_viewport_size({"width": width, "height": 900})
         page.goto(_lesson_url(live_server, unit))
         page.wait_for_selector(".cell-img")
+        # Measure the SCROLLER, not the document. tableelement.html wraps the table in
+        # `.el--table__scroll`, which courses.css declares `overflow-x: auto` - so no cell
+        # image width, not even an unbounded 1586px, can produce document-level overflow.
+        # A document-level assertion holds identically on every mutant.
         overflow = page.evaluate(
-            "() => document.documentElement.scrollWidth - "
-            "document.documentElement.clientWidth"
+            """() => {
+                 const s = document.querySelector('.el--table__scroll');
+                 return s.scrollWidth - s.clientWidth;
+               }"""
         )
-        assert overflow <= 0, width
+        assert overflow <= 1, width
 ```
 
 - [ ] **Step 2: Write the editor-side helpers CONCRETELY, then the editor tests**
@@ -3811,8 +3853,9 @@ def test_filltable_size_select_reveals_populates_and_swaps_the_preview(
     cell to `full` on every save" defect class Task 8 names has no behavioural pin.
 
     Seed a fill table with an image cell AND an answer cell (FillTableElementForm requires
-    at least one answer cell, so an image-only grid cannot be saved), then reuse
-    tests/test_e2e_filltable.py's _open_edit helper to reach the editor.
+    at least one answer cell, so an image-only grid cannot be saved), then use
+    tests/test_e2e_filltable.py's _goto_editor + _open_edit(page, element_pk) - NOT the
+    plain table's _reopen, whose wait selector is [data-table-editor].
     """
     from courses.models import FillTableElement
 
@@ -3829,7 +3872,13 @@ def test_filltable_size_select_reveals_populates_and_swaps_the_preview(
                     "halign": "left", "valign": "top"}]],
     }))
     element = add_element(unit, el)
-    _reopen(page, live_server, unit, element)   # same join-row rule as the plain table
+    # NOT _reopen: it ends `wait_for_selector("[data-edit-slot] [data-table-editor]")`,
+    # hard-wired to the PLAIN table root. _edit_filltable.html renders
+    # `data-filltable-editor` and never `data-table-editor` (the two roots are disjoint -
+    # which is also what makes Task 7's pick.closest("[data-table-editor]") dispatch
+    # correct), so _reopen would time out here on a fully correct build.
+    _goto_editor(page, live_server, PA_USERNAME, unit)
+    _open_edit(page, element.pk)
     editor = page.locator("[data-edit-slot] [data-filltable-editor]").first
 
     editor.locator("td[data-image]").first.click()
@@ -3890,9 +3939,12 @@ def test_a_row_insert_before_any_focus_does_not_throw(page, live_server):
     chrome reachable from page load. A TypeError there aborts the handler and leaves the
     grid half-edited and UNSERIALIZED. Note tests/test_e2e_table_editor.py cannot catch
     this — both its scenarios click and type into a cell before inserting a row."""
+    # Arm the listener AFTER setup: _open_editor_with_empty_table performs the allauth
+    # login and two navigations, and an unrelated JS error on either page would fail this
+    # test with a message pointing at the disconnect predicate.
+    _unit_, _el, editor = _open_editor_with_empty_table(page, live_server, "c2-insert")
     errors = []
     page.on("pageerror", lambda e: errors.append(str(e)))
-    _unit_, _el, editor = _open_editor_with_empty_table(page, live_server, "c2-insert")
     editor.locator("[data-row-insert]").first.click()
     assert errors == []
 ```
