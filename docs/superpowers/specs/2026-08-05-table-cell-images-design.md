@@ -436,7 +436,15 @@ could not find the fill-table's existing Image-cell button for exactly this reas
 cell is focused. The `hidden` attribute is removed from `[data-table-toolbar]` in **both**
 `_edit_table.html` and `_edit_filltable.html`. Two things then become dead and must be removed in
 the same change, not left to rot: `editor.css`'s `.table-editor__toolbar[hidden] { display: none }`
-rule, and the `toolbar.hidden = false` line in each editor's `focusin` handler. Precisely:
+rule, and the `toolbar.hidden = false` line in each editor's `focusin` handler.
+**The rule's deletion is accepted despite cutting against a repo convention, and that is deliberate:**
+`.table-editor__toolbar` declares `display: flex`, so that one-liner is the same
+author-`display`-beats-UA-`[hidden]` guard the repo keeps at `.btn[hidden]`, `.view-toggle[hidden]`,
+`.outline-node[hidden]` and `.checkbox-list label[hidden]` — and the same guard this slice *adds* for
+`[data-image-remove]`/`[data-image-size]`. Removing it means a future `hidden` on that toolbar would be
+silently inert. Accepted because the toolbar is now permanently visible by design, so a future author
+reaching for `hidden` there would be reversing this slice's central decision and should meet a dead
+rule rather than a working one. Precisely:
 
 **Every toolbar control gets an explicit predicate.** The premise of this section is that a
 live-looking dead control is the defect; leaving any control unclassified reintroduces it. There is
@@ -478,9 +486,23 @@ Three of those rows are decisions, not transcriptions of today's code:
   the always-visible toolbar is exactly what newly exposes that path. **The early return must precede
   argument evaluation**, not merely the `setImageCell` body: in the fill-table precedent the callback
   throws while building its own arguments, at `target.dataset.alt || ""`, before `setImageCell` is
-  entered at all. (An earlier draft said it throws at `td.setAttribute`; with the mandated stash guard
-  first it would throw at `td.hasAttribute` — but the argument-list throw comes earlier still, which is
-  exactly why the guard's position matters.)
+  entered at all.
+
+  **And the guard tests `target`, not `focusCell`.** The outer hook captures
+  `var target = focusCell;` when the picker opens, and it is that **captured** value the argument list
+  dereferences — so `if (!focusCell) return;` would guard a different variable from the one that
+  throws. Written out, as the first statement of the returned inner callback in both editors:
+
+  ```
+  return function (id, _name, url) {
+    if (!target) return;
+    …
+  };
+  ```
+
+  (An earlier draft said the throw is at `td.setAttribute`; with the mandated stash guard first it would
+  be `td.hasAttribute` — but the argument-list dereference comes earlier still, which is exactly why the
+  guard's position *and* its subject both matter.)
 - **`[data-answer-toggle]` was previously unclassified, and would ship live-and-dead.** It carries
   no `disabled` in `_edit_filltable.html` and `refreshToolbarState` only ever
   `classList.toggle("is-on", …)`s it. Once `hidden` is removed it renders enabled with no focus,
@@ -982,10 +1004,10 @@ wrong checklist.)
   reads only `TABLE_JS`, so the fill-table editor's class emissions are unguarded — extend that
   guard to `FILL_JS`/`courses.css`, or add a test asserting the class pair on a freshly converted
   fill-table cell.
-  **Three durable contracts for that guard — the concrete regex text belongs in the PLAN, not here.**
-  The reasoning below is what must survive; the exact patterns are keyed to `test_table_css.py`'s
-  current two-assertion shape and will rot if that file is ever restructured, so the plan's editor task
-  carries them and corrects them against the file being edited.
+  **Three durable contracts for that guard.** These are what must survive; the concrete patterns this
+  spec gives alongside them are illustrations of the contracts, **verified against
+  `test_table_css.py`'s current shape at authoring time** — if that file is restructured, the contracts
+  bind and the patterns are re-derived, not copied.
 
   1. **Per-file, never concatenated.** `table-editor__*` is checked against **`editor.css` only** and
      `filltable-editor__*` against **`courses.css` only**. Today's guard is honest solely because
@@ -1150,6 +1172,12 @@ without the derivation throws **`ReferenceError: isImage is not defined`** at th
 and every control stays exactly as rendered. That is the identical failure mode spelled out for
 `refreshAlignButtons` below.
 
+**Position: the `isImage` derivation is the first statement after `if (!toolbar) return;`** — above
+**both** the `[data-cmd]` loop and the `showCellCtl` block, in both editors. The `showCellCtl` block
+reads as belonging with the per-cell controls, i.e. later; if the derivation drifts down with it, `var`
+hoisting makes the predicate `!focusCell || undefined` → falsy → `[data-cmd]` stays **enabled on a
+focused image cell**, the exact regression documented for the fill table.
+
 For the same reason the plain table's `[data-cmd]` predicate is written **`!focusCell || isImage`**
 using that one derived name, rather than repeating the inline
 `!focusCell || focusCell.hasAttribute("data-image")` — one name, one derivation, one place to get the
@@ -1161,10 +1189,17 @@ previously assigned in `focusin` alone (see the paragraph below, now corrected).
 
 **(b) `setImageCell` must end with `refreshToolbarState()`, in both editors**, replacing its
 bespoke two-line `imageAlt` reveal, so one function owns the painting. `refreshToolbarState` is
-reached with `focusCell` already pointing at the converted cell, so it paints correctly — but only
-because the callback assigns `focusCell = target` *before* the refresh. Ordering inside the callback
-is load-bearing: `setImageCell(...)` must run after `focusCell` is set, or the assignment moves
-above it.
+reached with `focusCell` pointing at the converted cell, so it paints correctly.
+
+**The invariant to preserve is `focusCell === the converted cell` when `refreshToolbarState` runs** —
+stated as an invariant rather than as a reordering, because the shipped callback already satisfies it.
+`target` was captured **from** `focusCell` when the picker opened, and nothing between opening and
+selecting re-seats it (the grid's `focusin` fires only for grid descendants, the modal is an overlay
+outside the grid, and `removeAttribute("contenteditable")` blurs but never nulls `focusCell`). So
+`focusCell === target` already holds at refresh time even though `focusCell = target` is assigned
+*after* `setImageCell(...)`. Hoisting that assignment above the call is therefore **defence-in-depth**,
+not a correction — an earlier draft asserted the paint is currently wrong without it, which overstated
+the window in the same way the `contenteditable` clause's rationale did.
 
 Pinned by a test that **converts a cell via the picker and never re-focuses it**, asserting all
 three per-cell controls are visible **and populated** — the select reading `medium`, the alt input
@@ -1454,7 +1489,7 @@ discovered.
 
 | operation | required behaviour |
 |---|---|
-| Merge | An absorbed image cell triggers the **existing merge-discard confirmation**, and on confirm the image cell **is discarded**. It does not block: `cellIsNonEmpty` feeds `absorbedNonEmpty`, whose only consumer is `if (rg && absorbedNonEmpty(rg)) { if (!window.confirm(msg("merge-confirm"))) return; }`. `cellIsNonEmpty` **already** reads `c.textContent.trim() !== "" \|\| c.querySelector("img") !== null`, so a rendered preview already triggers it; add a `hasAttribute("data-image")` clause so a cell whose preview has not yet rendered also counts, and pin it with a test. (Two earlier claims were **false**: that this guard was missing, and that it blocks. The divergent function is `cellIsNonEmpty`; `absorbedNonEmpty` is a listed twin.) **Stale comment:** `table_editor.js`'s comment above `absorbedNonEmpty` reads "(table_editor.js has no kinds; the kind clauses live in filltable_editor.js's override.)" — false the moment the plain table gains image cells and a `data-image` clause. Delete or rewrite it in the same change. |
+| Merge | An absorbed image cell triggers the **existing merge-discard confirmation**, and on confirm the image cell **is discarded**. It does not block: `cellIsNonEmpty` feeds `absorbedNonEmpty`, whose only consumer is `if (rg && absorbedNonEmpty(rg)) { if (!window.confirm(msg("merge-confirm"))) return; }`. `cellIsNonEmpty` **already** reads `c.textContent.trim() !== "" \|\| c.querySelector("img") !== null`, so a rendered preview already triggers it. Add a `hasAttribute("data-image")` clause as **defence-in-depth / twin-parity**, not as a fix for a reachable state: every producer of `td[data-image]` also produces the child `<img>` in the same synchronous step (`setImageCell` appends it immediately; both server-rendered branches emit it inline; `toggleHeaderCell` *moves* the children onto the replacement; an unresolvable pk yields a `kind`-less text cell with no `data-image` at all), so `querySelector("img")` already covers every live case. The test must therefore **synthesise** the state by removing the `<img>` — say so, rather than implying a live window. (Two earlier claims were **false**: that this guard was missing, and that it blocks. The divergent function is `cellIsNonEmpty`; `absorbedNonEmpty` is a listed twin.) **Stale comment:** `table_editor.js`'s comment above `absorbedNonEmpty` reads "(table_editor.js has no kinds; the kind clauses live in filltable_editor.js's override.)" — false the moment the plain table gains image cells and a `data-image` clause. Delete or rewrite it in the same change. |
 | Split | The image stays in the anchor cell; newly created cells come from the existing `makeCell()` helper as ordinary text cells. |
 | Header toggle | `table_editor.js`'s `toggleHeaderCell` builds a **new** element and calls `td.replaceWith(next)`. Attributes are copied, but a **WeakMap stash key is not** — so header-toggling an image cell would orphan its stash and **Remove image would restore nothing**. It must re-point the new stash from the old node to the replacement, mirroring `filltable_editor.js`'s `cellStash` re-keying. Its in-file comment ("there is no such map in this file's scope (plain tables have no static/answer/image content to stash)") becomes **false** and must be deleted. Pinned by a test: toggle header on an image cell, then Remove image. |
 | `header_row` / `header_col` toggles | An image cell may become a `<th>`; the shared `_table_cell.html` handles it, so no branch-specific work. |
@@ -1620,9 +1655,12 @@ view).
 load**. Import discipline, stated so nobody discovers it by crashing:
 
 - `courses/tablecells.py` imports `MediaAsset` **inside the function**, not at module level.
-- This is the pattern the codebase already uses for exactly this reason — `models.py`'s
-  `FillTableElement.canonical_cells` does `from courses.filltable import split_alternatives`
-  function-locally, as does `_ser_fill_table`.
+- This is the pattern the codebase already uses for exactly this reason, and the closest precedent is
+  the **same symbol in the same role**: `_ser_fill_table` opens with a function-local
+  `from courses.models import MediaAsset`. (A separate, weaker example is `models.py`'s
+  `FillTableElement.canonical_cells` doing `from courses.filltable import split_alternatives`
+  function-locally, as `views.py` also does — but `_ser_fill_table` does **not** import
+  `split_alternatives`; an earlier draft claimed it did.)
 
 `empty_cell` is a callable taking the original cell and returning the fallback's **model-specific
 base shape only** — `{kind: "static", html, halign, valign}` for the fill table,
@@ -1769,9 +1807,16 @@ line-for-line, which is the point.
 
 ### Transfer (export / import)
 
-**Five** sites. Missing any one of the first four breaks export silently — the element round-trips but
-its image does not. (`_element_mids` is the exception: it degrades **diagnostics**, not data — see the
-correction under that row.)
+**Five** sites, failing in three different ways — the earlier blanket "missing any one breaks export
+silently" was wrong for three of them:
+
+- **Silent** (the element round-trips, its image does not): **`_build_table`** and **`_ser_fill_table`**.
+- **Loud, at import or duplicate:** **`_val_table`** (an un-widened allowlist rejects the archive with
+  "a table cell has an unknown key" — the Error-handling table's own "unknown cell key → rejected"
+  row, surfaced by `_copy_into`/`duplicate_element` as a raised `TransferError`) and **`_ser_table`**
+  (without it the raw int pk reaches the archive, and `_require_media`'s
+  `not isinstance(data_media, str)` branch rejects it just as loudly).
+- **Diagnostics only:** **`_element_mids`** — see the correction under its row.
 
 | site | change |
 |---|---|
@@ -1849,7 +1894,9 @@ specific to this function:
 
 **`_ser_table` reassembles the top-level dict by shallow copy**, replacing `cells` only when the
 stored value is already a list and leaving every other top-level key — and their order — untouched.
-Copying `_ser_fill_table`'s explicit five-key literal would inject `header_row`/`header_col`/`border`
+Copying `_ser_fill_table`'s explicit **top-level six-key return literal**
+(`header_row`/`header_col`/`case_sensitive`/`border`/`prompt`/`cells`) would inject
+`header_row`/`header_col`/`border`
 defaults into a legacy row that lacks them (the same byte-changing failure the no-normalize rule
 exists to prevent), while an unconditional `{**dict(el.data), "cells": rows}` would append a `cells`
 key to stored data that has none.
@@ -1871,7 +1918,8 @@ that call means the walk sees raw stored shapes:
   `"halign": c["halign"]` only because it normalised first; `_ser_table` must not, so it uses
   `.get` for **every key it reads** — `kind`, `media`, `size`, `alt`, `halign`, `valign` — not just
   the alignment pair, **and with the same defaults the render-side fallback uses**:
-  `c.get("halign", "left")`, `c.get("valign", "top")`, `c.get("size") or "full"`, `c.get("alt") or ""`.
+  `c.get("halign", "left")`, `c.get("valign", "top")`, `c.get("size") or "full"`,
+  **`(c.get("alt") or "")[:255]`**.
   Bare `.get` would emit `"halign": null` into the archive; harmless (`_val_table` tolerates it, `_cell`
   coerces it) but it makes the export fallback a *different shape* from the delegator's `empty_cell`,
   which this spec writes out as `c.get("halign", "left")` / `c.get("valign", "top")` and calls the same
@@ -2022,10 +2070,12 @@ the named task.
 | `table_editor.js`'s comment above `absorbedNonEmpty` — "(table_editor.js has no kinds …)" | it gains a `data-image` clause | editor |
 | `toggleHeaderCell`'s in-file comment — "there is no such map in this file's scope" | the plain table now has `cellStash` | editor |
 | `filltable_editor.js`'s `// fill-table only` on `cellStash.clear()` | both files now clear | editor |
+| `tests/test_filltable_editor_partial.py::test_unresolvable_image_cell_drops_spans_in_both_render_and_editor` — its **name** *and* its docstring ("a spanning gap left un-spanned would misshape the grid") both assert the dropped-span behaviour this slice inverts | rename to `…_keeps_spans_…` and rewrite the docstring | model |
 | `test_editor_twin_drift.py`'s **module docstring counts** — "the **20 functions** duplicated", "**163 lines** … across 20 functions -- **11 at file scope, 9 nested inside `wire()`**", "a **21st** unguarded twin" — plus the `TWINS` inline comment "# Code-identical in both editors. 11 at file scope, 9 nested inside wire()." | this slice moves `afterStructuralEdit` into `TWINS` and adds `stashFor`, making it **22** twins (11 file-scope + 11 nested). No test compares these strings | editor (beside the `EXPECTED_COUNTS` re-derivation) |
 | the **five** `DIVERGENT` reasons in `test_editor_twin_drift.py` (`serialize`, `refreshToolbarState`, `toggleHeaderCell`, `cellIsNonEmpty`, `afterStructuralEdit` — table below; `label` and `wire` survive) | see that table | editor |
 
-Only three of these are load-bearing for a test (`test_table_transfer.py`'s is inert, and
+Three of these live inside test files, and **none** of them reddens a test
+(`test_table_transfer.py`'s is a comment, and
 `test_twins_are_identical` strips comments) — which is exactly why they need enumerating rather
 than trusting to a red suite.
 
@@ -2048,8 +2098,11 @@ through `_sanitized_data` before any `|safe` output.
 replaced by `MediaAsset`, unresolved → blank cell **retaining spans** → shared cell partial emits
 `<img … data-zoomable>` with the preset class → CSS bounds it → `imagezoom.js` handles enlarge.
 
-**Export.** `_element_mids` collects cell media ids → assets bundled → `_ser_table` /
-`_ser_fill_table` emit cells with local asset ids **including `size`**. **Import.** `_val_table`
+**Export.** `_ser_table` / `_ser_fill_table` emit cells with local asset ids **including `size`** and
+**`ids.register(asset)` each one — that registration is what bundles the asset** → `_element_mids` then
+reads the *already-serialized* cells to collect those local ids into `mid_refs`, which feeds
+missing-image reporting (`_units_for`/`problems`) only. Not the other way round: see the correction
+under the `_element_mids` row. **Import.** `_val_table`
 validates and returns refs → `_build_table` remaps local ids → pk → `normalize_data` + `save()`.
 
 ## Error handling
@@ -2218,8 +2271,8 @@ must link **both** `courses.css` and `editor.css` to render faithfully.
   `disabled`, so a UI-level "convert then click math" test is unfalsifiable.
 - The CSS class guard has **three durable contracts** — per-file (never concatenated), "named
   somewhere" and "a base rule exists" as **separate** assertions, and every class present as a whole
-  quoted literal in the JS. The **concrete regex text lives in the plan**, not here, and whatever form
-  it takes must be verified to fail when the base rule is deleted.
+  quoted literal in the JS. The patterns given are illustrations of those contracts; whatever form is
+  written must be **verified to fail when the base rule is deleted**.
 - The 255 `alt` bound lives in **`_sanitized_data` as well as `_cell`** — `save()` never normalizes, so
   `_cell` alone does not make "truncated at save" true.
 - **Both** picker callbacks guard on a null `focusCell`; both are defence-in-depth, since
