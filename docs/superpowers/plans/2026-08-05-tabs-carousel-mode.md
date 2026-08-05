@@ -12,6 +12,10 @@
 
 ## Global Constraints
 
+- **Line length is 88** (`ruff` `select = ["E","F","I","UP","B","S"]` with no override, so
+  `E501` is live). Wrap every Python line you write, including the snippets copied from this
+  plan — several exceed 88 verbatim. **End each task that touches Python with
+  `uv run ruff check <the files you edited>`**, not only Task 8.
 - **Tooling is `uv run`** — `ruff`, `pytest` and `python` are NOT on PATH. Always `uv run pytest …`, `uv run ruff …`.
 - **Scope every test run narrowly.** Use `-k` or an explicit file path. A whole-repo sweep is a branch-level gate, never a per-task step. Never run two pytest invocations at once, and never background a pytest run (it orphans the test DB and the next run dies with `DuplicateDatabase`).
 - **e2e needs `-m e2e`** or the tests silently deselect and pytest exits 5. Run e2e in the **foreground**, one file at a time.
@@ -62,13 +66,11 @@
 
 - [ ] **Step 1: Write the failing tests**
 
-Append to `tests/test_tabs_model.py`:
+Append to `tests/test_tabs_model.py`. It **already** imports `pytest` and `TabsElement` at
+the top and sets `pytestmark = pytest.mark.django_db` — do NOT re-import them at the append
+site: that is `E402` + `F811` + `I001` under this repo's `select = ["E","F","I","UP","B","S"]`.
 
 ```python
-import pytest
-from courses.models import TabsElement
-
-
 def test_normalizers_default_the_new_keys_on_an_empty_blob():
     norm = TabsElement.normalize_labels_and_ids({})
     assert norm["display"] == "tabs"
@@ -519,8 +521,14 @@ def test_every_choice_label_renders_as_non_empty_option_text(client):
     tautological — it is derived from it one line below.)"""
     from courses.models import TabsElement
     html = _served_tabs_form(client)
-    for _value, label in TabsElement.DISPLAY_CHOICES + TabsElement.LABEL_POS_CHOICES:
-        assert f">{label}<" in html, f"missing option text for {label!r}"
+    # ⚠️ Assert the full <option> pattern, NOT a bare f">{label}<": the served fragment
+    # also carries `<p class="editor-form__type">Tabs</p>` from _host_form.html
+    # (editor_title == "Tabs"), so a bare-substring check for the "Tabs" label passes
+    # even with no <option> at all. The recorded bare-substring trap, in person.
+    for value, label in TabsElement.DISPLAY_CHOICES + TabsElement.LABEL_POS_CHOICES:
+        assert f'value="{value}"' in html and f">{label}</option>" in html, (
+            f"missing option for {value!r}/{label!r}"
+        )
 
 
 def test_tabs_mode_renders_the_label_position_row_hidden_from_first_paint(client):
@@ -559,7 +567,7 @@ Mutant: change `serialize()` to emit a captured constant instead of `displaySel.
 - [ ] **Step 2: Run to verify failure**
 
 ```bash
-uv run pytest tests/test_tabs_editor_partial.py -k "setting_selects or choice_label or first_paint or pairs_a_hidden" -v
+uv run pytest tests/test_tabs_editor_partial.py -k "setting_selects or choice_label or first_paint or pairs_a_hidden or serialize_reads" -v
 ```
 Expected: FAIL on missing `data-tab-display`.
 
@@ -635,7 +643,9 @@ Replace `serialize()`'s final line so it reads the selects' **live** values:
       });
 ```
 
-Add the row toggle and the change listeners, then invoke the toggle once at the end of `wire()`:
+Add the row toggle and the change listeners **immediately after `function
+refreshControlState() {…}` and before the `rows.addEventListener("input", …)`
+registration**, then invoke the toggle once at the end of `wire()`:
 
 ```js
     function syncLabelPosRow() {
@@ -668,9 +678,9 @@ and just above the existing `if (hidden.value === "") serialize();`:
    `display` overrides the UA [hidden]{display:none} rule regardless of specificity —
    without the paired rule the label-position row would still show in tabs mode. Same
    trap as .view-toggle[hidden] above. */
-.tabs-editor__setting { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-2); }
-.tabs-editor__setting[hidden] { display: none; }
-.tabs-editor__setting label { display: inline-flex; align-items: center; gap: var(--space-2); font-size: .82rem; color: var(--text-secondary); }
+.el-editor--tabs .tabs-editor__setting { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-2); }
+.el-editor--tabs .tabs-editor__setting[hidden] { display: none; }
+.el-editor--tabs .tabs-editor__setting label { display: inline-flex; align-items: center; gap: var(--space-2); font-size: .82rem; color: var(--text-secondary); }
 ```
 
 - [ ] **Step 7: Run to verify pass**
@@ -682,7 +692,7 @@ Expected: PASS (all, including `test_editor_css_styles_every_tabs_editor_class`,
 
 - [ ] **Step 8: Falsify**
 
-Delete `.tabs-editor__setting[hidden] { display: none; }` → `test_editor_css_pairs_a_hidden_rule_for_every_flex_setting_row` must FAIL. Revert.
+Delete `.el-editor--tabs .tabs-editor__setting[hidden] { display: none; }` → `test_editor_css_pairs_a_hidden_rule_for_every_flex_setting_row` must FAIL. Revert.
 Remove the `{% if form.editor_display != "carousel" %}hidden{% endif %}` → `test_tabs_mode_renders_the_label_position_row_hidden_from_first_paint` must FAIL. Revert.
 
 - [ ] **Step 9: Commit**
@@ -881,7 +891,11 @@ def test_a_nested_instance_emits_its_own_stage_and_sections():
     blanking the inner element; the outer sr-only rule clipping an inner carousel's
     captions), so the structural precondition — two independent stage>section chains —
     is worth pinning cheaply."""
-    for outer_display, inner_display in (("carousel", "tabs"), ("tabs", "carousel")):
+    for outer_display, inner_display in (
+        ("carousel", "tabs"),
+        ("tabs", "carousel"),
+        ("carousel", "carousel"),      # the spec names this one explicitly
+    ):
         unit = _unit()
         outer = TabsElement.objects.create(
             data={**TabsElement.default_data(), "display": outer_display}
@@ -896,8 +910,11 @@ def test_a_nested_instance_emits_its_own_stage_and_sections():
         )
         html = outer.render(element=outer_join)
         assert html.count('class="tabs__stage"') == 2      # one per instance
-        assert html.count(f'data-display="{inner_display}"') == 1
         assert html.count("data-tab-panel") == 4           # 2 sections x 2 instances
+        # Count both attributes rather than asserting == 1 on the inner value: the
+        # carousel-in-carousel case has outer and inner sharing it.
+        expected = 2 if outer_display == inner_display else 1
+        assert html.count(f'data-display="{inner_display}"') == expected
 ```
 
 - [ ] **Step 6: Run to verify pass**
@@ -1101,8 +1118,8 @@ def test_carousel_print_reset_is_present_and_fully_important():
     block = _print_block()
     assert '[data-display="carousel"]' in block
     for line in block.splitlines():
-        if '[data-display="carousel"]' not in line:
-            continue
+        if '[data-display="carousel"]' not in line or "{" not in line:
+            continue    # a comment mentioning the attribute would IndexError on the split
         decls = line.split("{")[1].split("}")[0]
         for decl in [d for d in decls.split(";") if d.strip()]:
             assert "!important" in decl, f"print reset declaration lacks !important: {decl.strip()}"
@@ -1165,7 +1182,18 @@ def test_carousel_rules_use_child_combinators():
             continue    # nav styling may stay descendant-scoped; it cannot blank a slide
         if not any(x in selector for x in (".tabs__section", ".tabs__panel", ".tabs__panel-label", ".tabs__stage")):
             continue
-        assert "> .tabs__stage" in selector, f"missing child chain: {selector.strip()}"
+        # Pin the FULL chain per subject. `"> .tabs__stage" in selector` alone passes for
+        # `> .tabs__stage .tabs__section` — a descendant selector that still reaches a
+        # NESTED instance's sections and blanks them, i.e. exactly the hazard.
+        if ".tabs__panel-label" in selector:
+            need = "> .tabs__stage > .tabs__section > .tabs__panel-label"
+        elif ".tabs__panel" in selector:
+            need = "> .tabs__stage > .tabs__section > .tabs__panel"
+        elif ".tabs__section" in selector:
+            need = "> .tabs__stage > .tabs__section"
+        else:
+            need = "> .tabs__stage"
+        assert need in selector, f"missing child chain ({need}): {selector.strip()}"
 ```
 
 - [ ] **Step 2: Run to verify failure**
@@ -1454,30 +1482,6 @@ Add above `initTabs`. Transcribe `show` from `gallery.js`; the annotated departu
     var idx = -1, dead = false, pending = null;
     var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)");
 
-    var nav = document.createElement("nav");
-    nav.className = "tabs__cbar";
-    nav.setAttribute("aria-label", t("carouselNav", "Carousel"));
-    var prev = iconBtn("M15 6l-6 6 6 6", t("prevSlide", "Previous slide"));
-    prev.className = "tabs__cprev";   // literal, single token: the drift guard needs both
-    var next = iconBtn("M9 6l6 6-6 6", t("nextSlide", "Next slide"));
-    next.className = "tabs__cnext";
-    var dotWrap = document.createElement("div");
-    dotWrap.className = "tabs__dots";
-    var dots = sections.map(function (_s, k) {
-      var d = document.createElement("button");
-      d.type = "button";
-      d.className = "tabs__dot";
-      d.setAttribute("aria-label", t("goToSlide", "Go to slide {n}").replace("{n}", k + 1));
-      d.addEventListener("click", function () { show(k); });
-      dotWrap.appendChild(d);
-      return d;
-    });
-    var status = document.createElement("span");
-    status.className = "tabs__status";
-    status.setAttribute("role", "status");
-    status.setAttribute("aria-live", "polite");
-    nav.appendChild(prev); nav.appendChild(dotWrap); nav.appendChild(next); nav.appendChild(status);
-
     function clamp(n) { return Math.max(0, Math.min(sections.length - 1, n)); }
 
     function settleHidden(el) {
@@ -1567,7 +1571,7 @@ Add above `initTabs`. Transcribe `show` from `gallery.js`; the annotated departu
         s.classList.remove("is-active");
         s.style.opacity = "";
       });
-      if (nav.parentNode) nav.parentNode.removeChild(nav);
+      if (nav && nav.parentNode) nav.parentNode.removeChild(nav);
       stage.style.minHeight = "";
       container.classList.remove("tabs--carousel");
       // .tabs--js too: courses.css separates stacked slides with
@@ -1576,14 +1580,39 @@ Add above `initTabs`. Transcribe `show` from `gallery.js`; the annotated departu
       container.classList.remove("tabs--js");
     }
 
-    // ⚠️ Everything from `var nav = …` down to `status` above must move INSIDE this try in
-    // your implementation — build the nav here, not before it. `.tabs--js` is already
-    // applied by initOne, so an uncaught throw in the nav construction (e.g. .replace on a
-    // non-string goToSlide — the same shape the forced-throw e2e exploits, just a different
-    // key) would leave the element with tabsReady="1", no nav, and no bail: the stacked
-    // slides then butt together. The spec's promise is "ANY throw inside the branch".
-    // The catch's `if (nav.parentNode)` guard already handles a never-appended nav.
+    // NOTE ON STRUCTURE: `nav` is declared here (so bail() closes over it) but everything
+    // that can THROW — the i18n .replace calls, the DOM construction — happens inside the
+    // try below. `.tabs--js` is already applied by initOne, so an uncaught throw anywhere in
+    // the branch would leave tabsReady="1", no nav and no bail, and the stacked slides would
+    // butt together. The spec's promise is "ANY throw inside the branch", not one culprit.
+    var nav = null, prev = null, next = null, dotWrap = null, dots = [], status = null;
+
     try {
+      nav = document.createElement("nav");
+      nav.className = "tabs__cbar";
+      nav.setAttribute("aria-label", t("carouselNav", "Carousel"));
+      prev = iconBtn("M15 6l-6 6 6 6", t("prevSlide", "Previous slide"));
+      prev.className = "tabs__cprev";   // literal, single token: the drift guard needs both
+      next = iconBtn("M9 6l6 6-6 6", t("nextSlide", "Next slide"));
+      next.className = "tabs__cnext";
+      dotWrap = document.createElement("div");
+      dotWrap.className = "tabs__dots";
+      dots = sections.map(function (_s, k) {
+        var d = document.createElement("button");
+        d.type = "button";
+        d.className = "tabs__dot";
+        d.setAttribute("aria-label", t("goToSlide", "Go to slide {n}").replace("{n}", k + 1));
+        d.addEventListener("click", function () { show(k); });
+        dotWrap.appendChild(d);
+        return d;
+      });
+      status = document.createElement("span");
+      status.className = "tabs__status";
+      status.setAttribute("role", "status");
+      status.setAttribute("aria-live", "polite");
+      nav.appendChild(prev); nav.appendChild(dotWrap); nav.appendChild(next);
+      nav.appendChild(status);   // inside the <nav>, as gallery.js does
+
       sections.forEach(function (s) {
         s.setAttribute("role", "group");
         s.setAttribute("aria-roledescription", "slide");
@@ -1776,7 +1805,11 @@ symbol this task introduces):
 ```python
 def test_the_error_bail_tears_down_the_measurement_wiring():
     js = TABS_JS.read_text(encoding="utf-8")
-    assert "teardownMeasure()" in js[js.index("function bail"):]
+    # Call-shaped, not the bare name: "teardownMeasure()" also occurs inside
+    # `function teardownMeasure() {`, so the bare substring passes on the declaration
+    # alone whether or not bail() ever calls it.
+    assert "
+      teardownMeasure();" in js[js.index("function bail"):]
 ```
 
 ⚠️ **Insertion point is load-bearing.** Put this whole block — the four functions **and**
@@ -1787,13 +1820,18 @@ registrations would then execute unconditionally on a dead instance, leaving a l
 `ResizeObserver` and three listeners bound forever. The `dead` flag makes that leak
 **silent** — no test would catch it.
 
-Then call `measure();` **after `container.classList.add("tabs--carousel")`**, not between it
-and `show(0)` — the gallery adds its `gallery--js` gate long before `show(0); measure();`, so
+Then call `measure();` as the **last statement INSIDE the `try`**, immediately below
+`container.classList.add("tabs--carousel")` — inside, so a throw in `measure()` still reaches
+the bail, and after the gate rather than between it and `show(0)` — the gallery adds its `gallery--js` gate long before `show(0); measure();`, so
 gate-then-measure is the reference order, and measuring before the gate would measure the
 stacked, non-absolute layout. This does not disturb the `show(0) < classList.add` source
 assertion. Add `teardownMeasure();` to `bail()`.
 
 - [ ] **Step 4: Re-point the stale source citations**
+
+`tests/test_editor_clip_templates.py` cites "`templates/courses/elements/tabselement.html:17`"
+in a comment; Task 4's full template rewrite moves that content, so re-point it to a symbol
+reference ("the `data-tab-id` attribute in `tabselement.html`").
 
 `tests/test_e2e_imagezoom.py` carries **four** `tabs.js:<line>` citations in comments (the strip loop, `panel.tabIndex = 0`, the roving tabindex, the `hidden` re-application). All four are already stale against the current file, and this task shifts them again. Replace each with a symbol reference — e.g. "the strip-building loop in `initOne`", "where `initOne` sets `panel.tabIndex = 0`", "`select()`'s roving tabindex", "`select()`'s `hidden` re-application" — no line numbers.
 
@@ -1825,8 +1863,16 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 
 - [ ] **Step 1: Write the failing tests**
 
-Add the import this file lacks: `from courses.transfer.payloads import _val_tabs`
-(`FORMAT_VERSION` is already imported there).
+Add **four** imports to the module's existing top-of-file group, in isort
+(`force-single-line`) order — the file has `build_export`, `import_course`,
+`validate_element_data`, `FORMAT_VERSION` etc. but **none** of these:
+
+```python
+from courses import builder as builder_svc
+from courses.transfer.export import _ser_tabs
+from courses.transfer.importer import _build_tabs
+from courses.transfer.payloads import _val_tabs
+```
 
 ```python
 TWO_VALID_TABS = [{"id": "taaaaaa", "label": "A"}, {"id": "tbbbbbb", "label": "B"}]
@@ -1889,8 +1935,10 @@ def test_duplicating_a_carousel_keeps_it_a_carousel():
         data={"tabs": TWO_VALID_TABS, "display": "carousel", "label_pos": "hidden"}
     )
     join = Element.objects.create(unit=unit, content_object=obj)
+    # duplicate_element takes the unit token as an isoformat STRING. There is no token
+    # helper in this file (the `_tok` one lives in test_builder_duplicate_element.py).
     _unit_after, new_join = builder_svc.duplicate_element(
-        course, join.pk, unit_token(unit)          # the file's existing token helper
+        course, join.pk, unit.updated.isoformat()
     )
     assert new_join.content_object.data["display"] == "carousel"
     assert new_join.content_object.data["label_pos"] == "hidden"
@@ -2067,9 +2115,9 @@ uv run pytest tests/test_tabs_partial.py -k "summary" -v
         if norm["display"] == "carousel":
             # Display is otherwise an invisible setting: without this the builder tree
             # shows "3 tabs" for a carousel with nothing to distinguish it.
-            # gettext (eager), NOT the lazy `_`: every other branch of this function
-        # returns a str, and `_(...) % {...}` yields a __proxy__ that behaves
-        # differently under json.dumps / == / %-format for carousel rows only.
+                # gettext (eager), NOT the lazy `_`: every other branch of this function
+            # returns a str, and `_(...) % {...}` yields a __proxy__ that behaves
+            # differently under json.dumps / == / %-format for carousel rows only.
             summary = gettext("%(summary)s · carousel") % {"summary": summary}
         return summary
 ```
@@ -2106,9 +2154,15 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 
 - [ ] **Step 1: Build the fixtures**
 
-`tests/test_e2e_tabs.py` already has `_seed_unit(owner, slug)`, `_seed_tabs_element(unit, tabs,
-children=None)`, `_seed_student(username)` and the `lesson_with_tabs` fixture. **Use them for
-every shape below** — they construct model objects, which is correct and cheap for the ~10
+⚠️ **First widen the helper.** `_seed_tabs_element(unit, tabs, children=None)` hardcodes
+`TabsElement.objects.create(data={"tabs": [...]})` with no `display` — so as it stands it
+cannot produce a carousel at all and **none** of the assertions below could be built with it.
+Change its signature to `_seed_tabs_element(unit, tabs, children=None, display="tabs",
+label_pos="above")` and thread both into the `data` literal. Its four existing call sites keep
+the defaults and are unaffected.
+
+`tests/test_e2e_tabs.py` also has `_seed_unit(owner, slug)`, `_seed_student(username)` and the
+`lesson_with_tabs` fixture. **Use them for every shape below** — they construct model objects, which is correct and cheap for the ~10
 distinct fixtures these assertions need (differing-height tables, a slide with a link, a slide
 with nothing focusable, nested tabs, nested carousel, a gallery on slide 2, a wide table, a
 narrow table, `label_pos: "below"`, carousel-in-tabs).
@@ -2158,7 +2212,7 @@ page.add_init_script("""
 """)
 ```
 
-A bare `window.TABS_I18N = {...}` init script does **not** work — all three templates assign the global wholesale in an inline script before the deferred `tabs.js`, so a document-start write is simply overwritten and the carousel initialises normally, failing these assertions against a *correct* implementation. Then assert: every section non-`inert`, not `aria-hidden`, content reachable by tabbing, **no `.tabs__cbar`**, `.tabs--js` removed, and the stage carries no inline `min-height`. Then press ArrowRight and assert the state is **still** clean (the `dead` flag). *(Mutants: empty the `catch` body; leave the keydown listener bound — both → RED.)*
+A bare `window.TABS_I18N = {...}` init script does **not** work — all three templates assign the global wholesale in an inline script before the deferred `tabs.js`, so a document-start write is simply overwritten and the carousel initialises normally, failing these assertions against a *correct* implementation. Then assert: every section non-`inert`, not `aria-hidden`, content reachable by tabbing, **no `.tabs__cbar`**, `.tabs--js` removed, and the stage carries no inline `min-height`. Then press ArrowRight and assert the state is **still** clean (the `dead` flag). *(Mutants: empty the `catch` body; **delete `if (dead) return;` from the container keydown handler** — both → RED. Note the listener is deliberately left bound and neutralised by the `dead` flag, so "leave the listener bound" is the shipped behaviour, not a mutation.)*
 
 - [ ] **Step 3: Screenshots — light and dark, judged separately**
 
