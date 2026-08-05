@@ -378,9 +378,12 @@ def test_editor_accessors_read_the_instance_when_unbound():
 uv run pytest tests/test_tabs_form_views.py -k "threads_both or early_return or out_of_enum or bounds_still or editor_accessors" -v
 ```
 Expected: FAIL — `KeyError: 'display'` / `AttributeError: … has no attribute 'editor_display'`
-for four of the five. ⚠️ `test_slide_count_bounds_still_raise` is expected **GREEN** here: it
-only asserts `not form.is_valid()` on a one-tab payload, which is already true today. It is a
-regression guard for existing behaviour, not a new-behaviour test, and has no red phase.
+for four of the six. ⚠️ **TWO** tests are expected **GREEN** here and have no red phase:
+`test_slide_count_bounds_still_raise` (it only asserts `not form.is_valid()` on a one-tab
+payload, already true today) and `test_out_of_enum_coerces_rather_than_raising` (Task 1's
+`normalize_labels_and_ids` already injects the `"tabs"`/`"above"` defaults this test asserts).
+Both are regression guards for behaviour that already holds; post-fix the second one pins
+that `extras` can carry garbage safely. Neither has a mutant in this task.
 
 - [ ] **Step 3: Thread the keys through `clean_data`**
 
