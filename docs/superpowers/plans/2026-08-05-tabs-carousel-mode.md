@@ -77,11 +77,19 @@ def test_normalizers_default_the_new_keys_on_an_empty_blob():
 
 @pytest.mark.parametrize("hostile", [None, 42, True, "CAROUSEL", [], {}, ["carousel"]])
 def test_normalizers_coerce_hostile_values_without_raising(hostile):
-    # [] and {} are the falsification for the tuple-not-frozenset decision:
-    # `[] in frozenset(...)` raises TypeError: unhashable type.
     norm = TabsElement.normalize_labels_and_ids({"display": hostile, "label_pos": hostile})
     assert norm["display"] == "tabs"
     assert norm["label_pos"] == "above"
+
+
+def test_the_membership_collections_accept_an_unhashable_probe():
+    """⚠️ This — NOT the hostile-value test above — is the guard for the
+    tuple-not-frozenset decision. `_coerce_enum` is
+    `isinstance(value, str) and value in allowed`, and `and` SHORT-CIRCUITS: for `[]` the
+    membership test is never evaluated, so swapping the tuple for a frozenset leaves that
+    test green. Only a direct membership probe observes the collection's type."""
+    assert [] not in TabsElement.DISPLAYS          # TypeError under a frozenset
+    assert {} not in TabsElement.LABEL_POSITIONS
 
 
 @pytest.mark.parametrize("display", ["tabs", "carousel"])
@@ -267,7 +275,7 @@ Expected: PASS (all).
 
 1. Revert `normalize_labels_and_ids` to `return {"tabs": tabs}` → `test_save_round_trip_preserves_both_keys` must FAIL. Revert the mutant.
 2. Revert `normalize_data` to `return {"tabs": tabs}` → `test_normalize_data_carries_the_keys_through_padding_and_truncation` must FAIL. Revert.
-3. Change `DISPLAYS = tuple(...)` to `frozenset(...)` → the `[]` and `{}` parametrisations of `test_normalizers_coerce_hostile_values_without_raising` must FAIL with `TypeError: unhashable type`. Revert.
+3. Change `DISPLAYS = tuple(...)` to `frozenset(...)` → **`test_the_membership_collections_accept_an_unhashable_probe`** must FAIL with `TypeError: unhashable type`. Note that `test_normalizers_coerce_hostile_values_without_raising` stays GREEN under this mutant — `_coerce_enum`'s `and` short-circuits before the membership test — which is exactly why the direct probe exists. Revert.
 
 Record each observed failure before reverting. If any mutant leaves the file green, the test is not guarding what it claims.
 
@@ -301,73 +309,63 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 
 - [ ] **Step 1: Write the failing tests**
 
-Append to `tests/test_tabs_form_views.py` (it already imports `TabsElementForm` and
-`TabsElement`; keep only the imports it lacks).
+Append to `tests/test_tabs_form_views.py`. It already has `pytest`, `TabsElement`,
+`pytestmark = pytest.mark.django_db`, a `Form = FORM_FOR_TYPE["tabs"]` alias and — critically —
+its own **`_bound(payload)` helper that takes a DICT and json-dumps it**. Do **not** append a
+second `_bound`: a module-level redefinition rebinds the name for the whole file, and
+`test_editor_rows_bound_round_trips_submitted_ids_in_order` would then pass a dict to a
+string-taking helper, `json.loads` a dict, fall back to `default_data()` with random ids, and
+fail. Reuse the existing helper and pass dicts. `TabsElementForm` is **not** imported here —
+use the `Form` alias.
 
 ```python
-import pytest
-from courses.element_forms import TabsElementForm
-from courses.models import TabsElement
 
 
-def _bound(payload_json):
-    return TabsElementForm(data={"data": payload_json})
+TWO_TABS = [{"id": "taaaaaa", "label": "A"}, {"id": "tbbbbbb", "label": "B"}]
 
 
-@pytest.mark.django_db
 def test_clean_data_threads_both_keys():
-    form = _bound(
-        '{"tabs":[{"id":"taaaaaa","label":"A"},{"id":"tbbbbbb","label":"B"}],'
-        '"display":"carousel","label_pos":"below"}'
-    )
+    form = _bound({"tabs": TWO_TABS, "display": "carousel", "label_pos": "below"})
     assert form.is_valid(), form.errors
     assert form.cleaned_data["data"]["display"] == "carousel"
     assert form.cleaned_data["data"]["label_pos"] == "below"
 
 
-@pytest.mark.django_db
 def test_the_tabs_is_none_early_return_branch_keeps_the_submitted_display():
     """`tabs` absent is the documented add-and-save-without-editing path; it returns
     default_data() and would otherwise drop a submitted display with no error."""
-    form = _bound('{"display":"carousel","label_pos":"hidden"}')
+    form = _bound({"display": "carousel", "label_pos": "hidden"})
     assert form.is_valid(), form.errors
     assert form.cleaned_data["data"]["display"] == "carousel"
     assert form.cleaned_data["data"]["label_pos"] == "hidden"
     assert len(form.cleaned_data["data"]["tabs"]) == TabsElement.MIN_TABS
 
 
-@pytest.mark.django_db
 def test_out_of_enum_coerces_rather_than_raising():
-    form = _bound(
-        '{"tabs":[{"id":"taaaaaa","label":"A"},{"id":"tbbbbbb","label":"B"}],'
-        '"display":"CAROUSEL","label_pos":"sideways"}'
-    )
+    form = _bound({"tabs": TWO_TABS, "display": "CAROUSEL", "label_pos": "sideways"})
     assert form.is_valid(), form.errors
     assert form.cleaned_data["data"]["display"] == "tabs"
     assert form.cleaned_data["data"]["label_pos"] == "above"
 
 
-@pytest.mark.django_db
 def test_slide_count_bounds_still_raise():
-    form = _bound('{"tabs":[{"id":"taaaaaa","label":"A"}],"display":"carousel"}')
+    form = _bound({"tabs": TWO_TABS[:1], "display": "carousel"})
     assert not form.is_valid()
 
 
-@pytest.mark.django_db
 def test_editor_accessors_reflect_submitted_data_on_a_bound_invalid_rerender():
     """One tab -> invalid; the author's Display choice must survive the re-render."""
-    form = _bound('{"tabs":[{"id":"taaaaaa","label":"A"}],"display":"carousel","label_pos":"below"}')
+    form = _bound({"tabs": TWO_TABS[:1], "display": "carousel", "label_pos": "below"})
     assert not form.is_valid()
     assert form.editor_display == "carousel"
     assert form.editor_label_pos == "below"
 
 
-@pytest.mark.django_db
 def test_editor_accessors_read_the_instance_when_unbound():
     obj = TabsElement.objects.create(
         data={**TabsElement.default_data(), "display": "carousel", "label_pos": "hidden"}
     )
-    form = TabsElementForm(instance=obj)
+    form = Form(instance=obj)
     assert form.editor_display == "carousel"
     assert form.editor_label_pos == "hidden"
 ```
@@ -487,10 +485,22 @@ form, so `form.editor_display` is `"tabs"` and the label-position row is expecte
 
 ```python
 def _served_tabs_form(client):
-    """The tabs editor partial as the server renders it for a NEW element (unbound),
-    modelled on test_served_tabs_form_carries_the_bounds_the_js_reads. Assert on the
-    SERVED form, not a hand-instantiated one: the wiring lives in the response."""
-    ...  # same client/login/URL sequence as that existing test; return response text
+    """The tabs editor partial as the server renders it for a NEW element — so
+    form.editor_display is "tabs" and the label-position row is expected hidden.
+    Assert on the SERVED form, not a hand-instantiated one: the wiring lives in the
+    response. Lifted from test_served_tabs_form_carries_the_bounds_the_js_reads."""
+    from django.urls import reverse
+
+    from tests.factories import make_login
+
+    owner = make_login(client, "owner")
+    course, unit = make_course_with_unit(owner=owner)
+    resp = client.post(
+        reverse("courses:manage_element_add", kwargs={"slug": course.slug}),
+        {"type": "tabs", "unit": unit.pk},
+        HTTP_X_REQUESTED_WITH="fetch",
+    )
+    return resp.content.decode()
 ```
 
 ```python
@@ -538,7 +548,7 @@ the e2e in Task 11 covers slowly:
 def test_serialize_reads_both_select_elements():
     """The no-op re-save defect lives in serialize(). The e2e catches it in seconds of
     wall-clock; this catches a later refactor in milliseconds."""
-    js = (ROOT / "courses/static/courses/js/tabs_editor.js").read_text(encoding="utf-8")
+    js = TABS_EDITOR_JS.read_text(encoding="utf-8")   # the module already defines this
     body = js[js.index("function serialize"):js.index("function refreshControlState")]
     assert "display:" in body and "label_pos:" in body
     assert "displaySel.value" in body and "labelPosSel.value" in body
@@ -859,19 +869,50 @@ In `TabsElement.render`, splat `display_settings()`:
         )
 ```
 
-- [ ] **Step 5: Run to verify pass**
+- [ ] **Step 5: Add the render-level nesting test**
+
+The spec requires nesting to be **render-tested as well as** e2e-tested; the render layer is
+the cheap one and the e2e is the layer most likely to be trimmed.
+
+```python
+@pytest.mark.django_db
+def test_a_nested_instance_emits_its_own_stage_and_sections():
+    """Both directions. The failure modes are CSS-selector defects (a descendant selector
+    blanking the inner element; the outer sr-only rule clipping an inner carousel's
+    captions), so the structural precondition — two independent stage>section chains —
+    is worth pinning cheaply."""
+    for outer_display, inner_display in (("carousel", "tabs"), ("tabs", "carousel")):
+        unit = _unit()
+        outer = TabsElement.objects.create(
+            data={**TabsElement.default_data(), "display": outer_display}
+        )
+        outer_join = Element.objects.create(unit=unit, content_object=outer)
+        tab_id = outer.normalized_data["tabs"][0]["id"]
+        inner = TabsElement.objects.create(
+            data={**TabsElement.default_data(), "display": inner_display}
+        )
+        Element.objects.create(
+            unit=unit, content_object=inner, parent=outer_join, tab_id=tab_id
+        )
+        html = outer.render(element=outer_join)
+        assert html.count('class="tabs__stage"') == 2      # one per instance
+        assert html.count(f'data-display="{inner_display}"') == 1
+        assert html.count("data-tab-panel") == 4           # 2 sections x 2 instances
+```
+
+- [ ] **Step 6: Run to verify pass**
 
 ```bash
 uv run pytest tests/test_tabs_partial.py -v
 ```
-Expected: PASS (all, including the pre-existing `data-tab-panel == 2` / `data-tab-label == 2` counts).
+Expected: PASS (all, including the pre-existing `data-tab-panel == 2` / `data-tab-label == 2` counts, which assert on a NON-nested element and are unaffected).
 
-- [ ] **Step 6: Falsify**
+- [ ] **Step 7: Falsify**
 
 Change `**self.display_settings()` to `**self.normalized_data` → `test_render_calls_the_destructive_normalizer_exactly_once` must FAIL (2 calls). Revert.
 Remove the `<div class="tabs__stage">` wrapper → `test_the_stage_wrapper_is_present_in_both_modes` must FAIL. Revert.
 
-- [ ] **Step 7: Regression-check the container siblings**
+- [ ] **Step 8: Regression-check the container siblings**
 
 The wrapper is new markup inside a container that other suites render.
 
@@ -882,7 +923,7 @@ Expected: PASS. Note this run spans **both** test roots (`tests/` and `courses/t
 `test_nesting_rule.py` lives under `courses/tests/`, and naming it `tests/…` makes pytest
 exit with a usage error and run nothing at all.
 
-- [ ] **Step 8: Commit**
+- [ ] **Step 9: Commit**
 
 ```bash
 git add templates/courses/elements/tabselement.html courses/models.py tests/test_tabs_partial.py
@@ -913,9 +954,9 @@ whole module down.
 import pytest
 
 TABS_I18N_TEMPLATES = [           # the SAME three paths the loads-tabs-js test walks
-    TEMPLATES / "courses/lesson_unit.html",
-    TEMPLATES / "courses/quiz_unit.html",
-    TEMPLATES / "courses/manage/editor/editor.html",
+    TEMPLATES / "lesson_unit.html",
+    TEMPLATES / "quiz_unit.html",
+    TEMPLATES / "manage/editor/editor.html",
 ]
 CAROUSEL_I18N_KEYS = ["carouselNav", "prevSlide", "nextSlide", "goToSlide", "slidePos"]
 
@@ -1108,12 +1149,23 @@ def test_carousel_rules_use_child_combinators():
     completely blank (the inner instance hides panels with `hidden`, never adds
     .is-active to a section, so nothing restores opacity)."""
     css = CSS.read_text(encoding="utf-8")
+    NAV = (".tabs__cbar", ".tabs__cprev", ".tabs__cnext", ".tabs__dots", ".tabs__dot", ".tabs__status")
     for line in css.splitlines():
-        if ".tabs--carousel" not in line or "{" not in line:
+        if "{" not in line:
             continue
         selector = line.split("{")[0]
-        if ".tabs__section" in selector or ".tabs__stage" in selector:
-            assert "> .tabs__stage" in selector, f"missing child chain: {selector.strip()}"
+        # Mode-scoped rules only, by EITHER token — keying solely on .tabs--carousel would
+        # skip the four rules the spec identifies as the hazard: the two tabs-mode rules
+        # scoped by [data-display="tabs"], and the two attribute-only carousel rules
+        # (caption typography, panel spacing). Any of them can regress to a descendant
+        # selector and blank a nested carousel's captions or double-pad its panels.
+        if ".tabs--carousel" not in selector and "[data-display=" not in selector:
+            continue
+        if any(n in selector for n in NAV):
+            continue    # nav styling may stay descendant-scoped; it cannot blank a slide
+        if not any(x in selector for x in (".tabs__section", ".tabs__panel", ".tabs__panel-label", ".tabs__stage")):
+            continue
+        assert "> .tabs__stage" in selector, f"missing child chain: {selector.strip()}"
 ```
 
 - [ ] **Step 2: Run to verify failure**
@@ -1171,7 +1223,11 @@ Append after the existing `.el--tabs` screen rules:
 .el--tabs.tabs--carousel[data-display="carousel"][data-label-pos="hidden"] > .tabs__stage > .tabs__section > .tabs__panel-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
 /* Caption typography: in tabs mode this h3 is always clipped, so it has never been
-   styled as visible text. As a slide caption it must not inherit the heavy global h3. */
+   styled as visible text. As a slide caption it must not inherit the heavy global h3.
+   Attribute-only (no gate class) — a SECOND deliberate exemption beyond the spec's named
+   one. Rationale: like the spacing rule below it neither hides nor positions anything, and
+   applying it unenhanced makes the no-JS stacked fallback read better, not worse. Both
+   exemptions still take the child chain, or they would restyle a nested instance. */
 .el--tabs[data-display="carousel"] > .tabs__stage > .tabs__section > .tabs__panel-label { font-size: .95rem; font-weight: 500; color: var(--text-secondary); text-align: center; margin: 0 0 var(--space-3); }
 /* Spacing, attribute-only (no gate class): it adds nothing but spacing, so it is safe
    unenhanced and keeps the no-JS stacked fallback readable. */
@@ -1238,7 +1294,7 @@ uv run pytest tests/test_tabs_partial.py -v
 ```
 Expected: PASS (all, including the two pre-existing print tests).
 
-- [ ] **Step 7: Falsify — four mutants**
+- [ ] **Step 7: Falsify — five mutants**
 
 1. Change one print-reset declaration to drop `!important` → `test_carousel_print_reset_is_present_and_fully_important` FAILS.
 2. Change the slide rule's gate from `.tabs--carousel` to `.tabs--js` → `test_every_slide_hiding_rule_carries_the_carousel_gate` FAILS.
@@ -1297,8 +1353,7 @@ def test_the_error_bail_clears_inert_aria_hidden_and_both_classes():
     assert 'removeAttribute("aria-hidden")' in body
     assert 'classList.remove("tabs--js")' in body
     assert 'classList.remove("tabs--carousel")' in body
-    assert "teardownMeasure()" in body
-    assert "bail();" in js[js.index("catch"):]     # …and the catch actually calls it
+    assert "bail();" in js[js.index("} catch ("):]  # …and the catch actually calls it
 
 
 def test_every_new_carousel_class_is_a_single_token_literal():
@@ -1381,7 +1436,8 @@ Add above `initTabs`. Transcribe `show` from `gallery.js`; the annotated departu
   }
 
   function initCarousel(container, sections) {
-    var stage = container.querySelector(".tabs__stage");
+    var stage = container.querySelector(":scope > .tabs__stage");  // :scope, not a bare query:
+    // the branch must never depend on tree order to avoid a nested instance's stage
     if (!stage || sections.length < 2) {
       // Route the degenerate case through the same undo as a bail: initOne has already
       // added .tabs--js, and courses.css separates stacked slides with
@@ -1520,6 +1576,13 @@ Add above `initTabs`. Transcribe `show` from `gallery.js`; the annotated departu
       container.classList.remove("tabs--js");
     }
 
+    // ⚠️ Everything from `var nav = …` down to `status` above must move INSIDE this try in
+    // your implementation — build the nav here, not before it. `.tabs--js` is already
+    // applied by initOne, so an uncaught throw in the nav construction (e.g. .replace on a
+    // non-string goToSlide — the same shape the forced-throw e2e exploits, just a different
+    // key) would leave the element with tabsReady="1", no nav, and no bail: the stacked
+    // slides then butt together. The spec's promise is "ANY throw inside the branch".
+    // The catch's `if (nav.parentNode)` guard already handles a never-appended nav.
     try {
       sections.forEach(function (s) {
         s.setAttribute("role", "group");
@@ -1627,6 +1690,11 @@ Delete the stub declaration from Task 7.
 
 - [ ] **Step 2: Add the keyboard handler**
 
+Insertion point, stated as explicitly as Step 3's: **inside `initCarousel`, immediately after
+the `rescueFocus` definition and BEFORE the `try` block** — so `bail()` can reach it and the
+`dead` guard inside the handler is the belt to that braces. Binding it inside the `try` would
+leave the listener half-bound if a later statement throws.
+
 ```js
     container.addEventListener("keydown", function (e) {
       if (dead) return;                     // BEFORE preventDefault, or we swallow keys
@@ -1702,6 +1770,15 @@ Delete the stub declaration from Task 7.
     document.addEventListener("libli:reveal", onDocReveal);
 ```
 
+Also extend Task 7's bail test with the assertion that could not live there (it referenced a
+symbol this task introduces):
+
+```python
+def test_the_error_bail_tears_down_the_measurement_wiring():
+    js = TABS_JS.read_text(encoding="utf-8")
+    assert "teardownMeasure()" in js[js.index("function bail"):]
+```
+
 ⚠️ **Insertion point is load-bearing.** Put this whole block — the four functions **and**
 the `ro.observe` / `resize` / two `libli:reveal` registrations — **inside `initCarousel`
 before the `try` block**, so `bail()` can tear it all down. Appended after the `try/catch`
@@ -1710,8 +1787,11 @@ registrations would then execute unconditionally on a dead instance, leaving a l
 `ResizeObserver` and three listeners bound forever. The `dead` flag makes that leak
 **silent** — no test would catch it.
 
-Then call `measure();` immediately after `show(0);` inside the `try`, and add
-`teardownMeasure();` to `bail()`.
+Then call `measure();` **after `container.classList.add("tabs--carousel")`**, not between it
+and `show(0)` — the gallery adds its `gallery--js` gate long before `show(0); measure();`, so
+gate-then-measure is the reference order, and measuring before the gate would measure the
+stacked, non-absolute layout. This does not disturb the `show(0) < classList.add` source
+assertion. Add `teardownMeasure();` to `bail()`.
 
 - [ ] **Step 4: Re-point the stale source citations**
 
@@ -1749,9 +1829,25 @@ Add the import this file lacks: `from courses.transfer.payloads import _val_tabs
 (`FORMAT_VERSION` is already imported there).
 
 ```python
+TWO_VALID_TABS = [{"id": "taaaaaa", "label": "A"}, {"id": "tbbbbbb", "label": "B"}]
+
+
 @pytest.mark.django_db
 def test_carousel_round_trips_through_export_and_import():
-    ...  # build a carousel-mode element, export, validate, import, assert both keys
+    """A `...` body would PASS, making Step 2's "verify failure" and Step 7's
+    _ser_tabs falsification both vacuous. Write it out."""
+    course, unit = make_course_with_unit()
+    obj = TabsElement.objects.create(
+        data={"tabs": TWO_VALID_TABS, "display": "carousel", "label_pos": "below"}
+    )
+    Element.objects.create(unit=unit, content_object=obj)
+    payload = _ser_tabs(obj, {})
+    assert payload["display"] == "carousel"
+    assert payload["label_pos"] == "below"
+    _val_tabs(payload, "el-1", {})              # must not raise
+    rebuilt, _children = _build_tabs(payload, {})
+    assert rebuilt.data["display"] == "carousel"
+    assert rebuilt.data["label_pos"] == "below"
 
 
 @pytest.mark.django_db
@@ -1770,7 +1866,7 @@ def test_an_out_of_enum_value_is_REPAIRED_not_rejected():
     """Follows _val_image, whose comment states the rule: a cosmetic field with a
     lossless default must never fail an import — `tabs` IS the pre-feature rendering.
     (Contrast _val_callout, which rejects an unknown kind: a kind has no safe fallback.)"""
-    data = {"tabs": [...], "display": "CAROUSEL", "label_pos": "sideways"}
+    data = {"tabs": TWO_VALID_TABS, "display": "CAROUSEL", "label_pos": "sideways"}
     _val_tabs(data, "el-1", {})
     assert data["display"] == "tabs"
     assert data["label_pos"] == "above"
@@ -1778,7 +1874,7 @@ def test_an_out_of_enum_value_is_REPAIRED_not_rejected():
 
 @pytest.mark.django_db
 def test_an_unhashable_value_is_repaired_rather_than_raising_TypeError():
-    data = {"tabs": [...], "display": [], "label_pos": {}}
+    data = {"tabs": TWO_VALID_TABS, "display": [], "label_pos": {}}
     _val_tabs(data, "el-1", {})     # must not raise
     assert data["display"] == "tabs"
 
@@ -1788,7 +1884,16 @@ def test_duplicating_a_carousel_keeps_it_a_carousel():
     """duplicate_element -> _copy_below -> build_element_export + graft_elements, so
     duplicate and paste are governed ENTIRELY by the three transfer functions. A missed
     key degrades a duplicate silently, with a 200."""
-    ...  # duplicate a carousel-mode element via builder.duplicate_element, assert display
+    course, unit = make_course_with_unit()
+    obj = TabsElement.objects.create(
+        data={"tabs": TWO_VALID_TABS, "display": "carousel", "label_pos": "hidden"}
+    )
+    join = Element.objects.create(unit=unit, content_object=obj)
+    _unit_after, new_join = builder_svc.duplicate_element(
+        course, join.pk, unit_token(unit)          # the file's existing token helper
+    )
+    assert new_join.content_object.data["display"] == "carousel"
+    assert new_join.content_object.data["label_pos"] == "hidden"
 
 
 def test_format_version_is_8():
@@ -1871,6 +1976,10 @@ def _build_tabs(data, assets):
 | `tests/test_transfer_export.py:220` | `manifest["format_version"] == 8` (no rename) |
 | **`courses/tests/test_image_size_transfer.py:41`** | assert `== 8` — ⚠️ **different test root**; `test_format_version_is_bumped` is version-agnostic in name, so no rename |
 
+The spec also asks that "a v9 archive is still refused". That is **already discharged** by
+`tests/test_transfer_archive.py`'s `format_version=99` case, which stays green across the
+bump — no new test needed, recorded here so a reader can tell it was delegated, not dropped.
+
 Also update the stale `7` in the comment at `tests/test_table_transfer.py:265`.
 
 - [ ] **Step 6: Run — explicitly spanning both roots (the documented exception to narrow runs)**
@@ -1883,7 +1992,7 @@ Expected: PASS (all).
 - [ ] **Step 7: Falsify**
 
 Drop `"display": norm["display"]` from `_ser_tabs` → the round-trip test FAILS. Revert.
-Change `DISPLAYS` back to a `frozenset` in `models.py` → `test_an_unhashable_value_is_repaired_rather_than_raising_TypeError` FAILS with `TypeError`. Revert.
+Change `DISPLAYS` back to a `frozenset` in `models.py` → `test_the_membership_collections_accept_an_unhashable_probe` (Task 1) FAILS. ⚠️ `test_an_unhashable_value_is_repaired_rather_than_raising_TypeError` does **not** fail under that mutant: `_val_tabs`'s guard is `isinstance(...) and ... in ...`, and `and` short-circuits before the membership test. Keep that test — it pins the repair semantics — but do not treat it as the frozenset guard. Revert.
 
 - [ ] **Step 8: Commit**
 
@@ -1958,9 +2067,9 @@ uv run pytest tests/test_tabs_partial.py -k "summary" -v
         if norm["display"] == "carousel":
             # Display is otherwise an invisible setting: without this the builder tree
             # shows "3 tabs" for a carousel with nothing to distinguish it.
-                # gettext (eager), NOT the lazy `_`: every other branch of this function
-            # returns a str, and `_(...) % {...}` yields a __proxy__ that behaves
-            # differently under json.dumps / == / %-format for carousel rows only.
+            # gettext (eager), NOT the lazy `_`: every other branch of this function
+        # returns a str, and `_(...) % {...}` yields a __proxy__ that behaves
+        # differently under json.dumps / == / %-format for carousel rows only.
             summary = gettext("%(summary)s · carousel") % {"summary": summary}
         return summary
 ```
@@ -1995,14 +2104,31 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 
 > **Run e2e in the FOREGROUND, this file only. Never the full `-m e2e` suite** — that spawns dozens of `chrome-headless-shell.exe` windows and disrupts the user. The controller owns the full-suite gate.
 
-- [ ] **Step 1: Build the fixture through the real UI**
+- [ ] **Step 1: Build the fixtures**
 
-Author a unit with a carousel-mode tabs element holding **slides of deliberately different natural heights** — a 3-row table on slide 1, a 10-row table on slide 2 — created by driving the editor, not by constructing model objects. A height assertion against similar slides passes trivially on a broken build.
+`tests/test_e2e_tabs.py` already has `_seed_unit(owner, slug)`, `_seed_tabs_element(unit, tabs,
+children=None)`, `_seed_student(username)` and the `lesson_with_tabs` fixture. **Use them for
+every shape below** — they construct model objects, which is correct and cheap for the ~10
+distinct fixtures these assertions need (differing-height tables, a slide with a link, a slide
+with nothing focusable, nested tabs, nested carousel, a gallery on slide 2, a wide table, a
+narrow table, `label_pos: "below"`, carousel-in-tabs).
+
+**Exactly two assertions require driving the real editor**, because they are the ones a
+seeded model object cannot exercise:
+
+1. **the no-op re-save** — it must go through the editor form and `tabs_editor.js`, since the
+   defect lives in `serialize()`; and
+2. **creating one carousel via the add-menu**, to prove the authoring path works end to end
+   (add-menu → pick Tabs → set Display: Carousel → Save → reload).
+
+For the height assertion, seed slide 1 with a 3-row table and slide 2 with a 10-row table:
+a height check against similar slides passes trivially on a broken build.
 
 - [ ] **Step 2: Write the assertions**
 
 Each bullet is one test. Sync on conditions, never on sleeps.
 
+- [ ] **Slide ARIA:** every section carries `role="group"`, `aria-roledescription="slide"`, and an `aria-labelledby` resolving to its own `h3`. *(Mutant: delete the `role="group"` assignment → RED. Without a test, a tidy-up that drops it silently turns up-to-10 slides per carousel into landmark regions, which is the whole reason the spec mandates the role alongside the name.)*
 - [ ] **Init:** slide 1 is `.is-active` and **not** `inert` after load. *(Mutants: initialise `idx` to `0` instead of `-1`; delete the first-show branch — either → RED. Both are "the feature silently never runs" failures a normal e2e reports as a hundred unrelated errors.)*
 - [ ] **Advance:** click ›; slide 2's table is visible and slide 1 is **not** visible. ⚠️ Use `check_visibility({"opacityProperty": True, "visibilityProperty": True})` or assert computed `opacity`/`.is-active` — plain `checkVisibility()` defaults `opacityProperty` to **false**, so it only sees `display:none` and returns `true` for every opacity-hidden slide; Playwright's `to_be_visible()` shares the blind spot. Assert the **negative** direction too; the positive alone is vacuous.
 - [ ] **Inert:** slide 1 is `aria-hidden` and `inert`, and an input inside an inactive slide is not reachable by tabbing.
