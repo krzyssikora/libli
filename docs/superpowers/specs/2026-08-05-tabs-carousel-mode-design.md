@@ -392,9 +392,13 @@ use the same gate so the `!important` argument below still holds.
 ⚠️ **A class gate closes only the CSS half of the hazard. The branch also needs a `try/catch`
 that undoes its ATTRIBUTE writes.** `inert` and `aria-hidden` are JS-written attributes, not
 styles, so no class can un-apply them. Ported from the gallery, the rest-init loop sets both
-on **every** section before `show(0)` runs — and the named error scenario (a template missing
-a carousel i18n key → `undefined` → throw on `.replace`) throws *inside* `show(0)`, after that
-loop. What the reader would get is not the stacked fallback but something worse than blank:
+on **every** section before `show(0)` runs — so **any** throw inside `show(0)` or after it
+lands with the attributes already applied. (Do not justify this with "a template missing a
+carousel i18n key": the per-key defaults required in the i18n section mean a missing key
+yields the English string, not `undefined`, so that particular path can no longer throw. The
+hazard is generic — a DOM API absent on an older engine, a null from a template change, a
+future edit — and it does not need a specific culprit to be worth closing.) What the reader
+would get is not the stacked fallback but something worse than blank:
 every slide `inert` (its fill-in table, links and zoom triggers non-interactive and
 unfocusable) and `aria-hidden` (the whole element absent from the accessibility tree). A throw
 *after* a successful `show(0)` — in the status string, or in `measure()` — leaves slides
@@ -404,8 +408,14 @@ So the carousel branch is wrapped in a `try/catch` whose handler strips `inert` 
 `aria-hidden` from every **own** section (`ownSections`, never a bare query — a nested
 instance's sections are not ours to clear), removes `.tabs--carousel`, and bails. Only then is
 "JS error → stacked, labelled, readable fallback" an honest promise rather than an
-aspiration. Falsification: delete a `TABS_I18N` carousel key to force the throw, then assert
-every section is non-`inert`, not `aria-hidden`, and its content reachable by tabbing.
+aspiration.
+
+**Falsification — and it needs a forcing mechanism that survives the i18n defaults.**
+Deleting a `TABS_I18N` key no longer throws (see above), so the e2e must inject a throw that
+the defaults cannot absorb: an init script setting `window.TABS_I18N` with a carousel key to
+a **truthy non-string** (e.g. `{status: 42}`), which passes the `||` default and still throws
+on `.replace`. Then assert every section is non-`inert`, not `aria-hidden`, and its content
+reachable by tabbing. Mutant: empty the `catch` handler → RED.
 
 ⚠️ **Every carousel screen rule is also gated on that class AND `[data-display="carousel"]`**,
 mirroring `.el--gallery.gallery--js .gallery__item`. `data-display` is emitted by the
@@ -708,6 +718,13 @@ Four existing rules encode tabs-mode assumptions and must each be scoped or pair
    property set, which makes
    `test_print_label_reveal_resets_every_property_the_screen_rule_sets` pass **vacuously**
    while the print reset silently stops being checked at all.
+
+   Which means the existing print tests **cannot** be the guard for this constraint — in its
+   dangerous branch they go green, not red. Add an explicit **non-vacuity** assertion for
+   both label rules: the declaration block `_screen_label_rule()` extracts must be non-empty
+   and must contain the expected properties (`position` and `clip`). Mutant: reflow either
+   rule onto two lines → RED. The same non-vacuity check applies to the extended assertion
+   over the `[data-label-pos="hidden"]` carousel rule.
 2. **The print rule keys on `[role="tabpanel"][hidden]`** (`display: block !important`).
    Carousel slides have no tab role and are hidden by absolute positioning + `opacity`, so
    as written the rule cannot match and *printing a carousel would silently lose every slide
@@ -936,7 +953,8 @@ repairs them when out of enum, and passes them into the constructed element.
   the branch adds only after `show(0)` succeeds: the server-emitted `data-display="carousel"`
   alone would blank the element with JS off, and `.tabs--js` alone would blank it whenever
   the branch **threw part-way** — that class is already applied before the branch is even
-  reached. The late gate handles the CSS half; the branch's `try/catch`, which strips `inert`
+  reached — and *any* throw inside the branch, not one specific culprit, is enough. The late
+  gate handles the CSS half; the branch's `try/catch`, which strips `inert`
   and `aria-hidden` from its own sections, handles the attribute half. **Both** are required
   for this bullet to be true: without the catch, a mid-init throw leaves every slide inert
   and hidden from assistive technology, which is worse than blank, not a fallback.
@@ -998,8 +1016,10 @@ defeating that guard are silent, add an assertion that the extracted set actuall
 the new names, not merely that it is non-empty. `editor.css` styles every new
 `tabs-editor__*` class **and** carries the paired `[hidden] { display: none }` rule. A
 tabs-mode element renders the label-position row `hidden` from first paint. The two existing
-print tests still pass (they are the regression detector for the appended-not-inserted
-ordering, and for the single-physical-line constraint on the label rules).
+print tests still pass — they are the regression detector for the appended-not-inserted
+ordering, **but explicitly not for the single-physical-line constraint**, which they pass
+vacuously on the broken variant; that constraint is guarded by the new non-vacuity assertion
+described in CSS item 1.
 
 **A source-level print test for the carousel reset — this is a guard, not a nicety.** The
 spec identifies "printing a carousel silently loses every slide but the current one" as a
