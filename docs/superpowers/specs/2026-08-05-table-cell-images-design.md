@@ -179,16 +179,23 @@ aggregate cap would need a layout mechanism no other element has.
 `dvh` not `vh`, per C1: `vh` resolves against the toolbar-collapsed viewport, so a `vh` cap can
 still fall below the fold on a phone.
 
-**The tokens live in one ordered place.** Define a `TextChoices` (mirroring `ImageElement.Size`)
-on `TableElement`, e.g. `CellImageSize`, plus `DEFAULT_CELL_IMAGE_SIZE = "full"` and
-`EDITOR_INSERT_CELL_IMAGE_SIZE = "medium"`. A `TextChoices` gives an **ordered** sequence for the
+**The tokens live in one ordered place, with fully-qualified names given once.** Define a
+`TextChoices` (mirroring `ImageElement.Size`) **nested on `TableElement`** — so the three names are
+**`TableElement.CellImageSize`**, **`TableElement.DEFAULT_CELL_IMAGE_SIZE = "full"`** and
+**`TableElement.EDITOR_INSERT_CELL_IMAGE_SIZE = "medium"`**, not module-level names in
+`courses/models.py`. The distinction is not cosmetic: it is a different import surface for the three
+consumers that depend on it — `payloads.py`'s value-repair (`TableElement.CellImageSize.values`), the
+form properties (`form.cell_image_sizes` returning `TableElement.CellImageSize.choices`), and the
+source-level test that imports both constants to compare them against the JS literals. Nesting on the
+model mirrors `ImageElement.Size` and keeps `MAX_ROWS`-style company. Where this spec later writes
+`CellImageSize.choices` / `.values` unqualified, it means the nested attribute. A `TextChoices` gives an **ordered** sequence for the
 select (Small → Medium → Large → Full) and a membership test for validation; a bare `set` would
 render the select in arbitrary order. Shared by `FillTableElement`, both forms, both editor
 **templates** and the transfer validators — one definition, no duplicated literals **across the
 Python and template layers**.
 
 **The JS layer cannot read a `TextChoices`, so it needs its own named carrier.** Both editor
-scripts need the two defaults — `serialize()` reads `td.dataset.size || "full"` and
+scripts need the two defaults — `serialize()` reads `td.dataset.size || CELL_IMAGE_DEFAULT` and
 `setImageCell` writes `td.dataset.size = td.dataset.size || EDITOR_INSERT` — and neither can call
 into Django. **Decision: hard-code the two literals as module-level `var`s in each editor script**
 (`var CELL_IMAGE_DEFAULT = "full";` and `var CELL_IMAGE_INSERT = "medium";`), adopting the existing
@@ -218,7 +225,12 @@ context-forked label: `FULL = "full", pgettext_lazy("image size", "Full")`. `SMA
 `LARGE` are bare `_("Small")`/`_("Medium")`/`_("Large")`. Reuse that **same split** — bare `_()`
 for the first three, `pgettext_lazy("image size", "Full")` for Full. Wrapping all four in
 `pgettext_lazy` would mint three brand-new msgids that ship untranslated and invite a wrong
-`makemessages` fuzzy pre-fill. The bare msgid `"Full"` is already taken by `courses/forms.py`'s
+`makemessages` fuzzy pre-fill. **Wherever this spec writes the bare literal `"full"` as a JS default,
+it means `CELL_IMAGE_DEFAULT`** (the same aliasing note already given for `EDITOR_INSERT`), and the
+mandated source-level pin must assert not only that the constant's **declaration** matches the Python
+value but that `serialize()` actually **uses** the constant — otherwise an implementer who writes the
+literal leaves `CELL_IMAGE_DEFAULT` declared-but-unused and the pin silently guards nothing.
+The bare msgid `"Full"` is already taken by `courses/forms.py`'s
 structure preset (feminine `"Pełna"`), which is why Full alone needs the context (masculine
 `"Pełny"`). A source-level test pins that Full carries the `"image size"` context.
 
@@ -267,6 +279,18 @@ whose sibling already gets this right:
 
 (rendered on one line, per the byte rules; `_filltable_cell.html`'s existing image branch is the
 same attribute set plus its `filltable__img` class.) `alt` joins the template testing row.
+
+**The partial is a TWO-branch `{% if %}`, and the text branch's body is exact.** Stated because the
+render-level byte assertion depends on it and because the nearest model has a *three*-way branch the
+plain table must not copy (`_filltable_cell.html` also handles `cell.kind == "answer"`):
+
+```
+{% if cell.kind == "image" %}<img …>{% else %}{{ cell.html|safe }}{% endif %}
+```
+
+The `{% else %}` body is exactly `{{ cell.html|safe }}` — no wrapper element, no whitespace, no
+`|default`. That is what makes the text-cell bytes identical to today's five inline
+`{{ cell.html|safe }}` sites.
 
 **The partial must be a single line with no leading whitespace and — stated at the byte level —
 its last byte must be neither `\n` nor `\r`**, and the `{% include %}` must sit immediately between
@@ -335,8 +359,11 @@ is the same equal-specificity trap already recorded from the callout slice; remo
 declaration resolves it by construction rather than by source order alone.
 Once reduced, `.filltable__img` declares nothing `.cell-img` does not, so **delete the rule
 outright** — keeping a no-op rule invites a future author to re-add `max-width` and re-open the
-trap. The **class stays on the element** (`tests/test_filltable_render.py` asserts on it); only the
-CSS rule goes.
+trap. The **class stays on the element**; only the CSS rule goes. Two dependents, not one:
+`tests/test_filltable_render.py` asserts its presence (and its **absence** on the degraded path), and
+`tests/test_e2e_imagezoom.py::test_filltable_image_cell_opens_the_overlay` drives
+`page.locator(".filltable__img")`. Both are named so a future "tidy up the dead class" pass sees the
+whole surface.
 
 **Alignment needs its own mechanism, or the halign control ships inert.** `courses.css` implements
 halign as `.ta-center { text-align: center }` on the `<td>`, which has **no effect on a
@@ -353,7 +380,11 @@ from the cell's existing class:
 ```
 
 (`ta-left` is the `margin-inline: 0` default and needs no rule.) The same pair is required for the
-two **editor preview** classes, or the editor and the student view disagree. Pinned by a measured
+two **editor preview** classes, or the editor and the student view disagree — and **each pair lives in
+its own stylesheet**, per the same per-file separation the class guard enforces:
+`.ta-center > .table-editor__img` / `.ta-right > .table-editor__img` in **`editor.css`**, and the
+`filltable-editor__img` pair in **`courses.css`**. (`.ta-center`/`.ta-right` themselves are defined in
+`courses.css`; the descendant rules do not need to sit beside them.) Pinned by a measured
 assertion that a `ta-center` image cell centres its preset-bounded image — the C1 precedent, where
 centring `fit-content` figures was exactly this class of bug.
 
@@ -430,6 +461,24 @@ Three of those rows are decisions, not transcriptions of today's code:
     already differ);
   - the **`is-on` clearing** goes in **`refreshAlignButtons`**, byte-identically in both files,
     staying in `TWINS`.
+
+  **`refreshAlignButtons`'s null-focus body must be written out, because the obvious edit kills the
+  editor at load.** The current body opens `if (!toolbar || !focusCell) return;` and **both** loops
+  dereference `focusCell.dataset.halign` / `.valign`. Simply deleting `|| !focusCell` makes the
+  function throw on every null-focus call — and this slice *mandates* an init-time
+  `refreshToolbarState()`, which ends in `refreshAlignButtons()`, with `focusCell === null`. The throw
+  would fire inside `wire()`, aborting wiring: nothing serializes and every control stays exactly as
+  rendered. That is far worse than the stale paint being fixed. Required shape:
+
+  ```
+  if (!toolbar) return;
+  var h = focusCell ? (focusCell.dataset.halign || "left") : null;
+  var v = focusCell ? (focusCell.dataset.valign || "top")  : null;
+  // …toggle("is-on", btn.getAttribute("data-halign") === h)  — null matches nothing, so all clear
+  ```
+
+  Named mutant: call `refreshToolbarState()` at init with no focus; the guard-deleted variant must go
+  RED.
 
   Left unlocated, two implementers write two different files and one of them reddens
   `test_twins_are_identical`.
@@ -508,8 +557,25 @@ Three of those rows are decisions, not transcriptions of today's code:
   input, size select and Remove image stay visible **and populated**, and editing them writes to a
   node no longer in the grid — silently lost at the next `serialize()`. A `!focusCell` clause does
   not reach this. **`afterStructuralEdit()` must clear `focusCell`/`rangeAnchor` when the node is
-  no longer connected** (`!focusCell.isConnected`), in **both** editors. Pinned by a test that
-  deletes the row holding the focused image cell and asserts the per-cell controls are hidden.
+  no longer connected**, in **both** editors.
+
+  **The predicate must be `focusCell && !focusCell.isConnected` — a bare `!focusCell.isConnected`
+  throws.** `focusCell` is `null` until the first `focusin`, and the row/column insert/delete handles
+  are hover-revealed grid chrome reachable **from page load**, independent of focus. All four of those
+  handlers call `afterStructuralEdit()`, so inserting or deleting a row before ever clicking a cell
+  evaluates the predicate with `focusCell === null` and raises
+  `TypeError: Cannot read properties of null` — aborting the handler and leaving the grid half-edited
+  and **unserialized**. That is a worse failure than the stale-control bug being fixed. So:
+
+  ```
+  if (focusCell && !focusCell.isConnected) { focusCell = null; rangeAnchor = null; }
+  ```
+
+  `rangeAnchor` is cleared alongside rather than tested separately: `clearRange(false)` runs in the
+  same function and `rangeAnchor` is only meaningful paired with a live `focusCell`, so a second
+  `isConnected` test on it would be dead. Named mutant: **a row insert before any cell focus** — the
+  unguarded form must go RED. Pinned additionally by a test that deletes the row holding the focused
+  image cell and asserts the per-cell controls are hidden.
 
 **The image button needs BOTH pick attributes — `data-pick-mode` alone never opens the picker.**
 `media_picker.js`'s open handler gates on `e.target.closest("[data-pick-media]")` and reads the
@@ -587,7 +653,8 @@ loop changes:** `{% with d=form.grid_data %}` still feeds the controls strip (`d
 `_edit_filltable.html` already does it.
 
 **Do not justify that with "it avoids a second `normalize_data` pass" — it does not.** `grid_data`
-is a plain uncached `@property` returning `_grid_data(self)` (parse + `normalize_data` +
+is a plain uncached `@property` returning `_grid_data(self)` (on the bound-INVALID branch: parse +
+`normalize_data` +
 `_sanitized_data`), and `resolved_grid_cells` calls `self.grid_data["cells"]`. So
 `{% with d=form.grid_data %}` **plus** `{% for row in form.resolved_grid_cells %}` runs `_grid_data`
 **twice** per editor render regardless — a cost `_edit_filltable.html` already pays today. Keeping
@@ -672,7 +739,8 @@ table's shipped line is already `media: parseInt(td.dataset.media, 10)`. Named J
 replace the `parseInt` with the bare `td.dataset.media` and require the round-trip test to go **RED**.
 
 It reads
-the size as **`td.dataset.size || "full"`** (the shared default constant): a bare
+the size as **`td.dataset.size || CELL_IMAGE_DEFAULT`** (never the bare `"full"` literal — see the
+note below): a bare
 `td.dataset.size` is `undefined` when the attribute is missing, `JSON.stringify` then drops the key
 entirely, and the model coerces it back to `full` — silently demoting a `medium` cell if any path
 forgets to write the attribute. Always emitting the key upholds the "every reader may use
@@ -683,15 +751,26 @@ forgets to write the attribute. Always emitting the key upholds the "every reade
 `filltable_editor.js` had to widen exactly this selector to include `td[data-image], th[data-image]`
 because such cells are not contenteditable. Without the same widening, clicking a Table image cell
 sets neither `focusCell` nor the range anchor: the alt input, the size select and Remove image
-never appear, and the cell can never be a merge/split/align target. Widen the selector **and** the
-post-merge/delete focus fallback.
+never appear, and the cell can never be a merge/split/align target. **Widen the `focusin` selector —
+and that is the only selector that widens.**
 
-**Only those two sites widen.** `table_editor.js` carries that selector at four places — `focusin`,
-an Enter `keydown`, an `input` handler, and a bare `[contenteditable]` lookup inside the latter.
-`filltable_editor.js` widened **only** `focusin`, deliberately: an image cell has no caret, so the
-Enter and `input` handlers must stay `[contenteditable]`-only. Stated because the paragraph below
-draws attention to these very sites for a different reason (the guard-test needle), which reads as
-an invitation to widen them all.
+**Correcting an earlier draft: there is no "post-merge/delete focus fallback" selector to widen.**
+That phrase named a site that does not exist. `table_editor.js` carries the `[contenteditable]`
+selector at exactly four places — `focusin`, an Enter `keydown`, an `input` handler, and a bare
+`[contenteditable]` lookup inside the latter — and **none** of them is a post-structural-edit focus
+fallback. The merge and split paths call `kept.focus()` / `anchor.focus()`, which take a **node** and
+contain no selector at all; `afterStructuralEdit` never re-seats focus; `table_grid.js` contains no
+`focus` or `contenteditable` reference whatsoever. (The fill table's analogous line,
+`(kept.querySelector(".filltable-editor__answer") || kept).focus()`, is likewise node-based.) Since
+those calls already receive the kept/anchor node directly, an image cell is focusable through them
+without any change — the widening they appeared to need was imaginary.
+
+**So the boundary is exactly one site.** `filltable_editor.js` widened **only** `focusin`,
+deliberately: an image cell has no caret, so the Enter and `input` handlers must stay
+`[contenteditable]`-only. This boundary must be exact because
+`tests/test_cell_selector_guard.py`'s new inventory entry is anchored on it, and because the
+paragraph below draws attention to these same sites for a different reason (the needle line-wrap
+trap), which otherwise reads as an invitation to widen them all.
 
 **`tests/test_cell_selector_guard.py` must be updated in the same change**, and it is a trap in its
 own right. Its `INVENTORY` carries `("…/table_editor.js", 'closest("td[contenteditable]', "th")`,
@@ -720,7 +799,7 @@ item on the editor task, alongside the five `FORMAT_VERSION` sites.
   1. its stash Map must be named **exactly `cellStash`** — not `stash`, not `htmlStash`;
   2. **`cellStash.clear()` must be the first statement** of `afterStructuralEdit()`, matching the
      fill table's opening line;
-  3. the new `!focusCell.isConnected` clearing block (required below) must be written
+  3. the new `focusCell && !focusCell.isConnected` clearing block (required below) must be written
      **character-for-character the same** in both files, and sit as **statement two** — immediately
      after `cellStash.clear()` and **before** `clearRange(false)`. Position matters, not just
      bytes: placed after the body's `refreshToolbarState()`/`serialize()` calls, the toolbar is
@@ -753,12 +832,35 @@ item on the editor task, alongside the five `FORMAT_VERSION` sites.
   **`if (!td.hasAttribute("data-image")) { … }`** so only a genuine text→image conversion records a
   stash. Pinned by a test that converts a text cell, **re-picks a different asset**, then removes the
   image, asserting the **original** HTML is restored — not the preview markup, and not `""`.
+
+  **The plain table's `setImageCell` DOM contract, written out** — the server-rendered `<td>` above is
+  pinned attribute-by-attribute, and the JS branch that must produce **the same node in-session**
+  deserves the same treatment:
+
+  ```
+  td.setAttribute("data-image", "");
+  td.dataset.media = String(mediaInt);
+  td.dataset.alt   = alt || "";
+  td.dataset.size  = td.dataset.size || CELL_IMAGE_INSERT;
+  td.setAttribute("tabindex", "0");
+  td.removeAttribute("contenteditable");
+  td.innerHTML = "";                       // then append the preview <img>
+  ```
+
+  **`removeAttribute("contenteditable")` is not cosmetic.** Omit it and the newly-mandated runtime
+  guard `if (cmdBtn && focusCell && focusCell.hasAttribute("contenteditable"))` passes on an image
+  cell, so `∑` again appends a text node that `serialize()`'s image branch discards — the exact defect
+  that guard exists for — and the Enter/`input` handlers, deliberately left `[contenteditable]`-only,
+  start firing on image cells. The conversion-path test asserts all of it: the converted cell has **no**
+  `contenteditable`, has `tabindex="0"`, and carries all four `data-*`.
   **`setImageCell` must also emit the preview's modifier class.** It rebuilds the preview with
   `img.className = "filltable-editor__img"` — base only. Once `max-width` is stripped from that
   base rule, an in-session conversion or re-pick renders the asset at its intrinsic width (**DB**
   p50 1192px) and drags the editing grid — a regression to an already-shipped feature. Emit the
-  base as a lone `className =` assignment plus `classList.add("filltable-editor__img--" + size)`,
-  the same shape as the plain table's. **Nothing currently guards this**: `tests/test_table_css.py`
+  base as a lone `className =` assignment plus `classList.add(CELL_IMG_CLASS[size])` against a
+  literal-valued map, the same shape as the plain table's — **not** the concatenation
+  `classList.add("filltable-editor__img--" + size)`, which leaves only a stem literal in the source
+  and is exactly the vacuous-guard cause documented under the editor-preview class names below. **Nothing currently guards this**: `tests/test_table_css.py`
   reads only `TABLE_JS`, so the fill-table editor's class emissions are unguarded — extend that
   guard to `FILL_JS`/`courses.css`, or add a test asserting the class pair on a freshly converted
   fill-table cell.
@@ -843,8 +945,11 @@ should it ever be reachable.
 
 Remove image needs a sprite glyph: the sprite defines no trash/remove symbol today (`ed-minus` is
 the nearest and means "delete row/column"), so **add a new monochrome `currentColor`
-`ed-image-remove` symbol** rather than overloading an existing one; the "every `#ed-*` reference
-resolves to a defined sprite symbol" test covers it.
+`ed-image-remove` symbol** rather than overloading an existing one, **defined in
+`templates/courses/manage/editor/editor.html`** where the sprite lives. Covered by
+`tests/test_table_editor_partial.py::test_toolbar_icons_resolve_to_sprite_symbols` and its
+fill-table twin, which assert `refs <= _sprite_symbols()` — named here because this spec names every
+other test it touches, and its own line-number policy says to cite by symbol.
 
 **The conversion path paints NOTHING today, and three separate requirements silently depend on it.**
 This is the slice's most load-bearing correction, because the Data-flow promise "per-cell controls
@@ -943,7 +1048,15 @@ frequent path:
   `{kind, media, alt, halign, valign}` (+span/header). It must emit `size`.
 - `_edit_filltable.html`'s two image branches render `<td data-image data-media data-alt
   tabindex="0">` with **no `data-size`**. Both the `<td>` and `<th>` branches gain
-  `data-size="{{ cell.size }}"`.
+  `data-size="{{ cell.size|default:"full" }}"`.
+  **The `|default:"full"` filter belongs on BOTH editors' sites, not just the plain table's.** The
+  argument made for the student partial transfers verbatim: a missing key renders
+  `filltable-editor__img--`, matching no rule, and since this slice **strips** `max-width: 120px`
+  from `.filltable-editor__img`, nothing then caps the preview — a p50 1192px asset renders at
+  intrinsic width and drags the editing grid. Giving two sibling templates opposite defensive
+  postures for the same key would contradict this spec's refusal to assume normalization is
+  guaranteed. Extend the "a cell with no `size` key still renders bounded" template test to the
+  fill-table editor partial as well.
 
 Pinned by a test that an **untouched** image cell round-trips its `size` through an editor save.
 
@@ -971,11 +1084,23 @@ does that work. Without it, `[data-image-size]`, `[data-image-remove]` and the p
 the handle-hoisting trap above bites) — the exact live-looking dead control this section forbids.
 Add `hidden` to the same editor-partial source assertion that pins `name`/`aria-label`.
 
-**The size select DOES carry `title` + `aria-label`** (e.g. `{% trans 'Image size' %}`) in both
-editor partials. Every other control in both toolbars carries both, and a bare `<select>` in an
-icon toolbar ships nameless to screen readers — in a file that already carries an explicit a11y
-rationale about `role="grid"`/`aria-selected`. Add it to the same editor-partial source assertion
-that pins the absent `name`, so "no `name`, yes `aria-label`" is one check.
+**All three new controls carry `title` + `aria-label`** — the size select
+(`{% trans 'Image size' %}`), **Remove image** (`{% trans 'Remove image' %}`, an icon-only
+`.rte-btn` that would otherwise ship nameless), and the plain table's new alt input
+(`{% trans 'Image description (alt)' %}`).
+
+**Correcting an earlier draft: it is NOT true that "every other control in both toolbars carries
+both."** The existing `[data-image-alt]` input is the exception — it carries only
+`placeholder="{% trans 'Image description (alt)' %}"`, no `title` and no `aria-label`. That matters
+beyond the false rationale: the plain table's alt input is **new**, so "copy the fill table" would
+reproduce a placeholder-only control. **Decision: the new alt input gets an `aria-label` as well as
+the placeholder** (a placeholder is not an accessible name — it disappears on input), and the
+fill-table input gains one too, since the two are twins and a source assertion covering only one
+would be arbitrary. Every icon-only button in these toolbars does carry both, which is why the select
+and Remove image follow that precedent rather than the input's.
+
+One editor-partial source assertion covers all of it: for each of `[data-image-size]`,
+`[data-image-remove]` and `[data-image-alt]` — `hidden` present, `name` absent, `aria-label` present.
 
 The choices reach the templates via a **property on each form**
 (`form.cell_image_sizes`, returning `CellImageSize.choices`), since the forms otherwise expose only
@@ -986,7 +1111,7 @@ model constant. Per editor:
 - **`_edit_table.html`** — the image button, the alt input and the size select are **all new**;
   there is no existing anchor control there. **No new `data-msg-*` keys are needed:** nothing on
   the image path builds a translatable string in JS — the button titles, the alt placeholder and
-  the select options are all server-rendered. (`_edit_filltable.html`'s fifteen existing keys are
+  the select options are all server-rendered. (`_edit_filltable.html`'s fourteen existing keys are
   grid handles, answer strings and merge/header/range announcements; it has no image-related key
   either. An earlier draft asserted an artifact class that does not exist.)
 
@@ -1054,7 +1179,8 @@ discovered.
 
   (mirroring the student `.cell-img` base, and likewise declaring no `max-width`.)
 - **The server-rendered previews emit the modifier too**, not just the JS. `_edit_filltable.html`'s
-  two `<img class="filltable-editor__img">` tags gain `filltable-editor__img--{{ cell.size }}`, and
+  two `<img class="filltable-editor__img">` tags gain
+  `filltable-editor__img--{{ cell.size|default:"full" }}`, and
   the new `_edit_table.html` image branch emits its `table-editor__img--{{ cell.size }}` twin —
   otherwise a reloaded editor shows every preset at the same size until the author touches the
   select. **Written out literally**, given the same treatment the student partial gets and for the
@@ -1302,6 +1428,18 @@ second makes the security check a silent no-op**:
 
 1. Subclass `_CourseScopedMediaForm` with `media_kind = "image"`, and add a `clean_data` guard
    mirroring the fill-table's "A table image is not an image in this course."
+   **But not a literal mirror — the two `clean_data` bodies are structurally different, and the
+   fill table's expression 500s on the plain table's data.** `FillTableElementForm.clean_data`
+   computes `nd = normalize_data(...)` **first** and scopes over `nd["cells"]`, so `c["media"]` is
+   guaranteed an `int`. `TableElementForm.clean_data` works on the **raw** submitted `rows`
+   throughout and normalizes only in its `return`, so a copied
+   `img_ids = {c["media"] for row in cells for c in row if c.get("kind") == "image"}` raises
+   `KeyError` on a crafted `{"kind": "image"}` with no `media` — a 500 on the save path. Requirement:
+   **bind `nd = TableElement.normalize_data(data)` before the scoping check, scope over
+   `nd["cells"]`, and return `nd`** (one normalize, not two). The early
+   `return TableElement.normalize_data({})` branch for the empty/no-cells case must **not** be routed
+   through the guard. Named mutant: POST an image cell with **no** `media` — the form rejects or
+   normalizes, never 500s.
 2. `course=` is threaded by **hard-coded type-key tuples in three places** — one in
    `courses/builder.py` (`("image", "video", "gallery", "filltable")`) and two in
    `courses/views_manage.py` (both `("image", "video", "dragtoimagequestion", "gallery")`). Add
@@ -1322,6 +1460,26 @@ caught during the spanning-table work, so the test here is a **regression pin on
 already holds**, not new work. Adding a redundant sanitise would, for the plain table, re-run over
 already-sanitised HTML on every editor render.
 
+**`TableElementForm.resolved_grid_cells`, written out** — the fill table's twin is quoted with its
+exact call, and this section otherwise pins signatures verbatim:
+
+```
+@property
+def resolved_grid_cells(self):
+    from courses import tablecells
+    return tablecells.resolve_image_cells(
+        self.grid_data["cells"],
+        empty_cell=lambda c: {"html": "", "halign": c.get("halign", "left"),
+                              "valign": c.get("valign", "top")},
+        course=self.course,
+    )
+```
+
+`course=self.course` is what makes the security guard meaningful (a submitted pk from another course,
+or an in-course asset of the wrong kind, resolves to nothing and takes the fallback), and the
+`empty_cell` shape carries **no** `kind` key — the plain table's fallback is a text cell. `.get` on
+`halign`/`valign` rather than subscripting, for the same reason `_ser_table` uses it.
+
 ### Transfer (export / import)
 
 **Five** sites. Missing any one breaks export silently — the element round-trips but its image
@@ -1331,7 +1489,7 @@ does not.
 |---|---|
 | `_val_table` | widen the per-cell `allowed` set with `kind`/`media`/`alt`/`size`; validate per the reject/tolerate table below; return media refs via `_require_media` |
 | `_ser_table` | currently `return dict(el.data)`; must walk cells and register each image cell's asset |
-| `_element_mids` | routes **by type key**; `table` currently falls through to the scalar `data.get("media")` and returns nothing — without a `table` branch the file is omitted from the zip and import then `KeyError`s |
+| `_element_mids` | routes **by type key**; `table` currently falls through to the scalar `data.get("media")` and returns nothing — without a `table` branch the file is omitted from the zip and import then `KeyError`s. **The new branch is the `fill_table` branch's exact twin, testing `isinstance(c.get("media"), str)` — NOT `int`.** It is called on the **already-serialized** data (after `_ser_table` has replaced pks with local ids), so `media` is a **string**; an `isinstance(..., int)` test — the natural guess, since the *stored* value is a pk — returns `[]` and reproduces the very "asset omitted from the zip → import `KeyError`" failure this row exists to prevent. Named mutant: swap `str` for `int` and require the round-trip test to go RED |
 | `_build_table` | remap each image cell's local string id → the real asset pk, as `_build_fill_table` does. **Ordering is load-bearing: remap the raw archive dict FIRST, then `normalize_data`.** Reversed, the string local id has already failed `_cell`'s `isinstance(media, int)` test and degraded the cell to an empty text cell — a silent, total loss of every imported cell image with no error. The round-trip test pins it. |
 | **`_ser_fill_table`** | **does not copy the cell** — it builds an explicit `out_cell` literal of `{kind, media, alt, halign, valign}` and then carries `header`/`colspan`/`rowspan`. `size` is not in that literal, so without this change every fill-table export silently reverts every image cell to `full` |
 
@@ -1581,10 +1739,10 @@ and must be shown RED before it counts.
 | layer | owns |
 |---|---|
 | Model unit | `_cell` image branch (both models); `size` **always written** on an image cell; junk-`size` coercion; invalid-media degradation to a `kind`-less text cell; **span preservation** in the shared resolver; `TableElement._sanitized_data` writing no `html` key and **stripping `alt`**; text cells still normalising byte-identically; `TableElement.resolved_cells` resolves and `render()` uses it |
-| Form | course-scoping **raises** with a foreign pk and with an in-course non-image asset; **the builder actually passes `course=` for `table`** (a separate test — without it the guard is a silent no-op); rejected-save re-render routed through `_sanitized_data` |
+| Form | course-scoping **raises** with a foreign pk and with an in-course non-image asset; **the builder actually passes `course=` for `table`** (a separate test — without it the guard is a silent no-op); rejected-save re-render routed through `_sanitized_data`; **an image cell POSTed with no `media` never 500s** (the raw-vs-normalized `clean_data` mutant) |
 | Transfer | all **five** sites; round-trip with a real asset asserting `size` survives **for both table types**; `_ser_table` leaves `el.data` unmutated; `_ser_table` survives a ragged row and a non-dict cell; `_ser_table` degrades an unresolvable pk to an empty text cell with spans carried; a legacy non-normalized table's export bytes are unchanged; a pre-feature archive still imports; out-of-enum `size` **coerced** by `_val_table` and **tolerated** by `_val_fill_table`; a **300-character `alt`** truncates at save and imports without rejection; **a plain all-text table archive still imports** (the `alt` `is not None` guard); **duplicate-element** and **clipboard paste** preserve `size`; `FORMAT_VERSION` bump |
-| Template | both cell partials emit `<img>` + `data-zoomable` + `cell-img--<size>`; **a render-level byte assertion on `TableElement.render()`'s `<td>` output for a text cell, before/after the factoring** (NOT `test_e2e_math_reflow_dom.py`, which renders no template); **`_table_cell.html`'s last byte is neither `\n` nor `\r`**; **both partials emit `alt="{{ cell.alt }}"`**; **a cell whose stored data has no `size` key still renders bounded** (the `|default:"full"` filter); **a `header_row` cell's `<th>` bytes are pinned too**, not only `<td>`; the print block follows the preset block in `courses.css`; `.filltable__img` no longer declares `max-width`; **`editor.css` carries `[data-image-remove][hidden]` and `[data-image-size][hidden]` `display: none` rules** |
-| Editor / JS regression | both editors' `serialize()` emit the image branch with `size` and no `html` key; an untouched fill-table image cell round-trips `size` through an editor save; header-toggling an image cell then Remove image restores the stashed HTML; a not-yet-previewed image cell counts as non-empty for the merge confirmation; `test_editor_twin_drift.py` `EXPECTED_COUNTS` re-derived and every newly-common function classified; every `table-editor__*` class the JS emits is styled (`tests/test_table_css.py` exists because that drift was a real shipped bug); every `#ed-*` reference resolves to a defined sprite symbol; the Full label carries the `"image size"` gettext context; editor-preview widths strictly increase Small < Medium < Large; **the JS `CELL_IMAGE_DEFAULT`/`CELL_IMAGE_INSERT` literals equal the Python constants, in both editor files**; **focusing an image cell leaves `[data-image-toggle]` *enabled*** (re-pick must stay reachable); **`tests/test_colour_glue_drift.py` stays green untouched**; **the CONVERSION path (picker, never re-focused) leaves the per-cell controls visible AND populated — select reading `medium`, alt input reading the cell's alt**; **`tests/test_e2e_filltable.py`'s existing `make_image_cell` gesture stays green** (it `fill()`s the alt input right after the picker click, so it fails if the visibility rewrite is a mere relocation); **converting a cell then clicking `[data-cmd="math"]` leaves its `innerHTML` unchanged**; **typing in the plain table's alt input writes `alt` into the serialized JSON**; **changing size twice on one cell leaves exactly one modifier class**; **`_edit_table.html` is in `test_imagezoom_render.py`'s `NEVER_ARMED`**; **convert → re-pick a different asset → Remove image restores the ORIGINAL html**, not the preview markup and not `""`; **a reloaded editor's image cell survives a no-op save** (the `data-media="{{ cell.media.pk }}"` and `parseInt` mutants); **all three new per-cell controls carry `hidden` in markup** |
+| Template | both cell partials emit `<img>` + `data-zoomable` + `cell-img--<size>`; **a render-level byte assertion on `TableElement.render()`'s `<td>` output for a text cell, before/after the factoring** (NOT `test_e2e_math_reflow_dom.py`, which renders no template); **`_table_cell.html`'s last byte is neither `\n` nor `\r`**; **both partials emit `alt="{{ cell.alt }}"`**; **a cell whose stored data has no `size` key still renders bounded** in **all four** partials — both student and both editor — (the `|default:"full"` filter); **a `header_row` cell's `<th>` bytes are pinned too**, not only `<td>`; the print block follows the preset block in `courses.css`; `.filltable__img` no longer declares `max-width`; **`editor.css` carries `[data-image-remove][hidden]` and `[data-image-size][hidden]` `display: none` rules** |
+| Editor / JS regression | both editors' `serialize()` emit the image branch with `size` and no `html` key; an untouched fill-table image cell round-trips `size` through an editor save; header-toggling an image cell then Remove image restores the stashed HTML; a not-yet-previewed image cell counts as non-empty for the merge confirmation; `test_editor_twin_drift.py` `EXPECTED_COUNTS` re-derived and every newly-common function classified; every `table-editor__*` class the JS emits is styled (`tests/test_table_css.py` exists because that drift was a real shipped bug); every `#ed-*` reference resolves to a defined sprite symbol; the Full label carries the `"image size"` gettext context; editor-preview widths strictly increase Small < Medium < Large; **the JS `CELL_IMAGE_DEFAULT`/`CELL_IMAGE_INSERT` literals equal the Python constants, in both editor files**; **focusing an image cell leaves `[data-image-toggle]` *enabled*** (re-pick must stay reachable); **`tests/test_colour_glue_drift.py` stays green untouched**; **the CONVERSION path (picker, never re-focused) leaves the per-cell controls visible AND populated — select reading `medium`, alt input reading the cell's alt**; **`tests/test_e2e_filltable.py`'s existing `make_image_cell` gesture stays green** (it `fill()`s the alt input right after the picker click, so it fails if the visibility rewrite is a mere relocation); **converting a cell then clicking `[data-cmd="math"]` leaves its `innerHTML` unchanged**; **typing in the plain table's alt input writes `alt` into the serialized JSON**; **changing size twice on one cell leaves exactly one modifier class**; **`_edit_table.html` is in `test_imagezoom_render.py`'s `NEVER_ARMED`**; **convert → re-pick a different asset → Remove image restores the ORIGINAL html**, not the preview markup and not `""`; **a reloaded editor's image cell survives a no-op save** (the `data-media="{{ cell.media.pk }}"` and `parseInt` mutants); **all three new per-cell controls carry `hidden` + `aria-label` and no `name` in markup**; **a row insert BEFORE any cell focus does not throw** (the bare `!focusCell.isConnected` mutant); **`refreshToolbarState()` at init with no focus does not throw** (the `refreshAlignButtons` guard-deletion mutant); **a converted cell has no `contenteditable`, has `tabindex="0"` and all four `data-*`** |
 | e2e | sizing renders; clicking an image cell reveals the per-cell controls; **before any focus, every cell-scoped button is `disabled`** — `[data-cmd]`, `[data-image-toggle]`, `[data-answer-toggle]` and all six `[data-halign]`/`[data-valign]` (the exhaustive table above is the checklist) |
 
 **The sizing claims are only real if measured in a browser.** C1's harness traps transfer verbatim:
@@ -1644,7 +1802,6 @@ must link **both** `courses.css` and `editor.css` to render faithfully.
 - `alt` is bounded at **255 at both ends** — truncated in `_cell`, `maxlength` on both inputs — so
   an authorable table always re-imports.
 - Per-cell image controls are **hidden**; `[data-cmd]` and the image button are **disabled**.
-- The editor `--full` preview is bounded in **both** axes (`100%` × 200px), never uncapped.
 - `serialize()` **guards** the `mapColours` call on a **separate enclosing line**, keeping the
   needle line byte-identical so `test_colour_glue_drift.py` stays green; no `return` inside the
   `forEach` callback.
@@ -1655,9 +1812,9 @@ must link **both** `courses.css` and `editor.css` to render faithfully.
   circular import at app load.
 - The editor `--full` preview is `min(100%, 200px)` × 200px — an absolute cap, because `100%` in
   an auto-layout editor grid is not a bound.
-- Editor-preview modifier classes are emitted as **literals** via a lookup map, or
-  `test_table_css.py`'s substring assertion is vacuous; and "widening" its regex means the
-  **union** of the two patterns, never a replacement.
+- Editor-preview modifier classes are emitted as **literals** via a `CELL_IMG_CLASS` lookup map, in
+  **both** editors — never `classList.add("…--" + size)`, which leaves only a stem literal and makes
+  `test_table_css.py`'s substring assertion vacuous.
 - `refreshToolbarState` is the **sole** owner of per-cell control painting, with **two-way**
   visibility **and** value population; `setImageCell` ends with it in both editors, and both its own
   and `focusin`'s bespoke reveal blocks are deleted. Relocating the one-way `hidden = true` line is
@@ -1690,8 +1847,23 @@ must link **both** `courses.css` and `editor.css` to render faithfully.
   `.table-editor__img`); markup alone would ship a dead control.
 - Both partials emit `cell-img--{{ cell.size|default:"full" }}`; `.cell-img` declares only
   `height: auto; display: block`.
-- Only `focusin` and the post-merge/delete fallback widen to `[data-image]`; the Enter-`keydown`
-  and `input` handlers stay `[contenteditable]`-only.
+- **`focusin` is the ONLY selector that widens** to `[data-image]`; the Enter-`keydown` and `input`
+  handlers stay `[contenteditable]`-only. (There is no "post-merge/delete focus fallback" selector —
+  see the correction in the focus section.)
+- The `afterStructuralEdit` disconnect predicate is **`focusCell && !focusCell.isConnected`** — the
+  bare `!focusCell.isConnected` throws on a row insert before any cell is focused.
+- `serialize()`'s `size` read is `td.dataset.size || CELL_IMAGE_DEFAULT`; the bare `"full"` literal
+  leaves the mandated source pin guarding nothing.
+- **Both** editor partials use `|default:"full"` on `data-size` and on the preview modifier class,
+  not just the plain table's.
+- `_element_mids`'s new `table` branch tests `isinstance(c.get("media"), str)` — it runs
+  **post-serialization**, where `media` is a local string id.
+- `TableElementForm.clean_data` binds `nd = normalize_data(data)` **before** the scoping check and
+  scopes over `nd["cells"]`; the fill table's expression applied to raw rows 500s.
+- `refreshAlignButtons` must not simply drop its `!focusCell` guard — the body dereferences
+  `focusCell.dataset`, and this slice calls it at init with no focus.
+- The names are `TableElement.CellImageSize`, `TableElement.DEFAULT_CELL_IMAGE_SIZE`,
+  `TableElement.EDITOR_INSERT_CELL_IMAGE_SIZE` — nested on the model, not module-level.
 - `_ser_table`'s defensive-shape fixtures are **export-only**; those archives are legitimately not
   importable.
 - `window.libliFillTablePickImage` keeps its pre-existing last-wins single global — out of scope.
