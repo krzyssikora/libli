@@ -1157,7 +1157,9 @@ def test_every_slide_hiding_rule_carries_the_carousel_gate():
         if not selector.rstrip().endswith(".tabs__section"):
             continue
         if "opacity: 0" in decls and "pointer-events: none" in decls:
+            matched = True
             assert ".tabs--carousel" in selector, f"slide rule missing the gate: {selector.strip()}"
+    assert matched, "no carousel slide rule found at all"
 
 
 def test_the_hidden_caption_rule_declares_only_properties_print_resets():
@@ -1209,7 +1211,9 @@ def test_carousel_rules_use_child_combinators():
             need = "> .tabs__stage > .tabs__section"
         else:
             need = "> .tabs__stage"
+        matched = True
         assert need in selector, f"missing child chain ({need}): {selector.strip()}"
+    assert matched, "no mode-scoped slide/caption rule found at all"
 ```
 
 - [ ] **Step 2: Run to verify failure**
@@ -1217,7 +1221,11 @@ def test_carousel_rules_use_child_combinators():
 ```bash
 uv run pytest tests/test_tabs_partial.py -k "print_reset or slide_hiding or child_combinators or print_label" -v
 ```
-Expected: FAIL — no carousel rules exist yet, and `_screen_label_rule` raises `StopIteration`.
+Expected: FAIL — `test_carousel_print_reset_is_present_and_fully_important` and
+`test_the_hidden_caption_rule_declares_only_properties_print_resets` raise `StopIteration`, and
+the two universally-quantified guards fail their new `assert matched` existence checks. (Add
+`matched = False` before each loop; without the existence assertion those two would pass
+vacuously at the red phase, since "for every matching line…" is trivially true of no lines.)
 
 - [ ] **Step 3: Scope the four existing tabs-mode rules**
 
@@ -1392,7 +1400,10 @@ def test_the_error_bail_clears_inert_aria_hidden_and_both_classes():
     above the try/catch, so a catch-anchored slice would contain only `bail();` and
     none of the statements below — the assertion would fail on correct code."""
     js = TABS_JS.read_text(encoding="utf-8")
-    body = js[js.index("function bail"):]
+    # Bounded at `var nav = null` for the same reason the teardown assertion is: an
+    # unbounded slice would be satisfied by any future helper appended below
+    # initCarousel that happens to clear aria-hidden, letting an emptied bail() pass.
+    body = js[js.index("function bail"):js.index("var nav = null")]
     assert 'removeAttribute("inert")' in body
     assert 'removeAttribute("aria-hidden")' in body
     assert 'classList.remove("tabs--js")' in body
@@ -2227,18 +2238,18 @@ Each bullet is one test. Sync on conditions, never on sleeps.
 - [ ] **Init:** slide 1 is `.is-active` and **not** `inert` after load. *(Mutants: initialise `idx` to `0` instead of `-1`; delete the first-show branch — either → RED. Both are "the feature silently never runs" failures a normal e2e reports as a hundred unrelated errors.)*
 - [ ] **Advance:** click ›; slide 2's table is visible and slide 1 is **not** visible. ⚠️ Use `check_visibility({"opacityProperty": True, "visibilityProperty": True})` or assert computed `opacity`/`.is-active` — plain `checkVisibility()` defaults `opacityProperty` to **false**, so it only sees `display:none` and returns `true` for every opacity-hidden slide; Playwright's `to_be_visible()` shares the blind spot. Assert the **negative** direction too; the positive alone is vacuous. ⚠️ But the outgoing section keeps `.is-active` and a computed opacity of ~1 until `settleHidden` fires **320 ms later**, so an immediate negative assertion is RED against a correct build. Sync on the deterministic post-settle marker — poll until the outgoing section has *lost* `.is-active` — then assert. (The synchronous facts, set at step 8, are `inert` and `aria-hidden`; those can be asserted immediately and are what the "Inert" case below covers.)
 - [ ] **Inert:** slide 1 is `aria-hidden` and `inert`, and an input inside an inactive slide is not reachable by tabbing.
-- [ ] **Height:** `.tabs__stage`'s height is unchanged between slides **and** ≥ the tallest section's own `bounding_box()["height"]`. Stability alone is vacuous — once sections are absolutely positioned the stage's height *is* `min-height` by construction, so a build reserving only slide 1's height passes a stability check while the tall slide overflows the nav. Also assert the nav bar's `y` is identical on both slides.
+- [ ] **Height:** `.tabs__stage`'s height is unchanged between slides **and** ≥ the tallest section's own height. ⚠️ Measure **both sides the same way**: `measure()` writes `min-height` from `offsetHeight`, a rounded **integer**, while Playwright's `bounding_box()["height"]` is fractional — a 412.32px slide reserves 412, and `412 >= 412.32` is false, so a mixed comparison goes RED against a correct build about half the time (fractional heights are the norm here: a `.95rem` caption, table row boxes). Use `page.evaluate` over `offsetHeight` for both, or allow a 1px tolerance. Do **not** "fix" a red by deleting the `≥` half — that is the half that catches reserving only slide 1's height. Stability alone is vacuous — once sections are absolutely positioned the stage's height *is* `min-height` by construction, so a build reserving only slide 1's height passes a stability check while the tall slide overflows the nav. Also assert the nav bar's `y` is identical on both slides.
 - [ ] **Status:** `.tabs__status` reads "Slide 2 of N", and the active dot carries `aria-current="true"`.
 - [ ] **Boundaries:** `prev` is `disabled` on slide 1, `next` on the last; ArrowLeft on slide 1 and ArrowRight on slide N leave the index unchanged with **no console error**.
 - [ ] **Walk backwards** — the only case that can falsify step 4 preceding step 7. Seed slide 1 with **no focusable content** (a plain table) and slide 2 with a link; focus the link, press ArrowLeft to slide 1, then press ArrowRight and assert the index **advances**. *(Mutant: move the four `prev/next.disabled` / `aria-disabled` lines below `rescueFocus(out, inn)` → RED. Every other keyboard case here walks forward and stays green under that mutant: the fallback picks `prev` while it is still enabled, focuses it, and only then `prev.disabled = true` blurs focus to `<body>`.)*
 - [ ] **Boundary focus (the only case that can see step 4b):** click › to the last slide, assert `document.activeElement` is the `prev` button — **not `<body>`** — then ArrowLeft actually decrements. *(Mutant: delete step 4b → RED.)*
 - [ ] **Focus into the slide:** ⚠️ precondition — **both** slides hold a focusable, and the test must `focus()` the OUTGOING slide's link *before* pressing ArrowRight. `rescueFocus` opens with `if (!out.contains(document.activeElement)) return;`, so focusing the › button instead (the natural way to get focus inside the container) makes it return early, `activeElement` stays on › — which *is* in `.tabs__cbar` — and the assertion goes RED against **correct** code. With the precondition met: `document.activeElement` is inside the incoming section and **not** inside `.tabs__cbar`. *(Guards against an over-strict `focusable()` predicate silently degrading to the nav-bar fallback.)*
-- [ ] **Two presses:** ArrowRight **twice** — a build broken at steps 5/7/8 survives exactly one press.
-- [ ] **Nested tabs:** a slide holding a tabs element; ArrowRight twice still advances the outer carousel.
+- [ ] **Two presses:** ArrowRight **twice** — a build broken at steps 5/7/8 survives exactly one press. ⚠️ This fixture needs **≥3 slides** (as does Mid-fade and Nested tabs): `lesson_with_tabs` and every existing `_seed_tabs_element` call site build **two**, and with two slides the second press hits `clamp` + the `target === idx` early return on *correct* code — so "advances again" is RED against a healthy build and the weakened form is vacuous. Post-condition to assert: slide 3 is `.is-active`, slide 2 is `inert`.
+- [ ] **Nested tabs (the guard for `focusable()`'s fourth filter):** slide 1 holds a **link**, slide 2 holds a **nested tabs element**; `focus()` the link, then ArrowRight twice, and assert the outer carousel reached slide 3. The ordering is what makes it falsifiable: focus the outer › instead and `rescueFocus` returns early, so the case passes with or without the filter (vacuous); focus the nested panel and guard 3 correctly refuses to advance (RED against correct code). Only "link first" exercises it — without filter 4 the rescue lands on the inner panel (`tabIndex = 0`, visible, not `[inert]`: it passes every other filter), and the second ArrowRight then resolves `closest("[data-tabs]")` to the inner container and nothing moves. *(Mutant: delete the `n.closest("[data-tabs], [data-gallery]") !== container` filter from `focusable()` → RED.)*
 - [ ] **Nested gallery — arrow ownership:** a gallery in a slide; one ArrowRight with focus inside it moves the gallery by one and leaves the carousel's index unchanged.
-- [ ] **Reveal bubbling:** ⚠️ do **not** assert "a nested gallery's stage height is non-zero" — that is true on a build with `bubbles` deleted, for two independent reasons: `lesson_unit.html` loads `gallery.js` (line 77) *before* `tabs.js` (line 81), so the gallery measures during the stacked fallback; and this spec's own mechanism keeps inactive slides laid out, so it measures non-zero anyway. (The spec warns about exactly this false rationale.) Instead **instrument the delegated listener**: before advancing, `page.evaluate` a `document.addEventListener("libli:reveal", () => window.__reveals++)` counter; click ›; assert the counter incremented. *(Mutant: drop `bubbles: true` → the event never reaches `document` → counter stays 0 → RED.)*
+- [ ] **Reveal bubbling:** ⚠️ do **not** assert "a nested gallery's stage height is non-zero" — that is true on a build with `bubbles` deleted, for two independent reasons: `lesson_unit.html` loads `gallery.js` (line 77) *before* `tabs.js` (line 81), so the gallery measures during the stacked fallback; and this spec's own mechanism keeps inactive slides laid out, so it measures non-zero anyway. (The spec warns about exactly this false rationale.) Instead **instrument the delegated listener**: before advancing, `page.evaluate` **`window.__reveals = 0; document.addEventListener("libli:reveal", () => window.__reveals++)`** in one call — without the initialiser the first increment makes it `NaN` and every comparison is false, i.e. RED against correct code. Assert `__reveals === 0` before the click and `>= 1` after. *(Mutant: drop `bubbles: true` → the event never reaches `document` → counter stays 0 → RED.)*
 - [ ] **Scroll containers:** guard 2 walks ancestors from `e.target`, so the outcome depends entirely on what holds focus — and `.el--table__scroll` is a plain `div` with no `tabindex`, so `locator.focus()` on it is engine-dependent. **Both table slides must therefore hold a focusable node** (e.g. a link in a cell) which the test focuses before pressing the key. Then: Left/Right inside the **wide** table changes the wrapper's `scrollLeft` and does **not** advance the carousel; Left/Right inside the **narrow** table (nothing to scroll) still advances.
-- [ ] **Mid-fade:** click › twice inside the fade window; exactly one slide ends `.is-active` and opaque.
+- [ ] **Mid-fade:** click ›, then **within the fade window click ‹ (or dot 1)** — not › twice. Simulate the ›-then-› case against a neutered `finalizePending()`: the orphaned timer settles slide 0 and the second timer later settles slide 1, so the END state is still exactly one active opaque slide and the assertion passes; only a mid-window sample fails, which is a race-window assertion. Going **back** inside the window leaves a *permanently* broken state instead: the orphaned timer fires `settleHidden(s0)` on the slide now on screen, so zero slides end `.is-active` and s0 ends `inert`. Assert exactly one slide ends `.is-active` and opaque, and none is both `inert` and visible. *(Mutant: `return;` at the top of `finalizePending()`, or drop its `clearTimeout` → RED.)*
 - [ ] **Nesting, all three directions:** tabs-in-carousel, carousel-in-carousel, and **carousel-in-tabs** each render visible and operable. The third is the regression test for the label rules (failure: the inner carousel silently loses every caption); the first two for the child combinators (failure: a completely blank inner element).
 - [ ] **`label_pos: "below"`:** a wide table in a `below` slide still scrolls horizontally rather than widening the stage.
 - [ ] **No-op re-save:** reopen the saved carousel in the real editor, save without touching a control, reload — still a carousel. **A Django form test cannot catch this**: it builds the POST body by hand and always includes `display`, so it passes on a build where the browser drops it.
