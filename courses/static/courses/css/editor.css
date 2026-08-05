@@ -767,6 +767,18 @@ button.asset-cell:hover { border-color: var(--primary); }
    author which alignment the focused cell currently has. */
 .table-editor__aligns { display: inline-flex; gap: 3px; margin-left: var(--space-2); }
 
+/* The table and fill-in-table editors wrap their grid in the shared
+   `.scroll-x` edge-shading box (decoration only — it does NOT scroll), which
+   sits as a DIRECT CHILD of .el-editor (display: grid, line 114). A grid item
+   defaults to min-width: auto, so .scroll-x refuses to shrink below the
+   table's min-content width (cols x the 4rem cell floor below) — the item
+   stays wide, .table-editor__grid's overflow-x never engages, and the grid
+   escapes the editor card sideways instead of scrolling inside it. min-width:
+   0 releases that floor so the wrapper tracks the card and the nested scroller
+   takes over. Scoped to the wrapper rather than `.el-editor > *` so only boxes
+   that opt into scrolling lose the intrinsic-width protection. */
+.el-editor > .scroll-x { min-width: 0; }
+
 .table-editor__grid { overflow-x: auto; }
 .table-editor__grid table { border-collapse: collapse; width: 100%; }
 .table-editor__grid td, .table-editor__grid th {
