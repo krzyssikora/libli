@@ -69,11 +69,18 @@ The constants are **class attributes on `TabsElement`**, beside `MIN_TABS` / `MA
 `transfer.payloads._val_tabs`) reference them as `TabsElement.<NAME>`:
 
 ```python
-DISPLAY_CHOICES = (("tabs", _("Tabs")), ("carousel", _("Carousel")))
+DISPLAY_CHOICES = (
+    ("tabs", pgettext_lazy("tabs display", "Tabs")),
+    ("carousel", pgettext_lazy("tabs display", "Carousel")),
+)
 DISPLAYS = tuple(v for v, _l in DISPLAY_CHOICES)
 DEFAULT_DISPLAY = "tabs"
 
-LABEL_POS_CHOICES = (("above", _("Above")), ("below", _("Below")), ("hidden", _("Hidden")))
+LABEL_POS_CHOICES = (
+    ("above", pgettext_lazy("tabs label position", "Above")),
+    ("below", pgettext_lazy("tabs label position", "Below")),
+    ("hidden", pgettext_lazy("tabs label position", "Hidden")),
+)
 LABEL_POSITIONS = tuple(v for v, _l in LABEL_POS_CHOICES)
 DEFAULT_LABEL_POS = "above"
 ```
@@ -144,9 +151,18 @@ random ids). It is also unsatisfiable as a shortcut: the template iterates `(tab
 pairs, which the normalized dict does not contain.
 
 Add a small dedicated accessor instead — `display_settings()` — that coerces **only** the two
-enums from `self.data` (same `isinstance` + tuple-membership + default logic, no tab-list
-work at all) and is called once by `render()`. It touches nothing `resolved_tabs()` touches,
-so the two cannot disagree and no normalisation runs twice.
+enums from `self.data`, with no tab-list work at all, and is called once by `render()`. It
+touches nothing `resolved_tabs()` touches, so the two cannot disagree and no normalisation
+runs twice. A test should assert `render()` triggers exactly one `normalize_data` call.
+
+⚠️ **The coercion itself lives in ONE place.** `normalize_labels_and_ids`,
+`display_settings()`, and the `editor_display` / `editor_label_pos` accessors all need the
+same `isinstance` + tuple-membership + default logic, and three hand-copied versions are the
+identical two-declarations-can-disagree failure this spec rejects for the enum members
+themselves — a drift here surfaces as "the builder tree says carousel but the page renders
+tabs". Write one private `_coerce_enum(value, allowed, default)` staticmethod and call it
+from all of them, and test that `display_settings()` and `normalize_labels_and_ids()` agree
+across the whole hostile-value matrix (`None`, `42`, `"CAROUSEL"`, `[]`, `{}`).
 
 ### Form — `courses/element_forms.py`, `TabsElementForm`
 
@@ -241,8 +257,10 @@ the template never hardcodes an enum member or a label.
 
 ### Student template — `templates/courses/elements/tabselement.html`
 
-The root element gains `data-display="{{ display }}"` and `data-label-pos="{{ label_pos }}"`;
-`TabsElement.render` adds both to its context from the single `normalized_data` read.
+The root element gains `data-display="{{ display }}"` and `data-label-pos="{{ label_pos }}"`.
+`TabsElement.render` gets both from **`display_settings()`** — never from `normalized_data`,
+for the reason given under the key-drop trap — and gets the `(tab, children)` pairs from
+`resolved_tabs()` as it does today. Those are the only two reads.
 
 **The sections are wrapped in a server-rendered `<div class="tabs__stage">`, in BOTH modes.**
 This is a change to the shared markup, applied identically to tabs and carousel, so the
@@ -254,7 +272,9 @@ re-parent the sections into it:
   `<figure><img>`, but a carousel slide may hold a video or GeoGebra embed
   (`NESTABLE_TYPE_KEYS` makes this reachable), and the editor preview re-enhances from
   scratch after every fragment swap — so an author editing such a unit would pay a full
-  embed reload on every keystroke-triggered swap.
+  embed reload on **every save, add, reorder or "try it" swap**. (`applyFragments` runs only
+  from POST responses; there is no keystroke-driven swap. Frequent enough to decide this,
+  not continuous.)
 - A server-rendered wrapper is inert without JS (an unstyled `div`), keeps the no-JS and
   print fallback exactly as readable, gives the print rules a real element to target, and
   makes the enhancer simpler.
@@ -266,6 +286,14 @@ container's first child.
 
 Everything else about the markup is unchanged in both modes — every section emitted, each
 panel under its `h3` label, all visible — and that remains the no-JS and print fallback.
+
+**The template's header comment must be rewritten, not just extended.** It currently asserts
+that "tabs.js upgrades it in place to a role=tablist and hides the inactive panels with the
+`hidden` ATTRIBUTE" — false for half this element's configurations after this change, and
+exactly the comment a future implementer would trust when deciding whether `hidden` is safe
+to reuse. It must describe both branches and record why `.tabs__stage` is server-rendered
+even in tabs mode (the iframe-reparent reason), alongside the `data-tab-label-pos` /
+`data-label-pos` prefix note.
 
 ### `courses/static/courses/js/tabs.js` — the carousel branch
 
@@ -319,7 +347,30 @@ height reservation to the current slide's height (defeating the entire section b
 make the cross-fade impossible since a `display: none` element cannot transition or overlap
 its successor.
 
-⚠️ **Every carousel screen rule is gated on `.tabs--js` AND `[data-display="carousel"]`**,
+⚠️ **Every carousel rule that hides, positions, reorders or clips MUST use an explicit child
+chain, never a descendant selector.** The server markup guarantees
+`.el--tabs > .tabs__stage > .tabs__section > .tabs__panel-label`, so write:
+
+```
+.el--tabs.tabs--js[data-display="carousel"] > .tabs__stage { … }
+.el--tabs.tabs--js[data-display="carousel"] > .tabs__stage > .tabs__section { … }
+.el--tabs.tabs--js[data-display="carousel"][data-label-pos="hidden"] > .tabs__stage > .tabs__section > .tabs__panel-label { … }
+```
+
+`tabs` is in `NESTABLE_TYPE_KEYS` and a carousel may contain a tabs element — a shape this
+repo already exercises in `tests/test_e2e_depth3.py`. A **descendant** selector would match
+the *inner* element's `.tabs__section` nodes, absolutely-position them at `opacity: 0`, and
+render the inner element **completely blank**: the inner instance is in tabs mode, so it
+hides panels with the `hidden` attribute and never adds `.is-active` to a section, meaning
+nothing ever restores opacity. The `below` flex rule would likewise reorder an inner
+element's captions and the `hidden` clip rule would hide an inner carousel's. This is the
+exact hazard `ownSections`/`ownPart` solve in the JS, reintroduced through CSS — and the
+note that "existing selectors survive the wrapper because they are descendant selectors"
+applies to the *pre-existing* rules, not to the new ones. **The print resets need the same
+child chain.** A nested tabs element and a nested carousel inside a carousel slide must both
+be render-tested and e2e-tested as visible and operable.
+
+⚠️ **Every carousel screen rule is also gated on `.tabs--js` AND `[data-display="carousel"]`**,
 mirroring `.el--gallery.gallery--js .gallery__item`. `data-display` is emitted by the
 *server*, so it is present with JS disabled — a rule keyed on the attribute alone would
 absolutely-position every section with no enhanced stage to contain them, collapsing all
@@ -339,35 +390,72 @@ distinguishes the two *enhanced* modes; it does not replace the JS gate.
 - **Clamped, never wrapping**: at slide 1 the prev button is `disabled`, at slide N the next
   button is `disabled` — the gallery's boundary behaviour and its `:disabled` styling.
   **Because disabling the focused element blurs it to `<body>`**, when the button that was
-  just activated becomes disabled, focus moves to the opposite arrow, so a keyboard user
-  keeps their place at both boundaries.
-- **`rescueFocus`, with an explicit target chain.** Inerting a subtree blurs focus inside it
-  to `<body>`, and the container-scoped keydown handler bails when focus is outside the
-  container — so without the rescue, keyboard navigation dies after exactly one step. The
-  gallery's target selection is image-specific (`.imgzoom-trigger`) and does **not**
-  generalise: the headline use case, a slide holding one table, has no focusable node at
-  all. Required chain, in order: the first focusable descendant of the incoming section →
-  else the first enabled control in the nav bar → else the container itself, made focusable
-  with `tabindex="-1"`. **The nav-bar fallback is the expected outcome for a plain table
-  slide, not an edge case**, and the implementation must not treat "no focusable content" as
-  unreachable.
+  just activated becomes disabled, focus moves to the opposite arrow. Two things this
+  requires: the "was this arrow focused" test is captured **before** the `disabled`
+  assignment (afterwards the information is gone), and the transfer applies **only when
+  focus was on the nav bar** — i.e. exactly when `rescueFocus` returns early. That makes the
+  two focus mechanisms mutually exclusive by construction; without the restriction both fire
+  on one activation and the reader sees a visible focus jump.
+
+- **`show()` order of operations is normative, not incidental.** `rescueFocus` is a no-op in
+  any other sequence, so the steps are:
+
+  1. clear `inert` and `aria-hidden` on the **incoming** section;
+  2. call `rescueFocus(outgoing, incoming)`;
+  3. set `inert` and `aria-hidden` on the **outgoing** section;
+  4. start the fade / settle timer.
+
+  The guard is `if (!out.contains(document.activeElement)) return;`, so inerting the outgoing
+  section first (the natural reading of "at rest every section is inert") pushes focus to
+  `<body>` before the rescue runs, the guard returns early, and keyboard navigation dies
+  after exactly one step **with the rescue code present and correct**. Focusing into the
+  incoming section before its `inert` is cleared is likewise a silent no-op. Because the
+  broken build survives one keypress, the e2e must press ArrowRight **twice**.
+
+- **`rescueFocus`, with an explicit and *validated* target chain.** Inerting a subtree blurs
+  focus inside it to `<body>`, and the container-scoped keydown handler bails when focus is
+  outside the container — so without the rescue, keyboard navigation dies. The gallery's
+  target selection is image-specific (`.imgzoom-trigger`) and does **not** generalise: the
+  headline use case, a slide holding one table, has no focusable node at all. Required
+  chain, in order: **a focusable descendant of the incoming section that can actually take
+  focus** → else the first enabled control in the nav bar → else the container itself, made
+  focusable with `tabindex="-1"`.
+
+  ⚠️ The first link needs a real definition, or it is worse than useless. A naive
+  `section.querySelector("a[href],button,input,select,textarea,[tabindex]")` returns nodes
+  that **cannot** receive focus: a nested carousel inside the incoming slide has its inactive
+  `inert` sections first in DOM order (its nav bar is appended last), and a nested tabs
+  element has `display:none` panels. `.focus()` on such a node silently does nothing, focus
+  stays on `<body>`, and the keydown handler bails — the precise failure the chain exists to
+  prevent, now reached *through* the fallback. So: exclude `[disabled]` and
+  `[tabindex="-1"]`, reject any candidate with an `[inert]` ancestor, and require it to pass
+  an `offsetParent` / opacity-aware visibility test before accepting it. **The nav-bar
+  fallback is the expected outcome for a plain table slide, not an edge case.** A nested
+  carousel inside a slide is an explicit e2e keyboard case.
 - **Dots are unconditional, and they are activatable controls** — real `<button>`s with an
   `aria-label` and a `click → show(k)` handler, exactly as `gallery.js` builds them. So the
   *arrows* are the sequential, clamped affordance and the *dots* give direct access; a reader
   is never forced to walk. (`MAX_TABS` is 10, so the gallery's "more than `DOTS_MAX` dots →
-  show a counter instead" branch is dead code here and is not ported.) Being real buttons is
+  show a counter instead" branch is dead code here and is not ported.) On every position
+  change the active dot gets **both** `.is-active` **and `aria-current="true"`**, cleared
+  from all others — `gallery.js::updateIndicator` does both, and dropping the ARIA half
+  leaves a screen-reader user with ten identically-announced buttons and no idea which slide
+  they are on while the visual dot fills correctly; assert it in the e2e beside
+  `.tabs__status`. Being real buttons is
   also what makes `rescueFocus`'s nav-bar fallback below viable, and what the i18n dot-label
   string is for.
 - **No tab roles, and an explicit list of what the shared per-section loop does instead.**
   The tabs branch performs five mutations per section: eid-namespaced `panel.id`,
   `role="tabpanel"`, `aria-labelledby`, `panel.tabIndex = 0`, and cloning the label into a
-  strip button. The carousel branch performs exactly two of them — it keeps the
-  eid-namespaced `panel.id` (two carousels on a page must not collide) and sets
-  `aria-labelledby` **on the section**, pointing at the `h3`'s server-rendered
-  `tabs-{eid}-{tid}-label` id, so each slide is named to assistive technology even when
-  `label_pos` is `hidden` (the clip-based rule keeps the heading in the accessibility tree).
-  It sets **no** `role`, **no** `tabIndex` on panels — a tab stop per panel would fight the
-  `inert` tab-order assertion — and builds no strip button.
+  strip button. The carousel branch performs exactly **one**: `aria-labelledby`
+  **on the section**, pointing at the `h3`'s server-rendered `tabs-{eid}-{tid}-label` id, so
+  each slide is named to assistive technology even when `label_pos` is `hidden` (the
+  clip-based rule keeps the heading in the accessibility tree). It needs **no id work at
+  all** — the template already emits both `tabs-{eid}-{tid}-panel` and the `-label` id, and
+  the tabs branch's `panel.id = panelId` merely re-assigns the identical string, so
+  requiring it here would be asking for code that does nothing. It sets **no** `role`,
+  **no** `tabIndex` on panels — a tab stop per panel would fight the `inert` tab-order
+  assertion — and builds no strip button.
 - **A `.tabs__status` region** (`role="status"`, `aria-live="polite"`) announces "Slide {n}
   of {total}" on each change, ported from `.gallery__status`. It **must** use the gallery's
   clip-based sr-only rule — `position:absolute; width:1px; height:1px; overflow:hidden;
@@ -401,10 +489,24 @@ distinguishes the two *enhanced* modes; it does not replace the JS gate.
 - **Cross-fade** of 320 ms, matching the gallery's `FADE_MS` and the CSS transition, and
   reduced to 0 when `prefers-reduced-motion` matches — **in the JS *and* the CSS** (see the
   CSS list).
-- **`libli:reveal`** is dispatched on the newly shown section, exactly as the tabs `select()`
-  does. A gallery inside a hidden slide measures zero height and listens for this event to
-  re-measure; a carousel that skipped it would show a collapsed letterbox to any reader who
-  advanced to a slide containing a gallery.
+- **Overlapping fades need the gallery's `pending` / `finalizePending()` discipline,
+  verbatim.** `gallery.js` keeps `pending = {out, inn, timer}` and finalises it at the top of
+  every `show()`. Without that, a second activation 100 ms into a 320 ms fade leaves the
+  first `setTimeout` alive; when it fires it runs `settleHidden(out)` and clears
+  `inn.style.opacity` on slides that are no longer the ones transitioning — leaving a slide
+  stuck at `opacity: 0` while carrying `.is-active`, or two slides visible at once. With ten
+  dots and two arrows in a 648px column, fast successive activation is the normal
+  interaction, not an edge case. e2e: click › twice inside the fade window and assert exactly
+  one slide ends up `.is-active` and opaque.
+- **`libli:reveal`** is dispatched on the newly shown section, for parity with the tabs
+  `select()` and for any consumer that defers work while `inert` / `aria-hidden`.
+
+  ⚠️ Do **not** justify this with "a gallery inside a hidden slide measures zero height" —
+  under this spec's own slide mechanism that is false. Absolute + `opacity: 0` keeps inactive
+  slides laid out (which is the whole argument against the `hidden` attribute), so a nested
+  gallery measures its true height at init and the collapsed letterbox cannot occur. The
+  requirement stands on parity; a falsification test written against the false rationale
+  could not go RED even with the dispatch deleted.
 
 #### Class naming — required for the style-drift guard to see it
 
@@ -416,12 +518,17 @@ distinguishes the two *enhanced* modes; it does not replace the JS gate.
   through a helper parameter, the way `chevron(cls, …)` passes its own, is invisible;
 - **(c)** put exactly **one** class token in each such literal. A space is not in `[\w-]`, so
   `className = "tabs__cbtn tabs__cprev"` matches **nothing at all** — the natural
-  base-plus-modifier shape silently disables the guard for both classes. Use two statements
-  (`el.className = "tabs__cprev"; el.classList.add("tabs__cbtn")`) or two separate literal
-  assignments.
+  base-plus-modifier shape silently disables the guard for both classes.
+
+So: **one literal, one token, one element** — and **no shared base class at all**. Do not
+reach for `el.className = "tabs__cprev"; el.classList.add("tabs__cbtn")` either: a class
+added via `classList.add` is equally invisible to the regex, so the base class would ship
+unstyled undetected. Give the two arrow buttons their shared look through a grouped selector
+in CSS (`.tabs__cprev, .tabs__cnext { … }`), exactly as `.el--gallery` does for
+`.gallery__prev, .gallery__next`.
 
 All three failures are silent: `assert emitted` still passes because other single-token
-classes keep the set non-empty. The six JS-built names this applies to: `tabs__cbar`,
+classes keep the set non-empty. The six JS-built names, and no seventh: `tabs__cbar`,
 `tabs__cprev`, `tabs__cnext`, `tabs__dots`, `tabs__dot`, `tabs__status`.
 
 **`tabs__stage` is deliberately NOT in that list** — it is server-rendered (see the Student
@@ -453,9 +560,13 @@ measured set (the sections) since there is no separate caption strip to equalise
    leaves the `resize` listener and the observer bound. The guard disconnects both when
    `!container.isConnected`.
 5. **Keep both `libli:reveal` listeners** — one on the container, one delegated on `document`
-   filtered by `e.target.contains(container)` — so a carousel nested inside a collapsed tab,
-   spoiler or callout measures correctly the moment its ancestor opens rather than reserving
-   a zero-height frame.
+   filtered by `e.target.contains(container)` — so a carousel revealed by a reveal-gate
+   cascade, or sitting in an outer tab panel that has just been selected, measures correctly
+   instead of keeping a zero-height stage. Those are the **only two dispatchers** in the
+   codebase (`reveal.js` and `tabs.js::select()`); a spoiler is a native `<details>` that
+   dispatches nothing and a callout is not collapsible at all, so for a carousel inside a
+   spoiler the `ResizeObserver` is what rescues the measurement when the subtree stops being
+   skipped.
 
 KaTeX typesets after first paint and changes section heights; the `ResizeObserver` is what
 catches that, which is why it is not optional.
@@ -519,7 +630,11 @@ Four existing rules encode tabs-mode assumptions and must each be scoped or pair
 4. **`.el--tabs .tabs__panel { padding-top: var(--space-5) }`** exists to separate a panel
    from the strip above it. In carousel mode it leaves a stray gap above every slide (and
    feeds the height measurement). Scope it to tabs mode and give carousel mode its own
-   caption/panel spacing.
+   caption/panel spacing — **and gate that replacement on `[data-display="carousel"]` alone,
+   not on `.tabs--js`.** It only adds spacing, so it is safe unenhanced, and gating it on the
+   JS class would leave the no-JS stacked fallback with every caption flush against its
+   panel. (This is the one carousel rule exempt from the `.tabs--js` gate, precisely because
+   it neither hides nor positions anything.)
 
 **The caption needs a typographic specification, not just spacing.** In tabs mode the
 `h3.tabs__panel-label` is clipped the instant JS runs, so it has never been styled as visible
@@ -648,6 +763,14 @@ and `_ELEMENT_LABELS`. `TabsElement` is already a registered container, so child
 limits, filtering, pasting and export/import routing all keep working with no edits — that is
 the whole reason this change is small.
 
+One documentation edit is still required inside an otherwise untouched file:
+`_CONTAINER_REGISTRY`'s comment states "CONTRACT: each normalizer returns
+`{slot_list_key: [{slot_id_key: <id>}, ...]}`". After this change
+`normalize_labels_and_ids` returns three keys. No consumer breaks — `resolve_scope` and
+`paste_allowed` index by `list_key` — but the comment becomes false at precisely the place a
+future reader goes to learn the contract, so amend it to "at least `{slot_list_key: […]}`;
+extra keys are permitted and ignored".
+
 ⚠️ **"Untouched" does not mean "independent" for duplicate and copy-paste.**
 `builder.duplicate_element` → `_copy_below` → `build_element_export` + `graft_elements`, and
 `paste_element`'s copy mode takes the same route — so duplicating or pasting a carousel is
@@ -667,16 +790,23 @@ the whole editor into the hidden `name="data"` JSON, reading the selects' live v
 `normalize_labels_and_ids`, which mints ids for new rows and coerces the two enums → `save()`
 runs the same normalizer again (idempotent) and writes `data`.
 
-**Rendering.** `TabsElement.render` → one `normalized_data` read supplies the padded tab list
-plus `display` and `label_pos` → `resolved_tabs()` groups the child `Element` rows by
-`tab_id` → the template emits the stage and every section, with both data attributes on the
-root → `tabs.js` branches on `data-display`, builds the nav, reserves the stage height, and
-shows slide 1.
+**Rendering.** `TabsElement.render` → `resolved_tabs()` (which internally runs
+`normalize_data` **once**) groups the child `Element` rows by `tab_id`, and
+`display_settings()` supplies the two enums without touching the tab list → the template
+emits the stage and every section, with both data attributes on the root → `tabs.js` branches
+on `data-display`, builds the nav, reserves the stage height, and shows slide 1.
 
 **Editor preview.** `editor.js applyFragments()` swaps the pane, then calls the existing
 `window.libliInitTabs(preview)`, which re-enhances the carousel from scratch; the `tabsReady`
 guard makes the re-run safe, the detached-container guard stops the outgoing instance's
 observers, and because the stage is server-rendered no embed is re-parented or reloaded.
+
+**Changing Display is reflected in the preview only after a save.** The `change` listener
+re-serialises the hidden JSON and toggles the label-position row; it does not re-render the
+pane. A live no-save preview switch is explicitly **out of scope** — worth stating because
+the image-size slice set the opposite precedent in the same file, where `editor.js`'s
+`[data-size-preset]` handler does a no-save class swap, so an implementer could reasonably
+guess either way.
 
 **Transfer.** Export serialises `{tabs, display, label_pos}`; children are separate elements
 carrying `parent` and `tab` refs, unchanged. Import defaults the two keys when absent,
@@ -694,9 +824,14 @@ repairs them when out of enum, and passes them into the constructed element.
 - **No JS, JS error, or unsupported browser** → the stacked, labelled fallback, which is
   fully readable. This is why every carousel screen rule is gated on `.tabs--js`: without
   that gate the server-emitted `data-display="carousel"` alone would blank the element.
-  `ResizeObserver` is feature-detected exactly as the gallery detects it; its absence costs
-  re-measurement, not function. `inert` is likewise absent in older engines — its loss costs
-  tab-order hygiene on invisible slides, not function, and it is not polyfilled.
+- **`ResizeObserver` absent** (feature-detected exactly as the gallery detects it): the stage
+  is measured once at init and never re-measured, so a KaTeX typeset or font swap after first
+  paint leaves the reservation short. The material case is a carousel inside a
+  `<details>`-based spoiler, where nothing dispatches `libli:reveal` — there the stage stays
+  at `min-height: 0` with absolutely-positioned slides overlapping the content below it,
+  permanently. That is a real degradation on such engines, not merely "costs re-measurement".
+- **`inert` absent** in older engines: its loss costs tab-order hygiene on invisible slides,
+  not function, and it is not polyfilled.
 - **Import never fails on these two keys** — absent → defaulted, out of enum → repaired.
   Malformed *tabs* keep failing exactly as today.
 - **A carousel nested inside a collapsed container** reserves a zero-height stage until
@@ -746,6 +881,19 @@ the new names, not merely that it is non-empty. `editor.css` styles every new
 tabs-mode element renders the label-position row `hidden` from first paint. The two existing
 print tests still pass (they are the regression detector for the appended-not-inserted
 ordering, and for the single-physical-line constraint on the label rules).
+
+**A source-level print test for the carousel reset — this is a guard, not a nicety.** The
+spec identifies "printing a carousel silently loses every slide but the current one" as a
+content-loss failure with no error, and a human running a print preview is not a defence
+against a later tidy-up stripping an `!important`. Add to `tests/test_tabs_partial.py`: the
+print block contains a `[data-display="carousel"]` reset covering `.tabs__stage`
+(`position`, `min-height`) and `.tabs__section` (`position`, `opacity`, `display`), each rule
+uses the child chain, and **every declaration in both rules carries `!important`**. The
+manual print preview stays as a supplement.
+
+**Nesting.** A tabs element and a carousel each nested inside a carousel slide render
+visible and operable on the active slide — the regression test for the child-combinator
+requirement, whose failure mode is a completely blank inner element.
 
 **Transfer, duplicate and paste.** Round-trip a carousel-mode element through export →
 validate → import and compare; import an archive whose tabs payload **lacks** both keys and
