@@ -420,7 +420,10 @@ unfocusable) and `aria-hidden` (the whole element absent from the accessibility 
 
 So the carousel branch is wrapped in a `try/catch` whose handler strips `inert` and
 `aria-hidden` from every **own** section (`ownSections`, never a bare query — a nested
-instance's sections are not ours to clear), removes `.tabs--carousel`, and bails. Only then is
+instance's sections are not ours to clear), **removes the nav bar it appended** — the arrows,
+dots and status region are built before `show(0)` runs, so leaving them would put a visible,
+focusable control bar above a stacked fallback with undefined click behaviour — removes
+`.tabs--carousel`, and bails. Only then is
 "JS error → stacked, labelled, readable fallback" an honest promise rather than an
 aspiration.
 
@@ -428,8 +431,15 @@ aspiration.
 Deleting a `TABS_I18N` key no longer throws (see above), so the e2e must inject a throw that
 the defaults cannot absorb: an init script setting `window.TABS_I18N` with a carousel key to
 a **truthy non-string** (e.g. `{status: 42}`), which passes the `||` default and still throws
-on `.replace`. Then assert every section is non-`inert`, not `aria-hidden`, and its content
-reachable by tabbing. Mutant: empty the `catch` handler → RED.
+on `.replace`. Then assert every section is non-`inert`, not `aria-hidden`, its content
+reachable by tabbing, **and no `.tabs__cbar` present**. Mutant: empty the `catch` handler →
+RED.
+
+A second, cheaper falsification guards the init path specifically, because C1/C2 above are
+both "the feature silently never runs" failures that a normal e2e would report as a hundred
+unrelated assertion errors: on a plain, healthy carousel assert slide 1 is `.is-active` and
+**not** `inert` after load. Mutants: initialise the index to `0` instead of `-1`, or delete
+the first-show branch — either must go RED.
 
 ⚠️ **Every carousel screen rule is also gated on that class AND `[data-display="carousel"]`**,
 mirroring `.el--gallery.gallery--js .gallery__item`. `data-display` is emitted by the
@@ -462,9 +472,20 @@ distinguishes the two *enhanced* modes; it does not replace the JS gate.
 - **`show()` order of operations is normative, not incidental.** `rescueFocus` is a no-op in
   any other sequence, so the steps are:
 
-  0. **clamp the target to `[0, N-1]` and return early if it equals the current index** —
-     both `gallery.show()` (`clamp(n)`) and the existing `tabs.select()`
-     (`Math.max(0, Math.min(len - 1, n))`) do exactly this, and the carousel needs it more:
+  0. **clamp the target to `[0, N-1]`, then return early only if the index is not the
+     sentinel and the target equals it** — literally `if (idx !== -1 && target === idx)
+     return;`, over an index initialised to **`-1`**. The sentinel is load-bearing, not
+     defensive padding (`gallery.js:31` and `:137` are the port source): the rest-init loop
+     `inert`s and `aria-hidden`s **every** section and then relies on `show(0)` to activate
+     the first one. Initialise the index to `0` — the natural choice, since slide 1 *is* the
+     initial state — and a bare equality guard makes `show(0)` return immediately: nothing is
+     ever un-inerted, no dot activates, yet `show(0)` "completed successfully" so
+     `.tabs--carousel` is added and every slide stays absolutely positioned at `opacity: 0`.
+     The element renders **completely blank** — precisely the failure the late gate exists to
+     prevent, reintroduced through the clamp.
+
+     Both `gallery.show()` (`clamp(n)`) and the existing `tabs.select()`
+     (`Math.max(0, Math.min(len - 1, n))`) clamp, and the carousel needs it more:
      clamping is otherwise specified only as the arrows' `disabled` state, and **the keyboard
      path does not go through the arrows** — it calls `show()` directly. ArrowLeft on slide 1
      would reach index `-1`, `sections[-1]` is `undefined`, and step 3's `removeAttribute`
@@ -476,6 +497,16 @@ distinguishes the two *enhanced* modes; it does not replace the JS gate.
   2. update the dots (`.is-active` + `aria-current`) **and the arrows'
      `disabled` / `aria-disabled`** to the *incoming* index;
   3. clear `inert` and `aria-hidden` on the **incoming** section;
+  3a. **first-show case — if there is no outgoing section**, mark the incoming one
+     `.is-active` with its inline opacity cleared, and **return**, skipping 4–6 entirely: no
+     rescue, no fade. This is not an optimisation, it is required for the feature to work at
+     all. On the init call the index is the `-1` sentinel, so `sections[-1]` is `undefined`;
+     `rescueFocus`'s own mandated guard `if (!out.contains(document.activeElement)) return;`
+     would throw `TypeError` on it, step 5's `setAttribute` likewise — the branch's
+     `try/catch` would then strip the attributes, drop `.tabs--carousel` and bail, so **every
+     carousel on every page** would fall back to stacked and the feature would never run.
+     Ported from `gallery.js:149-153`, which places exactly this branch between the attribute
+     clear and `rescueFocus`;
   4. call `rescueFocus(outgoing, incoming)`;
   5. set `inert` and `aria-hidden` on the **outgoing** section;
   6. start the fade / settle timer.
