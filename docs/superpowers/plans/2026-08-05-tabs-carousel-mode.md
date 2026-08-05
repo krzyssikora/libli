@@ -1482,6 +1482,14 @@ At the top of `tabs.js`, replace the `i18n` line:
 
 Replace the three existing `i18n.nav` / `i18n.prev` / `i18n.next` reads in the tabs branch with `t("nav", "Tabs")`, `t("prev", "Scroll tabs left")`, `t("next", "Scroll tabs right")`.
 
+ℹ️ **On the pre-existing `.el--tabs:not(.tabs--js) .tabs__section + .tabs__section
+{ margin-top }` rule** (untouched by Task 6, and correctly skipped by its child-combinator
+test since it carries no mode token): this resolves correctly *because* `initOne` keeps adding
+`.tabs--js` before the branch. Enhanced carousel → `.tabs--js` present → `:not()` does not
+match → no stray margin on absolutely-positioned slides. Bailed carousel → `bail()` removes
+`.tabs--js` → the margin returns, which is exactly what the stacked fallback needs. Do not
+"fix" either half.
+
 - [ ] **Step 4: Branch in `initOne`**
 
 Immediately after `container.classList.add("tabs--js");`:
