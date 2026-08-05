@@ -324,11 +324,117 @@
       inn.dispatchEvent(new CustomEvent("libli:reveal", { bubbles: true }));
     }
 
-    // rescueFocus and the keyboard handler are added in Task 8. Stub for now:
-    function rescueFocus(_out, _inn) {}
+    function focusable(root) {
+      var sel = 'a[href],button,input,select,textarea,[tabindex]';
+      var nodes = root.querySelectorAll(sel);
+      for (var i = 0; i < nodes.length; i++) {
+        var n = nodes[i];
+        if (n.disabled) continue;
+        if (n.getAttribute("tabindex") === "-1") continue;
+        if (n.closest("[inert]")) continue;                 // a nested carousel's rest slides
+        // display / visibility / zero-box — OR, not AND. A `visibility: hidden` node has a
+        // non-null offsetParent and a non-zero height, so an && predicate would accept it,
+        // .focus() would silently no-op, focus would stay on <body>, and the keydown
+        // handler would bail: the exact failure this chain exists to prevent, reached
+        // through the fallback. Ancestor OPACITY must NOT be tested — rescueFocus runs
+        // while the incoming slide is still mid-fade at opacity 0, so an opacity-aware
+        // check would reject every candidate and always fall through to the nav bar.
+        if (!n.offsetParent) continue;
+        var r = n.getBoundingClientRect();
+        if (r.width === 0 && r.height === 0) continue;
+        if (getComputedStyle(n).visibility === "hidden") continue;
+        // Ownership: a candidate inside a NESTED instance would satisfy the rescue but
+        // then fail the keydown guard below, killing navigation after one step.
+        if (n.closest("[data-tabs], [data-gallery]") !== container) continue;
+        return n;
+      }
+      return null;
+    }
+
+    // Inerting a subtree blurs focus inside it to <body>, and the keydown handler bails
+    // when focus is outside the container — so without this, keyboard navigation dies
+    // after exactly one step. The gallery's .imgzoom-trigger target does NOT generalise:
+    // the headline case, a slide holding one table, has no focusable node at all, so the
+    // nav-bar fallback is the EXPECTED outcome, not an edge case.
+    function rescueFocus(out, inn) {
+      if (!out.contains(document.activeElement)) return;   // focus is on the bar
+      var target = focusable(inn) || nav.querySelector("button:not([disabled])");
+      if (!target) { container.setAttribute("tabindex", "-1"); target = container; }
+      target.focus();
+    }
+
+    container.addEventListener("keydown", function (e) {
+      if (dead) return;                     // BEFORE preventDefault, or we swallow keys
+      var delta = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
+      var jump = e.key === "Home" ? 0 : e.key === "End" ? sections.length - 1 : null;
+      if (!delta && jump === null) return;
+      var el = e.target;
+      var tag = el && el.tagName;
+      // Guard 1: form controls own their arrow keys.
+      if (tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA" || (el && el.isContentEditable)) return;
+      // Guard 2: a box that is ACTUALLY scrollable horizontally owns them too. Measured,
+      // not a class list: `.el--table__scroll` on a narrow table has nothing to scroll,
+      // and a class-only check would make the arrow key do nothing at all.
+      for (var n = el; n && n !== container; n = n.parentElement) {
+        var ox = getComputedStyle(n).overflowX;
+        if ((ox === "auto" || ox === "scroll") && n.scrollWidth > n.clientWidth) return;
+      }
+      // Guard 3: node OWNERSHIP, not containment. A keypress in a nested instance
+      // bubbles to an outer container that also contains it — and neither the tabs strip
+      // handler nor gallery.js calls stopPropagation after preventDefault, so one press
+      // would advance both. [data-gallery] is not optional: a gallery is nestable in a
+      // slide and binds its own arrow handler.
+      if (e.defaultPrevented) return;
+      if (el.closest("[data-tabs], [data-gallery]") !== container) return;
+      e.preventDefault();
+      show(jump === null ? idx + delta : jump);
+    });
+
+    // Stable-frame reservation, ported from gallery.js:179-227. Slides have no intrinsic
+    // aspect ratio, so without it every arrow click reflows the page.
+    var measureScheduled = false;
+    function measure() {
+      if (dead) return;
+      stage.style.minHeight = "";          // clear BEFORE measuring: otherwise the second
+      var max = 0;                         // pass reads the reserve back as the natural
+      sections.forEach(function (s) {      // height and the frame can only ever grow
+        max = Math.max(max, s.offsetHeight);
+      });
+      stage.style.minHeight = max + "px";
+    }
+    var ro = window.ResizeObserver ? new ResizeObserver(scheduleMeasure) : null;
+    function scheduleMeasure() {
+      if (dead || measureScheduled) return;
+      measureScheduled = true;
+      // rAF-coalesced: measure() mutates the very elements the observer watches, so an
+      // uncoalesced version re-enters and logs "ResizeObserver loop limit exceeded".
+      window.requestAnimationFrame(function () {
+        measureScheduled = false;
+        // A preview-pane swap detaches the container but leaves these bound.
+        if (!container.isConnected) { teardownMeasure(); return; }
+        measure();
+      });
+    }
+    function teardownMeasure() {
+      if (ro) ro.disconnect();
+      window.removeEventListener("resize", scheduleMeasure);
+      container.removeEventListener("libli:reveal", scheduleMeasure);
+      document.removeEventListener("libli:reveal", onDocReveal);
+    }
+    function onDocReveal(e) {
+      if (e.target.contains && e.target.contains(container)) scheduleMeasure();
+    }
+    if (ro) sections.forEach(function (s) { ro.observe(s); });
+    window.addEventListener("resize", scheduleMeasure);
+    // Reveal-gates and outer tab panels are the only two dispatchers in the codebase.
+    // A <details>-based spoiler dispatches nothing — there the ResizeObserver is what
+    // rescues the measurement when the subtree stops being skipped.
+    container.addEventListener("libli:reveal", scheduleMeasure);
+    document.addEventListener("libli:reveal", onDocReveal);
 
     function bail() {
       dead = true;
+      teardownMeasure();
       sections.forEach(function (s) {
         s.removeAttribute("inert");
         s.removeAttribute("aria-hidden");
@@ -392,6 +498,7 @@
       next.addEventListener("click", function () { show(idx + 1); });
       show(0);
       container.classList.add("tabs--carousel");   // LAST: the gate
+      measure();
     } catch (e) {
       bail();
       if (window.console && console.error) console.error(e);

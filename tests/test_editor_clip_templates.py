@@ -244,7 +244,7 @@ def test_a_padded_slot_renders_no_paste_button(client):
     body = _editor(client, course, unit)
 
     # Match the EDITOR's <details> only. `data-tab-id` is also emitted by the
-    # preview pane (templates/courses/elements/tabselement.html:17), which
+    # preview pane (the `data-tab-id` attribute in `tabselement.html`), which
     # _editor_scope.html renders after the editor -- and because normalize_data
     # mints a fresh padding id on EVERY call, the preview's padding id differs
     # from the editor's. A bare attribute regex therefore harvests a phantom id

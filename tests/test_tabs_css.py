@@ -115,6 +115,16 @@ def test_the_error_bail_clears_inert_aria_hidden_and_both_classes():
     assert "bail();" in js[js.index("} catch (") :]  # …and the catch actually calls it
 
 
+def test_the_error_bail_tears_down_the_measurement_wiring():
+    js = TABS_JS.read_text(encoding="utf-8")
+    # BOUNDED slice, not to end-of-file: `scheduleMeasure` contains a
+    # character-identical `teardownMeasure();` call, so an unbounded slice is satisfied
+    # by that one alone and Step 6's mutant stays green. bail() ends where the nav
+    # declarations begin.
+    body = js[js.index("function bail") : js.index("var nav = null")]
+    assert "teardownMeasure();" in body
+
+
 def test_every_new_carousel_class_is_a_single_token_literal():
     r"""The drift guard is re.findall(r'className = "([\w-]*tabs__[\w-]+)"'). A space is
     not in [\w-], so a base+modifier literal matches NOTHING and both classes ship
