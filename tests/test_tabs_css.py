@@ -83,3 +83,50 @@ def test_every_tabs_i18n_template_carries_every_carousel_key(path):
     html = path.read_text(encoding="utf-8")
     for key in CAROUSEL_I18N_KEYS:
         assert f"{key}:" in html, f"{path.name} is missing TABS_I18N.{key}"
+
+
+def test_the_carousel_gate_class_is_added_after_show_zero():
+    """The gate must go on LAST. .tabs--js is applied before the branch is entered, so
+    gating on it would leave a half-initialised carousel blank rather than stacked."""
+    js = TABS_JS.read_text(encoding="utf-8")
+    assert 'classList.add("tabs--carousel")' in js
+    assert js.index("show(0)") < js.index('classList.add("tabs--carousel")'), (
+        "the gate class must be added after show(0) succeeds"
+    )
+
+
+def test_the_error_bail_clears_inert_aria_hidden_and_both_classes():
+    """A class gate closes only the CSS half. inert/aria-hidden are JS-written
+    ATTRIBUTES — no class can un-apply them, and the rest-init loop sets both on every
+    section before show(0) runs.
+
+    Sliced from `function bail`, NOT from the first `catch` token: bail() is DEFINED
+    above the try/catch, so a catch-anchored slice would contain only `bail();` and
+    none of the statements below — the assertion would fail on correct code."""
+    js = TABS_JS.read_text(encoding="utf-8")
+    # Bounded at `var nav = null` for the same reason the teardown assertion is: an
+    # unbounded slice would be satisfied by any future helper appended below
+    # initCarousel that happens to clear aria-hidden, letting an emptied bail() pass.
+    body = js[js.index("function bail") : js.index("var nav = null")]
+    assert 'removeAttribute("inert")' in body
+    assert 'removeAttribute("aria-hidden")' in body
+    assert 'classList.remove("tabs--js")' in body
+    assert 'classList.remove("tabs--carousel")' in body
+    assert "bail();" in js[js.index("} catch (") :]  # …and the catch actually calls it
+
+
+def test_every_new_carousel_class_is_a_single_token_literal():
+    r"""The drift guard is re.findall(r'className = "([\w-]*tabs__[\w-]+)"'). A space is
+    not in [\w-], so a base+modifier literal matches NOTHING and both classes ship
+    unguarded. Also: no classList.add for a styled base class."""
+    js = TABS_JS.read_text(encoding="utf-8")
+    emitted = set(re.findall(r'className = "([\w-]*tabs__[\w-]+)"', js))
+    for cls in [
+        "tabs__cbar",
+        "tabs__cprev",
+        "tabs__cnext",
+        "tabs__dots",
+        "tabs__dot",
+        "tabs__status",
+    ]:
+        assert cls in emitted, f"{cls} is invisible to the style-drift guard"
