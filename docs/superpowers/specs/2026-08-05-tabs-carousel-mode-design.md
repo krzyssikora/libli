@@ -387,9 +387,25 @@ and throwing on `.replace`. `.tabs--js` protects the *no-JS* case only; it canno
 So: `initOne` keeps adding `.tabs--js` where it does today, and the carousel branch adds
 `.tabs--carousel` only after `show(0)` has completed successfully. Every carousel screen rule
 keys on `.tabs--carousel` (plus `[data-display="carousel"]` for clarity), and the print resets
-use the same gate so the `!important` argument below still holds. A half-initialised carousel
-then falls back to stacked-and-labelled, which is exactly what the Error-handling section
-promises — and it can now honestly promise it.
+use the same gate so the `!important` argument below still holds.
+
+⚠️ **A class gate closes only the CSS half of the hazard. The branch also needs a `try/catch`
+that undoes its ATTRIBUTE writes.** `inert` and `aria-hidden` are JS-written attributes, not
+styles, so no class can un-apply them. Ported from the gallery, the rest-init loop sets both
+on **every** section before `show(0)` runs — and the named error scenario (a template missing
+a carousel i18n key → `undefined` → throw on `.replace`) throws *inside* `show(0)`, after that
+loop. What the reader would get is not the stacked fallback but something worse than blank:
+every slide `inert` (its fill-in table, links and zoom triggers non-interactive and
+unfocusable) and `aria-hidden` (the whole element absent from the accessibility tree). A throw
+*after* a successful `show(0)` — in the status string, or in `measure()` — leaves slides
+2..N in the same state.
+
+So the carousel branch is wrapped in a `try/catch` whose handler strips `inert` and
+`aria-hidden` from every **own** section (`ownSections`, never a bare query — a nested
+instance's sections are not ours to clear), removes `.tabs--carousel`, and bails. Only then is
+"JS error → stacked, labelled, readable fallback" an honest promise rather than an
+aspiration. Falsification: delete a `TABS_I18N` carousel key to force the throw, then assert
+every section is non-`inert`, not `aria-hidden`, and its content reachable by tabbing.
 
 ⚠️ **Every carousel screen rule is also gated on that class AND `[data-display="carousel"]`**,
 mirroring `.el--gallery.gallery--js .gallery__item`. `data-display` is emitted by the
@@ -920,8 +936,10 @@ repairs them when out of enum, and passes them into the constructed element.
   the branch adds only after `show(0)` succeeds: the server-emitted `data-display="carousel"`
   alone would blank the element with JS off, and `.tabs--js` alone would blank it whenever
   the branch **threw part-way** — that class is already applied before the branch is even
-  reached. The late gate is what makes "JS error → stacked fallback" true rather than
-  aspirational.
+  reached. The late gate handles the CSS half; the branch's `try/catch`, which strips `inert`
+  and `aria-hidden` from its own sections, handles the attribute half. **Both** are required
+  for this bullet to be true: without the catch, a mid-init throw leaves every slide inert
+  and hidden from assistive technology, which is worse than blank, not a fallback.
 - **`ResizeObserver` absent** (feature-detected exactly as the gallery detects it): the stage
   is measured once at init and never re-measured, so a KaTeX typeset or font swap after first
   paint leaves the reservation short. The material case is a carousel inside a
@@ -998,10 +1016,23 @@ inset(50%)` → RED). The manual print preview stays as a supplement.
 central safety property and every behavioural test drives a *successful* init, so the mutant
 survives them all. Two assertions over source, each with a named mutant:
 
-- every `courses.css` rule that sets `position: absolute` or `opacity: 0` on a
-  `.tabs__section` also carries `.tabs--carousel` (mutant: swap it for `.tabs--js` → RED);
+- every `courses.css` rule **whose selector subject is `.tabs__section`** (i.e. the selector
+  ends there, with no trailing compound) and which sets `opacity: 0` + `pointer-events: none`
+  also carries `.tabs--carousel` (mutant: swap it for `.tabs--js` → RED).
+
+  ⚠️ Do **not** write this as "any line containing `.tabs__section` and `position:
+  absolute`". After child-chaining, the *correct* tabs-mode sr-only rule is a single physical
+  line reading `… > .tabs__stage > .tabs__section > .tabs__panel-label { position: absolute;
+  width: 1px; … }` — it contains `.tabs__section`, contains `position: absolute`, and
+  legitimately has no `.tabs--carousel`. A substring predicate therefore **fails on correct
+  code**, and the obvious repair is to weaken it until it passes, which guts the guard. Key
+  on the selector's subject and on the `opacity: 0` + `pointer-events: none` pair unique to
+  the slide rule, and name the tabs-mode label rule as an expected non-match so a later
+  widening cannot re-admit it.
 - in `tabs.js`, the `classList.add("tabs--carousel")` statement appears **after** the
-  `show(0)` call in the carousel branch (mutant: hoist it above `show(0)` → RED).
+  `show(0)` call in the carousel branch (mutant: hoist it above `show(0)` → RED);
+- the carousel branch's `catch` handler clears `inert` and `aria-hidden` (mutant: delete the
+  handler body → the forced-throw e2e above goes RED).
 
 Without these, a later tidy-up can restore the blank-on-JS-error behaviour with the whole
 suite green — the same argument that justifies the source-level print test above.
