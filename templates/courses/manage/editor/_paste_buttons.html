@@ -1,0 +1,13 @@
+{% load i18n %}
+{% if show_move or show_copy %}
+<form class="pastewrap" method="post" action="{% url 'courses:manage_element_paste' slug=unit.course.slug %}" data-op="element-paste">
+  {% csrf_token %}
+  <input type="hidden" name="ctx" value="editor">
+  <input type="hidden" name="parent" value="{{ parent }}">
+  <input type="hidden" name="tab" value="{{ tab }}">
+  <input type="hidden" name="unit" value="{{ unit.pk }}">
+  <input type="hidden" name="unit_token" value="{{ unit.updated.isoformat }}">
+  {% if show_move %}<button class="iconbtn pastebtn" type="submit" name="mode" value="move" aria-label="{% trans 'Move here' %}" title="{% trans 'Move here' %}">📋</button>{% endif %}
+  {% if show_copy %}<button class="iconbtn pastebtn" type="submit" name="mode" value="copy" aria-label="{% trans 'Copy here' %}" title="{% trans 'Copy here' %}">⧉</button>{% endif %}
+</form>
+{% endif %}

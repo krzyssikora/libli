@@ -407,6 +407,18 @@ SERIALIZERS = {
 _MODEL_TO_KEY = {model: key for key, (model, _fn) in SERIALIZERS.items()}
 
 
+def model_to_key(model):
+    """Transfer key for a concrete element MODEL class, or None if unregistered.
+
+    Public because builder's clause 2 needs it: NESTABLE_TYPE_KEYS is keyed by
+    transfer key, while a paste holds a join and therefore a model. Reaching into
+    the private _MODEL_TO_KEY from builder.py would be the same coupling with less
+    notice. Takes the class, not an instance, so `type(None)` for a dangling GFK
+    returns None and falls out of every membership test.
+    """
+    return _MODEL_TO_KEY.get(model)
+
+
 def serialize_element_data(concrete, media_ids):
     key = _MODEL_TO_KEY.get(type(concrete))
     if key is None:  # pragma: no cover — every ElementBase subclass is registered

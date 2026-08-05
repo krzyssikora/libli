@@ -1,6 +1,6 @@
 {% load i18n courses_manage_extras %}
 {% if el.content_type.model == "slidebreakelement" %}
-<li class="el-row element-row--slidebreak" data-slidebreak-row
+<li class="el-row element-row--slidebreak{% if clip_element_pk == el.pk|stringformat:'s' %} el-row--marked{% endif %}" data-slidebreak-row
     data-element="{{ el.pk }}" data-updated="{{ unit.updated.isoformat }}" data-unit="{{ unit.pk }}">
   <div class="el-row__head">
     <button type="button" class="iconbtn ica--grip" draggable="true"
@@ -16,7 +16,7 @@
   </div>
 </li>
 {% elif el.content_type.model == "revealgateelement" %}
-<li class="el-row element-row--revealgate{% if open_form_pk == el.pk|stringformat:'s' %} el-row--editing{% endif %}"
+<li class="el-row element-row--revealgate{% if open_form_pk == el.pk|stringformat:'s' %} el-row--editing{% endif %}{% if clip_element_pk == el.pk|stringformat:'s' %} el-row--marked{% endif %}"
     data-element="{{ el.pk }}" data-updated="{{ unit.updated.isoformat }}" data-unit="{{ unit.pk }}">
   <div class="el-row__head">
     <button type="button" class="iconbtn ica--grip" draggable="true"
@@ -42,7 +42,7 @@
   <div class="el-edit-slot" data-edit-slot>{% if open_form_pk == el.pk|stringformat:'s' %}{{ open_form|safe }}{% endif %}</div>
 </li>
 {% elif el.content_type.model == "tabselement" %}
-<li class="el-row el-row--tabs{% if open_form_pk == el.pk|stringformat:'s' %} el-row--editing{% endif %}"
+<li class="el-row el-row--tabs{% if open_form_pk == el.pk|stringformat:'s' %} el-row--editing{% endif %}{% if clip_element_pk == el.pk|stringformat:'s' %} el-row--marked{% endif %}"
     data-element="{{ el.pk }}" data-updated="{{ unit.updated.isoformat }}" data-unit="{{ unit.pk }}">
   <div class="el-row__head">
     <button type="button" class="iconbtn ica--grip" draggable="true"
@@ -79,7 +79,7 @@
   {% endcomment %}
   <div class="el-row__tabs">
     {% for tab, children in obj.resolved_tabs %}
-      <details class="tabs-rows" data-tab-id="{{ tab.id }}"{% if el.pk|slot_key:tab.id|in_set:open_slots %} open data-force-open{% elif forloop.first %} open{% endif %}>
+      <details class="tabs-rows" data-tab-id="{{ tab.id }}"{% if el.pk|slot_key:tab.id|in_set:open_slots %} open data-force-open{% elif clip_active %} open data-force-open{% elif forloop.first %} open{% endif %}>
         <summary class="tabs-rows__summary">{{ tab.label }} <span class="tabs-rows__count">{{ children|length }}</span></summary>
         <ol class="element-list element-list--nested">
           {% for child in children %}
@@ -88,13 +88,13 @@
             <li class="empty-state">{% trans "This tab is empty." %}</li>
           {% endfor %}
         </ol>
-        {% if depth < max_nest_depth %}{% include "courses/manage/editor/_add_menu.html" with nested=True parent=el.pk tab=tab.id depth=depth %}{% endif %}
+        {% if depth < max_nest_depth %}{% include "courses/manage/editor/_add_menu.html" with nested=True parent=el.pk tab=tab.id depth=depth %}{% endif %}{% paste_buttons el.pk tab.id %}
       </details>
     {% endfor %}
   </div>
 </li>
 {% elif el.content_type.model == "twocolumnelement" %}
-<li class="el-row el-row--twocolumn{% if open_form_pk == el.pk|stringformat:'s' %} el-row--editing{% endif %}"
+<li class="el-row el-row--twocolumn{% if open_form_pk == el.pk|stringformat:'s' %} el-row--editing{% endif %}{% if clip_element_pk == el.pk|stringformat:'s' %} el-row--marked{% endif %}"
     data-element="{{ el.pk }}" data-updated="{{ unit.updated.isoformat }}" data-unit="{{ unit.pk }}">
   <div class="el-row__head">
     <button type="button" class="iconbtn ica--grip" draggable="true"
@@ -129,7 +129,7 @@
   {% endcomment %}
   <div class="el-row__columns">
     {% for column, children in obj.resolved_columns %}
-      <details class="columns-rows" data-column-id="{{ column.id }}"{% if el.pk|slot_key:column.id|in_set:open_slots %} open data-force-open{% elif forloop.first %} open{% endif %}>
+      <details class="columns-rows" data-column-id="{{ column.id }}"{% if el.pk|slot_key:column.id|in_set:open_slots %} open data-force-open{% elif clip_active %} open data-force-open{% elif forloop.first %} open{% endif %}>
         <summary class="columns-rows__summary">{% blocktrans with n=forloop.counter %}Column {{ n }}{% endblocktrans %} <span class="columns-rows__count">{{ children|length }}</span></summary>
         <ol class="element-list element-list--nested">
           {% for child in children %}
@@ -138,13 +138,13 @@
             <li class="empty-state">{% trans "This column is empty." %}</li>
           {% endfor %}
         </ol>
-        {% if depth < max_nest_depth %}{% include "courses/manage/editor/_add_menu.html" with nested=True parent=el.pk tab=column.id depth=depth %}{% endif %}
+        {% if depth < max_nest_depth %}{% include "courses/manage/editor/_add_menu.html" with nested=True parent=el.pk tab=column.id depth=depth %}{% endif %}{% paste_buttons el.pk column.id %}
       </details>
     {% endfor %}
   </div>
 </li>
 {% elif el.content_type.model == "spoilerelement" %}
-<li class="el-row el-row--spoiler{% if open_form_pk == el.pk|stringformat:'s' %} el-row--editing{% endif %}"
+<li class="el-row el-row--spoiler{% if open_form_pk == el.pk|stringformat:'s' %} el-row--editing{% endif %}{% if clip_element_pk == el.pk|stringformat:'s' %} el-row--marked{% endif %}"
     data-element="{{ el.pk }}" data-updated="{{ unit.updated.isoformat }}" data-unit="{{ unit.pk }}">
   <div class="el-row__head">
     <button type="button" class="iconbtn ica--grip" draggable="true"
@@ -192,11 +192,11 @@
         {% endif %}
       {% endfor %}
     </ol>
-    {% if depth < max_nest_depth %}{% include "courses/manage/editor/_add_menu.html" with nested=True parent=el.pk tab=obj.SLOT_ID depth=depth %}{% endif %}
+    {% if depth < max_nest_depth %}{% include "courses/manage/editor/_add_menu.html" with nested=True parent=el.pk tab=obj.SLOT_ID depth=depth %}{% endif %}{% paste_buttons el.pk obj.SLOT_ID %}
   </div>
 </li>
 {% elif el.content_type.model == "calloutelement" %}
-<li class="el-row el-row--callout{% if open_form_pk == el.pk|stringformat:'s' %} el-row--editing{% endif %}"
+<li class="el-row el-row--callout{% if open_form_pk == el.pk|stringformat:'s' %} el-row--editing{% endif %}{% if clip_element_pk == el.pk|stringformat:'s' %} el-row--marked{% endif %}"
     data-element="{{ el.pk }}" data-updated="{{ unit.updated.isoformat }}" data-unit="{{ unit.pk }}">
   <div class="el-row__head">
     <button type="button" class="iconbtn ica--grip" draggable="true"
@@ -241,11 +241,11 @@
         {% endif %}
       {% endfor %}
     </ol>
-    {% if depth < max_nest_depth %}{% include "courses/manage/editor/_add_menu.html" with nested=True parent=el.pk tab=obj.SLOT_ID depth=depth %}{% endif %}
+    {% if depth < max_nest_depth %}{% include "courses/manage/editor/_add_menu.html" with nested=True parent=el.pk tab=obj.SLOT_ID depth=depth %}{% endif %}{% paste_buttons el.pk obj.SLOT_ID %}
   </div>
 </li>
 {% else %}
-<li class="el-row{% if open_form_pk == el.pk|stringformat:'s' %} el-row--editing{% endif %}"
+<li class="el-row{% if open_form_pk == el.pk|stringformat:'s' %} el-row--editing{% endif %}{% if clip_element_pk == el.pk|stringformat:'s' %} el-row--marked{% endif %}"
     data-element="{{ el.pk }}" data-updated="{{ unit.updated.isoformat }}" data-unit="{{ unit.pk }}">
   <div class="el-row__head">
     <button type="button" class="iconbtn ica--grip" draggable="true"
