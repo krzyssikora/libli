@@ -506,9 +506,11 @@ distinguishes the two *enhanced* modes; it does not replace the JS gate.
   The block below is that transcription, written out because several requirements elsewhere
   in this spec are correct only at a specific point in it. The **departures** from the
   gallery are exactly: the `dead` guard (step 0), the boundary focus transfer (step 4b), the
-  `.tabs__status` write folded into step 4, the `libli:reveal` dispatch (step 6 and step 10),
-  the four-filter `rescueFocus` candidate predicate, and the absence of the
-  `useDots`/counter branch. Nothing else.
+  `libli:reveal` dispatch (step 6 and step 10), the four-filter `rescueFocus` candidate
+  predicate, and the absence of the `useDots`/counter branch. Nothing else. (The
+  `.tabs__status` write in step 4 is **not** a departure — `gallery.js` already folds its
+  status write into `updateIndicator()` at `:95`; step 4 simply names it explicitly, because
+  its position is what makes the forced-throw falsification work.)
 
   ```
   0.  if (dead) return;                                  // set by the error bail; MUST be first
@@ -533,10 +535,15 @@ distinguishes the two *enhanced* modes; it does not replace the JS gate.
   8.  out: set aria-hidden + inert
   9.  inn.style.opacity = "0"; force reflow; inn.classList.add("is-active")
       inn.style.opacity = "1"; out.style.opacity = "0"
-      pending = {out, inn, timer}; timer(FADE_MS or 0) -> settleHidden(out); inn.style.opacity = ""
+      pending = {out, inn, timer}
+      timer(FADE_MS or 0) -> settleHidden(out); inn.style.opacity = ""; pending = null
   10. dispatch libli:reveal on inn (bubbles: true)
 
-  pending = null            // module-local, initialised HERE, not lazily
+  // idx, dead and pending are PER-INSTANCE closure state, declared inside initOne beside
+  // one another (gallery.js:31-32), never at IIFE/module scope: a shared `pending` would
+  // let one carousel's step 1 finalise another's in-flight fade — and a carousel may
+  // legally contain a carousel.
+  idx = -1; dead = false; pending = null      // initialised eagerly, not lazily
   settleHidden(el):  el.classList.remove("is-active"); el.style.opacity = "";
                      el.setAttribute("aria-hidden", "true"); el.setAttribute("inert", "")
   finalizePending(): if (!pending) return;              // REQUIRED — see below
