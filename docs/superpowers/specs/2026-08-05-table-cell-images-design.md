@@ -196,7 +196,9 @@ to the template, so without this change `cell.media` stays an `int` and the temp
 
 `tableelement.html` currently emits `{{ cell.html|safe }}` on all five of its branches (four of
 which are `<th>`). Factor the cell body into **a new `_table_cell.html`**, included from all five
-branches, so they cannot drift and an image in a header row is handled once.
+branches, so they cannot drift and an image in a header row is handled once. Path:
+`templates/courses/elements/_table_cell.html`, beside `_filltable_cell.html` (the repo has a second
+template root at `courses/templates/courses/`, so the path is stated rather than inferred).
 **`_filltable_cell.html` stays separate** — it branches on `cell.kind == "answer"`, reads
 `mine.done`, and uses `forloop.parentloop.counter0` for the answer input's `data-r`/`data-c`, none
 of which a plain table has.
@@ -214,6 +216,10 @@ it and every preset would degrade to Full. Reduce `.filltable__img` to `height: 
 block`, put all sizing on `.cell-img--*`, and place the preset block **after** the base rule. This
 is the same equal-specificity trap already recorded from the callout slice; removing the competing
 declaration resolves it by construction rather than by source order alone.
+Once reduced, `.filltable__img` declares nothing `.cell-img` does not, so **delete the rule
+outright** — keeping a no-op rule invites a future author to re-add `max-width` and re-open the
+trap. The **class stays on the element** (`tests/test_filltable_render.py` asserts on it); only the
+CSS rule goes.
 
 CSS lives in `courses/static/courses/css/courses.css` alongside the existing `.el--table` and
 `.filltable__img` rules (not `editor.css` — that is where the shared `.table-editor__grid` cell
@@ -276,9 +282,13 @@ hook: `if (pick.getAttribute("data-pick-mode") === "cell" && window.libliFillTab
 Rendering `data-pick-mode="cell"` in `_edit_table.html` therefore does **nothing** until
 `media_picker.js` changes. `media_picker.js` gains a dispatch keyed off the button's owning editor
 root (`[data-table-editor]` vs `[data-filltable-editor]`), and `table_editor.js` registers its own
-distinctly-named hook. **`table_editor.js` must not assign `window.libliFillTablePickImage`** —
-both editor scripts load on every editor page, so a shared global means whichever runs last wins
-and one editor's picker silently drives the other's callback.
+hook, **`window.libliTablePickImage`**. **It must not assign
+`window.libliFillTablePickImage`** — both editor scripts load on every editor page, so a shared
+global means whichever runs last wins and one editor's picker silently drives the other's callback.
+The existing hook carries a `// Single global; assumes one … editor per page` caveat and closes
+over `focusCell`; `initTableEditor` explicitly `querySelectorAll`s for `[data-table-editor]`, so
+the new callback **resolves its editor from the button** (`pick.closest("[data-table-editor]")`)
+rather than inheriting that latent last-wired-wins assumption.
 
 **Table editor cell markup.** `_edit_table.html`'s grid loop has one
 `<td contenteditable>`/`<th contenteditable>` pair and no image branch. It gains an image branch carrying **identical attributes to the existing text branch** —
@@ -306,6 +316,12 @@ post-merge/delete focus fallback.
 
 - **On a text cell** → picker → convert, **stashing the prior HTML** so the conversion is
   reversible (the fill-table's per-node stash is the precedent), writing `size="medium"`.
+  **The stash is cleared on every structural edit**, adopting the *other* half of that precedent:
+  `filltable_editor.js`'s `afterStructuralEdit()` opens with `cellStash.clear()` because a stash
+  could otherwise restore into the wrong node after the grid reshapes. This is not a free choice —
+  `afterStructuralEdit` is currently a `DIVERGENT` entry whose entire stated reason is that the
+  fill-table clears and the plain table does not; clearing makes the bodies identical, so the entry
+  **moves to `TWINS`**.
 - **On an image cell** → picker → replace the image, preserving `size` and `alt`.
 - **Reverting to text** needs its own control: the fill-table gets this free from its Answer-cell
   toggle, which the plain Table has no equivalent of. **Remove image** mirrors
@@ -321,6 +337,18 @@ post-merge/delete focus fallback.
 
 **Per-cell controls**, shown only while an image cell is focused: the **alt** input, the new
 **size** select, and **Remove image**. The fill-table editor gains the same size select.
+Remove image needs a sprite glyph: the sprite defines no trash/remove symbol today (`ed-minus` is
+the nearest and means "delete row/column"), so **add a new monochrome `currentColor`
+`ed-image-remove` symbol** rather than overloading an existing one; the "every `#ed-*` reference
+resolves to a defined sprite symbol" test covers it.
+
+**The select must be populated from the focused cell, not merely shown.** The alt input's
+precedent is `imageAlt.value = td.dataset.alt || ""` inside `focusin`; a toolbar-level control
+otherwise displays a stale value from the previously focused image cell, so an author focusing a
+`full` cell would see "Medium". So: `focusin` on an image cell sets the select's value from
+`td.dataset.size` (defaulting to `full`); a `change` on the select writes `td.dataset.size`, swaps
+the preview's modifier class, and calls `serialize()`. Pinned by a test that focuses two image
+cells of different sizes in turn.
 
 **Two fill-table editor sites carry `size`, and missing either reverts every image cell to `full`
 on every save** — the same defect class as the `_ser_fill_table` omission, but on the far more
@@ -684,6 +712,11 @@ must link **both** `courses.css` and `editor.css` to render faithfully.
 - A `@media print` block bounds `full` at 170mm; Small/Medium/Large are already absolute.
 - Merge **confirms and discards** an absorbed image cell; it does not block.
 - `size` is always written on an image cell, so every reader may use `cell["size"]` directly.
+- The shared resolver is `courses/tablecells.py::resolve_image_cells`; `FillTableElement`'s
+  staticmethod stays as a delegator.
+- The plain table's stash is cleared on structural edits, moving `afterStructuralEdit` to `TWINS`.
+- Remove image with no stash yields an **empty** text cell, which is the common path.
+- The new picker hook is `window.libliTablePickImage`, resolving its editor from the button.
 
 ## Line-number policy
 
