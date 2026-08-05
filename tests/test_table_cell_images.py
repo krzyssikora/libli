@@ -117,6 +117,28 @@ def test_sanitized_data_survives_an_image_cell_with_no_alt_key():
     assert out["cells"][0][0]["alt"] == ""
 
 
+def test_sanitized_data_bounds_alt_at_255_directly():
+    """save() calls ONLY _sanitized_data, never normalize_data, so the 255
+    bound must hold here too -- not just in _cell (via normalize_data)."""
+    out = TableElement._sanitized_data(
+        _data({"kind": "image", "media": 7, "alt": "x" * 300})
+    )
+    assert len(out["cells"][0][0]["alt"]) == 255
+
+
+def test_filltable_sanitized_data_bounds_alt_at_255_directly():
+    data = {
+        "prompt": "",
+        "case_sensitive": False,
+        "header_row": False,
+        "header_col": False,
+        "border": "grid",
+        "cells": [[{"kind": "image", "media": 7, "alt": "x" * 300}]],
+    }
+    out = FillTableElement._sanitized_data(data)
+    assert len(out["cells"][0][0]["alt"]) == 255
+
+
 def test_filltable_image_cell_gains_size():
     nd = FillTableElement.normalize_data(
         {
