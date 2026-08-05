@@ -336,9 +336,11 @@ Two artifacts are required, and **the mechanism must not be mistaken for the gua
   `re.sub(r">\s+<", "><", …)`, so with an **empty** cell (`html: ""`) the include emits only its
   trailing newline and the render is `<td …>\n</td>` — `>` + whitespace + `<` — which collapses to
   `<td …></td>`, byte-identical to today. Both the trailing-newline mutant *and* the leading-indent
-  mutant survive. This is the dangerous default: `TableElement(data={})` normalizes to a 2×2 of
-  `html: ""` cells, and both `test_table_editor_partial.py` and `test_table_render.py` build tables
-  that way. The whole mechanism below turns on whitespace being **adjacent to text**, so the fixture
+  mutant survive. This is the dangerous default in **`test_table_editor_partial.py`**, which does
+  `_render(TableElement())` — `data={}` normalizes to a 2×2 of `html: ""` cells.
+  **`test_table_render.py` is NOT such a case** (an earlier draft said it was): every one of its tests
+  goes through a `_grid(rows, cols)` helper whose cells are `{"html": f"r{r}c{c}", …}`, always
+  non-empty — which makes it the **correct host** for this guard. The whole mechanism below turns on whitespace being **adjacent to text**, so the fixture
   must supply text.
 - **The mechanism (explanatory only).** `math_reflow.js` compares **TEXT-NODE LEAVES**, so an
   injected whitespace node changes its decision — which is *why* the bytes matter.
@@ -980,55 +982,34 @@ wrong checklist.)
   reads only `TABLE_JS`, so the fill-table editor's class emissions are unguarded — extend that
   guard to `FILL_JS`/`courses.css`, or add a test asserting the class pair on a freshly converted
   fill-table cell.
-  **If the guard is extended, the two CSS sources must be checked SEPARATELY with a
-  boundary-anchored match** — otherwise extending it is what *creates* a vacuous guard. The assertion
-  is a bare `assert f".{cls}" in css`, and `.table-editor__img--small` is a **substring** of
-  `.filltable-editor__img--small`. `editor.css` contains **zero** occurrences of `filltable` today,
-  which is the only reason the existing guard is honest. The moment `courses.css` joins the searched
-  text — as this paragraph instructs — every plain-table `table-editor__img*` assertion is satisfied
-  by the fill table's rules living in `courses.css`, and all four plain-table modifiers can ship
-  unstyled. So: check `table-editor__*` against **`editor.css` only** and `filltable-editor__*`
-  against **`courses.css` only**, never a concatenation of the two, and match with a
-  boundary-anchored regex rather than `in` — and anchored on **both** sides:
-  **`(?<![\w-])\.{cls}(?![\w-])`**. A trailing `` is not enough: `` matches between `g` and `-`, so
-  `(?<![\w-])\.table-editor__img` is satisfied by `.table-editor__img--small { … }` — an implementer
-  who writes the four modifier rules and forgets the newly-authored
-  `.table-editor__img { height: auto; display: block; }` would get a green guard and an inline,
-  aspect-broken preview. Closing the `filltable`-prefix hazard while re-opening a modifier-suffix one
-  is no gain. Use the two-sided form for **every** class, base and modifier alike.
+  **Three durable contracts for that guard — the concrete regex text belongs in the PLAN, not here.**
+  The reasoning below is what must survive; the exact patterns are keyed to `test_table_css.py`'s
+  current two-assertion shape and will rot if that file is ever restructured, so the plan's editor task
+  carries them and corrects them against the file being edited.
 
-  **The two-sided anchor still does not prove a BASE RULE exists — a second, declaration-level
-  assertion is required.** `(?<![\w-])\.table-editor__img(?![\w-])` is satisfied by the alignment
-  rules this same spec mandates, `.ta-center > .table-editor__img {` and `.ta-right > …` (space before
-  the dot, space after the class), so the guard passes with the base rule
-  `.table-editor__img { height: auto; display: block; }` entirely absent — exactly the failure the
-  anchor was introduced to close. Same for `.cell-img` in `courses.css` via `.ta-center > .cell-img`.
-  So the naming guard proves **naming only**, and each base rule gets its own line-anchored
-  selector-plus-brace assertion:
+  1. **Per-file, never concatenated.** `table-editor__*` is checked against **`editor.css` only** and
+     `filltable-editor__*` against **`courses.css` only**. Today's guard is honest solely because
+     `editor.css` contains **zero** occurrences of `filltable`; the moment `courses.css` joins the
+     searched text, every plain-table assertion is satisfied by the fill table's rules — because
+     `.table-editor__img--small` is a **substring** of `.filltable-editor__img--small` — and all four
+     plain-table modifiers can ship unstyled.
+  2. **"Named somewhere" and "a base rule exists" are two separate assertions.** A boundary-anchored
+     name match must be anchored on **both** sides (a trailing `\b` matches between `g` and `-`, so a
+     one-sided form is satisfied by `.table-editor__img--small`), and even a two-sided match is
+     satisfied by the alignment rules this spec mandates (`.ta-center > .table-editor__img {`). So the
+     name match proves **naming only**; each base rule — `.table-editor__img` in `editor.css`,
+     `.cell-img` in `courses.css` — needs its own declaration-level assertion that the rule itself is
+     present. Whatever form the plan picks must be **verified to fail when the base rule is deleted**
+     (a line-anchored `^` regex needs `re.MULTILINE`, or it matches nothing and the guard destroys
+     itself on a correct build).
+  3. **Every class must appear as a whole quoted literal in the JS** — which is the entire reason for
+     the `CELL_IMG_CLASS` map. A concatenation (`"…--" + size`) leaves only a stem literal, and any
+     substring-style assertion then passes with three of four modifiers missing.
 
-  ```
-  assert re.search(r"^\.table-editor__img\s*\{", editor_css, re.M)
-  assert re.search(r"^\.cell-img\s*\{",          courses_css, re.M)
-  ```
-
-  **`re.M` is not optional.** Without it `^` anchors at the start of the *string*, and both rules sit
-  hundreds of lines into their files — so the assertion returns `None` on a **correct** implementation:
-  a self-destroying guard whose natural "fix" is deletion. (The nearest precedent,
-  `test_text_colour_toolbars.py`, uses a plain `css.index(".rte-swatch.is-on {")` substring lookup for
-  *ordering*, not a line-anchored regex. A substring form would also work here — `.ta-center > .cell-img {`
-  does not contain `
-.cell-img {` — but the anchored form is what this spec specifies, so it must carry
-  its flag.)
-
-  **Two different `cls` conventions, stated separately so the f-string is not reused blindly.** The
-  emission guard's `cls` comes from `re.findall(r'"(table-editor__[\w-]+)"', js)` and carries **no**
-  leading dot, so `f"(?<![\\w-])\\.{cls}(?![\\w-])"` is right there. But
-  `test_courses_css_defines_table_element`'s hardcoded entries **already include the dot**
-  (`".el--table"`, `".ta-center"`, …), so reusing that same f-string yields `\..el--table` — literal
-  dot, any character, `el--table` — which matches nothing, failing the guard on a **correct**
-  implementation and inviting an implementer to delete the new assertion. For that list either strip
-  the leading dots from the entries or use `f"(?<![\\w-]){re.escape(cls)}(?![\\w-])"` with the dot
-  inside `cls`.
+  A fourth, mechanical trap for the plan to carry: the emission guard's `cls` values come from
+  `re.findall` and carry **no** leading dot, while `test_courses_css_defines_table_element`'s hardcoded
+  entries **do** (`".el--table"`, …). Reusing one f-string across both yields `\..el--table`, which
+  matches nothing.
   Correspondingly, `data-size` must be added to the attributes removed by `toggleAnswerCell`'s
   image→static branch (which today drops `data-media`/`data-alt`/`tabindex`), or a stale `data-size`
   lingers on the static cell and is inherited by a later reconversion.
@@ -1666,8 +1647,8 @@ signature is what keeps both existing call sites working unchanged
 
 **Why it must survive is those two live call sites — not a test.** An earlier draft claimed
 `tests/test_filltable_editor_partial.py` "calls it by name"; it does not. The name appears there only
-inside a **docstring**, so that test would not go red if the delegator were deleted. (Its docstring
-is separately on the stale-artifact list for the span-preservation inversion.) Correcting this because
+inside a **docstring**, so that test would not go red if the delegator were deleted. (Its docstring is on
+the stale-artifact list for the span-preservation inversion, as is the span-drop test's.) Correcting this because
 an unchallenged false mechanism is a first-class defect in this repo.
 
 **Import it module-qualified** (`from courses import tablecells`, body
@@ -1696,6 +1677,11 @@ fallback does. One of the two is wrong; this slice makes render agree with expor
 Three artifacts assert the current behaviour and **must be inverted**, not worked around:
 
 - `tests/test_filltable_editor_partial.py::test_unresolvable_image_cell_drops_spans_in_both_render_and_editor`
+  — **and its NAME must be renamed**, not just its assertions: `drops_spans` would lie about what the
+  test checks, exactly the defect for which this spec mandates renaming `test_format_version_is_7`.
+  Rename to `test_unresolvable_image_cell_keeps_spans_in_both_render_and_editor` and rewrite its
+  docstring (which currently argues "a spanning gap left un-spanned would misshape the grid"). A
+  Definition-of-Done item on the **model** task; that docstring is on the stale-artifact list too.
 - `FillTableElement.resolve_image_cells`'s docstring
 - the same rationale repeated in `resolved_grid_cells`'s docstring
 
@@ -1783,14 +1769,34 @@ line-for-line, which is the point.
 
 ### Transfer (export / import)
 
-**Five** sites. Missing any one breaks export silently — the element round-trips but its image
-does not.
+**Five** sites. Missing any one of the first four breaks export silently — the element round-trips but
+its image does not. (`_element_mids` is the exception: it degrades **diagnostics**, not data — see the
+correction under that row.)
 
 | site | change |
 |---|---|
 | `_val_table` | widen the per-cell `allowed` set with `kind`/`media`/`alt`/`size`; validate per the reject/tolerate table below; return media refs via `_require_media` |
 | `_ser_table` | currently `return dict(el.data)`; must walk cells and register each image cell's asset |
-| `_element_mids` | routes **by type key**; `table` currently falls through to the scalar `data.get("media")` and returns nothing — without a `table` branch the file is omitted from the zip and import then `KeyError`s. **The new branch is the `fill_table` branch's exact twin, testing `isinstance(c.get("media"), str)` — NOT `int`.** It is called on the **already-serialized** data (after `_ser_table` has replaced pks with local ids), so `media` is a **string**; an `isinstance(..., int)` test — the natural guess, since the *stored* value is a pk — returns `[]` and reproduces the very "asset omitted from the zip → import `KeyError`" failure this row exists to prevent. Named mutant: swap `str` for `int` and require the round-trip test to go RED |
+| `_element_mids` | routes **by type key**; `table` currently falls through to the scalar `data.get("media")` and returns nothing, so it needs a `table` branch — the `fill_table` branch's exact twin, testing `isinstance(c.get("media"), str)` **not `int`** (it runs on the **already-serialized** data, after `_ser_table` has replaced pks with local ids). **But its consequence is NOT a broken zip — see the correction below.** Pinned by a direct unit assertion on `_element_mids("table", …)`, mirroring the existing `tests/test_transfer_export.py::test_element_mids_fill_table_yields_image_local_ids` |
+
+**Correcting a false mechanism: a missing `_element_mids` branch does NOT omit the asset from the
+zip.** An earlier draft claimed "the file is omitted from the zip and import then `KeyError`s", and
+made the round-trip test the named mutant. Traced against `courses/transfer/export.py`, that is wrong:
+`document["media"]` and the zip entries are both built by iterating **`media_ids.items()`** — the
+registry `_ser_table` writes into via `ids.register(asset)` — and `importer._create_media` builds its
+`assets` map from `document["media"]`. `_element_mids`'s return feeds only `mid_refs`, which is used
+for **problem reporting** (`_units_for`) and Pass 4's *dropped*-mid filter. So with no `table` branch,
+or with `int` swapped for `str`, the asset is still bundled and `_build_table`'s remap still resolves —
+**the round-trip stays green**, and the named mutant could never have failed. (Images never reach
+`status == "dropped"`; they become placeholders. `_copy_below` derives `media_map` from
+`media_assets`, so duplicate-element and clipboard paste are unaffected too.)
+
+**The real consequence, which is the one worth pinning:** a table whose cell-image file is **missing on
+disk** would be silently absent from `problems` / `_units_for`, so the operator exporting a course gets
+**no missing-image warning** for it. Pin that with a test modelled on
+`test_missing_image_lists_all_referencing_units`, alongside the direct `_element_mids` unit assertion.
+This row is therefore the **one exception** to the "Missing any one breaks export silently" header
+above — it degrades diagnostics, not data.
 | `_build_table` | remap each image cell's local string id → the real asset pk, as `_build_fill_table` does. **Ordering is load-bearing: remap the raw archive dict FIRST, then `normalize_data`.** Reversed, the string local id has already failed `_cell`'s `isinstance(media, int)` test and degraded the cell to an empty text cell — a silent, total loss of every imported cell image with no error. The round-trip test pins it. |
 | **`_ser_fill_table`** | **does not copy the cell** — it builds an explicit `out_cell` literal of `{kind, media, alt, halign, valign}` and then carries `header`/`colspan`/`rowspan`. `size` is not in that literal, so without this change every fill-table export silently reverts every image cell to `full` |
 
@@ -2016,6 +2022,7 @@ the named task.
 | `table_editor.js`'s comment above `absorbedNonEmpty` — "(table_editor.js has no kinds …)" | it gains a `data-image` clause | editor |
 | `toggleHeaderCell`'s in-file comment — "there is no such map in this file's scope" | the plain table now has `cellStash` | editor |
 | `filltable_editor.js`'s `// fill-table only` on `cellStash.clear()` | both files now clear | editor |
+| `test_editor_twin_drift.py`'s **module docstring counts** — "the **20 functions** duplicated", "**163 lines** … across 20 functions -- **11 at file scope, 9 nested inside `wire()`**", "a **21st** unguarded twin" — plus the `TWINS` inline comment "# Code-identical in both editors. 11 at file scope, 9 nested inside wire()." | this slice moves `afterStructuralEdit` into `TWINS` and adds `stashFor`, making it **22** twins (11 file-scope + 11 nested). No test compares these strings | editor (beside the `EXPECTED_COUNTS` re-derivation) |
 | the **five** `DIVERGENT` reasons in `test_editor_twin_drift.py` (`serialize`, `refreshToolbarState`, `toggleHeaderCell`, `cellIsNonEmpty`, `afterStructuralEdit` — table below; `label` and `wire` survive) | see that table | editor |
 
 Only three of these are load-bearing for a test (`test_table_transfer.py`'s is inert, and
@@ -2209,11 +2216,10 @@ must link **both** `courses.css` and `editor.css` to render faithfully.
 - The `contenteditable` clause on `table_editor.js`'s click handler is **defence-in-depth/twin-parity**,
   deliberately **unpinned** — after `setImageCell` calls `refreshToolbarState()`, the button is already
   `disabled`, so a UI-level "convert then click math" test is unfalsifiable.
-- The class-naming guard proves **naming only**; each base rule needs its own line-anchored
-  `^\.cell-img\s*\{` / `^\.table-editor__img\s*\{` assertion **with `re.M`** (without the flag it
-  matches nothing), because `.ta-center > .cell-img` satisfies the two-sided anchor.
-- The hardcoded-list guard needs `re.escape(cls)` (its entries already carry the leading dot); reusing
-  the emission guard's f-string yields `\..el--table`, which matches nothing.
+- The CSS class guard has **three durable contracts** — per-file (never concatenated), "named
+  somewhere" and "a base rule exists" as **separate** assertions, and every class present as a whole
+  quoted literal in the JS. The **concrete regex text lives in the plan**, not here, and whatever form
+  it takes must be verified to fail when the base rule is deleted.
 - The 255 `alt` bound lives in **`_sanitized_data` as well as `_cell`** — `save()` never normalizes, so
   `_cell` alone does not make "truncated at save" true.
 - **Both** picker callbacks guard on a null `focusCell`; both are defence-in-depth, since
