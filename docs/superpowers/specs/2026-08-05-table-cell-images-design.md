@@ -2223,13 +2223,28 @@ with its Polish twin:
 
 | file | what to add |
 |---|---|
-| `docs/help/course-admin/content-editors.md` + `.pl.md` | the Table's new image cells and the Size scale (C1 added its Size paragraph to exactly this file) |
-| `docs/help/course-admin/interactive-elements.md` + `.pl.md` | the fill-in table's new Size select |
+| `docs/help/course-admin/content-editors.md` + `.pl.md` | the Table's new image cells and the Size scale (C1 added its Size paragraph to exactly this file) **plus the toolbar rewording below** |
+| `docs/help/course-admin/interactive-elements.md` + `.pl.md` | the fill-in table's new Size select — **and nothing else** |
 
-Both entries also need their **"click a cell to edit" framing reworded**: the toolbar is no longer
-focus-revealed, it is always visible with cell-scoped controls disabled until a cell is focused. That
-change is the whole discoverability fix, so leaving the manuals describing the old behaviour would
-document the bug rather than the feature.
+**The toolbar rewording belongs to `content-editors.md`/`.pl.md` ONLY.** That entry carries the
+now-false framing — "a WYSIWYG grid editor: **click a cell to edit** its rich text …" and its Polish
+twin "kliknij komórkę, aby edytować jej" — and the toolbar is no longer focus-revealed but always
+visible with cell-scoped controls disabled until a cell is focused. That change *is* the
+discoverability fix, so leaving this entry describing the old behaviour would document the bug rather
+than the feature.
+
+**`interactive-elements.md` needs no toolbar rewording, and an earlier draft wrongly said it did.** Its
+Fill-in table section opens by *delegating* the shared controls to the Table page — "the same grid,
+header-row/column, border, and cell merge/split controls as [Table](content-editors)" — and contains no
+"click a cell" wording in either language (its only `click` references are `Shift+click` range selection
+and unrelated elements). Told to reword framing "in both files", an implementer either hunts for text
+that does not exist or **invents a new paragraph in order to reword it** — fabricated manual content, in
+a spec that treats stale prose as a first-class deliverable. Its change is the Size select, full stop.
+
+**Owning task: the same one that owns the screenshots** (the styling task, or whichever task the plan
+sequences **last**). Every other obligation in this spec is routed to a named task; an unowned
+deliverable is the one most likely to land in no task at all. Last is the right slot for both docs and
+screenshots, so the manuals describe the **shipped** behaviour rather than an intermediate state.
 
 ### Screenshots
 
