@@ -1,4 +1,4 @@
-<figure class="el el--image">
+<figure class="el el--image el--image--{{ el.size }}" data-preview-el="{{ el.pk }}">
   <img src="{{ el.media.file.url }}" alt="{{ el.alt }}" data-zoomable>
   {% if el.figcaption %}<figcaption>{{ el.figcaption }}</figcaption>{% endif %}
 </figure>
