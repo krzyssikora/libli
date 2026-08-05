@@ -151,6 +151,7 @@ def test_cell_image_kind_valid_media_preserved():
         "alt": "graph",
         "halign": "center",
         "valign": "top",
+        "size": "full",
     }
 
 
