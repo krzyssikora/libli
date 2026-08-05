@@ -2077,6 +2077,7 @@ the named task.
 | `dbscan.py`'s comment — "TableElement cells carry no `kind` at all, so the guard is a no-op there" | they now do; the guard becomes live | model |
 | `table_editor.js`'s comment above `absorbedNonEmpty` — "(table_editor.js has no kinds …)" | it gains a `data-image` clause | editor |
 | `toggleHeaderCell`'s in-file comment — "there is no such map in this file's scope" | the plain table now has `cellStash` | editor |
+| **`filltable_editor.js`'s** `toggleHeaderCell` comment — "cellStash is LIVE here (**unlike table_editor.js's no-op guard**)" | the mirror image of the row above, and a false claim *about the other file*: the plain table's stash is live too once it re-keys. Its second sentence ("a stashed answer/html round-trip must follow the node") stays true. **No implementer is routed here by the diff** — the plain table's `toggleHeaderCell` is edited, the fill table's is not | editor |
 | `filltable_editor.js`'s `// fill-table only` on `cellStash.clear()` | both files now clear | editor |
 | `filltable_editor.js`'s header comment above `setImageCell` — "Stashes the prior kind's content … and **immediately reveals + populates the alt input** — a later focusin is **NOT** relied upon" | requirement (b) falsifies **both** clauses: the stash write becomes conditional (`if (!td.hasAttribute("data-image"))`) and the alt reveal is deleted in favour of `refreshToolbarState()`, which paints three controls. Nothing reddens — comments are stripped, and `setImageCell` is `DIVERGENT` anyway | editor |
 | `templates/courses/manage/editor/editor.html`'s imagezoom comment — "renders the student **image/gallery/fill-table** templates, whose images carry `data-zoomable`" | the plain-table student template now carries it too, via `_table_cell.html`. Same file the slice already edits for the `ed-image-remove` sprite symbol | editor |
@@ -2204,11 +2205,23 @@ The slice mints exactly **two** strings that do not exist in either catalog toda
 - `Image size` — the size select's `title`/`aria-label`
 - `Remove image` — the Remove-image button's `title`/`aria-label`
 
-Definition-of-Done on the **editor** task: run `makemessages`, supply natively-checked Polish for both,
-**clear any `#, fuzzy` flag** (`makemessages` pre-fills a wrong translation from a near neighbour, and
-clearing it is *two* deletions — the flag line and the bogus `msgstr`), then recompile the **tracked**
-`.mo` files. Regenerate immediately before the PR, not early: a stale branch produces a binary `.mo`
-conflict that cannot be merged by hand.
+**Owning task: the LAST task — the same one that owns the docs and the screenshots**, not the editor
+task. The two cannot both hold: "regenerate immediately before the PR, not early" and "Definition-of-Done
+on the editor task" would force `makemessages`/`msgfmt` into a mid-sequence task, which is exactly the
+"not early" this paragraph forbids, and whose named failure mode is an unmergeable binary `.mo`. The
+cited precedent agrees — `356c956e` is **one** commit carrying `content-editors.{md,pl.md}` *and*
+`locale/{en,pl}/LC_MESSAGES/django.{po,mo}` together, as does `aa87f643`. So all three release
+deliverables land in the same last task.
+
+The step: run `makemessages`, supply natively-checked Polish for both strings, **clear any `#, fuzzy`
+flag** (`makemessages` pre-fills a wrong translation from a near neighbour, and clearing it is *two*
+deletions — the flag line and the bogus `msgstr`), then recompile the **tracked** `.mo` files.
+Regenerate immediately before the PR: a stale branch produces a binary `.mo` conflict that cannot be
+merged by hand.
+
+(If the plan prefers to draft the Polish wording earlier, split it — "author the two strings" on the
+editor task, "`makemessages` + `msgfmt` on the tracked catalogs" on the last task — but the catalog
+files themselves are touched **once**, last.)
 
 **Everything else deliberately reuses existing msgids, so no other catalog entry changes:** the four
 `CellImageSize` labels share `ImageElement.Size`'s entries (`Small`/`Medium`/`Large` bare, plus the
@@ -2248,7 +2261,8 @@ screenshots, so the manuals describe the **shipped** behaviour rather than an in
 
 ### Screenshots
 
-Already stated in the styling task's Definition of Done (light + dark, judged separately, including "an
+Already stated in the styling task's Definition of Done — the same last task that owns the catalog and
+the manuals (light + dark, judged separately, including "an
 existing fill-table with an image cell, reopened") — repeated here only so the three release
 deliverables sit in one place.
 
