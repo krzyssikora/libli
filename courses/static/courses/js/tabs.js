@@ -1,7 +1,20 @@
 (function () {
   "use strict";
 
-  var i18n = window.TABS_I18N || { nav: "Tabs", prev: "Scroll tabs left", next: "Scroll tabs right" };
+  // Per-key defaults. `window.TABS_I18N || {…}` uses the fallback object ONLY when the
+  // global is entirely absent — and all three templates always define it. So a template
+  // missing a carousel key yields undefined, not English: aria-label="undefined" and a
+  // throw on .replace. Read every key through t().
+  var i18n = window.TABS_I18N || {};
+  function t(key, fallback) {
+    // `|| fallback`, deliberately NOT a typeof check. A type guard would be marginally
+    // safer at runtime but would swallow the ONE injection the error-bail e2e uses to
+    // force a throw (a truthy non-string that passes the default and then dies on
+    // .replace) — leaving the try/catch with no test that can go RED. Spec wording:
+    // "Read every new key as `i18n.x || "…"`".
+    return i18n[key] || fallback;
+  }
+  var FADE_MS = 320;  // MUST match the .el--tabs carousel transition in courses.css
 
   function chevron(cls, pathD, label) {
     var b = document.createElement("button");
@@ -59,6 +72,19 @@
     container.dataset.tabsReady = "1";
     container.classList.add("tabs--js");
 
+    // EXACT match only: null, "", a stale cached fragment or a future third mode all
+    // fall through to the tab strip. There is no undefined third path. (The CSS keys
+    // tabs-mode rules on the literal [data-display="tabs"] — a deliberate asymmetry,
+    // since a blank element is a worse failure than a duplicated label.)
+    //
+    // No `eid` argument: the carousel branch does NO id work (the template already emits
+    // both the -panel and -label ids, namespaced). Passing it here would also read the
+    // variable before `var eid = …` assigns it a few lines below.
+    if (container.getAttribute("data-display") === "carousel") {
+      initCarousel(container, sections);
+      return;
+    }
+
     // A tab id is unique only WITHIN one element. Namespace every DOM id with the join
     // row pk, or two tabs elements on one page produce duplicate ids and activating a
     // tab in one reveals a panel in the other.
@@ -67,14 +93,14 @@
     var strip = document.createElement("div");
     strip.className = "tabs__strip";
     strip.setAttribute("role", "tablist");
-    strip.setAttribute("aria-label", i18n.nav);
+    strip.setAttribute("aria-label", t("nav", "Tabs"));
 
     var scroller = document.createElement("div");
     scroller.className = "tabs__scroller";
     scroller.appendChild(strip);
 
-    var prev = chevron("tabs__chev tabs__chev--prev", "M15 6l-6 6 6 6", i18n.prev);
-    var next = chevron("tabs__chev tabs__chev--next", "M9 6l6 6-6 6", i18n.next);
+    var prev = chevron("tabs__chev tabs__chev--prev", "M15 6l-6 6 6 6", t("prev", "Scroll tabs left"));
+    var next = chevron("tabs__chev tabs__chev--next", "M9 6l6 6-6 6", t("next", "Scroll tabs right"));
 
     var bar = document.createElement("div");
     bar.className = "tabs__bar";
@@ -184,6 +210,299 @@
 
     select(0);
     updateOverflow();
+  }
+
+  // NOTE: this helper does NOT set the class — `b.className = cls` would be a parameter,
+  // and the drift guard only matches a string LITERAL on the right of `className =`. The
+  // caller assigns it literally (see initCarousel), exactly the trap the existing
+  // chevron(cls, …) helper falls into for .tabs__chev.
+  function iconBtn(pathD, label) {
+    var b = document.createElement("button");
+    b.type = "button";
+    b.setAttribute("aria-label", label);
+    b.title = label;
+    b.innerHTML = '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+      'stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" ' +
+      'focusable="false"><path d="' + pathD + '"/></svg>';
+    return b;
+  }
+
+  function initCarousel(container, sections) {
+    var stage = container.querySelector(":scope > .tabs__stage");  // :scope, not a bare query:
+    // the branch must never depend on tree order to avoid a nested instance's stage
+    if (!stage || sections.length < 2) {
+      // Route the degenerate case through the same undo as a bail: initOne has already
+      // added .tabs--js, and courses.css separates stacked slides with
+      // `:not(.tabs--js) .tabs__section + .tabs__section { margin-top }` — leaving the
+      // class here makes the slides butt together. Reachable from a stale cached
+      // fragment served before the template change.
+      container.classList.remove("tabs--js");
+      return;
+    }
+
+    // PER-INSTANCE closure state, declared together (gallery.js:31-32). Never at module
+    // scope: a shared `pending` would let one carousel finalise another's in-flight
+    // fade, and a carousel may legally contain a carousel.
+    var idx = -1, dead = false, pending = null;
+    var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)");
+
+    function clamp(n) { return Math.max(0, Math.min(sections.length - 1, n)); }
+
+    function settleHidden(el) {
+      el.classList.remove("is-active");
+      el.style.opacity = "";
+      el.setAttribute("aria-hidden", "true");
+      el.setAttribute("inert", "");
+    }
+
+    function finalizePending() {
+      if (!pending) return;          // REQUIRED: pending is unset for the first TWO calls
+      clearTimeout(pending.timer);
+      if (pending.out && pending.out !== pending.inn) settleHidden(pending.out);
+      pending.inn.classList.add("is-active");
+      pending.inn.style.opacity = "";
+      pending = null;
+    }
+
+    function updateIndicator() {
+      dots.forEach(function (d, k) {
+        d.classList.toggle("is-active", k === idx);
+        if (k === idx) { d.setAttribute("aria-current", "true"); }
+        else { d.removeAttribute("aria-current"); }
+      });
+      // Folded in here exactly as gallery.js does (:95), NOT deferred: the first show
+      // must evaluate this string — the forced-throw e2e depends on it.
+      status.textContent = t("slidePos", "Slide {n} of {total}")
+        .replace("{n}", idx + 1).replace("{total}", sections.length);
+    }
+
+    function show(n) {
+      if (dead) return;                                     // DEPARTURE: error-bail guard
+      var target = clamp(n);
+      if (idx !== -1 && target === idx) return;             // sentinel-aware
+      finalizePending();
+      var focusedArrow = document.activeElement === prev ? prev
+                       : document.activeElement === next ? next : null;   // capture, see 4b
+      var out = sections[idx];       // undefined on the first call, because idx === -1
+      idx = target;
+      var inn = sections[idx];
+      updateIndicator();
+      prev.disabled = idx === 0;
+      prev.setAttribute("aria-disabled", idx === 0 ? "true" : "false");
+      next.disabled = idx === sections.length - 1;
+      next.setAttribute("aria-disabled", idx === sections.length - 1 ? "true" : "false");
+      // 4b, DEPARTURE: disabling the focused element blurs it to <body>, which puts
+      // focus outside the container and kills the keydown handler. Mutually exclusive
+      // with rescueFocus by construction (that returns early when focus is on the bar).
+      if (focusedArrow && focusedArrow.disabled) {
+        (focusedArrow === prev ? next : prev).focus();
+      }
+      inn.removeAttribute("aria-hidden");
+      inn.removeAttribute("inert");   // must precede any focus move into this subtree
+      if (!out) {                     // first show — no rescue, no fade
+        inn.style.opacity = "";
+        inn.classList.add("is-active");
+        inn.dispatchEvent(new CustomEvent("libli:reveal", { bubbles: true }));
+        return;
+      }
+      rescueFocus(out, inn);
+      out.setAttribute("aria-hidden", "true");
+      out.setAttribute("inert", "");
+      inn.style.opacity = "0";
+      void inn.offsetWidth;
+      inn.classList.add("is-active");
+      inn.style.opacity = "1";
+      out.style.opacity = "0";
+      var delay = reduce && reduce.matches ? 0 : FADE_MS;
+      pending = { out: out, inn: inn, timer: null };
+      pending.timer = setTimeout(function () {
+        settleHidden(out); inn.style.opacity = ""; pending = null;
+      }, delay);
+      // DEPARTURE: bubbles is load-bearing — a nested gallery's own container listener
+      // cannot see an event dispatched on an ancestor section; only the
+      // document-delegated listener rescues it, and that needs the event to reach it.
+      inn.dispatchEvent(new CustomEvent("libli:reveal", { bubbles: true }));
+    }
+
+    function focusable(root) {
+      var sel = 'a[href],button,input,select,textarea,[tabindex]';
+      var nodes = root.querySelectorAll(sel);
+      for (var i = 0; i < nodes.length; i++) {
+        var n = nodes[i];
+        if (n.disabled) continue;
+        if (n.getAttribute("tabindex") === "-1") continue;
+        if (n.closest("[inert]")) continue;                 // a nested carousel's rest slides
+        // display / visibility / zero-box — OR, not AND. A `visibility: hidden` node has a
+        // non-null offsetParent and a non-zero height, so an && predicate would accept it,
+        // .focus() would silently no-op, focus would stay on <body>, and the keydown
+        // handler would bail: the exact failure this chain exists to prevent, reached
+        // through the fallback. Ancestor OPACITY must NOT be tested — rescueFocus runs
+        // while the incoming slide is still mid-fade at opacity 0, so an opacity-aware
+        // check would reject every candidate and always fall through to the nav bar.
+        if (!n.offsetParent) continue;
+        var r = n.getBoundingClientRect();
+        if (r.width === 0 && r.height === 0) continue;
+        if (getComputedStyle(n).visibility === "hidden") continue;
+        // Ownership: a candidate inside a NESTED instance would satisfy the rescue but
+        // then fail the keydown guard below, killing navigation after one step.
+        if (n.closest("[data-tabs], [data-gallery]") !== container) continue;
+        return n;
+      }
+      return null;
+    }
+
+    // Inerting a subtree blurs focus inside it to <body>, and the keydown handler bails
+    // when focus is outside the container — so without this, keyboard navigation dies
+    // after exactly one step. The gallery's .imgzoom-trigger target does NOT generalise:
+    // the headline case, a slide holding one table, has no focusable node at all, so the
+    // nav-bar fallback is the EXPECTED outcome, not an edge case.
+    function rescueFocus(out, inn) {
+      if (!out.contains(document.activeElement)) return;   // focus is on the bar
+      var target = focusable(inn) || nav.querySelector("button:not([disabled])");
+      if (!target) { container.setAttribute("tabindex", "-1"); target = container; }
+      target.focus();
+    }
+
+    container.addEventListener("keydown", function (e) {
+      if (dead) return;                     // BEFORE preventDefault, or we swallow keys
+      var delta = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
+      var jump = e.key === "Home" ? 0 : e.key === "End" ? sections.length - 1 : null;
+      if (!delta && jump === null) return;
+      var el = e.target;
+      var tag = el && el.tagName;
+      // Guard 1: form controls own their arrow keys.
+      if (tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA" || (el && el.isContentEditable)) return;
+      // Guard 2: a box that is ACTUALLY scrollable horizontally owns them too. Measured,
+      // not a class list: `.el--table__scroll` on a narrow table has nothing to scroll,
+      // and a class-only check would make the arrow key do nothing at all.
+      for (var n = el; n && n !== container; n = n.parentElement) {
+        var ox = getComputedStyle(n).overflowX;
+        if ((ox === "auto" || ox === "scroll") && n.scrollWidth > n.clientWidth) return;
+      }
+      // Guard 3: node OWNERSHIP, not containment. A keypress in a nested instance
+      // bubbles to an outer container that also contains it — and neither the tabs strip
+      // handler nor gallery.js calls stopPropagation after preventDefault, so one press
+      // would advance both. [data-gallery] is not optional: a gallery is nestable in a
+      // slide and binds its own arrow handler.
+      if (e.defaultPrevented) return;
+      if (el.closest("[data-tabs], [data-gallery]") !== container) return;
+      e.preventDefault();
+      show(jump === null ? idx + delta : jump);
+    });
+
+    // Stable-frame reservation, ported from gallery.js:179-227. Slides have no intrinsic
+    // aspect ratio, so without it every arrow click reflows the page.
+    var measureScheduled = false;
+    function measure() {
+      if (dead) return;
+      stage.style.minHeight = "";          // clear BEFORE measuring: otherwise the second
+      var max = 0;                         // pass reads the reserve back as the natural
+      sections.forEach(function (s) {      // height and the frame can only ever grow
+        max = Math.max(max, s.offsetHeight);
+      });
+      stage.style.minHeight = max + "px";
+    }
+    var ro = window.ResizeObserver ? new ResizeObserver(scheduleMeasure) : null;
+    function scheduleMeasure() {
+      if (dead || measureScheduled) return;
+      measureScheduled = true;
+      // rAF-coalesced: measure() mutates the very elements the observer watches, so an
+      // uncoalesced version re-enters and logs "ResizeObserver loop limit exceeded".
+      window.requestAnimationFrame(function () {
+        measureScheduled = false;
+        // A preview-pane swap detaches the container but leaves these bound.
+        if (!container.isConnected) { teardownMeasure(); return; }
+        measure();
+      });
+    }
+    function teardownMeasure() {
+      if (ro) ro.disconnect();
+      window.removeEventListener("resize", scheduleMeasure);
+      container.removeEventListener("libli:reveal", scheduleMeasure);
+      document.removeEventListener("libli:reveal", onDocReveal);
+    }
+    function onDocReveal(e) {
+      if (e.target.contains && e.target.contains(container)) scheduleMeasure();
+    }
+    if (ro) sections.forEach(function (s) { ro.observe(s); });
+    window.addEventListener("resize", scheduleMeasure);
+    // Reveal-gates and outer tab panels are the only two dispatchers in the codebase.
+    // A <details>-based spoiler dispatches nothing — there the ResizeObserver is what
+    // rescues the measurement when the subtree stops being skipped.
+    container.addEventListener("libli:reveal", scheduleMeasure);
+    document.addEventListener("libli:reveal", onDocReveal);
+
+    function bail() {
+      dead = true;
+      teardownMeasure();
+      sections.forEach(function (s) {
+        s.removeAttribute("inert");
+        s.removeAttribute("aria-hidden");
+        s.classList.remove("is-active");
+        s.style.opacity = "";
+      });
+      if (nav && nav.parentNode) nav.parentNode.removeChild(nav);
+      stage.style.minHeight = "";
+      container.classList.remove("tabs--carousel");
+      // .tabs--js too: courses.css separates stacked slides with
+      // `:not(.tabs--js) .tabs__section + .tabs__section { margin-top }`, and the class
+      // is added before the branch is entered. Leaving it makes the slides butt together.
+      container.classList.remove("tabs--js");
+    }
+
+    // NOTE ON STRUCTURE: `nav` is declared here (so bail() closes over it) but everything
+    // that can THROW — the i18n .replace calls, the DOM construction — happens inside the
+    // try below. `.tabs--js` is already applied by initOne, so an uncaught throw anywhere in
+    // the branch would leave tabsReady="1", no nav and no bail, and the stacked slides would
+    // butt together. The spec's promise is "ANY throw inside the branch", not one culprit.
+    var nav = null, prev = null, next = null, dotWrap = null, dots = [], status = null;
+
+    try {
+      nav = document.createElement("nav");
+      nav.className = "tabs__cbar";
+      nav.setAttribute("aria-label", t("carouselNav", "Carousel"));
+      prev = iconBtn("M15 6l-6 6 6 6", t("prevSlide", "Previous slide"));
+      prev.className = "tabs__cprev";   // literal, single token: the drift guard needs both
+      next = iconBtn("M9 6l6 6-6 6", t("nextSlide", "Next slide"));
+      next.className = "tabs__cnext";
+      dotWrap = document.createElement("div");
+      dotWrap.className = "tabs__dots";
+      dots = sections.map(function (_s, k) {
+        var d = document.createElement("button");
+        d.type = "button";
+        d.className = "tabs__dot";
+        d.setAttribute("aria-label", t("goToSlide", "Go to slide {n}").replace("{n}", k + 1));
+        d.addEventListener("click", function () { show(k); });
+        dotWrap.appendChild(d);
+        return d;
+      });
+      status = document.createElement("span");
+      status.className = "tabs__status";
+      status.setAttribute("role", "status");
+      status.setAttribute("aria-live", "polite");
+      nav.appendChild(prev); nav.appendChild(dotWrap); nav.appendChild(next);
+      nav.appendChild(status);   // inside the <nav>, as gallery.js does
+
+      sections.forEach(function (s) {
+        s.setAttribute("role", "group");
+        s.setAttribute("aria-roledescription", t("slideRole", "slide"));
+        // A named bare <section> maps to `region` — a LANDMARK — per HTML-AAM; without
+        // the group role, 10 slides would become 10 landmarks per carousel.
+        var label = ownPart(s, "[data-tab-label]");
+        if (label && label.id) s.setAttribute("aria-labelledby", label.id);
+        s.setAttribute("aria-hidden", "true");
+        s.setAttribute("inert", "");
+      });
+      container.appendChild(nav);
+      prev.addEventListener("click", function () { show(idx - 1); });
+      next.addEventListener("click", function () { show(idx + 1); });
+      show(0);
+      container.classList.add("tabs--carousel");   // LAST: the gate
+      measure();
+    } catch (e) {
+      bail();
+      if (window.console && console.error) console.error(e);
+    }
   }
 
   // Enhance every tabs element under `root`. Exposed so the editor can re-run it over

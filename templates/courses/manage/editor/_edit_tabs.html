@@ -18,6 +18,33 @@ contain it.
      data-msg-confirm="{% trans 'Deleting this tab also deletes everything inside it.' %}">
   <input type="hidden" name="data" value="{{ form.data.data|default:'' }}">
 
+  {% comment %}Wrapped <label>, not for="...": a for= reference needs stable collision-free
+  ids in a partial injected by fragment swap, and _edit_gallery.html already uses the
+  wrapping form. Neither select carries a name -- the hidden name="data" field above is the
+  SOLE authoritative input and tabs_editor.js mirrors these into it.
+
+  data-tab-* here, but data-display / data-label-pos on the STUDENT root: test_tabs_partial
+  asserts html.count("data-tab-label") == 2 against the student markup, and naming the
+  student attribute data-tab-label-pos would push that to 3. Do NOT harmonise the two.{% endcomment %}
+  <div class="tabs-editor__setting">
+    <label>{% trans "Display" %}
+      <select data-tab-display>
+        {% for value, text in tb.displays %}
+          <option value="{{ value }}" {% if form.editor_display == value %}selected{% endif %}>{{ text }}</option>
+        {% endfor %}
+      </select>
+    </label>
+  </div>
+  <div class="tabs-editor__setting" data-tab-label-pos-row {% if form.editor_display != "carousel" %}hidden{% endif %}>
+    <label>{% trans "Label position" %}
+      <select data-tab-label-pos>
+        {% for value, text in tb.label_positions %}
+          <option value="{{ value }}" {% if form.editor_label_pos == value %}selected{% endif %}>{{ text }}</option>
+        {% endfor %}
+      </select>
+    </label>
+  </div>
+
   <ol class="tabs-editor__rows" data-tab-list>
     {% for row in form.editor_rows %}
     <li class="tabs-editor__row" data-tab-row data-tab-id="{{ row.id }}">

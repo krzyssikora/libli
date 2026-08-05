@@ -2,15 +2,19 @@ import io
 
 import pytest
 
+from courses import builder as builder_svc
 from courses.models import Element
 from courses.models import GalleryElement
 from courses.models import TabsElement
 from courses.models import TextElement
+from courses.transfer.export import _ser_tabs
 from courses.transfer.export import build_export
 from courses.transfer.export import write_archive
+from courses.transfer.importer import _build_tabs
 from courses.transfer.importer import import_course
 from courses.transfer.importer import open_archive
 from courses.transfer.importer import validate_archive_document
+from courses.transfer.payloads import _val_tabs
 from courses.transfer.payloads import validate_element_data
 from courses.transfer.payloads import validate_nesting
 from courses.transfer.schema import FORMAT_VERSION
@@ -54,8 +58,8 @@ def _nested_course():
     return course, unit, join, t1, t2, first, second
 
 
-def test_format_version_is_7():
-    assert FORMAT_VERSION == 7
+def test_format_version_is_8():
+    assert FORMAT_VERSION == 8
 
 
 def test_export_emits_parent_before_child_with_parent_and_tab_refs(tmp_path):
@@ -274,3 +278,80 @@ def test_round_trip_preserves_nesting_media_and_child_order(client, settings, tm
     # nested gallery media survived the boundary
     imported_gallery = kids[1].content_object
     assert len(imported_gallery.data["images"]) == 2
+
+
+TWO_VALID_TABS = [{"id": "taaaaaa", "label": "A"}, {"id": "tbbbbbb", "label": "B"}]
+
+
+@pytest.mark.django_db
+def test_carousel_round_trips_through_export_and_import():
+    """A `...` body would PASS, making Step 2's "verify failure" and Step 7's
+    _ser_tabs falsification both vacuous. Write it out."""
+    course, unit = make_course_with_unit()
+    obj = TabsElement.objects.create(
+        data={"tabs": TWO_VALID_TABS, "display": "carousel", "label_pos": "below"}
+    )
+    Element.objects.create(unit=unit, content_object=obj)
+    payload = _ser_tabs(obj, {})
+    assert payload["display"] == "carousel"
+    assert payload["label_pos"] == "below"
+    _val_tabs(payload, "el-1", {})  # must not raise
+    rebuilt, _children = _build_tabs(payload, {})
+    assert rebuilt.data["display"] == "carousel"
+    assert rebuilt.data["label_pos"] == "below"
+
+
+@pytest.mark.django_db
+def test_a_legacy_payload_without_the_keys_imports_with_defaults():
+    """A pre-change archive must still import: _exact_keys both REQUIRES every listed
+    key and REJECTS every unlisted one, so the optional-key setdefault pattern is
+    mandatory in both directions."""
+    data = {"tabs": [{"id": "taaaaaa", "label": "A"}, {"id": "tbbbbbb", "label": "B"}]}
+    _val_tabs(data, "el-1", {})
+    assert data["display"] == "tabs"
+    assert data["label_pos"] == "above"
+
+
+@pytest.mark.django_db
+def test_an_out_of_enum_value_is_REPAIRED_not_rejected():
+    """Follows _val_image, whose comment states the rule: a cosmetic field with a
+    lossless default must never fail an import — `tabs` IS the pre-feature rendering.
+    (Contrast _val_callout, which rejects an unknown kind: a kind has no safe
+    fallback.)"""
+    data = {"tabs": TWO_VALID_TABS, "display": "CAROUSEL", "label_pos": "sideways"}
+    _val_tabs(data, "el-1", {})
+    assert data["display"] == "tabs"
+    assert data["label_pos"] == "above"
+
+
+@pytest.mark.django_db
+def test_an_unhashable_value_is_repaired_rather_than_raising_TypeError():
+    data = {"tabs": TWO_VALID_TABS, "display": [], "label_pos": {}}
+    _val_tabs(data, "el-1", {})  # must not raise
+    assert data["display"] == "tabs"
+
+
+@pytest.mark.django_db
+def test_duplicating_a_carousel_keeps_it_a_carousel():
+    """duplicate_element -> _copy_below -> build_element_export + graft_elements, so
+    duplicate and paste are governed ENTIRELY by the three transfer functions. A missed
+    key degrades a duplicate silently, with a 200."""
+    course, unit = make_course_with_unit()
+    obj = TabsElement.objects.create(
+        data={"tabs": TWO_VALID_TABS, "display": "carousel", "label_pos": "hidden"}
+    )
+    join = Element.objects.create(unit=unit, content_object=obj)
+    # duplicate_element takes the unit token as an isoformat STRING. There is no token
+    # helper in this file (the `_tok` one lives in test_builder_duplicate_element.py).
+    _unit_after, new_join = builder_svc.duplicate_element(
+        course, join.pk, unit.updated.isoformat()
+    )
+    assert new_join.content_object.data["display"] == "carousel"
+    assert new_join.content_object.data["label_pos"] == "hidden"
+
+
+# NOTE: do NOT add a `test_format_version_is_8` here. tests/test_tabs_transfer.py
+# ALREADY has `test_format_version_is_7`, and Step 5 renames it in place. Defining a
+# second module-level function of the same name is ruff F811 (live under this repo's
+# select list), fails the commit and the branch gate, and pytest would collect only
+# one of them.

@@ -780,7 +780,20 @@ def _build_tabs(data, assets):
     # Tab ids pass through VERBATIM. save() runs only normalize_labels_and_ids, which
     # never rewrites a present, unique, well-formed id -- and the validator has already
     # guaranteed all three. Regenerating here would orphan every child.
-    return _clean_save(TabsElement(data={"tabs": data["tabs"]})), ()
+    # setdefault mutated the validated dict in place, so both display keys are
+    # guaranteed present here.
+    return (
+        _clean_save(
+            TabsElement(
+                data={
+                    "tabs": data["tabs"],
+                    "display": data["display"],
+                    "label_pos": data["label_pos"],
+                }
+            )
+        ),
+        (),
+    )
 
 
 def _build_twocolumn(data, assets):

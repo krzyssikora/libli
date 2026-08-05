@@ -21,6 +21,9 @@
     var hidden = editor.querySelector('input[name="data"]');
     var rows = editor.querySelector("[data-tab-list]");
     var addBtn = editor.querySelector("[data-tab-add]");
+    var displaySel = editor.querySelector("[data-tab-display]");
+    var labelPosSel = editor.querySelector("[data-tab-label-pos]");
+    var labelPosRow = editor.querySelector("[data-tab-label-pos-row]");
     if (!hidden || !rows) return; // defensive: markup changed
 
     var minTabs = parseInt(editor.getAttribute("data-min-tabs"), 10) || 0;
@@ -38,7 +41,14 @@
           label: input ? input.value : "",
         };
       });
-      hidden.value = JSON.stringify({ tabs: tabs });
+      hidden.value = JSON.stringify({
+        tabs: tabs,
+        // Read from the DOM, never from a captured initial value: this function is the
+        // only thing that writes the authoritative field, and a saved carousel that
+        // re-serialises without these silently reverts to tabs on a no-op Save.
+        display: displaySel ? displaySel.value : "tabs",
+        label_pos: labelPosSel ? labelPosSel.value : "above",
+      });
     }
 
     // Gate the controls at the bounds: no removing below MIN, no adding above MAX.
@@ -49,6 +59,18 @@
       });
       if (addBtn) addBtn.disabled = n >= maxTabs;
     }
+
+    function syncLabelPosRow() {
+      if (!labelPosRow) return;
+      var on = displaySel && displaySel.value === "carousel";
+      if (on) { labelPosRow.removeAttribute("hidden"); }
+      else { labelPosRow.setAttribute("hidden", ""); }
+    }
+    if (displaySel) displaySel.addEventListener("change", function () {
+      syncLabelPosRow();
+      serialize();
+    });
+    if (labelPosSel) labelPosSel.addEventListener("change", serialize);
 
     rows.addEventListener("input", function (e) {
       if (!e.target.closest("[data-tab-label-input]")) return;
@@ -101,6 +123,11 @@
     }
 
     refreshControlState();
+    // Once at init, not only from the change listener: wire() runs once per editor and
+    // `change` fires only on interaction, so a listener-only version shows the row on
+    // every saved TABS element until the author touches the Display select. The
+    // template renders the initial `hidden` too -- this is the idempotent re-assertion.
+    syncLabelPosRow();
     // Serialize on init ONLY when the hidden field is empty: covers the add path
     // (captures the two default tabs) and the edit path (captures the server-rendered
     // EXISTING tabs + their ids, so a Save that never touches the labels preserves

@@ -780,10 +780,11 @@ def test_inactive_tab_panel_keeps_its_image_out_of_the_tab_order(
     # again, and require a trigger inside the now-visible panel to be REACHED.
     # `.tabs__tab`, NOT `[data-tab-btn]` -- that attribute exists nowhere in the repo.
     # tabselement.html emits only [data-tab-label] headings and [data-tab-panel] panels;
-    # tabs.js:66-73 builds the strip buttons itself as button.tabs__tab[role=tab].
-    # Walk order to expect: active tab button -> active panel (tabs.js:77 sets
+    # the strip-building loop in `initOne` (tabs.js) builds the strip buttons itself as
+    # button.tabs__tab[role=tab].
+    # Walk order to expect: active tab button -> active panel (where `initOne` sets
     # panel.tabIndex = 0) -> the trigger inside it, with a roving tabindex on the
-    # inactive tab buttons (tabs.js:94).
+    # inactive tab buttons (`select()`'s roving tabindex).
     # Selected by accessible NAME, not position: TabsElement.default_data() labels its
     # second tab "Tab 2" (courses/models.py), but `nth(1)` would silently target
     # whatever tab happens to be second if that default ever changed, rather than
@@ -800,7 +801,8 @@ def test_inactive_tab_panel_keeps_its_image_out_of_the_tab_order(
     # courses.css -- that keeps the attribute while making the image
     # focusable. REMOVING the hidden attribute is not a valid break: this
     # assertion keys on closest('[hidden]'), which would then return null
-    # and leave inHiddenPanel false, and tabs.js:96-99 re-applies it anyway.
+    # and leave inHiddenPanel false, and `select()`'s `hidden` re-application
+    # re-applies it anyway.
 
 
 def test_closed_spoiler_keeps_its_image_out_of_the_tab_order(
