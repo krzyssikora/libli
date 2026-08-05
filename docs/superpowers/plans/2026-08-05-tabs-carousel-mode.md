@@ -377,7 +377,10 @@ def test_editor_accessors_read_the_instance_when_unbound():
 ```bash
 uv run pytest tests/test_tabs_form_views.py -k "threads_both or early_return or out_of_enum or bounds_still or editor_accessors" -v
 ```
-Expected: FAIL — `KeyError: 'display'` / `AttributeError: 'TabsElementForm' object has no attribute 'editor_display'`.
+Expected: FAIL — `KeyError: 'display'` / `AttributeError: … has no attribute 'editor_display'`
+for four of the five. ⚠️ `test_slide_count_bounds_still_raise` is expected **GREEN** here: it
+only asserts `not form.is_valid()` on a one-tab payload, which is already true today. It is a
+regression guard for existing behaviour, not a new-behaviour test, and has no red phase.
 
 - [ ] **Step 3: Thread the keys through `clean_data`**
 
@@ -1116,6 +1119,20 @@ def test_carousel_print_reset_is_present_and_fully_important():
     A human running print preview is not a defence against a later tidy-up."""
     block = _print_block()
     assert '[data-display="carousel"]' in block
+    # WHICH properties, not just "all of them carry !important": a section reset written
+    # as `{ position: static !important; }` alone passes an important-only check, while
+    # the screen rule's `opacity: 0` still applies in print and the carousel loses every
+    # slide but the current one — the exact content loss this test exists to prevent.
+    def _props(subject):
+        line = next(
+            ln for ln in block.splitlines()
+            if '[data-display="carousel"]' in ln and ln.split("{")[0].rstrip().endswith(subject)
+        )
+        decls = line.split("{")[1].split("}")[0]
+        return {d.split(":")[0].strip() for d in decls.split(";") if d.strip()}
+
+    assert {"position", "min-height"} <= _props(".tabs__stage")
+    assert {"position", "opacity", "display"} <= _props(".tabs__section")
     for line in block.splitlines():
         if '[data-display="carousel"]' not in line or "{" not in line:
             continue    # a comment mentioning the attribute would IndexError on the split
@@ -1806,14 +1823,18 @@ symbol this task introduces):
 ```python
 def test_the_error_bail_tears_down_the_measurement_wiring():
     js = TABS_JS.read_text(encoding="utf-8")
-    # The SEMICOLON is what makes this call-shaped: the declaration reads
-    # `function teardownMeasure() {` with no semicolon, so it cannot satisfy this
-    # substring — whereas a bare "teardownMeasure()" would pass on the declaration
-    # alone, whether or not bail() ever calls it.
-    assert "teardownMeasure();" in js[js.index("function bail"):]
+    # BOUNDED slice, not to end-of-file: `scheduleMeasure` contains a
+    # character-identical `teardownMeasure();` call, so an unbounded slice is satisfied
+    # by that one alone and Step 6's mutant stays green. bail() ends where the nav
+    # declarations begin.
+    body = js[js.index("function bail"):js.index("var nav = null")]
+    assert "teardownMeasure();" in body
 ```
 
-⚠️ **Insertion point is load-bearing.** Put this whole block — the four functions **and**
+⚠️ **Insertion point is load-bearing, and it is specifically IMMEDIATELY BEFORE
+`function bail`** (which in turn sits just above `var nav = null, …; try {`). That ordering is
+what lets the bail-teardown test bound its slice at `var nav = null` and so distinguish
+`bail()`'s call from the identical one inside `scheduleMeasure`. Put this whole block — the four functions **and**
 the `ro.observe` / `resize` / two `libli:reveal` registrations — **inside `initCarousel`
 before the `try` block**, so `bail()` can tear it all down. Appended after the `try/catch`
 instead, a bail would run `teardownMeasure()` before any of it exists and the four
@@ -2149,8 +2170,11 @@ This reads the **non-destructive** normalizer, so it depends on trap site 1 from
 - [ ] **Step 5: Run, falsify, commit**
 
 ```bash
-uv run pytest tests/test_tabs_partial.py -k summary -v
+uv run pytest tests/test_tabs_partial.py -k summary tests/test_tabs_registry.py -v
 ```
+`tests/test_tabs_registry.py` already asserts `element_summary(el) == "2 tabs"` / `== "1 tab"`
+against the exact branch this task edits — it is the file that would catch a plural-path
+regression, so it must be in this task's run.
 Mutant: revert `normalize_labels_and_ids` to `return {"tabs": tabs}` → the carousel summary test FAILS with `KeyError`. Revert.
 
 ```bash
@@ -2175,8 +2199,8 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 `TabsElement.objects.create(data={"tabs": [...]})` with no `display` — so as it stands it
 cannot produce a carousel at all and **none** of the assertions below could be built with it.
 Change its signature to `_seed_tabs_element(unit, tabs, children=None, display="tabs",
-label_pos="above")` and thread both into the `data` literal. Its four existing call sites keep
-the defaults and are unaffected.
+label_pos="above")` and thread both into the `data` literal. All **seven** existing call sites
+are positional in `(unit, tabs[, children])`, so they keep the new defaults and are unaffected.
 
 `tests/test_e2e_tabs.py` also has `_seed_unit(owner, slug)`, `_seed_student(username)` and the
 `lesson_with_tabs` fixture. **Use them for every shape below** — they construct model objects, which is correct and cheap for the ~10
@@ -2201,7 +2225,7 @@ Each bullet is one test. Sync on conditions, never on sleeps.
 
 - [ ] **Slide ARIA:** every section carries `role="group"`, `aria-roledescription="slide"`, and an `aria-labelledby` resolving to its own `h3`. *(Mutant: delete the `role="group"` assignment → RED. Without a test, a tidy-up that drops it silently turns up-to-10 slides per carousel into landmark regions, which is the whole reason the spec mandates the role alongside the name.)*
 - [ ] **Init:** slide 1 is `.is-active` and **not** `inert` after load. *(Mutants: initialise `idx` to `0` instead of `-1`; delete the first-show branch — either → RED. Both are "the feature silently never runs" failures a normal e2e reports as a hundred unrelated errors.)*
-- [ ] **Advance:** click ›; slide 2's table is visible and slide 1 is **not** visible. ⚠️ Use `check_visibility({"opacityProperty": True, "visibilityProperty": True})` or assert computed `opacity`/`.is-active` — plain `checkVisibility()` defaults `opacityProperty` to **false**, so it only sees `display:none` and returns `true` for every opacity-hidden slide; Playwright's `to_be_visible()` shares the blind spot. Assert the **negative** direction too; the positive alone is vacuous.
+- [ ] **Advance:** click ›; slide 2's table is visible and slide 1 is **not** visible. ⚠️ Use `check_visibility({"opacityProperty": True, "visibilityProperty": True})` or assert computed `opacity`/`.is-active` — plain `checkVisibility()` defaults `opacityProperty` to **false**, so it only sees `display:none` and returns `true` for every opacity-hidden slide; Playwright's `to_be_visible()` shares the blind spot. Assert the **negative** direction too; the positive alone is vacuous. ⚠️ But the outgoing section keeps `.is-active` and a computed opacity of ~1 until `settleHidden` fires **320 ms later**, so an immediate negative assertion is RED against a correct build. Sync on the deterministic post-settle marker — poll until the outgoing section has *lost* `.is-active` — then assert. (The synchronous facts, set at step 8, are `inert` and `aria-hidden`; those can be asserted immediately and are what the "Inert" case below covers.)
 - [ ] **Inert:** slide 1 is `aria-hidden` and `inert`, and an input inside an inactive slide is not reachable by tabbing.
 - [ ] **Height:** `.tabs__stage`'s height is unchanged between slides **and** ≥ the tallest section's own `bounding_box()["height"]`. Stability alone is vacuous — once sections are absolutely positioned the stage's height *is* `min-height` by construction, so a build reserving only slide 1's height passes a stability check while the tall slide overflows the nav. Also assert the nav bar's `y` is identical on both slides.
 - [ ] **Status:** `.tabs__status` reads "Slide 2 of N", and the active dot carries `aria-current="true"`.
@@ -2212,8 +2236,8 @@ Each bullet is one test. Sync on conditions, never on sleeps.
 - [ ] **Two presses:** ArrowRight **twice** — a build broken at steps 5/7/8 survives exactly one press.
 - [ ] **Nested tabs:** a slide holding a tabs element; ArrowRight twice still advances the outer carousel.
 - [ ] **Nested gallery — arrow ownership:** a gallery in a slide; one ArrowRight with focus inside it moves the gallery by one and leaves the carousel's index unchanged.
-- [ ] **Nested gallery — reveal bubbling:** put the gallery on slide **2**, advance to it, and assert the gallery's own stage height is non-zero (it re-measured). *(Mutant: drop `bubbles: true` from the `libli:reveal` dispatch → RED. A nested consumer's own container listener cannot see an event dispatched on an ancestor section; only the document-delegated listener rescues it, and that needs the event to reach `document`.)*
-- [ ] **Scroll containers:** Left/Right inside a **wide** table's scroll box scrolls the table and does not advance; Left/Right inside a **narrow** table (nothing to scroll) still advances.
+- [ ] **Reveal bubbling:** ⚠️ do **not** assert "a nested gallery's stage height is non-zero" — that is true on a build with `bubbles` deleted, for two independent reasons: `lesson_unit.html` loads `gallery.js` (line 77) *before* `tabs.js` (line 81), so the gallery measures during the stacked fallback; and this spec's own mechanism keeps inactive slides laid out, so it measures non-zero anyway. (The spec warns about exactly this false rationale.) Instead **instrument the delegated listener**: before advancing, `page.evaluate` a `document.addEventListener("libli:reveal", () => window.__reveals++)` counter; click ›; assert the counter incremented. *(Mutant: drop `bubbles: true` → the event never reaches `document` → counter stays 0 → RED.)*
+- [ ] **Scroll containers:** guard 2 walks ancestors from `e.target`, so the outcome depends entirely on what holds focus — and `.el--table__scroll` is a plain `div` with no `tabindex`, so `locator.focus()` on it is engine-dependent. **Both table slides must therefore hold a focusable node** (e.g. a link in a cell) which the test focuses before pressing the key. Then: Left/Right inside the **wide** table changes the wrapper's `scrollLeft` and does **not** advance the carousel; Left/Right inside the **narrow** table (nothing to scroll) still advances.
 - [ ] **Mid-fade:** click › twice inside the fade window; exactly one slide ends `.is-active` and opaque.
 - [ ] **Nesting, all three directions:** tabs-in-carousel, carousel-in-carousel, and **carousel-in-tabs** each render visible and operable. The third is the regression test for the label rules (failure: the inner carousel silently loses every caption); the first two for the child combinators (failure: a completely blank inner element).
 - [ ] **`label_pos: "below"`:** a wide table in a `below` slide still scrolls horizontally rather than widening the stage.
@@ -2230,7 +2254,7 @@ page.add_init_script("""
 """)
 ```
 
-A bare `window.TABS_I18N = {...}` init script does **not** work — all three templates assign the global wholesale in an inline script before the deferred `tabs.js`, so a document-start write is simply overwritten and the carousel initialises normally, failing these assertions against a *correct* implementation. Then assert: every section non-`inert`, not `aria-hidden`, content reachable by tabbing, **no `.tabs__cbar`**, `.tabs--js` removed, and the stage carries no inline `min-height`. Then press ArrowRight and assert the state is **still** clean (the `dead` flag). *(Mutants: empty the `catch` body; **delete `if (dead) return;` from the container keydown handler** — both → RED. Note the listener is deliberately left bound and neutralised by the `dead` flag, so "leave the listener bound" is the shipped behaviour, not a mutation.)*
+A bare `window.TABS_I18N = {...}` init script does **not** work — all three templates assign the global wholesale in an inline script before the deferred `tabs.js`, so a document-start write is simply overwritten and the carousel initialises normally, failing these assertions against a *correct* implementation. Then assert: every section non-`inert`, not `aria-hidden`, content reachable by tabbing, **no `.tabs__cbar`**, `.tabs--js` removed, and the stage carries no inline `min-height`. Then press ArrowRight and assert the state is **still** clean. ⚠️ Those state assertions alone cannot fail the keydown-guard mutant: `show()` has its own `if (dead) return;`, so removing the handler's guard changes no DOM at all — the only observable difference is that the key gets **swallowed**. So also assert `event.defaultPrevented === false` for ArrowRight/Home after the bail (or that Home still scrolls the page). *(Mutants: empty the `catch` body → the state assertions go RED; delete `if (dead) return;` from the container keydown handler → the `defaultPrevented` assertion goes RED.)*
 
 - [ ] **Step 3: Screenshots — light and dark, judged separately**
 
