@@ -53,7 +53,7 @@ blockquote {
    dvh not vh: vh resolves against the toolbar-COLLAPSED viewport, so a vh-capped
    image can still fall below the fold on a phone with the address bar showing —
    the exact defect this feature exists to fix. Same reasoning as the imagezoom
-   overlay at :1724.
+   overlay at :1834.
 
    This block MUST stay after `.el { margin: 1rem 0 }` (:4): `.el` and
    `.el--image--small` tie on specificity, so margin-inline:auto wins only on
@@ -81,7 +81,7 @@ blockquote {
    `img, picture, svg { display: block; max-width: 100%; }` app-wide, so restating
    display:block keeps this rule self-contained but changes nothing. Do not read it as
    the thing `full` is being excluded from. (That reset also makes the `max-width: 100%`
-   half of the retained `.el--image img` rule below redundant — only its `height: auto`
+   half of the retained `.el--image img` rule above redundant — only its `height: auto`
    is doing work. Both are kept as-is; this slice changes no existing rule.) */
 .el--image--small  img,
 .el--image--medium img,

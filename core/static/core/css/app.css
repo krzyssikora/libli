@@ -1227,9 +1227,10 @@ a.notif-menu__row:hover { background: var(--surface-sunken); }
 }
 .el-editor__option-row input[type="text"] { flex: 1; }
 
-/* The image size preset control. No global fieldset/legend rule exists, so without
-   this the radios ship with the UA border and zero spacing next to the flat
-   .el-editor labels above them. Tokens only — no literal colours. */
+/* The image size preset control. No global fieldset *appearance* rule exists --
+   reset.css:22 only zeroes `min-inline-size`, so without this the radios ship
+   with the UA border and zero spacing next to the flat .el-editor labels above
+   them. Tokens only — no literal colours. */
 .size-presets {
   border: 1px solid var(--border-default);
   border-radius: var(--radius-sm);

@@ -416,9 +416,13 @@ def test_figure_geometry(page, live_server, geom):
     # PC3 is measured on `full-captioned`, not `full-plain`: `full-plain`'s
     # figure spans the whole column against a much narrower image and is never
     # "exactly as wide as the image", so PC3 would be trivially unfalsifiable
-    # there. `full-captioned`'s ~200-char caption's max-content contribution
-    # exceeds the column, so `fit-content` still resolves to the full column
-    # width and the image's own offset inside it is what PC3 actually pins.
+    # there. `full` is excluded from the `fit-content` group, so in the shipped
+    # build the figure is an ordinary block spanning the column regardless of
+    # the caption; PC3 pins the image's own offset inside it. (The `fit-content`
+    # reasoning only applies under the Task-9 falsification mutant that adds
+    # `full` to that group -- there, the ~200-char caption's max-content
+    # contribution would exceed the column, so `fit-content` would still
+    # resolve to the full column width.)
     captioned_full_img = page.locator("img[alt='full-captioned']")
     _await_decoded(page, captioned_full_img)
     captioned_full_fig = captioned_full_img.locator("xpath=..")
