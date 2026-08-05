@@ -80,7 +80,12 @@ def _ser_text(el, ids):
 
 
 def _ser_image(el, ids):
-    return {"media": ids.register(el.media), "alt": el.alt, "figcaption": el.figcaption}
+    return {
+        "media": ids.register(el.media),
+        "alt": el.alt,
+        "figcaption": el.figcaption,
+        "size": el.size,
+    }
 
 
 def _ser_video(el, ids):

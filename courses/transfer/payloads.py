@@ -14,6 +14,7 @@ from django.utils.translation import gettext as _
 from courses.embed import extract_embed_url
 from courses.fillblank import SENTINEL
 from courses.models import DragZone
+from courses.models import ImageElement
 from courses.models import TableElement
 from courses.switchgate import SENTINEL_TOKEN
 from courses.transfer.schema import TransferError
@@ -129,7 +130,17 @@ def _val_text(data, elid, media_kinds):
 
 
 def _val_image(data, elid, media_kinds):
-    _exact_keys(data, ["media", "alt", "figcaption"], _("image data"))
+    # `size` is optional (added in FORMAT_VERSION 7). setdefault first so a legacy
+    # archive (which has neither) gains it and passes the exact-keys check, and so
+    # downstream _build_image never KeyErrors. Mirrors the iframe width/height
+    # precedent at :153-157.
+    data.setdefault("size", "full")
+    if data["size"] not in ImageElement.Size.values:
+        # A cosmetic field with a lossless default must never fail an import:
+        # `full` IS the pre-feature rendering. (Contrast _val_callout, which
+        # rejects an unknown `kind` — a kind has no safe fallback.)
+        data["size"] = "full"
+    _exact_keys(data, ["media", "alt", "figcaption", "size"], _("image data"))
     refs = _require_media(data["media"], elid, media_kinds, "image")
     check_str(data["alt"], "alt", max_length=255)
     check_str(data["figcaption"], "figcaption", max_length=255)

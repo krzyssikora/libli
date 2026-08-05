@@ -1227,6 +1227,23 @@ a.notif-menu__row:hover { background: var(--surface-sunken); }
 }
 .el-editor__option-row input[type="text"] { flex: 1; }
 
+/* The image size preset control. No global fieldset *appearance* rule exists --
+   reset.css:22 only zeroes `min-inline-size`, so without this the radios ship
+   with the UA border and zero spacing next to the flat .el-editor labels above
+   them. Tokens only — no literal colours. */
+.size-presets {
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-3);
+  margin: var(--space-2) 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: center;
+}
+.size-presets > legend { color: var(--text-secondary); padding-inline: var(--space-1); }
+.size-presets label { display: inline-flex; align-items: center; gap: var(--space-1); }
+
 /* Switch grid self-check — a grid of static + cycler-bearing lines checked as a
    whole (NOT a reveal gate: nothing hides/reveals, no marks recorded). The
    cycler chip and Confirm button reuse the switchgate/gate-family visual

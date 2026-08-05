@@ -494,6 +494,25 @@
       var row = del.closest("[data-choice-row]");
       if (row) row.classList.toggle("choice-row--del", del.checked);
     }
+    var preset = e.target.closest("[data-size-preset]");
+    if (preset) {
+      // Live size preview with no save. classList.remove/add on just the
+      // el--image--* token, never className assignment, so the swap cannot
+      // clobber another class the figure carries now or later.
+      var fig = document.querySelector(
+        '.el--image[data-preview-el="' + preset.dataset.forElement + '"]'
+      );
+      if (fig) {
+        fig.classList.remove(
+          "el--image--small", "el--image--medium", "el--image--large", "el--image--full"
+        );
+        fig.classList.add("el--image--" + preset.value);
+      }
+      // On the CREATE flow data-for-element is "" (Task 2's template applies
+      // |default_if_none:'' — without it Django would render the string "None")
+      // and no figure exists yet, so the querySelector finds nothing and this is
+      // inertly a no-op until first save. That is correct behaviour.
+    }
   });
 
   function flash(msg) {

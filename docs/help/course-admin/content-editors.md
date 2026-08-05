@@ -38,7 +38,12 @@ elements.
 {el:image} **Image** — embeds a picture from the course's media library. Pick an existing
 upload or upload a new one on the spot (see [Media manager](media-manager));
 add optional **alt text** for accessibility (leave it blank only for a purely
-decorative image) and an optional **caption** shown under the picture.
+decorative image) and an optional **caption** shown under the picture. Choose
+a **Size** — Small, Medium, Large, or Full — to set how big the picture
+appears: each is a bounding box, so the image scales to fit inside a box this
+big while keeping its shape, never stretching or cropping. **Full** is the
+default and matches the picture's original behavior; at every size, a picture
+is never taller than the reader's screen.
 
 {el:video} **Video** — embeds a video two ways: pick an uploaded video file from the
 media library, *or* paste a link to a hosted video (YouTube, Vimeo, and

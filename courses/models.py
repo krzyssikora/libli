@@ -15,6 +15,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import get_language
 from django.utils.translation import gettext_lazy as _
+from django.utils.translation import pgettext_lazy
 
 from courses.constants import COURSE_LANGUAGES
 from courses.fields import OrderField
@@ -647,11 +648,27 @@ class MediaAsset(models.Model):
 
 
 class ImageElement(ElementBase):
+    class Size(models.TextChoices):
+        SMALL = "small", _("Small")
+        MEDIUM = "medium", _("Medium")
+        LARGE = "large", _("Large")
+        # pgettext, not plain _: the bare msgid "Full" is ALREADY taken by the
+        # structure-preset label at courses/forms.py:166, and Django's catalog is
+        # keyed by msgid alone. Its Polish translation is "Pełna" (feminine,
+        # agreeing with the noun there); an image size wants the masculine
+        # "Pełny". Sharing the msgid means one of the two ships ungrammatical,
+        # and no test would see it. The context string forks the entry.
+        FULL = "full", pgettext_lazy("image size", "Full")
+
     media = models.ForeignKey(
         "MediaAsset", on_delete=models.PROTECT, limit_choices_to={"kind": "image"}
     )
     alt = models.CharField(max_length=255, blank=True)  # empty = decorative (valid)
     figcaption = models.CharField(max_length=255, blank=True)
+    # A bounding box, not a width: max-width lives on the <figure> and max-height
+    # on the <img> (see courses.css). `full` is today's rendering plus a
+    # max-height:100dvh floor, so no data migration is needed.
+    size = models.CharField(max_length=8, choices=Size.choices, default=Size.FULL)
     elements = GenericRelation(Element)
 
 
