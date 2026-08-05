@@ -661,8 +661,7 @@ NAV = " > .tabs__cbar"
 # spot -- reports True for every opacity-hidden slide, i.e. for exactly the state the
 # carousel parks inactive slides in. Both flags are mandatory in this file.
 VISIBLE = (
-    "(el) => el.checkVisibility("
-    "{opacityProperty: true, visibilityProperty: true})"
+    "(el) => el.checkVisibility({opacityProperty: true, visibilityProperty: true})"
 )
 
 SLIDE_STATE = """(sel) => [...document.querySelectorAll(sel)].map((s) => ({
@@ -1526,8 +1525,12 @@ def test_carousel_nests_in_all_three_directions(page, live_server):
 
     # --- 1. tabs inside a carousel -----------------------------------------
     a = _top(a_join)
-    assert page.locator(f"{a} > .tabs__stage > .tabs__section.is-active"
-                        " > .tabs__panel-label").evaluate(VISIBLE) is True
+    assert (
+        page.locator(
+            f"{a} > .tabs__stage > .tabs__section.is-active > .tabs__panel-label"
+        ).evaluate(VISIBLE)
+        is True
+    )
     inner_tabs = f"{a} .el--tabs[data-display='tabs']"
     assert page.locator(f"{inner_tabs} [role='tablist']").count() == 1
     panels = page.locator(f"{inner_tabs} [data-tab-panel]")

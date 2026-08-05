@@ -204,9 +204,7 @@ def test_markup_is_identical_between_modes_apart_from_the_two_attributes():
             data={**TabsElement.default_data(), "display": display}
         )
         Element.objects.create(unit=_unit(), content_object=obj)
-        rendered[display] = obj.render().replace(
-            f'data-display="{display}"', "DISPLAY"
-        )
+        rendered[display] = obj.render().replace(f'data-display="{display}"', "DISPLAY")
     # tab ids are random per element; normalise them before comparing
     assert _strip_tab_ids(rendered["tabs"]) == _strip_tab_ids(rendered["carousel"])
 
