@@ -449,7 +449,9 @@ is a standing project rule. The editor's other `.el-editor__*` chrome lives in
 
 **There is no `--border` token** — `core/static/core/css/tokens.css:52` (light) and `:95` (dark) define
 `--border-subtle`, `--border-default` and `--border-strong` only, which is why the block above says
-`--border-default` (the same one `.analytics__export-form fieldset` uses). This matters more than it
+`--border-default` (the token `.analytics__export-form` itself uses at `app.css:787`; note its
+*fieldset* rule at `:789-791` uses `--border-subtle` — either is declared and valid, this block just
+picks the stronger one). This matters more than it
 looks: an *undefined* custom property makes the whole declaration invalid at computed-value time, so
 the fieldset would ship with no border at all — the exact "every view ships styled" failure this step
 exists to prevent, and no test in Tasks 7-8 touches `app.css` to catch it. Confirm every custom
@@ -606,10 +608,18 @@ def test_figure_does_not_carry_data_element_id():
     assert "data-element-id" not in render(make_image("small"))
 
 
-def test_nested_image_still_carries_the_preview_hook():
-    """Nested under a spoiler — the figure's own markup must not depend on depth.
-    `data-preview-el` is the IMAGE ELEMENT's pk at every depth (same pk Task 2's
-    `data-for-element` emits), never the Element join row's."""
+def test_nested_image_carries_the_hook_through_its_container():
+    """Render the SPOILER, not the image, so this exercises a path the top-level test
+    does not: the container's children-walk must emit the nested figure with its hook.
+
+    Rendering `el` directly with `element=join` would NOT be that path — ElementBase.render
+    feeds `element` only into _state_context's `eid` (models.py:371-385) and
+    imageelement.html never reads `eid`, so that call is byte-identical to the top-level
+    test and could not fail independently of it.
+
+    `data-preview-el` is the IMAGE ELEMENT's pk at every depth (the same pk Task 2's
+    `data-for-element` emits), never the Element join row's — assert both halves.
+    """
     course, unit = make_course_with_unit()
     sp = SpoilerElement.objects.create(label="s")
     sp_join = add_element(unit, sp)
@@ -617,8 +627,17 @@ def test_nested_image_still_carries_the_preview_hook():
     join = Element.objects.create(
         unit=unit, content_object=el, parent=sp_join, tab_id=SpoilerElement.SLOT_ID
     )
-    assert f'data-preview-el="{el.pk}"' in render(el, element=join)
+    html = sp.render(element=sp_join)
+    assert "el--image--large" in html                      # the child really rendered
+    assert f'data-preview-el="{el.pk}"' in html             # ImageElement pk ...
+    assert f'data-preview-el="{join.pk}"' not in html       # ... not the join pk
 ```
+
+**Mutant for it:** change `imageelement.html`'s `data-preview-el="{{ el.pk }}"` to
+`"{{ element.pk }}"` (or drop the attribute); confirm this test goes RED on the
+`data-preview-el="{el.pk}"` line while the top-level hook test still passes or fails for its own
+reason. If it can only redden together with its twin, it is not testing the container path — fix the
+test, not the mutant.
 
 - [ ] **Step 2: Run the test to verify it fails**
 
@@ -681,7 +700,7 @@ Expected: green (unchanged).
 
 - [ ] **Step 6: Falsify**
 
-Replace `el--image--{{ el.size }}` with a bare `el--image`; confirm all four parametrized cases go RED. Restore. Change `data-preview-el` to `data-element-id`; confirm both `test_figure_carries_the_preview_hook` and `test_figure_does_not_carry_data_element_id` go RED. Restore. Apply the Step 4 mutant and restore it. Re-run, confirm 8 passed.
+Replace `el--image--{{ el.size }}` with a bare `el--image`; confirm all four parametrized cases go RED — **and `test_nested_image_carries_the_hook_through_its_container`**, whose `el--image--large` assertion proves the child rendered at all. Restore. Change `data-preview-el` to `data-element-id`; confirm both `test_figure_carries_the_preview_hook` and `test_figure_does_not_carry_data_element_id` go RED. Restore. Change `data-preview-el="{{ el.pk }}"` to `"{{ element.pk }}"`; confirm the nested test's `data-preview-el="{el.pk}"` line goes RED (this is the mutant that separates it from its top-level twin). Restore. Apply the Step 4 mutant and restore it. Re-run, confirm 8 passed.
 
 - [ ] **Step 7: Lint and commit**
 
@@ -1637,9 +1656,8 @@ course-scoped, and `builder.save_element` passes `course=course` for `type_key =
 (`courses/builder.py:953-961`), so `_CourseScopedMediaForm` filters the `media` queryset to the unit's
 own course. Seed row 5 in a fresh course and its media (Task 8's `wide`) is absent from the rendered
 `<select name="media">`; Step 2's `_save_open_form` then posts a `media` value outside the queryset →
-`ElementFormInvalid` → 422 → no fragment swap → **the after-swap case, the only one that distinguishes
-a `root`-delegated handler from a pane-bound one, can never pass**. Instead give row 5 its own unit
-inside Task 8's course:
+`ElementFormInvalid` → 422 → no fragment swap → **Step 2's save-triggered case can never pass**.
+Instead give row 5 its own unit inside Task 8's course:
 
 ```python
 preview_unit = ContentNodeFactory(
@@ -1706,7 +1724,19 @@ editor page then holds exactly one image row — but the *course* must be shared
 - [ ] **Step 2: Add the live-preview tests**
 
 - Changing a radio updates the rendered figure's class **with no save**.
-- It still works **after a fragment swap**: save once, then change the preset again. This is the seam between a handler on `root` and one bound to a pane; invisible to any server-render test.
+- It still works **after a save's fragment swap**: save once, then change the preset again.
+
+**Both cases already sit past the swap seam — do not describe the first as "before-swap".** Opening
+an existing element's form is *itself* a full fragment swap: `editor.js:382-390` handles the
+`.el-select` click by fetching `data-form-url` and calling `applyFragments(html)`, and the response
+(`_editor_scope.html`, which includes `_preview.html` at `:35`) carries **both** `[data-scope]` panes,
+so `applyFragments` (`:92-96`) `replaceWith`s both. By the time item 4 clicks the first radio, one
+swap has already happened.
+
+What the two cases actually divide is the *trigger*: case 1 follows a **form-open** swap, case 2 a
+**save** swap. Both are real, and both are past the seam — which is why a handler bound to either pane
+reddens both, and only a handler on `root` (`.editor`, which is never replaced — only its two panes
+are) survives either. That is the invariant under test.
 
 Both scope to the **edit-an-existing-element** flow — on the create flow `data-for-element` is `""` and the preview is inertly a no-op.
 
@@ -1873,7 +1903,7 @@ added in Step 3, which the Global Constraint requires just as much as the older 
 | `full` unchanged (figure) | add `.el--image--full` to the **figure** `width: fit-content; margin-inline: auto` group | PC1 and PC2 RED (the figure shrink-wraps and gains auto margins). **PC3 stays green**, for a known reason — and note the reason is about `full-captioned`, the element PC3 is measured on, not `full-plain`: the ~200-char caption's max-content contribution exceeds the 648px column, so `fit-content` still resolves to the full column width and the image's offset inside it remains 0 |
 | `full` unchanged (image) | add `.el--image--full img` to the **img** `margin-inline: auto` group | PC3 RED; PC1 and PC2 green. PC3 is guarded only by this second rule, so without this mutant it ships unfalsified |
 | print | move the print block above the presets | the print case |
-| live preview | rebind the JS handler to the **editor** pane: `root.querySelector('[data-scope="editor"]').addEventListener("change", …)` | the after-swap case only — the before-swap one stays **green**, and that contrast is the whole point. Do **not** use the *preview* pane as the mutant: `_editor_scope.html:2-3` and `_preview.html:2` are **siblings** inside `.editor-grid`, so a radio's `change` bubbles editor-pane → `.editor` → document and never enters the preview pane at all; that mutant reddens *both* cases and proves nothing. The editor pane is the right one because `applyFragments` (`editor.js:92-96`) `replaceWith`s exactly that node |
+| live preview | rebind the JS handler to the **editor** pane: `root.querySelector('[data-scope="editor"]').addEventListener("change", …)` | **both** live-preview cases. Opening the form is already a swap (see Step 2), so the pane node bound at page load is detached before either radio click — there is no green case to contrast against, and expecting one would read as a broken test. What this mutant proves is the invariant that matters: the handler must live on `root`, which is never replaced. Do **not** use the *preview* pane instead: `_editor_scope.html:2-3` and `_preview.html:2` are **siblings** inside `.editor-grid`, so a radio's `change` never enters it at all — that mutant reddens both cases for the wrong reason (the listener never fires) rather than the right one (the listener is detached) |
 | no-save recorder | make the radio branch also click the form's submit button | the zero-saves assertion. Run this one: a recorder filtered on the wrong string passes the happy path *and* this mutant, and that is the only way to tell |
 | zoom overlay | change `.imgzoom__img`'s own `max-height: 100%` (`courses.css:1771`) to **`10dvh`** | assertion (b), the overlay-taller-than-figure one. Not `30dvh`: at 1280x900 the `centred-small` image is already 270px tall (30dvh binds), so a 30dvh overlay cap ties exactly and the mutant reddens only on a strict `>` with zero margin — any rounding or tolerance flips it green. 10dvh (90px) is unambiguously shorter. Assertion (b) must be a strict `>` with no tolerance |
 | nested containers, width axis | change `small`'s `max-width` (25% → 35%) | all four nested cases. Both the width **and** the height assertion redden together, because the nested cases are width-bound and `h` is derived from `wcap` — that coupling is expected, not a bug |
