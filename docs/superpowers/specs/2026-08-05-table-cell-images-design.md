@@ -191,8 +191,16 @@ model mirrors `ImageElement.Size` and keeps `MAX_ROWS`-style company. Where this
 `CellImageSize.choices` / `.values` unqualified, it means the nested attribute. A `TextChoices` gives an **ordered** sequence for the
 select (Small → Medium → Large → Full) and a membership test for validation; a bare `set` would
 render the select in arbitrary order. Shared by `FillTableElement`, both forms, both editor
-**templates** and the transfer validators — one definition, no duplicated literals **across the
-Python and template layers**.
+**templates** and the transfer validators — one definition for the **ordered choices and the membership
+test**.
+
+**Scope of "no duplicated literals", stated precisely:** only the **JS** copies are pinned (by the
+source-level test below), because JS cannot import the constant. The bare `"full"` literal is accepted at
+Python and template *sinks* where it reads more clearly than the dotted path — `_val_table`'s repair
+(`cell["size"] = "full"`), `_ser_table`'s `c.get("size") or "full"`, and `|default:'full'` in all four
+partials. Both Python sites already import `TableElement` (`payloads.py` uses `TableElement.BORDERS` and
+`MAX_ROWS`), so spelling them `TableElement.DEFAULT_CELL_IMAGE_SIZE` is equally correct and equally
+acceptable. What is **not** acceptable is a *different* default appearing anywhere.
 
 **The JS layer cannot read a `TextChoices`, so it needs its own named carrier.** Both editor
 scripts need the two defaults — `serialize()` reads `td.dataset.size || CELL_IMAGE_DEFAULT` and
@@ -2070,6 +2078,8 @@ the named task.
 | `table_editor.js`'s comment above `absorbedNonEmpty` — "(table_editor.js has no kinds …)" | it gains a `data-image` clause | editor |
 | `toggleHeaderCell`'s in-file comment — "there is no such map in this file's scope" | the plain table now has `cellStash` | editor |
 | `filltable_editor.js`'s `// fill-table only` on `cellStash.clear()` | both files now clear | editor |
+| `filltable_editor.js`'s header comment above `setImageCell` — "Stashes the prior kind's content … and **immediately reveals + populates the alt input** — a later focusin is **NOT** relied upon" | requirement (b) falsifies **both** clauses: the stash write becomes conditional (`if (!td.hasAttribute("data-image"))`) and the alt reveal is deleted in favour of `refreshToolbarState()`, which paints three controls. Nothing reddens — comments are stripped, and `setImageCell` is `DIVERGENT` anyway | editor |
+| `templates/courses/manage/editor/editor.html`'s imagezoom comment — "renders the student **image/gallery/fill-table** templates, whose images carry `data-zoomable`" | the plain-table student template now carries it too, via `_table_cell.html`. Same file the slice already edits for the `ed-image-remove` sprite symbol | editor |
 | `tests/test_filltable_editor_partial.py::test_unresolvable_image_cell_drops_spans_in_both_render_and_editor` — its **name** *and* its docstring ("a spanning gap left un-spanned would misshape the grid") both assert the dropped-span behaviour this slice inverts | rename to `…_keeps_spans_…` and rewrite the docstring | model |
 | `test_editor_twin_drift.py`'s **module docstring counts** — "the **20 functions** duplicated", "**163 lines** … across 20 functions -- **11 at file scope, 9 nested inside `wire()`**", "a **21st** unguarded twin" — plus the `TWINS` inline comment "# Code-identical in both editors. 11 at file scope, 9 nested inside wire()." | this slice moves `afterStructuralEdit` into `TWINS` and adds `stashFor`, making it **22** twins (11 file-scope + 11 nested). No test compares these strings | editor (beside the `EXPECTED_COUNTS` re-derivation) |
 | the **five** `DIVERGENT` reasons in `test_editor_twin_drift.py` (`serialize`, `refreshToolbarState`, `toggleHeaderCell`, `cellIsNonEmpty`, `afterStructuralEdit` — table below; `label` and `wire` survive) | see that table | editor |
@@ -2178,6 +2188,54 @@ same shape at `full` (426.2 → 285.7px) is the natural control, asserting the d
 **Light + dark screenshot verification belongs in the styling task's Definition of Done**, not
 deferred — that deferral is how the fill-table shipped its dark-mode contrast bug. An editor page
 must link **both** `courses.css` and `editor.css` to render faithfully.
+
+## Release deliverables
+
+Three per-slice deliverables that earlier drafts omitted entirely. Both immediate predecessors on this
+roadmap shipped all of them — C1 (`356c956e`) touched `locale/{en,pl}/LC_MESSAGES/django.{po,mo}` **and**
+`content-editors.md`/`.pl.md` in the same commit; the callout slice (`aa87f643`) did the same across both
+manuals — so their absence here would be a regression in release discipline, not a scoping choice.
+
+### i18n catalog — two brand-new msgids
+
+The slice mints exactly **two** strings that do not exist in either catalog today (verified:
+`grep msgid` finds neither in `locale/pl/LC_MESSAGES/django.po`):
+
+- `Image size` — the size select's `title`/`aria-label`
+- `Remove image` — the Remove-image button's `title`/`aria-label`
+
+Definition-of-Done on the **editor** task: run `makemessages`, supply natively-checked Polish for both,
+**clear any `#, fuzzy` flag** (`makemessages` pre-fills a wrong translation from a near neighbour, and
+clearing it is *two* deletions — the flag line and the bogus `msgstr`), then recompile the **tracked**
+`.mo` files. Regenerate immediately before the PR, not early: a stale branch produces a binary `.mo`
+conflict that cannot be merged by hand.
+
+**Everything else deliberately reuses existing msgids, so no other catalog entry changes:** the four
+`CellImageSize` labels share `ImageElement.Size`'s entries (`Small`/`Medium`/`Large` bare, plus the
+`msgctxt "image size"` + `Full` pair), and the alt input's `aria-label` reuses
+`Image description (alt)`, already present. That reuse is the point of the i18n subsection above — state
+it here too so an implementer does not "helpfully" mint variants.
+
+### Author-facing documentation
+
+A discoverability-motivated feature that ships undocumented defeats its own purpose. Four files, each
+with its Polish twin:
+
+| file | what to add |
+|---|---|
+| `docs/help/course-admin/content-editors.md` + `.pl.md` | the Table's new image cells and the Size scale (C1 added its Size paragraph to exactly this file) |
+| `docs/help/course-admin/interactive-elements.md` + `.pl.md` | the fill-in table's new Size select |
+
+Both entries also need their **"click a cell to edit" framing reworded**: the toolbar is no longer
+focus-revealed, it is always visible with cell-scoped controls disabled until a cell is focused. That
+change is the whole discoverability fix, so leaving the manuals describing the old behaviour would
+document the bug rather than the feature.
+
+### Screenshots
+
+Already stated in the styling task's Definition of Done (light + dark, judged separately, including "an
+existing fill-table with an image cell, reopened") — repeated here only so the three release
+deliverables sit in one place.
 
 ## Settled decisions (do not re-litigate)
 
