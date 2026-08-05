@@ -8,6 +8,7 @@ from django import template
 from django.utils.html import strip_tags
 from django.utils.http import urlencode
 from django.utils.text import Truncator
+from django.utils.translation import gettext
 from django.utils.translation import gettext_lazy as _
 from django.utils.translation import ngettext
 
@@ -138,10 +139,20 @@ def element_summary(el):
         # request's active locale at render time.
         return ngettext("%(n)d image", "%(n)d images", n) % {"n": n}
     if name == "TabsElement":
-        n = len(TabsElement.normalize_labels_and_ids(el.data)["tabs"])
+        norm = TabsElement.normalize_labels_and_ids(el.data)
+        n = len(norm["tabs"])
         # ngettext (not the lazy `_`) so the plural form is chosen against the
         # request's active locale at render time. Polish has three plural forms.
-        return ngettext("%(n)d tab", "%(n)d tabs", n) % {"n": n}
+        summary = ngettext("%(n)d tab", "%(n)d tabs", n) % {"n": n}
+        if norm["display"] == "carousel":
+            # Display is otherwise an invisible setting: without this the builder
+            # tree shows "3 tabs" for a carousel with nothing to distinguish it.
+            # gettext (eager), NOT the lazy `_`: every other branch of this
+            # function returns a str, and `_(...) % {...}` yields a __proxy__ that
+            # behaves differently under json.dumps / == / %-format for carousel
+            # rows only.
+            summary = gettext("%(summary)s · carousel") % {"summary": summary}
+        return summary
     if name == "TwoColumnElement":
         n = len(TwoColumnElement.normalize_ids(el.data)["columns"])
         # ngettext (not the lazy `_`) so the plural form is chosen against the

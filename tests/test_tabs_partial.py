@@ -6,6 +6,7 @@ import pytest
 from courses.models import Element
 from courses.models import TabsElement
 from courses.models import TextElement
+from courses.templatetags.courses_manage_extras import element_summary
 from tests.factories import make_course_with_unit
 
 pytestmark = pytest.mark.django_db
@@ -401,3 +402,35 @@ def test_carousel_rules_use_child_combinators():
         matched = True
         assert need in selector, f"missing child chain ({need}): {selector.strip()}"
     assert matched, "no mode-scoped slide/caption rule found at all"
+
+
+@pytest.mark.django_db
+def test_a_carousel_summary_names_the_mode():
+    obj = TabsElement.objects.create(
+        data={**TabsElement.default_data(), "display": "carousel"}
+    )
+    assert "carousel" in element_summary(obj).lower()
+
+
+@pytest.mark.django_db
+def test_a_tabs_summary_is_byte_identical_to_todays():
+    """The change must not regress every existing element's row."""
+    obj = TabsElement.objects.create(data=TabsElement.default_data())
+    assert element_summary(obj) == "2 tabs"
+
+
+@pytest.mark.django_db
+def test_the_polish_plural_still_resolves_and_the_suffix_translates():
+    """This edit wraps the ONE expression carrying Polish's three plural forms. The
+    suffix must not break them, and must itself translate."""
+    from django.utils import translation
+
+    with translation.override("pl"):
+        for n in (1, 2, 5):
+            tabs = [{"id": f"t{i:06x}", "label": f"T{i}"} for i in range(n)]
+            obj = TabsElement.objects.create(data={"tabs": tabs})
+            assert str(n) in element_summary(obj)
+        carousel = TabsElement.objects.create(
+            data={**TabsElement.default_data(), "display": "carousel"}
+        )
+        assert "karuzela" in element_summary(carousel)
