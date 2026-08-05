@@ -36,3 +36,44 @@ def test_editor_css_styles_every_control_class_the_js_emits():
         assert f".{cls}" in css, (
             f"editor.css never styles .{cls} (emitted by table_editor.js)"
         )
+
+
+def test_courses_css_defines_the_cell_image_scale():
+    # Comments STRIPPED first, same as the sibling test below: the explanatory comment
+    # this slice adds names `.cell-img--medium` (to record the equal-specificity trap),
+    # so an unstripped boundary-anchored search is satisfied by the comment and the
+    # medium entry cannot fail even with its rule deleted. Medium is the one preset with
+    # e2e coverage, i.e. the entry least likely to be caught elsewhere.
+    css = re.sub(r"/\*[\s\S]*?\*/", "", CSS.read_text(encoding="utf-8"))
+    # Naming: every class is present, boundary-anchored on BOTH sides so
+    # `.cell-img` is not satisfied by `.cell-img--small`.
+    for cls in ["cell-img", "cell-img--small", "cell-img--medium",
+                "cell-img--large", "cell-img--full"]:
+        assert re.search(rf"(?<![\w-])\.{re.escape(cls)}(?![\w-])", css), cls
+    # Existence: the BASE RULE itself, not just the name. `.ta-center > .cell-img`
+    # satisfies the naming check with the base rule entirely absent.
+    assert re.search(r"^\.cell-img\s*\{", css, re.M)
+
+
+def test_filltable_img_rule_is_deleted_not_merely_reduced():
+    """The decision is deletion — a no-op stub invites re-adding max-width and
+    re-opens the equal-specificity trap. The CLASS stays on the element."""
+    # Comments are STRIPPED first: the explanatory comment this slice adds names
+    # `.filltable__img` to record why it went, and a boundary-anchored regex would
+    # match inside it, failing against the exact CSS this plan mandates.
+    css = re.sub(r"/\*[\s\S]*?\*/", "", CSS.read_text(encoding="utf-8"))
+    assert not re.search(r"(?<![\w-])\.filltable__img(?![\w-])", css)
+
+
+def test_print_block_follows_the_preset_block():
+    """@media print adds no specificity, so ordering is what makes it win.
+
+    Anchor on the NEW rule. `170mm` already appears twice in courses.css — a comment
+    near line 96 and C1's `.el--image--full img` block near line 107 — both roughly a
+    thousand lines BEFORE the region this block lands in, so a bare
+    `css.index("170mm")` is false wherever the new block sits.
+    """
+    css = CSS.read_text(encoding="utf-8")
+    m = re.search(r"@media print\s*\{[^}]*\.cell-img--full[^}]*170mm", css, re.S)
+    assert m, "no @media print block bounding .cell-img--full at 170mm"
+    assert css.index(".cell-img--full") < m.start()

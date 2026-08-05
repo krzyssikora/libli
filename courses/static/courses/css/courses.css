@@ -1143,7 +1143,47 @@ a.unit-crumbs__label:focus-visible { outline: 2px solid var(--primary); outline-
    pass only, matching the sibling table's note above. --- */
 .filltable { margin: var(--space-4) 0; }
 .filltable__prompt { margin: 0 0 var(--space-2); font-weight: 600; }
-.filltable__img { max-width: 100%; height: auto; display: block; }
+/* --- Table cell images (slice C2). The scale is FOUR ABSOLUTE SQUARE bounding
+   boxes, not percentages: a cell's containing block is content-negotiated, so a
+   percentage compounds the instability (MEASURED 5.2x spread across real table
+   shapes versus 1.4x for the absolute cap). The `min(100%, Npx)` arm keeps the
+   cell a hard ceiling — measured across 32 shape x treatment combinations,
+   including phone at 296px, with no horizontal scroll anywhere.
+
+   The BASE RULE DECLARES NO max-width. `.filltable__img` used to declare
+   `max-width: 100%`, which ties with a single-class `.cell-img--medium` and would
+   silently win by source order, degrading every preset to Full. That rule is
+   DELETED rather than reduced — keeping a no-op invites re-adding max-width and
+   re-opens the trap. Chromium/Firefox/WebKit agree to within 1px on these rules
+   (measured on five shapes); do not re-derive. --- */
+.cell-img { height: auto; display: block; }
+.cell-img--small  { max-width: min(100%, 80px);  max-height: 80px; }
+.cell-img--medium { max-width: min(100%, 160px); max-height: 160px; }
+.cell-img--large  { max-width: min(100%, 240px); max-height: 240px; }
+.cell-img--full   { max-width: 100%;             max-height: 60dvh; }
+
+/* halign is `text-align` on the <td>, which has NO effect on a display:block
+   child. With absolute caps of 80/160/240px inside a 648px column the image is
+   almost always narrower than its cell, so it would sit flush left whatever the
+   author picks — while the align buttons stay enabled and serialize() faithfully
+   writes halign. Margin-driven alignment from the cell's existing class fixes it.
+   (`ta-left` is the margin-inline:0 default and needs no rule.) */
+.ta-center > .cell-img { margin-inline: auto; }
+.ta-right  > .cell-img { margin-inline: auto 0; }
+
+/* dvh not vh, per C1: vh resolves against the toolbar-collapsed viewport, so a vh
+   cap can still fall below the fold on a phone. AGGREGATE height is accepted: the
+   60dvh bound is per image, so a five-row table of tall `full` images is still
+   ~300dvh of scrolling — strictly better than today's unbounded 1287px per cell,
+   and the editor-insert default of `medium` keeps new content well clear. */
+
+/* @media print adds NO specificity, so this must come AFTER the preset block.
+   Without it a `full` cell image prints at a viewport-relative dvh height.
+   Small/Medium/Large are already absolute and need no print counterpart. */
+@media print {
+  .cell-img--full { max-height: 170mm; }
+}
+
 .filltable-editor__img { max-width: 120px; height: auto; display: block; }
 .el--filltable__scroll { overflow-x: auto; }
 .el--filltable table { border-collapse: collapse; width: 100%; }

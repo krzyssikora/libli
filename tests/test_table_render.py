@@ -62,3 +62,80 @@ def test_math_left_as_raw_text_for_client_typeset():
     d["cells"][0][0]["html"] = r"\(x\)"
     html = TableElement(data=d).render()
     assert r"\(x\)" in html
+
+
+def test_image_cell_renders_the_asset_with_preset_class_and_zoom_hook(
+    course_with_image,
+):
+    from courses.models import TableElement
+
+    course, asset = course_with_image
+    el = TableElement.objects.create(data=TableElement.normalize_data({
+        "header_row": False, "header_col": False, "border": "grid",
+        "cells": [[{"kind": "image", "media": asset.pk, "alt": "a graph",
+                    "size": "medium"}]],
+    }))
+    html = el.render()
+    assert 'class="cell-img cell-img--medium"' in html
+    assert f'src="{asset.file.url}"' in html
+    assert 'alt="a graph"' in html
+    assert "data-zoomable" in html
+
+
+def test_partial_defaults_size_when_the_key_is_absent(course_with_image):
+    """|default:'full' — a bare {{ cell.size }} yields `cell-img--`, which matches no
+    rule, and nothing else caps the image once max-width leaves the base.
+
+    Rendered at the PARTIAL level with a context that has no `size` key at all. Going
+    through el.render() cannot falsify the mutant: render() calls normalize_data,
+    which materialises size:"full", so `cell.size` is always populated at the template
+    and the output is `cell-img--full` with or without the filter. (This is the shape
+    tests/test_imagezoom_render.py already uses for _filltable_cell.html.)
+    """
+    from django.template.loader import render_to_string
+
+    _course, asset = course_with_image
+    html = render_to_string(
+        "courses/elements/_table_cell.html",
+        {"cell": {"kind": "image", "media": asset, "alt": ""}},
+    )
+    assert "cell-img--full" in html
+    assert 'cell-img--"' not in html
+    assert "cell-img-- " not in html
+
+
+def test_text_cell_bytes_are_unchanged_by_the_partial_factoring(db):
+    """The mutant: a trailing newline or a leading indent in _table_cell.html.
+    {% spaceless %} strips whitespace only BETWEEN tags, so whitespace adjacent to
+    TEXT survives and changes rendered bytes for all 7,246 existing cells.
+    The cell MUST be non-empty: with html:"" the include emits only its newline and
+    `<td>\\n</td>` collapses to `<td></td>`, so an empty fixture cannot falsify."""
+    from courses.models import TableElement
+
+    el = TableElement.objects.create(data=TableElement.normalize_data({
+        "header_row": False, "header_col": False, "border": "grid",
+        "cells": [[{"html": "cell text", "halign": "center", "valign": "top"}]],
+    }))
+    assert '<td class="ta-center va-top">cell text</td>' in el.render()
+
+
+def test_header_cell_bytes_are_unchanged_too(db):
+    """Four of the five branches are <th>; a rule phrased only for <td> leaves a
+    header-row table's bytes unpinned."""
+    from courses.models import TableElement
+
+    el = TableElement.objects.create(data=TableElement.normalize_data({
+        "header_row": True, "header_col": False, "border": "grid",
+        "cells": [[{"html": "head text", "halign": "left", "valign": "top"}]],
+    }))
+    assert '<th scope="col" class="ta-left va-top">head text</th>' in el.render()
+
+
+def test_table_cell_partial_has_no_trailing_newline():
+    """Byte-level: an editor will silently re-add one."""
+    import pathlib
+
+    from django.conf import settings
+
+    p = pathlib.Path(settings.BASE_DIR) / "templates/courses/elements/_table_cell.html"
+    assert p.read_bytes()[-1:] not in (b"\n", b"\r")

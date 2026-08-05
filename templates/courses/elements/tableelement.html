@@ -11,6 +11,14 @@ breaks the layout the editor saved.{% endcomment %}
   <div class="scroll-x" data-scroll-x>
   <div class="el--table__scroll">
     <table>
+      {% comment %}The cell body is factored into _table_cell.html so the five branches
+      cannot drift and an image in a header row is handled once. That partial MUST stay
+      one line with no leading whitespace and no terminating newline, and the include
+      must sit flush between `>` and `</td>`/`</th>`: {% spaceless %} strips whitespace
+      only BETWEEN tags, so whitespace adjacent to TEXT survives and would change
+      rendered bytes for every existing cell. Do NOT take _filltable_cell.html as the
+      byte-safety precedent — it ends with \r\n, which is harmless there only because
+      filltableelement.html has no {% spaceless %} at all.{% endcomment %}
       {% for row in data.cells %}
       <tr>
         {% for cell in row %}
@@ -19,15 +27,15 @@ breaks the layout the editor saved.{% endcomment %}
           colspan/rowspan; simple tables use the header_row/header_col toggles and
           never carry spans.{% endcomment %}
           {% if cell.header %}
-            <th class="ta-{{ cell.halign }} va-{{ cell.valign }}"{% if cell.colspan %} colspan="{{ cell.colspan }}"{% endif %}{% if cell.rowspan %} rowspan="{{ cell.rowspan }}"{% endif %}>{{ cell.html|safe }}</th>
+            <th class="ta-{{ cell.halign }} va-{{ cell.valign }}"{% if cell.colspan %} colspan="{{ cell.colspan }}"{% endif %}{% if cell.rowspan %} rowspan="{{ cell.rowspan }}"{% endif %}>{% include "courses/elements/_table_cell.html" %}</th>
           {% elif forloop.parentloop.first and data.header_row and forloop.first and data.header_col %}
-            <th class="ta-{{ cell.halign }} va-{{ cell.valign }}"{% if cell.colspan %} colspan="{{ cell.colspan }}"{% endif %}{% if cell.rowspan %} rowspan="{{ cell.rowspan }}"{% endif %}>{{ cell.html|safe }}</th>
+            <th class="ta-{{ cell.halign }} va-{{ cell.valign }}"{% if cell.colspan %} colspan="{{ cell.colspan }}"{% endif %}{% if cell.rowspan %} rowspan="{{ cell.rowspan }}"{% endif %}>{% include "courses/elements/_table_cell.html" %}</th>
           {% elif forloop.parentloop.first and data.header_row %}
-            <th scope="col" class="ta-{{ cell.halign }} va-{{ cell.valign }}"{% if cell.colspan %} colspan="{{ cell.colspan }}"{% endif %}{% if cell.rowspan %} rowspan="{{ cell.rowspan }}"{% endif %}>{{ cell.html|safe }}</th>
+            <th scope="col" class="ta-{{ cell.halign }} va-{{ cell.valign }}"{% if cell.colspan %} colspan="{{ cell.colspan }}"{% endif %}{% if cell.rowspan %} rowspan="{{ cell.rowspan }}"{% endif %}>{% include "courses/elements/_table_cell.html" %}</th>
           {% elif forloop.first and data.header_col %}
-            <th scope="row" class="ta-{{ cell.halign }} va-{{ cell.valign }}"{% if cell.colspan %} colspan="{{ cell.colspan }}"{% endif %}{% if cell.rowspan %} rowspan="{{ cell.rowspan }}"{% endif %}>{{ cell.html|safe }}</th>
+            <th scope="row" class="ta-{{ cell.halign }} va-{{ cell.valign }}"{% if cell.colspan %} colspan="{{ cell.colspan }}"{% endif %}{% if cell.rowspan %} rowspan="{{ cell.rowspan }}"{% endif %}>{% include "courses/elements/_table_cell.html" %}</th>
           {% else %}
-            <td class="ta-{{ cell.halign }} va-{{ cell.valign }}"{% if cell.colspan %} colspan="{{ cell.colspan }}"{% endif %}{% if cell.rowspan %} rowspan="{{ cell.rowspan }}"{% endif %}>{{ cell.html|safe }}</td>
+            <td class="ta-{{ cell.halign }} va-{{ cell.valign }}"{% if cell.colspan %} colspan="{{ cell.colspan }}"{% endif %}{% if cell.rowspan %} rowspan="{{ cell.rowspan }}"{% endif %}>{% include "courses/elements/_table_cell.html" %}</td>
           {% endif %}
           {% endspaceless %}
         {% endfor %}
