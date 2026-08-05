@@ -1665,7 +1665,9 @@ Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
 
 **Files:**
 - Modify: `courses/static/courses/js/tabs.js` (inside `initCarousel`)
+- Modify: `tests/test_tabs_css.py` (the new bail-teardown assertion lives here — it uses `TABS_JS`)
 - Modify: `tests/test_e2e_imagezoom.py` (comment citations only)
+- Modify: `tests/test_editor_clip_templates.py` (one stale template citation)
 
 **Interfaces:**
 - Consumes: `show`, `sections`, `stage`, `nav`, `dead`, `container` from Task 7.
@@ -1834,11 +1836,24 @@ reference ("the `data-tab-id` attribute in `tabselement.html`").
 
 `tests/test_e2e_imagezoom.py` carries **four** `tabs.js:<line>` citations in comments (the strip loop, `panel.tabIndex = 0`, the roving tabindex, the `hidden` re-application). All four are already stale against the current file, and this task shifts them again. Replace each with a symbol reference — e.g. "the strip-building loop in `initOne`", "where `initOne` sets `panel.tabIndex = 0`", "`select()`'s roving tabindex", "`select()`'s `hidden` re-application" — no line numbers.
 
-- [ ] **Step 5: Lint and commit**
+- [ ] **Step 5: Run the tests**
+
+```bash
+uv run pytest tests/test_tabs_css.py -v
+```
+Expected: PASS — the new bail-teardown assertion **and** the four pre-existing assertions in
+that file that read `tabs.js` (no-inline-`display`, `isConnected`, `libli:reveal`, the
+class-drift guard), every one of which this task's edits touch.
+
+- [ ] **Step 6: Falsify**
+
+Delete the `teardownMeasure();` call from `bail()` → `test_the_error_bail_tears_down_the_measurement_wiring` must FAIL. Revert.
+
+- [ ] **Step 7: Lint and commit**
 
 ```bash
 uv run ruff check courses/ tests/
-git add courses/static/courses/js/tabs.js tests/test_e2e_imagezoom.py
+git add courses/static/courses/js/tabs.js tests/test_tabs_css.py tests/test_e2e_imagezoom.py tests/test_editor_clip_templates.py
 git commit -m "feat(tabs): add carousel keyboard, focus rescue and height reservation
 
 Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>"
@@ -2191,8 +2206,9 @@ Each bullet is one test. Sync on conditions, never on sleeps.
 - [ ] **Height:** `.tabs__stage`'s height is unchanged between slides **and** ≥ the tallest section's own `bounding_box()["height"]`. Stability alone is vacuous — once sections are absolutely positioned the stage's height *is* `min-height` by construction, so a build reserving only slide 1's height passes a stability check while the tall slide overflows the nav. Also assert the nav bar's `y` is identical on both slides.
 - [ ] **Status:** `.tabs__status` reads "Slide 2 of N", and the active dot carries `aria-current="true"`.
 - [ ] **Boundaries:** `prev` is `disabled` on slide 1, `next` on the last; ArrowLeft on slide 1 and ArrowRight on slide N leave the index unchanged with **no console error**.
+- [ ] **Walk backwards** — the only case that can falsify step 4 preceding step 7. Seed slide 1 with **no focusable content** (a plain table) and slide 2 with a link; focus the link, press ArrowLeft to slide 1, then press ArrowRight and assert the index **advances**. *(Mutant: move the four `prev/next.disabled` / `aria-disabled` lines below `rescueFocus(out, inn)` → RED. Every other keyboard case here walks forward and stays green under that mutant: the fallback picks `prev` while it is still enabled, focuses it, and only then `prev.disabled = true` blurs focus to `<body>`.)*
 - [ ] **Boundary focus (the only case that can see step 4b):** click › to the last slide, assert `document.activeElement` is the `prev` button — **not `<body>`** — then ArrowLeft actually decrements. *(Mutant: delete step 4b → RED.)*
-- [ ] **Focus into the slide:** with a slide holding a link, ArrowRight → `document.activeElement` is inside the incoming section, **not** in `.tabs__cbar`. *(Guards against an over-strict `rescueFocus` predicate silently degrading to the fallback.)*
+- [ ] **Focus into the slide:** ⚠️ precondition — **both** slides hold a focusable, and the test must `focus()` the OUTGOING slide's link *before* pressing ArrowRight. `rescueFocus` opens with `if (!out.contains(document.activeElement)) return;`, so focusing the › button instead (the natural way to get focus inside the container) makes it return early, `activeElement` stays on › — which *is* in `.tabs__cbar` — and the assertion goes RED against **correct** code. With the precondition met: `document.activeElement` is inside the incoming section and **not** inside `.tabs__cbar`. *(Guards against an over-strict `focusable()` predicate silently degrading to the nav-bar fallback.)*
 - [ ] **Two presses:** ArrowRight **twice** — a build broken at steps 5/7/8 survives exactly one press.
 - [ ] **Nested tabs:** a slide holding a tabs element; ArrowRight twice still advances the outer carousel.
 - [ ] **Nested gallery — arrow ownership:** a gallery in a slide; one ArrowRight with focus inside it moves the gallery by one and leaves the carousel's index unchanged.
