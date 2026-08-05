@@ -415,8 +415,8 @@ future edit — and it does not need a specific culprit to be worth closing.) Wh
 would get is not the stacked fallback but something worse than blank:
 every slide `inert` (its fill-in table, links and zoom triggers non-interactive and
 unfocusable) and `aria-hidden` (the whole element absent from the accessibility tree). A throw
-*after* a successful `show(0)` — in the status string, or in `measure()` — leaves slides
-2..N in the same state.
+*after* a successful `show(0)` — in `measure()`, or in the `ResizeObserver` wiring — leaves
+slides 2..N in the same state.
 
 So the carousel branch is wrapped in a `try/catch` whose handler strips `inert` and
 `aria-hidden` from every **own** section (`ownSections`, never a bare query — a nested
@@ -432,7 +432,7 @@ survives a DOM-only undo, and `show`/`measure` stay closed over the now-detached
 references. Removing the nav bar but leaving the keydown handler is the same hazard one
 keypress later: ArrowRight still runs `show()`, whose step 4 writes to the *detached*
 prev/next/dot nodes without throwing (assignment to a detached element is legal), and whose
-steps 5 and 8 re-apply `inert` + `aria-hidden` to sections of the stacked fallback —
+step 8 re-applies `inert` + `aria-hidden` to a section of the stacked fallback —
 progressively rebuilding the "worse than blank" state the `catch` exists to prevent. A
 surviving `ResizeObserver` or `libli:reveal` listener likewise keeps writing
 `stage.style.minHeight` onto a stacked, non-absolute stage.
@@ -454,9 +454,10 @@ on `.replace`. Then assert every section is non-`inert`, not `aria-hidden`, its 
 reachable by tabbing, **and no `.tabs__cbar` present**. Mutant: empty the `catch` handler →
 RED.
 
-A second, cheaper falsification guards the init path specifically, because C1/C2 above are
-both "the feature silently never runs" failures that a normal e2e would report as a hundred
-unrelated assertion errors: on a plain, healthy carousel assert slide 1 is `.is-active` and
+A second, cheaper falsification guards the init path specifically. An `idx` initialised to
+`0` instead of the `-1` sentinel, and a missing first-show branch, are both "the feature
+silently never runs" failures that a normal e2e would report as a hundred unrelated assertion
+errors: so on a plain, healthy carousel assert slide 1 is `.is-active` and
 **not** `inert` after load. Mutants: initialise the index to `0` instead of `-1`, or delete
 the first-show branch — either must go RED.
 
@@ -482,9 +483,10 @@ distinguishes the two *enhanced* modes; it does not replace the JS gate.
   **Because disabling the focused element blurs it to `<body>`**, when the button that was
   just activated becomes disabled, focus moves to the opposite arrow. Two things this
   requires: the "was this arrow focused" test is **read into a local before step 2 reassigns
-  `disabled`** — that is step 2 of the algorithm below, and it is a *capture*, not a
-  reordering: step 4 must still run before `rescueFocus` — and the transfer applies **only when
-  focus was on the nav bar** — i.e. exactly when `rescueFocus` returns early. That makes the
+  `disabled`** — the read is **step 2** of the algorithm below, the reassignment is **step 4**,
+  and this is a *capture*, not a reordering: step 4 must still run before `rescueFocus` at
+  step 7. The transfer itself is step 4b, and it applies **only when focus was on the nav
+  bar** — i.e. exactly when `rescueFocus` returns early. That makes the
   two focus mechanisms mutually exclusive by construction; without the restriction both fire
   on one activation and the reader sees a visible focus jump.
 
@@ -493,23 +495,37 @@ distinguishes the two *enhanced* modes; it does not replace the JS gate.
   `gallery.js::show` step for step; where it departs, the departure is called out.
 
   ```
-  0.  target = clamp(n) into [0, N-1]
+  0.  if (dead) return;                                  // set by the error bail; MUST be first
+      target = clamp(n) into [0, N-1]
       if (idx !== -1 && target === idx) return;          // sentinel-aware, see below
   1.  finalizePending()
-  2.  wasFocusedArrow = (document.activeElement === prev || === next)   // capture BEFORE 4
+  2.  wasFocusedArrow = (activeElement === prev || activeElement === next)   // capture, see 4b
   3.  out = sections[idx]            // undefined on the first call, because idx === -1
       idx = target
       inn = sections[idx]
   4.  update dots (.is-active + aria-current), the .tabs__status text,
       and prev/next .disabled + aria-disabled — all to the NEW idx
+  4b. if (wasFocusedArrow && the arrow that held focus is now disabled) oppositeArrow.focus()
   5.  inn.removeAttribute("aria-hidden"); inn.removeAttribute("inert")
-  6.  if (!out) { inn.style.opacity = ""; inn.classList.add("is-active"); return; }
-  7.  rescueFocus(out, inn)          // may return early if focus was on the bar
+  6.  if (!out) {                                        // first show
+        inn.style.opacity = ""; inn.classList.add("is-active")
+        dispatch libli:reveal on inn; return
+      }
+  7.  rescueFocus(out, inn)          // returns early when focus is on the bar — incl. after 4b
   8.  out: set aria-hidden + inert
-  9.  fade in inn / out out; pending = {out, inn, timer}
+  9.  inn.style.opacity = "0"; force reflow; inn.classList.add("is-active")
+      inn.style.opacity = "1"; out.style.opacity = "0"
+      pending = {out, inn, timer}; timer(FADE_MS or 0) -> settleHidden(out); inn.style.opacity = ""
+  10. dispatch libli:reveal on inn (bubbles: true)
+
+  settleHidden(el):  el.classList.remove("is-active"); el.style.opacity = "";
+                     el.setAttribute("aria-hidden", "true"); el.setAttribute("inert", "")
+  finalizePending(): clears the timer, settleHidden(pending.out) if it is not pending.inn,
+                     adds .is-active to pending.inn and clears its inline opacity
   ```
 
-  Five of those positions are load-bearing, and each has already been the source of a defect:
+  Eight of those positions are load-bearing, and most have already been the source of a
+  defect:
 
   - **`idx` starts at `-1`, and step 0's early return is sentinel-aware** (`idx !== -1 &&
     target === idx`), per `gallery.js:31,137`. Init `inert`s and `aria-hidden`s **every**
@@ -523,7 +539,17 @@ distinguishes the two *enhanced* modes; it does not replace the JS gate.
     `sections[-1]` is `undefined`, and step 5's `removeAttribute` throws — in a *keydown*
     handler, so the init-time `try/catch` does not catch it, `preventDefault` has already
     fired, and the carousel is left mid-transition.
-  - **Step 3 captures `out` BEFORE advancing `idx`.** The list names `outgoing` at steps 6-8;
+  - **`if (dead) return;` is the very first statement**, ahead of the clamp. The error bail
+    sets that flag, and the guard must precede step 4 (which writes to the now-detached nav
+    nodes without throwing) and step 8 (which would re-`inert` a section of the stacked
+    fallback). `measure()` carries the same guard.
+  - **Step 4b consumes `wasFocusedArrow`.** Capturing it at step 2 and never reading it is
+    not a harmless dangling local: at slide N-1 with focus on `next`, step 4 disables `next`,
+    the browser blurs to `<body>`, step 7 returns early (`out` does not contain `<body>`),
+    and focus ends outside the container — so the container-bound keydown handler never fires
+    again and keyboard navigation dies. 4b and step 7 are mutually exclusive by construction:
+    if focus was on the bar, `rescueFocus`'s guard returns early either way.
+  - **Step 3 captures `out` BEFORE advancing `idx`.** The list names `out` at steps 6-9;
     if it is resolved after the advance it *is* the incoming section, so step 6's guard never
     fires (the first-show branch becomes dead code), step 8 re-`inert`s the slide just
     revealed, and step 9 fades a node into itself. That variant still "completes
@@ -546,14 +572,23 @@ distinguishes the two *enhanced* modes; it does not replace the JS gate.
     everything and bail, so **every carousel on every page** would fall back to stacked and
     the feature would never run. Ported from `gallery.js:149-153`.
 
-  Step 5 before step 7 matters for the same reason it does in the gallery: `rescueFocus` is a
-  no-op in any other order. Its guard is `if (!out.contains(document.activeElement)) return;`,
-  so inerting the outgoing section first (the natural reading of "at rest every section is
-  inert") pushes focus to `<body>` before the rescue runs, the guard returns early, and
-  keyboard navigation dies after exactly one step **with the rescue code present and
-  correct**. Focusing into the incoming section before its `inert` is cleared is likewise a
-  silent no-op. Because the broken build survives one keypress, the e2e must press ArrowRight
-  **twice**.
+  - **Step 8 comes AFTER step 7.** `rescueFocus`'s guard is
+    `if (!out.contains(document.activeElement)) return;`, so inerting the outgoing section
+    first — the natural reading of "at rest every section is inert" — pushes focus to
+    `<body>` before the rescue runs, the guard returns early, and keyboard navigation dies
+    after exactly one step **with the rescue code present and correct**.
+  - **Step 5 comes BEFORE step 7.** Focusing into the incoming section while its `inert` is
+    still set is a silent no-op, with the same end state.
+  - **Step 9 is where `.is-active` transfers on the advance path.** `.is-active` is the class
+    the CSS keys `opacity: 1; pointer-events: auto` on, and the only other `classList.add` for
+    it sits inside step 6's first-show branch, which is unreachable on every subsequent call.
+    Leave step 9 as "fade in / fade out" without stating that `inn` gains the class and
+    `settleHidden(out)` removes it, and a literal implementation never marks a slide active
+    after the first show: the incoming slide rides on inline opacity for 320 ms, the settle
+    clears it, and **the carousel goes blank after the first arrow press**.
+
+  Because a build broken at steps 5/7/8 still survives one keypress, the e2e must press
+  ArrowRight **twice**.
 - **`rescueFocus`, with an explicit and *validated* target chain.** Inerting a subtree blurs
   focus inside it to `<body>`, and the container-scoped keydown handler bails when focus is
   outside the container — so without the rescue, keyboard navigation dies. The gallery's
@@ -574,8 +609,8 @@ distinguishes the two *enhanced* modes; it does not replace the JS gate.
   **`display`/`visibility`/zero-box** check (`offsetParent !== null`, or a non-empty client
   rect).
 
-  ⚠️ **Ancestor opacity must NOT be part of that test.** `rescueFocus` runs at step 4, while
-  the incoming section is still `opacity: 0` — `.is-active` lands at step 6, and the 320 ms
+  ⚠️ **Ancestor opacity must NOT be part of that test.** `rescueFocus` runs at step 7, while
+  the incoming section is still `opacity: 0` — `.is-active` lands at step 9, and the 320 ms
   CSS transition means `getComputedStyle` reports ~0 even for a moment after that. An
   opacity-aware predicate therefore rejects **every** node in the incoming slide, the first
   link of the chain becomes dead code, and the rescue silently always falls through to the
