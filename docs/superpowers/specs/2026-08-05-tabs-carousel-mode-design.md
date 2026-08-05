@@ -423,7 +423,14 @@ So the carousel branch is wrapped in a `try/catch` whose handler strips `inert` 
 instance's sections are not ours to clear), **removes the nav bar it appended** — the arrows,
 dots and status region are built before `show(0)` runs, so leaving them would put a visible,
 focusable control bar above a stacked fallback with undefined click behaviour — removes
-`.tabs--carousel`, and bails.
+`.tabs--carousel`, **and removes `.tabs--js`**, and bails.
+
+Removing `.tabs--js` matters: `courses.css` separates stacked slides with
+`.el--tabs:not(.tabs--js) .tabs__section + .tabs__section { margin-top: … }`, and the class is
+added before the branch is even entered. Leave it and the fallback's slides butt straight
+together (`reset.css` zeroes heading margins) — a visibly worse result than the no-JS
+rendering this bullet promises. Nothing in carousel mode still needs it, since the tabs-mode
+sr-only rule is `[data-display="tabs"]`-scoped.
 
 ⚠️ **The handler must neutralise the branch's LISTENERS too, not only its DOM writes.** By
 the time a throw is possible the branch has bound a container `keydown` handler, a `resize`
@@ -450,11 +457,29 @@ the keydown listener bound → RED. Only then is
 "JS error → stacked, labelled, readable fallback" an honest promise rather than an
 aspiration.
 
-**Falsification — and it needs a forcing mechanism that survives the i18n defaults.**
-Deleting a `TABS_I18N` key no longer throws (see above), so the e2e must inject a throw that
-the defaults cannot absorb: an init script setting `window.TABS_I18N` with a carousel key to
-a **truthy non-string** (e.g. `{status: 42}`), which passes the `||` default and still throws
-on `.replace`. Then assert every section is non-`inert`, not `aria-hidden`, its content
+**Falsification — and it needs a forcing mechanism that survives BOTH the i18n defaults and
+the template's own assignment.** Deleting a `TABS_I18N` key no longer throws (see above), so
+the e2e must inject a value the defaults cannot absorb: a carousel key set to a **truthy
+non-string** (e.g. `status: 42`), which passes the `||` default and still throws on
+`.replace`.
+
+⚠️ **A plain `window.TABS_I18N = {...}` init script does NOT work**, and specifying one would
+make this test fail against a *correct* implementation — the likely response to which is to
+weaken or delete the only guard the `try/catch` has. All three templates assign the global
+**wholesale** in an inline script (`window.TABS_I18N = { nav: …, prev: …, next: … };`) that
+runs before the deferred `tabs.js`, so a document-start injection is simply overwritten and
+the carousel initialises normally. Intercept the assignment instead — an init script
+installing an accessor that re-poisons whatever the page assigns:
+
+```js
+Object.defineProperty(window, "TABS_I18N", {
+  configurable: true,
+  get() { return this.__t; },
+  set(v) { this.__t = Object.assign({}, v, {status: 42}); },
+});
+```
+
+(or route/replace the `tabs.js` response — either is fine, a bare global write is not). Then assert every section is non-`inert`, not `aria-hidden`, its content
 reachable by tabbing, **and no `.tabs__cbar` present**. Mutant: empty the `catch` handler →
 RED.
 
@@ -692,13 +717,22 @@ distinguishes the two *enhanced* modes; it does not replace the JS gate.
 - **No tab roles, and an explicit list of what the shared per-section loop does instead.**
   The tabs branch performs five mutations per section: eid-namespaced `panel.id`,
   `role="tabpanel"`, `aria-labelledby`, `panel.tabIndex = 0`, and cloning the label into a
-  strip button. The carousel branch performs exactly **one**: `aria-labelledby`
-  **on the section**, pointing at the `h3`'s server-rendered `tabs-{eid}-{tid}-label` id, so
+  strip button. The carousel branch performs exactly **two**, both on the section:
+  `aria-labelledby` pointing at the `h3`'s server-rendered `tabs-{eid}-{tid}-label` id, so
   each slide is named to assistive technology even when `label_pos` is `hidden` (the
-  clip-based rule keeps the heading in the accessibility tree). It needs **no id work at
+  clip-based rule keeps the heading in the accessibility tree) — **and `role="group"` with
+  `aria-roledescription="slide"`**.
+
+  The role is required *because* of the name: per HTML-AAM a bare `<section>` maps to
+  `generic` while unnamed, but to **`region` — a landmark** — the moment it gains an
+  accessible name. Naming the sections without a role would push up to 10 landmark regions
+  per carousel into a screen reader's landmark list, times every carousel on the page.
+  `group` is a *slide* role, not a tab role, so it does not conflict with the rule below.
+
+  It needs **no id work at
   all** — the template already emits both `tabs-{eid}-{tid}-panel` and the `-label` id, and
   the tabs branch's `panel.id = panelId` merely re-assigns the identical string, so
-  requiring it here would be asking for code that does nothing. It sets **no** `role`,
+  requiring it here would be asking for code that does nothing. It sets **no tab** `role`,
   **no** `tabIndex` on panels — a tab stop per panel would fight the `inert` tab-order
   assertion — and builds no strip button.
 - **A `.tabs__status` region** (`role="status"`, `aria-live="polite"`) announces "Slide {n}
@@ -922,8 +956,11 @@ Four existing rules encode tabs-mode assumptions and must each be scoped or pair
    not on `.tabs--carousel`.** It only adds spacing, so it is safe unenhanced, and gating it
    on the JS class would leave the no-JS stacked fallback with every caption flush against
    its panel. (This is the one carousel rule exempt from the gate class, precisely because it
-   neither hides nor positions anything — and being attribute-only it must still use the
-   child chain, or it would re-space a nested element's panels.)
+   neither hides nor positions anything.) **Both halves of this item take the child chain** —
+   the retained tabs-mode rule as well as the carousel replacement. Left as a descendant
+   selector, `.el--tabs[data-display="tabs"] .tabs__panel` adds its `padding-top` to every
+   panel of a carousel nested inside a tabs panel — an explicit test case — on top of that
+   carousel's own spacing, and inflates the measured stage height with it.
 
 **The caption needs a typographic specification, not just spacing.** In tabs mode the
 `h3.tabs__panel-label` is clipped the instant JS runs, so it has never been styled as visible
@@ -943,9 +980,18 @@ stylesheet where every other block carries a multi-line rationale — an unquant
 terse" guarding a hard cliff, and the new source-level print test uses the same helper, so an
 overflow surfaces as "the reset is missing" rather than "the slice overflowed".
 
-Both changes, then: append (so every currently-asserted line stays in range regardless), and
-raise the slice. Raising it is safe — no earlier `@media print` chunk contains `.el--tabs`
-even at a 3000-character window, so the helper still selects the same chunk.
+⚠️ **But do NOT fix this by raising the character count.** A bigger window changes what
+"the print block" *means*: the tabs `@media print` block ends around character 777 of its
+chunk, and everything past that is ordinary **screen** CSS. At a 3000-character slice the
+helper returns ~2200 characters of non-print rules, so the new print guard below could be
+satisfied by the *screen* carousel rules — a silent green with no print reset at all, which
+is exactly the content-loss failure that test exists to catch.
+
+Instead, **clip the chunk at the media block's closing brace**, following the in-repo
+precedent `courses/tests/test_reveal_scope_agreement.py::_print_block`
+(`re.search(r"@media print\s*\{(.*?)\n\}", css, re.S)`), so "in the print block" means what it
+says regardless of length or of what follows. Then append the new rules (so ordering is
+irrelevant) and the 1200-character cliff disappears entirely.
 
 **`label_pos: "below"`** is a **CSS-only reorder**, since the `h3` always precedes the panel
 in the DOM and the server markup may not change: `.tabs__section` becomes a column flex
