@@ -493,11 +493,24 @@ def test_resolver_survives_an_image_cell_with_no_media_and_a_non_dict_cell():
     assert out[0][2] == {"html": "x"}
 
 
-def test_empty_cell_is_the_only_difference_between_the_two_models():
-    """One definition of the unresolved-asset behaviour, injected shape aside."""
+def test_the_helper_actually_calls_the_injected_empty_cell():
+    """One definition of the unresolved-asset behaviour, injected shape aside.
+
+    Assert on the parsed AST, not a substring of the source: inspect.getsource includes
+    the docstring, and the mandated docstring contains the literal `empty_cell(cell)` - so
+    a substring check passes even if the body never calls the callable. Same trap as
+    test_tablecells_has_no_module_level_imports guards against.
+    """
+    import ast
     import inspect
-    src = inspect.getsource(tablecells.resolve_image_cells)
-    assert "empty_cell(" in src
+
+    tree = ast.parse(inspect.getsource(tablecells.resolve_image_cells).lstrip())
+    calls = {
+        n.func.id
+        for n in ast.walk(tree)
+        if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)
+    }
+    assert "empty_cell" in calls
 
 
 def test_tablecells_has_no_module_level_imports():
@@ -616,8 +629,10 @@ def resolve_image_cells(cells, *, empty_cell, course=None):
     clean_data). An out-of-scope pk simply fails to resolve and takes the same
     fallback — no second branch, no second shape.
 
-    MediaAsset is imported INSIDE the function: courses/models.py imports this
-    module, so a module-level import is a circular import at app load. The same
+    MediaAsset is imported INSIDE the function so this module stays importable from
+    `courses/models.py` at MODULE scope. Today the two delegators import `tablecells`
+    function-locally, so a module-level `from courses.models import MediaAsset` would in
+    fact resolve - but the guard is what keeps that refactor safe, and it is the same
     function-local pattern `_ser_fill_table` uses for the identical symbol.
     """
     from courses.models import MediaAsset
@@ -1441,19 +1456,17 @@ Append to `tests/test_table_transfer.py` (it already imports `SERIALIZERS`,
 `pytestmark = pytest.mark.django_db`):
 
 ```python
+from courses.transfer.export import MediaIdMap
 from courses.transfer.export import _element_mids
 from courses.transfer.schema import FORMAT_VERSION
 from tests.factories import make_course, make_image_asset
 
 
-class _Ids:
-    """Minimal stand-in for export's LocalIds: pk -> "m1"/"m2" in first-seen order."""
-
-    def __init__(self):
-        self._by_pk = {}
-
-    def register(self, asset):
-        return self._by_pk.setdefault(asset.pk, f"m{len(self._by_pk) + 1}")
+# SERIALIZERS values are (model, fn) TUPLES - `SERIALIZERS["table"](...)` raises
+# TypeError: 'tuple' object is not callable. Unpack the callable once, exactly as
+# tests/test_filltable_transfer.py does (`SERIALIZERS["fill_table"][1](src, ids)`).
+_ser_table_fn = SERIALIZERS["table"][1]
+_ser_fill_table_fn = SERIALIZERS["fill_table"][1]
 
 
 def _tbl(cells, **top):
@@ -1477,7 +1490,7 @@ def test_ser_table_registers_the_asset_and_emits_a_string_local_id(tmp_path, set
     el = TableElement.objects.create(
         data=TableElement.normalize_data(_tbl([[_img(asset.pk, size="medium")]]))
     )
-    out = SERIALIZERS["table"](el, _Ids())
+    out = _ser_table_fn(el, MediaIdMap())
     cell = out["cells"][0][0]
     assert cell["media"] == "m1"          # local STRING id, not the int pk
     assert cell["size"] == "medium"       # the preset survives export
@@ -1492,7 +1505,7 @@ def test_ser_table_does_not_mutate_el_data(tmp_path, settings):
     el = TableElement.objects.create(
         data=TableElement.normalize_data(_tbl([[_img(asset.pk)]]))
     )
-    SERIALIZERS["table"](el, _Ids())
+    _ser_table_fn(el, MediaIdMap())
     assert el.data["cells"][0][0]["media"] == asset.pk
 
 
@@ -1502,7 +1515,7 @@ def test_ser_table_survives_ragged_rows_and_non_dict_cells():
     _exact_keys and its non-dict-cell check reject it) — do NOT extend into a
     round-trip, or you will "fix" the validator and widen the import surface."""
     stored = {"cells": [[_cell("a"), "not-a-dict"], "not-a-row", [_cell("b")]]}
-    out = SERIALIZERS["table"](TableElement(data=stored), _Ids())
+    out = _ser_table_fn(TableElement(data=stored), MediaIdMap())
     assert out["cells"][1] == "not-a-row"
     assert out["cells"][0][1] == "not-a-dict"
     assert out["cells"][0][0] == _cell("a")
@@ -1513,7 +1526,7 @@ def test_ser_table_degrades_an_unresolvable_pk_keeping_spans():
     dangling pk is reachable and ids.register(assets[pk]) would KeyError, 500ing
     both export and duplicate-unit."""
     el = TableElement(data=_tbl([[_img(999999, colspan=2, header=True)]]))
-    cell = SERIALIZERS["table"](el, _Ids())["cells"][0][0]
+    cell = _ser_table_fn(el, MediaIdMap())["cells"][0][0]
     assert cell == {"html": "", "halign": "left", "valign": "top",
                     "colspan": 2, "header": True}
     assert "kind" not in cell
@@ -1524,14 +1537,14 @@ def test_ser_table_materialises_size_full_when_absent(tmp_path, settings):
     asset = make_image_asset(make_course())
     el = TableElement(data=_tbl([[{"kind": "image", "media": asset.pk,
                                    "halign": "left", "valign": "top"}]]))
-    assert SERIALIZERS["table"](el, _Ids())["cells"][0][0]["size"] == "full"
+    assert _ser_table_fn(el, MediaIdMap())["cells"][0][0]["size"] == "full"
 
 
 def test_ser_table_handles_an_image_cell_with_no_media_key():
     """By this spec's own defensive argument, a stored {"kind": "image"} with no
     media is reachable — and subscripting would 500 export AND duplicate-unit."""
     el = TableElement(data=_tbl([[{"kind": "image", "halign": "left"}]]))
-    cell = SERIALIZERS["table"](el, _Ids())["cells"][0][0]
+    cell = _ser_table_fn(el, MediaIdMap())["cells"][0][0]
     assert cell == {"html": "", "halign": "left", "valign": "top"}
 
 
@@ -1540,7 +1553,7 @@ def test_legacy_non_normalized_table_export_bytes_are_unchanged():
     so nothing guarantees a stored row is rectangular. Normalizing at export would
     rectangularise and inject defaults, silently altering archive bytes."""
     stored = {"cells": [[{"html": "a"}], [{"html": "b"}, {"html": "c"}]]}
-    out = SERIALIZERS["table"](TableElement(data=stored), _Ids())
+    out = _ser_table_fn(TableElement(data=stored), MediaIdMap())
     assert out == stored            # ragged rows kept, no halign/valign injected
     assert "header_row" not in out  # absent top-level keys NOT invented
 
@@ -1614,7 +1627,7 @@ def test_table_image_cell_round_trips_end_to_end(tmp_path, settings):
     el = TableElement.objects.create(
         data=TableElement.normalize_data(_tbl([[_img(asset.pk, size="small")]]))
     )
-    payload = SERIALIZERS["table"](el, _Ids())
+    payload = _ser_table_fn(el, MediaIdMap())
     VALIDATORS["table"](payload, "el-1", {"m1": "image"})
     rebuilt, _children = BUILDERS["table"](payload, {"m1": asset})
     cell = rebuilt.data["cells"][0][0]
@@ -1637,7 +1650,7 @@ def test_filltable_image_cell_round_trips_size(tmp_path, settings):
         "header_col": False, "border": "grid",
         "cells": [[{"kind": "image", "media": asset.pk, "size": "large"}]],
     }))
-    payload = SERIALIZERS["fill_table"](el, _Ids())
+    payload = _ser_fill_table_fn(el, MediaIdMap())
     assert payload["cells"][0][0]["size"] == "large"
 
 
@@ -1662,7 +1675,7 @@ def test_a_300_char_alt_survives_the_round_trip(tmp_path, settings):
     el = TableElement(data=_tbl([[{**_img(asset.pk), "alt": "x" * 300}]]))
     el.save()
     assert len(el.data["cells"][0][0]["alt"]) == 255
-    payload = SERIALIZERS["table"](el, _Ids())
+    payload = _ser_table_fn(el, MediaIdMap())
     VALIDATORS["table"](payload, "el-1", {"m1": "image"})  # must not raise
 ```
 
@@ -1719,8 +1732,33 @@ Then inside the per-cell loop, after the existing `html` check:
                 check_str(alt, "alt", max_length=255)
 ```
 
-Accumulate `refs` in a local set and return it (the function currently returns
-`set()`); check the existing return shape and merge rather than replace.
+**Write the `refs` plumbing out in full — a missed `return refs` makes every
+table-image archive un-importable, and no test in this task would notice.**
+`_val_table` currently ends `return set()`. `courses/transfer/schema.py:326` does
+`refs = validate_element_data(el, media_kinds); referenced_media |= refs`, and line 339
+then hard-rejects with "Media entry '%(v)s' is not referenced by any element." So a table
+whose only media reference is a cell image would fail validation with a confusing error
+about an unreferenced media entry. Concretely:
+
+1. `refs = set()` immediately before the per-cell loop (copying the snippet's
+   `refs |= …` without this is a bare `NameError`);
+2. `refs |= _require_media(cell.get("media"), elid, media_kinds, "image")` inside the
+   `kind == "image"` branch, as shown;
+3. replace the trailing `return set()` with `return refs`.
+
+**And add an archive-level test**, because every other test in this task calls
+`VALIDATORS["table"](...)` directly and so bypasses the caller that consumes the return:
+
+```python
+def test_a_table_with_a_cell_image_passes_whole_archive_validation(tmp_path, settings):
+    """The refs return is only observable from validate_archive_document: it is what
+    stops schema.py rejecting the bundled asset as "not referenced by any element"."""
+    # build a course containing one table with an image cell, write_archive it, then
+    # open_archive + validate_archive_document over the result. tests/test_table_transfer.py
+    # already imports write_archive, open_archive and validate_archive_document.
+```
+
+Fill that body against the existing whole-archive test in the same file.
 
 Leave `_val_fill_table` untouched — its docstring commits it to being
 "intentionally more lenient than `_val_table`", and that asymmetry is pre-existing.
@@ -2019,8 +2057,10 @@ Append to `tests/test_editor_twin_drift.py` nothing yet — Step 9 updates it.
 
 - [ ] **Step 2: Run the tests to verify they fail**
 
-Run: `uv run pytest tests/test_table_editor_partial.py -v -k "toolbar or disabled or swatches"`
-Expected: FAIL — the partial still renders `data-table-toolbar hidden`.
+Run: `uv run pytest tests/test_table_editor_partial.py tests/test_filltable_editor_partial.py -v -k "toolbar or disabled or swatches"`
+Expected: FAIL in BOTH modules - each partial still renders `data-table-toolbar hidden`,
+and neither has `disabled` on its cell-scoped buttons. Running only the plain-table module
+would leave the mirrored fill-table tests never shown RED.
 
 - [ ] **Step 3: Make both toolbars always visible, with markup `disabled`**
 
@@ -2354,7 +2394,7 @@ Five `DIVERGENT` reason strings go stale (no test compares them, so nothing redd
 |---|---|
 | `serialize` | "fill-table emits three cell kinds (static/answer/image) where the plain table emits **two** (text/image), AND its payload carries two extra document-level fields, case_sensitive and prompt" |
 | `refreshToolbarState` | the plain table now has a kind-specific refresh; the fill table's `if (!focusCell) return` gate is **gone** |
-| `toggleHeaderCell` | the plain table must now re-key a live `cellStash` too |
+| `toggleHeaderCell` | keep the existing focus-fallback clause, which is still the real differentiator (`(next.querySelector(".filltable-editor__answer") \|\| next).focus()` vs a bare `next.focus()`, because `.focus()` is a no-op on a `<td data-answer>`), and add "both now re-key `cellStash`". Replacing the reason with the stash note alone would drop the only true divergence |
 | `cellIsNonEmpty` | the plain table now checks **both** a nested `<img>` and `data-image` |
 | `afterStructuralEdit` | entry **removed** in Task 7 (it moves to `TWINS`, and a `TWINS` member has no reason string - rewording and keeping the `DIVERGENT` entry fails `test_classifications_are_disjoint`) |
 
@@ -2385,13 +2425,24 @@ block must be byte-identical.
 Run: `uv run pytest tests/test_table_editor_partial.py tests/test_filltable_editor_partial.py tests/test_editor_twin_drift.py tests/test_colour_glue_drift.py tests/test_cell_selector_guard.py -v`
 Expected: PASS.
 
+**And run BOTH editors' e2e — all five files above are source-scanners.** This task rewrites
+five functions in `table_editor.js` (`refreshToolbarState`, `refreshAlignButtons`,
+`refreshHeaderButton`, `afterStructuralEdit`, plus the init-time call and the `focusin`
+deletion) and nothing so far executes the plain-table editor at all, so a null-deref there
+would ship to Task 7 undetected:
+
+Run: `uv run pytest -m e2e tests/test_e2e_table_editor.py tests/test_e2e_filltable.py -v`
+Expected: PASS. Both modules drive exactly these paths (click a cell, `[data-cmd='bold']`,
+`[data-halign='center']`, `[data-row-insert]`).
+
 - [ ] **Step 11: Falsify — require RED**
 
 **Mutant 1 — the align-button null deref.** After Step 6 the function no longer contains
 `|| !focusCell` (its guard is `if (!toolbar) return;` plus two ternaries), so phrase the
 mutant against the *new* shape: replace the two ternaries with the original bare
-`focusCell.dataset.halign` / `.valign` reads, keeping `if (!toolbar) return;`. Then run
-`uv run pytest -m e2e tests/test_e2e_filltable.py -v`.
+`focusCell.dataset.halign` / `.valign` reads, keeping `if (!toolbar) return;`. Do it in
+**both** files (it is a byte-identical `TWIN`) and run
+`uv run pytest -m e2e tests/test_e2e_table_editor.py tests/test_e2e_filltable.py -v`.
 Expected: FAIL — the init-time `refreshToolbarState()` throws inside `wire()`, wiring
 aborts, nothing serializes. Restore the ternaries.
 
@@ -2480,7 +2531,11 @@ def test_size_select_iterates_the_model_choices_not_per_option_trans():
     # include the select's own title/aria-label {% trans %} calls, which
     # test_per_cell_controls_are_hidden_named_and_unnamed REQUIRES - the two assertions
     # would be mutually unsatisfiable.
-    seg = src[src.index("form.cell_image_sizes"):src.index("</select>")]
+    i = src.index("form.cell_image_sizes")
+    # Search FORWARD from i: _edit_table.html already has a <select data-border> in the
+    # controls strip ABOVE the toolbar, so a bare src.index("</select>") returns that
+    # earlier closer, the slice runs backwards, and the assertion passes on "".
+    seg = src[i:src.index("</select>", i)]
     assert "{% trans" not in seg
 
 
@@ -2697,15 +2752,13 @@ Inside `wire(editor)`, publish the handle and define `setImageCell`:
     }
 ```
 
-Add the module-level constants beside the existing `var MAX_ROWS = 50;`:
+Add the `CELL_IMG_CLASS` map beside the existing `var MAX_ROWS = 50;`.
+**`CELL_IMAGE_DEFAULT` and `CELL_IMAGE_INSERT` already exist** — Task 6 Step 5b declared
+both in **both** editor files. Do not re-declare them here; duplicate `var` is legal JS
+and `test_js_size_defaults_match_python_and_are_used` uses `in src`, so nothing would
+catch the duplication.
 
 ```javascript
-  // Hard-coded literals mirroring the Python constants, the same precedent as
-  // MAX_ROWS/HALIGNS — JS cannot read a Django TextChoices. A source-level test
-  // pins these against TableElement.DEFAULT_CELL_IMAGE_SIZE /
-  // EDITOR_INSERT_CELL_IMAGE_SIZE, and asserts they are actually USED.
-  var CELL_IMAGE_DEFAULT = "full";
-  var CELL_IMAGE_INSERT = "medium";
   // Whole-literal class names: `classList.add("table-editor__img--" + size)` would
   // leave only a stem literal in the source, making test_table_css.py's assertion
   // pass with three of four modifiers unstyled.
@@ -2956,8 +3009,9 @@ of `.filltable-editor__img--small`. Add a line-anchored
 (**`re.M` is mandatory**; without it `^` anchors at string start and matches
 nothing, failing a correct build).
 
-Add a source-level test asserting the JS literals equal the Python constants **and
-are used**:
+Append to **`tests/test_table_css.py`** (which already defines `TABLE_JS`, and to which the
+constants table tells you to add `FILL_JS`) a source-level test asserting the JS literals
+equal the Python constants **and are used**:
 
 ```python
 def test_js_size_defaults_match_python_and_are_used():
@@ -3039,7 +3093,8 @@ git commit -m "feat(table-cell-images): plain-table image cells in the editor"
 **Files:**
 - Modify: `templates/courses/manage/editor/_edit_filltable.html`
 - Modify: `courses/static/courses/js/filltable_editor.js`
-- Test: `tests/test_filltable_editor_partial.py` (append)
+- Test: `tests/test_filltable_editor_partial.py` (append), `tests/test_table_css.py`
+  (Steps 7b and 7c both edit it)
 
 **Interfaces:**
 - Consumes: Task 3's `form.cell_image_sizes`; Task 6's handle names and painting contract; Task 7's `CELL_IMG_CLASS` pattern (the fill table gets its own map).
@@ -3154,9 +3209,9 @@ shape to the plain table's (Task 7 Step 3) — `hidden`, no `name`, `title` +
 
 - [ ] **Step 4: JS — `size` in `serialize()`**
 
-Add `size: td.dataset.size || CELL_IMAGE_DEFAULT,` to the image branch's cell
-literal, and add the two module-level constants plus a `CELL_IMG_CLASS` map for
-`filltable-editor__img--*` (same shape as Task 7's).
+Add `size: td.dataset.size || CELL_IMAGE_DEFAULT,` to the image branch's cell literal,
+and add a `CELL_IMG_CLASS` map for `filltable-editor__img--*` (same shape as Task 7's).
+**The two constants already exist** from Task 6 Step 5b — do not re-declare them.
 
 - [ ] **Step 5: JS — `setImageCell` emits the modifier**
 
@@ -3223,11 +3278,6 @@ the alt input** — a later focusin is **NOT** relied upon". Both clauses are no
 false: the stash write is conditional, and the reveal is `refreshToolbarState()`'s
 job. Rewrite it.
 
-- [ ] **Step 8: Run the tests**
-
-Run: `uv run pytest tests/test_filltable_editor_partial.py tests/test_editor_twin_drift.py tests/test_table_css.py -v`
-Expected: PASS.
-
 - [ ] **Step 7b: Widen the JS-constant pin to both editor files**
 
 Task 7 Step 9 scoped `test_js_size_defaults_match_python_and_are_used` to `TABLE_JS`
@@ -3268,6 +3318,16 @@ def test_filltable_editor_classes_the_js_names_are_styled():
     assert re.search(r"^\.filltable-editor__img\s*\{", css, re.M)
 ```
 
+- [ ] **Step 8: Run the tests**
+
+Placed AFTER Steps 7b and 7c, which both edit `tests/test_table_css.py` - an earlier draft
+ran this before them, so neither the widened constant pin nor the new fill-table CSS guard
+was ever executed before the commit.
+
+Run: `uv run pytest tests/test_filltable_editor_partial.py tests/test_editor_twin_drift.py tests/test_table_css.py -v`
+Run: `uv run ruff check courses/static/courses/js/filltable_editor.js tests/test_table_css.py tests/test_filltable_editor_partial.py`
+Expected: PASS.
+
 - [ ] **Step 9: Falsify**
 
 Remove `size:` from the fill table's `serialize()` image branch and run
@@ -3280,15 +3340,18 @@ is green with or without `size:` in `serialize()` and with or without `data-size
 template. It re-proves Task 1's `normalize_data`, nothing more. Delete the false claim
 from its docstring ("If either site … is missing, the payload carries no size") and
 retitle it to what it actually pins: that the **form and model** preserve a submitted
-`size`. The JS sites are pinned by the source-level tests above and by Task 9's
-conversion-path e2e.
+`size`. The JS sites are pinned by the source-level tests above and, behaviourally, by
+Task 9's `test_filltable_size_select_reveals_populates_and_swaps_the_preview` - added
+specifically because Task 9's conversion-path test drives the PLAIN table
+(`[data-table-editor]`, `table-editor__img`) and nothing else here touches the fill
+table's select at all.
 
 - [ ] **Step 10: Commit**
 
 ```bash
 git add templates/courses/manage/editor/_edit_filltable.html \
         courses/static/courses/js/filltable_editor.js \
-        tests/test_filltable_editor_partial.py
+        tests/test_filltable_editor_partial.py tests/test_table_css.py
 git commit -m "feat(table-cell-images): size select for fill-table image cells"
 ```
 
@@ -3348,11 +3411,19 @@ import os
 
 import pytest
 
+from courses.models import Element
 from courses.models import TableElement
+from tests.factories import TEST_PASSWORD
 from tests.factories import add_element
 from tests.factories import make_image_asset
+from tests.factories import make_verified_user
 
-pytestmark = pytest.mark.e2e
+# BOTH markers, module-wide. transaction=True is mandatory, not hygiene: without it the
+# live_server thread uses a different connection and cannot see rows created in the test's
+# transaction, so every seeded unit/element/asset is simply absent. Every test in
+# tests/test_e2e_table_editor.py and tests/test_e2e_image_size.py carries it, and it
+# applies to the student-side tests here just as much as the editor-side ones.
+pytestmark = [pytest.mark.e2e, pytest.mark.django_db(transaction=True)]
 
 PA_USERNAME = "pa-cellimg"
 
@@ -3577,23 +3648,25 @@ def _open_editor_with_image_cell(page, live_server, slug):
                   [{"html": "r2c1", "halign": "left", "valign": "top"},
                    {"html": "r2c2", "halign": "left", "valign": "top"}]],
     }))
-    add_element(unit, el)
-    _reopen(page, live_server, unit, el)
-    return unit, el, page.locator("[data-edit-slot] [data-table-editor]").first
+    # add_element RETURNS the Element join row, and _reopen's locator is
+    # [data-element='<Element.pk>'] - passing the TableElement's pk makes it miss and the
+    # click time out, failing six editor tests on a CORRECT build.
+    element = add_element(unit, el)
+    _reopen(page, live_server, unit, element)
+    return unit, element, page.locator("[data-edit-slot] [data-table-editor]").first
 ```
 
-**`_reopen` takes the ELEMENT, and its selector is `[data-element='<element.pk>']`.**
-Check what `add_element(unit, obj)` returns in `tests/factories.py` — if it returns the
-`Element` join row rather than the concrete `TableElement`, pass whichever object's `pk`
-matches the `data-element` attribute the builder renders. `_add_table` in
-`tests/test_e2e_table_editor.py` already returns the right thing for `_reopen`; mirror it.
+**`_reopen` takes the `Element` JOIN ROW, not the concrete element.** Its locator is
+`[data-element='<Element.pk>'] .el-act-edit`, and `tests/factories.py`'s
+`add_element(unit, obj)` returns exactly that `Element` - so capture it. **`_add_table`
+returns `None`** (it ends at `wait_for_selector`) and could not return an element anyway:
+the add path is create-on-first-save, so the row appears only after `_save`. Where a test
+needs the element after an add, use `Element.objects.get(unit=unit)` post-save, exactly as
+`tests/test_e2e_table_editor.py` does.
 
-**Every test built on either helper needs `@pytest.mark.django_db(transaction=True)`**,
-matching every test in `tests/test_e2e_table_editor.py`. Without it the `live_server`
-thread runs in a different connection and cannot see rows created in the test's
-transaction, so the seeded unit/element/asset simply are not there. The module-level
-`pytestmark = pytest.mark.e2e` does **not** cover this — add the db marker per test (or
-extend `pytestmark` to a list containing both).
+The `transaction=True` requirement is handled once by the module-level `pytestmark` list
+in Step 1, so it applies to **all** fourteen tests here - student-side and editor-side
+alike, since every one of them seeds rows and then hits `live_server`.
 
 ```python
 def test_the_toolbar_is_visible_with_nothing_focused(page, live_server):
@@ -3726,6 +3799,49 @@ def test_deleting_the_row_holding_the_focused_image_cell_hides_the_controls(
     assert editor.locator("[data-image-remove]").is_hidden()
 
 
+def test_filltable_size_select_reveals_populates_and_swaps_the_preview(
+    page, live_server, _isolated_media
+):
+    """The ONLY executed coverage for the half of the slice Task 8 exists to ship.
+
+    Task 8's other tests are all source-scanners (`"size:" in seg`), and its form/model
+    round-trip never runs JS. Nothing else in this module touches the FILL table — the
+    conversion-path test above drives [data-table-editor] and asserts
+    `table-editor__img`, i.e. the plain table. Without this test, the "reverts every image
+    cell to `full` on every save" defect class Task 8 names has no behavioural pin.
+
+    Seed a fill table with an image cell AND an answer cell (FillTableElementForm requires
+    at least one answer cell, so an image-only grid cannot be saved), then reuse
+    tests/test_e2e_filltable.py's _open_edit helper to reach the editor.
+    """
+    from courses.models import FillTableElement
+
+    _make_pa_user(PA_USERNAME)
+    _login(page, live_server, PA_USERNAME)
+    unit = _unit(PA_USERNAME, "c2-fill-size")
+    asset = make_image_asset(unit.course, filename="f.png", size=(1586, 612))
+    el = FillTableElement.objects.create(data=FillTableElement.normalize_data({
+        "prompt": "", "case_sensitive": False, "header_row": False,
+        "header_col": False, "border": "grid",
+        "cells": [[{"kind": "image", "media": asset.pk, "alt": "",
+                    "size": "medium", "halign": "left", "valign": "top"},
+                   {"kind": "answer", "answer": "x",
+                    "halign": "left", "valign": "top"}]],
+    }))
+    element = add_element(unit, el)
+    _reopen(page, live_server, unit, element)   # same join-row rule as the plain table
+    editor = page.locator("[data-edit-slot] [data-filltable-editor]").first
+
+    editor.locator("td[data-image]").first.click()
+    assert editor.locator("[data-image-size]").is_visible()
+    assert editor.locator("[data-image-size]").input_value() == "medium"
+
+    editor.locator("[data-image-size]").select_option("small")
+    classes = editor.locator("td[data-image] img").first.get_attribute("class")
+    mods = [c for c in classes.split() if c.startswith("filltable-editor__img--")]
+    assert mods == ["filltable-editor__img--small"]
+
+
 def test_an_image_cell_survives_a_save_and_reopen(page, live_server, _isolated_media):
     """THE pin for the slice's two silent data-loss modes, neither of which had a
     behavioural test before:
@@ -3743,7 +3859,9 @@ def test_an_image_cell_survives_a_save_and_reopen(page, live_server, _isolated_m
     _login(page, live_server, PA_USERNAME)
     unit = _unit(PA_USERNAME, "c2-roundtrip")
     asset = make_image_asset(unit.course, filename="rt.png", size=(1586, 612))
-    element = _add_table(page, live_server, unit)
+    # _add_table returns None and CANNOT return an element: the add path is
+    # create-on-first-save, so no Element row exists until _save(page).
+    _add_table(page, live_server, unit)
     editor = page.locator("[data-edit-slot] [data-table-editor]").first
     editor.locator("td[contenteditable]").first.click()
     editor.locator("[data-image-toggle]").click()
@@ -3752,7 +3870,7 @@ def test_an_image_cell_survives_a_save_and_reopen(page, live_server, _isolated_m
     _save(page)
 
     # Stored shape: a real int pk, not None and not a degraded text cell.
-    element.refresh_from_db()
+    element = Element.objects.get(unit=unit)     # needs `from courses.models import Element`
     cell = element.content_object.data["cells"][0][0]
     assert cell["kind"] == "image"
     assert cell["media"] == asset.pk
