@@ -2210,8 +2210,15 @@ task. The two cannot both hold: "regenerate immediately before the PR, not early
 on the editor task" would force `makemessages`/`msgfmt` into a mid-sequence task, which is exactly the
 "not early" this paragraph forbids, and whose named failure mode is an unmergeable binary `.mo`. The
 cited precedent agrees — `356c956e` is **one** commit carrying `content-editors.{md,pl.md}` *and*
-`locale/{en,pl}/LC_MESSAGES/django.{po,mo}` together, as does `aa87f643`. So all three release
-deliverables land in the same last task.
+`locale/{en,pl}/LC_MESSAGES/django.{po,mo}` together. So all three release deliverables land in the same
+last task.
+
+**`aa87f643` is a counter-example, not a second precedent** (an earlier draft cited it as one): it
+carries the four manuals and both `.po` files, adding a genuinely new translated pair
+(`"This callout is empty."` / `"Ta ramka jest pusta."`) — but **no `.mo`**. The tracked `.mo` for that
+slice was last touched by the earlier `91309851`, so the compiled catalog shipped without the new
+string. That is exactly the miss this step exists to prevent, which is why "recompile the **tracked**
+`.mo`" is stated explicitly rather than left implied by "run `makemessages`".
 
 The step: run `makemessages`, supply natively-checked Polish for both strings, **clear any `#, fuzzy`
 flag** (`makemessages` pre-fills a wrong translation from a near neighbour, and clearing it is *two*
