@@ -422,10 +422,18 @@ Expected: PASS — text-cell normalisation is unchanged.
     Text html is sanitised and image alt trimmed at save()."""
 ```
 
+- [ ] **Step 11b: Fix the `recolour` stale comment**
+
+`courses/recolour/dbscan.py:126` reads "TableElement cells carry no `kind` at all, so the
+guard is a no-op there" - false the moment this task ships, and the guard
+(`if cell.get("kind") not in (None, "static"): continue`) becomes live for image cells.
+No behavioural change is needed there; only the comment. Nothing reddens on it and the
+branch gate cannot see a stale comment, so it needs its own step and its own `git add`.
+
 - [ ] **Step 12: Commit**
 
 ```bash
-git add courses/models.py tests/test_table_cell_images.py
+git add courses/models.py courses/recolour/dbscan.py tests/test_table_cell_images.py
 git commit -m "feat(table-cell-images): image cell shape and size tokens on both table models"
 ```
 
@@ -1225,7 +1233,12 @@ Append to `tests/test_table_css.py`:
 
 ```python
 def test_courses_css_defines_the_cell_image_scale():
-    css = CSS.read_text(encoding="utf-8")
+    # Comments STRIPPED first, same as the sibling test below: the explanatory comment
+    # this slice adds names `.cell-img--medium` (to record the equal-specificity trap),
+    # so an unstripped boundary-anchored search is satisfied by the comment and the
+    # medium entry cannot fail even with its rule deleted. Medium is the one preset with
+    # e2e coverage, i.e. the entry least likely to be caught elsewhere.
+    css = re.sub(r"/\*[\s\S]*?\*/", "", CSS.read_text(encoding="utf-8"))
     # Naming: every class is present, boundary-anchored on BOTH sides so
     # `.cell-img` is not satisfied by `.cell-img--small`.
     for cls in ["cell-img", "cell-img--small", "cell-img--medium",
@@ -1768,13 +1781,14 @@ def test_a_table_with_a_cell_image_passes_whole_archive_validation(tmp_path, set
     write_archive(course, None, buf)
     buf.seek(0)
     with open_archive(buf, expected_kind="course") as (zf, mani, doc, media):
-        validate_archive_document(doc, media)      # must NOT raise
+        # Real signature: (zf, manifest, document, media_entries, *, kind,
+        # target_course=None) - importer.py:389. A two-arg call TypeErrors, so
+        # "must NOT raise" would fail on a correct build.
+        validate_archive_document(zf, mani, doc, media, kind="course", target_course=None)
 ```
 
-Check `write_archive`'s and `validate_archive_document`'s exact argument lists against the
-whole-archive test already in this file (around lines 56-80) and against
-`ContentNodeFactory`'s required `kind` value — the shape above mirrors it but the
-signatures are the authority. `io`, `CourseFactory`, `ContentNodeFactory`, `add_element`,
+Check `write_archive`'s argument list and `ContentNodeFactory`'s `kind`/`unit_type`
+defaults against the whole-archive test already in this file (around lines 56-80). `io`, `CourseFactory`, `ContentNodeFactory`, `add_element`,
 `write_archive`, `open_archive` and `validate_archive_document` are all already imported
 at the top of this module.
 
@@ -2155,6 +2169,13 @@ itself is **deleted**:
         toolbar.querySelectorAll("[data-halign], [data-valign]"),
         function (btn) { btn.disabled = !focusCell; }
       );
+      // `answerBtn.disabled` above is pinned from BOTH sides: Task 6's mirrored
+      // test_filltable_cell_scoped_buttons_carry_disabled_in_markup covers the
+      // no-focus state, and Task 9's fill-table e2e asserts
+      // `[data-answer-toggle]` is_enabled() WITH a cell focused. Together those
+      // bracket the predicate. The plain table's
+      // test_cell_scoped_buttons_are_disabled_before_any_focus deliberately omits
+      // that selector - the plain table has no answer toggle.
 
       // Per-cell controls: TWO-WAY visibility AND value population. The old line
       // was `if (imageAlt && !isImage) imageAlt.hidden = true;` — a ONE-WAY hide
@@ -2429,9 +2450,12 @@ of this task the two bodies still differ by one line and a `TWINS` entry would r
 Task 7 Step 7, so classifying it now reddens `test_no_stale_classification`, which
 asserts every classified name **is** a function in both files.
 
-**In this task:** re-derive `EXPECTED_COUNTS`, and fix only the **two** reasons Task 6's
-own edits actually invalidate - `serialize` and `refreshToolbarState`. **Leave
-`toggleHeaderCell` and `cellIsNonEmpty` alone until Task 7 Step 8 item 10:**
+**In this task:** re-derive `EXPECTED_COUNTS`, and fix only **`refreshToolbarState`**'s
+reason - the single one Task 6's own edits invalidate. **Leave `serialize`,
+`toggleHeaderCell` and `cellIsNonEmpty` alone until Task 7 Step 8 item 10.** Task 6 does
+not touch `serialize` at all (the plain table's image branch lands in Task 7 Step 8
+item 1), so at the end of this task the existing reason "the plain table emits one" is
+still TRUE and the replacement would be false. Likewise:
 `table_editor.js` has no `cellStash` and no `data-image` clause until then, so their
 replacement reasons would be false at the end of this task. That is the same
 "encode a later task's classification early" pattern already corrected two rows above for
@@ -2610,8 +2634,9 @@ Expected: FAIL — no image button, no per-cell controls, no image branch.
 
 - [ ] **Step 3: Add the toolbar controls to `_edit_table.html`**
 
-After the `[data-cmd="math"]` button and the swatches include, before the align
-groups (mirroring `_edit_filltable.html`'s placement):
+After both align groups and the following `rte-sep`, mirroring `_edit_filltable.html`,
+where the image controls sit after `[data-valign]` and the separator (not before the align
+groups - an earlier draft said both, which cannot hold):
 
 ```html
     <button type="button" class="rte-btn" data-image-toggle disabled
@@ -2987,6 +3012,17 @@ reason would need maintaining.
      *"preview class name differs (`table-editor__img` vs `filltable-editor__img`); the
      fill table also stashes and clears `data-answer`, and its stash write has two
      branches where the plain table's has one."*
+   - **update `serialize`'s reason** to "fill-table emits three cell kinds
+     (static/answer/image) where the plain table emits **two** (text/image), AND its
+     payload carries two extra document-level fields, `case_sensitive` and `prompt`";
+   - **update `cellIsNonEmpty`'s reason** - the live one contrasts "the plain table
+     queries for a nested `<img>`, fill-table checks the `data-image` attribute", and
+     item 8 makes the plain table check **both**;
+   - **update `toggleHeaderCell`'s reason** - the live one names "fill-table re-keys the
+     live `cellStash` Map old->new" as the differentiator, and item 9 makes the plain
+     table re-key too. Keep the focus-fallback clause, which remains the real divergence
+     (`(next.querySelector(".filltable-editor__answer") || next).focus()` vs a bare
+     `next.focus()`, because `.focus()` is a no-op on a `<td data-answer>`);
    - re-derive `EXPECTED_COUNTS` again, update the module docstring's counts to **22**
      twins (**11 file-scope + 11 nested** — `afterStructuralEdit` and `stashFor` are both
      nested in `wire()`) and re-derive the `DIVERGENT` count too;
@@ -3155,6 +3191,19 @@ def test_size_select_is_present_beside_the_alt_input():
     src = PARTIAL.read_text(encoding="utf-8")
     assert "data-image-size" in src
     assert "form.cell_image_sizes" in src
+
+
+def test_filltable_size_select_is_hidden_named_and_unnamed():
+    """Mirrors the plain table's test_per_cell_controls_are_hidden_named_and_unnamed. A
+    presence check alone is not enough: a select without markup `hidden` renders visible
+    on every fill-table editor load until wire() runs, and Task 9's fill-table e2e asserts
+    visibility only AFTER the image cell is clicked, so it would stay green."""
+    src = PARTIAL.read_text(encoding="utf-8")
+    i = src.index("data-image-size")
+    tag = src[src.rindex("<", 0, i):src.index(">", i)]
+    assert "hidden" in tag
+    assert "name=" not in tag
+    assert "aria-label" in tag
 
 
 def test_serialize_image_branch_emits_size():
@@ -3743,6 +3792,16 @@ def test_clicking_an_image_cell_reveals_and_populates_the_controls(
     # value from the previously focused image cell.
     assert editor.locator("[data-image-size]").input_value() == "medium"
     assert editor.locator("[data-image-alt]").input_value() == "seeded alt"
+    # THE spec-mandated pin, which exists in no other test: "focus an image cell, assert a
+    # [data-cmd] button is disabled". Its mutant is writing the isImage derivation BELOW
+    # the [data-cmd] loop in refreshToolbarState - `var` hoisting then makes the predicate
+    # `!focusCell || undefined` -> falsy -> B/I/U, math and the swatches stay ENABLED on a
+    # focused image cell, where clicking math appends a text node that serialize()'s image
+    # branch silently discards. Invisible to every source-level test the plan writes.
+    assert editor.locator('[data-cmd="bold"]').is_disabled()
+    assert editor.locator('[data-cmd="math"]').is_disabled()
+    # And the image button must stay ENABLED - it is the re-pick path.
+    assert editor.locator("[data-image-toggle]").is_enabled()
 
 
 def test_conversion_path_populates_without_a_refocus(
@@ -3859,8 +3918,11 @@ def test_filltable_size_select_reveals_populates_and_swaps_the_preview(
     """
     from courses.models import FillTableElement
 
+    # NO explicit _login here: _goto_editor calls _login itself (unlike the plain
+    # table's _reopen). A second login navigates to /accounts/login/ while already
+    # authenticated, allauth redirects to LOGIN_REDIRECT_URL, the login form never
+    # appears, and the fill() times out - on a fully correct build.
     _make_pa_user(PA_USERNAME)
-    _login(page, live_server, PA_USERNAME)
     unit = _unit(PA_USERNAME, "c2-fill-size")
     asset = make_image_asset(unit.course, filename="f.png", size=(1586, 612))
     el = FillTableElement.objects.create(data=FillTableElement.normalize_data({
@@ -3884,6 +3946,12 @@ def test_filltable_size_select_reveals_populates_and_swaps_the_preview(
     editor.locator("td[data-image]").first.click()
     assert editor.locator("[data-image-size]").is_visible()
     assert editor.locator("[data-image-size]").input_value() == "medium"
+
+    # Same spec-mandated pin for the FILL table, whose predicate additionally ORs
+    # isAnswer - and whose derivations Task 6 Step 5 hoists above the deleted early
+    # return. Both files need it; neither had it.
+    assert editor.locator('[data-cmd="bold"]').is_disabled()
+    assert editor.locator("[data-answer-toggle]").is_enabled()   # focus exists
 
     editor.locator("[data-image-size]").select_option("small")
     classes = editor.locator("td[data-image] img").first.get_attribute("class")
@@ -3991,6 +4059,22 @@ falsifier for them:
 3. **The alignment rules.** Delete `.ta-center > .cell-img { margin-inline: auto; }` and
    run `test_a_ta_center_image_cell_centres_its_bounded_image`.
    Expected: FAIL (`offsets["left"]` collapses to ~0). Restore.
+4. **The modifier-removal loop** (Task 7 Step 8 item 5). Delete the
+   `Object.keys(CELL_IMG_CLASS).forEach(... classList.remove ...)` loop, keeping the
+   `add`, and run `test_changing_size_twice_leaves_exactly_one_modifier_class`.
+   Expected: FAIL - two modifiers accumulate. Restore. (That loop was written with a
+   "REMOVE all four first" comment precisely because it is easy to omit.)
+5. **The plain table's picker repaint** (Task 7 Step 7). Remove `refreshToolbarState();`
+   from the plain table's registry callback and run
+   `test_conversion_path_populates_without_a_refocus`.
+   Expected: FAIL - the controls stay hidden. Restore. (Task 6's Mutant 2 covers only
+   `libliFillTablePickImage`, so the plain table's callback was unpinned.)
+6. **The `[data-cmd]` derivation position** (Task 6 Steps 5/5b). Move the `var isImage`
+   derivation BELOW the `[data-cmd]` loop in one editor's `refreshToolbarState` and run
+   `test_clicking_an_image_cell_reveals_and_populates_the_controls` (plain) or
+   `test_filltable_size_select_reveals_populates_and_swaps_the_preview` (fill).
+   Expected: FAIL - `var` hoisting leaves the predicate falsy, so `[data-cmd="bold"]`
+   stays enabled on a focused image cell. Restore.
 
 - [ ] **Step 5: Commit**
 
@@ -4131,7 +4215,7 @@ enumerating rather than trusting to a red suite.
 | `test_table_transfer.py` comment — "(4 <= FORMAT_VERSION=7)" (inert) | 5 |
 | `courses/recolour/dbscan.py` comment - "TableElement cells carry no `kind` at all, so the guard is a no-op there" | 1 |
 | `test_editor_twin_drift.py` docstring counts + `TWINS` inline comment | 6 |
-| five `DIVERGENT` reason strings | 6 |
+| five `DIVERGENT` reason strings | 6 (`refreshToolbarState` only), 7 (the other four) |
 | `filltable_editor.js` `// fill-table only` on `cellStash.clear()` | 6 |
 | `table_editor.js` comment above `absorbedNonEmpty` — "has no kinds" | 7 |
 | `toggleHeaderCell` comment — "no such map in this file's scope" | 7 |
