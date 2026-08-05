@@ -1556,8 +1556,8 @@ class FillTableElementForm(_CourseScopedMediaForm):
 
         Delegates to FillTableElement.resolve_image_cells so the editor and
         the student render cannot silently diverge on the unresolved-image
-        fallback (it drops any colspan/rowspan/header the cell carried, same
-        as the model).
+        fallback (it PRESERVES any colspan/rowspan/header the cell carried,
+        same as the model (slice C2)).
 
         Passes self.course so a submitted pk from another course -- or an
         in-course asset of the wrong kind -- resolves to nothing and takes that

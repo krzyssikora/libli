@@ -238,13 +238,16 @@ def test_filltable_editor_exposes_merge_split_and_header_controls():
     assert 'aria-live="polite"' in html
 
 
-def test_unresolvable_image_cell_drops_spans_in_both_render_and_editor():
-    """resolved_cells (student render) and resolved_grid_cells (editor) share
-    one fallback for an image cell whose media pk cannot be resolved: drop the
-    cell to an empty static cell, and drop any colspan/rowspan/header it
-    carried along with it (a spanning gap left un-spanned would misshape the
-    grid). Pin this for BOTH paths so they cannot silently re-diverge -- see
-    FillTableElement.resolve_image_cells."""
+def test_unresolvable_image_cell_keeps_spans_in_both_render_and_editor():
+    """An unresolvable image cell keeps its header/colspan/rowspan (slice C2).
+
+    Inverted from the original drop-spans behaviour: _ser_fill_table has always
+    carried these through BOTH branches, with the comment "losing the image must
+    not silently un-span the cell and shift the grid". Export and render
+    disagreed; render now agrees with export. Neither layout was measured — this
+    is decided on consistency with export plus the fact that 15 of 312 tables
+    span, so the case is live.
+    """
     course = make_course()
     dangling_pk = 999999  # not in the DB
     raw = {
@@ -268,9 +271,9 @@ def test_unresolvable_image_cell_drops_spans_in_both_render_and_editor():
     el.save()
     model_cell = el.resolved_cells[0][0]
     assert model_cell["kind"] == "static" and model_cell["html"] == ""
-    assert "colspan" not in model_cell
-    assert "rowspan" not in model_cell
-    assert "header" not in model_cell
+    assert model_cell["colspan"] == 2
+    assert model_cell["rowspan"] == 2
+    assert model_cell["header"] is True
 
     # Editor path, rejected-save branch: FillTableElementForm.resolved_grid_cells.
     submitted = {
@@ -296,9 +299,9 @@ def test_unresolvable_image_cell_drops_spans_in_both_render_and_editor():
     assert not form.is_valid(), form.errors
     form_cell = form.resolved_grid_cells[0][0]
     assert form_cell["kind"] == "static" and form_cell["html"] == ""
-    assert "colspan" not in form_cell
-    assert "rowspan" not in form_cell
-    assert "header" not in form_cell
+    assert form_cell["colspan"] == 2
+    assert form_cell["rowspan"] == 2
+    assert form_cell["header"] is True
 
 
 def test_foreign_course_image_cell_does_not_resolve_in_the_editor():

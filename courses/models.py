@@ -1092,13 +1092,44 @@ class TableElement(ElementBase):
         from django.template.loader import render_to_string
 
         data = self.normalize_data(self.data)
+        # The resolved cells go INSIDE the existing `data` key — the template reads
+        # data.border / data.header_row / data.cells. Replacing the whole context
+        # would leave data.border empty and drop the header attributes.
         return render_to_string(
-            "courses/elements/tableelement.html", {"el": self, "data": data}
+            "courses/elements/tableelement.html",
+            {"el": self, "data": {**data, "cells": self.resolved_cells}},
         )
 
     @property
     def normalized_data(self):
         return self.normalize_data(self.data)
+
+    @staticmethod
+    def resolve_image_cells(cells, course=None):
+        """Delegates to the shared resolver with the PLAIN table's fallback shape:
+        an empty TEXT cell carrying NO `kind` key (the fill table's is
+        kind:"static"). One delegator per model means one `empty_cell` per model —
+        without it, resolved_cells and TableElementForm.resolved_grid_cells would
+        each need their own lambda and could diverge with no Python-side guard."""
+        from courses import tablecells
+
+        return tablecells.resolve_image_cells(
+            cells,
+            empty_cell=lambda c: {
+                "html": "",
+                "halign": c.get("halign", "left"),
+                "valign": c.get("valign", "top"),
+            },
+            course=course,
+        )
+
+    @property
+    def resolved_cells(self):
+        """The normalized grid with each image cell's `media` pk replaced by its
+        MediaAsset. Resolution is a RENDER-time concern: `normalized_data` stays
+        unresolved."""
+        cells = self.normalize_data(self.data)["cells"]
+        return self.resolve_image_cells(cells)
 
 
 class FillTableElement(ElementBase):
@@ -1295,59 +1326,28 @@ class FillTableElement(ElementBase):
 
     @staticmethod
     def resolve_image_cells(cells, course=None):
-        """A normalized cells grid with each image cell's `media` int pk replaced
-        by its MediaAsset (one in_bulk pass). Unresolved pks degrade to an empty
-        static cell -- dropping any colspan/rowspan/header the cell carried --
-        so a dangling asset never 500s a lesson and never leaves a spanning gap
-        with nothing spanning it. Static/answer cells pass through unchanged.
+        """Delegates to the shared resolver, supplying this model's fallback shape.
 
-        Shared by resolved_cells (student render, resolves against self.data)
-        and FillTableElementForm.resolved_grid_cells (editor, resolves against
-        the submitted/stored grid_data on a rejected save) -- the two callers
-        must not diverge on this fallback.
+        Signature kept EXACTLY as before — (cells, course=None), no `empty_cell` —
+        because two live call sites depend on it: resolved_cells below and
+        FillTableElementForm.resolved_grid_cells in element_forms.py.
 
-        `course` scopes the lookup to that course's IMAGE assets, matching what
-        clean_data validates. The editor passes it because it resolves
-        AUTHOR-SUBMITTED pks on a rejected save; the student render passes
-        nothing, because its data already passed clean_data at save time and no
-        course is threaded through the render chain. An out-of-scope pk simply
-        fails to resolve and takes the existing unresolved branch -- no new
-        branch, no second fallback shape.
+        The unresolved-asset fallback now PRESERVES header/colspan/rowspan
+        (slice C2), making render agree with _ser_fill_table's export, which has
+        always carried them through both branches.
+        """
+        from courses import tablecells
 
-        NOTE: a cell's `kind` ("static"/"answer"/"image") and MediaAsset.kind
-        are different fields on different objects that happen to share the
-        string "image". The comprehension below filters CELLS; the query
-        filters ASSETS."""
-        ids = [c["media"] for row in cells for c in row if c.get("kind") == "image"]
-        if not ids:
-            assets = {}
-        elif course is None:
-            assets = MediaAsset.objects.in_bulk(ids)
-        else:
-            assets = MediaAsset.objects.filter(
-                course=course, kind="image", pk__in=ids
-            ).in_bulk()
-        out = []
-        for row in cells:
-            out_row = []
-            for c in row:
-                if c.get("kind") == "image":
-                    asset = assets.get(c["media"])
-                    if asset is not None:
-                        out_row.append({**c, "media": asset})
-                    else:
-                        out_row.append(
-                            {
-                                "kind": FillTableElement.STATIC,
-                                "html": "",
-                                "halign": c["halign"],
-                                "valign": c["valign"],
-                            }
-                        )
-                else:
-                    out_row.append(c)
-            out.append(out_row)
-        return out
+        return tablecells.resolve_image_cells(
+            cells,
+            empty_cell=lambda c: {
+                "kind": FillTableElement.STATIC,
+                "html": "",
+                "halign": c.get("halign", "left"),
+                "valign": c.get("valign", "top"),
+            },
+            course=course,
+        )
 
     @property
     def resolved_cells(self):

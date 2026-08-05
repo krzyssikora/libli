@@ -1,6 +1,21 @@
 import pytest
 
 
+@pytest.fixture
+def course_with_image(db, tmp_path, settings):
+    """A Course plus one real IMAGE MediaAsset with a readable file on disk.
+
+    MEDIA_ROOT is redirected per test: make_image_asset writes a real file, and a
+    render asserting on file.url needs it resolvable.
+    """
+    from tests.factories import make_course
+    from tests.factories import make_image_asset
+
+    settings.MEDIA_ROOT = str(tmp_path)
+    course = make_course()
+    return course, make_image_asset(course, filename="graph.png", size=(1586, 612))
+
+
 @pytest.fixture(autouse=True)
 def _enable_db_access(db):
     """Give every test DB access (small project; convenient default).
