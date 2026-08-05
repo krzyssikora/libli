@@ -117,7 +117,7 @@ class ImageElementForm(_CourseScopedMediaForm):
 
     class Meta:
         model = ImageElement
-        fields = ["media", "alt", "figcaption"]
+        fields = ["media", "alt", "figcaption", "size"]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

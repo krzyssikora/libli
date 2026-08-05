@@ -8,6 +8,28 @@
   <button type="button" class="btn btn--small" data-pick-media="image">{% trans "Choose media" %}</button>
   <label>{% trans "Alt text" %} <input type="text" name="alt" value="{{ form.alt.value|default:'' }}"></label>
   <label>{% trans "Caption" %} <input type="text" name="figcaption" value="{{ form.figcaption.value|default:'' }}"></label>
+  {% comment %}Radios rather than a select: all four options stay visible at once and one
+     click both selects and drives the live preview. `checked` is NOT cosmetic — `size` is a
+     required ChoiceField, so a group with nothing checked submits no `size` key and fails
+     validation on ANY save of this element, including an alt-only edit. Looping over
+     form.fields.size.choices keeps the four presets from being duplicated here.
+
+     The loop yields exactly FOUR options, never a leading blank: Field.formfield() passes
+     include_blank = self.blank or not (self.has_default() or "initial" in kwargs), and the
+     model field is blank=False WITH a default — so both disjuncts are false. If you ever see
+     a phantom empty first radio, the model field lost its default; fix that, not this loop.
+
+     default_if_none:"" — on the CREATE flow form.instance.pk is None, and Django renders a
+     resolved None as the string "None" (string_if_invalid applies only to VariableDoesNotExist).
+     The empty string is what Task 7's JS comment and Task 9's preconditions both assume.{% endcomment %}
+  <fieldset class="size-presets">
+    <legend>{% trans "Size" %}</legend>
+    {% for value, label in form.fields.size.choices %}
+      <label><input type="radio" name="size" value="{{ value }}"
+        {% if form.size.value|stringformat:"s" == value|stringformat:"s" %} checked{% endif %}
+        data-size-preset data-for-element="{{ form.instance.pk|default_if_none:'' }}"> {{ label }}</label>
+    {% endfor %}
+  </fieldset>
   {% for e in form.non_field_errors %}<p class="field-error">{{ e }}</p>{% endfor %}
   {% for e in form.media.errors %}<p class="field-error">{{ e }}</p>{% endfor %}
 </div>
