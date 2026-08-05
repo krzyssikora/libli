@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-05 18:48+0200\n"
+"POT-Creation-Date: 2026-08-05 20:11+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -4434,6 +4434,12 @@ msgstr "Karuzela"
 #, python-brace-format
 msgid "Go to slide {n}"
 msgstr "Przejdź do slajdu {n}"
+
+#: .\templates\courses\lesson_unit.html:80
+#: .\templates\courses\manage\editor\editor.html:177
+#: .\templates\courses\quiz_unit.html:33
+msgid "slide"
+msgstr "slajd"
 
 #: .\templates\courses\manage\_add_affordance.html:18
 msgid "New title"

@@ -485,7 +485,7 @@
 
       sections.forEach(function (s) {
         s.setAttribute("role", "group");
-        s.setAttribute("aria-roledescription", "slide");
+        s.setAttribute("aria-roledescription", t("slideRole", "slide"));
         // A named bare <section> maps to `region` — a LANDMARK — per HTML-AAM; without
         // the group role, 10 slides would become 10 landmarks per carousel.
         var label = ownPart(s, "[data-tab-label]");

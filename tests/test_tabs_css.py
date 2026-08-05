@@ -71,7 +71,14 @@ TABS_I18N_TEMPLATES = [  # the SAME three paths the loads-tabs-js test walks
     TEMPLATES / "quiz_unit.html",
     TEMPLATES / "manage/editor/editor.html",
 ]
-CAROUSEL_I18N_KEYS = ["carouselNav", "prevSlide", "nextSlide", "goToSlide", "slidePos"]
+CAROUSEL_I18N_KEYS = [
+    "carouselNav",
+    "prevSlide",
+    "nextSlide",
+    "goToSlide",
+    "slidePos",
+    "slideRole",
+]
 
 
 @pytest.mark.parametrize("path", TABS_I18N_TEMPLATES)
