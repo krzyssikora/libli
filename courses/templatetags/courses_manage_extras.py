@@ -175,13 +175,15 @@ def element_summary(el):
 
 @register.simple_tag
 def tabs_bounds():
-    """Bounds the tabs label editor renders into data-* attributes: the min/max tab
-    counts tabs_editor.js reads to gate the add/remove buttons, and the per-label
-    maxlength. Sourced from the model constants so the template never hardcodes them."""
+    """Bounds the tabs label editor renders into data-* attributes, plus the two
+    display-setting enums as ordered (value, label) pairs. Sourced from the model
+    constants so the template never hardcodes a member or a label."""
     return {
         "min": TabsElement.MIN_TABS,
         "max": TabsElement.MAX_TABS,
         "label_max": TabsElement.LABEL_MAX,
+        "displays": TabsElement.DISPLAY_CHOICES,
+        "label_positions": TabsElement.LABEL_POS_CHOICES,
     }
 
 

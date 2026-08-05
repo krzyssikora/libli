@@ -905,6 +905,13 @@ button.asset-cell:hover { border-color: var(--primary); }
    nesting reads at a glance. Row controls reuse .iconbtn + the bi-* sprite, as the
    gallery editor does. --- */
 .el-editor--tabs { display: grid; gap: var(--space-3); }
+/* Tabs editor display settings. REQUIRED: .tabs-editor__setting is flex, and an author
+   `display` overrides the UA [hidden]{display:none} rule regardless of specificity —
+   without the paired rule the label-position row would still show in tabs mode. Same
+   trap as .view-toggle[hidden] above. */
+.el-editor--tabs .tabs-editor__setting { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-2); }
+.el-editor--tabs .tabs-editor__setting[hidden] { display: none; }
+.el-editor--tabs .tabs-editor__setting label { display: inline-flex; align-items: center; gap: var(--space-2); font-size: .82rem; color: var(--text-secondary); }
 .el-editor--tabs .tabs-editor__rows {
   list-style: none; margin: 0; padding: 0; counter-reset: tab-row;
   display: flex; flex-direction: column; gap: var(--space-2);

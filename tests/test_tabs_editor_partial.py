@@ -173,3 +173,75 @@ def test_editor_css_styles_every_tabs_editor_class():
     )
     for cls in sorted(emitted):
         assert f".{cls}" in css, f"editor.css never styles .{cls}"
+
+
+def _served_tabs_form(client):
+    """The tabs editor partial as the server renders it for a NEW element -- so
+    form.editor_display is "tabs" and the label-position row is expected hidden.
+    Assert on the SERVED form, not a hand-instantiated one: the wiring lives in the
+    response. Lifted from test_served_tabs_form_carries_the_bounds_the_js_reads."""
+    from django.urls import reverse
+
+    from tests.factories import make_login
+
+    owner = make_login(client, "owner")
+    course, unit = make_course_with_unit(owner=owner)
+    resp = client.post(
+        reverse("courses:manage_element_add", kwargs={"slug": course.slug}),
+        {"type": "tabs", "unit": unit.pk},
+        HTTP_X_REQUESTED_WITH="fetch",
+    )
+    return resp.content.decode()
+
+
+def test_tabs_editor_renders_both_setting_selects(client):
+    html = _served_tabs_form(client)
+    assert "data-tab-display" in html
+    assert "data-tab-label-pos" in html
+    # No name= : the hidden name="data" field is the sole authoritative input.
+    assert 'name="display"' not in html
+    assert 'name="label_pos"' not in html
+
+
+def test_every_choice_label_renders_as_non_empty_option_text(client):
+    """Has teeth: goes RED if someone reintroduces a hand-written label map that
+    drifts from DISPLAY_CHOICES. (Asserting DISPLAYS == the tuple's values would be
+    tautological -- it is derived from it one line below.)"""
+    html = _served_tabs_form(client)
+    # Assert the full <option> pattern, NOT a bare f">{label}<": the served fragment
+    # also carries `<p class="editor-form__type">Tabs</p>` from _host_form.html
+    # (editor_title == "Tabs"), so a bare-substring check for the "Tabs" label passes
+    # even with no <option> at all. The recorded bare-substring trap, in person.
+    for value, text in TabsElement.DISPLAY_CHOICES + TabsElement.LABEL_POS_CHOICES:
+        assert f'value="{value}"' in html and f">{text}</option>" in html, (
+            f"missing option for {value!r}/{text!r}"
+        )
+
+
+def test_tabs_mode_renders_the_label_position_row_hidden_from_first_paint(client):
+    """Server-rendered, not JS-only: a JS-only toggle means the row flashes visible
+    until wire() runs, and this assertion would have nothing to assert."""
+    html = _served_tabs_form(client)  # a fresh element defaults to display=tabs
+    # AFTER the marker: the template emits
+    # `data-tab-label-pos-row {% if %}hidden{% endif %}`, so looking at the text
+    # before it would fail against a correct implementation.
+    assert "hidden" in html.split("data-tab-label-pos-row", 1)[1][:80]
+
+
+def test_editor_css_pairs_a_hidden_rule_for_every_flex_setting_row():
+    """A [hidden] row that is display:flex stays visible -- the UA rule loses to any
+    author `display` regardless of specificity. Same trap editor.css records for
+    .view-toggle."""
+    css = EDITOR_CSS.read_text(encoding="utf-8")
+    assert ".tabs-editor__setting[hidden]" in css
+    assert "display: none" in css.split(".tabs-editor__setting[hidden]")[1][:80]
+
+
+def test_serialize_reads_both_select_elements():
+    """The no-op re-save defect lives in serialize(). The e2e catches it in seconds of
+    wall-clock; this catches a later refactor in milliseconds."""
+    js = TABS_EDITOR_JS.read_text(encoding="utf-8")
+    start = js.index("function serialize")
+    body = js[start : js.index("function refreshControlState")]
+    assert "display:" in body and "label_pos:" in body
+    assert "displaySel.value" in body and "labelPosSel.value" in body
