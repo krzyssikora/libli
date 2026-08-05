@@ -38,6 +38,7 @@ from courses.models import QuestionElement
 from courses.models import Subject
 from courses.models import UnitProgress
 from courses.richtext import count_inbound_links
+from courses.templatetags.courses_manage_extras import element_summary
 from courses.transfer.schema import TransferError
 
 
@@ -1214,6 +1215,235 @@ def element_duplicate(request, slug):
     )
 
 
+CLIP_SESSION_KEY = "element_clip"
+
+
+def _clip_unit(request, course):
+    """Resolve the POSTed unit against the course, or None.
+
+    It writes no data, but it ANSWERS through _render_editor_fragments, which
+    renders that unit's element list AND its live preview -- so a POST carrying a
+    unit pk from another course would render that course's content. Wrapped
+    because filter(pk="abc") raises ValueError when the queryset is evaluated:
+    that covers a missing pk (pk=None becomes pk__isnull=True) and a non-unit pk,
+    but not a present-and-non-numeric one.
+    """
+    try:
+        return ContentNode.objects.filter(
+            pk=request.POST.get("unit"), course=course, kind=ContentNode.Kind.UNIT
+        ).first()
+    except (ValueError, TypeError):
+        return None
+
+
+# reason_key -> the message the author reads. paste_allowed returns a key rather
+# than a bare bool precisely so this mapping can exist in one place; a generic
+# "that did not work" would not deliver "the author sees why nothing moved".
+PASTE_REFUSAL_MESSAGES = {
+    "wrong_unit": gettext_lazy("That element is not part of this unit."),
+    "into_own_subtree": gettext_lazy("An element cannot be placed inside itself."),
+    "not_a_container": gettext_lazy("That destination is not a container."),
+    "unknown_slot": gettext_lazy("That slot no longer exists."),
+    "type_not_nestable": gettext_lazy("This type cannot be placed inside a container."),
+    "too_deep": gettext_lazy("This element is too deep to fit there."),
+    "own_slot": gettext_lazy("It is already there."),
+    "parent_gone": gettext_lazy("The destination was removed while you were working."),
+}
+
+
+def _clip_context(request, unit):
+    """The five mark-dependent context keys, for BOTH context builders.
+
+    When nothing is marked this returns empty values and does NO walk -- the
+    common render pays nothing. While a mark IS pending the cost is paid on every
+    response, which is why enumerate_slots is one query and why its children_map is
+    reused by subtree_facts rather than re-walked.
+
+    Clears a stale mark lazily: a marked element that has been deleted, or that
+    belongs to another unit, is treated as absent.
+    """
+    empty = {
+        "clip_active": False,
+        "clip_element_pk": "",
+        "clip_label": "",
+        "move_slots": set(),
+        "copy_slots": set(),
+    }
+    clip = request.session.get(CLIP_SESSION_KEY) or {}
+    if clip.get("unit") != unit.pk:
+        # Rendering ANOTHER unit: ignored, not cleared -- you may navigate back.
+        return empty
+
+    # Wrapped for the same reason as _clip_unit above: filter(pk=...) raises
+    # ValueError/TypeError when a non-numeric pk is evaluated. element_clip always
+    # writes an int() here, so this is unreachable through that path today -- but a
+    # session written any other way would otherwise raise on EVERY editor render for
+    # that user until the cookie is cleared, which is a sticky failure worth guarding
+    # cheaply rather than trusting the only writer forever.
+    try:
+        marked = unit.elements.filter(pk=clip.get("element")).first()
+    except (ValueError, TypeError):
+        marked = None
+    if marked is None:
+        request.session.pop(CLIP_SESSION_KEY, None)
+        return empty
+
+    pairs, children_map = builder_svc.enumerate_slots(unit)
+    facts = builder_svc.subtree_facts(marked, children_map=children_map)
+
+    move_slots, copy_slots = set(), set()
+    for parent, tab, dest_depth in pairs:
+        key = builder_svc.slot_key(parent.pk if parent is not None else None, tab)
+        for mode, bucket in (("move", move_slots), ("copy", copy_slots)):
+            ok, _reason = builder_svc.paste_allowed(
+                unit, marked, parent, tab, mode, facts=facts, dest_depth=dest_depth
+            )
+            if ok:
+                bucket.add(key)
+
+    obj = marked.content_object
+    return {
+        "clip_active": True,
+        # STRINGIFIED here: the template compares with el.pk|stringformat:'s', and
+        # passing the int straight through makes every row's comparison int == str
+        # -> False, reproducing one layer later the exact failure the int coercion
+        # at clip time exists to prevent.
+        "clip_element_pk": str(marked.pk),
+        # A dangling GFK gives element_summary(None) -> the literal "NoneType".
+        # Accepted, not fixed: the ROW label already renders exactly that for the
+        # same row (_element_row.html's `{% if el.title %}...{% else %}
+        # {{ obj|element_summary }}`), so the banner matches what the author is
+        # already looking at. Diverging here would be a second spelling of the
+        # same fallback, and a real fix belongs to the row label first.
+        "clip_label": marked.title or element_summary(obj),
+        "move_slots": move_slots,
+        "copy_slots": copy_slots,
+    }
+
+
+def _no_unit_409(request, course):
+    """The unit could not be resolved, so there is no editor pane to render.
+
+    Deliberately NOT _element_conflict: that helper opens with the SAME unguarded
+    `filter(pk=request.POST.get("unit"), ...)` (courses/views_manage.py:1232-1234),
+    so on a non-numeric `unit` it re-raises the very ValueError this path just
+    caught -- turning the guarded 409 back into a 500. Its unguarded shape is a
+    pre-existing wart on a hand-crafted-only path and is left alone here; new code
+    simply does not route through it.
+    """
+    return _render_tree(request, course, status=409)
+
+
+@login_required
+def element_clip(request, slug):
+    """Editor-only: set or clear the clipboard mark. No DB write, so no token check
+    -- the paste re-validates everything.
+
+    The marked element is deliberately NOT validated beyond belonging to this unit:
+    the paste re-resolves it through _locked_element(course, ...), which filters on
+    unit__course, and a mark is only a session note until then.
+    """
+    course = _require_manage(request, slug)
+    unit = _clip_unit(request, course)
+    if unit is None:
+        return _no_unit_409(request, course)
+
+    action = request.POST.get("action")
+    if action not in ("select", "cancel"):
+        return HttpResponseBadRequest("bad action")
+
+    if action == "cancel":
+        request.session.pop(CLIP_SESSION_KEY, None)
+        return _render_editor_fragments(request, unit)
+
+    try:
+        element_pk = int(request.POST.get("element"))
+    except (TypeError, ValueError):
+        return HttpResponseBadRequest("bad element")
+
+    if not unit.elements.filter(pk=element_pk).exists():
+        return _element_conflict(request, course)
+
+    current = request.session.get(CLIP_SESSION_KEY) or {}
+    if current.get("element") == element_pk and current.get("unit") == unit.pk:
+        # ⊹ on the already-marked element toggles it off.
+        request.session.pop(CLIP_SESSION_KEY, None)
+    else:
+        # BOTH pks as int: the session is JSON, so a string written here stays a
+        # string on every later request and `clip["element"] == el.pk` is then
+        # False for every row -- the toggle above never fires and the marked-row
+        # modifier never renders. Silent and closed, both of them.
+        request.session[CLIP_SESSION_KEY] = {"unit": unit.pk, "element": element_pk}
+    return _render_editor_fragments(request, unit)
+
+
+@login_required
+def element_paste(request, slug):
+    """Editor-only: move or copy the marked element into a chosen slot.
+
+    Status mapping, each channel already named by its exception: no mark / stale
+    token / vanished element -> 409; a malformed payload no UI can produce -> 400;
+    an inadmissible placement the render had offered, a vanished destination, or a
+    failed copy -> 422 through the FRAGMENT renderer so the author actually sees
+    the reason. _op_error is never used here: it has no [data-scope] wrapper, so
+    applyFragments swaps nothing and the message is invisible.
+    """
+    course = _require_manage(request, slug)
+    unit = _clip_unit(request, course)
+    if unit is None:
+        return _no_unit_409(request, course)
+
+    clip = request.session.get(CLIP_SESSION_KEY) or {}
+    if clip.get("unit") != unit.pk or not clip.get("element"):
+        # Reachable in ordinary use: a move clears the mark, so a back-button
+        # resubmit or a second tab's stale render posts against an empty clipboard.
+        return _element_conflict(request, course)
+
+    try:
+        unit, placed = builder_svc.paste_element(
+            course,
+            clip["element"],
+            request.POST.get("parent"),
+            request.POST.get("tab"),
+            request.POST.get("mode"),
+            request.POST.get("unit_token"),
+        )
+    except builder_svc.ConflictError:
+        return _element_conflict(request, course)
+    except builder_svc.PlacementRefused as exc:
+        return _refused(request, unit, exc.reason_key)
+    except builder_svc.ParentGoneError:
+        # Caught BEFORE NestingError -- it is a subclass, and this is the one
+        # caller that treats it differently.
+        return _refused(request, unit, "parent_gone")
+    except builder_svc.NestingError:
+        return HttpResponseBadRequest("bad nesting")
+    except TransferError as exc:
+        return _render_editor_fragments(request, unit, status=422, error=str(exc))
+
+    # The session write happens only AFTER the service returns: it is not covered
+    # by the service's @transaction.atomic, so a mark cleared before a rollback
+    # would stay cleared while the database change did not. A copy KEEPS the mark
+    # so one original can seed several slots; a move clears it.
+    if request.POST.get("mode") == "move":
+        request.session.pop(CLIP_SESSION_KEY, None)
+
+    return _render_editor_fragments(
+        request, unit, open_slots=builder_svc.ancestor_slots(placed)
+    )
+
+
+def _refused(request, unit, reason_key):
+    """422 carrying the reason, as an editor fragment. The mark is NOT cleared: a
+    message saying why nothing moved, on a page that has already discarded the
+    selection, invites a retry that is impossible -- and that retry lands on the
+    no-mark 409 path, compounding one confusing response into two."""
+    message = PASTE_REFUSAL_MESSAGES.get(reason_key) or _(
+        "That placement is not allowed."
+    )
+    return _render_editor_fragments(request, unit, status=422, error=message)
+
+
 def _editor_ctx(request):
     return request.POST.get("ctx") == "editor"
 
@@ -1327,6 +1557,11 @@ def _render_editor_fragments(
             # Supplied by _editor_page already; added here so the moved banner
             # block has both of its variables defined on BOTH render paths.
             "changed": changed,
+            # The clipboard's render-side state. Must be set HERE as well as in
+            # _editor_page: every editor operation returns through this renderer,
+            # so a key on only one builder makes the first page load look perfect
+            # while every later fragment swap silently drops the feature.
+            **_clip_context(request, unit),
         },
     )
     resp.status_code = status
@@ -1359,6 +1594,11 @@ def _editor_page(
             # nesting cap for the depth guards — module attribute, see the matching
             # comment in _render_editor_fragments.
             "max_nest_depth": builder_svc.MAX_NEST_DEPTH,
+            # The clipboard's render-side state. Must be set HERE as well as in
+            # _render_editor_fragments: every editor operation returns through that
+            # renderer, so a key on only one builder makes the first page load look
+            # perfect while every later fragment swap silently drops the feature.
+            **_clip_context(request, unit),
         },
     )
     resp.status_code = status

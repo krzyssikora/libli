@@ -289,3 +289,40 @@ def test_container_key_spaces_do_not_drift():
 def test_twocolumn_form_key_alias_exists():
     """Without the alias the Columns card is offered nested and every click 400s."""
     assert builder._NESTABLE_FORM_KEY_ALIASES["twocolumn"] == "two_column"
+
+
+def test_container_registry_carries_a_slot_cap():
+    """Clause 1's truncation check needs each container's MAX. A registry entry
+    without one forces an ad-hoc getattr(type(obj), "MAX_TABS", ...) inside
+    paste_allowed -- a second copy of container knowledge outside the registry."""
+    from courses.models import CalloutElement
+    from courses.models import SpoilerElement
+    from courses.models import TabsElement
+    from courses.models import TwoColumnElement
+
+    reg = builder._CONTAINER_REGISTRY
+    assert len(reg[TabsElement]) == 4
+    assert reg[TabsElement][3] == TabsElement.MAX_TABS
+    # MAX_COLUMNS, not the DEFAULT column count: normalize_data truncates at 4 and
+    # the author may pick 2, 3 or 4. A cap of 2 would silently make columns 3 and 4
+    # unpasteable while the renderer still shows them.
+    assert reg[TwoColumnElement][3] == TwoColumnElement.MAX_COLUMNS
+    # A fixed-slot container is never truncated, so its cap is None -- not 1.
+    # `None` is what makes paste_allowed SKIP the position check rather than
+    # apply it with a bound that happens to work.
+    assert reg[SpoilerElement][3] is None
+    # Callout became a container in PR #214 and is the second fixed-slot one.
+    assert reg[CalloutElement][3] is None
+    assert len(reg) == 4
+
+
+def test_container_keys_agree_by_key_not_by_count():
+    """The old assertion was `len(CONTAINER_TRANSFER_KEYS) == len(_CONTAINER_REGISTRY)`,
+    which passes green when a fourth model is registered under a fourth key that is
+    absent from CONTAINER_TRANSFER_KEYS -- exactly the seam cap(n) and clause 2 now
+    both sit on."""
+    from courses.transfer.export import model_to_key
+
+    assert {model_to_key(m) for m in builder._CONTAINER_REGISTRY} == set(
+        builder.CONTAINER_TRANSFER_KEYS
+    )

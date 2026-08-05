@@ -1,5 +1,7 @@
 """Course-builder tree mutations with optimistic-concurrency token checks."""
 
+from dataclasses import dataclass
+
 from django.db import transaction
 from django.utils.dateparse import parse_datetime
 from django.utils.translation import gettext as _
@@ -22,6 +24,33 @@ class ConflictError(Exception):
 
 class NestingError(Exception):
     """A nested add/save violated the nesting rules -> HTTP 400."""
+
+
+class ParentGoneError(NestingError):
+    """A well-formed parent pk that resolves to nothing in this unit.
+
+    A SUBCLASS on purpose: element_add and element_save catch NestingError and
+    nothing else, so a sibling class would turn their clean 400 into an uncaught
+    500 the moment a parent pk vanishes. Only the paste view, which catches this
+    first, treats it differently -- as a 422, because "the destination container
+    was deleted by another author between the render and the click" is a
+    concurrent-edit case the author must see, not a malformed payload.
+    """
+
+
+class PlacementRefused(Exception):
+    """The in-transaction re-check refused a placement the render had offered.
+
+    Deliberately NOT a NestingError: element_add and element_save catch that and
+    would begin answering 400 to a condition they never raise, and the
+    ParentGoneError handler would swallow this one. Carries the reason because
+    paste_element returns (unit, placed_join), which has no room for one, and the
+    422 has to say what was wrong.
+    """
+
+    def __init__(self, reason_key):
+        super().__init__(reason_key)
+        self.reason_key = reason_key
 
 
 MAX_NEST_DEPTH = 4  # a top-level element has depth 1
@@ -85,26 +114,43 @@ _NESTABLE_FORM_KEY_ALIASES = {
 }
 
 # Container element registry: model class -> (non_destructive_normalizer,
-# slot_list_key, slot_id_key). CONTRACT: each normalizer returns
+# slot_list_key, slot_id_key, max_slots). CONTRACT: each normalizer returns
 # {slot_list_key: [{slot_id_key: <id>}, ...]}. resolve_scope indexes the normalizer
 # output by slot_list_key, so slot_list_key MUST equal the key the normalizer emits.
+#
+# max_slots is the number of slots the DESTRUCTIVE normalize_data will keep; the
+# non-destructive normalizer keeps more. paste_allowed uses it to refuse a slot that
+# render-time truncation would drop -- see its clause 1. None means "never truncated"
+# (a fixed-slot container) and skips that check entirely.
 _CONTAINER_REGISTRY = {
-    TabsElement: (TabsElement.normalize_labels_and_ids, "tabs", "id"),
-    TwoColumnElement: (TwoColumnElement.normalize_ids, "columns", "id"),
+    TabsElement: (
+        TabsElement.normalize_labels_and_ids,
+        "tabs",
+        "id",
+        TabsElement.MAX_TABS,
+    ),
+    TwoColumnElement: (
+        TwoColumnElement.normalize_ids,
+        "columns",
+        "id",
+        TwoColumnElement.MAX_COLUMNS,
+    ),
     # Single-slot: ignores its argument and returns one fixed slot. SpoilerElement
     # has no `data` field, which is why the call site below uses getattr().
     SpoilerElement: (
         lambda _data: {"slots": [{"id": SpoilerElement.SLOT_ID}]},
         "slots",
         "id",
+        None,
     ),
-    # Single-slot, like SpoilerElement: ignores its argument and returns one fixed
-    # slot. CalloutElement has no `data` field, which is why the call site uses
-    # getattr(parent_obj, "data", None).
+    # Single-slot, like SpoilerElement -- added by PR #214, which made Callout a
+    # container. Keep this entry: rewriting the block without it silently
+    # un-registers a live container.
     CalloutElement: (
         lambda _data: {"slots": [{"id": CalloutElement.SLOT_ID}]},
         "slots",
         "id",
+        None,
     ),
 }
 
@@ -155,15 +201,15 @@ def ancestor_slots(join):
     return keys
 
 
-def resolve_scope(unit, parent_ref, tab, type_key):
-    """Validate and resolve a nested element's scope.
+def _parse_scope_ref(unit, parent_ref, tab):
+    """Parse a (parent, tab) payload pair into (parent_join | None, tab_id).
 
-    Returns (parent_join|None, tab_id).
+    PARSE ONLY -- no admissibility. resolve_scope calls this and then applies its
+    clauses; the paste path calls it and then applies paste_allowed instead. Two
+    parses would be free to drift, which is the whole reason this is one function.
 
-    `parent` and `tab` come together or not at all; neither means top-level. Any
-    violation raises NestingError, which the view turns into a 400. Filtering the
-    parent by `unit` enforces same-unit and (transitively) same-course, because `unit`
-    was already resolved against the course by the caller.
+    Shape errors raise NestingError (400): a UI cannot produce them. A well-formed
+    but unresolvable parent raises ParentGoneError (422 on the paste path).
     """
     parent_ref = (parent_ref or "").strip()
     tab = (tab or "").strip()
@@ -180,7 +226,26 @@ def resolve_scope(unit, parent_ref, tab, type_key):
     except (TypeError, ValueError):
         raise NestingError("bad parent ref") from None
     if join is None:
-        raise NestingError("unknown parent")
+        raise ParentGoneError("unknown parent")
+    return join, tab
+
+
+def resolve_scope(unit, parent_ref, tab, type_key):
+    """Validate and resolve a nested element's scope.
+
+    Returns (parent_join|None, tab_id).
+
+    `parent` and `tab` come together or not at all; neither means top-level. Any
+    violation raises NestingError, which the view turns into a 400. Filtering the
+    parent by `unit` enforces same-unit and (transitively) same-course, because `unit`
+    was already resolved against the course by the caller.
+
+    Parsing lives in _parse_scope_ref, shared with the paste path; the clauses below
+    are this function's alone.
+    """
+    join, tab = _parse_scope_ref(unit, parent_ref, tab)
+    if join is None:
+        return None, ""
 
     parent_obj = join.content_object
     container = _CONTAINER_REGISTRY.get(type(parent_obj))
@@ -196,7 +261,7 @@ def resolve_scope(unit, parent_ref, tab, type_key):
     # against it could be an ephemeral phantom that never matches again at render
     # time -- silently orphaning the child. A write path must validate against the
     # ids that actually exist, via the non-destructive normalizer.
-    normalizer, list_key, id_key = container
+    normalizer, list_key, id_key, _max_slots = container
     # getattr: a single-slot container (spoiler) has no `data` field at all, and the
     # argument is evaluated HERE, before the normalizer runs.
     slots = normalizer(getattr(parent_obj, "data", None))[list_key]
@@ -211,6 +276,220 @@ def resolve_scope(unit, parent_ref, tab, type_key):
     ):
         raise NestingError("a container may not be nested this deeply")
     return join, tab
+
+
+@dataclass(frozen=True)
+class SubtreeFacts:
+    """The two facts about a marked element that do NOT depend on the destination.
+
+    Computed once per render and passed to every per-slot paste_allowed call; the
+    endpoint omits it and paste_allowed computes it itself. That parameter is what
+    makes the N advisory calls and the one enforcing call provably the same code --
+    the alternative, a view applying `dest_depth <= scalar` on its own, would put a
+    second copy of clause 3 outside the authority.
+    """
+
+    min_headroom: int
+    subtree_pks: frozenset
+
+
+def _slot_cap(join):
+    """cap(n): a container may live at depth 1..MAX_NEST_DEPTH-1, a leaf at 1..MAX.
+
+    A container at depth 4 would render slots that can never be filled. Reads the
+    MODEL-keyed registry, not CONTAINER_TRANSFER_KEYS, because the subject is an
+    existing row rather than an incoming request -- no model->key hop is needed. A
+    dangling GFK gives type(None), which is in neither, so it counts as a leaf.
+    """
+    if type(join.content_object) in _CONTAINER_REGISTRY:
+        return MAX_NEST_DEPTH - 1
+    return MAX_NEST_DEPTH
+
+
+def subtree_facts(join, children_map=None):
+    """Facts about the subtree rooted at `join`, over the FK walk.
+
+    `S` is `join.children` -- EVERY child row, matched slot or not. Deliberately
+    NOT the export walk's resolved_tabs()/resolved_columns(), which group by slot
+    and omit a child whose tab_id matches no slot: a move re-parents the root, so
+    an orphaned child travels with it whether or not any slot resolves. Measuring
+    with the export walk would let an over-deep orphaned branch through.
+
+    `children_map` is the render's prefetched {parent_pk: [joins]} map (see
+    enumerate_slots). Omitted, each level costs a query -- fine for the single call
+    the endpoint makes, ruinous for the per-render walk.
+
+    Cycle-guarded by `seen`, for the same reason _collect_subtree_pks is.
+    """
+    seen = set()
+    headroom = [MAX_NEST_DEPTH]
+
+    def walk(node, rel):
+        if node.pk in seen:
+            return
+        seen.add(node.pk)
+        headroom[0] = min(headroom[0], _slot_cap(node) - rel)
+        if children_map is not None:
+            kids = children_map.get(node.pk, [])
+        else:
+            kids = node.children.all()
+        for child in kids:
+            walk(child, rel + 1)
+
+    walk(join, 0)
+    return SubtreeFacts(min_headroom=headroom[0], subtree_pks=frozenset(seen))
+
+
+def paste_allowed(
+    unit, marked_join, dest_parent, tab, mode, facts=None, dest_depth=None
+):
+    """Is placing `marked_join`'s subtree into (`dest_parent`, `tab`) admissible?
+
+    Returns `(True, None)` or `(False, reason_key)`. The reason exists because the
+    422 has to say what was wrong; a bare bool would force the endpoint to invent a
+    generic message.
+
+    THE authority: called per slot by the render to decide which buttons exist, and
+    again inside the paste transaction to enforce. The render-time call is advisory;
+    the in-transaction call is what a hand-crafted POST cannot beat.
+
+    `facts` and `dest_depth` follow one rule: the render supplies them, the endpoint
+    omits them, and this function computes whatever it was not given.
+
+    Reason precedence, fixed and depended on by every caller's tests: wrong_unit,
+    into_own_subtree, not_a_container, unknown_slot, type_not_nestable, too_deep,
+    own_slot. Clause 4 is tested before the container checks so that "into your own
+    child" reports that rather than "not a container" when the child is a leaf.
+    """
+    if marked_join.unit_id != unit.pk:  # clause 0
+        return False, "wrong_unit"
+    if dest_parent is not None and dest_parent.unit_id != unit.pk:  # clause 0
+        return False, "wrong_unit"
+
+    if facts is None:
+        facts = subtree_facts(marked_join)
+
+    if dest_parent is None:
+        # The synthetic top-level slot. A non-empty tab here cannot come from the
+        # UI -- the parse helper rejects tab-without-parent with a 400 before this
+        # runs -- so this is defence, not a reachable branch.
+        if tab:
+            return False, "unknown_slot"
+        if dest_depth is None:
+            dest_depth = 1
+    else:
+        if dest_parent.pk in facts.subtree_pks:  # clause 4 ({R} U descendants(R))
+            return False, "into_own_subtree"
+
+        container = _CONTAINER_REGISTRY.get(type(dest_parent.content_object))
+        if container is None:  # clause 1
+            return False, "not_a_container"
+        normalizer, list_key, id_key, max_slots = container
+        # getattr: a single-slot container (spoiler) has no `data` field at all,
+        # and the argument is evaluated HERE, before the normalizer runs.
+        slots = normalizer(getattr(dest_parent.content_object, "data", None))[list_key]
+        ids = [s[id_key] for s in slots]
+        if max_slots is not None:
+            # Clause 1 is deliberately STRICTER than resolve_scope's clause 2: the
+            # non-destructive normalizer keeps slots the render-side destructive one
+            # truncates away, and a paste into one of those lands a populated
+            # subtree where nothing will ever render or export it. The check is on
+            # POSITION, not on the minted id, so it is stable across calls --
+            # comparing ids against the destructive normalizer's output would
+            # compare against freshly minted values.
+            ids = ids[:max_slots]
+        if tab not in ids:  # clause 1
+            return False, "unknown_slot"
+
+        # Clause 2 checks the ROOT only, deliberately: every descendant is already
+        # nested, so it passed this when it was created. The root is the only node
+        # whose nestability is unproven -- it may have been sitting at top level,
+        # where non-nestable types legally live.
+        #
+        # Function-local import for the reason duplicate_element's transfer imports
+        # are (see :599-603): the transfer package pulls courses.forms /
+        # courses.media, so a module-level edge risks an import cycle.
+        from courses.transfer.export import model_to_key
+
+        if model_to_key(type(marked_join.content_object)) not in NESTABLE_TYPE_KEYS:
+            return False, "type_not_nestable"
+
+        if dest_depth is None:
+            dest_depth = element_depth(dest_parent) + 1
+
+    if dest_depth > facts.min_headroom:  # clause 3
+        return False, "too_deep"
+
+    if mode == "move":  # clause 5 -- pks, never instances
+        here = (dest_parent.pk if dest_parent is not None else None, tab)
+        if here == (marked_join.parent_id, marked_join.tab_id):
+            return False, "own_slot"
+
+    return True, None
+
+
+def enumerate_slots(unit):
+    """Every container slot in `unit`, as (parent_join | None, tab_id, dest_depth).
+
+    Returns `(pairs, children_map)`. The map is `{parent_pk_or_None: [joins]}` and
+    is returned so the caller can hand it to subtree_facts rather than pay for a
+    second walk.
+
+    ONE query builds the map, plus one per distinct content type for the GFK
+    prefetch. Descending `join.children` from the ORM at each node instead -- even
+    with prefetch_related hung off it -- is WORSE than naive: one children query
+    plus one per content type, per join. build_export is not a precedent to copy
+    wholesale; it prefetches its roots in one query and then re-queries children per
+    container through the resolved_* accessors, and that second half is the shape to
+    avoid.
+
+    The walk is the FK tree, the same walk subtree_facts uses, so the two cannot
+    disagree about what exists. It is a SUPERSET of the rendered tree: a container
+    that is itself an orphan-slot child is reached here but never rendered, so this
+    can emit pairs no template asks about. Harmless in that direction -- extra pairs
+    are unreachable rather than wrong -- and the reverse cannot happen.
+
+    Skipped entirely when nothing is marked: no walk, no cost on the common render.
+    """
+    joins = list(
+        unit.elements.all()
+        .select_related("content_type")
+        .prefetch_related("content_object")
+        .order_by("order", "pk")
+    )
+    children_map = {}
+    for join in joins:
+        children_map.setdefault(join.parent_id, []).append(join)
+
+    pairs = [(None, "", 1)]
+    seen = set()
+
+    def walk(join, depth):
+        if join.pk in seen:  # a corrupt parent cycle must terminate, not spin
+            return
+        seen.add(join.pk)
+        obj = join.content_object  # None when the GFK dangles -- skipped below
+        container = _CONTAINER_REGISTRY.get(type(obj))
+        if container is not None:
+            normalizer, list_key, id_key, max_slots = container
+            # getattr: a single-slot container (spoiler) has no `data` field, and
+            # the argument is evaluated HERE, before the normalizer runs.
+            slots = normalizer(getattr(obj, "data", None))[list_key]
+            ids = [s[id_key] for s in slots]
+            if max_slots is not None:
+                # Same position check as clause 1, so the UI never offers a slot
+                # the rule would then refuse. Non-destructive normalizer here,
+                # destructive one at render time: for well-formed data they agree,
+                # and where they diverge this fails closed.
+                ids = ids[:max_slots]
+            for sid in ids:
+                pairs.append((join, sid, depth + 1))
+        for child in children_map.get(join.pk, []):
+            walk(child, depth + 1)
+
+    for root in children_map.get(None, []):
+        walk(root, 1)
+    return pairs, children_map
 
 
 def _check_token(current_dt, token):
@@ -488,6 +767,106 @@ def _copy_below(el, unit, _export, _importer, TransferError):
 
     unit.save(update_fields=["updated"])
     return unit, new_join
+
+
+@transaction.atomic
+def paste_element(course, element_pk, parent_ref, tab, mode, unit_token):
+    """Move or copy the marked element's subtree into (parent_ref, tab).
+
+    Returns (unit, placed_join) -- the join, not just the unit, because the view
+    derives the post-paste open-set by walking placed_join.parent upward.
+
+    Locks first, token second, rule third: paste_allowed is re-evaluated INSIDE
+    this transaction and this lock, so a concurrent add into the destination slot
+    cannot interleave between the render-time check and the placement. The
+    render-time call is advisory; this one is the enforcement.
+    """
+    if mode not in ("move", "copy"):
+        raise NestingError("unknown mode")
+
+    el, unit = _locked_element(course, element_pk)
+    _check_token(unit.updated, unit_token)
+
+    dest_parent, tab_id = _parse_scope_ref(unit, parent_ref, tab)
+    ok, reason = paste_allowed(unit, el, dest_parent, tab_id, mode)
+    if not ok:
+        raise PlacementRefused(reason)
+
+    if mode == "move":
+        placed = _move_into(el, unit, dest_parent, tab_id)
+    else:
+        placed = _copy_into(el, unit, dest_parent, tab_id)
+
+    unit.save(update_fields=["updated"])
+    return unit, placed
+
+
+def _move_into(el, unit, dest_parent, tab_id):
+    """Re-parent the ROOT join row only; descendants keep their parent and unit
+    FKs, so the whole subtree travels with it for free.
+
+    The step order is load-bearing -- see the comments inline. Runs inside
+    paste_element's transaction and its element+unit lock.
+    """
+    # 1. Capture BEFORE mutating: a move overwrites these same fields in place, so
+    #    reading them afterwards would compact the DESTINATION twice and leave a
+    #    hole in the source. delete_element captures for the same reason.
+    old_parent, old_tab = el.parent, el.tab_id
+
+    # 2. Persist the scope. place_element saves only `order`, so a scope left
+    #    unsaved here is never written -- and it is also place_element's
+    #    precondition, since it reads the in-memory parent/tab_id to pick the
+    #    sibling group.
+    el.parent = dest_parent
+    el.tab_id = tab_id
+    el.save(update_fields=["parent", "tab_id"])
+
+    # 3. None clamps to the end of the group: a paste APPENDS, and position is then
+    #    adjusted with the existing arrows.
+    ordering.place_element(el, unit, None)
+
+    # 4. Compact the CAPTURED source group, as delete_element does.
+    ordering.compact_elements(unit, parent=old_parent, tab_id=old_tab)
+    return el
+
+
+def _copy_into(el, unit, dest_parent, tab_id):
+    """Serialise the subtree and re-materialise it in the destination slot.
+
+    The same three-step shape duplicate_element uses, with the destination being
+    the caller's rather than the source's own scope. Runs inside paste_element's
+    transaction and lock.
+    """
+    from courses.transfer import export as _export
+    from courses.transfer import importer as _importer
+    from courses.transfer.schema import TransferError
+
+    try:
+        document, media_assets, problems = _export.build_element_export(unit, el)
+        if problems:
+            # build_export RECORDS a dangling GFK and continues, dropping the broken
+            # join and its ENTIRE subtree from the payload. With
+            # drop_missing_media=False no media problem can be produced, so a
+            # non-empty list means exactly one thing -- and copying anyway would
+            # yield a silently thinned subtree with a 200.
+            raise TransferError(_("This element is damaged and cannot be copied."))
+        media_map = {mid: asset for (mid, asset, _ph) in media_assets}
+        new_join = _importer.graft_elements(document, media_map, unit)
+    except TransferError:
+        raise  # already normalized by graft_elements' _run_import
+    except Exception as exc:
+        # build_element_export is NOT wrapped by _run_import, so a serializer edge
+        # or the export's own assert would otherwise escape as a 500.
+        raise TransferError(str(exc) or "Copy failed.") from exc
+
+    # The graft returns a PARENTLESS root: the payload root has no `parent`, and
+    # _create_elements' second pass skips exactly those rows. place_element will not
+    # fix it either -- it saves only `order`.
+    new_join.parent = dest_parent
+    new_join.tab_id = tab_id
+    new_join.save(update_fields=["parent", "tab_id"])
+    ordering.place_element(new_join, unit, None)
+    return new_join
 
 
 @transaction.atomic
