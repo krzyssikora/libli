@@ -23,40 +23,72 @@ margin-inline: 0; padding: 1.25rem 1.5rem; }`. The 46rem cap is reintroduced onl
 `html.unit-tree-collapsed [data-unit-shell]` for a selector allow-list (`courses.css:960-973`) that
 does **not** include `.el--image` — so an image is never prose-capped, in either TOC state.
 
+There is one more wrapper outside the shell, and it binds before `.unit-shell` does. `base.html:147`
+puts `{% block content %}` inside `<main class="app-main">`, and `app.css:34` caps that at
+`max-width: 960px` with `padding: var(--space-8) var(--space-5)` (20px inline, dropping to
+`var(--space-4)` = 16px at ≤640px, `app.css:246`). `lesson_unit.html` never overrides
+`{% block main_class %}`, and the only `.app-main` widening anywhere is
+`body.editor-page .app-main { max-width: 102rem }` (`editor.css:36`) — the **editor**, not the lesson
+page. So `.unit-shell`'s 72rem cap **never binds** on a lesson.
+
 The real content box, at the pinned 1280px desktop viewport with the TOC shown:
 
 ```
-.unit-shell   max-width 72rem      = 1152px   (courses.css:543)
-.unit-tree    flex 0 0 14rem       =  224px   (courses.css:548)
-.lesson       padding 1.5rem x 2   =   48px   (courses.css:546)
+.app-main     max-width 960px      =  960px   (app.css:34)
+.app-main     padding 20px x 2     = - 40px   (app.css:34)
                                      -------
-content box                           880px
+                                       920px   (so .unit-shell's 72rem = 1152px never binds)
+.unit-tree    flex 0 0 14rem       = -224px   (courses.css:548)
+.lesson       padding 1.5rem x 2   = - 48px   (courses.css:546)
+                                     -------
+content box                           648px
 ```
 
-On a phone (≤640px) `.unit-shell` becomes `display: block`, `.unit-tree` is hidden, and `.lesson`
-padding drops to `1rem`, giving **328px** at a 360px viewport.
+On a phone (≤640px) `.unit-shell` becomes `display: block`, `.unit-tree` is hidden, `.app-main`
+padding drops to 16px and `.lesson` padding to `1rem`, giving `360 − 32 − 32 =` **296px** at a 360px
+viewport.
 
-**Use 880px, not 736px.** An earlier draft of this spec measured against 736px and understated the
-problem by nearly half.
+**Use 648px / 296px.** This spec has been wrong twice about this number. The first draft measured
+against `.lesson`'s nominal 736px; a later one corrected to 880px by deriving from `.unit-shell` —
+but still omitted `.app-main`, which caps the page outside the shell. **648px is the derivation with
+every wrapper accounted for**, confirmed during plan-review of this slice and pinned at runtime by the
+e2e tests (which read the column from `fig.parentElement` rather than hardcoding any of these).
 
 ### Measured evidence (1067 images with a readable file, local `libli` DB, 2026-08-04)
 
-Measured at the **880px** content box above:
+> **⚠ These counts were measured against the superseded 880px column and are an UPPER BOUND.**
+> They have **not** been re-measured at the correct 648px. Do not quote them as current figures —
+> see "Direction of the error" below, which is derivable from this section's own data.
 
-| fact | count |
+Measured at the (superseded) **880px** content box:
+
+| fact | count at 880px |
 |---|---|
 | wide or square | 1042 |
 | tall (h/w > 1.5) | 25 |
-| **render taller than a 900px desktop window** | **54** |
-| **overflow a 640px phone viewport** | **10** |
+| render taller than a 900px desktop window | 54 |
+| overflow a 640px phone viewport | 10 |
 
 Rendered-height percentiles at the 880px column: p50 550px, p75 690px, p90 835px, p95 903px,
 p99 1306px, max 1546px. The worst source images are `494x1492` (h/w 3.0).
 
-For contrast, the same query against the wrong 736px figure reported only **30** over-tall images and
-p50 466 / p95 804 / max 1492 — the wider real column stretches tall images taller, so measuring
-against `.lesson`'s nominal cap **undercounts the defect by 24 images**. The phone figure (10) is
-unaffected, because 328px was derived from the shell correctly.
+**Direction of the error.** The same query against 736px reported **30** over-tall images and
+p50 466 / p95 804 / max 1492. So widening the assumed column 736 → 880 *raised* the count 30 → 54: a
+wider column scales a too-wide image to a **greater** rendered height. The true column is **648px** —
+narrower than both — so at the real width the over-tall count is **lower than 54, and lower than 30**.
+The counts above overstate the defect; they do not understate it.
+
+This does **not** weaken the design, for two reasons that do not depend on the count:
+
+1. **The tall images that motivate the feature are unaffected by column width.** A tall image narrower
+   than the column (the originating case is `297x719`, and the worst is `494x1492`) is never scaled by
+   `max-width: 100%` at 648px, 736px or 880px — it renders at its intrinsic height in all three. The
+   `max-height: 100dvh` floor is what bounds it, and that is viewport-relative, not column-relative.
+2. **The primary justification is authorial control, not the defect count** (see §Purpose): today an
+   author has no way to size an image at all and must guess dimensions before seeing the result.
+
+**Re-measuring is a known outstanding item**, deliberately not done here to keep this a documentation
+correction. Anyone quoting a count must re-run the corpus query at 648px first.
 
 The originating report was unit 1095 ("Pierwiastek - wyłączanie i włączanie"), whose first spoiler
 holds `czynnik_przed_pierwiastek_1.png` at **297x719** (h/w 2.42, element pk 1082) — fine on desktop,
@@ -67,12 +99,12 @@ whole problem in one spoiler: **width-only constraints do not bound a tall image
 ### Why presets are bounding boxes, not widths
 
 A width-only preset does not produce comparable visual sizes across aspect ratios. At "medium = 50%
-of the 880px column" (440px):
+of the 648px column" (324px):
 
 | aspect | renders as | verdict |
 |---|---|---|
-| 1:3 tall | 440 x 1320 | dominates the page — taller than any laptop screen |
-| 2:1 wide | 440 x 220 | fine |
+| 1:3 tall | 324 x 972 | dominates the page — taller than any laptop screen |
+| 2:1 wide | 324 x 162 | fine |
 
 So each preset is a **bounding box** — a max-width *and* a max-height — with the image scaled to fit
 inside it, preserving aspect ratio. The browser does this natively with `max-width` + `max-height` +
@@ -90,7 +122,11 @@ class ImageElement(ElementBase):
         SMALL = "small", _("Small")
         MEDIUM = "medium", _("Medium")
         LARGE = "large", _("Large")
-        FULL = "full", _("Full")
+        # pgettext, NOT a bare _(): the msgid "Full" is already taken by the
+        # structure-preset label at courses/forms.py:166, whose Polish is the
+        # feminine "Pełna". Django keys the catalog by msgid alone, so a bare
+        # _("Full") here ships one of the two ungrammatical. The context forks it.
+        FULL = "full", pgettext_lazy("image size", "Full")
 
     media = models.ForeignKey(...)      # unchanged
     alt = models.CharField(...)         # unchanged
@@ -102,10 +138,12 @@ class ImageElement(ElementBase):
 `CalloutElement.Kind`. Labels use `gettext_lazy` (module-level translatable strings must, per house
 rule). A schema migration adds the column with `default="full"`.
 
-**There is no data migration.** Because `full` carries a `max-height: 100dvh` (see §3), the 54
-over-tall images are corrected by the CSS rule itself, and the other 1013 render byte-identically.
+**There is no data migration.** Because `full` carries a `max-height: 100dvh` (see §3), every
+over-tall image is corrected by the CSS rule itself, and the rest render byte-identically. (The
+54/1013 split quoted in earlier drafts came from the superseded 880px measurement — see the warning
+in §Purpose. The *mechanism* is independent of the count.)
 This is a deliberate reversal of an earlier draft that proposed defaulting to a capped preset: at the
-real 880px column a 70vh default would have visibly changed **370 images (35%)** — 43 imperceptibly
+then-assumed 880px column a 70vh default would have visibly changed **370 images (35%)** — 43 imperceptibly
 (<5%), 156 mildly (5-20%), 159 noticeably (20-50%), and 12 by more than half (43+156+159+12 = 370) —
 to fix 10 mobile cases. Capping only at the viewport changes exactly the images that are already
 broken. (Re-measuring at the correct column made this argument *stronger*: against the wrong 736px
@@ -148,7 +186,7 @@ tracking vs. a preview-target hook), and `data-preview-el` is invisible to every
 ### 3. CSS — four bounding boxes
 
 Percentages resolve against the **containing block**, which for a top-level image is the `.lesson`
-content box derived in §Purpose — **880px** at the pinned desktop viewport, not `.lesson`'s nominal
+content box derived in §Purpose — **648px** at the pinned desktop viewport, not `.lesson`'s nominal
 `46rem`. The percentages below are correct regardless (they are relative by construction); the
 figure matters only for computing expected pixel values in tests, which is why row 8 measures the
 container at runtime rather than hardcoding a width.
@@ -183,9 +221,9 @@ Bounding only the `<img>` is not enough. `<figure>` is a block box, and **no rul
 sizes it** — the only two rules touching `.el--image` today are `.el { margin: 1rem 0 }`
 (`courses.css:4`) and `.el--image img { max-width: 100%; height: auto }` (`:46`), and there is **no
 `figcaption` rule anywhere**. So a `small` image would render at 25% width flush against the *left*
-edge of a figure still spanning the full 880px, with a lake of white space to its right — and a
-`<figcaption>`, an unconstrained sibling in that full-width figure, would wrap at 880px while sitting
-under a 220px image. This project has already been bitten by the same shape: the imagezoom overlay's
+edge of a figure still spanning the full 648px, with a lake of white space to its right — and a
+`<figcaption>`, an unconstrained sibling in that full-width figure, would wrap at 648px while sitting
+under a 162px image. This project has already been bitten by the same shape: the imagezoom overlay's
 comment at `courses.css:1729-1734` describes a dialog that "collapses to a fit-content box flush
 LEFT."
 
@@ -524,10 +562,10 @@ Rows 8-10 are load-bearing and cannot be replaced by source scans.
   makes both numbers in each bounding box load-bearing.
 - **Row 8 must read the container width at runtime**, not hardcode one.
   `.unit-shell__main > .lesson` overrides `.lesson`'s nominal `46rem` (§Purpose), so the content box
-  is ~880px on desktop and ~328px on a phone — and both depend on the shell, the TOC state and the
-  padding, all of which can change. Assert the image against
+  is 648px on desktop and 296px on a phone (§Purpose) — and all of them depend on `.app-main`, the
+  shell, the TOC state and the padding, every one of which can change. Assert the image against
   `container.getBoundingClientRect().width * <preset fraction>`, so the test keeps testing the
-  preset rather than silently re-encoding today's layout. A hardcoded 736 or 880 would make this
+  preset rather than silently re-encoding today's layout. A hardcoded 736, 880 or 648 would make this
   row fail the next time the shell is touched, for a reason that has nothing to do with sizing.
 - **Row 8** must run at **two** viewports. A single-viewport test passes even if the cap were
   silently authored as a fixed `px`, which is that row's specific target.
