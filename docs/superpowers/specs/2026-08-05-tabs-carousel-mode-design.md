@@ -313,7 +313,17 @@ rendering its no-JS stacked fallback in a pane labelled "as students see it" bec
 `dataset.tabsReady` guard and the `ownSections` lookup, then branches. **The carousel branch
 is taken only on an exact `"carousel"` match**; every other value — `null`, `""`, a stale
 cached fragment, a hand-written template, a future third mode — falls through to today's tab
-strip. There is no undefined third path. Shared by both modes, unchanged:
+strip. There is no undefined third path.
+
+Note the deliberate asymmetry with the CSS: the JS fall-through set is "anything that is not
+`carousel`", while the tabs-mode CSS rules key on the literal `[data-display="tabs"]`. Those
+differ only for a missing or unknown attribute value, which **cannot occur from the server** —
+`render()` always emits a normalised member. A hand-written template or stale cached fragment
+with neither value is out of contract for styling (it would show both the strip button and
+the heading); the JS predicate is the looser one because a blank element is a worse failure
+than a duplicated label. Do not "harmonise" the two.
+
+Shared by both modes, unchanged:
 
 - The **idempotence guard** — the preview pane re-runs the enhancer over the whole pane on
   every swap; re-entering would append a second nav bar.
@@ -356,10 +366,14 @@ chain, never a descendant selector.** The server markup guarantees
 `.el--tabs > .tabs__stage > .tabs__section > .tabs__panel-label`, so write:
 
 ```
-.el--tabs.tabs--js[data-display="carousel"] > .tabs__stage { … }
-.el--tabs.tabs--js[data-display="carousel"] > .tabs__stage > .tabs__section { … }
-.el--tabs.tabs--js[data-display="carousel"][data-label-pos="hidden"] > .tabs__stage > .tabs__section > .tabs__panel-label { … }
+.el--tabs.tabs--carousel[data-display="carousel"] > .tabs__stage { … }
+.el--tabs.tabs--carousel[data-display="carousel"] > .tabs__stage > .tabs__section { … }
+.el--tabs.tabs--carousel[data-display="carousel"][data-label-pos="hidden"] > .tabs__stage > .tabs__section > .tabs__panel-label { … }
 ```
+
+(The gate class is `.tabs--carousel`, **not** `.tabs--js` — see the gate section immediately
+below for why. Note that the mandated source assertion covers only the `.tabs__section` rule,
+so a `.tabs--js` slip in the caption rule would ship green.)
 
 `tabs` is in `NESTABLE_TYPE_KEYS` and a carousel may contain a tabs element — a shape this
 repo already exercises in `tests/test_e2e_depth3.py`. A **descendant** selector would match
@@ -448,6 +462,16 @@ distinguishes the two *enhanced* modes; it does not replace the JS gate.
 - **`show()` order of operations is normative, not incidental.** `rescueFocus` is a no-op in
   any other sequence, so the steps are:
 
+  0. **clamp the target to `[0, N-1]` and return early if it equals the current index** —
+     both `gallery.show()` (`clamp(n)`) and the existing `tabs.select()`
+     (`Math.max(0, Math.min(len - 1, n))`) do exactly this, and the carousel needs it more:
+     clamping is otherwise specified only as the arrows' `disabled` state, and **the keyboard
+     path does not go through the arrows** — it calls `show()` directly. ArrowLeft on slide 1
+     would reach index `-1`, `sections[-1]` is `undefined`, and step 3's `removeAttribute`
+     throws — in a *keydown* handler, so the branch's init-time `try/catch` does not catch it,
+     `preventDefault` has already fired, and the carousel is left mid-transition. e2e:
+     ArrowLeft on slide 1 and ArrowRight on slide N leave the index unchanged with no console
+     error;
   1. `finalizePending()`, then advance the index;
   2. update the dots (`.is-active` + `aria-current`) **and the arrows'
      `disabled` / `aria-disabled`** to the *incoming* index;
@@ -490,8 +514,23 @@ distinguishes the two *enhanced* modes; it does not replace the JS gate.
   element has `display:none` panels. `.focus()` on such a node silently does nothing, focus
   stays on `<body>`, and the keydown handler bails — the precise failure the chain exists to
   prevent, now reached *through* the fallback. So: exclude `[disabled]` and
-  `[tabindex="-1"]`, reject any candidate with an `[inert]` ancestor, and require it to pass
-  an `offsetParent` / opacity-aware visibility test before accepting it.
+  `[tabindex="-1"]`, reject any candidate with an `[inert]` ancestor, and require a
+  **`display`/`visibility`/zero-box** check (`offsetParent !== null`, or a non-empty client
+  rect).
+
+  ⚠️ **Ancestor opacity must NOT be part of that test.** `rescueFocus` runs at step 4, while
+  the incoming section is still `opacity: 0` — `.is-active` lands at step 6, and the 320 ms
+  CSS transition means `getComputedStyle` reports ~0 even for a moment after that. An
+  opacity-aware predicate therefore rejects **every** node in the incoming slide, the first
+  link of the chain becomes dead code, and the rescue silently always falls through to the
+  nav bar — contradicting "the nav-bar fallback is the expected outcome *for a plain table
+  slide*", which implies a slide **with** focusable content keeps its focus inside. No
+  currently listed keyboard test would notice, because they only assert that navigation still
+  advances, which the nav-bar fallback also satisfies. The opacity clause is redundant
+  anyway: a nested carousel's inactive sections are already caught by the `[inert]`-ancestor
+  rule, and a nested tabs element's panels by `offsetParent` / `display:none`. Test with a
+  named mutant: a slide holding a link, ArrowRight, assert `document.activeElement` is inside
+  the incoming section and **not** in `.tabs__cbar`.
 
   ⚠️ **A fourth filter is mandatory: reject any candidate whose
   `closest("[data-tabs], [data-gallery]")` is not this container.** Otherwise the rescue and
@@ -1107,7 +1146,13 @@ height assertion against similar slides passes trivially on a broken build. Then
   absolutely positioned the stage's height *is* `min-height` by construction, so a build that
   reserved only slide 1's height passes a stability check while the tall slide overflows the
   nav bar. Assert the nav bar's `y` is identical on both slides as a second angle.
-- assert prev is `disabled` on slide 1 and next on the last;
+- assert prev is `disabled` on slide 1 and next on the last, **and press the arrow key past
+  each end** (ArrowLeft on slide 1, ArrowRight on slide N): the index must be unchanged with
+  no console error. The `disabled` assertions alone read the buttons, and the keyboard path
+  never touches them;
+- with a slide that holds a link, ArrowRight and assert `document.activeElement` is inside
+  the incoming section rather than in `.tabs__cbar` — the guard against an over-strict
+  `rescueFocus` predicate silently degrading to the nav-bar fallback;
 - **walk backwards, not only forwards**: from a focusable in slide 2, ArrowLeft to slide 1
   (whose slide deliberately holds no focusable content), then ArrowRight must still advance.
   Every other keyboard case here moves forward and would stay green on a build that assigns
