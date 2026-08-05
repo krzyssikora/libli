@@ -808,7 +808,12 @@ elements and must not have them share a unit.
 ```bash
 uv run pytest tests/test_tabs_partial.py -k "data_attributes or stage_wrapper or identical_between or all_three_label or exactly_once" -v
 ```
-Expected: FAIL — no `data-display` in the markup.
+Expected: **2 failed, 3 passed.** Only `test_render_emits_both_data_attributes` and
+`test_the_stage_wrapper_is_present_in_both_modes` have a red phase. The other three are
+regression guards that already hold: the byte-identical test (with no `data-display` emitted
+the `.replace()` is a no-op and the two renders were already identical), the caption-count
+test (`count("data-tab-label") == 2` already held), and the normalizer-call test (pre-change
+`render()` never touched the enums, so it was already exactly 1 call).
 
 - [ ] **Step 3: Rewrite the template**
 
@@ -933,7 +938,14 @@ Expected: PASS (all, including the pre-existing `data-tab-panel == 2` / `data-ta
 
 - [ ] **Step 7: Falsify**
 
-Change `**self.display_settings()` to `**self.normalized_data` → `test_render_calls_the_destructive_normalizer_exactly_once` must FAIL (2 calls). Revert.
+Mutant (use this exact form): replace the splat with
+`"display": self.normalized_data["display"], "label_pos": self.normalized_data["label_pos"]`
+→ `test_render_calls_the_destructive_normalizer_exactly_once` must FAIL with `assert 3 == 1`.
+⚠️ Do **not** use `**self.normalized_data` as the mutant: that dict also carries a `"tabs"`
+key, so splatting it after `"tabs": self.resolved_tabs()` clobbers the resolved tab list with
+bare dicts and `render()` crashes in `courses_extras.py` (`'str' object has no attribute
+`content_object`) *before* the assertion runs. It goes red for an unrelated reason, and a
+genuinely double-normalizing `render()` that avoided the collision would pass. Revert.
 Remove the `<div class="tabs__stage">` wrapper → `test_the_stage_wrapper_is_present_in_both_modes` must FAIL. Revert.
 
 - [ ] **Step 8: Regression-check the container siblings**
