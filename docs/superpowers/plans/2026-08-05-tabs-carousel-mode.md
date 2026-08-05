@@ -2188,7 +2188,7 @@ Add the import this file lacks: `from courses.templatetags.courses_manage_extras
 - [ ] **Step 2: Run to verify failure**
 
 ```bash
-uv run pytest tests/test_tabs_partial.py -k "summary" -v
+uv run pytest tests/test_tabs_partial.py -k "summary or polish_plural" -v
 ```
 
 - [ ] **Step 3: Implement**
@@ -2220,12 +2220,12 @@ This reads the **non-destructive** normalizer, so it depends on trap site 1 from
 - [ ] **Step 5: Run, falsify, commit**
 
 ```bash
-uv run pytest tests/test_tabs_partial.py -k summary tests/test_tabs_registry.py -v
+uv run pytest tests/test_tabs_partial.py tests/test_tabs_registry.py -v
 ```
 `tests/test_tabs_registry.py` already asserts `element_summary(el) == "2 tabs"` / `== "1 tab"`
 against the exact branch this task edits — it is the file that would catch a plural-path
 regression, so it must be in this task's run.
-Mutant: revert `normalize_labels_and_ids` to `return {"tabs": tabs}` → the carousel summary test FAILS with `KeyError`. Revert.
+Mutant: revert `normalize_labels_and_ids` to `return {"tabs": tabs}` → **all three** new tests FAIL with `KeyError: 'display'` (every `TabsElement` row now reads `norm["display"]` unconditionally, so the blast radius is wider than just the carousel test). Revert.
 
 ```bash
 git add courses/templatetags/courses_manage_extras.py locale/pl/LC_MESSAGES/ tests/test_tabs_partial.py
