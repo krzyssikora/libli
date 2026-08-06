@@ -140,8 +140,9 @@ Per-editor rather than per-row for three reasons, all load-bearing:
    and cannot contribute a flex gap to the row — see "Layout" below.
 3. **One is sufficient.** Only one input has focus at a time.
 
-The region is written from the `input`, **add** and **remove** paths — never from init. It is a
-transition signal for something the author just did; re-announcing on editor open would be noise.
+The region is written from the `input`, **add**, **remove** and **reorder** paths — never from
+init. It is a transition signal for something the author just did; re-announcing on editor open
+would be noise.
 
 **Attribute naming is constrained by existing raw-substring assertions.**
 `test_tabs_editor_partial.py:42` asserts `html.count("data-tab-row") == 2`. Neither `data-tab-num`
@@ -603,6 +604,12 @@ than the code. Falsify at the cheapest layer that can see the defect, and scope 
   docstrings** — strip or account for them, or the assertion can pass on a comment.
 - The reorder branches contain no `refreshCount` call, still use `insertBefore`, and **do** contain
   the region clear. *Mutants:* add a `refreshCount` call to the up/down branch; delete the clear.
+- The cap-phrase interpolation in `tabs_editor.js` uses `.split("{n}")`/`.split("{max}")` (or a `/g`
+  regex) and contains no `.replace("{n}"` or `.replace("{max}"` string-pattern form. This static
+  check is the **only** thing enforcing the global-substitution rule: both the English msgid and the
+  Polish msgstr contain each token exactly once, so a single-occurrence `.replace` chain produces an
+  identical string and the e2e's "no residual `{`" assertion is green against it.
+  *Mutant:* swap the split/join for `.replace("{max}", max)`.
 
 **`tests/test_tabs_css.py`** — assert on the *declaration block*, not on a line and not on file-wide
 presence. The existing rule spans `courses.css:1505-1510`, so a line-based parser finds nothing, and
@@ -662,15 +669,29 @@ unchanged wherever a case round-trips through the server.
   the character constraints above), assert `input.value.length == 80`, then assert the at-cap digits
   at first paint before any keystroke **and** that the live region is empty.
   *Mutants:* delete the init refresh loop; pass `announce = true` at init.
-- **add tab:** `fill()` a row to 80, then "Add tab" → the new row's digits are `hidden` and empty,
-  **and** the live region is empty. *Mutants:* remove the `refreshCount` call from the add handler;
-  remove the region clear from the add handler.
-- **remove:** `fill()` a row to 80, then remove that row → the live region is empty.
+- **add tab:** fill the **last** row (`[data-tab-row]:last-of-type`) to 80, then "Add tab" → the new
+  row's digits are `hidden`, empty, and carry no `.is-at-cap`; **and** the live region is empty.
+  Filling the last row is mandatory, not incidental: the add handler clones
+  `existing[existing.length - 1]` (`tabs_editor.js:112`), so filling row 1 of 2 would make the clone
+  source the untouched row 2 — already `hidden` and empty — and the first mutant below would stay
+  GREEN. *Mutants:* remove the `refreshCount` call from the add handler; remove the region clear
+  from the add handler.
+- **remove:** **seed the element with three tabs first** (`_seed_tabs_element`,
+  `test_e2e_tabs.py:101`) or click "Add tab" before removing, and assert the Remove button is
+  enabled before clicking. `MIN_TABS = 2` (`models.py:1397`) and the button is gated twice —
+  `b.disabled = n <= minTabs` (`tabs_editor.js:58`) and an early `return` in the click handler
+  (`:84`) — so on the default two-row editor the click is a no-op, the row survives with its stale
+  phrase, and the assertion below would go **RED against a correct implementation**. Every other
+  e2e case here runs fine on the two-row default; this one alone must not.
+  Then: `fill()` a row to 80, remove that row → the live region is empty.
   *Mutant:* delete the clear from the remove branch.
-- **reorder:** `fill()` row 2 to 80, click Move up, then `fill()` the row now at position 2 to 80 →
-  the live region carries a phrase (it was cleared on reorder, so the change-guard does not suppress
-  the write). *Mutant:* delete the clear from the reorder branches — the second fill then produces a
-  string byte-identical to the stale one and nothing is announced.
+- **reorder:** `fill()` row 2 to 80; click Move up; **assert `[data-tab-cap]` is empty at this
+  point**; then `fill()` the row now at position 2 to 80 → the region carries the phrase again.
+  The mid-sequence assertion is the one that discriminates, and it is easy to omit: at the *end* of
+  the sequence both builds read identically. Correct build — cleared on reorder, then rewritten.
+  Mutant build — never cleared, so the change-guard suppresses the rewrite and the region still
+  holds the same phrase. Only the state *between* the gestures differs.
+  *Mutant:* delete the clear from the reorder branches (must go RED on the mid-sequence assertion).
 - **strip wrapping:** pin the viewport to a width where the `18rem` arm of `min(18rem, 55vw)`
   unambiguously wins — `set_viewport_size({"width": 1280, …})` gives `min(288px, 704px)` = **288px**.
   Assert the 80-character tab's `clientWidth` is 288px within a small tolerance (not merely `<=` the
