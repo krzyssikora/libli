@@ -676,14 +676,27 @@ unchanged wherever a case round-trips through the server.
   source the untouched row 2 — already `hidden` and empty — and the first mutant below would stay
   GREEN. *Mutants:* remove the `refreshCount` call from the add handler; remove the region clear
   from the add handler.
-- **remove:** **seed the element with three tabs first** (`_seed_tabs_element`,
-  `test_e2e_tabs.py:101`) or click "Add tab" before removing, and assert the Remove button is
-  enabled before clicking. `MIN_TABS = 2` (`models.py:1397`) and the button is gated twice —
-  `b.disabled = n <= minTabs` (`tabs_editor.js:58`) and an early `return` in the click handler
-  (`:84`) — so on the default two-row editor the click is a no-op, the row survives with its stale
-  phrase, and the assertion below would go **RED against a correct implementation**. Every other
-  e2e case here runs fine on the two-row default; this one alone must not.
-  Then: `fill()` a row to 80, remove that row → the live region is empty.
+- **remove:** this case has **two** preconditions, and missing either makes it go RED against a
+  correct implementation while the named mutant is also RED — so it would discriminate nothing.
+
+  1. **Row count.** Seed the element with three tabs (`_seed_tabs_element`, `test_e2e_tabs.py:101`)
+     or click "Add tab" before removing, and assert the Remove button is enabled before clicking.
+     `MIN_TABS = 2` (`models.py:1397`) and the button is gated twice — `b.disabled = n <= minTabs`
+     (`tabs_editor.js:58`) and an early `return` in the click handler (`:84`) — so on the default
+     two-row editor the click is a no-op. Every other e2e case here runs fine on the two-row
+     default; this one alone must not.
+  2. **The confirm dialog.** `tabs_editor.js:85` is
+     `if (!window.confirm(label(editor, "confirm", "Delete this tab?"))) return;`. **Playwright
+     auto-dismisses dialogs when no `dialog` listener is attached**, and a dismissed `confirm`
+     returns `false`, so `li.remove()` never runs and the region keeps its stale phrase. Register
+     `page.once("dialog", lambda d: d.accept())` before clicking `[data-tab-remove]`. This is the
+     first case in `test_e2e_tabs.py` to need it — the file has no dialog handling at all today —
+     and the repo already records the trap verbatim in `tests/test_e2e_spanning_merge.py:8-15`
+     ("the test then fails on a later assertion with no hint why").
+
+  Then: `fill()` a row to 80, remove that row, **assert the `[data-tab-row]` count actually dropped
+  3 → 2** (so a silently-dismissed confirm fails with a diagnostic rather than masquerading as a
+  missing clear), and finally assert the live region is empty.
   *Mutant:* delete the clear from the remove branch.
 - **reorder:** `fill()` row 2 to 80; click Move up; **assert `[data-tab-cap]` is empty at this
   point**; then `fill()` the row now at position 2 to 80 → the region carries the phrase again.
