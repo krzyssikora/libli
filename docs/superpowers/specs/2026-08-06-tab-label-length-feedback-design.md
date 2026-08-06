@@ -528,12 +528,26 @@ cosmetic readout.
 
 ## Accepted edge (deliberately not solved)
 
-**A single formula wider than the cap overflows it.** With rule (b) keeping a KaTeX subtree atomic,
-a label consisting of one very wide rendered formula will paint past the `max-width` box and may
-overlap the neighbouring tab. This is accepted deliberately: the alternatives are `overflow: hidden`
-(the clipping this design exists to avoid) or letting formulas break mid-expression (worse to read
-than a slight overlap). Layout overlap in a pathological case is preferable to hidden or mangled
-content in a common one. Screenshot case 2 exists to record how bad it actually looks.
+**A wide formula wraps mid-expression.** No `white-space: nowrap` is pinned on `.katex` inside a
+tab, so KaTeX's multiple `.base` spans may break between top-level operators and a wide formula
+falls onto a second line rather than running past the cap. `\(a + b = c\)` can therefore split
+across lines, which reads poorly for maths.
+
+**This reverses an earlier decision, and measurement is why.** The first draft pinned
+`.el--tabs .tabs__tab .katex { white-space: nowrap; }` to keep formulas atomic, accepting that a
+too-wide one would "overflow the cap". Screenshot verification showed what that actually meant: a
+45-character formula label (well inside `LABEL_MAX`) overflowed the 288px cap by **72px** and drew
+its tail directly over the neighbouring tab's text — the glyphs interleaved and **both labels were
+unreadable** in the overlap, in light and dark alike. That is not a tidy spill into whitespace; it
+is a collision that destroys a label the author did not write.
+
+Breaking mid-expression is ugly. Overlapping is unreadable, and unreadable is the one outcome this
+design exists to prevent — the same standard that rejected clipping. The user made this call
+explicitly after seeing the measurement.
+
+**Residual edge, genuinely unsolved:** a single *unbreakable* atom — one very wide fraction or
+radical with no top-level operator to break at — still cannot wrap, and still overflows the cap.
+Rarer than the operator case, and nothing short of clipping would fix it, so it stands.
 
 ## Testing
 

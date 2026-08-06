@@ -1516,12 +1516,18 @@ a.unit-crumbs__label:focus-visible { outline: 2px solid var(--primary); outline-
      the centring reads as a decision, not an accident. */
   max-width: min(18rem, 55vw); overflow-wrap: break-word; text-align: center;
 }
-/* Keep a formula atomic. KaTeX splits a formula into several `.base` spans at
-   top-level operators and relations; each is nowrap internally but they can break
-   between. The tab's own nowrap was holding them together, so removing it above
-   would let \(a + b = c\) wrap mid-expression. Cost: a formula wider than the cap
-   overflows it -- accepted, because the alternative is clipping or mangling. */
-.el--tabs .tabs__tab .katex { white-space: nowrap; }
+/* DELIBERATELY NO `white-space: nowrap` on .katex here. KaTeX splits a formula into
+   several `.base` spans at top-level operators and relations -- each nowrap
+   internally, but breakable BETWEEN -- so without a nowrap a wide formula wraps onto
+   a second line instead of running past the cap.
+   An earlier draft did pin nowrap to keep formulas atomic. Measurement killed it: a
+   45-character formula label overflowed the 288px cap by 72px and painted its tail
+   directly over the neighbouring tab's text, leaving BOTH labels unreadable in the
+   overlap. Breaking mid-expression is ugly; overlapping destroys a label the author
+   did not even write. Readability wins -- the same call that rejected clipping.
+   Residual edge: a single unbreakable atom (one very wide fraction or radical, no
+   top-level operator to break at) still cannot wrap and still overflows. Rarer, and
+   nothing short of clipping would fix it. */
 .el--tabs .tabs__tab:hover { color: var(--primary); }
 .el--tabs .tabs__tab[aria-selected="true"] { color: var(--primary); border-bottom-color: var(--primary); }
 .el--tabs .tabs__tab:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }

@@ -192,14 +192,20 @@ def test_a_long_tab_label_wraps_and_is_never_clipped():
     )
 
 
-def test_katex_stays_atomic_inside_a_tab():
-    """KaTeX emits MULTIPLE `.katex .base` spans per formula and can line-break
-    between them; each base is nowrap internally but nothing holds the bases
-    together. `white-space: nowrap` on .tabs__tab was suppressing that, so removing
-    it newly permits \\(a + b = c\\) to wrap mid-formula in a tab handle."""
+def test_a_wide_formula_wraps_rather_than_overlapping_its_neighbour():
+    """No `white-space: nowrap` may be pinned on .katex inside a tab.
+
+    KaTeX emits MULTIPLE `.katex .base` spans per formula, each nowrap internally but
+    breakable BETWEEN, so with no nowrap a wide formula wraps to a second line.
+
+    An earlier draft did pin nowrap to keep formulas atomic. It was measured: a
+    45-character formula label overflowed the 288px cap by 72px and drew its tail on
+    top of the neighbouring tab, leaving BOTH labels unreadable. Breaking
+    mid-expression is ugly; overlapping destroys a label the author did not write.
+    """
     css = CSS.read_text(encoding="utf-8")
-    block = _rule_block(css, ".el--tabs .tabs__tab .katex")
-    assert "white-space: nowrap" in block
+    with pytest.raises(ValueError):
+        _rule_block(css, ".el--tabs .tabs__tab .katex")
 
 
 def test_the_width_cap_did_not_leak_onto_a_carousel_selector():
