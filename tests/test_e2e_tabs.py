@@ -2220,3 +2220,87 @@ def test_reordering_clears_the_region_so_the_next_cap_announces(live_server, pag
     text = region.text_content() or ""
     assert text.strip() != "", "the row now at position 2 hit the cap in silence"
     assert "{" not in text
+
+
+# ---------------------------------------------------------------------------
+# Student half: the tab strip's width cap and the wrapped label
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_long_tab_label_wraps_within_the_width_cap(live_server, page):
+    """An 80-character label is capped at 288px on the student page and WRAPS there
+    -- it is never clipped and never lets one tab monopolise the strip.
+
+    `display` stays "tabs" (the default): `.tabs__tab` is built only in the tabs
+    branch of tabs.js, so in carousel mode there is no strip at all and the case has
+    nothing to measure.
+
+    The viewport is pinned to 1280 so `min(18rem, 55vw)` = `min(288px, 704px)`
+    resolves unambiguously to the 18rem arm. Asserting NEAR 288 rather than merely
+    `<=` the cap is what makes the width bar falsifiable: on a wide viewport every
+    tab is under 55vw vacuously, so a `<=` assertion stays green against a deleted
+    `max-width`.
+
+    The height bar is `2 * line_height + 24`, NOT `2 * line_height`. clientHeight is
+    the PADDING box: with 12px padding top and bottom and a 24px inherited
+    line-height, a SINGLE-LINE tab measures 24 + 24 = 48px -- exactly twice the
+    line-height -- so the naive bar passes against an unwrapped tab. 72px cleanly
+    separates one line (48) from the ~three lines an 80-character label needs (~96).
+
+    The long label is seeded FIRST and read as `.tabs__strip .tabs__tab` `.first`.
+    Getting that wrong is a confusing false RED: the strip stretches every tab to
+    equal height, so the height assertion passes on the short tab too while the width
+    assertion fails on it. For the same reason the short tab is NOT used as a
+    comparison baseline -- the two heights are equal by design, so such a test would
+    fail against a CORRECT implementation."""
+    long_label = (
+        "A tab label of exactly eighty characters, long enough that it wraps in the "
+        "strip"
+    )
+    assert len(long_label) == 80, "the fixture must sit exactly at LABEL_MAX"
+
+    owner = _make_pa_user("tab_cap_owner")
+    _course, unit = _seed_unit(owner, "tab-width-cap")
+    _seed_tabs_element(
+        unit,
+        [("t000001", long_label), ("t000002", "Short")],
+        {
+            "t000001": [_text("<p>long tab body</p>")],
+            "t000002": [_text("<p>short tab body</p>")],
+        },
+    )
+
+    _login(page, live_server, "tab_cap_owner")
+    page.set_viewport_size({"width": 1280, "height": 900})
+    page.goto(_lesson_url(live_server, unit))
+    # The enhancer builds the strip; without it there are no .tabs__tab nodes at all.
+    page.wait_for_selector(".tabs__strip .tabs__tab")
+
+    tab = page.locator(".tabs__strip .tabs__tab").first
+    assert (tab.text_content() or "").strip() == long_label, (
+        "the first tab is not the 80-character one -- every measurement below would "
+        "be taken on the wrong element"
+    )
+    box = tab.evaluate(
+        "el => {"
+        " var cs = getComputedStyle(el);"
+        " return {"
+        "  width: el.clientWidth,"
+        "  height: el.clientHeight,"
+        "  lineHeight: parseFloat(cs.lineHeight),"
+        " };"
+        "}"
+    )
+    print(f"TAB_BOX={box}")
+    assert box["lineHeight"] > 0, f"line-height did not resolve to px: {box}"
+
+    # 18rem = 288px. clientWidth equals the border-box width here only because
+    # .tabs__tab sets `border: 0` on the horizontal edges.
+    assert abs(box["width"] - 288) <= 2, (
+        f"the tab is {box['width']}px wide, not the 288px cap: {box}"
+    )
+    assert box["height"] >= 2 * box["lineHeight"] + 24, (
+        f"the label did not wrap: a padding box of {box['height']}px is no more than "
+        f"a single line (12 + 12 padding + one line-height) -- {box}"
+    )
