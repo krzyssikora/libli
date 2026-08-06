@@ -82,7 +82,8 @@ Lines are pre-wrapped to ruff-format's output shape: `pyproject.toml` selects `E
 
 ```python
 def _rule_block(css, selector):
-    """Slice the declaration block whose selector is EXACTLY `selector`.
+    """Slice the declaration block whose selector is EXACTLY `selector`, with
+    comments stripped.
 
     Line matching does not work here: `.el--tabs .tabs__tab` spans six physical
     lines, so a line-based parser finds no declarations on the selector's line. A
@@ -90,10 +91,16 @@ def _rule_block(css, selector):
     `.tabs__tab[aria-selected="true"]` and `.tabs__tab:focus-visible`, which follow
     immediately. Anchoring on a leading newline plus a trailing " {" pins the exact
     selector.
+
+    Stripping comments is REQUIRED, not tidiness. The rule carries an explanatory
+    comment inside its own braces that mentions `text-align` by name, so a raw slice
+    satisfies `"text-align" in block` even when the declaration is deleted -- the
+    assertion would be inert and its mutant could never go RED.
     """
     i = css.index("\n" + selector + " {")
     open_brace = css.index("{", i)
-    return css[open_brace + 1 : css.index("}", open_brace)]
+    block = css[open_brace + 1 : css.index("}", open_brace)]
+    return re.sub(r"/\*.*?\*/", "", block, flags=re.S)
 
 
 def test_a_long_tab_label_wraps_and_is_never_clipped():
@@ -106,7 +113,7 @@ def test_a_long_tab_label_wraps_and_is_never_clipped():
     assert "overflow-wrap" in block, (
         "an 80-char label with no spaces would overflow the cap, not wrap"
     )
-    assert "text-align" in block, (
+    assert "text-align: center" in block, (
         "wrapped-label alignment must be declared, not inherited"
     )
     assert "white-space: nowrap" not in block, (
@@ -187,6 +194,7 @@ Apply each mutant, confirm the named test goes RED, then revert:
 | Re-add `white-space: nowrap;` to the `.tabs__tab` block | `test_a_long_tab_label_wraps_and_is_never_clipped` |
 | Delete `max-width: min(18rem, 55vw);` | `test_a_long_tab_label_wraps_and_is_never_clipped` |
 | Delete `overflow-wrap: break-word;` | `test_a_long_tab_label_wraps_and_is_never_clipped` |
+| Delete `text-align: center;` | `test_a_long_tab_label_wraps_and_is_never_clipped` — this one proves `_rule_block` strips comments; the rule's own comment names `text-align`, so without stripping it stays GREEN |
 | Delete the `.el--tabs .tabs__tab .katex` rule | `test_katex_stays_atomic_inside_a_tab` |
 | Move `max-width` onto `.el--tabs.tabs--carousel[data-display="carousel"] > .tabs__stage` | `test_the_width_cap_did_not_leak_onto_a_carousel_selector` |
 
@@ -976,9 +984,7 @@ def test_the_counter_appears_only_at_the_threshold(live_server, page):
     MAX_TABS rows is noise that trains an author to stop reading it."""
     owner = _make_pa_user("counter_threshold_owner")
     course, unit = _seed_unit(owner, "counter-threshold")
-    _obj, join = _seed_tabs_element(
-        unit, [("t000001", "Tab 1"), ("t000002", "Tab 2")]
-    )
+    _obj, join = _seed_tabs_element(unit, [("t000001", "Tab 1"), ("t000002", "Tab 2")])
 
     _login(page, live_server, "counter_threshold_owner")
     page.goto(_editor_url(live_server, course, unit))
@@ -989,7 +995,9 @@ def test_the_counter_appears_only_at_the_threshold(live_server, page):
     ).first.click()
     # Wait for the READY flag, not just the node: wire() sets it after insertion, and
     # a fill() before that fires `input` with no delegated listener attached.
-    page.wait_for_selector("[data-edit-slot] [data-tabs-editor][data-tabs-editor-ready]")
+    page.wait_for_selector(
+        "[data-edit-slot] [data-tabs-editor][data-tabs-editor-ready]"
+    )
 
     row = page.locator("[data-edit-slot] [data-tab-row]").first
     label_input = row.locator("[data-tab-label-input]")
@@ -1160,7 +1168,9 @@ git commit -m "test(tabs): e2e coverage for the wrapped tab width cap"
 
 **Depends on Tasks 1-7.** Three fixtures, **light and dark judged separately** — dark is not a recolour of light. None of these is provable from the DOM, which is why this is a task and not an assertion.
 
-**Files:** none committed except the report; capture screenshots to the scratchpad.
+**Files:** the driving code is a **throwaway** pytest module at `tests/test_e2e_tabs_shots_tmp.py`. It must live under `tests/` to be collectible (it needs `page`, `live_server`, `tmp_path` and `django_db`), and it is **deleted before you report** — nothing from this task is committed except the written findings. Run it with `-m e2e`, and write the images to `tmp_path`, never into the repo.
+
+Deleting it is not optional: Task 9 Step 1 sweeps the whole suite and Step 4 asserts the branch diff contains exactly the expected files, so a leftover module fails both.
 
 - [ ] **Step 0: Clone the existing harness — do not invent one**
 
@@ -1194,9 +1204,15 @@ Pin the numbers so the gate is reproducible rather than a judgement call:
 
 **This is the real gate on the `min-width` floor** — the declaration alone does not guarantee it, and the Task 2 comment says so explicitly: `min(8rem, 100%)` resolves to 128px for every row wider than 128px, which is the whole at-risk band. If the row overflows, the remedy is to lower the floor or let the counter be the item that yields. Report it rather than accepting it.
 
-- [ ] **Step 4: Report**
+- [ ] **Step 4: Delete the throwaway module, then report**
 
-State plainly what each screenshot showed, in both themes. If any of the three is unsatisfactory, say so and stop — do not proceed to the branch gate with a known visual regression.
+```bash
+cd "<worktree>"
+rm tests/test_e2e_tabs_shots_tmp.py
+git -C "<worktree>" status --porcelain
+```
+
+`status` must show no new untracked file under `tests/`. Then state plainly what each screenshot showed, **in both themes judged separately**. If any of the three is unsatisfactory, say so and stop — do not proceed to the branch gate with a known visual regression.
 
 ---
 
@@ -1214,8 +1230,11 @@ uv run pytest --verbosity=0
 Then the e2e suite (separately, and never concurrently with the above):
 
 ```bash
+cd "<worktree>"
 uv run pytest -m e2e --verbosity=0
 ```
+
+The `cd` is not decoration. The Bash tool's working directory resets to the **main repo** between calls, so a block without it runs this sweep against `master` — passing, and reporting a false green for a branch it never touched.
 
 **Use `--verbosity=0`, not `-q`.** `pyproject.toml:49` already sets `addopts = "-q -m 'not e2e'"`, so adding `-q` yields `-qq`, which suppresses the short test summary — the branch gate's own output would then hide *which* tests failed.
 
@@ -1252,9 +1271,11 @@ git status --porcelain
 Inspect that output and stage **explicit paths only** — the files `ruff format` rewrote, nothing else:
 
 ```bash
-git add <each reformatted file>
-git commit -m "chore(tabs): branch gate fixes"
+git -C "<worktree>" add <each reformatted file>
+git -C "<worktree>" commit -m "chore(tabs): branch gate fixes"
 ```
+
+Use `git -C "<worktree>"` here, as the Global Constraints prescribe. A bare `git add`/`git commit` in this block runs in the **main repo** on `master` — which those constraints forbid outright — and the branch would never receive the `ruff format` fixes.
 
 **Do not use `git add -A`.** It would stage any untracked byproduct sitting in the worktree — screenshots, crash dumps (the repo already carries a stray `bash.exe.stackdump`), scratch files — committing exactly what Step 4 just declared a mistake.
 
