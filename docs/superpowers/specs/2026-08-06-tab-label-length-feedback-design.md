@@ -64,7 +64,8 @@ payloads.py:747`).
 - Any change to `courses/static/courses/js/tabs.js`, `templates/courses/elements/tabselement.html`,
   or any carousel CSS rule.
 - Truncating or otherwise restyling the builder tree `<summary>`.
-- Any change to the reorder (up/down) handler in `tabs_editor.js`.
+- Any change to the reorder (up/down) handler in `tabs_editor.js` beyond clearing the shared live
+  region — in particular it gains no `refreshCount` call.
 - Warning the author that a *paste* was truncated at the server. `maxlength` already truncates the
   paste client-side, so the counter reflects the post-truncation value and the server path is
   unreachable from the editor UI.
@@ -93,11 +94,14 @@ This is not optional plumbing. `label(root, key, fallback)` (`tabs_editor.js:13-
 English fallback forever, which is exactly the failure the i18n section exists to prevent. The key
 is `cap`.
 
-Both placeholders are filled at runtime, following the idiom `tabs.js` already uses for
-`t("slidePos", "Slide {n} of {total}")`. **Substitution must be global** —
-`.split("{max}").join(max)` or a `/g` regex, **not** `String.replace` with a string pattern, which
-replaces only the first occurrence: a translation may legitimately repeat a token, and a residual
-literal `{max}` in an announcement is a visible defect.
+Both placeholders are filled at runtime. This reuses the *shape* `tabs.js` uses for
+`t("slidePos", "Slide {n} of {total}")` — a `data-msg-*` attribute carrying `{…}` tokens — but
+**not its substitution code**: `tabs.js:275-276` chains `.replace("{n}", …).replace("{total}", …)`,
+the single-occurrence form this design rejects. Do not copy it.
+
+**Substitution must be global** — `.split("{max}").join(max)` or a `/g` regex, **not**
+`String.replace` with a string pattern, which replaces only the first occurrence: a translation may
+legitimately repeat a token, and a residual literal `{max}` in an announcement is a visible defect.
 
 `{n}` is the row's **1-based position** (`rowEls().indexOf(li) + 1`), matching the number the
 author already sees in the row's CSS-counter badge. It is not decoration — see "Why the phrase
@@ -289,11 +293,19 @@ Per-path detail:
    an editor is not an event to announce.
 2. **Add tab**: the handler does `proto.cloneNode(true)`, which copies the digits span **including
    its text, its state class and its `hidden` state**, so cloning an at-cap row yields a brand-new
-   empty input showing a stale `80/80`. Call `refreshCount(li, false)` as the handler's last
-   statement — reusing the one state function resets text, class and `hidden` together — and
-   **clear the shared region** (subject to the change-guard) in the same handler.
-3. **Reorder**: untouched. `insertBefore` moves the whole `<li>` and the counter travels with it.
-   The reorder branches must contain **no** `refreshCount` call.
+   empty input showing a stale `80/80`. **Clear the shared region first** (subject to the
+   change-guard), **then** call `refreshCount(li, false)` as the handler's genuinely last statement
+   — reusing the one state function resets text, class and `hidden` together. The order matters
+   only so the code and the invariant above read consistently.
+3. **Reorder**: `insertBefore` moves the whole `<li>` and the counter travels with it, so no
+   `refreshCount` call is needed or permitted here. But the branches **must clear the shared
+   region**, as their last statement, for a reason stronger than the add/remove case: reorder
+   *renumbers every row*, so a phrase naming "Tab 2" now describes a different tab. Worse, it
+   re-opens the suppression hole: row 2 reaches the cap (region holds "Tab 2 …"), the author clicks
+   Move up, then fills the row now sitting at position 2 to 80 — the intended string is
+   byte-identical to what the region still holds, the change-guard suppresses the write, and
+   nothing is announced. Clearing on reorder closes it. A bare clear, not `refreshCount`, keeps the
+   ordering-invariant test's exemption for this handler intact.
 4. **Remove**: clear the region as the **last statement** of the remove branch, subject to the same
    change-guard.
 
@@ -339,9 +351,11 @@ stated explicitly because the token caution below is recorded *at body size* —
 open would mean judging contrast against a different WCAG threshold than intended.
 
 The counter is `flex: 0 0 auto` with `font-variant-numeric: tabular-nums` so the digits do not
-jitter, and a `min-width` expressed in **`ch` units** (5 characters, the width of `80/80`) so the
-floor tracks the digit count instead of hardcoding an assumption about a two-digit cap — the one
-place the single-sourcing rule would otherwise be quietly broken.
+jitter, and a `min-width` of `5ch` so its appearance does not shift the row. To be precise about
+what that does and does not do: `ch` makes the floor scale with the **font size**, but `5` is sized
+for the current two-digit cap (`2 + 1 + 2`) and would need revisiting if `LABEL_MAX` ever gained a
+digit. It does not track the digit count. (`ch` is the advance of `0`, so the `/` makes `5ch`
+slightly approximate even at two digits — harmless, since it is only a floor.)
 
 **The input's floor, and an honest account of what it does.** `.tabs-editor__row` already reserves
 `padding-left: calc(1.4rem + var(--space-4))` for the CSS-counter badge and carries a three-button
@@ -356,9 +370,17 @@ counter and buttons. Summing those fixed items (≈38px badge reservation, 8px r
 icon buttons and gaps, two 8px row gaps, and the counter's own floor) the row needs roughly 330px of
 inner width to honour a 128px floor — so for every row between 128px and ~330px wide, `min(8rem,
 100%)` still evaluates to 128px and the flex line can overflow. The `100%` arm only engages below
-128px, a width no realistic pane reaches. What the form genuinely buys is limiting intrinsic-size
-inflation of the enclosing grid track (`.el-editor--tabs` is a grid item — precisely the shape of
-the overflow bug fixed in #220).
+128px, a width no realistic pane reaches.
+
+**And it makes intrinsic-size inflation slightly worse, not better.** `.el-editor--tabs` is a grid
+*container* (`editor.css:919`, `display: grid`), not a grid item — its parent `.editor-form`
+(`editor.css:111`) is a plain block. The grid items are `.tabs-editor__setting`, the
+`<ol class="tabs-editor__rows">` and the add button. Raising `.tabs-editor__label` from
+`min-width: 0` to a 128px floor can only *increase* the `<ol>`'s min-content contribution, hence
+that grid item's automatic minimum size. All `min(8rem, 100%)` buys over a bare `8rem` is less of
+that increase. (The #220 fix was a different shape — `.el-editor > .scroll-x { min-width: 0 }`
+(`editor.css:780`), an item *of* `.el-editor` opting out of intrinsic-width protection — so it is
+not an analogy for this rule.)
 
 **The real gate is measurement, not the declaration.** Verify by screenshot at the narrowest
 realistic pane and the deepest legal nesting level (see Testing). If that shows the row overflowing,
@@ -538,18 +560,26 @@ than the code. Falsify at the cheapest layer that can see the defect, and scope 
   against the mutant below (the input handler precedes both later sites in file order, so the
   file-level last indices never move). Use literal slice anchors:
   - input handler: `js[js.index('rows.addEventListener("input"') : js.index('rows.addEventListener("click"')]`
-  - add handler: from `js.index('addBtn.addEventListener("click"')` to the `wire()` tail marker
-  - init: from the tail marker to the end of `wire`
+  - add handler: from `js.index('addBtn.addEventListener("click"')` to `js.index(TAIL)`
+  - init: from `js.index(TAIL)` to `js.index("function initTabsEditor")`
+
+  where `TAIL` is the literal `if (hidden.value === "")`. **Every anchor must be unique, and the
+  test must assert that** (`js.count(anchor) == 1`) before slicing. This is not pedantry: the
+  `wire()` tail is quoted above as
+  `refreshControlState(); syncLabelPosRow(); if (hidden.value === "") serialize();`, and of those
+  three statements `refreshControlState();` occurs **3 times** in the file and `syncLabelPosRow();`
+  **2 times** — both appear *before* `addBtn.addEventListener`, so choosing either would invert the
+  add slice into a `ValueError` or an empty string on which the index comparison passes vacuously.
+  Only `if (hidden.value === "")` is unique (verified: 1 occurrence). This is the same
+  slice-inversion trap the spec flags for `test_serialize_reads_both_select_elements`.
 
   Within each slice assert the last `refreshCount(` index exceeds the last `serialize(` index. The
-  **click handler is exempt** — it contains no `refreshCount` call, only the region clear.
+  **click handler is exempt** — it contains no `refreshCount` call, only the region clears.
   *Mutant:* move `refreshCount` above `serialize()` inside the `input` handler slice.
   Note the recorded trap that raw-source regexes of this kind also match **comments and
   docstrings** — strip or account for them, or the assertion can pass on a comment.
-- The reorder branches contain no `refreshCount` call and still use `insertBefore`.
-  *Mutant:* add a `refreshCount` call to the up/down branch. (This replaces an e2e case: the reorder
-  handler is a non-goal, untouched by this diff, and there is no drag-and-drop path for label rows,
-  so an e2e would spend real wall-clock guarding a property no plausible regression here can break.)
+- The reorder branches contain no `refreshCount` call, still use `insertBefore`, and **do** contain
+  the region clear. *Mutants:* add a `refreshCount` call to the up/down branch; delete the clear.
 
 **`tests/test_tabs_css.py`** — assert on the *declaration block*, not on a line and not on file-wide
 presence. The existing rule spans `courses.css:1505-1510`, so a line-based parser finds nothing, and
@@ -584,7 +614,11 @@ unchanged wherever a case round-trips through the server.
   holds the phrase with the row number and `80` interpolated, and contains no residual `{`.
   *Mutant:* delete the `.is-at-cap` branch.
 - **jump to cap:** a single `fill()` from empty straight to 80 → the live region receives the
-  phrase. *Mutant:* make the live region conditional on the previous state rather than on `n`.
+  phrase. *Mutant:* **announce only when the previous length was exactly `max - 1`.** Name it that
+  precisely: the loose phrasing "conditional on the previous state" invites an edge-triggered guard
+  like `if (!wasAtCap && n >= max)`, which still announces on a jump from empty and so cannot go
+  RED here. The `max - 1` form passes the incremental "at cap" case above and fails this one, which
+  is exactly what this case uniquely pins.
 - **second row to cap:** row 1 `fill()`ed to 80 (region holds its phrase), then row 2 `fill()`ed
   straight to 80 → the region carries **row 2's** phrase. *Mutant:* make the phrase row-agnostic
   and keep the plain `textContent` change-guard — the write is then suppressed and nothing is
@@ -602,6 +636,10 @@ unchanged wherever a case round-trips through the server.
   remove the region clear from the add handler.
 - **remove:** `fill()` a row to 80, then remove that row → the live region is empty.
   *Mutant:* delete the clear from the remove branch.
+- **reorder:** `fill()` row 2 to 80, click Move up, then `fill()` the row now at position 2 to 80 →
+  the live region carries a phrase (it was cleared on reorder, so the change-guard does not suppress
+  the write). *Mutant:* delete the clear from the reorder branches — the second fill then produces a
+  string byte-identical to the stale one and nothing is announced.
 - **strip wrapping:** pin the viewport to a width where the `18rem` arm of `min(18rem, 55vw)`
   unambiguously wins — `set_viewport_size({"width": 1280, …})` gives `min(288px, 704px)` = **288px**.
   Assert the 80-character tab's `clientWidth` is 288px within a small tolerance (not merely `<=` the
@@ -640,12 +678,16 @@ Three cases, because none is provable from the DOM:
    a row at the cap: confirm the counter appearing does not push the row into overflow. This is the
    real gate on the `min-width` floor, whose declaration alone does **not** guarantee it.
 
-**i18n.** The at-cap phrase is the only new user-facing string. The full sequence is required, not
-just the `.po` edit: `makemessages` → **clear any fuzzy pre-fill** (delete both the `#, fuzzy`
-marker and the wrong `msgstr` it guessed from a similar msgid) → add the Polish translation →
-`compilemessages` → **commit the binary `.mo`**. A `.po`-only change ships English to Polish users
-with every test green. Both `{n}` and `{max}` must survive translation — flag them to the translator
-as literal tokens, not prose.
+**i18n.** The at-cap phrase is the only new user-facing string. The repo has **two** catalogs,
+`locale/en` and `locale/pl`, and `makemessages`/`compilemessages` touch both — so the branch must
+carry both regenerated `.mo` files or it ships inconsistent. (`en` is a source catalog with empty
+msgstrs, so a fuzzy pre-fill there is harmless, but the file still moves.)
+
+The full sequence is required, not just the `.po` edit: `makemessages` → **clear any fuzzy
+pre-fill in `pl`** (delete both the `#, fuzzy` marker and the wrong `msgstr` it guessed from a
+similar msgid) → add the Polish translation → `compilemessages` → **commit both binary `.mo`
+files**. A `.po`-only change ships English to Polish users with every test green. Both `{n}` and
+`{max}` must survive translation — flag them to the translator as literal tokens, not prose.
 
 **Branch gate.** Both lint steps, not one: `uv run ruff check .` **and**
 `uv run ruff format --check .`. PR #219 passed the first and failed CI on the second, because a
