@@ -189,6 +189,14 @@ text.
 `refreshCount(li, announce)` is defined **inside `wire()`**, in the same closure as `serialize` and
 `refreshControlState` — it needs `editor` in scope for `label(editor, "cap", …)`.
 
+**Its declaration goes after `function refreshControlState`'s body and before the first
+`addEventListener` registration.** That position is chosen so the declaration lies outside all three
+test slices defined below: a `function refreshCount(` declaration sitting *inside* the add-handler
+slice would supply a `refreshCount(` occurrence after that handler's `serialize()` and satisfy the
+ordering assertion vacuously. Declaring it between `serialize` and `refreshControlState` instead
+would work for the slices but would push its body into the range
+`test_serialize_reads_both_select_elements` already slices — so this position avoids both.
+
 - `n = input.value.length` — UTF-16 code units. This deliberately matches what `maxlength` counts
   (so an astral emoji counts 2), not `sanitize_label`'s code-point slice. See "Counter vs stored
   length" below.
@@ -536,10 +544,22 @@ than the code. Falsify at the cheapest layer that can see the defect, and scope 
 - The digits span renders once per row, `hidden`, `aria-hidden="true"`, between the input and the
   controls. *Mutants:* drop the span; drop `hidden`; drop `aria-hidden`.
 - Exactly one `[data-tab-cap]` region renders per editor, **outside** `[data-tab-list]`, with
-  `aria-live="polite"` and class `tabs-editor__status`. Concretely:
-  `html.count("data-tab-cap") == 1` **and** `html.index("data-tab-cap") > html.rindex("</ol>")`.
-  *Mutants:* drop it (count fails); move it inside a row (the index comparison fails — the count
-  alone would not catch this).
+  `aria-live="polite"` and class `tabs-editor__status`.
+
+  Assert `html.count("data-tab-cap") == 1`, then prove the placement by slicing the list itself:
+  ```python
+  start = html.index("data-tab-list")
+  assert "data-tab-cap" not in html[start : html.index("</ol>", start)]
+  ```
+  **Do not** use `html.index("data-tab-cap") > html.rindex("</ol>")`. That form is only sound
+  against the partial-only render. This module has two idioms — `_render_form()`
+  (`test_tabs_editor_partial.py:32`, renders `_edit_tabs.html` alone, exactly one `</ol>`) and
+  `_served_tabs_form(client)` (`:178`, the full `element_add` response). The served fragment
+  contains four further `<ol class="element-list element-list--nested">` blocks from
+  `_element_row.html`, so `rindex("</ol>")` lands *after* `data-tab-cap` and the assertion goes RED
+  against a **correct** implementation. The forward-slice form above is robust under either render.
+  *Mutants:* drop it (count fails); move it inside a row (the slice check fails — the count alone
+  would not catch this).
 - `editor.css` defines `.el-editor--tabs .tabs-editor__status` as a **clip-based** rule —
   `position: absolute` and a `clip`, and specifically *not* `display: none`.
   *Mutant:* replace the rule body with `display: none` (must go RED — that is the silently-dead
@@ -573,8 +593,11 @@ than the code. Falsify at the cheapest layer that can see the defect, and scope 
   Only `if (hidden.value === "")` is unique (verified: 1 occurrence). This is the same
   slice-inversion trap the spec flags for `test_serialize_reads_both_select_elements`.
 
-  Within each slice assert the last `refreshCount(` index exceeds the last `serialize(` index. The
-  **click handler is exempt** — it contains no `refreshCount` call, only the region clears.
+  Within each slice assert the last `refreshCount(` index exceeds the last `serialize(` index, and
+  that the matched occurrence is a **call, not the `function refreshCount(` declaration** — the
+  declaration's mandated position (above all listeners) already keeps it out of every slice, and
+  this check keeps the assertion honest if that ever moves. The **click handler is exempt** — it
+  contains no `refreshCount` call, only the region clears.
   *Mutant:* move `refreshCount` above `serialize()` inside the `input` handler slice.
   Note the recorded trap that raw-source regexes of this kind also match **comments and
   docstrings** — strip or account for them, or the assertion can pass on a comment.
@@ -623,10 +646,18 @@ unchanged wherever a case round-trips through the server.
   straight to 80 → the region carries **row 2's** phrase. *Mutant:* make the phrase row-agnostic
   and keep the plain `textContent` change-guard — the write is then suppressed and nothing is
   announced.
-- **descend:** from 80, `press("Backspace")` once → `.is-near` and the phrase clears; then `fill()`
-  to 63 → digits return to `hidden`. The single `Backspace` matters: a `fill("")`-then-`fill()`
-  implementation produces a different event sequence and would not exercise the at-cap → is-near
-  transition this case exists to pin. *Mutant:* make `refreshCount` append rather than rebuild.
+- **descend:** from 80, `press("Backspace")` once → digits read `79/80`, `.is-near` is present
+  **and `.is-at-cap` is absent**, and the phrase has cleared; then `fill()` to 63 → digits return to
+  `hidden`. The single `Backspace` matters: a `fill("")`-then-`fill()` implementation produces a
+  different event sequence and would not exercise the at-cap → is-near transition this case exists
+  to pin.
+
+  The `.is-at-cap`-absent assertion is the load-bearing one. Without it, an add-only class
+  implementation (`if (n >= max) cls.add("is-at-cap")` with no removal on the way down) passes every
+  other assertion here — at 79 the row still shows `.is-near`, and at 63 the span is `hidden` — while
+  rendering bold `--danger` "79/80" to the author. *Mutants:* drop the
+  `classList.remove("is-at-cap")` / use add-only class handling (the narrow one this case must
+  catch); make `refreshCount` append rather than rebuild (the broad one).
 - **init:** open the editor on an element whose *stored* label is already 80 characters (seeded per
   the character constraints above), assert `input.value.length == 80`, then assert the at-cap digits
   at first paint before any keystroke **and** that the live region is empty.
