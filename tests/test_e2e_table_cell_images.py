@@ -277,12 +277,19 @@ def test_full_is_the_control_and_still_moves(page, live_server, _isolated_media)
     assert w_long < w_short - 50              # and it MOVES with neighbour text
 
 
-@pytest.mark.parametrize("natural", [(1586, 612), (494, 1492)])
+@pytest.mark.parametrize("natural", [(1586, 612), (494, 1492), (60, 40)])
 def test_medium_is_a_square_box_not_a_width(
     page, live_server, _isolated_media, natural
 ):
     """One preset, comparable visual weight, any aspect ratio: at Medium a 1586x612
-    image lands ~160x62 and a 494x1492 one ~53x160."""
+    image lands ~160x62 and a 494x1492 one ~53x160.
+
+    (60, 40) is the third param deliberately: both larger assets exceed the 160px
+    cap in one axis, so `min(cap, cap*ratio, natural)` always resolves to one of the
+    cap-derived terms and the `natural` (naturalWidth/naturalHeight) arm of the
+    clamp never binds. A 60x40 asset is under the cap in BOTH axes, so the formula
+    must instead resolve to the natural size itself (60x40, not upscaled) for this
+    arm to execute at all."""
     _make_pa_user(PA_USERNAME)
     _login(page, live_server, PA_USERNAME)
     unit = _unit(PA_USERNAME, f"c2-ratio-{natural[0]}")
