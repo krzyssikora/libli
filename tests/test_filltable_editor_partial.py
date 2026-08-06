@@ -15,6 +15,8 @@ pytestmark = pytest.mark.django_db
 ROOT = Path(__file__).resolve().parent.parent
 EDITOR_HTML = ROOT / "templates/courses/manage/editor/editor.html"
 FILLTABLE_JS = ROOT / "courses/static/courses/js/filltable_editor.js"
+PARTIAL = ROOT / "templates/courses/manage/editor/_edit_filltable.html"
+FILL_JS = FILLTABLE_JS
 
 
 def _render(instance):
@@ -366,3 +368,24 @@ def test_wrong_kind_media_does_not_resolve_in_the_editor():
     cell = form.resolved_grid_cells[0][0]
     assert cell["kind"] == "static" and cell["html"] == ""
     assert video.file.url not in json.dumps(form.resolved_grid_cells, default=str)
+
+
+def test_filltable_toolbar_is_not_hidden():
+    src = PARTIAL.read_text(encoding="utf-8")
+    assert "data-table-toolbar hidden" not in src
+    assert "data-table-toolbar" in src
+
+
+def test_filltable_cell_scoped_buttons_carry_disabled_in_markup():
+    """Twelve here, versus ten in _edit_table.html at this task: this partial
+    already has both [data-image-toggle] and [data-answer-toggle]. Both were
+    explicit decisions in the spec's predicate table, so both are asserted."""
+    src = PARTIAL.read_text(encoding="utf-8")
+    for needle in ['data-cmd="bold"', 'data-cmd="italic"', 'data-cmd="underline"',
+                   'data-cmd="math"', "data-image-toggle", "data-answer-toggle",
+                   'data-halign="left"', 'data-halign="center"',
+                   'data-halign="right"', 'data-valign="top"',
+                   'data-valign="middle"', 'data-valign="bottom"']:
+        i = src.index(needle)
+        tag = src[src.rindex("<button", 0, i):src.index(">", i)]
+        assert "disabled" in tag, needle

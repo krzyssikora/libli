@@ -12,6 +12,8 @@ pytestmark = pytest.mark.django_db
 ROOT = Path(__file__).resolve().parent.parent
 EDITOR_HTML = ROOT / "templates/courses/manage/editor/editor.html"
 TABLE_JS = ROOT / "courses/static/courses/js/table_editor.js"
+PARTIAL = ROOT / "templates/courses/manage/editor/_edit_table.html"
+EDITOR_CSS = ROOT / "courses/static/courses/css/editor.css"
 
 
 def _render(instance):
@@ -125,3 +127,49 @@ def test_table_editor_exposes_merge_split_and_header_controls():
     ):
         assert msg in html
     assert 'aria-live="polite"' in html
+
+
+def test_toolbar_is_not_hidden():
+    """Discoverability: an author opening a table saw a bare grid and no controls,
+    with nothing signalling that clicking a cell reveals eighteen of them."""
+    src = PARTIAL.read_text(encoding="utf-8")
+    assert "data-table-toolbar hidden" not in src
+    assert "data-table-toolbar" in src
+
+
+def test_cell_scoped_buttons_carry_disabled_in_markup():
+    """Between page load and wire(), and permanently if JS never runs, these would
+    otherwise render ENABLED with nothing focused. The e2e assertion cannot see
+    this window because wire() has already run by the time Playwright looks."""
+    src = PARTIAL.read_text(encoding="utf-8")
+    # NOTE: `data-image-toggle` is deliberately ABSENT from this list. _edit_table.html
+    # has no image button until Task 7 creates it, so including it here would raise
+    # ValueError: substring not found and make this task's PASS unreachable. Task 7
+    # asserts it. (This partial's count at the end of Task 6 is therefore TEN
+    # cell-scoped buttons: 4 [data-cmd] + 3 halign + 3 valign.)
+    for needle in ['data-cmd="bold"', 'data-cmd="italic"', 'data-cmd="underline"',
+                   'data-cmd="math"',
+                   'data-halign="left"', 'data-halign="center"',
+                   'data-halign="right"', 'data-valign="top"',
+                   'data-valign="middle"', 'data-valign="bottom"']:
+        i = src.index(needle)
+        tag = src[src.rindex("<button", 0, i):src.index(">", i)]
+        assert "disabled" in tag, needle
+
+
+def test_rte_swatches_partial_is_untouched():
+    """It is included by SIX toolbars whose editors have no disabled mechanism;
+    adding `disabled` there would permanently disable colour authoring in the
+    text, callout, spoiler and generic RTE editors."""
+    import pathlib
+
+    from django.conf import settings
+
+    p = (pathlib.Path(settings.BASE_DIR)
+         / "templates/courses/manage/editor/_rte_swatches.html")
+    assert "disabled" not in p.read_text(encoding="utf-8")
+
+
+def test_editor_css_drops_the_dead_toolbar_hidden_rule():
+    css = EDITOR_CSS.read_text(encoding="utf-8")
+    assert ".table-editor__toolbar[hidden] { display: none; }" not in css

@@ -177,10 +177,8 @@ DIVERGENT = {
     "serialize": "fill-table emits three cell kinds (static/answer/image) where "
     "the plain table emits one, AND its payload carries two extra "
     "document-level fields, case_sensitive and prompt",
-    "refreshToolbarState": "fill-table adds an `if (!focusCell) return` gate "
-    "AFTER the merge/split/header block, so the kind-specific refresh is "
-    "skipped with nothing focused; that also moves refreshAlignButtons() "
-    "behind the gate",
+    "refreshToolbarState": "the plain table now has a kind-specific refresh; "
+    "the fill table's `if (!focusCell) return` gate is gone",
     "toggleHeaderCell": "fill-table re-keys the live cellStash Map old->new, AND "
     "focuses the cell's answer input rather than the cell -- .focus() is a "
     "no-op on a <td data-answer>, which would strand Alt+Shift+Arrow",

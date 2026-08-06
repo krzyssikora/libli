@@ -12,6 +12,8 @@
   var MAX_COLS = 20;
   var HALIGNS = ["left", "center", "right"];
   var VALIGNS = ["top", "middle", "bottom"];
+  var CELL_IMAGE_DEFAULT = "full";
+  var CELL_IMAGE_INSERT = "medium";
 
   // ---- grid helpers -------------------------------------------------------
 
@@ -143,6 +145,9 @@
     var hidden = editor.querySelector('input[name="data"]');
     var grid = editor.querySelector("[data-table-grid]");
     var toolbar = editor.querySelector("[data-table-toolbar]");
+    var imageAlt = editor.querySelector("[data-image-alt]");
+    var sizeSel = editor.querySelector("[data-image-size]");
+    var removeBtn = editor.querySelector("[data-image-remove]");
     var thRow = editor.querySelector("[data-th-row]");
     var thCol = editor.querySelector("[data-th-col]");
     var borderSel = editor.querySelector("[data-border]");
@@ -212,6 +217,10 @@
     var rangeAnchor = null;   // a cell node
     var rangeEnd = null;      // a LAYOUT {r, c} coordinate, not a node
 
+    refreshToolbarState();   // init-time paint: every cell-scoped control starts
+                              // disabled/hidden with nothing focused, matching
+                              // the markup's own `disabled` attributes.
+
     function clearRange(announce) {
       rangeEnd = null;
       Array.prototype.forEach.call(
@@ -258,18 +267,14 @@
     }
 
     function refreshAlignButtons() {
-      if (!toolbar || !focusCell) return;
+      if (!toolbar) return;
+      var h = focusCell ? (focusCell.dataset.halign || "left") : null;
+      var v = focusCell ? (focusCell.dataset.valign || "top") : null;
       Array.prototype.forEach.call(toolbar.querySelectorAll("[data-halign]"), function (btn) {
-        btn.classList.toggle(
-          "is-on",
-          btn.getAttribute("data-halign") === (focusCell.dataset.halign || "left")
-        );
+        btn.classList.toggle("is-on", btn.getAttribute("data-halign") === h);
       });
       Array.prototype.forEach.call(toolbar.querySelectorAll("[data-valign]"), function (btn) {
-        btn.classList.toggle(
-          "is-on",
-          btn.getAttribute("data-valign") === (focusCell.dataset.valign || "top")
-        );
+        btn.classList.toggle("is-on", btn.getAttribute("data-valign") === v);
       });
     }
 
@@ -278,6 +283,12 @@
       var mergeBtn = toolbar.querySelector("[data-merge]");
       var splitBtn = toolbar.querySelector("[data-split]");
       var headerBtn = toolbar.querySelector("[data-header-toggle]");
+      var imgBtn = toolbar.querySelector("[data-image-toggle]");
+      // Derived ONCE at the top, null-safe, and used by BOTH the [data-cmd] loop and
+      // the showCellCtl block below. `var` hoisting would otherwise leave it
+      // `undefined` at the loop, making the predicate `!focusCell || undefined` ->
+      // falsy -> [data-cmd] ENABLED on a focused image cell.
+      var isImage = !!focusCell && focusCell.hasAttribute("data-image");
       // These three must be settled even when focusCell is null -- a delete
       // that nulls it would otherwise leave Merge enabled. "Toolbar hidden" is
       // a different mechanism and does not substitute.
@@ -294,6 +305,29 @@
       }
       // Task 12 already renders [data-header-toggle], so headerBtn is non-null.
       if (headerBtn) refreshHeaderButton(headerBtn);
+
+      Array.prototype.forEach.call(toolbar.querySelectorAll("[data-cmd]"), function (btn) {
+        btn.disabled = !focusCell || isImage;
+      });
+      // Its OWN predicate: it must stay ENABLED on an image cell, because that is the
+      // re-pick path. Folding it into the loop above makes re-pick unreachable.
+      if (imgBtn) imgBtn.disabled = !focusCell;
+      Array.prototype.forEach.call(
+        toolbar.querySelectorAll("[data-halign], [data-valign]"),
+        function (btn) { btn.disabled = !focusCell; }
+      );
+
+      var showCellCtl = isImage;
+      if (imageAlt) {
+        imageAlt.hidden = !showCellCtl;
+        if (showCellCtl) imageAlt.value = focusCell.dataset.alt || "";
+      }
+      if (sizeSel) {
+        sizeSel.hidden = !showCellCtl;
+        if (showCellCtl) sizeSel.value = focusCell.dataset.size || CELL_IMAGE_DEFAULT;
+      }
+      if (removeBtn) removeBtn.hidden = !showCellCtl;
+
       refreshAlignButtons();
     }
 
@@ -311,7 +345,7 @@
     }
 
     function refreshHeaderButton(btn) {
-      var locked = focusCell ? headerLocked(focusCell) : true;
+      var locked = focusCell ? headerLocked(focusCell) : false;
       btn.disabled = !focusCell || locked;
       btn.setAttribute(
         "aria-pressed", String(!!focusCell && focusCell.tagName === "TH")
@@ -371,7 +405,6 @@
                           // stale anchor from an earlier merge can never
                           // silently re-appear in the next range
       clearRange(false);  // ... and drops any live range
-      if (toolbar) toolbar.hidden = false;
       refreshToolbarState();   // replaces the bare refreshAlignButtons() call:
                                // Split and Header enablement both read
                                // focusCell, so the toolbar must recompute
@@ -479,6 +512,14 @@
 
     // Every structural edit ends the same way.
     function afterStructuralEdit() {
+      // focusCell is never re-nulled by any delete/merge path, so deleting the row
+      // holding the focused image cell leaves it pointing at a DETACHED <td>: the
+      // per-cell controls stay visible and populated, and edits write to a node no
+      // longer in the grid — silently lost at the next serialize(). Position
+      // matters as much as the bytes: placed after this function's
+      // refreshToolbarState()/serialize() calls, the toolbar would be repainted
+      // from the still-detached node.
+      if (focusCell && !focusCell.isConnected) { focusCell = null; rangeAnchor = null; }
       clearRange(false);
       rebuildColControls(grid, desc);
       refreshControlState(grid, desc);

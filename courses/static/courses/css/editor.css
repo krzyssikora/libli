@@ -761,7 +761,6 @@ button.asset-cell:hover { border-color: var(--primary); }
   border: 1px solid var(--border-default); border-radius: var(--radius-sm);
   background: var(--surface-raised);
 }
-.table-editor__toolbar[hidden] { display: none; }
 /* Buttons are .rte-btn (shared with the text/gallery toolbars), so they inherit the
    hover and .is-on active states — the align buttons' is-on state is what tells the
    author which alignment the focused cell currently has. */

@@ -15,6 +15,8 @@
   var MAX_COLS = 20;
   var HALIGNS = ["left", "center", "right"];
   var VALIGNS = ["top", "middle", "bottom"];
+  var CELL_IMAGE_DEFAULT = "full";
+  var CELL_IMAGE_INSERT = "medium";
 
   // ---- grid helpers -------------------------------------------------------
 
@@ -163,6 +165,8 @@
     var caseSensitive = editor.querySelector("[data-case-sensitive]");
     var promptField = editor.querySelector("[data-prompt]");
     var imageAlt = editor.querySelector("[data-image-alt]");
+    var sizeSel = editor.querySelector("[data-image-size]");
+    var removeBtn = editor.querySelector("[data-image-remove]");
     if (!hidden || !grid) return; // defensive: markup changed
 
     // Descriptor handed to table_grid.js. `rows`/`cells` are this editor's own
@@ -263,6 +267,10 @@
     var rangeAnchor = null;   // a cell node
     var rangeEnd = null;      // a LAYOUT {r, c} coordinate, not a node
 
+    refreshToolbarState();   // init-time paint: every cell-scoped control starts
+                              // disabled/hidden with nothing focused, matching
+                              // the markup's own `disabled` attributes.
+
     function answerPlaceholder() {
       return editor.getAttribute("data-msg-answer-placeholder") || "Accepted answer";
     }
@@ -313,18 +321,14 @@
     }
 
     function refreshAlignButtons() {
-      if (!toolbar || !focusCell) return;
+      if (!toolbar) return;
+      var h = focusCell ? (focusCell.dataset.halign || "left") : null;
+      var v = focusCell ? (focusCell.dataset.valign || "top") : null;
       Array.prototype.forEach.call(toolbar.querySelectorAll("[data-halign]"), function (btn) {
-        btn.classList.toggle(
-          "is-on",
-          btn.getAttribute("data-halign") === (focusCell.dataset.halign || "left")
-        );
+        btn.classList.toggle("is-on", btn.getAttribute("data-halign") === h);
       });
       Array.prototype.forEach.call(toolbar.querySelectorAll("[data-valign]"), function (btn) {
-        btn.classList.toggle(
-          "is-on",
-          btn.getAttribute("data-valign") === (focusCell.dataset.valign || "top")
-        );
+        btn.classList.toggle("is-on", btn.getAttribute("data-valign") === v);
       });
     }
 
@@ -342,7 +346,7 @@
     }
 
     function refreshHeaderButton(btn) {
-      var locked = focusCell ? headerLocked(focusCell) : true;
+      var locked = focusCell ? headerLocked(focusCell) : false;
       btn.disabled = !focusCell || locked;
       btn.setAttribute(
         "aria-pressed", String(!!focusCell && focusCell.tagName === "TH")
@@ -355,10 +359,16 @@
     // contenteditable (static) cell; the "Answer cell" toggle stays live so
     // the author can always flip an answer cell back to static first.
     function refreshToolbarState() {
-      if (!toolbar) return;              // was part of the combined guard
+      if (!toolbar) return;              // unrelated guard; STAYS
       var mergeBtn = toolbar.querySelector("[data-merge]");
       var splitBtn = toolbar.querySelector("[data-split]");
       var headerBtn = toolbar.querySelector("[data-header-toggle]");
+      var answerBtn = toolbar.querySelector("[data-answer-toggle]");
+      var imgBtn = toolbar.querySelector("[data-image-toggle]");
+      // Derived ONCE, null-safe, at the top: every predicate below uses these
+      // names, and `var` hoisting would otherwise make them `undefined` here.
+      var isAnswer = !!focusCell && focusCell.hasAttribute("data-answer");
+      var isImage = !!focusCell && focusCell.hasAttribute("data-image");
       // These three must be settled even when focusCell is null -- a delete
       // that nulls it would otherwise leave Merge enabled. "Toolbar hidden" is
       // a different mechanism and does not substitute.
@@ -374,17 +384,43 @@
            libliTableGrid.rowspanOf(focusCell) > 1));
       }
       if (headerBtn) refreshHeaderButton(headerBtn);
-      if (!focusCell) return;            // the rest of the original body
-      var isAnswer = focusCell.hasAttribute("data-answer");
-      var isImage = focusCell.hasAttribute("data-image");
+
       Array.prototype.forEach.call(toolbar.querySelectorAll("[data-cmd]"), function (btn) {
-        btn.disabled = isAnswer || isImage;
+        btn.disabled = !focusCell || isAnswer || isImage;
       });
-      var answerBtn = toolbar.querySelector("[data-answer-toggle]");
-      if (answerBtn) answerBtn.classList.toggle("is-on", isAnswer);
-      if (imageAlt && !isImage) imageAlt.hidden = true;
-      refreshAlignButtons();   // this file's refreshToolbarState owns the
-                                // align-button refresh too (see focusin below)
+      // The image button keeps its OWN predicate: it must stay ENABLED on an image
+      // cell, because that is the re-pick path. Folding it into the loop above
+      // would make re-pick unreachable.
+      if (imgBtn) imgBtn.disabled = !focusCell;
+      if (answerBtn) {
+        answerBtn.disabled = !focusCell;
+        answerBtn.classList.toggle("is-on", isAnswer);
+      }
+      Array.prototype.forEach.call(
+        toolbar.querySelectorAll("[data-halign], [data-valign]"),
+        function (btn) { btn.disabled = !focusCell; }
+      );
+      // `answerBtn.disabled` above is pinned from BOTH sides: Task 6's mirrored
+      // test_filltable_cell_scoped_buttons_carry_disabled_in_markup covers the
+      // no-focus state, and Task 9's fill-table e2e asserts
+      // `[data-answer-toggle]` is_enabled() WITH a cell focused. Together those
+      // bracket the predicate. The plain table's
+      // test_cell_scoped_buttons_are_disabled_before_any_focus deliberately omits
+      // that selector - the plain table has no answer toggle.
+
+      // Per-cell controls: TWO-WAY visibility AND value population.
+      var showCellCtl = isImage;
+      if (imageAlt) {
+        imageAlt.hidden = !showCellCtl;
+        if (showCellCtl) imageAlt.value = focusCell.dataset.alt || "";
+      }
+      if (sizeSel) {
+        sizeSel.hidden = !showCellCtl;
+        if (showCellCtl) sizeSel.value = focusCell.dataset.size || CELL_IMAGE_DEFAULT;
+      }
+      if (removeBtn) removeBtn.hidden = !showCellCtl;
+
+      refreshAlignButtons();
     }
 
     // Per-node stash holding BOTH kinds' last-known content, so a toggle
@@ -427,18 +463,16 @@
       td.appendChild(img);
       td.removeAttribute("contenteditable");
       td.removeAttribute("data-answer");
-      if (imageAlt) {
-        imageAlt.hidden = false;
-        imageAlt.value = td.dataset.alt || "";
-      }
     }
 
     // Single global; assumes one fill-table editor per page (like libliGalleryAdd).
     window.libliFillTablePickImage = function (_pick) {
       var target = focusCell;          // the cell the toggle was clicked on
       return function (id, _name, url) { // picker callback: id is a STRING
+        if (!target) return;                       // guards the captured node
         setImageCell(target, parseInt(id, 10), url, target.dataset.alt || "");
         focusCell = target;            // keep focus on the converted cell
+        refreshToolbarState();                     // nothing else repaints
         serialize();
       };
     };
@@ -457,7 +491,6 @@
         td.removeAttribute("tabindex");
         td.innerHTML = stashed.html != null ? stashed.html : "";
         td.setAttribute("contenteditable", "true");
-        if (imageAlt) imageAlt.hidden = true;
         focusCell = td;
         refreshToolbarState();
         serialize();
@@ -551,15 +584,10 @@
                           // stale anchor from an earlier merge can never
                           // silently re-appear in the next range
       clearRange(false);  // ... and drops any live range
-      if (toolbar) toolbar.hidden = false;
       refreshToolbarState();   // ends with refreshAlignButtons(): Split and
                                // Header enablement both read focusCell, so
                                // the toolbar must recompute whenever focus
                                // moves, and alignment tracks it too
-      if (td.hasAttribute("data-image") && imageAlt) {
-        imageAlt.hidden = false;
-        imageAlt.value = td.dataset.alt || "";
-      }
     });
 
     // Chrome and genuine multi-line controls are excluded, but the fill-table's
@@ -675,6 +703,14 @@
     // Every structural edit ends the same way.
     function afterStructuralEdit() {
       cellStash.clear(); // fill-table only
+      // focusCell is never re-nulled by any delete/merge path, so deleting the row
+      // holding the focused image cell leaves it pointing at a DETACHED <td>: the
+      // per-cell controls stay visible and populated, and edits write to a node no
+      // longer in the grid — silently lost at the next serialize(). Position
+      // matters as much as the bytes: placed after this function's
+      // refreshToolbarState()/serialize() calls, the toolbar would be repainted
+      // from the still-detached node.
+      if (focusCell && !focusCell.isConnected) { focusCell = null; rangeAnchor = null; }
       clearRange(false);
       rebuildColControls(grid, desc);
       refreshControlState(grid, desc);
