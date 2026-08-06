@@ -59,8 +59,10 @@ a slot at a time with **Alt+Shift+Arrow**, then press **Merge cells** to
 combine the range into one — only the top-left cell survives, kind and all,
 so merging over an answer cell's accepted answer or an image cell's picture
 discards it along with everything else in the range; you're asked to confirm
-first whenever an absorbed cell isn't empty. **Split cell** undoes a merge,
-returning the freed cells as empty static cells. **Header cell** toggles a
+first whenever an absorbed cell isn't empty. Each image cell also has the
+same **Size** control as [Table](content-editors)'s — Small, Medium, Large,
+or Full. **Split cell** undoes a merge, returning the freed cells as empty
+static cells. **Header cell** toggles a
 single cell between plain and header styling; it's greyed out —
 unavailable while the row or column header option covers this cell —
 whenever **Header row** or **Header column** already promotes that cell. In

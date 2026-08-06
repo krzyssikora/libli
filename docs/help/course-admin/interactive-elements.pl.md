@@ -68,8 +68,10 @@ zaznaczenie w jedną komórkę — przetrwa tylko komórka w lewym górnym rogu,
 razem ze swoim rodzajem, więc scalenie obejmujące komórkę z odpowiedzią lub
 komórkę z obrazem usuwa jej akceptowaną odpowiedź lub obraz razem z resztą
 zaznaczenia; jeśli którakolwiek z pochłanianych komórek nie była pusta,
-najpierw zostaniesz poproszony o potwierdzenie. **Rozdziel komórkę** cofa
-scalenie, zwracając zwolnione komórki jako puste komórki statyczne.
+najpierw zostaniesz poproszony o potwierdzenie. Każda komórka z obrazem ma
+też ten sam element sterujący **Rozmiar** co w [Tabeli](content-editors) —
+Mały, Średni, Duży lub Pełny. **Rozdziel komórkę** cofa scalenie, zwracając
+zwolnione komórki jako puste komórki statyczne.
 **Komórka nagłówkowa** przełącza pojedynczą komórkę między zwykłym a
 nagłówkowym stylem; jest wyszarzona — niedostępna, dopóki komórkę obejmuje
 opcja wiersza lub kolumny nagłówkowej — gdy komórkę obejmuje już
