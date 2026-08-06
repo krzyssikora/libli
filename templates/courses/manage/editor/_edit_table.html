@@ -49,6 +49,20 @@ row/column handles client-side and cannot call {% templatetag openblock %} trans
       <button type="button" class="rte-btn" data-valign="bottom" disabled title="{% trans 'Align bottom' %}" aria-label="{% trans 'Align bottom' %}"><svg class="ic" aria-hidden="true" focusable="false"><use href="#ed-valign-bottom"/></svg></button>
     </span>
     <span class="rte-sep"></span>
+    <button type="button" class="rte-btn" data-image-toggle disabled
+            title="{% trans 'Image cell' %}" aria-label="{% trans 'Image cell' %}"
+            data-pick-media="image" data-pick-mode="cell"><svg class="ic" aria-hidden="true" focusable="false"><use href="#ed-image"/></svg></button>
+    <input type="text" class="table-editor__alt input" data-image-alt hidden
+           maxlength="255" aria-label="{% trans 'Image description (alt)' %}"
+           placeholder="{% trans 'Image description (alt)' %}">
+    <select class="input" data-image-size hidden
+            title="{% trans 'Image size' %}" aria-label="{% trans 'Image size' %}">
+      {% for value, label in form.cell_image_sizes %}
+      <option value="{{ value }}">{{ label }}</option>
+      {% endfor %}
+    </select>
+    <button type="button" class="rte-btn" data-image-remove hidden
+            title="{% trans 'Remove image' %}" aria-label="{% trans 'Remove image' %}"><svg class="ic" aria-hidden="true" focusable="false"><use href="#ed-image-remove"/></svg></button>
     <button type="button" class="rte-btn" data-merge disabled
             title="{% trans 'Merge cells' %}" aria-label="{% trans 'Merge cells' %}"><svg class="ic" aria-hidden="true" focusable="false"><use href="#ed-merge"/></svg></button>
     <button type="button" class="rte-btn" data-split disabled
@@ -66,10 +80,26 @@ row/column handles client-side and cannot call {% templatetag openblock %} trans
   and break byte-identity for every existing header-row table.{% endcomment %}
   <div class="scroll-x" data-scroll-x><div class="table-editor__grid" data-table-grid>
     <table>
-      {% for row in d.cells %}
+      {% for row in form.resolved_grid_cells %}
       <tr>
         {% for cell in row %}
+        {% if cell.kind == "image" %}
         {% if cell.header %}
+        <th data-image data-media="{{ cell.media.pk }}" data-alt="{{ cell.alt }}"
+            data-size="{{ cell.size|default:'full' }}" tabindex="0"
+            class="ta-{{ cell.halign }} va-{{ cell.valign }}"
+            data-halign="{{ cell.halign }}" data-valign="{{ cell.valign }}"{% if cell.colspan %} colspan="{{ cell.colspan }}"{% endif %}{% if cell.rowspan %} rowspan="{{ cell.rowspan }}"{% endif %}>
+          <img class="table-editor__img table-editor__img--{{ cell.size|default:'full' }}" src="{{ cell.media.file.url }}" alt="{{ cell.alt }}">
+        </th>
+        {% else %}
+        <td data-image data-media="{{ cell.media.pk }}" data-alt="{{ cell.alt }}"
+            data-size="{{ cell.size|default:'full' }}" tabindex="0"
+            class="ta-{{ cell.halign }} va-{{ cell.valign }}"
+            data-halign="{{ cell.halign }}" data-valign="{{ cell.valign }}"{% if cell.colspan %} colspan="{{ cell.colspan }}"{% endif %}{% if cell.rowspan %} rowspan="{{ cell.rowspan }}"{% endif %}>
+          <img class="table-editor__img table-editor__img--{{ cell.size|default:'full' }}" src="{{ cell.media.file.url }}" alt="{{ cell.alt }}">
+        </td>
+        {% endif %}
+        {% elif cell.header %}
         <th contenteditable="true" class="ta-{{ cell.halign }} va-{{ cell.valign }}"
             data-halign="{{ cell.halign }}" data-valign="{{ cell.valign }}"{% if cell.colspan %} colspan="{{ cell.colspan }}"{% endif %}{% if cell.rowspan %} rowspan="{{ cell.rowspan }}"{% endif %}>{{ cell.html|safe }}</th>
         {% else %}

@@ -99,8 +99,15 @@
         ? pick.closest("[data-gallery-editor]")
         : null;
       fillTargetCb = null;
-      if (pick.getAttribute("data-pick-mode") === "cell" && window.libliFillTablePickImage) {
-        fillTargetCb = window.libliFillTablePickImage(pick);  // editor returns a callback
+      if (pick.getAttribute("data-pick-mode") === "cell") {
+        // Dispatch by OWNING EDITOR ROOT. Both editor scripts load on every editor
+        // page, so a shared global means whichever runs last wins and one editor's
+        // picker silently drives the other's callback.
+        if (pick.closest("[data-table-editor]") && window.libliTablePickImage) {
+          fillTargetCb = window.libliTablePickImage(pick);
+        } else if (window.libliFillTablePickImage) {
+          fillTargetCb = window.libliFillTablePickImage(pick);
+        }
       }
       var url = root.dataset.pickerUrl + "?kind=" + encodeURIComponent(kind);
       fetch(url, { headers: { "X-Requested-With": "fetch" } })

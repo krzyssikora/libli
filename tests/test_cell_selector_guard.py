@@ -26,6 +26,20 @@ ROOT = Path(__file__).resolve().parent.parent
 INVENTORY = [
     # (file, substring identifying the site, what must appear in its WINDOW)
     ("courses/static/courses/js/table_editor.js", 'querySelectorAll("td', "th"),
+    # The plain table's own focusin selector's `closest(` call is line-wrapped
+    # (mirroring the fill table's, below), so it never lands on the same line as
+    # the bare `closest("td[contenteditable]` needle above -- that needle is only
+    # ever satisfied here by the unrelated single-line keydown/input calls,
+    # leaving THIS site's own two `th` variants completely unguarded. Match the
+    # wrapped argument line's full literal string instead: either of its two
+    # `th[...]` variants going missing makes this exact substring vanish, which
+    # the "vanished" branch below already reports as a failure.
+    (
+        "courses/static/courses/js/table_editor.js",
+        '"td[contenteditable], th[contenteditable], td[data-image], '
+        'th[data-image]"',
+        "th",
+    ),
     ("courses/static/courses/js/table_editor.js", 'closest("td[contenteditable]', "th"),
     ("courses/static/courses/js/filltable_editor.js", 'querySelectorAll("td', "th"),
     (

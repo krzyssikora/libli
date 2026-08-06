@@ -538,8 +538,8 @@
       // event bindings.
       while (td.firstChild) next.appendChild(td.firstChild);
       td.replaceWith(next);
-      // cellStash is LIVE here (unlike table_editor.js's no-op guard), so a
-      // stashed answer/html round-trip must follow the node.
+      // A stashed answer/html round-trip must follow the node -- table_editor.js
+      // now re-keys its own cellStash the same way, for the same reason.
       if (cellStash.has(td)) {
         cellStash.set(next, cellStash.get(td));
         cellStash.delete(td);
@@ -702,7 +702,7 @@
 
     // Every structural edit ends the same way.
     function afterStructuralEdit() {
-      cellStash.clear(); // fill-table only
+      cellStash.clear();
       // focusCell is never re-nulled by any delete/merge path, so deleting the row
       // holding the focused image cell leaves it pointing at a DETACHED <td>: the
       // per-cell controls stay visible and populated, and edits write to a node no

@@ -14,6 +14,15 @@
   var VALIGNS = ["top", "middle", "bottom"];
   var CELL_IMAGE_DEFAULT = "full";
   var CELL_IMAGE_INSERT = "medium";
+  // Whole-literal class names: `classList.add('table-editor__img--' + size)` would
+  // leave only a stem literal in the source, making test_table_css.py's assertion
+  // pass with three of four modifiers unstyled.
+  var CELL_IMG_CLASS = {
+    small: "table-editor__img--small",
+    medium: "table-editor__img--medium",
+    large: "table-editor__img--large",
+    full: "table-editor__img--full",
+  };
 
   // ---- grid helpers -------------------------------------------------------
 
@@ -138,6 +147,18 @@
 
   // ---- wiring ---------------------------------------------------------
 
+  // Module-level, keyed by editor root: wire() publishes its per-editor handle
+  // here, and ONE module-scope hook looks it up. A per-editor closure re-assigned
+  // to one global would still be last-wins regardless of what it inspects.
+  var PICK_HANDLES = new WeakMap();
+
+  window.libliTablePickImage = function (pick) {
+    var root = pick.closest("[data-table-editor]");
+    var handle = root && PICK_HANDLES.get(root);
+    if (!handle) return null;   // media_picker.js already tests for truthiness
+    return handle(pick);
+  };
+
   function wire(editor) {
     if (editor.dataset.tableWired) return;
     editor.dataset.tableWired = "1";
@@ -174,15 +195,27 @@
       dataRows(grid).forEach(function (tr) {
         var row = [];
         Array.prototype.forEach.call(dataCells(tr), function (td) {
-          if (window.libliColour) window.libliColour.mapColours(td, { dropUnmapped: true });
-          var cell = {
-            html: td.innerHTML,
-            halign: td.dataset.halign || "left",
-            valign: td.dataset.valign || "top",
-          };
-          // Emit spans ONLY when > 1 and header ONLY for TH, so a table with
-          // no merges and no header cells serializes byte-identically to
-          // before this feature existed.
+          var isImage = td.hasAttribute("data-image");
+          if (!isImage) {
+            if (window.libliColour) window.libliColour.mapColours(td, { dropUnmapped: true });
+          }
+          var cell;
+          if (isImage) {
+            cell = {
+              kind: "image",
+              media: parseInt(td.dataset.media, 10),   // dataset is a STRING
+              alt: td.dataset.alt || "",
+              size: td.dataset.size || CELL_IMAGE_DEFAULT,
+              halign: td.dataset.halign || "left",
+              valign: td.dataset.valign || "top",
+            };
+          } else {
+            cell = {
+              html: td.innerHTML,
+              halign: td.dataset.halign || "left",
+              valign: td.dataset.valign || "top",
+            };
+          }
           if (td.colSpan > 1) cell.colspan = td.colSpan;
           if (td.rowSpan > 1) cell.rowspan = td.rowSpan;
           if (td.tagName === "TH") cell.header = true;
@@ -208,6 +241,71 @@
     // does not wipe it). A bound-invalid re-render already has the submitted
     // JSON in the hidden field, so it is skipped here.
     if (hidden.value === "") serialize();
+
+    // Declared at the same relative position as the fill table's (above the
+    // focusCell/rangeAnchor declarations): afterStructuralEdit, setImageCell and the
+    // Remove-image listener all dereference it, and the init-time refreshToolbarState
+    // runs after those declarations.
+    var cellStash = new Map();
+
+    function stashFor(td) {
+      var s = cellStash.get(td);
+      if (!s) {
+        s = { html: null, answer: null };
+        cellStash.set(td, s);
+      }
+      return s;
+    }
+
+    PICK_HANDLES.set(editor, function (_pick) {
+      var target = focusCell;          // captured when the picker OPENS
+      return function (id, _name, url) {
+        // Guard on the CAPTURED target, not focusCell: it is `target` the argument
+        // list dereferences, so the early return must precede argument evaluation.
+        // Defence-in-depth — unreachable through the UI while [data-image-toggle]
+        // is disabled with no focused cell.
+        if (!target) return;
+        // id is a STRING (media_picker.js passes the raw data-asset-id).
+        setImageCell(target, parseInt(id, 10), url, target.dataset.alt || "");
+        focusCell = target;
+        refreshToolbarState();   // see below: nothing else paints the new controls
+        serialize();
+      };
+    });
+
+    function setImageCell(td, mediaInt, url, alt) {
+      // Stash ONLY on a genuine text->image conversion. On a RE-PICK the cell
+      // already carries data-image, and an unconditional stash write would
+      // overwrite s.html with the preview <img> markup — Remove image would then
+      // restore an <img> into a contenteditable cell, sanitize_cell would strip it
+      // to "", and the author's original text would be permanently lost.
+      if (!td.hasAttribute("data-image")) {
+        stashFor(td).html = td.innerHTML;
+      }
+      td.setAttribute("data-image", "");
+      td.dataset.media = String(mediaInt);
+      td.dataset.alt = alt || "";
+      // `|| CELL_IMAGE_INSERT` serves conversion AND re-pick from ONE call site: a
+      // literal "medium" would demote an author's `full` cell on every re-pick,
+      // while a literal "preserve" would leave a converted cell with no size.
+      td.dataset.size = td.dataset.size || CELL_IMAGE_INSERT;
+      var size = td.dataset.size;      // read AFTER the assignment
+      td.setAttribute("tabindex", "0");
+      // NOT cosmetic: without this the runtime guard
+      // `if (cmdBtn && focusCell && focusCell.hasAttribute("contenteditable"))`
+      // passes on an image cell, and the Enter/input handlers (deliberately left
+      // [contenteditable]-only) start firing on it.
+      td.removeAttribute("contenteditable");
+      td.innerHTML = "";
+      // DOM property assignment, not innerHTML concat, so a `"` or `<` in a
+      // free-typed alt cannot break out of the markup.
+      var img = document.createElement("img");
+      img.className = "table-editor__img";        // lone assignment: the guard regex
+      img.classList.add(CELL_IMG_CLASS[size]);    // literal map, not concatenation
+      img.src = url;
+      img.alt = alt || "";
+      td.appendChild(img);
+    }
 
     // focusCell (the existing declaration, renamed) is the SINGLE authority for
     // what the toolbar acts on. It is set on plain click/focusin and
@@ -369,10 +467,12 @@
       // event bindings.
       while (td.firstChild) next.appendChild(td.firstChild);
       td.replaceWith(next);
-      // filltable_editor.js's own toggleHeaderCell does the equivalent
-      // cellStash re-keying against ITS OWN cellStash -- there is no such
-      // map in this file's scope (plain tables have no static/answer/image
-      // content to stash).
+      // A stashed cell's html must follow the node, or header-toggling an image
+      // cell orphans its stash and Remove image restores nothing.
+      if (cellStash.has(td)) {
+        cellStash.set(next, cellStash.get(td));
+        cellStash.delete(td);
+      }
       if (focusCell === td) focusCell = next;
       if (rangeAnchor === td) rangeAnchor = next;   // rangeEnd is a coordinate
       next.focus();
@@ -382,8 +482,7 @@
 
     // Non-empty means: static html that is not blank, OR any answer cell, OR
     // any image cell -- so a merge can never silently lose an accepted answer
-    // or an image's media pk. (table_editor.js has no kinds; the kind clauses
-    // live in filltable_editor.js's override.)
+    // or an image's media pk.
     function absorbedNonEmpty(rg) {
       for (var i = 0; i < rg.cells.length; i++) {
         var c = rg.cells[i];
@@ -394,11 +493,15 @@
     }
 
     function cellIsNonEmpty(c) {
-      return c.textContent.trim() !== "" || c.querySelector("img") !== null;
+      return c.textContent.trim() !== ""
+        || c.querySelector("img") !== null
+        || c.hasAttribute("data-image");
     }
 
     grid.addEventListener("focusin", function (e) {
-      var td = e.target.closest("td[contenteditable], th[contenteditable]");
+      var td = e.target.closest(
+        "td[contenteditable], th[contenteditable], td[data-image], th[data-image]"
+      );
       if (!td) return;
       focusCell = td;
       rangeAnchor = td;   // a plain click ALWAYS re-seats the anchor, so a
@@ -512,6 +615,7 @@
 
     // Every structural edit ends the same way.
     function afterStructuralEdit() {
+      cellStash.clear();
       // focusCell is never re-nulled by any delete/merge path, so deleting the row
       // holding the focused image cell leaves it pointing at a DETACHED <td>: the
       // per-cell controls stay visible and populated, and edits write to a node no
@@ -581,7 +685,7 @@
 
       toolbar.addEventListener("click", function (e) {
         var cmdBtn = e.target.closest("[data-cmd]");
-        if (cmdBtn && focusCell) {
+        if (cmdBtn && focusCell && focusCell.hasAttribute("contenteditable")) {
           var cmd = cmdBtn.getAttribute("data-cmd");
           focusCell.focus();
           if (cmd.indexOf("colour-") === 0 && window.libliColour) {
@@ -679,6 +783,55 @@
           toggleHeaderCell(focusCell);
           return;
         }
+      });
+    }
+
+    if (imageAlt) {
+      imageAlt.addEventListener("input", function () {
+        if (!focusCell || !focusCell.hasAttribute("data-image")) return;
+        focusCell.dataset.alt = imageAlt.value;
+        var img = focusCell.querySelector(".table-editor__img");
+        if (img) img.setAttribute("alt", imageAlt.value);
+        serialize();
+      });
+    }
+
+    if (sizeSel) {
+      sizeSel.addEventListener("change", function () {
+        if (!focusCell || !focusCell.hasAttribute("data-image")) return;
+        focusCell.dataset.size = sizeSel.value;
+        var img = focusCell.querySelector(".table-editor__img");
+        if (img) {
+          // REMOVE all four first: classList.add alone accumulates, and the four
+          // modifiers are single-class selectors of identical specificity, so the
+          // winner would then be decided by stylesheet source order rather than
+          // the author's pick.
+          Object.keys(CELL_IMG_CLASS).forEach(function (k) {
+            img.classList.remove(CELL_IMG_CLASS[k]);
+          });
+          img.classList.add(CELL_IMG_CLASS[sizeSel.value]);
+        }
+        serialize();
+      });
+    }
+
+    if (removeBtn) {
+      removeBtn.addEventListener("click", function () {
+        if (!focusCell || !focusCell.hasAttribute("data-image")) return;   // no-op
+        var stashed = cellStash.get(focusCell);
+        // The NO-STASH case is the DOMINANT one, not an edge case: the stash is
+        // populated only by an in-session conversion, so any author who saves,
+        // reloads and then removes a server-rendered image cell hits it. A bare
+        // `stashed.html` would write the string "undefined".
+        focusCell.innerHTML = (stashed && stashed.html != null) ? stashed.html : "";
+        focusCell.removeAttribute("data-image");
+        delete focusCell.dataset.media;
+        delete focusCell.dataset.alt;
+        delete focusCell.dataset.size;
+        focusCell.removeAttribute("tabindex");
+        focusCell.setAttribute("contenteditable", "true");
+        refreshToolbarState();
+        serialize();
       });
     }
 

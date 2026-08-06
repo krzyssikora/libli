@@ -1,7 +1,7 @@
-"""Guard: the 20 functions duplicated across the two table editors must not drift.
+"""Guard: the 22 functions duplicated across the two table editors must not drift.
 
-`table_editor.js` and `filltable_editor.js` share 163 lines of code-identical
-logic across 20 functions -- 11 at file scope, 9 nested inside `wire()`. Nothing
+`table_editor.js` and `filltable_editor.js` share code-identical logic across 22
+functions -- 11 at file scope, 11 nested inside `wire()`. Nothing
 else enforces that they stay in step, so the realistic failure is silent: a
 selection bug gets fixed in one editor, its twin is missed, and each editor's own
 tests stay green because neither exercises the other's file.
@@ -34,7 +34,7 @@ FILL_JS = ROOT / "courses" / "static" / "courses" / "js" / "filltable_editor.js"
 # missed a newly added shared helper in one file, that name would never look
 # "common to both" and the classification check would stay green while an
 # unguarded 21st twin existed.
-EXPECTED_COUNTS = {TABLE_JS: 28, FILL_JS: 36}
+EXPECTED_COUNTS = {TABLE_JS: 30, FILL_JS: 36}
 
 _DEF = re.compile(r"^\s*function (\w+)\s*\(")
 _TRAILING_COMMENT = re.compile(r"\s*//.*$")
@@ -140,7 +140,7 @@ def _hazards(name, body):
     return problems
 
 
-# Code-identical in both editors. 11 at file scope, 9 nested inside wire().
+# Code-identical in both editors. 11 at file scope, 11 nested inside wire().
 TWINS = [
     # file scope
     "colCount",
@@ -156,6 +156,7 @@ TWINS = [
     "tableContainer",
     # nested inside wire()
     "absorbedNonEmpty",
+    "afterStructuralEdit",
     "clearRange",
     "headerLocked",
     "msg",
@@ -163,6 +164,7 @@ TWINS = [
     "refreshAlignButtons",
     "refreshHeaderButton",
     "say",
+    "stashFor",
     "tooBig",
 ]
 
@@ -175,18 +177,23 @@ DIVERGENT = {
     "wire": "the container itself; its nested helpers are classified "
     "individually, so comparing the two bodies would be meaningless",
     "serialize": "fill-table emits three cell kinds (static/answer/image) where "
-    "the plain table emits one, AND its payload carries two extra "
+    "the plain table emits two (text/image), AND its payload carries two extra "
     "document-level fields, case_sensitive and prompt",
     "refreshToolbarState": "the plain table now has a kind-specific refresh; "
     "the fill table's `if (!focusCell) return` gate is gone",
-    "toggleHeaderCell": "fill-table re-keys the live cellStash Map old->new, AND "
-    "focuses the cell's answer input rather than the cell -- .focus() is a "
-    "no-op on a <td data-answer>, which would strand Alt+Shift+Arrow",
-    "cellIsNonEmpty": "BOTH files are image-aware by different mechanisms (the "
-    "plain table queries for a nested <img>, fill-table checks the data-image "
-    "attribute); fill-table also treats answer cells as always non-empty",
-    "afterStructuralEdit": "fill-table additionally calls cellStash.clear() "
-    "first, so a stashed cell cannot restore into the wrong node after reshape",
+    "toggleHeaderCell": "fill-table focuses the cell's answer input rather than "
+    "the cell -- .focus() is a no-op on a <td data-answer>, which would strand "
+    "Alt+Shift+Arrow; the plain table has no answer cells so it just focuses "
+    "the replacement node",
+    "cellIsNonEmpty": "BOTH files are image-aware, but the plain table checks a "
+    "nested <img> OR the data-image attribute (belt and suspenders, since every "
+    "producer of data-image also produces the child <img>), while fill-table "
+    "checks only the data-image attribute; fill-table also treats answer cells "
+    "as always non-empty",
+    "setImageCell": "preview class name differs (table-editor__img vs "
+    "filltable-editor__img); the fill table also stashes and clears "
+    "data-answer, and its stash write has two branches where the plain "
+    "table's has one",
 }
 
 

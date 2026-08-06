@@ -5,6 +5,7 @@ ROOT = Path(__file__).resolve().parent.parent
 CSS = ROOT / "courses/static/courses/css/courses.css"
 EDITOR_CSS = ROOT / "courses/static/courses/css/editor.css"
 TABLE_JS = ROOT / "courses/static/courses/js/table_editor.js"
+FILL_JS = ROOT / "courses/static/courses/js/filltable_editor.js"
 
 
 def test_courses_css_defines_table_element():
@@ -26,16 +27,43 @@ def test_editor_css_styles_every_control_class_the_js_emits():
     a name match ties its class names to editor.css. They once drifted apart
     (`.table-row-handle` in CSS vs `.table-editor__rowctl` in JS), which left the
     hover-reveal handles permanently unstyled. Pin the contract.
+
+    The pattern is a strict SUPERSET of the old `className = "…"` scan: it also
+    catches the CELL_IMG_CLASS map's literals, which are never assigned via a
+    bare `className = "…"` (classList.add reads them out of the map).
     """
     js = TABLE_JS.read_text(encoding="utf-8")
     css = EDITOR_CSS.read_text(encoding="utf-8")
 
-    emitted = set(re.findall(r'className = "(table-editor__[\w-]+)"', js))
+    emitted = set(re.findall(r'"(table-editor__[\w-]+)"', js))
     assert emitted, "expected table_editor.js to assign table-editor__* classes"
     for cls in sorted(emitted):
-        assert f".{cls}" in css, (
+        # Boundary-anchored on BOTH sides, and against editor.css ONLY -- never
+        # concatenated with courses.css, where `.filltable-editor__img--small`
+        # would satisfy a naive substring match on `.table-editor__img--small`.
+        assert re.search(rf"(?<![\w-])\.{re.escape(cls)}(?![\w-])", css), (
             f"editor.css never styles .{cls} (emitted by table_editor.js)"
         )
+    # Existence, not just naming: `.ta-center > .table-editor__img` would satisfy
+    # the naming check above with the base rule itself entirely absent.
+    assert re.search(r"^\.table-editor__img\s*\{", css, re.M)
+
+
+def test_js_size_defaults_match_python_and_are_used():
+    from courses.models import TableElement
+
+    # TABLE_JS ONLY in this task: filltable_editor.js does not declare these constants
+    # until Task 8 Step 4, and does not USE `|| CELL_IMAGE_INSERT` until Task 8 Step 5.
+    # Task 8 Step 8 widens this loop to both files.
+    src = TABLE_JS.read_text(encoding="utf-8")
+    assert f'var CELL_IMAGE_DEFAULT = "{TableElement.DEFAULT_CELL_IMAGE_SIZE}"' in src
+    assert (
+        f'var CELL_IMAGE_INSERT = "{TableElement.EDITOR_INSERT_CELL_IMAGE_SIZE}"'
+        in src
+    )
+    # Declared-but-unused would leave the pin guarding nothing.
+    assert "|| CELL_IMAGE_DEFAULT" in src
+    assert "|| CELL_IMAGE_INSERT" in src
 
 
 def test_courses_css_defines_the_cell_image_scale():

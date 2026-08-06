@@ -173,3 +173,82 @@ def test_rte_swatches_partial_is_untouched():
 def test_editor_css_drops_the_dead_toolbar_hidden_rule():
     css = EDITOR_CSS.read_text(encoding="utf-8")
     assert ".table-editor__toolbar[hidden]" not in css
+
+
+def test_image_button_carries_both_pick_attributes():
+    """data-pick-mode alone NEVER opens the picker: media_picker.js gates on
+    closest("[data-pick-media]") and reads the asset kind from that attribute."""
+    src = PARTIAL.read_text(encoding="utf-8")
+    i = src.index("data-image-toggle")
+    tag = src[src.rindex("<button", 0, i):src.index(">", i)]
+    assert 'data-pick-media="image"' in tag
+    assert 'data-pick-mode="cell"' in tag
+    # Task 6 deliberately left this needle out of its own markup-disabled test (the
+    # button did not exist yet) and promised it would be asserted HERE.
+    assert "disabled" in tag
+
+
+def test_per_cell_controls_are_hidden_named_and_unnamed():
+    """`hidden` in MARKUP, not merely painted by JS — otherwise three cell-scoped
+    controls render visible on every editor load until wire() runs. No `name`: the
+    hidden data field is the sole authoritative input, and a badly chosen name can
+    shadow a form property (the recorded form.action incident). aria-label because
+    an icon-only .rte-btn and a bare <select> ship nameless to screen readers."""
+    src = PARTIAL.read_text(encoding="utf-8")
+    for attr in ("data-image-alt", "data-image-size", "data-image-remove"):
+        i = src.index(attr)
+        tag = src[src.rindex("<", 0, i):src.index(">", i)]
+        assert "hidden" in tag, attr
+        assert "name=" not in tag, attr
+        assert "aria-label" in tag, attr
+
+
+def test_size_select_iterates_the_model_choices_not_per_option_trans():
+    """A bare {% trans "Full" %} resolves to the msgid owned by courses/forms.py
+    (feminine "Pełna"), so the shipped select would render the wrong gender while a
+    source-level test on the model constant still passed."""
+    src = PARTIAL.read_text(encoding="utf-8")
+    assert "form.cell_image_sizes" in src
+    # Scope to the <option> REGION only. A window starting at `data-image-size` would
+    # include the select's own title/aria-label {% trans %} calls, which
+    # test_per_cell_controls_are_hidden_named_and_unnamed REQUIRES - the two assertions
+    # would be mutually unsatisfiable.
+    i = src.index("form.cell_image_sizes")
+    # Search FORWARD from i: _edit_table.html already has a <select data-border> in the
+    # controls strip ABOVE the toolbar, so a bare src.index("</select>") returns that
+    # earlier closer, the slice runs backwards, and the assertion passes on "".
+    seg = src[i:src.index("</select>", i)]
+    assert "{% trans" not in seg
+
+
+def test_grid_loop_reads_resolved_cells():
+    """form.grid_data leaves cell.media an int, so the preview would emit src=""."""
+    src = PARTIAL.read_text(encoding="utf-8")
+    assert "form.resolved_grid_cells" in src
+    assert "{% with d=form.grid_data %}" in src  # controls strip still needs `d`
+
+
+def test_image_cell_branch_is_a_th_td_pair_with_full_attributes():
+    src = PARTIAL.read_text(encoding="utf-8")
+    for tag in ("<th data-image", "<td data-image"):
+        i = src.index(tag)
+        el = src[i:src.index(">", i)]
+        assert 'data-media="{{ cell.media.pk }}"' in el, tag
+        assert 'data-alt="{{ cell.alt }}"' in el, tag
+        assert "data-size=\"{{ cell.size|default:'full' }}\"" in el, tag
+        assert 'tabindex="0"' in el, tag
+        assert "contenteditable" not in el, tag
+        assert 'data-halign=' in el and 'data-valign=' in el, tag
+
+
+def test_editor_preview_image_has_no_zoom_hook():
+    src = PARTIAL.read_text(encoding="utf-8")
+    assert "data-zoomable" not in src
+
+
+def test_table_editor_js_registers_its_own_picker_hook():
+    js = TABLE_JS.read_text(encoding="utf-8")
+    assert "window.libliTablePickImage" in js
+    # Both editor scripts load on every editor page, so a shared global means
+    # whichever runs last wins and one editor's picker drives the other's callback.
+    assert "libliFillTablePickImage" not in js

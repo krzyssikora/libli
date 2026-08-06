@@ -63,6 +63,7 @@ the answer-input placeholder, and the two submit-guard messages.{% endcomment %}
             title="{% trans 'Image cell' %}" aria-label="{% trans 'Image cell' %}"
             data-pick-media="image" data-pick-mode="cell"><svg class="ic" aria-hidden="true" focusable="false"><use href="#ed-image"/></svg></button>
     <input type="text" class="filltable-editor__alt input" data-image-alt hidden
+           maxlength="255" aria-label="{% trans 'Image description (alt)' %}"
            placeholder="{% trans 'Image description (alt)' %}">
     <span class="rte-sep"></span>
     <button type="button" class="rte-btn" data-merge disabled
