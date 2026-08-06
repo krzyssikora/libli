@@ -61,9 +61,13 @@ def test_js_size_defaults_match_python_and_are_used():
         f'var CELL_IMAGE_INSERT = "{TableElement.EDITOR_INSERT_CELL_IMAGE_SIZE}"'
         in src
     )
-    # Declared-but-unused would leave the pin guarding nothing.
+    # Declared-but-unused would leave the pin guarding nothing. The INSERT needle
+    # pins the full statement, not the bare `|| CELL_IMAGE_INSERT` token: the
+    # CELL_IMG_CLASS comment above the map (`` `|| CELL_IMAGE_INSERT` serves
+    # conversion AND re-pick... ``) contains that bare token too, so the narrower
+    # needle would stay green even with setImageCell's real assignment deleted.
     assert "|| CELL_IMAGE_DEFAULT" in src
-    assert "|| CELL_IMAGE_INSERT" in src
+    assert "td.dataset.size = td.dataset.size || CELL_IMAGE_INSERT" in src
 
 
 def test_courses_css_defines_the_cell_image_scale():
