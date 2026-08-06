@@ -245,3 +245,73 @@ def test_serialize_reads_both_select_elements():
     body = js[start : js.index("function refreshControlState")]
     assert "display:" in body and "label_pos:" in body
     assert "displaySel.value" in body and "labelPosSel.value" in body
+
+
+def _decl_block(css, selector):
+    """Slice the declaration block for an exact selector (see tests/test_tabs_css.py
+    for why line matching is not sufficient)."""
+    i = css.index("\n" + selector + " {")
+    open_brace = css.index("{", i)
+    return css[open_brace + 1 : css.index("}", open_brace)]
+
+
+def test_the_counter_is_removed_from_layout_when_hidden():
+    """`.tabs-editor__row` is `display: flex; gap: var(--space-2)`, so a third flex
+    item contributes a SECOND gap even while empty -- every row would permanently
+    lose that much input width, for every author, below the threshold, and with JS
+    disabled. The base rule declares `display: inline-flex`, which beats the UA
+    `[hidden] { display: none }` regardless of specificity, so the paired rule is
+    load-bearing rather than belt-and-braces."""
+    css = EDITOR_CSS.read_text(encoding="utf-8")
+    assert ".el-editor--tabs .tabs-editor__count[hidden]" in css
+    block = _decl_block(css, ".el-editor--tabs .tabs-editor__count[hidden]")
+    assert "display: none" in block
+
+
+def test_the_counter_states_are_styled_and_at_cap_is_not_colour_alone():
+    """A colour-only at-cap state is invisible to a colour-blind author. --danger is
+    the token (a hard stop, not a caution); --text-tertiary is banned because it
+    fails AA at body size."""
+    css = EDITOR_CSS.read_text(encoding="utf-8")
+    base = _decl_block(css, ".el-editor--tabs .tabs-editor__count")
+    near = _decl_block(css, ".el-editor--tabs .tabs-editor__count.is-near")
+    at_cap = _decl_block(css, ".el-editor--tabs .tabs-editor__count.is-at-cap")
+
+    # The token caution is recorded AT BODY SIZE, so the size must be pinned or the
+    # contrast claim is being judged against a different WCAG threshold.
+    assert "font-size" in base, "counter size must be declared, not inherited"
+    assert near.strip(), ".is-near carries no declarations"
+    assert "--danger" in at_cap
+    assert "font-weight" in at_cap, "at-cap must carry a non-colour signal too"
+    assert "--text-tertiary" not in at_cap
+
+
+def test_the_live_region_is_clip_based_never_display_none():
+    """The region must stay in the a11y and text trees so aria-live announces it and
+    Playwright can read it. display:none would make it a silently dead channel."""
+    css = EDITOR_CSS.read_text(encoding="utf-8")
+    block = _decl_block(css, ".el-editor--tabs .tabs-editor__status")
+    assert "position: absolute" in block
+    assert "clip:" in block
+    assert "display: none" not in block
+
+
+def test_the_label_input_has_a_non_zero_width_floor():
+    """Adding a fourth fixed row item plus a second gap shrinks the label input at
+    exactly the moment the author is typing a long label.
+
+    Extract the VALUE and compare it. A plain `"min-width" in block` check stays
+    green against the mutant, because `min-width: 0` is also a min-width declaration
+    -- and so does the obvious-looking negative lookahead
+    `re.search(r"min-width:\\s*(?!0\\b)", block)`: `\\s*` backtracks to zero
+    characters, the lookahead is then evaluated at the SPACE rather than at the `0`,
+    and it trivially succeeds. That form matches "min-width: 0;" and is completely
+    inert. Verified by running it.
+    """
+    css = EDITOR_CSS.read_text(encoding="utf-8")
+    block = _decl_block(css, ".el-editor--tabs .tabs-editor__label")
+    m = re.search(r"min-width:\s*([^;}]+)", block)
+    assert m, "label input declares no min-width at all"
+    assert m.group(1).strip() not in ("0", "0px"), (
+        "label input has no non-zero min-width floor"
+    )
