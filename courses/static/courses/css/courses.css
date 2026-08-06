@@ -1196,13 +1196,17 @@ a.unit-crumbs__label:focus-visible { outline: 2px solid var(--primary); outline-
 }
 
 /* Fill-table editor preview. max-width leaves the BASE for the same equal-specificity
-   reason as the student rules, so every size lives on a modifier. Bounded ABSOLUTELY in
-   both axes: `max-width: 100%` is not a bound in an auto-layout editor grid. */
+   reason as the student rules, so every size lives on a modifier. Every cap is a BARE
+   absolute max-width, not `min(100%, Npx)`: the editing grid is an auto-layout <table>
+   too, and a percentage term in the cap makes the column flexible, so a text-hungry
+   sibling cell squeezes the image far below its cap (measured on the student column:
+   160px -> 16.75px; see
+   .superpowers/sdd/2026-08-05-table-cell-images/spike-cell-img-stability.md). */
 .filltable-editor__img { height: auto; display: block; }
-.filltable-editor__img--small  { max-width: 40px;             max-height: 40px; }
-.filltable-editor__img--medium { max-width: 80px;             max-height: 80px; }
-.filltable-editor__img--large  { max-width: 120px;            max-height: 120px; }
-.filltable-editor__img--full   { max-width: min(100%, 200px); max-height: 200px; }
+.filltable-editor__img--small  { max-width: 40px;  max-height: 40px; }
+.filltable-editor__img--medium { max-width: 80px;  max-height: 80px; }
+.filltable-editor__img--large  { max-width: 120px; max-height: 120px; }
+.filltable-editor__img--full   { max-width: 200px; max-height: 200px; }
 .ta-center > .filltable-editor__img { margin-inline: auto; }
 .ta-right  > .filltable-editor__img { margin-inline: auto 0; }
 .el--filltable__scroll { overflow-x: auto; }

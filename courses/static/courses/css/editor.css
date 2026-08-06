@@ -845,15 +845,17 @@ button.asset-cell:hover { border-color: var(--primary); }
 /* Plain-table editor preview. `.table-editor__img` does NOT exist today — this is
    authored new, not "stripped". No max-width on the base, for the same
    equal-specificity reason as the student rules. The scale is proportional, not
-   pixel-exact (the editor grid is not the 648px student column), but every entry
-   is bounded ABSOLUTELY in both axes: `max-width: 100%` is NOT a bound here,
-   because the editing grid is an auto-layout <table> too — a 1586x612 asset with
-   only a 200px height cap would render ~518px wide and drag the grid. */
+   pixel-exact (the editor grid is not the 648px student column), and every cap
+   below is a BARE absolute max-width, not `min(100%, Npx)`: the editing grid is
+   an auto-layout <table> too, and a percentage term in the cap makes the column
+   flexible, so a text-hungry sibling cell squeezes the image far below its cap
+   (measured on the student column: 160px -> 16.75px; see
+   .superpowers/sdd/2026-08-05-table-cell-images/spike-cell-img-stability.md). */
 .table-editor__img { height: auto; display: block; }
-.table-editor__img--small  { max-width: 40px;             max-height: 40px; }
-.table-editor__img--medium { max-width: 80px;             max-height: 80px; }
-.table-editor__img--large  { max-width: 120px;            max-height: 120px; }
-.table-editor__img--full   { max-width: min(100%, 200px); max-height: 200px; }
+.table-editor__img--small  { max-width: 40px;  max-height: 40px; }
+.table-editor__img--medium { max-width: 80px;  max-height: 80px; }
+.table-editor__img--large  { max-width: 120px; max-height: 120px; }
+.table-editor__img--full   { max-width: 200px; max-height: 200px; }
 .ta-center > .table-editor__img { margin-inline: auto; }
 .ta-right  > .table-editor__img { margin-inline: auto 0; }
 
@@ -862,12 +864,14 @@ button.asset-cell:hover { border-color: var(--primary); }
    file already documents at .view-toggle[hidden]. Without it a `hidden` Remove-image
    button stays permanently visible, on text cells too.
 
-   The SELECT does not strictly need it today (`.input` declares no `display`, and there is
-   no .table-editor__alt / .filltable-editor__alt rule), so its rule is defence-in-depth
-   against a future `display` landing on `.input`. Stated accurately rather than claiming
-   both are broken without it. */
+   The SELECT and the ALT input do not strictly need it today (`.input` declares no
+   `display`, and there is no .table-editor__alt / .filltable-editor__alt rule), so their
+   rules are defence-in-depth against a future `display` landing on `.input` — which both
+   `data-image-size` and `data-image-alt` carry (`class="…__alt input"`, same exposure).
+   Stated accurately rather than claiming all three are broken without it. */
 [data-image-remove][hidden] { display: none; }
 [data-image-size][hidden] { display: none; }
+[data-image-alt][hidden] { display: none; }
 
 /* --- Gallery editor chrome. Rows read as small photo cards (numbered badge +
    rounded thumb), echoing the student gallery's own card look; the toolbar and
