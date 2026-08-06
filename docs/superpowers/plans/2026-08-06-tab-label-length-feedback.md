@@ -418,6 +418,17 @@ def test_each_row_carries_a_hidden_aria_hidden_counter():
     # The existing count assertion must not move.
     assert html.count("data-tab-row") == 2
 
+    # POSITION, not just presence. The tag check above fixes the span's attributes and
+    # their order but says nothing about where it sits: moving it after
+    # .tabs-editor__ctl leaves every assertion above green, and the spec requires it
+    # BETWEEN the input and the controls.
+    first_row = html[: html.index("data-tab-row", html.index("data-tab-row") + 1)]
+    assert (
+        first_row.index("data-tab-label-input")
+        < first_row.index("tabs-editor__count")
+        < first_row.index("tabs-editor__ctl")
+    )
+
 
 def test_exactly_one_live_region_renders_outside_the_row_list():
     """One per EDITOR, not per row. A per-row region hidden below the threshold is
@@ -493,6 +504,7 @@ Expected: **PASS** — all, including `test_editor_css_styles_every_tabs_editor_
 | Drop `hidden` from the digits span | `test_each_row_carries_a_hidden_aria_hidden_counter` |
 | Drop `aria-hidden="true"` from the digits span | `test_each_row_carries_a_hidden_aria_hidden_counter` |
 | Rename the digits span `data-tab-row-count` | `test_each_row_carries_a_hidden_aria_hidden_counter` (via the `data-tab-row` count) |
+| Move the digits span **after** `<span class="tabs-editor__ctl">` | `test_each_row_carries_a_hidden_aria_hidden_counter` (via the ordering assertion — every other assertion in it stays green) |
 | Move the live region inside the `<li>` (before `</ol>`) | `test_exactly_one_live_region_renders_outside_the_row_list` |
 | Drop `aria-live="polite"` | `test_exactly_one_live_region_renders_outside_the_row_list` |
 
@@ -595,14 +607,14 @@ def test_the_js_fallback_matches_the_trans_msgid_byte_for_byte():
     the degraded path render a different string from the normal one. Nothing else
     connects them."""
     js = TABS_EDITOR_JS.read_text(encoding="utf-8")
-    partial = (
-        ROOT / "templates/courses/manage/editor/_edit_tabs.html"
-    ).read_text(encoding="utf-8")
+    partial = (ROOT / "templates/courses/manage/editor/_edit_tabs.html").read_text(
+        encoding="utf-8"
+    )
 
     msgid = re.search(r"data-msg-cap=\"\{% trans '([^']+)' %\}\"", partial)
     fallback = re.search(r'label\(editor, "cap", "([^"]+)"\)', js)
     assert msgid, "no data-msg-cap {% trans %} in the partial"
-    assert fallback, "no label(editor, \"cap\", ...) fallback in the JS"
+    assert fallback, 'no label(editor, "cap", ...) fallback in the JS'
     assert msgid.group(1) == fallback.group(1), (
         f"msgid {msgid.group(1)!r} != JS fallback {fallback.group(1)!r}"
     )
@@ -637,8 +649,8 @@ Confirm `TABS_EDITOR_JS` is the module's existing path constant (`test_editor_cs
 
 - [ ] **Step 3: Run the tests to verify they fail**
 
-Run: `cd "<worktree>" && uv run pytest tests/test_tabs_editor_partial.py -k "last_statement_at_every_call_site or substitutes_every_placeholder or reorder_branches_only_clear" -v`
-Expected: **FAIL** — no `refreshCount` exists yet.
+Run: `cd "<worktree>" && uv run pytest tests/test_tabs_editor_partial.py -k "last_statement_at_every_call_site or substitutes_every_placeholder or js_fallback_matches_the_trans_msgid or reorder_branches_only_clear" -v`
+Expected: **FAIL — all four.** Step 2 adds four tests; selecting only three would leave the cross-file msgid/fallback guard never observed RED, and that is the only thing tying two literals written by two memoryless tasks together. (`fallback` is `None` at this point because no `label(editor, "cap", …)` call exists yet.)
 
 - [ ] **Step 4: Add `refreshCount` and `clearCapRegion`**
 
@@ -882,10 +894,11 @@ routinely marks the catalog **header** `#, fuzzy` and writes `#~` obsolete block
 any string that has drifted since the catalogs were last regenerated — neither of
 which is your new string, and neither of which Step 5's `-k` can see.
 
-Either would leave the suite RED at this task's boundary. Before committing:
+Any of the three would leave the suite RED at this task's boundary. Both catalogs are clean today (verified: zero `#, fuzzy`, zero `#~`), so anything these guards report is drift `makemessages` surfaced. Before committing:
 
 - delete any `#, fuzzy` on the **header** entry (the one with the empty msgid),
 - delete any `#~`-prefixed obsolete blocks `makemessages` introduced,
+- if `test_pl_has_no_untranslated_msgid` reports msgids **other than your new one**, those are pre-existing strings the regeneration exposed: translate them if they are obviously translatable, otherwise record each one explicitly in your task report for Task 9 to sweep. Do not leave the guard red and do not silently blank it.
 - re-run `compilemessages` and this test file.
 
 Expected: **PASS**. If a guard still fails on an entry unrelated to this change, say so
@@ -930,7 +943,9 @@ Confirm with `git -C "<worktree>" show --stat HEAD` that **both** `.mo` files ar
 
 Run: `cd "<worktree>" && sed -n '55,115p' tests/test_e2e_tabs.py`
 
-You need `_login` (~`:69`), `_editor_url` (~`:88`) and `_seed_tabs_element` (~`:101`). Use them; do not invent fixtures.
+You need `_make_pa_user` (~`:55`), `_login` (~`:69`), `_seed_unit` (~`:77`), `_editor_url` (~`:88`) and `_seed_tabs_element` (~`:101`). Use them; do not invent fixtures.
+
+Also read one existing editor-driving case end to end — `tests/test_e2e_tabs.py:1634-1646` is a good one — so you copy the real open-the-form gesture rather than reconstructing it.
 
 - [ ] **Step 2: Write the failing e2e cases**
 
@@ -942,11 +957,15 @@ Add to `tests/test_e2e_tabs.py`, following the module's existing marker/fixture 
 - Use plain single-width characters, no leading/trailing/repeated whitespace, no `&` entities, so a value that round-trips the server survives `sanitize_label` unchanged.
 - Assert `input.value.length` before asserting on the counter wherever length matters.
 
-**Worked example — case 1, to fix the shape.** Write the remaining seven in this style, substituting the module's actual fixture/marker names once you have read them in Step 1:
+**Worked example — case 1 of the nine in the table below.** Write the remaining **eight** in this style, substituting the module's actual fixture names once you have read them in Step 1. Every one of them needs the same open-the-form and ready-flag gestures shown here, and every subsequent locator must be scoped with `[data-edit-slot]`.
 
-Three facts about this module you must not get wrong — all verified in the worktree:
+**The editor URL alone does not render the tabs editor.** `[data-tab-row]` lives in `_edit_tabs.html`, which renders only when an element's edit form is *open*; `courses/views_manage.py:1510` defaults `open_form_pk=""`, so a plain GET shows the element list and no form. Every case must click the row's edit action first, exactly as the existing cases do — waiting on `[data-tab-row]` straight after `goto()` just times out.
+
+Four more facts about this module you must not get wrong — all verified in the worktree:
 
 - `_seed_unit(owner, slug)` returns **`(course, unit)`**, and `_editor_url(live_server, course, unit)` takes **three** arguments (`:78`, `:89`). Unpacking it as a single `unit` makes every downstream call fail.
+- `_seed_tabs_element(...)` returns **`(obj, join)`**. You need `join.pk` to address the row's edit button.
+- After the fragment swap, `wire()` sets `editor.dataset.tabsEditorReady = "1"` (`tabs_editor.js:19`) — which renders as the attribute **`data-tabs-editor-ready`**. `wait_for_selector` on the editor node alone resolves the moment it attaches, so a `fill()` can fire `input` *before* the delegated listener exists: the counter never updates and the case fails against a correct build (or an `is_hidden()` assertion passes vacuously). Wait on the ready attribute, not the node.
 - The module sets `pytestmark = pytest.mark.e2e` at `:41`, so a per-test `@pytest.mark.e2e` is redundant. What each test **does** need is `@pytest.mark.django_db(transaction=True)` — every existing case has it, and without it rows written by the seed persist between cases, so the second case cloned from this example dies on a duplicate-username `IntegrityError`. **Give every case a distinct username and course slug.**
 - The module does **not** import `expect` and has zero `expect(` call sites; existing cases use `wait_for_selector` plus plain `assert`. Follow that style rather than adding a new assertion vocabulary.
 
@@ -957,13 +976,22 @@ def test_the_counter_appears_only_at_the_threshold(live_server, page):
     MAX_TABS rows is noise that trains an author to stop reading it."""
     owner = _make_pa_user("counter_threshold_owner")
     course, unit = _seed_unit(owner, "counter-threshold")
-    _seed_tabs_element(unit, [("t000001", "Tab 1"), ("t000002", "Tab 2")])
+    _obj, join = _seed_tabs_element(
+        unit, [("t000001", "Tab 1"), ("t000002", "Tab 2")]
+    )
 
     _login(page, live_server, "counter_threshold_owner")
     page.goto(_editor_url(live_server, course, unit))
-    page.wait_for_selector("[data-tab-row]")
+    # Open the element's edit form -- the tabs editor does not exist until then.
+    page.wait_for_selector('[data-scope="editor"] .el-row--tabs')
+    page.locator(
+        f'[data-scope="editor"] [data-element="{join.pk}"] .el-act-edit'
+    ).first.click()
+    # Wait for the READY flag, not just the node: wire() sets it after insertion, and
+    # a fill() before that fires `input` with no delegated listener attached.
+    page.wait_for_selector("[data-edit-slot] [data-tabs-editor][data-tabs-editor-ready]")
 
-    row = page.locator("[data-tab-row]").first
+    row = page.locator("[data-edit-slot] [data-tab-row]").first
     label_input = row.locator("[data-tab-label-input]")
     digits = row.locator("[data-tab-num]")
 
@@ -1077,7 +1105,7 @@ git commit -m "test(tabs): e2e coverage for the label counter and its announceme
 
 Run: `cd "<worktree>" && sed -n '55,115p' tests/test_e2e_tabs.py`
 
-You need `_make_pa_user`, `_login`, `_seed_unit` and `_seed_tabs_element`, plus **`_lesson_url(live_server, unit)`** (`:93`) — this task drives the **student** page, not the editor, so it does not use `_editor_url`.
+You need `_make_pa_user`, `_login`, `_seed_unit` and `_seed_tabs_element`, plus **`_lesson_url(live_server, unit)`** (`:92`) — this task drives the **student** page, not the editor, so it does not use `_editor_url` and needs none of Task 6's open-the-edit-form gesture.
 
 Note the same three module facts Task 6 records: `_seed_unit` returns `(course, unit)`; the module already sets `pytestmark = pytest.mark.e2e` so each case needs `@pytest.mark.django_db(transaction=True)` and a **distinct username and course slug**; and the module uses `wait_for_selector` + plain `assert`, not `expect`.
 
@@ -1085,7 +1113,9 @@ Note the same three module facts Task 6 records: `_seed_unit` returns `(course, 
 
 Name it **`test_a_long_tab_label_wraps_within_the_width_cap`** — Step 3's `-k` depends on it.
 
-Sequence: seed a tabs element whose `display` stays **`"tabs"`** (the default — `.tabs__tab` exists only in the tabs branch of `tabs.js`; in carousel mode there is no strip and the case has nothing to assert on), with one label of exactly 80 plain characters and one short label. Log in, `page.goto(_lesson_url(live_server, unit))`, then `page.wait_for_selector(".tabs__tab")` so the enhancer has built the strip.
+Sequence: seed a tabs element whose `display` stays **`"tabs"`** (the default — `.tabs__tab` exists only in the tabs branch of `tabs.js`; in carousel mode there is no strip and the case has nothing to assert on), with the **80-character label first** and a short label second. Log in, `page.goto(_lesson_url(live_server, unit))`, then `page.wait_for_selector(".tabs__tab")` so the enhancer has built the strip.
+
+Address the long tab as `page.locator(".tabs__strip .tabs__tab").first` (seeding order fixes which that is). Getting this wrong is a confusing false RED: `.tabs__strip` stretches every tab to equal height, so the *height* assertion passes on either tab while the 288px *width* assertion fails on the short one.
 
 Pin the viewport so the expected pixel value is computable:
 
@@ -1157,7 +1187,9 @@ Confirm it does not break mid-expression, that the line box contains its vertica
 Pin the numbers so the gate is reproducible rather than a judgement call:
 
 - **Viewport:** `page.set_viewport_size({"width": 1280, "height": 900})`, the same width Task 7 uses.
-- **Nesting depth:** put the tabs element at **depth 3** — the deepest the builder permits (`max_nest_depth`; confirm the current value with `grep -rn "max_nest_depth" courses/` and use it rather than assuming 3).
+- **View mode: `split`.** Viewport width alone does not determine the pane width — `editor.html:86-88` ships a three-way toggle (`data-view="editor" | "split" | "preview"`) and the pane follows it. `split` is the narrowest realistic case and is already `is-active` by default; assert that (`[data-view="split"].is-active`) or click it explicitly, and state in the report which mode the measurement was taken in. Without this, two agents get different numbers and both claim the gate passed.
+- **Nesting depth: 3.** Use that number literally. `courses/builder.py:56` defines `MAX_NEST_DEPTH = 4` with the comment "a top-level element has depth 1", and `builder.py:300-308` caps a **container** at `MAX_NEST_DEPTH - 1` = 3. So 3 is the deepest a tabs element can legally sit; seeding it at 4 is rejected and this step becomes unbuildable. (Do not grep for lowercase `max_nest_depth` — that matches only the two context-dict lines in `views_manage.py` and never shows a value.)
+- **Fixture source:** `tests/test_carousel_screenshots_light_and_dark` seeds a flat, top-level, *student-page* carousel and cannot produce a nested editor fixture. Take the nesting from `tests/test_e2e_depth3.py` (the parent + `tab_id` seeding pattern around `:306-380`) and the light/dark theme mechanics from the carousel screenshot test. This step is the combination of the two.
 - **What to measure:** the row's `scrollWidth` vs `clientWidth`. Overflow means `scrollWidth > clientWidth` on `.tabs-editor__row`; report both numbers, not an impression.
 
 **This is the real gate on the `min-width` floor** — the declaration alone does not guarantee it, and the Task 2 comment says so explicitly: `min(8rem, 100%)` resolves to 128px for every row wider than 128px, which is the whole at-risk band. If the row overflows, the remedy is to lower the floor or let the counter be the item that yields. Report it rather than accepting it.
@@ -1214,8 +1246,16 @@ Expect exactly: `courses.css`, `editor.css`, `_edit_tabs.html`, `tabs_editor.js`
 
 ```bash
 cd "<worktree>"
-git add -A
+git status --porcelain
+```
+
+Inspect that output and stage **explicit paths only** — the files `ruff format` rewrote, nothing else:
+
+```bash
+git add <each reformatted file>
 git commit -m "chore(tabs): branch gate fixes"
 ```
+
+**Do not use `git add -A`.** It would stage any untracked byproduct sitting in the worktree — screenshots, crash dumps (the repo already carries a stray `bash.exe.stackdump`), scratch files — committing exactly what Step 4 just declared a mistake.
 
 Skip if the gate was clean.
