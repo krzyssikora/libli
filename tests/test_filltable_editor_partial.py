@@ -381,13 +381,22 @@ def test_filltable_cell_scoped_buttons_carry_disabled_in_markup():
     already has both [data-image-toggle] and [data-answer-toggle]. Both were
     explicit decisions in the spec's predicate table, so both are asserted."""
     src = PARTIAL.read_text(encoding="utf-8")
-    for needle in ['data-cmd="bold"', 'data-cmd="italic"', 'data-cmd="underline"',
-                   'data-cmd="math"', "data-image-toggle", "data-answer-toggle",
-                   'data-halign="left"', 'data-halign="center"',
-                   'data-halign="right"', 'data-valign="top"',
-                   'data-valign="middle"', 'data-valign="bottom"']:
+    for needle in [
+        'data-cmd="bold"',
+        'data-cmd="italic"',
+        'data-cmd="underline"',
+        'data-cmd="math"',
+        "data-image-toggle",
+        "data-answer-toggle",
+        'data-halign="left"',
+        'data-halign="center"',
+        'data-halign="right"',
+        'data-valign="top"',
+        'data-valign="middle"',
+        'data-valign="bottom"',
+    ]:
         i = src.index(needle)
-        tag = src[src.rindex("<button", 0, i):src.index(">", i)]
+        tag = src[src.rindex("<button", 0, i) : src.index(">", i)]
         assert "disabled" in tag, needle
 
 
@@ -412,7 +421,7 @@ def test_filltable_per_cell_controls_are_hidden_named_and_unnamed():
     src = PARTIAL.read_text(encoding="utf-8")
     for attr in ("data-image-alt", "data-image-size"):
         i = src.index(attr)
-        tag = src[src.rindex("<", 0, i):src.index(">", i)]
+        tag = src[src.rindex("<", 0, i) : src.index(">", i)]
         assert "hidden" in tag, attr
         assert "name=" not in tag, attr
         assert "aria-label" in tag, attr
@@ -420,12 +429,12 @@ def test_filltable_per_cell_controls_are_hidden_named_and_unnamed():
     # keeps an authorable table re-importable. Task 7 Step 3 adds it here;
     # nothing else pins it.
     i = src.index("data-image-alt")
-    assert 'maxlength="255"' in src[src.rindex("<", 0, i):src.index(">", i)]
+    assert 'maxlength="255"' in src[src.rindex("<", 0, i) : src.index(">", i)]
 
 
 def test_serialize_image_branch_emits_size():
     js = FILL_JS.read_text(encoding="utf-8")
-    seg = js[js.index('kind: "image"'):js.index('kind: "image"') + 400]
+    seg = js[js.index('kind: "image"') : js.index('kind: "image"') + 400]
     assert "size:" in seg
 
 
@@ -433,8 +442,8 @@ def test_toggle_answer_cell_clears_data_size():
     """A stale data-size would linger on the static cell and be inherited by a
     later reconversion."""
     js = FILL_JS.read_text(encoding="utf-8")
-    seg = js[js.index("function toggleAnswerCell"):]
-    seg = seg[:seg.index("\n    }")]
+    seg = js[js.index("function toggleAnswerCell") :]
+    seg = seg[: seg.index("\n    }")]
     assert "data-size" in seg or "dataset.size" in seg
 
 
@@ -454,20 +463,40 @@ def test_form_and_model_preserve_a_submitted_size(tmp_path, settings):
     settings.MEDIA_ROOT = str(tmp_path)
     course = make_course()
     asset = make_image_asset(course, filename="a.png")
-    payload = {"data": json.dumps({
-        "prompt": "", "case_sensitive": False, "header_row": False,
-        "header_col": False, "border": "grid",
-        # An ANSWER CELL IS MANDATORY: FillTableElementForm.clean_data raises
-        # "Mark at least one answer cell (use the "Answer cell" button)." when
-        # answer_cells(cells) is empty, so an image-only payload can NEVER validate
-        # and this test — the pin for the slice's highest-frequency defect — could
-        # never pass.
-        "cells": [[
-            {"kind": "image", "media": asset.pk, "alt": "",
-             "size": "large", "halign": "left", "valign": "top"},
-            {"kind": "answer", "answer": "x", "halign": "left", "valign": "top"},
-        ]],
-    })}
+    payload = {
+        "data": json.dumps(
+            {
+                "prompt": "",
+                "case_sensitive": False,
+                "header_row": False,
+                "header_col": False,
+                "border": "grid",
+                # An ANSWER CELL IS MANDATORY: FillTableElementForm.clean_data raises
+                # "Mark at least one answer cell (use the "Answer cell" button)." when
+                # answer_cells(cells) is empty, so an image-only payload can NEVER
+                # validate and this test — the pin for the slice's highest-frequency
+                # defect — could never pass.
+                "cells": [
+                    [
+                        {
+                            "kind": "image",
+                            "media": asset.pk,
+                            "alt": "",
+                            "size": "large",
+                            "halign": "left",
+                            "valign": "top",
+                        },
+                        {
+                            "kind": "answer",
+                            "answer": "x",
+                            "halign": "left",
+                            "valign": "top",
+                        },
+                    ]
+                ],
+            }
+        )
+    }
     form = FillTableElementForm(data=payload, course=course)
     assert form.is_valid(), form.errors
     el = form.save()

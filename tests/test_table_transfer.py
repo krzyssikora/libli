@@ -271,13 +271,25 @@ _ser_fill_table_fn = SERIALIZERS["fill_table"][1]
 
 
 def _tbl(cells, **top):
-    return {"header_row": False, "header_col": False, "border": "grid",
-            "cells": cells, **top}
+    return {
+        "header_row": False,
+        "header_col": False,
+        "border": "grid",
+        "cells": cells,
+        **top,
+    }
 
 
 def _img(media, **kw):
-    return {"kind": "image", "media": media, "alt": "", "size": "full",
-            "halign": "left", "valign": "top", **kw}
+    return {
+        "kind": "image",
+        "media": media,
+        "alt": "",
+        "size": "full",
+        "halign": "left",
+        "valign": "top",
+        **kw,
+    }
 
 
 def test_format_version_is_bumped_for_cell_images():
@@ -293,8 +305,8 @@ def test_ser_table_registers_the_asset_and_emits_a_string_local_id(tmp_path, set
     )
     out = _ser_table_fn(el, MediaIdMap())
     cell = out["cells"][0][0]
-    assert cell["media"] == "m1"          # local STRING id, not the int pk
-    assert cell["size"] == "medium"       # the preset survives export
+    assert cell["media"] == "m1"  # local STRING id, not the int pk
+    assert cell["size"] == "medium"  # the preset survives export
     assert cell["kind"] == "image"
 
 
@@ -328,16 +340,24 @@ def test_ser_table_degrades_an_unresolvable_pk_keeping_spans():
     both export and duplicate-unit."""
     el = TableElement(data=_tbl([[_img(999999, colspan=2, header=True)]]))
     cell = _ser_table_fn(el, MediaIdMap())["cells"][0][0]
-    assert cell == {"html": "", "halign": "left", "valign": "top",
-                    "colspan": 2, "header": True}
+    assert cell == {
+        "html": "",
+        "halign": "left",
+        "valign": "top",
+        "colspan": 2,
+        "header": True,
+    }
     assert "kind" not in cell
 
 
 def test_ser_table_materialises_size_full_when_absent(tmp_path, settings):
     settings.MEDIA_ROOT = str(tmp_path)
     asset = make_image_asset(make_course())
-    el = TableElement(data=_tbl([[{"kind": "image", "media": asset.pk,
-                                   "halign": "left", "valign": "top"}]]))
+    el = TableElement(
+        data=_tbl(
+            [[{"kind": "image", "media": asset.pk, "halign": "left", "valign": "top"}]]
+        )
+    )
     assert _ser_table_fn(el, MediaIdMap())["cells"][0][0]["size"] == "full"
 
 
@@ -355,7 +375,7 @@ def test_legacy_non_normalized_table_export_bytes_are_unchanged():
     rectangularise and inject defaults, silently altering archive bytes."""
     stored = {"cells": [[{"html": "a"}], [{"html": "b"}, {"html": "c"}]]}
     out = _ser_table_fn(TableElement(data=stored), MediaIdMap())
-    assert out == stored            # ragged rows kept, no halign/valign injected
+    assert out == stored  # ragged rows kept, no halign/valign injected
     assert "header_row" not in out  # absent top-level keys NOT invented
 
 
@@ -413,8 +433,7 @@ def test_build_table_remaps_before_normalizing(tmp_path, settings):
     a silent, total loss of every imported cell image with no error."""
     settings.MEDIA_ROOT = str(tmp_path)
     asset = make_image_asset(make_course())
-    el, _children = BUILDERS["table"](_tbl([[_img("m1", size="large")]]),
-                                      {"m1": asset})
+    el, _children = BUILDERS["table"](_tbl([[_img("m1", size="large")]]), {"m1": asset})
     cell = el.data["cells"][0][0]
     assert cell["media"] == asset.pk
     assert cell["size"] == "large"
@@ -446,11 +465,18 @@ def test_filltable_image_cell_round_trips_size(tmp_path, settings):
     settings.MEDIA_ROOT = str(tmp_path)
     course = make_course()
     asset = make_image_asset(course)
-    el = FillTableElement.objects.create(data=FillTableElement.normalize_data({
-        "prompt": "", "case_sensitive": False, "header_row": False,
-        "header_col": False, "border": "grid",
-        "cells": [[{"kind": "image", "media": asset.pk, "size": "large"}]],
-    }))
+    el = FillTableElement.objects.create(
+        data=FillTableElement.normalize_data(
+            {
+                "prompt": "",
+                "case_sensitive": False,
+                "header_row": False,
+                "header_col": False,
+                "border": "grid",
+                "cells": [[{"kind": "image", "media": asset.pk, "size": "large"}]],
+            }
+        )
+    )
     payload = _ser_fill_table_fn(el, MediaIdMap())
     assert payload["cells"][0][0]["size"] == "large"
 
@@ -460,10 +486,25 @@ def test_out_of_enum_size_is_tolerated_by_val_fill_table():
     docstring commits it to being "intentionally more lenient than _val_table",
     leaving value-enum drift for normalize_data to repair. The strictness asymmetry
     between the two validators is intentional and pre-existing; do NOT "fix" it."""
-    data = {"prompt": "", "case_sensitive": False, "header_row": False,
-            "header_col": False, "border": "grid",
-            "cells": [[{"kind": "image", "media": "m1", "alt": "",
-                        "size": "enormous", "halign": "left", "valign": "top"}]]}
+    data = {
+        "prompt": "",
+        "case_sensitive": False,
+        "header_row": False,
+        "header_col": False,
+        "border": "grid",
+        "cells": [
+            [
+                {
+                    "kind": "image",
+                    "media": "m1",
+                    "alt": "",
+                    "size": "enormous",
+                    "halign": "left",
+                    "valign": "top",
+                }
+            ]
+        ],
+    }
     VALIDATORS["fill_table"](data, "el-1", {"m1": "image"})  # must not raise
 
 
@@ -493,9 +534,12 @@ def test_a_table_with_a_cell_image_passes_whole_archive_validation(tmp_path, set
     course = CourseFactory()
     unit = ContentNodeFactory(course=course, kind="unit")
     asset = make_image_asset(course)
-    add_element(unit, TableElement.objects.create(
-        data=TableElement.normalize_data(_tbl([[_img(asset.pk, size="medium")]]))
-    ))
+    add_element(
+        unit,
+        TableElement.objects.create(
+            data=TableElement.normalize_data(_tbl([[_img(asset.pk, size="medium")]]))
+        ),
+    )
 
     buf = io.BytesIO()
     write_archive(course, None, buf)

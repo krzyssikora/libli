@@ -151,13 +151,29 @@ def _seed_table(unit, *, size, neighbour_text):
     must belong to unit.course, because MediaAsset is course-scoped.
     """
     asset = make_image_asset(unit.course, filename="graph.png", size=(1586, 612))
-    row = [{"kind": "image", "media": asset.pk, "alt": "graph", "size": size,
-            "halign": "left", "valign": "top"}]
-    row += [{"html": neighbour_text, "halign": "left", "valign": "top"}
-            for _ in range(4)]
-    el = TableElement.objects.create(data=TableElement.normalize_data({
-        "header_row": False, "header_col": False, "border": "grid", "cells": [row],
-    }))
+    row = [
+        {
+            "kind": "image",
+            "media": asset.pk,
+            "alt": "graph",
+            "size": size,
+            "halign": "left",
+            "valign": "top",
+        }
+    ]
+    row += [
+        {"html": neighbour_text, "halign": "left", "valign": "top"} for _ in range(4)
+    ]
+    el = TableElement.objects.create(
+        data=TableElement.normalize_data(
+            {
+                "header_row": False,
+                "header_col": False,
+                "border": "grid",
+                "cells": [row],
+            }
+        )
+    )
     add_element(unit, el)
     return el, asset
 
@@ -207,17 +223,36 @@ def _open_editor_with_image_cell(page, live_server, slug):
     _login(page, live_server, PA_USERNAME)
     unit = _unit(PA_USERNAME, slug)
     asset = make_image_asset(unit.course, filename="a.png", size=(1586, 612))
-    el = TableElement.objects.create(data=TableElement.normalize_data({
-        "header_row": False, "header_col": False, "border": "grid",
-        # TWO rows: table_editor.js sets `b.disabled = rows <= 1` on every
-        # [data-row-delete], so a one-row table makes the row-delete test time out
-        # waiting for an enabled button - a failure on the CORRECT build.
-        "cells": [[{"kind": "image", "media": asset.pk, "alt": "seeded alt",
-                    "size": "medium", "halign": "left", "valign": "top"},
-                   {"html": "text", "halign": "left", "valign": "top"}],
-                  [{"html": "r2c1", "halign": "left", "valign": "top"},
-                   {"html": "r2c2", "halign": "left", "valign": "top"}]],
-    }))
+    el = TableElement.objects.create(
+        data=TableElement.normalize_data(
+            {
+                "header_row": False,
+                "header_col": False,
+                "border": "grid",
+                # TWO rows: table_editor.js sets `b.disabled = rows <= 1` on every
+                # [data-row-delete], so a one-row table makes the row-delete test
+                # time out waiting for an enabled button - a failure on the
+                # CORRECT build.
+                "cells": [
+                    [
+                        {
+                            "kind": "image",
+                            "media": asset.pk,
+                            "alt": "seeded alt",
+                            "size": "medium",
+                            "halign": "left",
+                            "valign": "top",
+                        },
+                        {"html": "text", "halign": "left", "valign": "top"},
+                    ],
+                    [
+                        {"html": "r2c1", "halign": "left", "valign": "top"},
+                        {"html": "r2c2", "halign": "left", "valign": "top"},
+                    ],
+                ],
+            }
+        )
+    )
     # add_element RETURNS the Element join row, and _reopen's locator is
     # [data-element='<Element.pk>'] - passing the TableElement's pk makes it miss and
     # the click time out, failing six editor tests on a CORRECT build.
@@ -273,8 +308,8 @@ def test_full_is_the_control_and_still_moves(page, live_server, _isolated_media)
     page.goto(_lesson_url(live_server, unit_b))
     w_long = _rendered_box(page)["w"]
 
-    assert w_short > MEDIUM_CAP + 50          # `full` is NOT cap-bound
-    assert w_long < w_short - 50              # and it MOVES with neighbour text
+    assert w_short > MEDIUM_CAP + 50  # `full` is NOT cap-bound
+    assert w_long < w_short - 50  # and it MOVES with neighbour text
 
 
 @pytest.mark.parametrize("natural", [(1586, 612), (494, 1492), (60, 40)])
@@ -294,12 +329,28 @@ def test_medium_is_a_square_box_not_a_width(
     _login(page, live_server, PA_USERNAME)
     unit = _unit(PA_USERNAME, f"c2-ratio-{natural[0]}")
     asset = make_image_asset(unit.course, filename="a.png", size=natural)
-    el = TableElement.objects.create(data=TableElement.normalize_data({
-        "header_row": False, "header_col": False, "border": "grid",
-        "cells": [[{"kind": "image", "media": asset.pk, "alt": "", "size": "medium",
-                    "halign": "left", "valign": "top"},
-                   {"html": "x", "halign": "left", "valign": "top"}]],
-    }))
+    el = TableElement.objects.create(
+        data=TableElement.normalize_data(
+            {
+                "header_row": False,
+                "header_col": False,
+                "border": "grid",
+                "cells": [
+                    [
+                        {
+                            "kind": "image",
+                            "media": asset.pk,
+                            "alt": "",
+                            "size": "medium",
+                            "halign": "left",
+                            "valign": "top",
+                        },
+                        {"html": "x", "halign": "left", "valign": "top"},
+                    ]
+                ],
+            }
+        )
+    )
     add_element(unit, el)
     page.goto(_lesson_url(live_server, unit))
     box = _rendered_box(page)
@@ -326,11 +377,27 @@ def test_a_ta_center_image_cell_centres_its_bounded_image(
     _login(page, live_server, PA_USERNAME)
     unit = _unit(PA_USERNAME, "c2-centre")
     asset = make_image_asset(unit.course, filename="a.png", size=(1586, 612))
-    el = TableElement.objects.create(data=TableElement.normalize_data({
-        "header_row": False, "header_col": False, "border": "grid",
-        "cells": [[{"kind": "image", "media": asset.pk, "alt": "", "size": "medium",
-                    "halign": "center", "valign": "top"}]],
-    }))
+    el = TableElement.objects.create(
+        data=TableElement.normalize_data(
+            {
+                "header_row": False,
+                "header_col": False,
+                "border": "grid",
+                "cells": [
+                    [
+                        {
+                            "kind": "image",
+                            "media": asset.pk,
+                            "alt": "",
+                            "size": "medium",
+                            "halign": "center",
+                            "valign": "top",
+                        }
+                    ]
+                ],
+            }
+        )
+    )
     add_element(unit, el)
     page.goto(_lesson_url(live_server, unit))
     page.wait_for_selector(".cell-img")
@@ -343,7 +410,7 @@ def test_a_ta_center_image_cell_centres_its_bounded_image(
            }"""
     )
     assert offsets["left"] == pytest.approx(offsets["right"], abs=2.0)
-    assert offsets["left"] > 2.0        # genuinely inset, not flush left
+    assert offsets["left"] > 2.0  # genuinely inset, not flush left
 
 
 def test_the_page_never_scrolls_even_when_the_table_scroller_does(
@@ -402,11 +469,19 @@ def test_cell_scoped_buttons_are_disabled_before_any_focus(page, live_server):
     # grid cell — a Playwright strict-mode violation unrelated to what this test
     # checks (button disabled-ness), not a product defect.
     toolbar = editor.locator("[data-table-toolbar]")
-    for sel in ['[data-cmd="bold"]', '[data-cmd="italic"]', '[data-cmd="underline"]',
-                '[data-cmd="math"]', "[data-image-toggle]",
-                '[data-halign="left"]', '[data-halign="center"]',
-                '[data-halign="right"]', '[data-valign="top"]',
-                '[data-valign="middle"]', '[data-valign="bottom"]']:
+    for sel in [
+        '[data-cmd="bold"]',
+        '[data-cmd="italic"]',
+        '[data-cmd="underline"]',
+        '[data-cmd="math"]',
+        "[data-image-toggle]",
+        '[data-halign="left"]',
+        '[data-halign="center"]',
+        '[data-halign="right"]',
+        '[data-valign="top"]',
+        '[data-valign="middle"]',
+        '[data-valign="bottom"]',
+    ]:
         assert toolbar.locator(sel).is_disabled(), sel
 
 
@@ -511,7 +586,7 @@ def test_convert_repick_then_remove_restores_the_original_text(
     page.wait_for_selector(".picker-overlay")
     page.locator(".picker-overlay .asset-pick").nth(0).click()
     editor.locator("td[data-image]").first.click()
-    editor.locator("[data-image-toggle]").click()          # RE-PICK
+    editor.locator("[data-image-toggle]").click()  # RE-PICK
     page.wait_for_selector(".picker-overlay")
     page.locator(".picker-overlay .asset-pick").nth(1).click()
     editor.locator("td[data-image]").first.click()
@@ -558,14 +633,35 @@ def test_filltable_size_select_reveals_populates_and_swaps_the_preview(
     _make_pa_user(PA_USERNAME)
     unit = _unit(PA_USERNAME, "c2-fill-size")
     asset = make_image_asset(unit.course, filename="f.png", size=(1586, 612))
-    el = FillTableElement.objects.create(data=FillTableElement.normalize_data({
-        "prompt": "", "case_sensitive": False, "header_row": False,
-        "header_col": False, "border": "grid",
-        "cells": [[{"kind": "image", "media": asset.pk, "alt": "",
-                    "size": "medium", "halign": "left", "valign": "top"},
-                   {"kind": "answer", "answer": "x",
-                    "halign": "left", "valign": "top"}]],
-    }))
+    el = FillTableElement.objects.create(
+        data=FillTableElement.normalize_data(
+            {
+                "prompt": "",
+                "case_sensitive": False,
+                "header_row": False,
+                "header_col": False,
+                "border": "grid",
+                "cells": [
+                    [
+                        {
+                            "kind": "image",
+                            "media": asset.pk,
+                            "alt": "",
+                            "size": "medium",
+                            "halign": "left",
+                            "valign": "top",
+                        },
+                        {
+                            "kind": "answer",
+                            "answer": "x",
+                            "halign": "left",
+                            "valign": "top",
+                        },
+                    ]
+                ],
+            }
+        )
+    )
     element = add_element(unit, el)
     # NOT _reopen: it ends
     # `wait_for_selector("[data-edit-slot] [data-table-editor]")`, hard-wired to the
@@ -585,7 +681,7 @@ def test_filltable_size_select_reveals_populates_and_swaps_the_preview(
     # isAnswer - and whose derivations Task 6 Step 5 hoists above the deleted early
     # return. Both files need it; neither had it.
     assert editor.locator('[data-cmd="bold"]').is_disabled()
-    assert editor.locator("[data-answer-toggle]").is_enabled()   # focus exists
+    assert editor.locator("[data-answer-toggle]").is_enabled()  # focus exists
 
     editor.locator("[data-image-size]").select_option("small")
     classes = editor.locator("td[data-image] img").first.get_attribute("class")
@@ -678,7 +774,7 @@ def test_an_image_cell_survives_a_save_and_reopen(page, live_server, _isolated_m
     cell = element.content_object.data["cells"][0][0]
     assert cell["kind"] == "image"
     assert cell["media"] == asset.pk
-    assert cell["size"] == "medium"          # the editor-insert default
+    assert cell["size"] == "medium"  # the editor-insert default
 
     # And it comes back as an image cell in the editor, with data-media as the pk.
     _reopen(page, live_server, unit, element)

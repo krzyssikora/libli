@@ -36,8 +36,7 @@ INVENTORY = [
     # the "vanished" branch below already reports as a failure.
     (
         "courses/static/courses/js/table_editor.js",
-        '"td[contenteditable], th[contenteditable], td[data-image], '
-        'th[data-image]"',
+        '"td[contenteditable], th[contenteditable], td[data-image], th[data-image]"',
         "th",
     ),
     ("courses/static/courses/js/table_editor.js", 'closest("td[contenteditable]', "th"),

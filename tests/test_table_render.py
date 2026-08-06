@@ -70,11 +70,25 @@ def test_image_cell_renders_the_asset_with_preset_class_and_zoom_hook(
     from courses.models import TableElement
 
     course, asset = course_with_image
-    el = TableElement.objects.create(data=TableElement.normalize_data({
-        "header_row": False, "header_col": False, "border": "grid",
-        "cells": [[{"kind": "image", "media": asset.pk, "alt": "a graph",
-                    "size": "medium"}]],
-    }))
+    el = TableElement.objects.create(
+        data=TableElement.normalize_data(
+            {
+                "header_row": False,
+                "header_col": False,
+                "border": "grid",
+                "cells": [
+                    [
+                        {
+                            "kind": "image",
+                            "media": asset.pk,
+                            "alt": "a graph",
+                            "size": "medium",
+                        }
+                    ]
+                ],
+            }
+        )
+    )
     html = el.render()
     assert 'class="cell-img cell-img--medium"' in html
     assert f'src="{asset.file.url}"' in html
@@ -112,10 +126,16 @@ def test_text_cell_bytes_are_unchanged_by_the_partial_factoring(db):
     `<td>\\n</td>` collapses to `<td></td>`, so an empty fixture cannot falsify."""
     from courses.models import TableElement
 
-    el = TableElement.objects.create(data=TableElement.normalize_data({
-        "header_row": False, "header_col": False, "border": "grid",
-        "cells": [[{"html": "cell text", "halign": "center", "valign": "top"}]],
-    }))
+    el = TableElement.objects.create(
+        data=TableElement.normalize_data(
+            {
+                "header_row": False,
+                "header_col": False,
+                "border": "grid",
+                "cells": [[{"html": "cell text", "halign": "center", "valign": "top"}]],
+            }
+        )
+    )
     assert '<td class="ta-center va-top">cell text</td>' in el.render()
 
 
@@ -124,10 +144,16 @@ def test_header_cell_bytes_are_unchanged_too(db):
     header-row table's bytes unpinned."""
     from courses.models import TableElement
 
-    el = TableElement.objects.create(data=TableElement.normalize_data({
-        "header_row": True, "header_col": False, "border": "grid",
-        "cells": [[{"html": "head text", "halign": "left", "valign": "top"}]],
-    }))
+    el = TableElement.objects.create(
+        data=TableElement.normalize_data(
+            {
+                "header_row": True,
+                "header_col": False,
+                "border": "grid",
+                "cells": [[{"html": "head text", "halign": "left", "valign": "top"}]],
+            }
+        )
+    )
     assert '<th scope="col" class="ta-left va-top">head text</th>' in el.render()
 
 

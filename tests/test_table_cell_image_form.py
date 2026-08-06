@@ -10,11 +10,26 @@ from courses.models import TableElement
 
 
 def _payload(media_pk, **cell):
-    return {"data": json.dumps({
-        "header_row": False, "header_col": False, "border": "grid",
-        "cells": [[{"kind": "image", "media": media_pk,
-                    "alt": "", "size": "medium", **cell}]],
-    })}
+    return {
+        "data": json.dumps(
+            {
+                "header_row": False,
+                "header_col": False,
+                "border": "grid",
+                "cells": [
+                    [
+                        {
+                            "kind": "image",
+                            "media": media_pk,
+                            "alt": "",
+                            "size": "medium",
+                            **cell,
+                        }
+                    ]
+                ],
+            }
+        )
+    }
 
 
 @pytest.fixture
@@ -61,10 +76,16 @@ def test_image_cell_with_no_media_never_500s(course_with_image):
     KeyError on a crafted POST and 500 the save.
     """
     course, _asset = course_with_image
-    payload = {"data": json.dumps({
-        "header_row": False, "header_col": False, "border": "grid",
-        "cells": [[{"kind": "image"}]],
-    })}
+    payload = {
+        "data": json.dumps(
+            {
+                "header_row": False,
+                "header_col": False,
+                "border": "grid",
+                "cells": [[{"kind": "image"}]],
+            }
+        )
+    }
     form = TableElementForm(data=payload, course=course)
     form.is_valid()  # must not raise
 
@@ -90,8 +111,9 @@ def test_resolved_grid_cells_scopes_by_course(course_with_image, other_course_im
     so the real cell is {..., "colspan": 20} and an exact match fails.
     """
     course, _asset = course_with_image
-    form = TableElementForm(data=_payload(other_course_image.pk, colspan=99),
-                            course=course)
+    form = TableElementForm(
+        data=_payload(other_course_image.pk, colspan=99), course=course
+    )
     assert not form.is_valid()
     cell = form.resolved_grid_cells[0][0]
     assert cell["html"] == ""

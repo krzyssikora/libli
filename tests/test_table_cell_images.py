@@ -69,9 +69,7 @@ def test_alt_is_coerced_and_bounded_at_255():
         _data({"kind": "image", "media": 7, "alt": "x" * 300})
     )
     assert len(nd["cells"][0][0]["alt"]) == 255
-    nd = TableElement.normalize_data(
-        _data({"kind": "image", "media": 7, "alt": None})
-    )
+    nd = TableElement.normalize_data(_data({"kind": "image", "media": 7, "alt": None}))
     assert nd["cells"][0][0]["alt"] == ""
 
 
@@ -85,9 +83,7 @@ def test_non_string_alt_never_becomes_the_literal_None():
 
 def test_image_cell_keeps_header_and_spans():
     nd = TableElement.normalize_data(
-        _data(
-            {"kind": "image", "media": 7, "header": True, "colspan": 2, "rowspan": 3}
-        )
+        _data({"kind": "image", "media": 7, "header": True, "colspan": 2, "rowspan": 3})
     )
     cell = nd["cells"][0][0]
     assert cell["header"] is True and cell["colspan"] == 2 and cell["rowspan"] == 3
@@ -206,28 +202,62 @@ def test_resolver_preserves_header_and_spans_on_an_unresolvable_pk():
     """INVERTS the old fill-table behaviour: export already carried spans through
     both branches ("losing the image must not silently un-span the cell"), so
     render now agrees with export."""
-    cells = [[{"kind": "image", "media": 999999, "alt": "", "size": "full",
-               "halign": "center", "valign": "middle",
-               "header": True, "colspan": 2, "rowspan": 3}]]
+    cells = [
+        [
+            {
+                "kind": "image",
+                "media": 999999,
+                "alt": "",
+                "size": "full",
+                "halign": "center",
+                "valign": "middle",
+                "header": True,
+                "colspan": 2,
+                "rowspan": 3,
+            }
+        ]
+    ]
     out = TableElement.resolve_image_cells(cells)
     cell = out[0][0]
-    assert cell == {"html": "", "halign": "center", "valign": "middle",
-                    "header": True, "colspan": 2, "rowspan": 3}
+    assert cell == {
+        "html": "",
+        "halign": "center",
+        "valign": "middle",
+        "header": True,
+        "colspan": 2,
+        "rowspan": 3,
+    }
     assert "kind" not in cell
 
 
 def test_filltable_resolver_preserves_spans_with_its_own_fallback_shape():
-    cells = [[{"kind": "image", "media": 999999, "alt": "", "size": "full",
-               "halign": "left", "valign": "top", "colspan": 2}]]
+    cells = [
+        [
+            {
+                "kind": "image",
+                "media": 999999,
+                "alt": "",
+                "size": "full",
+                "halign": "left",
+                "valign": "top",
+                "colspan": 2,
+            }
+        ]
+    ]
     cell = FillTableElement.resolve_image_cells(cells)[0][0]
-    assert cell == {"kind": "static", "html": "", "halign": "left",
-                    "valign": "top", "colspan": 2}
+    assert cell == {
+        "kind": "static",
+        "html": "",
+        "halign": "left",
+        "valign": "top",
+        "colspan": 2,
+    }
 
 
 def test_resolver_defaults_alignment_on_a_cell_missing_those_keys():
-    cell = TableElement.resolve_image_cells(
-        [[{"kind": "image", "media": 999999}]]
-    )[0][0]
+    cell = TableElement.resolve_image_cells([[{"kind": "image", "media": 999999}]])[0][
+        0
+    ]
     assert cell == {"html": "", "halign": "left", "valign": "top"}
 
 
@@ -287,9 +317,11 @@ def test_resolved_cells_replaces_the_pk_with_the_asset(course_with_image):
     image cell has no `html` key, so el.render() is empty and any
     `asset.file.url in html` assertion is impossible until _table_cell.html exists."""
     _course, asset = course_with_image
-    el = TableElement.objects.create(data=TableElement.normalize_data(
-        _data({"kind": "image", "media": asset.pk, "alt": "graph"})
-    ))
+    el = TableElement.objects.create(
+        data=TableElement.normalize_data(
+            _data({"kind": "image", "media": asset.pk, "alt": "graph"})
+        )
+    )
     assert el.resolved_cells[0][0]["media"] == asset
 
 
@@ -307,10 +339,12 @@ def test_resolved_cells_can_be_merged_into_the_data_context(course_with_image):
     which cannot exist until _table_cell.html does.
     """
     _course, asset = course_with_image
-    el = TableElement.objects.create(data=TableElement.normalize_data(
-        _data({"kind": "image", "media": asset.pk, "alt": "graph"})
-    ))
+    el = TableElement.objects.create(
+        data=TableElement.normalize_data(
+            _data({"kind": "image", "media": asset.pk, "alt": "graph"})
+        )
+    )
     data = el.normalize_data(el.data)
     ctx_cells = {**data, "cells": el.resolved_cells}
-    assert ctx_cells["border"] == "grid"          # top-level keys survive
+    assert ctx_cells["border"] == "grid"  # top-level keys survive
     assert ctx_cells["cells"][0][0]["media"] == asset

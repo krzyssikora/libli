@@ -616,8 +616,18 @@ def _val_table(data, elid, media_kinds):
     # The allowlist is kind-aware in its *values*: `kind`/`media`/`alt`/`size` are
     # legal on ANY cell (the allowlist stays flat), but only an image cell (kind ==
     # "image") gets its media/alt/size actually validated below.
-    allowed = {"html", "halign", "valign", "header", "colspan", "rowspan",
-               "kind", "media", "alt", "size"}
+    allowed = {
+        "html",
+        "halign",
+        "valign",
+        "header",
+        "colspan",
+        "rowspan",
+        "kind",
+        "media",
+        "alt",
+        "size",
+    }
     refs = set()
     for row in rows:
         for cell in row:

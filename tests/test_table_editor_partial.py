@@ -147,13 +147,20 @@ def test_cell_scoped_buttons_carry_disabled_in_markup():
     # ValueError: substring not found and make this task's PASS unreachable. Task 7
     # asserts it. (This partial's count at the end of Task 6 is therefore TEN
     # cell-scoped buttons: 4 [data-cmd] + 3 halign + 3 valign.)
-    for needle in ['data-cmd="bold"', 'data-cmd="italic"', 'data-cmd="underline"',
-                   'data-cmd="math"',
-                   'data-halign="left"', 'data-halign="center"',
-                   'data-halign="right"', 'data-valign="top"',
-                   'data-valign="middle"', 'data-valign="bottom"']:
+    for needle in [
+        'data-cmd="bold"',
+        'data-cmd="italic"',
+        'data-cmd="underline"',
+        'data-cmd="math"',
+        'data-halign="left"',
+        'data-halign="center"',
+        'data-halign="right"',
+        'data-valign="top"',
+        'data-valign="middle"',
+        'data-valign="bottom"',
+    ]:
         i = src.index(needle)
-        tag = src[src.rindex("<button", 0, i):src.index(">", i)]
+        tag = src[src.rindex("<button", 0, i) : src.index(">", i)]
         assert "disabled" in tag, needle
 
 
@@ -165,8 +172,10 @@ def test_rte_swatches_partial_is_untouched():
 
     from django.conf import settings
 
-    p = (pathlib.Path(settings.BASE_DIR)
-         / "templates/courses/manage/editor/_rte_swatches.html")
+    p = (
+        pathlib.Path(settings.BASE_DIR)
+        / "templates/courses/manage/editor/_rte_swatches.html"
+    )
     assert "disabled" not in p.read_text(encoding="utf-8")
 
 
@@ -180,7 +189,7 @@ def test_image_button_carries_both_pick_attributes():
     closest("[data-pick-media]") and reads the asset kind from that attribute."""
     src = PARTIAL.read_text(encoding="utf-8")
     i = src.index("data-image-toggle")
-    tag = src[src.rindex("<button", 0, i):src.index(">", i)]
+    tag = src[src.rindex("<button", 0, i) : src.index(">", i)]
     assert 'data-pick-media="image"' in tag
     assert 'data-pick-mode="cell"' in tag
     # Task 6 deliberately left this needle out of its own markup-disabled test (the
@@ -197,7 +206,7 @@ def test_per_cell_controls_are_hidden_named_and_unnamed():
     src = PARTIAL.read_text(encoding="utf-8")
     for attr in ("data-image-alt", "data-image-size", "data-image-remove"):
         i = src.index(attr)
-        tag = src[src.rindex("<", 0, i):src.index(">", i)]
+        tag = src[src.rindex("<", 0, i) : src.index(">", i)]
         assert "hidden" in tag, attr
         assert "name=" not in tag, attr
         assert "aria-label" in tag, attr
@@ -217,7 +226,7 @@ def test_size_select_iterates_the_model_choices_not_per_option_trans():
     # Search FORWARD from i: _edit_table.html already has a <select data-border> in the
     # controls strip ABOVE the toolbar, so a bare src.index("</select>") returns that
     # earlier closer, the slice runs backwards, and the assertion passes on "".
-    seg = src[i:src.index("</select>", i)]
+    seg = src[i : src.index("</select>", i)]
     assert "{% trans" not in seg
 
 
@@ -232,13 +241,13 @@ def test_image_cell_branch_is_a_th_td_pair_with_full_attributes():
     src = PARTIAL.read_text(encoding="utf-8")
     for tag in ("<th data-image", "<td data-image"):
         i = src.index(tag)
-        el = src[i:src.index(">", i)]
+        el = src[i : src.index(">", i)]
         assert 'data-media="{{ cell.media.pk }}"' in el, tag
         assert 'data-alt="{{ cell.alt }}"' in el, tag
         assert "data-size=\"{{ cell.size|default:'full' }}\"" in el, tag
         assert 'tabindex="0"' in el, tag
         assert "contenteditable" not in el, tag
-        assert 'data-halign=' in el and 'data-valign=' in el, tag
+        assert "data-halign=" in el and "data-valign=" in el, tag
 
 
 def test_editor_preview_image_has_no_zoom_hook():

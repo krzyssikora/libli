@@ -72,8 +72,7 @@ def test_js_size_defaults_match_python_and_are_used():
     for js in (TABLE_JS, FILL_JS):
         src = js.read_text(encoding="utf-8")
         assert (
-            f'var CELL_IMAGE_DEFAULT = "{TableElement.DEFAULT_CELL_IMAGE_SIZE}"'
-            in src
+            f'var CELL_IMAGE_DEFAULT = "{TableElement.DEFAULT_CELL_IMAGE_SIZE}"' in src
         )
         assert (
             f'var CELL_IMAGE_INSERT = "{TableElement.EDITOR_INSERT_CELL_IMAGE_SIZE}"'
@@ -104,8 +103,13 @@ def test_courses_css_defines_the_cell_image_scale():
     css = re.sub(r"/\*[\s\S]*?\*/", "", CSS.read_text(encoding="utf-8"))
     # Naming: every class is present, boundary-anchored on BOTH sides so
     # `.cell-img` is not satisfied by `.cell-img--small`.
-    for cls in ["cell-img", "cell-img--small", "cell-img--medium",
-                "cell-img--large", "cell-img--full"]:
+    for cls in [
+        "cell-img",
+        "cell-img--small",
+        "cell-img--medium",
+        "cell-img--large",
+        "cell-img--full",
+    ]:
         assert re.search(rf"(?<![\w-])\.{re.escape(cls)}(?![\w-])", css), cls
     # Existence: the BASE RULE itself, not just the name. `.ta-center > .cell-img`
     # satisfies the naming check with the base rule entirely absent.
