@@ -59,7 +59,7 @@ def _nested_course():
 
 
 def test_format_version_is_current():
-    assert FORMAT_VERSION == 8
+    assert FORMAT_VERSION == 9
 
 
 def test_export_emits_parent_before_child_with_parent_and_tab_refs(tmp_path):
@@ -350,8 +350,8 @@ def test_duplicating_a_carousel_keeps_it_a_carousel():
     assert new_join.content_object.data["label_pos"] == "hidden"
 
 
-# NOTE: do NOT add a `test_format_version_is_8` here. tests/test_tabs_transfer.py
-# ALREADY has `test_format_version_is_7`, and Step 5 renames it in place. Defining a
-# second module-level function of the same name is ruff F811 (live under this repo's
-# select list), fails the commit and the branch gate, and pytest would collect only
-# one of them.
+# NOTE: do NOT add another format-version test here. This module ALREADY has
+# `test_format_version_is_current` above, deliberately named without the number so
+# the next bump does not rename it again. Defining a second module-level function of
+# the same name is ruff F811 (live under this repo's select list), fails the commit
+# and the branch gate, and pytest would collect only one of them.
