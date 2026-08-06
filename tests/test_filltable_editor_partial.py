@@ -15,6 +15,8 @@ pytestmark = pytest.mark.django_db
 ROOT = Path(__file__).resolve().parent.parent
 EDITOR_HTML = ROOT / "templates/courses/manage/editor/editor.html"
 FILLTABLE_JS = ROOT / "courses/static/courses/js/filltable_editor.js"
+PARTIAL = ROOT / "templates/courses/manage/editor/_edit_filltable.html"
+FILL_JS = FILLTABLE_JS
 
 
 def _render(instance):
@@ -238,13 +240,16 @@ def test_filltable_editor_exposes_merge_split_and_header_controls():
     assert 'aria-live="polite"' in html
 
 
-def test_unresolvable_image_cell_drops_spans_in_both_render_and_editor():
-    """resolved_cells (student render) and resolved_grid_cells (editor) share
-    one fallback for an image cell whose media pk cannot be resolved: drop the
-    cell to an empty static cell, and drop any colspan/rowspan/header it
-    carried along with it (a spanning gap left un-spanned would misshape the
-    grid). Pin this for BOTH paths so they cannot silently re-diverge -- see
-    FillTableElement.resolve_image_cells."""
+def test_unresolvable_image_cell_keeps_spans_in_both_render_and_editor():
+    """An unresolvable image cell keeps its header/colspan/rowspan (slice C2).
+
+    Inverted from the original drop-spans behaviour: _ser_fill_table has always
+    carried these through BOTH branches, with the comment "losing the image must
+    not silently un-span the cell and shift the grid". Export and render
+    disagreed; render now agrees with export. Neither layout was measured — this
+    is decided on consistency with export plus the fact that 15 of 312 tables
+    span, so the case is live.
+    """
     course = make_course()
     dangling_pk = 999999  # not in the DB
     raw = {
@@ -268,9 +273,9 @@ def test_unresolvable_image_cell_drops_spans_in_both_render_and_editor():
     el.save()
     model_cell = el.resolved_cells[0][0]
     assert model_cell["kind"] == "static" and model_cell["html"] == ""
-    assert "colspan" not in model_cell
-    assert "rowspan" not in model_cell
-    assert "header" not in model_cell
+    assert model_cell["colspan"] == 2
+    assert model_cell["rowspan"] == 2
+    assert model_cell["header"] is True
 
     # Editor path, rejected-save branch: FillTableElementForm.resolved_grid_cells.
     submitted = {
@@ -296,9 +301,9 @@ def test_unresolvable_image_cell_drops_spans_in_both_render_and_editor():
     assert not form.is_valid(), form.errors
     form_cell = form.resolved_grid_cells[0][0]
     assert form_cell["kind"] == "static" and form_cell["html"] == ""
-    assert "colspan" not in form_cell
-    assert "rowspan" not in form_cell
-    assert "header" not in form_cell
+    assert form_cell["colspan"] == 2
+    assert form_cell["rowspan"] == 2
+    assert form_cell["header"] is True
 
 
 def test_foreign_course_image_cell_does_not_resolve_in_the_editor():
@@ -363,3 +368,136 @@ def test_wrong_kind_media_does_not_resolve_in_the_editor():
     cell = form.resolved_grid_cells[0][0]
     assert cell["kind"] == "static" and cell["html"] == ""
     assert video.file.url not in json.dumps(form.resolved_grid_cells, default=str)
+
+
+def test_filltable_toolbar_is_not_hidden():
+    src = PARTIAL.read_text(encoding="utf-8")
+    assert "data-table-toolbar hidden" not in src
+    assert "data-table-toolbar" in src
+
+
+def test_filltable_cell_scoped_buttons_carry_disabled_in_markup():
+    """Twelve here, versus ten in _edit_table.html at this task: this partial
+    already has both [data-image-toggle] and [data-answer-toggle]. Both were
+    explicit decisions in the spec's predicate table, so both are asserted."""
+    src = PARTIAL.read_text(encoding="utf-8")
+    for needle in [
+        'data-cmd="bold"',
+        'data-cmd="italic"',
+        'data-cmd="underline"',
+        'data-cmd="math"',
+        "data-image-toggle",
+        "data-answer-toggle",
+        'data-halign="left"',
+        'data-halign="center"',
+        'data-halign="right"',
+        'data-valign="top"',
+        'data-valign="middle"',
+        'data-valign="bottom"',
+    ]:
+        i = src.index(needle)
+        tag = src[src.rindex("<button", 0, i) : src.index(">", i)]
+        assert "disabled" in tag, needle
+
+
+def test_image_branches_carry_data_size_and_the_preview_modifier():
+    src = PARTIAL.read_text(encoding="utf-8")
+    assert src.count("data-size=\"{{ cell.size|default:'full' }}\"") == 2  # th + td
+    assert src.count("filltable-editor__img--{{ cell.size|default:'full' }}") == 2
+
+
+def test_size_select_is_present_beside_the_alt_input():
+    src = PARTIAL.read_text(encoding="utf-8")
+    assert "data-image-size" in src
+    assert "form.cell_image_sizes" in src
+
+
+def test_filltable_per_cell_controls_are_hidden_named_and_unnamed():
+    """Mirrors the plain table's test_per_cell_controls_are_hidden_named_and_unnamed.
+    A presence check alone is not enough: a select without markup `hidden` renders
+    visible on every fill-table editor load until wire() runs, and Task 9's
+    fill-table e2e asserts visibility only AFTER the image cell is clicked, so it
+    would stay green."""
+    src = PARTIAL.read_text(encoding="utf-8")
+    for attr in ("data-image-alt", "data-image-size"):
+        i = src.index(attr)
+        tag = src[src.rindex("<", 0, i) : src.index(">", i)]
+        assert "hidden" in tag, attr
+        assert "name=" not in tag, attr
+        assert "aria-label" in tag, attr
+    # maxlength is half of the spec's "255 at both ends" decision, which is what
+    # keeps an authorable table re-importable. Task 7 Step 3 adds it here;
+    # nothing else pins it.
+    i = src.index("data-image-alt")
+    assert 'maxlength="255"' in src[src.rindex("<", 0, i) : src.index(">", i)]
+
+
+def test_serialize_image_branch_emits_size():
+    js = FILL_JS.read_text(encoding="utf-8")
+    seg = js[js.index('kind: "image"') : js.index('kind: "image"') + 400]
+    assert "size:" in seg
+
+
+def test_toggle_answer_cell_clears_data_size():
+    """A stale data-size would linger on the static cell and be inherited by a
+    later reconversion."""
+    js = FILL_JS.read_text(encoding="utf-8")
+    seg = js[js.index("function toggleAnswerCell") :]
+    seg = seg[: seg.index("\n    }")]
+    assert "data-size" in seg or "dataset.size" in seg
+
+
+@pytest.mark.django_db
+def test_form_and_model_preserve_a_submitted_size(tmp_path, settings):
+    """Pins the FORM + MODEL path only: a payload carrying `size` survives
+    clean_data, normalize_data and save().
+
+    It hand-builds its JSON and posts it, so it never runs JS - it is green with
+    or without `size:` in serialize() and with or without `data-size` in the
+    template. Those two JS sites are pinned by the source-level tests above and,
+    behaviourally, by Task 9's fill-table e2e. Do not point a serialize() mutant
+    at this test.
+    """
+    from courses.element_forms import FillTableElementForm
+
+    settings.MEDIA_ROOT = str(tmp_path)
+    course = make_course()
+    asset = make_image_asset(course, filename="a.png")
+    payload = {
+        "data": json.dumps(
+            {
+                "prompt": "",
+                "case_sensitive": False,
+                "header_row": False,
+                "header_col": False,
+                "border": "grid",
+                # An ANSWER CELL IS MANDATORY: FillTableElementForm.clean_data raises
+                # "Mark at least one answer cell (use the "Answer cell" button)." when
+                # answer_cells(cells) is empty, so an image-only payload can NEVER
+                # validate and this test — the pin for the slice's highest-frequency
+                # defect — could never pass.
+                "cells": [
+                    [
+                        {
+                            "kind": "image",
+                            "media": asset.pk,
+                            "alt": "",
+                            "size": "large",
+                            "halign": "left",
+                            "valign": "top",
+                        },
+                        {
+                            "kind": "answer",
+                            "answer": "x",
+                            "halign": "left",
+                            "valign": "top",
+                        },
+                    ]
+                ],
+            }
+        )
+    }
+    form = FillTableElementForm(data=payload, course=course)
+    assert form.is_valid(), form.errors
+    el = form.save()
+    assert el.data["cells"][0][0]["size"] == "large"

@@ -1432,7 +1432,13 @@ def _caps_ok(form, cells):
     return True
 
 
-class TableElementForm(forms.ModelForm):
+class TableElementForm(_CourseScopedMediaForm):
+    """Styled table. Image cells carry a `media` id that is course-scoped against
+    the referenced image in clean_data (mirrors FillTableElementForm — the same
+    author-submitted-pk risk)."""
+
+    media_kind = "image"
+
     class Meta:
         model = TableElement
         fields = ["data"]
@@ -1477,11 +1483,47 @@ class TableElementForm(forms.ModelForm):
                 % {"r": TableElement.MAX_ROWS, "c": TableElement.MAX_COLS}
             )
         # Coerce enums / fill cell defaults (does not resize a valid grid).
-        return TableElement.normalize_data(data)
+        nd = TableElement.normalize_data(data)
+        # Course-scope image cells (mirrors FillTableElementForm). Scoping over the
+        # NORMALIZED cells is load-bearing: over raw rows, a crafted
+        # {"kind": "image"} with no `media` would KeyError and 500 the save.
+        cells = nd["cells"]
+        img_ids = {c["media"] for row in cells for c in row if c.get("kind") == "image"}
+        if img_ids and self.course is not None:
+            allowed = set(
+                MediaAsset.objects.filter(
+                    course=self.course, kind="image", pk__in=img_ids
+                ).values_list("pk", flat=True)
+            )
+            if img_ids - allowed:
+                raise forms.ValidationError(
+                    _("A table image is not an image in this course.")
+                )
+        return nd
 
     @property
     def grid_data(self):
         return _grid_data(self)
+
+    @property
+    def resolved_grid_cells(self):
+        """grid_data's cells with image pks resolved to MediaAsset, so a rejected
+        save re-renders the SUBMITTED grid with real image URLs.
+
+        Sanitisation is INHERITED from _grid_data (which returns
+        _sanitized_data(normalize_data(parsed)) on the bound-invalid branch) — do
+        NOT add a second pass; that path is where a self-XSS was caught during the
+        spanning-table work, so the test here is a regression pin on behaviour that
+        already holds."""
+        return TableElement.resolve_image_cells(
+            self.grid_data["cells"], course=self.course
+        )
+
+    @property
+    def cell_image_sizes(self):
+        """Ordered (value, label) pairs for the size <select>. The forms otherwise
+        expose only `data`, so the template needs this hook."""
+        return TableElement.CellImageSize.choices
 
 
 class FillTableElementForm(_CourseScopedMediaForm):
@@ -1556,8 +1598,8 @@ class FillTableElementForm(_CourseScopedMediaForm):
 
         Delegates to FillTableElement.resolve_image_cells so the editor and
         the student render cannot silently diverge on the unresolved-image
-        fallback (it drops any colspan/rowspan/header the cell carried, same
-        as the model).
+        fallback (it PRESERVES any colspan/rowspan/header the cell carried,
+        same as the model (slice C2)).
 
         Passes self.course so a submitted pk from another course -- or an
         in-course asset of the wrong kind -- resolves to nothing and takes that
@@ -1565,6 +1607,12 @@ class FillTableElementForm(_CourseScopedMediaForm):
         return FillTableElement.resolve_image_cells(
             self.grid_data["cells"], course=self.course
         )
+
+    @property
+    def cell_image_sizes(self):
+        """Ordered (value, label) pairs for the size <select>. The forms otherwise
+        expose only `data`, so the template needs this hook."""
+        return TableElement.CellImageSize.choices
 
 
 class GalleryElementForm(_CourseScopedMediaForm):

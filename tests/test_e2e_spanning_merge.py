@@ -544,8 +544,10 @@ def test_header_toggle_on_an_answer_cell_preserves_the_typed_answer(page, live_s
     holds the typed text -- childNodes were MOVED, not re-serialized. Then
     toggle the (now-th) cell back to static via the Answer-cell button and
     assert the stash restored the right html -- proving toggleHeaderCell's
-    cellStash re-point (LIVE here, a no-op guard in table_editor.js) follows
-    the node across the td<->th swap."""
+    cellStash re-point follows the node across the td<->th swap.
+    table_editor.js's toggleHeaderCell re-keys its own cellStash the same
+    way now, for the plain table's image-cell stash; it is no longer a
+    no-op guard there."""
     from courses.models import FillTableElement
     from tests.test_e2e_table_editor import _login
     from tests.test_e2e_table_editor import _make_pa_user

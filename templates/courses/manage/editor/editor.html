@@ -41,6 +41,7 @@
     "Answer cell", with a photo glyph (sun + mountain) so the two are not
     confusable.{% endcomment %}
     <symbol id="ed-image" viewBox="0 0 16 16"><rect x="2.5" y="3" width="11" height="10" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.3"/><circle cx="6" cy="6.5" r="1" fill="currentColor"/><path d="M4 11l2.5-3 2 2 2-2.5 2 2.5" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="ed-image-remove" viewBox="0 0 16 16"><rect x="2.5" y="3" width="11" height="10" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.3"/><path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" d="M5.5 5.5l5 5m0-5l-5 5"/></symbol>
     {% comment %}Merge and Split are inverse operations, so their icons must differ
     at the 15px they actually render at. They carry TWO independent cues, not one:
     arrowheads (converging on the seam vs diverging from it) and the seam itself
@@ -154,7 +155,7 @@
   {% endcomment %}
   <script>window.GALLERY_I18N = { prev: "{% trans 'Previous image' %}", next: "{% trans 'Next image' %}", nav: "{% trans 'Gallery' %}", go: "{% trans 'Go to image {n}' %}", pos: "{% trans 'Image {n} of {total}' %}" };</script>
   <script src="{% static 'courses/js/gallery.js' %}" defer></script>
-  {% comment %}The live-preview pane renders the student image/gallery/fill-table
+  {% comment %}The live-preview pane renders the student image/gallery/fill-table/table
   templates, whose images carry data-zoomable; imagezoom.js is what makes them
   clickable there too. editor.js re-runs window.libliInitImageZoom over the pane after
   each fragment swap.

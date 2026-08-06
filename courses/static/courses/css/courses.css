@@ -1143,8 +1143,72 @@ a.unit-crumbs__label:focus-visible { outline: 2px solid var(--primary); outline-
    pass only, matching the sibling table's note above. --- */
 .filltable { margin: var(--space-4) 0; }
 .filltable__prompt { margin: 0 0 var(--space-2); font-weight: 600; }
-.filltable__img { max-width: 100%; height: auto; display: block; }
-.filltable-editor__img { max-width: 120px; height: auto; display: block; }
+/* --- Table cell images (slice C2). The scale is FOUR ABSOLUTE SQUARE bounding
+   boxes, not percentages: a cell's containing block is content-negotiated, so a
+   percentage compounds the instability (MEASURED 5.2x spread across real table
+   shapes for a percentage preset).
+
+   The cap must have NO percentage component anywhere, including inside a
+   `min()`. `min(100%, Npx)` was tried first and is WRONG: for the purpose of
+   the column's min-content contribution, the unresolvable `100%` makes the
+   whole `min()` collapse, so the image contributes 0 to the column floor and
+   Chromium's auto table-layout is free to shrink it arbitrarily under a
+   text-heavy neighbour — MEASURED (Task 9 spike): a 10x spread across
+   neighbour-text lengths alone, bottoming out at a 0px-wide, Playwright-hidden
+   image at a 296px viewport. A bare `max-width: Npx` fixes it completely:
+   MEASURED 160.0px at every neighbour-text length tried (Chromium only; not
+   re-verified on Firefox/WebKit). The trade is that a row whose images alone
+   exceed the column (e.g. five Medium images side by side) now widens
+   `.el--table__scroll` instead of shrinking the images — the table scrolls;
+   the page never does.
+
+   The BASE RULE DECLARES NO max-width. `.filltable__img` used to declare
+   `max-width: 100%`, which ties with a single-class `.cell-img--medium` and would
+   silently win by source order, degrading every preset to Full. That rule is
+   DELETED rather than reduced — keeping a no-op invites re-adding max-width and
+   re-opens the trap. --- */
+.cell-img { height: auto; display: block; }
+.cell-img--small  { max-width: 80px;  max-height: 80px; }
+.cell-img--medium { max-width: 160px; max-height: 160px; }
+.cell-img--large  { max-width: 240px; max-height: 240px; }
+.cell-img--full   { max-width: 100%;             max-height: 60dvh; }
+
+/* halign is `text-align` on the <td>, which has NO effect on a display:block
+   child. With absolute caps of 80/160/240px inside a 648px column the image is
+   almost always narrower than its cell, so it would sit flush left whatever the
+   author picks — while the align buttons stay enabled and serialize() faithfully
+   writes halign. Margin-driven alignment from the cell's existing class fixes it.
+   (`ta-left` is the margin-inline:0 default and needs no rule.) */
+.ta-center > .cell-img { margin-inline: auto; }
+.ta-right  > .cell-img { margin-inline: auto 0; }
+
+/* dvh not vh, per C1: vh resolves against the toolbar-collapsed viewport, so a vh
+   cap can still fall below the fold on a phone. AGGREGATE height is accepted: the
+   60dvh bound is per image, so a five-row table of tall `full` images is still
+   ~300dvh of scrolling — strictly better than today's unbounded 1287px per cell,
+   and the editor-insert default of `medium` keeps new content well clear. */
+
+/* @media print adds NO specificity, so this must come AFTER the preset block.
+   Without it a `full` cell image prints at a viewport-relative dvh height.
+   Small/Medium/Large are already absolute and need no print counterpart. */
+@media print {
+  .cell-img--full { max-height: 170mm; }
+}
+
+/* Fill-table editor preview. max-width leaves the BASE for the same equal-specificity
+   reason as the student rules, so every size lives on a modifier. Every cap is a BARE
+   absolute max-width, not `min(100%, Npx)`: the editing grid is an auto-layout <table>
+   too, and a percentage term in the cap makes the column flexible, so a text-hungry
+   sibling cell squeezes the image far below its cap (measured on the student column:
+   160px -> 16.75px; see
+   .superpowers/sdd/2026-08-05-table-cell-images/spike-cell-img-stability.md). */
+.filltable-editor__img { height: auto; display: block; }
+.filltable-editor__img--small  { max-width: 40px;  max-height: 40px; }
+.filltable-editor__img--medium { max-width: 80px;  max-height: 80px; }
+.filltable-editor__img--large  { max-width: 120px; max-height: 120px; }
+.filltable-editor__img--full   { max-width: 200px; max-height: 200px; }
+.ta-center > .filltable-editor__img { margin-inline: auto; }
+.ta-right  > .filltable-editor__img { margin-inline: auto 0; }
 .el--filltable__scroll { overflow-x: auto; }
 .el--filltable table { border-collapse: collapse; width: 100%; }
 .el--filltable th, .el--filltable td { padding: var(--space-2); }

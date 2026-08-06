@@ -165,13 +165,95 @@ def _ser_guess_number(el, media):
 
 
 def _ser_table(el, ids):
-    # Return the table dict DIRECTLY (not {"data": el.data}). Every serializer
-    # returns the type-specific fields that BECOME the element's `data` block
-    # (e.g. _ser_text -> {"body": ...}); the importer calls
-    # BUILDERS["table"](el["data"], assets). Wrapping in another {"data": ...}
-    # would double-wrap, so _build_table's normalize_data would find no "cells"
-    # and silently fall back to the default 2x2, discarding imported content.
-    return dict(el.data)
+    # Return the table dict DIRECTLY (not {"data": ...}) — see the original note.
+    #
+    # Two traps, both specific to this function:
+    #  * Do NOT call normalize_data. _ser_fill_table opens with it, but copying
+    #    that here would change exported bytes: save() calls only _sanitized_data,
+    #    so nothing at the model layer guarantees a stored row is rectangular or
+    #    that its cells carry halign/valign/html. Normalizing would rectangularise
+    #    and inject defaults, colliding with the byte-identity invariant. (No
+    #    SHIPPED path produces such a row today — LAL, seed, import and the form
+    #    all normalize — so these guards are defence-in-depth against the missing
+    #    model-layer guarantee, not a response to a live producer.)
+    #  * dict(el.data) is a SHALLOW copy: row lists and cell dicts are shared with
+    #    the live instance, so assigning cell["media"] in place would replace real
+    #    pks on the in-memory element and duplicate-unit would persist that.
+    #
+    # Because the walk sees RAW stored shapes, every key is read with .get and the
+    # same defaults the render-side fallback uses.
+    from courses.models import MediaAsset
+
+    stored = el.data if isinstance(el.data, dict) else {}
+    rows = stored.get("cells")
+    if not isinstance(rows, list):
+        return dict(stored)
+
+    img_pks = [
+        c.get("media")
+        for row in rows
+        if isinstance(row, list)
+        for c in row
+        if isinstance(c, dict)
+        and c.get("kind") == "image"
+        and isinstance(c.get("media"), int)
+        and not isinstance(c.get("media"), bool)
+    ]
+    assets = MediaAsset.objects.in_bulk(img_pks)
+
+    out_rows = []
+    for row in rows:
+        if not isinstance(row, list):
+            out_rows.append(row)
+            continue
+        out_row = []
+        for c in row:
+            if not isinstance(c, dict):
+                out_row.append(c)
+                continue
+            if c.get("kind") != "image":
+                out_row.append(dict(c))
+                continue
+            asset = assets.get(c.get("media"))
+            if asset is not None:
+                alt = c.get("alt")
+                out_cell = {
+                    "kind": "image",
+                    "media": ids.register(asset),
+                    # isinstance-guarded, matching the models._sanitized_data idiom
+                    # (courses/models.py:989/1085/1172/1294) rather than the sibling's
+                    # bare `c.get("alt", "")`: that plain .get default only fires when
+                    # the KEY is absent, so pairing it with `[:255]` here would still
+                    # raise on an explicit `"alt": None` cell, which the old
+                    # `(c.get("alt") or "")[:255]` happened to tolerate. This is the
+                    # only version that is safe for every shape (missing key, None,
+                    # or a truthy non-string) while still applying the 255 cap.
+                    "alt": alt[:255] if isinstance(alt, str) else "",
+                    "size": c.get("size") or "full",
+                    "halign": c.get("halign", "left"),
+                    "valign": c.get("valign", "top"),
+                }
+            else:
+                # Unresolved pk, or a kind:"image" cell whose media is missing or
+                # not an int: the table's empty-cell shape, no `kind`.
+                out_cell = {
+                    "html": "",
+                    "halign": c.get("halign", "left"),
+                    "valign": c.get("valign", "top"),
+                }
+            for k in ("header", "colspan", "rowspan"):
+                if k in c:
+                    out_cell[k] = c[k]
+            out_row.append(out_cell)
+        out_rows.append(out_row)
+
+    # Reassemble by SHALLOW copy, replacing `cells` only. An explicit five-key
+    # literal (as _ser_fill_table uses) would inject header_row/header_col/border
+    # defaults into a legacy row that lacks them; an unconditional
+    # {**stored, "cells": rows} would append a `cells` key to data that has none.
+    out = dict(stored)
+    out["cells"] = out_rows
+    return out
 
 
 def _ser_fill_table(el, ids):
@@ -196,6 +278,7 @@ def _ser_fill_table(el, ids):
                         "kind": "image",
                         "media": ids.register(asset),
                         "alt": c.get("alt", ""),
+                        "size": c.get("size") or "full",
                         "halign": c["halign"],
                         "valign": c["valign"],
                     }
@@ -435,8 +518,8 @@ def serialize_element_data(concrete, media_ids):
 def _element_mids(type_key, data):
     """All media ids an element references, routed by the element TYPE KEY (not
     by sniffing the data shape): a gallery reads its `images[].media` list; a
-    fill_table walks its `cells` grid for image-kind cells' `media`; every other
-    media-bearing type reads the scalar `media`."""
+    fill_table and a table both walk their `cells` grid for image-kind cells'
+    `media`; every other media-bearing type reads the scalar `media`."""
     if type_key == "gallery":
         return [
             img["media"]
@@ -444,6 +527,15 @@ def _element_mids(type_key, data):
             if isinstance(img, dict) and isinstance(img.get("media"), str)
         ]
     if type_key == "fill_table":
+        return [
+            c["media"]
+            for row in (data.get("cells") or [])
+            for c in (row or [])
+            if isinstance(c, dict)
+            and c.get("kind") == "image"
+            and isinstance(c.get("media"), str)
+        ]
+    if type_key == "table":
         return [
             c["media"]
             for row in (data.get("cells") or [])

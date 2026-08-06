@@ -15,6 +15,17 @@
   var MAX_COLS = 20;
   var HALIGNS = ["left", "center", "right"];
   var VALIGNS = ["top", "middle", "bottom"];
+  var CELL_IMAGE_DEFAULT = "full";
+  var CELL_IMAGE_INSERT = "medium";
+  // Whole-literal class names: `classList.add('filltable-editor__img--' + size)` would
+  // leave only a stem literal in the source, making test_table_css.py's assertion
+  // pass with three of four modifiers unstyled.
+  var CELL_IMG_CLASS = {
+    small: "filltable-editor__img--small",
+    medium: "filltable-editor__img--medium",
+    large: "filltable-editor__img--large",
+    full: "filltable-editor__img--full",
+  };
 
   // ---- grid helpers -------------------------------------------------------
 
@@ -163,6 +174,8 @@
     var caseSensitive = editor.querySelector("[data-case-sensitive]");
     var promptField = editor.querySelector("[data-prompt]");
     var imageAlt = editor.querySelector("[data-image-alt]");
+    var sizeSel = editor.querySelector("[data-image-size]");
+    var removeBtn = editor.querySelector("[data-image-remove]");
     if (!hidden || !grid) return; // defensive: markup changed
 
     // Descriptor handed to table_grid.js. `rows`/`cells` are this editor's own
@@ -192,43 +205,41 @@
       dataRows(grid).forEach(function (tr) {
         var row = [];
         Array.prototype.forEach.call(dataCells(tr), function (td) {
-          if (window.libliColour) window.libliColour.mapColours(td, { dropUnmapped: true });
-          if (td.hasAttribute("data-image")) {
-            var cell = {
+          var isAnswer = td.hasAttribute("data-answer");
+          var isImage  = td.hasAttribute("data-image");
+          if (!isAnswer && !isImage) {
+            if (window.libliColour) window.libliColour.mapColours(td, { dropUnmapped: true });
+          }
+          var cell;
+          if (isImage) {
+            cell = {
               kind: "image",
               media: parseInt(td.dataset.media, 10),
               alt: td.dataset.alt || "",
+              size: td.dataset.size || CELL_IMAGE_DEFAULT,
               halign: td.dataset.halign || "left",
               valign: td.dataset.valign || "top",
             };
-            if (td.colSpan > 1) cell.colspan = td.colSpan;
-            if (td.rowSpan > 1) cell.rowspan = td.rowSpan;
-            if (td.tagName === "TH") cell.header = true;
-            row.push(cell);
-          } else if (td.hasAttribute("data-answer")) {
+          } else if (isAnswer) {
             var input = td.querySelector(".filltable-editor__answer");
-            var cell = {
+            cell = {
               kind: "answer",
               answer: input ? input.value : "",
               halign: td.dataset.halign || "left",
               valign: td.dataset.valign || "top",
             };
-            if (td.colSpan > 1) cell.colspan = td.colSpan;
-            if (td.rowSpan > 1) cell.rowspan = td.rowSpan;
-            if (td.tagName === "TH") cell.header = true;
-            row.push(cell);
           } else {
-            var cell = {
+            cell = {
               kind: "static",
               html: td.innerHTML,
               halign: td.dataset.halign || "left",
               valign: td.dataset.valign || "top",
             };
-            if (td.colSpan > 1) cell.colspan = td.colSpan;
-            if (td.rowSpan > 1) cell.rowspan = td.rowSpan;
-            if (td.tagName === "TH") cell.header = true;
-            row.push(cell);
           }
+          if (td.colSpan > 1) cell.colspan = td.colSpan;
+          if (td.rowSpan > 1) cell.rowspan = td.rowSpan;
+          if (td.tagName === "TH") cell.header = true;
+          row.push(cell);
         });
         cells.push(row);
       });
@@ -262,6 +273,10 @@
     var focusCell = null;
     var rangeAnchor = null;   // a cell node
     var rangeEnd = null;      // a LAYOUT {r, c} coordinate, not a node
+
+    refreshToolbarState();   // init-time paint: every cell-scoped control starts
+                              // disabled/hidden with nothing focused, matching
+                              // the markup's own `disabled` attributes.
 
     function answerPlaceholder() {
       return editor.getAttribute("data-msg-answer-placeholder") || "Accepted answer";
@@ -313,18 +328,14 @@
     }
 
     function refreshAlignButtons() {
-      if (!toolbar || !focusCell) return;
+      if (!toolbar) return;
+      var h = focusCell ? (focusCell.dataset.halign || "left") : null;
+      var v = focusCell ? (focusCell.dataset.valign || "top") : null;
       Array.prototype.forEach.call(toolbar.querySelectorAll("[data-halign]"), function (btn) {
-        btn.classList.toggle(
-          "is-on",
-          btn.getAttribute("data-halign") === (focusCell.dataset.halign || "left")
-        );
+        btn.classList.toggle("is-on", btn.getAttribute("data-halign") === h);
       });
       Array.prototype.forEach.call(toolbar.querySelectorAll("[data-valign]"), function (btn) {
-        btn.classList.toggle(
-          "is-on",
-          btn.getAttribute("data-valign") === (focusCell.dataset.valign || "top")
-        );
+        btn.classList.toggle("is-on", btn.getAttribute("data-valign") === v);
       });
     }
 
@@ -342,7 +353,7 @@
     }
 
     function refreshHeaderButton(btn) {
-      var locked = focusCell ? headerLocked(focusCell) : true;
+      var locked = focusCell ? headerLocked(focusCell) : false;
       btn.disabled = !focusCell || locked;
       btn.setAttribute(
         "aria-pressed", String(!!focusCell && focusCell.tagName === "TH")
@@ -355,10 +366,16 @@
     // contenteditable (static) cell; the "Answer cell" toggle stays live so
     // the author can always flip an answer cell back to static first.
     function refreshToolbarState() {
-      if (!toolbar) return;              // was part of the combined guard
+      if (!toolbar) return;              // unrelated guard; STAYS
       var mergeBtn = toolbar.querySelector("[data-merge]");
       var splitBtn = toolbar.querySelector("[data-split]");
       var headerBtn = toolbar.querySelector("[data-header-toggle]");
+      var answerBtn = toolbar.querySelector("[data-answer-toggle]");
+      var imgBtn = toolbar.querySelector("[data-image-toggle]");
+      // Derived ONCE, null-safe, at the top: every predicate below uses these
+      // names, and `var` hoisting would otherwise make them `undefined` here.
+      var isAnswer = !!focusCell && focusCell.hasAttribute("data-answer");
+      var isImage = !!focusCell && focusCell.hasAttribute("data-image");
       // These three must be settled even when focusCell is null -- a delete
       // that nulls it would otherwise leave Merge enabled. "Toolbar hidden" is
       // a different mechanism and does not substitute.
@@ -374,17 +391,43 @@
            libliTableGrid.rowspanOf(focusCell) > 1));
       }
       if (headerBtn) refreshHeaderButton(headerBtn);
-      if (!focusCell) return;            // the rest of the original body
-      var isAnswer = focusCell.hasAttribute("data-answer");
-      var isImage = focusCell.hasAttribute("data-image");
+
       Array.prototype.forEach.call(toolbar.querySelectorAll("[data-cmd]"), function (btn) {
-        btn.disabled = isAnswer || isImage;
+        btn.disabled = !focusCell || isAnswer || isImage;
       });
-      var answerBtn = toolbar.querySelector("[data-answer-toggle]");
-      if (answerBtn) answerBtn.classList.toggle("is-on", isAnswer);
-      if (imageAlt && !isImage) imageAlt.hidden = true;
-      refreshAlignButtons();   // this file's refreshToolbarState owns the
-                                // align-button refresh too (see focusin below)
+      // The image button keeps its OWN predicate: it must stay ENABLED on an image
+      // cell, because that is the re-pick path. Folding it into the loop above
+      // would make re-pick unreachable.
+      if (imgBtn) imgBtn.disabled = !focusCell;
+      if (answerBtn) {
+        answerBtn.disabled = !focusCell;
+        answerBtn.classList.toggle("is-on", isAnswer);
+      }
+      Array.prototype.forEach.call(
+        toolbar.querySelectorAll("[data-halign], [data-valign]"),
+        function (btn) { btn.disabled = !focusCell; }
+      );
+      // `answerBtn.disabled` above is pinned from BOTH sides: Task 6's mirrored
+      // test_filltable_cell_scoped_buttons_carry_disabled_in_markup covers the
+      // no-focus state, and Task 9's fill-table e2e asserts
+      // `[data-answer-toggle]` is_enabled() WITH a cell focused. Together those
+      // bracket the predicate. The plain table's
+      // test_cell_scoped_buttons_are_disabled_before_any_focus deliberately omits
+      // that selector - the plain table has no answer toggle.
+
+      // Per-cell controls: TWO-WAY visibility AND value population.
+      var showCellCtl = isImage;
+      if (imageAlt) {
+        imageAlt.hidden = !showCellCtl;
+        if (showCellCtl) imageAlt.value = focusCell.dataset.alt || "";
+      }
+      if (sizeSel) {
+        sizeSel.hidden = !showCellCtl;
+        if (showCellCtl) sizeSel.value = focusCell.dataset.size || CELL_IMAGE_DEFAULT;
+      }
+      if (removeBtn) removeBtn.hidden = !showCellCtl;
+
+      refreshAlignButtons();
     }
 
     // Per-node stash holding BOTH kinds' last-known content, so a toggle
@@ -400,18 +443,25 @@
       return s;
     }
 
-    // Convert `td` to an image cell holding the picked asset. Stashes the
-    // prior kind's content (reusing stashFor, so the toggle back to static
-    // via toggleAnswerCell restores it) and immediately reveals + populates
-    // the alt input — a later focusin is NOT relied upon, since the caller
-    // (the picker callback) already knows which cell it targeted.
+    // Convert `td` to an image cell holding the picked asset, or repaint an
+    // existing one after a re-pick. The prior kind's content is stashed ONLY on
+    // a genuine conversion (see the guard below, reusing stashFor so the toggle
+    // back to static via toggleAnswerCell restores it); revealing + populating
+    // the alt/size controls is refreshToolbarState()'s job, not this function's.
     function setImageCell(td, mediaInt, url, alt) {
-      var s = stashFor(td);
-      if (td.hasAttribute("data-answer")) {
-        var input = td.querySelector(".filltable-editor__answer");
-        s.answer = input ? input.value : "";
-      } else {
-        s.html = td.innerHTML;
+      // Stash ONLY on a genuine conversion. On a RE-PICK the cell already carries
+      // data-image, and an unconditional write would overwrite s.html with the preview
+      // <img> markup — Remove image / the answer toggle would then restore an <img>
+      // into a contenteditable cell, sanitize_cell would strip it to "", and the
+      // author's original text would be permanently lost.
+      if (!td.hasAttribute("data-image")) {
+        var s = stashFor(td);
+        if (td.hasAttribute("data-answer")) {
+          var input = td.querySelector(".filltable-editor__answer");
+          s.answer = input ? input.value : "";
+        } else {
+          s.html = td.innerHTML;
+        }
       }
       td.setAttribute("data-image", "");
       td.dataset.media = String(mediaInt);
@@ -422,23 +472,27 @@
       // in a free-typed alt cannot break out of the attribute/markup.
       var img = document.createElement("img");
       img.className = "filltable-editor__img";
+      // `|| CELL_IMAGE_INSERT` serves conversion AND re-pick from ONE call site: a
+      // literal "medium" would demote an author's `full` cell on every re-pick,
+      // while a literal "preserve" would leave a converted cell with no size.
+      td.dataset.size = td.dataset.size || CELL_IMAGE_INSERT;
+      var size = td.dataset.size;      // read AFTER the assignment
+      img.classList.add(CELL_IMG_CLASS[size]);    // literal map, not concatenation
       img.src = url;
       img.alt = alt || "";
       td.appendChild(img);
       td.removeAttribute("contenteditable");
       td.removeAttribute("data-answer");
-      if (imageAlt) {
-        imageAlt.hidden = false;
-        imageAlt.value = td.dataset.alt || "";
-      }
     }
 
     // Single global; assumes one fill-table editor per page (like libliGalleryAdd).
     window.libliFillTablePickImage = function (_pick) {
       var target = focusCell;          // the cell the toggle was clicked on
       return function (id, _name, url) { // picker callback: id is a STRING
+        if (!target) return;                       // guards the captured node
         setImageCell(target, parseInt(id, 10), url, target.dataset.alt || "");
         focusCell = target;            // keep focus on the converted cell
+        refreshToolbarState();                     // nothing else repaints
         serialize();
       };
     };
@@ -454,10 +508,10 @@
         td.removeAttribute("data-image");
         delete td.dataset.media;
         delete td.dataset.alt;
+        delete td.dataset.size;
         td.removeAttribute("tabindex");
         td.innerHTML = stashed.html != null ? stashed.html : "";
         td.setAttribute("contenteditable", "true");
-        if (imageAlt) imageAlt.hidden = true;
         focusCell = td;
         refreshToolbarState();
         serialize();
@@ -505,8 +559,8 @@
       // event bindings.
       while (td.firstChild) next.appendChild(td.firstChild);
       td.replaceWith(next);
-      // cellStash is LIVE here (unlike table_editor.js's no-op guard), so a
-      // stashed answer/html round-trip must follow the node.
+      // A stashed answer/html round-trip must follow the node -- table_editor.js
+      // now re-keys its own cellStash the same way, for the same reason.
       if (cellStash.has(td)) {
         cellStash.set(next, cellStash.get(td));
         cellStash.delete(td);
@@ -551,15 +605,10 @@
                           // stale anchor from an earlier merge can never
                           // silently re-appear in the next range
       clearRange(false);  // ... and drops any live range
-      if (toolbar) toolbar.hidden = false;
       refreshToolbarState();   // ends with refreshAlignButtons(): Split and
                                // Header enablement both read focusCell, so
                                // the toolbar must recompute whenever focus
                                // moves, and alignment tracks it too
-      if (td.hasAttribute("data-image") && imageAlt) {
-        imageAlt.hidden = false;
-        imageAlt.value = td.dataset.alt || "";
-      }
     });
 
     // Chrome and genuine multi-line controls are excluded, but the fill-table's
@@ -674,7 +723,15 @@
 
     // Every structural edit ends the same way.
     function afterStructuralEdit() {
-      cellStash.clear(); // fill-table only
+      cellStash.clear();
+      // focusCell is never re-nulled by any delete/merge path, so deleting the row
+      // holding the focused image cell leaves it pointing at a DETACHED <td>: the
+      // per-cell controls stay visible and populated, and edits write to a node no
+      // longer in the grid — silently lost at the next serialize(). Position
+      // matters as much as the bytes: placed after this function's
+      // refreshToolbarState()/serialize() calls, the toolbar would be repainted
+      // from the still-detached node.
+      if (focusCell && !focusCell.isConnected) { focusCell = null; rangeAnchor = null; }
       clearRange(false);
       rebuildColControls(grid, desc);
       refreshControlState(grid, desc);
@@ -851,6 +908,25 @@
         focusCell.dataset.alt = imageAlt.value;
         var img = focusCell.querySelector(".filltable-editor__img");
         if (img) img.setAttribute("alt", imageAlt.value);
+        serialize();
+      });
+    }
+
+    if (sizeSel) {
+      sizeSel.addEventListener("change", function () {
+        if (!focusCell || !focusCell.hasAttribute("data-image")) return;
+        focusCell.dataset.size = sizeSel.value;
+        var img = focusCell.querySelector(".filltable-editor__img");
+        if (img) {
+          // REMOVE all four first: classList.add alone accumulates, and the four
+          // modifiers are single-class selectors of identical specificity, so the
+          // winner would then be decided by stylesheet source order rather than
+          // the author's pick.
+          Object.keys(CELL_IMG_CLASS).forEach(function (k) {
+            img.classList.remove(CELL_IMG_CLASS[k]);
+          });
+          img.classList.add(CELL_IMG_CLASS[sizeSel.value]);
+        }
         serialize();
       });
     }

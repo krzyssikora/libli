@@ -74,20 +74,36 @@ każdego bloku HTML w tym kursie. Używaj go oszczędnie — treść nie jest
 sanityzowana, więc powinni z niego korzystać tylko zaufani autorzy, a
 utrzymanie takiego bloku jest trudniejsze niż pozostałych typów.
 
-{el:table} **Tabela** — edytor siatki typu WYSIWYG: kliknij komórkę, aby edytować jej
-tekst sformatowany (pogrubienie, kursywa, podkreślenie, wzory w linii oraz
-wyrównanie poziome/pionowe) na miejscu, a uchwytami wierszy/kolumn wstawiaj
-lub usuwaj wiersze i kolumny. Włącz **Wiersz nagłówkowy** i
-**Kolumna nagłówkowa**, aby wyróżnić pierwszy wiersz/kolumnę, oraz wybierz
-styl **Obramowanie** (**Siatka**, **Wiersze**, **Tylko nagłówek** albo
-**Brak**). Zaznacz zakres komórek kombinacją Shift+kliknięcie albo
-rozszerzaj go pole po polu skrótem **Alt+Shift+strzałka**, a następnie
-kliknij **Scal komórki**, aby połączyć zaznaczenie w jedną komórkę —
-zachowywana jest tylko treść komórki w lewym górnym rogu, a jeśli
-którakolwiek z pozostałych komórek nie była pusta, najpierw zostaniesz
-poproszony o potwierdzenie. **Rozdziel komórkę** cofa scalenie, pozostawiając
-zwolnione komórki puste. **Komórka nagłówkowa** przełącza pojedynczą komórkę
-między zwykłym a nagłówkowym stylem; jest wyszarzona — niedostępna, dopóki
+{el:table} **Tabela** — edytor siatki typu WYSIWYG z zawsze widocznym paskiem
+narzędzi: narzędzia dotyczące komórki (pogrubienie, kursywa, podkreślenie,
+wzory w linii oraz wyrównanie poziome/pionowe) są nieaktywne, dopóki nie
+klikniesz komórki, a wtedy działają na niej na miejscu. Uchwytami
+wierszy/kolumn wstawiaj lub usuwaj wiersze i kolumny. Włącz **Wiersz
+nagłówkowy** i **Kolumna nagłówkowa**, aby wyróżnić pierwszy
+wiersz/kolumnę, oraz wybierz styl **Obramowanie** (**Siatka**, **Wiersze**,
+**Tylko nagłówek** albo **Brak**). Komórka zawiera tekst sformatowany albo
+obraz, nigdy oba naraz: kliknij komórkę, a potem **Komórka z obrazem**, aby
+wybrać obraz z biblioteki mediów (zobacz [Menedżer mediów](media-manager))
+— zastąpi to tekst, jeśli komórka już go zawierała — następnie dodaj
+opcjonalny **tekst alternatywny** i wybierz **Rozmiar** — Mały, Średni,
+Duży lub Pełny — każdy to ramka ograniczająca, do której obraz się skaluje
+bez rozciągania czy kadrowania; Mały/Średni/Duży mają stały rozmiar
+niezależny od szerokości kolumny, a Pełny wypełnia kolumnę. **Usuń obraz**
+przywraca oryginalny tekst komórki, jeśli zamieniłeś ją na obraz podczas tej
+samej wizyty — ale tylko wtedy, gdy między tymi czynnościami nie wstawiałeś
+ani nie usuwałeś wiersza/kolumny, ani nie scalałeś czy dzieliłeś komórek;
+każda taka zmiana strukturalna czyści zapamiętany tekst, więc Usuń obraz
+zostawia wtedy pustą komórkę. Usunięcie obrazu po ponownym otwarciu
+zapisanej tabeli również zostawia pustą komórkę tekstową, bo nic nie
+przetrwa zapisu, z czego dałoby się go odtworzyć. Zaznacz zakres komórek kombinacją
+Shift+kliknięcie albo rozszerzaj go pole po polu skrótem
+**Alt+Shift+strzałka**, a następnie kliknij **Scal komórki**, aby połączyć
+zaznaczenie w jedną komórkę — zachowywana jest tylko treść komórki w lewym
+górnym rogu, tekst czy obraz, a jeśli którakolwiek z pozostałych komórek nie
+była pusta, najpierw zostaniesz poproszony o potwierdzenie. **Rozdziel
+komórkę** cofa scalenie, pozostawiając zwolnione komórki puste. **Komórka
+nagłówkowa** przełącza pojedynczą komórkę między zwykłym a nagłówkowym
+stylem; jest wyszarzona — niedostępna, dopóki
 komórkę obejmuje opcja wiersza lub kolumny nagłówkowej — gdy komórkę
 obejmuje już **Wiersz nagłówkowy** lub **Kolumna nagłówkowa**, ponieważ te
 przełączniki i tak już nią sterują. W tabeli z włączoną opcją **Kolumna

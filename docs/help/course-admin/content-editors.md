@@ -70,21 +70,36 @@ every HTML block in that course. Use it sparingly — it is not sanitized, so
 only trusted authors should use it, and it is harder to maintain than the
 other block types.
 
-{el:table} **Table** — a WYSIWYG grid editor: click a cell to edit its rich text (bold,
-italic, underline, inline math, and text/vertical alignment) in place, and use
+{el:table} **Table** — a WYSIWYG grid editor whose toolbar is always visible, with
+cell-scoped tools (bold, italic, underline, inline math, and text/vertical
+alignment) disabled until you focus a cell, then applied to it in place. Use
 the row/column handles to insert or delete rows and columns. Toggle
 **Header row** and **Header column** to style the first row/column
 differently, and choose a **Borders** style (**Grid**, **Rows**,
-**Header only**, or **None**). Select a range of cells with Shift+click, or
+**Header only**, or **None**). A cell holds rich text *or* a picture, never
+both: focus a cell and click **Image cell** to pick one from the media
+library (see [Media manager](media-manager)) — this replaces any text the
+cell already held — then add optional **alt text** and choose a **Size** —
+Small, Medium, Large, or Full — each a bounding box the picture scales to
+fit without stretching or cropping; Small/Medium/Large stay a fixed size
+whatever the column ends up being, while Full instead fills the column.
+**Remove image** brings back the cell's original text if you converted it
+to a picture earlier in the same visit — but only if you haven't inserted
+or deleted a row/column, or merged or split cells, in between; any of those
+structural edits clears the held text, so Remove image then leaves an empty
+cell instead. Reopening a saved table and removing its picture there
+instead leaves an empty text cell too, since nothing survives a save to
+restore. Select a range of cells with Shift+click, or
 extend it a slot at a time with **Alt+Shift+Arrow**, then press **Merge
 cells** to combine the range into one cell — only the top-left cell's
-content is kept, and you're asked to confirm first if any of the other cells
-in the range weren't empty. **Split cell** undoes a merge, leaving the freed
-cells empty. **Header cell** toggles a single cell between plain and header
-styling; it's greyed out — unavailable while the row or column header
-option covers this cell — whenever **Header row** or **Header column**
-already promotes that cell, since those toggles already control it there. In
-a table with **Header column** on, merging away a row's first cell promotes
+content is kept, text or picture alike, and you're asked to confirm first if
+any of the other cells in the range weren't empty. **Split cell** undoes a
+merge, leaving the freed cells empty. **Header cell** toggles a single cell
+between plain and header styling; it's greyed out — unavailable while the
+row or column header option covers this cell — whenever **Header row** or
+**Header column** already promotes that cell, since those toggles already
+control it there. In a table with **Header column** on, merging away a
+row's first cell promotes
 the next cell in that row to a header for students, even though the editor
 keeps showing it as a plain cell. A table can't be grown past 50 rows by 20
 columns; a table imported larger than that stays fully saveable as long as

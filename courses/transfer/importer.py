@@ -584,9 +584,21 @@ def _build_switch_grid(data, assets):
 
 
 def _build_table(data, assets):
-    # normalize_data rectangularises/coerces (validator already rejected
-    # over-cap/ragged shapes); save() sanitises every cell's html (Task 2),
-    # so import is safe even though the builder bypasses TableElementForm.
+    # ORDERING IS LOAD-BEARING: remap the RAW archive dict FIRST, then normalize.
+    # Reversed, the string local id has already failed _cell's isinstance(media,
+    # int) test and degraded the cell to an empty text cell — a silent, total loss
+    # of every imported cell image with no error.
+    if isinstance(data, dict) and isinstance(data.get("cells"), list):
+        rows = []
+        for row in data["cells"]:
+            out = []
+            for cell in row if isinstance(row, list) else []:
+                if isinstance(cell, dict) and cell.get("kind") == "image":
+                    out.append({**cell, "media": assets[cell["media"]].pk})
+                else:
+                    out.append(cell)
+            rows.append(out)
+        data = {**data, "cells": rows}
     return _clean_save(TableElement(data=TableElement.normalize_data(data))), ()
 
 

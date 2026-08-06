@@ -123,10 +123,11 @@ def find_matches(course, entries, excluded):
                     # their media/answer payload and are never re-sanitised. A match
                     # landing on one would be written UNSANITISED while the read-back
                     # still passed, because the read-back compares against what we
-                    # wrote. TableElement cells carry no `kind` at all, so the guard is
-                    # a no-op there. The real corpus produces zero fill-table matches,
-                    # which is exactly why this branch must be closed rather than left
-                    # to ship unexecuted.
+                    # wrote. TableElement image cells now carry `kind: "image"` too
+                    # (slice C2), so this guard is live for them as well, not just a
+                    # FillTableElement concern. The real corpus produces zero
+                    # fill-table matches, which is exactly why this branch must be
+                    # closed rather than left to ship unexecuted.
                     if cell.get("kind") not in (None, "static"):
                         continue
                     stored = cell.get("html")

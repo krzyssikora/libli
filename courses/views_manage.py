@@ -1678,9 +1678,14 @@ def _render_open_form(
     from courses.element_forms import build_choice_formset
 
     if form is None:
+        # Module attribute (builder_svc.COURSE_SCOPED_TYPE_KEYS), not a from-import --
+        # same reasoning as max_nest_depth above: a from-import would freeze the tuple
+        # at import time. "dragtoimagequestion" is unioned in explicitly: it is
+        # course-scoped too (_CourseScopedMediaForm) but is not itself a member of
+        # COURSE_SCOPED_TYPE_KEYS, so dropping it here would be a regression.
         extra = (
             {"course": unit.course}
-            if type_key in ("image", "video", "dragtoimagequestion", "gallery")
+            if type_key in (*builder_svc.COURSE_SCOPED_TYPE_KEYS, "dragtoimagequestion")
             else {}
         )
         form = FORM_FOR_TYPE[type_key](initial=initial or {}, **extra)
@@ -1960,9 +1965,11 @@ def element_form(request, slug, pk):
     from courses.element_forms import FORM_FOR_TYPE
     from courses.element_forms import build_choice_formset
 
+    # See the matching comment in _render_open_form: module attribute, union with
+    # "dragtoimagequestion" (course-scoped but not itself in COURSE_SCOPED_TYPE_KEYS).
     extra = (
         {"course": course}
-        if type_key in ("image", "video", "dragtoimagequestion", "gallery")
+        if type_key in (*builder_svc.COURSE_SCOPED_TYPE_KEYS, "dragtoimagequestion")
         else {}
     )
     form = FORM_FOR_TYPE[type_key](instance=el.content_object, **extra)

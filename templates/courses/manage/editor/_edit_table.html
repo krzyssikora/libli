@@ -32,22 +32,37 @@ row/column handles client-side and cannot call {% templatetag openblock %} trans
     </label>
   </div>
 
-  <div class="table-editor__toolbar" data-table-toolbar hidden>
-    <button type="button" class="rte-btn" data-cmd="bold" title="{% trans 'Bold' %}" aria-label="{% trans 'Bold' %}"><svg class="ic" aria-hidden="true" focusable="false"><use href="#ed-bold"/></svg></button>
-    <button type="button" class="rte-btn" data-cmd="italic" title="{% trans 'Italic' %}" aria-label="{% trans 'Italic' %}"><svg class="ic" aria-hidden="true" focusable="false"><use href="#ed-italic"/></svg></button>
-    <button type="button" class="rte-btn" data-cmd="underline" title="{% trans 'Underline' %}" aria-label="{% trans 'Underline' %}"><svg class="ic" aria-hidden="true" focusable="false"><use href="#ed-underline"/></svg></button>
-    <button type="button" class="rte-btn rte-btn--text" data-cmd="math" title="{% trans 'Insert math' %}" aria-label="{% trans 'Insert math' %}">∑</button>
+  <div class="table-editor__toolbar" data-table-toolbar>
+    <button type="button" class="rte-btn" data-cmd="bold" disabled title="{% trans 'Bold' %}" aria-label="{% trans 'Bold' %}"><svg class="ic" aria-hidden="true" focusable="false"><use href="#ed-bold"/></svg></button>
+    <button type="button" class="rte-btn" data-cmd="italic" disabled title="{% trans 'Italic' %}" aria-label="{% trans 'Italic' %}"><svg class="ic" aria-hidden="true" focusable="false"><use href="#ed-italic"/></svg></button>
+    <button type="button" class="rte-btn" data-cmd="underline" disabled title="{% trans 'Underline' %}" aria-label="{% trans 'Underline' %}"><svg class="ic" aria-hidden="true" focusable="false"><use href="#ed-underline"/></svg></button>
+    <button type="button" class="rte-btn rte-btn--text" data-cmd="math" disabled title="{% trans 'Insert math' %}" aria-label="{% trans 'Insert math' %}">∑</button>
     {% include "courses/manage/editor/_rte_swatches.html" %}
     <span class="table-editor__aligns">
-      <button type="button" class="rte-btn" data-halign="left" title="{% trans 'Align left' %}" aria-label="{% trans 'Align left' %}"><svg class="ic" aria-hidden="true" focusable="false"><use href="#ed-align-left"/></svg></button>
-      <button type="button" class="rte-btn" data-halign="center" title="{% trans 'Align center' %}" aria-label="{% trans 'Align center' %}"><svg class="ic" aria-hidden="true" focusable="false"><use href="#ed-align-center"/></svg></button>
-      <button type="button" class="rte-btn" data-halign="right" title="{% trans 'Align right' %}" aria-label="{% trans 'Align right' %}"><svg class="ic" aria-hidden="true" focusable="false"><use href="#ed-align-right"/></svg></button>
+      <button type="button" class="rte-btn" data-halign="left" disabled title="{% trans 'Align left' %}" aria-label="{% trans 'Align left' %}"><svg class="ic" aria-hidden="true" focusable="false"><use href="#ed-align-left"/></svg></button>
+      <button type="button" class="rte-btn" data-halign="center" disabled title="{% trans 'Align center' %}" aria-label="{% trans 'Align center' %}"><svg class="ic" aria-hidden="true" focusable="false"><use href="#ed-align-center"/></svg></button>
+      <button type="button" class="rte-btn" data-halign="right" disabled title="{% trans 'Align right' %}" aria-label="{% trans 'Align right' %}"><svg class="ic" aria-hidden="true" focusable="false"><use href="#ed-align-right"/></svg></button>
     </span>
     <span class="table-editor__aligns">
-      <button type="button" class="rte-btn" data-valign="top" title="{% trans 'Align top' %}" aria-label="{% trans 'Align top' %}"><svg class="ic" aria-hidden="true" focusable="false"><use href="#ed-valign-top"/></svg></button>
-      <button type="button" class="rte-btn" data-valign="middle" title="{% trans 'Align middle' %}" aria-label="{% trans 'Align middle' %}"><svg class="ic" aria-hidden="true" focusable="false"><use href="#ed-valign-middle"/></svg></button>
-      <button type="button" class="rte-btn" data-valign="bottom" title="{% trans 'Align bottom' %}" aria-label="{% trans 'Align bottom' %}"><svg class="ic" aria-hidden="true" focusable="false"><use href="#ed-valign-bottom"/></svg></button>
+      <button type="button" class="rte-btn" data-valign="top" disabled title="{% trans 'Align top' %}" aria-label="{% trans 'Align top' %}"><svg class="ic" aria-hidden="true" focusable="false"><use href="#ed-valign-top"/></svg></button>
+      <button type="button" class="rte-btn" data-valign="middle" disabled title="{% trans 'Align middle' %}" aria-label="{% trans 'Align middle' %}"><svg class="ic" aria-hidden="true" focusable="false"><use href="#ed-valign-middle"/></svg></button>
+      <button type="button" class="rte-btn" data-valign="bottom" disabled title="{% trans 'Align bottom' %}" aria-label="{% trans 'Align bottom' %}"><svg class="ic" aria-hidden="true" focusable="false"><use href="#ed-valign-bottom"/></svg></button>
     </span>
+    <span class="rte-sep"></span>
+    <button type="button" class="rte-btn" data-image-toggle disabled
+            title="{% trans 'Image cell' %}" aria-label="{% trans 'Image cell' %}"
+            data-pick-media="image" data-pick-mode="cell"><svg class="ic" aria-hidden="true" focusable="false"><use href="#ed-image"/></svg></button>
+    <input type="text" class="table-editor__alt input" data-image-alt hidden
+           maxlength="255" aria-label="{% trans 'Image description (alt)' %}"
+           placeholder="{% trans 'Image description (alt)' %}">
+    <select class="input" data-image-size hidden
+            title="{% trans 'Image size' %}" aria-label="{% trans 'Image size' %}">
+      {% for value, label in form.cell_image_sizes %}
+      <option value="{{ value }}">{{ label }}</option>
+      {% endfor %}
+    </select>
+    <button type="button" class="rte-btn" data-image-remove hidden
+            title="{% trans 'Remove image' %}" aria-label="{% trans 'Remove image' %}"><svg class="ic" aria-hidden="true" focusable="false"><use href="#ed-image-remove"/></svg></button>
     <span class="rte-sep"></span>
     <button type="button" class="rte-btn" data-merge disabled
             title="{% trans 'Merge cells' %}" aria-label="{% trans 'Merge cells' %}"><svg class="ic" aria-hidden="true" focusable="false"><use href="#ed-merge"/></svg></button>
@@ -66,10 +81,26 @@ row/column handles client-side and cannot call {% templatetag openblock %} trans
   and break byte-identity for every existing header-row table.{% endcomment %}
   <div class="scroll-x" data-scroll-x><div class="table-editor__grid" data-table-grid>
     <table>
-      {% for row in d.cells %}
+      {% for row in form.resolved_grid_cells %}
       <tr>
         {% for cell in row %}
+        {% if cell.kind == "image" %}
         {% if cell.header %}
+        <th data-image data-media="{{ cell.media.pk }}" data-alt="{{ cell.alt }}"
+            data-size="{{ cell.size|default:'full' }}" tabindex="0"
+            class="ta-{{ cell.halign }} va-{{ cell.valign }}"
+            data-halign="{{ cell.halign }}" data-valign="{{ cell.valign }}"{% if cell.colspan %} colspan="{{ cell.colspan }}"{% endif %}{% if cell.rowspan %} rowspan="{{ cell.rowspan }}"{% endif %}>
+          <img class="table-editor__img table-editor__img--{{ cell.size|default:'full' }}" src="{{ cell.media.file.url }}" alt="{{ cell.alt }}">
+        </th>
+        {% else %}
+        <td data-image data-media="{{ cell.media.pk }}" data-alt="{{ cell.alt }}"
+            data-size="{{ cell.size|default:'full' }}" tabindex="0"
+            class="ta-{{ cell.halign }} va-{{ cell.valign }}"
+            data-halign="{{ cell.halign }}" data-valign="{{ cell.valign }}"{% if cell.colspan %} colspan="{{ cell.colspan }}"{% endif %}{% if cell.rowspan %} rowspan="{{ cell.rowspan }}"{% endif %}>
+          <img class="table-editor__img table-editor__img--{{ cell.size|default:'full' }}" src="{{ cell.media.file.url }}" alt="{{ cell.alt }}">
+        </td>
+        {% endif %}
+        {% elif cell.header %}
         <th contenteditable="true" class="ta-{{ cell.halign }} va-{{ cell.valign }}"
             data-halign="{{ cell.halign }}" data-valign="{{ cell.valign }}"{% if cell.colspan %} colspan="{{ cell.colspan }}"{% endif %}{% if cell.rowspan %} rowspan="{{ cell.rowspan }}"{% endif %}>{{ cell.html|safe }}</th>
         {% else %}

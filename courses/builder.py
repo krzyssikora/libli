@@ -61,6 +61,13 @@ MAX_NEST_DEPTH = 4  # a top-level element has depth 1
 # test in test_nesting_rule.py is what stops it landing in only two.
 CONTAINER_TRANSFER_KEYS = frozenset({"tabs", "two_column", "spoiler", "callout"})
 
+# Type keys whose element form takes course= (it re-validates a submitted
+# MediaAsset pk against the course). "table" joins in slice C2: without it,
+# TableElementForm.self.course stays None on the SAVE path, the guard pattern
+# `if img_ids and self.course is not None` becomes a check that NEVER fires, and a
+# crafted POST can attach a foreign course's asset with every test still green.
+COURSE_SCOPED_TYPE_KEYS = ("image", "video", "gallery", "filltable", "table")
+
 # Positive allowlist: any type NOT named here is non-nestable, including types added
 # by future slices. Deliberately NOT the element_add/element_save allow-tuples, which
 # admit every question type and slidebreak.
@@ -1333,11 +1340,7 @@ def save_element(course, unit_pk, type_key, element_ref, post_data, files):
             f.instance.save()
             idx += 1
     else:
-        extra = (
-            {"course": course}
-            if type_key in ("image", "video", "gallery", "filltable")
-            else {}
-        )
+        extra = {"course": course} if type_key in COURSE_SCOPED_TYPE_KEYS else {}
         form = FORM_FOR_TYPE[type_key](
             data=post_data, files=files, instance=instance, **extra
         )
