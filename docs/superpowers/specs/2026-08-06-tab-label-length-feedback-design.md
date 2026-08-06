@@ -555,10 +555,17 @@ than the code. Falsify at the cheapest layer that can see the defect, and scope 
   **Do not** use `html.index("data-tab-cap") > html.rindex("</ol>")`. That form is only sound
   against the partial-only render. This module has two idioms — `_render_form()`
   (`test_tabs_editor_partial.py:32`, renders `_edit_tabs.html` alone, exactly one `</ol>`) and
-  `_served_tabs_form(client)` (`:178`, the full `element_add` response). The served fragment
-  contains four further `<ol class="element-list element-list--nested">` blocks from
-  `_element_row.html`, so `rindex("</ol>")` lands *after* `data-tab-cap` and the assertion goes RED
-  against a **correct** implementation. The forward-slice form above is robust under either render.
+  `_served_tabs_form(client)` (`:178`, the full `element_add` response).
+
+  In the served render the tabs editor is emitted as the **last `<li>` inside**
+  `_editor_scope.html`'s top-level `<ol class="element-list">` — the list opens at `:41` and the
+  `open_form_pk == "new"` branch appends the open form at `:53`, so the list's `</ol>` at `:54`
+  always follows `data-tab-cap`. `rindex("</ol>")` therefore lands *after* it and the assertion goes
+  RED against a **correct** implementation. (Note it is *not* the nested per-tab lists that cause
+  this: `_served_tabs_form` builds its unit with `make_course_with_unit`, which creates a unit with
+  no elements, so `rows` is empty, `_element_row.html` is never included, and the served HTML
+  contains zero `element-list--nested` blocks. Do not go looking for them and conclude this warning
+  is stale.) The forward-slice form above is robust under either render.
   *Mutants:* drop it (count fails); move it inside a row (the slice check fails — the count alone
   would not catch this).
 - `editor.css` defines `.el-editor--tabs .tabs-editor__status` as a **clip-based** rule —
@@ -643,8 +650,11 @@ unchanged wherever a case round-trips through the server.
 - **at cap:** `fill()` to 79, then `press_sequentially("x")` → `.is-at-cap`, and `[data-tab-cap]`
   holds the phrase with the row number and `80` interpolated, and contains no residual `{`.
   *Mutant:* delete the `.is-at-cap` branch.
-- **jump to cap:** a single `fill()` from empty straight to 80 → the live region receives the
-  phrase. *Mutant:* **announce only when the previous length was exactly `max - 1`.** Name it that
+- **jump to cap:** a single `fill()` carrying the value from any length below `max - 1` straight to
+  80 → the live region receives the phrase. The discriminating property is **one `input` event
+  spanning the gap**, not the starting value, so no emptying step is needed: a default row already
+  holds `"Tab 1"` (5 characters — `default_data()`, `models.py:1455-1462`) and qualifies as-is.
+  *Mutant:* **announce only when the previous length was exactly `max - 1`.** Name it that
   precisely: the loose phrasing "conditional on the previous state" invites an edge-triggered guard
   like `if (!wasAtCap && n >= max)`, which still announces on a jump from empty and so cannot go
   RED here. The `max - 1` form passes the incremental "at cap" case above and fails this one, which
