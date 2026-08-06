@@ -172,4 +172,4 @@ def test_rte_swatches_partial_is_untouched():
 
 def test_editor_css_drops_the_dead_toolbar_hidden_rule():
     css = EDITOR_CSS.read_text(encoding="utf-8")
-    assert ".table-editor__toolbar[hidden] { display: none; }" not in css
+    assert ".table-editor__toolbar[hidden]" not in css
