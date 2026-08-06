@@ -19,7 +19,8 @@ A second, related problem is visible at the *permitted* length: an 80-character 
 produces a ~600px `white-space: nowrap` tab that fills the strip on a narrow viewport and pushes
 every sibling tab out of sight.
 
-This design fixes the feedback gap and caps the tab width. It does **not** change the limit.
+This design fixes the feedback gap and caps the tab width. It does **not** change the limit, and it
+never hides label text from any reader.
 
 ## Settled decisions
 
@@ -40,6 +41,17 @@ carousel mode already supports — slides hold arbitrary child elements.
 carousel to tabs mode would permanently truncate a long caption: silent destructive data loss
 triggered by a settings change.
 
+**A too-wide tab wraps; it is never clipped.** Capping the width with
+`overflow: hidden` + `text-overflow: ellipsis` was specified, reviewed, and then **rejected on
+the user's explicit instruction**: a clipped label is unreadable on touch, where `title` tooltips do
+not exist, and today a phone reader can swipe the strip and read the whole label. Nothing about this
+feature may make label text unreadable on any device. The cap therefore constrains *width* only, and
+the label wraps to as many lines as it needs.
+
+This decision deleted the ellipsis, the `title` tooltip, the `data-label-text` attribute and the
+`tabs.js` edit that the earlier draft required — along with their KaTeX hazards. **Change 2 is now a
+single CSS rule edit.**
+
 **Consequence:** no model, migration, transfer or `FORMAT_VERSION` impact. `LABEL_MAX` and its four
 live references stay exactly as they are — the constant (`courses/models.py:1399`), the read in
 `normalize_labels_and_ids` (`models.py:1478`), `tabs_bounds` (`courses/templatetags/
@@ -49,10 +61,8 @@ payloads.py:747`).
 ## Non-goals
 
 - Changing `LABEL_MAX`, `sanitize_label`, or any persistence/transfer behaviour.
-- Any change to carousel **rendering**. The carousel caption is a block-level `<h3>` that wraps and
-  already displays the full stored label; no carousel CSS rule and no branch of `tabs.js`'s carousel
-  path is touched. (The new `data-label-text` attribute *is* emitted in carousel mode — see
-  "Attribute is emitted in both modes" below — but nothing reads it there.)
+- Any change to `courses/static/courses/js/tabs.js`, `templates/courses/elements/tabselement.html`,
+  or any carousel CSS rule. Change 2 touches exactly one existing rule in `courses.css`.
 - Truncating or otherwise restyling the builder tree `<summary>`.
 - Warning the author that a *paste* was truncated at the server. `maxlength` already truncates the
   paste client-side, so the counter reflects the post-truncation value and the server path is
@@ -60,7 +70,7 @@ payloads.py:747`).
 
 ## Architecture / components
 
-Two independent changes. They share no code and can be verified separately.
+Two independent changes. They share no code, touch no common file, and can be verified separately.
 
 ### Change 1 — editor: per-row character counter
 
@@ -68,46 +78,71 @@ Give the author a visible signal as the cap approaches, and an unmistakable one 
 
 #### Markup (`templates/courses/manage/editor/_edit_tabs.html`)
 
-Two edits.
+Three edits.
 
 **(a)** The `[data-tabs-editor]` root div gains a third `data-msg-*` attribute beside the existing
 `data-msg-remove` / `data-msg-confirm` (`_edit_tabs.html:17-18`):
 
 ```html
-data-msg-cap="{% trans 'Limit reached' %}"
+data-msg-cap="{% trans 'Tab label limit reached — {max} characters' %}"
 ```
 
 This is not optional plumbing. `label(root, key, fallback)` (`tabs_editor.js:13-15`) reads
 `root.getAttribute("data-msg-" + key)`; without this attribute the helper silently returns its
 English fallback forever, which is exactly the failure the i18n section exists to prevent. The key
-is `cap`, read as `label(editor, "cap", "Limit reached")`.
+is `cap`. `{max}` is interpolated at runtime via `.replace("{max}", max)`, keeping the limit
+single-sourced — the same placeholder idiom `tabs.js` already uses for
+`t("slidePos", "Slide {n} of {total}")`.
 
-**(b)** Each `.tabs-editor__row` gains a counter immediately after `[data-tab-label-input]` and
+**(b)** Each `.tabs-editor__row` gains a digits span immediately after `[data-tab-label-input]` and
 before `.tabs-editor__ctl`:
 
 ```html
-<span class="tabs-editor__count" data-tab-count hidden>
-  <span data-tab-num></span>
-  <span class="sr-only" data-tab-cap aria-live="polite"></span>
-</span>
+<span class="tabs-editor__count" data-tab-num aria-hidden="true" hidden></span>
 ```
 
 Rendered **empty and `hidden`** by the server. The counter is a purely client-side affordance; a
 server-rendered value would be wrong the instant the author types, and `hidden` keeps the no-JS
-editor byte-identical in effect.
+editor unchanged in both appearance and layout.
+
+`aria-hidden="true"` is deliberate: a bare "64/80" with no label is noise to a screen reader, and
+the announcement channel is the live region below, which says what it means.
+
+**(c)** One `.sr-only` live region **per editor**, not per row, placed immediately after the
+closing `</ol>` of `[data-tab-list]`:
+
+```html
+<span class="sr-only" data-tab-cap aria-live="polite"></span>
+```
+
+Per-editor rather than per-row for three reasons, all load-bearing:
+
+1. **It is always present in the accessibility tree.** A live region that is inserted (or revealed
+   from `display: none`) *already containing* its text is generally not announced — assistive tech
+   announces mutations to a region that was already rendered. A per-row region hidden below the
+   threshold would therefore drop its one announcement on exactly the case that matters most: a
+   single `input` event jumping from empty to 80, which is what a paste, a select-all-replace, an
+   undo or a text drag-and-drop produces.
+2. **It costs no layout.** `.sr-only` is `position: absolute`, so the region is out of flow and
+   cannot contribute a flex gap to the row — see "Layout" below.
+3. **One is sufficient.** Only one input has focus at a time.
+
+The region is written **only from the `input` path** — never from init and never from the clone
+path. It is a transition signal for something the author just did; re-announcing on editor open, or
+announcing a row the author did not touch, would be noise.
 
 **Attribute naming is constrained by existing raw-substring assertions.**
-`test_tabs_editor_partial.py:42` asserts `html.count("data-tab-row") == 2`. None of
-`data-tab-count`, `data-tab-num`, `data-tab-cap` contains that substring, nor `data-tab-label`.
-**Do not** name any of them `data-tab-label-count` or `data-tab-row-count`.
+`test_tabs_editor_partial.py:42` asserts `html.count("data-tab-row") == 2`. Neither `data-tab-num`
+nor `data-tab-cap` contains that substring, nor `data-tab-label`. **Do not** name either
+`data-tab-label-count` or `data-tab-row-count`.
 
 **Class naming has a live consequence.** `test_tabs_editor_partial.py:153`
 (`test_editor_css_styles_every_tabs_editor_class`) scans the partial for every `tabs-editor__*`
 class and requires `editor.css` to style each one. `.tabs-editor__count` is therefore *required* to
-have a rule. The two inner spans deliberately carry **no** `tabs-editor__*` class — they are
-addressed by data-attribute and by the global `.sr-only` — so they add no obligation.
+have a rule. The live region deliberately carries only the global `.sr-only` class, so it adds no
+obligation.
 
-#### The visually-hidden phrase
+#### The visually-hidden utility
 
 Use `.sr-only`, defined in `core/static/core/css/reset.css:25`:
 
@@ -121,50 +156,55 @@ Chosen over `.visually-hidden` (`core/static/core/css/app.css:1212`), which omit
 `base.html`, which links `reset.css`, `tokens.css` and `app.css` (`base.html:44-46`) *before* the
 `extra_css` block that adds `courses.css` and `editor.css`.
 
-It must stay **clip-based, never `display: none` or `visibility: hidden`** — the phrase has to
+It must stay **clip-based, never `display: none` or `visibility: hidden`** — the region has to
 remain in the accessibility and text trees so `aria-live` announces it and Playwright can read its
 text.
 
 #### Behaviour (`courses/static/courses/js/tabs_editor.js`)
+
+`refreshCount(li, announce)` is defined **inside `wire()`**, in the same closure as `serialize` and
+`refreshControlState` — it needs `editor` in scope for `label(editor, "cap", …)`.
 
 - `n = input.value.length` — UTF-16 code units. This deliberately matches what `maxlength` counts
   (so an astral emoji counts 2), not `sanitize_label`'s code-point slice. See "Counter vs stored
   length" below.
 - `max` is read from `input.maxLength` — the value the server already wrote as
   `maxlength="{{ tb.label_max }}"`. No new `data-*` plumbing, and it cannot drift from `LABEL_MAX`.
-  If `maxLength` is absent or `-1`, the counter stays inert: `hidden` set, no text, no class.
+  If `maxLength` is absent or `-1`, the counter stays inert: `hidden` set, no text, no class, and
+  the live region is left untouched.
 - `threshold = Math.ceil(max * 0.8)` — 64 at the current cap. Derived, never hardcoded. The
   fraction is a JS constant; the *limit* remains single-sourced in the model.
 
-`refreshCount(li)` **rebuilds the counter's entire state from `n` on every call.** It is a pure
-function of the current value — never an incremental mutation. This is load-bearing: an
-append-on-each-`input` implementation would repeat "Limit reached" once per keystroke at the cap
-(and `input` does keep firing there in some browsers), and would leave the at-cap state stranded
-when the author deletes back below it. One code path, three exhaustive branches:
+`refreshCount` **rebuilds the counter's entire state from `n` on every call.** It is a pure function
+of the current value — never an incremental mutation. This is load-bearing: an
+append-on-each-`input` implementation would repeat the phrase once per keystroke at the cap (and
+`input` does keep firing there in some browsers), and would leave the at-cap state stranded when the
+author deletes back below it. One code path, three exhaustive branches:
 
-| `n` | outer span | `[data-tab-num]` text | state class | `[data-tab-cap]` text |
+| `n` | digits span | digits text | state class | live region (only when `announce`) |
 |---|---|---|---|---|
 | `n < threshold` | `hidden` | `""` | none | `""` |
 | `threshold <= n < max` | shown | `n/max` | `.is-near` | `""` |
-| `n >= max` | shown | `n/max` | `.is-at-cap` | localized "Limit reached" |
+| `n >= max` | shown | `n/max` | `.is-at-cap` | localized phrase with `{max}` filled |
 
 The at-cap branch tests `n >= max`, not `n == max`. Over-length values should be unreachable
 (`editor_rows` normalizes both the bound and unbound source), but `>=` costs nothing and degrades
 sanely if that ever stops holding, where `==` would silently show `.is-near` on `85/80`.
 
-Below the threshold the outer span is `hidden`, which also keeps the row's flex `gap` out of the
-layout — see "Layout" below. A permanent `0/80` on up to `MAX_TABS` (10) rows is noise that trains
-an author to stop reading it.
+Below the threshold the digits span is `hidden`, which keeps the row's flex `gap` out of the layout.
+A permanent `0/80` on up to `MAX_TABS` (10) rows is noise that trains an author to stop reading it.
 
 #### Announcement policy
 
-`aria-live="polite"` sits on the **inner `.sr-only` span only** — not on the outer counter.
+The digits are `aria-hidden` and carry the **sighted** signal; the `.sr-only` live region carries the
+**assistive-tech** signal, and only at the cap.
 
-This is the deliberate resolution of a real conflict. If the live region wrapped the digits, every
-keystroke from 64 to 80 would mutate it, and a screen-reader user typing a long label would hear up
-to seventeen consecutive "65/80", "66/80" … announcements interleaved with their own keystroke
-echo. Putting the digits *outside* the live subtree and the phrase *inside* it means exactly one
-announcement fires, on the transition into the cap, which is the only moment the author needs told.
+That asymmetry is deliberate and its cost is stated plainly: a screen-reader author gets **no
+near-threshold warning** — no running count as they approach 64. Announcing every keystroke from 64
+to 80 would mean up to seventeen consecutive "65/80", "66/80" … announcements interleaved with the
+author's own keystroke echo, which is worse than silence. The at-cap phrase is therefore
+self-contained — it names the field, the fact, and the number ("Tab label limit reached — 80
+characters") — because it is the only thing that channel ever says.
 
 `aria-describedby` on the input is deliberately **not** used: this partial is injected by editor
 fragment swap and its own template comment records that it avoids `for=`/id references because ids
@@ -178,26 +218,31 @@ listener** and therefore survives reorder and clone for free. That handler has o
 scope — there is no `li` — so the call is:
 
 ```js
-refreshCount(e.target.closest("[data-tab-row]"));
+refreshCount(e.target.closest("[data-tab-row]"), true);
 ```
 
-alongside the existing `serialize()`.
+**Invariant: `refreshCount` must be the LAST statement at every call site.** The counter is an
+affordance, never a dependency, and that is only true if a throw inside it cannot abort the
+authoritative work. Concretely: after `serialize()` in the delegated `input` handler, and after
+`rows.appendChild(li)`, `refreshControlState()` and `serialize()` in the add handler. Placing it
+first would let a counter bug silently stop the author's typing from reaching
+`input[name="data"]`, or abort adding a tab outright.
 
 Three paths need an *explicit* refresh, because a delegated `input` listener only fires on typing:
 
-1. **Init** (`wire()`): loop over `rowEls()` and refresh each. A saved label may already be at 80,
-   and the counter must be correct before the author touches anything. This is the one path a
-   delegated listener structurally cannot cover.
-2. **Add tab**: the handler does `proto.cloneNode(true)`, which copies the counter span **including
+1. **Init** (`wire()`): loop over `rowEls()` and call `refreshCount(li, false)` for each. A saved
+   label may already be at 80, and the digits must be correct before the author touches anything.
+   This is the one path a delegated listener structurally cannot cover. `announce = false` — opening
+   an editor is not an event to announce.
+2. **Add tab**: the handler does `proto.cloneNode(true)`, which copies the digits span **including
    its text, its state class and its `hidden` state**, so cloning an at-cap row yields a brand-new
-   empty input showing a stale `80/80 Limit reached`. Immediately after the existing
-   `input.value = ""`, call `refreshCount(li)` — reusing the one state function resets text, class,
-   phrase and `hidden` together, where an ad-hoc "clear the counter" would be three things to
-   remember.
+   empty input showing a stale `80/80`. Call `refreshCount(li, false)` as the last statement of the
+   handler — reusing the one state function resets text, class and `hidden` together, where an
+   ad-hoc "clear the counter" would be three things to remember.
 3. **Reorder / remove**: no refresh needed — `insertBefore` moves the whole `<li>` and the counter
    travels with it; `remove()` takes it away.
 
-`refreshCount` returns early if the row, its input, or its counter span is missing, so markup drift
+`refreshCount` returns early if the row, its input, or its digits span is missing, so markup drift
 degrades to today's behaviour rather than throwing.
 
 **File-order constraint.** `test_tabs_editor_partial.py:240`
@@ -228,161 +273,123 @@ would be globally scoped and inconsistent:
 `.tabs-editor__row` is `display: flex; gap: var(--space-2)` (`editor.css:931-936`), so a third flex
 item that merely has empty text still contributes a second `gap` — every row would permanently lose
 that much input width, for every author, in every state below the threshold, and with JS disabled.
-The explicit `display: none` is also necessary because `[hidden]` is overridden by `display: flex`
-in this codebase (the same trap `.tabs-editor__setting[hidden]` already handles two rules above).
+The explicit `display: none` is also necessary because `[hidden]` loses to a `display` declaration
+(the same trap `.tabs-editor__setting[hidden]` already handles two rules above).
 
 The counter is `flex: 0 0 auto` with `font-variant-numeric: tabular-nums` so the digits do not
-jitter as they change. The row's input is `flex: 1 1 auto; min-width: 0`, so a fixed-size sibling
-shortens the input rather than overflowing the row.
+jitter, and `min-width` sized for the widest string it ever shows (`80/80`) so its appearance does
+not shift the row.
 
-**Tokens.** `.is-near` uses `--text-secondary`; `.is-at-cap` uses `--danger` (or the nearest
-existing warning token — name it, do not invent one). **Do not** use `--text-tertiary`: it is
-recorded in this codebase as failing AA at body size.
+**The input needs a floor.** `.tabs-editor__row` already reserves
+`padding-left: calc(1.4rem + var(--space-4))` for the CSS-counter badge and carries a three-button
+`.tabs-editor__ctl` group. Adding a fourth fixed item plus a second gap shrinks
+`.tabs-editor__label` in the narrow editor pane at exactly the moment the author is typing a long
+label. `.tabs-editor__label` is `flex: 1 1 auto; min-width: 0`, which permits it to shrink
+arbitrarily — raise that to a stated floor (`min-width: 8rem`) so the counter appearing can never
+collapse the field.
 
-**Colour is not the only at-cap signal.** `.is-at-cap` also changes `font-weight`, and the sr-only
-phrase carries the state to assistive tech. A colour-only state would be inaccessible to a
+**Tokens.** `.is-near` uses `--text-secondary`; `.is-at-cap` uses `--danger` — a hard stop, not a
+caution. Both are defined for light and dark (`tokens.css:57`, `:98`). **Do not** use
+`--text-tertiary`: it is recorded in this codebase as failing AA at body size.
+
+**Colour is not the only at-cap signal.** `.is-at-cap` also changes `font-weight`, and the live
+region carries the state to assistive tech. A colour-only state would be inaccessible to a
 colour-blind author regardless of which token is chosen.
 
-### Change 2 — student tabs strip: cap the tab width
+### Change 2 — student tabs strip: cap the width, wrap the label
 
-#### CSS (`courses/static/courses/css/courses.css`)
+One rule edit, in `courses/static/courses/css/courses.css`, to the existing `.el--tabs .tabs__tab`
+block (`courses.css:1505-1510`):
 
-Extend the existing `.el--tabs .tabs__tab` rule (`courses.css:1505-1510`) with `max-width`,
-`overflow: hidden`, `text-overflow: ellipsis`. The rule is already `white-space: nowrap` and
-`flex: 0 0 auto`, which is what makes ellipsis possible at all.
+- **remove** `white-space: nowrap`
+- **add** `max-width: min(18rem, 55vw)`
+- **add** `overflow-wrap: break-word`
 
-Cap: `max-width: min(18rem, 55vw)`.
+No `overflow: hidden`, no `text-overflow`, no tooltip, no JS. A label that exceeds the cap wraps to
+as many lines as it needs and stays completely readable on every device.
 
-**Be honest about what that guarantees.** The `55vw` bound is measured against the **viewport**, not
-the strip's container. On a ~360px phone it resolves to ~198px and keeps a second tab and the edge
-fade visible. In a narrow *container* on a wide viewport — the editor's preview pane, a tabs element
-nested in a two-column layout, a tabs element inside a slide — `min()` resolves to the `18rem`
-bound instead, the tab may fill its container, and no second tab is visible. That case falls back to
-the scroller, fade and chevrons that already exist. The cap's job is to stop one pathological tab
-from monopolising the strip; it is not a promise about any particular container width. A
-container-relative bound (`cqi` with `container-type` on `.tabs__bar`) was considered and rejected
-as disproportionate machinery for a cosmetic maximum.
+`overflow-wrap: break-word` is required, not decorative: an author can type 80 characters with no
+spaces, and without it that single token would overflow the cap rather than wrap.
 
-The selector stays the existing descendant form `.el--tabs .tabs__tab`. Unlike the carousel rules,
-this one does **not** need an explicit child chain: it is purely cosmetic, and applying it to a
-nested tabs element's strip is correct rather than harmful. (The child-chain rule exists because
-carousel rules *position and hide* things, so leaking into a nested instance blanks it.)
+**Measured capacity.** `18rem` = 288px; global `box-sizing: border-box` (`reset.css:2`) and
+`padding: var(--space-3) var(--space-4)` = 16px each side (`tokens.css:75`) leave 256px of text —
+roughly 34 characters per line at the tab's `font-weight: 600`. An 80-character label therefore
+wraps to about three lines.
 
-`overflow: hidden` does not clip the focus ring: `.tabs__tab:focus-visible` uses
-`outline-offset: -2px`, so the outline is drawn inset.
+**This is why the cap and the counter threshold need not agree.** Wrapping begins around 34
+characters while the counter stays silent until 64, and that mismatch is harmless *because wrapping
+loses nothing*: labels between ~35 and ~63 characters simply occupy two lines, fully legible, with
+no authoring signal needed. Under the rejected ellipsis design the same mismatch would have meant a
+silently clipped label with no warning — which is precisely why that design was rejected.
 
-#### Ellipsis on a `<button>` must be measured, not assumed
+**What the cap does and does not promise.** The `55vw` bound is measured against the **viewport**,
+not the strip's container. On a ~360px phone it resolves to ~198px and keeps a second tab and the
+edge fade visible. In a narrow *container* on a wide viewport — the editor's preview pane, a tabs
+element nested in a two-column layout or inside a slide — `min()` resolves to the `18rem` bound
+instead and the tab may fill its container, falling back to the scroller, fade and chevrons that
+already exist. The cap's job is to stop one pathological tab monopolising the strip; it is not a
+promise about any particular container width. A container-relative bound (`cqi` with
+`container-type` on `.tabs__bar`) was considered and rejected as disproportionate machinery for a
+cosmetic maximum.
 
-`white-space: nowrap` + `overflow: hidden` are necessary but not sufficient on a `<button>`:
-Blink and WebKit wrap button content in an anonymous content box that has historically swallowed
-`text-overflow`. Nothing in this spec establishes that it works here, and no *width* assertion can
-tell an ellipsis glyph from a hard mid-character chop.
+**Row height.** `.tabs__strip` is `display: flex` with no `align-items`, so it defaults to
+`stretch`: when one tab wraps to three lines, every tab in that strip becomes equally tall and the
+2px active-tab underline stays on one baseline. This is the desired result, not a side effect to
+correct.
 
-**Requirement:** before Change 2 is considered done, verify by screenshot (light and dark, judged
-separately) that a long-label strip renders an actual ellipsis. **Named fallback if it does not:**
-wrap the cloned label nodes in an inner `<span>` inside the button and move
-`overflow`/`text-overflow` onto that span. The e2e must include a check that distinguishes ellipsis
-from a hard clip (e.g. `scrollWidth > clientWidth` on the element carrying the ellipsis, together
-with the screenshot).
+**Selector scope.** The rule stays the existing descendant form `.el--tabs .tabs__tab`. Unlike the
+carousel rules, it does **not** need an explicit child chain: it is purely cosmetic, and applying it
+to a nested tabs element's strip is correct rather than harmful. (The child-chain rule exists
+because carousel rules *position and hide* things, so leaking into a nested instance blanks it.)
 
-#### Tooltip
-
-The full label goes into the button's `title`.
-
-The source of that string is the delicate part. It **must not** be `label.textContent`. `math.js`
-runs before `tabs.js` in document order, so by the time the strip is built a label carrying inline
-LaTeX is already a `<span class="katex">` subtree whose `textContent` is the MathML annotation *and*
-the visual HTML rendering concatenated — mangled output like `x2x^2x2`. The existing code comment at
-`tabs.js:129-139` documents exactly this, which is why the strip *clones child nodes* rather than
-copying text.
-
-So the plain label is carried from the server instead.
-`templates/courses/elements/tabselement.html` emits it on the existing `<h3 class="tabs__panel-label">`:
-
-```html
-<h3 class="tabs__panel-label" data-tab-label data-label-text="{{ tab.label }}" id="…">
-```
-
-and `tabs.js` copies it across immediately after the child-node clone loop:
-
-```js
-var full = label.getAttribute("data-label-text");
-if (full) btn.title = full;
-```
-
-`data-label-text` does not contain the substring `data-tab-label`, so `test_tabs_partial.py:35` and
-`:224` (`html.count("data-tab-label") == 2`) still hold. The value is escaped by Django's
-autoescaping in an attribute context, as `{{ tab.label }}` already is in its text position.
-
-The `title` is set **unconditionally**, not only when the tab actually overflows. Measuring overflow
-means a layout read after append plus re-measurement on resize; the cost and added failure surface
-are not worth avoiding a redundant tooltip on a short tab.
-
-**For a math label the tooltip is the raw LaTeX source** — `\(x^{2}\)`, not rendered maths, and not
-anything a student can act on. This is accepted, and it is the honest reason the "accepted edge"
-below is a genuine limitation rather than a mitigated one.
-
-#### Attribute is emitted in both modes
-
-`tabselement.html` emits one layout for both display modes, so `data-label-text` lands on the
-carousel's `<h3>` as well, where nothing reads it. This is required, not incidental:
-`test_tabs_partial.py:199` (`test_markup_is_identical_between_modes_apart_from_the_two_attributes`)
-asserts the two modes' markup differs only by the two known attributes, so emitting the new
-attribute in one mode only would break it.
+No existing test pins `white-space: nowrap` on `.tabs__tab` — verified. (`test_tabs_partial.py:150`
+mentions `nowrap` but is about the `@media print` reset for `.tabs__panel-label`, a different rule.)
 
 ## Data flow
 
-Nothing is persisted or transferred by either change.
+Nothing is persisted or transferred by either change. Change 2 renders no new data — it restyles
+markup that already exists.
 
 **Editor:** author types → delegated `input` handler on `[data-tab-list]` → `serialize()` writes the
-authoritative hidden `input[name="data"]` (unchanged) **and** `refreshCount(row)` rebuilds the
-counter. The counter never participates in serialization, never has a `name`, and is invisible to
-the form. On save the server path is byte-for-byte what it is today.
-
-**Student:** `tab.label` (already normalized and truncated at write time by
-`normalize_labels_and_ids`) → rendered into the `<h3>` text *and* its new `data-label-text`
-attribute → `tabs.js` clones the child nodes into the button and copies the attribute into `title`.
-The stored value is the single source for both.
+authoritative hidden `input[name="data"]` (unchanged) → **then** `refreshCount(row, true)` rebuilds
+the digits and, at the cap, writes the shared live region. The counter never participates in
+serialization, never has a `name`, and is invisible to the form. On save the server path is
+byte-for-byte what it is today.
 
 **Counter vs stored length.** The counter mirrors what `maxlength` counts — the raw input value in
 UTF-16 code units. `sanitize_label` (`courses/sanitize.py:188`) stores
 `_WS.sub(" ", html.unescape(value)).strip()[:max_length]`, so a label typed with entity text or runs
-of spaces persists *shorter* than the counter showed: the author can see `80/80 Limit reached` for a
-label that lands at 70. This divergence is pre-existing (it is exactly what `maxlength` has always
-done) and is accepted; reproducing the server's normalization in JS would be a second source of
-truth for a cosmetic readout.
+of spaces persists *shorter* than the counter showed: the author can see `80/80` for a label that
+lands at 70. This divergence is pre-existing (it is exactly what `maxlength` has always done) and is
+accepted; reproducing the server's normalization in JS would be a second source of truth for a
+cosmetic readout.
 
 ## Error handling
 
-- **`maxLength` unavailable** (attribute removed, or `-1`): the counter stays `hidden` with no text
-  and no class. Degrades to today's behaviour rather than showing `n/-1`.
-- **Counter span or input missing** from a row (markup drift, or an old cached fragment):
-  `refreshCount` returns early. `serialize()` and the hidden field are untouched — the counter is an
-  affordance, never a dependency.
-- **`data-msg-cap` missing:** `label()` returns the English fallback. Degraded, not broken.
-- **`data-label-text` missing or empty** on the `<h3>` (nested/legacy markup): `tabs.js` sets no
-  `title`. The tab still renders and still elides; only the tooltip is absent.
+- **`maxLength` unavailable** (attribute removed, or `-1`): the digits stay `hidden` with no text
+  and no class, and the live region is not written. Degrades to today's behaviour rather than
+  showing `n/-1`.
+- **Digits span or input missing** from a row (markup drift, or an old cached fragment):
+  `refreshCount` returns early. `serialize()` and the hidden field are untouched.
+- **Live region missing** (older cached partial): `refreshCount` skips the announcement and still
+  updates the digits.
+- **`data-msg-cap` missing:** `label()` returns the English fallback, with `{max}` still
+  interpolated. Degraded, not broken.
+- **A throw inside `refreshCount`:** cannot affect saving, because it is the last statement at every
+  call site.
 - **No JS:** the editor shows a `hidden` span (no layout or visual change at all) and the student
   page shows the server's stacked fallback with full headings, exactly as today.
-- **Print:** unchanged. The strip is `display: none !important` under `@media print` and the panel
-  headings are revealed, so neither the cap nor the tooltip is reachable on paper.
+- **Print:** unchanged. `.tabs__bar` is `display: none !important` under `@media print` and the
+  panel headings are revealed, so the cap is not reachable on paper.
 
-## Accepted edges (deliberately not solved)
+## Accepted edge (deliberately not solved)
 
-**1. A clipped label is unreadable on touch.** Today a phone user can swipe the horizontally
-scrolling strip (`.tabs__scroller` is `overflow-x: auto`) and read an entire 80-character label.
-After Change 2 the text is clipped *inside* the button, so scrolling no longer reveals it, and
-`title` tooltips do not exist on touch devices — the chevrons are `aria-hidden` decoration, not an
-alternative. This is a real reader-facing trade-off, not a cosmetic one, and it is accepted for
-three reasons: the clipping is visual only, so the DOM text is intact and assistive tech still reads
-the complete label; the cap is chosen to sit well past any reasonable tab label; and Change 1 exists
-precisely to steer authors away from labels long enough to hit it. **This trade-off must be called
-out explicitly in the PR body** so it is a decision on the record rather than a silent regression.
-
-**2. Ellipsis cannot elide inside maths.** `text-overflow: ellipsis` operates on a text run, and a
-KaTeX subtree is a sequence of inline-block boxes. A math-only label that overflows the cap is
-hard-clipped with no ellipsis glyph, and its `title` is raw LaTeX (above). Solving this properly
-would mean measuring and rebuilding the rendered maths — far out of proportion to the case.
+**A single unbreakable atom wider than the cap overflows it.** `overflow-wrap: break-word` breaks
+text, but a KaTeX subtree is a sequence of inline-block boxes that cannot break internally, so a
+label consisting of one very wide rendered formula will paint past the `max-width` box and may
+overlap the neighbouring tab. This is accepted deliberately: the alternative is `overflow: hidden`,
+which is precisely the clipping this design exists to avoid. Layout overlap in a pathological case
+is preferable to hidden content in a common one.
 
 ## Testing
 
@@ -392,64 +399,82 @@ against the broken build proves nothing. Falsify at the cheapest layer that can 
 scope each run narrowly (`-k`) — whole-suite sweeps belong to the branch gate.
 
 **`tests/test_tabs_editor_partial.py`**
-- `data-msg-cap` is present on the `[data-tabs-editor]` root and its value is a translated string.
-  *Mutant:* drop the attribute.
-- The counter renders once per row, `hidden`, between the input and the controls, with a
-  `[data-tab-num]` child and an `.sr-only` `[data-tab-cap]` child carrying `aria-live="polite"`.
-  *Mutants:* drop the span; drop `aria-live`; drop `hidden`; move `aria-live` to the outer span
-  (must fail — that is the announcement-storm regression).
-- `html.count("data-tab-row") == 2` still holds. *Mutant:* rename the counter to
+- `data-msg-cap` is present on the `[data-tabs-editor]` root and its value contains the `{max}`
+  placeholder. *Mutant:* drop the attribute.
+- Rendering the partial under `translation.override("pl")` puts the Polish msgstr in `data-msg-cap`.
+  *Mutant:* leave the `.po` entry untranslated or fuzzy. (`test_tabs_partial.py:421` is the model
+  for this assertion, but the string lives in `_edit_tabs.html`, so the test belongs here.)
+- The digits span renders once per row, `hidden`, `aria-hidden="true"`, between the input and the
+  controls. *Mutants:* drop the span; drop `hidden`; drop `aria-hidden`.
+- Exactly one `.sr-only` `[data-tab-cap]` live region renders per editor, outside `[data-tab-list]`,
+  with `aria-live="polite"`. *Mutants:* drop it; move it inside a row (must fail the "one per
+  editor" count); drop `aria-live`.
+- `html.count("data-tab-row") == 2` still holds. *Mutant:* rename the digits span
   `data-tab-row-count`.
 - `editor.css` styles `.el-editor--tabs .tabs-editor__count`, its `[hidden]`, `.is-near` and
   `.is-at-cap`, and the at-cap rule carries at least one **non-colour** declaration.
   *Mutants:* delete the `[hidden]` rule; delete the state rules; reduce `.is-at-cap` to colour only.
-  (`test_editor_css_styles_every_tabs_editor_class` already forces a rule to exist for
-  `.tabs-editor__count` itself; these assertions cover what it cannot see.)
+- `.tabs-editor__label` declares a `min-width` floor. *Mutant:* revert it to `min-width: 0`.
 
-**`tests/test_tabs_partial.py`**
-- `data-label-text` is present on every `<h3>` and carries the full label.
-- `html.count("data-tab-label") == 2` and `html.count("data-tab-panel") == 2` unchanged.
-- A label containing `<`, `&` or a quote is escaped in the attribute.
-- `test_markup_is_identical_between_modes_apart_from_the_two_attributes` still passes.
-  *Mutants:* drop the attribute; rename it `data-tab-label-text` (must break the count); mark the
-  value `|safe` (must break the escaping assertion); emit it only when `display == "tabs"` (must
-  break the both-modes test).
-
-**`tests/test_tabs_css.py`** — assert on the *physical rule*, not on file-wide presence, or the
-mutant below passes. Locate the line whose selector subject is `.tabs__tab`, parse its
-declarations, and require `max-width`, `overflow: hidden`, `text-overflow: ellipsis` and the
-surviving `white-space: nowrap` **on that line**. Separately assert that no line whose selector
-contains `[data-display="carousel"]` or `.tabs--carousel` gained a `max-width`.
-*Mutants:* remove `text-overflow`; remove `overflow: hidden`; move the cap declaration onto a
-carousel selector (must fail both assertions).
+**`tests/test_tabs_css.py`** — assert on the *declaration block*, not on a line and not on file-wide
+presence. The existing rule spans `courses.css:1505-1510`, so a line-based parser finds nothing, and
+"the line whose selector mentions `.tabs__tab`" also matches the `:hover`, `[aria-selected]` and
+`:focus-visible` rules that follow. Locate the block whose selector is exactly
+`.el--tabs .tabs__tab` (no pseudo-class or attribute qualifier), slice from its `{` to the matching
+`}`, and assert **within that slice**: `max-width` present, `overflow-wrap` present, and
+`white-space: nowrap` **absent**. Separately assert that no block whose selector contains
+`[data-display="carousel"]` or `.tabs--carousel` gained a `max-width`.
+*Mutants:* restore `white-space: nowrap`; delete `max-width`; delete `overflow-wrap`; move the cap
+onto a carousel selector (must fail the negative assertion).
 
 **`tests/test_e2e_tabs.py`** (`-m e2e`; must drive the real UI, never synthesise DOM)
-- type to `threshold - 1` → counter still `hidden`; one more character → visible, `n/80`,
-  `.is-near`
-- type to 80 → `.is-at-cap`, and `[data-tab-cap]` has the localized phrase
-- **descend**: 80 → 79 → 63 → the phrase clears, `.is-at-cap` gives way to `.is-near`, then the
-  span returns to `hidden`. *Mutant:* make `refreshCount` append rather than rebuild.
-- **init**: open the editor on an element whose *stored* label is already 80 characters and assert
-  the at-cap state at first paint, before any keystroke. *Mutant:* delete the init refresh loop.
-- "Add tab" cloned from an at-cap row → the new row's counter is `hidden` and empty.
-  *Mutant:* remove the `refreshCount(li)` call from the add handler.
-- reorder a row that is at the cap → its counter is still correct afterwards
-- a long label in the strip → `title` equals the full stored label, `clientWidth` ≤ the cap, and the
-  ellipsis check above distinguishes elision from a hard clip
-- a label containing inline LaTeX → `title` is the plain LaTeX source, **not** the KaTeX-flattened
-  text. *Mutant:* revert to `label.textContent` — this is the assertion that catches it.
+
+Input method matters and is specified per case: `fill()` sets the value and fires **one** `input`
+event; `press_sequentially()` fires one per character and costs real wall-clock. Use `fill()` to
+reach a starting length cheaply, then a single `press_sequentially` character to cross a boundary.
+
+- **threshold boundary:** `fill()` to `threshold - 1` → digits still `hidden`; one
+  `press_sequentially` character → visible, `n/80`, `.is-near`.
+  *Mutants:* `Math.ceil` → `Math.floor`; `n < threshold` → `n <= threshold`.
+- **at cap:** continue to 80 → `.is-at-cap`, and `[data-tab-cap]` holds the localized phrase with
+  `80` interpolated. *Mutant:* delete the `.is-at-cap` branch.
+- **jump to cap:** a single `fill()` from empty straight to 80 → the live region still receives the
+  phrase. *Mutant:* make the live region conditional on the previous state rather than on `n`.
+- **descend:** 80 → 79 → 63 → the phrase clears, `.is-at-cap` gives way to `.is-near`, then the span
+  returns to `hidden`. *Mutant:* make `refreshCount` append rather than rebuild.
+- **init:** open the editor on an element whose *stored* label is already 80 characters and assert
+  the at-cap digits at first paint, before any keystroke, **and** that the live region is empty.
+  *Mutants:* delete the init refresh loop; pass `announce = true` at init.
+- **add tab:** cloned from an at-cap row → the new row's digits are `hidden` and empty.
+  *Mutant:* remove the `refreshCount` call from the add handler.
+- **reorder:** move a row that is at the cap → its counter is still correct afterwards.
+  *Mutant:* make the reorder handler re-create rather than move the `<li>`.
+- **strip wrapping:** with an explicitly **pinned viewport width**, an 80-character tab has
+  `clientWidth` at the expected cap in px (assert at/near that value, not merely `<=` it — on a wide
+  viewport `<= 55vw` is vacuously true and would stay green against a deleted `max-width`), and
+  `offsetHeight` strictly greater than a short tab's in the same strip, proving it wrapped rather
+  than merely being narrow. *Mutant:* delete the `max-width` declaration.
 
 *Sync on conditions, never sleeps.* Note the known init-time transition window in this element: a
 `wait_for_selector` can resolve mid-transition, so negative visibility assertions need a settled
 condition, not a bare selector wait.
 
-**i18n.** "Limit reached" is the only new user-facing string. The full sequence is required, not
+**Screenshot verification** (light and dark, judged separately — dark is not a recolour of light).
+Two cases, because neither is provable from the DOM:
+
+1. A strip containing an 80-character label: confirm it wraps, that every tab in the strip is
+   equal height, and that the active-tab underline sits on one baseline.
+2. A tab whose label carries inline maths with real vertical extent (`\(\frac{a}{b}\)`): confirm the
+   line box contains it without vertical clipping, and record what a formula wider than the cap
+   actually does — this is the accepted-edge case and the screenshot is the only thing that shows
+   how bad the overlap looks.
+
+**i18n.** The at-cap phrase is the only new user-facing string. The full sequence is required, not
 just the `.po` edit: `makemessages` → **clear any fuzzy pre-fill** (delete both the `#, fuzzy`
 marker and the wrong `msgstr` it guessed from a similar msgid) → add the Polish translation →
 `compilemessages` → **commit the binary `.mo`**. A `.po`-only change ships English to Polish users
-with every test green. Add an assertion that the phrase resolves to its Polish form under
-`translation.override("pl")` — `test_tabs_partial.py:421` exists for exactly this class of
-regression and is the model to follow.
+with every test green. The `{max}` placeholder must survive translation — flag it to the translator
+as a literal token, not prose.
 
 **Branch gate.** Both lint steps, not one: `uv run ruff check .` **and**
 `uv run ruff format --check .`. PR #219 passed the first and failed CI on the second, because a
