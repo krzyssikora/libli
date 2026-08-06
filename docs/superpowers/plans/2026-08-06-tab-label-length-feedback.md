@@ -27,6 +27,7 @@ Every task's requirements implicitly include this section.
 - **Per-task lint:** `uv run ruff check <files>` **and** `uv run ruff format --check <files>` on the Python files you touched. Both. PR #219 passed the first and failed CI on the second.
 - **Nothing flagged is left unfixed.** If your task report would mention a lint nit, a stale comment, or an unrelated failure, fix it or state it in a way Task 9 can act on. #219's CI failure escaped exactly by being mentioned and scrolled past.
 - **Copy strings byte-for-byte.** The at-cap msgid is `Tab {n} label limit reached — {max} characters` — em dash (`—`, U+2014), both `{n}` and `{max}` braces literal. The JS fallback literal must match it exactly.
+- **Write Python with the Write/Edit tools, never a shell heredoc.** Several snippets contain backslashes inside docstrings (`\\(a + b = c\\)` in Task 1, `\s*` and `\b` in Task 2's `min-width` docstring, the regex literals in Task 4). A heredoc collapses the doubled backslashes, and Python 3.13 then reports `SyntaxWarning: invalid escape sequence` on every collection — noise that looks like a real defect and obscures the run. Task 1 hit this and fixed it; do not reintroduce it.
 
 ---
 
