@@ -15,7 +15,8 @@ contain it.
 <div class="el-editor el-editor--tabs" data-tabs-editor
      data-min-tabs="{{ tb.min }}" data-max-tabs="{{ tb.max }}"
      data-msg-remove="{% trans 'Remove tab' %}"
-     data-msg-confirm="{% trans 'Deleting this tab also deletes everything inside it.' %}">
+     data-msg-confirm="{% trans 'Deleting this tab also deletes everything inside it.' %}"
+     data-msg-cap="{% trans 'Tab {n} label limit reached — {max} characters' %}">
   <input type="hidden" name="data" value="{{ form.data.data|default:'' }}">
 
   {% comment %}Wrapped <label>, not for="...": a for= reference needs stable collision-free
@@ -51,6 +52,7 @@ contain it.
       <input type="text" class="tabs-editor__label" data-tab-label-input
              value="{{ row.label }}" maxlength="{{ tb.label_max }}"
              aria-label="{% trans 'Tab label' %}">
+      <span class="tabs-editor__count" data-tab-num aria-hidden="true" hidden></span>
       <span class="tabs-editor__ctl">
         <button type="button" class="iconbtn" data-tab-up title="{% trans 'Move up' %}" aria-label="{% trans 'Move up' %}"><svg class="ic"><use href="#bi-up"/></svg></button>
         <button type="button" class="iconbtn" data-tab-down title="{% trans 'Move down' %}" aria-label="{% trans 'Move down' %}"><svg class="ic"><use href="#bi-down"/></svg></button>
@@ -59,6 +61,12 @@ contain it.
     </li>
     {% endfor %}
   </ol>
+
+  {% comment %}One live region per EDITOR, not per row, and never hidden: a region
+  revealed from display:none already containing its text is generally not announced,
+  which would drop the announcement on a paste straight to the cap. It is clipped by
+  .tabs-editor__status (position:absolute) so it costs no layout in the flex row.{% endcomment %}
+  <span class="tabs-editor__status" data-tab-cap role="status" aria-live="polite"></span>
 
   <button type="button" class="btn btn--small" data-tab-add>{% trans "Add tab" %}</button>
 

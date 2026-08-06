@@ -315,3 +315,65 @@ def test_the_label_input_has_a_non_zero_width_floor():
     assert m.group(1).strip() not in ("0", "0px"), (
         "label input has no non-zero min-width floor"
     )
+
+
+def test_the_cap_message_rides_on_a_data_msg_attribute():
+    """JS-built strings cannot call {% trans %}; tabs_editor.js reads them via
+    label(root, key, fallback) off the [data-tabs-editor] root. Without the attribute
+    the helper silently returns its English fallback forever."""
+    html = _render_form(TabsElement(data=TabsElement.default_data()))
+    assert "data-msg-cap=" in html
+    assert "{n}" in html and "{max}" in html
+
+
+def test_each_row_carries_a_hidden_aria_hidden_counter():
+    """Rendered empty and hidden: a server-rendered value is wrong the instant the
+    author types, and `hidden` keeps the no-JS editor unchanged in layout too.
+    aria-hidden because a bare "64/80" with no label is noise -- the live region is
+    the announcement channel and it says what it means."""
+    html = _render_form(TabsElement(data=TabsElement.default_data()))
+    assert html.count("data-tab-num") == 2
+    assert html.count('class="tabs-editor__count"') == 2
+    # Pin the WHOLE tag, in a fixed attribute order. Counting `hidden` or
+    # `aria-hidden="true"` separately is not enough: `hidden` is the load-bearing
+    # attribute (the no-JS layout and the "no permanent 0/80" argument both rest on
+    # it) and a count of stray attributes elsewhere in the partial would mask its
+    # removal. Keep Step 4's markup in exactly this order.
+    span = '<span class="tabs-editor__count" data-tab-num aria-hidden="true" hidden>'
+    assert html.count(span) == 2
+    # The existing count assertion must not move.
+    assert html.count("data-tab-row") == 2
+
+    # POSITION, not just presence. The tag check above fixes the span's attributes and
+    # their order but says nothing about where it sits: moving it after
+    # .tabs-editor__ctl leaves every assertion above green, and the spec requires it
+    # BETWEEN the input and the controls.
+    first_row = html[: html.index("data-tab-row", html.index("data-tab-row") + 1)]
+    assert (
+        first_row.index("data-tab-label-input")
+        < first_row.index("tabs-editor__count")
+        < first_row.index("tabs-editor__ctl")
+    )
+
+
+def test_exactly_one_live_region_renders_outside_the_row_list():
+    """One per EDITOR, not per row. A per-row region hidden below the threshold is
+    inserted into the a11y tree already containing its text, which assistive tech
+    generally does not announce -- dropping the announcement on exactly the case that
+    matters most (one input event jumping straight to the cap).
+
+    The placement check slices the list forward. Do NOT use
+    `html.index("data-tab-cap") > html.rindex("</ol>")`: in the SERVED render
+    (_served_tabs_form) the open form is emitted as the last <li> inside
+    _editor_scope.html's own top-level <ol class="element-list">, whose </ol> follows
+    data-tab-cap -- so that form goes RED against a correct implementation.
+    """
+    html = _render_form(TabsElement(data=TabsElement.default_data()))
+    assert html.count("data-tab-cap") == 1
+    assert 'aria-live="polite"' in html
+    assert 'class="tabs-editor__status"' in html
+
+    start = html.index("data-tab-list")
+    assert "data-tab-cap" not in html[start : html.index("</ol>", start)], (
+        "the live region must sit outside [data-tab-list], not inside a row"
+    )
