@@ -578,10 +578,17 @@ than the code. Falsify at the cheapest layer that can see the defect, and scope 
   `.is-at-cap`; the base rule declares a `font-size`; and the at-cap rule carries at least one
   **non-colour** declaration. *Mutants:* delete the `[hidden]` rule; delete the state rules; reduce
   `.is-at-cap` to colour only.
-- `.tabs-editor__label` declares a **non-zero** `min-width`. The assertion must extract the declared
-  value and reject `0` (e.g. match `min-width:\s*(?!0\b)` within the block slice) — a naive
-  "`min-width` appears in the block" check stays green against the mutant, since `min-width: 0` is
-  also a `min-width` declaration. *Mutant:* revert it to `min-width: 0`.
+- `.tabs-editor__label` declares a **non-zero** `min-width`. The assertion must **extract the
+  declared value and compare it** — e.g. `m = re.search(r"min-width:\s*([^;}]+)", block)` then
+  `assert m.group(1).strip() not in ("0", "0px")`.
+
+  Two forms that look adequate and are not: a naive `"min-width" in block` stays green because
+  `min-width: 0` is also a `min-width` declaration; and the negative lookahead
+  `re.search(r"min-width:\s*(?!0\b)", block)` **also** stays green — `\s*` backtracks to zero
+  characters, so the lookahead is evaluated at the space rather than at the `0` and trivially
+  succeeds. It matches `min-width: 0;` and is completely inert. (This was verified by running it,
+  after the lookahead form survived six rounds of spec review unexecuted.)
+  *Mutant:* revert it to `min-width: 0`.
 - **Ordering invariant.** The three call sites are anonymous callbacks and `wire()`'s tail, not
   named functions, so the `function serialize` / `function refreshControlState` idiom cannot be
   reused and a whole-file "last `refreshCount(` after last `serialize(`" check would **not** go RED

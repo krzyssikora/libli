@@ -76,7 +76,9 @@ You should see the block below. Note it spans six lines — this is why the test
 
 - [ ] **Step 2: Write the failing tests**
 
-Append to `tests/test_tabs_css.py`. Match the module's existing import/constant style — it already reads `courses.css`; reuse whatever path constant is defined at the top rather than adding a second one.
+Append to `tests/test_tabs_css.py`. The module already defines `CSS = ROOT / "courses/static/courses/css/courses.css"` at `:10` and imports `re` — use `CSS`, do not add a second path constant and do not re-import.
+
+Lines are pre-wrapped to ruff-format's output shape: `pyproject.toml` selects `E` with no `line-length` override, so E501 fires at 88 and Step 7 lints these exact lines.
 
 ```python
 def _rule_block(css, selector):
@@ -97,14 +99,16 @@ def _rule_block(css, selector):
 def test_a_long_tab_label_wraps_and_is_never_clipped():
     """The cap constrains WIDTH only. Clipping was rejected outright: a clipped
     label is unreadable on touch, where title tooltips do not exist."""
-    css = (STATIC / "css" / "courses.css").read_text(encoding="utf-8")
+    css = CSS.read_text(encoding="utf-8")
     block = _rule_block(css, ".el--tabs .tabs__tab")
 
     assert "max-width" in block, "the tab has no width cap"
     assert "overflow-wrap" in block, (
-        "an 80-char label with no spaces would overflow the cap instead of wrapping"
+        "an 80-char label with no spaces would overflow the cap, not wrap"
     )
-    assert "text-align" in block, "wrapped-label alignment must be declared, not inherited"
+    assert "text-align" in block, (
+        "wrapped-label alignment must be declared, not inherited"
+    )
     assert "white-space: nowrap" not in block, (
         "nowrap defeats wrapping -- the label would run past the cap on one line"
     )
@@ -115,15 +119,21 @@ def test_katex_stays_atomic_inside_a_tab():
     between them; each base is nowrap internally but nothing holds the bases
     together. `white-space: nowrap` on .tabs__tab was suppressing that, so removing
     it newly permits \\(a + b = c\\) to wrap mid-formula in a tab handle."""
-    css = (STATIC / "css" / "courses.css").read_text(encoding="utf-8")
+    css = CSS.read_text(encoding="utf-8")
     block = _rule_block(css, ".el--tabs .tabs__tab .katex")
     assert "white-space: nowrap" in block
 
 
 def test_the_width_cap_did_not_leak_onto_a_carousel_selector():
     """Carousel rules position and hide things; a max-width there would be a
-    different bug. No carousel rule declares max-width today."""
-    css = (STATIC / "css" / "courses.css").read_text(encoding="utf-8")
+    different bug. No carousel rule declares max-width today.
+
+    This scan is LINE-based, which is sound only because every carousel rule in
+    courses.css is currently written selector-and-body on one line. If a carousel
+    rule is ever reformatted across lines this test goes blind to it -- prefer
+    _rule_block per carousel selector if that happens.
+    """
+    css = CSS.read_text(encoding="utf-8")
     for line in css.splitlines():
         if '[data-display="carousel"]' in line or ".tabs--carousel" in line:
             assert "max-width" not in line, f"carousel selector gained a cap: {line}"
@@ -254,12 +264,19 @@ def test_the_label_input_has_a_non_zero_width_floor():
     """Adding a fourth fixed row item plus a second gap shrinks the label input at
     exactly the moment the author is typing a long label.
 
-    The negative lookahead is required: `min-width: 0` IS a `min-width` declaration,
-    so a plain `"min-width" in block` check stays green against the mutant that
-    reverts the floor."""
+    Extract the VALUE and compare it. A plain `"min-width" in block` check stays
+    green against the mutant, because `min-width: 0` is also a min-width declaration
+    -- and so does the obvious-looking negative lookahead
+    `re.search(r"min-width:\\s*(?!0\\b)", block)`: `\\s*` backtracks to zero
+    characters, the lookahead is then evaluated at the SPACE rather than at the `0`,
+    and it trivially succeeds. That form matches "min-width: 0;" and is completely
+    inert. Verified by running it.
+    """
     css = EDITOR_CSS.read_text(encoding="utf-8")
     block = _decl_block(css, ".el-editor--tabs .tabs-editor__label")
-    assert re.search(r"min-width:\s*(?!0\b)", block), (
+    m = re.search(r"min-width:\s*([^;}]+)", block)
+    assert m, "label input declares no min-width at all"
+    assert m.group(1).strip() not in ("0", "0px"), (
         "label input has no non-zero min-width floor"
     )
 ```
@@ -391,7 +408,13 @@ def test_each_row_carries_a_hidden_aria_hidden_counter():
     html = _render_form(TabsElement(data=TabsElement.default_data()))
     assert html.count("data-tab-num") == 2
     assert html.count('class="tabs-editor__count"') == 2
-    assert html.count('aria-hidden="true"') >= 2
+    # Pin the WHOLE tag, in a fixed attribute order. Counting `hidden` or
+    # `aria-hidden="true"` separately is not enough: `hidden` is the load-bearing
+    # attribute (the no-JS layout and the "no permanent 0/80" argument both rest on
+    # it) and a count of stray attributes elsewhere in the partial would mask its
+    # removal. Keep Step 4's markup in exactly this order.
+    span = '<span class="tabs-editor__count" data-tab-num aria-hidden="true" hidden>'
+    assert html.count(span) == 2
     # The existing count assertion must not move.
     assert html.count("data-tab-row") == 2
 
@@ -565,17 +588,49 @@ def test_the_cap_phrase_substitutes_every_placeholder_occurrence():
     assert '.split("{n}")' in js and '.split("{max}")' in js
 
 
+def test_the_js_fallback_matches_the_trans_msgid_byte_for_byte():
+    """These two literals are written by DIFFERENT tasks with no shared memory, and
+    the spec calls their identity load-bearing: when data-msg-cap is missing, label()
+    falls back to the JS literal, so a stray en dash or a dropped space would make
+    the degraded path render a different string from the normal one. Nothing else
+    connects them."""
+    js = TABS_EDITOR_JS.read_text(encoding="utf-8")
+    partial = (
+        ROOT / "templates/courses/manage/editor/_edit_tabs.html"
+    ).read_text(encoding="utf-8")
+
+    msgid = re.search(r"data-msg-cap=\"\{% trans '([^']+)' %\}\"", partial)
+    fallback = re.search(r'label\(editor, "cap", "([^"]+)"\)', js)
+    assert msgid, "no data-msg-cap {% trans %} in the partial"
+    assert fallback, "no label(editor, \"cap\", ...) fallback in the JS"
+    assert msgid.group(1) == fallback.group(1), (
+        f"msgid {msgid.group(1)!r} != JS fallback {fallback.group(1)!r}"
+    )
+
+
 def test_the_reorder_branches_only_clear_the_region():
     """Reorder RENUMBERS rows, so a phrase naming "Tab 2" would describe a different
     tab -- and worse, the stale text would suppress the next announcement via the
     change-guard. But the rows themselves move intact, so no refreshCount is needed
     or permitted here (the ordering test exempts this handler)."""
     js = TABS_EDITOR_JS.read_text(encoding="utf-8")
-    click = _slice(js, 'rows.addEventListener("click"', 'if (addBtn)')
-    up = click[click.index("[data-tab-up]") :]
-    assert "insertBefore" in up
-    assert "clearCapRegion()" in up
-    assert "refreshCount(" not in up
+    # End anchor is addBtn.addEventListener("click" -- NOT "if (addBtn)", which
+    # occurs TWICE (`if (addBtn) addBtn.disabled = ...` in refreshControlState, and
+    # `if (addBtn) {` before the add handler). _slice's uniqueness assertion would
+    # fail on it against a correct build.
+    click = _slice(
+        js, 'rows.addEventListener("click"', 'addBtn.addEventListener("click"'
+    )
+    # Slice the two branches SEPARATELY. Slicing `up` to the end of the click handler
+    # would include the down branch, so deleting the clear from only the up branch
+    # would leave the down branch's call inside the slice and the mutant could not
+    # go RED.
+    up = click[click.index("[data-tab-up]") : click.index("[data-tab-down]")]
+    down = click[click.index("[data-tab-down]") :]
+    for name, branch in (("up", up), ("down", down)):
+        assert "insertBefore" in branch, f"{name}: no insertBefore"
+        assert "clearCapRegion()" in branch, f"{name}: region not cleared"
+        assert "refreshCount(" not in branch, f"{name}: must not call refreshCount"
 ```
 
 Confirm `TABS_EDITOR_JS` is the module's existing path constant (`test_editor_css_styles_every_tabs_editor_class` uses it) before adding one.
@@ -587,7 +642,7 @@ Expected: **FAIL** — no `refreshCount` exists yet.
 
 - [ ] **Step 4: Add `refreshCount` and `clearCapRegion`**
 
-Insert **after** `function refreshControlState()`'s closing brace and **before** the first `addEventListener` registration (the `if (displaySel) displaySel.addEventListener(...)` line). This position is deliberate: it keeps the declaration outside all three slices above, and outside the `function serialize` → `function refreshControlState` range that `test_serialize_reads_both_select_elements` already slices.
+Insert **after** `function syncLabelPosRow()`'s closing brace and **before** the `if (displaySel) displaySel.addEventListener(...)` line. (`syncLabelPosRow` sits between `refreshControlState` and the first listener — the declaration goes after *both* functions, immediately before the first `addEventListener`.) This position is deliberate: it keeps the declaration outside all three slices above, and outside the `function serialize` → `function refreshControlState` range that `test_serialize_reads_both_select_elements` already slices.
 
 ```js
     // Character counter. Rebuilds the row's entire counter state from `n` on every
@@ -718,8 +773,12 @@ Expected: **PASS** — all, including `test_serialize_reads_both_select_elements
 | Move the init loop above `if (hidden.value === "")` | same test |
 | Move the `function refreshCount` declaration inside the add handler | same test (via the `"function refreshCount(" not in body` assertion) |
 | Swap `.split("{max}").join(max)` for `.replace("{max}", max)` | `test_the_cap_phrase_substitutes_every_placeholder_occurrence` |
-| Delete `clearCapRegion()` from the up branch | `test_the_reorder_branches_only_clear_the_region` |
+| Change the em dash in the JS fallback literal to a hyphen | `test_the_js_fallback_matches_the_trans_msgid_byte_for_byte` |
+| Delete `clearCapRegion()` from the **up** branch only | `test_the_reorder_branches_only_clear_the_region` |
+| Delete `clearCapRegion()` from the **down** branch only | same test |
 | Add `refreshCount(li, true)` to the up branch | same test |
+
+Run the up-branch-only and down-branch-only mutants **separately** — that is what proves the two branches are sliced independently rather than as one range.
 
 - [ ] **Step 8: Lint and commit**
 
@@ -809,6 +868,30 @@ uv run pytest tests/test_tabs_editor_partial.py -k "resolves_to_polish" -v
 ```
 Expected: **PASS**.
 
+- [ ] **Step 5b: Run the whole-catalog health guards — the narrow `-k` above cannot see them**
+
+```bash
+cd "<worktree>"
+uv run pytest tests/test_i18n_po_health.py -v
+```
+
+`tests/test_i18n_po_health.py` owns three guards over the **entire** catalog:
+`test_no_fuzzy_entries` (`:158`), `test_no_obsolete_entries` (`:167`) and
+`test_pl_has_no_untranslated_msgid` (`:176`). `makemessages` runs `msgmerge`, which
+routinely marks the catalog **header** `#, fuzzy` and writes `#~` obsolete blocks for
+any string that has drifted since the catalogs were last regenerated — neither of
+which is your new string, and neither of which Step 5's `-k` can see.
+
+Either would leave the suite RED at this task's boundary. Before committing:
+
+- delete any `#, fuzzy` on the **header** entry (the one with the empty msgid),
+- delete any `#~`-prefixed obsolete blocks `makemessages` introduced,
+- re-run `compilemessages` and this test file.
+
+Expected: **PASS**. If a guard still fails on an entry unrelated to this change, say so
+explicitly in your task report — Task 9 sweeps flagged-but-unfixed items, and this is
+exactly the kind that gets scrolled past.
+
 - [ ] **Step 6: Falsify**
 
 | Mutant | Must turn RED |
@@ -861,18 +944,24 @@ Add to `tests/test_e2e_tabs.py`, following the module's existing marker/fixture 
 
 **Worked example — case 1, to fix the shape.** Write the remaining seven in this style, substituting the module's actual fixture/marker names once you have read them in Step 1:
 
+Three facts about this module you must not get wrong — all verified in the worktree:
+
+- `_seed_unit(owner, slug)` returns **`(course, unit)`**, and `_editor_url(live_server, course, unit)` takes **three** arguments (`:78`, `:89`). Unpacking it as a single `unit` makes every downstream call fail.
+- The module sets `pytestmark = pytest.mark.e2e` at `:41`, so a per-test `@pytest.mark.e2e` is redundant. What each test **does** need is `@pytest.mark.django_db(transaction=True)` — every existing case has it, and without it rows written by the seed persist between cases, so the second case cloned from this example dies on a duplicate-username `IntegrityError`. **Give every case a distinct username and course slug.**
+- The module does **not** import `expect` and has zero `expect(` call sites; existing cases use `wait_for_selector` plus plain `assert`. Follow that style rather than adding a new assertion vocabulary.
+
 ```python
-@pytest.mark.e2e
-def test_the_counter_appears_only_at_the_threshold(live_server, page, django_db_blocker):
+@pytest.mark.django_db(transaction=True)
+def test_the_counter_appears_only_at_the_threshold(live_server, page):
     """Below the threshold the counter is hidden entirely: a permanent 0/80 on up to
     MAX_TABS rows is noise that trains an author to stop reading it."""
-    with django_db_blocker.unblock():
-        owner = _make_pa_user("owner")
-        unit = _seed_unit(owner, "counter-threshold")
-        _seed_tabs_element(unit, [("t000001", "Tab 1"), ("t000002", "Tab 2")])
+    owner = _make_pa_user("counter_threshold_owner")
+    course, unit = _seed_unit(owner, "counter-threshold")
+    _seed_tabs_element(unit, [("t000001", "Tab 1"), ("t000002", "Tab 2")])
 
-    _login(page, live_server, "owner")
-    page.goto(_editor_url(live_server, unit))
+    _login(page, live_server, "counter_threshold_owner")
+    page.goto(_editor_url(live_server, course, unit))
+    page.wait_for_selector("[data-tab-row]")
 
     row = page.locator("[data-tab-row]").first
     label_input = row.locator("[data-tab-label-input]")
@@ -882,15 +971,30 @@ def test_the_counter_appears_only_at_the_threshold(live_server, page, django_db_
     # crossed by a single real keystroke so the per-keystroke path is exercised.
     label_input.fill("x" * 63)
     assert label_input.evaluate("el => el.value.length") == 63
-    expect(digits).to_be_hidden()
+    assert digits.is_hidden()
 
     label_input.press_sequentially("x")
     assert label_input.evaluate("el => el.value.length") == 64
-    expect(digits).to_be_visible()
-    expect(digits).to_have_text("64/80")
-    expect(digits).to_have_class(re.compile(r"\bis-near\b"))
-    expect(digits).not_to_have_class(re.compile(r"\bis-at-cap\b"))
+    assert digits.is_visible()
+    assert digits.text_content() == "64/80"
+    cls = digits.get_attribute("class") or ""
+    assert "is-near" in cls
+    assert "is-at-cap" not in cls
 ```
+
+**Test function names are mandated, not suggested.** Step 3's `-k` expression is derived from them, and a case named something else is silently deselected — which the plan elsewhere warns is not a pass. Use exactly these:
+
+| # | Case | Test function name |
+|---|---|---|
+| 1 | threshold boundary | `test_the_counter_appears_only_at_the_threshold` |
+| 2 | at cap | `test_the_counter_and_region_report_the_cap` |
+| 3 | jump to cap | `test_a_single_event_jump_to_the_cap_still_announces` |
+| 4 | second row to cap | `test_a_second_row_reaching_the_cap_announces_too` |
+| 5 | descend | `test_descending_below_the_cap_clears_both_signals` |
+| 6 | init | `test_a_stored_at_cap_label_shows_the_counter_at_first_paint` |
+| 7 | add tab | `test_adding_a_tab_resets_the_cloned_counter` |
+| 8 | remove | `test_removing_the_at_cap_row_clears_the_region` |
+| 9 | reorder | `test_reordering_clears_the_region_so_the_next_cap_announces` |
 
 Cases to write, each with its named mutant:
 
@@ -901,31 +1005,50 @@ Cases to write, each with its named mutant:
    *Mutant:* delete the `.is-at-cap` branch.
 3. **jump to cap** — a single `fill()` carrying the value from below `max - 1` straight to 80 → the region receives the phrase. No emptying step needed: a default row already holds `"Tab 1"` (5 chars). The discriminating property is one `input` event spanning the gap.
    *Mutant:* announce only when the previous length was exactly `max - 1`. Name it that precisely — the looser "conditional on previous state" invites `if (!wasAtCap && n >= max)`, which still announces here and cannot go RED.
-4. **descend** — from 80, `press("Backspace")` once → digits `79/80`, `.is-near` present **and `.is-at-cap` absent**, phrase cleared; then `fill()` to 63 → digits `hidden`.
+4. **second row to cap** — fill **row 1** to 80 (region now holds row 1's phrase), then fill **row 2** straight to 80 → the region carries **row 2's** phrase (assert the row number in the text differs from row 1's).
+   This is the only behavioural test of the interaction the spec devotes an entire section to ("Why the phrase names the row"). Without it the suppression hole ships untested: nothing else in this suite drives a *second distinct row* to the cap.
+   *Mutant:* make the phrase row-agnostic (drop the `{n}` interpolation) and keep the plain `textContent` change-guard — the intended string is then byte-identical to what the region already holds, the guard suppresses the write, and nothing is announced.
+5. **descend** — from 80, `press("Backspace")` once → digits `79/80`, `.is-near` present **and `.is-at-cap` absent**, phrase cleared; then `fill()` to 63 → digits `hidden`.
    The `.is-at-cap`-absent assertion is load-bearing: an add-only class implementation (`if (n >= max) cls.add("is-at-cap")`, no removal) passes every other assertion here while showing the author bold red `79/80`. The single `Backspace` matters — a `fill("")`-then-`fill()` sequence would not exercise the at-cap → is-near transition.
    *Mutants:* drop the `classList.toggle`'s removal / use add-only handling; make `refreshCount` append rather than rebuild.
-5. **init** — open the editor on an element whose **stored** label is already 80 characters (seeded per the character rules above), assert `input.value.length == 80`, then assert the at-cap digits at first paint before any keystroke **and** that the region is empty.
+6. **init** — open the editor on an element whose **stored** label is already 80 characters (seeded per the character rules above), assert `input.value.length == 80`, then assert the at-cap digits at first paint before any keystroke **and** that the region is empty.
    *Mutants:* delete the init loop; pass `announce = true` at init.
-6. **add tab** — fill the **last** row (`[data-tab-row]:last-of-type`) to 80, then "Add tab" → the new row's digits are `hidden`, empty and carry no `.is-at-cap`; region empty.
+7. **add tab** — fill the **last** row (`[data-tab-row]:last-of-type`) to 80, then "Add tab" → the new row's digits are `hidden`, empty and carry no `.is-at-cap`; region empty.
    Filling the **last** row is mandatory: the add handler clones `existing[existing.length - 1]`, so filling row 1 of 2 would clone the untouched row 2 — already hidden and empty — and the first mutant would stay GREEN.
    *Mutants:* remove `refreshCount` from the add handler; remove `clearCapRegion()` from it.
-7. **remove** — **two** preconditions, both required or the case goes RED against a correct build while its mutant is also RED, discriminating nothing:
+8. **remove** — **two** preconditions, both required or the case goes RED against a correct build while its mutant is also RED, discriminating nothing:
    - Seed **three** tabs (`_seed_tabs_element`) or click "Add tab" first, and assert the Remove button is enabled. `MIN_TABS = 2` gates it twice — `disabled = n <= minTabs` (`tabs_editor.js:58`) and an early `return` (`:84`).
    - Register `page.once("dialog", lambda d: d.accept())` **before** clicking. `tabs_editor.js:85` is `window.confirm(...)`, and **Playwright auto-dismisses dialogs when no listener is attached** — a dismissed confirm returns `false`, so `li.remove()` never runs. This file has no dialog handling today; the trap is written out at `tests/test_e2e_spanning_merge.py:8-15`.
 
    Then fill a row to 80, remove it, **assert the `[data-tab-row]` count dropped 3 → 2**, and finally assert the region is empty.
    *Mutant:* delete `clearCapRegion()` from the remove branch.
-8. **reorder** — fill row 2 to 80; click Move up; **assert `[data-tab-cap]` is empty at this point**; then fill the row now at position 2 to 80 → the region carries the phrase again.
+9. **reorder** — fill row 2 to 80; click Move up; **assert `[data-tab-cap]` is empty at this point**; then fill the row now at position 2 to 80 → the region carries the phrase again.
    The mid-sequence assertion is the only discriminating one: at the **end** both builds read identically (correct = cleared then rewritten; mutant = never cleared, so the change-guard suppresses the rewrite and the same text remains).
    *Mutant:* delete `clearCapRegion()` from the reorder branches.
 
 *Sync on conditions, never sleeps.* This element has a known init-time transition window — a bare `wait_for_selector` can resolve mid-transition, so negative visibility assertions need a settled condition.
 
-- [ ] **Step 3: Run to verify they fail, then pass**
+- [ ] **Step 3: Run to verify they pass — then falsify in Step 4**
 
-Run: `cd "<worktree>" && uv run pytest tests/test_e2e_tabs.py -m e2e -k "counter or at_cap or threshold or descend or reorder_region or remove_region" -v`
+There is no RED→GREEN cycle available here: the implementation already landed in Tasks 2-5, so these cases are expected to pass on first run. Their falsification is Step 4, and that is what earns them.
 
-Confirm the selection is **non-empty** — exit code 5 means everything deselected, which is not a pass. Write the tests first and watch them fail before the implementation is in place (it already is, from Tasks 2-5, so instead falsify each case in Step 4).
+Run, using the mandated names from the table above:
+
+```bash
+cd "<worktree>"
+uv run pytest tests/test_e2e_tabs.py -m e2e -v -k "\
+the_counter_appears_only_at_the_threshold or \
+the_counter_and_region_report_the_cap or \
+a_single_event_jump_to_the_cap_still_announces or \
+a_second_row_reaching_the_cap_announces_too or \
+descending_below_the_cap_clears_both_signals or \
+a_stored_at_cap_label_shows_the_counter_at_first_paint or \
+adding_a_tab_resets_the_cloned_counter or \
+removing_the_at_cap_row_clears_the_region or \
+reordering_clears_the_region_so_the_next_cap_announces"
+```
+
+Confirm the report says **9 passed**. Exit code 5 or a smaller count means cases were deselected by a name mismatch — that is not a pass.
 
 - [ ] **Step 4: Falsify every case**
 
@@ -950,7 +1073,19 @@ git commit -m "test(tabs): e2e coverage for the label counter and its announceme
 **Files:**
 - Test: `tests/test_e2e_tabs.py`
 
-- [ ] **Step 1: Write the failing case**
+- [ ] **Step 1: Read the existing helpers**
+
+Run: `cd "<worktree>" && sed -n '55,115p' tests/test_e2e_tabs.py`
+
+You need `_make_pa_user`, `_login`, `_seed_unit` and `_seed_tabs_element`, plus **`_lesson_url(live_server, unit)`** (`:93`) — this task drives the **student** page, not the editor, so it does not use `_editor_url`.
+
+Note the same three module facts Task 6 records: `_seed_unit` returns `(course, unit)`; the module already sets `pytestmark = pytest.mark.e2e` so each case needs `@pytest.mark.django_db(transaction=True)` and a **distinct username and course slug**; and the module uses `wait_for_selector` + plain `assert`, not `expect`.
+
+- [ ] **Step 2: Write the case**
+
+Name it **`test_a_long_tab_label_wraps_within_the_width_cap`** — Step 3's `-k` depends on it.
+
+Sequence: seed a tabs element whose `display` stays **`"tabs"`** (the default — `.tabs__tab` exists only in the tabs branch of `tabs.js`; in carousel mode there is no strip and the case has nothing to assert on), with one label of exactly 80 plain characters and one short label. Log in, `page.goto(_lesson_url(live_server, unit))`, then `page.wait_for_selector(".tabs__tab")` so the enhancer has built the strip.
 
 Pin the viewport so the expected pixel value is computable:
 
@@ -970,11 +1105,19 @@ Assertions on a tab whose label is 80 characters:
 
 *Mutant:* delete the `max-width` declaration — confirm it goes RED on the **height** assertion specifically, not only on the width one.
 
-- [ ] **Step 2: Run, falsify, commit**
+- [ ] **Step 3: Run, falsify, commit**
 
 ```bash
 cd "<worktree>"
-uv run pytest tests/test_e2e_tabs.py -m e2e -k "wrap" -v
+uv run pytest tests/test_e2e_tabs.py -m e2e -k "a_long_tab_label_wraps_within_the_width_cap" -v
+```
+
+Confirm **1 passed** — exit code 5 or 0 selected means the name does not match.
+
+Then apply the mutant (delete `max-width: min(18rem, 55vw);` from `courses.css`), confirm the **height** assertion goes RED specifically, and revert.
+
+```bash
+cd "<worktree>"
 uv run ruff check tests/test_e2e_tabs.py
 uv run ruff format --check tests/test_e2e_tabs.py
 git add tests/test_e2e_tabs.py
@@ -989,6 +1132,16 @@ git commit -m "test(tabs): e2e coverage for the wrapped tab width cap"
 
 **Files:** none committed except the report; capture screenshots to the scratchpad.
 
+- [ ] **Step 0: Clone the existing harness — do not invent one**
+
+Run: `cd "<worktree>" && sed -n '1785,1850p' tests/test_e2e_tabs.py`
+
+`test_carousel_screenshots_light_and_dark` (`:1790`) is a working model for exactly this job and is the harness to copy: it seeds fixtures, drives both themes and writes to `tmp_path`.
+
+The one thing that is easy to get wrong, and which that test's own docstring records: **for dark mode set `User.theme`, not the `libli_theme` cookie** — an authed user's theme wins outright in `_resolve_theme_pref`, so the cookie is ignored and you would silently capture two light screenshots and "verify" dark against them.
+
+Judge the two themes **separately**. A dark screenshot is not verified by a light one passing.
+
 - [ ] **Step 1: An 80-character label in a strip**
 
 Confirm it wraps, every tab in the strip is equal height, and the active-tab underline sits on one baseline.
@@ -1001,7 +1154,13 @@ Confirm it does not break mid-expression, that the line box contains its vertica
 
 - [ ] **Step 3: A tabs editor at the deepest legal nesting level in the narrowest realistic editor pane, with a row at the cap**
 
-Confirm the counter appearing does not push the row into overflow. **This is the real gate on the `min-width` floor** — the declaration alone does not guarantee it (see the comment added in Task 2). If the row overflows, the remedy is to lower the floor or let the counter be the item that yields; report it rather than accepting it.
+Pin the numbers so the gate is reproducible rather than a judgement call:
+
+- **Viewport:** `page.set_viewport_size({"width": 1280, "height": 900})`, the same width Task 7 uses.
+- **Nesting depth:** put the tabs element at **depth 3** — the deepest the builder permits (`max_nest_depth`; confirm the current value with `grep -rn "max_nest_depth" courses/` and use it rather than assuming 3).
+- **What to measure:** the row's `scrollWidth` vs `clientWidth`. Overflow means `scrollWidth > clientWidth` on `.tabs-editor__row`; report both numbers, not an impression.
+
+**This is the real gate on the `min-width` floor** — the declaration alone does not guarantee it, and the Task 2 comment says so explicitly: `min(8rem, 100%)` resolves to 128px for every row wider than 128px, which is the whole at-risk band. If the row overflows, the remedy is to lower the floor or let the counter be the item that yields. Report it rather than accepting it.
 
 - [ ] **Step 4: Report**
 
@@ -1017,14 +1176,16 @@ State plainly what each screenshot showed, in both themes. If any of the three i
 
 ```bash
 cd "<worktree>"
-uv run pytest -q
+uv run pytest --verbosity=0
 ```
 
 Then the e2e suite (separately, and never concurrently with the above):
 
 ```bash
-uv run pytest -m e2e -q
+uv run pytest -m e2e --verbosity=0
 ```
+
+**Use `--verbosity=0`, not `-q`.** `pyproject.toml:49` already sets `addopts = "-q -m 'not e2e'"`, so adding `-q` yields `-qq`, which suppresses the short test summary — the branch gate's own output would then hide *which* tests failed.
 
 - [ ] **Step 2: Both lint steps**
 
