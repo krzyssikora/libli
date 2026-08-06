@@ -15,6 +15,13 @@
   }
 
   function wire(editor) {
+    // NOTE for tests: this flag is set FIRST, before any listener is attached below,
+    // so `[data-tabs-editor-ready]` is not a barrier proving the delegated `input`
+    // listener exists. It is safe to drive the editor as soon as the flag appears
+    // only because wire() is fully synchronous on both entry paths (initTabsEditor at
+    // parse time, and editor.js's applyFragments after a swap), so no intermediate
+    // state is ever observable. Move any init work behind a rAF/await and that stops
+    // being true -- move this assignment to the end of wire() if you do.
     if (editor.dataset.tabsEditorReady) return;
     editor.dataset.tabsEditorReady = "1";
 

@@ -181,7 +181,11 @@ def test_a_long_tab_label_wraps_and_is_never_clipped():
     block = _rule_block(css, ".el--tabs .tabs__tab")
 
     assert "max-width" in block, "the tab has no width cap"
-    assert "overflow-wrap" in block, (
+    # Assert the VALUE, not just the property. `overflow-wrap: normal` is the exact
+    # regression this declaration exists to prevent, and a presence-only check passes
+    # against it -- the same trap the min-width assertion in
+    # tests/test_tabs_editor_partial.py documents at length.
+    assert re.search(r"overflow-wrap:\s*break-word", block), (
         "an 80-char label with no spaces would overflow the cap, not wrap"
     )
     assert "text-align: center" in block, (

@@ -1821,20 +1821,26 @@ def test_carousel_screenshots_light_and_dark(page, live_server, tmp_path):
 # THE EDITOR URL ALONE DOES NOT RENDER THE TABS EDITOR. [data-tab-row] lives in
 # _edit_tabs.html, which renders only when an element's edit form is OPEN
 # (courses/views_manage.py defaults open_form_pk=""), so every case below clicks the
-# row's .el-act-edit first and then waits on [data-tabs-editor-ready] -- the flag
-# wire() sets. Waiting on the editor NODE alone resolves the moment it attaches, so a
-# fill() can fire `input` before the delegated listener exists: the counter never
-# updates and a negative assertion passes vacuously.
+# row's .el-act-edit first.
+#
+# The second wait is on [data-tabs-editor-ready] rather than the editor node. Be
+# precise about why, because the obvious reason is WRONG: wire() sets that flag as its
+# FIRST statement, ~110 lines before it attaches the delegated `input` listener, so the
+# flag is no stronger a barrier than the node's presence. Driving the editor as soon as
+# either appears is safe only because wire() is fully SYNCHRONOUS on both entry paths
+# (initTabsEditor at parse time, applyFragments after a swap), so no half-wired state
+# is ever observable. The flag is used because it is the honest "this node is the one
+# wire() adopted" marker -- not because it sequences the listener.
 # ---------------------------------------------------------------------------
 
 
 def _open_tabs_editor(page, live_server, username, course, unit, join):
     """Log in, load the unit editor and OPEN the element's edit form.
 
-    Both waits are load-bearing (see the section comment above): the form must be
-    opened before [data-tab-row] exists at all, and the second wait is on the READY
-    FLAG rather than the editor node, because the node attaches before wire() has
-    bound the delegated `input` listener.
+    The first wait is load-bearing: the form must be opened before [data-tab-row]
+    exists at all. The second waits on the ready flag rather than the node -- see the
+    section comment for why that is NOT the race guard it looks like (wire() sets the
+    flag before binding the listener; safety comes from wire() being synchronous).
 
     Extracted because all nine counter cases need the identical gesture; a
     copy-pasted wait is exactly the kind of thing that drifts in one copy only.
