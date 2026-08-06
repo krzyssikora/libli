@@ -92,10 +92,13 @@ def _rule_block(css, selector):
     immediately. Anchoring on a leading newline plus a trailing " {" pins the exact
     selector.
 
-    Stripping comments is REQUIRED, not tidiness. The rule carries an explanatory
-    comment inside its own braces that mentions `text-align` by name, so a raw slice
-    satisfies `"text-align" in block` even when the declaration is deleted -- the
-    assertion would be inert and its mutant could never go RED.
+    Comments are stripped as defence in depth. The rule carries an explanatory
+    comment inside its own braces that mentions `text-align` by name, so a loose
+    `"text-align" in block` assertion would be satisfied by the comment even with the
+    declaration deleted. The assertions below avoid that by matching the full
+    declaration (`text-align: center`), which no comment contains -- stripping simply
+    means a future comment that happens to quote a declaration cannot resurrect the
+    problem.
     """
     i = css.index("\n" + selector + " {")
     open_brace = css.index("{", i)
@@ -194,7 +197,7 @@ Apply each mutant, confirm the named test goes RED, then revert:
 | Re-add `white-space: nowrap;` to the `.tabs__tab` block | `test_a_long_tab_label_wraps_and_is_never_clipped` |
 | Delete `max-width: min(18rem, 55vw);` | `test_a_long_tab_label_wraps_and_is_never_clipped` |
 | Delete `overflow-wrap: break-word;` | `test_a_long_tab_label_wraps_and_is_never_clipped` |
-| Delete `text-align: center;` | `test_a_long_tab_label_wraps_and_is_never_clipped` — this one proves `_rule_block` strips comments; the rule's own comment names `text-align`, so without stripping it stays GREEN |
+| Delete `text-align: center;` | `test_a_long_tab_label_wraps_and_is_never_clipped` — the assertion matches the full declaration, which the rule's `text-align`-mentioning comment does not contain |
 | Delete the `.el--tabs .tabs__tab .katex` rule | `test_katex_stays_atomic_inside_a_tab` |
 | Move `max-width` onto `.el--tabs.tabs--carousel[data-display="carousel"] > .tabs__stage` | `test_the_width_cap_did_not_leak_onto_a_carousel_selector` |
 
@@ -1169,6 +1172,17 @@ git commit -m "test(tabs): e2e coverage for the wrapped tab width cap"
 **Depends on Tasks 1-7.** Three fixtures, **light and dark judged separately** — dark is not a recolour of light. None of these is provable from the DOM, which is why this is a task and not an assertion.
 
 **Files:** the driving code is a **throwaway** pytest module at `tests/test_e2e_tabs_shots_tmp.py`. It must live under `tests/` to be collectible (it needs `page`, `live_server`, `tmp_path` and `django_db`), and it is **deleted before you report** — nothing from this task is committed except the written findings. Run it with `-m e2e`, and write the images to `tmp_path`, never into the repo.
+
+The module must declare **both**:
+
+```python
+pytestmark = pytest.mark.e2e          # module level
+```
+```python
+@pytest.mark.django_db(transaction=True)   # on each test
+```
+
+The `e2e` marker is easy to miss: in `tests/test_e2e_tabs.py` it lives at module level (`:41`), far from `test_carousel_screenshots_light_and_dark` (`:1789`) that Step 0 tells you to clone. Cloning just the function into a fresh module and running `-m e2e` selects **nothing** and exits 5 — which the Global Constraints already flag as not a pass, and which costs a wasted cycle on the only real gate for the `min-width` floor.
 
 Deleting it is not optional: Task 9 Step 1 sweeps the whole suite and Step 4 asserts the branch diff contains exactly the expected files, so a leftover module fails both.
 
