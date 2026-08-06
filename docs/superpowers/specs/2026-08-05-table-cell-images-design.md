@@ -72,15 +72,19 @@ content-negotiated, so a percentage compounds the instability. **MEASURED**, the
 | 5-col all images | 56.2px | 160.0px |
 | 7-col img+text | 162.1px | 160.0px |
 
-**5.2× spread** for the percentage versus **no spread** for the absolute cap (uniform 160.0px in
-every shape measured). The absolute-cap column above is the corrected rule: `min(100%, Npx)` was
-shipped first and Task 9's browser measurement found it collapses to a bare `max-width: 100%` for
-column-sizing purposes (the unresolvable percentage makes `min()` degenerate), so it does **not**
-in fact bind uniformly — see the Task 9 spike report. Dropping the percentage term to a bare
-`max-width: Npx` fixes the 5-col all-images case too; the trade is that an all-image row now
-widens the table (scrolling `.el--table__scroll`) rather than shrinking the images. Reusing
-`ImageElement.size` would also drag `full = max-height: 100dvh` into a table cell, which is
-meaningless there.
+**5.2× spread** for the percentage versus **no spread** for the absolute cap. Of the five rows
+above, only the two all-images shapes (3-col, 5-col) were directly re-measured under the
+corrected rule — 159.98px in both, from the Task 9 spike report; the other three (2-col, 5-col,
+7-col img+text) already read 160.0px under the old rule and are carried over here, which is
+sound by monotonicity (dropping the percentage term can only raise a column's min-content floor,
+never lower it) but was not independently re-measured. The absolute-cap column above is the
+corrected rule: `min(100%, Npx)` was shipped first and Task 9's browser measurement found it
+collapses to a bare `max-width: 100%` for column-sizing purposes (the unresolvable percentage
+makes `min()` degenerate), so it does **not** in fact bind uniformly — see the Task 9 spike
+report. Dropping the percentage term to a bare `max-width: Npx` fixes the 5-col all-images case
+too; the trade is that an all-image row now widens the table (scrolling `.el--table__scroll`)
+rather than shrinking the images. Reusing `ImageElement.size` would also drag
+`full = max-height: 100dvh` into a table cell, which is meaningless there.
 
 ## Non-goals
 
@@ -2186,14 +2190,16 @@ and must be shown RED before it counts.
 must no longer change the image's rendered width. Nothing below the browser layer can observe this.
 
 The shape must be one where **the cap provably binds in both variants**, not merely "a bounded
-preset" — the measurement table above shows that the *original* `min(100%, Npx)` rule (Task 9
-found and replaced it) could still be cell-bound below its cap even though it reads as a hard
-ceiling: it rendered 112.4px in the 5-col all-images shape, still driven by the column. The
-absolute-cap rule that replaced it (`max-width: Npx`, no percentage term) binds uniformly in
-every shape measured, including all-images — see the Task 9 spike report. Use the **MEASURED**
-5-col image-plus-four-text shape at **Medium**: 160.0px with short neighbour text and 160.0px
-with long neighbour text. The same shape at `full` (426.2 → 285.7px) is the natural control,
-asserting the defect is real.
+preset" — the *original* `min(100%, Npx)` rule (Task 9 found and replaced it) could still be
+cell-bound below its cap even though it reads as a hard ceiling: the Task 9 spike report measured
+it at 112.4px in the 5-col all-images shape, still driven by the column. The absolute-cap rule
+that replaced it (`max-width: Npx`, no percentage term) binds at 160.0px in every shape directly
+re-measured, including 3-col and 5-col all-images — see the spike report; the img+text shapes
+were not independently re-measured but already read 160.0px under the old rule and can only bind
+tighter, never looser, once the percentage term is dropped. Use the **MEASURED** 5-col
+image-plus-four-text shape at **Medium**: 160.0px with short neighbour text and 160.0px with long
+neighbour text. The same shape at `full` (426.2 → 285.7px) is the natural control, asserting the
+defect is real.
 
 **Light + dark screenshot verification belongs in the styling task's Definition of Done**, not
 deferred — that deferral is how the fill-table shipped its dark-mode contrast bug. An editor page

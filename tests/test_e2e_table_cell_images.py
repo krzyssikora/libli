@@ -139,10 +139,13 @@ def _open_edit(page, element_pk):
 def _seed_table(unit, *, size, neighbour_text):
     """Attach a 5-column table (image + four text cells) to `unit`.
 
-    This SHAPE is load-bearing. A merely "bounded preset" is not enough — the spec's own
-    measurement table shows min(100%, 160px) rendering 112.4px in the 5-col all-images
-    shape, still column-bound, and such a shape would fail on the CORRECT build. This is
-    the shape where the cap provably binds in BOTH variants.
+    This SHAPE is load-bearing — kept for continuity with the spec, not because any
+    OTHER shape would defeat the test: it is the shape the neighbour-text-squeeze
+    defect was originally measured in (a Task 9 spike found it also fires on other
+    shapes) and the one the spec's headline number — 160.0px with short neighbour
+    text and 160.0px with long neighbour text — refers to. See the Task 9 spike
+    report (.superpowers/sdd/2026-08-05-table-cell-images/spike-cell-img-stability.md)
+    for the full measurement.
 
     add_element() is what makes the element reachable from the lesson page; the asset
     must belong to unit.course, because MediaAsset is course-scoped.
