@@ -63,6 +63,12 @@ def test_js_size_defaults_match_python_and_are_used():
     # td.dataset.size || CELL_IMAGE_INSERT`), so one shared needle is correct
     # here -- but it is checked against EACH file's own source, not a
     # concatenation, so either file could fail independently.
+    #
+    # The DEFAULT needle has the same discrimination problem: each file has TWO
+    # code occurrences of `|| CELL_IMAGE_DEFAULT` (the serialize assignment and
+    # the size-select population), so a bare `"|| CELL_IMAGE_DEFAULT" in src`
+    # needle stays green even with one of the two deleted. Pin the FULL
+    # serialize statement instead, which both files spell identically.
     for js in (TABLE_JS, FILL_JS):
         src = js.read_text(encoding="utf-8")
         assert (
@@ -73,7 +79,7 @@ def test_js_size_defaults_match_python_and_are_used():
             f'var CELL_IMAGE_INSERT = "{TableElement.EDITOR_INSERT_CELL_IMAGE_SIZE}"'
             in src
         )
-        assert "|| CELL_IMAGE_DEFAULT" in src
+        assert "size: td.dataset.size || CELL_IMAGE_DEFAULT" in src
         assert "td.dataset.size = td.dataset.size || CELL_IMAGE_INSERT" in src
 
 

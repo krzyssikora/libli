@@ -216,10 +216,19 @@ def _ser_table(el, ids):
                 continue
             asset = assets.get(c.get("media"))
             if asset is not None:
+                alt = c.get("alt")
                 out_cell = {
                     "kind": "image",
                     "media": ids.register(asset),
-                    "alt": (c.get("alt") or "")[:255],
+                    # isinstance-guarded, matching the models._sanitized_data idiom
+                    # (courses/models.py:989/1085/1172/1294) rather than the sibling's
+                    # bare `c.get("alt", "")`: that plain .get default only fires when
+                    # the KEY is absent, so pairing it with `[:255]` here would still
+                    # raise on an explicit `"alt": None` cell, which the old
+                    # `(c.get("alt") or "")[:255]` happened to tolerate. This is the
+                    # only version that is safe for every shape (missing key, None,
+                    # or a truthy non-string) while still applying the 255 cap.
+                    "alt": alt[:255] if isinstance(alt, str) else "",
                     "size": c.get("size") or "full",
                     "halign": c.get("halign", "left"),
                     "valign": c.get("valign", "top"),
