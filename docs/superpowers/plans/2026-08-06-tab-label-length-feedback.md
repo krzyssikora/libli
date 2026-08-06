@@ -63,6 +63,8 @@ Fully independent of Tasks 2-6. Touches only `courses.css` and `tests/test_tabs_
 - Consumes: nothing.
 - Produces: `.el--tabs .tabs__tab` declaring `max-width`, `overflow-wrap`, `text-align` and **not** `white-space: nowrap`; plus a new `.el--tabs .tabs__tab .katex` rule. Task 7's e2e depends on the 288px cap.
 
+> **REVERSED at the Task 9 gate — the `.katex` rule was measured and removed.** Everything below about pinning `white-space: nowrap` on `.el--tabs .tabs__tab .katex` to keep a formula atomic is **superseded**. Task 8's screenshot step measured it: a 45-character formula label overflowed the 288px cap by 72px and painted its tail directly over the neighbouring tab's text, leaving *both* labels unreadable. Breaking mid-expression is ugly; overlapping destroys a label the author did not write, so the same call that rejected clipping rejects nowrap here. As shipped, **no `.katex` rule exists** — `courses.css` carries a comment recording why, and the test is inverted accordingly: `test_a_wide_formula_wraps_rather_than_overlapping_its_neighbour` asserts `_rule_block` raises `ValueError` for that selector, replacing `test_katex_stays_atomic_inside_a_tab` below.
+
 - [ ] **Step 1: Read the current rule**
 
 Run: `git -C "<worktree>" show HEAD:courses/static/courses/css/courses.css | sed -n '1500,1515p'`
@@ -348,6 +350,8 @@ Then change `.el-editor--tabs .tabs-editor__label`'s `min-width: 0` to:
 ```css
   flex: 1 1 auto; min-width: min(8rem, 100%);
 ```
+
+> **REVISED at the Task 9 gate — the shipped floor is `4rem`, not `min(8rem, 100%)`.** Task 8 Step 3 was the gate on exactly this number and it failed the 8rem value: at the deepest legal nesting (depth 3) in a split-view pane at 1280px the row measures 286px, leaving only ~80px for this input, so the flat 128px floor overflowed the row by 40px and pushed the remove button ~39px *outside* the editor card. `min-width: 4rem` (64px) fits that case with headroom while still stopping the field collapsing to nothing. The comment below already predicted the percentage arm would be inert — it is; the correction is the magnitude. `editor.css` records the measurement inline.
 
 Add this comment above that rule — the honest account matters, because the obvious reading of `min()` here is wrong:
 
@@ -1206,7 +1210,9 @@ Confirm it wraps, every tab in the strip is equal height, and the active-tab und
 
 - [ ] **Step 2: A tab whose label carries a multi-base formula wider than the cap**
 
-Use `\(a + b = c + d + e + f\)` — KaTeX splits this into several `.base` spans. A single-base fixture such as `\(\frac{a}{b}\)` is **structurally incapable** of showing the behaviour under test, because what is being checked is whether rule (b) holds the bases together.
+Use `\(a + b = c + d + e + f + g + h + i + j + k\)` — KaTeX splits this into several `.base` spans. A single-base fixture such as `\(\frac{a}{b}\)` is **structurally incapable** of showing the behaviour under test, because what is being checked is whether rule (b) holds the bases together.
+
+**Corrected during the Task 9 gate.** This step originally specified `\(a + b = c + d + e + f\)`. Measured, that renders about **178px** wide — comfortably *inside* the 288px cap — so it cannot demonstrate the cap overflow it was chosen to demonstrate, and the Task 8 screenshot step was misled by it. The longer formula above measures about **360px** unwrapped, which does exceed the cap and therefore actually exercises the accepted edge described below.
 
 Confirm it does not break mid-expression, that the line box contains its vertical extent without clipping, and **record how far it overflows the cap and how the overlap with the neighbouring tab looks** — this is the accepted edge, and the screenshot is the only thing that shows how bad it really is.
 

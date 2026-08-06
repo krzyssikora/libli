@@ -1828,6 +1828,28 @@ def test_carousel_screenshots_light_and_dark(page, live_server, tmp_path):
 # ---------------------------------------------------------------------------
 
 
+def _open_tabs_editor(page, live_server, username, course, unit, join):
+    """Log in, load the unit editor and OPEN the element's edit form.
+
+    Both waits are load-bearing (see the section comment above): the form must be
+    opened before [data-tab-row] exists at all, and the second wait is on the READY
+    FLAG rather than the editor node, because the node attaches before wire() has
+    bound the delegated `input` listener.
+
+    Extracted because all nine counter cases need the identical gesture; a
+    copy-pasted wait is exactly the kind of thing that drifts in one copy only.
+    """
+    _login(page, live_server, username)
+    page.goto(_editor_url(live_server, course, unit))
+    page.wait_for_selector('[data-scope="editor"] .el-row--tabs')
+    page.locator(
+        f'[data-scope="editor"] [data-element="{join.pk}"] .el-act-edit'
+    ).first.click()
+    page.wait_for_selector(
+        "[data-edit-slot] [data-tabs-editor][data-tabs-editor-ready]"
+    )
+
+
 @pytest.mark.django_db(transaction=True)
 def test_the_counter_appears_only_at_the_threshold(live_server, page):
     """Below the threshold the counter is hidden entirely: a permanent 0/80 on up to
@@ -1836,18 +1858,7 @@ def test_the_counter_appears_only_at_the_threshold(live_server, page):
     course, unit = _seed_unit(owner, "counter-threshold")
     _obj, join = _seed_tabs_element(unit, [("t000001", "Tab 1"), ("t000002", "Tab 2")])
 
-    _login(page, live_server, "counter_threshold_owner")
-    page.goto(_editor_url(live_server, course, unit))
-    # Open the element's edit form -- the tabs editor does not exist until then.
-    page.wait_for_selector('[data-scope="editor"] .el-row--tabs')
-    page.locator(
-        f'[data-scope="editor"] [data-element="{join.pk}"] .el-act-edit'
-    ).first.click()
-    # Wait for the READY flag, not just the node: wire() sets it after insertion, and
-    # a fill() before that fires `input` with no delegated listener attached.
-    page.wait_for_selector(
-        "[data-edit-slot] [data-tabs-editor][data-tabs-editor-ready]"
-    )
+    _open_tabs_editor(page, live_server, "counter_threshold_owner", course, unit, join)
 
     row = page.locator("[data-edit-slot] [data-tab-row]").first
     label_input = row.locator("[data-tab-label-input]")
@@ -1877,15 +1888,7 @@ def test_the_counter_and_region_report_the_cap(live_server, page):
     course, unit = _seed_unit(owner, "counter-atcap")
     _obj, join = _seed_tabs_element(unit, [("t000001", "Tab 1"), ("t000002", "Tab 2")])
 
-    _login(page, live_server, "counter_atcap_owner")
-    page.goto(_editor_url(live_server, course, unit))
-    page.wait_for_selector('[data-scope="editor"] .el-row--tabs')
-    page.locator(
-        f'[data-scope="editor"] [data-element="{join.pk}"] .el-act-edit'
-    ).first.click()
-    page.wait_for_selector(
-        "[data-edit-slot] [data-tabs-editor][data-tabs-editor-ready]"
-    )
+    _open_tabs_editor(page, live_server, "counter_atcap_owner", course, unit, join)
 
     row = page.locator("[data-edit-slot] [data-tab-row]").first
     label_input = row.locator("[data-tab-label-input]")
@@ -1918,15 +1921,7 @@ def test_a_single_event_jump_to_the_cap_still_announces(live_server, page):
     course, unit = _seed_unit(owner, "counter-jump")
     _obj, join = _seed_tabs_element(unit, [("t000001", "Tab 1"), ("t000002", "Tab 2")])
 
-    _login(page, live_server, "counter_jump_owner")
-    page.goto(_editor_url(live_server, course, unit))
-    page.wait_for_selector('[data-scope="editor"] .el-row--tabs')
-    page.locator(
-        f'[data-scope="editor"] [data-element="{join.pk}"] .el-act-edit'
-    ).first.click()
-    page.wait_for_selector(
-        "[data-edit-slot] [data-tabs-editor][data-tabs-editor-ready]"
-    )
+    _open_tabs_editor(page, live_server, "counter_jump_owner", course, unit, join)
 
     row = page.locator("[data-edit-slot] [data-tab-row]").first
     label_input = row.locator("[data-tab-label-input]")
@@ -1956,15 +1951,7 @@ def test_a_second_row_reaching_the_cap_announces_too(live_server, page):
     course, unit = _seed_unit(owner, "counter-second")
     _obj, join = _seed_tabs_element(unit, [("t000001", "Tab 1"), ("t000002", "Tab 2")])
 
-    _login(page, live_server, "counter_second_owner")
-    page.goto(_editor_url(live_server, course, unit))
-    page.wait_for_selector('[data-scope="editor"] .el-row--tabs')
-    page.locator(
-        f'[data-scope="editor"] [data-element="{join.pk}"] .el-act-edit'
-    ).first.click()
-    page.wait_for_selector(
-        "[data-edit-slot] [data-tabs-editor][data-tabs-editor-ready]"
-    )
+    _open_tabs_editor(page, live_server, "counter_second_owner", course, unit, join)
 
     rows = page.locator("[data-edit-slot] [data-tab-row]")
     region = page.locator("[data-edit-slot] [data-tab-cap]")
@@ -2000,15 +1987,7 @@ def test_descending_below_the_cap_clears_both_signals(live_server, page):
     course, unit = _seed_unit(owner, "counter-descend")
     _obj, join = _seed_tabs_element(unit, [("t000001", "Tab 1"), ("t000002", "Tab 2")])
 
-    _login(page, live_server, "counter_descend_owner")
-    page.goto(_editor_url(live_server, course, unit))
-    page.wait_for_selector('[data-scope="editor"] .el-row--tabs')
-    page.locator(
-        f'[data-scope="editor"] [data-element="{join.pk}"] .el-act-edit'
-    ).first.click()
-    page.wait_for_selector(
-        "[data-edit-slot] [data-tabs-editor][data-tabs-editor-ready]"
-    )
+    _open_tabs_editor(page, live_server, "counter_descend_owner", course, unit, join)
 
     row = page.locator("[data-edit-slot] [data-tab-row]").first
     label_input = row.locator("[data-tab-label-input]")
@@ -2055,15 +2034,7 @@ def test_a_stored_at_cap_label_shows_the_counter_at_first_paint(live_server, pag
     course, unit = _seed_unit(owner, "counter-init")
     _obj, join = _seed_tabs_element(unit, [("t000001", "Tab 1"), ("t000002", "x" * 80)])
 
-    _login(page, live_server, "counter_init_owner")
-    page.goto(_editor_url(live_server, course, unit))
-    page.wait_for_selector('[data-scope="editor"] .el-row--tabs')
-    page.locator(
-        f'[data-scope="editor"] [data-element="{join.pk}"] .el-act-edit'
-    ).first.click()
-    page.wait_for_selector(
-        "[data-edit-slot] [data-tabs-editor][data-tabs-editor-ready]"
-    )
+    _open_tabs_editor(page, live_server, "counter_init_owner", course, unit, join)
 
     row = page.locator("[data-edit-slot] [data-tab-row]").last
     label_input = row.locator("[data-tab-label-input]")
@@ -2089,15 +2060,7 @@ def test_adding_a_tab_resets_the_cloned_counter(live_server, page):
     course, unit = _seed_unit(owner, "counter-add")
     _obj, join = _seed_tabs_element(unit, [("t000001", "Tab 1"), ("t000002", "Tab 2")])
 
-    _login(page, live_server, "counter_add_owner")
-    page.goto(_editor_url(live_server, course, unit))
-    page.wait_for_selector('[data-scope="editor"] .el-row--tabs')
-    page.locator(
-        f'[data-scope="editor"] [data-element="{join.pk}"] .el-act-edit'
-    ).first.click()
-    page.wait_for_selector(
-        "[data-edit-slot] [data-tabs-editor][data-tabs-editor-ready]"
-    )
+    _open_tabs_editor(page, live_server, "counter_add_owner", course, unit, join)
 
     rows = page.locator("[data-edit-slot] [data-tab-row]")
     region = page.locator("[data-edit-slot] [data-tab-cap]")
@@ -2138,15 +2101,7 @@ def test_removing_the_at_cap_row_clears_the_region(live_server, page):
         unit, [("t000001", "Tab 1"), ("t000002", "Tab 2"), ("t000003", "Tab 3")]
     )
 
-    _login(page, live_server, "counter_remove_owner")
-    page.goto(_editor_url(live_server, course, unit))
-    page.wait_for_selector('[data-scope="editor"] .el-row--tabs')
-    page.locator(
-        f'[data-scope="editor"] [data-element="{join.pk}"] .el-act-edit'
-    ).first.click()
-    page.wait_for_selector(
-        "[data-edit-slot] [data-tabs-editor][data-tabs-editor-ready]"
-    )
+    _open_tabs_editor(page, live_server, "counter_remove_owner", course, unit, join)
 
     rows = page.locator("[data-edit-slot] [data-tab-row]")
     region = page.locator("[data-edit-slot] [data-tab-cap]")
@@ -2181,15 +2136,7 @@ def test_reordering_clears_the_region_so_the_next_cap_announces(live_server, pag
     course, unit = _seed_unit(owner, "counter-reorder")
     _obj, join = _seed_tabs_element(unit, [("t000001", "Tab 1"), ("t000002", "Tab 2")])
 
-    _login(page, live_server, "counter_reorder_owner")
-    page.goto(_editor_url(live_server, course, unit))
-    page.wait_for_selector('[data-scope="editor"] .el-row--tabs')
-    page.locator(
-        f'[data-scope="editor"] [data-element="{join.pk}"] .el-act-edit'
-    ).first.click()
-    page.wait_for_selector(
-        "[data-edit-slot] [data-tabs-editor][data-tabs-editor-ready]"
-    )
+    _open_tabs_editor(page, live_server, "counter_reorder_owner", course, unit, join)
 
     rows = page.locator("[data-edit-slot] [data-tab-row]")
     region = page.locator("[data-edit-slot] [data-tab-cap]")
@@ -2292,7 +2239,6 @@ def test_a_long_tab_label_wraps_within_the_width_cap(live_server, page):
         " };"
         "}"
     )
-    print(f"TAB_BOX={box}")
     assert box["lineHeight"] > 0, f"line-height did not resolve to px: {box}"
 
     # 18rem = 288px. clientWidth equals the border-box width here only because
