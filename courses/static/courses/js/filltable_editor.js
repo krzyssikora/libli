@@ -17,6 +17,15 @@
   var VALIGNS = ["top", "middle", "bottom"];
   var CELL_IMAGE_DEFAULT = "full";
   var CELL_IMAGE_INSERT = "medium";
+  // Whole-literal class names: `classList.add('filltable-editor__img--' + size)` would
+  // leave only a stem literal in the source, making test_table_css.py's assertion
+  // pass with three of four modifiers unstyled.
+  var CELL_IMG_CLASS = {
+    small: "filltable-editor__img--small",
+    medium: "filltable-editor__img--medium",
+    large: "filltable-editor__img--large",
+    full: "filltable-editor__img--full",
+  };
 
   // ---- grid helpers -------------------------------------------------------
 
@@ -196,43 +205,41 @@
       dataRows(grid).forEach(function (tr) {
         var row = [];
         Array.prototype.forEach.call(dataCells(tr), function (td) {
-          if (window.libliColour) window.libliColour.mapColours(td, { dropUnmapped: true });
-          if (td.hasAttribute("data-image")) {
-            var cell = {
+          var isAnswer = td.hasAttribute("data-answer");
+          var isImage  = td.hasAttribute("data-image");
+          if (!isAnswer && !isImage) {
+            if (window.libliColour) window.libliColour.mapColours(td, { dropUnmapped: true });
+          }
+          var cell;
+          if (isImage) {
+            cell = {
               kind: "image",
               media: parseInt(td.dataset.media, 10),
               alt: td.dataset.alt || "",
+              size: td.dataset.size || CELL_IMAGE_DEFAULT,
               halign: td.dataset.halign || "left",
               valign: td.dataset.valign || "top",
             };
-            if (td.colSpan > 1) cell.colspan = td.colSpan;
-            if (td.rowSpan > 1) cell.rowspan = td.rowSpan;
-            if (td.tagName === "TH") cell.header = true;
-            row.push(cell);
-          } else if (td.hasAttribute("data-answer")) {
+          } else if (isAnswer) {
             var input = td.querySelector(".filltable-editor__answer");
-            var cell = {
+            cell = {
               kind: "answer",
               answer: input ? input.value : "",
               halign: td.dataset.halign || "left",
               valign: td.dataset.valign || "top",
             };
-            if (td.colSpan > 1) cell.colspan = td.colSpan;
-            if (td.rowSpan > 1) cell.rowspan = td.rowSpan;
-            if (td.tagName === "TH") cell.header = true;
-            row.push(cell);
           } else {
-            var cell = {
+            cell = {
               kind: "static",
               html: td.innerHTML,
               halign: td.dataset.halign || "left",
               valign: td.dataset.valign || "top",
             };
-            if (td.colSpan > 1) cell.colspan = td.colSpan;
-            if (td.rowSpan > 1) cell.rowspan = td.rowSpan;
-            if (td.tagName === "TH") cell.header = true;
-            row.push(cell);
           }
+          if (td.colSpan > 1) cell.colspan = td.colSpan;
+          if (td.rowSpan > 1) cell.rowspan = td.rowSpan;
+          if (td.tagName === "TH") cell.header = true;
+          row.push(cell);
         });
         cells.push(row);
       });
@@ -436,18 +443,25 @@
       return s;
     }
 
-    // Convert `td` to an image cell holding the picked asset. Stashes the
-    // prior kind's content (reusing stashFor, so the toggle back to static
-    // via toggleAnswerCell restores it) and immediately reveals + populates
-    // the alt input — a later focusin is NOT relied upon, since the caller
-    // (the picker callback) already knows which cell it targeted.
+    // Convert `td` to an image cell holding the picked asset, or repaint an
+    // existing one after a re-pick. The prior kind's content is stashed ONLY on
+    // a genuine conversion (see the guard below, reusing stashFor so the toggle
+    // back to static via toggleAnswerCell restores it); revealing + populating
+    // the alt/size controls is refreshToolbarState()'s job, not this function's.
     function setImageCell(td, mediaInt, url, alt) {
-      var s = stashFor(td);
-      if (td.hasAttribute("data-answer")) {
-        var input = td.querySelector(".filltable-editor__answer");
-        s.answer = input ? input.value : "";
-      } else {
-        s.html = td.innerHTML;
+      // Stash ONLY on a genuine conversion. On a RE-PICK the cell already carries
+      // data-image, and an unconditional write would overwrite s.html with the preview
+      // <img> markup — Remove image / the answer toggle would then restore an <img>
+      // into a contenteditable cell, sanitize_cell would strip it to "", and the
+      // author's original text would be permanently lost.
+      if (!td.hasAttribute("data-image")) {
+        var s = stashFor(td);
+        if (td.hasAttribute("data-answer")) {
+          var input = td.querySelector(".filltable-editor__answer");
+          s.answer = input ? input.value : "";
+        } else {
+          s.html = td.innerHTML;
+        }
       }
       td.setAttribute("data-image", "");
       td.dataset.media = String(mediaInt);
@@ -458,6 +472,12 @@
       // in a free-typed alt cannot break out of the attribute/markup.
       var img = document.createElement("img");
       img.className = "filltable-editor__img";
+      // `|| CELL_IMAGE_INSERT` serves conversion AND re-pick from ONE call site: a
+      // literal "medium" would demote an author's `full` cell on every re-pick,
+      // while a literal "preserve" would leave a converted cell with no size.
+      td.dataset.size = td.dataset.size || CELL_IMAGE_INSERT;
+      var size = td.dataset.size;      // read AFTER the assignment
+      img.classList.add(CELL_IMG_CLASS[size]);    // literal map, not concatenation
       img.src = url;
       img.alt = alt || "";
       td.appendChild(img);
@@ -488,6 +508,7 @@
         td.removeAttribute("data-image");
         delete td.dataset.media;
         delete td.dataset.alt;
+        delete td.dataset.size;
         td.removeAttribute("tabindex");
         td.innerHTML = stashed.html != null ? stashed.html : "";
         td.setAttribute("contenteditable", "true");
@@ -887,6 +908,25 @@
         focusCell.dataset.alt = imageAlt.value;
         var img = focusCell.querySelector(".filltable-editor__img");
         if (img) img.setAttribute("alt", imageAlt.value);
+        serialize();
+      });
+    }
+
+    if (sizeSel) {
+      sizeSel.addEventListener("change", function () {
+        if (!focusCell || !focusCell.hasAttribute("data-image")) return;
+        focusCell.dataset.size = sizeSel.value;
+        var img = focusCell.querySelector(".filltable-editor__img");
+        if (img) {
+          // REMOVE all four first: classList.add alone accumulates, and the four
+          // modifiers are single-class selectors of identical specificity, so the
+          // winner would then be decided by stylesheet source order rather than
+          // the author's pick.
+          Object.keys(CELL_IMG_CLASS).forEach(function (k) {
+            img.classList.remove(CELL_IMG_CLASS[k]);
+          });
+          img.classList.add(CELL_IMG_CLASS[sizeSel.value]);
+        }
         serialize();
       });
     }

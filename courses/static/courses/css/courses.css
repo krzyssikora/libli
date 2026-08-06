@@ -1184,7 +1184,16 @@ a.unit-crumbs__label:focus-visible { outline: 2px solid var(--primary); outline-
   .cell-img--full { max-height: 170mm; }
 }
 
-.filltable-editor__img { max-width: 120px; height: auto; display: block; }
+/* Fill-table editor preview. max-width leaves the BASE for the same equal-specificity
+   reason as the student rules, so every size lives on a modifier. Bounded ABSOLUTELY in
+   both axes: `max-width: 100%` is not a bound in an auto-layout editor grid. */
+.filltable-editor__img { height: auto; display: block; }
+.filltable-editor__img--small  { max-width: 40px;             max-height: 40px; }
+.filltable-editor__img--medium { max-width: 80px;             max-height: 80px; }
+.filltable-editor__img--large  { max-width: 120px;            max-height: 120px; }
+.filltable-editor__img--full   { max-width: min(100%, 200px); max-height: 200px; }
+.ta-center > .filltable-editor__img { margin-inline: auto; }
+.ta-right  > .filltable-editor__img { margin-inline: auto 0; }
 .el--filltable__scroll { overflow-x: auto; }
 .el--filltable table { border-collapse: collapse; width: 100%; }
 .el--filltable th, .el--filltable td { padding: var(--space-2); }

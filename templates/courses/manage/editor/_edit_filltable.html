@@ -65,6 +65,12 @@ the answer-input placeholder, and the two submit-guard messages.{% endcomment %}
     <input type="text" class="filltable-editor__alt input" data-image-alt hidden
            maxlength="255" aria-label="{% trans 'Image description (alt)' %}"
            placeholder="{% trans 'Image description (alt)' %}">
+    <select class="input" data-image-size hidden
+            title="{% trans 'Image size' %}" aria-label="{% trans 'Image size' %}">
+      {% for value, label in form.cell_image_sizes %}
+      <option value="{{ value }}">{{ label }}</option>
+      {% endfor %}
+    </select>
     <span class="rte-sep"></span>
     <button type="button" class="rte-btn" data-merge disabled
             title="{% trans 'Merge cells' %}" aria-label="{% trans 'Merge cells' %}"><svg class="ic" aria-hidden="true" focusable="false"><use href="#ed-merge"/></svg></button>
@@ -100,16 +106,18 @@ the answer-input placeholder, and the two submit-guard messages.{% endcomment %}
           {% endif %}
         {% elif cell.kind == "image" %}
           {% if cell.header %}
-          <th data-image data-media="{{ cell.media.pk }}" data-alt="{{ cell.alt }}" tabindex="0"
+          <th data-image data-media="{{ cell.media.pk }}" data-alt="{{ cell.alt }}"
+              data-size="{{ cell.size|default:'full' }}" tabindex="0"
               class="ta-{{ cell.halign }} va-{{ cell.valign }}"
               data-halign="{{ cell.halign }}" data-valign="{{ cell.valign }}"{% if cell.colspan %} colspan="{{ cell.colspan }}"{% endif %}{% if cell.rowspan %} rowspan="{{ cell.rowspan }}"{% endif %}>
-            <img class="filltable-editor__img" src="{{ cell.media.file.url }}" alt="{{ cell.alt }}">
+            <img class="filltable-editor__img filltable-editor__img--{{ cell.size|default:'full' }}" src="{{ cell.media.file.url }}" alt="{{ cell.alt }}">
           </th>
           {% else %}
-          <td data-image data-media="{{ cell.media.pk }}" data-alt="{{ cell.alt }}" tabindex="0"
+          <td data-image data-media="{{ cell.media.pk }}" data-alt="{{ cell.alt }}"
+              data-size="{{ cell.size|default:'full' }}" tabindex="0"
               class="ta-{{ cell.halign }} va-{{ cell.valign }}"
               data-halign="{{ cell.halign }}" data-valign="{{ cell.valign }}"{% if cell.colspan %} colspan="{{ cell.colspan }}"{% endif %}{% if cell.rowspan %} rowspan="{{ cell.rowspan }}"{% endif %}>
-            <img class="filltable-editor__img" src="{{ cell.media.file.url }}" alt="{{ cell.alt }}">
+            <img class="filltable-editor__img filltable-editor__img--{{ cell.size|default:'full' }}" src="{{ cell.media.file.url }}" alt="{{ cell.alt }}">
           </td>
           {% endif %}
         {% else %}

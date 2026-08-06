@@ -52,22 +52,41 @@ def test_editor_css_styles_every_control_class_the_js_emits():
 def test_js_size_defaults_match_python_and_are_used():
     from courses.models import TableElement
 
-    # TABLE_JS ONLY in this task: filltable_editor.js does not declare these constants
-    # until Task 8 Step 4, and does not USE `|| CELL_IMAGE_INSERT` until Task 8 Step 5.
-    # Task 8 Step 8 widens this loop to both files.
-    src = TABLE_JS.read_text(encoding="utf-8")
-    assert f'var CELL_IMAGE_DEFAULT = "{TableElement.DEFAULT_CELL_IMAGE_SIZE}"' in src
-    assert (
-        f'var CELL_IMAGE_INSERT = "{TableElement.EDITOR_INSERT_CELL_IMAGE_SIZE}"'
-        in src
-    )
-    # Declared-but-unused would leave the pin guarding nothing. The INSERT needle
-    # pins the full statement, not the bare `|| CELL_IMAGE_INSERT` token: the
-    # CELL_IMG_CLASS comment above the map (`` `|| CELL_IMAGE_INSERT` serves
-    # conversion AND re-pick... ``) contains that bare token too, so the narrower
-    # needle would stay green even with setImageCell's real assignment deleted.
-    assert "|| CELL_IMAGE_DEFAULT" in src
-    assert "td.dataset.size = td.dataset.size || CELL_IMAGE_INSERT" in src
+    # Symmetric across both editor files (Task 8 Step 8 widens this loop): each
+    # declares both constants and USES `|| CELL_IMAGE_INSERT` in its own
+    # setImageCell. The INSERT needle pins the FULL statement, not the bare
+    # `|| CELL_IMAGE_INSERT` token: the CELL_IMG_CLASS comment above the map
+    # (`` `|| CELL_IMAGE_INSERT` serves conversion AND re-pick... ``) contains
+    # that bare token too, so the narrower needle would stay green even with
+    # setImageCell's real assignment deleted. Both editors' setImageCell
+    # happens to spell the assignment identically (`td.dataset.size =
+    # td.dataset.size || CELL_IMAGE_INSERT`), so one shared needle is correct
+    # here -- but it is checked against EACH file's own source, not a
+    # concatenation, so either file could fail independently.
+    for js in (TABLE_JS, FILL_JS):
+        src = js.read_text(encoding="utf-8")
+        assert (
+            f'var CELL_IMAGE_DEFAULT = "{TableElement.DEFAULT_CELL_IMAGE_SIZE}"'
+            in src
+        )
+        assert (
+            f'var CELL_IMAGE_INSERT = "{TableElement.EDITOR_INSERT_CELL_IMAGE_SIZE}"'
+            in src
+        )
+        assert "|| CELL_IMAGE_DEFAULT" in src
+        assert "td.dataset.size = td.dataset.size || CELL_IMAGE_INSERT" in src
+
+
+def test_filltable_editor_classes_the_js_names_are_styled():
+    js = FILL_JS.read_text(encoding="utf-8")
+    css = CSS.read_text(encoding="utf-8")  # courses.css ONLY, never concatenated
+    emitted = set(re.findall(r'"(filltable-editor__[\w-]+)"', js))
+    assert emitted, "expected filltable_editor.js to name filltable-editor__* classes"
+    for cls in sorted(emitted):
+        assert re.search(rf"(?<![\w-])\.{re.escape(cls)}(?![\w-])", css), cls
+    # And the base rule itself exists, not merely the name (`.ta-center >
+    # .filltable-editor__img` satisfies the name check on its own). re.M is mandatory.
+    assert re.search(r"^\.filltable-editor__img\s*\{", css, re.M)
 
 
 def test_courses_css_defines_the_cell_image_scale():
