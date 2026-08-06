@@ -16,7 +16,7 @@ done later.
 The contract is a CLASSIFICATION, not a list: every function name present in both
 files must appear in exactly one of TWINS or DIVERGENT. That is what stops the
 guard rotting -- a new shared helper forces a decision instead of silently
-becoming a 21st unguarded twin.
+becoming a 23rd unguarded twin.
 """
 
 import re
@@ -30,10 +30,10 @@ FILL_JS = ROOT / "courses" / "static" / "courses" / "js" / "filltable_editor.js"
 #
 # Asserted so a regex regression fails loudly instead of silently extracting
 # nothing -- every comparison below trivially passes over an empty set. Counting
-# EVERY function, not just the 20 twins, is deliberate: if extraction silently
+# EVERY function, not just the 22 twins, is deliberate: if extraction silently
 # missed a newly added shared helper in one file, that name would never look
 # "common to both" and the classification check would stay green while an
-# unguarded 21st twin existed.
+# unguarded 23rd twin existed.
 EXPECTED_COUNTS = {TABLE_JS: 30, FILL_JS: 36}
 
 _DEF = re.compile(r"^\s*function (\w+)\s*\(")

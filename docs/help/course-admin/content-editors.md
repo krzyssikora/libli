@@ -77,13 +77,16 @@ the row/column handles to insert or delete rows and columns. Toggle
 **Header row** and **Header column** to style the first row/column
 differently, and choose a **Borders** style (**Grid**, **Rows**,
 **Header only**, or **None**). A cell holds rich text *or* a picture, never
-both: focus an empty cell and click **Image cell** to pick one from the
-media library (see [Media manager](media-manager)), add optional
-**alt text**, and choose a **Size** — Small, Medium, Large, or Full — each a
-bounding box the picture scales to fit without stretching or cropping;
-Small/Medium/Large stay a fixed size whatever the column ends up being,
-while Full instead fills the column. **Remove image** clears the picture
-back to an empty text cell. Select a range of cells with Shift+click, or
+both: focus a cell and click **Image cell** to pick one from the media
+library (see [Media manager](media-manager)) — this replaces any text the
+cell already held — then add optional **alt text** and choose a **Size** —
+Small, Medium, Large, or Full — each a bounding box the picture scales to
+fit without stretching or cropping; Small/Medium/Large stay a fixed size
+whatever the column ends up being, while Full instead fills the column.
+**Remove image** brings back the cell's original text if you converted it
+to a picture earlier in the same visit; reopening a saved table and
+removing its picture there instead leaves an empty text cell, since nothing
+survives a save to restore. Select a range of cells with Shift+click, or
 extend it a slot at a time with **Alt+Shift+Arrow**, then press **Merge
 cells** to combine the range into one cell — only the top-left cell's
 content is kept, text or picture alike, and you're asked to confirm first if

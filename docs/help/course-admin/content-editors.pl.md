@@ -77,19 +77,23 @@ utrzymanie takiego bloku jest trudniejsze niż pozostałych typów.
 {el:table} **Tabela** — edytor siatki typu WYSIWYG z zawsze widocznym paskiem
 narzędzi: narzędzia dotyczące komórki (pogrubienie, kursywa, podkreślenie,
 wzory w linii oraz wyrównanie poziome/pionowe) są nieaktywne, dopóki nie
-skupisz komórki, a wtedy działają na niej na miejscu. Uchwytami
+klikniesz komórki, a wtedy działają na niej na miejscu. Uchwytami
 wierszy/kolumn wstawiaj lub usuwaj wiersze i kolumny. Włącz **Wiersz
 nagłówkowy** i **Kolumna nagłówkowa**, aby wyróżnić pierwszy
 wiersz/kolumnę, oraz wybierz styl **Obramowanie** (**Siatka**, **Wiersze**,
 **Tylko nagłówek** albo **Brak**). Komórka zawiera tekst sformatowany albo
-obraz, nigdy oba naraz: skup pustą komórkę i kliknij **Komórka z obrazem**,
-aby wybrać go z biblioteki mediów (zobacz [Menedżer mediów](media-manager)),
-dodaj opcjonalny **tekst alternatywny** i wybierz **Rozmiar** — Mały,
-Średni, Duży lub Pełny — każdy to ramka ograniczająca, do której obraz się
-skaluje bez rozciągania czy kadrowania; Mały/Średni/Duży mają stały rozmiar
+obraz, nigdy oba naraz: kliknij komórkę, a potem **Komórka z obrazem**, aby
+wybrać obraz z biblioteki mediów (zobacz [Menedżer mediów](media-manager))
+— zastąpi to tekst, jeśli komórka już go zawierała — następnie dodaj
+opcjonalny **tekst alternatywny** i wybierz **Rozmiar** — Mały, Średni,
+Duży lub Pełny — każdy to ramka ograniczająca, do której obraz się skaluje
+bez rozciągania czy kadrowania; Mały/Średni/Duży mają stały rozmiar
 niezależny od szerokości kolumny, a Pełny wypełnia kolumnę. **Usuń obraz**
-czyści obraz z powrotem do pustej komórki tekstowej. Zaznacz zakres komórek
-kombinacją Shift+kliknięcie albo rozszerzaj go pole po polu skrótem
+przywraca oryginalny tekst komórki, jeśli zamieniłeś ją na obraz podczas tej
+samej wizyty; usunięcie obrazu po ponownym otwarciu zapisanej tabeli
+zostawia zamiast tego pustą komórkę tekstową, bo nic nie przetrwa zapisu, z
+czego dałoby się go odtworzyć. Zaznacz zakres komórek kombinacją
+Shift+kliknięcie albo rozszerzaj go pole po polu skrótem
 **Alt+Shift+strzałka**, a następnie kliknij **Scal komórki**, aby połączyć
 zaznaczenie w jedną komórkę — zachowywana jest tylko treść komórki w lewym
 górnym rogu, tekst czy obraz, a jeśli którakolwiek z pozostałych komórek nie
