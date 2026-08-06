@@ -1506,8 +1506,22 @@ a.unit-crumbs__label:focus-visible { outline: 2px solid var(--primary); outline-
   flex: 0 0 auto; padding: var(--space-3) var(--space-4);
   border: 0; border-bottom: 2px solid transparent; background: none;
   color: var(--text-secondary); font: inherit; font-weight: 600; cursor: pointer;
-  white-space: nowrap;
+  /* Width cap + wrap, NOT clip. A clipped label is unreadable on touch (no title
+     tooltips), and today a phone reader can swipe the strip to read it all.
+     18rem = 288px; box-sizing:border-box and 16px padding each side leave 256px of
+     text, ~34 chars per line, so an 80-char label wraps to about three lines.
+     55vw is VIEWPORT-relative: it keeps a second tab and the edge fade visible on a
+     ~360px phone, but in a narrow CONTAINER on a wide viewport the 18rem arm wins and
+     the strip's existing scroller/fade/chevrons take over. text-align is declared so
+     the centring reads as a decision, not an accident. */
+  max-width: min(18rem, 55vw); overflow-wrap: break-word; text-align: center;
 }
+/* Keep a formula atomic. KaTeX splits a formula into several `.base` spans at
+   top-level operators and relations; each is nowrap internally but they can break
+   between. The tab's own nowrap was holding them together, so removing it above
+   would let \(a + b = c\) wrap mid-expression. Cost: a formula wider than the cap
+   overflows it -- accepted, because the alternative is clipping or mangling. */
+.el--tabs .tabs__tab .katex { white-space: nowrap; }
 .el--tabs .tabs__tab:hover { color: var(--primary); }
 .el--tabs .tabs__tab[aria-selected="true"] { color: var(--primary); border-bottom-color: var(--primary); }
 .el--tabs .tabs__tab:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
