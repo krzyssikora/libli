@@ -216,25 +216,39 @@ confused with the instance holding dev and mat-pp data); **loopback binding** (a
 not disk); **`fsync=off`** (safe here and only here — nothing on this server
 survives a restart by design).
 
+**Worker count is an input to both the tmpfs size and `max_connections`, and
+§5.3 may recommend `-n auto` locally.** §A4 already raises this for CI; the same
+applies here, because `-n auto` on a developer machine can exceed the 8 workers
+the 1 GB was sized against, multiplying both database count and concurrent
+connections against a server left at the `postgres:16` default
+`max_connections`. The plan must state the local worker ceiling the sizing
+assumes and add an explicit `-c max_connections=…` if `-n auto` can exceed it.
+
 ### A2. Opt-in wiring in `config/settings/test.py`
 
 A pure helper plus its call site, so this section and §5.4's test describe **one**
 implementation:
 
 ```python
-def _resolve_databases(env_value):
-    """Return a DATABASES-shaped dict, or None for "no override".
+from django.core.exceptions import ImproperlyConfigured   # explicit: NOT star-available
 
-    Raises ImproperlyConfigured on a non-empty but unparseable value.
-    """
+
+def _resolve_databases(env_value):
+    """Return a DATABASES-shaped dict, or None for "no override"."""
     if not env_value:
         return None
     try:
-        return {"default": env.db_url_config(env_value)}  # noqa: F405
+        cfg = env.db_url_config(env_value)  # noqa: F405
     except Exception as exc:
         raise ImproperlyConfigured(
             f"TEST_DATABASE_URL is not a valid database URL: {env_value!r}"
         ) from exc
+    if cfg.get("ENGINE") != "django.db.backends.postgresql" or not cfg.get("PORT"):
+        raise ImproperlyConfigured(
+            f"TEST_DATABASE_URL must be a postgres URL with an explicit port; "
+            f"got {env_value!r}"
+        )
+    return {"default": cfg}
 
 
 _resolved = _resolve_databases(env("TEST_DATABASE_URL", default=""))  # noqa: F405
@@ -247,20 +261,36 @@ untouched; any other return is a complete `DATABASES` dict.
 
 Four deliberate choices:
 
-- **`# noqa: F405` on the two lines using star-imported names** (`env`).
-  `test.py` opens with `from config.settings.base import *`, so `env` is
-  star-imported and ruff's `F` rule set raises `F405`. `STORAGES`, `TEMPLATES`
-  and `BASE_DIR` in that file already carry the same suppression. Omitting it
-  reds the CI `lint` job.
+- **`ImproperlyConfigured` is imported explicitly.** `config/settings/base.py`
+  never imports it — verified: `grep -rn "ImproperlyConfigured" config/settings/`
+  returns nothing — so `from config.settings.base import *` does **not** provide
+  it, and the helper would raise `NameError` on its own error path. An explicit
+  import needs no `noqa`.
+- **`# noqa: F405` on the lines using star-imported names** (`env`, on two
+  lines here). `test.py` opens with `from config.settings.base import *`, so
+  `env` is star-imported and ruff's `F` rule set raises `F405`; `STORAGES`,
+  `TEMPLATES` and `BASE_DIR` in that file already carry the same suppression.
+  This is a rule about star-imported names, not a complete list of annotated
+  lines — any other star-imported name introduced later needs it too.
 - **`env.db_url_config` rather than `base.py`'s `env.db(...)`.** `env.db()`
   parses its `default`, so "unset means no override" would need a sentinel URL
   that must itself be valid.
-- **Malformed values fail loudly.** `db_url_config` does not validate strictly
-  and would otherwise yield a config pointing somewhere unintended.
 - **This lives in `test.py`, not `base.py`**, and **replacing `DATABASES`
   wholesale is safe because `base.py` defines only the `default` alias** —
   verified, not assumed. A future second alias makes this a silent drop and must
   change to a targeted update.
+
+**Two failure classes, deliberately separated.** A `try/except` around a lax
+parser converts raised exceptions; it adds no validation. So:
+
+- **Unparseable** values (e.g. `"not-a-url"`, whose empty scheme misses
+  `DB_SCHEMES`) raise from the `except` branch.
+- **Parseable but wrong** values are the dangerous case, and the `except` branch
+  cannot catch them: `postgres://libli@127.0.0.1:5432/libli` — the real dev
+  instance's port instead of 55433 — parses cleanly and would point the whole
+  test run at the developer's real Postgres, inverting §7's first risk row. The
+  explicit engine/port check exists for exactly this, and is why the validation
+  is not left to `db_url_config`.
 
 **Naming and precedence, for `.env.example` and `testing.md`:**
 `TEST_DATABASE_URL` configures the *server the test database is created on*,
@@ -345,6 +375,10 @@ one-line notice naming the compose command. Four things are pinned:
 - **Suppressed under CI** (`CI` / `GITHUB_ACTIONS` env). CI's `e2e` job sets
   `DATABASE_URL` but not `TEST_DATABASE_URL`, so the notice would otherwise print
   on every CI run, advising a local container CI neither has nor needs.
+- **Opt-out via `LIBLI_NO_TEST_DB_NOTICE`,** documented in `testing.md`. §7 lists
+  the no-container path as *supported*; without an off switch a developer on that
+  path gets the nudge on every e2e run forever, which is how a nag gets learned
+  through rather than acted on.
 
 It must be a **terminal-reporter line, not a `warnings.warn`**: node IDs in the
 warnings summary have previously made an unanchored `grep FAILED` report failures
@@ -452,7 +486,12 @@ human sees a plausible list and trusts it.
 | a test file | itself |
 | a Python module | tests referencing its import path, or its module-level public defs/classes, matched on **word boundaries** |
 | a template / CSS / JS file | tests referencing that filename |
-| a migration | transfer and model tests |
+| a migration | `tests/test_transfer*.py` (fixed glob) **plus** `search(<ModelName>)` for each model named in the migration's operations |
+
+The migration row is pinned to a mechanical form for the same reason the global
+class was: "transfer and model tests" names no pattern and no search term, so two
+implementers would produce two different selections and B3 would have nothing
+specific to assert.
 
 **"A test file" means a path matching the configured `python_files` pattern**
 (`test_*.py`), not "lives in a test directory". `tests/capture_help_screenshots.py`
@@ -467,11 +506,37 @@ corpus — indistinguishable from the full suite, and a silent failure.
 **Breadth cap, per selection.** Unit: **40 files** of 549. e2e: **15 files** of
 97. A joint cap would be dominated by the unit side.
 
-**Unit/e2e classification.** A file is e2e iff its name matches `test_e2e_*.py`
-**or** it contains an `e2e` marker; both are checked. The emitted e2e command
-**always carries `-m e2e`**, and the output states that **exit code 5 means
-"nothing selected", not "green"** — an e2e path in the unit invocation is
-silently deselected by the existing `-m 'not e2e'`.
+**Unit/e2e classification — non-exclusive.** A file may appear in **both**
+`unit_files` and `e2e_files`. An exclusive "iff" rule drops real tests today:
+`tests/test_tabs_editor_dnd.py` holds **10 non-e2e tests and 2 e2e tests**
+(measured by collection), so classifying it as e2e-only would put it solely in
+the `-m e2e` command, which deselects the 10 — selected nowhere, silently. That
+is the "confidently-wrong list a human trusts" failure mode the global
+short-circuit exists to prevent, reappearing in the classifier.
+
+The rule:
+
+| File shape | Goes to |
+|---|---|
+| name matches `test_e2e_*.py`, or module-level `pytestmark` is `e2e` | e2e only |
+| per-function `@pytest.mark.e2e` on some tests | **both** selections |
+| no `e2e` marker anywhere | unit only |
+
+The marker check goes through **`search()`** (`f in search("pytest.mark.e2e")`),
+not by opening files — otherwise `map_paths` would perform I/O and break the
+purity B3's stub-based tests rely on.
+
+**Empty selections.** `NONE` with a non-empty candidate list emits that list.
+`NONE` with an **empty** list — a docs-only diff, a binary-only diff, or one
+whose paths all landed in `unmapped` — **emits no command for that selection**
+and prints `no <unit|e2e> tests mapped; see unmapped`. Interpolating an empty
+file list into a pytest command would yield a bare `uv run pytest`, i.e. all
+5,104 tests: the maximally wrong answer, emitted silently, for the input that
+means "nothing to run".
+
+The emitted e2e command **always carries `-m e2e`**, and the output states that
+**exit code 5 means "nothing selected", not "green"** — an e2e path in the unit
+invocation is silently deselected by the existing `-m 'not e2e'`.
 
 ### B3. Tests for the helper — `tests/test_affected_tests.py`
 
@@ -479,11 +544,15 @@ Named explicitly because `scripts/` sits outside every test directory and
 `pyproject.toml` sets no `testpaths`; this location guarantees collection by the
 existing configuration.
 
-**Core, on stubs:** each mapping rule; the global short-circuit; both breadth
-caps; per-selection reason discrimination; binary-path reporting; the unit/e2e
-split; the `python_files` definition of "test file"; unmapped reporting; and
-`normalize_name_status` on literal `--name-status` lines covering additions,
-renames, deleted *test* files (dropped) and deleted *source* files (retained).
+**Core, on stubs:** each mapping rule including the migration glob-plus-model
+rule; the global short-circuit; both breadth caps; per-selection reason
+discrimination; **the empty-selection case for each selection** (asserting no
+command is emitted and the "no tests mapped" line appears — the case that would
+otherwise silently become a bare `uv run pytest`); **a mixed-marker stub landing
+in both selections**; binary-path reporting; the `python_files` definition of
+"test file"; unmapped reporting; and `normalize_name_status` on literal
+`--name-status` lines covering additions, renames, deleted *test* files (dropped)
+and deleted *source* files (retained).
 
 **Corpus:** a case asserting that a path under an ignored directory
 (`.claude/worktrees/…`) never enters the corpus.
@@ -506,23 +575,52 @@ fails loudly.
 | 1 | `uv run pytest` (single-process) | unset | 2 | unit baseline |
 | 2 | `uv run pytest` (single-process) | **set** | 2 | tests §1's "benefit may be near zero" hypothesis |
 | 3 | `uv run pytest -n auto` | **unset** | 2 | isolates the parallelism lever from Part A |
-| 4 | `uv run pytest -m e2e` | unset | 2 | e2e baseline |
+| 4 | `uv run pytest -m e2e` | unset | 2 | e2e baseline; supplies the `math_reflow_dom` durations |
 | 5 | `uv run pytest -m e2e` | **set** | 2 | **the headline full-suite magnitude** |
+| 6 | `uv run pytest -n auto` | **set** | 2 | the combination §5.3 may actually recommend |
 
 Run 5 exists because §5.2 deliberately gates on a 69-test sample; without it the
 full-suite e2e benefit — the point of the whole design — would be measured
-nowhere, and §1's "no benefit is claimed against a baseline that does not yet
-exist" would never be discharged.
+nowhere. Run 6 exists because if both levers land, `testing.md` would otherwise
+recommend a container-plus-`-n auto` configuration that no run in this matrix
+covers.
 
-**Two draws per run, decided on paired medians**, because §2.4's ~21% variance
-makes any single-draw comparison unreliable — the same rule that made the
-container rows provisional. Runs 1 and 3 in particular feed §5.3's ≥1.25×
-threshold, which sits inside the noise band a single draw can produce.
+**Sequencing — this is not one pre-gate phase.** Runs 2, 5 and 6 cannot execute
+until A1 and A2 exist, and run 4 must complete before the gate because it fixes
+the thresholds:
 
-**Instrumentation, required on the e2e runs:** capture `--durations`, and record
-the per-test cost of `test_e2e_math_reflow_dom.py` specifically. That is the only
-quantity §5.2's 0.4 s assumption concerns, and without it the "recompute the bar"
-path cannot recompute anything.
+1. Runs **1, 3, 4** (pre-implementation baselines)
+2. **Recompute §5.2's thresholds** from run 4's `math_reflow_dom` durations
+3. Implement **A1 / A2 / A5**
+4. **§5.2's four gate draws**
+5. Runs **2, 5, 6**
+6. **§5.3** decisions
+
+**Two draws per run**, because §2.4's ~21% variance makes any single-draw
+comparison unreliable — the rule that made the container rows provisional.
+
+**Statistical conventions, fixed once and used in §5.1, §5.2 and §5.3:**
+
+- The **median of an even-sized sample is the mean of the two middle values**.
+- The statistic is always the **ratio of the two medians**, never the median of
+  the per-draw ratios. These differ materially: on before `[100, 140]` and after
+  `[80, 60]` they give 1.71 and 1.79 — a spread wide enough to straddle both
+  §5.2's 1.45× and §5.3's 1.25× bars.
+
+(§A4's three-run medians are odd-count and unaffected.)
+
+**Instrumentation, required on the e2e runs: `--durations=0 -vv`.** Both parts
+matter — a bare `--durations` is a hard error (it takes an integer argument), a
+positive integer reports only the N slowest, and without `-vv` pytest hides
+entries under 0.005 s. The figure wanted is the **mean of `setup+call+teardown`
+across the 171 tests in `test_e2e_math_reflow_dom.py`**, which is the only
+quantity §5.2's 0.4 s assumption concerns; without it the "recompute the
+thresholds" path cannot recompute anything.
+
+**Do not add `-q` to these runs.** `addopts` already supplies one; a second makes
+it `-qq`, which suppresses the warnings summary entirely and turns the
+must-stay-zero check below into a vacuous pass. Use `--verbosity=0` if quieter
+output is wanted.
 
 **Execution mechanics**, because long invocations have known failure modes here:
 
@@ -570,8 +668,13 @@ reclaim them. Run 5 supplies the full-suite magnitude separately.
   ships.
 - **Protocol:** two before, two after; *same commit, same machine*, **`-n 2`
   fixed**, toggling **only** `TEST_DATABASE_URL`. **The container must be running
-  for all four runs**, including the before arm — otherwise the arms differ by
-  the whole cost of the Docker Desktop VM, a confounder the size of the effect.
+  during every one of the four draws**, including the before arm — otherwise the
+  arms differ by the whole cost of the Docker Desktop VM, a confounder the size
+  of the effect being measured.
+- **Between draws**, apply the same `DuplicateDatabase` hygiene as §5.1. "Running
+  during every draw" constrains the draws, not the gaps: a
+  `down` / `up -d --wait` cycle between draws is permitted, and is the required
+  cleanup for the after arm.
 - **`-n` sweeps (§5.4) happen after the gate is decided and never feed it**, or
   the best `-n` could be reported as the "after".
 
@@ -597,11 +700,11 @@ anywhere:**
 > mean-over-mean, because it pairs the fastest before draw with the mean after,
 > matching the decision statistic's pessimism.
 >
-> Diluting to the full 845: roughly 171 tests (`math_reflow_dom`) pay no truncate.
-> Assuming those cost ~0.4 s each (**unmeasured — the largest assumption here**;
-> §5.1 now measures it), the ratio falls to **≈1.57×**. The absolute seconds
-> behind that figure are scaffolding for the ratio, not a wall-clock prediction
-> (§2.3).
+> Diluting to the full 845: roughly 171 tests (`math_reflow_dom`) pay no
+> truncate, leaving **845 − 171 = 674** truncate-paying. Assuming the 171 cost
+> ~0.4 s each (**unmeasured — the largest assumption here**; §5.1 run 4 measures
+> it), the ratio falls to **≈1.57×**. The absolute seconds behind that figure are
+> scaffolding for the ratio, not a wall-clock prediction (§2.3).
 
 **Population, which the thresholds must match.** The derivation above dilutes to
 the full suite, but the gate measures the **sample**, where all 69 tests pay a
@@ -610,14 +713,21 @@ threshold to an undiluted measurement would systematically accept changes whose
 full-suite effect is below the intended bar. **The thresholds in the table are
 therefore stated for the sample**, and the relationship is:
 
+| | full-suite target | sample threshold (table above) |
+|---|---|---|
+| accept | **1.42×** | 1.45× |
+| reject below | **1.28×** | 1.30× |
+
+The sample thresholds are the full-suite targets scaled by
+`sample_ratio / diluted_ratio` = 1.60 / 1.57. If §5.1 run 4's durations
+invalidate the 0.4 s assumption, only `diluted_ratio` moves, so recompute
+directly from the table's own numbers:
+
 ```
-sample_threshold = full_suite_target × (sample_ratio / diluted_ratio)
-                 = full_suite_target × (1.60 / 1.57)
+new_sample_threshold = 1.45 × (1.57 / new_diluted_ratio)     # and 1.30 likewise
 ```
 
-If §5.1's per-file durations invalidate the 0.4 s assumption, the dilution factor
-moves; the thresholds are recomputed through that formula **before the gate is
-run**, never after seeing the result.
+Recomputation happens **before the gate is run**, never after seeing the result.
 
 **On the 674 used in the dilution:** §2.1 says 93 of 630 *functions* skip the
 truncate while the derivation assumes 171 of 845 *collected tests* do. These
@@ -638,14 +748,33 @@ the truncate-paying share. §5.1's per-file durations replace it.
 
 A rejected gate also returns the §6 shared-connection rewrite to scope.
 
-**The `-n auto` result must also produce an action**, or §1's "cheapest available
-lever" terminates in a number in a note. Comparing **paired medians of runs 3 and
-1** (both unset, two draws each per §5.1): if run 3 beats run 1 by **≥1.25×**,
-`testing.md` documents `-n auto` as the local unit command. **`addopts` is not
-touched** — it is shared with CI, where `-n auto` is already passed explicitly,
-and changing it would alter CI's effective invocation as a side effect.
+**Three further results must each produce an action**, or §1's "cheapest
+available lever" and the unit half both terminate in numbers in a note. All
+comparisons use the ratio-of-medians convention fixed in §5.1.
 
-### 5.4 Also required
+| Comparison | Rule |
+|---|---|
+| **Run 2 ÷ run 1** — the unit half under the container | If run 2 is **slower than run 1 by more than 5%**, `testing.md` must document `TEST_DATABASE_URL` as an **e2e-only activation** (exported per command, not set in `.env`), and A3's activation guidance changes to match |
+| **Run 3 ÷ run 1** — the parallelism lever | If run 3 beats run 1 by **≥1.25×**, `testing.md` documents `-n auto` as the local unit command |
+| **Run 6** — both levers together | If both rules above fire positively, `testing.md`'s recommended unit command is whichever of runs 3 and 6 is faster; run 6 exists so this is measured rather than assumed |
+
+The **run 2 rule matters more than it looks**. `TEST_DATABASE_URL` is activated
+once in `.env` (A3) and then applies to *every* invocation — including the
+5,104-test unit selection developers run far more often than e2e. A regression
+there is entirely plausible: `db`-fixture tests roll back and gain nothing from
+`fsync=off`, yet every one of them would now pay the Docker Desktop port-forward
+hop. The §5.2 gate measures only the 69-test e2e sample and would not see it.
+
+**`addopts` is not touched** in any branch — it is shared with CI, where
+`-n auto` is already passed explicitly, and changing it would alter CI's
+effective invocation as a side effect.
+
+### 5.4 Blocking checks and recorded measurements
+
+§5.3's revert table is driven by §5.2's ratio alone, so this section states
+explicitly which items can *also* reject the work and which are merely recorded.
+
+**Blocking — any of these failing rejects Part A independently of the gate:**
 
 - **The suite must stay green** on both selections.
 - **All three warning strings must stay at zero**, observed per §5.1. Finding 4
@@ -662,14 +791,14 @@ and changing it would alter CI's effective invocation as a side effect.
   those files is guaranteed regardless of Part A. The must-stay-zero claim is
   therefore scoped to `tests/`, and those four need a separate
   green-and-no-teardown-error check.
-- **Time `TRUNCATE` directly on the Windows Postgres**, closing §2.1's inference.
-  **Both this and a re-run of the container timings must pin the database state**
-  — a freshly migrated test database immediately after one e2e test's fixtures —
-  since the original figures did not record theirs, and an empty-table truncate is
-  not comparable to a populated one.
-- **Replicate the two single-draw container runs** (§2), so the 3.57× figure and
-  §6's ~1.7× rest on more than n=1.
-- **Record both CI jobs' before/after** per §A4's rule.
+
+  **Remediation branch on a non-zero count**, since "must stay zero" without a
+  consequence is unactionable: a **barrier-timeout** warning means the 5 s
+  `DEFAULT_TIMEOUT` no longer suits the new timing profile — retune it and re-run,
+  which is a fix, not a rejection. A **deadlock-retry** or **browser-quiesce**
+  warning means the apparatus itself is being exercised in a way it was not
+  before; that **rejects Part A** pending investigation, because §6 declines to
+  touch that machinery precisely on the assumption it stays quiescent.
 - **Test the A2 wiring.** **Do not re-import `config.settings.test` the way
   `tests/test_settings_production.py` re-imports production** — that pattern is
   safe only because production is not the active settings module. `test.py`
@@ -677,15 +806,42 @@ and changing it would alter CI's effective invocation as a side effect.
   `TEMPLATES[0]["DIRS"] = [*TEMPLATES[0]["DIRS"], BASE_DIR / "tests" / "templates"]`,
   and since `base` is not popped, `TEMPLATES[0]` is the same dict object
   `django.conf.settings` references — every re-import appends another copy to live
-  global state. Test the pure `_resolve_databases` helper instead, covering:
-  empty string → `None`; valid URL → parsed `DATABASES`-shaped dict; malformed
-  value → `ImproperlyConfigured` quoting the value. Mutant: make the helper
-  return a dict for the empty case so the override applies unconditionally, and
-  require red.
-- **Test A5**, whose three pinned behaviours are each silent-failure modes: assert
-  the notice fires exactly once for an e2e-selecting invocation, does not fire
-  when `TEST_DATABASE_URL` is set, and does not fire on a unit-only run. Mutant:
-  remove the worker guard, require red.
+  global state. Test the pure `_resolve_databases` helper instead, with **named
+  exemplars** so no case is silently unfailable:
+
+  | Input | Expected |
+  |---|---|
+  | `""` | `None` |
+  | `postgres://libli@127.0.0.1:55433/libli` | parsed `DATABASES` dict |
+  | `"not-a-url"` | `ImproperlyConfigured` (unparseable — empty scheme misses `DB_SCHEMES`) |
+  | `postgres://libli@127.0.0.1:5432/libli` | `ImproperlyConfigured` (**parses cleanly**; caught only by the explicit port check) |
+
+  Mutant: make the helper return a dict for the empty case so the override
+  applies unconditionally, and require red.
+- **Test A5**, whose three pinned behaviours are each silent-failure modes:
+  assert the notice fires **exactly once under `-n 2`** (via `pytester` or a
+  subprocess run), does not fire when `TEST_DATABASE_URL` is set, and does not
+  fire on a unit-only run. Mutant: remove the worker guard, require red.
+
+  **The xdist run is what makes the mutant meaningful.** The guard
+  (`if hasattr(config, "workerinput"): return`) only ever triggers inside a
+  worker, so a single-process assertion would stay green with the guard deleted —
+  an assertion that cannot fail, which is a failure mode this repo has been bitten
+  by before.
+
+**Recorded for the note — informational, with no acceptance consequence except
+where noted:**
+
+- **Time `TRUNCATE` directly on the Windows Postgres**, closing §2.1's inference.
+  **Both this and a re-run of the container timings must pin the database state**
+  — a freshly migrated test database immediately after one e2e test's fixtures —
+  since the original figures did not record theirs, and an empty-table truncate is
+  not comparable to a populated one.
+- **Replicate the two single-draw container runs** (§2), so the 3.57× figure and
+  §6's ~1.7× rest on more than n=1. Nothing in §5.3 hangs on the outcome; it
+  exists so §6's deferral is sized on replicated data.
+- **Record both CI jobs' before/after** — this one **does** decide, via §A4's
+  per-job keep/drop rule.
 - **Re-measure `-n 4` and `-n 8`** on the e2e selection after Part A lands (§6).
 
 ### 5.5 Where results are recorded
@@ -738,6 +894,10 @@ be automated unattended. Revisit once §5.1's real numbers exist.
 | CI Postgres fails to start on tmpfs | Job red immediately. Revert = drop the tmpfs line from that job's `options:`; nothing else depends on it |
 | CI tmpfs starts but gives no gain | §A4's per-job rule: keep if `median_after ≤ median_before × 1.05` |
 | Corpus picks up the 2,534 test files in nested worktrees | Corpus built from `git ls-files`, never a filesystem walk; B3 asserts an ignored path never enters it |
+| **The container makes the far-more-frequent unit runs slower**, since `.env` activation applies to every invocation | §5.1 run 2 measures it and §5.3 acts on it: >5% slower ⇒ `testing.md` documents e2e-only activation |
+| **An empty candidate list becomes a bare `uv run pytest`** — all 5,104 tests, silently, for a diff that mapped nothing | Empty selections emit no command and print `no <unit\|e2e> tests mapped`; covered in B3 |
+| A mixed unit/e2e file is classified e2e-only and its unit tests run nowhere | Non-exclusive classification; `tests/test_tabs_editor_dnd.py` (10 unit + 2 e2e) is the live case, with a B3 stub |
+| `TEST_DATABASE_URL` parses but points at the real dev instance (`:5432`) | Explicit engine + port validation in `_resolve_databases`, with that exact value as a named test exemplar (A2, §5.4) |
 | Compose project name differs per worktree, yielding one container each | Fixed `-p libli-test` in every documented command (A1) |
 | Two worktrees run against the shared container at once | One-run-at-a-time rule plus the per-worktree database-name option (B1) |
 | `affected_tests.py` misses an affected test | Advisory only; CI full suite remains the gate; global short-circuit, per-selection breadth caps, and explicit unmapped reporting keep gaps visible |
