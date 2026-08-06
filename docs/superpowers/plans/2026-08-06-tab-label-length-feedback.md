@@ -23,6 +23,8 @@ Every task's requirements implicitly include this section.
 - **`TabsElement.LABEL_MAX` stays at 80.** Do not modify it, `sanitize_label`, `tabs_bounds`, or `check_str`. No model, migration, transfer or `FORMAT_VERSION` change.
 - **Do not touch** `courses/static/courses/js/tabs.js`, `templates/courses/elements/tabselement.html`, or any carousel CSS rule.
 - **Falsify every test.** For each new test, apply its named mutant, confirm RED, revert, confirm GREEN. **A named mutant that cannot go RED is a defect in the test, not a step to skip** — fix the assertion, do not edit working code to make it fail.
+- **Never revert a mutant with `git checkout -- <file>`.** Your task's own changes are still uncommitted at falsification time, so `checkout` reverts to HEAD and silently wipes the implementation you just wrote — you then "confirm RED" against a build with no feature in it, which proves nothing. Take a byte-exact golden copy of each file before mutating (`cp <file> <file>.orig`), restore from that, and delete the copy before committing. Task 3 hit this.
+- **When a mutant goes RED, check *which* assertion failed.** Several mutants exist to prove a specific assertion discriminates; a test that reddens on an earlier assertion has not demonstrated that. Report the assertion, not just the test.
 - **Scope test runs with `-k`.** Whole-suite sweeps belong to Task 9 only.
 - **`-v` does not work in this repo — use `--verbosity=1`.** `pyproject.toml:49` sets `addopts = "-q -m 'not e2e'"`, and the `-q` cancels a command-line `-v`, so you get a bare dot-progress line and no per-test `NAME PASSED` output. Every step below is written `-v` for readability; substitute `--verbosity=1` when you actually need to see which tests ran, and `--verbosity=0` for a summary-only run. Confirming *which* tests ran matters here — a `-k` typo that silently selects nothing must not read as a pass.
 - **Per-task lint:** `uv run ruff check <files>` **and** `uv run ruff format --check <files>` on the Python files you touched. Both. PR #219 passed the first and failed CI on the second.
@@ -516,7 +518,7 @@ Expected: **PASS** — all, including `test_editor_css_styles_every_tabs_editor_
 | Drop `data-msg-cap` from the root div | `test_the_cap_message_rides_on_a_data_msg_attribute` |
 | Drop `hidden` from the digits span | `test_each_row_carries_a_hidden_aria_hidden_counter` |
 | Drop `aria-hidden="true"` from the digits span | `test_each_row_carries_a_hidden_aria_hidden_counter` |
-| Rename the digits span `data-tab-row-count` | `test_each_row_carries_a_hidden_aria_hidden_counter` (via the `data-tab-row` count) |
+| Rename the digits span `data-tab-row-count` | `test_each_row_carries_a_hidden_aria_hidden_counter` — reddens on the `data-tab-num` count, which shadows the `data-tab-row` guard. Both are real: under this mutant `data-tab-row` renders 4 times, not 2 |
 | Move the digits span **after** `<span class="tabs-editor__ctl">` | `test_each_row_carries_a_hidden_aria_hidden_counter` (via the ordering assertion — every other assertion in it stays green) |
 | Move the live region inside the `<li>` (before `</ol>`) | `test_exactly_one_live_region_renders_outside_the_row_list` |
 | Drop `aria-live="polite"` | `test_exactly_one_live_region_renders_outside_the_row_list` |
