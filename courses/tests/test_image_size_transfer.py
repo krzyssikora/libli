@@ -38,7 +38,7 @@ def _validate(data):
 
 
 def test_format_version_is_bumped():
-    assert FORMAT_VERSION == 7
+    assert FORMAT_VERSION == 8
 
 
 @pytest.mark.django_db

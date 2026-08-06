@@ -54,8 +54,8 @@ def _nested_course():
     return course, unit, join, t1, t2, first, second
 
 
-def test_format_version_is_7():
-    assert FORMAT_VERSION == 7
+def test_format_version_is_current():
+    assert FORMAT_VERSION == 8
 
 
 def test_export_emits_parent_before_child_with_parent_and_tab_refs(tmp_path):

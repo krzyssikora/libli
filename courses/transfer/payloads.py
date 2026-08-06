@@ -613,7 +613,12 @@ def _val_table(data, elid, media_kinds):
     # coerces (absent/null fields; bogus optional header/colspan/rowspan). Every
     # field is read by value via .get with an explicit `is not None` guard, so a
     # missing key and an explicit null are treated identically (both tolerated).
-    allowed = {"html", "halign", "valign", "header", "colspan", "rowspan"}
+    # The allowlist is kind-aware in its *values*: `kind`/`media`/`alt`/`size` are
+    # legal on ANY cell (the allowlist stays flat), but only an image cell (kind ==
+    # "image") gets its media/alt/size actually validated below.
+    allowed = {"html", "halign", "valign", "header", "colspan", "rowspan",
+               "kind", "media", "alt", "size"}
+    refs = set()
     for row in rows:
         for cell in row:
             if not isinstance(cell, dict):
@@ -637,6 +642,27 @@ def _val_table(data, elid, media_kinds):
             if valign is not None and valign not in TableElement.VALIGN:
                 _err(_("Element '%(el)s': unknown cell vertical alignment."), el=elid)
             # header/colspan/rowspan: optional, NOT value-checked (model coerces).
+            kind = cell.get("kind")
+            if kind is not None and kind != "image":
+                _err(_("Element '%(el)s': unknown table cell kind."), el=elid)
+            if kind == "image":
+                refs |= _require_media(cell.get("media"), elid, media_kinds, "image")
+                # Coerce, don't reject: a cosmetic field with a lossless default
+                # must never fail an import (_val_image's stated rule). Scoped to
+                # IMAGE cells only — _val_image's unconditional setdefault would
+                # write `size` onto TEXT cells, which never carry it. Note this
+                # DOES materialise the key on image cells (get() returns None on
+                # absence, which is not in `values`); that is intended.
+                if cell.get("size") not in TableElement.CellImageSize.values:
+                    cell["size"] = "full"
+            alt = cell.get("alt")
+            if alt is not None:
+                # `is not None` is mandatory: check_str rejects None, and the flat
+                # allowlist means this loop walks TEXT cells too, which carry no
+                # alt — an unconditional call fails EVERY pre-feature archive.
+                # Bounded at 255 to match the model, which now truncates at both
+                # _cell and _sanitized_data, so an authorable table always re-imports.
+                check_str(alt, "alt", max_length=255)
 
     # Geometry: the only branch difference. Detection is byte-equivalent to the
     # model's normalize_data spanning predicate; the isinstance guard is
@@ -673,7 +699,7 @@ def _val_table(data, elid, media_kinds):
                 el=elid,
                 n=TableElement.MAX_COLS,
             )
-    return set()
+    return refs
 
 
 def _val_fill_table(data, elid, media_kinds):
