@@ -377,3 +377,103 @@ def test_exactly_one_live_region_renders_outside_the_row_list():
     assert "data-tab-cap" not in html[start : html.index("</ol>", start)], (
         "the live region must sit outside [data-tab-list], not inside a row"
     )
+
+
+def _slice(js, start_anchor, end_anchor):
+    """Slice between two anchors, asserting each occurs exactly once first.
+
+    Anchor uniqueness is not pedantry. The wire() tail is
+    `refreshControlState(); syncLabelPosRow(); if (hidden.value === "") serialize();`
+    -- but `refreshControlState();` occurs 3x in this file and `syncLabelPosRow();`
+    2x, and both appear BEFORE the add handler. Choosing either as the tail marker
+    inverts the add slice into a ValueError or an empty string, on which a
+    "last index" comparison passes vacuously. Only `if (hidden.value === "")` is
+    unique.
+    """
+    assert js.count(start_anchor) == 1, f"anchor not unique: {start_anchor}"
+    assert js.count(end_anchor) == 1, f"anchor not unique: {end_anchor}"
+    return js[js.index(start_anchor) : js.index(end_anchor)]
+
+
+def test_refresh_count_is_the_last_statement_at_every_call_site():
+    """The counter is an affordance, never a dependency -- true only if a throw
+    inside it cannot abort the authoritative work. In wire()'s tail this is sharpest:
+    on the ADD path `hidden.value` starts "", so a throw above
+    `if (hidden.value === "") serialize();` would submit an EMPTY data field.
+    """
+    js = TABS_EDITOR_JS.read_text(encoding="utf-8")
+    tail = 'if (hidden.value === "")'
+
+    slices = {
+        "input handler": _slice(
+            js, 'rows.addEventListener("input"', 'rows.addEventListener("click"'
+        ),
+        "add handler": _slice(js, 'addBtn.addEventListener("click"', tail),
+        "init": _slice(js, tail, "function initTabsEditor"),
+    }
+    for name, body in slices.items():
+        assert "refreshCount(" in body, f"{name}: no refreshCount call"
+        assert body.rindex("refreshCount(") > body.rindex("serialize("), (
+            f"{name}: refreshCount must come after serialize()"
+        )
+        assert "function refreshCount(" not in body, (
+            f"{name}: the declaration must sit outside this slice, or the ordering "
+            "assertion is satisfied vacuously by the declaration itself"
+        )
+
+
+def test_the_cap_phrase_substitutes_every_placeholder_occurrence():
+    """String.replace with a string pattern replaces only the FIRST occurrence, and a
+    translation may legitimately repeat a token. This static check is the only thing
+    enforcing it: both catalogs contain each token exactly once, so a .replace chain
+    produces an identical string and no behavioural assertion can tell the
+    difference. Note tabs.js:275-276 uses the rejected form -- do not copy it."""
+    js = TABS_EDITOR_JS.read_text(encoding="utf-8")
+    assert '.replace("{n}"' not in js
+    assert '.replace("{max}"' not in js
+    assert '.split("{n}")' in js and '.split("{max}")' in js
+
+
+def test_the_js_fallback_matches_the_trans_msgid_byte_for_byte():
+    """These two literals are written by DIFFERENT tasks with no shared memory, and
+    the spec calls their identity load-bearing: when data-msg-cap is missing, label()
+    falls back to the JS literal, so a stray en dash or a dropped space would make
+    the degraded path render a different string from the normal one. Nothing else
+    connects them."""
+    js = TABS_EDITOR_JS.read_text(encoding="utf-8")
+    partial = (ROOT / "templates/courses/manage/editor/_edit_tabs.html").read_text(
+        encoding="utf-8"
+    )
+
+    msgid = re.search(r"data-msg-cap=\"\{% trans '([^']+)' %\}\"", partial)
+    fallback = re.search(r'label\(editor, "cap", "([^"]+)"\)', js)
+    assert msgid, "no data-msg-cap {% trans %} in the partial"
+    assert fallback, 'no label(editor, "cap", ...) fallback in the JS'
+    assert msgid.group(1) == fallback.group(1), (
+        f"msgid {msgid.group(1)!r} != JS fallback {fallback.group(1)!r}"
+    )
+
+
+def test_the_reorder_branches_only_clear_the_region():
+    """Reorder RENUMBERS rows, so a phrase naming "Tab 2" would describe a different
+    tab -- and worse, the stale text would suppress the next announcement via the
+    change-guard. But the rows themselves move intact, so no refreshCount is needed
+    or permitted here (the ordering test exempts this handler)."""
+    js = TABS_EDITOR_JS.read_text(encoding="utf-8")
+    # End anchor is addBtn.addEventListener("click" -- NOT "if (addBtn)", which
+    # occurs TWICE (`if (addBtn) addBtn.disabled = ...` in refreshControlState, and
+    # `if (addBtn) {` before the add handler). _slice's uniqueness assertion would
+    # fail on it against a correct build.
+    click = _slice(
+        js, 'rows.addEventListener("click"', 'addBtn.addEventListener("click"'
+    )
+    # Slice the two branches SEPARATELY. Slicing `up` to the end of the click handler
+    # would include the down branch, so deleting the clear from only the up branch
+    # would leave the down branch's call inside the slice and the mutant could not
+    # go RED.
+    up = click[click.index("[data-tab-up]") : click.index("[data-tab-down]")]
+    down = click[click.index("[data-tab-down]") :]
+    for name, branch in (("up", up), ("down", down)):
+        assert "insertBefore" in branch, f"{name}: no insertBefore"
+        assert "clearCapRegion()" in branch, f"{name}: region not cleared"
+        assert "refreshCount(" not in branch, f"{name}: must not call refreshCount"
