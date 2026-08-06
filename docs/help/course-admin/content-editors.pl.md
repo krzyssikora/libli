@@ -90,9 +90,12 @@ Duży lub Pełny — każdy to ramka ograniczająca, do której obraz się skalu
 bez rozciągania czy kadrowania; Mały/Średni/Duży mają stały rozmiar
 niezależny od szerokości kolumny, a Pełny wypełnia kolumnę. **Usuń obraz**
 przywraca oryginalny tekst komórki, jeśli zamieniłeś ją na obraz podczas tej
-samej wizyty; usunięcie obrazu po ponownym otwarciu zapisanej tabeli
-zostawia zamiast tego pustą komórkę tekstową, bo nic nie przetrwa zapisu, z
-czego dałoby się go odtworzyć. Zaznacz zakres komórek kombinacją
+samej wizyty — ale tylko wtedy, gdy między tymi czynnościami nie wstawiałeś
+ani nie usuwałeś wiersza/kolumny, ani nie scalałeś czy dzieliłeś komórek;
+każda taka zmiana strukturalna czyści zapamiętany tekst, więc Usuń obraz
+zostawia wtedy pustą komórkę. Usunięcie obrazu po ponownym otwarciu
+zapisanej tabeli również zostawia pustą komórkę tekstową, bo nic nie
+przetrwa zapisu, z czego dałoby się go odtworzyć. Zaznacz zakres komórek kombinacją
 Shift+kliknięcie albo rozszerzaj go pole po polu skrótem
 **Alt+Shift+strzałka**, a następnie kliknij **Scal komórki**, aby połączyć
 zaznaczenie w jedną komórkę — zachowywana jest tylko treść komórki w lewym

@@ -61,7 +61,10 @@ so merging over an answer cell's accepted answer or an image cell's picture
 discards it along with everything else in the range; you're asked to confirm
 first whenever an absorbed cell isn't empty. Each image cell also has the
 same **Size** control as [Table](content-editors)'s — Small, Medium, Large,
-or Full. **Split cell** undoes a merge, returning the freed cells as empty
+or Full. There's no separate Remove-image button here: clicking **Answer
+cell** on an image cell converts it straight back to a static text cell,
+restoring whatever text it held before the picture (same restore-in-visit
+behaviour as [Table](content-editors)'s Remove image). **Split cell** undoes a merge, returning the freed cells as empty
 static cells. **Header cell** toggles a
 single cell between plain and header styling; it's greyed out —
 unavailable while the row or column header option covers this cell —

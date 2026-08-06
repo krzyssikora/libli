@@ -70,7 +70,12 @@ komórkę z obrazem usuwa jej akceptowaną odpowiedź lub obraz razem z resztą
 zaznaczenia; jeśli którakolwiek z pochłanianych komórek nie była pusta,
 najpierw zostaniesz poproszony o potwierdzenie. Każda komórka z obrazem ma
 też ten sam element sterujący **Rozmiar** co w [Tabeli](content-editors) —
-Mały, Średni, Duży lub Pełny. **Rozdziel komórkę** cofa scalenie, zwracając
+Mały, Średni, Duży lub Pełny. Nie ma tu osobnego przycisku usuwania obrazu:
+kliknięcie **Komórka z odpowiedzią** na komórce z obrazem od razu zamienia
+ją z powrotem na statyczną komórkę tekstową, przywracając tekst, który był
+w niej przed wstawieniem obrazu (to samo zachowanie przywracania w ramach
+tej samej wizyty, co Usuń obraz w elemencie [Tabela](content-editors)).
+**Rozdziel komórkę** cofa scalenie, zwracając
 zwolnione komórki jako puste komórki statyczne.
 **Komórka nagłówkowa** przełącza pojedynczą komórkę między zwykłym a
 nagłówkowym stylem; jest wyszarzona — niedostępna, dopóki komórkę obejmuje

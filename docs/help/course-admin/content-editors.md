@@ -84,9 +84,12 @@ Small, Medium, Large, or Full — each a bounding box the picture scales to
 fit without stretching or cropping; Small/Medium/Large stay a fixed size
 whatever the column ends up being, while Full instead fills the column.
 **Remove image** brings back the cell's original text if you converted it
-to a picture earlier in the same visit; reopening a saved table and
-removing its picture there instead leaves an empty text cell, since nothing
-survives a save to restore. Select a range of cells with Shift+click, or
+to a picture earlier in the same visit — but only if you haven't inserted
+or deleted a row/column, or merged or split cells, in between; any of those
+structural edits clears the held text, so Remove image then leaves an empty
+cell instead. Reopening a saved table and removing its picture there
+instead leaves an empty text cell too, since nothing survives a save to
+restore. Select a range of cells with Shift+click, or
 extend it a slot at a time with **Alt+Shift+Arrow**, then press **Merge
 cells** to combine the range into one cell — only the top-left cell's
 content is kept, text or picture alike, and you're asked to confirm first if
