@@ -949,15 +949,17 @@ button.asset-cell:hover { border-color: var(--primary); }
   background: var(--primary); color: var(--text-inverse);
   font-size: .7rem; font-weight: 700;
 }
-/* min(8rem, 100%) does NOT prevent the row overflowing: a percentage min-width
-   resolves against the flex container's FULL inline size, not the space left after
-   the badge, counter and buttons, so it stays 128px for every row wider than 128px --
-   the whole at-risk band. Nor does it reduce grid inflation; raising this floor can
-   only INCREASE .tabs-editor__rows' min-content contribution. All it buys over a bare
-   8rem is less of that increase. The real gate is the screenshot check in the plan's
-   Task 8. */
+/* 4rem, MEASURED -- not a guess, and deliberately not the 8rem this first shipped as.
+   A percentage min-width resolves against the flex container's FULL inline size, not
+   the space left after the badge, counter and buttons, so `min(8rem, 100%)` stayed a
+   flat 128px for every row wider than 128px -- the whole at-risk band. At the deepest
+   legal nesting (depth 3) in a split-view pane at 1280px the row is 286px wide and
+   only ~80px is left for this input, so a 128px floor overflowed the row by 40px and
+   pushed the remove button ~39px OUTSIDE the editor card. 64px fits that case with
+   headroom while still stopping the field collapsing to nothing. Re-measure here if
+   the row gains another fixed item. */
 .el-editor--tabs .tabs-editor__label {
-  flex: 1 1 auto; min-width: min(8rem, 100%);
+  flex: 1 1 auto; min-width: 4rem;
   border: 1px solid var(--border-default); border-radius: var(--radius-sm);
   padding: var(--space-1) var(--space-2);
   background: var(--surface-base); color: var(--text-primary);

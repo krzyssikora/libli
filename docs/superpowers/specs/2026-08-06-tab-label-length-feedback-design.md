@@ -391,10 +391,18 @@ that increase. (The #220 fix was a different shape — `.el-editor > .scroll-x {
 (`editor.css:780`), an item *of* `.el-editor` opting out of intrinsic-width protection — so it is
 not an analogy for this rule.)
 
-**The real gate is measurement, not the declaration.** Verify by screenshot at the narrowest
-realistic pane and the deepest legal nesting level (see Testing). If that shows the row overflowing,
-the remedy is to lower the floor or to let the counter be the item that yields — not to assume the
-`min()` form has already solved it.
+**The real gate is measurement, not the declaration** — and when it was run, **the 8rem floor
+failed it.**
+
+Measured at the deepest legal nesting (depth 3) in a split-view pane at 1280×900: the row is 286px
+wide, the input pinned at exactly 128px, the counter took 44px, and the row's `scrollWidth` came to
+326px against a `clientWidth` of 286 — **40px of overflow, with the remove button rendering ~39px
+outside the editor card**, over the nesting rails. A row with no counter showing (7-char label) fit
+exactly. Identical in light and dark.
+
+The shipped floor is therefore **`min-width: 4rem`**. With the floor removed entirely the input
+still receives ~80px at that depth, so 64px fits with headroom while still preventing the field
+collapsing to nothing. Re-measure if the row ever gains another fixed item.
 
 **Tokens.** `.is-near` uses `--text-secondary`; `.is-at-cap` uses `--danger` — a hard stop, not a
 caution. Both are defined for light and dark (`tokens.css:57`, `:98`). **Do not** use
