@@ -949,14 +949,47 @@ button.asset-cell:hover { border-color: var(--primary); }
   background: var(--primary); color: var(--text-inverse);
   font-size: .7rem; font-weight: 700;
 }
+/* 4rem, MEASURED -- not a guess, and deliberately not the 8rem this first shipped as.
+   A percentage min-width resolves against the flex container's FULL inline size, not
+   the space left after the badge, counter and buttons, so `min(8rem, 100%)` stayed a
+   flat 128px for every row wider than 128px -- the whole at-risk band. At the deepest
+   legal nesting (depth 3) in a split-view pane at 1280px the row is 286px wide and
+   only ~80px is left for this input, so a 128px floor overflowed the row by 40px and
+   pushed the remove button ~39px OUTSIDE the editor card. 64px fits that case with
+   headroom while still stopping the field collapsing to nothing. Re-measure here if
+   the row gains another fixed item. */
 .el-editor--tabs .tabs-editor__label {
-  flex: 1 1 auto; min-width: 0;
+  flex: 1 1 auto; min-width: 4rem;
   border: 1px solid var(--border-default); border-radius: var(--radius-sm);
   padding: var(--space-1) var(--space-2);
   background: var(--surface-base); color: var(--text-primary);
 }
 .el-editor--tabs .tabs-editor__label:focus {
   outline: 2px solid var(--primary); outline-offset: 1px; border-color: var(--primary);
+}
+/* Character counter. `display: inline-flex` here is what makes the paired [hidden]
+   rule load-bearing: an author `display` beats the UA [hidden]{display:none}, and
+   without the pair an empty span would still contribute a flex gap to every row.
+   min-width is 5ch -- `ch` so the floor scales with font size; 5 is sized for the
+   current TWO-DIGIT cap ("80/80") and would need revisiting if LABEL_MAX gained a
+   digit. It does not track the digit count. */
+.el-editor--tabs .tabs-editor__count {
+  display: inline-flex; align-items: center; flex: 0 0 auto;
+  min-width: 5ch; font-size: .82rem;
+  font-variant-numeric: tabular-nums; color: var(--text-secondary);
+}
+.el-editor--tabs .tabs-editor__count[hidden] { display: none; }
+.el-editor--tabs .tabs-editor__count.is-near { font-weight: 600; }
+.el-editor--tabs .tabs-editor__count.is-at-cap { color: var(--danger); font-weight: 700; }
+/* Locally-owned clip rule, mirroring .el--gallery .gallery__status and
+   .el--tabs .tabs__status. Deliberately NOT the global .sr-only: that class has zero
+   users repo-wide and no test pins it, so it is a plausible cleanup casualty -- and
+   its loss would leave either a stray visible phrase in every tabs editor or a
+   silently dead announcement channel. Must stay clip-based, never display:none. */
+.el-editor--tabs .tabs-editor__status {
+  position: absolute; width: 1px; height: 1px;
+  padding: 0; margin: -1px; overflow: hidden;
+  clip: rect(0 0 0 0); white-space: nowrap; border: 0;
 }
 .el-editor--tabs .tabs-editor__ctl { display: flex; gap: var(--space-1); flex: 0 0 auto; }
 .el-editor--tabs .tabs-editor__ctl .ic { width: 14px; height: 14px; display: block; }

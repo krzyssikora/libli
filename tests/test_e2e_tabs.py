@@ -1813,3 +1813,446 @@ def test_carousel_screenshots_light_and_dark(page, live_server, tmp_path):
         page.locator(CAROUSEL).screenshot(path=str(shot))
         assert shot.exists()
     print(f"CAROUSEL_SHOTS_DIR={tmp_path}")
+
+
+# ---------------------------------------------------------------------------
+# Editor half: the tab-label character counter and its at-cap announcement
+#
+# THE EDITOR URL ALONE DOES NOT RENDER THE TABS EDITOR. [data-tab-row] lives in
+# _edit_tabs.html, which renders only when an element's edit form is OPEN
+# (courses/views_manage.py defaults open_form_pk=""), so every case below clicks the
+# row's .el-act-edit first.
+#
+# The second wait is on [data-tabs-editor-ready] rather than the editor node. Be
+# precise about why, because the obvious reason is WRONG: wire() sets that flag as its
+# FIRST statement, ~110 lines before it attaches the delegated `input` listener, so the
+# flag is no stronger a barrier than the node's presence. Driving the editor as soon as
+# either appears is safe only because wire() is fully SYNCHRONOUS on both entry paths
+# (initTabsEditor at parse time, applyFragments after a swap), so no half-wired state
+# is ever observable. The flag is used because it is the honest "this node is the one
+# wire() adopted" marker -- not because it sequences the listener.
+# ---------------------------------------------------------------------------
+
+
+def _open_tabs_editor(page, live_server, username, course, unit, join):
+    """Log in, load the unit editor and OPEN the element's edit form.
+
+    The first wait is load-bearing: the form must be opened before [data-tab-row]
+    exists at all. The second waits on the ready flag rather than the node -- see the
+    section comment for why that is NOT the race guard it looks like (wire() sets the
+    flag before binding the listener; safety comes from wire() being synchronous).
+
+    Extracted because all nine counter cases need the identical gesture; a
+    copy-pasted wait is exactly the kind of thing that drifts in one copy only.
+    """
+    _login(page, live_server, username)
+    page.goto(_editor_url(live_server, course, unit))
+    page.wait_for_selector('[data-scope="editor"] .el-row--tabs')
+    page.locator(
+        f'[data-scope="editor"] [data-element="{join.pk}"] .el-act-edit'
+    ).first.click()
+    page.wait_for_selector(
+        "[data-edit-slot] [data-tabs-editor][data-tabs-editor-ready]"
+    )
+
+
+@pytest.mark.django_db(transaction=True)
+def test_the_counter_appears_only_at_the_threshold(live_server, page):
+    """Below the threshold the counter is hidden entirely: a permanent 0/80 on up to
+    MAX_TABS rows is noise that trains an author to stop reading it."""
+    owner = _make_pa_user("counter_threshold_owner")
+    course, unit = _seed_unit(owner, "counter-threshold")
+    _obj, join = _seed_tabs_element(unit, [("t000001", "Tab 1"), ("t000002", "Tab 2")])
+
+    _open_tabs_editor(page, live_server, "counter_threshold_owner", course, unit, join)
+
+    row = page.locator("[data-edit-slot] [data-tab-row]").first
+    label_input = row.locator("[data-tab-label-input]")
+    digits = row.locator("[data-tab-num]")
+
+    # 63 = threshold - 1. fill() is one input event and is cheap; the boundary is then
+    # crossed by a single real keystroke so the per-keystroke path is exercised.
+    label_input.fill("x" * 63)
+    assert label_input.evaluate("el => el.value.length") == 63
+    assert digits.is_hidden()
+
+    label_input.press_sequentially("x")
+    assert label_input.evaluate("el => el.value.length") == 64
+    assert digits.is_visible()
+    assert digits.text_content() == "64/80"
+    cls = digits.get_attribute("class") or ""
+    assert "is-near" in cls
+    assert "is-at-cap" not in cls
+
+
+@pytest.mark.django_db(transaction=True)
+def test_the_counter_and_region_report_the_cap(live_server, page):
+    """At the cap the digits turn is-at-cap (never is-near as well) and the live
+    region carries the phrase with the ROW NUMBER and the cap interpolated in -- no
+    residual {placeholder}, which would mean the split/join never ran."""
+    owner = _make_pa_user("counter_atcap_owner")
+    course, unit = _seed_unit(owner, "counter-atcap")
+    _obj, join = _seed_tabs_element(unit, [("t000001", "Tab 1"), ("t000002", "Tab 2")])
+
+    _open_tabs_editor(page, live_server, "counter_atcap_owner", course, unit, join)
+
+    row = page.locator("[data-edit-slot] [data-tab-row]").first
+    label_input = row.locator("[data-tab-label-input]")
+    digits = row.locator("[data-tab-num]")
+
+    label_input.fill("x" * 79)
+    assert label_input.evaluate("el => el.value.length") == 79
+    label_input.press_sequentially("x")
+    assert label_input.evaluate("el => el.value.length") == 80
+
+    assert digits.is_visible()
+    assert digits.text_content() == "80/80"
+    cls = digits.get_attribute("class") or ""
+    assert "is-at-cap" in cls, "the cap was reached with no at-cap styling"
+    assert "is-near" not in cls
+
+    text = page.locator("[data-edit-slot] [data-tab-cap]").text_content() or ""
+    assert text.strip() != "", "the cap was reached with nothing announced"
+    assert "{" not in text, f"an un-interpolated placeholder survived: {text!r}"
+    assert "1" in text, f"the phrase does not name row 1: {text!r}"
+    assert "80" in text, f"the phrase does not carry the cap: {text!r}"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_single_event_jump_to_the_cap_still_announces(live_server, page):
+    """A paste delivers the whole value in ONE `input` event, so the length jumps
+    from well below the cap straight to it. The announcement must be a function of
+    the CURRENT value alone -- never conditional on having passed through max - 1."""
+    owner = _make_pa_user("counter_jump_owner")
+    course, unit = _seed_unit(owner, "counter-jump")
+    _obj, join = _seed_tabs_element(unit, [("t000001", "Tab 1"), ("t000002", "Tab 2")])
+
+    _open_tabs_editor(page, live_server, "counter_jump_owner", course, unit, join)
+
+    row = page.locator("[data-edit-slot] [data-tab-row]").first
+    label_input = row.locator("[data-tab-label-input]")
+    digits = row.locator("[data-tab-num]")
+
+    # The seeded label is 5 characters, so this single event spans 5 -> 80 and never
+    # visits 79. No emptying step is needed.
+    assert label_input.evaluate("el => el.value.length") == 5
+    label_input.fill("x" * 80)
+    assert label_input.evaluate("el => el.value.length") == 80
+
+    assert digits.text_content() == "80/80"
+    assert "is-at-cap" in (digits.get_attribute("class") or "")
+    text = page.locator("[data-edit-slot] [data-tab-cap]").text_content() or ""
+    assert text.strip() != "", "a one-event jump to the cap was not announced"
+    assert "{" not in text, f"an un-interpolated placeholder survived: {text!r}"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_second_row_reaching_the_cap_announces_too(live_server, page):
+    """Row 1 to the cap, then row 2. The region must end up carrying ROW 2's phrase.
+
+    This is the whole reason the phrase names the row: the region's write is guarded
+    on textContent changing, so a row-agnostic message would be byte-identical to
+    what the region already holds and the second row's cap would be SILENT."""
+    owner = _make_pa_user("counter_second_owner")
+    course, unit = _seed_unit(owner, "counter-second")
+    _obj, join = _seed_tabs_element(unit, [("t000001", "Tab 1"), ("t000002", "Tab 2")])
+
+    _open_tabs_editor(page, live_server, "counter_second_owner", course, unit, join)
+
+    rows = page.locator("[data-edit-slot] [data-tab-row]")
+    region = page.locator("[data-edit-slot] [data-tab-cap]")
+    assert rows.count() == 2
+
+    first_input = rows.nth(0).locator("[data-tab-label-input]")
+    first_input.fill("a" * 80)
+    assert first_input.evaluate("el => el.value.length") == 80
+    first_text = region.text_content() or ""
+    assert first_text.strip() != "", "row 1 reaching the cap was not announced"
+
+    second_input = rows.nth(1).locator("[data-tab-label-input]")
+    second_input.fill("b" * 80)
+    assert second_input.evaluate("el => el.value.length") == 80
+    second_text = region.text_content() or ""
+    assert second_text.strip() != "", "row 2 reaching the cap was not announced"
+    assert second_text != first_text, (
+        "row 2's phrase is identical to row 1's, so the change-guard suppressed the "
+        f"write and nothing was announced: {second_text!r}"
+    )
+    assert "2" in second_text, f"the phrase does not name row 2: {second_text!r}"
+    assert "{" not in second_text
+
+
+@pytest.mark.django_db(transaction=True)
+def test_descending_below_the_cap_clears_both_signals(live_server, page):
+    """One Backspace off the cap must REMOVE is-at-cap (not merely add is-near) and
+    empty the region; deleting on below the threshold hides the digits again.
+
+    The is-at-cap-absent assertion is load-bearing: an add-only implementation passes
+    every other assertion here while showing the author a bold red 79/80 forever."""
+    owner = _make_pa_user("counter_descend_owner")
+    course, unit = _seed_unit(owner, "counter-descend")
+    _obj, join = _seed_tabs_element(unit, [("t000001", "Tab 1"), ("t000002", "Tab 2")])
+
+    _open_tabs_editor(page, live_server, "counter_descend_owner", course, unit, join)
+
+    row = page.locator("[data-edit-slot] [data-tab-row]").first
+    label_input = row.locator("[data-tab-label-input]")
+    digits = row.locator("[data-tab-num]")
+    region = page.locator("[data-edit-slot] [data-tab-cap]")
+
+    label_input.fill("x" * 80)
+    assert label_input.evaluate("el => el.value.length") == 80
+    assert "is-at-cap" in (digits.get_attribute("class") or "")
+    assert (region.text_content() or "").strip() != ""
+
+    # End first: fill() leaves the caret position unspecified and a Backspace at
+    # offset 0 is a no-op that would fail against a CORRECT build. A single real
+    # keystroke is the point -- a fill("") then fill() pair never visits 80 -> 79.
+    label_input.press("End")
+    label_input.press("Backspace")
+    assert label_input.evaluate("el => el.value.length") == 79
+    assert digits.is_visible()
+    assert digits.text_content() == "79/80"
+    cls = digits.get_attribute("class") or ""
+    assert "is-near" in cls
+    assert "is-at-cap" not in cls, (
+        "add-only class handling stranded the row at is-at-cap on 79/80"
+    )
+    assert region.text_content() == "", "the phrase outlived the value it described"
+
+    label_input.fill("x" * 63)
+    assert label_input.evaluate("el => el.value.length") == 63
+    assert digits.is_hidden()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_stored_at_cap_label_shows_the_counter_at_first_paint(live_server, page):
+    """A SAVED label already at the cap must show its digits before any keystroke --
+    the one path a delegated `input` listener cannot cover -- and must NOT announce:
+    opening an editor is not an event the author caused.
+
+    The at-cap label is the LAST row deliberately. The init pass walks EVERY row in
+    order, and a row below the cap writes "" to the shared region; with the at-cap
+    label first, that trailing write erases the announcement and an init loop wrongly
+    passing announce=true would leave the region empty anyway -- green against the
+    very mutant this assertion exists to catch."""
+    owner = _make_pa_user("counter_init_owner")
+    course, unit = _seed_unit(owner, "counter-init")
+    _obj, join = _seed_tabs_element(unit, [("t000001", "Tab 1"), ("t000002", "x" * 80)])
+
+    _open_tabs_editor(page, live_server, "counter_init_owner", course, unit, join)
+
+    row = page.locator("[data-edit-slot] [data-tab-row]").last
+    label_input = row.locator("[data-tab-label-input]")
+    digits = row.locator("[data-tab-num]")
+
+    assert label_input.evaluate("el => el.value.length") == 80
+    assert digits.is_visible(), "a stored at-cap label showed no counter at first paint"
+    assert digits.text_content() == "80/80"
+    assert "is-at-cap" in (digits.get_attribute("class") or "")
+    region = page.locator("[data-edit-slot] [data-tab-cap]")
+    assert region.text_content() == "", (
+        "merely opening the editor announced a value the author did not just type"
+    )
+
+
+@pytest.mark.django_db(transaction=True)
+def test_adding_a_tab_resets_the_cloned_counter(live_server, page):
+    """The Add-tab button CLONES the last row -- digits text, classes and `hidden`
+    state included -- so cloning an at-cap row would print a stale 80/80 above a
+    brand-new empty input. Filling the LAST row is mandatory: filling row 1 of 2
+    would clone the untouched row 2, already hidden and empty, and prove nothing."""
+    owner = _make_pa_user("counter_add_owner")
+    course, unit = _seed_unit(owner, "counter-add")
+    _obj, join = _seed_tabs_element(unit, [("t000001", "Tab 1"), ("t000002", "Tab 2")])
+
+    _open_tabs_editor(page, live_server, "counter_add_owner", course, unit, join)
+
+    rows = page.locator("[data-edit-slot] [data-tab-row]")
+    region = page.locator("[data-edit-slot] [data-tab-cap]")
+    assert rows.count() == 2
+
+    last_input = rows.last.locator("[data-tab-label-input]")
+    last_input.fill("x" * 80)
+    assert last_input.evaluate("el => el.value.length") == 80
+    assert (region.text_content() or "").strip() != ""
+
+    page.locator("[data-edit-slot] [data-tab-add]").click()
+    page.wait_for_function(
+        "() => document.querySelectorAll('[data-edit-slot] [data-tab-row]')"
+        ".length === 3"
+    )
+
+    new_row = rows.last
+    assert new_row.locator("[data-tab-label-input]").input_value() == ""
+    new_digits = new_row.locator("[data-tab-num]")
+    assert new_digits.is_hidden(), "the clone kept the at-cap row's visible counter"
+    assert (new_digits.text_content() or "") == ""
+    assert "is-at-cap" not in (new_digits.get_attribute("class") or "")
+    assert region.text_content() == "", "the phrase now names a row nobody edited"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_removing_the_at_cap_row_clears_the_region(live_server, page):
+    """Deleting the row the region is talking about must empty it.
+
+    THREE seeded tabs, not two: MIN_TABS = 2 both disables the Remove button and
+    early-returns from its handler on a two-row editor. And the confirm needs a
+    dialog handler registered BEFORE the click -- Playwright auto-DISMISSES
+    window.confirm when none is attached, a dismissed confirm returns false, and
+    li.remove() never runs, so the case would fail with no hint why."""
+    owner = _make_pa_user("counter_remove_owner")
+    course, unit = _seed_unit(owner, "counter-remove")
+    _obj, join = _seed_tabs_element(
+        unit, [("t000001", "Tab 1"), ("t000002", "Tab 2"), ("t000003", "Tab 3")]
+    )
+
+    _open_tabs_editor(page, live_server, "counter_remove_owner", course, unit, join)
+
+    rows = page.locator("[data-edit-slot] [data-tab-row]")
+    region = page.locator("[data-edit-slot] [data-tab-cap]")
+    assert rows.count() == 3
+    remove_btn = rows.first.locator("[data-tab-remove]")
+    assert remove_btn.is_enabled(), "MIN_TABS still gates Remove on three rows"
+
+    first_input = rows.first.locator("[data-tab-label-input]")
+    first_input.fill("x" * 80)
+    assert first_input.evaluate("el => el.value.length") == 80
+    assert (region.text_content() or "").strip() != ""
+
+    page.once("dialog", lambda d: d.accept())
+    remove_btn.click()
+    page.wait_for_function(
+        "() => document.querySelectorAll('[data-edit-slot] [data-tab-row]')"
+        ".length === 2"
+    )
+    assert rows.count() == 2, "the confirm was dismissed -- the row is still there"
+    assert region.text_content() == "", "the phrase outlived the row it named"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_reordering_clears_the_region_so_the_next_cap_announces(live_server, page):
+    """Move up re-numbers every row, so a standing phrase now names the wrong one.
+
+    The MID-SEQUENCE assertion is the only discriminating one. At the END both a
+    clearing and a non-clearing build read identically: the row that lands at
+    position 2 produces exactly the phrase a non-clearing region still holds, so the
+    change-guard suppresses the rewrite and the same text is there either way."""
+    owner = _make_pa_user("counter_reorder_owner")
+    course, unit = _seed_unit(owner, "counter-reorder")
+    _obj, join = _seed_tabs_element(unit, [("t000001", "Tab 1"), ("t000002", "Tab 2")])
+
+    _open_tabs_editor(page, live_server, "counter_reorder_owner", course, unit, join)
+
+    rows = page.locator("[data-edit-slot] [data-tab-row]")
+    region = page.locator("[data-edit-slot] [data-tab-cap]")
+    assert rows.count() == 2
+
+    second_input = rows.nth(1).locator("[data-tab-label-input]")
+    second_input.fill("a" * 80)
+    assert second_input.evaluate("el => el.value.length") == 80
+    assert (region.text_content() or "").strip() != ""
+
+    rows.nth(1).locator("[data-tab-up]").click()
+    # Settle on the reorder itself, never a sleep: the long label must now be first.
+    page.wait_for_function(
+        "() => {"
+        " var r = document.querySelectorAll('[data-edit-slot] [data-tab-row]');"
+        " return r.length === 2 &&"
+        " r[0].querySelector('[data-tab-label-input]').value.length === 80;"
+        "}"
+    )
+    assert region.text_content() == "", (
+        "the reorder left a phrase naming a row number that has since changed"
+    )
+
+    moved_down = rows.nth(1).locator("[data-tab-label-input]")
+    assert moved_down.evaluate("el => el.value.length") < 80
+    moved_down.fill("b" * 80)
+    assert moved_down.evaluate("el => el.value.length") == 80
+    text = region.text_content() or ""
+    assert text.strip() != "", "the row now at position 2 hit the cap in silence"
+    assert "{" not in text
+
+
+# ---------------------------------------------------------------------------
+# Student half: the tab strip's width cap and the wrapped label
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_long_tab_label_wraps_within_the_width_cap(live_server, page):
+    """An 80-character label is capped at 288px on the student page and WRAPS there
+    -- it is never clipped and never lets one tab monopolise the strip.
+
+    `display` stays "tabs" (the default): `.tabs__tab` is built only in the tabs
+    branch of tabs.js, so in carousel mode there is no strip at all and the case has
+    nothing to measure.
+
+    The viewport is pinned to 1280 so `min(18rem, 55vw)` = `min(288px, 704px)`
+    resolves unambiguously to the 18rem arm. Asserting NEAR 288 rather than merely
+    `<=` the cap is what makes the width bar falsifiable: on a wide viewport every
+    tab is under 55vw vacuously, so a `<=` assertion stays green against a deleted
+    `max-width`.
+
+    The height bar is `2 * line_height + 24`, NOT `2 * line_height`. clientHeight is
+    the PADDING box: with 12px padding top and bottom and a 24px inherited
+    line-height, a SINGLE-LINE tab measures 24 + 24 = 48px -- exactly twice the
+    line-height -- so the naive bar passes against an unwrapped tab. 72px cleanly
+    separates one line (48) from the ~three lines an 80-character label needs (~96).
+
+    The long label is seeded FIRST and read as `.tabs__strip .tabs__tab` `.first`.
+    Getting that wrong is a confusing false RED: the strip stretches every tab to
+    equal height, so the height assertion passes on the short tab too while the width
+    assertion fails on it. For the same reason the short tab is NOT used as a
+    comparison baseline -- the two heights are equal by design, so such a test would
+    fail against a CORRECT implementation."""
+    long_label = (
+        "A tab label of exactly eighty characters, long enough that it wraps in the "
+        "strip"
+    )
+    assert len(long_label) == 80, "the fixture must sit exactly at LABEL_MAX"
+
+    owner = _make_pa_user("tab_cap_owner")
+    _course, unit = _seed_unit(owner, "tab-width-cap")
+    _seed_tabs_element(
+        unit,
+        [("t000001", long_label), ("t000002", "Short")],
+        {
+            "t000001": [_text("<p>long tab body</p>")],
+            "t000002": [_text("<p>short tab body</p>")],
+        },
+    )
+
+    _login(page, live_server, "tab_cap_owner")
+    page.set_viewport_size({"width": 1280, "height": 900})
+    page.goto(_lesson_url(live_server, unit))
+    # The enhancer builds the strip; without it there are no .tabs__tab nodes at all.
+    page.wait_for_selector(".tabs__strip .tabs__tab")
+
+    tab = page.locator(".tabs__strip .tabs__tab").first
+    assert (tab.text_content() or "").strip() == long_label, (
+        "the first tab is not the 80-character one -- every measurement below would "
+        "be taken on the wrong element"
+    )
+    box = tab.evaluate(
+        "el => {"
+        " var cs = getComputedStyle(el);"
+        " return {"
+        "  width: el.clientWidth,"
+        "  height: el.clientHeight,"
+        "  lineHeight: parseFloat(cs.lineHeight),"
+        " };"
+        "}"
+    )
+    assert box["lineHeight"] > 0, f"line-height did not resolve to px: {box}"
+
+    # 18rem = 288px. clientWidth equals the border-box width here only because
+    # .tabs__tab sets `border: 0` on the horizontal edges.
+    assert abs(box["width"] - 288) <= 2, (
+        f"the tab is {box['width']}px wide, not the 288px cap: {box}"
+    )
+    assert box["height"] >= 2 * box["lineHeight"] + 24, (
+        f"the label did not wrap: a padding box of {box['height']}px is no more than "
+        f"a single line (12 + 12 padding + one line-height) -- {box}"
+    )

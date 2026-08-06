@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-05 20:11+0200\n"
+"POT-Creation-Date: 2026-08-06 05:26+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: Polish\n"
@@ -4481,7 +4481,7 @@ msgstr "Biblioteka multimediów"
 #: .\templates\courses\manage\_move_buttons.html:14
 #: .\templates\courses\manage\editor\_edit_gallery.html:34
 #: .\templates\courses\manage\editor\_edit_gallery.html:49
-#: .\templates\courses\manage\editor\_edit_tabs.html:56
+#: .\templates\courses\manage\editor\_edit_tabs.html:58
 #: .\templates\courses\manage\editor\_element_row_controls.html:8
 msgid "Move up"
 msgstr "Przenieś wyżej"
@@ -4489,7 +4489,7 @@ msgstr "Przenieś wyżej"
 #: .\templates\courses\manage\_move_buttons.html:15
 #: .\templates\courses\manage\editor\_edit_gallery.html:35
 #: .\templates\courses\manage\editor\_edit_gallery.html:50
-#: .\templates\courses\manage\editor\_edit_tabs.html:57
+#: .\templates\courses\manage\editor\_edit_tabs.html:59
 #: .\templates\courses\manage\editor\_element_row_controls.html:9
 msgid "Move down"
 msgstr "Przenieś niżej"
@@ -5641,7 +5641,7 @@ msgid "Add line"
 msgstr "Dodaj wiersz"
 
 #: .\templates\courses\manage\editor\_edit_tabs.html:17
-#: .\templates\courses\manage\editor\_edit_tabs.html:58
+#: .\templates\courses\manage\editor\_edit_tabs.html:60
 msgid "Remove tab"
 msgstr "Usuń zakładkę"
 
@@ -5649,19 +5649,24 @@ msgstr "Usuń zakładkę"
 msgid "Deleting this tab also deletes everything inside it."
 msgstr "Usunięcie tej zakładki usuwa również całą jej zawartość."
 
-#: .\templates\courses\manage\editor\_edit_tabs.html:31
+#: .\templates\courses\manage\editor\_edit_tabs.html:19
+#, python-brace-format
+msgid "Tab {n} label limit reached — {max} characters"
+msgstr "Zakładka {n}: osiągnięto limit etykiety — {max} znaków"
+
+#: .\templates\courses\manage\editor\_edit_tabs.html:32
 msgid "Display"
 msgstr "Wyświetlanie"
 
-#: .\templates\courses\manage\editor\_edit_tabs.html:40
+#: .\templates\courses\manage\editor\_edit_tabs.html:41
 msgid "Label position"
 msgstr "Pozycja etykiety"
 
-#: .\templates\courses\manage\editor\_edit_tabs.html:54
+#: .\templates\courses\manage\editor\_edit_tabs.html:55
 msgid "Tab label"
 msgstr "Etykieta zakładki"
 
-#: .\templates\courses\manage\editor\_edit_tabs.html:64
+#: .\templates\courses\manage\editor\_edit_tabs.html:73
 msgid "Add tab"
 msgstr "Dodaj zakładkę"
 

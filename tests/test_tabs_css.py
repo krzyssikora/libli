@@ -147,3 +147,81 @@ def test_every_new_carousel_class_is_a_single_token_literal():
         "tabs__status",
     ]:
         assert cls in emitted, f"{cls} is invisible to the style-drift guard"
+
+
+def _rule_block(css, selector):
+    """Slice the declaration block whose selector is EXACTLY `selector`, with
+    comments stripped.
+
+    Line matching does not work here: `.el--tabs .tabs__tab` spans six physical
+    lines, so a line-based parser finds no declarations on the selector's line. A
+    substring match is worse -- it also hits `.tabs__tab:hover`,
+    `.tabs__tab[aria-selected="true"]` and `.tabs__tab:focus-visible`, which follow
+    immediately. Anchoring on a leading newline plus a trailing " {" pins the exact
+    selector.
+
+    Comments are stripped as defence in depth. The rule carries an explanatory
+    comment inside its own braces that mentions `text-align` by name, so a loose
+    `"text-align" in block` assertion would be satisfied by the comment even with the
+    declaration deleted. The assertions below avoid that by matching the full
+    declaration (`text-align: center`), which no comment contains -- stripping simply
+    means a future comment that happens to quote a declaration cannot resurrect the
+    problem.
+    """
+    i = css.index("\n" + selector + " {")
+    open_brace = css.index("{", i)
+    block = css[open_brace + 1 : css.index("}", open_brace)]
+    return re.sub(r"/\*.*?\*/", "", block, flags=re.S)
+
+
+def test_a_long_tab_label_wraps_and_is_never_clipped():
+    """The cap constrains WIDTH only. Clipping was rejected outright: a clipped
+    label is unreadable on touch, where title tooltips do not exist."""
+    css = CSS.read_text(encoding="utf-8")
+    block = _rule_block(css, ".el--tabs .tabs__tab")
+
+    assert "max-width" in block, "the tab has no width cap"
+    # Assert the VALUE, not just the property. `overflow-wrap: normal` is the exact
+    # regression this declaration exists to prevent, and a presence-only check passes
+    # against it -- the same trap the min-width assertion in
+    # tests/test_tabs_editor_partial.py documents at length.
+    assert re.search(r"overflow-wrap:\s*break-word", block), (
+        "an 80-char label with no spaces would overflow the cap, not wrap"
+    )
+    assert "text-align: center" in block, (
+        "wrapped-label alignment must be declared, not inherited"
+    )
+    assert "white-space: nowrap" not in block, (
+        "nowrap defeats wrapping -- the label would run past the cap on one line"
+    )
+
+
+def test_a_wide_formula_wraps_rather_than_overlapping_its_neighbour():
+    """No `white-space: nowrap` may be pinned on .katex inside a tab.
+
+    KaTeX emits MULTIPLE `.katex .base` spans per formula, each nowrap internally but
+    breakable BETWEEN, so with no nowrap a wide formula wraps to a second line.
+
+    An earlier draft did pin nowrap to keep formulas atomic. It was measured: a
+    45-character formula label overflowed the 288px cap by 72px and drew its tail on
+    top of the neighbouring tab, leaving BOTH labels unreadable. Breaking
+    mid-expression is ugly; overlapping destroys a label the author did not write.
+    """
+    css = CSS.read_text(encoding="utf-8")
+    with pytest.raises(ValueError):
+        _rule_block(css, ".el--tabs .tabs__tab .katex")
+
+
+def test_the_width_cap_did_not_leak_onto_a_carousel_selector():
+    """Carousel rules position and hide things; a max-width there would be a
+    different bug. No carousel rule declares max-width today.
+
+    This scan is LINE-based, which is sound only because every carousel rule in
+    courses.css is currently written selector-and-body on one line. If a carousel
+    rule is ever reformatted across lines this test goes blind to it -- prefer
+    _rule_block per carousel selector if that happens.
+    """
+    css = CSS.read_text(encoding="utf-8")
+    for line in css.splitlines():
+        if '[data-display="carousel"]' in line or ".tabs--carousel" in line:
+            assert "max-width" not in line, f"carousel selector gained a cap: {line}"
