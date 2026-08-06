@@ -64,15 +64,21 @@ C1's four presets are percentages of the containing block. A cell's containing b
 content-negotiated, so a percentage compounds the instability. **MEASURED**, the same
 "medium = 50%" preset across real table shapes:
 
-| shape | `max-width: 50%` | `max-width: min(100%, 160px)` |
+| shape | `max-width: 50%` | `max-width: 160px` |
 |---|---|---|
 | 2-col img+text | 291.7px | 160.0px |
 | 3-col all images | 99.3px | 160.0px |
 | 5-col img+text | 213.1px | 160.0px |
-| 5-col all images | 56.2px | 112.4px |
+| 5-col all images | 56.2px | 160.0px |
 | 7-col img+text | 162.1px | 160.0px |
 
-**5.2× spread** for the percentage versus **1.4×** for the absolute cap. Reusing
+**5.2× spread** for the percentage versus **no spread** for the absolute cap (uniform 160.0px in
+every shape measured). The absolute-cap column above is the corrected rule: `min(100%, Npx)` was
+shipped first and Task 9's browser measurement found it collapses to a bare `max-width: 100%` for
+column-sizing purposes (the unresolvable percentage makes `min()` degenerate), so it does **not**
+in fact bind uniformly — see the Task 9 spike report. Dropping the percentage term to a bare
+`max-width: Npx` fixes the 5-col all-images case too; the trade is that an all-image row now
+widens the table (scrolling `.el--table__scroll`) rather than shrinking the images. Reusing
 `ImageElement.size` would also drag `full = max-height: 100dvh` into a table cell, which is
 meaningless there.
 
@@ -2180,11 +2186,14 @@ and must be shown RED before it counts.
 must no longer change the image's rendered width. Nothing below the browser layer can observe this.
 
 The shape must be one where **the cap provably binds in both variants**, not merely "a bounded
-preset" — the measurement table above shows a bounded preset can still be cell-bound
-(`min(100%, 160px)` renders 112.4px in the 5-col all-images shape, still driven by the column), and
-such a shape would fail on the *correct* build. Use the **MEASURED** 5-col image-plus-four-text
-shape at **Medium**: 160.0px with short neighbour text and 160.0px with long neighbour text. The
-same shape at `full` (426.2 → 285.7px) is the natural control, asserting the defect is real.
+preset" — the measurement table above shows that the *original* `min(100%, Npx)` rule (Task 9
+found and replaced it) could still be cell-bound below its cap even though it reads as a hard
+ceiling: it rendered 112.4px in the 5-col all-images shape, still driven by the column. The
+absolute-cap rule that replaced it (`max-width: Npx`, no percentage term) binds uniformly in
+every shape measured, including all-images — see the Task 9 spike report. Use the **MEASURED**
+5-col image-plus-four-text shape at **Medium**: 160.0px with short neighbour text and 160.0px
+with long neighbour text. The same shape at `full` (426.2 → 285.7px) is the natural control,
+asserting the defect is real.
 
 **Light + dark screenshot verification belongs in the styling task's Definition of Done**, not
 deferred — that deferral is how the fill-table shipped its dark-mode contrast bug. An editor page
