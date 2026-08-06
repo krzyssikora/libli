@@ -477,3 +477,19 @@ def test_the_reorder_branches_only_clear_the_region():
         assert "insertBefore" in branch, f"{name}: no insertBefore"
         assert "clearCapRegion()" in branch, f"{name}: region not cleared"
         assert "refreshCount(" not in branch, f"{name}: must not call refreshCount"
+
+
+def test_the_cap_phrase_resolves_to_polish():
+    """A .po-only change ships English to Polish users with every test green. This is
+    the assertion that catches it -- and catches a fuzzy pre-fill left in place."""
+    from django.utils import translation
+
+    with translation.override("pl"):
+        html = _render_form(TabsElement(data=TabsElement.default_data()))
+
+    start = html.index("data-msg-cap=")
+    value = html[start : html.index(">", start)]
+    assert "limit reached" not in value, "data-msg-cap is still English under pl"
+    assert "{n}" in value and "{max}" in value, (
+        "both placeholders must survive translation as literal tokens"
+    )
