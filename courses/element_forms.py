@@ -1720,11 +1720,18 @@ class TabsElementForm(forms.ModelForm):
         raw = self.cleaned_data.get("data")
         raw = raw if isinstance(raw, dict) else {}
         tabs = raw.get("tabs")
+        # Both keys ride along on EVERY return path. The normalizer does the coercion;
+        # an out-of-enum value defaults rather than raising, matching the gallery's
+        # desc_pos -- the slide-count bounds below are different, they decide WHICH
+        # tabs exist.
+        extras = {"display": raw.get("display"), "label_pos": raw.get("label_pos")}
         if tabs is None:
             # Plain add + save with no edit -> the two default tabs. Built explicitly
             # rather than via normalize_data, because normalize_data is the DESTRUCTIVE
             # read-side normalizer and must never be reachable from a write path.
-            return TabsElement.default_data()
+            return TabsElement.normalize_labels_and_ids(
+                {**TabsElement.default_data(), **extras}
+            )
         if not isinstance(tabs, list):
             raise forms.ValidationError(_("A tabs element needs a list of tabs."))
         if len(tabs) < TabsElement.MIN_TABS:
@@ -1739,7 +1746,7 @@ class TabsElementForm(forms.ModelForm):
             )
         # Mints ids for new rows and preserves existing unique ones. Doing it HERE is
         # what lets save_element diff old-vs-new ids without ever touching a raw row.
-        return TabsElement.normalize_labels_and_ids({"tabs": tabs})
+        return TabsElement.normalize_labels_and_ids({"tabs": tabs, **extras})
 
     @cached_property
     def editor_rows(self):
@@ -1758,6 +1765,34 @@ class TabsElementForm(forms.ModelForm):
             source = getattr(self.instance, "data", {})
         rows = TabsElement.normalize_labels_and_ids(source)["tabs"]
         return rows or TabsElement.default_data()["tabs"]
+
+    @cached_property
+    def editor_display(self):
+        """Same bound/unbound source selection as editor_rows, so an invalid
+        re-render keeps the author's choice instead of snapping to the default."""
+        source = (
+            self._raw_data_json()
+            if self.is_bound
+            else getattr(self.instance, "data", {})
+        )
+        source = source if isinstance(source, dict) else {}
+        return TabsElement._coerce_enum(
+            source.get("display"), TabsElement.DISPLAYS, TabsElement.DEFAULT_DISPLAY
+        )
+
+    @cached_property
+    def editor_label_pos(self):
+        source = (
+            self._raw_data_json()
+            if self.is_bound
+            else getattr(self.instance, "data", {})
+        )
+        source = source if isinstance(source, dict) else {}
+        return TabsElement._coerce_enum(
+            source.get("label_pos"),
+            TabsElement.LABEL_POSITIONS,
+            TabsElement.DEFAULT_LABEL_POS,
+        )
 
     def _raw_data_json(self):
         import json

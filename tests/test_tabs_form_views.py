@@ -204,3 +204,56 @@ def test_editor_rows_is_stable_across_accesses_on_a_new_form():
     second = [t["id"] for t in form.editor_rows]
     assert first == second
     assert len(first) == TabsElement.MIN_TABS
+
+
+TWO_TABS = [{"id": "taaaaaa", "label": "A"}, {"id": "tbbbbbb", "label": "B"}]
+
+
+def test_clean_data_threads_both_keys():
+    form = _bound({"tabs": TWO_TABS, "display": "carousel", "label_pos": "below"})
+    assert form.is_valid(), form.errors
+    assert form.cleaned_data["data"]["display"] == "carousel"
+    assert form.cleaned_data["data"]["label_pos"] == "below"
+
+
+def test_the_tabs_is_none_early_return_branch_keeps_the_submitted_display():
+    """`tabs` absent is the documented add-and-save-without-editing path; it returns
+    default_data() and would otherwise drop a submitted display with no error."""
+    form = _bound({"display": "carousel", "label_pos": "hidden"})
+    assert form.is_valid(), form.errors
+    assert form.cleaned_data["data"]["display"] == "carousel"
+    assert form.cleaned_data["data"]["label_pos"] == "hidden"
+    assert len(form.cleaned_data["data"]["tabs"]) == TabsElement.MIN_TABS
+
+
+def test_out_of_enum_coerces_rather_than_raising():
+    form = _bound({"tabs": TWO_TABS, "display": "CAROUSEL", "label_pos": "sideways"})
+    assert form.is_valid(), form.errors
+    assert form.cleaned_data["data"]["display"] == "tabs"
+    assert form.cleaned_data["data"]["label_pos"] == "above"
+
+
+def test_slide_count_bounds_still_raise():
+    form = _bound({"tabs": TWO_TABS[:1], "display": "carousel"})
+    assert not form.is_valid()
+
+
+def test_editor_accessors_reflect_submitted_data_on_a_bound_invalid_rerender():
+    """One tab -> invalid; the author's Display choice must survive the re-render."""
+    form = _bound({"tabs": TWO_TABS[:1], "display": "carousel", "label_pos": "below"})
+    assert not form.is_valid()
+    assert form.editor_display == "carousel"
+    assert form.editor_label_pos == "below"
+
+
+def test_editor_accessors_read_the_instance_when_unbound():
+    obj = TabsElement.objects.create(
+        data={
+            **TabsElement.default_data(),
+            "display": "carousel",
+            "label_pos": "hidden",
+        }
+    )
+    form = Form(instance=obj)
+    assert form.editor_display == "carousel"
+    assert form.editor_label_pos == "hidden"

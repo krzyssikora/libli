@@ -121,8 +121,11 @@ _NESTABLE_FORM_KEY_ALIASES = {
 }
 
 # Container element registry: model class -> (non_destructive_normalizer,
-# slot_list_key, slot_id_key, max_slots). CONTRACT: each normalizer returns
-# {slot_list_key: [{slot_id_key: <id>}, ...]}. resolve_scope indexes the normalizer
+# slot_list_key, slot_id_key, max_slots).
+# CONTRACT: each normalizer returns AT LEAST
+# {slot_list_key: [{slot_id_key: <id>}, ...]};
+# extra keys are permitted and ignored (TabsElement also returns display/label_pos).
+# resolve_scope indexes the normalizer
 # output by slot_list_key, so slot_list_key MUST equal the key the normalizer emits.
 #
 # max_slots is the number of slots the DESTRUCTIVE normalize_data will keep; the

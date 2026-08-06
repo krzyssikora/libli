@@ -730,7 +730,25 @@ def _val_fill_table(data, elid, media_kinds):
 def _val_tabs(data, elid, media_kinds):
     from courses.models import TabsElement
 
-    _exact_keys(data, ["tabs"], _("tabs data"))
+    # display/label_pos are optional (added in FORMAT_VERSION 8). setdefault first so a
+    # legacy archive gains them and passes the exact-keys check, and so _build_tabs
+    # never KeyErrors. Mirrors the image `size` precedent at :133.
+    if isinstance(data, dict):
+        data.setdefault("display", TabsElement.DEFAULT_DISPLAY)
+        data.setdefault("label_pos", TabsElement.DEFAULT_LABEL_POS)
+    _exact_keys(data, ["tabs", "display", "label_pos"], _("tabs data"))
+    # REPAIR, never reject: a cosmetic field with a lossless default must not fail an
+    # import — `tabs` IS the pre-feature rendering. The isinstance guard + tuple
+    # membership keeps an unhashable value from raising TypeError.
+    if not (
+        isinstance(data["display"], str) and data["display"] in TabsElement.DISPLAYS
+    ):
+        data["display"] = TabsElement.DEFAULT_DISPLAY
+    if not (
+        isinstance(data["label_pos"], str)
+        and data["label_pos"] in TabsElement.LABEL_POSITIONS
+    ):
+        data["label_pos"] = TabsElement.DEFAULT_LABEL_POS
     tabs = data["tabs"]
     if not isinstance(tabs, list):
         _err(_("Element '%(el)s' has malformed tabs."), el=elid)
