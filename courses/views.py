@@ -418,6 +418,12 @@ def build_lesson_context(node, user):
     has_guess_number = node.elements.filter(
         content_type__model="guessnumberelement"
     ).exists()
+    # Flat query (NOT scoped to parent__isnull=True) so an instance nested inside a
+    # tab -- children keep their own `unit` FK -- is still detected.
+    has_before_after = node.elements.filter(
+        content_type__app_label="courses",
+        content_type__model="beforeafterelement",
+    ).exists()
 
     # Capability, NOT stored state: true iff this unit CONTAINS a state-bearing element
     # type, regardless of whether this student has stored anything (spec D1). Flat over
@@ -485,6 +491,7 @@ def build_lesson_context(node, user):
         "has_stepper": has_stepper,
         "has_markdone": has_markdone,
         "has_guess_number": has_guess_number,
+        "has_before_after": has_before_after,
         "has_stateful_elements": has_stateful_elements,
         "element_state": state,
         "slug": node.course.slug,

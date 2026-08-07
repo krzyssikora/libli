@@ -1,6 +1,12 @@
 {% load i18n courses_extras %}
-{# `courses_extras` is required for render_element; loading only i18n raises
-   Invalid block tag. Both sibling containers load the same pair. #}
+{% comment %}
+`courses_extras` is required for render_element; loading only i18n raises
+Invalid block tag. Both sibling containers load the same pair.
+
+Was `{# ... #}` -- Django's comment tag is single-line only, so spanning
+multiple lines rendered this text literally onto the page (caught during
+Task 5's browser verification). `{% comment %}` supports multiple lines.
+{% endcomment %}
 <div class="el el--beforeafter" data-beforeafter>
   <button type="button" class="ba__toggle" aria-pressed="false"
           aria-controls="ba-{{ eid }}-panels"
@@ -11,9 +17,11 @@
   <div class="ba__panels" id="ba-{{ eid }}-panels">
     {% for slot_id, children in slots %}
     <section class="ba__panel" data-ba-side="{{ slot_id }}">
-      {# Visually hidden on screen; revealed by html:not(.ba-js) / .ba--dead / print.
-         A <p>, not a heading -- these exist for print and the no-JS fallback, and
-         real headings would pollute the lesson's document outline. #}
+      {% comment %}
+      Visually hidden on screen; revealed by html:not(.ba-js) / .ba--dead / print.
+      A <p>, not a heading -- these exist for print and the no-JS fallback, and
+      real headings would pollute the lesson's document outline.
+      {% endcomment %}
       <p class="ba__side-heading visually-hidden">
         {% if forloop.first %}{% trans "Before" %}{% else %}{% trans "After" %}{% endif %}
       </p>

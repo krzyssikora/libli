@@ -1914,6 +1914,26 @@ a.unit-crumbs__label:focus-visible { outline: 2px solid var(--primary); outline-
   border-left: 2px solid color-mix(in srgb, var(--primary) 30%, transparent);
 }
 
+/* Degraded states. Grouped with the .ba--dead per-instance twin so a single
+   failed instance degrades exactly as a JS-less page does.
+   The un-hide must invert ALL FIVE properties of .visually-hidden
+   (app.css:1212) -- `clip`, NOT `clip-path`, which the utility does not use;
+   a clip-path override is a no-op leaving a 1x1 clipped box. `white-space:
+   nowrap` is deliberately not reverted: the headings are one word. */
+html:not(.ba-js) .ba__side-heading,
+.ba--dead .ba__side-heading {
+  position: static !important; width: auto !important; height: auto !important;
+  overflow: visible !important; clip: auto !important;
+  font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--text-secondary);
+}
+html:not(.ba-js) .ba__panel + .ba__panel,
+.ba--dead .ba__panel + .ba__panel { margin-top: var(--space-5); }
+/* A focusable button advertising aria-pressed="false" while doing nothing is
+   worse than no button, since both panels are already shown. */
+html:not(.ba-js) .ba__toggle,
+.ba--dead .ba__toggle { display: none; }
+
 /* Step-by-step (inline reveal stepper) — student render */
 .stepper__prompt { color: var(--text-secondary); margin: 0 0 0.4rem; }
 .stepper__line { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.3rem 0.55rem; }
