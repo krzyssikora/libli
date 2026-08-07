@@ -51,7 +51,7 @@ Success criteria:
 | Rule extent | Around the content only; button above, outside the rule | The spoiler's shape, which the user asked to match. |
 | Armed in quiz units? | **Yes** — unlike a reveal gate | A before/after has no grading interaction and no state, so arming it is safe; leaving it unarmed would permanently expose the answer side and break criterion 2. |
 | `button_label` content | Plain text, autoescaped | No math, no inline HTML, no sanitiser. `math.js`'s scope list (`courses/static/courses/js/math.js:31`) is deliberately **not** extended, so `\(…\)` in a label would ship raw — the field is documented as plain text for that reason. |
-| `FORMAT_VERSION` | **Not** bumped | See §10. |
+| `FORMAT_VERSION` | **Not** bumped | See §11. |
 
 ## Architecture / components
 
@@ -83,19 +83,34 @@ literal**, which would reintroduce exactly the drift these constants exist to pr
 Methods:
 
 * `join_row()` — `self.elements.order_by("pk").first()`, as Spoiler/Callout do.
-* `resolved_children()` — **returns a 2-tuple `(before, after)` of lists, in `SLOT_IDS`
-  order**; `([], [])` when the join row is transient/mid-create. The children of *both*
-  slots are fetched by a **single `children` queryset** — `order_by("order", "pk")`,
-  `select_related("content_type")`, `prefetch_related("content_object")` — and
-  partitioned in Python by `tab_id`. Not one queryset per slot. (The total query count is
-  necessarily >1: `join_row()` is its own query and `prefetch_related` issues one query
-  per distinct child content type, so "one query" is *not* the invariant — see the
-  Testing table for the form the test actually takes.)
+* `resolved_slots()` — **returns a list of `(slot_id, children)` pairs, in `SLOT_IDS`
+  order**; `[("before", []), ("after", [])]` when the join row is transient/mid-create.
+  The children of *both* slots are fetched by a **single `children` queryset** —
+  `order_by("order", "pk")`, `select_related("content_type")`,
+  `prefetch_related("content_object")` — and partitioned in Python by `tab_id`. Not one
+  queryset per slot. (The total query count is necessarily >1: `join_row()` is its own
+  query and `prefetch_related` issues one query per distinct child content type, so "one
+  query" is *not* the invariant — see the Testing table for the form the test actually
+  takes.)
+
+  **Pairs, not a bare tuple**, because this is the shape the editor row template must
+  consume: every container branch in `_element_row.html` needs the slot *id* alongside
+  its children to pass as `tab=` to the `_add_menu.html` include and to
+  `{% paste_buttons %}`. `TwoColumnElement.resolved_columns` establishes the convention
+  (`{% for column, children in obj.resolved_columns %}`,
+  `templates/courses/manage/editor/_element_row.html:131`). A bare `(before, after)`
+  tuple would force either slot-id string literals in the template (which §1 forbids) or
+  two accessor calls per row, re-running `join_row()` and the children queryset each time.
+
+  **`resolved_slots()` is the single accessor** consumed by the student template, the
+  editor row branch, and the export walker alike. Both templates distinguish the two
+  sides with `forloop.first` rather than comparing against a literal, which is what makes
+  `SLOT_IDS` order load-bearing rather than decorative.
 * `render(*, element=None, state=None, slug=None, node_pk=None)` — renders
   `templates/courses/elements/beforeafterelement.html`.
 
-**`eid` must be computed by `render()`.** The context is `el`, `eid`, `before_children`,
-`after_children`, `element_state` (the key is `element_state`, **not** `state` —
+**`eid` must be computed by `render()`.** The context is `el`, `eid`, `slots` (the
+`resolved_slots()` pairs), `element_state` (the key is `element_state`, **not** `state` —
 `courses_extras.render_element` reads that name), `slug`, `node_pk`, where:
 
 ```python
@@ -114,6 +129,15 @@ Append `"beforeafterelement"` to `ELEMENT_MODELS` (`courses/models.py:261`), whi
 **source edit**, not something `makemigrations` invents: the
 `alter_element_content_type` half of the migration is a *consequence* of it, and without
 the edit the migration is `0055_beforeafterelement` alone.
+
+**This edit turns three existing tests RED**, in files with no visible relationship to
+this feature — an implementer who does not expect them is likely to mis-diagnose. All
+three assert the old count and must move `31` → `32`:
+
+* `tests/test_transfer_schema.py:11` — **and its function name**,
+  `test_element_models_lists_all_31_concrete_element_models`, becomes `..._32_...`;
+* `tests/test_guessnumber_model.py:11`;
+* `tests/test_models_multigrid.py:11`.
 
 Migration `0055_beforeafterelement_alter_element_content_type.py`, schema-only — no data
 migration and no backfill, because no existing row can be this type. **Re-check the
@@ -207,6 +231,8 @@ refactor: no other sentinel, module or call site is touched.
 * `courses/tests/test_nesting_rule.py::test_container_registry_carries_a_slot_cap`
   asserts `len(reg) == 4`; it becomes `5`, plus
   `assert reg[BeforeAfterElement][3] is None`.
+* The three `len(ELEMENT_MODELS) == 31` assertions listed in §1 (`31` → `32`, plus the
+  function rename in `tests/test_transfer_schema.py`).
 * `test_container_key_spaces_do_not_drift` and
   `test_container_keys_agree_by_key_not_by_count` should pass unchanged once all five
   seams land — they are the guard against a partial landing and **must not be relaxed**.
@@ -217,8 +243,8 @@ refactor: no other sentinel, module or call site is touched.
 as in `templates/courses/manage/editor/_edit_callout.html`):
 
 ```html
-{% load i18n %}
-<div class="el el--beforeafter" data-beforeafter data-ba-eid="{{ eid }}">
+{% load i18n courses_extras %}
+<div class="el el--beforeafter" data-beforeafter>
   <button type="button" class="ba__toggle" aria-pressed="false"
           aria-controls="ba-{{ eid }}-panels"
           {% if not el.button_label %}aria-label="{% trans 'Switch content' %}"{% endif %}>
@@ -226,19 +252,32 @@ as in `templates/courses/manage/editor/_edit_callout.html`):
     {% if el.button_label %}<span class="ba__label">{{ el.button_label }}</span>{% endif %}
   </button>
   <div class="ba__panels" id="ba-{{ eid }}-panels">
-    <section class="ba__panel" data-ba-side="before">
-      <p class="ba__side-heading">{% trans "Before" %}</p>
-      <div class="ba__child">…</div>
+    {% for slot_id, children in slots %}
+    <section class="ba__panel" data-ba-side="{{ slot_id }}">
+      <p class="ba__side-heading visually-hidden">
+        {% if forloop.first %}{% trans "Before" %}{% else %}{% trans "After" %}{% endif %}
+      </p>
+      {% for child in children %}<div class="ba__child">{% render_element child %}</div>{% endfor %}
     </section>
-    <section class="ba__panel" data-ba-side="after">
-      <p class="ba__side-heading">{% trans "After" %}</p>
-      <div class="ba__child">…</div>
-    </section>
+    {% endfor %}
   </div>
 </div>
 ```
 
-* **Namespaced ids.** `eid` is the join row's pk, computed in `render()` per §1.
+* **`{% load %}` carries `courses_extras`** — that is where `render_element` lives; a
+  snippet loading only `i18n` raises `Invalid block tag`. Both sibling containers
+  (`calloutelement.html`, `spoilerelement.html`) load the same pair.
+* **The panel renders unconditionally.** Unlike `calloutelement.html` /
+  `spoilerelement.html`, which wrap their children in `{% if children %}`, an empty slot
+  here still emits its `<section>` — that is what makes the "empty ruled panel" row in
+  the Error-handling table true rather than aspirational.
+* **`.visually-hidden`** is applied as a class in the markup (§4), not copied into
+  `.ba__side-heading`'s own declarations.
+* **Namespaced ids.** `eid` is the join row's pk, computed in `render()` per §1. There is
+  deliberately **no `data-ba-eid` attribute**: nothing reads it — the JS scopes by
+  `data-beforeafter` + `closest()`, and the namespacing is carried entirely by the
+  `id="ba-{{ eid }}-panels"` / `aria-controls` pair. (`tabs.js` needs `data-tabs-eid`
+  only because it *builds* its ids client-side; ours are server-rendered.)
 * **Accessible name.** With a label, the visible text names the button. Without one it is
   icon-only and takes a translated `aria-label`; an icon-only button with no accessible
   name is a defect, not a nicety.
@@ -280,10 +319,29 @@ would defeat the hug.
 `.ba__panels` is a bare grouping div: no margin, no padding, no border, not a
 `flow-root`, so margins collapse through it untouched.
 
-`.ba__side-heading` uses the existing **`.visually-hidden`** utility
-(`core/static/core/css/app.css:1212`) — i.e. it is taken out of flow, so it neither
-occupies space nor disturbs the panel's margin collapsing, and `display` is untouched so
-the print reveal works.
+`.ba__side-heading` carries the existing **`.visually-hidden`** utility **as a second
+class in the markup** (`core/static/core/css/app.css:1212`) — see the §3 snippet. It is
+taken out of flow, so it neither occupies space nor disturbs the panel's margin
+collapsing, and `display` is untouched so the print reveal works.
+
+Its declarations are, exactly:
+
+```css
+.visually-hidden {
+  position: absolute; width: 1px; height: 1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
+}
+```
+
+**Both un-hide rules below (print, §5.5; no-JS, §5.3) must invert precisely these.** In
+particular the property is `clip`, **not `clip-path`** — a `clip-path: none` override is a
+no-op here and would leave a 1×1 overflow-hidden box, i.e. an invisible heading that
+*looks* handled. Reverting `position` alone is likewise insufficient. The full inverse is:
+
+```css
+position: static !important; width: auto !important; height: auto !important;
+overflow: visible !important; clip: auto !important;
+```
 
 #### The `display` invariant, stated precisely
 
@@ -317,8 +375,13 @@ frame on every page load, which defeats the element's main use.
    `parent__isnull=True`, so a nested instance is still detected) and added to the lesson
    context beside `has_reveal_gate` (`courses/views.py:476-484`).
 2. `templates/courses/lesson_unit.html`, when `has_before_after`, emits a prepaint inline
-   `<script>` adding `ba-armed` to `<html>`, and a render-blocking `<style>`:
-   `html.ba-armed .ba__panels > [data-ba-side="after"] { display: none; }`.
+   `<script>` adding `ba-armed` to `<html>`, a render-blocking `<style>`
+   (`html.ba-armed .ba__panels > [data-ba-side="after"] { display: none; }`), and in
+   `extra_js` the include
+   `<script src="{% static 'courses/js/beforeafter.js' %}" defer></script>`, matching
+   `tabs.js` at `lesson_unit.html:81`. **`defer` is load-bearing**, not incidental: it is
+   what makes the script run before `DOMContentLoaded`, which the §5.2 boot guard and the
+   two script-failure e2e tests in the Testing table both turn on.
 3. `courses/static/courses/js/beforeafter.js`, at init, sets the `hidden` attribute on
    each instance's "after" panel, **then** adds `ba-js` to `<html>`, **then** removes
    `ba-armed`.
@@ -346,6 +409,17 @@ both cases. That is why step 3 adds a **persistent `ba-js` class**: the side hea
 revealed by `html:not(.ba-js) .ba__side-heading`, which is true only when the script
 never ran.
 
+The rule body must be the **full five-property inverse** from §4, not a guess like
+`display: block` (which reveals nothing, because the heading is hidden by
+`position`/`width`/`height`/`overflow`/`clip`, not by `display`):
+
+```css
+html:not(.ba-js) .ba__side-heading {
+  position: static !important; width: auto !important; height: auto !important;
+  overflow: visible !important; clip: auto !important;
+}
+```
+
 So with JS disabled (or blocked): `ba-armed` is never added ⇒ **both panels are visible,
 stacked, each under a revealed side heading**. Degraded but complete and labelled — a
 better fallback than the reveal gate's, and the reason the class is added by script
@@ -356,6 +430,18 @@ rather than server-rendered.
 `build_quiz_context` (`courses/views.py:1139`) also sets `has_before_after`, and
 `templates/courses/quiz_unit.html` emits the same prepaint script, pre-hide style and
 script include.
+
+**This is more work than "the same as lesson_unit" implies.** `quiz_unit.html` defines
+only `{% block extra_css %}` (`:4`), `{% block content %}` (`:9`) and
+`{% block extra_js %}` (`:14`) — it has **no `prepaint` block at all**, because the reveal
+gate and stepper (the only existing prepaint users) are lesson-only. So `quiz_unit.html`
+must gain a new `{% block prepaint %}`. `templates/base.html:43` renders that block
+*above* the stylesheet links, which is precisely what makes the pre-hide render-blocking
+and the ordering correct.
+
+The add-menu group choice in §8 is load-bearing here: an element card placed in the
+**Interactive** group is wrapped in `{% if not unit_is_quiz %}` and can never be authored
+in a quiz unit at all, which would make this whole sub-section dead code.
 
 This is a deliberate **departure from the reveal gate**, which is inert in quizzes. A
 reveal gate hides graded content and interacts with submission; a before/after has no
@@ -370,15 +456,35 @@ the existing reveal print block uses `display: revert !important`
 which is exactly where `[hidden] { display: none }` lives — so `revert` **cannot** un-hide
 an element carrying the `hidden` attribute. The panels therefore need an explicit:
 
+This block lives in **`courses/static/courses/css/courses.css`**, alongside the element's
+other base styling — deliberately *not* in `app.css`. If any part of it were added to
+`app.css` it must go **after** the existing `@media print` block at `:1014-1022`, because
+`_print_block` in `courses/tests/test_reveal_scope_agreement.py` extracts the **first**
+`@media print` block in the file (`re.search(r"@media print\s*\{(.*?)\n\}", css, re.S)`)
+— inserting a second one above it makes that test extract the wrong block and go RED
+against a correct implementation.
+
 ```css
 @media print {
   .ba__panel[hidden] { display: block !important; }
-  .ba__side-heading  { position: static !important; clip-path: none !important; /* …un-hide */ }
   html.ba-armed .ba__panels > [data-ba-side="after"] { display: block !important; }
+  .ba__child[hidden] { display: block !important; }
+  .ba__side-heading {
+    position: static !important; width: auto !important; height: auto !important;
+    overflow: visible !important; clip: auto !important;
+  }
 }
 ```
 
-This is a **different rule** from the reveal-cascade sibling revert §7 asks for; both are
+The `.ba__side-heading` declarations are the full five-property inverse of
+`.visually-hidden` from §4 — `clip`, not `clip-path`.
+
+The `.ba__child[hidden]` line is here for the reason §7 explains: the reveal cascade hides
+gate siblings with the `hidden` attribute, and the existing shared print block's
+`display: revert !important` cannot un-hide those, by the very argument this sub-section
+makes for `.ba__panel`.
+
+These are **different rules** from the reveal-cascade sibling revert §7 asks for; all are
 needed.
 
 ### 6. Client — `courses/static/courses/js/beforeafter.js`
@@ -388,7 +494,11 @@ needed.
 * **Idempotence** — `container.dataset.baReady === "1"` guard; the editor preview pane is
   rebuilt on every fragment swap and re-runs init over the whole pane (`tabs.js:66-68`).
 * **Export** — `window.libliInitBeforeAfter(root)`, so the editor can re-run it after a
-  swap, mirroring `libliInitTabs` / `libliInitGallery`.
+  swap, mirroring `libliInitTabs` / `libliInitGallery`. The export is inert without the
+  **two editor seams** in §8: `libliInitTabs` works in the editor only because
+  `templates/courses/manage/editor/editor.html:170` includes `tabs.js` *and*
+  `courses/static/courses/js/editor.js:105` calls it after each fragment swap. Omit
+  either and the live-preview pane shows both panels stacked under a dead button.
 * **Boot flag** — `window.__beforeAfterBooted = true` (§5.2).
 * **Ownership scoping** — every lookup rejects nodes owned by a nested instance
   (`el.closest("[data-beforeafter]") === container`). A before/after may legally contain
@@ -415,7 +525,22 @@ so `.ba__panel` must join all three *and* the test's `SCOPES` tuple:
 2. the pre-hide `<style>` block in `templates/courses/lesson_unit.html`;
 3. the `@media print` revert in `core/static/core/css/app.css:1014-1022`;
 4. the `SCOPES` tuple in `courses/tests/test_reveal_scope_agreement.py`, plus the
-   docstrings and test names that say "four".
+   docstrings and test names that say "four";
+5. the two comment blocks in `courses/static/courses/js/reveal.js` that **enumerate** the
+   scopes and become false: `:40-42` ("a slide in a slideshow lesson, a tab panel inside a
+   tabs element, a spoiler body, or a callout's children wrapper") and `isGateWrapper`'s
+   block at `:55-63` ("Four scopes exist… those three scopes share the same direct-child
+   form"). §2 sets the standard that a stale comment in this repo is a defect; it applies
+   here as much as to the `_CONTAINER_SLOT_KEY` comments.
+
+**§7's print entry is knowingly inert for a `[hidden]` child.** Adding `~ .ba__child` to
+the shared `@media print` block satisfies the *scope-agreement* requirement that test
+enforces, but that block's declaration is `display: revert !important`, and `revert` rolls
+back to the UA origin where `[hidden] { display: none }` lives — so it cannot un-hide a
+`.ba__child` the reveal cascade hid via `gateWrap.hidden = true`. This is pre-existing
+behaviour shared with `.tabs__child`, not something this feature introduces; the working
+un-hide is the explicit `.ba__child[hidden] { display: block !important }` in §5.5's
+block. Both are required and they do different jobs.
 
 That test has **no count assertions** — all three of its tests are containment loops over
 `SCOPES`, plus one extra `assert _has_scope(scope_of, ".spoiler")` covering the deliberate
@@ -454,6 +579,18 @@ implementation error.
   at `:198`, the spoiler branch at `:146`), because `children_map`, `open_form_pk`,
   `clip_element_pk` and `depth` are in scope there and nowhere else.
 
+  It loops `{% for slot_id, children in obj.resolved_slots %}` (the pairs accessor from
+  §1) and closes **each** slot with both the add-menu include and the paste control, in
+  the form every sibling container uses (`:141`, `:195`, `:244`):
+
+  ```
+  {% if depth < max_nest_depth %}{% include "courses/manage/editor/_add_menu.html" with nested=True parent=el.pk tab=slot_id depth=depth %}{% endif %}{% paste_buttons el.pk slot_id %}
+  ```
+
+  **Omitting `{% paste_buttons %}` would make this the only container you cannot paste
+  into**, even though the registry entry §2 adds makes `paste_allowed` handle it
+  correctly — a silent capability hole.
+
   The branch **must match a nested instance too** — do not gate it on
   `el.parent_id is None`. The spoiler branch's comment records that dropping exactly that
   clause was required for depth-3 nesting.
@@ -465,9 +602,11 @@ Registration points:
 | `courses/element_forms.py` | define `BeforeAfterElementForm` (one `button_label` field) **and** register it in the form-key → form-class dispatch dict at `:1964` (`"beforeafter": BeforeAfterElementForm`) — defining the class alone leaves the edit form unrendered |
 | `courses/views_manage.py` | add `"beforeafter"` to the `element_add` allow-tuple (`~:1823`) **and** to the `element_save` allow-tuple (`~:1894`) — two separate edits; the tuples genuinely differ (`slidebreak` is in save but not add) |
 | `courses/views_manage.py` | add `"beforeafter": gettext_lazy("Before / after")` to `_EDITOR_TYPE_LABELS` (`:1621-1652`), which supplies the open-form heading — **form-key** keyed |
-| `courses/templatetags/courses_manage_extras.py` | add `"beforeafterelement": _("Before / after")` to the label map (`:54-64`) — **content-type-model** keyed, a different namespace from the row above |
+| `courses/templatetags/courses_manage_extras.py` | add `"beforeafterelement": _("Before / after")` to `_ELEMENT_LABELS` (`:32-63`) — **content-type-model** keyed, a different namespace from the row above |
 | `courses/templatetags/courses_manage_extras.py` | add a branch to `element_summary` (`~:118`): `if name == "BeforeAfterElement": return el.button_label or _("Before / after")` |
-| `templates/courses/manage/editor/_add_menu.html` | the add card, carrying the **same depth guard** as the callout/tabs/columns cards at `:37-39`: `{% if depth < max_nest_depth|add:-1 %}` — without it the card is offered at depth 3 and every child add 400s |
+| `templates/courses/manage/editor/_add_menu.html` | the add card, in the **Content** group (`:27`) next to Callout/Tabs/Columns — **not** the Interactive group, which is wrapped in `{% if not unit_is_quiz %}` (`:41`) and would make the element unauthorable in quiz units, killing §5.4. Carries the **same depth guard** as those cards at `:37-39`: `{% if depth < max_nest_depth\|add:-1 %}` — without it the card is offered at depth 3 and every child add 400s |
+| `templates/courses/manage/editor/editor.html` | include `<script src="{% static 'courses/js/beforeafter.js' %}" defer></script>` beside the `tabs.js` include at `:170` — the preview pane renders the *student* template, so without it the preview button is dead |
+| `courses/static/courses/js/editor.js` | call `if (preview && window.libliInitBeforeAfter) window.libliInitBeforeAfter(preview);` beside the `libliInitTabs` call at `:105`, re-enhancing after each fragment swap |
 | `templates/courses/manage/_icon_sprite.html` | `el-beforeafter` symbol |
 | `core/help.py` | add `"beforeafter"` to `ELEMENT_ICON_SLUGS` (`:40`) — the sprite id minus the `el-` prefix; `test_element_icon_slugs_match_sprite` goes red if the symbol lands without it |
 | `courses/static/courses/css/editor.css` | slot-panel styling |
@@ -486,8 +625,23 @@ before/after renders `\(…\)` literally. The Purpose section names "an equation
 after simplification" as a headline use case, so this is not a corner.
 
 Add `_before_after_has_math`, dispatching every child of **both** slots through
-`_element_has_math`, following `_callout_has_math`'s documented transient-guard
-placement.
+`_element_has_math`.
+
+**Model it on `_twocolumn_has_math` (`courses/views.py:298-311`), not
+`_callout_has_math`.** `_callout_has_math`'s guard sits *after* its heading/body checks,
+and its own docstring (`:270-274`) says a top-of-function guard is "correct in
+`_twocolumn_has_math`, which has no text of its own". `BeforeAfterElement` likewise has no
+text of its own — `button_label` is plain text with no math by decision — so the
+top-of-function `isinstance` guard is right and the callout is the model the codebase
+explicitly documents as *not* transferring to this shape.
+
+**Wiring it is a separate step from writing it.** `_element_has_math` (`:176-222`) wires
+its helpers two different ways: `_spoiler_has_math` / `_callout_has_math` get explicit
+`isinstance` clauses at `:200-203`, while `_twocolumn_has_math` is folded into the
+trailing `return _table_has_math(obj) or …` chain at `:216-221` (which works only because
+each helper self-guards). Use an **explicit `isinstance(obj, BeforeAfterElement)` clause
+beside the spoiler/callout ones** — the closer match, and unmissable. Written but unwired,
+the helper is dead code and the bug survives.
 
 `math.js`'s scope list is deliberately **unchanged**: children are rendered elements
 (`.el--text` etc.) already covered by it, and `button_label` is plain text by decision.
@@ -530,9 +684,25 @@ the only round-trip test checks children.
 
 * `_ser_before_after` returns `{"button_label": concrete.button_label}`.
 * `_val_before_after` does `_exact_keys(data, ["button_label"], …)` plus
-  `check_str(data["button_label"], max_length=120)`, and returns `set()` (references no
-  media). Mirrors `_val_callout` (`courses/transfer/payloads.py:206`).
+  `check_str(data["button_label"], _("button label"), max_length=120)`, and returns
+  `set()` (references no media). Mirrors `_val_callout`
+  (`courses/transfer/payloads.py:206`). Note `check_str`'s **second positional is a
+  translated field label** in all ~20 of its call sites (`:210`:
+  `check_str(data["heading"], _("heading"), max_length=120)`); omitting it is a
+  `TypeError`.
 * `_build_before_after` in `courses/transfer/importer.py` sets it.
+
+**Defining the three functions does nothing on its own — each must be registered in its
+dispatch dict**, exactly the hazard §8 calls out for `element_forms.py`:
+
+| Registry | Line | Entry |
+| --- | --- | --- |
+| `courses/transfer/export.py` `SERIALIZERS` | `:471` | `"before_after": (BeforeAfterElement, _ser_before_after)` |
+| `courses/transfer/payloads.py` `VALIDATORS` | `:906` | `"before_after": _val_before_after` |
+| `courses/transfer/importer.py` builders | `:827` | `"before_after": _build_before_after` |
+
+Without the `export.py` entry the element is not exportable at all, failing success
+criterion 4.
 
 #### The export tree-walker branch
 
@@ -544,7 +714,7 @@ ever emitted**, so success criterion 4 fails silently.
 
 The branch yields each child with the child's **own `tab_id`** — unlike the Spoiler and
 Callout branches, which pass a fixed `SLOT_ID`, because this container has two slots to
-distinguish.
+distinguish. It consumes `resolved_slots()` (§1), the same accessor the templates use.
 
 This also silently thins duplication: `builder.duplicate_element` routes through
 `build_element_export` → `graft_elements`, so a missing branch makes "duplicate" return
@@ -578,7 +748,7 @@ against `_CONTAINER_SLOT_KEY["before_after"]`, then rebuilds parent-first.
 | Condition | Behaviour |
 | --- | --- |
 | Child row with an unrecognised `tab_id` (corrupt import, hand-edited DB) | Falls into **before**, never dropped. Authored content must never become invisible; a stray element in the wrong half is a visible, fixable problem, a vanished one is not. |
-| Join row transient / mid-create | `resolved_children()` returns `([], [])`. |
+| Join row transient / mid-create | `resolved_slots()` returns `[("before", []), ("after", [])]` — the pairs are always present, only their child lists are empty. |
 | Dangling GFK (`content_object is None`) | `type(None)` is in neither the registry nor `CONTAINER_TRANSFER_KEYS`, so it degrades to a leaf — existing behaviour, no new code. |
 | Both slots empty | Renders the button and an empty ruled panel. Not an error; the author is mid-authoring. |
 | Nested instance | Ownership scoping in the JS; depth clauses 3/4 already forbid a container at depth 4. |
@@ -601,6 +771,13 @@ mutant, and scope runs with `-k` — a whole-repo sweep is a branch gate, not a 
 looks hung for ~4m21s. Tooling is behind `uv run`; `-m e2e` is mandatory for e2e files or
 they silently deselect (exit 5).
 
+**Stalling and aborting are not interchangeable**, and the §5.2 boot guard is exactly why.
+An **abort** makes the deferred script fail immediately, so `DOMContentLoaded` fires, the
+guard drops `ba-armed`, and the "after" panel becomes *visible* — a pre-hide test written
+against an abort is RED on a correct build. Only a **stall** (a route handler that never
+resolves) keeps the deferred script pending, blocks `DOMContentLoaded`, and leaves
+`ba-armed` applied. The pre-hide test therefore stalls; the boot-guard test aborts.
+
 | Area | Test | Mutant it must kill |
 | --- | --- | --- |
 | Model | children partition by slot | group by `parent` alone → "after" children appear in "before" |
@@ -621,6 +798,13 @@ they silently deselect (exit 5).
 | CSS | rule lands on `.ba__panel`; **within the element's own block** no `display` is declared on `.ba__panel`/`.ba__child` | add `display:block` to the base rule → RED. Scope the scan to that block — the armed/pre-hide/print rules legitimately declare `display`. Strip comments before scanning (`test_element_state_write_routes.py` precedent: a regex over raw source matches comments and docstrings too) |
 | CSS | `.ba__child[hidden]` is in the `app.css:1010` guard | drop it → an author `display` beats `[hidden]` |
 | CSS | print rule uses `display: block !important`, not `revert` | change to `revert` → panel stays hidden in print |
+| CSS | the print un-hide of `.ba__side-heading` reverts **`clip`**, and also `position`/`width`/`height`/`overflow` | change `clip` to `clip-path` → RED (a no-op override leaving a 1×1 clipped box, i.e. an unlabelled printed page) |
+| CSS | the `html:not(.ba-js)` no-JS rule reverts the same five properties | replace the body with `display: block` → RED |
+| CSS | §5.5's print block sits in `courses.css`, or after `app.css:1014` | insert a second `@media print` above it in `app.css` → `test_reveal_scope_agreement::_print_block` extracts the wrong block → RED |
+| Editor | pasting into each slot works | drop `{% paste_buttons %}` from a slot → RED |
+| Editor | the add card is in the Content group (authorable in a quiz unit) | move it inside `{% if not unit_is_quiz %}` → RED |
+| Editor | the preview pane's button toggles after a fragment swap | omit the `editor.js` re-init call → RED |
+| Model | `ELEMENT_MODELS` has 32 entries | the three count assertions go RED until updated together |
 | Reveal scope | `.ba__panel` in all three files + `SCOPES` | remove from any one → RED (extract each block before scanning, per that test's own docstring) |
 | Reveal scope | the entry sits in the `has_reveal_gate` `<style>` block | move it to the new block → `_prehide_block` no longer sees it → RED |
 | Context | `has_before_after` set for a **nested** instance | scope the query to `parent__isnull=True` → RED |
@@ -628,9 +812,9 @@ they silently deselect (exit 5).
 | a11y | icon-only button carries a translated `aria-label` | drop the `{% if not el.button_label %}` branch → RED |
 | a11y | `aria-pressed` flips on toggle | freeze it at `"false"` → RED |
 | e2e (lesson) | press → sides swap; press again → swaps back | — |
-| e2e (lesson) | **"after" is not visible when the script never runs** — `page.route` aborts/stalls the `beforeafter.js` request, then assert the panel is not visible | remove the pre-hide `<style>` → RED. A plain post-load assertion would be green under that mutant, because init sets `hidden` either way; the route-abort is what brackets the pre-paint window rather than measuring the settled state |
-| e2e (lesson) | the armed rule is present in the render-blocking `<style>` for a unit with `has_before_after` | remove the block → RED (static complement to the route-abort test) |
-| e2e (lesson) | boot guard: with the script aborted, `ba-armed` is gone after `DOMContentLoaded` and both panels show | delete the guard → the "after" side is stranded |
+| e2e (lesson) | **"after" is not visible while the script is still pending** — `page.route` **stalls** the `beforeafter.js` request (a handler that never fulfils), then assert the panel is not visible | remove the pre-hide `<style>` → RED. A plain post-load assertion would be green under that mutant, because init sets `hidden` either way; stalling is what brackets the pre-paint window rather than measuring the settled state |
+| e2e (lesson) | boot guard: with the script **aborted**, `ba-armed` is gone after `DOMContentLoaded` and both panels show | delete the guard → the "after" side is stranded |
+| e2e (lesson) | the armed rule is present in the render-blocking `<style>` for a unit with `has_before_after` | remove the block → RED (static complement to the stall test) |
 | e2e (lesson) | a gallery inside "after" measures non-zero after the first press | drop the `libli:reveal` dispatch → RED |
 | e2e (editor) | both slots visible; a child added to each lands in the right slot | — |
 | e2e (editor) | the slot panels render for a **nested** instance | gate the row branch on `el.parent_id is None` → RED |
