@@ -258,6 +258,11 @@ refactor: no other sentinel, module or call site is touched.
   `assert reg[BeforeAfterElement][3] is None`.
 * The three `len(ELEMENT_MODELS) == 31` assertions listed in §1 (`31` → `32`, plus the
   function rename in `tests/test_transfer_schema.py`).
+* `courses/tests/test_render_seam.py`'s `CONCRETES` list (`:27`) gains
+  `(BeforeAfterElement, {})`. That list is the codebase's designated guard that every
+  concrete's `render()` accepts the state kwargs — "the exact class of break plan-review
+  and code-review both caught on the mark-done build". It carries **no count assertion**,
+  so omitting the entry ships green and leaves the new render seam unguarded.
 * `test_container_key_spaces_do_not_drift` and
   `test_container_keys_agree_by_key_not_by_count` should pass unchanged once all five
   seams land — they are the guard against a partial landing and **must not be relaxed**.
@@ -343,6 +348,42 @@ would defeat the hug.
 
 `.ba__panels` is a bare grouping div: no margin, no padding, no border, not a
 `flow-root`, so margins collapse through it untouched.
+
+#### The element wrapper and the toggle
+
+Both need rules of their own — a `<button>` with no class-based styling renders as a bare
+UA button beside an inline SVG, and the Screenshots test row assumes the control meets AA.
+All of this lives in `courses/static/courses/css/courses.css`, alongside `.el--tabs`'
+block:
+
+* `.el--beforeafter { margin-block: var(--space-6); }`, matching `.el--tabs`.
+* `.ba__toggle` borrows **`.spoiler__toggle`'s token set** verbatim
+  (`core/static/core/css/app.css:933-945`): `display: inline-flex`, `width: fit-content`,
+  `align-items: center`, `gap: var(--space-2)`, `padding: var(--space-2) var(--space-4)`,
+  `font: inherit`, `font-weight: 600`, `line-height: 1`, `color: var(--primary)`,
+  `background: var(--primary-subtle)`, `border: 1px solid color-mix(in srgb, var(--primary) 32%, transparent)`,
+  `border-radius: var(--radius-full)` — plus `:hover` and `:focus-visible` states matching
+  it. Reusing the spoiler's visual language is deliberate: both are "press this to change
+  what you see" controls, and an author who has used one should recognise the other.
+* `.ba__toggle .ic` sized to the label's line-box so icon-only and icon+label buttons are
+  the same height.
+* `.ba__toggle + .ba__panels { margin-top: var(--space-3); }` — on the *sibling*, not on
+  `.ba__panels` itself, so §4's "no vertical margin on the ruled box" constraint is
+  untouched.
+
+#### The side headings when they are actually visible
+
+In all three states where the headings show (JS disabled, failed boot, print) they would
+otherwise be a bare `<p>` indistinguishable from the panel's own prose, with nothing
+marking where "before" ends and "after" begins — which would make §5.3's claim of a
+"complete and labelled" fallback false in practice. Give them the house eyebrow treatment
+used by `.callout__heading` (`courses.css:1811-1818`): `font-size: 0.75rem`,
+`font-weight: 700`, `letter-spacing: 0.08em`, `text-transform: uppercase`,
+`color: var(--text-secondary)`.
+
+Scope that treatment **and** any panel separation (`.ba__panel + .ba__panel { margin-top: var(--space-5); }`)
+under `html:not(.ba-js)` and `@media print` only. Applied unconditionally, the panel margin
+would violate §4's no-vertical-margin constraint in the normal single-visible-panel case.
 
 `.ba__side-heading` carries the existing **`.visually-hidden`** utility **as a second
 class in the markup** (`core/static/core/css/app.css:1212`) — see the §3 snippet. It is
@@ -477,6 +518,11 @@ both cases. That is why the prepaint script also sets a **persistent `ba-js` cla
 side headings are revealed by `html:not(.ba-js) .ba__side-heading`, which is true only
 when the element's JS is not in play.
 
+These rules live in **`courses/static/courses/css/courses.css`**, immediately *after* the
+element's base block and *before* the `@media print` block of §5.5. That position matters
+for §4's display-invariant test: the scan's block boundary ends where the base block does,
+so these state-scoped rules — which legitimately declare `display` — sit outside it.
+
 The rule body must be the **full five-property inverse** from §4, not a guess like
 `display: block` (which reveals nothing, because the heading is hidden by
 `position`/`width`/`height`/`overflow`/`clip`, not by `display`):
@@ -565,6 +611,7 @@ against a correct implementation.
   .ba__panel[hidden] { display: block !important; }
   html.ba-armed .ba__panels > [data-ba-side="after"] { display: block !important; }
   .ba__child[hidden] { display: block !important; }
+  .ba__toggle { display: none !important; }
   .ba__side-heading {
     position: static !important; width: auto !important; height: auto !important;
     overflow: visible !important; clip: auto !important;
@@ -573,7 +620,13 @@ against a correct implementation.
 ```
 
 The `.ba__side-heading` declarations are the full five-property inverse of
-`.visually-hidden` from §4 — `clip`, not `clip-path`.
+`.visually-hidden` from §4 — `clip`, not `clip-path`. The heading's *visual* treatment
+(eyebrow styling, panel separation) is scoped to this block and `html:not(.ba-js)`, per §4.
+
+`.ba__toggle` is hidden because both panels are revealed in print, leaving the control
+meaningless ink. This follows the house precedent: the shared print block ends
+`[data-reveal-gate] { display: none !important; }`, and `courses.css:2044` hides
+`.unit-strip__edit`.
 
 The `.ba__child[hidden]` line is here for the reason §7 explains: the reveal cascade hides
 gate siblings with the `hidden` attribute, and the existing shared print block's
@@ -594,11 +647,22 @@ needed.
   `window.libliInitBeforeAfter` is bound to **`initAll`**, the per-instance one.
 
   This matters at a live call site: `editor.js` re-inits with a `preview` root on a page
-  that has **no prepaint script, no `ba-armed` and no `ba-js` at all**. If the exported
-  function also mutated `<html>` or set the boot flag, it would either throw on absent
-  classes or run "once-only" work on every fragment swap.
-* **Idempotence** — `container.dataset.baReady === "1"` guard; the editor preview pane is
-  rebuilt on every fragment swap and re-runs init over the whole pane (`tabs.js:66-68`).
+  that has **no prepaint script and no `ba-armed`**. If the exported function also mutated
+  `<html>` or set the boot flag, it would either throw on absent classes or run
+  "once-only" work on every fragment swap.
+
+  **The editor page must still carry `ba-js`** — see §8. Without it the `html:not(.ba-js)`
+  rules of §5.3 are permanently in force in the editor: the preview's toggle would be
+  `display: none` and both side headings un-hidden, while `initAll` still sets `hidden` on
+  the "after" panel. The preview would show one labelled panel and no control — and the
+  "toggles after a fragment swap" e2e would be RED against an otherwise correct build.
+* **Idempotence** — set and read the guard through the **`dataset` property**
+  (`container.dataset.baReady = "1"`, tested as `container.dataset.baReady === "1"`), which
+  produces the attribute `data-ba-ready`. Do **not** `setAttribute("data-baReady", …)`:
+  attribute names lowercase to `data-baready`, which `dataset.baReady` would never read —
+  silently defeating the guard, so the editor preview re-wires the button on every
+  fragment swap. The editor pane is rebuilt on every swap and re-runs init over the whole
+  pane (`tabs.js:66-68`).
 * **Export** — `window.libliInitBeforeAfter(root)`, so the editor can re-run it after a
   swap, mirroring `libliInitTabs` / `libliInitGallery`. The export is inert without the
   **two editor seams** in §8: `libliInitTabs` works in the editor only because
@@ -619,6 +683,19 @@ needed.
 
 The element deliberately has **no** keyboard-navigation layer beyond the button being a
 button: one control, activated by Enter/Space natively.
+
+**No height reservation — the reflow is accepted.** The two slots will routinely differ in
+height, so toggling reflows whatever follows the element. The tabs *carousel* reserves
+height (`stage.style.minHeight`) because its slides are a fading stage; this is a plain
+swap, and reserving the taller side's height here would fight the design: the left rule is
+specified to hug its content exactly (§4), so a reserved box would leave a tall empty ruled
+box hanging under a short "before" side. It would also have to measure a panel that is
+`display: none` at first paint, which measures zero.
+
+The Purpose section's "without losing their position on the page" is satisfied by the
+**button being above the panels** — the control the student just pressed does not move
+under them. Content below the element does move; that is inherent to swapping content and
+is what the author is asking for.
 
 ### 7. `scopeOf` becomes a fifth scope
 
@@ -677,7 +754,14 @@ implementation error.
 
 * **`templates/courses/manage/editor/_edit_beforeafter.html`** — the open **form only**:
   the `button_label` input. Modelled on `_edit_callout.html`, which is likewise only form
-  fields.
+  fields. It must open with `<div class="el-editor el-editor--beforeafter">`, the wrapper
+  every `_edit_*.html` partial uses: `_host_form.html` includes them via
+  `{% include "courses/manage/editor/_edit_"|add:type_key|add:".html" %}`, and `.el-editor`
+  is a load-bearing grid item in `editor.css` — it is the container the
+  fieldset/`min-inline-size` scroll fix keys on, so a bare `<label>` would sit outside the
+  grid. Inside: the `name="button_label"` input with `maxlength="120"` and its
+  `{% for e in form.button_label.errors %}` row, mirroring `_edit_callout.html`'s heading
+  field.
 * **`templates/courses/manage/editor/_element_row.html`** — a new
   `beforeafterelement` branch carrying the **two stacked slot panels**, their headings
   (**Before / Przed**, **After / Po**), the child rows and the per-slot add controls.
@@ -705,13 +789,14 @@ Registration points:
 
 | File | Change |
 | --- | --- |
-| `courses/element_forms.py` | define `BeforeAfterElementForm` (one `button_label` field) **and** register it in the form-key → form-class dispatch dict at `:1964` (`"beforeafter": BeforeAfterElementForm`) — defining the class alone leaves the edit form unrendered |
+| `courses/element_forms.py` | define `BeforeAfterElementForm` (one `button_label` field) **and** register it in `FORM_FOR_TYPE` (defined at `:1954`): `"beforeafter": BeforeAfterElementForm` — defining the class alone leaves the edit form unrendered |
 | `courses/views_manage.py` | add `"beforeafter"` to the `element_add` allow-tuple (`~:1823`) **and** to the `element_save` allow-tuple (`~:1894`) — two separate edits; the tuples genuinely differ (`slidebreak` is in save but not add) |
 | `courses/views_manage.py` | add `"beforeafter": gettext_lazy("Before / after")` to `_EDITOR_TYPE_LABELS` (`:1621-1652`), which supplies the open-form heading — **form-key** keyed |
 | `courses/templatetags/courses_manage_extras.py` | add `"beforeafterelement": _("Before / after")` to `_ELEMENT_LABELS` (`:32-63`) — **content-type-model** keyed, a different namespace from the row above |
 | `courses/templatetags/courses_manage_extras.py` | add a branch to `element_summary` (`~:118`): `if name == "BeforeAfterElement": return el.button_label or _("Before / after")` |
 | `templates/courses/manage/editor/_add_menu.html` | the add card, in the **Content** group (`:27`) next to Callout/Tabs/Columns — **not** the Interactive group, which is wrapped in `{% if not unit_is_quiz %}` (`:41`) and would make the element unauthorable in quiz units, killing §5.4. Carries the **same depth guard** as those cards at `:37-39`: `{% if depth < max_nest_depth\|add:-1 %}` — without it the card is offered at depth 3 and every child add 400s |
 | `templates/courses/manage/editor/editor.html` | include `<script src="{% static 'courses/js/beforeafter.js' %}" defer></script>` beside the `tabs.js` include at `:170` — the preview pane renders the *student* template, so without it the preview button is dead |
+| `templates/courses/manage/editor/editor.html` | **a new `{% block prepaint %}` setting `ba-js` only** — never `ba-armed`. `editor.html` currently defines no such block and `base.html:43` renders an empty one, so overriding it is safe. Unconditional (the editor cannot know which element types a unit holds without a query, and one class costs nothing). Without it the §5.3 no-JS rules fire in the preview: hidden toggle, un-hidden headings — see §6 |
 | `courses/static/courses/js/editor.js` | call `if (preview && window.libliInitBeforeAfter) window.libliInitBeforeAfter(preview);` beside the `libliInitTabs` call at `:105`, re-enhancing after each fragment swap |
 | `templates/courses/manage/_icon_sprite.html` | `el-beforeafter` symbol |
 | `core/help.py` | add `"beforeafter"` to `ELEMENT_ICON_SLUGS` (`:40`) — the sprite id minus the `el-` prefix; `test_element_icon_slugs_match_sprite` goes red if the symbol lands without it |
@@ -719,11 +804,34 @@ Registration points:
 | `docs/help/course-admin/content-editors.md` | a new `{el:beforeafter}` paragraph in the Content section, **plus** three enumerations this feature falsifies: `:146` "Tabs, Columns, Spoiler, and Callout are the four container types", `:155` the nested add-menu list, `:163` the quiz-specific list. Adding the sprite slug to `ELEMENT_ICON_SLUGS` without the doc entry leaves the icon token defined and unused |
 | `docs/help/course-admin/content-editors.pl.md` | the Polish twin of the above |
 
+**The branch reproduces the sibling row scaffolding first.** The container-specific part is
+only the tail. Before it, the branch must emit exactly what the callout branch at `:199`
+does:
+
+* `<li class="el-row el-row--beforeafter{% if open_form_pk == el.pk|stringformat:'s' %} el-row--editing{% endif %}{% if clip_element_pk == el.pk|stringformat:'s' %} el-row--marked{% endif %}"` with `data-element`, `data-updated`, `data-unit`;
+* the `el-row__head` block: the drag grip, `el-act-edit` carrying `data-form-url`,
+  `el-act-cancel`, the `_element_row_controls.html` include, and `el-row__label` rendering
+  `{{ obj|element_summary }}`;
+* **`<div class="el-edit-slot" data-edit-slot>{% if open_form_pk == el.pk|stringformat:'s' %}{{ open_form|safe }}{% endif %}</div>`** — this div is the *only* place
+  `_render_open_form`'s rendered form lands. Omit it and `_edit_beforeafter.html` can be
+  written, `FORM_FOR_TYPE` registered, and the author still never able to set
+  `button_label` — failing success criterion 1 with every other test green.
+
 **Editor row markup, named explicitly.** Every sibling branch is concrete
 (`el-row__columns` / `columns-rows` / `columns-rows__summary`, `el-row__spoiler`, each
 with an `{% empty %}` `<li class="empty-state">`). Use `el-row__ba` / `ba-rows` /
 `ba-rows__summary`, and give each slot an empty state ("No content yet" / "Brak treści"
 — two more translatable strings for §10).
+
+**The slots are plain always-open `<div>`s, not `<details>`.** The columns and tabs
+branches wrap each slot in a `<details>` whose open state is driven by
+`{% if el.pk|slot_key:column.id|in_set:open_slots %} open data-force-open{% elif clip_active %} open data-force-open{% elif forloop.first %} open{% endif %}`,
+because those containers can have up to 4–8 slots and collapsing is what keeps the tree
+readable. With exactly two fixed slots there is nothing to collapse, and the machinery
+(`open_slots`, `slot_key`, `in_set`, `clip_active`, `data-force-open`, and
+`builder.ancestor_slots`' guarantee that a newly added child is never born inside a
+collapsed `<details>`) is then unnecessary. Carry `data-ba-slot="{{ slot_id }}"` on each
+slot div as the e2e hook.
 
 These classes **must be disjoint from the student `.ba__panel` / `.ba__child` names**. If
 the editor reused `.ba__panel` and `editor.css` gave it a `display`, §4's
@@ -806,25 +914,38 @@ the only round-trip test checks children.
 
 * `_ser_before_after` returns `{"button_label": concrete.button_label}`.
 * `_val_before_after` does `_exact_keys(data, ["button_label"], _("before/after data"))`
-  — the third positional is a required translated label used in four distinct error
-  messages (`courses/transfer/schema.py:97`; `_val_callout` passes `_("callout data")`) —
-  plus
+  — the third positional is a required translated label, used in all three error messages
+  this helper raises (`courses/transfer/schema.py:97`; `_val_callout` passes
+  `_("callout data")`) — plus
   `check_str(data["button_label"], _("button label"), max_length=120)`, and returns
   `set()` (references no media). Mirrors `_val_callout`
   (`courses/transfer/payloads.py:206`). Note `check_str`'s **second positional is a
   translated field label** in all ~20 of its call sites (`:210`:
   `check_str(data["heading"], _("heading"), max_length=120)`); omitting it is a
   `TypeError`.
-* `_build_before_after` in `courses/transfer/importer.py` sets it.
+* `_build_before_after` in `courses/transfer/importer.py`, shaped exactly like
+  `_build_callout` (`:544-550`) — a **2-tuple** of `(concrete, created_files)`, built with
+  `_clean_save` rather than `.objects.create` so the validated `CharField` is checked:
+
+  ```python
+  def _build_before_after(data, assets):
+      return _clean_save(BeforeAfterElement(button_label=data["button_label"])), ()
+  ```
+
+  Returning a bare instance would break every import *and* every `duplicate_element` —
+  the same "defined but wrong" hazard as the dispatch dicts below.
 
 **Defining the three functions does nothing on its own — each must be registered in its
 dispatch dict**, exactly the hazard §8 calls out for `element_forms.py`:
 
-| Registry | Line | Entry |
+Line numbers below are the **dict definitions**, matching how every other reference in this
+spec cites a location:
+
+| Registry | Defined at | Entry |
 | --- | --- | --- |
-| `courses/transfer/export.py` `SERIALIZERS` | `:471` | `"before_after": (BeforeAfterElement, _ser_before_after)` |
-| `courses/transfer/payloads.py` `VALIDATORS` | `:906` | `"before_after": _val_before_after` |
-| `courses/transfer/importer.py` builders | `:827` | `"before_after": _build_before_after` |
+| `courses/transfer/export.py` `SERIALIZERS` | `:461` | `"before_after": (BeforeAfterElement, _ser_before_after)` |
+| `courses/transfer/payloads.py` `VALIDATORS` | `:896` | `"before_after": _val_before_after` |
+| `courses/transfer/importer.py` `BUILDERS` | `:817` | `"before_after": _build_before_after` |
 
 Without the `export.py` entry the element is not exportable at all, failing success
 criterion 4.
@@ -945,7 +1066,10 @@ resolves) keeps the deferred script pending, blocks `DOMContentLoaded`, and leav
 | CSS | the print un-hide of `.ba__side-heading` reverts **`clip`**, and also `position`/`width`/`height`/`overflow` | change `clip` to `clip-path` → RED (a no-op override leaving a 1×1 clipped box, i.e. an unlabelled printed page) |
 | CSS | the `html:not(.ba-js)` no-JS rule reverts the same five properties | replace the body with `display: block` → RED |
 | CSS | §5.5's print block sits in `courses.css`, or after `app.css:1014` | insert a second `@media print` above it in `app.css` → `test_reveal_scope_agreement::_print_block` extracts the wrong block → RED |
+| Editor | **authoring the label end-to-end**: POST `element_add` with `type=beforeafter`, assert 200 and that the response carries the `button_label` input (the `test_callout_authoring.py:23` pattern, which is how `_edit_callout.html`'s existence is proven); then POST `element_save` with a label and assert it renders in the student template *and* in `element_summary` | three separate mutants, each of which leaves the rest of the table green: drop the `FORM_FOR_TYPE` entry; drop `"beforeafter"` from the `element_add` allow-tuple; drop it from the `element_save` allow-tuple. Also RED if the row branch omits `el-edit-slot` |
 | Editor | pasting into each slot works | drop `{% paste_buttons %}` from a slot → RED |
+| Editor | the preview's toggle is **visible** (not just wired) | omit `editor.html`'s `ba-js` prepaint block → `html:not(.ba-js) .ba__toggle { display: none }` hides it; the "toggles after a swap" row cannot distinguish this from "not wired" |
+| Render seam | `BeforeAfterElement` is in `test_render_seam.py`'s `CONCRETES` | omit it → the list has no count assertion, so the seam ships unguarded |
 | Editor | the add card is in the Content group (authorable in a quiz unit) | move it inside `{% if not unit_is_quiz %}` → RED |
 | Editor | the preview pane's button toggles after a fragment swap | omit the `editor.js` re-init call → RED |
 | Model | `ELEMENT_MODELS` has 32 entries | the three count assertions go RED until updated together |
