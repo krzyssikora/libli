@@ -12,6 +12,10 @@ of truth for how the project is built and tested.
   separately; `uv sync` provisions it.
 - **PostgreSQL 16**, running locally on `:5432`. SQLite is not supported (the
   code uses Postgres-specific behaviour).
+- **Docker Desktop with Compose v2.17+** — needed only if you want the optional
+  tuned test database (see [`testing.md`](testing.md)). With an older Compose
+  that lacks `--wait`, substitute `docker compose ... up -d` followed by a
+  `pg_isready` poll.
 
 ## 1. Install dependencies
 
@@ -97,6 +101,9 @@ before the dashboard.
 ```bash
 uv run pytest                        # unit + integration; browser e2e excluded by default
 ```
+
+See [`testing.md`](testing.md) for which tests to run locally, and for the
+optional tuned test database that makes e2e runs substantially faster.
 
 Browser end-to-end tests are marked `e2e` and skipped by default (see
 `addopts = "-q -m 'not e2e'"` in `pyproject.toml`). To run them, install the

@@ -27,17 +27,20 @@ fails on formatting. Run **both**, or `uv run ruff check --fix . && uv run ruff 
 ## Testing
 
 - pytest via `pytest-django`; settings module is `config.settings.test` (pinned
-  in `pyproject.toml`). Run with `uv run pytest`.
-- Tests live in one top-level **`tests/`** package (not per-app), with
-  `tests/factories.py` for factory-boy factories and helpers.
+  in `pyproject.toml`) — see [`testing.md`](testing.md) for what to run.
+- Tests are split between one top-level **`tests/`** package and per-app
+  `tests/` packages (`courses/tests/`, `integrations/tests/`,
+  `notifications/tests/`, and others), with `tests/factories.py` for
+  factory-boy factories and helpers.
 - **Never hardcode passwords.** Use `tests.factories.TEST_PASSWORD`. GitGuardian
   flags new password literals in CI, and ruff's `S105/S106/S107` are only ignored
   under `tests/`. Role-logged-in test clients: `make_pa`, `make_ca`,
   `make_teacher`, `make_student` (each seeds roles and logs in).
 - **Browser e2e** tests are marked `e2e` and excluded by default
-  (`addopts = "-q -m 'not e2e'"`). Run them with `uv run playwright install
-  chromium` then `uv run pytest -m e2e`. e2e must drive the **real** UI gesture,
+  (`addopts = "-q -m 'not e2e'"`). e2e must drive the **real** UI gesture,
   not a `page.evaluate` shortcut — bypassing the gesture ships broken UX green.
+- The test database is disposable and runs with `fsync=off`. Never apply those
+  settings to the instance holding dev or mat-pp data.
 
 ## Internationalization
 
@@ -94,4 +97,5 @@ uv run python manage.py check                    # system checks clean
 ```
 
 Commit the migration in the same change as the model edit. Both checks are part
-of the definition of done, alongside the ruff and pytest commands above.
+of the definition of done, alongside the ruff checks above and the affected
+tests (see [`testing.md`](testing.md) for what to run).

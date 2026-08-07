@@ -1,0 +1,46 @@
+# Disposable Postgres for running the test suite fast.
+#
+# Durability is deliberately OFF and the data directory is a tmpfs: nothing on
+# this server survives a restart, which is correct for a database pytest drops
+# and recreates anyway. MEASURED: TRUNCATE of the suite's 89 tables costs
+# 2,881 ms on a normal server and 78.548 ms here -- ~37x. (Measured at Task 2
+# against a populated database: one e2e test's fixtures, 89 tables.)
+#
+# NEVER apply these settings to the instance holding dev or mat-pp data.
+# Port 55433 (not 5432) and the loopback binding are both deliberate.
+name: libli-test                     # so a forgotten `-p` still hits this project
+services:
+  test-db:
+    image: postgres:16
+    container_name: libli-test-db
+    shm_size: 256mb                  # default 64m surfaces as "could not resize
+                                     # shared memory segment" under 8 workers,
+                                     # which reads as a flaky test, not a config
+                                     # problem
+    ports:
+      - "127.0.0.1:55433:5432"        # loopback only: this server is trust-auth superuser
+    environment:
+      POSTGRES_USER: libli
+      POSTGRES_DB: libli
+      POSTGRES_HOST_AUTH_METHOD: trust
+    command:
+      - -c
+      - fsync=off
+      - -c
+      - synchronous_commit=off
+      - -c
+      - full_page_writes=off
+      - -c
+      - max_connections=200           # 8 xdist workers x pooled connections, with headroom
+    volumes:
+      # Long form, not the short `tmpfs:` key: only this syntax carries a size.
+      - type: tmpfs
+        target: /var/lib/postgresql/data
+        tmpfs:
+          size: 1073741824            # 1 GiB; a test database measures 12 MB, 8 workers ~96 MB
+          mode: 01777
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U libli"]
+      interval: 2s
+      timeout: 3s
+      retries: 15

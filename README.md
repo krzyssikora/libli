@@ -50,6 +50,7 @@ uv run python manage.py runserver
 | Get libli running locally, end to end | [`docs/development/setup.md`](docs/development/setup.md) |
 | Understand the apps, the content model, and the layout | [`docs/development/architecture.md`](docs/development/architecture.md) |
 | Know the code conventions (style, tests, i18n) | [`docs/development/conventions.md`](docs/development/conventions.md) |
+| Know what to run locally vs. in CI | [`docs/development/testing.md`](docs/development/testing.md) |
 | Learn the product as an admin / author / teacher | the in-app help at **`/help/`** (login required) |
 | See the original vision and roadmap | [`docs/planning/`](docs/planning/) · [`docs/roadmap.md`](docs/roadmap.md) |
 
@@ -61,5 +62,6 @@ uv run playwright install chromium
 uv run pytest -m e2e          # browser end-to-end tests
 ```
 
-See [`docs/development/conventions.md`](docs/development/conventions.md) for the
-full checks CI runs (ruff lint **and** format, migrations, e2e).
+See [`docs/development/testing.md`](docs/development/testing.md) for which
+tests to run locally versus in CI, and for the full checks CI runs (ruff lint
+**and** format, migrations, e2e).
