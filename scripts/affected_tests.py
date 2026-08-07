@@ -298,6 +298,13 @@ def classify(
     test_table_grid_algebra.py -- and each collects zero non-e2e tests. Routing
     them to BOTH is still correct: the surplus unit command simply selects
     nothing, which is exactly what the exit-5 caveat on that command covers.
+
+    Order matters and is deliberate: the NAME glob is checked before the marker
+    set, so a `test_e2e_*.py` file goes to e2e only and is never routed to both,
+    even though it certainly contains the marker. That is right by convention
+    here -- a `test_e2e_`-named file is e2e in its entirety -- and it is what
+    keeps the unit selection from filling up with files whose every test the
+    default `-m 'not e2e'` would deselect.
     """
     # Once, not per file -- the wrapper's implementation scans the whole corpus.
     marked = search(E2E_MARKER)
