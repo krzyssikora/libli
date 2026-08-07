@@ -539,3 +539,72 @@ class TestEmission:
         out = render_commands(result)
         assert "logo.png" in out
         assert "README.md" in out
+
+
+build_corpus = affected_tests.build_corpus
+make_corpus_search = affected_tests.make_search
+read_module_symbols = affected_tests.read_module_symbols
+
+
+class TestModuleSymbols:
+    def test_module_level_public_defs_and_classes_only(self, tmp_path):
+        (tmp_path / "m.py").write_text(
+            "import os\n"
+            "\n"
+            "PUBLIC_CONST = 1\n"
+            "\n"
+            "def public_fn():\n"
+            "    def inner_fn():\n"
+            "        pass\n"
+            "\n"
+            "def _private_fn():\n"
+            "    pass\n"
+            "\n"
+            "class PublicClass:\n"
+            "    def a_method(self):\n"
+            "        pass\n"
+            "\n"
+            "class _PrivateClass:\n"
+            "    pass\n",
+            encoding="utf-8",
+        )
+        symbols = read_module_symbols(tmp_path)("m.py")
+        assert symbols == {"public_fn", "PublicClass"}
+
+    def test_an_unparseable_module_yields_nothing_rather_than_raising(self, tmp_path):
+        (tmp_path / "bad.py").write_text("def (\n", encoding="utf-8")
+        assert read_module_symbols(tmp_path)("bad.py") == set()
+
+    def test_a_missing_module_yields_nothing(self, tmp_path):
+        # A DELETED source file is retained by normalize_name_status and reaches
+        # the module rule, but is no longer on disk.
+        assert read_module_symbols(tmp_path)("gone.py") == set()
+
+
+class TestSearch:
+    def test_matches_on_word_boundaries(self, tmp_path):
+        (tmp_path / "test_a.py").write_text(
+            "from courses import render\n", encoding="utf-8"
+        )
+        (tmp_path / "test_b.py").write_text("rendered = 1\n", encoding="utf-8")
+        search = make_corpus_search({"test_a.py", "test_b.py"}, tmp_path)
+        assert search("render") == {"test_a.py"}
+
+    def test_a_dotted_term_is_escaped_not_treated_as_regex(self, tmp_path):
+        (tmp_path / "test_a.py").write_text("pytest.mark.e2e\n", encoding="utf-8")
+        (tmp_path / "test_b.py").write_text("pytestXmarkYe2e\n", encoding="utf-8")
+        search = make_corpus_search({"test_a.py", "test_b.py"}, tmp_path)
+        assert search("pytest.mark.e2e") == {"test_a.py"}
+
+    def test_the_corpus_sentinel_returns_the_whole_corpus(self, tmp_path):
+        search = make_corpus_search({"test_a.py", "test_b.py"}, tmp_path)
+        assert search(affected_tests.CORPUS_SENTINEL) == {"test_a.py", "test_b.py"}
+
+    def test_a_returned_set_cannot_poison_the_cache(self, tmp_path):
+        # Results are memoized; handing callers the cached set itself would let
+        # one mutation corrupt every later query for that term.
+        (tmp_path / "test_a.py").write_text("render\n", encoding="utf-8")
+        search = make_corpus_search({"test_a.py"}, tmp_path)
+        first = search("render")
+        first.add("bogus.py")
+        assert search("render") == {"test_a.py"}

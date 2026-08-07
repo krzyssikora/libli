@@ -30,10 +30,16 @@ reaches the core through the `search` and `module_symbols` callables, so the
 rules are testable against literal stubs instead of a fixture repository.
 """
 
+import argparse
+import ast
 import fnmatch
+import re
+import subprocess
+import sys
 from collections.abc import Callable
 from dataclasses import dataclass
 from enum import StrEnum
+from pathlib import Path
 from pathlib import PurePosixPath
 
 # Mirrors `python_files` in pyproject.toml's [tool.pytest.ini_options]. pytest
@@ -370,3 +376,191 @@ def render_commands(result: Result) -> str:
         lines.append("unmapped (no rule matched -- check these by hand):")
         lines += [f"    {p}" for p in result.unmapped]
     return "\n".join(lines)
+
+
+def git_lines(args: list[str], cwd: Path) -> list[str]:
+    """Run a git command and return its stdout lines. Raises on failure."""
+    proc = subprocess.run(  # noqa: S603 -- fixed argv, no shell, no untrusted input
+        # -c core.quotepath=false: with git's default, a path containing
+        # non-ASCII bytes is emitted double-quoted and octal-escaped
+        # ("locale/pl/\305\233.po"), which matches no rule and would be
+        # reported as a mangled unmapped path.
+        ["git", "-c", "core.quotepath=false", *args],  # noqa: S607 -- git on PATH
+        cwd=cwd,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return proc.stdout.splitlines()
+
+
+def untracked_paths(cwd: Path) -> list[str]:
+    """Files git can see but does not track. --exclude-standard honours
+    .gitignore, which is what keeps .venv and the nested worktrees out."""
+    return [
+        p for p in git_lines(["ls-files", "--others", "--exclude-standard"], cwd) if p
+    ]
+
+
+def build_corpus(cwd: Path) -> set[str]:
+    """Every file pytest would collect as a test module -- tracked AND untracked.
+
+    `git ls-files`, never a filesystem walk: a walk descends into `.venv/` and
+    into any nested worktrees under `.claude/worktrees/`, both gitignored and
+    both skipped by pytest, and emits node IDs pointing outside this branch.
+
+    The untracked half is here for CLASSIFICATION, not just for the diff. A
+    brand-new `tests/test_thing.py` carrying a module-level `pytest.mark.e2e`
+    reaches the candidate list through `main`'s untracked union, but if it is
+    absent from the corpus then `search(E2E_MARKER)` cannot see it, `classify`
+    treats it as unmarked, and it goes to the unit selection alone -- where
+    `-m 'not e2e'` deselects every test in it. Selected nowhere, silently: the
+    exact failure the non-exclusive rule exists to prevent.
+    """
+    tracked = git_lines(["ls-files"], cwd)
+    return {p for p in [*tracked, *untracked_paths(cwd)] if is_test_file(p)}
+
+
+def make_search(corpus: set[str], cwd: Path) -> Callable[[str], set[str]]:
+    """Build a word-boundary `search` over the corpus, reading each file once.
+
+    Memoized by term: the module rule issues one query per import path plus one
+    per public symbol, so a broad diff repeats terms across paths.
+    """
+    contents: dict[str, str] = {}
+    for rel in corpus:
+        try:
+            contents[rel] = (cwd / rel).read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            contents[rel] = ""
+    cache: dict[str, set[str]] = {}
+
+    def search(term: str) -> set[str]:
+        if term == CORPUS_SENTINEL:
+            return set(corpus)
+        if term not in cache:
+            # Word boundaries, and re.escape -- otherwise "pytest.mark.e2e" is a
+            # regex whose dots match any character.
+            pattern = re.compile(rf"\b{re.escape(term)}\b")
+            # The `term in t` pre-filter is the reason this is usable: a plain
+            # substring scan is far cheaper than a regex pass and rejects almost
+            # every file before the regex runs. It cannot change the result --
+            # \bTERM\b can only match where TERM occurs. MEASURED over the
+            # 647-file corpus, 18 terms: 2.26 s without it, 0.09 s with. 25x.
+            #
+            # re.escape is therefore belt-and-braces: the pre-filter already
+            # rejects any file lacking the literal term, so an unescaped `.`
+            # cannot match a stray character in practice. It stays because the
+            # pattern must not depend on that argument staying true if the
+            # pre-filter is ever removed.
+            cache[term] = {
+                rel for rel, t in contents.items() if term in t and pattern.search(t)
+            }
+        return set(cache[term])  # a copy: callers must not mutate the cache
+
+    return search
+
+
+def read_module_symbols(cwd: Path) -> Callable[[str], set[str]]:
+    """Build a `module_symbols` that AST-parses a source path.
+
+    Module-level PUBLIC defs and classes only -- no methods, no private names.
+    Unbounded matching on common names (Element, render, save, index) would
+    select a large fraction of the corpus, indistinguishable from a full run.
+    """
+
+    def module_symbols(path: str) -> set[str]:
+        try:
+            tree = ast.parse((cwd / path).read_text(encoding="utf-8"))
+        except (OSError, SyntaxError, ValueError):
+            # A DELETED source file is retained by normalize_name_status and
+            # reaches this rule while no longer being on disk. Degrade to the
+            # import-path term rather than crashing the whole run.
+            return set()
+        wanted = (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
+        return {
+            node.name
+            for node in tree.body  # tree.body, NOT ast.walk: module level only
+            if isinstance(node, wanted) and not node.name.startswith("_")
+        }
+
+    return module_symbols
+
+
+def _die(message: str) -> None:
+    raise SystemExit(f"affected_tests: {message}")
+
+
+def resolve_base(base: str, cwd: Path) -> str:
+    """Resolve the merge base with `base`. Every failure is loud.
+
+    `origin/master`, not local `master`, which is routinely stale in a worktree.
+    """
+    try:
+        git_lines(["rev-parse", "--verify", f"{base}^{{commit}}"], cwd)
+    except subprocess.CalledProcessError:
+        _die(
+            f"base ref {base!r} does not exist.\n"
+            f"  Try `git fetch origin`, or pass --base <ref>.\n"
+            f"  Refusing to continue: an unresolvable base yields an empty diff, "
+            f"which would look like 'nothing changed'."
+        )
+    try:
+        merge_base = git_lines(["merge-base", base, "HEAD"], cwd)
+    except subprocess.CalledProcessError:
+        merge_base = []
+    if not merge_base or not merge_base[0].strip():
+        _die(f"no merge base between {base!r} and HEAD (unrelated histories?)")
+    return merge_base[0].strip()
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        description="Suggest the pytest commands worth running for the current diff.",
+        epilog="Advisory only. CI's full suite remains the gate.",
+    )
+    parser.add_argument(
+        "--base",
+        default="origin/master",
+        help="base ref to diff against (default: origin/master)",
+    )
+    parser.add_argument(
+        "--repo",
+        type=Path,
+        default=None,
+        help="repository root (default: the git root containing the cwd)",
+    )
+    args = parser.parse_args(argv)
+
+    cwd = args.repo
+    if cwd is None:
+        try:
+            cwd = Path(git_lines(["rev-parse", "--show-toplevel"], Path.cwd())[0])
+        except (subprocess.CalledProcessError, IndexError):
+            _die("not inside a git repository; pass --repo <path>")
+
+    base = resolve_base(args.base, cwd)
+    changed = normalize_name_status(git_lines(["diff", "--name-status", base], cwd))
+    # Untracked files are invisible to `git diff` (VERIFIED), and a brand-new
+    # test or source file that has not been `git add`-ed yet is the single most
+    # common iterating state. Reporting "nothing to run" for it would be exactly
+    # the silent omission this tool refuses everywhere else, so they are folded
+    # in as additions. --exclude-standard honours .gitignore, which is what keeps
+    # .venv and the nested worktrees out.
+    for path in untracked_paths(cwd):
+        if path not in changed:
+            changed.append(path)
+    if not changed:
+        print(f"no changes against {args.base} ({base[:8]}); nothing to run")
+        return 0
+
+    corpus = build_corpus(cwd)
+    result = map_paths(changed, make_search(corpus, cwd), read_module_symbols(cwd))
+    print(f"{len(changed)} changed path(s) against {args.base} ({base[:8]})")
+    print()
+    print(render_commands(result))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
