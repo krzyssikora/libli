@@ -182,7 +182,12 @@ def map_paths(
             unmapped.append(path)
 
     ordered = sorted(set(candidates))
-    return Result(tuple(ordered), (), tuple(unmapped), Reason.NONE, Reason.NONE)
+    unit, e2e = classify(ordered, search)
+
+    unit_reason = Reason.CAPPED if len(unit) > UNIT_CAP else Reason.NONE
+    e2e_reason = Reason.CAPPED if len(e2e) > E2E_CAP else Reason.NONE
+
+    return Result(tuple(unit), tuple(e2e), tuple(unmapped), unit_reason, e2e_reason)
 
 
 # A `search` implementation or stub returns the ENTIRE corpus for this sentinel.
@@ -242,3 +247,49 @@ def map_one(
     # Binary and unknown suffixes map to nothing and are reported as unmapped by
     # the caller -- never silently dropped.
     return set()
+
+
+# The trailing underscore is REQUIRED. MEASURED: integrations/tests/test_e2e.py
+# carries no e2e marker (its pytestmark is django_db) and collects nothing under
+# `-m e2e`; a looser `test_e2e*.py` would call it e2e-only and strand its unit
+# tests.
+E2E_NAME_GLOB = "test_e2e_*.py"
+E2E_MARKER = "pytest.mark.e2e"
+
+# Per selection, and independent: a joint cap would be dominated by the unit
+# side. 40 of ~549 unit test files; 15 of 97 e2e ones.
+UNIT_CAP = 40
+E2E_CAP = 15
+
+
+def classify(
+    candidates: list[str], search: Callable[[str], set[str]]
+) -> tuple[list[str], list[str]]:
+    """Split candidates into (unit, e2e). NON-exclusive: a file may be in both.
+
+    Only two tests, both expressible through `search()`, because distinguishing a
+    module-level `pytestmark` from per-function decorators is not implementable
+    under the purity constraint: a substring search cannot tell them apart, and
+    `search("pytestmark = pytest.mark.e2e")` misses the list form this repo uses
+    (`pytestmark = [pytest.mark.e2e, pytest.mark.django_db(transaction=True)]`).
+
+    The distinction is also unnecessary. MEASURED: three files carry a
+    module-level `pytestmark = pytest.mark.e2e` while NOT being named
+    `test_e2e_*` -- tests/test_link_apply.py, test_link_dialog_behaviour.py and
+    test_table_grid_algebra.py -- and each collects zero non-e2e tests. Routing
+    them to BOTH is still correct: the surplus unit command simply selects
+    nothing, which is exactly what the exit-5 caveat on that command covers.
+    """
+    # Once, not per file -- the wrapper's implementation scans the whole corpus.
+    marked = search(E2E_MARKER)
+    unit: list[str] = []
+    e2e: list[str] = []
+    for path in candidates:
+        if fnmatch.fnmatchcase(PurePosixPath(path).name, E2E_NAME_GLOB):
+            e2e.append(path)
+        elif path in marked:
+            unit.append(path)
+            e2e.append(path)
+        else:
+            unit.append(path)
+    return unit, e2e

@@ -319,3 +319,88 @@ class TestUnmappedReporting:
         result = map_paths(["courses/models.py"], search, no_symbols)
         assert result.unmapped == ()
         assert "tests/test_builder.py" in result.unit_files
+
+
+classify = affected_tests.classify
+
+
+class TestClassification:
+    def test_a_test_e2e_named_file_goes_to_e2e_only(self):
+        unit, e2e = classify(["tests/test_e2e_builder.py"], no_hits)
+        assert unit == []
+        assert e2e == ["tests/test_e2e_builder.py"]
+
+    def test_an_unmarked_file_goes_to_unit_only(self):
+        unit, e2e = classify(["tests/test_builder.py"], no_hits)
+        assert unit == ["tests/test_builder.py"]
+        assert e2e == []
+
+    def test_a_marked_file_not_named_test_e2e_goes_to_BOTH(self):
+        # MEASURED: tests/test_tabs_editor_dnd.py collects 10 non-e2e tests and 2
+        # e2e ones. An "iff" rule puts it solely in the `-m e2e` command, which
+        # deselects the 10 -- selected nowhere, silently.
+        def search(term):
+            if term == affected_tests.E2E_MARKER:
+                return {"tests/test_tabs_editor_dnd.py"}
+            return set()
+
+        unit, e2e = classify(["tests/test_tabs_editor_dnd.py"], search)
+        assert unit == ["tests/test_tabs_editor_dnd.py"]
+        assert e2e == ["tests/test_tabs_editor_dnd.py"]
+
+    def test_the_trailing_underscore_in_the_name_glob_is_required(self):
+        # integrations/tests/test_e2e.py carries NO e2e marker (its pytestmark is
+        # django_db) and collects nothing under `-m e2e`. A looser `test_e2e*.py`
+        # would misclassify it as e2e-only and strand its unit tests.
+        unit, e2e = classify(["integrations/tests/test_e2e.py"], no_hits)
+        assert unit == ["integrations/tests/test_e2e.py"]
+        assert e2e == []
+
+    def test_the_marker_search_happens_once_not_per_file(self):
+        calls = []
+
+        def counting_search(term):
+            calls.append(term)
+            return set()
+
+        classify([f"tests/test_{i}.py" for i in range(20)], counting_search)
+        assert calls.count(affected_tests.E2E_MARKER) == 1
+
+
+class TestBreadthCaps:
+    def test_unit_over_the_cap_sets_capped(self):
+        files = [f"tests/test_m{i:03d}.py" for i in range(affected_tests.UNIT_CAP + 1)]
+        search = make_search({"courses.models": set(files)})
+        result = map_paths(["courses/models.py"], search, no_symbols)
+        assert result.unit_reason is Reason.CAPPED
+
+    def test_unit_at_the_cap_is_not_capped(self):
+        files = [f"tests/test_m{i:03d}.py" for i in range(affected_tests.UNIT_CAP)]
+        search = make_search({"courses.models": set(files)})
+        result = map_paths(["courses/models.py"], search, no_symbols)
+        assert result.unit_reason is Reason.NONE
+
+    def test_e2e_at_and_over_the_cap(self):
+        at = [f"tests/test_e2e_m{i:03d}.py" for i in range(affected_tests.E2E_CAP)]
+        over = at + ["tests/test_e2e_extra.py"]
+        at_result = map_paths(
+            ["courses/models.py"], make_search({"courses.models": set(at)}), no_symbols
+        )
+        over_result = map_paths(
+            ["courses/models.py"],
+            make_search({"courses.models": set(over)}),
+            no_symbols,
+        )
+        assert at_result.e2e_reason is Reason.NONE
+        assert over_result.e2e_reason is Reason.CAPPED
+
+    def test_the_caps_are_independent(self):
+        # "unit capped, e2e fine" must be representable -- which is why there are
+        # two reason fields and not one.
+        files = {f"tests/test_m{i:03d}.py" for i in range(affected_tests.UNIT_CAP + 1)}
+        files |= {"tests/test_e2e_one.py"}
+        search = make_search({"courses.models": files})
+        result = map_paths(["courses/models.py"], search, no_symbols)
+        assert result.unit_reason is Reason.CAPPED
+        assert result.e2e_reason is Reason.NONE
+        assert result.e2e_files == ("tests/test_e2e_one.py",)
