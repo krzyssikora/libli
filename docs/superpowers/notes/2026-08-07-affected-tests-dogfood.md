@@ -67,7 +67,10 @@ $ uv run pytest tests/test_affected_tests.py tests/test_auth_login.py tests/test
 ```
 Result: **exit 0**, all tests passed (no `F` in the output), wall clock **~52 s** —
 well under the 2-minute budget. The test DB container (`libli-test-db`) was already up
-and healthy; no start-up was needed.
+and healthy; no start-up was needed. Caveat: the pytest summary line (`N passed in
+Xs`) was lost from the captured log to a Windows/Git-Bash stdout-redirection artifact,
+so the exact passed-test count for this run was not independently recorded — the
+evidence retained is exit 0 and unbroken dot-progress output with no `F`.
 
 Both emitted commands pasted into the shell without a syntax error, so no
 `render_commands` defect surfaced — no fix was required this run.
