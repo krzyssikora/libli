@@ -34,6 +34,7 @@ from courses.marking import MarkResult  # noqa: F401  (documents the return type
 from courses.marking import blank_matches
 from courses.marking import parse_number
 from courses.models import Attempt  # noqa: F401
+from courses.models import BeforeAfterElement
 from courses.models import CalloutElement
 from courses.models import ChoiceGridQuestionElement
 from courses.models import ChoiceQuestionElement
@@ -201,6 +202,8 @@ def _element_has_math(obj):
         return _spoiler_has_math(obj)
     if isinstance(obj, CalloutElement):
         return _callout_has_math(obj)
+    if isinstance(obj, BeforeAfterElement):
+        return _before_after_has_math(obj)
     if isinstance(obj, SwitchGridElement):
         return _switch_grid_has_math(obj)
     if isinstance(obj, StepperElement):
@@ -308,6 +311,25 @@ def _twocolumn_has_math(el):
     return any(
         _element_has_math(child.content_object)
         for child in join.children.prefetch_related("content_object")
+    )
+
+
+def _before_after_has_math(el):
+    """COLLECT + MUST RECURSE, mirrors _twocolumn_has_math. has_math consumes the
+    element list AFTER the render filter strips nested children, so it walks into
+    them here. The transient guard sits at the top because this element has no
+    text of its own to check first."""
+    from courses.models import BeforeAfterElement
+
+    if not isinstance(el, BeforeAfterElement):
+        return False
+    # No redundant `join_row() is None` guard: resolved_slots() already returns
+    # empty pairs for a transient join row, and calling join_row() here would
+    # issue the SAME query twice per element on every lesson render.
+    return any(
+        _element_has_math(child.content_object)
+        for _slot_id, children in el.resolved_slots()
+        for child in children
     )
 
 
