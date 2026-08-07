@@ -1007,7 +1007,7 @@ a.notif-menu__row:hover { background: var(--surface-sunken); }
 
 /* Reveal gate — button hide guards (author display must never beat [hidden]) */
 .reveal-gate[hidden] { display: none !important; }
-.lesson-block[hidden], .tabs__child[hidden] { display: none !important; }
+.lesson-block[hidden], .tabs__child[hidden], .ba__child[hidden] { display: none !important; }
 
 /* Pre-hide is emitted render-blocking in the lesson <head> (see lesson_unit.html);
    these rules support the reveal + print sides. */

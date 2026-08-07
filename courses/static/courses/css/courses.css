@@ -1934,6 +1934,29 @@ html:not(.ba-js) .ba__panel + .ba__panel,
 html:not(.ba-js) .ba__toggle,
 .ba--dead .ba__toggle { display: none; }
 
+/* Before / after — print
+   Print reveals both sides. `display: block !important`, NOT `revert`: revert
+   rolls back to the UA origin, which is exactly where [hidden] { display: none }
+   lives, so it cannot un-hide an element carrying the attribute.
+   The .ba__child line is here because the shared print block in app.css uses
+   `display: revert !important` and so cannot un-hide a cascade-hidden child --
+   that entry satisfies scope agreement, this one does the work.
+   The toggle is meaningless ink once both panels show (house precedent:
+   [data-reveal-gate] and .unit-strip__edit are both hidden in print). */
+@media print {
+  .ba__panel[hidden] { display: block !important; }
+  html.ba-armed .ba__panels > [data-ba-side="after"] { display: block !important; }
+  .ba__child[hidden] { display: block !important; }
+  .ba__toggle { display: none !important; }
+  .ba__side-heading {
+    position: static !important; width: auto !important; height: auto !important;
+    overflow: visible !important; clip: auto !important;
+    font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--text-secondary);
+  }
+  .ba__panel + .ba__panel { margin-top: var(--space-5); }
+}
+
 /* Step-by-step (inline reveal stepper) — student render */
 .stepper__prompt { color: var(--text-secondary); margin: 0 0 0.4rem; }
 .stepper__line { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.3rem 0.55rem; }
