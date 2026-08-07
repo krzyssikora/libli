@@ -38,19 +38,21 @@
   }
 
   // The nearest ancestor that defines a reveal cascade's boundary: a slide in
-  // a slideshow lesson, a tab panel inside a tabs element, a spoiler body, or
-  // a callout's children wrapper. The cascade never crosses out of this scope.
+  // a slideshow lesson, a tab panel inside a tabs element, a spoiler body, a
+  // callout's children wrapper, or a before/after panel. The cascade never
+  // crosses out of this scope.
   //
-  // `.spoiler__children` and `.callout__children` are listed AND `.spoiler` is
-  // kept: the scope must be the element whose DIRECT children are the
-  // `.spoiler__child` / `.callout__child` rows the cascade walks
-  // sibling-by-sibling. Since the rule-wrapper was introduced that is the wrapper,
-  // and closest() returns the NEAREST match, so it wins for every element-based
-  // spoiler or callout. `.spoiler` remains the fallback for a spoiler with no
-  // wrapper (the legacy body-only shape) -- dropping it would make scopeOf return
-  // null there and silently un-scope any gate that ever appears in one.
+  // `.spoiler__children`, `.callout__children`, and `.ba__panel` are listed
+  // AND `.spoiler` is kept: the scope must be the element whose DIRECT
+  // children are the `.spoiler__child` / `.callout__child` / `.ba__child`
+  // rows the cascade walks sibling-by-sibling. Since the rule-wrapper was
+  // introduced that is the wrapper, and closest() returns the NEAREST match,
+  // so it wins for every element-based spoiler or callout. `.spoiler` remains
+  // the fallback for a spoiler with no wrapper (the legacy body-only shape)
+  // -- dropping it would make scopeOf return null there and silently
+  // un-scope any gate that ever appears in one.
   function scopeOf(btn) {
-    return btn.closest("[data-tab-panel], .slide, .spoiler__children, .callout__children, .spoiler");
+    return btn.closest("[data-tab-panel], .slide, .spoiler__children, .callout__children, .ba__panel, .spoiler");
   }
 
   // The direct child of `scope` that contains `el` -- i.e. the wrapper node
@@ -65,12 +67,13 @@
   // Does this wrapper contain a reveal-gate button of its own? Mirrors the
   // pre-hide CSS selectors in lesson_unit.html exactly, since the JS cascade
   // and the CSS hide-guard must agree on where one gate's territory ends and
-  // the next gate's begins. Four scopes exist: a slide's `.lesson-block`
+  // the next gate's begins. Five scopes exist: a slide's `.lesson-block`
   // wraps its gate one level deeper (`.lesson-block__body`), while a tab
   // panel's `.tabs__child`, a spoiler's `.spoiler__child` (inside the
-  // `.spoiler__children` rule-wrapper scopeOf resolves to), and a callout's
-  // `.callout__child` (inside `.callout__children`) all wrap the gate
-  // directly -- so those three scopes share the same direct-child form.
+  // `.spoiler__children` rule-wrapper scopeOf resolves to), a callout's
+  // `.callout__child` (inside `.callout__children`), and a before/after
+  // panel's `.ba__child` (inside `.ba__panel`) all wrap the gate
+  // directly -- so those four scopes share the same direct-child form.
   function isGateWrapper(wrapper, scope) {
     if (!wrapper) return false;
     var sel = scope.matches(".slide")
