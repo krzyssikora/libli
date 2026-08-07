@@ -86,9 +86,64 @@ restart hazard.
 
 ## What runs where
 
-Run the affected tests locally; let CI run the full suite. CI does both
+Run the affected tests locally — `scripts/affected_tests.py` below works out
+which those are — and let CI run the full suite. CI does both
 selections plus lint in about **8m45s**, in three parallel jobs, and it does not
 consume your session.
 
 Do not run the full suite locally twice in one session. The exception is a
 deliberate before/after benchmark, which is a measurement, not a gate.
+
+## Which tests are affected
+
+```bash
+uv run python scripts/affected_tests.py            # vs origin/master
+uv run python scripts/affected_tests.py --base HEAD~3
+```
+
+It prints one command per selection, or explicitly says a selection mapped
+nothing. **It is advisory.** CI's full suite is the gate; the script only decides
+what is worth running while iterating.
+
+Read its output with three things in mind:
+
+- **`unmapped` is the interesting part.** Anything listed there matched no rule
+  — a binary asset, a new file type, something the tool does not understand.
+  Judge those by hand rather than assuming they are safe.
+- **A full run is a real answer — and it usually means "push".** Changing
+  `conftest.py`, `config/settings/`, `config/urls.py`, `pyproject.toml` or a
+  compiled `.mo` catalog can alter tests that never mention it, so the script
+  stops mapping and tells you to run everything. Same when a selection exceeds
+  its breadth cap: a list that long is no longer meaningfully narrower than the
+  suite.
+
+  **A CSS or JS edit can trigger this too, which surprises people.**
+  `templates/base.html` and the five assets it loads on every page —
+  `core/css/reset.css`, `tokens.css`, `app.css`, `core/js/ui.js`,
+  `scroll_affordance.js` — are in the same class, because a change to any of
+  them can alter a test that never mentions it. Per-page assets like
+  `courses/static/courses/css/courses.css` are not, and map normally.
+
+  This does **not** override the two rules above. A full-run answer normally
+  means commit and let CI's 8m45s be the gate — that is what the branch gate is
+  for. Run it locally only if you have not already spent your one full run this
+  session, and only when you need the answer before pushing.
+- **Exit code 5 means "nothing selected", not "green"** — for either command.
+  Some files hold only e2e tests, so a unit command built from them is entirely
+  deselected by the default `-m 'not e2e'`.
+
+### Justify the selection before a slice
+
+Before a multi-task slice, write down the files you will treat as the local gate
+and why each one can be affected — the format is
+`docs/superpowers/notes/2026-07-28-affected-tests-slice2.md`: a table of file,
+baseline exit code, test count, and the reason the slice can touch it.
+
+The point is the classification it lets you make later. Mark each file as either
+encoding behaviour the slice **changes** — where a red is expected migration —
+or behaviour it must **preserve**, where **a red is a REGRESSION, not
+migration**. Without that written down first, every red mid-slice becomes an
+argument with yourself about whether it was intended.
+
+Baseline the selection green before you start. A red you cannot attribute to a
+before-state is a red you will spend an hour on.
