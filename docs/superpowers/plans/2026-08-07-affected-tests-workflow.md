@@ -1679,9 +1679,11 @@ def run_git(cwd, *args):
         text=True,
     )
     if proc.returncode != 0:
-        # NOT check=True: capture_output swallows git's message, so a fixture
-        # failure (an old git without `init -b`, a global commit.template, a
-        # locked index) would surface as a bare CalledProcessError.
+        # NOT check=True. It would carry stderr on the exception just fine
+        # (VERIFIED) -- the reason is the SHAPE of the failure: a fixture
+        # problem (an old git without `init -b`, a global commit.template, a
+        # locked index) is not a test failing, and pytest.fail reports it as
+        # one clear line instead of a CalledProcessError traceback.
         pytest.fail(f"git {' '.join(args)} failed:\n{proc.stderr}")
 
 
