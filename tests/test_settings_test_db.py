@@ -151,3 +151,23 @@ def test_a_portless_dev_database_url_does_not_disable_the_guard():
         _resolve_databases("postgres://libli@localhost:5432/libli", dev_portless)
 
     assert "points at the same server" in str(exc.value)
+
+
+def test_the_override_sets_a_short_connect_timeout():
+    # Without this, a run against a stopped container sits silent for ~4m21s
+    # before erroring: psycopg's default connect_timeout is 130s and Django
+    # attempts two databases in sequence (the `postgres` maintenance DB, then
+    # the app DB). MEASURED at 261.71s. A developer reads that as a hung
+    # suite, not a stopped container.
+    resolved = _resolve_databases(TUNED, DEV)
+
+    assert resolved["default"]["OPTIONS"]["connect_timeout"] == 5
+
+
+def test_a_connect_timeout_in_the_url_is_not_overridden():
+    # If someone deliberately sets their own, respect it.
+    resolved = _resolve_databases(
+        "postgres://libli@127.0.0.1:55433/libli?connect_timeout=30", DEV
+    )
+
+    assert resolved["default"]["OPTIONS"]["connect_timeout"] == 30
