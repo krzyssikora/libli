@@ -49,6 +49,7 @@ Success criteria:
 | Persist the toggled state? | No — ephemeral, resets to "before" | No state route, no `ElementState` row, no endpoint. Matches Tabs. |
 | Editor layout | Two stacked panels, both always visible | The author is authoring a *pair*; hiding one half defeats the comparison. |
 | Rule extent | Around the content only; button above, outside the rule | The spoiler's shape, which the user asked to match. |
+| Visible "which side am I on?" indicator | **None ships** | The content *is* the signal — that is what a swap means — and an always-visible BEFORE/AFTER eyebrow would compete with the author's own material and restate what the reader can already see. Screen-reader users get `aria-pressed`, because for them the content is not glanceable. The headings therefore stay `.visually-hidden` except in the states where nothing else distinguishes the panels (no-JS, failed boot, print). |
 | Armed in quiz units? | **Yes** — unlike a reveal gate | A before/after has no grading interaction and no state, so arming it is safe; leaving it unarmed would permanently expose the answer side and break criterion 2. |
 | `button_label` content | Plain text, autoescaped | No math, no inline HTML, no sanitiser. `math.js`'s scope list (`courses/static/courses/js/math.js:31`) is deliberately **not** extended, so `\(…\)` in a label would ship raw — the field is documented as plain text for that reason. |
 | `FORMAT_VERSION` | **Not** bumped | See §11. |
@@ -170,7 +171,7 @@ names the drift test that enforces it. In practice a *nestable* container needs 
 | # | Seam | Change |
 | --- | --- | --- |
 | 1 | `builder.CONTAINER_TRANSFER_KEYS` | add `"before_after"` |
-| 2 | `builder._CONTAINER_REGISTRY` | `BeforeAfterElement: (lambda _data: {"slots": [{"id": sid} for sid in BeforeAfterElement.SLOT_IDS]}, "slots", "id", None)` |
+| 2 | `builder._CONTAINER_REGISTRY` | `BeforeAfterElement: (lambda _data: {"slots": [{"id": sid} for sid in BeforeAfterElement.SLOT_IDS]}, "slots", "id", None)` — needs `from courses.models import BeforeAfterElement` at module level in `courses/builder.py` (beside the existing `TabsElement` / `SpoilerElement` / `CalloutElement` / `TwoColumnElement` imports at `:10-15`), since the registry is evaluated at import and keys on the class itself |
 | 3 | `payloads._CONTAINER_SLOT_KEY` | `"before_after": frozenset(BeforeAfterElement.SLOT_IDS)` |
 | 4 | `builder.NESTABLE_TYPE_KEYS` | add `"before_after"` — lets it live inside Tabs/Spoiler/Callout/Two-column |
 | 5 | `builder._NESTABLE_FORM_KEY_ALIASES` | `"beforeafter": "before_after"` |
@@ -230,6 +231,17 @@ raise `NameError` at import. Move `from courses.models import SINGLE_SLOT_ID` an
 `courses.models` imports already exist at `:16-18`, so this introduces no import cycle),
 and delete the now-redundant local import in `validate_nesting`.
 
+**Two more comments go stale in the templates and tests this feature touches**, and by the
+same standard must be rewritten:
+
+* `templates/courses/manage/editor/_add_menu.html:12-16` — "The CONTAINER cards (Tabs,
+  Columns, Spoiler, Callout) are guarded by `depth < max_nest_depth|add:-1`…", falsified by
+  a fifth container card in the very file the change edits.
+* `tests/test_editor_depth.py:162-166` — `test_no_add_menu_inside_a_depth_4_element`'s
+  docstring says "`_element_row.html` includes `_add_menu.html` at four sites — tabs,
+  two-column, spoiler and callout". This element adds **two more include sites**, one per
+  slot.
+
 **A third comment goes stale in `courses/builder.py` itself.** The lines seam 4's new key
 joins read `# Containers, as of the depth-3 slice. Both are already in /
 # transfer.export.SERIALIZERS, so NESTABLE_TYPE_KEYS <= SERIALIZERS holds.` — "Both"
@@ -263,6 +275,27 @@ refactor: no other sentinel, module or call site is touched.
   concrete's `render()` accepts the state kwargs — "the exact class of break plan-review
   and code-review both caught on the mark-done build". It carries **no count assertion**,
   so omitting the entry ships green and leaves the new render seam unguarded.
+* `courses/tests/test_render_seam.py`'s **second** guard: `test_lesson_renders_200_with_each_concrete`
+  (`:181-187`) is parametrized over `CONCRETES` **and** `placement`
+  (`["top", "tabs", "twocolumn", "callout", "spoiler"]`). Add `"beforeafter"` to the
+  placement list. `CONCRETES` alone makes this element a *child* in five hosts but never a
+  *host* — leaving unexercised exactly the seam #214 made this file guard. The host-side
+  fixture must fill a slot with `tab_id = BEFORE_SLOT_ID`; a wrong id would be masked by
+  `resolved_slots()`' re-homing rule and the test would pass vacuously.
+* `tests/test_manage_editor_menu.py:62` asserts `body.count('data-add-type="') == 23`
+  (`23` → **24**), and the `# 11 content cards` comment at `:77` (→ 12). The fixture is a
+  **quiz** unit, so the Interactive group is absent and the count covers
+  Content + Questions + Structure only — which is precisely why a Content-group card moves
+  it. Another file with no visible relationship to this feature.
+* `tests/test_manage_editor_menu.py`'s `EL_ICON_MAP` (`:8`), the add-type-key → sprite-symbol
+  map that `test_add_menu_icons_are_svg` iterates (`:43`). **Unlike the count assertion,
+  this one does not go red** when a card is added without an entry — it silently stops
+  covering the new card, so a card pointing at a symbol the sprite never defines (a blank
+  icon in the menu) would ship green.
+* `tests/test_editor_depth.py`'s `CONTAINER_CARDS` tuple (`:83`) gains `"beforeafter"`.
+  This shared constant already drives five depth tests (top-level offer, depth-1, depth-2,
+  depth-3 hide, fetch-fragment); without the entry an implementer writes a redundant new
+  test while the existing matrix never exercises the new card.
 * `test_container_key_spaces_do_not_drift` and
   `test_container_keys_agree_by_key_not_by_count` should pass unchanged once all five
   seams land — they are the guard against a partial landing and **must not be relaxed**.
@@ -367,9 +400,13 @@ block:
   what you see" controls, and an author who has used one should recognise the other.
 * `.ba__toggle .ic` sized to the label's line-box so icon-only and icon+label buttons are
   the same height.
-* `.ba__toggle + .ba__panels { margin-top: var(--space-3); }` — on the *sibling*, not on
-  `.ba__panels` itself, so §4's "no vertical margin on the ruled box" constraint is
-  untouched.
+* `.ba__toggle { margin-bottom: var(--space-3); }` — the gap goes on **the toggle**, not
+  on `.ba__panels`. Two reasons. First, `.ba__toggle + .ba__panels { margin-top: … }`
+  would select `.ba__panels` (the adjacent-sibling combinator names the subject on its
+  *right*), directly contradicting the no-margin invariant above. Second, the two are not
+  equivalent even in effect: the toggle is an `inline-flex` box, so its `margin-bottom`
+  does not collapse and yields a fixed gap, whereas a `margin-top` on `.ba__panels` would
+  collapse with the first panel content's own `margin-top` and give `max()` of the two.
 
 #### The side headings when they are actually visible
 
@@ -644,7 +681,10 @@ needed.
   **per-instance work only**: set `hidden` on the "after" panel, wire the button, set
   `data-baReady`. The **document-level boot** — and only it — performs the `<html>` class
   mutation (`disarm`-style removal of `ba-armed`) and owns the `try`/`catch`.
-  `window.libliInitBeforeAfter` is bound to **`initAll`**, the per-instance one.
+  `window.libliInitBeforeAfter` is bound to **`initAll`** — the root-scoped *enhancer*, not
+  the document-level *boot*. (The contrast is boot-vs-enhancer, not root-vs-instance:
+  `editor.js` passes a `preview` **root**, so exporting `initOne` would break the editor
+  re-init.)
 
   This matters at a live call site: `editor.js` re-inits with a `preview` root on a page
   that has **no prepaint script and no `ba-armed`**. If the exported function also mutated
@@ -809,9 +849,18 @@ only the tail. Before it, the branch must emit exactly what the callout branch a
 does:
 
 * `<li class="el-row el-row--beforeafter{% if open_form_pk == el.pk|stringformat:'s' %} el-row--editing{% endif %}{% if clip_element_pk == el.pk|stringformat:'s' %} el-row--marked{% endif %}"` with `data-element`, `data-updated`, `data-unit`;
-* the `el-row__head` block: the drag grip, `el-act-edit` carrying `data-form-url`,
-  `el-act-cancel`, the `_element_row_controls.html` include, and `el-row__label` rendering
-  `{{ obj|element_summary }}`;
+* `<div class="el-row__head">` containing the drag grip (`iconbtn ica--grip`) **and**
+  `<div class="el-row__body">` > `<div class="el-row__top">`, which holds:
+  * `<span class="el-tag">{% element_type_label el.content_type obj %}</span>` — **the only
+    consumer of the `_ELEMENT_LABELS` entry this section requires**
+    (`courses_manage_extras.py:76-83`). Omit the span and that entry has no consumer at
+    all, and the row ships with no type tag while every other row has one;
+  * `<span class="el-actions">` with `el-act-edit` (carrying `data-form-url`),
+    `el-act-cancel`, and the `_element_row_controls.html` include;
+* then, still inside `el-row__body`, the `el-row__label` button rendering
+  **`{% if el.title %}{{ el.title }}{% else %}{{ obj|element_summary }}{% endif %}`**
+  (`:217`). The `el.title` fallback is not optional: dropping it would make before/after
+  the only element type whose author-set `Element.title` is ignored in the editor tree;
 * **`<div class="el-edit-slot" data-edit-slot>{% if open_form_pk == el.pk|stringformat:'s' %}{{ open_form|safe }}{% endif %}</div>`** — this div is the *only* place
   `_render_open_form`'s rendered form lands. Omit it and `_edit_beforeafter.html` can be
   written, `FORM_FOR_TYPE` registered, and the author still never able to set
@@ -912,7 +961,11 @@ formats under one version.
 drop `button_label` on every export, import **and `duplicate_element`** — invisibly, if
 the only round-trip test checks children.
 
-* `_ser_before_after` returns `{"button_label": concrete.button_label}`.
+* `def _ser_before_after(concrete, media_ids): return {"button_label": concrete.button_label}`
+  — **two positionals**, as every serializer in `courses/transfer/export.py` takes
+  (`_ser_callout(concrete, media_ids)` at `:121`, with an inline reminder at `:133-135`
+  that "real serializers take (concrete, media_ids)"). A one-arg definition `TypeError`s on
+  the first export.
 * `_val_before_after` does `_exact_keys(data, ["button_label"], _("before/after data"))`
   — the third positional is a required translated label, used in all three error messages
   this helper raises (`courses/transfer/schema.py:97`; `_val_callout` passes
@@ -1070,6 +1123,10 @@ resolves) keeps the deferred script pending, blocks `DOMContentLoaded`, and leav
 | Editor | pasting into each slot works | drop `{% paste_buttons %}` from a slot → RED |
 | Editor | the preview's toggle is **visible** (not just wired) | omit `editor.html`'s `ba-js` prepaint block → `html:not(.ba-js) .ba__toggle { display: none }` hides it; the "toggles after a swap" row cannot distinguish this from "not wired" |
 | Render seam | `BeforeAfterElement` is in `test_render_seam.py`'s `CONCRETES` | omit it → the list has no count assertion, so the seam ships unguarded |
+| Render seam | `"beforeafter"` is in the `placement` matrix, i.e. every concrete renders *inside* a before/after | omit it → the element is only ever a child, never a host |
+| Editor | the row emits `el-tag` with `{% element_type_label %}` | drop the span → the `_ELEMENT_LABELS` entry has no consumer and the row ships untagged, silently |
+| Editor | `el.title` wins over `button_label` in the row label | drop the `{% if el.title %}` branch → an author-set title is ignored for this type only |
+| Editor | `EL_ICON_MAP` covers the new card | add the card + sprite symbol but omit the map entry → suite stays green with nothing guarding the pairing |
 | Editor | the add card is in the Content group (authorable in a quiz unit) | move it inside `{% if not unit_is_quiz %}` → RED |
 | Editor | the preview pane's button toggles after a fragment swap | omit the `editor.js` re-init call → RED |
 | Model | `ELEMENT_MODELS` has 32 entries | the three count assertions go RED until updated together |
