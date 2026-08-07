@@ -90,3 +90,58 @@ def test_a_port_less_url_is_rejected():
         _resolve_databases("postgres://libli@localhost/libli", DEV)
 
     assert "explicit port" in str(exc.value)
+
+
+# --- Fix round 1: a raw string compare only catches spellings someone thought
+# to list. Each of these was DRIVEN TO A LIVE CONNECTION against the real dev
+# Postgres by an adversarial review before `_same_server` moved to resolved
+# addresses -- MEASURED.
+
+
+def test_a_trailing_dot_host_alias_is_rejected():
+    # "localhost." (a syntactically legal absolute DNS name) resolves to the
+    # same addresses as "localhost", but a raw string compare treats it as a
+    # different host.
+    with pytest.raises(ImproperlyConfigured):
+        _resolve_databases("postgres://libli@localhost.:5432/libli", DEV)
+
+
+def test_a_sibling_loopback_address_is_rejected():
+    # The entire 127.0.0.0/8 block is loopback, not just 127.0.0.1 -- MEASURED
+    # by a live connection to 127.0.0.2 reaching the dev Postgres.
+    with pytest.raises(ImproperlyConfigured):
+        _resolve_databases("postgres://libli@127.0.0.2:5432/libli", DEV)
+
+
+def test_ipv6_loopback_written_out_long_form_is_rejected():
+    # "0:0:0:0:0:0:0:1" is ::1 written without zero-compression.
+    with pytest.raises(ImproperlyConfigured):
+        _resolve_databases("postgres://libli@[0:0:0:0:0:0:0:1]:5432/libli", DEV)
+
+
+def test_ipv6_loopback_fully_expanded_is_rejected():
+    # Same address, every hextet padded to four digits.
+    with pytest.raises(ImproperlyConfigured):
+        _resolve_databases(
+            "postgres://libli@[0000:0000:0000:0000:0000:0000:0000:0001]:5432/libli",
+            DEV,
+        )
+
+
+def test_the_unspecified_address_is_rejected():
+    # 0.0.0.0 ("any interface") lands on the local machine on many platforms
+    # when used as a connection target, not just as a bind address.
+    with pytest.raises(ImproperlyConfigured):
+        _resolve_databases("postgres://libli@0.0.0.0:5432/libli", DEV)
+
+
+def test_a_portless_dev_database_url_does_not_disable_the_guard():
+    # MEASURED: a socket-style/port-less DATABASE_URL (HOST="localhost",
+    # PORT="") used to compare '' against an explicit 5432 and never match,
+    # silently letting every dangerous TEST_DATABASE_URL through. Both sides
+    # of the port comparison must default to 5432.
+    dev_portless = {"HOST": "localhost", "PORT": "", "NAME": "libli"}
+    with pytest.raises(ImproperlyConfigured) as exc:
+        _resolve_databases("postgres://libli@localhost:5432/libli", dev_portless)
+
+    assert "points at the same server" in str(exc.value)
