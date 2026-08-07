@@ -58,7 +58,7 @@ render_commands(result: Result) -> str
 | Create `tests/test_affected_tests.py` | B3. Stub-based unit tests for the core; one fixture-repo integration test for the wrapper. |
 | Modify `docs/development/testing.md` | B1. Adds the affected-tests practice. Part A already shipped the branch-gate, never-twice, one-run-at-a-time and troubleshooting content, which must survive. |
 
-**Expected test totals after each task:** 10 → 34 → 49 → 58 → 67 → 74 → 81. Parametrized cases are counted expanded.
+**Expected test totals after each task:** 10 → 34 → 49 → 58 → 70 → 77 → 86. Parametrized cases are counted expanded.
 
 **Placement rule for every code addition:** unless a task says otherwise, **append at the end of the module**. Function bodies resolve names at call time, so order between `def`s never matters — but `_FULL_RUN_BECAUSE` (Task 5) is a module-level dict that dereferences `Reason` at import, so it must physically follow `class Reason`. Appending at the end always satisfies this; "append after `<the previous function>`" does not.
 
@@ -231,7 +231,12 @@ PYTHON_FILES_GLOB = "test_*.py"
 
 def is_test_file(path: str) -> bool:
     """Whether pytest would collect `path` as a test module."""
-    return fnmatch.fnmatch(PurePosixPath(path).name, PYTHON_FILES_GLOB)
+    # fnmatchcase, NOT fnmatch: fnmatch applies os.path.normcase, so it
+    # case-folds on Windows and does not on Linux. VERIFIED: "Test_Foo.py"
+    # matches "test_*.py" under fnmatch on Windows and not under fnmatchcase.
+    # All four predicates in this module are case-sensitive, like full_match,
+    # so a dev box and CI agree.
+    return fnmatch.fnmatchcase(PurePosixPath(path).name, PYTHON_FILES_GLOB)
 
 
 def normalize_name_status(lines: list[str]) -> list[str]:
@@ -507,7 +512,15 @@ def map_paths(
     search: Callable[[str], set[str]],
     module_symbols: Callable[[str], set[str]],
 ) -> Result:
-    """Map changed paths to candidate test files. Pure -- all I/O is injected."""
+    """Map changed paths to candidate test files. Pure -- all I/O is injected.
+
+    On the GLOBAL path `unmapped` is deliberately left empty rather than being
+    populated: reporting it would mean running every per-path rule anyway, and
+    the answer is already "run everything", which no per-path detail refines.
+    This is the one place the bias-toward-visibility rule is traded away, and
+    it is traded for the short-circuit that keeps a confidently-wrong list off
+    the screen.
+    """
     if any(is_global_path(p) for p in paths):
         return Result((), (), (), Reason.GLOBAL, Reason.GLOBAL)
     return Result((), (), (), Reason.NONE, Reason.NONE)
@@ -719,6 +732,9 @@ FILENAME_SUFFIXES = frozenset({".html", ".css", ".js"})
 def import_path(path: str) -> str:
     """`courses/services/builder.py` -> `courses.services.builder`."""
     p = PurePosixPath(path)
+    # A package __init__.py yields the bare package name (`courses`, `core`),
+    # which is a broad term: expect the breadth cap to absorb it and report a
+    # full run. That is the honest answer for a package-wide change, not a bug.
     p = p.parent if p.name == "__init__.py" else p.with_suffix("")
     return str(p).replace("/", ".")
 
@@ -957,7 +973,7 @@ def classify(
     unit: list[str] = []
     e2e: list[str] = []
     for path in candidates:
-        if fnmatch.fnmatch(PurePosixPath(path).name, E2E_NAME_GLOB):
+        if fnmatch.fnmatchcase(PurePosixPath(path).name, E2E_NAME_GLOB):
             e2e.append(path)
         elif path in marked:
             unit.append(path)
@@ -1066,6 +1082,41 @@ class TestEmission:
         out = render_commands(result)
         assert out.count(affected_tests.EXIT5_NOTE) == 2
 
+    def test_every_emitted_command_line_is_pasteable(self):
+        # VERIFIED: appending the caveat to the command line yields
+        # `bash: syntax error near unexpected token '('`. The one thing this
+        # tool exists to do is print a command you can paste.
+        result = Result(
+            ("tests/test_a.py",),
+            ("tests/test_e2e_b.py",),
+            (),
+            Reason.NONE,
+            Reason.NONE,
+        )
+        for line in render_commands(result).splitlines():
+            stripped = line.strip()
+            if stripped.startswith("uv run pytest"):
+                assert "(" not in stripped and ")" not in stripped
+
+    def test_the_caveat_is_a_comment_on_its_own_line(self):
+        result = Result(("tests/test_a.py",), (), (), Reason.NONE, Reason.NONE)
+        note_lines = [
+            ln.strip()
+            for ln in render_commands(result).splitlines()
+            if affected_tests.EXIT5_NOTE in ln
+        ]
+        assert note_lines == [affected_tests.EXIT5_NOTE]
+        assert note_lines[0].startswith("#")
+
+    def test_an_empty_selection_with_nothing_unmapped_points_at_nothing(self):
+        # A diff touching only e2e files leaves unit empty with an empty
+        # unmapped, so the message must not send the reader to a section that
+        # is never printed.
+        result = Result((), ("tests/test_e2e_b.py",), (), Reason.NONE, Reason.NONE)
+        out = render_commands(result)
+        assert "no unit tests mapped" in out
+        assert "see unmapped" not in out
+
     def test_an_empty_unit_selection_emits_no_command(self):
         # Interpolating an empty file list yields a bare `uv run pytest`, i.e.
         # the whole unit selection, silently, for a diff that mapped nothing.
@@ -1073,7 +1124,7 @@ class TestEmission:
             (), ("tests/test_e2e_b.py",), ("README.md",), Reason.NONE, Reason.NONE
         )
         out = render_commands(result)
-        assert "no unit tests mapped; see unmapped" in out
+        assert "no unit tests mapped" in out
         unit_lines = [
             ln
             for ln in out.splitlines()
@@ -1086,7 +1137,7 @@ class TestEmission:
             ("tests/test_a.py",), (), ("README.md",), Reason.NONE, Reason.NONE
         )
         out = render_commands(result)
-        assert "no e2e tests mapped; see unmapped" in out
+        assert "no e2e tests mapped" in out
         assert "-m e2e" not in out
 
     def test_a_wholly_empty_result_emits_no_pytest_command_at_all(self):
@@ -1146,7 +1197,13 @@ PYTEST = "uv run pytest"
 E2E_FLAG = " -m e2e"
 FULL_UNIT_COMMAND = PYTEST
 FULL_E2E_COMMAND = f"{PYTEST}{E2E_FLAG}"
-EXIT5_NOTE = '(exit code 5 means "nothing selected", not "green")'
+
+# A `#` comment on its OWN line, never appended to the command line. VERIFIED:
+# appending it inline produces `bash: syntax error near unexpected token '('`,
+# because `(` is a metacharacter in both bash and PowerShell -- so the one thing
+# this tool exists to do, print a command you can paste, would not work. As a
+# leading `#` line it survives a two-line paste in both shells.
+EXIT5_NOTE = '# exit code 5 means "nothing selected", not "green"'
 
 _FULL_RUN_BECAUSE = {
     Reason.GLOBAL: "a global blast-radius path changed",
@@ -1171,25 +1228,33 @@ def _render_one(
     and FULL_E2E_COMMAND stay the single source of truth for the full-run lines.
     """
     if reason in _FULL_RUN_BECAUSE:
-        lines = [
-            f"{label}: full run -- {_FULL_RUN_BECAUSE[reason]}",
-            f"    {full_command}    {EXIT5_NOTE}",
-        ]
+        lines = [f"{label}: full run -- {_FULL_RUN_BECAUSE[reason]}"]
         if files:
             preview = ", ".join(files[:3])
-            lines.append(f"    ({len(files)} candidate(s) not listed: {preview}, ...)")
+            lines.append(f"    # {len(files)} candidate(s) not listed: {preview}, ...")
+        lines.append(f"    {EXIT5_NOTE}")
+        lines.append(f"    {full_command}")
         return lines
     if not files:
-        return [f"{label}: no {label} tests mapped; see unmapped"]
+        # No "see unmapped" pointer here: the unmapped section is only printed
+        # when it is non-empty, and a diff touching only e2e files leaves this
+        # selection empty with nothing unmapped to point at.
+        return [f"{label}: no {label} tests mapped"]
     joined = " ".join(files)
     return [
         f"{label}: {len(files)} file(s)",
-        f"    {PYTEST} {joined}{suffix}    {EXIT5_NOTE}",
+        f"    {EXIT5_NOTE}",
+        f"    {PYTEST} {joined}{suffix}",
     ]
 
 
 def render_commands(result: Result) -> str:
-    """Render the advisory output. Pure."""
+    """Render the advisory output. Pure.
+
+    Every emitted command sits alone on its line, with the exit-5 caveat on the
+    preceding line as a `#` comment, so a two-line paste runs in bash and
+    PowerShell alike.
+    """
     lines: list[str] = []
     lines += _render_one(
         "unit", result.unit_files, result.unit_reason, FULL_UNIT_COMMAND, ""
@@ -1209,7 +1274,7 @@ def render_commands(result: Result) -> str:
 
 Run: `uv run pytest tests/test_affected_tests.py -v`
 
-Expected: PASS, **67** tests.
+Expected: PASS, **70** tests.
 
 - [ ] **Step 5: Falsify**
 
@@ -1354,7 +1419,11 @@ Append at the end of the module:
 def git_lines(args: list[str], cwd: Path) -> list[str]:
     """Run a git command and return its stdout lines. Raises on failure."""
     proc = subprocess.run(  # noqa: S603 -- fixed argv, no shell, no untrusted input
-        ["git", *args],  # noqa: S607 -- git on PATH, as everywhere else in this repo
+        # -c core.quotepath=false: with git's default, a path containing
+        # non-ASCII bytes is emitted double-quoted and octal-escaped
+        # ("locale/pl/\305\233.po"), which matches no rule and would be
+        # reported as a mangled unmapped path.
+        ["git", "-c", "core.quotepath=false", *args],  # noqa: S607 -- git on PATH
         cwd=cwd,
         capture_output=True,
         text=True,
@@ -1517,7 +1586,7 @@ if __name__ == "__main__":
 
 Run: `uv run pytest tests/test_affected_tests.py -v`
 
-Expected: PASS, **74** tests.
+Expected: PASS, **77** tests.
 
 - [ ] **Step 5: Falsify**
 
@@ -1576,13 +1645,17 @@ Then append:
 
 ```python
 def run_git(cwd, *args):
-    subprocess.run(  # noqa: S603 -- fixed argv, tmp_path fixture repo
+    proc = subprocess.run(  # noqa: S603 -- fixed argv, tmp_path fixture repo
         ["git", *args],  # noqa: S607
         cwd=cwd,
-        check=True,
         capture_output=True,
         text=True,
     )
+    if proc.returncode != 0:
+        # NOT check=True: capture_output swallows git's message, so a fixture
+        # failure (an old git without `init -b`, a global commit.template, a
+        # locked index) would surface as a bare CalledProcessError.
+        pytest.fail(f"git {' '.join(args)} failed:\n{proc.stderr}")
 
 
 @pytest.fixture
@@ -1663,6 +1736,57 @@ class TestWrapperIntegration:
         assert out.count(affected_tests.EXIT5_NOTE) == 2
         assert "test_phantom.py" not in out
 
+    def test_the_diff_is_taken_from_the_fork_point_not_the_base_tip(
+        self, fixture_repo, capsys
+    ):
+        # THE merge-base test. In every other scenario origin/master is an
+        # ancestor of HEAD, so merge-base(origin/master, HEAD) == origin/master
+        # and `return base` would pass everything -- leaving the stated
+        # "merge-base with origin/master" constraint entirely unfalsified.
+        #
+        # Here origin/master ADVANCES onto a commit that is not in HEAD's
+        # history. Diffing against its tip would report courses/on_master.py as
+        # a deleted path (it is absent from HEAD); diffing against the fork
+        # point correctly reports only what HEAD changed.
+        run_git(fixture_repo, "checkout", "-q", "-b", "topic")
+        (fixture_repo / "courses" / "models.py").write_text(
+            "class Widget:\n    pass\n\n\ndef on_topic():\n    pass\n",
+            encoding="utf-8",
+        )
+        run_git(fixture_repo, "add", "-A")
+        run_git(fixture_repo, "commit", "-q", "-m", "topic work")
+
+        run_git(fixture_repo, "checkout", "-q", "master")
+        (fixture_repo / "courses" / "on_master.py").write_text(
+            "def only_on_master():\n    pass\n", encoding="utf-8"
+        )
+        run_git(fixture_repo, "add", "-A")
+        run_git(fixture_repo, "commit", "-q", "-m", "master work")
+        run_git(fixture_repo, "update-ref", "refs/remotes/origin/master", "HEAD")
+        run_git(fixture_repo, "checkout", "-q", "topic")
+
+        assert affected_tests.main(["--repo", str(fixture_repo)]) == 0
+        out = capsys.readouterr().out
+
+        assert "on_master.py" not in out
+
+    def test_an_explicit_base_override_is_honoured(self, fixture_repo, capsys):
+        # The --base flag is a stated requirement, but only its FAILURE path was
+        # covered -- code that ignored args.base and always used origin/master
+        # would have gone unnoticed.
+        (fixture_repo / "courses" / "models.py").write_text(
+            "class Widget:\n    pass\n\n\ndef helper():\n    pass\n", encoding="utf-8"
+        )
+        run_git(fixture_repo, "add", "-A")
+        run_git(fixture_repo, "commit", "-q", "-m", "change")
+
+        assert affected_tests.main(["--repo", str(fixture_repo), "--base", "HEAD"]) == 0
+        out = capsys.readouterr().out
+
+        # Against HEAD itself there is no diff, so the default (origin/master,
+        # one commit back) and this must give different answers.
+        assert "nothing to run" in out
+
     def test_a_missing_base_ref_fails_loudly(self, fixture_repo):
         with pytest.raises(SystemExit) as excinfo:
             affected_tests.main(["--repo", str(fixture_repo), "--base", "origin/nope"])
@@ -1716,9 +1840,9 @@ class TestWrapperIntegration:
 
 - [ ] **Step 2: Run the tests — PASS is the expected outcome**
 
-Run: `uv run pytest tests/test_affected_tests.py -k "Corpus or WrapperIntegration" -v`
+Run: `uv run pytest tests/test_affected_tests.py -k "ExcludesIgnored or WrapperIntegration" -v`
 
-Expected: **PASS, 7 tests.** These are new tests over code that Tasks 1–6 already shipped, so there is no red phase to stage here — a failure means a real defect in Tasks 1–6, or a genuine environment difference (path separators, `git diff` against a merge base equal to HEAD). Step 5's falsification is what proves these tests guard something.
+Expected: **PASS, 9 tests.** These are new tests over code that Tasks 1–6 already shipped, so there is no red phase to stage here — a failure means a real defect in Tasks 1–6, or a genuine environment difference (path separators, `git diff` against a merge base equal to HEAD). Step 5's falsification is what proves these tests guard something.
 
 - [ ] **Step 3: Fix anything the integration surfaces**
 
@@ -1728,7 +1852,7 @@ No new production code is planned. If a test fails, diagnose and fix `scripts/af
 
 Run: `uv run pytest tests/test_affected_tests.py -v`
 
-Expected: PASS, **81** tests.
+Expected: PASS, **86** tests.
 
 - [ ] **Step 5: Falsify**
 
@@ -1924,20 +2048,32 @@ A 5 s budget was measured to straddle the real number before the `term in t` pre
 
 Memoization is *not* what makes this fast: within a single run every term is distinct, so the cache never hits. Over budget → record the number and open a follow-up; the next lever is a single combined-alternation pass per file instead of one pass per term. Do **not** implement it here.
 
-- [ ] **Step 4: Run the named test file**
+- [ ] **Step 4: Run the commands the tool actually emitted**
+
+Nothing else in this plan ever executes the tool's output — which is how the unpasteable-command bug survived until it was caught by inspection. Close the loop.
+
+Copy the emitted **unit** command verbatim (including its `#` caveat line) into the shell and run it. Then do the same for the emitted **e2e** command. Record both exit codes.
+
+Expected:
+- **unit** → exit **0** (the selection is real and should pass).
+- **e2e** → exit **5**. Step 2 predicts this — `tests/test_affected_tests.py` is routed to both selections by the marker search but collects no e2e tests. Exit 5 here is the prediction being confirmed, not a failure.
+
+A **syntax error from the shell** on either paste is a defect in `render_commands`, not a typo: fix it, and add a `render_commands` assertion that would have caught it.
+
+- [ ] **Step 5: Run the named test file**
 
 Run: `uv run pytest tests/test_affected_tests.py -v`
 
-Expected: PASS, **81** tests, exit 0. **Do not run the full suite** — this branch adds no application code, and CI is the gate.
+Expected: PASS, **86** tests, exit 0. **Do not run the full suite** — this branch adds no application code, and CI is the gate.
 
-- [ ] **Step 5: Lint the whole diff**
+- [ ] **Step 6: Lint the whole diff**
 
 ```bash
 uv run ruff check scripts/affected_tests.py tests/test_affected_tests.py
 uv run ruff format --check scripts/affected_tests.py tests/test_affected_tests.py
 ```
 
-- [ ] **Step 6: Record the measurements in a note, and commit**
+- [ ] **Step 7: Record the measurements in a note, and commit**
 
 The spec's §5.5 requires that **all measured numbers land in a note under `docs/superpowers/notes/`, dated and naming the commit measured** — a task report is ephemeral, so the dogfood numbers would otherwise be lost.
 
@@ -1946,10 +2082,10 @@ Create `docs/superpowers/notes/2026-08-07-affected-tests-dogfood.md` containing:
 - the commit SHA measured (`git rev-parse --short HEAD`) and the `--base` used;
 - the verbatim tool output from Step 1;
 - the unit and e2e file counts, and whether either selection was `CAPPED`;
-- the Step 3 timing against the 8 s budget;
+- the Step 3 timing against the 8 s budget, and the Step 4 exit codes for both emitted commands;
 - one line on whether the `main`-driven false positives showed up as predicted.
 
-If Steps 1–3 surfaced a defect, also fix it and add a test that would have caught it.
+If Steps 1–4 surfaced a defect, also fix it and add a test that would have caught it.
 
 ```bash
 git add docs/superpowers/notes/2026-08-07-affected-tests-dogfood.md
@@ -1991,7 +2127,7 @@ Tool output, selection sizes and wall clock on its own diff, per spec 5.5."
 
 **Lint consistency:** the exact import block is shown at each task that changes it (Tasks 1, 2, 6) and never contains an unused name (`F401`); `import subprocess` enters the test file through a header edit, not a mid-file insert (`E402`); `EXIT5_NOTE` uses single outer quotes so `ruff format --check` passes.
 
-**Test counts** are stated expanded (parametrized cases counted individually): 10 → 34 → 49 → 58 → 67 → 74 → 81. Per-task additions: 10, 24, 15, 9, 9, 7, 7.
+**Test counts** are stated expanded (parametrized cases counted individually): 10 → 34 → 49 → 58 → 70 → 77 → 86. Per-task additions: 10, 24, 15, 9, 12, 7, 9.
 
 **Placement:** every code addition says "append at the end of the module", which is the only ordering that is safe for `_FULL_RUN_BECAUSE` (a module-level dict dereferencing `Reason` at import).
 
