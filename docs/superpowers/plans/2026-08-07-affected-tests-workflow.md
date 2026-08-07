@@ -6,28 +6,30 @@
 
 **Architecture:** One module under `scripts/`, split internally into a **pure core** (`normalize_name_status`, `map_paths`, `render_commands`) that performs no I/O, and a **CLI wrapper** that owns every git and filesystem access and injects two callables (`search`, `module_symbols`) into the core. The purity boundary exists so the mapping rules are tested against literal stubs rather than a fixture repository; only the wrapper needs a real repo. Tests live at `tests/test_affected_tests.py` because `scripts/` sits outside every test directory and `pyproject.toml` sets no `testpaths`, so that path is what guarantees collection by the existing configuration.
 
+**The test module shadows `tests/conftest.py`'s autouse `_enable_db_access(db)` fixture.** That fixture gives every test in `tests/` a database, deliberately — but this module tests stdlib-only pure functions and needs none. VERIFIED by measurement: with the shadow, the file passes in **0.82 s** against a dead `TEST_DATABASE_URL`; without it, the same file **ERRORs after 12.08 s**. Leaving it unshadowed would make every "Expected: PASS" line below false on a machine with no container running, and would needlessly wrap pure-function tests in a transaction.
+
 **Tech Stack:** Python 3.13, stdlib only (`argparse`, `subprocess`, `fnmatch`, `re`, `ast`, `dataclasses`, `enum`, `pathlib.PurePosixPath`). pytest + pytest-django for the tests. No new dependencies.
 
 ## Global Constraints
 
-Every task's requirements implicitly include this section. Values are copied verbatim from the spec (`docs/superpowers/specs/2026-08-07-test-suite-wall-clock-design.md` §4) or measured against this working tree at `00f1e03b`.
+Every task's requirements implicitly include this section. Values are copied verbatim from the spec (`docs/superpowers/specs/2026-08-07-test-suite-wall-clock-design.md` §4) or measured against this tree at `00f1e03b`.
 
 - **The tool is advisory, never authoritative.** CI's full suite remains the gate. Bias every undecidable case toward visibility (report as `unmapped`), never toward silent omission.
-- **Corpus is built from `git ls-files`, never a filesystem walk.** MEASURED at `00f1e03b`: 3,197 files on disk match `test_*.py`; only **647** are tracked. The other 2,534 live in nested worktrees under `.claude/worktrees/`.
+- **Corpus is built from `git ls-files`, never a filesystem walk.** MEASURED in the main checkout: **647** tracked files match `test_*.py`, while a walk sees **3,197** — the difference is 16 under `.venv/` and 2,534 inside nested worktrees under `.claude/worktrees/`. The nested-worktree figure is **checkout-local** (a fresh worktree has none), so it must not ship as a fixed constant in source; `.venv/` alone justifies the rule everywhere.
 - **Unit/e2e classification is NON-exclusive.** A file may appear in both selections. `tests/test_tabs_editor_dnd.py` collects **10 non-e2e and 2 e2e** tests (measured); an "iff" rule strands the 10.
 - **An empty candidate list emits NO command** for that selection, and prints `no <unit|e2e> tests mapped; see unmapped`.
 - **The emitted e2e command always carries `-m e2e`.**
-- **Both emitted commands carry the note that exit code 5 means "nothing selected", not "green".** MEASURED: `tests/test_link_apply.py` (29), `test_link_dialog_behaviour.py` (32) and `test_table_grid_algebra.py` (38) collect **zero** non-e2e tests, so a diff touching only those yields a unit command that is entirely deselected.
+- **Both emitted commands carry the note that exit code 5 means "nothing selected", not "green".** MEASURED: `tests/test_link_apply.py` (29), `test_link_dialog_behaviour.py` (32) and `test_table_grid_algebra.py` (38) collect **zero** non-e2e tests. All three carry a **module-level** `pytestmark = pytest.mark.e2e` and are **not** named `test_e2e_*`, so they land in both selections and their unit command is entirely deselected.
 - **"A test file" means the basename matches `python_files` = `test_*.py`**, not "lives in a test directory". `tests/capture_help_screenshots.py` is deliberately not collectible.
 - **Breadth caps, per selection, independent:** unit **40**, e2e **15**.
 - **Diff range is merge-base with `origin/master`** (not local `master`, routinely stale in a worktree). `--base` overrides. A missing ref is a hard error, never a silent empty diff.
-- **ruff config applies to `scripts/`** — `select = ["E", "F", "I", "UP", "B", "S"]`, `isort.force-single-line = true`. `subprocess` calls need `# noqa: S603 -- <reason>`; the precedent is `tests/test_help_capture_isolation.py:19`.
-- **Comments explaining a non-obvious choice are prefixed `MEASURED:`** when they record an observation, matching `conftest.py` and `scripts/build_favicons.py`.
+- **ruff applies to `scripts/`** — `select = ["E", "F", "I", "UP", "B", "S"]`, `isort.force-single-line = true`, **line length 88** (no override). Consequences, all verified: `subprocess` calls need `# noqa: S603` (precedent `tests/test_help_capture_isolation.py:19`); no unused imports (`F401`), so each task adds only the imports it uses; no mid-file imports (`E402`); and `ruff format` rewrites `"...\"x\"..."` to `'..."x"...'`, so **write strings containing double quotes with single outer quotes**.
+- **Comments recording an observation are prefixed `MEASURED:`**, matching `conftest.py` and `scripts/build_favicons.py`.
 - **Never run the full suite to check this work.** Run the named test file only.
 
-### Deviation from the spec, already decided
+### Deviations from the spec, already decided
 
-- **`migration_models` is cut.** Migrations map to the fixed `tests/test_transfer*.py` glob only; the model-name half of the rule and its injected dependency are dropped. Rationale (measured): of the last 200 commits, exactly **one** touches a migration, and it touched `models.py` in the same commit, so the module rule already covered it.
+- **`migration_models` is cut.** Migrations map to the fixed `tests/test_transfer*.py` glob only. Rationale (measured): of the last 200 commits, exactly **one** touches a migration, and it touched `models.py` in the same commit, so the module rule already covered it.
 - **`module_symbols` is added in its place**, keeping arity at three. The spec's own justification for injecting `migration_models` ("absent from the corpus, and `paths: list[str]` carries no content") applies verbatim to the module rule's *"or its module-level public defs/classes"*: a changed source module is equally absent from the corpus. Without this seam the module rule is unimplementable under the stated purity constraint.
 
 ### Final interface
@@ -42,7 +44,9 @@ map_paths(
 render_commands(result: Result) -> str
 ```
 
-`search(term)` returns the corpus files containing `term` **on a word boundary**. `module_symbols(path)` returns the module-level public defs and classes of a Python source path (empty set if unreadable or unparseable).
+**`search` contract, used by every rule and every stub:** `search(term)` returns the corpus files containing `term` **on a word boundary**; `search(CORPUS_SENTINEL)` returns the entire corpus. The sentinel exists because the migration rule expands a glob over test-file *names*, which a content search cannot express — it keeps the injected dependencies at two rather than adding a fourth parameter for one rule.
+
+`module_symbols(path)` returns the module-level public defs and classes of a Python source path, or an empty set if the file is missing or unparseable.
 
 ---
 
@@ -52,7 +56,9 @@ render_commands(result: Result) -> str
 |---|---|
 | Create `scripts/affected_tests.py` | The whole tool. Pure core + CLI wrapper in one module, matching `scripts/build_favicons.py`'s single-file convention. |
 | Create `tests/test_affected_tests.py` | B3. Stub-based unit tests for the core; one fixture-repo integration test for the wrapper. |
-| Modify `docs/development/testing.md` | B1. Adds the affected-tests practice section. Part A already shipped the branch-gate, never-twice, one-run-at-a-time and troubleshooting content. |
+| Modify `docs/development/testing.md` | B1. Adds the affected-tests practice. Part A already shipped the branch-gate, never-twice, one-run-at-a-time and troubleshooting content, which must survive. |
+
+**Expected test totals after each task:** 10 → 34 → 48 → 57 → 66 → 73 → 78. Parametrized cases are counted expanded.
 
 ---
 
@@ -94,6 +100,16 @@ is_test_file = affected_tests.is_test_file
 normalize_name_status = affected_tests.normalize_name_status
 
 
+@pytest.fixture(autouse=True)
+def _enable_db_access():
+    """Shadow tests/conftest.py's autouse fixture, which gives every test a DB.
+
+    Everything here tests stdlib-only pure functions. MEASURED: with this shadow
+    the file passes in 0.82 s against a dead TEST_DATABASE_URL; without it the
+    same file ERRORs after 12.08 s waiting for a database it never uses.
+    """
+
+
 class TestIsTestFile:
     def test_matches_the_configured_python_files_pattern(self):
         assert is_test_file("tests/test_thing.py")
@@ -122,6 +138,9 @@ class TestNormalizeNameStatus:
         ]
 
     def test_copy_follows_to_the_new_path(self):
+        # Defensive: `git diff --name-status` emits C only under -C/--find-copies,
+        # which the wrapper does not pass. Kept so the branch is not undefined if
+        # the invocation ever gains that flag.
         assert normalize_name_status(["C075\tcourses/src.py\tcourses/copy.py"]) == [
             "courses/copy.py"
         ]
@@ -152,11 +171,18 @@ class TestNormalizeNameStatus:
 
 Run: `cd /c/Users/krzys/Documents/Python/own/libli/.claude/worktrees/affected-tests && uv run pytest tests/test_affected_tests.py -v`
 
-Expected: collection error — `FileNotFoundError` / `spec_from_file_location` returns None, because `scripts/affected_tests.py` does not exist.
+Expected: a collection error — `FileNotFoundError` raised by `_spec.loader.exec_module`, because `scripts/affected_tests.py` does not exist. (`spec_from_file_location` does not stat the path; it returns a valid spec backed by `SourceFileLoader`, so the error arrives at `exec_module`, not as a `None` spec.)
 
-- [ ] **Step 3: Create the module with the docstring and these two functions**
+- [ ] **Step 3: Create the module**
 
-Create `scripts/affected_tests.py`:
+Create `scripts/affected_tests.py`. The import block is exactly:
+
+```python
+import fnmatch
+from pathlib import PurePosixPath
+```
+
+Full file:
 
 ```python
 """Suggest the pytest commands worth running for a diff. Advisory, never authoritative.
@@ -170,12 +196,11 @@ decide is reported as unmapped rather than dropped.
 
 Three structural decisions, each measured, each wrong in an earlier draft:
 
-* The corpus comes from `git ls-files`, NEVER a filesystem walk. MEASURED: this
-  working tree holds 3,197 files matching `test_*.py`, of which only 647 are
-  real -- the other 2,534 live in nested git worktrees under `.claude/worktrees/`.
-  They are gitignored and pytest skips them via `norecursedirs`, but a walk sees
-  roughly five phantoms per real file and emits node IDs pointing into another
-  branch.
+* The corpus comes from `git ls-files`, NEVER a filesystem walk. A walk also
+  descends into `.venv/` and into any nested git worktrees under
+  `.claude/worktrees/`. Both are gitignored and pytest skips them, but a walk
+  emits node IDs pointing into a virtualenv or another branch. MEASURED in the
+  main checkout: 647 tracked test files against 3,197 seen by a walk.
 
 * Unit/e2e classification is NON-exclusive -- a file may be suggested in both
   commands. MEASURED: `tests/test_tabs_editor_dnd.py` collects 10 non-e2e tests
@@ -183,8 +208,8 @@ Three structural decisions, each measured, each wrong in an earlier draft:
   where the other 10 are deselected: selected nowhere, silently.
 
 * An empty candidate list emits NO command. Interpolating an empty file list
-  yields a bare `uv run pytest` -- the whole 5,133-test unit selection, silently,
-  for a diff that mapped nothing.
+  yields a bare `uv run pytest` -- the whole unit selection, silently, for a diff
+  that mapped nothing.
 
 Purity: `normalize_name_status`, `map_paths` and `render_commands` do no I/O.
 Everything touching git or the filesystem lives in the wrapper at the bottom and
@@ -197,7 +222,7 @@ from pathlib import PurePosixPath
 
 # Mirrors `python_files` in pyproject.toml's [tool.pytest.ini_options]. pytest
 # matches this against the BASENAME, which is the whole point of the predicate
-# below: "lives in tests/" is not the same rule and gets
+# below: "lives in tests/" is a different rule and gets
 # tests/capture_help_screenshots.py wrong.
 PYTHON_FILES_GLOB = "test_*.py"
 
@@ -245,16 +270,20 @@ def normalize_name_status(lines: list[str]) -> list[str]:
 
 Run: `uv run pytest tests/test_affected_tests.py -v`
 
-Expected: PASS, 10 tests.
+Expected: PASS, **10** tests.
 
-- [ ] **Step 5: Falsify the two load-bearing tests**
+- [ ] **Step 5: Falsify — one mutant per behaviour-defining test**
 
-Prove each guards something. Apply each mutant, confirm RED, revert.
+Apply each mutant, confirm the named test goes RED, revert.
 
 | Mutant | Must turn red |
 |---|---|
-| Change `if code == "D" and is_test_file(path)` to `if code == "D"` | `test_a_deleted_source_file_is_retained` |
-| Change `PYTHON_FILES_GLOB` to `"*.py"` | `test_a_test_named_helper_that_pytest_does_not_collect_is_not_a_test_file` |
+| `if code == "D" and is_test_file(path)` → `if code == "D"` | `test_a_deleted_source_file_is_retained` |
+| `if code == "D" and is_test_file(path)` → delete the branch | `test_a_deleted_test_file_is_dropped` |
+| `PYTHON_FILES_GLOB = "*.py"` | `test_a_test_named_helper_..._is_not_a_test_file` |
+| In the `R`/`C` branch, `path = parts[2]` → `path = parts[1]` | `test_rename_follows_to_the_new_path`, `test_copy_follows_to_the_new_path` |
+| Drop the `if path not in out` guard (append unconditionally) | `test_duplicates_collapse_preserving_first_order` |
+| Drop the `if len(parts) < 2: continue` guard | `test_blank_and_malformed_lines_are_ignored` |
 
 Run after each: `uv run pytest tests/test_affected_tests.py -q`
 
@@ -280,7 +309,7 @@ deleted source file's referencing tests must still be selected."
 
 **Interfaces:**
 - Consumes: `is_test_file` (Task 1).
-- Produces: `Reason` (StrEnum: `NONE`, `GLOBAL`, `CAPPED`); `Result` (frozen dataclass with `unit_files: tuple[str, ...]`, `e2e_files: tuple[str, ...]`, `unmapped: tuple[str, ...]`, `unit_reason: Reason`, `e2e_reason: Reason`); `is_global_path(path: str) -> bool`; `map_paths(paths, search, module_symbols) -> Result` handling only the global case so far.
+- Produces: `Reason` (StrEnum: `NONE`, `GLOBAL`, `CAPPED`); `Result` (frozen dataclass: `unit_files`, `e2e_files`, `unmapped` as `tuple[str, ...]`, plus `unit_reason`, `e2e_reason` as `Reason`); `is_global_path(path: str) -> bool`; `map_paths(paths, search, module_symbols) -> Result` handling only the global case so far.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -294,12 +323,12 @@ map_paths = affected_tests.map_paths
 
 
 def no_hits(term):
-    """A `search` stub that finds nothing."""
+    """A `search` stub finding nothing -- including an empty corpus."""
     return set()
 
 
 def no_symbols(path):
-    """A `module_symbols` stub that finds nothing."""
+    """A `module_symbols` stub finding nothing."""
     return set()
 
 
@@ -341,7 +370,8 @@ class TestIsGlobalPath:
 
     def test_star_does_not_cross_a_directory_separator(self):
         # `templates/_*.html` must not match a file nested under a `_`-prefixed
-        # directory. fnmatch's `*` crosses `/`; PurePosixPath.full_match does not.
+        # directory. VERIFIED: fnmatch's `*` crosses `/` and would match this;
+        # PurePosixPath.full_match does not.
         assert not is_global_path("templates/_partials/deep/thing.html")
 
 
@@ -368,9 +398,7 @@ class TestGlobalShortCircuit:
         assert result.e2e_files == ()
 
     def test_one_global_path_among_ordinary_ones_still_short_circuits(self):
-        result = map_paths(
-            ["courses/models.py", "config/urls.py"], no_hits, no_symbols
-        )
+        result = map_paths(["courses/models.py", "config/urls.py"], no_hits, no_symbols)
         assert result.unit_reason is Reason.GLOBAL
 
     def test_a_binary_catalog_is_global_not_unmapped(self):
@@ -390,15 +418,17 @@ Expected: `AttributeError: module 'affected_tests' has no attribute 'Reason'`.
 
 - [ ] **Step 3: Implement the global class and the short-circuit**
 
-Add to the imports at the top of `scripts/affected_tests.py`:
+The import block becomes exactly:
 
 ```python
+import fnmatch
 from collections.abc import Callable
 from dataclasses import dataclass
 from enum import StrEnum
+from pathlib import PurePosixPath
 ```
 
-Then append:
+Append after `normalize_name_status`:
 
 ```python
 # Paths whose change can alter the behaviour of tests that do not mention them.
@@ -485,7 +515,7 @@ def map_paths(
 
 Run: `uv run pytest tests/test_affected_tests.py -v`
 
-Expected: PASS, 31 tests.
+Expected: PASS, **34** tests.
 
 - [ ] **Step 5: Falsify**
 
@@ -494,11 +524,14 @@ Expected: PASS, 31 tests.
 | Delete the `if any(is_global_path(p) ...)` block | `test_a_global_path_sets_both_reasons_to_global`, `test_the_short_circuit_beats_the_module_rule` |
 | Swap `full_match` for `fnmatch.fnmatch` in `is_global_path` | `test_star_does_not_cross_a_directory_separator` |
 | Remove `"config/urls.py"` from `GLOBAL_PATHS` | `test_one_global_path_among_ordinary_ones_still_short_circuits` |
+| Remove the `locale/**/*.mo` glob | `test_a_binary_catalog_is_global_not_unmapped` |
+| Change `path in GLOBAL_PATHS` to a `PurePosixPath(path).name` comparison | `test_non_members[courses/tests/conftest.py]` |
 
 - [ ] **Step 6: Lint and commit**
 
 ```bash
 uv run ruff check scripts/affected_tests.py tests/test_affected_tests.py
+uv run ruff format --check scripts/affected_tests.py tests/test_affected_tests.py
 git add scripts/affected_tests.py tests/test_affected_tests.py
 git commit -m "feat(scripts): add global blast-radius class with short-circuit
 
@@ -516,7 +549,9 @@ and the module rule would emit a confidently-wrong list for them."
 
 **Interfaces:**
 - Consumes: `is_test_file`, `is_global_path`, `Reason`, `Result` (Tasks 1–2).
-- Produces: `import_path(path: str) -> str`; `map_one(path, search, module_symbols) -> set[str]`; constants `MIGRATION_GLOB = "**/migrations/*.py"`, `MIGRATION_TESTS_GLOB = "tests/test_transfer*.py"`, `FILENAME_SUFFIXES = frozenset({".html", ".css", ".js"})`. `map_paths` now populates `unmapped` and an internal candidate list.
+- Produces: `import_path(path: str) -> str`; `map_one(path, search, module_symbols) -> set[str]`; constants `CORPUS_SENTINEL`, `MIGRATION_GLOB = "**/migrations/*.py"`, `MIGRATION_TESTS_GLOB = "tests/test_transfer*.py"`, `FILENAME_SUFFIXES = frozenset({".html", ".css", ".js"})`. `map_paths` now populates `unmapped` and an internal candidate list.
+
+`map_one` takes exactly `(path, search, module_symbols)` — no corpus parameter. The migration rule reaches the corpus through `search(CORPUS_SENTINEL)`, per the contract fixed in Global Constraints.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -526,8 +561,7 @@ Append to `tests/test_affected_tests.py`:
 import_path = affected_tests.import_path
 map_one = affected_tests.map_one
 
-
-CORPUS = {
+FAKE_CORPUS = {
     "tests/test_transfer_export.py",
     "tests/test_transfer_import.py",
     "tests/test_builder.py",
@@ -536,12 +570,28 @@ CORPUS = {
 
 
 def make_search(index):
-    """Build a `search` stub from {term: {files}}."""
+    """Build a `search` stub from {term: {files}}, honouring the corpus sentinel."""
 
     def search(term):
+        if term == affected_tests.CORPUS_SENTINEL:
+            return set(index.get(term, FAKE_CORPUS))
         return set(index.get(term, set()))
 
     return search
+
+
+def corpus_only_search(term):
+    """Answers the corpus query; finds nothing by content."""
+    if term == affected_tests.CORPUS_SENTINEL:
+        return set(FAKE_CORPUS)
+    return set()
+
+
+def corpus_plus_everything_search(term):
+    """Answers the corpus query; claims every content term hits test_builder.py."""
+    if term == affected_tests.CORPUS_SENTINEL:
+        return set(FAKE_CORPUS)
+    return {"tests/test_builder.py"}
 
 
 class TestImportPath:
@@ -554,7 +604,7 @@ class TestImportPath:
 
 class TestMapOne:
     def test_a_test_file_maps_to_itself(self):
-        assert map_one("tests/test_builder.py", make_search({}), no_symbols) == {
+        assert map_one("tests/test_builder.py", corpus_only_search, no_symbols) == {
             "tests/test_builder.py"
         }
 
@@ -594,21 +644,36 @@ class TestMapOne:
     def test_a_migration_maps_to_the_fixed_transfer_glob(self):
         # Deliberately mechanical: "transfer and model tests" names no pattern,
         # so two implementers would produce two different selections.
-        search = make_search({affected_tests.MIGRATION_TESTS_GLOB: set(CORPUS)})
         hits = map_one(
-            "courses/migrations/0055_thing.py", make_search({}), no_symbols
+            "courses/migrations/0055_thing.py", corpus_only_search, no_symbols
         )
-        assert hits == {"tests/test_transfer_export.py", "tests/test_transfer_import.py"}
+        assert hits == {
+            "tests/test_transfer_export.py",
+            "tests/test_transfer_import.py",
+        }
 
     def test_a_migration_does_not_fall_through_to_the_module_rule(self):
-        # It is a .py file; ordering matters.
-        def search_everything(term):
-            return {"tests/test_builder.py"}
-
+        # It is a .py file; ordering matters. Even a search that claims every
+        # term hits test_builder.py must not pull it in.
         hits = map_one(
-            "courses/migrations/0055_thing.py", search_everything, no_symbols
+            "courses/migrations/0055_thing.py",
+            corpus_plus_everything_search,
+            no_symbols,
         )
         assert "tests/test_builder.py" not in hits
+
+    @pytest.mark.parametrize(
+        "path",
+        [
+            "courses/migrations_helpers/thing.py",  # near-miss directory name
+            "courses/migrations/sub/thing.py",  # `*` must not cross a separator
+        ],
+    )
+    def test_a_near_miss_path_is_not_treated_as_a_migration(self, path):
+        # Pins the NON-match side, so a later loosening to `**/migrations/**`
+        # cannot pass unnoticed.
+        search = make_search({import_path(path): {"tests/test_builder.py"}})
+        assert map_one(path, search, no_symbols) == {"tests/test_builder.py"}
 
     def test_a_binary_or_unknown_suffix_maps_to_nothing(self):
         assert map_one("core/static/core/img/logo.png", no_hits, no_symbols) == set()
@@ -627,8 +692,6 @@ class TestUnmappedReporting:
         assert "tests/test_builder.py" in result.unit_files
 ```
 
-Note `map_one` needs the corpus for the migration glob. Pass it through `search`: the wrapper's `search` is content-based, so the migration rule instead needs a **corpus filter**. Resolve this in Step 3 by giving `map_one` the corpus via a `search` call on a sentinel — no: implement `map_one` to take an explicit `corpus` argument, and `map_paths` to obtain it as `search(CORPUS_SENTINEL)`. Simpler and stated plainly below: **`map_one` takes `corpus: set[str]`**, and `map_paths` derives it from `search`. See Step 3 for the exact resolution.
-
 - [ ] **Step 2: Run the tests to verify they fail**
 
 Run: `uv run pytest tests/test_affected_tests.py -v`
@@ -637,16 +700,14 @@ Expected: `AttributeError: module 'affected_tests' has no attribute 'import_path
 
 - [ ] **Step 3: Implement the rules**
 
-The migration rule needs the corpus (to expand a glob over test files), which content-based `search` cannot supply. Rather than add a fourth callable, **`search` gains a documented contract**: `search(CORPUS)` — the module-level sentinel — returns the whole corpus. Stubs implement it in one line.
-
-Add to `scripts/affected_tests.py`:
+No new imports. Append after `is_global_path`:
 
 ```python
-# A `search` stub or implementation returns the ENTIRE corpus for this sentinel.
-# The migration rule expands a glob over test-file NAMES, which content-based
-# search cannot express; this keeps the injected dependencies at two rather than
-# adding a fourth parameter for one rule.
-CORPUS = "\x00corpus"
+# A `search` implementation or stub returns the ENTIRE corpus for this sentinel.
+# The migration rule expands a glob over test-file NAMES, which a content search
+# cannot express; this keeps the injected dependencies at two rather than adding
+# a fourth parameter for one rule. The value is not a plausible search term.
+CORPUS_SENTINEL = "\x00corpus"
 
 MIGRATION_GLOB = "**/migrations/*.py"
 MIGRATION_TESTS_GLOB = "tests/test_transfer*.py"
@@ -656,10 +717,7 @@ FILENAME_SUFFIXES = frozenset({".html", ".css", ".js"})
 def import_path(path: str) -> str:
     """`courses/services/builder.py` -> `courses.services.builder`."""
     p = PurePosixPath(path)
-    if p.name == "__init__.py":
-        p = p.parent
-    else:
-        p = p.with_suffix("")
+    p = p.parent if p.name == "__init__.py" else p.with_suffix("")
     return str(p).replace("/", ".")
 
 
@@ -679,7 +737,7 @@ def map_one(
     if candidate.full_match(MIGRATION_GLOB):
         return {
             f
-            for f in search(CORPUS)
+            for f in search(CORPUS_SENTINEL)
             if PurePosixPath(f).full_match(MIGRATION_TESTS_GLOB)
         }
 
@@ -688,9 +746,8 @@ def map_one(
         # common names (Element, render, save, index) would select a large
         # fraction of the corpus -- indistinguishable from the full suite, and a
         # silent failure.
-        terms = {import_path(path)} | module_symbols(path)
         hits: set[str] = set()
-        for term in terms:
+        for term in {import_path(path)} | module_symbols(path):
             hits |= search(term)
         return hits
 
@@ -702,7 +759,7 @@ def map_one(
     return set()
 ```
 
-Replace the body of `map_paths` after the global short-circuit with:
+Replace the body of `map_paths` **after** the global short-circuit — that is, replace the single line `return Result((), (), (), Reason.NONE, Reason.NONE)` with:
 
 ```python
     candidates: list[str] = []
@@ -718,51 +775,30 @@ Replace the body of `map_paths` after the global short-circuit with:
     return Result(tuple(ordered), (), tuple(unmapped), Reason.NONE, Reason.NONE)
 ```
 
-Update the test stubs — `no_hits` and `make_search` must honour the sentinel:
-
-```python
-def no_hits(term):
-    """A `search` stub that finds nothing (but still answers the corpus query)."""
-    return set()
-
-
-def make_search(index):
-    def search(term):
-        return set(index.get(term, set()))
-
-    return search
-```
-
-For the migration tests, the stub must return the corpus:
-
-```python
-def corpus_search(term):
-    if term == affected_tests.CORPUS:
-        return set(CORPUS)
-    return set()
-```
-
-and `test_a_migration_maps_to_the_fixed_transfer_glob` / `test_a_migration_does_not_fall_through_to_the_module_rule` use `corpus_search` (the latter wrapping it to also return `{"tests/test_builder.py"}` for any other term).
-
 - [ ] **Step 4: Run the tests to verify they pass**
 
 Run: `uv run pytest tests/test_affected_tests.py -v`
 
-Expected: PASS, 44 tests.
+Expected: PASS, **48** tests.
 
 - [ ] **Step 5: Falsify**
 
 | Mutant | Must turn red |
 |---|---|
 | Move the migration branch below the `.py` branch | `test_a_migration_does_not_fall_through_to_the_module_rule` |
-| Drop `| module_symbols(path)` from `terms` | `test_a_module_maps_to_tests_referencing_its_public_symbols` |
+| `MIGRATION_GLOB` → `"**/migrations/**"` | `test_a_near_miss_path_is_not_treated_as_a_migration[courses/migrations/sub/thing.py]` |
+| Drop `| module_symbols(path)` from the term set | `test_a_module_maps_to_tests_referencing_its_public_symbols` |
+| Drop `{import_path(path)}` from the term set | `test_a_module_maps_to_tests_referencing_its_import_path` |
+| Delete the `__init__.py` branch in `import_path` | `test_a_package_init_maps_to_the_package` |
+| Drop the `FILENAME_SUFFIXES` branch | `test_a_template_maps_to_tests_referencing_its_filename`, both `test_css_and_js_map_by_filename` cases |
 | Return `{path}` instead of `set()` in the final fallthrough | `test_a_binary_or_unknown_suffix_maps_to_nothing` |
-| Append to `candidates` instead of `unmapped` on an empty `hits` | `test_a_path_that_maps_to_nothing_is_reported_unmapped` |
+| Append to `candidates` instead of `unmapped` on empty `hits` | `test_a_path_that_maps_to_nothing_is_reported_unmapped` |
 
 - [ ] **Step 6: Lint and commit**
 
 ```bash
 uv run ruff check scripts/affected_tests.py tests/test_affected_tests.py
+uv run ruff format --check scripts/affected_tests.py tests/test_affected_tests.py
 git add scripts/affected_tests.py tests/test_affected_tests.py
 git commit -m "feat(scripts): add per-path mapping rules
 
@@ -801,7 +837,7 @@ class TestClassification:
         assert unit == ["tests/test_builder.py"]
         assert e2e == []
 
-    def test_a_per_function_marked_file_goes_to_BOTH(self):
+    def test_a_marked_file_not_named_test_e2e_goes_to_BOTH(self):
         # MEASURED: tests/test_tabs_editor_dnd.py collects 10 non-e2e tests and 2
         # e2e ones. An "iff" rule puts it solely in the `-m e2e` command, which
         # deselects the 10 -- selected nowhere, silently.
@@ -846,13 +882,19 @@ class TestBreadthCaps:
         result = map_paths(["courses/models.py"], search, no_symbols)
         assert result.unit_reason is Reason.NONE
 
-    def test_e2e_over_the_cap_sets_capped(self):
-        files = [
-            f"tests/test_e2e_m{i:03d}.py" for i in range(affected_tests.E2E_CAP + 1)
-        ]
-        search = make_search({"courses.models": set(files)})
-        result = map_paths(["courses/models.py"], search, no_symbols)
-        assert result.e2e_reason is Reason.CAPPED
+    def test_e2e_at_and_over_the_cap(self):
+        at = [f"tests/test_e2e_m{i:03d}.py" for i in range(affected_tests.E2E_CAP)]
+        over = at + ["tests/test_e2e_extra.py"]
+        at_result = map_paths(
+            ["courses/models.py"], make_search({"courses.models": set(at)}), no_symbols
+        )
+        over_result = map_paths(
+            ["courses/models.py"],
+            make_search({"courses.models": set(over)}),
+            no_symbols,
+        )
+        assert at_result.e2e_reason is Reason.NONE
+        assert over_result.e2e_reason is Reason.CAPPED
 
     def test_the_caps_are_independent(self):
         # "unit capped, e2e fine" must be representable -- which is why there are
@@ -874,7 +916,7 @@ Expected: `AttributeError: module 'affected_tests' has no attribute 'classify'`.
 
 - [ ] **Step 3: Implement classification and the caps**
 
-Add to `scripts/affected_tests.py`:
+No new imports. Append after `map_one`:
 
 ```python
 # The trailing underscore is REQUIRED. MEASURED: integrations/tests/test_e2e.py
@@ -900,11 +942,13 @@ def classify(
     under the purity constraint: a substring search cannot tell them apart, and
     `search("pytestmark = pytest.mark.e2e")` misses the list form this repo uses
     (`pytestmark = [pytest.mark.e2e, pytest.mark.django_db(transaction=True)]`).
-    The distinction is unnecessary anyway -- every module-level-marked file here
-    is already named `test_e2e_*.py`, so the first rule catches it.
 
-    Routing a marked file to BOTH is safe: the surplus command simply selects
-    nothing there, which the exit-5 caveat covers.
+    The distinction is also unnecessary. MEASURED: three files carry a
+    module-level `pytestmark = pytest.mark.e2e` while NOT being named
+    `test_e2e_*` -- tests/test_link_apply.py, test_link_dialog_behaviour.py and
+    test_table_grid_algebra.py -- and each collects zero non-e2e tests. Routing
+    them to BOTH is still correct: the surplus unit command simply selects
+    nothing, which is exactly what the exit-5 caveat on that command covers.
     """
     # Once, not per file -- the wrapper's implementation scans the whole corpus.
     marked = search(E2E_MARKER)
@@ -921,7 +965,7 @@ def classify(
     return unit, e2e
 ```
 
-Replace `map_paths`'s return with:
+Then in `map_paths`, replace the **final two lines** (`ordered = sorted(set(candidates))` and the `return Result(...)` that follows it) with:
 
 ```python
     ordered = sorted(set(candidates))
@@ -930,33 +974,33 @@ Replace `map_paths`'s return with:
     unit_reason = Reason.CAPPED if len(unit) > UNIT_CAP else Reason.NONE
     e2e_reason = Reason.CAPPED if len(e2e) > E2E_CAP else Reason.NONE
 
-    return Result(
-        tuple(unit), tuple(e2e), tuple(unmapped), unit_reason, e2e_reason
-    )
+    return Result(tuple(unit), tuple(e2e), tuple(unmapped), unit_reason, e2e_reason)
 ```
 
-The capped lists are **retained** in the `Result` rather than emptied, so a reader can see what was capped; `render_commands` ignores them and emits the full run.
+Capped lists are **retained** in the `Result` rather than emptied; `render_commands` (Task 5) emits the full run but prints a short preview of what was capped, so the retention is observable.
 
 - [ ] **Step 4: Run the tests to verify they pass**
 
 Run: `uv run pytest tests/test_affected_tests.py -v`
 
-Expected: PASS, 53 tests.
+Expected: PASS, **57** tests.
 
 - [ ] **Step 5: Falsify**
 
 | Mutant | Must turn red |
 |---|---|
-| Change the `elif path in marked` branch to `e2e.append(path)` only (exclusive) | `test_a_per_function_marked_file_goes_to_BOTH` |
-| Change `E2E_NAME_GLOB` to `"test_e2e*.py"` | `test_the_trailing_underscore_in_the_name_glob_is_required` |
+| Make the `elif path in marked` branch append to `e2e` only (exclusive) | `test_a_marked_file_not_named_test_e2e_goes_to_BOTH` |
+| `E2E_NAME_GLOB` → `"test_e2e*.py"` | `test_the_trailing_underscore_in_the_name_glob_is_required` |
 | Move `marked = search(E2E_MARKER)` inside the loop | `test_the_marker_search_happens_once_not_per_file` |
-| Change `>` to `>=` in the unit cap | `test_unit_at_the_cap_is_not_capped` |
+| `>` → `>=` in the unit cap | `test_unit_at_the_cap_is_not_capped` |
+| `>` → `>=` in the e2e cap | `test_e2e_at_and_over_the_cap` |
 | Use one shared `reason` for both selections | `test_the_caps_are_independent` |
 
 - [ ] **Step 6: Lint and commit**
 
 ```bash
 uv run ruff check scripts/affected_tests.py tests/test_affected_tests.py
+uv run ruff format --check scripts/affected_tests.py tests/test_affected_tests.py
 git add scripts/affected_tests.py tests/test_affected_tests.py
 git commit -m "feat(scripts): non-exclusive unit/e2e classification with per-selection caps
 
@@ -974,7 +1018,7 @@ tests and 2 e2e ones, and an exclusive rule strands the 10."
 
 **Interfaces:**
 - Consumes: `Result`, `Reason` (Tasks 2–4).
-- Produces: `render_commands(result: Result) -> str`; constants `EXIT5_NOTE`, `FULL_UNIT_COMMAND = "uv run pytest"`, `FULL_E2E_COMMAND = "uv run pytest -m e2e"`.
+- Produces: `render_commands(result: Result) -> str`; constants `PYTEST = "uv run pytest"`, `E2E_FLAG = " -m e2e"`, `EXIT5_NOTE`, `FULL_UNIT_COMMAND`, `FULL_E2E_COMMAND`.
 
 **This task carries the highest-consequence behaviour in the tool.** The reason must be checked *before* emptiness, or a `GLOBAL` result — whose file tuples are empty by construction — would be misread as "nothing mapped" and emit no command at all.
 
@@ -1003,13 +1047,13 @@ class TestEmission:
         result = Result((), ("tests/test_e2e_b.py",), (), Reason.NONE, Reason.NONE)
         out = render_commands(result)
         e2e_line = next(ln for ln in out.splitlines() if "test_e2e_b.py" in ln)
-        assert e2e_line.rstrip().endswith("-m e2e")
+        assert "-m e2e" in e2e_line
 
     def test_both_commands_carry_the_exit_5_caveat(self):
         # Not just the e2e one: non-exclusive classification puts every
-        # per-function-marked file into both selections, and three such files
-        # collect ZERO non-e2e tests -- so a diff touching only those emits a
-        # unit command whose every file is deselected by `-m 'not e2e'`.
+        # marked file into both selections, and three such files collect ZERO
+        # non-e2e tests -- so a diff touching only those emits a unit command
+        # whose every file is deselected by `-m 'not e2e'`.
         result = Result(
             ("tests/test_a.py",),
             ("tests/test_e2e_b.py",),
@@ -1023,7 +1067,9 @@ class TestEmission:
     def test_an_empty_unit_selection_emits_no_command(self):
         # Interpolating an empty file list yields a bare `uv run pytest`, i.e.
         # the whole unit selection, silently, for a diff that mapped nothing.
-        result = Result((), ("tests/test_e2e_b.py",), ("README.md",), Reason.NONE, Reason.NONE)
+        result = Result(
+            (), ("tests/test_e2e_b.py",), ("README.md",), Reason.NONE, Reason.NONE
+        )
         out = render_commands(result)
         assert "no unit tests mapped; see unmapped" in out
         unit_lines = [
@@ -1034,7 +1080,9 @@ class TestEmission:
         assert unit_lines == []
 
     def test_an_empty_e2e_selection_emits_no_command(self):
-        result = Result(("tests/test_a.py",), (), ("README.md",), Reason.NONE, Reason.NONE)
+        result = Result(
+            ("tests/test_a.py",), (), ("README.md",), Reason.NONE, Reason.NONE
+        )
         out = render_commands(result)
         assert "no e2e tests mapped; see unmapped" in out
         assert "-m e2e" not in out
@@ -1053,16 +1101,23 @@ class TestEmission:
         assert affected_tests.FULL_UNIT_COMMAND in out
         assert affected_tests.FULL_E2E_COMMAND in out
         assert "no unit tests mapped" not in out
+        assert "no e2e tests mapped" not in out
 
     def test_capped_emits_the_full_run_for_that_selection_only(self):
         files = tuple(f"tests/test_m{i:03d}.py" for i in range(41))
         result = Result(files, ("tests/test_e2e_b.py",), (), Reason.CAPPED, Reason.NONE)
         out = render_commands(result)
-        assert affected_tests.FULL_UNIT_COMMAND in out
+        # Assert on the UNIT block specifically. A bare `"uv run pytest" in out`
+        # would be satisfied by the e2e line and could never fail.
+        assert "unit: full run -- too many candidates to be meaningful" in out
+        assert "uv run pytest tests/test_m000.py" not in out
+        assert "41 candidate(s) not listed" in out
         assert "uv run pytest tests/test_e2e_b.py -m e2e" in out
 
     def test_unmapped_paths_are_listed(self):
-        result = Result(("tests/test_a.py",), (), ("logo.png", "README.md"), Reason.NONE, Reason.NONE)
+        result = Result(
+            ("tests/test_a.py",), (), ("logo.png", "README.md"), Reason.NONE, Reason.NONE
+        )
         out = render_commands(result)
         assert "logo.png" in out
         assert "README.md" in out
@@ -1076,12 +1131,14 @@ Expected: `AttributeError: module 'affected_tests' has no attribute 'render_comm
 
 - [ ] **Step 3: Implement emission**
 
-Add to `scripts/affected_tests.py`:
+No new imports. Note the **single outer quotes** on `EXIT5_NOTE` — `ruff format` rewrites the escaped-double-quote form and would fail `--check`.
 
 ```python
-EXIT5_NOTE = "(exit code 5 means \"nothing selected\", not \"green\")"
-FULL_UNIT_COMMAND = "uv run pytest"
-FULL_E2E_COMMAND = "uv run pytest -m e2e"
+PYTEST = "uv run pytest"
+E2E_FLAG = " -m e2e"
+FULL_UNIT_COMMAND = PYTEST
+FULL_E2E_COMMAND = f"{PYTEST}{E2E_FLAG}"
+EXIT5_NOTE = '(exit code 5 means "nothing selected", not "green")'
 
 _FULL_RUN_BECAUSE = {
     Reason.GLOBAL: "a global blast-radius path changed",
@@ -1089,34 +1146,50 @@ _FULL_RUN_BECAUSE = {
 }
 
 
-def _render_one(label: str, files: tuple[str, ...], reason: Reason, suffix: str) -> list[str]:
+def _render_one(
+    label: str,
+    files: tuple[str, ...],
+    reason: Reason,
+    full_command: str,
+    suffix: str,
+) -> list[str]:
     """Render one selection's block.
 
     The REASON is checked before emptiness. A GLOBAL result carries empty file
     tuples by construction, so testing emptiness first would print "nothing
     mapped" for the one input that means "run everything".
+
+    `full_command` is passed in rather than composed here, so FULL_UNIT_COMMAND
+    and FULL_E2E_COMMAND stay the single source of truth for the full-run lines.
     """
     if reason in _FULL_RUN_BECAUSE:
-        full = f"{FULL_UNIT_COMMAND}{suffix}"
-        return [
+        lines = [
             f"{label}: full run -- {_FULL_RUN_BECAUSE[reason]}",
-            f"    {full}    {EXIT5_NOTE}",
+            f"    {full_command}    {EXIT5_NOTE}",
         ]
+        if files:
+            preview = ", ".join(files[:3])
+            lines.append(f"    ({len(files)} candidate(s) not listed: {preview}, ...)")
+        return lines
     if not files:
         return [f"{label}: no {label} tests mapped; see unmapped"]
     joined = " ".join(files)
     return [
         f"{label}: {len(files)} file(s)",
-        f"    {FULL_UNIT_COMMAND} {joined}{suffix}    {EXIT5_NOTE}",
+        f"    {PYTEST} {joined}{suffix}    {EXIT5_NOTE}",
     ]
 
 
 def render_commands(result: Result) -> str:
     """Render the advisory output. Pure."""
     lines: list[str] = []
-    lines += _render_one("unit", result.unit_files, result.unit_reason, "")
+    lines += _render_one(
+        "unit", result.unit_files, result.unit_reason, FULL_UNIT_COMMAND, ""
+    )
     lines.append("")
-    lines += _render_one("e2e", result.e2e_files, result.e2e_reason, " -m e2e")
+    lines += _render_one(
+        "e2e", result.e2e_files, result.e2e_reason, FULL_E2E_COMMAND, E2E_FLAG
+    )
     if result.unmapped:
         lines.append("")
         lines.append("unmapped (no rule matched -- check these by hand):")
@@ -1128,21 +1201,25 @@ def render_commands(result: Result) -> str:
 
 Run: `uv run pytest tests/test_affected_tests.py -v`
 
-Expected: PASS, 62 tests.
+Expected: PASS, **66** tests.
 
 - [ ] **Step 5: Falsify**
 
 | Mutant | Must turn red |
 |---|---|
 | Move the `if not files` check above the `if reason in _FULL_RUN_BECAUSE` check | `test_global_emits_the_full_run_for_both_despite_empty_file_tuples` |
-| Change `if not files: return [...]` to fall through and interpolate the empty list | `test_an_empty_unit_selection_emits_no_command` |
-| Drop `-m e2e` from the e2e suffix | `test_the_e2e_command_always_carries_the_marker` |
+| Make `if not files` fall through and interpolate the empty list | `test_an_empty_unit_selection_emits_no_command` |
+| `_FULL_RUN_BECAUSE` keeps only `Reason.GLOBAL` | `test_capped_emits_the_full_run_for_that_selection_only` |
+| Delete the `if files:` preview block | `test_capped_emits_the_full_run_for_that_selection_only` |
+| `E2E_FLAG = ""` | `test_the_e2e_command_always_carries_the_marker` |
 | Append `EXIT5_NOTE` to the e2e block only | `test_both_commands_carry_the_exit_5_caveat` |
+| Drop the `if result.unmapped` block | `test_unmapped_paths_are_listed` |
 
 - [ ] **Step 6: Lint and commit**
 
 ```bash
 uv run ruff check scripts/affected_tests.py tests/test_affected_tests.py
+uv run ruff format --check scripts/affected_tests.py tests/test_affected_tests.py
 git add scripts/affected_tests.py tests/test_affected_tests.py
 git commit -m "feat(scripts): emit advisory pytest commands
 
@@ -1161,7 +1238,9 @@ bare 'uv run pytest'."
 
 **Interfaces:**
 - Consumes: everything above.
-- Produces: `git_lines(args: list[str], cwd: Path) -> list[str]`; `build_corpus(cwd: Path) -> set[str]`; `make_search(corpus: set[str], cwd: Path) -> Callable[[str], set[str]]`; `read_module_symbols(cwd: Path) -> Callable[[str], set[str]]`; `resolve_base(base: str, cwd: Path) -> str`; `main(argv: list[str] | None = None) -> int`.
+- Produces: `git_lines(args, cwd) -> list[str]`; `build_corpus(cwd) -> set[str]`; `make_search(corpus, cwd) -> Callable[[str], set[str]]`; `read_module_symbols(cwd) -> Callable[[str], set[str]]`; `resolve_base(base, cwd) -> str`; `main(argv=None) -> int`.
+
+Note the production `make_search` shares its name with the test module's stub factory; the tests alias it as `make_corpus_search` to keep them distinct.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -1210,7 +1289,9 @@ class TestModuleSymbols:
 
 class TestSearch:
     def test_matches_on_word_boundaries(self, tmp_path):
-        (tmp_path / "test_a.py").write_text("from courses import render\n", encoding="utf-8")
+        (tmp_path / "test_a.py").write_text(
+            "from courses import render\n", encoding="utf-8"
+        )
         (tmp_path / "test_b.py").write_text("rendered = 1\n", encoding="utf-8")
         search = make_corpus_search({"test_a.py", "test_b.py"}, tmp_path)
         assert search("render") == {"test_a.py"}
@@ -1223,7 +1304,16 @@ class TestSearch:
 
     def test_the_corpus_sentinel_returns_the_whole_corpus(self, tmp_path):
         search = make_corpus_search({"test_a.py", "test_b.py"}, tmp_path)
-        assert search(affected_tests.CORPUS) == {"test_a.py", "test_b.py"}
+        assert search(affected_tests.CORPUS_SENTINEL) == {"test_a.py", "test_b.py"}
+
+    def test_a_returned_set_cannot_poison_the_cache(self, tmp_path):
+        # Results are memoized; handing callers the cached set itself would let
+        # one mutation corrupt every later query for that term.
+        (tmp_path / "test_a.py").write_text("render\n", encoding="utf-8")
+        search = make_corpus_search({"test_a.py"}, tmp_path)
+        first = search("render")
+        first.add("bogus.py")
+        assert search("render") == {"test_a.py"}
 ```
 
 - [ ] **Step 2: Run the tests to verify they fail**
@@ -1234,24 +1324,29 @@ Expected: `AttributeError: module 'affected_tests' has no attribute 'build_corpu
 
 - [ ] **Step 3: Implement the wrapper**
 
-Add these imports (isort `force-single-line`, one per line):
+The import block becomes exactly this — alphabetical, one name per line (`isort.force-single-line`):
 
 ```python
 import argparse
 import ast
+import fnmatch
 import re
 import subprocess
 import sys
+from collections.abc import Callable
+from dataclasses import dataclass
+from enum import StrEnum
 from pathlib import Path
+from pathlib import PurePosixPath
 ```
 
-Append to `scripts/affected_tests.py`:
+Append at the end of the module:
 
 ```python
 def git_lines(args: list[str], cwd: Path) -> list[str]:
     """Run a git command and return its stdout lines. Raises on failure."""
     proc = subprocess.run(  # noqa: S603 -- fixed argv, no shell, no untrusted input
-        ["git", *args],  # noqa: S607 -- git is expected on PATH, as everywhere else here
+        ["git", *args],  # noqa: S607 -- git on PATH, as everywhere else in this repo
         cwd=cwd,
         capture_output=True,
         text=True,
@@ -1263,30 +1358,36 @@ def git_lines(args: list[str], cwd: Path) -> list[str]:
 def build_corpus(cwd: Path) -> set[str]:
     """Every TRACKED file pytest would collect as a test module.
 
-    `git ls-files`, never a filesystem walk. MEASURED: 3,197 files on disk match
-    `test_*.py` here against 647 tracked ones -- the rest are in nested worktrees
-    under `.claude/worktrees/`, gitignored and skipped by pytest, but a walk sees
-    roughly five phantoms per real file and emits node IDs into another branch.
+    `git ls-files`, never a filesystem walk: a walk descends into `.venv/` and
+    into any nested worktrees under `.claude/worktrees/`, both gitignored and
+    both skipped by pytest, and emits node IDs pointing outside this branch.
     """
     return {p for p in git_lines(["ls-files"], cwd) if is_test_file(p)}
 
 
 def make_search(corpus: set[str], cwd: Path) -> Callable[[str], set[str]]:
-    """Build a word-boundary `search` over the corpus, reading each file once."""
+    """Build a word-boundary `search` over the corpus, reading each file once.
+
+    Memoized by term: the module rule issues one query per import path plus one
+    per public symbol, so a broad diff repeats terms across paths.
+    """
     contents: dict[str, str] = {}
     for rel in corpus:
         try:
             contents[rel] = (cwd / rel).read_text(encoding="utf-8", errors="replace")
         except OSError:
             contents[rel] = ""
+    cache: dict[str, set[str]] = {}
 
     def search(term: str) -> set[str]:
-        if term == CORPUS:
+        if term == CORPUS_SENTINEL:
             return set(corpus)
-        # Word boundaries, and re.escape -- otherwise "pytest.mark.e2e" is a
-        # regex whose dots match any character.
-        pattern = re.compile(rf"\b{re.escape(term)}\b")
-        return {rel for rel, text in contents.items() if pattern.search(text)}
+        if term not in cache:
+            # Word boundaries, and re.escape -- otherwise "pytest.mark.e2e" is a
+            # regex whose dots match any character.
+            pattern = re.compile(rf"\b{re.escape(term)}\b")
+            cache[term] = {rel for rel, t in contents.items() if pattern.search(t)}
+        return set(cache[term])  # a copy: callers must not mutate the cache
 
     return search
 
@@ -1301,38 +1402,46 @@ def read_module_symbols(cwd: Path) -> Callable[[str], set[str]]:
 
     def module_symbols(path: str) -> set[str]:
         try:
-            source = (cwd / path).read_text(encoding="utf-8")
-            tree = ast.parse(source)
+            tree = ast.parse((cwd / path).read_text(encoding="utf-8"))
         except (OSError, SyntaxError, ValueError):
             # A DELETED source file is retained by normalize_name_status and
             # reaches this rule while no longer being on disk. Degrade to the
             # import-path term rather than crashing the whole run.
             return set()
+        wanted = (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
         return {
             node.name
-            for node in tree.body
-            if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef)
-            and not node.name.startswith("_")
+            for node in tree.body  # tree.body, NOT ast.walk: module level only
+            if isinstance(node, wanted) and not node.name.startswith("_")
         }
 
     return module_symbols
 
 
+def _die(message: str) -> None:
+    raise SystemExit(f"affected_tests: {message}")
+
+
 def resolve_base(base: str, cwd: Path) -> str:
-    """Resolve the merge base with `base`. A missing ref is a HARD error.
+    """Resolve the merge base with `base`. Every failure is loud.
 
     `origin/master`, not local `master`, which is routinely stale in a worktree.
     """
     try:
         git_lines(["rev-parse", "--verify", f"{base}^{{commit}}"], cwd)
-    except subprocess.CalledProcessError as exc:
-        raise SystemExit(
-            f"affected_tests: base ref {base!r} does not exist.\n"
+    except subprocess.CalledProcessError:
+        _die(
+            f"base ref {base!r} does not exist.\n"
             f"  Try `git fetch origin`, or pass --base <ref>.\n"
             f"  Refusing to continue: an unresolvable base yields an empty diff, "
-            f"which would silently look like 'nothing changed'."
-        ) from exc
-    merge_base = git_lines(["merge-base", base, "HEAD"], cwd)
+            f"which would look like 'nothing changed'."
+        )
+    try:
+        merge_base = git_lines(["merge-base", base, "HEAD"], cwd)
+    except subprocess.CalledProcessError:
+        merge_base = []
+    if not merge_base or not merge_base[0].strip():
+        _die(f"no merge base between {base!r} and HEAD (unrelated histories?)")
     return merge_base[0].strip()
 
 
@@ -1350,11 +1459,17 @@ def main(argv: list[str] | None = None) -> int:
         "--repo",
         type=Path,
         default=None,
-        help="repository root (default: the git root containing this script)",
+        help="repository root (default: the git root containing the cwd)",
     )
     args = parser.parse_args(argv)
 
-    cwd = args.repo or Path(git_lines(["rev-parse", "--show-toplevel"], Path.cwd())[0])
+    cwd = args.repo
+    if cwd is None:
+        try:
+            cwd = Path(git_lines(["rev-parse", "--show-toplevel"], Path.cwd())[0])
+        except (subprocess.CalledProcessError, IndexError):
+            _die("not inside a git repository; pass --repo <path>")
+
     base = resolve_base(args.base, cwd)
     changed = normalize_name_status(git_lines(["diff", "--name-status", base], cwd))
     if not changed:
@@ -1377,7 +1492,7 @@ if __name__ == "__main__":
 
 Run: `uv run pytest tests/test_affected_tests.py -v`
 
-Expected: PASS, 68 tests.
+Expected: PASS, **73** tests.
 
 - [ ] **Step 5: Falsify**
 
@@ -1386,19 +1501,22 @@ Expected: PASS, 68 tests.
 | Drop `re.escape` from the pattern | `test_a_dotted_term_is_escaped_not_treated_as_regex` |
 | Drop the `\b` anchors | `test_matches_on_word_boundaries` |
 | Remove the `not node.name.startswith("_")` filter | `test_module_level_public_defs_and_classes_only` |
-| Walk with `ast.walk` instead of iterating `tree.body` | `test_module_level_public_defs_and_classes_only` (picks up `inner_fn`, `a_method`) |
-| Remove the `except (OSError, SyntaxError, ValueError)` guard | `test_an_unparseable_module_yields_nothing_rather_than_raising` |
+| `tree.body` → `ast.walk(tree)` | `test_module_level_public_defs_and_classes_only` (picks up `inner_fn`, `a_method`) |
+| Remove the `except (OSError, SyntaxError, ValueError)` guard | `test_an_unparseable_module_yields_nothing_rather_than_raising`, `test_a_missing_module_yields_nothing` |
+| `return set(cache[term])` → `return cache[term]` | `test_a_returned_set_cannot_poison_the_cache` |
+| Drop the `CORPUS_SENTINEL` branch | `test_the_corpus_sentinel_returns_the_whole_corpus` |
 
 - [ ] **Step 6: Lint and commit**
 
 ```bash
 uv run ruff check scripts/affected_tests.py tests/test_affected_tests.py
+uv run ruff format --check scripts/affected_tests.py tests/test_affected_tests.py
 git add scripts/affected_tests.py tests/test_affected_tests.py
 git commit -m "feat(scripts): add the affected-tests CLI wrapper
 
-Corpus from git ls-files, never a walk: 3,197 test_*.py files on disk here
-against 647 tracked. A missing base ref is a hard error, never a silent
-empty diff."
+Corpus from git ls-files, never a walk -- a walk descends into .venv and any
+nested worktrees. A missing or unmergeable base ref is a hard error, never a
+silent empty diff."
 ```
 
 ---
@@ -1412,16 +1530,26 @@ empty diff."
 - Consumes: `main`, `build_corpus`, `resolve_base` (Task 6).
 - Produces: nothing consumed downstream.
 
-A **fixture repository built in `tmp_path`** with a known commit and a known `origin/master` ref — not "a real recent diff", whose content changes with every branch, making assertions either vacuous or perpetually broken.
+A **fixture repository built in `tmp_path`** with a known commit and a known `origin/master` — not "a real recent diff", whose content changes with every branch, making assertions either vacuous or perpetually broken.
 
-- [ ] **Step 1: Write the failing tests**
+- [ ] **Step 1: Add `import subprocess` to the header, then write the tests**
 
-Append to `tests/test_affected_tests.py`:
+First **edit the existing import block** at the top of `tests/test_affected_tests.py` so it reads exactly:
 
 ```python
+import importlib.util
 import subprocess
+import sys
+from pathlib import Path
 
+import pytest
+```
 
+(Adding the import mid-file instead would trip `E402`.)
+
+Then append:
+
+```python
 def run_git(cwd, *args):
     subprocess.run(  # noqa: S603 -- fixed argv, tmp_path fixture repo
         ["git", *args],  # noqa: S607
@@ -1440,6 +1568,10 @@ def fixture_repo(tmp_path):
     run_git(repo, "init", "-q", "-b", "master")
     run_git(repo, "config", "user.email", "t@example.com")
     run_git(repo, "config", "user.name", "T")
+    # A global commit.gpgsign or core.hooksPath would otherwise surface as a
+    # fixture error rather than an assertion failure.
+    run_git(repo, "config", "commit.gpgsign", "false")
+    run_git(repo, "config", "core.hooksPath", "")
 
     (repo / "tests").mkdir()
     (repo / "courses").mkdir()
@@ -1462,8 +1594,9 @@ def fixture_repo(tmp_path):
     # the corpus.
     phantom = repo / ".claude" / "worktrees" / "other" / "tests"
     phantom.mkdir(parents=True)
-    (phantom / "test_phantom.py").write_text("def test_p():\n    pass\n", encoding="utf-8")
-    # `origin/master` as a real remote-tracking ref, pinned at the base commit.
+    (phantom / "test_phantom.py").write_text(
+        "def test_p():\n    pass\n", encoding="utf-8"
+    )
     run_git(repo, "update-ref", "refs/remotes/origin/master", "HEAD")
     return repo
 
@@ -1472,14 +1605,14 @@ class TestCorpusExcludesIgnoredPaths:
     def test_a_nested_worktree_test_file_never_enters_the_corpus(self, fixture_repo):
         corpus = build_corpus(fixture_repo)
         assert corpus == {"tests/test_widget.py", "tests/test_e2e_widget.py"}
-        assert not any(".claude" in p for p in corpus)
 
     def test_the_phantom_really_is_on_disk(self, fixture_repo):
         # Guards the guard: if the fixture stopped writing the phantom, the test
         # above would pass vacuously.
-        assert (
+        phantom = (
             fixture_repo / ".claude" / "worktrees" / "other" / "tests" / "test_phantom.py"
-        ).exists()
+        )
+        assert phantom.exists()
 
 
 class TestWrapperIntegration:
@@ -1519,34 +1652,36 @@ class TestWrapperIntegration:
         assert "README.md" in out
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [ ] **Step 2: Run the tests — PASS is the expected outcome**
 
 Run: `uv run pytest tests/test_affected_tests.py -k "Corpus or WrapperIntegration" -v`
 
-Expected: FAIL — the fixture repo and assertions are new; confirm each failure names the assertion, not a fixture error.
+Expected: **PASS, 5 tests.** These are new tests over code that Tasks 1–6 already shipped, so there is no red phase to stage here — a failure means a real defect in Tasks 1–6, or a genuine environment difference (path separators, `git diff` against a merge base equal to HEAD). Step 5's falsification is what proves these tests guard something.
 
-- [ ] **Step 3: Fix whatever the integration surfaces**
+- [ ] **Step 3: Fix anything the integration surfaces**
 
-No new production code is planned here. If a test fails for a real reason (path separators on Windows, `git diff --name-status` against a merge base that equals HEAD, `PurePosixPath` vs `\`), fix `scripts/affected_tests.py` — and normalize paths from git to forward slashes if Windows surfaces backslashes.
+No new production code is planned. If a test fails, diagnose and fix `scripts/affected_tests.py`. Known candidates: git emits forward slashes on Windows (VERIFIED — no normalization needed), and `commit.gpgsign` (already neutralized in the fixture).
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [ ] **Step 4: Run the whole file**
 
 Run: `uv run pytest tests/test_affected_tests.py -v`
 
-Expected: PASS, 74 tests.
+Expected: PASS, **78** tests.
 
 - [ ] **Step 5: Falsify**
 
 | Mutant | Must turn red |
 |---|---|
-| Change `build_corpus` to walk with `Path.rglob("test_*.py")` | `test_a_nested_worktree_test_file_never_enters_the_corpus` |
-| Make `resolve_base` return `""` on a missing ref instead of raising | `test_a_missing_base_ref_fails_loudly` |
+| `build_corpus` walks with `Path(cwd).rglob("test_*.py")` instead of `git ls-files` | `test_a_nested_worktree_test_file_never_enters_the_corpus` |
+| `resolve_base` returns `""` on a missing ref instead of calling `_die` | `test_a_missing_base_ref_fails_loudly` |
 | Delete the phantom write from the fixture | `test_the_phantom_really_is_on_disk` |
+| `render_commands` interpolates an empty file list rather than the "no tests mapped" line | `test_a_docs_only_diff_emits_no_pytest_command` |
 
 - [ ] **Step 6: Lint and commit**
 
 ```bash
 uv run ruff check tests/test_affected_tests.py
+uv run ruff format --check tests/test_affected_tests.py
 git add tests/test_affected_tests.py
 git commit -m "test(scripts): integration-test affected_tests on a fixture repo
 
@@ -1561,28 +1696,22 @@ gitignored nested-worktree test file that must never enter the corpus."
 **Files:**
 - Modify: `docs/development/testing.md`
 
-Part A already shipped the branch-gate rule, the never-twice rule, one-run-at-a-time and troubleshooting. What is missing is the per-file-justification practice and the pointer to the script.
+Part A already shipped `### Troubleshooting`, `### One run at a time` and the `## What runs where` paragraphs. **All of that must survive.** This task edits two paragraphs and appends one new section.
 
-- [ ] **Step 1: Read the existing file**
+- [ ] **Step 1: Record the before-state**
 
-Run: `cat docs/development/testing.md`
+Run:
+```bash
+grep -n '^#' docs/development/testing.md
+```
 
-Confirm the `## What runs where` section exists at the end and says "Run the affected tests locally; let CI run the full suite."
+Note the full heading list. `## What runs where` should be last. Keep this output — Step 4 compares against it.
 
-- [ ] **Step 2: Replace the `## What runs where` section**
+- [ ] **Step 2: Append the new section**
 
-Replace the final section of `docs/development/testing.md` with:
+Leave `## What runs where` and everything above it **unchanged**. Append the following to the end of the file (the outer fence below is four backticks so the inner ```bash block nests correctly — paste the inner content, not the outer fence):
 
-```markdown
-## What runs where
-
-Run the affected tests locally; let CI run the full suite. CI does both
-selections plus lint in about **8m45s**, in three parallel jobs, and it does not
-consume your session.
-
-Do not run the full suite locally twice in one session. The exception is a
-deliberate before/after benchmark, which is a measurement, not a gate.
-
+````markdown
 ## Which tests are affected
 
 ```bash
@@ -1597,8 +1726,8 @@ what is worth running while iterating.
 Read its output with three things in mind:
 
 - **`unmapped` is the interesting part.** Anything listed there matched no rule
-  — a binary asset, a new file type, something the tool does not understand. Judge
-  those by hand rather than assuming they are safe.
+  — a binary asset, a new file type, something the tool does not understand.
+  Judge those by hand rather than assuming they are safe.
 - **A full run is a real answer.** Changing `conftest.py`, `config/settings/`,
   `config/urls.py`, `pyproject.toml` or a compiled `.mo` catalog can alter tests
   that never mention it, so the script stops mapping and tells you to run
@@ -1623,21 +1752,47 @@ argument with yourself about whether it was intended.
 
 Baseline the selection green before you start. A red you cannot attribute to a
 before-state is a red you will spend an hour on.
+````
+
+- [ ] **Step 3: Update the pointer in `## What runs where`**
+
+In the `## What runs where` section, replace the sentence
+
+```
+Run the affected tests locally; let CI run the full suite.
 ```
 
-- [ ] **Step 3: Verify the docs build reference is intact**
+with
 
-Run: `grep -n "affected_tests\|REGRESSION" docs/development/testing.md`
+```
+Run the affected tests locally — `scripts/affected_tests.py` below works out
+which those are — and let CI run the full suite.
+```
 
-Expected: the script path appears twice (both commands), `REGRESSION` once.
+Change nothing else in that section.
 
-- [ ] **Step 4: Confirm no test asserts on the replaced text**
+- [ ] **Step 4: Verify Part A's content survived**
 
-Run: `uv run pytest tests/ -k "docs or testing_md or conventions" -q --collect-only`
+Run:
+```bash
+grep -n '^#' docs/development/testing.md
+```
 
-Expected: either no tests collected, or none that regex `testing.md`'s "What runs where" body. If one exists, update it.
+Expected: every heading from Step 1 is still present, in the same order, plus the two new ones (`## Which tests are affected`, `### Justify the selection before a slice`) at the end. Specifically confirm `### Troubleshooting` and `### One run at a time` are still there.
 
-- [ ] **Step 5: Commit**
+Then run:
+```bash
+grep -c 'affected_tests.py' docs/development/testing.md   # expect 3
+grep -c 'REGRESSION' docs/development/testing.md          # expect 1
+```
+
+- [ ] **Step 5: Confirm nothing asserts on this file's prose**
+
+Run: `git grep -n "What runs where" -- '*.py'`
+
+Expected: no output. (A `--collect-only` probe would be the wrong tool here: `--collect-only` disables xdist, `addopts` already supplies `-q` so a second makes it `-qq`, and it would pay the full Django import cost to answer a question `git grep` answers in a second.)
+
+- [ ] **Step 6: Commit**
 
 ```bash
 git add docs/development/testing.md
@@ -1652,9 +1807,9 @@ format and the regression-vs-migration classification it exists to enable."
 ## Task 9: Dogfood the tool on its own branch
 
 **Files:**
-- Modify: none (verification only, unless a defect surfaces)
+- Modify: none, unless a defect surfaces.
 
-The tool has never been run against a real diff. This task runs it once against this branch and checks the answer by hand — the cheapest possible check that the rules behave on real input rather than stubs.
+The tool has never run against a real diff. This is the cheapest check that the rules behave on real input rather than stubs.
 
 - [ ] **Step 1: Run it against this branch**
 
@@ -1663,32 +1818,40 @@ Run:
 uv run python scripts/affected_tests.py --base origin/master
 ```
 
-- [ ] **Step 2: Check the answer by hand**
+Record the full output verbatim in the task report.
 
-The diff adds `scripts/affected_tests.py`, `tests/test_affected_tests.py` and modifies `docs/development/testing.md`, plus this plan file.
+- [ ] **Step 2: Check the answer against the rules**
 
-Expected, and each is a real assertion about the rules:
+The diff adds `scripts/affected_tests.py` and `tests/test_affected_tests.py`, and modifies `docs/development/testing.md` plus this plan file.
 
 | Input path | Expected treatment |
 |---|---|
 | `tests/test_affected_tests.py` | test file → maps to itself → **unit** selection |
-| `scripts/affected_tests.py` | Python module → searched by import path `scripts.affected_tests` and its public symbols → likely finds `tests/test_affected_tests.py` |
+| `scripts/affected_tests.py` | Python module → searched by import path `scripts.affected_tests` **and every public symbol it defines** |
 | `docs/development/testing.md` | `.md` → no rule → **unmapped** |
 | `docs/superpowers/plans/2026-08-07-affected-tests-workflow.md` | `.md` → **unmapped** |
 
-The e2e selection should report `no e2e tests mapped; see unmapped`, and **no `-m e2e` command should be printed at all**.
+**Both a small unit list and `unit_reason = CAPPED` are acceptable outcomes, and the distinction is the point of this step.** This module's public symbols include deliberately generic names — `main`, `classify`, `search`, `Result`, `Reason` — and `\bmain\b` or `\bResult\b` may match many of the 647 corpus files. Decide as follows, and record which happened:
 
-- [ ] **Step 3: Confirm the run time is not itself a cost**
+- **Not capped** → working as designed; confirm the unit list actually contains `tests/test_affected_tests.py`.
+- **CAPPED** → **also working as designed.** The cap exists precisely to refuse a list that is no longer meaningfully narrower than the suite, and a module whose symbols are this generic is the honest case for it. Record the candidate count. Do **not** add a symbol stop-list in this task — that is a design change, and it belongs in a follow-up with its own measurement, not in a dogfood step.
 
-Run: `uv run python -c "import time; t=time.perf_counter(); import subprocess; subprocess.run(['uv','run','python','scripts/affected_tests.py'],capture_output=True); print(f'{time.perf_counter()-t:.1f}s')"`
+Note that if the unit selection is CAPPED, the e2e selection may be too, so "no `-m e2e` command is printed" is only expected in the not-capped case.
 
-Record the number. The tool reads ~647 files; if it takes more than a few seconds, note it — a slow advisory tool does not get run, which was the whole scoping premise.
+- [ ] **Step 3: Time it, against a stated budget**
 
-- [ ] **Step 4: Run the full named test file once more**
+Run:
+```bash
+uv run python -c "import subprocess,time; t=time.perf_counter(); subprocess.run(['uv','run','python','scripts/affected_tests.py'],capture_output=True); print(f'{time.perf_counter()-t:.1f}s')"
+```
+
+**Budget: under 5 seconds.** The premise of the whole scoping decision was that a tool developers actually run beats a complete one they don't, and a slow advisory tool does not get run. Over budget → record the number and open a follow-up noting the obvious fix (the per-term memoization is already in `make_search`; the next lever is skipping the symbol query for very short or very common names).
+
+- [ ] **Step 4: Run the named test file**
 
 Run: `uv run pytest tests/test_affected_tests.py -v`
 
-Expected: PASS, 74 tests, exit 0. **Do not run the full suite** — this branch adds no application code, and CI is the gate.
+Expected: PASS, **78** tests, exit 0. **Do not run the full suite** — this branch adds no application code, and CI is the gate.
 
 - [ ] **Step 5: Lint the whole diff**
 
@@ -1697,9 +1860,9 @@ uv run ruff check scripts/affected_tests.py tests/test_affected_tests.py
 uv run ruff format --check scripts/affected_tests.py tests/test_affected_tests.py
 ```
 
-- [ ] **Step 6: Record the dogfood result and commit if anything changed**
+- [ ] **Step 6: Commit only if something changed**
 
-If Steps 1–3 surfaced a defect, fix it, add a test that would have caught it, and commit. If not, no commit is needed for this task — state the observed output in the task report.
+If Steps 1–3 surfaced a defect, fix it, add a test that would have caught it, and commit. Otherwise no commit is needed — report the observed output, the capped/not-capped outcome, and the timing.
 
 ---
 
@@ -1710,7 +1873,7 @@ If Steps 1–3 surfaced a defect, fix it, add a test that would have caught it, 
 | Spec requirement | Task |
 |---|---|
 | B1 documented practice, per-file justification, regression-vs-migration | 8 |
-| B1 branch gate / never-twice / one-run-at-a-time / troubleshooting | already shipped by Part A; Task 8 preserves them |
+| B1 branch gate / never-twice / one-run-at-a-time / troubleshooting | shipped by Part A; Task 8 Steps 1 and 4 verify they survive |
 | `normalize_name_status`, renames, deleted test vs source | 1 |
 | Corpus from `git ls-files`, ignored paths excluded | 6, 7 |
 | Global blast-radius class, checked first, short-circuiting | 2 |
@@ -1726,10 +1889,12 @@ If Steps 1–3 surfaced a defect, fix it, add a test that would have caught it, 
 | B3 core-on-stubs coverage | 1–5 |
 | B3 corpus case for an ignored directory | 7 |
 | B3 wrapper integration on a fixture repo | 7 |
-| `migration_models` | **cut by decision**; `module_symbols` substituted (Task 3, 6) |
+| `migration_models` | **cut by decision**; `module_symbols` substituted (Tasks 3, 6) |
 
-**Placeholder scan:** none. Every code step carries the actual code; every test step carries the actual assertions.
+**Placeholder scan:** none. Every code step carries actual code; every test step carries actual assertions.
 
-**Type consistency:** `Result` fields (`unit_files`, `e2e_files`, `unmapped`, `unit_reason`, `e2e_reason`) are used identically in Tasks 2, 4, 5, 7. `search` has one contract throughout (word-boundary substring, plus the `CORPUS` sentinel), introduced in Task 3 and implemented in Task 6. `module_symbols` is `Callable[[str], set[str]]` in Tasks 3, 4 and 6. `map_one` takes `(path, search, module_symbols)` in both its definition and every call site.
+**Type consistency:** `Result` fields are used identically in Tasks 2, 4, 5, 7. `map_one` is `(path, search, module_symbols)` in its definition and at every call site — there is no `corpus` parameter anywhere. The sentinel is `CORPUS_SENTINEL` throughout (the test module's fake corpus set is `FAKE_CORPUS`, deliberately distinct). `search` has one contract everywhere: word-boundary content match, plus `CORPUS_SENTINEL` → whole corpus. `_render_one` takes `(label, files, reason, full_command, suffix)` at both call sites.
 
-**One known wrinkle, deliberately left for execution:** Task 3's `map_one` needs the corpus for the migration glob, resolved by the `CORPUS` sentinel on `search` rather than a fourth parameter. Task 3 Step 1's tests are written against `make_search`/`no_hits` stubs that must honour the sentinel; Step 3 states the fix. Any subagent executing Task 3 must apply the Step 3 stub updates or those two migration tests fail for the wrong reason.
+**Lint consistency:** the exact import block is shown at each task that changes it (Tasks 1, 2, 6) and never contains an unused name (`F401`); `import subprocess` enters the test file through a header edit, not a mid-file insert (`E402`); `EXIT5_NOTE` uses single outer quotes so `ruff format --check` passes.
+
+**Test counts** are stated expanded (parametrized cases counted individually): 10 → 34 → 48 → 57 → 66 → 73 → 78.
