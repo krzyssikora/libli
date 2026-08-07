@@ -135,6 +135,10 @@ Methods:
 eid = element.pk if element is not None else 0
 ```
 
+The `0` fallback cannot collide on a served page: `courses_extras.render_element` always
+supplies `element` (`:100-107`), so `element is None` occurs only in direct `render()`
+calls — i.e. `test_render_seam`'s `CONCRETES` loop.
+
 `node_pk` must **not** be used for this. `node_pk` is the *unit's* pk
 (`courses/views.py:491` sets `"node_pk": node.pk`), identical for every element on the
 page, so keying DOM ids off it would give every instance the same ids — the exact
@@ -395,9 +399,15 @@ block:
   `align-items: center`, `gap: var(--space-2)`, `padding: var(--space-2) var(--space-4)`,
   `font: inherit`, `font-weight: 600`, `line-height: 1`, `color: var(--primary)`,
   `background: var(--primary-subtle)`, `border: 1px solid color-mix(in srgb, var(--primary) 32%, transparent)`,
-  `border-radius: var(--radius-full)` — plus `:hover` and `:focus-visible` states matching
-  it. Reusing the spoiler's visual language is deliberate: both are "press this to change
-  what you see" controls, and an author who has used one should recognise the other.
+  `border-radius: var(--radius-full)`, **`cursor: pointer`** and
+  **`transition: background .15s ease, color .15s ease, border-color .15s ease`** — plus
+  the `:hover` and `:focus-visible` states. In short: every declaration in
+  `app.css:933-950` except the two `<summary>`-specific ones (`list-style: none` and the
+  `::-webkit-details-marker` rule), which do not apply to a `<button>`. `cursor` matters —
+  a `<button>`'s UA cursor is `default`, so omitting it ships a control with no pointer
+  affordance, which the Screenshots row would not obviously flag. Reusing the spoiler's
+  visual language is deliberate: both are "press this to change what you see" controls, and
+  an author who has used one should recognise the other.
 * `.ba__toggle .ic` sized to the label's line-box so icon-only and icon+label buttons are
   the same height.
 * `.ba__toggle { margin-bottom: var(--space-3); }` — the gap goes on **the toggle**, not
@@ -455,10 +465,18 @@ overflow: visible !important; clip: auto !important;
 
 **In the element's own rules in `courses.css` / `app.css`, `.ba__panel` and `.ba__child`
 declare no `display`.** That is what keeps the `hidden` attribute working through the UA
-default. The armed pre-hide rule (§5), the reveal-cascade pre-hide (§7) and the print
-reverts (§5, §7) are the **stated exceptions** — they are state-scoped rules, not the
-element's base styling — and the CSS test must be scoped to the element's own block
-rather than scanning the whole file, or it goes red on a correct implementation.
+default. The armed pre-hide rule (§5), the reveal-cascade pre-hide (§7), the
+`html:not(.ba-js)` / `.ba--dead` rules (§5.3) and the print reverts (§5, §7) are the
+**stated exceptions** — they are state-scoped rules, not the element's base styling.
+
+**The test needs a mechanical block boundary, and it is prescribed here** rather than left
+to the implementer. In `courses.css`, the element's base block opens with the literal
+comment `/* Before / after — base */` and ends at the **first occurrence of
+`html:not(.ba-js)`**, which is the first state-scoped rule (§5.3 requires that ordering).
+The extraction helper must **assert it matched**, as `_prehide_block` and `_print_block`
+already do — a silent non-match would make the test vacuous. Without a prescribed
+delimiter the likely implementation is a line-offset or a loose regex that swallows the
+state rules and goes red on a correct build.
 
 **Decision:** `.ba__child[hidden] { display: none !important; }` **is** added to the
 guard at `core/static/core/css/app.css:1010`, joining `.lesson-block[hidden]` and
@@ -535,14 +553,50 @@ disarms on `DOMContentLoaded` when the flag is absent.
 
 **Parse-time placement means the watchdog cannot catch a mid-init throw** — the flag is
 already `true`, so the guard does nothing and `ba-armed` would stay applied. That is why
-`tabs.js` carries an explicit `bail()` (`:435`). This element does the same: **all
-per-instance init runs inside a `try`/`catch`, and the `catch` calls the same `disarm()`
-the watchdog does**, then logs via `console.error`. Three failure paths, one recovery
-function.
+`tabs.js` carries an explicit `bail()` (`:435-450`).
 
-`disarm()` removes **both** `ba-armed` and `ba-js`. Removing `ba-js` too is what keeps the
-degraded states labelled (§5.3) and hides the now-inert toggle (§6) — without it a failed
-boot leaves two unlabelled panels and a dead button.
+#### Recovery has two scopes, and neither is "remove two classes"
+
+`tabs.js`'s `bail()` **reverses the per-instance DOM state it applied** —
+`removeAttribute("inert")`, `removeAttribute("aria-hidden")`, `classList.remove("is-active")`,
+`stage.style.minHeight = ""`, `classList.remove("tabs--js")`. Recovery here must do the
+same, because `initOne` sets `hidden` on the "after" panel **first**, before wiring the
+button: a recovery that only strips `<html>` classes leaves that attribute in place while
+`html:not(.ba-js) .ba__toggle { display: none }` hides the one control that could clear it.
+The content would be permanently unreachable — precisely the stranding this section exists
+to prevent.
+
+**Global recovery — `window.__baDisarm()`.** Defined **in the prepaint inline script**, not
+in `beforeafter.js`. This placement is forced: the 404/blocked path is one of the cases
+that must recover, and in that path the module never executes, so a module-defined function
+would not exist for the watchdog to call. (The existing watchdogs at
+`lesson_unit.html:10-14` and `:22-26` are bare inline `classList.remove` calls with no
+shared helper, which is why this one must be introduced deliberately.) It:
+
+1. removes `ba-armed` **and** `ba-js` from `<html>`;
+2. walks every `[data-beforeafter]` on the page, removing `hidden` from both panels and
+   clearing `data-ba-ready`.
+
+Called from two sites: the inline `DOMContentLoaded` watchdog when
+`window.__beforeAfterBooted` is absent, and `beforeafter.js`'s **document-level** `catch`
+for a throw outside any single instance.
+
+**Per-instance recovery.** The `try`/`catch` lives **inside `initOne`**, as `tabs.js`'s
+does — not around the whole boot. A single global `try` would abort instances 4–5 when
+instance 3 throws while leaving 1–2 fully armed, and then a global `disarm()` would hide
+*every* toggle, stranding the two instances whose own init succeeded. Instead `initOne`'s
+`catch` un-arms **only its own container**: remove `hidden` from its two panels, clear
+`data-ba-ready`, and add `ba--dead` to the container. `.ba--dead` is the per-instance
+analogue of `html:not(.ba-js)` and shares its declarations by grouped selector (§4), so
+that one instance shows both panels, labelled, with its toggle hidden — and its siblings
+keep working.
+
+`initAll` wraps each `initOne` call so a throw can never escape into the caller. That
+matters on the editor path: `editor.js` calls `libliInitBeforeAfter(preview)` in a sequence
+of re-init calls (`:105`), and an escaping throw would abort every enhancer sequenced after
+it — tabs, imagezoom, reveal gates — silently, on a page with no watchdog to recover.
+
+Every recovery path logs via `console.error`.
 
 Without any of this, a 404 / throw / blocked script leaves `ba-armed` applied forever and
 the "after" content is permanently unreachable with no way back — strictly worse than the
@@ -562,26 +616,42 @@ so these state-scoped rules — which legitimately declare `display` — sit out
 
 The rule body must be the **full five-property inverse** from §4, not a guess like
 `display: block` (which reveals nothing, because the heading is hidden by
-`position`/`width`/`height`/`overflow`/`clip`, not by `display`):
+`position`/`width`/`height`/`overflow`/`clip`, not by `display`). Every selector is grouped
+with its **`.ba--dead` per-instance twin** (§5.2), so a single failed instance degrades
+exactly as a JS-less page does:
 
 ```css
-html:not(.ba-js) .ba__side-heading {
+html:not(.ba-js) .ba__side-heading,
+.ba--dead .ba__side-heading {
   position: static !important; width: auto !important; height: auto !important;
   overflow: visible !important; clip: auto !important;
+  /* eyebrow treatment — see §4 */
+  font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--text-secondary);
 }
+html:not(.ba-js) .ba__panel + .ba__panel,
+.ba--dead .ba__panel + .ba__panel { margin-top: var(--space-5); }
+html:not(.ba-js) .ba__toggle,
+.ba--dead .ba__toggle { display: none; }
 ```
 
-There are **two distinct degraded states**, and `disarm()` (§5.2) is what makes them
-behave alike:
+The eyebrow and separation declarations are written **here**, not left to §4's prose — §4
+states the treatment and its scoping, this block is where it lands.
 
-| State | `ba-armed` | `ba-js` | Result |
-| --- | --- | --- | --- |
-| JS disabled entirely | never added (inline script never runs) | never added | Both panels visible, stacked, each under a revealed heading; toggle hidden |
-| JS on, `beforeafter.js` 404s / blocked / throws | added, then removed by `disarm()` | added, then removed by `disarm()` | Identical to the above |
+There are **three degraded states**, and the recovery contract of §5.2 is what makes them
+land in the same place:
 
-Both end **complete and labelled** — a better fallback than the reveal gate's, and the
-reason the classes are set by script rather than server-rendered. Had `disarm()` removed
-only `ba-armed`, the second row would show two *unlabelled* panels.
+| State | `ba-armed` | `ba-js` | `hidden` on "after" | Result |
+| --- | --- | --- | --- | --- |
+| JS disabled entirely | never added | never added | never set | Both panels visible, stacked, each under a revealed heading; toggle hidden |
+| `beforeafter.js` 404s / blocked | added, removed by `__baDisarm()` | added, removed by `__baDisarm()` | never set (module never ran) | Identical to the above |
+| Module boots, `initOne` throws | removed by the document-level path | removed likewise | **set, then removed by the per-instance `catch`** | Identical, for the failed instance only; siblings keep working |
+
+All three end **complete and labelled** — a better fallback than the reveal gate's, and the
+reason the classes are set by script rather than server-rendered. Two failure modes this
+contract exists to exclude: recovery that removes only `ba-armed` leaves *unlabelled*
+panels with a live dead button; recovery that removes only the classes and not `hidden`
+leaves the "after" side unreachable with the toggle hidden.
 
 The toggle is hidden in both, by `html:not(.ba-js) .ba__toggle { display: none; }`:
 leaving a focusable button that advertises `aria-pressed="false"` while doing nothing is
@@ -652,9 +722,18 @@ against a correct implementation.
   .ba__side-heading {
     position: static !important; width: auto !important; height: auto !important;
     overflow: visible !important; clip: auto !important;
+    font-size: 0.75rem; font-weight: 700; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--text-secondary);
   }
+  .ba__panel + .ba__panel { margin-top: var(--space-5); }
 }
 ```
+
+The eyebrow and panel-separation declarations are **required here too**, not only in the
+`html:not(.ba-js)` block. Print is the *only* path that reaches these headings on a
+working JS page, so omitting them ships a printed page with two panels butted together
+under two unstyled bare `<p>`s — which is exactly the state §4 says would make the
+"complete and labelled" claim false.
 
 The `.ba__side-heading` declarations are the full five-property inverse of
 `.visually-hidden` from §4 — `clip`, not `clip-path`. The heading's *visual* treatment
@@ -679,8 +758,10 @@ needed.
 
 * **Two-level contract, explicitly split.** `initOne(container)` / `initAll(root)` do
   **per-instance work only**: set `hidden` on the "after" panel, wire the button, set
-  `data-baReady`. The **document-level boot** — and only it — performs the `<html>` class
-  mutation (`disarm`-style removal of `ba-armed`) and owns the `try`/`catch`.
+  `data-baReady`. `initOne` owns a `try`/`catch` around its own work and recovers only its
+  own container (§5.2); `initAll` wraps each call so nothing escapes to the caller. The
+  **document-level boot** — and only it — removes `ba-armed` from `<html>` on success, and
+  calls `window.__baDisarm()` for a failure outside any instance.
   `window.libliInitBeforeAfter` is bound to **`initAll`** — the root-scoped *enhancer*, not
   the document-level *boot*. (The contrast is boot-vs-enhancer, not root-vs-instance:
   `editor.js` passes a `preview` **root**, so exporting `initOne` would break the editor
@@ -719,7 +800,16 @@ needed.
 * **`libli:reveal`** — dispatched on the newly shown panel, `bubbles: true`, so a gallery,
   carousel or table inside it re-measures instead of sitting at the zero height it
   measured while hidden (`tabs.js:172-174`).
-* `aria-pressed` updated on the button each toggle.
+* **Toggle ordering is load-bearing**, as §5.1 step 3's is: remove `hidden` from the
+  incoming panel **first**, then set `hidden` on the outgoing one, then update
+  `aria-pressed`, then dispatch `libli:reveal` on the now-visible panel. A listener that
+  measures synchronously would read zero if the event fired first — and the "gallery
+  measures non-zero" e2e would not catch it, because `tabs.js`'s own listener is
+  rAF-deferred and would mask the ordering.
+* `aria-pressed` updated on the button each toggle: **`"true"` means the "after" panel is
+  visible**, `"false"` means "before". The polarity is pinned because `aria-pressed` is the
+  only signal a screen-reader user gets about which side is showing (see the decisions
+  table), and "flips" alone would be satisfied by an inverted mapping.
 
 The element deliberately has **no** keyboard-navigation layer beyond the button being a
 button: one control, activated by Enter/Space natively.
@@ -829,7 +919,7 @@ Registration points:
 
 | File | Change |
 | --- | --- |
-| `courses/element_forms.py` | define `BeforeAfterElementForm` (one `button_label` field) **and** register it in `FORM_FOR_TYPE` (defined at `:1954`): `"beforeafter": BeforeAfterElementForm` — defining the class alone leaves the edit form unrendered |
+| `courses/element_forms.py` | define `class BeforeAfterElementForm(forms.ModelForm)` with `Meta: model = BeforeAfterElement; fields = ["button_label"]` — mirroring `CalloutElementForm` (`:225-228`); `Meta.model` is what tells `element_add` which concrete row to create. **And** register it in `FORM_FOR_TYPE` (defined at `:1954`): `"beforeafter": BeforeAfterElementForm` — defining the class alone leaves the edit form unrendered |
 | `courses/views_manage.py` | add `"beforeafter"` to the `element_add` allow-tuple (`~:1823`) **and** to the `element_save` allow-tuple (`~:1894`) — two separate edits; the tuples genuinely differ (`slidebreak` is in save but not add) |
 | `courses/views_manage.py` | add `"beforeafter": gettext_lazy("Before / after")` to `_EDITOR_TYPE_LABELS` (`:1621-1652`), which supplies the open-form heading — **form-key** keyed |
 | `courses/templatetags/courses_manage_extras.py` | add `"beforeafterelement": _("Before / after")` to `_ELEMENT_LABELS` (`:32-63`) — **content-type-model** keyed, a different namespace from the row above |
@@ -867,10 +957,39 @@ does:
   `button_label` — failing success criterion 1 with every other test green.
 
 **Editor row markup, named explicitly.** Every sibling branch is concrete
-(`el-row__columns` / `columns-rows` / `columns-rows__summary`, `el-row__spoiler`, each
-with an `{% empty %}` `<li class="empty-state">`). Use `el-row__ba` / `ba-rows` /
-`ba-rows__summary`, and give each slot an empty state ("No content yet" / "Brak treści"
-— two more translatable strings for §10).
+(`el-row__columns` / `columns-rows`, `el-row__spoiler`, each with an `{% empty %}`
+`<li class="empty-state">`). The container-specific tail is:
+
+```
+<div class="el-row__ba">
+  {% for slot_id, children in obj.resolved_slots %}
+  <div class="ba-rows" data-ba-slot="{{ slot_id }}">
+    <div class="ba-rows__label">{% if forloop.first %}{% trans "Before" %}{% else %}{% trans "After" %}{% endif %}
+      <span class="ba-rows__count">{{ children|length }}</span></div>
+    <ol class="element-list element-list--nested">
+      {% for child in children %}…{% empty %}<li class="empty-state">{% trans "No content yet" %}</li>{% endfor %}
+    </ol>
+    {% if depth < max_nest_depth %}{% include … with nested=True parent=el.pk tab=slot_id depth=depth %}{% endif %}{% paste_buttons el.pk slot_id %}
+  </div>
+  {% endfor %}
+</div>
+```
+
+Two details that are easy to lose:
+
+* **`<ol class="element-list element-list--nested">` is required** as the child-row
+  wrapper — every sibling branch uses it (`:84`, `:134`, `:184`, `:233`) and three
+  `editor.css` rules key on it: `.element-list` (`:523`, the `list-style: none` +
+  flex-column + gap), `.element-list--nested`'s left rule (`:1060`), and
+  `.element-list--nested .ica--grip { display: none }` (`:584`). Loose `<li>`s in a `<div>`
+  would show bullets, no gap, no hanging rule, and drag grips no other container shows.
+* **`ba-rows__label`, not `ba-rows__summary`.** `columns-rows__summary` is the class on a
+  literal `<summary>` element (`:132`), and this element has no `<details>` (see below), so
+  a `__summary` name would describe markup that does not exist and may inherit
+  `<summary>`-specific styling (marker, cursor) that cannot transfer. The count badge is
+  kept — `ba-rows__count`, mirroring `columns-rows__count`.
+
+"No content yet" / "Brak treści" is a new translatable string (§10).
 
 **The slots are plain always-open `<div>`s, not `<details>`.** The columns and tabs
 branches wrap each slot in a `<details>` whose open state is driven by
@@ -931,8 +1050,9 @@ symbols use — never emoji.
 
 New translatable strings, all with Polish catalogue entries: element name **Before /
 after → Przed / po**; slot headings **Before → Przed**, **After → Po**; the icon-only
-button's `aria-label` **Switch content → Zmień treść**; the two editor empty states
-**No content yet → Brak treści** (§8); and the transfer error label **before/after data →
+button's `aria-label` **Switch content → Zmień treść**; the editor empty state
+**No content yet → Brak treści** (§8); the editor slot labels, which reuse the
+**Before / After** strings above; and the transfer error label **before/after data →
 dane przed/po** (§11).
 
 Module-level dicts must use `gettext_lazy`, and `makemessages` fuzzy-prefills must be
@@ -1064,7 +1184,8 @@ against `_CONTAINER_SLOT_KEY["before_after"]`, then rebuilds parent-first.
 | Condition | Behaviour |
 | --- | --- |
 | Child row with an unrecognised `tab_id` (corrupt import, hand-edited DB) | Re-homed into **before**, never dropped (§1). Authored content must never become invisible; a stray element in the wrong half is a visible, fixable problem, a vanished one is not. On export it is emitted under the `before` slot id, so the archive stays valid (§11). |
-| **`beforeafter.js` throws mid-init** | The parse-time boot flag is already set, so the watchdog cannot help; the `try`/`catch` calls `disarm()` instead (§5.2). Same end state as a failed load. |
+| **`beforeafter.js` throws inside `initOne`** | The parse-time boot flag is already set, so the watchdog cannot help. `initOne`'s own `catch` un-arms **that container only** — clears `hidden`, clears `data-ba-ready`, adds `ba--dead` — and its siblings keep working (§5.2). |
+| **A throw outside any instance** | The document-level `catch` calls `window.__baDisarm()`, un-arming the whole page. |
 | Join row transient / mid-create | `resolved_slots()` returns `[("before", []), ("after", [])]` — the pairs are always present, only their child lists are empty. |
 | Dangling GFK (`content_object is None`) | `type(None)` is in neither the registry nor `CONTAINER_TRANSFER_KEYS`, so it degrades to a leaf — existing behaviour, no new code. |
 | Both slots empty | Renders the button and an empty ruled panel. Not an error; the author is mid-authoring. |
@@ -1133,7 +1254,10 @@ resolves) keeps the deferred script pending, blocks `DOMContentLoaded`, and leav
 | Model | a child with an unknown `tab_id` is re-homed into `before`, not dropped | copy `resolved_columns`' `by_col.get(id, [])` verbatim → the child vanishes |
 | Containment | `"before_after" in NESTABLE_TYPE_KEYS` and `NESTABLE_TYPE_KEYS <= set(SERIALIZERS)` — the two-line guard every sibling transfer test carries (`test_callout_transfer.py:19-20`) | add seam 4 without the `export.py` `SERIALIZERS` entry → RED |
 | Transfer | a child with an unknown `tab_id` exports under the `before` slot id and re-imports | yield the child's own `tab_id` → export succeeds, import fails validation |
-| CSS | `AFTER_SLOT_ID == "after"` **and** `[data-ba-side="after"]` appears in all three CSS sites | rename the constant → RED (otherwise the pre-hide silently disarms and the answer flashes) |
+| CSS | `AFTER_SLOT_ID == "after"` **and** `[data-ba-side="after"]` appears in all three sites — named explicitly: `templates/courses/lesson_unit.html`, `templates/courses/quiz_unit.html`, `courses/static/courses/css/courses.css`. Two of the three are **templates, not stylesheets**; a guard that globs `*.css` covers one of three and ships green while the pre-hide it protects disarms. Each extraction must assert it matched | rename the constant → RED |
+| CSS | the print block carries the eyebrow + `.ba__panel + .ba__panel` rules | drop them → a printed page shows two butted-together panels under unstyled bare `<p>`s. Print is the **only** path that reaches these on a working JS page |
+| Editor | the open form's heading renders the `_EDITOR_TYPE_LABELS` string | omit the entry → the form opens with no heading |
+| Editor | the rendered form's root carries `class="el-editor"` | omit the wrapper → the form leaves the editor grid and the fieldset scroll fix stops applying, silently |
 | CSS | the print `.ba__child[hidden]` rule follows `app.css:1010` in document order | move it earlier → the child stays hidden in print (both rules are `!important` at equal specificity, so only order decides) |
 | e2e (lesson) | script **boots then throws** mid-init: `disarm()` runs, both panels visible, toggle hidden | remove the `try`/`catch` → `ba-armed` stays applied and the "after" side is stranded (the abort test does **not** cover this — the parse-time flag is already set) |
 | e2e (lesson) | no "Before"/"After" heading flash on a normal load | set `ba-js` from the module instead of the prepaint script → the headings paint visible, then vanish |
@@ -1146,7 +1270,9 @@ resolves) keeps the deferred script pending, blocks `DOMContentLoaded`, and leav
 | a11y | `aria-pressed` flips on toggle | freeze it at `"false"` → RED |
 | e2e (lesson) | press → sides swap; press again → swaps back | — |
 | e2e (lesson) | **"after" is not visible while the script is still pending** — `page.route` **stalls** the `beforeafter.js` request (a handler that never fulfils), then assert the panel is not visible | remove the pre-hide `<style>` → RED. A plain post-load assertion would be green under that mutant, because init sets `hidden` either way; stalling is what brackets the pre-paint window rather than measuring the settled state |
-| e2e (lesson) | boot guard: with the script **aborted**, `ba-armed` is gone after `DOMContentLoaded` and both panels show | delete the guard → the "after" side is stranded |
+| e2e (lesson) | boot guard: with the script **aborted**, both panels show, **the headings are visible, and the toggle is hidden** | two mutants: delete the guard → the "after" side is stranded; **watchdog removes only `ba-armed`** → panels show but headings stay hidden and the dead toggle stays visible. Asserting only "both panels show" leaves the second one green |
+| e2e (lesson) | `initOne` throws on instance 2 of 3: that instance shows both panels with `ba--dead`, **instances 1 and 3 still toggle** | move the `try`/`catch` to the document level → siblings are stranded too |
+| e2e (lesson) | recovery clears `hidden`, not just the `<html>` classes | have `__baDisarm` remove only the classes → the "after" panel stays hidden with no control to reveal it |
 | e2e (lesson) | the armed rule is present in the render-blocking `<style>` for a unit with `has_before_after` | remove the block → RED (static complement to the stall test) |
 | e2e (lesson) | a gallery inside "after" measures non-zero after the first press | drop the `libli:reveal` dispatch → RED |
 | e2e (editor) | both slots visible; a child added to each lands in the right slot | — |
