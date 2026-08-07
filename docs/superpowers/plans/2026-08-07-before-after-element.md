@@ -166,7 +166,8 @@ def test_both_slots_come_from_one_children_queryset():
     # courses_element names "parent_id" and "tab_id" in its COLUMN LIST, so a
     # substring scan would count join_row()'s own query too and would find
     # "tab_id" in a query that does not filter on it.
-    wheres = [q["sql"].split("WHERE", 1)[-1] for q in ctx.captured_queries if "WHERE" in q["sql"]]
+    sqls = [q["sql"] for q in ctx.captured_queries if "WHERE" in q["sql"]]
+    wheres = [s.split("WHERE", 1)[-1] for s in sqls]
     parent_filters = [w for w in wheres if '"parent_id" =' in w]
     assert len(parent_filters) == 1
     assert '"tab_id" =' not in parent_filters[0]
@@ -653,7 +654,8 @@ def test_before_after_nests_inside_another_container():
     """Seam 4: without "before_after" in NESTABLE_TYPE_KEYS this raises."""
     _course, unit = make_course_with_unit()
     top = Element.objects.create(
-        unit=unit, content_object=TabsElement.objects.create(data=TabsElement.default_data())
+        unit=unit,
+        content_object=TabsElement.objects.create(data=TabsElement.default_data()),
     )
     tab_id = top.content_object.data["tabs"][0]["id"]
     join, slot = builder.resolve_scope(unit, str(top.pk), tab_id, "beforeafter")
@@ -720,7 +722,9 @@ from courses.models import BeforeAfterElement
 
 `:62`:
 ```python
-CONTAINER_TRANSFER_KEYS = frozenset({"tabs", "two_column", "spoiler", "callout", "before_after"})
+CONTAINER_TRANSFER_KEYS = frozenset(
+    {"tabs", "two_column", "spoiler", "callout", "before_after"}
+)
 ```
 
 In `NESTABLE_TYPE_KEYS` (`:82-108`) add `"before_after"`, and **rewrite the stale comment** above the container entries — "Both are already in transfer.export.SERIALIZERS" is false with a third key:
@@ -1210,7 +1214,8 @@ def test_flag_is_false_without_the_element(lesson_unit_node, student_user):
     # Positional: the signature is build_lesson_context(node, user) -- views.py:314.
     # `unit=` raises TypeError, failing for the wrong reason both before and after
     # the implementation lands.
-    assert build_lesson_context(lesson_unit_node, student_user)["has_before_after"] is False
+    ctx = build_lesson_context(lesson_unit_node, student_user)
+    assert ctx["has_before_after"] is False
 ```
 
 - [ ] **Step 2: Run to verify it fails**
@@ -2443,7 +2448,7 @@ def test_recovery_clears_hidden_not_just_the_html_classes(page, live_server):
 
 
 @pytest.mark.django_db(transaction=True)
-def test_gallery_inside_after_measures_non_zero_after_the_first_press(page, live_server):
+def test_gallery_in_after_measures_non_zero_after_press(page, live_server):
     """Mutant: drop the libli:reveal dispatch -> the gallery keeps the zero height
     it measured while hidden.
     """

@@ -81,7 +81,8 @@ def test_both_slots_come_from_one_children_queryset():
     # courses_element names "parent_id" and "tab_id" in its COLUMN LIST, so a
     # substring scan would count join_row()'s own query too and would find
     # "tab_id" in a query that does not filter on it.
-    wheres = [q["sql"].split("WHERE", 1)[-1] for q in ctx.captured_queries if "WHERE" in q["sql"]]
+    sqls = [q["sql"] for q in ctx.captured_queries if "WHERE" in q["sql"]]
+    wheres = [sql.split("WHERE", 1)[-1] for sql in sqls]
     parent_filters = [w for w in wheres if '"parent_id" =' in w]
     assert len(parent_filters) == 1
     assert '"tab_id" =' not in parent_filters[0]
