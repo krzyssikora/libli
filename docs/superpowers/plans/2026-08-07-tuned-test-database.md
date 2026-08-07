@@ -41,6 +41,8 @@ Use **"~33×"** in user-facing copy (2,881 / 88, the conservative compose figure
    **This costs something, and the cost is acknowledged rather than hidden.** A collection-time notice could still save the current run; a terminal-summary one arrives after the developer has already paid the 40+ minutes. Spec §A5's whole purpose is that "the entire win is gated behind a developer starting a container", so arriving late is a real reduction in the deliverable's value. Task 4 therefore emits **twice**: a cheap pre-run line from `pytest_configure` when `-m` mentions `e2e`, plus the terminal-summary line as the catch-all that also covers `-k` and direct-nodeid runs, which `markexpr` cannot see.
 3. **Baselines are measured after implementation, not before** (spec §5.1 sequences them first). This is safe because Task 3 Step 7 proves the unset path is byte-identical to today, and the Task 4 notice adds one line at terminal summary. Reordering would front-load hours of measurement before any code exists.
 
+4. **Spec §5.4's mandated mutant for the xdist worker guard is unsatisfiable, and is not attempted.** The spec requires "remove the worker guard, require red", with an xdist run to make it meaningful. Two things changed that: the guard is gone from `pytest_terminal_summary` entirely (that hook never runs in a worker), and the one that remains — in `pytest_sessionstart` — is belt-and-braces, because a worker has no terminal reporter and the emission would degrade silently anyway. **Measured:** deleting it and running `-n 2 -m e2e` still yields exactly one notice line, so no check can turn red on it. It is kept as defensive clarity, and Task 4's mutation table deliberately does **not** claim to cover it — an unfalsifiable mutant listed as satisfied would be worse than an acknowledged gap.
+
 ---
 
 ### Task 1: The compose service
@@ -398,10 +400,10 @@ def _resolve_databases(env_value: str, current: dict) -> dict | None:
         raise ImproperlyConfigured(
             f"TEST_DATABASE_URL could not be parsed: {env_value!r}"
         ) from exc
-    if cfg.get("ENGINE") != "django.db.backends.postgresql":
-        raise ImproperlyConfigured(
-            f"TEST_DATABASE_URL must be a postgres:// URL; got {env_value!r}"
-        )
+    # ORDER MATTERS: the PORT check runs FIRST. Both "not-a-url" and
+    # "sqlite:///tmp/x.db" parse to an empty PORT, so with the ENGINE check
+    # first they raise the postgres message instead -- MEASURED, and it makes
+    # two of this task's own tests fail.
     if not cfg.get("PORT"):
         # MEASURED: db_url_config("postgres://libli@localhost/libli") yields
         # PORT ''. Django would then connect on the default 5432 -- the dev
@@ -410,6 +412,10 @@ def _resolve_databases(env_value: str, current: dict) -> dict | None:
         raise ImproperlyConfigured(
             "TEST_DATABASE_URL must name an explicit port (the tuned server "
             f"listens on 55433, not the default 5432); got {env_value!r}"
+        )
+    if cfg.get("ENGINE") != "django.db.backends.postgresql":
+        raise ImproperlyConfigured(
+            f"TEST_DATABASE_URL must be a postgres:// URL; got {env_value!r}"
         )
     if _same_server(cfg, current):
         raise ImproperlyConfigured(
@@ -441,7 +447,7 @@ an unproven one:
 | # | Mutation | Must go RED |
 |---|---|---|
 | 1 | Delete the `if _same_server(cfg, current):` block | `test_pointing_at_the_dev_instance_is_rejected` |
-| 2 | In `_same_server`, replace `host()`'s body with `return cfg.get("HOST")` | `test_the_dev_instance_is_rejected_under_a_host_alias` (and *only* it — the other dev test still passes, which is exactly why this mutation matters: without normalisation the guard is green **and** broken) |
+| 2 | In `_same_server`, replace `host()`'s body with `return cfg.get("HOST")` | `test_the_dev_instance_is_rejected_under_a_host_alias` **and** `test_the_dev_server_is_rejected_even_under_a_different_database_name` — both spell the host `127.0.0.1`. Only `test_pointing_at_the_dev_instance_is_rejected`, which spells it `localhost`, stays green: that asymmetry is exactly why normalisation matters |
 | 3 | Make `_same_server` compare `NAME` too | `test_the_dev_server_is_rejected_even_under_a_different_database_name` |
 | 4 | Delete the `if not cfg.get("PORT"):` block | `test_a_port_less_url_is_rejected`, `test_unparseable_value_is_rejected`, `test_a_non_postgres_url_without_a_port_is_rejected` |
 | 5 | Delete the `if cfg.get("ENGINE") != …` block | `test_a_non_postgres_url_WITH_a_port_is_rejected_by_the_engine_check` — **and only that one** |
@@ -450,14 +456,20 @@ an unproven one:
 Restore after each. `test_valid_url_yields_a_databases_dict` is the positive
 control — it must stay green throughout.
 
-**Mutation 5 is the subtle one, and an earlier draft of this plan got it wrong.**
-MEASURED: with the ENGINE block deleted, `"not-a-url"` and `"sqlite:///tmp/x.db"`
-*still* raise — because both parse to an empty `PORT` and the port check fires
-first. Only a URL with an explicit non-5432 port on a loopback host isolates the
-engine check, which is why
+**Mutation 5 is the subtle one, and two earlier drafts of this plan got it
+wrong.** MEASURED: with the ENGINE block deleted, `"not-a-url"` and
+`"sqlite:///tmp/x.db"` *still* raise — both parse to an empty `PORT`, and the
+port check (which now runs first, see Step 3) catches them. Only a URL with an
+explicit non-5432 port on a loopback host isolates the engine check, which is why
 `test_a_non_postgres_url_WITH_a_port_is_rejected_by_the_engine_check` exists.
 Without it, mutation 5 leaves every test green and the check is unproven — while
 `mysql://libli@127.0.0.1:3306/libli` would be silently accepted.
+
+**This whole table depends on the PORT-before-ENGINE ordering in Step 3.** With
+the checks the other way round, `test_unparseable_value_is_rejected` and
+`test_a_non_postgres_url_without_a_port_is_rejected` fail outright — verified by
+executing the helper against these exact assertions: ENGINE-first gives
+`2 failed, 7 passed`; PORT-first gives `9 passed`.
 
 - [ ] **Step 6: Verify the ACTIVATED path lands on port 55433**
 
@@ -481,7 +493,15 @@ is required**: without it pytest-django drops the test database at session
 teardown, so the `psql` call — which runs after pytest exits — returns 0 on a
 perfectly correct build.
 
+**Wipe the container first**, or this assertion cannot fail: Task 2 Step 2 already
+created `test_libli` on it with `--reuse-db`, and nothing since has torn it down,
+so the count would read `>= 1` whether or not `TEST_DATABASE_URL` resolved. The
+tmpfs makes the wipe instant.
+
 ```bash
+COMPOSE="-p libli-test -f docker-compose.test.yml"
+docker compose $COMPOSE down && docker compose $COMPOSE up -d --wait
+
 TEST_DATABASE_URL="postgres://libli@127.0.0.1:55433/libli" \
   uv run pytest tests/test_smoke.py --reuse-db -p no:warnings --verbosity=0
 MSYS_NO_PATHCONV=1 docker exec libli-test-db psql -U libli -d postgres -tAc \
@@ -787,12 +807,18 @@ because all four counts above are satisfied by the terminal-summary emission
 alone — so a dead `pytest_sessionstart` would go unnoticed:
 
 ```bash
-uv run pytest tests/test_e2e_catalog.py -m e2e -p no:warnings 2>&1 |
+uv run pytest tests/test_e2e_catalog.py -m e2e -p no:warnings --verbosity=0 2>&1 |
   grep -nE "disposable tuned database|collected [0-9]+ item"
 ```
-Expected: the notice line's number is **lower** than the `collected N items`
-line's — i.e. it was emitted before collection, not in the summary. This is red
-on a `pytest_configure` implementation, where the reporter is not yet registered.
+Expected: **two** numbered lines, with the notice's number **lower** than the
+`collected N items` line's — i.e. it was emitted before collection, not in the
+summary. Red on a `pytest_configure` implementation, where the reporter is not
+yet registered.
+
+**`--verbosity=0` is required here and is not a second `-q`.** `addopts` sets
+verbosity to −1, and `TerminalReporter.report_collect` returns immediately below
+0 — measured: without it pytest prints no `collected …` line at all, the grep
+yields one line, and the ordering assertion silently proves nothing.
 
 Note: `grep -c` exits **1** when it prints `0`. That is the expected result for
 the negative checks, not a failed command.
@@ -843,7 +869,7 @@ git commit -m "feat: nudge e2e runs toward the tuned test database"
 **Files:**
 - Modify: `.env.example` (after the `DATABASE_URL` line, **line 9**)
 - Create: `docs/development/testing.md`
-- Modify: `docs/development/setup.md` (line 98 block; lines 107–108 block; prerequisites list)
+- Modify: `docs/development/setup.md` (line 98 block; lines 106–107 block; prerequisites list)
 - Modify: `docs/development/conventions.md` (`## Testing`, lines 27–40; line 31; line 96)
 - Modify: `README.md` (docs-index table near line 52; command block lines 59–61; line 64)
 
@@ -881,8 +907,8 @@ uv run pytest            # unit + integration selection
 uv run pytest -m e2e     # browser e2e selection
 ```
 
-(Deliberately uncounted: Tasks 3 and 4 add 15 unit tests, and both counts drift
-with every feature. `--collect-only -q` reports the current numbers.)
+(Deliberately uncounted: Tasks 3 and 4 add 21 unit tests between them, and both
+counts drift with every feature. `--collect-only -q` reports the current numbers.)
 
 `-m e2e` is mandatory for the second. Without it every e2e test is deselected and
 pytest exits **5** — which means "nothing selected", not "green".
@@ -1132,7 +1158,11 @@ id=$(gh run list --workflow=ci.yml --branch="$branch" --limit 1 \
        --json databaseId -q '.[0].databaseId')
 
 # The PR's original run is attempt 1, so TWO reruns give attempts 1-3.
-for _ in 1 2; do gh run rerun "$id"; gh run watch "$id"; done
+# Run these as TWO SEPARATE invocations: the pipeline is ~8m45s, so a single
+# loop of two rerun+watch cycles is ~19 min -- past the 10-minute ceiling that
+# auto-backgrounds (and can reap) a command in this environment.
+gh run rerun "$id" && gh run watch "$id"     # invocation 1 -> attempt 2
+gh run rerun "$id" && gh run watch "$id"     # invocation 2 -> attempt 3
 
 attempts=$(gh api "repos/:owner/:repo/actions/runs/$id" -q '.run_attempt')
 for a in $(seq 1 "$attempts"); do
@@ -1280,10 +1310,15 @@ eval "$(sed -n '/^C[0-9]\+=/p' scripts/e2e_chunks.sh)"
 NCHUNKS=$(sed -n '/^C[0-9]\+=/p' scripts/e2e_chunks.sh | wc -l)
 all=""; for n in $(seq 1 "$NCHUNKS"); do eval "all=\"\$all \$C$n\""; done
 echo "chunks=$NCHUNKS files=$(echo $all | tr ' ' '\n' | grep -c .)"   # expect 7 and 97
-uv run python -m pytest -m e2e $all --collect-only -q 2>/dev/null | tail -2
+
+# Sum the per-file counts. There is NO "845 tests collected" line to read at
+# -qq --collect-only -- measured: the output is 97 `file.py: N` lines followed
+# by the warnings summary, so `tail -2` returns the pytest docs URL.
+uv run python -m pytest -m e2e $all --collect-only -q 2>/dev/null | tr -d '\r' |
+  grep -E "\.py: [0-9]+$" | awk -F': ' '{s+=$2} END {print "tests="s}'
 ```
-Expected: `chunks=7 files=97`, and the collection reporting **845** tests. Only
-then update the header's stale "565".
+Expected: `chunks=7 files=97` and `tests=845`. Only then update the header's
+stale "565".
 
 Then create `scripts/timed_run.sh` for timing and warning capture:
 
@@ -1304,7 +1339,16 @@ end=$(date +%s)
   echo "--- label=${label}"
   echo "--- exit=${code}"
   echo "--- seconds=$((end - start))"
-  echo "--- test_database_url=${TEST_DATABASE_URL:-<unset>}"
+  # Read the RESOLVED port, not the shell variable: `.env` is the documented
+  # activation path, and a .env-activated run would otherwise log "<unset>"
+  # while actually using the container -- the exact confounder the +/-5% run-2
+  # rule cannot survive.
+  echo "--- resolved_db_port=$(uv run python -c "
+import os, django
+os.environ.setdefault('DJANGO_SETTINGS_MODULE','config.settings.test')
+django.setup()
+from django.conf import settings
+print(settings.DATABASES['default']['PORT'])" 2>/dev/null)"
   echo "--- container_running=$(docker ps -q -f name=libli-test-db | grep -c . || true)"
   echo "--- barrier_timeouts=$(grep -c 'live_server still busy at teardown of' "$log" || true)"
   echo "--- deadlock_retries=$(grep -c 'teardown TRUNCATE deadlocked' "$log" || true)"
@@ -1538,10 +1582,18 @@ and after `[80, 60]` those give 1.71 and 1.79.
 
 - [ ] **Step 5: Post-implementation runs (2, 5, 6)**
 
+Same cleanup discipline as Step 4 — a `down`/`up` cycle before each run, since
+run 6 at `-n auto` reuses the `test_libli_gw*` names `gate-after-2` just created:
+
 ```bash
+COMPOSE="-p libli-test -f docker-compose.test.yml"
 export TEST_DATABASE_URL="postgres://libli@127.0.0.1:55433/libli"
+
+docker compose $COMPOSE down && docker compose $COMPOSE up -d --wait
 scripts/timed_run.sh run2-unit-container
+docker compose $COMPOSE down && docker compose $COMPOSE up -d --wait
 scripts/timed_run.sh run6-unit-nauto-container -n auto
+docker compose $COMPOSE down && docker compose $COMPOSE up -d --wait
 
 # run 5: SAME chunks, SAME -n 4 as run 4. A single `-m e2e` invocation here
 # would exceed the 10-minute ceiling, be auto-backgrounded, and risk being
@@ -1567,12 +1619,15 @@ is no way to confirm the dilution assumption held.
 for **all six runs plus the four gate draws**:
 
 ```bash
-grep -h -E "^--- (label|exit|seconds|container_running|barrier_timeouts|deadlock_retries|browser_quiesce)" \
+grep -h -E "^--- (label|exit|seconds|resolved_db_port|container_running|barrier_timeouts|deadlock_retries|browser_quiesce)" \
   docs/superpowers/notes/runs/*.log
 ```
 
-Expected: every `exit=0`, every warning count `0`, and `container_running=1` on
-every run (Step 2). A missing `--- exit=` line means the run never reached the
+Expected: every `exit=0`, every warning count `0`, `container_running=1` on every
+run (Step 2), and `resolved_db_port` **55433 on exactly the arms that should be
+tuned** (runs 2, 5, 6, `gate-after-*`, `sweep-*`) and **5432 on the rest**. That
+field is how a mislabelled arm is caught; a run whose port contradicts its label
+is not usable data. A missing `--- exit=` line means the run never reached the
 summary block — it was killed, so it is not a timing and must be re-run.
 
 **Remediations differ by warning.** A *barrier timeout* means the 5 s
