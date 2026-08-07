@@ -24,7 +24,7 @@ Every task's requirements implicitly include this section. Values are copied ver
 - **Breadth caps, per selection, independent:** unit **40**, e2e **15**.
 - **Diff range is merge-base with `origin/master`** (not local `master`, routinely stale in a worktree). `--base` overrides. A missing ref is a hard error, never a silent empty diff.
 - **ruff applies to `scripts/`** — `select = ["E", "F", "I", "UP", "B", "S"]`, `ignore = ["S101"]`, `isort.force-single-line = true`, **line length 88** (no override). Consequences, all verified: `subprocess` calls need `# noqa: S603` (precedent `tests/test_help_capture_isolation.py:19`); no unused imports (`F401`), so each task adds only the imports it uses; no mid-file imports (`E402`); bare `assert` in tests is fine (`S101` is ignored globally); and `ruff format` rewrites `"...\"x\"..."` to `'..."x"...'`, so **write strings containing double quotes with single outer quotes**.
-- **Comments recording an observation are prefixed `MEASURED:`**, matching `conftest.py` and `scripts/build_favicons.py`.
+- **Comments recording an observation are prefixed `MEASURED:`**, matching `conftest.py` (3 occurrences) and the 32 other python files repo-wide that use it.
 - **Never run the full suite to check this work.** Run the named test file only.
 
 ### Deviations from the spec, already decided
@@ -367,7 +367,12 @@ class TestIsGlobalPath:
         "path",
         [
             "courses/models.py",
-            "courses/tests/conftest.py",  # a per-app conftest is NOT the root one
+            # A per-app conftest is not the root one. Safe only while no
+            # per-app conftest defines an AUTOUSE fixture -- one that did
+            # would meet the membership criterion and belong in the class.
+            # VERIFIED: today only conftest.py and tests/conftest.py exist,
+            # and both are already members.
+            "courses/tests/conftest.py",
             "templates/courses/detail.html",
             "templates/allauth/account/login.html",
         ],
@@ -1311,7 +1316,7 @@ bare 'uv run pytest'."
 
 **Interfaces:**
 - Consumes: everything above.
-- Produces: `git_lines(args, cwd) -> list[str]`; `build_corpus(cwd) -> set[str]`; `make_search(corpus, cwd) -> Callable[[str], set[str]]`; `read_module_symbols(cwd) -> Callable[[str], set[str]]`; `resolve_base(base, cwd) -> str`; `main(argv=None) -> int`.
+- Produces: `git_lines(args, cwd) -> list[str]`; `untracked_paths(cwd) -> list[str]`; `_die(message)`; `build_corpus(cwd) -> set[str]`; `make_search(corpus, cwd) -> Callable[[str], set[str]]`; `read_module_symbols(cwd) -> Callable[[str], set[str]]`; `resolve_base(base, cwd) -> str`; `main(argv=None) -> int`.
 
 Note the production `make_search` shares its name with the test module's stub factory; the tests alias it as `make_corpus_search` to keep them distinct.
 
@@ -1427,15 +1432,23 @@ def git_lines(args: list[str], cwd: Path) -> list[str]:
         cwd=cwd,
         capture_output=True,
         text=True,
-        check=True,
     )
+    if proc.returncode != 0:
+        # NOT check=True: capture_output would swallow git's own diagnosis, and
+        # every caller here either guards this (resolve_base) or has nothing
+        # better to say than what git already said.
+        raise subprocess.CalledProcessError(
+            proc.returncode, ["git", *args], proc.stdout, proc.stderr
+        )
     return proc.stdout.splitlines()
 
 
 def untracked_paths(cwd: Path) -> list[str]:
     """Files git can see but does not track. --exclude-standard honours
     .gitignore, which is what keeps .venv and the nested worktrees out."""
-    return [p for p in git_lines(["ls-files", "--others", "--exclude-standard"], cwd) if p]
+    return [
+        p for p in git_lines(["ls-files", "--others", "--exclude-standard"], cwd) if p
+    ]
 
 
 def build_corpus(cwd: Path) -> set[str]:
@@ -1482,7 +1495,7 @@ def make_search(corpus: set[str], cwd: Path) -> Callable[[str], set[str]]:
             # substring scan is far cheaper than a regex pass and rejects almost
             # every file before the regex runs. It cannot change the result --
             # \bTERM\b can only match where TERM occurs. MEASURED over the
-            # 647-file corpus, 17 terms: 2.26 s without it, 0.09 s with. 25x.
+            # 647-file corpus, 18 terms: 2.26 s without it, 0.09 s with. 25x.
             cache[term] = {
                 rel for rel, t in contents.items() if term in t and pattern.search(t)
             }
@@ -1902,7 +1915,7 @@ No new production code is planned. If a test fails, diagnose and fix `scripts/af
 
 Run: `uv run pytest tests/test_affected_tests.py -v`
 
-Expected: PASS, **88** tests.
+Expected: PASS, **88** tests — or 88 plus any assertion Step 3 added while fixing a real defect. Record the total; a higher number is not itself a failure.
 
 - [ ] **Step 5: Falsify**
 
@@ -1916,6 +1929,8 @@ Expected: PASS, **88** tests.
 | Drop `--exclude-standard` from `untracked_paths` | `test_a_clean_tree_reports_nothing_to_run_and_emits_no_command`, `test_an_untracked_new_test_file_...` |
 | `build_corpus` returns tracked files only (drop `untracked_paths`) | `test_an_untracked_test_file_does_enter_the_corpus`, `test_an_untracked_marked_file_still_lands_in_both_selections` |
 | Make the `if not changed` branch fall through instead of returning | `test_a_clean_tree_reports_nothing_to_run_and_emits_no_command` |
+| `resolve_base` returns `base` instead of `merge_base[0]` | `test_the_diff_is_taken_from_the_fork_point_not_the_base_tip` |
+| `main` passes the literal `"origin/master"` to `resolve_base` instead of `args.base` | `test_an_explicit_base_override_is_honoured` |
 
 - [ ] **Step 6: Lint and commit**
 
@@ -1949,7 +1964,7 @@ grep -nE '^#{1,4} ' docs/development/testing.md
 
 Note the full heading list. `## What runs where` should be last. Keep this output — Step 4 compares against it.
 
-(The trailing space and the `{1,4}` bound matter: a bare `grep -n '^#'` also returns `# start (once per session)` and `# stop and wipe ...`, which are **bash comments inside the compose code fence**, not headings.)
+(Lines 29 and 32 -- `# start (once per session)` and `# stop and wipe ...` -- are **bash comments inside the compose code fence**, and they appear in this output too: they begin `# `, so no `grep` anchor excludes them. VERIFIED. Ignore those two lines when comparing before against after; a line-oriented grep cannot tell fenced content from prose.)
 
 - [ ] **Step 2: Append the new section**
 
@@ -2036,7 +2051,8 @@ Then run:
 ```bash
 grep -c 'affected_tests.py' docs/development/testing.md   # expect 3
 grep -c 'REGRESSION' docs/development/testing.md          # expect 1
-grep -c '8m45s' docs/development/testing.md               # expect 1 -- Step 3 must not have eaten it
+grep -c 'in about \*\*8m45s\*\*' docs/development/testing.md  # expect 1 -- the sentence Step 3 could have eaten
+grep -c '8m45s' docs/development/testing.md               # expect 2 -- that one, plus the new section's own mention
 grep -c 'connect_timeout' docs/development/testing.md     # expect 2 -- Part A troubleshooting intact
 ```
 
@@ -2105,7 +2121,7 @@ uv run python -c "import subprocess,time; t=time.perf_counter(); p=subprocess.ru
 
 **Budget: under 8 seconds**, including the doubled `uv run` interpreter startup this command itself pays. The premise of the whole scoping decision was that a tool developers actually run beats a complete one they don't, and a slow advisory tool does not get run.
 
-A 5 s budget was measured to straddle the real number before the `term in t` pre-filter existed, which is why the pre-filter is in `make_search` and the budget is 8 s. MEASURED in-process over the 647-file corpus with this diff's 17 terms: reading the files 0.21 s, search **2.26 s without** the pre-filter and **0.09 s with** it. So the work itself is ~0.3 s and the budget is almost entirely interpreter startup — if this step is anywhere near 8 s, something is wrong rather than merely slow.
+A 5 s budget was measured to straddle the real number before the `term in t` pre-filter existed, which is why the pre-filter is in `make_search` and the budget is 8 s. MEASURED in-process over the 647-file corpus with this diff's 18 terms (17 module-level public symbols plus the import path): reading the files 0.21 s, search **2.26 s without** the pre-filter and **0.09 s with** it. So the work itself is ~0.3 s and the budget is almost entirely interpreter startup — if this step is anywhere near 8 s, something is wrong rather than merely slow.
 
 Memoization is *not* what makes this fast: within a single run every term is distinct, so the cache never hits. Over budget → record the number and open a follow-up; the next lever is a single combined-alternation pass per file instead of one pass per term. Do **not** implement it here.
 
@@ -2129,7 +2145,7 @@ A **syntax error from the shell** on any paste is a defect in `render_commands`,
 
 Run: `uv run pytest tests/test_affected_tests.py -v`
 
-Expected: PASS, **88** tests, exit 0. **Do not run the full suite** — this branch adds no application code, and CI is the gate.
+Expected: PASS, **88** tests — or 88 plus any assertion Step 4 added — exit 0. **Do not run the full suite** — this branch adds no application code, and CI is the gate.
 
 - [ ] **Step 6: Lint the whole diff**
 
