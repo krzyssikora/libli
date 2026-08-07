@@ -315,7 +315,7 @@ as in `templates/courses/manage/editor/_edit_callout.html`):
   <button type="button" class="ba__toggle" aria-pressed="false"
           aria-controls="ba-{{ eid }}-panels"
           {% if not el.button_label %}aria-label="{% trans 'Switch content' %}"{% endif %}>
-    <svg class="ic" aria-hidden="true" focusable="false"><use href="#el-beforeafter"/></svg>
+    {% include "courses/elements/_beforeafter_icon.html" %}
     {% if el.button_label %}<span class="ba__label">{{ el.button_label }}</span>{% endif %}
   </button>
   <div class="ba__panels" id="ba-{{ eid }}-panels">
@@ -967,7 +967,7 @@ does:
     <div class="ba-rows__label">{% if forloop.first %}{% trans "Before" %}{% else %}{% trans "After" %}{% endif %}
       <span class="ba-rows__count">{{ children|length }}</span></div>
     <ol class="element-list element-list--nested">
-      {% for child in children %}…{% empty %}<li class="empty-state">{% trans "No content yet" %}</li>{% endfor %}
+      {% for child in children %}…{% empty %}<li class="empty-state">{% trans "This slot is empty." %}</li>{% endfor %}
     </ol>
     {% if depth < max_nest_depth %}{% include … with nested=True parent=el.pk tab=slot_id depth=depth %}{% endif %}{% paste_buttons el.pk slot_id %}
   </div>
@@ -989,7 +989,7 @@ Two details that are easy to lose:
   `<summary>`-specific styling (marker, cursor) that cannot transfer. The count badge is
   kept — `ba-rows__count`, mirroring `columns-rows__count`.
 
-"No content yet" / "Brak treści" is a new translatable string (§10).
+"This slot is empty." / "Ten slot jest pusty." is a new translatable string (matching the house wording of the sibling containers) (§10).
 
 **The slots are plain always-open `<div>`s, not `<details>`.** The columns and tabs
 branches wrap each slot in a `<details>` whose open state is driven by
@@ -1048,10 +1048,23 @@ The sprite has no cycle/refresh glyph today. Add `el-beforeafter`: two arrows fo
 circle, drawn as a monochrome `currentColor` line SVG on the 16×16 grid the other `el-*`
 symbols use — never emoji.
 
+**The student button cannot use that sprite symbol.**
+`templates/courses/manage/_icon_sprite.html` is included in exactly three templates —
+`manage/builder.html:20`, `manage/editor/editor.html:58`, `help/doc.html:6` — and neither
+`lesson_unit.html` nor `quiz_unit.html` is among them, so `<use href="#el-beforeafter">`
+resolves to nothing on every student page and an unlabelled toggle renders as an empty
+pill. No student element template uses `<use href="#`; the house convention is an inline
+`currentColor` SVG partial (`templates/courses/elements/_callout_icon.html`). So the same
+path ships **twice**: as the sprite symbol (add-menu card, editor pages only) and as
+`templates/courses/elements/_beforeafter_icon.html`, which §3's button includes.
+
+This is easy to miss because the editor preview *does* carry the sprite — a browser check
+there shows the icon correctly while every student page is blank.
+
 New translatable strings, all with Polish catalogue entries: element name **Before /
 after → Przed / po**; slot headings **Before → Przed**, **After → Po**; the icon-only
 button's `aria-label` **Switch content → Zmień treść**; the editor empty state
-**No content yet → Brak treści** (§8); the editor slot labels, which reuse the
+**This slot is empty. → Ten slot jest pusty.** (§8); the editor slot labels, which reuse the
 **Before / After** strings above; and the transfer error label **before/after data →
 dane przed/po** (§11).
 

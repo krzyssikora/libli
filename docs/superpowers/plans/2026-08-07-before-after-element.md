@@ -48,6 +48,9 @@ these two as licence to leave anything else red.
 | Path | Responsibility |
 | --- | --- |
 | `templates/courses/elements/beforeafterelement.html` | Student-facing render: toggle button + two panels |
+| `templates/courses/elements/_beforeafter_icon.html` | Inline `currentColor` SVG for the toggle (student pages have no sprite) |
+| `templates/courses/_before_after_prepaint.html` | The arming script, shared by both unit templates |
+| `courses/tests/test_beforeafter_math.py` | `_before_after_has_math` recursion |
 | `templates/courses/manage/editor/_edit_beforeafter.html` | The open edit form (the `button_label` input only) |
 | `courses/static/courses/js/beforeafter.js` | Client toggle, boot flag, per-instance recovery |
 | `courses/migrations/0055_beforeafterelement_alter_element_content_type.py` | Schema |
@@ -323,7 +326,11 @@ and to the `placement` parametrize list (`:184-186`):
 
 Add `from courses.models import BeforeAfterElement` to that file's imports — both the `CONCRETES` entry and the `parametrize` need it.
 
-The placement fixture is an `elif placement == …` ladder inside `test_lesson_renders_200_with_each_concrete` (`:195` onward). Add a branch mirroring the `callout` one:
+The placement fixture is an `elif placement == …` ladder inside
+`test_lesson_renders_200_with_each_concrete` (`:201` onward) that **terminates in a
+bare `else:` — the two-column branch, not a catch-all**. Insert the new `elif` after
+the `spoiler` branch and **before** that `else:`; appending after it is a
+`SyntaxError`. Mirror the `callout` branch:
 
 ```python
     elif placement == "beforeafter":
@@ -411,6 +418,21 @@ def test_render_without_label_carries_an_aria_label():
 
 
 @pytest.mark.django_db
+def test_icon_is_inline_svg_not_a_sprite_reference():
+    """_icon_sprite.html is included only in builder.html, editor.html and
+    help/doc.html -- never in a student unit template. A <use href="#..."> would
+    resolve to nothing on every student page, leaving an empty pill.
+
+    Mutant: swap the include for <use href="#el-beforeafter"> -> RED.
+    """
+    _course, unit = make_course_with_unit()
+    join, obj = _ba(unit)
+    html = obj.render(element=join)
+    assert "<svg" in html and "<path" in html
+    assert "use href=" not in html
+
+
+@pytest.mark.django_db
 def test_empty_slot_still_renders_its_panel():
     """Unlike calloutelement.html / spoilerelement.html (which wrap children in
     {% if children %}), an empty slot still emits its <section> -- that is what
@@ -443,7 +465,7 @@ Expected: FAIL — `TemplateDoesNotExist: courses/elements/beforeafterelement.ht
   <button type="button" class="ba__toggle" aria-pressed="false"
           aria-controls="ba-{{ eid }}-panels"
           {% if not el.button_label %}aria-label="{% trans 'Switch content' %}"{% endif %}>
-    <svg class="ic" aria-hidden="true" focusable="false"><use href="#el-beforeafter"/></svg>
+    {% include "courses/elements/_beforeafter_icon.html" %}
     {% if el.button_label %}<span class="ba__label">{{ el.button_label }}</span>{% endif %}
   </button>
   <div class="ba__panels" id="ba-{{ eid }}-panels">
@@ -462,11 +484,29 @@ Expected: FAIL — `TemplateDoesNotExist: courses/elements/beforeafterelement.ht
 </div>
 ```
 
+**The icon is INLINE, not a sprite `<use>`.** `templates/courses/manage/_icon_sprite.html`
+— the only file defining `<symbol id="el-*">` — is included in exactly three templates
+(`manage/builder.html:20`, `manage/editor/editor.html:58`, `help/doc.html:6`). Neither
+`lesson_unit.html` nor `quiz_unit.html` includes it, so `<use href="#el-beforeafter">`
+would resolve to **nothing on every student page**: with a blank `button_label` the toggle
+renders as an empty pill with no glyph and no text. A grep for `use href="#` across
+`templates/courses/elements/` returns zero hits — the house convention is inline
+`currentColor` SVG (`_callout_icon.html` is the precedent). The defect would be *masked*
+in Task 11's editor browser-check, because `editor.html` does carry the sprite.
+
+So create `templates/courses/elements/_beforeafter_icon.html` holding the same two-arrow
+path as an inline `<svg class="ic" aria-hidden="true" focusable="false">`. The
+`el-beforeafter` sprite symbol is still needed — Task 10's add-menu card uses it, and that
+page has the sprite.
+
 There is deliberately **no `data-ba-eid`**: nothing reads it. The JS scopes by `data-beforeafter` + `closest()`, and the id namespacing is carried entirely by the `id` / `aria-controls` pair.
 
 - [ ] **Step 4: Add the base CSS block**
 
-In `courses/static/courses/css/courses.css`, near the other `.el--*` element blocks. **The opening comment is a test delimiter — Task 12's extraction helper anchors on it — so keep it exactly:**
+In `courses/static/courses/css/courses.css`, near the other `.el--*` element blocks. **Keep the opening comment for readability.** Task 12's `_blocks()` strips comments
+first and anchors on the real selectors (`.el--beforeafter`, `html:not(.ba-js)`,
+`@media print`), so the comment is documentation, not a delimiter. What IS
+load-bearing is the rule ORDER: base, then state, then print.
 
 ```css
 /* Before / after — base */
@@ -1052,9 +1092,13 @@ Register in `BUILDERS` (`:817`):
 - [ ] **Step 7: Run the transfer tests**
 
 ```bash
-uv run pytest courses/tests/test_beforeafter_transfer.py courses/tests/test_beforeafter_nesting.py -v
+uv run pytest courses/tests/test_beforeafter_transfer.py courses/tests/test_beforeafter_nesting.py \
+               courses/tests/test_nesting_rule.py -v
 ```
-Expected: PASS, including `test_nestable_keys_are_a_subset_of_serializers` from Task 3.
+Expected: PASS — **including both tests left red at Task 3**
+(`test_nestable_keys_are_a_subset_of_serializers` and
+`test_container_keys_agree_by_key_not_by_count`; the latter lives in
+`test_nesting_rule.py`, which is why that file must be in this command).
 
 - [ ] **Step 8: Round-trip through a real archive**
 
@@ -1092,9 +1136,8 @@ Create `courses/tests/test_beforeafter_context.py`:
 **There is no `courses/tests/conftest.py`.** `lesson_unit_node` and `student_user` are
 **file-local** fixtures redefined in each of `test_fillgate_context.py`,
 `test_spoiler_context.py`, `test_switchgate_context.py` and `test_callout_has_math.py`.
-Copy them in, or every test here errors with "fixture not found". A quiz-unit fixture
-exists nowhere and must be written from scratch (`test_reveal_gate_editor_row.py` has a
-local `quiz_unit` to model it on).
+Copy them in, or every test here errors with "fixture not found". For quiz units use
+`tests.factories.make_quiz_unit` (`:235`).
 
 ```python
 import pytest
@@ -1123,17 +1166,12 @@ def student_user():
 
 @pytest.fixture
 def quiz_unit_node():
-    """No such fixture exists in the repo. Build a quiz unit the way
-    ContentNodeFactory is used elsewhere (see test_callout_authoring.py:16-19 for
-    the lesson form) with unit_type="quiz".
-    """
-    from tests.factories import ContentNodeFactory
+    """tests/factories.py:235 already provides make_quiz_unit; the precedent is
+    test_callout_has_math.py:58-62."""
     from tests.factories import CourseFactory
+    from tests.factories import make_quiz_unit
 
-    course = CourseFactory()
-    return ContentNodeFactory(
-        course=course, parent=None, kind="unit", unit_type="quiz"
-    )
+    return make_quiz_unit(course=CourseFactory())
 
 
 @pytest.mark.django_db
@@ -1464,10 +1502,8 @@ def test_flag_is_set_for_a_quiz_unit(quiz_unit_node, student_user):
     assert build_quiz_context(quiz_unit_node, student_user)["has_before_after"] is True
 ```
 
-Use the `quiz_unit_node` fixture **Task 5 added to this same file**. Do not go looking for
-an existing one: the only quiz fixtures in the repo are file-local `quiz_unit` definitions
-in `test_reveal_gate_editor_row.py:24` and `test_reveal_gate_palette.py:39`, neither
-importable from here.
+Use the `quiz_unit_node` fixture **Task 5 added to this same file** (it wraps
+`tests.factories.make_quiz_unit`).
 
 - [ ] **Step 2: Run to verify it fails**
 
@@ -1523,7 +1559,7 @@ git commit -m "feat(before-after): arm quiz units too"
 ## Task 7: The fifth reveal-cascade scope
 
 **Files:**
-- Modify: `courses/static/courses/js/reveal.js` (`scopeOf` `:52-54`; comments `:40-42`, `:55-63`)
+- Modify: `courses/static/courses/js/reveal.js` (`scopeOf` `:52-54`; comments `:39-41`, `:66-73`)
 - Modify: `templates/courses/lesson_unit.html` (the `has_reveal_gate` `<style>` block)
 - Modify: `core/static/core/css/app.css` (`@media print` `:1014-1022`)
 - Modify: `courses/tests/test_reveal_scope_agreement.py`
@@ -1577,7 +1613,7 @@ Expected: FAIL ×3 — `.ba__panel missing from scopeOf` / `from the pre-hide CS
 
 - [ ] **Step 4: Rewrite the two stale `reveal.js` comments**
 
-`:40-42` enumerates the scopes ("a slide…, a tab panel…, a spoiler body, or a callout's children wrapper") and `:55-63` says "Four scopes exist… those three scopes share the same direct-child form". Both are false now. `.ba__panel` shares the direct-child form.
+`:39-41` enumerates the scopes ("a slide…, a tab panel…, a spoiler body, or a callout's children wrapper") and `:66-73` says "Four scopes exist… those three scopes share the same direct-child form". Both are false now. `.ba__panel` shares the direct-child form.
 
 - [ ] **Step 5: Run the agreement test**
 
@@ -1652,8 +1688,12 @@ def test_add_form_renders_the_beforeafter_edit_partial(client):
     html = resp.content.decode()
     assert 'name="button_label"' in html
     assert 'class="el-editor' in html   # the grid item the scroll fix keys on
-    # Mutant: omit the _EDITOR_TYPE_LABELS entry -> the form opens with no heading.
-    assert "Before / after" in html
+    # Assert the heading ELEMENT: _editor_scope.html:55 includes _add_menu.html in
+    # every fragment, so from Task 10 on the bare string is always present.
+    # Mutant: omit the _EDITOR_TYPE_LABELS entry -> _render_open_form falls back to
+    # .get(type_key, type_key) (views_manage.py:1751) and the heading reads
+    # "beforeafter" -- NOT "no heading".
+    assert '<p class="editor-form__type">Before / after</p>' in html
 
 
 def test_save_round_trips_the_button_label(client):
@@ -1812,7 +1852,12 @@ def test_row_renders_type_tag_and_summary(client):
     # so `"Before / after" in body` is satisfied whether or not the row emits
     # el-tag -- the bare-substring trap this repo has hit before.
     assert '<span class="el-tag">Before / after</span>' in body
-    assert "Show solution" in body           # el-row__label via element_summary
+    # Scoped to the editor pane: _editor_scope.html also renders a live PREVIEW
+    # (views_manage.py:1534), which emits the student template's ba__label span --
+    # so a bare `"Show solution" in body` is true whether or not element_summary
+    # has a branch. The same trap the el-tag assertion above avoids.
+    editor_pane = body.split('data-scope="preview"')[0]
+    assert ">Show solution</button>" in editor_pane   # the el-row__label button
     assert 'class="el-edit-slot"' in body    # hosts the open form
     assert "element-list--nested" in body    # child-row wrapper
     # Mutant: emit one slot / drop the `{% for slot_id, children in
@@ -1885,9 +1930,9 @@ then the container-specific tail:
           <span class="ba-rows__count">{{ children|length }}</span></div>
         <ol class="element-list element-list--nested">
           {% for child in children %}
-            {% include "courses/manage/editor/_element_row.html" with el=child %}
+            {% include "courses/manage/editor/_element_row.html" with el=child obj=child.content_object unit=unit open_form=open_form open_form_pk=open_form_pk depth=depth|add:1 %}
           {% empty %}
-            <li class="empty-state">{% trans "No content yet" %}</li>
+            <li class="empty-state">{% trans "This slot is empty." %}</li>
           {% endfor %}
         </ol>
         {% if depth < max_nest_depth %}{% include "courses/manage/editor/_add_menu.html" with nested=True parent=el.pk tab=slot_id depth=depth %}{% endif %}{% paste_buttons el.pk slot_id %}
@@ -2097,7 +2142,7 @@ def _blocks(css):
     i_print = s.index("@media print", i_state)
     end = s.index("\n}", i_print)
     base, state, printed = s[i_base:i_state], s[i_state:i_print], s[i_print:end]
-    # courses.css holds six @media print blocks; this asserts we took ours.
+    # courses.css holds several @media print blocks; this asserts we took ours.
     assert ".ba__panel[hidden]" in printed, "extracted the wrong @media print block"
     return base, state, printed
 
@@ -2192,10 +2237,10 @@ def test_print_child_rule_follows_the_app_css_guard_in_document_order():
     hidden in print.
     """
     assert ".ba__child[hidden]" in _print_block(_read(COURSES_CSS))
-    app = _strip_comments(_read(APP_CSS))
-    # If any of it were ever moved into app.css, it must sit AFTER the guard.
-    if app.count(".ba__child[hidden]") > 1:
-        assert app.rindex(".ba__child[hidden]") > app.index(".lesson-block[hidden]")
+    # NOTE: the "moved into app.css" mutant is killed by _blocks()'s
+    # `assert ".ba__panel[hidden]" in printed`, not by a check here -- after Step 3
+    # app.css contains .ba__child[hidden] exactly once, so any count-based branch
+    # would be dead code.
 
 
 def test_no_js_rules_revert_the_same_five_properties():
@@ -2251,8 +2296,9 @@ Expected: FAIL — no `@media print` block for this element yet.
 
 At the **end** of the element's rules in `courses/static/courses/css/courses.css`, after the state-scoped block:
 
-The opening comment is the test delimiter (`courses.css` has seven `@media print`
-blocks, so a first-match regex would extract the wrong one) — keep it exactly:
+Keep the opening comment for readability; `_blocks()` anchors on `@media print`
+searched forward from the state block, not on this comment. What matters is that this
+block comes **after** the `html:not(.ba-js)` rules.
 
 ```css
 /* Before / after — print
@@ -2501,8 +2547,8 @@ git commit -m "test(before-after): end-to-end toggle, pre-hide, recovery and edi
 ## Task 14: Help docs and translations
 
 **Files:**
-- Modify: `docs/help/course-admin/content-editors.md` (`:115` area, `:146`, `:155`, `:163`)
-- Modify: `docs/help/course-admin/content-editors.pl.md` (the same four places)
+- Modify: `docs/help/course-admin/content-editors.md` (`:115` area, `:146`, `:153`, `:161`)
+- Modify: `docs/help/course-admin/content-editors.pl.md` (the same four *passages* — different line numbers; its `{el:callout}` block is at `:124`)
 - Modify: `locale/en/LC_MESSAGES/django.po`, `locale/pl/LC_MESSAGES/django.po`
 
 - [ ] **Step 1: Add the element to the help manual**
@@ -2510,8 +2556,8 @@ git commit -m "test(before-after): end-to-end toggle, pre-hide, recovery and edi
 In `docs/help/course-admin/content-editors.md`, add a `{el:beforeafter}` paragraph in the Content section describing what the element does and that quiz questions cannot go inside it. Then fix **three enumerations this feature falsifies**:
 
 - `:146` "Tabs, Columns, Spoiler, and Callout are the four container types" → five, naming Before / after;
-- `:155` the nested add-menu list;
-- `:163` the quiz-specific list (Before / after **is** offered in quiz units — it is in the Content group).
+- `:153` the nested add-menu list;
+- `:161` the quiz-specific list (Before / after **is** offered in quiz units — it is in the Content group).
 
 Mirror all four edits in `content-editors.pl.md`.
 
@@ -2530,7 +2576,7 @@ uv run python manage.py makemessages -l en -l pl
 | `After` | `Po` |
 | `Switch content` | `Zmień treść` |
 | `Button label` | `Etykieta przycisku` |
-| `No content yet` | `Brak treści` |
+| `This slot is empty.` | `Ten slot jest pusty.` |
 | `button label` | `etykieta przycisku` |
 | `before/after data` | `dane przed/po` |
 
