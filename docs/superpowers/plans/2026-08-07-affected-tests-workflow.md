@@ -58,7 +58,9 @@ render_commands(result: Result) -> str
 | Create `tests/test_affected_tests.py` | B3. Stub-based unit tests for the core; one fixture-repo integration test for the wrapper. |
 | Modify `docs/development/testing.md` | B1. Adds the affected-tests practice. Part A already shipped the branch-gate, never-twice, one-run-at-a-time and troubleshooting content, which must survive. |
 
-**Expected test totals after each task:** 10 → 34 → 48 → 57 → 66 → 73 → 78. Parametrized cases are counted expanded.
+**Expected test totals after each task:** 10 → 34 → 49 → 58 → 67 → 74 → 81. Parametrized cases are counted expanded.
+
+**Placement rule for every code addition:** unless a task says otherwise, **append at the end of the module**. Function bodies resolve names at call time, so order between `def`s never matters — but `_FULL_RUN_BECAUSE` (Task 5) is a module-level dict that dereferences `Reason` at import, so it must physically follow `class Reason`. Appending at the end always satisfies this; "append after `<the previous function>`" does not.
 
 ---
 
@@ -428,7 +430,7 @@ from enum import StrEnum
 from pathlib import PurePosixPath
 ```
 
-Append after `normalize_name_status`:
+Append at the end of the module:
 
 ```python
 # Paths whose change can alter the behaviour of tests that do not mention them.
@@ -700,7 +702,7 @@ Expected: `AttributeError: module 'affected_tests' has no attribute 'import_path
 
 - [ ] **Step 3: Implement the rules**
 
-No new imports. Append after `is_global_path`:
+No new imports. Append at the end of the module:
 
 ```python
 # A `search` implementation or stub returns the ENTIRE corpus for this sentinel.
@@ -779,7 +781,7 @@ Replace the body of `map_paths` **after** the global short-circuit — that is, 
 
 Run: `uv run pytest tests/test_affected_tests.py -v`
 
-Expected: PASS, **48** tests.
+Expected: PASS, **49** tests.
 
 - [ ] **Step 5: Falsify**
 
@@ -916,7 +918,7 @@ Expected: `AttributeError: module 'affected_tests' has no attribute 'classify'`.
 
 - [ ] **Step 3: Implement classification and the caps**
 
-No new imports. Append after `map_one`:
+No new imports. Append at the end of the module:
 
 ```python
 # The trailing underscore is REQUIRED. MEASURED: integrations/tests/test_e2e.py
@@ -983,7 +985,7 @@ Capped lists are **retained** in the `Result` rather than emptied; `render_comma
 
 Run: `uv run pytest tests/test_affected_tests.py -v`
 
-Expected: PASS, **57** tests.
+Expected: PASS, **58** tests.
 
 - [ ] **Step 5: Falsify**
 
@@ -1116,7 +1118,11 @@ class TestEmission:
 
     def test_unmapped_paths_are_listed(self):
         result = Result(
-            ("tests/test_a.py",), (), ("logo.png", "README.md"), Reason.NONE, Reason.NONE
+            ("tests/test_a.py",),
+            (),
+            ("logo.png", "README.md"),
+            Reason.NONE,
+            Reason.NONE,
         )
         out = render_commands(result)
         assert "logo.png" in out
@@ -1131,7 +1137,9 @@ Expected: `AttributeError: module 'affected_tests' has no attribute 'render_comm
 
 - [ ] **Step 3: Implement emission**
 
-No new imports. Note the **single outer quotes** on `EXIT5_NOTE` — `ruff format` rewrites the escaped-double-quote form and would fail `--check`.
+No new imports. **Append at the end of the module, after `map_paths`** — `_FULL_RUN_BECAUSE` is a module-level dict that dereferences `Reason` at import time, so placing it earlier (following the "after the previous function" pattern) raises `NameError` on import and Step 4 becomes unreachable.
+
+Note the **single outer quotes** on `EXIT5_NOTE` — `ruff format` rewrites the escaped-double-quote form and would fail `--check`.
 
 ```python
 PYTEST = "uv run pytest"
@@ -1201,7 +1209,7 @@ def render_commands(result: Result) -> str:
 
 Run: `uv run pytest tests/test_affected_tests.py -v`
 
-Expected: PASS, **66** tests.
+Expected: PASS, **67** tests.
 
 - [ ] **Step 5: Falsify**
 
@@ -1386,7 +1394,14 @@ def make_search(corpus: set[str], cwd: Path) -> Callable[[str], set[str]]:
             # Word boundaries, and re.escape -- otherwise "pytest.mark.e2e" is a
             # regex whose dots match any character.
             pattern = re.compile(rf"\b{re.escape(term)}\b")
-            cache[term] = {rel for rel, t in contents.items() if pattern.search(t)}
+            # The `term in t` pre-filter is the reason this is usable: a plain
+            # substring scan is far cheaper than a regex pass and rejects almost
+            # every file before the regex runs. It cannot change the result --
+            # \bTERM\b can only match where TERM occurs. MEASURED over the
+            # 647-file corpus, 17 terms: 2.26 s without it, 0.09 s with. 25x.
+            cache[term] = {
+                rel for rel, t in contents.items() if term in t and pattern.search(t)
+            }
         return set(cache[term])  # a copy: callers must not mutate the cache
 
     return search
@@ -1472,6 +1487,16 @@ def main(argv: list[str] | None = None) -> int:
 
     base = resolve_base(args.base, cwd)
     changed = normalize_name_status(git_lines(["diff", "--name-status", base], cwd))
+    # Untracked files are invisible to `git diff` (VERIFIED), and a brand-new
+    # test or source file that has not been `git add`-ed yet is the single most
+    # common iterating state. Reporting "nothing to run" for it would be exactly
+    # the silent omission this tool refuses everywhere else, so they are folded
+    # in as additions. --exclude-standard honours .gitignore, which is what keeps
+    # .venv and the nested worktrees out.
+    untracked = git_lines(["ls-files", "--others", "--exclude-standard"], cwd)
+    for path in untracked:
+        if path and path not in changed:
+            changed.append(path)
     if not changed:
         print(f"no changes against {args.base} ({base[:8]}); nothing to run")
         return 0
@@ -1492,7 +1517,7 @@ if __name__ == "__main__":
 
 Run: `uv run pytest tests/test_affected_tests.py -v`
 
-Expected: PASS, **73** tests.
+Expected: PASS, **74** tests.
 
 - [ ] **Step 5: Falsify**
 
@@ -1610,7 +1635,12 @@ class TestCorpusExcludesIgnoredPaths:
         # Guards the guard: if the fixture stopped writing the phantom, the test
         # above would pass vacuously.
         phantom = (
-            fixture_repo / ".claude" / "worktrees" / "other" / "tests" / "test_phantom.py"
+            fixture_repo
+            / ".claude"
+            / "worktrees"
+            / "other"
+            / "tests"
+            / "test_phantom.py"
         )
         assert phantom.exists()
 
@@ -1638,6 +1668,38 @@ class TestWrapperIntegration:
             affected_tests.main(["--repo", str(fixture_repo), "--base", "origin/nope"])
         assert "does not exist" in str(excinfo.value)
 
+    def test_an_untracked_new_test_file_still_reaches_the_selection(
+        self, fixture_repo, capsys
+    ):
+        # `git diff` cannot see it (VERIFIED), yet "I just created this test" is
+        # the most common iterating state. Without the ls-files --others union
+        # the tool would answer "nothing to run".
+        (fixture_repo / "tests" / "test_brand_new.py").write_text(
+            "def test_n():\n    pass\n", encoding="utf-8"
+        )
+
+        assert affected_tests.main(["--repo", str(fixture_repo)]) == 0
+        out = capsys.readouterr().out
+
+        assert "uv run pytest tests/test_brand_new.py" in out
+        # --exclude-standard must still keep the gitignored phantom out, and
+        # this assertion is non-vacuous because the command list is non-empty.
+        assert "test_phantom.py" not in out
+
+    def test_a_clean_tree_reports_nothing_to_run_and_emits_no_command(
+        self, fixture_repo, capsys
+    ):
+        # HEAD == origin/master, and the only untracked file is the gitignored
+        # phantom the fixture wrote. This is the branch that would mask the
+        # untracked-file gap, so it gets its own test -- and it doubles as proof
+        # that --exclude-standard really excludes the phantom, since any leak
+        # would make `changed` non-empty and suppress this message.
+        assert affected_tests.main(["--repo", str(fixture_repo)]) == 0
+        out = capsys.readouterr().out
+
+        assert "nothing to run" in out
+        assert "uv run pytest" not in out
+
     def test_a_docs_only_diff_emits_no_pytest_command(self, fixture_repo, capsys):
         (fixture_repo / "README.md").write_text("hi\n", encoding="utf-8")
         run_git(fixture_repo, "add", "-A")
@@ -1656,7 +1718,7 @@ class TestWrapperIntegration:
 
 Run: `uv run pytest tests/test_affected_tests.py -k "Corpus or WrapperIntegration" -v`
 
-Expected: **PASS, 5 tests.** These are new tests over code that Tasks 1–6 already shipped, so there is no red phase to stage here — a failure means a real defect in Tasks 1–6, or a genuine environment difference (path separators, `git diff` against a merge base equal to HEAD). Step 5's falsification is what proves these tests guard something.
+Expected: **PASS, 7 tests.** These are new tests over code that Tasks 1–6 already shipped, so there is no red phase to stage here — a failure means a real defect in Tasks 1–6, or a genuine environment difference (path separators, `git diff` against a merge base equal to HEAD). Step 5's falsification is what proves these tests guard something.
 
 - [ ] **Step 3: Fix anything the integration surfaces**
 
@@ -1666,7 +1728,7 @@ No new production code is planned. If a test fails, diagnose and fix `scripts/af
 
 Run: `uv run pytest tests/test_affected_tests.py -v`
 
-Expected: PASS, **78** tests.
+Expected: PASS, **81** tests.
 
 - [ ] **Step 5: Falsify**
 
@@ -1676,6 +1738,9 @@ Expected: PASS, **78** tests.
 | `resolve_base` returns `""` on a missing ref instead of calling `_die` | `test_a_missing_base_ref_fails_loudly` |
 | Delete the phantom write from the fixture | `test_the_phantom_really_is_on_disk` |
 | `render_commands` interpolates an empty file list rather than the "no tests mapped" line | `test_a_docs_only_diff_emits_no_pytest_command` |
+| Delete the `untracked` union from `main` | `test_an_untracked_new_test_file_still_reaches_the_selection` |
+| Drop `--exclude-standard` from the `ls-files --others` call | `test_a_clean_tree_reports_nothing_to_run_and_emits_no_command`, `test_an_untracked_new_test_file_...` |
+| Make the `if not changed` branch fall through instead of returning | `test_a_clean_tree_reports_nothing_to_run_and_emits_no_command` |
 
 - [ ] **Step 6: Lint and commit**
 
@@ -1702,10 +1767,12 @@ Part A already shipped `### Troubleshooting`, `### One run at a time` and the `#
 
 Run:
 ```bash
-grep -n '^#' docs/development/testing.md
+grep -nE '^#{1,4} ' docs/development/testing.md
 ```
 
 Note the full heading list. `## What runs where` should be last. Keep this output — Step 4 compares against it.
+
+(The trailing space and the `{1,4}` bound matter: a bare `grep -n '^#'` also returns `# start (once per session)` and `# stop and wipe ...`, which are **bash comments inside the compose code fence**, not headings.)
 
 - [ ] **Step 2: Append the new section**
 
@@ -1756,26 +1823,28 @@ before-state is a red you will spend an hour on.
 
 - [ ] **Step 3: Update the pointer in `## What runs where`**
 
-In the `## What runs where` section, replace the sentence
+**This is a sentence-level edit inside a wrapped paragraph, not a line replace.** The target sentence is the head of `docs/development/testing.md:89`, which reads in full:
 
 ```
-Run the affected tests locally; let CI run the full suite.
+Run the affected tests locally; let CI run the full suite. CI does both
 ```
 
-with
+and continues on the next two lines with `selections plus lint in about **8m45s**, in three parallel jobs, and it does not` / `consume your session.` Replacing the whole line would silently delete Part A's measured 8m45s sentence.
+
+Replace **only** `Run the affected tests locally; let CI run the full suite.` with:
 
 ```
 Run the affected tests locally — `scripts/affected_tests.py` below works out
 which those are — and let CI run the full suite.
 ```
 
-Change nothing else in that section.
+so the paragraph still ends with `CI does both selections plus lint in about **8m45s**, in three parallel jobs, and it does not consume your session.` Change nothing else in that section.
 
 - [ ] **Step 4: Verify Part A's content survived**
 
 Run:
 ```bash
-grep -n '^#' docs/development/testing.md
+grep -nE '^#{1,4} ' docs/development/testing.md
 ```
 
 Expected: every heading from Step 1 is still present, in the same order, plus the two new ones (`## Which tests are affected`, `### Justify the selection before a slice`) at the end. Specifically confirm `### Troubleshooting` and `### One run at a time` are still there.
@@ -1784,6 +1853,8 @@ Then run:
 ```bash
 grep -c 'affected_tests.py' docs/development/testing.md   # expect 3
 grep -c 'REGRESSION' docs/development/testing.md          # expect 1
+grep -c '8m45s' docs/development/testing.md               # expect 1 -- Step 3 must not have eaten it
+grep -c 'connect_timeout' docs/development/testing.md     # expect 2 -- Part A troubleshooting intact
 ```
 
 - [ ] **Step 5: Confirm nothing asserts on this file's prose**
@@ -1826,17 +1897,19 @@ The diff adds `scripts/affected_tests.py` and `tests/test_affected_tests.py`, an
 
 | Input path | Expected treatment |
 |---|---|
-| `tests/test_affected_tests.py` | test file → maps to itself → **unit** selection |
+| `tests/test_affected_tests.py` | test file → maps to itself → **unit *and* e2e**. It contains the literal string `pytest.mark.e2e` (in Task 6's `TestSearch` fixture text and Task 7's fixture-repo source), so the marker search matches it and non-exclusive classification routes it to both. |
 | `scripts/affected_tests.py` | Python module → searched by import path `scripts.affected_tests` **and every public symbol it defines** |
 | `docs/development/testing.md` | `.md` → no rule → **unmapped** |
 | `docs/superpowers/plans/2026-08-07-affected-tests-workflow.md` | `.md` → **unmapped** |
 
+**An `-m e2e` command WILL therefore be printed**, listing `tests/test_affected_tests.py`, and running it exits 5 because the file collects no e2e tests. That is correct behaviour, not a defect — it is exactly the case the exit-5 caveat exists for, observed on the tool's own diff.
+
+Measured against the live 647-file corpus before implementation, so the expected magnitude is known: `scripts.affected_tests` → 0 hits, `main` → 14, `Reason` → 1, every other public symbol → 0. Note that 14 of those 15 match only the bare word `main`, so most are false positives — informative about the symbol rule's precision, and **not** a reason to change it in this task.
+
 **Both a small unit list and `unit_reason = CAPPED` are acceptable outcomes, and the distinction is the point of this step.** This module's public symbols include deliberately generic names — `main`, `classify`, `search`, `Result`, `Reason` — and `\bmain\b` or `\bResult\b` may match many of the 647 corpus files. Decide as follows, and record which happened:
 
-- **Not capped** → working as designed; confirm the unit list actually contains `tests/test_affected_tests.py`.
+- **Not capped** (the measured expectation: ~15 unit files) → working as designed; confirm the unit list actually contains `tests/test_affected_tests.py`.
 - **CAPPED** → **also working as designed.** The cap exists precisely to refuse a list that is no longer meaningfully narrower than the suite, and a module whose symbols are this generic is the honest case for it. Record the candidate count. Do **not** add a symbol stop-list in this task — that is a design change, and it belongs in a follow-up with its own measurement, not in a dogfood step.
-
-Note that if the unit selection is CAPPED, the e2e selection may be too, so "no `-m e2e` command is printed" is only expected in the not-capped case.
 
 - [ ] **Step 3: Time it, against a stated budget**
 
@@ -1845,13 +1918,17 @@ Run:
 uv run python -c "import subprocess,time; t=time.perf_counter(); subprocess.run(['uv','run','python','scripts/affected_tests.py'],capture_output=True); print(f'{time.perf_counter()-t:.1f}s')"
 ```
 
-**Budget: under 5 seconds.** The premise of the whole scoping decision was that a tool developers actually run beats a complete one they don't, and a slow advisory tool does not get run. Over budget → record the number and open a follow-up noting the obvious fix (the per-term memoization is already in `make_search`; the next lever is skipping the symbol query for very short or very common names).
+**Budget: under 8 seconds**, including the doubled `uv run` interpreter startup this command itself pays. The premise of the whole scoping decision was that a tool developers actually run beats a complete one they don't, and a slow advisory tool does not get run.
+
+A 5 s budget was measured to straddle the real number before the `term in t` pre-filter existed, which is why the pre-filter is in `make_search` and the budget is 8 s. MEASURED in-process over the 647-file corpus with this diff's 17 terms: reading the files 0.21 s, search **2.26 s without** the pre-filter and **0.09 s with** it. So the work itself is ~0.3 s and the budget is almost entirely interpreter startup — if this step is anywhere near 8 s, something is wrong rather than merely slow.
+
+Memoization is *not* what makes this fast: within a single run every term is distinct, so the cache never hits. Over budget → record the number and open a follow-up; the next lever is a single combined-alternation pass per file instead of one pass per term. Do **not** implement it here.
 
 - [ ] **Step 4: Run the named test file**
 
 Run: `uv run pytest tests/test_affected_tests.py -v`
 
-Expected: PASS, **78** tests, exit 0. **Do not run the full suite** — this branch adds no application code, and CI is the gate.
+Expected: PASS, **81** tests, exit 0. **Do not run the full suite** — this branch adds no application code, and CI is the gate.
 
 - [ ] **Step 5: Lint the whole diff**
 
@@ -1860,9 +1937,26 @@ uv run ruff check scripts/affected_tests.py tests/test_affected_tests.py
 uv run ruff format --check scripts/affected_tests.py tests/test_affected_tests.py
 ```
 
-- [ ] **Step 6: Commit only if something changed**
+- [ ] **Step 6: Record the measurements in a note, and commit**
 
-If Steps 1–3 surfaced a defect, fix it, add a test that would have caught it, and commit. Otherwise no commit is needed — report the observed output, the capped/not-capped outcome, and the timing.
+The spec's §5.5 requires that **all measured numbers land in a note under `docs/superpowers/notes/`, dated and naming the commit measured** — a task report is ephemeral, so the dogfood numbers would otherwise be lost.
+
+Create `docs/superpowers/notes/2026-08-07-affected-tests-dogfood.md` containing:
+
+- the commit SHA measured (`git rev-parse --short HEAD`) and the `--base` used;
+- the verbatim tool output from Step 1;
+- the unit and e2e file counts, and whether either selection was `CAPPED`;
+- the Step 3 timing against the 8 s budget;
+- one line on whether the `main`-driven false positives showed up as predicted.
+
+If Steps 1–3 surfaced a defect, also fix it and add a test that would have caught it.
+
+```bash
+git add docs/superpowers/notes/2026-08-07-affected-tests-dogfood.md
+git commit -m "docs(notes): record the affected-tests dogfood run
+
+Tool output, selection sizes and wall clock on its own diff, per spec 5.5."
+```
 
 ---
 
@@ -1897,4 +1991,8 @@ If Steps 1–3 surfaced a defect, fix it, add a test that would have caught it, 
 
 **Lint consistency:** the exact import block is shown at each task that changes it (Tasks 1, 2, 6) and never contains an unused name (`F401`); `import subprocess` enters the test file through a header edit, not a mid-file insert (`E402`); `EXIT5_NOTE` uses single outer quotes so `ruff format --check` passes.
 
-**Test counts** are stated expanded (parametrized cases counted individually): 10 → 34 → 48 → 57 → 66 → 73 → 78.
+**Test counts** are stated expanded (parametrized cases counted individually): 10 → 34 → 49 → 58 → 67 → 74 → 81. Per-task additions: 10, 24, 15, 9, 9, 7, 7.
+
+**Placement:** every code addition says "append at the end of the module", which is the only ordering that is safe for `_FULL_RUN_BECAUSE` (a module-level dict dereferencing `Reason` at import).
+
+**Beyond §4, deliberately:** the untracked-file union in Task 6 is not in the spec. `git diff` cannot see a file that has not been `git add`-ed (VERIFIED), and "I just created this test" is the most common iterating state — reporting `nothing to run` for it would be the exact silent omission the Global Constraints forbid. Task 9 Step 6's note satisfies the spec's §5.5 recording requirement, which §4 does not restate.
