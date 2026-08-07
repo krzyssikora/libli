@@ -17,13 +17,13 @@ Every task's requirements implicitly include this section. Values are copied ver
 - **The tool is advisory, never authoritative.** CI's full suite remains the gate. Bias every undecidable case toward visibility (report as `unmapped`), never toward silent omission.
 - **Corpus is built from `git ls-files`, never a filesystem walk.** MEASURED in the main checkout: **647** tracked files match `test_*.py`, while a walk sees **3,197** — the difference is 16 under `.venv/` and 2,534 inside nested worktrees under `.claude/worktrees/`. The nested-worktree figure is **checkout-local** (a fresh worktree has none), so it must not ship as a fixed constant in source; `.venv/` alone justifies the rule everywhere.
 - **Unit/e2e classification is NON-exclusive.** A file may appear in both selections. `tests/test_tabs_editor_dnd.py` collects **10 non-e2e and 2 e2e** tests (measured); an "iff" rule strands the 10.
-- **An empty candidate list emits NO command** for that selection, and prints `no <unit|e2e> tests mapped; see unmapped`.
+- **An empty candidate list emits NO command** for that selection, and prints `<unit|e2e>: nothing mapped`. No "see unmapped" pointer: the unmapped section is printed only when non-empty, and a diff touching only e2e files leaves the unit selection empty with nothing unmapped to point at.
 - **The emitted e2e command always carries `-m e2e`.**
 - **Both emitted commands carry the note that exit code 5 means "nothing selected", not "green".** MEASURED: `tests/test_link_apply.py` (29), `test_link_dialog_behaviour.py` (32) and `test_table_grid_algebra.py` (38) collect **zero** non-e2e tests. All three carry a **module-level** `pytestmark = pytest.mark.e2e` and are **not** named `test_e2e_*`, so they land in both selections and their unit command is entirely deselected.
 - **"A test file" means the basename matches `python_files` = `test_*.py`**, not "lives in a test directory". `tests/capture_help_screenshots.py` is deliberately not collectible.
 - **Breadth caps, per selection, independent:** unit **40**, e2e **15**.
 - **Diff range is merge-base with `origin/master`** (not local `master`, routinely stale in a worktree). `--base` overrides. A missing ref is a hard error, never a silent empty diff.
-- **ruff applies to `scripts/`** — `select = ["E", "F", "I", "UP", "B", "S"]`, `isort.force-single-line = true`, **line length 88** (no override). Consequences, all verified: `subprocess` calls need `# noqa: S603` (precedent `tests/test_help_capture_isolation.py:19`); no unused imports (`F401`), so each task adds only the imports it uses; no mid-file imports (`E402`); and `ruff format` rewrites `"...\"x\"..."` to `'..."x"...'`, so **write strings containing double quotes with single outer quotes**.
+- **ruff applies to `scripts/`** — `select = ["E", "F", "I", "UP", "B", "S"]`, `ignore = ["S101"]`, `isort.force-single-line = true`, **line length 88** (no override). Consequences, all verified: `subprocess` calls need `# noqa: S603` (precedent `tests/test_help_capture_isolation.py:19`); no unused imports (`F401`), so each task adds only the imports it uses; no mid-file imports (`E402`); bare `assert` in tests is fine (`S101` is ignored globally); and `ruff format` rewrites `"...\"x\"..."` to `'..."x"...'`, so **write strings containing double quotes with single outer quotes**.
 - **Comments recording an observation are prefixed `MEASURED:`**, matching `conftest.py` and `scripts/build_favicons.py`.
 - **Never run the full suite to check this work.** Run the named test file only.
 
@@ -58,7 +58,7 @@ render_commands(result: Result) -> str
 | Create `tests/test_affected_tests.py` | B3. Stub-based unit tests for the core; one fixture-repo integration test for the wrapper. |
 | Modify `docs/development/testing.md` | B1. Adds the affected-tests practice. Part A already shipped the branch-gate, never-twice, one-run-at-a-time and troubleshooting content, which must survive. |
 
-**Expected test totals after each task:** 10 → 34 → 49 → 58 → 70 → 77 → 86. Parametrized cases are counted expanded.
+**Expected test totals after each task:** 10 → 34 → 49 → 58 → 70 → 77 → 88. Parametrized cases are counted expanded.
 
 **Placement rule for every code addition:** unless a task says otherwise, **append at the end of the module**. Function bodies resolve names at call time, so order between `def`s never matters — but `_FULL_RUN_BECAUSE` (Task 5) is a module-level dict that dereferences `Reason` at import, so it must physically follow `class Reason`. Appending at the end always satisfies this; "append after `<the previous function>`" does not.
 
@@ -1114,7 +1114,7 @@ class TestEmission:
         # is never printed.
         result = Result((), ("tests/test_e2e_b.py",), (), Reason.NONE, Reason.NONE)
         out = render_commands(result)
-        assert "no unit tests mapped" in out
+        assert "unit: nothing mapped" in out
         assert "see unmapped" not in out
 
     def test_an_empty_unit_selection_emits_no_command(self):
@@ -1124,7 +1124,7 @@ class TestEmission:
             (), ("tests/test_e2e_b.py",), ("README.md",), Reason.NONE, Reason.NONE
         )
         out = render_commands(result)
-        assert "no unit tests mapped" in out
+        assert "unit: nothing mapped" in out
         unit_lines = [
             ln
             for ln in out.splitlines()
@@ -1137,7 +1137,7 @@ class TestEmission:
             ("tests/test_a.py",), (), ("README.md",), Reason.NONE, Reason.NONE
         )
         out = render_commands(result)
-        assert "no e2e tests mapped" in out
+        assert "e2e: nothing mapped" in out
         assert "-m e2e" not in out
 
     def test_a_wholly_empty_result_emits_no_pytest_command_at_all(self):
@@ -1153,8 +1153,8 @@ class TestEmission:
         out = render_commands(result)
         assert affected_tests.FULL_UNIT_COMMAND in out
         assert affected_tests.FULL_E2E_COMMAND in out
-        assert "no unit tests mapped" not in out
-        assert "no e2e tests mapped" not in out
+        assert "unit: nothing mapped" not in out
+        assert "e2e: nothing mapped" not in out
 
     def test_capped_emits_the_full_run_for_that_selection_only(self):
         files = tuple(f"tests/test_m{i:03d}.py" for i in range(41))
@@ -1239,7 +1239,7 @@ def _render_one(
         # No "see unmapped" pointer here: the unmapped section is only printed
         # when it is non-empty, and a diff touching only e2e files leaves this
         # selection empty with nothing unmapped to point at.
-        return [f"{label}: no {label} tests mapped"]
+        return [f"{label}: nothing mapped"]
     joined = " ".join(files)
     return [
         f"{label}: {len(files)} file(s)",
@@ -1432,14 +1432,29 @@ def git_lines(args: list[str], cwd: Path) -> list[str]:
     return proc.stdout.splitlines()
 
 
+def untracked_paths(cwd: Path) -> list[str]:
+    """Files git can see but does not track. --exclude-standard honours
+    .gitignore, which is what keeps .venv and the nested worktrees out."""
+    return [p for p in git_lines(["ls-files", "--others", "--exclude-standard"], cwd) if p]
+
+
 def build_corpus(cwd: Path) -> set[str]:
-    """Every TRACKED file pytest would collect as a test module.
+    """Every file pytest would collect as a test module -- tracked AND untracked.
 
     `git ls-files`, never a filesystem walk: a walk descends into `.venv/` and
     into any nested worktrees under `.claude/worktrees/`, both gitignored and
     both skipped by pytest, and emits node IDs pointing outside this branch.
+
+    The untracked half is here for CLASSIFICATION, not just for the diff. A
+    brand-new `tests/test_thing.py` carrying a module-level `pytest.mark.e2e`
+    reaches the candidate list through `main`'s untracked union, but if it is
+    absent from the corpus then `search(E2E_MARKER)` cannot see it, `classify`
+    treats it as unmarked, and it goes to the unit selection alone -- where
+    `-m 'not e2e'` deselects every test in it. Selected nowhere, silently: the
+    exact failure the non-exclusive rule exists to prevent.
     """
-    return {p for p in git_lines(["ls-files"], cwd) if is_test_file(p)}
+    tracked = git_lines(["ls-files"], cwd)
+    return {p for p in [*tracked, *untracked_paths(cwd)] if is_test_file(p)}
 
 
 def make_search(corpus: set[str], cwd: Path) -> Callable[[str], set[str]]:
@@ -1562,9 +1577,8 @@ def main(argv: list[str] | None = None) -> int:
     # the silent omission this tool refuses everywhere else, so they are folded
     # in as additions. --exclude-standard honours .gitignore, which is what keeps
     # .venv and the nested worktrees out.
-    untracked = git_lines(["ls-files", "--others", "--exclude-standard"], cwd)
-    for path in untracked:
-        if path and path not in changed:
+    for path in untracked_paths(cwd):
+        if path not in changed:
             changed.append(path)
     if not changed:
         print(f"no changes against {args.base} ({base[:8]}); nothing to run")
@@ -1704,6 +1718,14 @@ class TestCorpusExcludesIgnoredPaths:
         corpus = build_corpus(fixture_repo)
         assert corpus == {"tests/test_widget.py", "tests/test_e2e_widget.py"}
 
+    def test_an_untracked_test_file_does_enter_the_corpus(self, fixture_repo):
+        # Tracked-only would be wrong: classification reads the corpus, so an
+        # untracked marked file would look unmarked. See the next test.
+        (fixture_repo / "tests" / "test_fresh.py").write_text(
+            "def test_f():\n    pass\n", encoding="utf-8"
+        )
+        assert "tests/test_fresh.py" in build_corpus(fixture_repo)
+
     def test_the_phantom_really_is_on_disk(self, fixture_repo):
         # Guards the guard: if the fixture stopped writing the phantom, the test
         # above would pass vacuously.
@@ -1770,6 +1792,34 @@ class TestWrapperIntegration:
 
         assert "on_master.py" not in out
 
+    def test_an_untracked_marked_file_still_lands_in_both_selections(
+        self, fixture_repo, capsys
+    ):
+        # THE untracked-classification case. This file is untracked (so it is
+        # invisible to `git diff`), carries a MODULE-LEVEL e2e marker, and is
+        # NOT named test_e2e_* -- so only the marker search can classify it. If
+        # the corpus were tracked-only it would be routed to unit alone, where
+        # `-m 'not e2e'` deselects everything in it: selected nowhere, silently.
+        (fixture_repo / "tests" / "test_mixed_new.py").write_text(
+            "import pytest\n\npytestmark = pytest.mark.e2e\n\n\n"
+            "def test_m():\n    pass\n",
+            encoding="utf-8",
+        )
+
+        assert affected_tests.main(["--repo", str(fixture_repo)]) == 0
+        out = capsys.readouterr().out
+
+        unit_line = next(
+            ln for ln in out.splitlines() if ln.strip().startswith("uv run pytest")
+        )
+        assert "tests/test_mixed_new.py" in unit_line
+        e2e_line = next(
+            ln
+            for ln in out.splitlines()
+            if ln.strip().startswith("uv run pytest") and ln.rstrip().endswith("-m e2e")
+        )
+        assert "tests/test_mixed_new.py" in e2e_line
+
     def test_an_explicit_base_override_is_honoured(self, fixture_repo, capsys):
         # The --base flag is a stated requirement, but only its FAILURE path was
         # covered -- code that ignored args.base and always used origin/master
@@ -1833,8 +1883,8 @@ class TestWrapperIntegration:
         out = capsys.readouterr().out
 
         assert "uv run pytest" not in out
-        assert "no unit tests mapped" in out
-        assert "no e2e tests mapped" in out
+        assert "unit: nothing mapped" in out
+        assert "e2e: nothing mapped" in out
         assert "README.md" in out
 ```
 
@@ -1842,7 +1892,7 @@ class TestWrapperIntegration:
 
 Run: `uv run pytest tests/test_affected_tests.py -k "ExcludesIgnored or WrapperIntegration" -v`
 
-Expected: **PASS, 9 tests.** These are new tests over code that Tasks 1–6 already shipped, so there is no red phase to stage here — a failure means a real defect in Tasks 1–6, or a genuine environment difference (path separators, `git diff` against a merge base equal to HEAD). Step 5's falsification is what proves these tests guard something.
+Expected: **PASS, 11 tests.** These are new tests over code that Tasks 1–6 already shipped, so there is no red phase to stage here — a failure means a real defect in Tasks 1–6, or a genuine environment difference (path separators, `git diff` against a merge base equal to HEAD). Step 5's falsification is what proves these tests guard something.
 
 - [ ] **Step 3: Fix anything the integration surfaces**
 
@@ -1852,7 +1902,7 @@ No new production code is planned. If a test fails, diagnose and fix `scripts/af
 
 Run: `uv run pytest tests/test_affected_tests.py -v`
 
-Expected: PASS, **86** tests.
+Expected: PASS, **88** tests.
 
 - [ ] **Step 5: Falsify**
 
@@ -1861,17 +1911,20 @@ Expected: PASS, **86** tests.
 | `build_corpus` walks with `Path(cwd).rglob("test_*.py")` instead of `git ls-files` | `test_a_nested_worktree_test_file_never_enters_the_corpus` |
 | `resolve_base` returns `""` on a missing ref instead of calling `_die` | `test_a_missing_base_ref_fails_loudly` |
 | Delete the phantom write from the fixture | `test_the_phantom_really_is_on_disk` |
-| `render_commands` interpolates an empty file list rather than the "no tests mapped" line | `test_a_docs_only_diff_emits_no_pytest_command` |
+| `render_commands` interpolates an empty file list rather than the "nothing mapped" line | `test_a_docs_only_diff_emits_no_pytest_command` |
 | Delete the `untracked` union from `main` | `test_an_untracked_new_test_file_still_reaches_the_selection` |
-| Drop `--exclude-standard` from the `ls-files --others` call | `test_a_clean_tree_reports_nothing_to_run_and_emits_no_command`, `test_an_untracked_new_test_file_...` |
+| Drop `--exclude-standard` from `untracked_paths` | `test_a_clean_tree_reports_nothing_to_run_and_emits_no_command`, `test_an_untracked_new_test_file_...` |
+| `build_corpus` returns tracked files only (drop `untracked_paths`) | `test_an_untracked_test_file_does_enter_the_corpus`, `test_an_untracked_marked_file_still_lands_in_both_selections` |
 | Make the `if not changed` branch fall through instead of returning | `test_a_clean_tree_reports_nothing_to_run_and_emits_no_command` |
 
 - [ ] **Step 6: Lint and commit**
 
 ```bash
-uv run ruff check tests/test_affected_tests.py
-uv run ruff format --check tests/test_affected_tests.py
-git add tests/test_affected_tests.py
+# Step 3 authorises fixes to scripts/affected_tests.py -- lint and stage BOTH,
+# or a fix made there is left uncommitted and the next task starts dirty.
+uv run ruff check scripts/affected_tests.py tests/test_affected_tests.py
+uv run ruff format --check scripts/affected_tests.py tests/test_affected_tests.py
+git add scripts/affected_tests.py tests/test_affected_tests.py
 git commit -m "test(scripts): integration-test affected_tests on a fixture repo
 
 Deterministic tmp_path repo with a known origin/master, including a
@@ -1919,11 +1972,17 @@ Read its output with three things in mind:
 - **`unmapped` is the interesting part.** Anything listed there matched no rule
   — a binary asset, a new file type, something the tool does not understand.
   Judge those by hand rather than assuming they are safe.
-- **A full run is a real answer.** Changing `conftest.py`, `config/settings/`,
-  `config/urls.py`, `pyproject.toml` or a compiled `.mo` catalog can alter tests
-  that never mention it, so the script stops mapping and tells you to run
-  everything. Same when a selection exceeds its breadth cap: a list that long is
-  no longer meaningfully narrower than the suite.
+- **A full run is a real answer — and it usually means "push".** Changing
+  `conftest.py`, `config/settings/`, `config/urls.py`, `pyproject.toml` or a
+  compiled `.mo` catalog can alter tests that never mention it, so the script
+  stops mapping and tells you to run everything. Same when a selection exceeds
+  its breadth cap: a list that long is no longer meaningfully narrower than the
+  suite.
+
+  This does **not** override the two rules above. A full-run answer normally
+  means commit and let CI's 8m45s be the gate — that is what the branch gate is
+  for. Run it locally only if you have not already spent your one full run this
+  session, and only when you need the answer before pushing.
 - **Exit code 5 means "nothing selected", not "green"** — for either command.
   Some files hold only e2e tests, so a unit command built from them is entirely
   deselected by the default `-m 'not e2e'`.
@@ -2026,20 +2085,22 @@ The diff adds `scripts/affected_tests.py` and `tests/test_affected_tests.py`, an
 | `docs/development/testing.md` | `.md` → no rule → **unmapped** |
 | `docs/superpowers/plans/2026-08-07-affected-tests-workflow.md` | `.md` → **unmapped** |
 
-**An `-m e2e` command WILL therefore be printed**, listing `tests/test_affected_tests.py`, and running it exits 5 because the file collects no e2e tests. That is correct behaviour, not a defect — it is exactly the case the exit-5 caveat exists for, observed on the tool's own diff.
+**A substantial `-m e2e` command WILL therefore be printed — and it is a real browser run, not a no-op.** MEASURED against the live 647-file corpus before implementation: `scripts.affected_tests` → 0 hits, `main` → 14, `Reason` → 1, every other public symbol → 0, giving a union of **15**. `classify` then splits that union into roughly **10 unit and 6 e2e**, plus `tests/test_affected_tests.py` itself in **both** — so about **11 unit / 7 e2e**.
 
-Measured against the live 647-file corpus before implementation, so the expected magnitude is known: `scripts.affected_tests` → 0 hits, `main` → 14, `Reason` → 1, every other public symbol → 0. Note that 14 of those 15 match only the bare word `main`, so most are false positives — informative about the symbol rule's precision, and **not** a reason to change it in this task.
+The six e2e files are `tests/test_e2e_builder_tree_layout.py`, `test_e2e_image_size.py`, `test_e2e_review.py`, `test_e2e_subjects.py`, `test_e2e_unit_nav.py` and `tests/test_link_dialog_behaviour.py`. **VERIFIED by collection: that command collects 78 real e2e tests.** An earlier draft of this plan predicted "it exits 5"; that was wrong, and acting on it would have launched a Playwright run — the exact wall-clock cost this whole design exists to eliminate.
+
+Note also that 14 of the 15 union members match only the bare word `main`, so most are false positives — informative about the symbol rule's precision, and **not** a reason to change it in this task.
 
 **Both a small unit list and `unit_reason = CAPPED` are acceptable outcomes, and the distinction is the point of this step.** This module's public symbols include deliberately generic names — `main`, `classify`, `search`, `Result`, `Reason` — and `\bmain\b` or `\bResult\b` may match many of the 647 corpus files. Decide as follows, and record which happened:
 
-- **Not capped** (the measured expectation: ~15 unit files) → working as designed; confirm the unit list actually contains `tests/test_affected_tests.py`.
+- **Not capped** — the measured expectation. The union is ~15 candidates, which `classify` splits into roughly **11 unit / 7 e2e**; confirm the unit list contains `tests/test_affected_tests.py` and that it also appears in the e2e list. Comparing the printed unit count against 15 would be wrong: 15 is the pre-classification union.
 - **CAPPED** → **also working as designed.** The cap exists precisely to refuse a list that is no longer meaningfully narrower than the suite, and a module whose symbols are this generic is the honest case for it. Record the candidate count. Do **not** add a symbol stop-list in this task — that is a design change, and it belongs in a follow-up with its own measurement, not in a dogfood step.
 
 - [ ] **Step 3: Time it, against a stated budget**
 
 Run:
 ```bash
-uv run python -c "import subprocess,time; t=time.perf_counter(); subprocess.run(['uv','run','python','scripts/affected_tests.py'],capture_output=True); print(f'{time.perf_counter()-t:.1f}s')"
+uv run python -c "import subprocess,time; t=time.perf_counter(); p=subprocess.run(['uv','run','python','scripts/affected_tests.py'],capture_output=True,text=True); print(f'{time.perf_counter()-t:.1f}s exit={p.returncode}'); print(p.stderr if p.returncode else '')"
 ```
 
 **Budget: under 8 seconds**, including the doubled `uv run` interpreter startup this command itself pays. The premise of the whole scoping decision was that a tool developers actually run beats a complete one they don't, and a slow advisory tool does not get run.
@@ -2052,19 +2113,23 @@ Memoization is *not* what makes this fast: within a single run every term is dis
 
 Nothing else in this plan ever executes the tool's output — which is how the unpasteable-command bug survived until it was caught by inspection. Close the loop.
 
-Copy the emitted **unit** command verbatim (including its `#` caveat line) into the shell and run it. Then do the same for the emitted **e2e** command. Record both exit codes.
+**Three guards, because this is the one step that runs arbitrary repo tests.**
 
-Expected:
-- **unit** → exit **0** (the selection is real and should pass).
-- **e2e** → exit **5**. Step 2 predicts this — `tests/test_affected_tests.py` is routed to both selections by the marker search but collects no e2e tests. Exit 5 here is the prediction being confirmed, not a failure.
+1. **If either selection rendered a full-run block** (`unit: full run --` / `e2e: full run --`, i.e. `GLOBAL` or `CAPPED`), **do NOT execute that one.** The emitted command there is the bare `uv run pytest` / `uv run pytest -m e2e`, and running it violates this plan's own "never run the full suite" constraint. Record the block verbatim and check pasteability by inspection only.
+2. **Do NOT run the e2e command.** Step 2 measured it at **78 real e2e tests across 6 browser modules** — minutes of Playwright, which is precisely the cost this design exists to reclaim. Verify it is *well-formed* instead:
+   ```bash
+   <paste the emitted e2e command, with --collect-only --verbosity=0 appended>
+   ```
+   Expected: a non-zero collected count and exit 0, proving the file list and `-m e2e` are valid. Record the count.
+3. **Run the unit command** only if it is a concrete file list. Requires the test database: `docker compose -p libli-test -f docker-compose.test.yml up -d --wait` (the ~11 selected modules take the `db` fixture). Expected exit **0**; budget **under 2 minutes**. If it exceeds that or the container is down, record the fact and move on rather than debugging unrelated tests — they are not this branch's work.
 
-A **syntax error from the shell** on either paste is a defect in `render_commands`, not a typo: fix it, and add a `render_commands` assertion that would have caught it.
+A **syntax error from the shell** on any paste is a defect in `render_commands`, not a typo: fix it, and add a `render_commands` assertion that would have caught it.
 
 - [ ] **Step 5: Run the named test file**
 
 Run: `uv run pytest tests/test_affected_tests.py -v`
 
-Expected: PASS, **86** tests, exit 0. **Do not run the full suite** — this branch adds no application code, and CI is the gate.
+Expected: PASS, **88** tests, exit 0. **Do not run the full suite** — this branch adds no application code, and CI is the gate.
 
 - [ ] **Step 6: Lint the whole diff**
 
@@ -2088,7 +2153,11 @@ Create `docs/superpowers/notes/2026-08-07-affected-tests-dogfood.md` containing:
 If Steps 1–4 surfaced a defect, also fix it and add a test that would have caught it.
 
 ```bash
+# Stage the module and its tests too: Steps 1-4 authorise fixes to both, and
+# an uncommitted fix would be invisible to the branch.
+uv run ruff check scripts/affected_tests.py tests/test_affected_tests.py
 git add docs/superpowers/notes/2026-08-07-affected-tests-dogfood.md
+git add scripts/affected_tests.py tests/test_affected_tests.py
 git commit -m "docs(notes): record the affected-tests dogfood run
 
 Tool output, selection sizes and wall clock on its own diff, per spec 5.5."
@@ -2127,7 +2196,7 @@ Tool output, selection sizes and wall clock on its own diff, per spec 5.5."
 
 **Lint consistency:** the exact import block is shown at each task that changes it (Tasks 1, 2, 6) and never contains an unused name (`F401`); `import subprocess` enters the test file through a header edit, not a mid-file insert (`E402`); `EXIT5_NOTE` uses single outer quotes so `ruff format --check` passes.
 
-**Test counts** are stated expanded (parametrized cases counted individually): 10 → 34 → 49 → 58 → 70 → 77 → 86. Per-task additions: 10, 24, 15, 9, 12, 7, 9.
+**Test counts** are stated expanded (parametrized cases counted individually): 10 → 34 → 49 → 58 → 70 → 77 → 88. Per-task additions: 10, 24, 15, 9, 12, 7, 11.
 
 **Placement:** every code addition says "append at the end of the module", which is the only ordering that is safe for `_FULL_RUN_BECAUSE` (a module-level dict dereferencing `Reason` at import).
 
