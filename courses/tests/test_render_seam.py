@@ -1,5 +1,6 @@
 import pytest
 
+from courses.models import BeforeAfterElement
 from courses.models import CalloutElement
 from courses.models import FillGateElement
 from courses.models import FillTableElement
@@ -37,6 +38,7 @@ CONCRETES = [
     (TwoColumnElement, {}),
     (SpoilerElement, {}),
     (CalloutElement, {}),
+    (BeforeAfterElement, {}),
 ]
 
 
@@ -182,7 +184,7 @@ def test_markdone_tolerates_a_drifted_blob_and_renders_fresh():
     "model,kwargs", CONCRETES, ids=[m.__name__ for m, _ in CONCRETES]
 )
 @pytest.mark.parametrize(
-    "placement", ["top", "tabs", "twocolumn", "callout", "spoiler"]
+    "placement", ["top", "tabs", "twocolumn", "callout", "spoiler", "beforeafter"]
 )
 def test_lesson_renders_200_with_each_concrete(client, model, kwargs, placement):
     """The spec's [S1] gate: render a LESSON containing each concrete, top-level AND
@@ -225,6 +227,17 @@ def test_lesson_renders_200_with_each_concrete(client, model, kwargs, placement)
             content_object=obj,
             parent=parent,
             tab_id=SpoilerElement.SLOT_ID,
+        )
+    elif placement == "beforeafter":
+        host = BeforeAfterElement.objects.create()
+        host_join = Element.objects.create(unit=unit, content_object=host)
+        Element.objects.create(
+            unit=unit,
+            content_object=obj,
+            parent=host_join,
+            # BEFORE_SLOT_ID, not a literal: a wrong id would be MASKED by
+            # resolved_slots()' re-homing rule and the test would pass vacuously.
+            tab_id=BeforeAfterElement.BEFORE_SLOT_ID,
         )
     else:
         parent_obj = TwoColumnElement.objects.create(
