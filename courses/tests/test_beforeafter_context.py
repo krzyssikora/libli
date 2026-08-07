@@ -83,3 +83,28 @@ def test_flag_is_set_for_a_quiz_unit(quiz_unit_node, student_user):
         unit=quiz_unit_node, content_object=BeforeAfterElement.objects.create()
     )
     assert build_quiz_context(quiz_unit_node, student_user)["has_before_after"] is True
+
+
+@pytest.mark.django_db
+def test_flag_is_set_for_a_NESTED_instance_in_a_quiz_unit(quiz_unit_node, student_user):
+    """The quiz query must be FLAT too -- children keep their own `unit` FK.
+
+    Mutant: scope it to parent__isnull=True -> a before/after inside a tab in a
+    quiz unit is undetected, no pre-hide is emitted, and the answer is exposed
+    on every load.
+    """
+    from courses.views import build_quiz_context
+
+    unit = quiz_unit_node
+    tabs = Element.objects.create(
+        unit=unit,
+        content_object=TabsElement.objects.create(data=TabsElement.default_data()),
+    )
+    tab_id = tabs.content_object.data["tabs"][0]["id"]
+    Element.objects.create(
+        unit=unit,
+        content_object=BeforeAfterElement.objects.create(),
+        parent=tabs,
+        tab_id=tab_id,
+    )
+    assert build_quiz_context(unit, student_user)["has_before_after"] is True
