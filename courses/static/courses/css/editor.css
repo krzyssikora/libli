@@ -1128,6 +1128,38 @@ button.asset-cell:hover { border-color: var(--primary); }
   font-size: .68rem; font-weight: 700;
 }
 
+/* Before/after: TWO fixed slots, side by side like the two-column pair, but
+   plain always-open divs -- nothing to disclose with only two slots. Named
+   .el-row__ba / .ba-rows*, deliberately disjoint from the student-facing
+   .ba__panel / .ba__child / .ba__label (courses.css): those rely on the UA
+   [hidden] default for their swap, and an editor-side `display` on a reused
+   class name would break that invariant in the live preview pane. */
+.el-row--beforeafter .el-row__ba {
+  margin-top: var(--space-3);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+  gap: var(--space-2);
+  align-items: start;
+}
+.ba-rows {
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-md);
+  background: var(--surface-sunken);
+  padding: var(--space-1) var(--space-2) var(--space-2);
+}
+.ba-rows__label {
+  display: flex; align-items: center; gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  font-size: .78rem; font-weight: 700; letter-spacing: .01em;
+  color: var(--text-secondary);
+}
+.ba-rows__count {
+  margin-left: auto;
+  display: inline-grid; place-items: center; min-width: 1.2rem; height: 1.2rem;
+  padding: 0 var(--space-1); border-radius: var(--radius-full);
+  background: var(--surface-raised); color: var(--text-tertiary);
+  font-size: .68rem; font-weight: 700;
+}
+
 /* ---- Link dialog + picker -------------------------------------------------
    Layout classes are picker-LOCAL. The builder's .tree__scope/.tree__row/.tree__rowhead
    are deliberately NOT reused: they live in builder.css, which this page does not load
