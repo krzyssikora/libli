@@ -423,8 +423,15 @@ def untracked_paths(cwd: Path) -> list[str]:
     ]
 
 
-def build_corpus(cwd: Path) -> set[str]:
+def build_corpus(cwd: Path, untracked: list[str] | None = None) -> set[str]:
     """Every file pytest would collect as a test module -- tracked AND untracked.
+
+    `untracked` is passed in by `main`, which needs the same list for the diff.
+    Querying git twice is not merely wasteful: the two answers can DISAGREE. A
+    file created between the calls lands in `changed` but not in the corpus, so
+    `search(E2E_MARKER)` cannot see it, `classify` calls it unmarked, and it goes
+    to the unit selection alone -- the exact silent omission described below.
+    One query, one answer.
 
     `git ls-files`, never a filesystem walk: a walk descends into `.venv/` and
     into any nested worktrees under `.claude/worktrees/`, both gitignored and
@@ -438,8 +445,10 @@ def build_corpus(cwd: Path) -> set[str]:
     `-m 'not e2e'` deselects every test in it. Selected nowhere, silently: the
     exact failure the non-exclusive rule exists to prevent.
     """
+    if untracked is None:
+        untracked = untracked_paths(cwd)
     tracked = git_lines(["ls-files"], cwd)
-    return {p for p in [*tracked, *untracked_paths(cwd)] if is_test_file(p)}
+    return {p for p in [*tracked, *untracked] if is_test_file(p)}
 
 
 def make_search(corpus: set[str], cwd: Path) -> Callable[[str], set[str]]:
@@ -553,12 +562,31 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
+    # The DECODE side is handled by git_lines' explicit encoding. This is the
+    # ENCODE side: print() uses the locale codepage, and on Windows a stdout
+    # REDIRECTED to a file or pipe is cp1250 here -- so the very path git_lines
+    # just decoded correctly could raise UnicodeEncodeError on the way out. An
+    # interactive console already writes UTF-8; a redirect does not.
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
     cwd = args.repo
     if cwd is None:
         try:
             cwd = Path(git_lines(["rev-parse", "--show-toplevel"], Path.cwd())[0])
         except (subprocess.CalledProcessError, IndexError):
             _die("not inside a git repository; pass --repo <path>")
+    else:
+        # Validate an explicit --repo up front. Without this a bad path surfaced
+        # either as a raw FileNotFoundError traceback or -- worse -- as
+        # resolve_base's "base ref does not exist", sending the reader after the
+        # wrong problem. Every other failure here is a loud one-liner.
+        if not cwd.is_dir():
+            _die(f"--repo path does not exist (or is not a directory): {cwd}")
+        try:
+            git_lines(["rev-parse", "--git-dir"], cwd)
+        except subprocess.CalledProcessError:
+            _die(f"--repo path is not a git repository: {cwd}")
 
     base = resolve_base(args.base, cwd)
     changed = normalize_name_status(git_lines(["diff", "--name-status", base], cwd))
@@ -568,14 +596,19 @@ def main(argv: list[str] | None = None) -> int:
     # the silent omission this tool refuses everywhere else, so they are folded
     # in as additions. --exclude-standard honours .gitignore, which is what keeps
     # .venv and the nested worktrees out.
-    for path in untracked_paths(cwd):
+    #
+    # Queried ONCE and reused for the corpus below: two queries can disagree,
+    # and a file that lands in `changed` but not the corpus is classified
+    # unit-only and deselected everywhere.
+    untracked = untracked_paths(cwd)
+    for path in untracked:
         if path not in changed:
             changed.append(path)
     if not changed:
         print(f"no changes against {args.base} ({base[:8]}); nothing to run")
         return 0
 
-    corpus = build_corpus(cwd)
+    corpus = build_corpus(cwd, untracked)
     result = map_paths(changed, make_search(corpus, cwd), read_module_symbols(cwd))
     print(f"{len(changed)} changed path(s) against {args.base} ({base[:8]})")
     print()
