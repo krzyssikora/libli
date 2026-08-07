@@ -37,6 +37,8 @@ Use **"~33×"** in user-facing copy (2,881 / 88, the conservative compose figure
 
 1. **Task 3's guard compares against `DATABASE_URL`** instead of requiring "an explicit port". The spec's rule would not reject `postgres://libli@127.0.0.1:5432/libli`, the exact case it exists for — 5432 *is* an explicit port. **The comparison must normalise host aliases and ignore `NAME`**: measured, `.env` resolves to `HOST="localhost"` while that URL resolves to `HOST="127.0.0.1"`, so a raw string compare lets the dangerous value straight through. Matching on `NAME` too would be worse still — pointing at the dev *server* under a different database name is equally wrong.
 2. **Task 4 emits the notice from `pytest_terminal_summary`, not `pytest_collection_finish`,** and drops the `is_worker` guard. Spec §A5 assumed the controller collects; it does not. **Measured:** `xdist/dsession.py` returns `True` from `pytest_collection` (a `firstresult` hook), so `perform_collect` — and therefore `pytest_collection_finish` — never runs on the controller. Under `-n 2` the spec's hook fires in workers only, where the guard suppresses it: the notice would have printed in exactly zero xdist runs.
+
+   **This costs something, and the cost is acknowledged rather than hidden.** A collection-time notice could still save the current run; a terminal-summary one arrives after the developer has already paid the 40+ minutes. Spec §A5's whole purpose is that "the entire win is gated behind a developer starting a container", so arriving late is a real reduction in the deliverable's value. Task 4 therefore emits **twice**: a cheap pre-run line from `pytest_configure` when `-m` mentions `e2e`, plus the terminal-summary line as the catch-all that also covers `-k` and direct-nodeid runs, which `markexpr` cannot see.
 3. **Baselines are measured after implementation, not before** (spec §5.1 sequences them first). This is safe because Task 3 Step 7 proves the unset path is byte-identical to today, and the Task 4 notice adds one line at terminal summary. Reordering would front-load hours of measurement before any code exists.
 
 ---
@@ -67,10 +69,15 @@ Expected: `v2.17` or higher. If lower, `--wait` is unavailable and every start c
 #
 # NEVER apply these settings to the instance holding dev or mat-pp data.
 # Port 55433 (not 5432) and the loopback binding are both deliberate.
+name: libli-test                     # so a forgotten `-p` still hits this project
 services:
   test-db:
     image: postgres:16
     container_name: libli-test-db
+    shm_size: 256mb                  # default 64m surfaces as "could not resize
+                                     # shared memory segment" under 8 workers,
+                                     # which reads as a flaky test, not a config
+                                     # problem
     ports:
       - "127.0.0.1:55433:5432"        # loopback only: this server is trust-auth superuser
     environment:
@@ -181,8 +188,16 @@ because "an empty-table truncate is not comparable to a populated one". Timing
 against `tests/test_smoke.py` alone would measure 89 empty tables and produce a
 flattering number that the 2,881 ms comparator does not match.
 
+**Use `DATABASE_URL`, not `TEST_DATABASE_URL`.** This task runs *before* Task 3,
+which is what teaches `config/settings/test.py` to read the new variable — until
+then it is inert, and the run would populate a `test_libli` on the developer's
+**real** Postgres while the `docker exec` below died with
+`FATAL: database "test_libli" does not exist`. `base.py` reads `DATABASE_URL`
+today, and `read_env` uses `setdefault`, so a real environment variable wins over
+`.env`.
+
 ```bash
-TEST_DATABASE_URL="postgres://libli@127.0.0.1:55433/libli" \
+DATABASE_URL="postgres://libli@127.0.0.1:55433/libli" \
   uv run pytest tests/test_e2e_catalog.py -m e2e --reuse-db -p no:warnings --verbosity=0
 
 MSYS_NO_PATHCONV=1 docker exec libli-test-db psql -U libli -d test_libli -q -c "\timing on" -c \
@@ -204,6 +219,23 @@ Note both the milliseconds **and** that the state was "after one `live_server`
 e2e test", for Task 7's results note. Task 7 Step 7 re-times the same way, so
 that step is a replication rather than a different measurement. This is the
 number the whole change rests on.
+
+- [ ] **Step 4: Propagate the measured number into the three artefacts that quote it**
+
+The plan ships `88 ms` and `~33×` as placeholders sourced from a pre-plan probe.
+Task 2's pass band is anything under 150 ms — a value at which "~33×" would be
+wrong by nearly a factor of two. Recompute `multiplier = 2881 / measured_ms` and
+rewrite **all three** of these from the measured value, or they ship as
+predictions dressed as measurements:
+
+| File | What to update |
+|---|---|
+| `docker-compose.test.yml` | the header comment's "88 ms here -- ~33x" |
+| `conftest.py` | `TEST_DB_NOTICE`'s "~33x cheaper" |
+| `docs/development/testing.md` | "about **88 ms**" |
+
+Also update this plan's "Measured constants" table row so the source reads
+"measured at Task 2, populated state".
 
 ---
 
@@ -292,6 +324,15 @@ def test_the_dev_server_is_rejected_even_under_a_different_database_name():
     # Same server, different NAME: still the dev instance, still wrong.
     with pytest.raises(ImproperlyConfigured):
         _resolve_databases("postgres://libli@127.0.0.1:5432/something_else", DEV)
+
+
+def test_a_port_less_url_is_rejected():
+    # MEASURED: this parses to PORT '', so the same-server check cannot catch
+    # it -- yet Django would connect on the default 5432, the dev instance.
+    with pytest.raises(ImproperlyConfigured) as exc:
+        _resolve_databases("postgres://libli@localhost/libli", DEV)
+
+    assert "explicit port" in str(exc.value)
 ```
 
 - [ ] **Step 2: Run the tests to verify they fail**
@@ -350,6 +391,15 @@ def _resolve_databases(env_value: str, current: dict) -> dict | None:
         raise ImproperlyConfigured(
             f"TEST_DATABASE_URL must be a postgres:// URL; got {env_value!r}"
         )
+    if not cfg.get("PORT"):
+        # MEASURED: db_url_config("postgres://libli@localhost/libli") yields
+        # PORT ''. Django would then connect on the default 5432 -- the dev
+        # instance -- and _same_server below would not catch it, because ''
+        # != 5432. An explicit port is the only safe form here.
+        raise ImproperlyConfigured(
+            "TEST_DATABASE_URL must name an explicit port (the tuned server "
+            f"listens on 55433, not the default 5432); got {env_value!r}"
+        )
     if _same_server(cfg, current):
         raise ImproperlyConfigured(
             "TEST_DATABASE_URL points at the same server as DATABASE_URL "
@@ -370,22 +420,25 @@ if _resolved_test_db is not None:
 - [ ] **Step 4: Run the tests to verify they pass**
 
 Run: `uv run pytest tests/test_settings_test_db.py -p no:warnings`
-Expected: **7 passed**.
+Expected: **8 passed**.
 
 - [ ] **Step 5: Falsify the tests — required, do not skip**
 
-Three mutations, each with a named victim:
+Six mutations, so that **every** test has a named victim — an unmutated test is
+an unproven one:
 
-1. Delete the `if _same_server(cfg, current):` block →
-   `test_pointing_at_the_dev_instance_is_rejected` FAILS. Restore.
-2. In `_same_server`, replace the `host()` body with `return cfg.get("HOST")`
-   (i.e. drop alias normalisation) → `test_the_dev_instance_is_rejected_under_a_host_alias`
-   FAILS, while the other dev-instance test still passes. This is the mutation
-   that matters: without it the guard is green *and* broken. Restore.
-3. Change `if not env_value:` to `if False:` →
-   `test_empty_value_means_no_override` FAILS. Restore.
+| # | Mutation | Must go RED |
+|---|---|---|
+| 1 | Delete the `if _same_server(cfg, current):` block | `test_pointing_at_the_dev_instance_is_rejected` |
+| 2 | In `_same_server`, replace `host()`'s body with `return cfg.get("HOST")` | `test_the_dev_instance_is_rejected_under_a_host_alias` (and *only* it — the other dev test still passes, which is exactly why this mutation matters: without normalisation the guard is green **and** broken) |
+| 3 | Make `_same_server` compare `NAME` too | `test_the_dev_server_is_rejected_even_under_a_different_database_name` |
+| 4 | Delete the `if not cfg.get("PORT"):` block | `test_a_port_less_url_is_rejected` |
+| 5 | Delete the `if cfg.get("ENGINE") != …` block | `test_unparseable_value_is_rejected` **and** `test_a_non_postgres_url_is_rejected` — this block is the only thing catching garbage, since `db_url_config` returns `{}` rather than raising |
+| 6 | Change `if not env_value:` to `if False:` | `test_empty_value_means_no_override` |
 
-A test that stays green under its mutation is not testing anything.
+Restore after each. `test_valid_url_yields_a_databases_dict` is the positive
+control — it must stay green throughout, and go red only if the helper stops
+returning a config at all.
 
 - [ ] **Step 6: Verify the ACTIVATED path lands on port 55433**
 
@@ -529,13 +582,14 @@ Expected: FAIL — `ImportError: cannot import name 'TEST_DB_NOTICE' from 'conft
 
 - [ ] **Step 3: Implement in the root `conftest.py`**
 
-Add `import os` as its **own stdlib block above** the existing third-party
-imports, separated by a blank line — appending it to the `pytest` /
+Add the stdlib imports as their **own block above** the existing third-party
+imports, separated by a blank line — appending them to the `pytest` /
 `django.conf` / `django.utils.translation` block fails ruff's `I001`, which the
 CI `lint` job runs as `ruff check .`:
 
 ```python
 import os
+from collections.abc import Mapping
 
 import pytest
 ...
@@ -554,7 +608,9 @@ TEST_DB_NOTICE = (
 )
 
 
-def _should_emit_test_db_notice(*, has_e2e_items, env):
+def _should_emit_test_db_notice(
+    *, has_e2e_items: bool, env: Mapping[str, str]
+) -> bool:
     """Whether to print TEST_DB_NOTICE. Pure, so every branch is unit-testable."""
     if not has_e2e_items:
         return False
@@ -565,6 +621,25 @@ def _should_emit_test_db_notice(*, has_e2e_items, env):
     if env.get("LIBLI_NO_TEST_DB_NOTICE"):
         return False
     return True
+
+
+def pytest_configure(config):
+    """Pre-run nudge, so an e2e run can still be saved rather than merely mourned.
+
+    Cheap and best-effort: `-m e2e` is the overwhelmingly common invocation, and
+    `pytest_terminal_summary` below is the catch-all for `-k` / nodeid runs that
+    `markexpr` cannot see. Guarded against workers, which have no reporter.
+    """
+    if hasattr(config, "workerinput"):
+        return
+    if "e2e" not in (config.option.markexpr or ""):
+        return
+    if _should_emit_test_db_notice(has_e2e_items=True, env=os.environ):
+        # `-p no:terminal` is possible; degrade silently rather than crash.
+        reporter = config.pluginmanager.get_plugin("terminalreporter")
+        if reporter is not None:
+            reporter.write_line(TEST_DB_NOTICE, yellow=True)
+            config._libli_test_db_notice_shown = True
 
 
 def pytest_terminal_summary(terminalreporter, exitstatus, config):
@@ -581,9 +656,16 @@ def pytest_terminal_summary(terminalreporter, exitstatus, config):
     """
     has_e2e = any(
         "e2e" in (getattr(report, "keywords", {}) or {})
-        for reports in terminalreporter.stats.values()
+        # "deselected" MUST be excluded. MEASURED: it holds collected-but-
+        # deselected items, whose keywords still carry `e2e` -- and `addopts`
+        # deselects all 845 e2e tests on every plain `uv run pytest`. Including
+        # it makes the notice fire on every unit run.
+        for key, reports in terminalreporter.stats.items()
+        if key != "deselected"
         for report in reports
     )
+    if getattr(config, "_libli_test_db_notice_shown", False):
+        return  # already said it up front; don't say it twice
     if _should_emit_test_db_notice(has_e2e_items=has_e2e, env=os.environ):
         terminalreporter.write_line(TEST_DB_NOTICE, yellow=True)
 ```
@@ -595,11 +677,18 @@ Expected: **7 passed**.
 
 - [ ] **Step 5: Falsify — required**
 
-Delete the `if env.get("TEST_DATABASE_URL"): return False` block. Run the tests.
-Expected: `test_silent_when_the_test_database_is_already_configured` FAILS. Restore.
+Every test gets a named victim:
 
-Delete `if not has_e2e_items: return False`. Run again.
-Expected: `test_silent_on_a_unit_only_run` FAILS. Restore.
+| # | Mutation | Must go RED |
+|---|---|---|
+| 1 | Delete `if env.get("TEST_DATABASE_URL"): return False` | `test_silent_when_the_test_database_is_already_configured` |
+| 2 | Delete `if not has_e2e_items: return False` | `test_silent_on_a_unit_only_run` |
+| 3 | Delete `if env.get("CI") or env.get("GITHUB_ACTIONS"): return False` | `test_silent_under_ci` **and** `test_silent_under_github_actions` — the branch that would otherwise nag on every CI run |
+| 4 | Delete `if env.get("LIBLI_NO_TEST_DB_NOTICE"): return False` | `test_silent_when_opted_out` |
+| 5 | Remove `docker compose -p libli-test` from `TEST_DB_NOTICE` | `test_the_notice_names_the_command_and_the_opt_out` |
+
+Restore after each. `test_emits_for_an_e2e_run_with_no_test_database_configured`
+is the positive control.
 
 - [ ] **Step 6: Verify it fires exactly once in a REAL xdist run**
 
@@ -628,8 +717,35 @@ uv run pytest tests/test_smoke.py -n 2 -p no:warnings 2>&1 | grep -c "disposable
 ```
 Expected: `0` (unit-only run).
 
+**The check that actually catches the deselection bug** — the three above cannot,
+because `test_smoke.py` deselects nothing and the xdist controller has no
+`deselected` key at all. This one runs the *default* selection over a file that
+does contain e2e tests, so `addopts`' `-m 'not e2e'` deselects them:
+
+```bash
+uv run pytest tests/test_tabs_editor_dnd.py -p no:warnings 2>&1 | grep -c "disposable tuned database"
+```
+Expected: `0`. Before the `key != "deselected"` filter this printed `1` —
+verified with a probe harness.
+
 Note: `grep -c` exits **1** when it prints `0`. That is the expected result for
-the two negative checks, not a failed command.
+the negative checks, not a failed command.
+
+- [ ] **Step 6b: Record the real "container is down" error text**
+
+Task 5's `testing.md` will tell developers that a connection error means the
+container is not running — spec §7 calls this "the recurring daily failure". Ship
+the *actual* message, not a guess at it:
+
+```bash
+docker compose -p libli-test -f docker-compose.test.yml down
+TEST_DATABASE_URL="postgres://libli@127.0.0.1:55433/libli" \
+  uv run pytest tests/test_smoke.py -p no:warnings --verbosity=0 2>&1 | tail -5
+docker compose -p libli-test -f docker-compose.test.yml up -d --wait
+```
+Quote the resulting error (likely a `django.db.utils.OperationalError` raised
+during test-database creation) verbatim in `testing.md`'s Troubleshooting
+section, so a developer can grep for what they actually see.
 
 - [ ] **Step 7: Verify the `.env` activation path works**
 
@@ -695,9 +811,12 @@ triple-backtick fences. Write the inner content only — not the outer fence.
 commands:
 
 ```bash
-uv run pytest            # unit + integration: 5,104 tests
-uv run pytest -m e2e     # browser e2e: 845 tests
+uv run pytest            # unit + integration selection
+uv run pytest -m e2e     # browser e2e selection
 ```
+
+(Deliberately uncounted: Tasks 3 and 4 add 15 unit tests, and both counts drift
+with every feature. `--collect-only -q` reports the current numbers.)
 
 `-m e2e` is mandatory for the second. Without it every e2e test is deselected and
 pytest exits **5** — which means "nothing selected", not "green".
@@ -901,11 +1020,17 @@ branch is not `master`, so pushing alone starts no workflow and Steps 4–6 woul
 have no data.
 
 ```bash
+branch=$(git branch --show-current)   # expected: test-suite-speed
 git add .github/workflows/ci.yml
 git commit -m "ci: put both test Postgres services on a tmpfs"
-git push -u origin test-suite-speed
+git push -u origin "$branch"
 gh pr create --fill --draft
 ```
+
+The branch is derived rather than hard-coded: no task in this plan creates it,
+and `git push -u origin test-suite-speed` fails with "src refspec does not match
+any" on any other branch, while Step 5's `gh run list --branch=` would silently
+query the wrong one.
 
 All CI observations below are made on the **PR**, not the push.
 
@@ -930,12 +1055,17 @@ Two constraints make this less obvious than it looks:
 Rerun three times, then read the **attempts** explicitly:
 
 ```bash
-id=$(gh run list --branch=test-suite-speed --limit 1 --json databaseId -q '.[0].databaseId')
-for _ in 1 2 3; do gh run rerun "$id"; gh run watch "$id"; done
+branch=$(git branch --show-current)
+id=$(gh run list --branch="$branch" --limit 1 --json databaseId -q '.[0].databaseId')
 
-for a in 1 2 3; do
+# The PR's original run is attempt 1, so TWO reruns give attempts 1-3.
+for _ in 1 2; do gh run rerun "$id"; gh run watch "$id"; done
+
+attempts=$(gh api "repos/:owner/:repo/actions/runs/$id" -q '.run_attempt')
+for a in $(seq 1 "$attempts"); do
   gh api "repos/:owner/:repo/actions/runs/$id/attempts/$a/jobs" \
-    -q '.jobs[] | select(.name=="unit" or .name=="e2e") | "\(.name) \(.started_at) \(.completed_at)"'
+    -q '.jobs[] | select(.name=="unit" or .name=="e2e") | "\(.name) \(.started_at) \(.completed_at)"' \
+    || echo "attempt $a unavailable" >&2
 done |
 while read -r name started completed; do
   s=$(date -d "$started" +%s); c=$(date -d "$completed" +%s)
@@ -951,9 +1081,17 @@ otherwise. The 5% tolerance exists because the spec predicts the CI gain will be
 roughly neutral, and a noise-level regression should not discard the change. The
 two jobs may diverge.
 
-- [ ] **Step 7 (conditional — only if Step 6 said "drop" for a job): commit the revert**
+- [ ] **Step 7 (conditional — only if Step 6 said "drop" for a job): revert that job**
 
-Substitute the actual job name for `<job>`:
+First make the edit: in that job's `services.postgres.options:` block, delete the
+line
+
+```
+          --tmpfs /var/lib/postgresql/data:rw,size=2g,mode=1777
+```
+
+leaving the four `--health-*` options intact. Then, substituting the actual job
+name for `<job>`:
 
 ```bash
 git add .github/workflows/ci.yml
@@ -991,6 +1129,12 @@ sharply between the two comparisons:
 | Run 3 ÷ run 1 (`-n auto`) | 1.25× | the first draw lands in **1.15×–1.35×** |
 | Run 2 ÷ run 1 (container on unit) | ±5% | **always take two draws** |
 
+**A re-draw always applies to BOTH arms, and run 1 is always taken twice.** Run 1
+is the shared denominator of both comparisons, so a median-of-2 numerator over an
+n=1 denominator at a 5% threshold inherits exactly the variance the second draw
+was meant to remove. The plan's own rationale — "one draw cannot resolve it" —
+applies identically to the denominator.
+
 Run 2 gets no single-draw shortcut: spec §2.4 measured ~21% run-to-run variance
 on local Postgres, and a 5% threshold sits far inside that. One draw cannot
 resolve it, and a noise draw read as a real regression would demote
@@ -1006,18 +1150,44 @@ seconds of starting. Chunks each finish inside the ceiling, so nothing is
 backgrounded and nothing gets reaped."* That is a solved problem in this repo —
 reuse the solution rather than reintroducing the failure it documents.
 
-So: **every full e2e run goes through `scripts/e2e_chunks.sh`, chunk by chunk, in
-the foreground.** The unit selection is a single invocation.
+So: **every full e2e run is executed chunk by chunk, in the foreground, at
+`-n 4`.** The unit selection is a single invocation.
 
-First, correct the existing script's stale coverage claim — it says "the same
-**565 tests**", but `-m e2e` now collects **845**:
+**`scripts/e2e_chunks.sh` is used as a source of chunk *file lists* only — never
+invoked directly.** Two reasons, both measured: its line 31 runs
+`uv run pytest -m e2e -n 4 -q …`, and that `-q` on top of `addopts`' `-q` makes
+`-qq`, which suppresses the warnings summary and would render Step 6's blocking
+check vacuous; and it redirects to `/tmp/`, outside the `runs/*.log` glob Step 6
+asserts over. Timing and warning capture go through `timed_run.sh` instead.
+
+**First, repair the chunk lists — they are badly stale.** Measured: they name
+**84 files against the 97** that `-m e2e` collects. Thirteen are missing,
+including `tests/test_e2e_math_reflow_dom.py` at **171 tests — 20% of the entire
+selection**:
+
+```
+test_e2e_callout_container   test_e2e_clipboard          test_e2e_depth3
+test_e2e_editor_force_open   test_e2e_editor_scroll_containment
+test_e2e_image_size          test_e2e_math_reflow        test_e2e_math_reflow_dom
+test_e2e_quote_block         test_e2e_review_shell_isolation
+test_e2e_slide_overflow      test_e2e_spoiler_rule       test_e2e_table_cell_images
+```
+
+Left unrepaired, run 4 would baseline a different, smaller population than run 5,
+and Step 3's dilution recomputation would look for `math_reflow_dom` durations
+that were never produced.
+
+Regenerate and verify:
 
 ```bash
 uv run python -m pytest -m e2e --collect-only -q 2>/dev/null | tr -d '\r' |
-  grep -oE ": [0-9]+$" | tr -d ': ' | awk '{s+=$1} END {print s}'
+  grep -E "^[a-z/_]+\.py: [0-9]+$" | sort
 ```
-Update the header comment to the number this prints, and re-verify the chunk list
-still partitions every file `-m e2e --collect-only` reports.
+
+Assign the 13 missing files to chunks, giving **`math_reflow_dom` its own chunk**
+(171 tests, and it needs no `live_server`, so it is fast but bulky). Then assert
+both totals before proceeding — `97` files and `845` tests — and only then update
+the header's stale "565".
 
 Then create `scripts/timed_run.sh` for timing and warning capture:
 
@@ -1070,28 +1240,33 @@ docker compose -p libli-test -f docker-compose.test.yml up -d --wait
 
 scripts/timed_run.sh run1-unit-single
 scripts/timed_run.sh run3-unit-nauto -n auto
-bash scripts/e2e_chunks.sh          # run 4, chunk by chunk; see Step 1
+
+# run 4: one invocation per repaired chunk from Step 1. $C1..$Cn are that
+# chunk's file list. -n 4 is pinned so runs 4 and 5 are comparable.
+for n in 1 2 3 4 5 6; do
+  eval "files=\$C$n"
+  scripts/timed_run.sh "run4-chunk$n" -m e2e $files -n 4 --durations=0 --durations-min=0
+done
 ```
 
-For run 4, wrap each chunk so durations and warnings are captured — invoke
-`scripts/timed_run.sh run4-chunk<N> -m e2e <that chunk's files>
---durations=0 --durations-min=0` rather than calling `e2e_chunks.sh` bare, and
-sum the per-chunk seconds for the run-4 total.
+Run 4's total is the **sum of the per-chunk seconds**. `-n 4` matches
+`e2e_chunks.sh`'s original design (each chunk finishes inside the 10-minute
+ceiling) and **must be identical in run 5**, or the headline comparison varies
+its most important control.
 
 All three with `TEST_DATABASE_URL` **unset**. `--durations-min=0` is required and
 `-vv` is **not** a substitute: pytest's durations filter tests
 `get_verbosity() >= 2`, and `addopts`' `-q` cancels one `-v`, so `-vv` still
 hides sub-5 ms entries. Measured.
 
-**Cleanup between runs.** For the unset arm the test databases sit on your
-**real** Postgres, and dropping them is the one destructive action in this plan.
-List first, read the list, then drop only those names:
+**Cleanup between runs.** The two arms live on different servers, and only one is
+dangerous — so the local-instance command comes first, deliberately.
 
-```bash
-docker exec libli-test-db psql -U libli -d postgres -tAc \
-  "SELECT datname FROM pg_database WHERE datname LIKE 'test_libli%'"   # container arm
-```
-For the local instance, `psql` may not be on PATH. If it is not, use Django:
+**Local-instance arm (`TEST_DATABASE_URL` unset) — the one destructive action in
+this plan.** These databases sit on your **real** Postgres. `psql` is not
+guaranteed to be on PATH, so list them through Django, *read the list*, and only
+then drop those exact names:
+
 ```bash
 uv run python -c "
 import os, django
@@ -1103,8 +1278,14 @@ with connection.cursor() as c:
     print([r[0] for r in c.fetchall()])
 "
 ```
-Review that list before dropping anything. For the container arm,
-`docker compose -p libli-test -f docker-compose.test.yml down` wipes everything.
+
+Never issue a pattern-matched `DROP`; drop the reviewed names one at a time.
+
+**Container arm.** No care required — the whole server is disposable:
+
+```bash
+docker compose -p libli-test -f docker-compose.test.yml down
+```
 
 - [ ] **Step 3: Recompute the gate thresholds from run 4**
 
@@ -1124,24 +1305,40 @@ Aggregate the per-file mean of `setup+call+teardown` from run 4's log:
 
 ```bash
 uv run python - <<'PY'
-import re, collections
+import re, collections, glob
 FILES = ("test_e2e_math_reflow_dom", "test_table_grid_algebra",
          "test_link_dialog_behaviour", "test_link_apply")
+EXPECTED = {"test_e2e_math_reflow_dom": 171, "test_table_grid_algebra": 38,
+            "test_link_dialog_behaviour": 32, "test_link_apply": 29}
 tot = collections.Counter(); n = collections.Counter()
-for line in open("docs/superpowers/notes/runs/run4-e2e-baseline.log", encoding="utf-8"):
-    m = re.match(r"\s*([\d.]+)s\s+(setup|call|teardown)\s+(\S+)", line)
-    if not m:
-        continue
-    secs, _phase, nodeid = m.groups()
-    for f in FILES:
-        if f in nodeid:
-            tot[f] += float(secs); n[f] += 1
+logs = sorted(glob.glob("docs/superpowers/notes/runs/run4-chunk*.log"))
+if not logs:
+    raise SystemExit("no run4 chunk logs found -- did Step 2 complete?")
+for path in logs:
+    for line in open(path, encoding="utf-8"):
+        m = re.match(r"\s*([\d.]+)s\s+(setup|call|teardown)\s+(\S+)", line)
+        if not m:
+            continue
+        secs, _phase, nodeid = m.groups()
+        for f in FILES:
+            if f in nodeid:
+                tot[f] += float(secs); n[f] += 1
+print(f"read {len(logs)} chunk logs")
 for f in FILES:
-    tests = n[f] / 3 if n[f] else 0          # three phases per test
-    print(f, f"per-test mean = {tot[f]/tests:.3f}s" if tests else "NO DATA")
-print("weighted c =", sum(tot.values()) / (sum(n.values())/3) if sum(n.values()) else "n/a")
+    tests = n[f] / 3                          # three phases per test
+    if round(tests) != EXPECTED[f]:
+        print(f"  WARNING {f}: saw {tests:.0f} tests, expected {EXPECTED[f]}"
+              " -- a chunk log is missing; the aggregate is invalid")
+    print(f"  {f}: per-test mean = {tot[f]/tests:.3f}s" if tests else f"  {f}: NO DATA")
+total_tests = sum(n.values()) / 3
+print("weighted c =", f"{sum(tot.values())/total_tests:.3f}s" if total_tests else "n/a")
 PY
 ```
+
+The script globs **`run4-chunk*.log`** because Step 2 produces one log per chunk,
+not a single `run4-e2e-baseline.log`. The per-file count assertion is what catches
+a missing chunk: without it, an absent log silently lowers `c` and shifts every
+threshold.
 
 Call that weighted per-test cost **c** (the spec assumed `c = 0.4`). With sample
 per-test costs `before = 3.08` and `after = 1.93`:
@@ -1160,9 +1357,28 @@ new_sample_threshold = 1.45 * (1.54 / new_diluted_ratio)      # and 1.30 likewis
 
 - [ ] **Step 4: The gate — four draws on the 69-test sample**
 
+All four invocations in full — the after arm silently corrupts the decision if
+its variable or its cleanup is missed:
+
 ```bash
-scripts/timed_run.sh gate-before-1 -m e2e tests/test_e2e_tabs.py \
-  tests/test_e2e_fillgate.py tests/test_e2e_guessnumber.py -n 2 --verbosity=0
+SAMPLE="tests/test_e2e_tabs.py tests/test_e2e_fillgate.py tests/test_e2e_guessnumber.py"
+TUNED="postgres://libli@127.0.0.1:55433/libli"
+COMPOSE="-p libli-test -f docker-compose.test.yml"
+
+# container up for ALL four draws, including the before arm
+docker compose $COMPOSE up -d --wait
+
+unset TEST_DATABASE_URL
+scripts/timed_run.sh gate-before-1 -m e2e $SAMPLE -n 2 --verbosity=0
+docker compose $COMPOSE down && docker compose $COMPOSE up -d --wait
+scripts/timed_run.sh gate-before-2 -m e2e $SAMPLE -n 2 --verbosity=0
+
+export TEST_DATABASE_URL="$TUNED"
+docker compose $COMPOSE down && docker compose $COMPOSE up -d --wait
+scripts/timed_run.sh gate-after-1 -m e2e $SAMPLE -n 2 --verbosity=0
+docker compose $COMPOSE down && docker compose $COMPOSE up -d --wait
+scripts/timed_run.sh gate-after-2 -m e2e $SAMPLE -n 2 --verbosity=0
+unset TEST_DATABASE_URL
 ```
 
 **`-p no:warnings` is deliberately absent.** It unregisters pytest's warnings
@@ -1196,13 +1412,21 @@ and after `[80, 60]` those give 1.71 and 1.79.
 ```bash
 export TEST_DATABASE_URL="postgres://libli@127.0.0.1:55433/libli"
 scripts/timed_run.sh run2-unit-container
-scripts/timed_run.sh run5-e2e-container -m e2e --durations=0 --durations-min=0
 scripts/timed_run.sh run6-unit-nauto-container -n auto
+
+# run 5: SAME chunks, SAME -n 4 as run 4. A single `-m e2e` invocation here
+# would exceed the 10-minute ceiling, be auto-backgrounded, and risk being
+# reaped -- the failure Step 1 exists to avoid.
+for n in 1 2 3 4 5 6; do
+  eval "files=\$C$n"
+  scripts/timed_run.sh "run5-chunk$n" -m e2e $files -n 4 --durations=0 --durations-min=0
+done
 unset TEST_DATABASE_URL
 ```
 
-Run 5 carries the same instrumentation as run 4 — without after-side per-file
-durations there is no way to confirm the dilution assumption held.
+Run 5's total is the sum of its per-chunk seconds, directly comparable to run 4's.
+It carries the same instrumentation — without after-side per-file durations there
+is no way to confirm the dilution assumption held.
 
 - [ ] **Step 6: Blocking checks — green, and the teardown apparatus quiet**
 
@@ -1219,8 +1443,9 @@ every run (Step 2). A missing `--- exit=` line means the run never reached the
 summary block — it was killed, so it is not a timing and must be re-run.
 
 **Remediations differ by warning.** A *barrier timeout* means the 5 s
-`DEFAULT_TIMEOUT` no longer suits the new timing profile — retune and re-run;
-that is a fix, not a rejection. A *deadlock retry* or *browser-quiesce* warning
+`DEFAULT_TIMEOUT` no longer suits the new timing profile — retune it at
+**`tests/db_quiesce.py:19`** (not `conftest.py`, which only holds the fixture
+that consumes it) and re-run; that is a fix, not a rejection. A *deadlock retry* or *browser-quiesce* warning
 **rejects Part A** pending investigation, because the spec declines to touch that
 machinery precisely on the assumption it stays quiescent.
 
@@ -1238,9 +1463,22 @@ exposed to this change, not the least.
   after one e2e test's fixtures. Re-time the container the same way.
 - **Replicate the two single-draw container runs** (spec §2's 273.8 s and 76.7 s),
   so the 3.57× figure and §6's ~1.7× Linux sizing rest on more than n=1.
-- **Re-measure `-n 4` and `-n 8`** on the e2e selection now that the truncate cost
-  is gone — spec §6 calls this mandatory, because the evidence excluding more
-  workers was taken under conditions Part A destroys.
+- **Re-measure `-n 4` and `-n 8`** now that the truncate cost is gone — spec §6
+  calls this mandatory, because the evidence excluding more workers was taken
+  under conditions Part A destroys. **Subject: the 69-test gate sample, not the
+  full selection** — that is the cheap, spec-consistent choice and keeps this
+  from adding two more full e2e runs to a step already warned about for cost.
+  One draw each, with the container up and `TEST_DATABASE_URL` set:
+
+  ```bash
+  export TEST_DATABASE_URL="postgres://libli@127.0.0.1:55433/libli"
+  scripts/timed_run.sh sweep-n4 -m e2e $SAMPLE -n 4 --verbosity=0
+  scripts/timed_run.sh sweep-n8 -m e2e $SAMPLE -n 8 --verbosity=0
+  unset TEST_DATABASE_URL
+  ```
+
+  **These run after the gate is decided and never feed it** (spec §5.2) —
+  otherwise the best `-n` could be reported as the "after" and inflate the ratio.
 
 None of these gate acceptance; all three go in the note.
 
