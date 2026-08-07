@@ -112,6 +112,19 @@ GLOBAL_PATHS = frozenset(
         "pyproject.toml",
         "uv.lock",
         "templates/base.html",
+        # MEASURED: loaded unconditionally by templates/base.html (lines
+        # 44-46, 155, 159), which is itself a member above -- so these five
+        # have the same blast radius as the template but were falling to the
+        # narrower .css/.js filename rule instead (map_one -> search by
+        # basename), e.g. reset.css mapped to a single unit file with reason
+        # NONE. The bright line: unconditional load in base.html qualifies;
+        # courses/static/courses/css/courses.css is loaded per-page inside a
+        # block, not unconditionally, and stays OUT (27 candidates, useful).
+        "core/static/core/css/reset.css",
+        "core/static/core/css/tokens.css",
+        "core/static/core/css/app.css",
+        "core/static/core/js/ui.js",
+        "core/static/core/js/scroll_affordance.js",
     }
 )
 
@@ -183,7 +196,7 @@ def map_paths(
     for path in paths:
         hits = map_one(path, search, module_symbols)
         if hits:
-            candidates.extend(sorted(hits))
+            candidates.extend(hits)
         else:
             unmapped.append(path)
 
@@ -389,6 +402,14 @@ def git_lines(args: list[str], cwd: Path) -> list[str]:
         cwd=cwd,
         capture_output=True,
         text=True,
+        # MEASURED: without an explicit encoding, subprocess.run decodes with
+        # locale.getencoding() -- cp1250 on this machine. quotepath=false above
+        # exists specifically to get non-ASCII bytes raw instead of octal-
+        # escaped; cp1250 then mojibakes them ('\xc5\x9b' -> 'Å›') or crashes
+        # outright ('\xc5\x81' has no cp1250 mapping). utf-8 is what git
+        # actually emits paths as.
+        encoding="utf-8",
+        errors="replace",
         check=True,
     )
     return proc.stdout.splitlines()

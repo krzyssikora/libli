@@ -124,6 +124,15 @@ class TestIsGlobalPath:
             "templates/_groups_tabs.html",
             "locale/pl/LC_MESSAGES/django.po",
             "locale/pl/LC_MESSAGES/django.mo",
+            # MEASURED: loaded unconditionally by templates/base.html, which
+            # is itself a member -- same blast radius, but the .css/.js
+            # filename rule alone mapped reset.css to a single unit file with
+            # reason NONE.
+            "core/static/core/css/reset.css",
+            "core/static/core/css/tokens.css",
+            "core/static/core/css/app.css",
+            "core/static/core/js/ui.js",
+            "core/static/core/js/scroll_affordance.js",
         ],
     )
     def test_members(self, path):
@@ -141,6 +150,10 @@ class TestIsGlobalPath:
             "courses/tests/conftest.py",
             "templates/courses/detail.html",
             "templates/allauth/account/login.html",
+            # Loaded per-page inside a block, NOT unconditionally by
+            # base.html, so it stays OUT of the global class -- it maps to 27
+            # candidates under the ordinary filename rule, which is useful.
+            "courses/static/courses/css/courses.css",
         ],
     )
     def test_non_members(self, path):
@@ -306,8 +319,21 @@ class TestMapOne:
         assert map_one(path, search, no_symbols) == {"tests/test_builder.py"}
 
     def test_a_binary_or_unknown_suffix_maps_to_nothing(self):
-        assert map_one("core/static/core/img/logo.png", no_hits, no_symbols) == set()
-        assert map_one("README.md", no_hits, no_symbols) == set()
+        # corpus_plus_everything_search, NOT no_hits: a stub that finds
+        # nothing cannot distinguish "no rule matched" from "the filename
+        # rule matched and the search happened to come up empty" -- a mutant
+        # adding .png to FILENAME_SUFFIXES would still pass under no_hits.
+        # This is the same fix test_a_migration_does_not_fall_through_to_the_
+        # module_rule already applies.
+        assert (
+            map_one(
+                "core/static/core/img/logo.png",
+                corpus_plus_everything_search,
+                no_symbols,
+            )
+            == set()
+        )
+        assert map_one("README.md", corpus_plus_everything_search, no_symbols) == set()
 
 
 class TestUnmappedReporting:
@@ -459,6 +485,12 @@ class TestEmission:
             stripped = line.strip()
             if stripped.startswith("uv run pytest"):
                 assert "(" not in stripped and ")" not in stripped
+                # Reddens on the mutant this test's docstring names: appending
+                # EXIT5_NOTE inline to the command line. That string has no
+                # parens, so the check above alone cannot fail for it -- "#"
+                # is the character that actually distinguishes a pasteable
+                # command from one with a trailing comment glued on.
+                assert "#" not in stripped
 
     def test_the_caveat_is_a_comment_on_its_own_line(self):
         result = Result(("tests/test_a.py",), (), (), Reason.NONE, Reason.NONE)
@@ -666,6 +698,39 @@ def fixture_repo(tmp_path):
     )
     run_git(repo, "update-ref", "refs/remotes/origin/master", "HEAD")
     return repo
+
+
+class TestGitLinesDecoding:
+    def test_a_non_ascii_filename_survives_git_lines_intact(self, fixture_repo):
+        # MEASURED on this machine: locale.getencoding() is cp1250. Under it
+        # 'ś' (bytes c5 9b) mojibakes to 'Å›', and 'Ł' (bytes c5 81) has no
+        # cp1250 mapping and raises. `-c core.quotepath=false` (see git_lines)
+        # exists specifically to get these bytes raw rather than octal-
+        # escaped; git_lines must then decode them as UTF-8, which is the
+        # encoding git actually emits paths in, not whatever the OS locale is.
+        (fixture_repo / "tests" / "test_łukasz.py").write_text(
+            "def test_l():\n    pass\n", encoding="utf-8"
+        )
+        run_git(fixture_repo, "add", "-A")
+        run_git(fixture_repo, "commit", "-q", "-m", "non-ascii filename")
+
+        lines = affected_tests.git_lines(["ls-files"], fixture_repo)
+
+        assert "tests/test_łukasz.py" in lines
+
+    def test_the_wrapper_reports_a_non_ascii_path_intact(self, fixture_repo, capsys):
+        # An UNTRACKED non-ASCII test file, exercised through the same
+        # untracked-union path as test_an_untracked_new_test_file_still_
+        # reaches_the_selection -- so this also covers untracked_paths(),
+        # which calls git_lines on every run.
+        (fixture_repo / "tests" / "test_łukasz.py").write_text(
+            "def test_l():\n    pass\n", encoding="utf-8"
+        )
+
+        assert affected_tests.main(["--repo", str(fixture_repo)]) == 0
+        out = capsys.readouterr().out
+
+        assert "uv run pytest tests/test_łukasz.py" in out
 
 
 class TestCorpusExcludesIgnoredPaths:
