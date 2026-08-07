@@ -1930,7 +1930,9 @@ Expected: PASS, **88** tests — or 88 plus any **new test** Step 3 added while 
 | Delete the `untracked` union from `main` | `test_an_untracked_new_test_file_still_reaches_the_selection` |
 | Drop `--exclude-standard` from `untracked_paths` | `test_a_clean_tree_reports_nothing_to_run_and_emits_no_command`, `test_an_untracked_new_test_file_...` |
 | `build_corpus` returns tracked files only (drop `untracked_paths`) | `test_an_untracked_test_file_does_enter_the_corpus`, `test_an_untracked_marked_file_still_lands_in_both_selections` |
-| Make the `if not changed` branch fall through instead of returning | `test_a_clean_tree_reports_nothing_to_run_and_emits_no_command` |
+
+**One mutant that does NOT work, recorded so nobody re-derives it.** "Make the `if not changed` branch fall through instead of returning" is *not* a valid mutant for `test_a_clean_tree_reports_nothing_to_run_and_emits_no_command`: falling through with an empty `changed` list produces `Result((), (), (), NONE, NONE)`, which renders `unit: nothing mapped` / `e2e: nothing mapped` and still emits no `uv run pytest` line — so both of that test's assertions hold and it stays green. The early `return 0` saves a wasted corpus build; it is not load-bearing for output. Deleting the whole block is the mutant that bites, because it removes the `nothing to run` message the first assertion requires.
+| Delete the whole `if not changed:` block from `main` | `test_a_clean_tree_reports_nothing_to_run_and_emits_no_command` |
 | `resolve_base` returns `base` instead of `merge_base[0]` | `test_the_diff_is_taken_from_the_fork_point_not_the_base_tip` |
 | `main` passes the literal `"origin/master"` to `resolve_base` instead of `args.base` | `test_an_explicit_base_override_is_honoured` |
 
