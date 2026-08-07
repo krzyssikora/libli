@@ -2626,19 +2626,51 @@ git fetch origin && git log origin/master --oneline -- courses/migrations/ | hea
 ```
 If another branch has landed `0055`, **renumber ours**. Two branches both minting `0055` merge without a git conflict — the same silent-merge hazard that keeps `FORMAT_VERSION` at 9.
 
-- [ ] **Step 4: Full unit suite**
+- [ ] **Step 4: Ask the tool what is affected**
 
 ```bash
-uv run pytest -m "not e2e" -q
+uv run python scripts/affected_tests.py
 ```
-Expected: PASS. This is the branch gate — the first whole-repo run in the plan, deliberately not a per-task step.
 
-- [ ] **Step 5: Full e2e suite**
+Expect the answer **`GLOBAL` — "a global blast-radius path changed"**, because this branch
+edits `core/static/core/css/app.css`, which is in `GLOBAL_PATHS`
+(`scripts/affected_tests.py:125`): a change there can alter a test that never mentions it,
+so the script stops mapping and says "run everything". (Per-page assets like
+`courses/static/courses/css/courses.css` are *not* in that class and map normally — only
+`app.css` puts us here.)
+
+Record the actual output. If it maps a narrow selection instead, run that and skip Step 5's
+reasoning.
+
+- [ ] **Step 5: Do NOT run the full suite locally — push and let CI gate it**
+
+`docs/development/testing.md:127` is explicit: *"A full-run answer normally means commit
+and let CI's 8m45s be the gate — that is what the branch gate is for. Run it locally only
+if you have not already spent your one full run this session."*
+
+**CI's full suite is 8m45s.** A local full e2e sweep is far slower (it was ~53 min before
+the containerised test DB in #223, ~1.70× faster since) and buys nothing CI does not
+already give — so it is not part of this gate.
+
+The local gate is instead the **union of the test files this branch created or touched**,
+which every prior task has already been running piecemeal:
 
 ```bash
-uv run pytest -m e2e -n 2 -q
+uv run pytest courses/tests/test_beforeafter_model.py courses/tests/test_beforeafter_nesting.py \
+              courses/tests/test_beforeafter_transfer.py courses/tests/test_beforeafter_css.py \
+              courses/tests/test_beforeafter_context.py courses/tests/test_beforeafter_math.py \
+              courses/tests/test_beforeafter_authoring.py courses/tests/test_nesting_rule.py \
+              courses/tests/test_reveal_scope_agreement.py courses/tests/test_render_seam.py \
+              tests/test_transfer_schema.py tests/test_guessnumber_model.py \
+              tests/test_models_multigrid.py tests/test_manage_editor_menu.py \
+              tests/test_editor_depth.py tests/test_help.py -q
+uv run pytest tests/test_e2e_before_after.py -m e2e -q
 ```
-`-n 2`, not `-n 8` — higher parallelism is measurably **slower** here. This run takes ~50 minutes; launch it detached (`Start-Process`) and poll the PID rather than backgrounding it through the harness, which reaps long-running pytest mid-run and orphans the test database.
+
+Expected: PASS. If you *do* need a local full e2e run for some reason, use `-n 2` (not
+`-n 8` — higher parallelism is measurably slower here) and launch it detached via
+`Start-Process`, polling the PID: the harness reaps long-running backgrounded pytest
+mid-run and orphans the test database.
 
 - [ ] **Step 6: Commit any fixes**
 
