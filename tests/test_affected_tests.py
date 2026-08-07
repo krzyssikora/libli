@@ -6,6 +6,7 @@ the existing configuration collects them.
 """
 
 import importlib.util
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -276,7 +277,10 @@ class TestMapOne:
     @pytest.mark.parametrize(
         "path,term",
         [
-            ("core/static/core/css/app.css", "app.css"),
+            # courses.css, NOT core/css/app.css: app.css is now in the global
+            # class, so it can never reach map_one from map_paths. The rule
+            # still applies to it, but the example would be unreachable.
+            ("courses/static/courses/css/courses.css", "courses.css"),
             ("core/static/core/js/builder.js", "builder.js"),
         ],
     )
@@ -670,7 +674,7 @@ def fixture_repo(tmp_path):
     # A global commit.gpgsign or core.hooksPath would otherwise surface as a
     # fixture error rather than an assertion failure.
     run_git(repo, "config", "commit.gpgsign", "false")
-    run_git(repo, "config", "core.hooksPath", "")
+    run_git(repo, "config", "core.hooksPath", "/nonexistent")
 
     (repo / "tests").mkdir()
     (repo / "courses").mkdir()
@@ -811,6 +815,9 @@ class TestWrapperIntegration:
         out = capsys.readouterr().out
 
         assert "on_master.py" not in out
+        # ...and the positive: the fork-point diff DOES report topic's own
+        # change, so a green here cannot mean "reported nothing at all".
+        assert "nothing to run" not in out
 
     def test_an_untracked_marked_file_still_lands_in_both_selections(
         self, fixture_repo, capsys
@@ -906,3 +913,106 @@ class TestWrapperIntegration:
         assert "unit: nothing mapped" in out
         assert "e2e: nothing mapped" in out
         assert "README.md" in out
+
+
+class TestWrapperRobustness:
+    """The failure and encoding paths the final review left parked."""
+
+    def test_untracked_paths_is_queried_exactly_once_per_run(
+        self, fixture_repo, monkeypatch
+    ):
+        # It was queried twice: once by build_corpus, once by main. Beyond the
+        # duplicate subprocess call, the two results could DISAGREE -- a test
+        # file created between them lands in `changed` but not in the corpus,
+        # so search(E2E_MARKER) cannot see it, classify calls it unmarked, and
+        # it goes to the unit selection alone where `-m 'not e2e'` deselects
+        # every test in it. Exactly the silent omission build_corpus exists to
+        # prevent, reintroduced by querying twice.
+        real = affected_tests.git_lines
+        calls = []
+
+        def counting(args, cwd):
+            calls.append(tuple(args))
+            return real(args, cwd)
+
+        # The tree must NOT be clean: on a clean tree main returns early and
+        # build_corpus never runs, so a single --others call proves nothing.
+        (fixture_repo / "tests" / "test_fresh.py").write_text(
+            "def test_f():\n    pass\n", encoding="utf-8"
+        )
+
+        monkeypatch.setattr(affected_tests, "git_lines", counting)
+        affected_tests.main(["--repo", str(fixture_repo)])
+        assert any(a[0] == "ls-files" and len(a) == 1 for a in calls), (
+            "build_corpus never ran; the guard below would be vacuous"
+        )
+
+        others = [a for a in calls if a[:2] == ("ls-files", "--others")]
+        assert len(others) == 1, f"expected one --others query, got {others}"
+
+    def test_a_repo_that_is_not_a_git_repository_dies_cleanly(self, tmp_path):
+        # Previously surfaced as a raw CalledProcessError traceback, or as the
+        # misleading "base ref does not exist". Every other failure in this
+        # wrapper is a loud one-line `affected_tests: ...`; this one was not.
+        not_a_repo = tmp_path / "plain"
+        not_a_repo.mkdir()
+        with pytest.raises(SystemExit) as excinfo:
+            affected_tests.main(["--repo", str(not_a_repo)])
+        assert "not a git repository" in str(excinfo.value)
+
+    def test_a_repo_path_that_does_not_exist_dies_cleanly(self, tmp_path):
+        with pytest.raises(SystemExit) as excinfo:
+            affected_tests.main(["--repo", str(tmp_path / "nope")])
+        assert "does not exist" in str(excinfo.value)
+
+    def test_git_output_is_decoded_as_utf8_regardless_of_locale(self, monkeypatch):
+        # A PORTABLE guard. The sibling end-to-end test only falsifies on a
+        # cp1250 machine: strip `encoding="utf-8"` on a UTF-8-locale runner and
+        # subprocess still decodes correctly, so it stays green on CI. This one
+        # asserts the contract with the stdlib directly, so it reddens anywhere.
+        seen = {}
+
+        def fake_run(argv, **kwargs):
+            seen.update(kwargs)
+            return subprocess.CompletedProcess(argv, 0, stdout="", stderr="")
+
+        monkeypatch.setattr(affected_tests.subprocess, "run", fake_run)
+        affected_tests.git_lines(["ls-files"], Path("."))
+        assert seen.get("encoding") == "utf-8"
+        assert seen.get("errors") == "replace"
+
+    def test_output_survives_a_hostile_stdout_encoding(self, fixture_repo):
+        # The DECODE side was fixed by `encoding="utf-8"` on git_lines. The
+        # ENCODE side was still locale-bound: main() prints paths with plain
+        # print(), and on Windows a stdout REDIRECTED to a file or pipe uses the
+        # locale codepage, so the very path we now decode correctly could raise
+        # UnicodeEncodeError on the way out. capsys cannot see this -- it
+        # bypasses the encoder -- so this drives a real subprocess.
+        #
+        # PYTHONIOENCODING forces the hostile encoding rather than depending on
+        # the machine's locale, so this falsifies on Linux CI too.
+        (fixture_repo / "tests" / "test_zażółć.py").write_text(
+            "def test_z():\n    pass\n", encoding="utf-8"
+        )
+        repo_root = Path(__file__).resolve().parents[1]
+        script = repo_root / "scripts" / "affected_tests.py"
+        env = {**os.environ, "PYTHONIOENCODING": "cp1250"}
+        proc = subprocess.run(  # noqa: S603 -- fixed argv, tmp_path fixture repo
+            [  # noqa: S607
+                "uv",
+                "run",
+                "python",
+                str(script),
+                "--repo",
+                str(fixture_repo),
+            ],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            env=env,
+            cwd=repo_root,
+        )
+        assert proc.returncode == 0, f"stderr:\n{proc.stderr}"
+        assert "UnicodeEncodeError" not in proc.stderr
+        assert "test_zażółć.py" in proc.stdout
