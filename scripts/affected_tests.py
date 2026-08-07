@@ -293,3 +293,80 @@ def classify(
         else:
             unit.append(path)
     return unit, e2e
+
+
+PYTEST = "uv run pytest"
+E2E_FLAG = " -m e2e"
+FULL_UNIT_COMMAND = PYTEST
+FULL_E2E_COMMAND = f"{PYTEST}{E2E_FLAG}"
+
+# A `#` comment on its OWN line, never appended to the command line. VERIFIED:
+# appending it inline produces `bash: syntax error near unexpected token '('`,
+# because `(` is a metacharacter in both bash and PowerShell -- so the one thing
+# this tool exists to do, print a command you can paste, would not work. As a
+# leading `#` line it survives a two-line paste in both shells.
+EXIT5_NOTE = '# exit code 5 means "nothing selected", not "green"'
+
+_FULL_RUN_BECAUSE = {
+    Reason.GLOBAL: "a global blast-radius path changed",
+    Reason.CAPPED: "too many candidates to be meaningful",
+}
+
+
+def _render_one(
+    label: str,
+    files: tuple[str, ...],
+    reason: Reason,
+    full_command: str,
+    suffix: str,
+) -> list[str]:
+    """Render one selection's block.
+
+    The REASON is checked before emptiness. A GLOBAL result carries empty file
+    tuples by construction, so testing emptiness first would print "nothing
+    mapped" for the one input that means "run everything".
+
+    `full_command` is passed in rather than composed here, so FULL_UNIT_COMMAND
+    and FULL_E2E_COMMAND stay the single source of truth for the full-run lines.
+    """
+    if reason in _FULL_RUN_BECAUSE:
+        lines = [f"{label}: full run -- {_FULL_RUN_BECAUSE[reason]}"]
+        if files:
+            preview = ", ".join(files[:3])
+            lines.append(f"    # {len(files)} candidate(s) not listed: {preview}, ...")
+        lines.append(f"    {EXIT5_NOTE}")
+        lines.append(f"    {full_command}")
+        return lines
+    if not files:
+        # No "see unmapped" pointer here: the unmapped section is only printed
+        # when it is non-empty, and a diff touching only e2e files leaves this
+        # selection empty with nothing unmapped to point at.
+        return [f"{label}: nothing mapped"]
+    joined = " ".join(files)
+    return [
+        f"{label}: {len(files)} file(s)",
+        f"    {EXIT5_NOTE}",
+        f"    {PYTEST} {joined}{suffix}",
+    ]
+
+
+def render_commands(result: Result) -> str:
+    """Render the advisory output. Pure.
+
+    Every emitted command sits alone on its line, with the exit-5 caveat on the
+    preceding line as a `#` comment, so a two-line paste runs in bash and
+    PowerShell alike.
+    """
+    lines: list[str] = []
+    lines += _render_one(
+        "unit", result.unit_files, result.unit_reason, FULL_UNIT_COMMAND, ""
+    )
+    lines.append("")
+    lines += _render_one(
+        "e2e", result.e2e_files, result.e2e_reason, FULL_E2E_COMMAND, E2E_FLAG
+    )
+    if result.unmapped:
+        lines.append("")
+        lines.append("unmapped (no rule matched -- check these by hand):")
+        lines += [f"    {p}" for p in result.unmapped]
+    return "\n".join(lines)

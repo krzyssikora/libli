@@ -404,3 +404,138 @@ class TestBreadthCaps:
         assert result.unit_reason is Reason.CAPPED
         assert result.e2e_reason is Reason.NONE
         assert result.e2e_files == ("tests/test_e2e_one.py",)
+
+
+render_commands = affected_tests.render_commands
+
+
+class TestEmission:
+    def test_a_normal_result_emits_both_candidate_lists(self):
+        result = Result(
+            ("tests/test_a.py",),
+            ("tests/test_e2e_b.py",),
+            (),
+            Reason.NONE,
+            Reason.NONE,
+        )
+        out = render_commands(result)
+        assert "uv run pytest tests/test_a.py" in out
+        assert "uv run pytest tests/test_e2e_b.py -m e2e" in out
+
+    def test_the_e2e_command_always_carries_the_marker(self):
+        result = Result((), ("tests/test_e2e_b.py",), (), Reason.NONE, Reason.NONE)
+        out = render_commands(result)
+        e2e_line = next(ln for ln in out.splitlines() if "test_e2e_b.py" in ln)
+        assert "-m e2e" in e2e_line
+
+    def test_both_commands_carry_the_exit_5_caveat(self):
+        # Not just the e2e one: non-exclusive classification puts every
+        # marked file into both selections, and three such files collect ZERO
+        # non-e2e tests -- so a diff touching only those emits a unit command
+        # whose every file is deselected by `-m 'not e2e'`.
+        result = Result(
+            ("tests/test_a.py",),
+            ("tests/test_e2e_b.py",),
+            (),
+            Reason.NONE,
+            Reason.NONE,
+        )
+        out = render_commands(result)
+        assert out.count(affected_tests.EXIT5_NOTE) == 2
+
+    def test_every_emitted_command_line_is_pasteable(self):
+        # VERIFIED: appending the caveat to the command line yields
+        # `bash: syntax error near unexpected token '('`. The one thing this
+        # tool exists to do is print a command you can paste.
+        result = Result(
+            ("tests/test_a.py",),
+            ("tests/test_e2e_b.py",),
+            (),
+            Reason.NONE,
+            Reason.NONE,
+        )
+        for line in render_commands(result).splitlines():
+            stripped = line.strip()
+            if stripped.startswith("uv run pytest"):
+                assert "(" not in stripped and ")" not in stripped
+
+    def test_the_caveat_is_a_comment_on_its_own_line(self):
+        result = Result(("tests/test_a.py",), (), (), Reason.NONE, Reason.NONE)
+        note_lines = [
+            ln.strip()
+            for ln in render_commands(result).splitlines()
+            if affected_tests.EXIT5_NOTE in ln
+        ]
+        assert note_lines == [affected_tests.EXIT5_NOTE]
+        assert note_lines[0].startswith("#")
+
+    def test_an_empty_selection_with_nothing_unmapped_points_at_nothing(self):
+        # A diff touching only e2e files leaves unit empty with an empty
+        # unmapped, so the message must not send the reader to a section that
+        # is never printed.
+        result = Result((), ("tests/test_e2e_b.py",), (), Reason.NONE, Reason.NONE)
+        out = render_commands(result)
+        assert "unit: nothing mapped" in out
+        assert "see unmapped" not in out
+
+    def test_an_empty_unit_selection_emits_no_command(self):
+        # Interpolating an empty file list yields a bare `uv run pytest`, i.e.
+        # the whole unit selection, silently, for a diff that mapped nothing.
+        result = Result(
+            (), ("tests/test_e2e_b.py",), ("README.md",), Reason.NONE, Reason.NONE
+        )
+        out = render_commands(result)
+        assert "unit: nothing mapped" in out
+        unit_lines = [
+            ln
+            for ln in out.splitlines()
+            if ln.strip().startswith("uv run pytest") and "-m e2e" not in ln
+        ]
+        assert unit_lines == []
+
+    def test_an_empty_e2e_selection_emits_no_command(self):
+        result = Result(
+            ("tests/test_a.py",), (), ("README.md",), Reason.NONE, Reason.NONE
+        )
+        out = render_commands(result)
+        assert "e2e: nothing mapped" in out
+        assert "-m e2e" not in out
+
+    def test_a_wholly_empty_result_emits_no_pytest_command_at_all(self):
+        result = Result((), (), ("README.md",), Reason.NONE, Reason.NONE)
+        out = render_commands(result)
+        assert "uv run pytest" not in out
+
+    def test_global_emits_the_full_run_for_both_despite_empty_file_tuples(self):
+        # THE interaction: a GLOBAL result carries empty tuples by construction.
+        # Checking emptiness before the reason would emit no command at all --
+        # exactly inverting the intended "run everything" answer.
+        result = Result((), (), (), Reason.GLOBAL, Reason.GLOBAL)
+        out = render_commands(result)
+        assert affected_tests.FULL_UNIT_COMMAND in out
+        assert affected_tests.FULL_E2E_COMMAND in out
+        assert "unit: nothing mapped" not in out
+        assert "e2e: nothing mapped" not in out
+
+    def test_capped_emits_the_full_run_for_that_selection_only(self):
+        files = tuple(f"tests/test_m{i:03d}.py" for i in range(41))
+        result = Result(files, ("tests/test_e2e_b.py",), (), Reason.CAPPED, Reason.NONE)
+        out = render_commands(result)
+        # Assert on the UNIT block specifically. A bare `"uv run pytest" in out`
+        # would be satisfied by the e2e line and could never fail.
+        assert "unit: full run -- too many candidates to be meaningful" in out
+        assert "uv run pytest tests/test_m000.py" not in out
+        assert "41 candidate(s) not listed" in out
+        assert "uv run pytest tests/test_e2e_b.py -m e2e" in out
+
+    def test_unmapped_paths_are_listed(self):
+        result = Result(
+            ("tests/test_a.py",),
+            (),
+            ("logo.png", "README.md"),
+            Reason.NONE,
+            Reason.NONE,
+        )
+        out = render_commands(result)
+        assert "logo.png" in out
+        assert "README.md" in out
