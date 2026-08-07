@@ -185,3 +185,137 @@ class TestGlobalShortCircuit:
         result = map_paths(["locale/pl/LC_MESSAGES/django.mo"], no_hits, no_symbols)
         assert result.e2e_reason is Reason.GLOBAL
         assert result.unmapped == ()
+
+
+import_path = affected_tests.import_path
+map_one = affected_tests.map_one
+
+FAKE_CORPUS = {
+    "tests/test_transfer_export.py",
+    "tests/test_transfer_import.py",
+    "tests/test_builder.py",
+    "tests/test_e2e_builder.py",
+}
+
+
+def make_search(index):
+    """Build a `search` stub from {term: {files}}, honouring the corpus sentinel."""
+
+    def search(term):
+        if term == affected_tests.CORPUS_SENTINEL:
+            return set(index.get(term, FAKE_CORPUS))
+        return set(index.get(term, set()))
+
+    return search
+
+
+def corpus_only_search(term):
+    """Answers the corpus query; finds nothing by content."""
+    if term == affected_tests.CORPUS_SENTINEL:
+        return set(FAKE_CORPUS)
+    return set()
+
+
+def corpus_plus_everything_search(term):
+    """Answers the corpus query; claims every content term hits test_builder.py."""
+    if term == affected_tests.CORPUS_SENTINEL:
+        return set(FAKE_CORPUS)
+    return {"tests/test_builder.py"}
+
+
+class TestImportPath:
+    def test_dots_replace_separators_and_the_suffix_is_dropped(self):
+        assert import_path("courses/services/builder.py") == "courses.services.builder"
+
+    def test_a_package_init_maps_to_the_package(self):
+        assert import_path("courses/services/__init__.py") == "courses.services"
+
+
+class TestMapOne:
+    def test_a_test_file_maps_to_itself(self):
+        assert map_one("tests/test_builder.py", corpus_only_search, no_symbols) == {
+            "tests/test_builder.py"
+        }
+
+    def test_a_module_maps_to_tests_referencing_its_import_path(self):
+        search = make_search({"courses.services.builder": {"tests/test_builder.py"}})
+        assert map_one("courses/services/builder.py", search, no_symbols) == {
+            "tests/test_builder.py"
+        }
+
+    def test_a_module_maps_to_tests_referencing_its_public_symbols(self):
+        search = make_search({"duplicate_unit": {"tests/test_builder.py"}})
+
+        def symbols(path):
+            return {"duplicate_unit"}
+
+        assert map_one("courses/services/builder.py", search, symbols) == {
+            "tests/test_builder.py"
+        }
+
+    def test_a_template_maps_to_tests_referencing_its_filename(self):
+        search = make_search({"_tree_node.html": {"tests/test_builder.py"}})
+        assert map_one("templates/courses/_tree_node.html", search, no_symbols) == {
+            "tests/test_builder.py"
+        }
+
+    @pytest.mark.parametrize(
+        "path,term",
+        [
+            ("core/static/core/css/app.css", "app.css"),
+            ("core/static/core/js/builder.js", "builder.js"),
+        ],
+    )
+    def test_css_and_js_map_by_filename(self, path, term):
+        search = make_search({term: {"tests/test_builder.py"}})
+        assert map_one(path, search, no_symbols) == {"tests/test_builder.py"}
+
+    def test_a_migration_maps_to_the_fixed_transfer_glob(self):
+        # Deliberately mechanical: "transfer and model tests" names no pattern,
+        # so two implementers would produce two different selections.
+        hits = map_one(
+            "courses/migrations/0055_thing.py", corpus_only_search, no_symbols
+        )
+        assert hits == {
+            "tests/test_transfer_export.py",
+            "tests/test_transfer_import.py",
+        }
+
+    def test_a_migration_does_not_fall_through_to_the_module_rule(self):
+        # It is a .py file; ordering matters. Even a search that claims every
+        # term hits test_builder.py must not pull it in.
+        hits = map_one(
+            "courses/migrations/0055_thing.py",
+            corpus_plus_everything_search,
+            no_symbols,
+        )
+        assert "tests/test_builder.py" not in hits
+
+    @pytest.mark.parametrize(
+        "path",
+        [
+            "courses/migrations_helpers/thing.py",  # near-miss directory name
+            "courses/migrations/sub/thing.py",  # `*` must not cross a separator
+        ],
+    )
+    def test_a_near_miss_path_is_not_treated_as_a_migration(self, path):
+        # Pins the NON-match side, so a later loosening to `**/migrations/**`
+        # cannot pass unnoticed.
+        search = make_search({import_path(path): {"tests/test_builder.py"}})
+        assert map_one(path, search, no_symbols) == {"tests/test_builder.py"}
+
+    def test_a_binary_or_unknown_suffix_maps_to_nothing(self):
+        assert map_one("core/static/core/img/logo.png", no_hits, no_symbols) == set()
+        assert map_one("README.md", no_hits, no_symbols) == set()
+
+
+class TestUnmappedReporting:
+    def test_a_path_that_maps_to_nothing_is_reported_unmapped(self):
+        result = map_paths(["core/static/core/img/logo.png"], no_hits, no_symbols)
+        assert result.unmapped == ("core/static/core/img/logo.png",)
+
+    def test_a_path_that_maps_to_something_is_not_unmapped(self):
+        search = make_search({"courses.models": {"tests/test_builder.py"}})
+        result = map_paths(["courses/models.py"], search, no_symbols)
+        assert result.unmapped == ()
+        assert "tests/test_builder.py" in result.unit_files

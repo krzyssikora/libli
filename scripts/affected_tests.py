@@ -172,4 +172,73 @@ def map_paths(
     """
     if any(is_global_path(p) for p in paths):
         return Result((), (), (), Reason.GLOBAL, Reason.GLOBAL)
-    return Result((), (), (), Reason.NONE, Reason.NONE)
+    candidates: list[str] = []
+    unmapped: list[str] = []
+    for path in paths:
+        hits = map_one(path, search, module_symbols)
+        if hits:
+            candidates.extend(sorted(hits))
+        else:
+            unmapped.append(path)
+
+    ordered = sorted(set(candidates))
+    return Result(tuple(ordered), (), tuple(unmapped), Reason.NONE, Reason.NONE)
+
+
+# A `search` implementation or stub returns the ENTIRE corpus for this sentinel.
+# The migration rule expands a glob over test-file NAMES, which a content search
+# cannot express; this keeps the injected dependencies at two rather than adding
+# a fourth parameter for one rule. The value is not a plausible search term.
+CORPUS_SENTINEL = "\x00corpus"
+
+MIGRATION_GLOB = "**/migrations/*.py"
+MIGRATION_TESTS_GLOB = "tests/test_transfer*.py"
+FILENAME_SUFFIXES = frozenset({".html", ".css", ".js"})
+
+
+def import_path(path: str) -> str:
+    """`courses/services/builder.py` -> `courses.services.builder`."""
+    p = PurePosixPath(path)
+    # A package __init__.py yields the bare package name (`courses`, `core`),
+    # which is a broad term: expect the breadth cap to absorb it and report a
+    # full run. That is the honest answer for a package-wide change, not a bug.
+    p = p.parent if p.name == "__init__.py" else p.with_suffix("")
+    return str(p).replace("/", ".")
+
+
+def map_one(
+    path: str,
+    search: Callable[[str], set[str]],
+    module_symbols: Callable[[str], set[str]],
+) -> set[str]:
+    """Map one changed path to candidate test files. Order is significant."""
+    if is_test_file(path):
+        return {path}
+
+    candidate = PurePosixPath(path)
+
+    # BEFORE the module rule: a migration is a .py file and would otherwise fall
+    # through to it.
+    if candidate.full_match(MIGRATION_GLOB):
+        return {
+            f
+            for f in search(CORPUS_SENTINEL)
+            if PurePosixPath(f).full_match(MIGRATION_TESTS_GLOB)
+        }
+
+    if candidate.suffix == ".py":
+        # Bounded to module-level PUBLIC defs and classes. Unbounded matching on
+        # common names (Element, render, save, index) would select a large
+        # fraction of the corpus -- indistinguishable from the full suite, and a
+        # silent failure.
+        hits: set[str] = set()
+        for term in {import_path(path)} | module_symbols(path):
+            hits |= search(term)
+        return hits
+
+    if candidate.suffix in FILENAME_SUFFIXES:
+        return search(candidate.name)
+
+    # Binary and unknown suffixes map to nothing and are reported as unmapped by
+    # the caller -- never silently dropped.
+    return set()
