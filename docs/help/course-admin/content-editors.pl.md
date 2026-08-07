@@ -143,6 +143,15 @@ kolumny z lewej strony i przenosi zawartość każdej usuniętej kolumny do
 ostatniej pozostałej, zamiast ją kasować. Zobacz „Kontenery i zagnieżdżanie”
 poniżej, co można w nich umieścić.
 
+{el:beforeafter} **Przed / po** — kontener z dwoma stałymi slotami, **Przed** i
+**Po**, między którymi uczeń przełącza się jednym przyciskiem; w odróżnieniu
+od Zakładek i Kolumn zawsze ma dokładnie dwa sloty. Wypełnij każdy slot z
+jego własnej grupy na liście elementów pod edytorem. Nadaj przyciskowi
+opcjonalną **Etykietę przycisku** wyświetlaną jako jego tekst; pozostawiona
+pusta sprawia, że przycisk pokazuje samą ikonę, z nazwą dostępności „Zmień
+treść”. Zobacz „Kontenery i zagnieżdżanie” poniżej, co można w nim umieścić
+— pytania quizowe nie mogą trafić do żadnego slotu.
+
 ## Struktura
 
 {el:slidebreak} **Podział slajdów** — znacznik, a nie blok treści: nie ma żadnych pól i
@@ -154,19 +163,19 @@ tworzą pustego slajdu — są po prostu pomijane.
 
 ## Kontenery i zagnieżdżanie
 
-Zakładki, Kolumny, Rozwijana treść i Ramka to cztery typy kontenerów.
-Kontener może zawierać inny kontener — aż do trzech poziomów kontenerów, na
-przykład Rozwijana treść zawierająca Zakładki, a w nich kolejna Rozwijana
-treść. Zwykłą treść umieszczasz w tym trzecim poziomie, więc zagnieżdżony
-element może znaleźć się cztery poziomy niżej. Menu **Dodaj element**
-kontenera trzeciego poziomu oferuje już wyłącznie elementy liściowe: żadnego
-kolejnego kontenera, pytania ani Podziału slajdów.
+Zakładki, Kolumny, Rozwijana treść, Ramka i Przed / po to pięć typów
+kontenerów. Kontener może zawierać inny kontener — aż do trzech poziomów
+kontenerów, na przykład Rozwijana treść zawierająca Zakładki, a w nich
+kolejna Rozwijana treść. Zwykłą treść umieszczasz w tym trzecim poziomie,
+więc zagnieżdżony element może znaleźć się cztery poziomy niżej. Menu
+**Dodaj element** kontenera trzeciego poziomu oferuje już wyłącznie elementy
+liściowe: żadnego kolejnego kontenera, pytania ani Podziału slajdów.
 
 Wewnątrz dowolnego kontenera zagnieżdżone menu **Dodaj element** oferuje
 niekontenerowe typy treści — Tekst, Obraz, Wideo, Iframe, Wzór, HTML,
 Tabelę, Galerię — a tam, gdzie głębokość na to pozwala, także same
-karty kontenerów: Zakładki, Kolumny, Rozwijaną treść i Ramkę. W lekcji
-oferuje ono również samosprawdzające się elementy z grupy [Elementy
+karty kontenerów: Zakładki, Kolumny, Rozwijaną treść, Ramkę i Przed / po. W
+lekcji oferuje ono również samosprawdzające się elementy z grupy [Elementy
 interaktywne](interactive-elements) (Pokaż więcej, Uzupełnij i potwierdź,
 Wybierz i zatwierdź, Siatka przełączników, Tabela do uzupełnienia, Krok po
 kroku, Lista zadań, Zgadnij liczbę) oraz Uzupełnij luki.
@@ -174,8 +183,8 @@ kroku, Lista zadań, Zgadnij liczbę) oraz Uzupełnij luki.
 Elementy interaktywne są dostępne tylko w lekcjach: grupa Interaktywne w
 ogóle nie pojawia się przy edycji quizu. Dlatego w quizie zagnieżdżone menu
 oferuje typy treści oraz — tam, gdzie głębokość na to pozwala — Zakładki,
-Kolumny i Ramkę; Rozwijana treść i Uzupełnij luki nigdy nie są oferowane
-zagnieżdżone w quizie.
+Kolumny, Ramkę i Przed / po; Rozwijana treść i Uzupełnij luki nigdy nie są
+oferowane zagnieżdżone w quizie.
 
 ## Wskazówki
 
